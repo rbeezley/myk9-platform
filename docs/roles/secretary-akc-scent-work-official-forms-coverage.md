@@ -23,6 +23,7 @@ Source: <https://www.akc.org/downloadable-forms/>
 Local official-form PDFs currently stored under `docs/AKC-forms/`:
 
 - `SW-EntryForm.pdf`
+- `SW-CertificationPage.pdf`
 - `SW-JudgeReport.pdf`
 - `SW-Scoresheet.pdf`
 - `SW-TCReport.pdf`
@@ -39,7 +40,7 @@ Local official-form PDFs currently stored under `docs/AKC-forms/`:
 | Entry Form Template | `docs/AKC-forms/SW-EntryForm.pdf` | Reports -> AKC Scent Work Entry Form | Wired | The app renders an in-app printable entry form and fills the official AKC PDF for either one selected dog or an all-dogs packet, because AKC may request paper-form artifacts even for online entries. Remaining work: launch verification against current AKC expectations. |
 | Judge's Score Sheet | `docs/AKC-forms/SW-Scoresheet.pdf` | Reports -> Score Sheet | Partially wired | The app fills the official two-up landscape AKC score sheet PDF for one selected class, writing Date, Event #, Class, Arm #, Call Name, Breed, and Time Limit(s) on the left/right half-sheets. The scoring and fault fields remain handwritten by design. |
 | Class Transfer Form | `docs/AKC-forms/SW-Transfer.pdf` | Move-up workflow / show-day desk actions | Not wired | The app supports move-ups, but does not yet fill the AKC transfer PDF for secretary records or AKC packet needs. Confirm whether one form is needed per transfer and which move-up data maps to official fields. |
-| Certification Page - Judge and Trial Secretary | Not present in `docs/AKC-forms/` | Reports -> Judge's Certification Report; Reports -> Trial Secretary Certification | Not wired | AKC lists a Certification Page separately. Add the current official PDF to the repo if this remains required, then map it or retire the duplicate in-app report if the existing official Judge/Secretary reports supersede it. |
+| Certification Page - Judge and Trial Secretary | `docs/AKC-forms/SW-CertificationPage.pdf` | Reports -> Judge's Certification Report | Wired | Required by user decision. The app fills the official AKC PDF with one page per judge, judge-specific qualifying counts, and trial-wide secretary totals. Signature fields remain handwritten. |
 | Electronic results XML | Not a PDF | Submit Results | Wired, with launch blocker | XML preview/download/send exists. Confirm the real AKC recipient email before launch because code currently uses `results@akc.org` while user-facing docs say `eresults@akc.org`. |
 
 ## Current Implementation Evidence
@@ -55,7 +56,7 @@ Local official-form PDFs currently stored under `docs/AKC-forms/`:
 1. **Entry Form Template official PDF fill.** Selected-dog PDF fill and all-dogs packet output are wired. Launch-verify against current AKC expectations.
 2. **Judge's Score Sheet official PDF fill.** Initial class-scoped two-up PDF fill is wired for the header fields secretaries need prefilled. Launch-verify printed alignment on representative hardware.
 3. **Class Transfer Form official PDF fill.** Tie to the existing move-up workflow, ideally from the move-up confirmation/history data so the secretary is not retyping the same action.
-4. **Certification Page decision.** Confirm whether AKC still requires the separate Certification Page for the launch workflow; add the official PDF only if required.
+4. **Certification Page official PDF fill.** Required and wired with one page per judge. Launch-verify printed alignment and compare totals against closeout packet expectations.
 5. **AKC recipient email verification.** Resolve `results@akc.org` vs `eresults@akc.org` in code and docs before any real send from myK9Show.
 
 ## Verification Checklist

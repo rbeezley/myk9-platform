@@ -16,6 +16,10 @@ import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
 import { buildClassReportProps, buildTrialReportProps } from './reportDataMapping';
 import { downloadPdfBytes } from '@/features/organization-forms/downloadPdf';
 import {
+  buildAKCScentWorkCertificationPageFilename,
+  buildAKCScentWorkCertificationPagePdfBytes,
+} from '@/features/organization-forms/akcScentWorkCertificationPage';
+import {
   buildAKCScentWorkEntryFormFilename,
   buildAKCScentWorkEntryFormPacketFilename,
   buildAKCScentWorkEntryFormPacketPdfBytes,
@@ -85,6 +89,7 @@ export default function ReportsPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isAKCEntryFormReport = reportType === 'akc-scent-work-entry-form';
   const isAKCScoreSheetReport = reportType === 'scoresheet';
+  const isAKCCertificationPageReport = reportType === 'judges-certification';
 
   const { show, trials, classes, entries, isLoading, isError, refetch } = useReportData({
     show: currentShow,
@@ -366,6 +371,35 @@ export default function ReportsPage() {
     }
   }, [classId, officialClassPdfProps, trialId]);
 
+  const handleOfficialCertificationPdfDownload = useCallback(async () => {
+    if (!officialPdfProps) {
+      toast.error('Select a trial before downloading the official certification PDF');
+      return;
+    }
+
+    setIsDownloadingOfficialPdf(true);
+    try {
+      const response = await fetch(
+        getOrganizationFormTemplateUrl('akc-scent-work-certification-page')
+      );
+      if (!response.ok) {
+        throw new Error('Unable to load AKC Scent Work certification page template.');
+      }
+
+      const bytes = await buildAKCScentWorkCertificationPagePdfBytes({
+        props: officialPdfProps,
+        templateBytes: new Uint8Array(await response.arrayBuffer()),
+      });
+      downloadPdfBytes(bytes, buildAKCScentWorkCertificationPageFilename(officialPdfProps));
+      toast.success('Official PDF downloaded');
+    } catch (error) {
+      console.error('[reports] official AKC certification PDF download failed', error);
+      toast.error('Could not download the official PDF');
+    } finally {
+      setIsDownloadingOfficialPdf(false);
+    }
+  }, [officialPdfProps]);
+
   const officialPdfAction = officialPdfConfig
     ? {
         disabled: isLoading || isError || !show || trialId === 'all',
@@ -407,7 +441,24 @@ export default function ReportsPage() {
             missingFieldLabels: [],
             onClick: handleOfficialScoreSheetPdfDownload,
           }
-        : undefined;
+        : isAKCCertificationPageReport
+          ? {
+              disabled:
+                isLoading ||
+                isError ||
+                !show ||
+                trialId === 'all' ||
+                !officialPdfProps ||
+                officialPdfProps.trial?.registryId?.trim().toUpperCase() !== 'AKC',
+              isLoading: isDownloadingOfficialPdf,
+              label:
+                trialId === 'all'
+                  ? 'Select trial for official PDF'
+                  : 'Download AKC Certification Page PDF',
+              missingFieldLabels: [],
+              onClick: handleOfficialCertificationPdfDownload,
+            }
+          : undefined;
 
   return (
     <div className="container mx-auto py-6 flex flex-col">

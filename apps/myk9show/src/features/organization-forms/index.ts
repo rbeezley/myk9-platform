@@ -1,5 +1,7 @@
 export * from './akcJudgeReport';
 export * from './akcJudgeReportFields';
+export * from './akcScentWorkCertificationPage';
+export * from './akcScentWorkCertificationPageFields';
 export * from './akcScentWorkEntryForm';
 export * from './akcScentWorkEntryFormFields';
 export * from './akcScentWorkScoreSheet';

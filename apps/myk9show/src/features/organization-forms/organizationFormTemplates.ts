@@ -1,4 +1,5 @@
 import { AKC_JUDGE_REPORT_REQUIRED_FIELDS } from './akcJudgeReportFields';
+import { AKC_SCENT_WORK_CERTIFICATION_PAGE_REQUIRED_FIELDS } from './akcScentWorkCertificationPageFields';
 import { AKC_SCENT_WORK_ENTRY_FORM_REQUIRED_FIELDS } from './akcScentWorkEntryFormFields';
 import { AKC_TRIAL_SECRETARY_REPORT_REQUIRED_FIELDS } from './akcTrialSecretaryReportFields';
 import { AKC_TRIAL_CHAIRMAN_REPORT_REQUIRED_FIELDS } from './akcTrialChairmanReportFields';
@@ -9,6 +10,7 @@ export type OrganizationFormRegistry = 'AKC' | 'UKC';
 export type OrganizationFormTemplateId =
   | 'akc-scent-work-entry-form'
   | 'akc-scent-work-score-sheet'
+  | 'akc-scent-work-certification-page'
   | 'akc-scent-work-trial-secretary-report'
   | 'akc-scent-work-judge-report'
   | 'akc-scent-work-trial-chairman-report'
@@ -37,6 +39,13 @@ export const ORGANIZATION_FORM_TEMPLATES = [
     registry: 'AKC',
     sourcePath: 'docs/AKC-forms/SW-Scoresheet.pdf',
     requiredFields: [],
+  },
+  {
+    id: 'akc-scent-work-certification-page',
+    label: 'AKC Scent Work Certification Page',
+    registry: 'AKC',
+    sourcePath: 'docs/AKC-forms/SW-CertificationPage.pdf',
+    requiredFields: AKC_SCENT_WORK_CERTIFICATION_PAGE_REQUIRED_FIELDS,
   },
   {
     id: 'akc-scent-work-trial-secretary-report',
@@ -75,6 +84,10 @@ const ORGANIZATION_FORM_TEMPLATE_URLS: Record<OrganizationFormTemplateId, string
   ).href,
   'akc-scent-work-score-sheet': new URL(
     '../../../../../docs/AKC-forms/SW-Scoresheet.pdf',
+    import.meta.url
+  ).href,
+  'akc-scent-work-certification-page': new URL(
+    '../../../../../docs/AKC-forms/SW-CertificationPage.pdf',
     import.meta.url
   ).href,
   'akc-scent-work-trial-secretary-report': new URL(

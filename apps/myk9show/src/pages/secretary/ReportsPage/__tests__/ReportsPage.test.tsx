@@ -26,6 +26,7 @@ vi.mock('@/hooks/queries/useReportData', () => ({
         level: 'Novice',
         section: '',
         trial_id: 'trial-1',
+        judge_name: 'Pat Judge',
         time_limit_seconds: 120,
         time_limit_area2_seconds: null,
         time_limit_area3_seconds: null,
@@ -37,6 +38,7 @@ vi.mock('@/hooks/queries/useReportData', () => ({
         level: 'Advanced',
         section: '',
         trial_id: 'trial-2',
+        judge_name: 'Sam Judge',
       },
     ],
     entries: [
@@ -160,6 +162,16 @@ describe('ReportsPage', () => {
 
     expect(
       await screen.findByRole('button', { name: /Download AKC Score Sheet PDF/i })
+    ).toBeEnabled();
+  });
+
+  it('offers the official AKC certification page PDF when a trial is selected', async () => {
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=judges-certification&trialId=trial-1',
+    });
+
+    expect(
+      await screen.findByRole('button', { name: /Download AKC Certification Page PDF/i })
     ).toBeEnabled();
   });
 

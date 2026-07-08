@@ -57,6 +57,13 @@ describe('organization form templates', () => {
     });
   });
 
+  it('returns the AKC Scent Work certification page mapping by id', () => {
+    expect(getOrganizationFormTemplate('akc-scent-work-certification-page')).toMatchObject({
+      label: 'AKC Scent Work Certification Page',
+      sourcePath: 'docs/AKC-forms/SW-CertificationPage.pdf',
+    });
+  });
+
   it('resolves the AKC trial secretary report runtime URL from the registry id', () => {
     expect(getOrganizationFormTemplateUrl('akc-scent-work-trial-secretary-report')).toContain(
       'SW-TSReport.pdf'
@@ -72,6 +79,12 @@ describe('organization form templates', () => {
   it('resolves the AKC Scent Work score sheet runtime URL from the registry id', () => {
     expect(getOrganizationFormTemplateUrl('akc-scent-work-score-sheet')).toContain(
       'SW-Scoresheet.pdf'
+    );
+  });
+
+  it('resolves the AKC Scent Work certification page runtime URL from the registry id', () => {
+    expect(getOrganizationFormTemplateUrl('akc-scent-work-certification-page')).toContain(
+      'SW-CertificationPage.pdf'
     );
   });
 });

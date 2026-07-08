@@ -340,12 +340,13 @@ export function useAKCOfficialPdfAction({
 
   const selectedTrialAllowsAKCAction = trialId === 'all' || isAKCRegistry(officialPdfProps);
   const selectedClassAllowsAKCAction = classId === 'all' || isAKCRegistry(officialClassPdfProps);
+  const officialPdfConfigIsAKC = officialPdfConfig?.templateId.startsWith('akc-') ?? false;
   const canShowScoreSheetAction =
     isAKCScoreSheetReport && selectedTrialAllowsAKCAction && selectedClassAllowsAKCAction;
   const canShowTransferFormAction =
     isAKCTransferFormReport && selectedTrialAllowsAKCAction && selectedClassAllowsAKCAction;
 
-  if (officialPdfConfig) {
+  if (officialPdfConfig && (!officialPdfConfigIsAKC || selectedTrialAllowsAKCAction)) {
     return {
       disabled: isLoading || isError || !hasShow || trialId === 'all',
       isLoading: isDownloadingOfficialPdf,
@@ -355,7 +356,7 @@ export function useAKCOfficialPdfAction({
     };
   }
 
-  if (isAKCEntryFormReport) {
+  if (isAKCEntryFormReport && selectedTrialAllowsAKCAction) {
     return {
       disabled:
         isLoading ||
@@ -410,15 +411,9 @@ export function useAKCOfficialPdfAction({
     };
   }
 
-  if (isAKCCertificationPageReport) {
+  if (isAKCCertificationPageReport && selectedTrialAllowsAKCAction) {
     return {
-      disabled:
-        isLoading ||
-        isError ||
-        !hasShow ||
-        trialId === 'all' ||
-        !officialPdfProps ||
-        !isAKCRegistry(officialPdfProps),
+      disabled: isLoading || isError || !hasShow || trialId === 'all' || !officialPdfProps,
       isLoading: isDownloadingOfficialPdf,
       label:
         trialId === 'all' ? 'Select trial for official PDF' : 'Download AKC Certification Page PDF',

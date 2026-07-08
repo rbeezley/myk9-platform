@@ -218,6 +218,50 @@ describe('ReportsPage', () => {
     expect(screen.queryByRole('button', { name: /Select class for official PDF/i })).toBeNull();
   });
 
+  it('does not offer AKC official PDFs for AKC-specific trial reports on a non-AKC trial', async () => {
+    mockReportState.trialOneRegistryId = 'UKC';
+
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=akc-judge-report&trialId=trial-1',
+    });
+
+    await screen.findByRole('button', { name: /print/i });
+    expect(screen.queryByRole('button', { name: /Download AKC Judge PDF/i })).toBeNull();
+  });
+
+  it('does not offer the AKC trial chairman PDF for a non-AKC trial', async () => {
+    mockReportState.trialOneRegistryId = 'UKC';
+
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=trial-chairman-report&trialId=trial-1',
+    });
+
+    await screen.findByRole('button', { name: /print/i });
+    expect(screen.queryByRole('button', { name: /Download AKC Trial Chairman PDF/i })).toBeNull();
+  });
+
+  it('does not offer AKC entry or certification PDFs for a selected non-AKC trial', async () => {
+    mockReportState.trialOneRegistryId = 'UKC';
+
+    const { unmount } = render(<ReportsPage />, {
+      initialRoute:
+        '/shows/show-1/reports?report=akc-scent-work-entry-form&trialId=trial-1&dogId=dog-1',
+    });
+
+    await screen.findByRole('button', { name: /print/i });
+    expect(screen.queryByRole('button', { name: /Download AKC Entry Form PDF/i })).toBeNull();
+
+    unmount();
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=judges-certification&trialId=trial-1',
+    });
+
+    await screen.findByRole('button', { name: /print/i });
+    expect(
+      screen.queryByRole('button', { name: /Download AKC Certification Page PDF/i })
+    ).toBeNull();
+  });
+
   it('offers the official AKC certification page PDF when a trial is selected', async () => {
     render(<ReportsPage />, {
       initialRoute: '/shows/show-1/reports?report=judges-certification&trialId=trial-1',

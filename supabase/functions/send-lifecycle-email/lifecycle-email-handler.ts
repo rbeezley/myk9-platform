@@ -27,6 +27,7 @@ interface Query<T = unknown> extends PromiseLike<QueryResult<T>> {
   select(columns: string): Query<T>;
   eq(column: string, value: unknown): Query<T>;
   in(column: string, values: readonly unknown[]): Query<T>;
+  order(column: string, options?: { ascending?: boolean }): Query<T>;
   insert(values: unknown): Query<T>;
   update(values: unknown): Query<T>;
   single(): Promise<QueryResult<T>>;
@@ -68,6 +69,7 @@ interface EmailLogRow {
   id: string;
   resend_message_id?: string | null;
   status?: string | null;
+  created_at?: string | null;
 }
 
 export interface SendLifecycleEmailContext {
@@ -343,9 +345,10 @@ async function findExistingDelivery(
 ): Promise<EmailLogRow | null> {
   const { data } = (await supabase
     .from('email_log')
-    .select('id, resend_message_id, status')
+    .select('id, resend_message_id, status, created_at')
     .eq('related_id', jobId)
-    .in('status', ['sent', 'delivered'])) as QueryResult<EmailLogRow[]>;
+    .in('status', ['sent', 'delivered'])
+    .order('created_at', { ascending: false })) as QueryResult<EmailLogRow[]>;
   return data?.[0] ?? null;
 }
 

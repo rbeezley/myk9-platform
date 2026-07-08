@@ -20,6 +20,15 @@ function makeQuery(
       resultRows = resultRows.filter(row => values.includes(row[column]));
       return query;
     }),
+    order: vi.fn((column: string, options?: { ascending?: boolean }) => {
+      const direction = options?.ascending === false ? -1 : 1;
+      resultRows = [...resultRows].sort((left, right) => {
+        const leftValue = String(left[column] ?? '');
+        const rightValue = String(right[column] ?? '');
+        return leftValue.localeCompare(rightValue) * direction;
+      });
+      return query;
+    }),
     insert: vi.fn((value: unknown) => {
       inserted = value;
       calls.push({ table, action: 'insert', value });
@@ -375,18 +384,26 @@ describe('send-lifecycle-email handler', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('reconciles an uncertain failed retry from existing email_log before resending', async () => {
-    const { supabase } = makeSupabase(
+  it('reconciles an uncertain failed retry from the latest existing email_log before resending', async () => {
+    const { supabase, calls } = makeSupabase(
       baseTables({
         show_lifecycle_email_jobs: [
           { ...readyJob, id: 'job-failed', status: 'failed', idempotency_key: 'idem-failed' },
         ],
         email_log: [
           {
-            id: 'email-log-existing',
+            id: 'email-log-old',
             related_id: 'job-failed',
             status: 'sent',
-            resend_message_id: 'resend-existing',
+            resend_message_id: 'resend-old',
+            created_at: '2026-07-08T09:00:00.000Z',
+          },
+          {
+            id: 'email-log-latest',
+            related_id: 'job-failed',
+            status: 'delivered',
+            resend_message_id: 'resend-latest',
+            created_at: '2026-07-08T10:00:00.000Z',
           },
         ],
       })
@@ -405,5 +422,22 @@ describe('send-lifecycle-email handler', () => {
 
     expect(result).toMatchObject({ attempted: 1, sent: 1, failed: 0 });
     expect(fetch).not.toHaveBeenCalled();
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          table: 'show_lifecycle_email_jobs',
+          action: 'update',
+          value: expect.objectContaining({ email_log_id: 'email-log-latest' }),
+        }),
+        expect.objectContaining({
+          table: 'show_lifecycle_email_attempts',
+          action: 'insert',
+          value: expect.objectContaining({
+            email_log_id: 'email-log-latest',
+            resend_message_id: 'resend-latest',
+          }),
+        }),
+      ])
+    );
   });
 });

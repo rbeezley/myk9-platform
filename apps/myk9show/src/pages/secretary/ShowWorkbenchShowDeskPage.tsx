@@ -1,9 +1,5 @@
 import { lazy, Suspense, useMemo } from 'react';
-import {
-  FileBarChart,
-  ListChecks,
-  Send,
-} from 'lucide-react';
+import { FileBarChart, ListChecks, Send } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
@@ -20,6 +16,7 @@ import { TasksNotesCard } from '@/features/show-workbench/TasksNotesCard';
 import { VolunteersCard } from '@/features/show-workbench/VolunteersCard';
 import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
 import { ShowCloseoutSummary } from '@/features/show-workbench/ShowCloseoutSummary';
+import { ShowDeskPeopleRoster } from '@/features/show-desk-people-roster/ShowDeskPeopleRoster';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -55,6 +52,27 @@ function relatedObject(
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+function formatDateInTimezone(timezone?: string | null, now = new Date()): string {
+  const options: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    ...(timezone ? { timeZone: timezone } : {}),
+  };
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(now);
+    const year = parts.find(part => part.type === 'year')?.value;
+    const month = parts.find(part => part.type === 'month')?.value;
+    const day = parts.find(part => part.type === 'day')?.value;
+    if (year && month && day) return `${year}-${month}-${day}`;
+  } catch {
+    return formatDateInTimezone(null, now);
+  }
+
+  return now.toISOString().slice(0, 10);
 }
 
 function toIncidentEntryOption(
@@ -135,11 +153,16 @@ export function ShowWorkbenchShowDeskPage() {
           entryCount: showEntries.filter(entry => entry.class_id === cls.id).length,
           scoredCount: cls.completedEntries ?? 0,
           trialDate: trial.trialDate || '',
+          timezone: trial.timezone ?? null,
           trialNumber: trial.trialNumber || '',
           trialName: trial.name || '',
         }));
       }),
     [associatedTrials, showEntries, trialClasses]
+  );
+  const showToday = useMemo(
+    () => formatDateInTimezone(associatedTrials.find(trial => trial.timezone)?.timezone ?? null),
+    [associatedTrials]
   );
 
   const showMapTrials = useMemo(() => {
@@ -229,6 +252,15 @@ export function ShowWorkbenchShowDeskPage() {
 
     return [
       {
+        id: 'people-at-show',
+        title: 'People at show',
+        summary: 'Look up exhibitors, armbands, class entries, and check-in status',
+        layout: 'wide',
+        content: (
+          <ShowDeskPeopleRoster showId={currentShow.id} classes={showClasses} today={showToday} />
+        ),
+      },
+      {
         id: 'add-entries',
         title: 'Add entries',
         summary: 'Choose own, paper, or late entries without leaving Show Desk',
@@ -310,6 +342,7 @@ export function ShowWorkbenchShowDeskPage() {
     incidentAttentionLabel,
     incidentEntryOptions,
     showClasses,
+    showToday,
   ]);
 
   if (isLoading || !currentShow) {

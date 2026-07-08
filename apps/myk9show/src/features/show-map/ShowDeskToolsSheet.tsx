@@ -2,11 +2,7 @@ import { ChevronRight, Wrench } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Sheet,
   SheetContent,
@@ -26,6 +22,7 @@ export interface ShowDeskToolSection {
   content: ReactNode;
   defaultOpen?: boolean;
   attentionLabel?: string;
+  layout?: 'compact' | 'wide';
 }
 
 interface ShowDeskToolsSheetProps {
@@ -82,8 +79,10 @@ export function ShowDeskToolsSheet({
       id: tool.id,
       ...(tool.defaultOpen !== undefined && { defaultOpen: tool.defaultOpen }),
       ...(tool.attentionLabel !== undefined && { attentionLabel: tool.attentionLabel }),
+      ...(tool.layout !== undefined && { layout: tool.layout }),
     }))
   );
+  const hasWideTool = tools.some(tool => tool.layout === 'wide');
 
   return (
     <Sheet>
@@ -109,8 +108,12 @@ export function ShowDeskToolsSheet({
       </SheetTrigger>
       <SheetContent
         side="right"
-        className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
+        className={cn(
+          'flex w-full flex-col gap-0 overflow-hidden p-0',
+          hasWideTool ? 'sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl' : 'sm:max-w-md'
+        )}
         aria-label="Tools panel"
+        data-layout={hasWideTool ? 'wide' : 'compact'}
       >
         <SheetHeader className="border-b px-6 py-4 text-left">
           <SheetTitle>Show Desk tools</SheetTitle>

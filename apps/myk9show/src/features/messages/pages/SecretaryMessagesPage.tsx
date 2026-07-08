@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessageStore } from '@/store/messageStore';
@@ -19,12 +19,11 @@ export default function SecretaryMessagesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const showIdParam = searchParams.get('showId');
   const sectionParam = searchParams.get('section');
+  const threadIdParam = searchParams.get('threadId');
   const filterShowId = showIdParam ?? ALL_SHOWS;
 
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
   const threads = useMessageStore(s => s.threads);
   const messagesByThread = useMessageStore(s => s.messagesByThread);
@@ -69,8 +68,8 @@ export default function SecretaryMessagesPage() {
   // list. When the filter narrows the list (or the thread disappears), the
   // derivation falls back to null and the right-pane shows the empty state —
   // no need for a setState-in-effect to imperatively clear selection.
-  const activeThread = activeThreadId
-    ? (visibleThreads.find(t => t.id === activeThreadId) ?? null)
+  const activeThread = threadIdParam
+    ? (visibleThreads.find(t => t.id === threadIdParam) ?? null)
     : null;
   const effectiveActiveId = activeThread?.id ?? null;
   const activeMessages = effectiveActiveId ? messagesByThread[effectiveActiveId] || [] : [];
@@ -84,7 +83,7 @@ export default function SecretaryMessagesPage() {
   }, [effectiveActiveId, fetchMessages, storeMarkThreadRead]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
   }, [activeMessages.length]);
 
   useEffect(() => {
@@ -97,7 +96,20 @@ export default function SecretaryMessagesPage() {
     const params = new URLSearchParams(searchParams);
     if (next === ALL_SHOWS) params.delete('showId');
     else params.set('showId', next);
+    params.delete('threadId');
     setSearchParams(params, { replace: true });
+  }
+
+  function handleSelectThread(threadId: string | null) {
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        if (threadId) next.set('threadId', threadId);
+        else next.delete('threadId');
+        return next;
+      },
+      { replace: true }
+    );
   }
 
   const handleSend = async (body: string) => {
@@ -184,7 +196,7 @@ export default function SecretaryMessagesPage() {
           <ThreadList
             threads={visibleThreads}
             activeThreadId={effectiveActiveId}
-            onSelectThread={setActiveThreadId}
+            onSelectThread={handleSelectThread}
           />
         )}
       </div>
@@ -193,7 +205,7 @@ export default function SecretaryMessagesPage() {
         {effectiveActiveId ? (
           <>
             <div className="md:hidden p-2 border-b">
-              <Button variant="ghost" size="sm" onClick={() => setActiveThreadId(null)}>
+              <Button variant="ghost" size="sm" onClick={() => handleSelectThread(null)}>
                 ← Back
               </Button>
             </div>

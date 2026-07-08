@@ -84,6 +84,40 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     ]);
   });
 
+  it('initializes search from the roster person deep-link param', () => {
+    const entries = [
+      makeEntry({ id: 'alice-entry', ownerName: 'Alice Martin', dogName: 'Poppy' }),
+      makeEntry({ id: 'bob-entry', ownerName: 'Bob Chen', dogName: 'Cedar' }),
+    ];
+
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries, tabCounts: emptyTabCounts }),
+      {
+        wrapper: createWrapper('/?person=Alice%20Martin'),
+      }
+    );
+
+    expect(result.current.searchTerm).toBe('Alice Martin');
+    expect(result.current.filteredEntries.map(entry => entry.id)).toEqual(['alice-entry']);
+  });
+
+  it('matches handler names from the roster person deep-link param', () => {
+    const entries = [
+      makeEntry({ id: 'handler-entry', ownerName: 'Alice Owner', handlerName: 'Casey Handler' }),
+      makeEntry({ id: 'other-entry', ownerName: 'Bob Owner', handlerName: 'Bob Handler' }),
+    ];
+
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries, tabCounts: emptyTabCounts }),
+      {
+        wrapper: createWrapper('/?person=Casey%20Handler'),
+      }
+    );
+
+    expect(result.current.searchTerm).toBe('Casey Handler');
+    expect(result.current.filteredEntries.map(entry => entry.id)).toEqual(['handler-entry']);
+  });
+
   it('setSelectedTab updates selectedTab and syncs attention to the URL', () => {
     let latestSearch = '';
     const { result } = renderHook(
@@ -264,18 +298,18 @@ describe('useEntryManagementFilters — trial/class filters', () => {
   });
 
   it('filters the entry list in place by class, and by trial when class ids are supplied', () => {
-    const klass = (id: string) => ({ id }) as EntryManagementEntry['classes'][number];
+    const klass = (entryId: string, classId: string) =>
+      ({ id: entryId, classId }) as EntryManagementEntry['classes'][number];
     const entries = [
-      makeEntry({ id: 'in-class', classes: [klass('class-1')] }),
-      makeEntry({ id: 'other-class', classes: [klass('class-2')] }),
+      makeEntry({ id: 'in-class', classes: [klass('entry-class-row-1', 'class-1')] }),
+      makeEntry({ id: 'other-class', classes: [klass('entry-class-row-2', 'class-2')] }),
     ] as EntryManagementEntry[];
     const tabCounts = { all: 2, pending: 0, accepted: 2, waitlist: 0, issues: 0 };
 
     // Class filter matches an entry's class directly (no trial class set needed).
-    const byClass = renderHook(
-      () => useEntryManagementFilters({ entries, tabCounts }),
-      { wrapper: createWrapper('/?class=class-1') }
-    );
+    const byClass = renderHook(() => useEntryManagementFilters({ entries, tabCounts }), {
+      wrapper: createWrapper('/?class=class-1'),
+    });
     expect(byClass.result.current.filteredEntries.map(e => e.id)).toEqual(['in-class']);
 
     // Trial filter narrows to entries whose class is in the trial's class set.
@@ -393,9 +427,12 @@ describe('useEntryManagementFilters — trial/class filters', () => {
       }),
     ] as EntryManagementEntry[];
 
-    const { result } = renderHook(() => useEntryManagementFilters({ entries, tabCounts: emptyTabCounts }), {
-      wrapper: createWrapper('/?attention=issues'),
-    });
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries, tabCounts: emptyTabCounts }),
+      {
+        wrapper: createWrapper('/?attention=issues'),
+      }
+    );
 
     expect(result.current.filteredEntries.map(entry => entry.id)).toEqual(['unpaid-entry']);
   });

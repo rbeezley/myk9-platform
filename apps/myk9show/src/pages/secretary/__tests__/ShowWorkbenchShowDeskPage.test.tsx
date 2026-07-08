@@ -3,8 +3,31 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShowWorkbenchShowDeskPage } from '@/pages/secretary/ShowWorkbenchShowDeskPage';
+import type { ReactNode } from 'react';
 
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
+const trialStoreState = vi.hoisted<{
+  trials: Array<{
+    id: string;
+    showId: string;
+    trialDate: string;
+    trialNumber: string;
+    name: string;
+  }>;
+  trialClasses: Record<
+    string,
+    Array<{
+      id: string;
+      element: string;
+      level: string;
+      section?: string;
+      judgeName?: string;
+      startTime?: string;
+      status?: string;
+      completedEntries?: number;
+    }>
+  >;
+}>(() => ({ trials: [], trialClasses: {} }));
 
 vi.mock('@/components/common/LoadingSkeleton', () => ({
   LoadingSkeleton: () => <div data-testid="loading-skeleton" />,
@@ -44,11 +67,53 @@ vi.mock('@/hooks/queries/useSecretaryTasks', () => ({
 
 vi.mock('@/store/trialStore', () => ({
   useTrialStore: (selector: (state: Record<string, unknown>) => unknown) =>
-    selector({ trials: [], trialClasses: {} }),
+    selector(trialStoreState),
 }));
 
 vi.mock('@/features/show-map/ShowDeskPanel', () => ({
-  default: () => <div data-testid="show-desk-panel">Show Desk Panel</div>,
+  default: ({
+    entries,
+    classes,
+    tools,
+    closeoutContent,
+  }: {
+    entries: unknown[];
+    classes: Array<{ entryCount: number }>;
+    tools: Array<{ id: string; content: ReactNode }>;
+    closeoutContent: ReactNode;
+  }) => (
+    <div data-testid="show-desk-panel">
+      <div data-testid="panel-entry-count">{entries.length}</div>
+      <div data-testid="panel-class-entry-counts">
+        {classes.map(cls => cls.entryCount).join(',')}
+      </div>
+      {tools.find(tool => tool.id === 'people-at-show')?.content}
+      {closeoutContent}
+    </div>
+  ),
+}));
+
+vi.mock('@/features/show-desk-people-roster/ShowDeskPeopleRoster', () => ({
+  ShowDeskPeopleRoster: ({
+    entries,
+    classes,
+  }: {
+    entries: unknown[];
+    classes: Array<{ entryCount: number }>;
+  }) => (
+    <div data-testid="people-roster">
+      <span data-testid="people-roster-entry-count">{entries.length}</span>
+      <span data-testid="people-roster-class-entry-counts">
+        {classes.map(cls => cls.entryCount).join(',')}
+      </span>
+    </div>
+  ),
+}));
+
+vi.mock('@/features/show-workbench/ShowCloseoutSummary', () => ({
+  ShowCloseoutSummary: ({ entries }: { entries: unknown[] }) => (
+    <div data-testid="closeout-entry-count">{entries.length}</div>
+  ),
 }));
 
 function renderPage() {
@@ -70,6 +135,8 @@ function renderPage() {
 describe('ShowWorkbenchShowDeskPage', () => {
   beforeEach(() => {
     getEntriesForShowMock.mockReset();
+    trialStoreState.trials = [];
+    trialStoreState.trialClasses = {};
   });
 
   it('holds Show Desk while entries are loading so counts cannot render as false zero', () => {
@@ -79,5 +146,43 @@ describe('ShowWorkbenchShowDeskPage', () => {
 
     expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
     expect(screen.queryByTestId('show-desk-panel')).not.toBeInTheDocument();
+  });
+
+  it('feeds Show Desk, People roster, and closeout from the same show-scoped entries', async () => {
+    trialStoreState.trials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    trialStoreState.trialClasses = {
+      'trial-1': [
+        {
+          id: 'class-1',
+          element: 'Container',
+          level: 'Novice',
+          status: 'Scheduled',
+        },
+      ],
+    };
+    getEntriesForShowMock.mockResolvedValue({
+      data: [
+        { id: 'entry-1', show_id: 'show-1', class_id: 'class-1' },
+        { id: 'entry-2', show_id: 'show-1', class_id: 'class-1' },
+      ],
+      error: null,
+    });
+
+    renderPage();
+
+    expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('panel-entry-count')).toHaveTextContent('2');
+    expect(screen.getByTestId('panel-class-entry-counts')).toHaveTextContent('2');
+    expect(screen.getByTestId('people-roster-entry-count')).toHaveTextContent('2');
+    expect(screen.getByTestId('people-roster-class-entry-counts')).toHaveTextContent('2');
+    expect(screen.getByTestId('closeout-entry-count')).toHaveTextContent('2');
   });
 });

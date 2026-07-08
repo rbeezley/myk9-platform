@@ -6,6 +6,7 @@ import {
   fetchLifecycleEmailJobsForReview,
   fetchShowLifecycleEmailSummary,
   sendLifecycleEmailJobs,
+  skipLifecycleEmailJobsForReview,
   updateLifecycleEmailStepEnabled,
 } from './api';
 
@@ -16,6 +17,7 @@ vi.mock('./api', async importOriginal => {
     fetchLifecycleEmailJobsForReview: vi.fn(),
     fetchShowLifecycleEmailSummary: vi.fn(),
     sendLifecycleEmailJobs: vi.fn(),
+    skipLifecycleEmailJobsForReview: vi.fn(),
     updateLifecycleEmailStepEnabled: vi.fn(),
   };
 });
@@ -23,6 +25,7 @@ vi.mock('./api', async importOriginal => {
 const mockFetchJobs = vi.mocked(fetchLifecycleEmailJobsForReview);
 const mockFetchSummary = vi.mocked(fetchShowLifecycleEmailSummary);
 const mockSendJobs = vi.mocked(sendLifecycleEmailJobs);
+const mockSkipJobs = vi.mocked(skipLifecycleEmailJobsForReview);
 const mockUpdateStep = vi.mocked(updateLifecycleEmailStepEnabled);
 
 describe('ScheduledLifecycleEmailsPanel', () => {
@@ -70,6 +73,7 @@ describe('ScheduledLifecycleEmailsPanel', () => {
       },
     ]);
     mockSendJobs.mockResolvedValue(undefined);
+    mockSkipJobs.mockResolvedValue(undefined);
     mockUpdateStep.mockResolvedValue(undefined);
   });
 
@@ -165,6 +169,51 @@ describe('ScheduledLifecycleEmailsPanel', () => {
       expect(mockSendJobs).toHaveBeenCalledWith(
         expect.objectContaining({
           jobIds: ['job-ready', 'job-failed'],
+        })
+      );
+    });
+  });
+
+  it('skips excluded recipients and sends only included recipients', async () => {
+    mockFetchJobs.mockResolvedValueOnce([
+      {
+        id: 'job-ready',
+        stepType: 'two_week_reminder',
+        status: 'ready',
+        recipientEmail: 'ready@example.com',
+        recipientName: 'Ready',
+        subject: 'Two weeks away',
+        body: 'See you soon.',
+        secretaryNote: '',
+        previewWarnings: [],
+      },
+      {
+        id: 'job-failed',
+        stepType: 'two_week_reminder',
+        status: 'failed',
+        recipientEmail: 'failed@example.com',
+        recipientName: 'Failed',
+        subject: 'Two weeks away',
+        body: 'See you soon.',
+        secretaryNote: '',
+        previewWarnings: ['Previous send failed.'],
+      },
+    ]);
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await user.click(await screen.findByRole('checkbox', { name: /include failed/i }));
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+
+    await waitFor(() => {
+      expect(mockSkipJobs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          jobIds: ['job-failed'],
+        })
+      );
+      expect(mockSendJobs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          jobIds: ['job-ready'],
         })
       );
     });

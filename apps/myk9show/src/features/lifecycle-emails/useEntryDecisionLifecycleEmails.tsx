@@ -14,6 +14,7 @@ import {
   fetchShowLifecycleEmailSummary,
   saveLifecycleEmailJobForLater,
   sendLifecycleEmailJobs,
+  updateReadyLifecycleEmailJob,
   type EntryDecisionEmailJob,
   type EntryDecisionEmailStatus,
   type LifecycleEmailSupabaseClient,
@@ -179,6 +180,18 @@ export function useEntryDecisionLifecycleEmails({
       }}
       onNotNow={values => {
         if (prompt.jobId) {
+          void updateReadyLifecycleEmailJob({
+            supabase: lifecycleClient,
+            jobId: prompt.jobId,
+            subject: values.subject,
+            body: values.body,
+            secretaryNote: values.secretaryNote,
+          })
+            .then(() => {
+              toast.info('Email kept for later review');
+              invalidateLifecycleEmailQueries();
+            })
+            .catch(() => toast.error('Entry decision is saved. The email was not updated.'));
           setPrompt(null);
           return;
         }

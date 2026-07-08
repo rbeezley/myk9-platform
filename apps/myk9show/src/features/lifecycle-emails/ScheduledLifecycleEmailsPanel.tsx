@@ -3,6 +3,7 @@ import { CalendarClock } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import {
   fetchLifecycleEmailJobsForReview,
   fetchShowLifecycleEmailSummary,
   sendLifecycleEmailJobs,
+  skipLifecycleEmailJobsForReview,
   updateLifecycleEmailStepEnabled,
   type LifecycleEmailJobReview,
   type LifecycleEmailSupabaseClient,
@@ -170,21 +172,28 @@ function LifecycleBatchReviewDialog({
   const [subject, setSubject] = useState<string | null>(null);
   const [body, setBody] = useState<string | null>(null);
   const [secretaryNote, setSecretaryNote] = useState<string | null>(null);
+  const [excludedJobIds, setExcludedJobIds] = useState<Set<string>>(new Set());
   const jobsQuery = useQuery({
     queryKey: ['show-lifecycle-email-review', showId, stepType],
     queryFn: () =>
       fetchLifecycleEmailJobsForReview({ supabase: lifecycleClient, showId, stepType }),
   });
   const sendMutation = useMutation({
-    mutationFn: (jobs: LifecycleEmailJobReview[]) =>
-      sendLifecycleEmailJobs({
+    mutationFn: async (input: { sendJobs: LifecycleEmailJobReview[]; skippedJobIds: string[] }) => {
+      await skipLifecycleEmailJobsForReview({
+        supabase: lifecycleClient,
+        jobIds: input.skippedJobIds,
+      });
+      if (input.sendJobs.length === 0) return;
+      await sendLifecycleEmailJobs({
         supabase,
         showId,
-        jobIds: jobs.map(job => job.id),
-        subject: subject ?? jobs[0]?.subject ?? '',
-        body: body ?? jobs[0]?.body ?? '',
-        secretaryNote: secretaryNote ?? jobs[0]?.secretaryNote ?? '',
-      }),
+        jobIds: input.sendJobs.map(job => job.id),
+        subject: subject ?? input.sendJobs[0]?.subject ?? '',
+        body: body ?? input.sendJobs[0]?.body ?? '',
+        secretaryNote: secretaryNote ?? input.sendJobs[0]?.secretaryNote ?? '',
+      });
+    },
     onSuccess: onSent,
   });
   const jobs = jobsQuery.data ?? [];
@@ -194,6 +203,8 @@ function LifecycleBatchReviewDialog({
   const readyJobs = jobs.filter(job => job.status === 'ready');
   const failedJobs = jobs.filter(job => job.status === 'failed');
   const sendableJobs = [...readyJobs, ...failedJobs].filter(job => job.recipientEmail);
+  const selectedJobs = sendableJobs.filter(job => !excludedJobIds.has(job.id));
+  const skippedJobIds = sendableJobs.filter(job => excludedJobIds.has(job.id)).map(job => job.id);
   const previewJob = sendableJobs[0] ?? jobs[0] ?? null;
 
   return (
@@ -250,7 +261,21 @@ function LifecycleBatchReviewDialog({
             ) : jobs.length === 0 ? (
               <p className="p-3 text-sm text-muted-foreground">No ready recipients.</p>
             ) : (
-              jobs.map(job => <LifecycleBatchRecipientRow key={job.id} job={job} />)
+              jobs.map(job => (
+                <LifecycleBatchRecipientRow
+                  key={job.id}
+                  job={job}
+                  included={!excludedJobIds.has(job.id)}
+                  onIncludedChange={included => {
+                    setExcludedJobIds(current => {
+                      const next = new Set(current);
+                      if (included) next.delete(job.id);
+                      else next.add(job.id);
+                      return next;
+                    });
+                  }}
+                />
+              ))
             )}
           </div>
 
@@ -279,8 +304,10 @@ function LifecycleBatchReviewDialog({
           </Button>
           <Button
             type="button"
-            disabled={sendMutation.isPending || sendableJobs.length === 0}
-            onClick={() => sendMutation.mutate(sendableJobs)}
+            disabled={
+              sendMutation.isPending || (selectedJobs.length === 0 && skippedJobIds.length === 0)
+            }
+            onClick={() => sendMutation.mutate({ sendJobs: selectedJobs, skippedJobIds })}
           >
             {sendMutation.isPending ? 'Sending...' : 'Send now'}
           </Button>
@@ -290,17 +317,38 @@ function LifecycleBatchReviewDialog({
   );
 }
 
-function LifecycleBatchRecipientRow({ job }: { job: LifecycleEmailJobReview }) {
+function LifecycleBatchRecipientRow({
+  job,
+  included,
+  onIncludedChange,
+}: {
+  job: LifecycleEmailJobReview;
+  included: boolean;
+  onIncludedChange: (included: boolean) => void;
+}) {
+  const canSend = Boolean(job.recipientEmail);
+  const label = job.recipientName || job.recipientEmail || 'recipient';
+
   return (
     <div className="border-b px-3 py-2 text-sm last:border-b-0">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate font-medium">{job.recipientName || 'Exhibitor'}</p>
-          <p className="truncate text-muted-foreground">
-            {job.recipientEmail || 'No email on file'}
-          </p>
+        <div className="flex min-w-0 items-start gap-3">
+          {canSend ? (
+            <Checkbox
+              aria-label={`Include ${label}`}
+              checked={included}
+              onCheckedChange={checked => onIncludedChange(checked === true)}
+              className="mt-0.5"
+            />
+          ) : null}
+          <div className="min-w-0">
+            <p className="truncate font-medium">{job.recipientName || 'Exhibitor'}</p>
+            <p className="truncate text-muted-foreground">
+              {job.recipientEmail || 'No email on file'}
+            </p>
+          </div>
         </div>
-        {!job.recipientEmail ? (
+        {!canSend || !included ? (
           <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">Skipped</span>
         ) : null}
       </div>

@@ -274,6 +274,45 @@ export async function sendLifecycleEmailJobs(args: {
   }
 }
 
+export async function updateReadyLifecycleEmailJob(args: {
+  supabase: LifecycleEmailSupabaseClient;
+  jobId: string;
+  subject: string;
+  body: string;
+  secretaryNote: string;
+}): Promise<void> {
+  const result = await args.supabase
+    .from('show_lifecycle_email_jobs')
+    .update({
+      subject: args.subject,
+      body: args.body,
+      secretary_note: args.secretaryNote,
+    })
+    .eq('id', args.jobId)
+    .in('status', ['ready', 'failed']);
+
+  if (result.error) {
+    throw new Error(result.error.message ?? 'Failed to update lifecycle email');
+  }
+}
+
+export async function skipLifecycleEmailJobsForReview(args: {
+  supabase: LifecycleEmailSupabaseClient;
+  jobIds: string[];
+}): Promise<void> {
+  if (args.jobIds.length === 0) return;
+
+  const result = await args.supabase
+    .from('show_lifecycle_email_jobs')
+    .update({ status: 'skipped' })
+    .in('id', args.jobIds)
+    .in('status', ['ready', 'failed']);
+
+  if (result.error) {
+    throw new Error(result.error.message ?? 'Failed to skip lifecycle email recipients');
+  }
+}
+
 export async function saveLifecycleEmailJobForLater(args: {
   supabase: LifecycleEmailFunctionsClient;
   showId: string;

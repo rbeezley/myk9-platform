@@ -4,6 +4,8 @@ import {
   fetchEntryDecisionEmailStatuses,
   fetchShowLifecycleEmailSummary,
   saveLifecycleEmailJobForLater,
+  skipLifecycleEmailJobsForReview,
+  updateReadyLifecycleEmailJob,
   updateLifecycleEmailStepEnabled,
   type LifecycleEmailFunctionsClient,
   type LifecycleEmailSupabaseClient,
@@ -210,6 +212,43 @@ describe('lifecycle email api helpers', () => {
         }),
       },
     ]);
+  });
+
+  it('updates an existing ready lifecycle email draft', async () => {
+    const { client, calls } = createClient({ show_lifecycle_email_jobs: [] });
+
+    await updateReadyLifecycleEmailJob({
+      supabase: client,
+      jobId: 'job-ready',
+      subject: 'Edited subject',
+      body: 'Edited body',
+      secretaryNote: 'Edited note',
+    });
+
+    expect(calls).toContainEqual({
+      table: 'show_lifecycle_email_jobs',
+      action: 'update',
+      values: {
+        subject: 'Edited subject',
+        body: 'Edited body',
+        secretary_note: 'Edited note',
+      },
+    });
+  });
+
+  it('marks excluded lifecycle email recipients as skipped', async () => {
+    const { client, calls } = createClient({ show_lifecycle_email_jobs: [] });
+
+    await skipLifecycleEmailJobsForReview({
+      supabase: client,
+      jobIds: ['job-skipped'],
+    });
+
+    expect(calls).toContainEqual({
+      table: 'show_lifecycle_email_jobs',
+      action: 'update',
+      values: { status: 'skipped' },
+    });
   });
 
   it('loads failed jobs for retry in the batch review list', async () => {

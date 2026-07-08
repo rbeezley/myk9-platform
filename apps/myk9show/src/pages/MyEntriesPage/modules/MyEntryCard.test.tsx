@@ -174,6 +174,48 @@ describe('MyEntryCard payment recovery', () => {
 
     expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
   });
+
+  // exhibitor-money-clarity: the "Payment Due" chip must agree with the
+  // dashboard/My Payments amount-due figure (both derive from
+  // getEntryPaymentPrompt via summarizeEntryBalances). A raw PENDING
+  // paymentStatus with no actionable online balance previously rendered
+  // "Payment Due" anyway, contradicting a $0/"Paid in full" summary elsewhere.
+  it('does not show Payment Due for a rejected entry with no actionable balance', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.REJECTED,
+        paymentStatus: PaymentStatus.PENDING,
+        totalFee: 85,
+      })
+    );
+
+    expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
+  });
+
+  it('does not show Payment Due for a waitlisted entry (pays on promotion, no debt yet)', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.WAITLIST,
+        paymentStatus: PaymentStatus.PENDING,
+        totalFee: 30,
+      })
+    );
+
+    expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
+  });
+
+  it('does not show Payment Due for a zero-fee entry (nothing is actually owed)', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.PENDING,
+        paymentStatus: PaymentStatus.PENDING,
+        totalFee: 0,
+      })
+    );
+
+    expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
+  });
 });
 
 describe('MyEntryCard — cash/check is a status, not a debt (4.C)', () => {

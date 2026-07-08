@@ -5,6 +5,8 @@
 **Account:** e2e-exhibitor@test.myk9.com (seeded demo data)
 **Viewports:** Mobile 390×844 (full walk) · Desktop 1280×800 (diff walk) · Tablet 834×1112 + 1112×834 landscape (diff pass)
 
+> **Correction (2026-07-08, during `exhibitor-ux-remediation` implementation):** this report calls the show landing page "heritage" throughout, but tracing the rendered markup showed it actually uses the **monogram** theme (`features/monogram/landing` — confirmed via its "Trial particulars" / "The roster" eyebrow text, which is monogram's copy, not heritage's). Every finding below that references the landing page (#5 dates, #10 tablet-landscape monogram, #15 venue) is accurate in substance; only the theme name is wrong. The remediation change fixed the actual (monogram) files.
+
 ## Overall experience
 
 The exhibitor surface is structurally sound and often genuinely friendly: the two-step sign-in explains email vs. passcode in plain language, the Add Dog dialog has warm copy ("Not sure of the exact date? An approximate one is fine."), validation errors are inline, and the closed-registration screen explains itself and offers a human escape hatch ("Message the show team"). The layout is consistent across mobile and desktop (persistent sidebar, same components), so the desktop pass found few unique issues.

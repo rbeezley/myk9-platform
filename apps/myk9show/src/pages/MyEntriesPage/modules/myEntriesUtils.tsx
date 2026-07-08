@@ -21,6 +21,17 @@ export function normalizeCheckInStatus(raw: unknown): CheckInStatus | undefined 
   return raw as CheckInStatus;
 }
 
+/**
+ * Label a class row's trial chip. `trial_number` is sometimes a bare index
+ * ("1") and sometimes already a full label ("Saturday Trial") depending on how
+ * the trial was named — always prefixing "Trial " produced a stuttering
+ * "Trial Saturday Trial" for the latter case. Only prefix when the value
+ * doesn't already read as a trial label.
+ */
+export function formatTrialLabel(trialNumber: string): string {
+  return /trial/i.test(trialNumber) ? trialNumber : `Trial ${trialNumber}`;
+}
+
 interface StatusBadgeOptions {
   isPastShow?: boolean;
 }

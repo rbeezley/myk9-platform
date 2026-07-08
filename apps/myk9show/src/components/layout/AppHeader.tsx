@@ -13,7 +13,8 @@ import {
   type ShortcutDefinition,
 } from '@/hooks/useKeyboardShortcuts';
 import { buildClasses } from '@/utils/designTokens';
-import { useCartItemCount } from '@/store/cartStore';
+import { useCartItemCount, useCartStore } from '@/store/cartStore';
+import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { AboutDialog } from '@/components/common/AboutDialog';
 import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -68,6 +69,21 @@ const AppHeader: React.FC = () => {
   const [aboutOpen, setAboutOpen] = useState(false);
   const cartItemCount = useCartItemCount();
   const { toggle: toggleAskQ } = useAskQPanelStore();
+
+  // exhibitor-ux-remediation (cart-integrity): the cart badge only reflected
+  // whatever the in-memory store happened to hold, which stayed empty
+  // everywhere except /cart itself (the only place that hydrated it) — so a
+  // cart drafted in a prior session was invisible on every other page. Hydrate
+  // once per session for signed-in exhibitors so a non-empty cart is always
+  // discoverable, not just after visiting /cart directly.
+  const { profile: exhibitorProfile } = useExhibitorProfile();
+  const loadActiveCart = useCartStore(state => state.loadActiveCart);
+  const cartLoadInitiated = useCartStore(state => state.loadInitiated);
+  useEffect(() => {
+    if (exhibitorProfile?.id && !cartLoadInitiated) {
+      loadActiveCart(exhibitorProfile.id);
+    }
+  }, [exhibitorProfile?.id, cartLoadInitiated, loadActiveCart]);
 
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
 

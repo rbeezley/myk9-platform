@@ -3,12 +3,27 @@ import React from 'react';
 import { render, screen } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import {
+  formatTrialLabel,
   getContextualStatusMessage,
   getEntryStatusBadge,
   getPaymentStatusBadge,
   getStatusIcon,
   normalizeCheckInStatus,
 } from './myEntriesUtils';
+
+describe('formatTrialLabel', () => {
+  it('prefixes a bare numeric trial number', () => {
+    expect(formatTrialLabel('2')).toBe('Trial 2');
+  });
+
+  it('does not stutter when the value is already a trial label', () => {
+    expect(formatTrialLabel('Saturday Trial')).toBe('Saturday Trial');
+  });
+
+  it('does not stutter on a differently-cased "trial" in the label', () => {
+    expect(formatTrialLabel('AM TRIAL')).toBe('AM TRIAL');
+  });
+});
 
 describe('normalizeCheckInStatus', () => {
   it('passes through a real check-in status', () => {

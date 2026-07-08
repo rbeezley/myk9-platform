@@ -5,8 +5,9 @@
  * Shows entry fees, platform fee, and total with expiration countdown.
  */
 
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, AlertTriangle, ShoppingCart, ArrowRight, Loader2 } from 'lucide-react';
+import { CreditCard, AlertTriangle, ShoppingCart, ArrowRight, Loader2, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -48,6 +49,27 @@ export function CartSummary({
     return `$${(cents / 100).toFixed(2)}`;
   };
 
+  // exhibitor-ux-remediation (cart-integrity): a cart drafted before entries
+  // closed must never let checkout proceed — the audit found a week-old draft
+  // with a live "Pay and confirm" button for a show whose entries had closed.
+  // No trial-timezone helper is wired to the cart join yet; comparing against
+  // end-of-day local on entry_close_date matches the existing isPastShowEntry
+  // convention elsewhere in the exhibitor surface. `Date.now()` is read once
+  // via lazy useState init (matching MyEntryCard's `currentTime` pattern) —
+  // reading it directly in the render body trips the React Compiler purity
+  // rule (impure function during render).
+  const [currentTime] = useState(() => Date.now());
+  const entriesClosed = (() => {
+    if (!cart?.show?.entry_close_date) return false;
+    const closeDate = new Date(cart.show.entry_close_date);
+    const endOfCloseDay = new Date(
+      closeDate.getFullYear(),
+      closeDate.getMonth(),
+      closeDate.getDate() + 1
+    );
+    return endOfCloseDay.getTime() <= currentTime;
+  })();
+
   const itemCount = getItemCount();
   const subtotal = getTotalEntryFees();
   // Recompute fee + total from the live rate (the store bakes the fallback
@@ -86,8 +108,24 @@ export function CartSummary({
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* Entries-closed notice — takes priority over the hold-expiration
+            warning; a closed show can never be paid for regardless of how
+            much hold time remains. */}
+        {entriesClosed && (
+          <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-destructive">
+            <Lock className="h-5 w-5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Entries are closed for this show</p>
+              <p className="text-xs mt-0.5">
+                This entry can no longer be paid for online. Contact the trial secretary for
+                late-entry help, or remove it and keep shopping.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Expiration Warning */}
-        {(showWarning || showUrgentWarning) && (
+        {!entriesClosed && (showWarning || showUrgentWarning) && (
           <div
             className={cn(
               'flex items-center gap-2 p-3 rounded-lg',
@@ -157,7 +195,7 @@ export function CartSummary({
       <CardFooter className="flex-col gap-2 pt-0">
         <Button
           onClick={handleCheckout}
-          disabled={isCheckingOut || itemCount === 0}
+          disabled={isCheckingOut || itemCount === 0 || entriesClosed}
           className="w-full"
           size="lg"
         >
@@ -165,6 +203,11 @@ export function CartSummary({
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Processing...
+            </>
+          ) : entriesClosed ? (
+            <>
+              <Lock className="h-4 w-4 mr-2" />
+              Entries closed — cannot pay online
             </>
           ) : (
             <>

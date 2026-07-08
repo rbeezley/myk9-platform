@@ -57,7 +57,9 @@ const DogDetailPage: React.FC = () => {
   async function handleDeleteDog() {
     if (!dog) return;
     try {
+      const dogName = dog.callName;
       await deleteDog(dog.id, userWithRoles?.id);
+      notifications.success(`${dogName} was deleted.`);
       navigate('/dogs', { replace: true });
     } catch (err) {
       logger.error(

@@ -87,6 +87,7 @@ export function MonogramLandingPage({
           entryLimit={data.entryLimit}
           venueName={data.venueName}
           venueCity={data.venueCity}
+          venueAddress={data.venueAddress}
           timezone={data.timezone}
           entryWizardUrl={data.entryWizardUrl}
           classesHref={classesHref}

@@ -18,7 +18,7 @@ All app-facing (non-public-landing-page) date display in myK9Show SHALL render t
 - **THEN** the component imports and calls the appropriate function from `lib/format/dates.ts` rather than calling `toLocaleDateString`/`toLocaleString` directly or writing a new local formatter
 
 ### Requirement: Documented exception for timezone-bound public landing pages
-Per-landing-theme date formatting (`features/{gazette,heritage,magazine,headline,fieldGuide,banner,monogram,poster}/landing/utils/dateFormat.ts`) is exempt from the single-module requirement because it must render in the show's own timezone regardless of the viewer's locale, which the app-facing canonical module does not support.
+Per-landing-theme date formatting (`features/{gazette,heritage,magazine,headline,fieldGuide,banner,monogram,poster}/landing/utils/dateFormat.ts`) SHALL be exempt from the single-module requirement because it must render in the show's own timezone regardless of the viewer's locale, which the app-facing canonical module does not support.
 
 #### Scenario: Public landing page renders show-local time
 - **WHEN** a public show landing page renders an event date/time

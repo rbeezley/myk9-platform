@@ -24,14 +24,14 @@ PARALLEL SAFE
 SET search_path = ''
 AS $$
   SELECT CASE
-    WHEN pg_catalog.upper(pg_catalog.btrim(pg_catalog.coalesce(value, ''))) LIKE 'AKC%' THEN 'AKC'
-    WHEN pg_catalog.upper(pg_catalog.btrim(pg_catalog.coalesce(value, ''))) LIKE 'UKC%' THEN 'UKC'
-    WHEN pg_catalog.upper(pg_catalog.btrim(pg_catalog.coalesce(value, ''))) LIKE 'CKC%' THEN 'CKC'
-    WHEN pg_catalog.upper(pg_catalog.btrim(pg_catalog.coalesce(value, ''))) LIKE 'FCI%' THEN 'FCI'
-    WHEN pg_catalog.upper(pg_catalog.btrim(pg_catalog.coalesce(value, ''))) LIKE 'ASCA%' THEN 'ASCA'
-    WHEN pg_catalog.upper(pg_catalog.btrim(pg_catalog.coalesce(value, ''))) LIKE 'KC%' THEN 'KC'
+    WHEN pg_catalog.upper(pg_catalog.btrim(COALESCE(value, ''))) LIKE 'AKC%' THEN 'AKC'
+    WHEN pg_catalog.upper(pg_catalog.btrim(COALESCE(value, ''))) LIKE 'UKC%' THEN 'UKC'
+    WHEN pg_catalog.upper(pg_catalog.btrim(COALESCE(value, ''))) LIKE 'CKC%' THEN 'CKC'
+    WHEN pg_catalog.upper(pg_catalog.btrim(COALESCE(value, ''))) LIKE 'FCI%' THEN 'FCI'
+    WHEN pg_catalog.upper(pg_catalog.btrim(COALESCE(value, ''))) LIKE 'ASCA%' THEN 'ASCA'
+    WHEN pg_catalog.upper(pg_catalog.btrim(COALESCE(value, ''))) LIKE 'KC%' THEN 'KC'
     ELSE pg_catalog.regexp_replace(
-      pg_catalog.upper(pg_catalog.btrim(pg_catalog.coalesce(value, ''))),
+      pg_catalog.upper(pg_catalog.btrim(COALESCE(value, ''))),
       '\s+',
       ' ',
       'g'
@@ -47,7 +47,7 @@ PARALLEL SAFE
 SET search_path = ''
 AS $$
   SELECT pg_catalog.regexp_replace(
-    pg_catalog.upper(pg_catalog.coalesce(value, '')),
+    pg_catalog.upper(COALESCE(value, '')),
     '[^A-Z0-9]',
     '',
     'g'

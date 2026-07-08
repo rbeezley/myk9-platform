@@ -52,12 +52,6 @@ Two follow-ups from the ringside OCC conflict-storm incident (PR [#961](https://
 
 ---
 
-## Exhibitor Confirmation Screen — 2026-06-27
-
-- [~] **Fix checkout confirmation armband copy + show the real number** — **Code written + tested 2026-06-27 (pending commit/PR).** [CheckoutSuccessPage.tsx](apps/myk9show/src/pages/CheckoutSuccessPage.tsx) now fetches each entry's armband (show_id+dog_id lookup against `armbands`), renders an "Armband #N" badge per entry row, and replaces the false _"assigned at check-in"_ copy with accurate, conditional next-step text (shows "Bring your armband number(s)…" when known; falls back to "confirmed by the show secretary" when a claim is missing). 2 new tests in `src/test/checkout/checkoutSuccess.test.tsx` (10/10 green); typecheck + lint clean. Full context in TO-DOS.md § "Checkout Confirmation Armband Copy + Display".
-
----
-
 ## Operator Daily Health Board — 2026-07-04
 
 Automate the recurring parts of the go-live runbook ([`docs/operations/go-live-runbook.md`](docs/operations/go-live-runbook.md)) Phase 5 into a morning health snapshot the site-admin reads on one page. Two changes sharing one contract table (`public.system_health_snapshots`); ship **sequentially** via `/opsx:ship` (page/migration first, runner second). Full brief + paste-ready invocations captured in the 2026-07-04 session.

@@ -4,11 +4,13 @@ import { AKC_SCENT_WORK_ENTRY_FORM_REQUIRED_FIELDS } from './akcScentWorkEntryFo
 import { AKC_SCENT_WORK_TRANSFER_FORM_REQUIRED_FIELDS } from './akcScentWorkTransferFormFields';
 import { AKC_TRIAL_SECRETARY_REPORT_REQUIRED_FIELDS } from './akcTrialSecretaryReportFields';
 import { AKC_TRIAL_CHAIRMAN_REPORT_REQUIRED_FIELDS } from './akcTrialChairmanReportFields';
+import { ASCA_SCENT_DETECTION_GROSS_RECEIPTS_REQUIRED_FIELDS } from './ascaScentDetectionGrossReceiptsFields';
+import { ASCA_SCENT_DETECTION_POST_EVENT_EVALUATION_REQUIRED_FIELDS } from './ascaScentDetectionPostEventEvaluationFields';
 import { UKC_NOSEWORK_CHANGE_ENTRY_FORM_REQUIRED_FIELDS } from './ukcNoseworkChangeEntryFormFields';
 import { UKC_NOSEWORK_ENTRY_FORM_REQUIRED_FIELDS } from './ukcNoseworkEntryFormFields';
 import { UKC_NOSEWORK_TRIAL_REPORT_REQUIRED_FIELDS } from './ukcNoseworkTrialReportFields';
 
-export type OrganizationFormRegistry = 'AKC' | 'UKC';
+export type OrganizationFormRegistry = 'AKC' | 'UKC' | 'ASCA';
 
 export type OrganizationFormTemplateId =
   | 'akc-scent-work-entry-form'
@@ -23,7 +25,13 @@ export type OrganizationFormTemplateId =
   | 'ukc-nosework-judges-book-element'
   | 'ukc-nosework-judges-book-handler-discrimination'
   | 'ukc-nosework-trial-score-sheet'
-  | 'ukc-nosework-trial-report';
+  | 'ukc-nosework-trial-report'
+  | 'asca-scent-detection-entry-form'
+  | 'asca-scent-detection-trial-report'
+  | 'asca-scent-detection-trial-roster'
+  | 'asca-scent-detection-score-sheet'
+  | 'asca-scent-detection-gross-receipts'
+  | 'asca-scent-detection-post-event-evaluation';
 
 export interface OrganizationFormTemplate {
   id: OrganizationFormTemplateId;
@@ -126,6 +134,49 @@ export const ORGANIZATION_FORM_TEMPLATES = [
     sourcePath: 'docs/UKC-forms/NW-TrialReport.pdf',
     requiredFields: UKC_NOSEWORK_TRIAL_REPORT_REQUIRED_FIELDS,
   },
+  {
+    id: 'asca-scent-detection-entry-form',
+    label: 'ASCA Scent Detection Entry Form',
+    registry: 'ASCA',
+    sourcePath: 'docs/rulebooks/asca-scent-detection-forms/ASCA_Scent-Entry-Form.pdf',
+    requiredFields: [],
+  },
+  {
+    id: 'asca-scent-detection-trial-report',
+    label: 'ASCA Scent Detection Trial Report',
+    registry: 'ASCA',
+    sourcePath: 'docs/rulebooks/asca-scent-detection-forms/ASCA_Scent-Trial-Report.pdf',
+    requiredFields: [],
+  },
+  {
+    id: 'asca-scent-detection-trial-roster',
+    label: 'ASCA Scent Detection Trial Roster',
+    registry: 'ASCA',
+    sourcePath: 'docs/rulebooks/asca-scent-detection-forms/ASCA_SD-Trial-Roster.pdf',
+    requiredFields: [],
+  },
+  {
+    id: 'asca-scent-detection-score-sheet',
+    label: 'ASCA Scent Detection Score Sheet',
+    registry: 'ASCA',
+    sourcePath: 'docs/rulebooks/asca-scent-detection-forms/ASCA_SD-Scoresheet.pdf',
+    requiredFields: [],
+  },
+  {
+    id: 'asca-scent-detection-gross-receipts',
+    label: 'ASCA Scent Detection Gross Receipts Report',
+    registry: 'ASCA',
+    sourcePath:
+      'docs/rulebooks/asca-scent-detection-forms/ASCA_ScentDetectionGrossReceiptsReport.pdf',
+    requiredFields: ASCA_SCENT_DETECTION_GROSS_RECEIPTS_REQUIRED_FIELDS,
+  },
+  {
+    id: 'asca-scent-detection-post-event-evaluation',
+    label: 'ASCA Scent Detection Post-Event Evaluation',
+    registry: 'ASCA',
+    sourcePath: 'docs/rulebooks/asca-scent-detection-forms/ASCA_scentpostevaluationform.pdf',
+    requiredFields: ASCA_SCENT_DETECTION_POST_EVENT_EVALUATION_REQUIRED_FIELDS,
+  },
 ] as const satisfies readonly OrganizationFormTemplate[];
 
 const ORGANIZATION_FORM_TEMPLATE_URLS: Record<OrganizationFormTemplateId, string> = {
@@ -177,6 +228,30 @@ const ORGANIZATION_FORM_TEMPLATE_URLS: Record<OrganizationFormTemplateId, string
   ).href,
   'ukc-nosework-trial-report': new URL(
     '../../../../../docs/UKC-forms/NW-TrialReport.pdf',
+    import.meta.url
+  ).href,
+  'asca-scent-detection-entry-form': new URL(
+    '../../../../../docs/rulebooks/asca-scent-detection-forms/ASCA_Scent-Entry-Form.pdf',
+    import.meta.url
+  ).href,
+  'asca-scent-detection-trial-report': new URL(
+    '../../../../../docs/rulebooks/asca-scent-detection-forms/ASCA_Scent-Trial-Report.pdf',
+    import.meta.url
+  ).href,
+  'asca-scent-detection-trial-roster': new URL(
+    '../../../../../docs/rulebooks/asca-scent-detection-forms/ASCA_SD-Trial-Roster.pdf',
+    import.meta.url
+  ).href,
+  'asca-scent-detection-score-sheet': new URL(
+    '../../../../../docs/rulebooks/asca-scent-detection-forms/ASCA_SD-Scoresheet.pdf',
+    import.meta.url
+  ).href,
+  'asca-scent-detection-gross-receipts': new URL(
+    '../../../../../docs/rulebooks/asca-scent-detection-forms/ASCA_ScentDetectionGrossReceiptsReport.pdf',
+    import.meta.url
+  ).href,
+  'asca-scent-detection-post-event-evaluation': new URL(
+    '../../../../../docs/rulebooks/asca-scent-detection-forms/ASCA_scentpostevaluationform.pdf',
     import.meta.url
   ).href,
 };

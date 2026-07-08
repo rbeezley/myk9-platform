@@ -81,6 +81,34 @@ describe('getOfficialPdfReportConfig', () => {
     }
   });
 
+  it('maps ASCA packet report ids to their official PDFs', () => {
+    const staticReports = [
+      'asca-scent-detection-entry-form',
+      'asca-scent-detection-trial-report',
+      'asca-scent-detection-trial-roster',
+      'asca-scent-detection-score-sheet',
+    ] as const;
+
+    for (const reportId of staticReports) {
+      const config = getOfficialPdfReportConfig(reportId, {
+        ...reportProps,
+        organization: 'ASCA',
+        trial: { ...reportProps.trial, registryId: 'ASCA' },
+      });
+
+      expect(config?.templateId).toBe(reportId);
+      expect(config?.downloadMode).toBe('static');
+    }
+
+    expect(
+      getOfficialPdfReportConfig('asca-scent-detection-gross-receipts', reportProps)?.templateId
+    ).toBe('asca-scent-detection-gross-receipts');
+    expect(
+      getOfficialPdfReportConfig('asca-scent-detection-post-event-evaluation', reportProps)
+        ?.templateId
+    ).toBe('asca-scent-detection-post-event-evaluation');
+  });
+
   it('returns null for reports without official PDFs', () => {
     expect(getOfficialPdfReportConfig('check-in-sheet', reportProps)).toBeNull();
   });

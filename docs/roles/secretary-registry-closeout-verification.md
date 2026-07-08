@@ -58,8 +58,8 @@ Official source URLs used:
 | ---- | --------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | S7.1 | AKC Scent Work required reports, forms, labels, and XML.        | Implementation complete; launch evidence still open. | AKC official PDFs are registered and routed through organization forms. Entry form, score sheet, transfer form, certification page, judge/secretary/chair reports have focused tests. AKC XML formatter exists in `packages/secretary`.                                                     | Re-check current AKC forms before launch, print representative packets, and resolve the `results@akc.org` vs `eresults@akc.org` recipient mismatch before real send.                          |
 | S7.2 | UKC Nosework closeout materials.                                | Implementation partial; launch evidence still open.  | UKC Trial Report official PDF is registered, filled, and tested. UKC Entry and Change Entry PDF fills are wired through Reports with focused tests. Element Judges Book, Handler Discrimination Judges Book, and Trial Score Sheet official PDFs are registered as static packet downloads. | Add UKC paperwork submission guidance, run representative print/PDF checks, and decide whether static judges book/score sheet PDFs need drawn field overlays after secretary workflow review. |
-| S7.3 | ASCA Scent Detection closeout materials.                        | Verified gap in app wiring; source PDFs present.     | ASCA source PDFs exist locally and ASCA registry/class config exists, but `OrganizationFormRegistry` currently supports only AKC and UKC, and no ASCA official PDF templates or report routes are registered.                                                                               | Add a focused ASCA closeout plan for Trial Report, Trial Roster, Score Sheet, Gross Receipts, Post-Event Evaluation, Secretary Checklist, and online results/payment upload instructions.     |
-| S7.5 | Submit electronic registry results and preserve club artifacts. | Verified partial; guidance remediation implemented.  | AKC XML preview/download/send path exists. Submit Results now exposes UKC Nosework and ASCA Scent Detection manual closeout guidance, official registry links, UKC Reports deep-linking, and manual submission history records without unsupported XML generation.                          | Keep AKC XML recipient verification as a launch blocker. Run launch print/PDF evidence for UKC packet preservation and add ASCA packet generation before marking the row complete.            |
+| S7.3 | ASCA Scent Detection closeout materials.                        | Implementation partial; launch evidence still open.  | ASCA official PDF templates are registered. Reports exposes ASCA Entry Form, Trial Report, Trial Roster, and Score Sheet static packet downloads for ASCA trials, plus Gross Receipts and Post-Event Evaluation fills for derivable club/date/count fields. Focused tests cover template inventory, PDF fill behavior, report routing, and ASCA-only Reports visibility. | Verify local ASCA source PDFs against current official sources before launch, decide whether Secretary Checklist/Judge Conduct Evaluation belong in the packet, and run representative print/PDF checks. |
+| S7.5 | Submit electronic registry results and preserve club artifacts. | Verified partial; guidance remediation implemented.  | AKC XML preview/download/send path exists. Submit Results now exposes UKC Nosework and ASCA Scent Detection manual closeout guidance, official registry links, UKC Reports deep-linking, and manual submission history records without unsupported XML generation.                          | Keep AKC XML recipient verification as a launch blocker. Run launch print/PDF evidence for UKC and ASCA packet preservation before marking the row complete.            |
 
 ## Remediation Plan
 
@@ -78,12 +78,13 @@ Goal: make UKC Nosework closeout no worse than the current AKC/UKC Trial Report 
 
 Goal: wire ASCA Scent Detection official closeout artifacts into existing Reports/Submit Results surfaces.
 
-- Verify local ASCA source PDFs against current ASCA Rules & Forms links.
-- Extend organization-form typing/templates to include `ASCA`.
-- Prioritize official PDF fills: Trial Report, Trial Roster, Score Sheet, Gross Receipts, and Post-Event Evaluation.
-- Decide whether the Secretary's Checklist is a static downloadable reference or a generated report.
-- Add focused PDF fill tests and template inventory tests.
-- Add Reports-page tests proving ASCA trial selection exposes ASCA actions and hides AKC/UKC-only actions.
+- ASCA organization-form typing/templates now include Entry Form, Trial Report, Trial Roster, Score Sheet, Gross Receipts, and Post-Event Evaluation.
+- Reports now exposes ASCA packet actions only for ASCA trials.
+- Gross Receipts fills derivable club/date fields and leaves location and ambiguous fee-grid fields blank.
+- Post-Event Evaluation fills derivable club/date, dog/handler count, qualifying run, non-qualifying run, and excusal fields while leaving narrative/signature fields blank.
+- Focused PDF fill, template inventory, official PDF routing, static download, report registry, and Reports-page visibility tests are in place.
+- Verify local ASCA source PDFs against current ASCA Rules & Forms links before launch.
+- Decide whether the Secretary's Checklist and Judge Conduct Evaluation are required packet downloads or secretary reference material.
 - Run print/PDF checks on the ASCA closeout packet before marking launch-ready.
 
 ### Batch C: Submission Guidance And Artifact Preservation
@@ -91,7 +92,7 @@ Goal: wire ASCA Scent Detection official closeout artifacts into existing Report
 Goal: secretaries know exactly what to send or upload after the show, and can preserve the club packet.
 
 - Resolve AKC electronic submission recipient before real send.
-- For ASCA, keep Submit Results guidance for the official online results/payment upload path and add generated ASCA packet preservation once the ASCA Reports packet is wired.
+- For ASCA, keep Submit Results guidance for the official online results/payment upload path and run packet preservation checks now that ASCA Reports actions are wired.
 - For UKC, keep the manual/paperwork guidance in Submit Results and run representative packet print/PDF checks before launch-ready status.
 - Add tests around registry-specific submission copy and action visibility.
 
@@ -99,8 +100,8 @@ Goal: secretaries know exactly what to send or upload after the show, and can pr
 
 - S7.1 remains `Partially covered` until launch evidence is recorded, but implementation coverage is no longer the blocker.
 - S7.2 remains `Partially covered`: UKC Trial Report, Entry, Change Entry, judges book templates, and trial score sheet template are now wired through Reports, while submission guidance and print evidence remain open.
-- S7.3 remains a fall-required gap for app behavior, with source PDFs already present in the repo.
-- S7.5 remains `Partially covered`: AKC XML exists, and UKC/ASCA submission guidance/manual history records are implemented. Remaining gates are AKC recipient verification, ASCA packet generation, and representative closeout artifact/print evidence.
+- S7.3 is now `Partially covered`: ASCA packet actions are wired through Reports for static official PDFs and safe fillable fields. Remaining gates are source-form verification, possible Secretary Checklist/Judge Conduct Evaluation packet decisions, and representative print/PDF evidence.
+- S7.5 remains `Partially covered`: AKC XML exists, and UKC/ASCA submission guidance/manual history records are implemented. Remaining gates are AKC recipient verification and representative closeout artifact/print evidence.
 
 ## Testing Phase For Future Implementation
 

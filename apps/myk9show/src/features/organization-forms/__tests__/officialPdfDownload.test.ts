@@ -44,6 +44,19 @@ describe('official PDF downloads', () => {
     expect(fillPdfForm).not.toHaveBeenCalled();
   });
 
+  it('returns ASCA static official template bytes without filling the PDF', async () => {
+    const config = getOfficialPdfReportConfig('asca-scent-detection-score-sheet', {
+      ...reportProps,
+      organization: 'ASCA',
+      trial: { ...reportProps.trial, registryId: 'ASCA' },
+    });
+
+    const bytes = config ? await buildOfficialPdfBytes(config, reportProps) : new Uint8Array();
+
+    expect(Array.from(bytes)).toEqual([1, 2, 3]);
+    expect(fillPdfForm).not.toHaveBeenCalled();
+  });
+
   it('fills official PDFs when values are provided', async () => {
     const bytes = await buildOfficialPdfBytesFromValues('ukc-nosework-entry-form', {
       text: { UKCRegistrationNumber: 'P123-456' },

@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { AskQPanel } from '@/components/askq/AskQPanel';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
@@ -99,10 +99,10 @@ describe('AskQPanel', () => {
     act(() => useAskQPanelStore.getState().open());
     const { user } = render(<AskQPanel />, { initialRoute: '/exhibitor/entries' });
 
-    await user.type(
-      screen.getByPlaceholderText('Ask about using myK9Show...'),
-      'Where is my armband?'
-    );
+    const input = screen.getByPlaceholderText('Ask about using myK9Show...');
+    fireEvent.change(input, { target: { value: 'Where is my armband?' } });
+    expect(input).toHaveValue('Where is my armband?');
+
     await user.click(screen.getByRole('button', { name: 'Send query' }));
 
     await waitFor(() => {
@@ -128,9 +128,13 @@ describe('AskQPanel', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Send query' }));
 
-    expect(await screen.findByText("I couldn't find a reliable answer for that.")).toBeInTheDocument();
     expect(
-      screen.getByText('Use the box below, then click Create ticket so we can follow up in the app.')
+      await screen.findByText("I couldn't find a reliable answer for that.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Use the box below, then click Create ticket so we can follow up in the app.'
+      )
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Create ticket/i })).toBeInTheDocument();
   });

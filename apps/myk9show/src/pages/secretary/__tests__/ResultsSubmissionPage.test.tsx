@@ -28,6 +28,7 @@ const mockAKCData = vi.hoisted(() => ({
 }));
 
 const mockShowState = vi.hoisted(() => ({
+  isLoaded: true,
   organization: 'AKC',
 }));
 
@@ -37,9 +38,10 @@ const mockShowState = vi.hoisted(() => ({
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: (showId: string | undefined) => ({
-    show: showId
-      ? { id: showId, name: 'Spring Scent Trial', organization: mockShowState.organization }
-      : null,
+    show:
+      showId && mockShowState.isLoaded
+        ? { id: showId, name: 'Spring Scent Trial', organization: mockShowState.organization }
+        : null,
   }),
 }));
 
@@ -114,6 +116,7 @@ describe('ResultsSubmissionPage', () => {
     mockAKCData.isLoading = false;
     mockAKCData.isError = false;
     mockAKCData.isSuccess = true;
+    mockShowState.isLoaded = true;
     mockShowState.organization = 'AKC';
     mockInvoke.mockResolvedValue({ data: { success: true }, error: null });
     vi.clearAllMocks();
@@ -420,6 +423,28 @@ describe('ResultsSubmissionPage', () => {
         'href',
         'https://www.ukcdogs.com/nosework-forms-rules'
       );
+    });
+
+    it('updates the default registry when show details load after the first render', async () => {
+      mockShowState.isLoaded = false;
+      mockShowState.organization = 'UKC';
+
+      const view = renderPage();
+
+      expect(await screen.findByTestId('org-selector')).toHaveTextContent('AKC Scent Work');
+
+      mockShowState.isLoaded = true;
+      view.rerender(
+        <Routes>
+          <Route path="/shows/:id/*" element={<ResultsSubmissionPage />} />
+        </Routes>
+      );
+
+      await waitFor(() =>
+        expect(screen.getByTestId('org-selector')).toHaveTextContent('UKC Nosework')
+      );
+      expect(screen.queryByTestId('send-btn')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('download-btn')).not.toBeInTheDocument();
     });
 
     it('shows ASCA as a manual closeout path and hides unsupported XML actions', async () => {

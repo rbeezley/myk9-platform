@@ -47,6 +47,7 @@ export default function ResultsSubmissionPage() {
   const formatters = useMemo(() => listFormatters(), []);
   const submissionOptions = useMemo(() => buildRegistrySubmissionOptions(formatters), [formatters]);
   const [submissionOptionKeyValue, setSubmissionOptionKeyValue] = useState<string>('');
+  const [hasUserSelectedSubmissionOption, setHasUserSelectedSubmissionOption] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -65,8 +66,27 @@ export default function ResultsSubmissionPage() {
     );
     if (!currentOptionExists) {
       setSubmissionOptionKeyValue(defaultSubmissionOptionKey);
+      setHasUserSelectedSubmissionOption(false);
+      return;
     }
-  }, [defaultSubmissionOptionKey, submissionOptionKeyValue, submissionOptions]);
+
+    if (
+      !hasUserSelectedSubmissionOption &&
+      submissionOptionKeyValue !== defaultSubmissionOptionKey
+    ) {
+      setSubmissionOptionKeyValue(defaultSubmissionOptionKey);
+    }
+  }, [
+    defaultSubmissionOptionKey,
+    hasUserSelectedSubmissionOption,
+    submissionOptionKeyValue,
+    submissionOptions,
+  ]);
+
+  const handleSubmissionOptionChange = (nextOptionKey: string) => {
+    setHasUserSelectedSubmissionOption(true);
+    setSubmissionOptionKeyValue(nextOptionKey);
+  };
 
   const activeSubmissionOption = submissionOptions.find(
     option => option.key === submissionOptionKeyValue
@@ -217,7 +237,7 @@ export default function ResultsSubmissionPage() {
           <label className="text-sm font-medium" htmlFor="org-select">
             Organization
           </label>
-          <Select value={submissionOptionKeyValue} onValueChange={setSubmissionOptionKeyValue}>
+          <Select value={submissionOptionKeyValue} onValueChange={handleSubmissionOptionChange}>
             <SelectTrigger
               id="org-select"
               className="min-h-[44px] w-[220px]"

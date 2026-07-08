@@ -289,26 +289,43 @@ describe('ReportsPage', () => {
   });
 
   it('offers static UKC packet PDFs only for UKC trials', async () => {
+    const staticReports = [
+      {
+        label: /Download UKC Element Judges Book PDF/i,
+        reportId: 'ukc-nosework-judges-book-element',
+      },
+      {
+        label: /Download UKC Handler Discrimination Judges Book PDF/i,
+        reportId: 'ukc-nosework-judges-book-handler-discrimination',
+      },
+      {
+        label: /Download UKC Trial Score Sheet PDF/i,
+        reportId: 'ukc-nosework-trial-score-sheet',
+      },
+    ] as const;
+
     mockReportState.trialOneRegistryId = 'UKC';
 
-    const { unmount } = render(<ReportsPage />, {
-      initialRoute: '/shows/show-1/reports?report=ukc-nosework-judges-book-element&trialId=trial-1',
-    });
+    for (const staticReport of staticReports) {
+      const { unmount } = render(<ReportsPage />, {
+        initialRoute: `/shows/show-1/reports?report=${staticReport.reportId}&trialId=trial-1`,
+      });
 
-    expect(
-      await screen.findByRole('button', { name: /Download UKC Element Judges Book PDF/i })
-    ).toBeEnabled();
+      expect(await screen.findByRole('button', { name: staticReport.label })).toBeEnabled();
+      unmount();
+    }
 
-    unmount();
     mockReportState.trialOneRegistryId = 'AKC';
-    render(<ReportsPage />, {
-      initialRoute: '/shows/show-1/reports?report=ukc-nosework-judges-book-element&trialId=trial-1',
-    });
 
-    await screen.findByRole('button', { name: /print/i });
-    expect(
-      screen.queryByRole('button', { name: /Download UKC Element Judges Book PDF/i })
-    ).toBeNull();
+    for (const staticReport of staticReports) {
+      const { unmount } = render(<ReportsPage />, {
+        initialRoute: `/shows/show-1/reports?report=${staticReport.reportId}&trialId=trial-1`,
+      });
+
+      await screen.findByRole('button', { name: /print/i });
+      expect(screen.queryByRole('button', { name: staticReport.label })).toBeNull();
+      unmount();
+    }
   });
 
   it('offers the official AKC certification page PDF when a trial is selected', async () => {

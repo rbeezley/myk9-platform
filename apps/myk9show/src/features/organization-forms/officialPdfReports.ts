@@ -20,6 +20,7 @@ type ReportIdWithOfficialPdf =
 
 export interface OfficialPdfReportConfig {
   actionLabel: string;
+  downloadMode?: 'fillable' | 'static';
   filenamePrefix: string;
   templateId: OrganizationFormTemplateId;
   values: (props: ReportProps) => PdfFormFillValues;
@@ -41,6 +42,7 @@ const UKC_TRIAL_REPORT_CONFIG = {
 
 const UKC_JUDGES_BOOK_ELEMENT_CONFIG = {
   actionLabel: 'Download UKC Element Judges Book PDF',
+  downloadMode: 'static',
   filenamePrefix: 'ukc-element-judges-book',
   templateId: 'ukc-nosework-judges-book-element',
   values: emptyPdfValues,
@@ -48,6 +50,7 @@ const UKC_JUDGES_BOOK_ELEMENT_CONFIG = {
 
 const UKC_JUDGES_BOOK_HANDLER_DISCRIMINATION_CONFIG = {
   actionLabel: 'Download UKC Handler Discrimination Judges Book PDF',
+  downloadMode: 'static',
   filenamePrefix: 'ukc-handler-discrimination-judges-book',
   templateId: 'ukc-nosework-judges-book-handler-discrimination',
   values: emptyPdfValues,
@@ -55,6 +58,7 @@ const UKC_JUDGES_BOOK_HANDLER_DISCRIMINATION_CONFIG = {
 
 const UKC_TRIAL_SCORE_SHEET_CONFIG = {
   actionLabel: 'Download UKC Trial Score Sheet PDF',
+  downloadMode: 'static',
   filenamePrefix: 'ukc-trial-score-sheet',
   templateId: 'ukc-nosework-trial-score-sheet',
   values: emptyPdfValues,

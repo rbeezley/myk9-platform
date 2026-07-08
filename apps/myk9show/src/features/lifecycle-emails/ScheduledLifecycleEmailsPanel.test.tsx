@@ -198,17 +198,29 @@ describe('ScheduledLifecycleEmailsPanel', () => {
         secretaryNote: '',
         previewWarnings: ['Previous send failed.'],
       },
+      {
+        id: 'job-no-email',
+        stepType: 'two_week_reminder',
+        status: 'ready',
+        recipientEmail: null,
+        recipientName: 'Missing Email',
+        subject: 'Two weeks away',
+        body: 'See you soon.',
+        secretaryNote: '',
+        previewWarnings: ['No email on file.'],
+      },
     ]);
     const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
 
     await user.click(await screen.findByRole('button', { name: 'Review' }));
+    expect(await screen.findByText('No email on file')).toBeInTheDocument();
     await user.click(await screen.findByRole('checkbox', { name: /include failed/i }));
     await user.click(screen.getByRole('button', { name: 'Send now' }));
 
     await waitFor(() => {
       expect(mockSkipJobs).toHaveBeenCalledWith(
         expect.objectContaining({
-          jobIds: ['job-failed'],
+          jobIds: ['job-no-email', 'job-failed'],
         })
       );
       expect(mockSendJobs).toHaveBeenCalledWith(

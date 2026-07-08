@@ -247,7 +247,7 @@ describe('lifecycle email api helpers', () => {
     expect(calls).toContainEqual({
       table: 'show_lifecycle_email_jobs',
       action: 'update',
-      values: { status: 'skipped' },
+      values: expect.objectContaining({ status: 'skipped', skipped_at: expect.any(String) }),
     });
   });
 

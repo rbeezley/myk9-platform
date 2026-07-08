@@ -304,7 +304,7 @@ export async function skipLifecycleEmailJobsForReview(args: {
 
   const result = await args.supabase
     .from('show_lifecycle_email_jobs')
-    .update({ status: 'skipped' })
+    .update({ status: 'skipped', skipped_at: new Date().toISOString() })
     .in('id', args.jobIds)
     .in('status', ['ready', 'failed']);
 

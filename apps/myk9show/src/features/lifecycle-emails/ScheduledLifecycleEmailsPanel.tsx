@@ -202,9 +202,12 @@ function LifecycleBatchReviewDialog({
   const selectedNote = secretaryNote ?? jobs[0]?.secretaryNote ?? '';
   const readyJobs = jobs.filter(job => job.status === 'ready');
   const failedJobs = jobs.filter(job => job.status === 'failed');
-  const sendableJobs = [...readyJobs, ...failedJobs].filter(job => job.recipientEmail);
+  const reviewableJobs = [...readyJobs, ...failedJobs];
+  const sendableJobs = reviewableJobs.filter(job => job.recipientEmail);
   const selectedJobs = sendableJobs.filter(job => !excludedJobIds.has(job.id));
-  const skippedJobIds = sendableJobs.filter(job => excludedJobIds.has(job.id)).map(job => job.id);
+  const skippedJobIds = reviewableJobs
+    .filter(job => !job.recipientEmail || excludedJobIds.has(job.id))
+    .map(job => job.id);
   const previewJob = sendableJobs[0] ?? jobs[0] ?? null;
 
   return (

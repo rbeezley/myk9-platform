@@ -6,11 +6,11 @@ export const REPORT_ENTRY_SOURCE = {
   UKC_ONLINE: 'ukc_online',
 } as const;
 
-export type ReportEntrySource =
-  (typeof REPORT_ENTRY_SOURCE)[keyof typeof REPORT_ENTRY_SOURCE];
+export type ReportEntrySource = (typeof REPORT_ENTRY_SOURCE)[keyof typeof REPORT_ENTRY_SOURCE];
 
 export interface ReportEntry {
   id: string;
+  dogId?: string;
   armband: number;
   runOrder: number | null;
   callName: string;

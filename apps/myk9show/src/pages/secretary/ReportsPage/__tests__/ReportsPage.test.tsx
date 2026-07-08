@@ -1,7 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import ReportsPage, { resolveInitialReportId, resolveInitialReportScope } from '../index';
+
+const mockReportState = vi.hoisted(() => ({
+  trialOneRegistryId: 'AKC',
+}));
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: () => ({
@@ -16,7 +20,13 @@ vi.mock('@/hooks/queries/useReportData', () => ({
   useReportData: () => ({
     show: { id: 'show-1', name: 'Spring Scent Trial 2026' },
     trials: [
-      { id: 'trial-1', trial_number: 1, event_number: '2026123401', date: '2026-04-12' },
+      {
+        id: 'trial-1',
+        trial_number: 1,
+        event_number: '2026123401',
+        date: '2026-04-12',
+        registry_id: mockReportState.trialOneRegistryId,
+      },
       { id: 'trial-2', trial_number: 2, date: '2026-04-13' },
     ],
     classes: [
@@ -140,6 +150,10 @@ vi.mock('../ReportPreview', () => ({
 }));
 
 describe('ReportsPage', () => {
+  beforeEach(() => {
+    mockReportState.trialOneRegistryId = 'AKC';
+  });
+
   it('renders "Reports" title', () => {
     render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
     expect(screen.getByText('Reports')).toBeInTheDocument();
@@ -180,6 +194,17 @@ describe('ReportsPage', () => {
     expect(
       await screen.findByRole('button', { name: /Download AKC Score Sheet PDF/i })
     ).toBeEnabled();
+  });
+
+  it('does not offer the AKC score sheet PDF for a non-AKC trial', async () => {
+    mockReportState.trialOneRegistryId = 'UKC';
+
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=scoresheet&trialId=trial-1&classId=class-1',
+    });
+
+    await screen.findByRole('button', { name: /print/i });
+    expect(screen.queryByRole('button', { name: /Download AKC Score Sheet PDF/i })).toBeNull();
   });
 
   it('offers the official AKC certification page PDF when a trial is selected', async () => {

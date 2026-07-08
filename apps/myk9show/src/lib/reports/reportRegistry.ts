@@ -4,6 +4,7 @@ import { ScoresheetReport } from '@/components/reports/ScoresheetReport';
 import { ResultsSheet } from '@/components/reports/ResultsSheet';
 import { ShowFlyerReport } from '@/components/reports/ShowFlyerReport';
 import { AKCScentWorkEntryForm } from '@/components/reports/AKCScentWorkEntryForm';
+import { AKCScentWorkTransferFormPreview } from '@/components/reports/AKCScentWorkTransferFormPreview';
 import { ShowCatalog } from '@/components/reports/ShowCatalog';
 import { ResultCatalog } from '@/components/reports/ResultCatalog';
 import { JudgesSchedule } from '@/components/reports/JudgesSchedule';
@@ -100,7 +101,7 @@ export const reportRegistry: ReportDefinition[] = [
     scopes: ['trial', 'class'],
     sortOptions: [],
     defaultSort: '',
-    component: PlaceholderReport,
+    component: AKCScentWorkTransferFormPreview,
     enabled: true,
     supportsDogFilter: true,
   },

@@ -95,6 +95,7 @@ function mapReportEntry(
   );
   return {
     ...base,
+    ...(e.dog_id ? { dogId: e.dog_id } : {}),
     ...(e.entry_fee != null ? { entryFee: Number(e.entry_fee) } : {}),
     ...(e.payment_status
       ? { paymentStatus: e.payment_status as NonNullable<ReportEntry['paymentStatus']> }

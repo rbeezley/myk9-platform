@@ -200,6 +200,7 @@ describe('submitPaymentStep', () => {
       })
     );
     expect(submitShowRegistrationMock).not.toHaveBeenCalled();
+    expect(ctx.setRegistrationNumber).toHaveBeenCalledWith('LOCAL-ENTRY1');
     expect(ctx.setArmbandAssignments).toHaveBeenCalledWith([{ dogId: 'dog-1', armband: '13' }]);
     expect(order).toEqual(['clearCart', 'triggerSync']);
     expect(ctx.markStepComplete).toHaveBeenCalledWith(ctx.currentStep);

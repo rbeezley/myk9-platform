@@ -94,6 +94,11 @@ export interface SubmitPaymentStepContext {
   clearDraftData: () => void;
 }
 
+function buildOfflineLateEntryRegistrationNumber(entryIds: string[]): string {
+  const token = entryIds[0]?.replace(/[^a-z0-9]/gi, '').slice(0, 8).toUpperCase();
+  return token ? `LOCAL-${token}` : 'LOCAL-PENDING';
+}
+
 export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<void> {
   ctx.setIsSubmitting(true);
   try {
@@ -159,6 +164,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       if (offlineResult.armbandAssignments.length > 0) {
         ctx.setArmbandAssignments(offlineResult.armbandAssignments);
       }
+      ctx.setRegistrationNumber(buildOfflineLateEntryRegistrationNumber(offlineResult.entryIds));
       await ctx.cart.clearCart();
       ctx.triggerSync();
       ctx.markStepComplete(ctx.currentStep);

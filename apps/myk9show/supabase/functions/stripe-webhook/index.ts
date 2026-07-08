@@ -24,6 +24,11 @@ import {
   type CartOverflowRefundDecision,
 } from '../_shared/cartOverflowRefund.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
+import {
+  allRefundsAppOriginated,
+  decideShowRefundStampAlert,
+  findShowRefundId,
+} from '../_shared/chargeRefundedDecision.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -240,18 +245,20 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
   // Skip only when EVERY refund came from an app flow (.some would let an app
   // refund mask a later dashboard refund on the same charge — review finding
   // #3). Mixed charges fall through to the RECONCILE log below.
-  const allFromAppRefund =
-    refunds.length > 0 &&
-    refunds.every(
-      r =>
-        r.metadata?.entry_id ||
-        r.metadata?.type === 'entry_payment_request_auto_refund' ||
-        r.metadata?.type === 'entry_cart_overflow_auto_refund'
-    );
+  const allFromAppRefund = allRefundsAppOriginated(refunds);
   if (allFromAppRefund) {
-    console.log(
-      `charge.refunded for ${charge.id} originated from app refund flow — already recorded`
-    );
+    const showRefundId = findShowRefundId(refunds);
+    if (showRefundId) {
+      // Bulk show-cancellation refund: don't blanket-skip (that risks an
+      // unstamped intent silently overpaying the club) or blanket-alert
+      // (that floods admin once per entry on a 200-entry cancellation).
+      // Check whether stamp_show_refund_entries actually ran.
+      await alertIfShowRefundEntriesUnstamped(charge, showRefundId);
+    } else {
+      console.log(
+        `charge.refunded for ${charge.id} originated from app refund flow — already recorded`
+      );
+    }
     return;
   }
 
@@ -293,6 +300,89 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
      refund the duplicate in Stripe), or set <code>refund_amount</code> on the affected
      entries. The runbook's "Never refund from the Stripe dashboard" section covers
      this.</p>`
+  );
+}
+
+// Give stripe-refund-show's synchronous stamp_show_refund_entries RPC a
+// chance to finish before treating an unstamped intent as a real failure.
+// It runs immediately after the Stripe refund it just created, so it
+// normally beats Stripe's own webhook-delivery round trip — but that's not
+// guaranteed, and a single unlucky ordering would turn a healthy show
+// refund into a false CRITICAL alert (Codex review).
+const SHOW_REFUND_STAMP_RECHECK_DELAY_MS = 2000;
+
+/** Counts this intent's entries that showRefundPlan.ts's classify() would
+ * consider stamp-eligible (online, charged, positive fee) and still lack a
+ * refund_amount stamp. Eligibility mirrors classify() exactly so a sibling
+ * entry the refund plan intentionally skips — zero-fee, offline-paid, never
+ * charged — never gets counted as a missed stamp. The "still needs a stamp"
+ * signal itself checks refund_amount directly, not payment_status: the
+ * alert's own recovery text tells an operator to "stamp the entries
+ * manually," and a manual refund_amount fix that leaves payment_status at
+ * 'paid' must clear the alert on redelivery, not keep re-firing on it
+ * (Codex review). payment_status is only used to admit both the pre-stamp
+ * ('paid') and post-stamp ('refunded') states as "was actually charged". */
+async function countUnstampedShowRefundEntries(paymentIntentId: string): Promise<number | null> {
+  const { data, error } = await supabase
+    .from('entries')
+    .select('id')
+    .eq('stripe_payment_intent_id', paymentIntentId)
+    .eq('payment_method', 'online')
+    .in('payment_status', ['paid', 'refunded'])
+    .gt('entry_fee', 0)
+    .is('refund_amount', null);
+
+  if (error) {
+    console.error(`Error checking show-refund stamp state for intent ${paymentIntentId}:`, error);
+    return null;
+  }
+  return data?.length ?? 0;
+}
+
+/** Confirms stamp_show_refund_entries actually ran for this bulk
+ * show-cancellation refund's intent. Unstamped entries mean the payout cron
+ * will not deduct their fee — the club would be paid the refunded fee too.
+ * Arriving via webhook (rather than only the synchronous stripe-refund-show
+ * response) makes this the post-mortem detector for a mid-bulk process kill. */
+async function alertIfShowRefundEntriesUnstamped(charge: Stripe.Charge, showId: string) {
+  const paymentIntentId = extractPaymentIntentId(charge.payment_intent);
+  if (!paymentIntentId) {
+    console.error(
+      `charge.refunded for show ${showId} charge ${charge.id} has no payment intent — cannot verify stamp state`
+    );
+    return;
+  }
+
+  let unstampedCount = await countUnstampedShowRefundEntries(paymentIntentId);
+  if (unstampedCount === null) return;
+
+  if (unstampedCount > 0) {
+    await new Promise(resolve => setTimeout(resolve, SHOW_REFUND_STAMP_RECHECK_DELAY_MS));
+    unstampedCount = await countUnstampedShowRefundEntries(paymentIntentId);
+    if (unstampedCount === null) return;
+  }
+
+  const decision = decideShowRefundStampAlert(unstampedCount);
+  if (decision.action === 'none') {
+    console.log(
+      `charge.refunded for show ${showId} (intent ${paymentIntentId}) — entries already stamped`
+    );
+    return;
+  }
+
+  const { unstampedEntryCount } = decision;
+  console.error(
+    `CRITICAL: show refund for ${showId} (intent ${paymentIntentId}) has ${unstampedEntryCount} unstamped entr${unstampedEntryCount === 1 ? 'y' : 'ies'} — payout will overpay unless corrected.`
+  );
+  await alertAdmin(
+    'Show refund entries not stamped — payout may overpay',
+    `<p>A make-whole refund for show <code>${showId}</code> (intent <code>${paymentIntentId}</code>)
+     was issued, but ${unstampedEntryCount} entr${unstampedEntryCount === 1 ? 'y is' : 'ies are'}
+     still missing a <code>refund_amount</code> stamp.</p>
+     <p>The payout calculation will NOT deduct ${unstampedEntryCount === 1 ? 'this entry' : 'these entries'}'
+     fee${unstampedEntryCount === 1 ? '' : 's'} from the club's payout unless stamped before the
+     show's payout runs. Re-run the show refund (it reuses the existing Stripe refund — no double
+     refund) or stamp the entries manually.</p>`
   );
 }
 

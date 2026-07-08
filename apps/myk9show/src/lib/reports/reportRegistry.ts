@@ -93,6 +93,17 @@ export const reportRegistry: ReportDefinition[] = [
     enabled: true,
     supportsDogFilter: true,
   },
+  {
+    id: 'akc-scent-work-transfer-form',
+    name: 'AKC Scent Work Transfer Form',
+    category: 'organization',
+    scopes: ['trial', 'class'],
+    sortOptions: [],
+    defaultSort: '',
+    component: PlaceholderReport,
+    enabled: true,
+    supportsDogFilter: true,
+  },
 
   {
     id: 'armband-labels',

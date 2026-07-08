@@ -101,11 +101,28 @@ vi.mock('@/hooks/queries/useEntryFormData', () => ({
         },
         handler: null,
         armband: 101,
-        entries: [],
+        entries: [
+          {
+            id: 'entry-1',
+            trialId: 'trial-1',
+            classId: 'class-1',
+            element: 'Buried',
+            level: 'Novice',
+            armband: 101,
+            handler: null,
+            submittedAt: '2026-04-01T12:00:00Z',
+          },
+        ],
         agreementDate: '2026-04-01T12:00:00Z',
       },
     ],
-    secretary: null,
+    secretary: {
+      name: 'Taylor Secretary',
+      streetAddress: null,
+      city: null,
+      state: null,
+      zipCode: null,
+    },
     trials: [{ id: 'trial-1', date: '2026-04-12', trialNumber: 1 }],
     classes: [],
     show: null,
@@ -175,12 +192,22 @@ describe('ReportsPage', () => {
     ).toBeEnabled();
   });
 
+  it('offers the official AKC transfer form PDF when a dog and class are selected', async () => {
+    render(<ReportsPage />, {
+      initialRoute:
+        '/shows/show-1/reports?report=akc-scent-work-transfer-form&trialId=trial-1&classId=class-1&dogId=dog-1',
+    });
+
+    expect(
+      await screen.findByRole('button', { name: /Download AKC Transfer Form PDF/i })
+    ).toBeEnabled();
+  });
+
   it('resets stale class scope when the trial changes', async () => {
     const user = userEvent.setup();
 
     render(<ReportsPage />, {
-      initialRoute:
-        '/shows/show-1/reports?report=result-catalog&trialId=trial-1&classId=class-1',
+      initialRoute: '/shows/show-1/reports?report=result-catalog&trialId=trial-1&classId=class-1',
     });
 
     expect(screen.getByTestId('report-preview')).toHaveAttribute('data-class-id', 'class-1');

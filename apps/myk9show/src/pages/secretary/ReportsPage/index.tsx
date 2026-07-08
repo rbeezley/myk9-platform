@@ -29,8 +29,13 @@ import {
   buildAKCScentWorkScoreSheetFilename,
   buildAKCScentWorkScoreSheetPdfBytes,
 } from '@/features/organization-forms/akcScentWorkScoreSheet';
+import {
+  buildAKCScentWorkTransferFormFilename,
+  buildAKCScentWorkTransferFormValues,
+} from '@/features/organization-forms/akcScentWorkTransferForm';
 import { getOrganizationFormTemplateUrl } from '@/features/organization-forms/organizationFormTemplates';
 import { AKC_SCENT_WORK_ENTRY_FORM_REQUIRED_FIELDS } from '@/features/organization-forms/akcScentWorkEntryFormFields';
+import { AKC_SCENT_WORK_TRANSFER_FORM_REQUIRED_FIELDS } from '@/features/organization-forms/akcScentWorkTransferFormFields';
 import { findMissingPdfRequiredFieldLabels } from '@/features/organization-forms/pdfFormCompleteness';
 import {
   buildOfficialPdfFilename,
@@ -88,6 +93,7 @@ export default function ReportsPage() {
   const [isDownloadingOfficialPdf, setIsDownloadingOfficialPdf] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isAKCEntryFormReport = reportType === 'akc-scent-work-entry-form';
+  const isAKCTransferFormReport = reportType === 'akc-scent-work-transfer-form';
   const isAKCScoreSheetReport = reportType === 'scoresheet';
   const isAKCCertificationPageReport = reportType === 'judges-certification';
 
@@ -165,7 +171,7 @@ export default function ReportsPage() {
     showId: showId ?? '',
     trialId: trialId === 'all' ? undefined : trialId,
     dogId: dogId === 'all' ? undefined : dogId,
-    enabled: isAKCEntryFormReport,
+    enabled: isAKCEntryFormReport || isAKCTransferFormReport,
   });
 
   const handleReportTypeChange = (value: string) => {
@@ -262,7 +268,44 @@ export default function ReportsPage() {
     }
 
     return [...labels];
-  }, [dogId, entryFormData.dogs, entryFormData.trials, isAKCEntryFormReport, officialEntryPdfValues]);
+  }, [
+    dogId,
+    entryFormData.dogs,
+    entryFormData.trials,
+    isAKCEntryFormReport,
+    officialEntryPdfValues,
+  ]);
+
+  const officialTransferPdfDog =
+    isAKCTransferFormReport && dogId !== 'all' ? (entryFormData.dogs[0] ?? null) : null;
+  const officialTransferPdfEntry = useMemo(() => {
+    if (!officialTransferPdfDog || classId === 'all') return null;
+    return officialTransferPdfDog.entries.find(entry => entry.classId === classId) ?? null;
+  }, [classId, officialTransferPdfDog]);
+  const officialTransferPdfValues = useMemo(() => {
+    if (!officialTransferPdfDog || !officialTransferPdfEntry || !officialClassPdfProps) {
+      return null;
+    }
+
+    return buildAKCScentWorkTransferFormValues({
+      dog: officialTransferPdfDog,
+      entry: officialTransferPdfEntry,
+      props: officialClassPdfProps,
+      secretary: entryFormData.secretary,
+    });
+  }, [
+    entryFormData.secretary,
+    officialClassPdfProps,
+    officialTransferPdfDog,
+    officialTransferPdfEntry,
+  ]);
+  const officialTransferPdfMissingFieldLabels = useMemo(() => {
+    if (!isAKCTransferFormReport || !officialTransferPdfValues) return [];
+    return findMissingPdfRequiredFieldLabels(
+      AKC_SCENT_WORK_TRANSFER_FORM_REQUIRED_FIELDS,
+      officialTransferPdfValues
+    );
+  }, [isAKCTransferFormReport, officialTransferPdfValues]);
 
   const handleOfficialPdfDownload = useCallback(async () => {
     if (!officialPdfProps) {
@@ -371,6 +414,47 @@ export default function ReportsPage() {
     }
   }, [classId, officialClassPdfProps, trialId]);
 
+  const handleOfficialTransferPdfDownload = useCallback(async () => {
+    if (trialId === 'all' || classId === 'all' || dogId === 'all') {
+      toast.error('Select a trial, class, and dog before downloading the transfer form PDF');
+      return;
+    }
+    if (!officialTransferPdfDog || !officialTransferPdfEntry || !officialTransferPdfValues) {
+      toast.error('The selected dog is not entered in that class yet.');
+      return;
+    }
+
+    setIsDownloadingOfficialPdf(true);
+    try {
+      const { buildOfficialPdfBytesFromValues } =
+        await import('@/features/organization-forms/officialPdfDownload');
+      const bytes = await buildOfficialPdfBytesFromValues(
+        'akc-scent-work-transfer-form',
+        officialTransferPdfValues
+      );
+      downloadPdfBytes(
+        bytes,
+        buildAKCScentWorkTransferFormFilename({
+          dog: officialTransferPdfDog,
+          entry: officialTransferPdfEntry,
+        })
+      );
+      toast.success('Official PDF downloaded');
+    } catch (error) {
+      console.error('[reports] official AKC transfer PDF download failed', error);
+      toast.error('Could not download the official PDF');
+    } finally {
+      setIsDownloadingOfficialPdf(false);
+    }
+  }, [
+    classId,
+    dogId,
+    officialTransferPdfDog,
+    officialTransferPdfEntry,
+    officialTransferPdfValues,
+    trialId,
+  ]);
+
   const handleOfficialCertificationPdfDownload = useCallback(async () => {
     if (!officialPdfProps) {
       toast.error('Select a trial before downloading the official certification PDF');
@@ -417,10 +501,7 @@ export default function ReportsPage() {
             entryFormData.isError ||
             (dogId === 'all' ? entryFormData.dogs.length === 0 : !officialEntryPdfValues),
           isLoading: isDownloadingOfficialPdf,
-          label:
-            dogId === 'all'
-              ? 'Download AKC Entry Form Packet'
-              : 'Download AKC Entry Form PDF',
+          label: dogId === 'all' ? 'Download AKC Entry Form Packet' : 'Download AKC Entry Form PDF',
           missingFieldLabels: officialEntryPdfMissingFieldLabels,
           onClick: handleOfficialEntryPdfDownload,
         }
@@ -441,24 +522,43 @@ export default function ReportsPage() {
             missingFieldLabels: [],
             onClick: handleOfficialScoreSheetPdfDownload,
           }
-        : isAKCCertificationPageReport
+        : isAKCTransferFormReport
           ? {
               disabled:
                 isLoading ||
                 isError ||
-                !show ||
+                entryFormData.isLoading ||
+                entryFormData.isError ||
                 trialId === 'all' ||
-                !officialPdfProps ||
-                officialPdfProps.trial?.registryId?.trim().toUpperCase() !== 'AKC',
+                classId === 'all' ||
+                dogId === 'all' ||
+                !officialTransferPdfValues,
               isLoading: isDownloadingOfficialPdf,
               label:
-                trialId === 'all'
-                  ? 'Select trial for official PDF'
-                  : 'Download AKC Certification Page PDF',
-              missingFieldLabels: [],
-              onClick: handleOfficialCertificationPdfDownload,
+                trialId === 'all' || classId === 'all' || dogId === 'all'
+                  ? 'Select dog and class for official PDF'
+                  : 'Download AKC Transfer Form PDF',
+              missingFieldLabels: officialTransferPdfMissingFieldLabels,
+              onClick: handleOfficialTransferPdfDownload,
             }
-          : undefined;
+          : isAKCCertificationPageReport
+            ? {
+                disabled:
+                  isLoading ||
+                  isError ||
+                  !show ||
+                  trialId === 'all' ||
+                  !officialPdfProps ||
+                  officialPdfProps.trial?.registryId?.trim().toUpperCase() !== 'AKC',
+                isLoading: isDownloadingOfficialPdf,
+                label:
+                  trialId === 'all'
+                    ? 'Select trial for official PDF'
+                    : 'Download AKC Certification Page PDF',
+                missingFieldLabels: [],
+                onClick: handleOfficialCertificationPdfDownload,
+              }
+            : undefined;
 
   return (
     <div className="container mx-auto py-6 flex flex-col">
@@ -466,8 +566,8 @@ export default function ReportsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Print check-in sheets, catalogs, official forms, and labels. Pick a report, narrow it to
-          a trial or class, then print or download.
+          Print check-in sheets, catalogs, official forms, and labels. Pick a report, narrow it to a
+          trial or class, then print or download.
         </p>
       </div>
 

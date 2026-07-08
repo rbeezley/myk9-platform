@@ -64,6 +64,13 @@ describe('organization form templates', () => {
     });
   });
 
+  it('returns the AKC Scent Work transfer form mapping by id', () => {
+    expect(getOrganizationFormTemplate('akc-scent-work-transfer-form')).toMatchObject({
+      label: 'AKC Scent Work Class Transfer Form',
+      sourcePath: 'docs/AKC-forms/SW-Transfer.pdf',
+    });
+  });
+
   it('resolves the AKC trial secretary report runtime URL from the registry id', () => {
     expect(getOrganizationFormTemplateUrl('akc-scent-work-trial-secretary-report')).toContain(
       'SW-TSReport.pdf'
@@ -85,6 +92,12 @@ describe('organization form templates', () => {
   it('resolves the AKC Scent Work certification page runtime URL from the registry id', () => {
     expect(getOrganizationFormTemplateUrl('akc-scent-work-certification-page')).toContain(
       'SW-CertificationPage.pdf'
+    );
+  });
+
+  it('resolves the AKC Scent Work transfer form runtime URL from the registry id', () => {
+    expect(getOrganizationFormTemplateUrl('akc-scent-work-transfer-form')).toContain(
+      'SW-Transfer.pdf'
     );
   });
 });

@@ -8,6 +8,7 @@ import ShowDetailsPage from '@/pages/ShowDetailsPage';
 const publishExperienceMock = vi.hoisted(() => vi.fn());
 const updateShowLocallyMock = vi.hoisted(() => vi.fn());
 const notificationsSuccessMock = vi.hoisted(() => vi.fn());
+const getEntriesForShowMock = vi.hoisted(() => vi.fn());
 const showEditPanelMock = vi.hoisted<{
   impl: (props: { onSave: (data: Record<string, unknown>) => Promise<void> }) => React.ReactNode;
 }>(() => ({
@@ -73,6 +74,16 @@ let mockShowEntries: Array<{
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: () => ({ data: mockShowEntries, isLoading: mockShowEntriesLoading }),
 }));
+
+vi.mock('@/services/database/entries', async () => {
+  const actual = await vi.importActual<typeof import('@/services/database/entries')>(
+    '@/services/database/entries'
+  );
+  return {
+    ...actual,
+    getEntriesForShow: getEntriesForShowMock,
+  };
+});
 
 let mockDogs: Array<{ id: string; ownerId: string }> = [];
 vi.mock('@/hooks/useDogStoreCompat', () => ({
@@ -305,6 +316,7 @@ describe('ShowDetailsPage', () => {
     mockUserEntriesLoading = false;
     mockShowEntries = [];
     mockShowEntriesLoading = false;
+    getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
     mockDogs = [];
     mockTrials = [];
     mockTrialClasses = {};
@@ -508,9 +520,7 @@ describe('ShowDetailsPage', () => {
     renderPage();
     expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Enter This Show' })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Add or Change Entries' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add or Change Entries' })).not.toBeInTheDocument();
   });
 
   it('does not render a separate Premium List edit button for show managers', () => {
@@ -546,7 +556,7 @@ describe('ShowDetailsPage', () => {
 
     const nav = screen.getByTestId('canonical-show-management-nav');
     expect(nav).toBeInTheDocument();
-    expect(nav.firstElementChild?.className).toContain('max-w-full');
+    expect(screen.getByRole('combobox', { name: /show management section/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute(
       'href',
       '/shows/show-1/setup'
@@ -579,7 +589,7 @@ describe('ShowDetailsPage', () => {
     renderPage();
 
     const nav = screen.getByTestId('canonical-show-management-nav');
-    const container = nav.firstElementChild;
+    const container = nav.querySelector('[class*="overflow-x-auto"]');
     expect(container?.className).toContain('overflow-x-auto');
     expect(container?.className).toContain('max-w-full');
     // No min-w-* or fixed pixel widths that force desktop layout on phones
@@ -942,6 +952,7 @@ describe('ShowDetailsPage', () => {
       // e4 has no class_id — must not contribute to any class's count
       { id: 'e4', show_id: 'show-1' },
     ];
+    getEntriesForShowMock.mockResolvedValue({ data: mockShowEntries, error: null });
     mockAuthContext.isSecretary = true;
 
     renderPage('show-1', '', '?tab=trials');

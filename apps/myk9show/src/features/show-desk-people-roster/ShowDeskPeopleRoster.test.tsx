@@ -7,14 +7,9 @@ import type { SecretaryEntry } from '@/services/database/entries';
 import { ShowDeskPeopleRoster } from './ShowDeskPeopleRoster';
 
 const h = vi.hoisted(() => ({
-  getEntriesForShow: vi.fn(),
   updateReplicatedCheckInStatus: vi.fn(),
   getOrCreateThread: vi.fn(),
   presence: [] as ShowPresence[],
-}));
-
-vi.mock('@/services/database/entries', () => ({
-  getEntriesForShow: h.getEntriesForShow,
 }));
 
 vi.mock('@/services/show-day/checkInStatus', () => ({
@@ -98,7 +93,6 @@ function renderRoster(
   entries: SecretaryEntry[] = [entry()],
   options: { currentDate?: Date | null; trialDate?: string } = {}
 ) {
-  h.getEntriesForShow.mockResolvedValue({ data: entries, error: null });
   if (!h.updateReplicatedCheckInStatus.getMockImplementation()) {
     h.updateReplicatedCheckInStatus.mockResolvedValue(undefined);
   }
@@ -116,6 +110,7 @@ function renderRoster(
     <>
       <ShowDeskPeopleRoster
         showId="show-1"
+        entries={entries}
         currentDate={options.currentDate ?? new Date('2026-07-08T15:00:00.000Z')}
         classes={[
           {

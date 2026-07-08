@@ -1,6 +1,7 @@
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ShowWorkbenchClassSummary } from './showWorkbenchTypes';
+import { classifyPremiumPublishState } from './premiumPublishState';
 
 export type SetupReadinessSignalId =
   | 'show-details-missing'
@@ -52,10 +53,6 @@ function judgesAssigned(input: SetupReadinessInput): boolean {
   return input.classes.length > 0 && input.classes.every(cls => hasText(cls.judgeName));
 }
 
-function exhibitorMaterialsPublished(show: Show): boolean {
-  return Boolean(show.publishedPremiumUrl || show.publishedPremiumAt || show.experienceIsPublished);
-}
-
 // INTENT: Mirror the Show Desk adaptive header's pending-signals contract —
 // only emit a signal when it's NOT yet satisfied. Once the secretary
 // finishes the setup step, the chip disappears instead of staying as a
@@ -63,9 +60,7 @@ function exhibitorMaterialsPublished(show: Show): boolean {
 // Every signal carries an href: a chip that names a problem without
 // taking the secretary to the fix is the "wondering what to do next"
 // anti-reference from PRODUCT.md.
-export function computeSetupReadinessSignals(
-  input: SetupReadinessInput
-): SetupReadinessSignal[] {
+export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupReadinessSignal[] {
   const signals: SetupReadinessSignal[] = [];
   const showId = input.show.id;
   const firstTrialId = input.trials[0]?.id;
@@ -94,7 +89,14 @@ export function computeSetupReadinessSignals(
   if (!judgesAssigned(input)) {
     signals.push({ id: 'judges-missing', label: 'Judges not assigned', href: classWorkHref });
   }
-  if (!exhibitorMaterialsPublished(input.show)) {
+  const premiumState = classifyPremiumPublishState(input.show);
+  if (premiumState === 'published-stale') {
+    signals.push({
+      id: 'exhibitor-materials-unpublished',
+      label: 'Exhibitor info changed since publish',
+      href: `#${SETUP_PUBLISH_ANCHOR}`,
+    });
+  } else if (premiumState === 'unpublished' && !input.show.experienceIsPublished) {
     signals.push({
       id: 'exhibitor-materials-unpublished',
       label: 'Exhibitor info not published yet',

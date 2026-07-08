@@ -216,18 +216,24 @@ export default function ShowDeskPanel({
     [executeAction, navigateTo]
   );
 
-  // INTENT: Pattern 1 (counts are filter shortcuts) — pending-signal chips
-  // map to the existing Show Map filter set. Phase B2a wires the placeholder
-  // hook; richer subtree-scoped filtering arrives with the tools sheet (B3).
-  // Depending on the whole `state` object would re-bind this callback on
-  // every render (state is a fresh literal each call) and force the header's
-  // memoized chips to rebuild — depend only on the stable setter.
+  // INTENT: Pending-signal chips lead to the canonical owner of that work.
+  // Entry review belongs to Entries Management; closeout belongs to Results &
+  // Check-In. The Show Map attention lens stays a fallback for signals that
+  // are genuinely represented in the tree.
   const { setFilter } = state;
   const handlePendingSignal = useCallback(
-    (_signalId: ShowDeskPendingSignalId) => {
+    (signalId: ShowDeskPendingSignalId) => {
+      if (signalId === 'entries-waiting-review') {
+        openEntryManagement();
+        return;
+      }
+      if (signalId === 'results-pending-closeout') {
+        navigateTo(`/shows/${show.id}/results-control`);
+        return;
+      }
       setFilter('needs-attention');
     },
-    [setFilter]
+    [navigateTo, openEntryManagement, setFilter, show.id]
   );
 
   return (

@@ -121,6 +121,7 @@ describe('ShowManagementShell', () => {
     renderShell();
     const nav = screen.getByTestId('canonical-show-management-nav');
     expect(nav).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /show management section/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute(
       'href',
       '/shows/show-1/setup'

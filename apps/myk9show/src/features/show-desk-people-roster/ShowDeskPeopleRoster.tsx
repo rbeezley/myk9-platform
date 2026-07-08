@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ClipboardCheck, MessageSquare, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { getEntriesForShow } from '@/services/database/entries';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { useShowPresenceRoster } from '@/features/show-presence/showPresenceContext';
 import { useMessageStore } from '@/store/messageStore';
@@ -23,6 +21,8 @@ import {
 interface ShowDeskPeopleRosterProps {
   showId: string;
   classes: readonly ShowWorkbenchClassSummary[];
+  entries: readonly SecretaryEntry[];
+  isLoading?: boolean;
   currentDate?: Date | null;
 }
 
@@ -32,11 +32,13 @@ const FILTERS: Array<{ id: PeopleRosterFilter; label: string }> = [
   { id: 'online', label: 'Online' },
 ];
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Something went wrong';
-}
-
-export function ShowDeskPeopleRoster({ showId, classes, currentDate }: ShowDeskPeopleRosterProps) {
+export function ShowDeskPeopleRoster({
+  showId,
+  classes,
+  entries: sourceEntries,
+  isLoading = false,
+  currentDate,
+}: ShowDeskPeopleRosterProps) {
   const navigate = useNavigate();
   const { present } = useShowPresenceRoster();
   const getOrCreateThread = useMessageStore(s => s.getOrCreateThread);
@@ -48,17 +50,6 @@ export function ShowDeskPeopleRoster({ showId, classes, currentDate }: ShowDeskP
   const [busyEntryIds, setBusyEntryIds] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const query = useQuery({
-    queryKey: ['show-desk-people-roster', showId],
-    queryFn: async () => {
-      const result = await getEntriesForShow(showId);
-      if (result.error) throw result.error;
-      return ((result.data ?? []) as unknown as SecretaryEntry[]).map(
-        mapSecretaryEntryToEntryManagementEntry
-      );
-    },
-  });
-
   useEffect(() => {
     if (currentDate) return undefined;
     const interval = window.setInterval(() => setNow(new Date()), 60_000);
@@ -67,7 +58,7 @@ export function ShowDeskPeopleRoster({ showId, classes, currentDate }: ShowDeskP
 
   const entries = useMemo(
     () =>
-      (query.data ?? []).map(entry =>
+      sourceEntries.map(mapSecretaryEntryToEntryManagementEntry).map(entry =>
         checkedInEntryIds.has(entry.id)
           ? {
               ...entry,
@@ -79,7 +70,7 @@ export function ShowDeskPeopleRoster({ showId, classes, currentDate }: ShowDeskP
             }
           : entry
       ),
-    [checkedInEntryIds, query.data]
+    [checkedInEntryIds, sourceEntries]
   );
 
   const roster = useMemo(
@@ -152,20 +143,8 @@ export function ShowDeskPeopleRoster({ showId, classes, currentDate }: ShowDeskP
     navigate(`/shows/${showId}/entry-management?person=${encodeURIComponent(person.name)}`);
   }
 
-  if (query.isLoading) {
+  if (isLoading) {
     return <div className="py-6 text-sm text-muted-foreground">Loading exhibitors...</div>;
-  }
-
-  if (query.error) {
-    return (
-      <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-        <p className="font-medium text-destructive">Couldn't load exhibitors.</p>
-        <p className="mt-1 text-muted-foreground">{getErrorMessage(query.error)}</p>
-        <Button variant="outline" size="sm" className="mt-3" onClick={() => void query.refetch()}>
-          Retry
-        </Button>
-      </div>
-    );
   }
 
   return (

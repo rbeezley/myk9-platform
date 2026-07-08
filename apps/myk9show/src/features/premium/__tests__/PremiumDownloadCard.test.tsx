@@ -31,8 +31,8 @@ vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: vi.fn(),
 }));
 
-function renderCard() {
-  return render(<PremiumDownloadCard showId="show-1" />, {
+function renderCard(showStaleBadge = false) {
+  return render(<PremiumDownloadCard showId="show-1" showStaleBadge={showStaleBadge} />, {
     queryClient: createTestQueryClient(),
   });
 }
@@ -79,5 +79,22 @@ describe('PremiumDownloadCard', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(link).not.toHaveAttribute('download');
     expect(screen.getByText(/premium pdf published may 9, 2026/i)).toBeInTheDocument();
+  });
+
+  it('surfaces a republish action when published premium data is stale', async () => {
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        published_premium_url: 'https://example.test/premium.pdf',
+        published_premium_at: '2026-05-09T12:00:00.000Z',
+        updated_at: '2026-05-09T12:05:01.000Z',
+      },
+      error: null,
+    });
+
+    renderCard(true);
+
+    expect(await screen.findByRole('button', { name: /republish premium/i })).toBeInTheDocument();
+    expect(screen.getByText(/show data has changed since publish/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /download pdf/i })).toBeInTheDocument();
   });
 });

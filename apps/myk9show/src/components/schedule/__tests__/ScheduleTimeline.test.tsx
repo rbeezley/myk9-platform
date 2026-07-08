@@ -2,10 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import {
-  ScheduleTimeline,
-  SCHEDULE_TIMELINE_RESERVED_MIN_HEIGHT_PX,
-} from '../ScheduleTimeline';
+import { ScheduleTimeline, SCHEDULE_TIMELINE_RESERVED_MIN_HEIGHT_PX } from '../ScheduleTimeline';
 import type { DayTimelineData } from '../schedule-timeline.types';
 import { CLASS_STATUS } from '@myk9/core';
 
@@ -101,6 +98,13 @@ describe('ScheduleTimeline', () => {
     renderWithRouter(<ScheduleTimeline showId="show-1" />);
     expect(screen.getByText('Container')).toBeInTheDocument();
     expect(screen.getByText('Buried')).toBeInTheDocument();
+  });
+
+  it('labels element cards as links to trial details', () => {
+    renderWithRouter(<ScheduleTimeline showId="show-1" />);
+    expect(
+      screen.getByRole('button', { name: /open trial details for container/i })
+    ).toBeInTheDocument();
   });
 
   it('renders status badges', () => {

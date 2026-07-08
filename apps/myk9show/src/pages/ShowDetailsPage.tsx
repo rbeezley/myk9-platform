@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard, Trophy, ListChecks, ClipboardList, Medal, ListTree } from 'lucide-react';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
@@ -16,6 +17,8 @@ import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS } from '@myk9/core';
 import { useMyEntries } from '@/hooks/useMyEntries';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
+import { getEntriesForShow } from '@/services/database/entries';
+import type { SecretaryEntry } from '@/services/database/entries';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { ShowPublicLanding } from '@/components/shows/ShowDetails/ShowPublicLanding';
@@ -33,6 +36,7 @@ import { NotFoundState } from '@/components/common/NotFoundState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
 import { countCatalogEntries } from '@/features/show-map/entryCounts';
+import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
@@ -71,7 +75,6 @@ const ShowDetailsPage: React.FC = () => {
     id || '',
     !!id
   );
-  const catalogEntryCount = countCatalogEntries(showEntries);
   const { dogs } = useDogStoreCompat();
 
   // Use fast show details loading with cache optimization
@@ -104,6 +107,18 @@ const ShowDetailsPage: React.FC = () => {
 
   const { data: armbandCount } = useArmbandCount(actualCurrentShow?.id);
   const canManageShow = isSecretary || isAdmin;
+  const { data: secretaryEntries = [] } = useQuery<SecretaryEntry[]>({
+    queryKey: ['secretary-show-entries', id],
+    queryFn: async () => {
+      const result = await getEntriesForShow(id ?? '');
+      if (result.error) throw result.error;
+      return (result.data ?? []) as unknown as SecretaryEntry[];
+    },
+    enabled: Boolean(id && canManageShow),
+  });
+  const effectiveShowEntries = canManageShow ? secretaryEntries : showEntries;
+  const effectiveShowMapEntries = effectiveShowEntries as unknown as ShowMapEntryInput[];
+  const catalogEntryCount = countCatalogEntries(effectiveShowEntries);
   const canonicalShowHref = actualCurrentShow?.id ? `/shows/${actualCurrentShow.id}` : '';
   const activeManagementSection = managementSectionMatch?.params.section;
   const isManagementSection = Boolean(
@@ -201,16 +216,16 @@ const ShowDetailsPage: React.FC = () => {
   const [activeTab, setTab] = useUrlTab(allowedTabs, defaultTab);
 
   // Count entries per class once (O(entries)) instead of re-filtering the full
-  // showEntries array per class below (was O(classes × entries) per recompute).
+  // effectiveShowEntries array per class below (was O(classes × entries) per recompute).
   const entryCountByClassId = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const entry of showEntries) {
+    for (const entry of effectiveShowEntries) {
       const classId = typeof entry.class_id === 'string' ? entry.class_id : undefined;
       if (!classId) continue;
       counts.set(classId, (counts.get(classId) ?? 0) + 1);
     }
     return counts;
-  }, [showEntries]);
+  }, [effectiveShowEntries]);
 
   // Flatten trial classes for judge roster resolution and entry overlap detection
   const showClasses = useMemo(() => {
@@ -417,7 +432,7 @@ const ShowDetailsPage: React.FC = () => {
     trialStats: effectiveTrialStats,
     mapTrials: associatedTrials,
     mapClasses: showClasses,
-    mapEntries: showEntries,
+    mapEntries: effectiveShowMapEntries,
   };
 
   // ShowPresenceProvider wraps only the authed surfaces (matching the prior

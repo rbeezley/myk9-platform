@@ -441,27 +441,29 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         icon: FolderOpen,
       });
     }
-    actions.push(
-      withHref(
-        {
-          id: 'print-check-in-sheet',
-          nodeId: node.id,
-          label: 'Print Check-In Sheet',
-          why: 'Prepare check-in for this class',
-          priority: node.status?.kind === 'neutral' ? 45 : 20,
-          icon: ClipboardList,
-          recommended: node.status?.kind === 'neutral',
-        },
-        showId && trialId && classId
-          ? getShowMapReportHref({
-              reportId: 'check-in-sheet',
-              showId,
-              trialId,
-              classId,
-            })
-          : undefined
-      )
-    );
+    if ((node.count ?? 0) > 0) {
+      actions.push(
+        withHref(
+          {
+            id: 'print-check-in-sheet',
+            nodeId: node.id,
+            label: 'Print Check-In Sheet',
+            why: 'Prepare check-in for this class',
+            priority: node.status?.kind === 'neutral' ? 45 : 20,
+            icon: ClipboardList,
+            recommended: node.status?.kind === 'neutral',
+          },
+          showId && trialId && classId
+            ? getShowMapReportHref({
+                reportId: 'check-in-sheet',
+                showId,
+                trialId,
+                classId,
+              })
+            : undefined
+        )
+      );
+    }
     return actions;
   }
 

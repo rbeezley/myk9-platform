@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { publishExperience } from '@/features/experience/publishExperience';
+import { classifyPremiumPublishState } from '@/features/show-workbench/premiumPublishState';
 import { notifications } from '@/lib/notifications';
 import { supabase } from '@/services/database/supabaseClient';
 import { useGeneratePremium } from './useGeneratePremium';
@@ -85,9 +86,7 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-sm">Premium List</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Premium PDF is not published yet
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">Premium PDF is not published yet</p>
         </div>
         <Button
           size="sm"
@@ -108,15 +107,13 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
     day: 'numeric',
   });
 
-  // `published_premium_at` is written from the JS client clock; `updated_at`
-  // is set by a Postgres trigger using NOW(). Those two clocks can disagree
-  // by hundreds of ms on the same UPDATE. Use a tolerance window so the badge
-  // only appears for genuine post-publish edits, not clock skew at publish.
-  const STALE_TOLERANCE_MS = 5_000;
   const stale =
     showStaleBadge &&
-    showUpdatedAt &&
-    new Date(showUpdatedAt).getTime() - new Date(publishedAt).getTime() > STALE_TOLERANCE_MS;
+    classifyPremiumPublishState({
+      publishedPremiumUrl: publishedUrl,
+      publishedPremiumAt: publishedAt,
+      updatedAt: showUpdatedAt,
+    }) === 'published-stale';
 
   return (
     <Card className="p-4 flex flex-wrap items-center gap-4">
@@ -137,6 +134,17 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
           Premium PDF published {publishedLabel}
         </p>
       </div>
+      {stale && (
+        <Button
+          size="sm"
+          className="shrink-0 whitespace-nowrap"
+          onClick={handleGenerateAndPublish}
+          disabled={isBusy}
+        >
+          <Upload className="h-4 w-4 mr-2" />
+          {isBusy ? 'Publishing…' : 'Republish premium'}
+        </Button>
+      )}
       <a
         href={publishedUrl}
         target="_blank"

@@ -5,7 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
-import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
+import { getEntriesForShow } from '@/services/database/entries';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { JudgeHospitalityCard } from '@/features/show-workbench/JudgeHospitalityCard';
@@ -33,8 +33,11 @@ import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS } from '@myk9/core';
 import type { ShowWorkbenchClassSummary } from '@/features/show-workbench/showWorkbenchTypes';
+import type { ShowDayReconciliationEntry } from '@/features/show-workbench/showDayReconciliationSummary';
+import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { isValidUUID } from '@/utils/validation';
+import type { SecretaryEntry } from '@/services/database/entries';
 import type { IncidentEntryOption } from '@/features/show-workbench/showIncidents';
 
 const ShowDeskPanel = lazy(() => import('@/features/show-map/ShowDeskPanel'));
@@ -96,7 +99,17 @@ export function ShowWorkbenchShowDeskPage() {
   const { trials, trialClasses } = useTrialStore(
     useShallow(s => ({ trials: s.trials, trialClasses: s.trialClasses }))
   );
-  const { data: showEntries = [] } = useEntriesByShowQuery(showId || '', !!showId);
+  const { data: showEntries = [], isLoading: showEntriesLoading } = useQuery<SecretaryEntry[]>({
+    queryKey: ['secretary-show-entries', showId],
+    queryFn: async () => {
+      const result = await getEntriesForShow(showId ?? '');
+      if (result.error) throw result.error;
+      return (result.data ?? []) as unknown as SecretaryEntry[];
+    },
+    enabled: Boolean(showId),
+  });
+  const showMapEntries = showEntries as unknown as ShowMapEntryInput[];
+  const reconciliationEntries = showEntries as unknown as ShowDayReconciliationEntry[];
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
   const { data: resultSubmissions = [] } = useResultSubmissions(showId || '');
 
@@ -171,10 +184,10 @@ export function ShowWorkbenchShowDeskPage() {
 
   const incidentEntryOptions = useMemo(() => {
     const classById = new Map(showClasses.map(cls => [cls.id, cls]));
-    return showEntries
+    return showMapEntries
       .map(entry => toIncidentEntryOption(entry, classById))
       .filter((entry): entry is IncidentEntryOption => entry !== null);
-  }, [showClasses, showEntries]);
+  }, [showClasses, showMapEntries]);
 
   // INTENT: Urgent or reportable incidents surface themselves on the tools
   // sheet (attentionLabel auto-opens the section) instead of waiting silently
@@ -231,7 +244,14 @@ export function ShowWorkbenchShowDeskPage() {
         title: 'People at show',
         summary: 'Look up exhibitors, armbands, class entries, and check-in status',
         layout: 'wide',
-        content: <ShowDeskPeopleRoster showId={currentShow.id} classes={showClasses} />,
+        content: (
+          <ShowDeskPeopleRoster
+            showId={currentShow.id}
+            classes={showClasses}
+            entries={showEntries}
+            isLoading={showEntriesLoading}
+          />
+        ),
       },
       {
         id: 'add-entries',
@@ -315,6 +335,8 @@ export function ShowWorkbenchShowDeskPage() {
     incidentAttentionLabel,
     incidentEntryOptions,
     showClasses,
+    showEntries,
+    showEntriesLoading,
   ]);
 
   if (isLoading || !currentShow) {
@@ -327,14 +349,14 @@ export function ShowWorkbenchShowDeskPage() {
         show={currentShow}
         trials={showMapTrials}
         classes={showClasses}
-        entries={showEntries}
+        entries={showMapEntries}
         canManageShow
         tools={showDeskTools}
         actionableCount={actionable.count}
         actionableTone={actionable.tone}
         closeoutContent={
           <>
-            <ShowCloseoutSummary showId={currentShow.id} entries={showEntries} />
+            <ShowCloseoutSummary showId={currentShow.id} entries={reconciliationEntries} />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
                 <Link to={`/shows/${currentShow.id}/results-control`}>

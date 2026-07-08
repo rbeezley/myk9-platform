@@ -223,7 +223,27 @@ export function ShowManagementShell({
             aria-label="Show management sections"
             data-testid="canonical-show-management-nav"
           >
-            <div className="flex max-w-full overflow-x-auto no-scrollbar px-4 sm:px-6">
+            <div className="px-4 py-3 sm:hidden">
+              <label htmlFor="show-management-section" className="sr-only">
+                Show management section
+              </label>
+              <select
+                id="show-management-section"
+                value={activeManagementSection ?? ''}
+                onChange={event => navigate(`${canonicalShowHref}/${event.target.value}`)}
+                className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="" disabled>
+                  Choose section
+                </option>
+                {SHOW_MANAGEMENT_SECTIONS.map(({ label, path }) => (
+                  <option key={path} value={path}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="hidden max-w-full overflow-x-auto no-scrollbar px-4 sm:flex sm:px-6">
               {SHOW_MANAGEMENT_SECTIONS.map(({ label, path }) => {
                 const href = `${canonicalShowHref}/${path}`;
                 const isActive = activeManagementSection === path;

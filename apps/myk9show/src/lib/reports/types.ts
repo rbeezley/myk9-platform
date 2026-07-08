@@ -53,6 +53,7 @@ export interface ReportProps {
     date: string;
     trialNumber: string;
     judgeName: string;
+    eventNumber?: string;
     registryId?: string;
   };
   classData?: {

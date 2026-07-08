@@ -2,6 +2,7 @@ export * from './akcJudgeReport';
 export * from './akcJudgeReportFields';
 export * from './akcScentWorkEntryForm';
 export * from './akcScentWorkEntryFormFields';
+export * from './akcScentWorkScoreSheet';
 export * from './akcTrialChairmanReport';
 export * from './akcTrialChairmanReportFields';
 export * from './akcTrialSecretaryReport';

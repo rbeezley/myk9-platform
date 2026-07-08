@@ -16,7 +16,7 @@ vi.mock('@/hooks/queries/useReportData', () => ({
   useReportData: () => ({
     show: { id: 'show-1', name: 'Spring Scent Trial 2026' },
     trials: [
-      { id: 'trial-1', trial_number: 1, date: '2026-04-12' },
+      { id: 'trial-1', trial_number: 1, event_number: '2026123401', date: '2026-04-12' },
       { id: 'trial-2', trial_number: 2, date: '2026-04-13' },
     ],
     classes: [
@@ -26,6 +26,10 @@ vi.mock('@/hooks/queries/useReportData', () => ({
         level: 'Novice',
         section: '',
         trial_id: 'trial-1',
+        time_limit_seconds: 120,
+        time_limit_area2_seconds: null,
+        time_limit_area3_seconds: null,
+        num_areas: 1,
       },
       {
         id: 'class-2',
@@ -35,7 +39,30 @@ vi.mock('@/hooks/queries/useReportData', () => ({
         trial_id: 'trial-2',
       },
     ],
-    entries: [],
+    entries: [
+      {
+        id: 'entry-1',
+        class_id: 'class-1',
+        armband: 101,
+        run_order: 1,
+        check_in_status: 'checked-in',
+        is_scored: false,
+        result_status: null,
+        search_time_seconds: null,
+        total_faults: null,
+        final_placement: null,
+        entry_fee: null,
+        payment_status: null,
+        payment_method: null,
+        entry_source: null,
+        is_day_of_show: false,
+        dog: {
+          call_name: 'Star',
+          breed: 'Golden Retriever',
+          owner: { first_name: 'Sarah', last_name: 'Johnson' },
+        },
+      },
+    ],
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -113,6 +140,16 @@ describe('ReportsPage', () => {
       await screen.findByRole('button', { name: /Download AKC Entry Form PDF/i })
     ).toBeEnabled();
     expect(screen.getByRole('status')).toHaveTextContent('Signature');
+  });
+
+  it('offers the official AKC score sheet PDF when a class is selected', async () => {
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=scoresheet&trialId=trial-1&classId=class-1',
+    });
+
+    expect(
+      await screen.findByRole('button', { name: /Download AKC Score Sheet PDF/i })
+    ).toBeEnabled();
   });
 
   it('resets stale class scope when the trial changes', async () => {

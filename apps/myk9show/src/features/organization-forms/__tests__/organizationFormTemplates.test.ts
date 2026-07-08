@@ -17,8 +17,10 @@ async function readTemplatePdf(sourcePath: string): Promise<Uint8Array> {
 }
 
 describe('organization form templates', () => {
-  it('points each mapped template at a real fillable PDF with the required fields', async () => {
+  it('points each fillable mapped template at a real PDF with the required fields', async () => {
     for (const template of ORGANIZATION_FORM_TEMPLATES) {
+      if (template.requiredFields.length === 0) continue;
+
       const fields = await listPdfFormFields(await readTemplatePdf(template.sourcePath));
       const fieldNames = new Set(fields.map(field => field.name));
 
@@ -27,6 +29,18 @@ describe('organization form templates', () => {
         expect(fieldNames.has(fieldName), `${template.label}: ${fieldName}`).toBe(true);
       }
     }
+  });
+
+  it('maps the AKC Scent Work score sheet as a drawable non-AcroForm template', async () => {
+    const template = getOrganizationFormTemplate('akc-scent-work-score-sheet');
+    const fields = await listPdfFormFields(await readTemplatePdf(template.sourcePath));
+
+    expect(template).toMatchObject({
+      label: 'AKC Scent Work Score Sheet',
+      sourcePath: 'docs/AKC-forms/SW-Scoresheet.pdf',
+      requiredFields: [],
+    });
+    expect(fields).toEqual([]);
   });
 
   it('returns the AKC trial secretary report mapping by id', () => {
@@ -52,6 +66,12 @@ describe('organization form templates', () => {
   it('resolves the AKC Scent Work entry form runtime URL from the registry id', () => {
     expect(getOrganizationFormTemplateUrl('akc-scent-work-entry-form')).toContain(
       'SW-EntryForm.pdf'
+    );
+  });
+
+  it('resolves the AKC Scent Work score sheet runtime URL from the registry id', () => {
+    expect(getOrganizationFormTemplateUrl('akc-scent-work-score-sheet')).toContain(
+      'SW-Scoresheet.pdf'
     );
   });
 });

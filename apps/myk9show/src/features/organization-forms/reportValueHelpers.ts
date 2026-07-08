@@ -11,7 +11,7 @@ export function formattedTrialDate(props: ReportProps): string | undefined {
 }
 
 export function trialEventNumber(props: ReportProps): string | undefined {
-  return textOrUndefined(props.trial?.trialNumber);
+  return textOrUndefined(props.trial?.eventNumber) ?? textOrUndefined(props.trial?.trialNumber);
 }
 
 export function uniqueTrialJudgeNames(props: ReportProps): string[] {

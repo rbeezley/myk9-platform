@@ -13,12 +13,17 @@ import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsRe
 import { ResultLabelsReport } from '@/components/reports/labels/ResultLabelsReport';
 import { LabelModeHeader } from '@/components/reports/labels/LabelModeChrome';
 import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
-import { buildTrialReportProps } from './reportDataMapping';
+import { buildClassReportProps, buildTrialReportProps } from './reportDataMapping';
 import { downloadPdfBytes } from '@/features/organization-forms/downloadPdf';
 import {
   buildAKCScentWorkEntryFormFilename,
   buildAKCScentWorkEntryFormValues,
 } from '@/features/organization-forms/akcScentWorkEntryForm';
+import {
+  buildAKCScentWorkScoreSheetFilename,
+  buildAKCScentWorkScoreSheetPdfBytes,
+} from '@/features/organization-forms/akcScentWorkScoreSheet';
+import { getOrganizationFormTemplateUrl } from '@/features/organization-forms/organizationFormTemplates';
 import { AKC_SCENT_WORK_ENTRY_FORM_REQUIRED_FIELDS } from '@/features/organization-forms/akcScentWorkEntryFormFields';
 import { findMissingPdfRequiredFieldLabels } from '@/features/organization-forms/pdfFormCompleteness';
 import {
@@ -77,6 +82,7 @@ export default function ReportsPage() {
   const [isDownloadingOfficialPdf, setIsDownloadingOfficialPdf] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isAKCEntryFormReport = reportType === 'akc-scent-work-entry-form';
+  const isAKCScoreSheetReport = reportType === 'scoresheet';
 
   const { show, trials, classes, entries, isLoading, isError, refetch } = useReportData({
     show: currentShow,
@@ -190,6 +196,19 @@ export default function ReportsPage() {
     );
   }, [show, trials, classes, entries, trialId, sortOrder]);
 
+  const officialClassPdfProps = useMemo(() => {
+    if (!show || trialId === 'all' || classId === 'all') return null;
+    return buildClassReportProps({
+      show,
+      trials: trials as Parameters<typeof buildClassReportProps>[0]['trials'],
+      classes: classes as Parameters<typeof buildClassReportProps>[0]['classes'],
+      entries: entries as Parameters<typeof buildClassReportProps>[0]['entries'],
+      trialId,
+      classId,
+      sortOrder,
+    });
+  }, [show, trials, classes, entries, trialId, classId, sortOrder]);
+
   const officialPdfConfig = useMemo(
     () => getOfficialPdfReportConfig(reportType, officialPdfProps),
     [officialPdfProps, reportType]
@@ -267,6 +286,37 @@ export default function ReportsPage() {
     }
   }, [dogId, officialEntryPdfDog, officialEntryPdfValues]);
 
+  const handleOfficialScoreSheetPdfDownload = useCallback(async () => {
+    if (trialId === 'all' || classId === 'all') {
+      toast.error('Select a trial and class before downloading the official score sheet PDF');
+      return;
+    }
+    if (!officialClassPdfProps) {
+      toast.error('The class data is still loading. Try again in a moment.');
+      return;
+    }
+
+    setIsDownloadingOfficialPdf(true);
+    try {
+      const response = await fetch(getOrganizationFormTemplateUrl('akc-scent-work-score-sheet'));
+      if (!response.ok) {
+        throw new Error('Unable to load AKC Scent Work score sheet template.');
+      }
+
+      const bytes = await buildAKCScentWorkScoreSheetPdfBytes({
+        props: officialClassPdfProps,
+        templateBytes: new Uint8Array(await response.arrayBuffer()),
+      });
+      downloadPdfBytes(bytes, buildAKCScentWorkScoreSheetFilename(officialClassPdfProps));
+      toast.success('Official PDF downloaded');
+    } catch (error) {
+      console.error('[reports] official AKC score sheet PDF download failed', error);
+      toast.error('Could not download the official PDF');
+    } finally {
+      setIsDownloadingOfficialPdf(false);
+    }
+  }, [classId, officialClassPdfProps, trialId]);
+
   const officialPdfAction = officialPdfConfig
     ? {
         disabled: isLoading || isError || !show || trialId === 'all',
@@ -289,7 +339,24 @@ export default function ReportsPage() {
           missingFieldLabels: officialEntryPdfMissingFieldLabels,
           onClick: handleOfficialEntryPdfDownload,
         }
-    : undefined;
+      : isAKCScoreSheetReport
+        ? {
+            disabled:
+              isLoading ||
+              isError ||
+              !show ||
+              trialId === 'all' ||
+              classId === 'all' ||
+              !officialClassPdfProps,
+            isLoading: isDownloadingOfficialPdf,
+            label:
+              trialId === 'all' || classId === 'all'
+                ? 'Select class for official PDF'
+                : 'Download AKC Score Sheet PDF',
+            missingFieldLabels: [],
+            onClick: handleOfficialScoreSheetPdfDownload,
+          }
+        : undefined;
 
   return (
     <div className="container mx-auto py-6 flex flex-col">

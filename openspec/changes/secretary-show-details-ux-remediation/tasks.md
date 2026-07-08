@@ -43,7 +43,7 @@
 ## 6. Shipping And Tracking
 
 - [x] 6.1 Update the single `OPEN-TODOS.md` pointer for this OpenSpec change when implementation status changes.
-- [ ] 6.2 Open a PR with `Tracked in openspec change: secretary-show-details-ux-remediation` in the body.
+- [x] 6.2 Open a PR with `Tracked in openspec change: secretary-show-details-ux-remediation` in the body.
 - [ ] 6.3 Wait for required CI and review; address actionable failures or review comments.
 - [ ] 6.4 Merge the PR before archiving this OpenSpec change.
 - [ ] 6.5 Archive the change only after merge evidence exists, then run the archive/sync validation required by `openspec-archive-change`.

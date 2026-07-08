@@ -37,6 +37,7 @@ import { EnrollmentPartialPaymentDialog } from './EnrollmentPartialPaymentDialog
 import { EnrollmentRefundDialog } from './EnrollmentRefundDialog';
 import { EnrollmentEmailDialog } from './EnrollmentEmailDialog';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
+import type { EntryDecisionEmailJob, EntryDecisionEmailStatus } from '@/features/lifecycle-emails';
 
 interface EnrollmentCardProps {
   group: EnrollmentGroup;
@@ -68,6 +69,11 @@ interface EnrollmentCardProps {
   onSendDecisionEmail?:
     ((registrationId: string, message?: string, amountDue?: number) => Promise<void>) | undefined;
   lastDecisionEmailedAt?: string | undefined;
+  lifecycleDecisionEmailStatusMap?: Record<string, EntryDecisionEmailStatus> | undefined;
+  onReviewLifecycleEmail?:
+    ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
+  onPrepareCorrectionEmail?:
+    ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
 }
 
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
@@ -88,6 +94,9 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   isResendDisabled,
   onSendDecisionEmail,
   lastDecisionEmailedAt,
+  lifecycleDecisionEmailStatusMap,
+  onReviewLifecycleEmail,
+  onPrepareCorrectionEmail,
 }) => {
   const [expanded, setExpanded] = useState(true);
   const [checkDialog, setCheckDialog] = useState<CheckDialog>(EMPTY_CHECK_DIALOG);
@@ -404,6 +413,9 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                   emailStatusMap={emailStatusMap}
                   onResendEmail={onResendEmail}
                   isResendDisabled={isResendDisabled}
+                  lifecycleDecisionEmailStatusMap={lifecycleDecisionEmailStatusMap}
+                  onReviewLifecycleEmail={onReviewLifecycleEmail}
+                  onPrepareCorrectionEmail={onPrepareCorrectionEmail}
                 />
               </section>
             ))}

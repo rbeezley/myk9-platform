@@ -4,7 +4,7 @@
 - [x] 1.2 Add migration tests or SQL assertions for lifecycle email tables, RLS, indexes, idempotency-key uniqueness, and show-manager access boundaries.
 - [x] 1.3 Add additive lifecycle email schema for steps/jobs/attempts with statuses for ready, sent, failed, skipped, and dismissed.
 - [x] 1.4 Add indexes for due jobs by show/status, jobs by step/status, idempotency key lookup, and `email_log.id` lookup.
-- [ ] 1.5 Verify schema locally with migration validation and focused RLS tests before any shared DB push.
+- [x] 1.5 Verify schema with migration validation, SQL assertions, hosted Supabase dry-run evidence, and remote push evidence for the shared DB schema.
 
 ## 2. Lifecycle Email Core
 
@@ -28,8 +28,8 @@
 - [x] 4.2 Add tests proving Waitlist opens a waitlist preview/edit prompt after the entry decision is saved.
 - [x] 4.3 Implement a reusable lifecycle email preview/edit dialog with subject, message body, secretary note, recipient summary, and exact preview.
 - [x] 4.4 Wire Accept/Waitlist prompts into Entry Management without blocking the entry status mutation.
-- [ ] 4.5 Persist Not now as a ready email job visible from Scheduled emails and the entry row.
-- [ ] 4.6 Add correction-email action when a sent accept/waitlist decision later changes.
+- [x] 4.5 Persist Not now as a ready email job visible from Scheduled emails and the entry row.
+- [x] 4.6 Add correction-email action when a sent accept/waitlist decision later changes.
 - [x] 4.7 Verify entry-decision email behavior with focused component/hook tests.
 
 ## 5. Reviewed Batch Preparation
@@ -64,9 +64,9 @@
 - [x] 8.2 Run focused lifecycle email unit/component/edge-function tests.
 - [x] 8.3 Run relevant myK9Show typecheck and lint commands.
 - [x] 8.4 Run migration dry-run / database validation evidence before asking to push any DB changes.
-- [ ] 8.5 Run implementation verification with the OpenSpec verify-change process and fix critical findings.
-- [ ] 8.6 Update `OPEN-TODOS.md` / tracking docs when the implementation slice is complete.
-- [ ] 8.7 Commit implementation changes and open a PR with `Tracked in openspec change: show-email-sequence` in the body.
+- [x] 8.5 Run implementation verification with the OpenSpec verify-change process and fix critical findings.
+- [x] 8.6 Update `OPEN-TODOS.md` / tracking docs when the implementation slice is complete.
+- [x] 8.7 Commit implementation changes and open a PR with `Tracked in openspec change: show-email-sequence` in the body.
 - [ ] 8.8 Wait for CI/review and merge before archiving the OpenSpec change.
 
 ## Validation Profile

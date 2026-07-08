@@ -54,6 +54,22 @@ interface JobReviewRow {
   preview_warnings: string[] | null;
 }
 
+type DecisionEmailStepType = Extract<LifecycleEmailStepType, 'accepted' | 'waitlisted'>;
+
+interface EntryDecisionJobRow {
+  id: string;
+  entry_id: string | null;
+  step_type: DecisionEmailStepType;
+  status: LifecycleEmailJobSummaryRow['status'];
+  subject: string | null;
+  body: string | null;
+  secretary_note: string | null;
+  due_at: string | null;
+  prepared_at: string | null;
+  sent_at: string | null;
+  correction_for_job_id: string | null;
+}
+
 export interface LifecycleEmailJobReview {
   id: string;
   stepType: LifecycleEmailStepType;
@@ -66,6 +82,27 @@ export interface LifecycleEmailJobReview {
   previewWarnings: string[];
 }
 
+export interface EntryDecisionEmailJob {
+  id: string;
+  entryId: string;
+  stepType: DecisionEmailStepType;
+  status: LifecycleEmailJobSummaryRow['status'];
+  subject: string;
+  body: string;
+  secretaryNote: string;
+  dueAt: string | null;
+  preparedAt: string | null;
+  sentAt: string | null;
+  correctionForJobId: string | null;
+}
+
+export interface EntryDecisionEmailStatus {
+  entryId: string;
+  readyJob: EntryDecisionEmailJob | null;
+  sentDecisionJob: EntryDecisionEmailJob | null;
+  sentCorrectionJob: EntryDecisionEmailJob | null;
+}
+
 export interface LifecycleEmailFunctionsClient {
   functions: {
     invoke: (
@@ -73,6 +110,10 @@ export interface LifecycleEmailFunctionsClient {
       options: { body: Record<string, unknown> }
     ) => Promise<{ data?: unknown; error?: { message?: string } | null }>;
   };
+}
+
+export function entryDecisionLifecycleEmailQueryKey(showId: string, entryIds: readonly string[]) {
+  return ['entry-decision-lifecycle-emails', showId, [...entryIds].sort().join(',')] as const;
 }
 
 export async function fetchShowLifecycleEmailSummary(args: {
@@ -164,6 +205,51 @@ export async function fetchLifecycleEmailJobsForReview(args: {
   }));
 }
 
+export async function fetchEntryDecisionEmailStatuses(args: {
+  supabase: LifecycleEmailSupabaseClient;
+  showId: string;
+  entryIds: readonly string[];
+}): Promise<Record<string, EntryDecisionEmailStatus>> {
+  if (args.entryIds.length === 0) return {};
+
+  const result = (await args.supabase
+    .from<EntryDecisionJobRow[]>('show_lifecycle_email_jobs')
+    .select(
+      'id, entry_id, step_type, status, subject, body, secretary_note, due_at, prepared_at, sent_at, correction_for_job_id'
+    )
+    .eq('show_id', args.showId)
+    .in('entry_id', args.entryIds)
+    .in('step_type', ['accepted', 'waitlisted'])) as QueryResult<EntryDecisionJobRow[]>;
+
+  if (result.error) {
+    throw new Error(result.error.message ?? 'Failed to load entry decision email status');
+  }
+
+  const statuses: Record<string, EntryDecisionEmailStatus> = {};
+  for (const row of result.data ?? []) {
+    if (!row.entry_id) continue;
+    const job = mapEntryDecisionJob(row, row.entry_id);
+    const status = (statuses[row.entry_id] ??= {
+      entryId: row.entry_id,
+      readyJob: null,
+      sentDecisionJob: null,
+      sentCorrectionJob: null,
+    });
+
+    if (job.status === 'ready') {
+      status.readyJob = pickLatestJob(status.readyJob, job, 'preparedAt');
+    }
+    if (job.status === 'sent' && job.correctionForJobId) {
+      status.sentCorrectionJob = pickLatestJob(status.sentCorrectionJob, job, 'sentAt');
+    }
+    if (job.status === 'sent' && !job.correctionForJobId) {
+      status.sentDecisionJob = pickLatestJob(status.sentDecisionJob, job, 'sentAt');
+    }
+  }
+
+  return statuses;
+}
+
 export async function sendLifecycleEmailJobs(args: {
   supabase: LifecycleEmailFunctionsClient;
   showId: string;
@@ -202,8 +288,9 @@ export async function saveLifecycleEmailJobForLater(args: {
   secretaryNote: string;
   idempotencyKey: string;
   dueAt?: string;
-}): Promise<void> {
-  const { error } = await args.supabase.functions.invoke('send-lifecycle-email', {
+  correctionForJobId?: string | null;
+}): Promise<string | null> {
+  const { data, error } = await args.supabase.functions.invoke('send-lifecycle-email', {
     body: {
       action: 'save_ready',
       show_id: args.showId,
@@ -217,6 +304,7 @@ export async function saveLifecycleEmailJobForLater(args: {
       body: args.body,
       secretary_note: args.secretaryNote,
       idempotency_key: args.idempotencyKey,
+      correction_for_job_id: args.correctionForJobId ?? null,
       due_at: args.dueAt ?? new Date().toISOString(),
     },
   });
@@ -224,6 +312,13 @@ export async function saveLifecycleEmailJobForLater(args: {
   if (error) {
     throw new Error(error.message ?? 'Failed to save lifecycle email');
   }
+
+  if (data && typeof data === 'object' && 'jobId' in data) {
+    const jobId = (data as { jobId?: unknown }).jobId;
+    return typeof jobId === 'string' ? jobId : null;
+  }
+
+  return null;
 }
 
 function mapStepRow(row: StepRow): LifecycleEmailStepSetting {
@@ -248,4 +343,31 @@ function mapReceiptLogRow(row: ReceiptLogRow): LifecycleEmailReceiptLogRow {
     errorMessage: row.error_message,
     createdAt: row.created_at,
   };
+}
+
+function mapEntryDecisionJob(row: EntryDecisionJobRow, entryId: string): EntryDecisionEmailJob {
+  return {
+    id: row.id,
+    entryId,
+    stepType: row.step_type,
+    status: row.status,
+    subject: row.subject ?? '',
+    body: row.body ?? '',
+    secretaryNote: row.secretary_note ?? '',
+    dueAt: row.due_at,
+    preparedAt: row.prepared_at,
+    sentAt: row.sent_at,
+    correctionForJobId: row.correction_for_job_id,
+  };
+}
+
+function pickLatestJob(
+  current: EntryDecisionEmailJob | null,
+  next: EntryDecisionEmailJob,
+  timestampKey: 'preparedAt' | 'sentAt'
+): EntryDecisionEmailJob {
+  if (!current) return next;
+  const currentTime = current[timestampKey] ? Date.parse(current[timestampKey]) : 0;
+  const nextTime = next[timestampKey] ? Date.parse(next[timestampKey]) : 0;
+  return nextTime >= currentTime ? next : current;
 }

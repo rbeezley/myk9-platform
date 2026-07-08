@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  fetchEntryDecisionEmailStatuses,
   fetchShowLifecycleEmailSummary,
+  saveLifecycleEmailJobForLater,
   updateLifecycleEmailStepEnabled,
+  type LifecycleEmailFunctionsClient,
   type LifecycleEmailSupabaseClient,
 } from './api';
 
@@ -101,5 +104,110 @@ describe('lifecycle email api helpers', () => {
       action: 'update',
       values: { is_enabled: false },
     });
+  });
+
+  it('loads entry-row ready, sent, and correction lifecycle email state', async () => {
+    const { client } = createClient({
+      show_lifecycle_email_jobs: [
+        {
+          id: 'job-ready',
+          show_id: 'show-1',
+          entry_id: 'entry-1',
+          step_type: 'accepted',
+          status: 'ready',
+          subject: 'Entry accepted',
+          body: 'Ready body',
+          secretary_note: 'Ready note',
+          due_at: '2026-07-08T12:00:00Z',
+          prepared_at: '2026-07-08T12:00:00Z',
+          sent_at: null,
+          correction_for_job_id: null,
+        },
+        {
+          id: 'job-sent',
+          show_id: 'show-1',
+          entry_id: 'entry-2',
+          step_type: 'accepted',
+          status: 'sent',
+          subject: 'Entry accepted',
+          body: 'Sent body',
+          secretary_note: null,
+          due_at: '2026-07-08T12:00:00Z',
+          prepared_at: '2026-07-08T12:00:00Z',
+          sent_at: '2026-07-08T12:05:00Z',
+          correction_for_job_id: null,
+        },
+        {
+          id: 'job-correction',
+          show_id: 'show-1',
+          entry_id: 'entry-2',
+          step_type: 'accepted',
+          status: 'sent',
+          subject: 'Correction',
+          body: 'Correction body',
+          secretary_note: null,
+          due_at: '2026-07-08T12:06:00Z',
+          prepared_at: '2026-07-08T12:06:00Z',
+          sent_at: '2026-07-08T12:10:00Z',
+          correction_for_job_id: 'job-sent',
+        },
+      ],
+    });
+
+    const statuses = await fetchEntryDecisionEmailStatuses({
+      supabase: client,
+      showId: 'show-1',
+      entryIds: ['entry-1', 'entry-2'],
+    });
+
+    expect(statuses['entry-1']?.readyJob).toMatchObject({
+      id: 'job-ready',
+      subject: 'Entry accepted',
+    });
+    expect(statuses['entry-2']?.sentDecisionJob).toMatchObject({ id: 'job-sent' });
+    expect(statuses['entry-2']?.sentCorrectionJob).toMatchObject({
+      id: 'job-correction',
+      correctionForJobId: 'job-sent',
+    });
+  });
+
+  it('passes correction ids when saving a ready lifecycle email', async () => {
+    const calls: Array<{ name: string; body: Record<string, unknown> }> = [];
+    const client: LifecycleEmailFunctionsClient = {
+      functions: {
+        invoke: async (name, options) => {
+          calls.push({ name, body: options.body });
+          return { data: { jobId: 'job-1' }, error: null };
+        },
+      },
+    };
+
+    const jobId = await saveLifecycleEmailJobForLater({
+      supabase: client,
+      showId: 'show-1',
+      stepType: 'accepted',
+      recipientScope: 'enrollment',
+      entryId: 'entry-1',
+      enrollmentId: 'reg-1',
+      recipientEmail: 'jamie@example.com',
+      recipientName: 'Jamie',
+      subject: 'Correction',
+      body: 'Correction body',
+      secretaryNote: '',
+      idempotencyKey: 'idem-correction',
+      correctionForJobId: 'job-original',
+    });
+
+    expect(jobId).toBe('job-1');
+    expect(calls).toEqual([
+      {
+        name: 'send-lifecycle-email',
+        body: expect.objectContaining({
+          action: 'save_ready',
+          correction_for_job_id: 'job-original',
+          idempotency_key: 'idem-correction',
+        }),
+      },
+    ]);
   });
 });

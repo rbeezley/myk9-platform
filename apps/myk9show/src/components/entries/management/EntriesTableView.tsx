@@ -14,6 +14,11 @@ import { EntryStatus } from '@/types/show-registration-types';
 import { EntryRowActionMenu, type EntryRowActionMenuProps } from './EntryRowActionMenu';
 import { RequestPaymentDialog } from './RequestPaymentDialog';
 import { RefundEntryDialog } from './RefundEntryDialog';
+import {
+  EntryDecisionEmailStatusBadge,
+  type EntryDecisionEmailJob,
+  type EntryDecisionEmailStatus,
+} from '@/features/lifecycle-emails';
 
 /** Minimal selection surface (a subset of useBulkSelection) for the select column. */
 export interface EntriesTableSelection {
@@ -41,6 +46,11 @@ interface EntriesTableViewProps {
   onPaymentRequested?: (() => void) | undefined;
   /** Reload entries after a refund so the badge updates and the action self-hides. */
   onEntryRefunded?: (() => void) | undefined;
+  lifecycleDecisionEmailStatusMap?: Record<string, EntryDecisionEmailStatus> | undefined;
+  onReviewLifecycleEmail?:
+    ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
+  onPrepareCorrectionEmail?:
+    ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
   /** When provided, renders a leading checkbox select column wired to this selection. */
   selection?: EntriesTableSelection | undefined;
   emptyState?: React.ReactNode;
@@ -126,7 +136,14 @@ function buildColumns(
   onResendEmail?: (registrationId: string) => void,
   isResendDisabled?: (registrationId: string) => boolean,
   actionHandlers?: Omit<EntryRowActionMenuProps, 'entry'> | undefined,
-  showReviewActions?: boolean
+  showReviewActions?: boolean,
+  lifecycleEmailHandlers?: {
+    statusMap: Record<string, EntryDecisionEmailStatus> | undefined;
+    onReviewLifecycleEmail:
+      ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
+    onPrepareCorrectionEmail:
+      ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
+  }
 ): ColumnDef<EntryManagementEntry, unknown>[] {
   const columns: ColumnDef<EntryManagementEntry, unknown>[] = [
     {
@@ -218,6 +235,15 @@ function buildColumns(
               resendDisabled={isResendDisabled?.(row.original.registrationId)}
             />
           )}
+          {lifecycleEmailHandlers?.onReviewLifecycleEmail &&
+          lifecycleEmailHandlers.onPrepareCorrectionEmail ? (
+            <EntryDecisionEmailStatusBadge
+              entry={row.original}
+              status={lifecycleEmailHandlers.statusMap?.[row.original.id]}
+              onReviewReady={lifecycleEmailHandlers.onReviewLifecycleEmail}
+              onPrepareCorrection={lifecycleEmailHandlers.onPrepareCorrectionEmail}
+            />
+          ) : null}
         </div>
       ),
       meta: {
@@ -289,6 +315,9 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   onRemoveEntry,
   onPaymentRequested,
   onEntryRefunded,
+  lifecycleDecisionEmailStatusMap,
+  onReviewLifecycleEmail,
+  onPrepareCorrectionEmail,
   selection,
   emptyState,
   showReviewActions = false,
@@ -334,7 +363,12 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
       onResendEmail,
       isResendDisabled,
       actionHandlers,
-      showReviewActions
+      showReviewActions,
+      {
+        statusMap: lifecycleDecisionEmailStatusMap,
+        onReviewLifecycleEmail,
+        onPrepareCorrectionEmail,
+      }
     );
     return selection ? [buildSelectColumn(selection), ...dataColumns] : dataColumns;
   }, [
@@ -352,6 +386,9 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
     openRequestPayment,
     openRefund,
     showReviewActions,
+    lifecycleDecisionEmailStatusMap,
+    onReviewLifecycleEmail,
+    onPrepareCorrectionEmail,
   ]);
 
   return (

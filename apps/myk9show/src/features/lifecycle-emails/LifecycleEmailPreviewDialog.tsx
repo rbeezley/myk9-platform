@@ -26,7 +26,12 @@ interface LifecycleEmailPreviewDialogProps {
   show: LifecycleEmailShowContext;
   recipient: { name?: string | null; email?: string | null };
   entry: LifecycleEmailEntryContext;
-  isSending?: boolean;
+  title?: string | undefined;
+  initialSubject?: string | null | undefined;
+  initialBody?: string | null | undefined;
+  initialSecretaryNote?: string | null | undefined;
+  notNowLabel?: string | undefined;
+  isSending?: boolean | undefined;
   onSend: (values: {
     subject: string;
     body: string;
@@ -47,6 +52,11 @@ export function LifecycleEmailPreviewDialog({
   show,
   recipient,
   entry,
+  title,
+  initialSubject,
+  initialBody,
+  initialSecretaryNote,
+  notNowLabel = 'Not now',
   isSending = false,
   onSend,
   onNotNow,
@@ -55,9 +65,9 @@ export function LifecycleEmailPreviewDialog({
     () => buildLifecycleEmailDraft({ stepType, show, recipient, entry }),
     [entry, recipient, show, stepType]
   );
-  const [subject, setSubject] = useState(initialDraft.subject);
-  const [body, setBody] = useState(initialDraft.body);
-  const [secretaryNote, setSecretaryNote] = useState('');
+  const [subject, setSubject] = useState(initialSubject?.trim() || initialDraft.subject);
+  const [body, setBody] = useState(initialBody?.trim() || initialDraft.body);
+  const [secretaryNote, setSecretaryNote] = useState(initialSecretaryNote?.trim() || '');
   const preview = buildLifecycleEmailPreview({
     stepType,
     show,
@@ -73,7 +83,7 @@ export function LifecycleEmailPreviewDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{TITLE_BY_STEP[stepType]}</DialogTitle>
+          <DialogTitle>{title ?? TITLE_BY_STEP[stepType]}</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-4 py-2">
@@ -142,7 +152,7 @@ export function LifecycleEmailPreviewDialog({
 
         <DialogFooter className="gap-2 sm:justify-between">
           <Button type="button" variant="outline" onClick={() => onNotNow(values)}>
-            Not now
+            {notNowLabel}
           </Button>
           <Button type="button" onClick={() => onSend(values)} disabled={isSending}>
             {isSending ? (

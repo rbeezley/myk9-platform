@@ -33,6 +33,14 @@ export interface LifecycleEmailPreviewInput {
   resultsUrl?: string | null;
 }
 
+export interface LifecycleDecisionCorrectionDraftInput {
+  showName: string;
+  recipientName?: string | null;
+  dogName?: string | null;
+  previousDecision: 'accepted' | 'waitlisted';
+  currentDecisionLabel: string;
+}
+
 export interface LifecycleEmailPreview {
   subject: string;
   bodyText: string;
@@ -155,6 +163,31 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
         ]),
       };
   }
+}
+
+export function buildLifecycleDecisionCorrectionDraft(
+  input: LifecycleDecisionCorrectionDraftInput
+): {
+  subject: string;
+  body: string;
+} {
+  const showName = input.showName || 'the show';
+  const dogName = input.dogName?.trim();
+  const entryLabel = dogName ? `your entry for ${dogName}` : 'your entry';
+  const greeting = `Hi ${input.recipientName?.trim() || 'there'},`;
+  const previousLabel = input.previousDecision === 'accepted' ? 'accepted' : 'waitlisted';
+
+  return {
+    subject: `Correction for ${dogName || 'your entry'} - ${showName}`,
+    body: joinLines([
+      greeting,
+      '',
+      `Please disregard the earlier ${previousLabel} email for ${entryLabel} at ${showName}.`,
+      `The current decision for ${entryLabel} is: ${input.currentDecisionLabel}.`,
+      '',
+      'We are sorry for the confusion. Please contact the show secretary with any questions.',
+    ]),
+  };
 }
 
 export function escapeHtml(value: string): string {

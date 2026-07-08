@@ -4,12 +4,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { toast } from 'sonner';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
 import { supabase } from '@/lib/supabase';
-import {
-  LifecycleEmailPreviewDialog,
-  buildLifecycleEmailIdempotencyKey,
-  saveLifecycleEmailJobForLater,
-  type LifecycleEmailStepType,
-} from '@/features/lifecycle-emails';
+import { useEntryDecisionLifecycleEmails } from '@/features/lifecycle-emails';
 import { ListControls } from '@/components/common/ListControls';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Button } from '@/components/ui/button';
@@ -199,10 +194,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
 
   // Resend cooldown state (registrationId -> cooldown expiry timestamp)
   const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
-  const [decisionEmailPrompt, setDecisionEmailPrompt] = useState<{
-    entry: EntryManagementEntry;
-    stepType: Extract<LifecycleEmailStepType, 'accepted' | 'waitlisted'>;
-  } | null>(null);
+  const lifecycleEmails = useEntryDecisionLifecycleEmails({ showId, showName, entries });
 
   const handleResendEmail = async (registrationId: string) => {
     setResendCooldowns(prev => ({ ...prev, [registrationId]: Date.now() + 60_000 }));
@@ -233,10 +225,10 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     if (status !== EntryStatus.ACCEPTED && status !== EntryStatus.WAITLIST) return;
     if (!entry.registrationId) return;
 
-    setDecisionEmailPrompt({
-      entry: { ...entry, entryStatus: status },
-      stepType: status === EntryStatus.ACCEPTED ? 'accepted' : 'waitlisted',
-    });
+    lifecycleEmails.openDecisionPrompt(
+      { ...entry, entryStatus: status },
+      status === EntryStatus.ACCEPTED ? 'accepted' : 'waitlisted'
+    );
   };
   const hasSearchFilter = searchTerm.trim().length > 0;
   const isTrulyEmpty =
@@ -287,6 +279,9 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             lastDecisionEmailedAt={
               group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined
             }
+            lifecycleDecisionEmailStatusMap={lifecycleEmails.statusMap}
+            onReviewLifecycleEmail={lifecycleEmails.reviewReadyEmail}
+            onPrepareCorrectionEmail={lifecycleEmails.prepareCorrectionEmail}
           />
         ))
       ) : (
@@ -358,6 +353,9 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           selection={tableSelection}
           emptyState={emptyStateContent}
           showReviewActions={workMode === 'review'}
+          lifecycleDecisionEmailStatusMap={lifecycleEmails.statusMap}
+          onReviewLifecycleEmail={lifecycleEmails.reviewReadyEmail}
+          onPrepareCorrectionEmail={lifecycleEmails.prepareCorrectionEmail}
         />
       ) : (
         enrollmentCardList
@@ -372,64 +370,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         />
       )}
 
-      {decisionEmailPrompt && (
-        <LifecycleEmailPreviewDialog
-          key={`${decisionEmailPrompt.entry.id}:${decisionEmailPrompt.stepType}`}
-          open={true}
-          onOpenChange={open => {
-            if (!open) setDecisionEmailPrompt(null);
-          }}
-          stepType={decisionEmailPrompt.stepType}
-          show={{ name: showName ?? 'this show' }}
-          recipient={{
-            name: decisionEmailPrompt.entry.ownerName,
-            email: decisionEmailPrompt.entry.ownerEmail,
-          }}
-          entry={{
-            dogName: decisionEmailPrompt.entry.dogName,
-            className: decisionEmailPrompt.entry.classes[0]?.name ?? null,
-            armbandNumber: decisionEmailPrompt.entry.armbandNumber ?? null,
-            amountDue: Math.max(
-              0,
-              decisionEmailPrompt.entry.totalFee - decisionEmailPrompt.entry.paidAmount
-            ),
-          }}
-          onNotNow={values => {
-            void saveLifecycleEmailJobForLater({
-              supabase,
-              showId: decisionEmailPrompt.entry.showId,
-              stepType: decisionEmailPrompt.stepType,
-              recipientScope: 'enrollment',
-              entryId: decisionEmailPrompt.entry.id,
-              enrollmentId: decisionEmailPrompt.entry.registrationId,
-              recipientEmail: decisionEmailPrompt.entry.ownerEmail,
-              recipientName: decisionEmailPrompt.entry.ownerName,
-              subject: values.subject,
-              body: values.body,
-              secretaryNote: values.secretaryNote,
-              idempotencyKey: buildLifecycleEmailIdempotencyKey({
-                showId: decisionEmailPrompt.entry.showId,
-                stepType: decisionEmailPrompt.stepType,
-                recipientScope: 'enrollment',
-                enrollmentId: decisionEmailPrompt.entry.registrationId,
-              }),
-            })
-              .then(() => toast.info('Email ready for later review'))
-              .catch(() =>
-                toast.error('Entry decision is saved. The email was not saved for later.')
-              );
-            setDecisionEmailPrompt(null);
-          }}
-          onSend={async values => {
-            await onSendDecisionEmail(
-              decisionEmailPrompt.entry.registrationId,
-              values.secretaryNote.trim() || values.body.trim(),
-              undefined
-            );
-            setDecisionEmailPrompt(null);
-          }}
-        />
-      )}
+      {lifecycleEmails.dialog}
     </div>
   );
 };

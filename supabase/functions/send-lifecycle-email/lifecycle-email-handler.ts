@@ -11,6 +11,7 @@ export interface SendLifecycleEmailPayload {
   recipient_email?: string | null;
   recipient_name?: string | null;
   idempotency_key?: string;
+  correction_for_job_id?: string | null;
   due_at?: string;
   subject?: string;
   body?: string;
@@ -167,6 +168,7 @@ async function saveReadyJob(args: {
       subject: args.payload.subject ?? null,
       body: args.payload.body ?? null,
       secretary_note: args.payload.secretary_note ?? null,
+      correction_for_job_id: args.payload.correction_for_job_id ?? null,
       idempotency_key: args.payload.idempotency_key,
       due_at: args.payload.due_at ?? new Date().toISOString(),
       created_by: args.userId,
@@ -394,7 +396,10 @@ function paragraphs(value: string): string {
     .split(/\n{2,}/)
     .map(line => line.trim())
     .filter(Boolean)
-    .map(line => `<p style="margin:0 0 12px;line-height:1.6;">${escapeHtml(line).replace(/\n/g, '<br>')}</p>`)
+    .map(
+      line =>
+        `<p style="margin:0 0 12px;line-height:1.6;">${escapeHtml(line).replace(/\n/g, '<br>')}</p>`
+    )
     .join('');
 }
 

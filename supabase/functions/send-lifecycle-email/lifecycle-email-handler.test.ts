@@ -3,7 +3,11 @@ import { createSendLifecycleEmailHandler } from './lifecycle-email-handler';
 
 type Row = Record<string, unknown>;
 
-function makeQuery(table: string, rows: Row[], calls: Array<{ table: string; action: string; value?: unknown }>) {
+function makeQuery(
+  table: string,
+  rows: Row[],
+  calls: Array<{ table: string; action: string; value?: unknown }>
+) {
   let resultRows = [...rows];
   let inserted: unknown;
   const query = {
@@ -238,6 +242,46 @@ describe('send-lifecycle-email handler', () => {
           step_id: 'step-1',
           status: 'ready',
           idempotency_key: 'idem-ready',
+        }),
+      })
+    );
+  });
+
+  it('links ready correction emails to the originally sent job', async () => {
+    const { supabase, calls } = makeSupabase(baseTables());
+    const fetch = vi.fn();
+    const handler = createSendLifecycleEmailHandler({
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      resendApiKey: 'resend-key',
+    });
+
+    const result = await handler({
+      body: {
+        action: 'save_ready',
+        show_id: 'show-1',
+        step_type: 'accepted',
+        recipient_scope: 'enrollment',
+        enrollment_id: 'reg-1',
+        recipient_email: 'jamie@example.com',
+        recipient_name: 'Jamie',
+        subject: 'Correction',
+        body: 'Please disregard the earlier email.',
+        secretary_note: '',
+        idempotency_key: 'idem-correction',
+        correction_for_job_id: 'job-original',
+      },
+      user: { id: 'secretary-1' },
+      supabase,
+    });
+
+    expect(result).toEqual({ jobId: 'inserted-job-1' });
+    expect(calls).toContainEqual(
+      expect.objectContaining({
+        table: 'show_lifecycle_email_jobs',
+        action: 'insert',
+        value: expect.objectContaining({
+          correction_for_job_id: 'job-original',
+          idempotency_key: 'idem-correction',
         }),
       })
     );

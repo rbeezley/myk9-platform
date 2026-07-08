@@ -93,6 +93,8 @@ export interface ShowManagementShellProps {
   isManagementSection: boolean;
   /** The fully-built tab props (shared with the exhibitor view). */
   tabs: ShowDetailTabsProps;
+  entryDataState?: 'ready' | 'loading' | 'error';
+  onRetryEntryData?: (() => void) | undefined;
 }
 
 /**
@@ -112,6 +114,8 @@ export function ShowManagementShell({
   activeManagementSection,
   isManagementSection,
   tabs,
+  entryDataState = 'ready',
+  onRetryEntryData,
 }: ShowManagementShellProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -128,6 +132,7 @@ export function ShowManagementShell({
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const entryDataUnavailable = entryDataState !== 'ready';
 
   const handleConfirmDelete = () => {
     setShowDeleteDialog(false);
@@ -201,9 +206,38 @@ export function ShowManagementShell({
             </>
           }
           footer={
-            <QuickInfoCards show={show} canManageShow={true} entryCount={catalogEntryCount} />
+            <QuickInfoCards
+              show={show}
+              canManageShow={true}
+              entryCount={entryDataUnavailable ? null : catalogEntryCount}
+            />
           }
         />
+
+        {entryDataUnavailable && (
+          <div className="mt-4 rounded-md border border-dashed bg-muted/20 px-4 py-3 text-sm">
+            <div className="font-medium text-foreground">
+              {entryDataState === 'loading'
+                ? 'Entry counts are loading.'
+                : "Couldn't load entry counts."}
+            </div>
+            <p className="mt-1 text-muted-foreground">
+              Entry-derived counts and Show Map are paused so this page does not show a false
+              zero-entry state.
+            </p>
+            {entryDataState === 'error' && onRetryEntryData && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={onRetryEntryData}
+              >
+                Retry
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* INTENT: The publish row renders once, above the section tabs —
             it is show-level state the secretary needs on every tab. The

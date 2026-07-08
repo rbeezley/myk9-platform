@@ -105,6 +105,7 @@ describe('ScheduleTimeline', () => {
     expect(
       screen.getByRole('button', { name: /open trial details for container/i })
     ).toBeInTheDocument();
+    expect(screen.getAllByText('Opens trial details')).toHaveLength(2);
   });
 
   it('renders status badges', () => {

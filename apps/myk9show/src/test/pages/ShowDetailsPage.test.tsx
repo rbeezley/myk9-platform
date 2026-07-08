@@ -207,12 +207,14 @@ vi.mock('@/components/common/DetailHero', () => ({
     primaryAction,
     secondaryActions,
     closedMessage,
+    footer,
   }: {
     name: string;
     headerActions?: React.ReactNode;
     primaryAction?: { label: string; onClick: () => void };
     secondaryActions?: React.ReactNode;
     closedMessage?: string;
+    footer?: React.ReactNode;
   }) => (
     <div data-testid="detail-hero">
       {name}
@@ -220,6 +222,7 @@ vi.mock('@/components/common/DetailHero', () => ({
       <div data-testid="hero-header-actions">{headerActions}</div>
       {primaryAction && <button data-testid="hero-action">{primaryAction.label}</button>}
       <div data-testid="hero-secondary-actions">{secondaryActions}</div>
+      <div data-testid="hero-footer">{footer}</div>
     </div>
   ),
 }));
@@ -672,6 +675,7 @@ describe('ShowDetailsPage', () => {
 
   it('renders the public Show Map as read-only for show managers', async () => {
     mockAuthContext.isSecretary = true;
+    getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
     mockTrials = [
       {
         id: 'trial-1',
@@ -686,6 +690,35 @@ describe('ShowDetailsPage', () => {
 
     const showMap = await screen.findByTestId('show-map-tab');
     expect(showMap).toHaveAttribute('data-can-manage', 'false');
+  });
+
+  it('pauses manager entry-derived counts when secretary entries fail to load', async () => {
+    mockAuthContext.isSecretary = true;
+    mockShowEntries = [
+      { id: 'replicated-entry-1', show_id: 'show-1', class_id: 'class-1' },
+      { id: 'replicated-entry-2', show_id: 'show-1', class_id: 'class-1' },
+    ];
+    mockTrials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    mockTrialClasses = {
+      'trial-1': [{ id: 'class-1', element: 'Container', level: 'Novice' }],
+    };
+    getEntriesForShowMock.mockRejectedValue(new Error('offline'));
+
+    renderPage('show-1', '', '?tab=map');
+
+    expect(await screen.findAllByText("Couldn't load entry counts.")).toHaveLength(2);
+    expect(screen.getByTestId('hero-footer')).toHaveTextContent('Total EntriesUnavailable');
+    expect(screen.queryByText('Total Entries0')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('show-map-tab')).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Entries$/ })).toBeInTheDocument();
   });
 
   it('uses the published experience style for public landing selection', () => {

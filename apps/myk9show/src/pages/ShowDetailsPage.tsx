@@ -107,7 +107,12 @@ const ShowDetailsPage: React.FC = () => {
 
   const { data: armbandCount } = useArmbandCount(actualCurrentShow?.id);
   const canManageShow = isSecretary || isAdmin;
-  const { data: secretaryEntries = [] } = useQuery<SecretaryEntry[]>({
+  const {
+    data: secretaryEntries,
+    isSuccess: secretaryEntriesLoaded,
+    isError: secretaryEntriesIsError,
+    refetch: refetchSecretaryEntries,
+  } = useQuery<SecretaryEntry[]>({
     queryKey: ['secretary-show-entries', id],
     queryFn: async () => {
       const result = await getEntriesForShow(id ?? '');
@@ -116,7 +121,15 @@ const ShowDetailsPage: React.FC = () => {
     },
     enabled: Boolean(id && canManageShow),
   });
-  const effectiveShowEntries = canManageShow ? secretaryEntries : showEntries;
+  const entryDataState: 'ready' | 'loading' | 'error' = !canManageShow
+    ? 'ready'
+    : secretaryEntriesLoaded
+      ? 'ready'
+      : secretaryEntriesIsError
+        ? 'error'
+        : 'loading';
+  const managerEntryDataUnavailable = canManageShow && entryDataState !== 'ready';
+  const effectiveShowEntries = canManageShow ? (secretaryEntries ?? []) : showEntries;
   const effectiveShowMapEntries = effectiveShowEntries as unknown as ShowMapEntryInput[];
   const catalogEntryCount = countCatalogEntries(effectiveShowEntries);
   const canonicalShowHref = actualCurrentShow?.id ? `/shows/${actualCurrentShow.id}` : '';
@@ -335,7 +348,7 @@ const ShowDetailsPage: React.FC = () => {
               id: 'my-entries',
               label: 'Entries',
               icon: ClipboardList,
-              count: catalogEntryCount,
+              ...(managerEntryDataUnavailable ? {} : { count: catalogEntryCount }),
             },
           ]
         : []),
@@ -348,6 +361,7 @@ const ShowDetailsPage: React.FC = () => {
       effectiveTrials.length,
       effectiveShowClasses.length,
       catalogEntryCount,
+      managerEntryDataUnavailable,
       userEntries.length,
     ]
   );
@@ -433,6 +447,8 @@ const ShowDetailsPage: React.FC = () => {
     mapTrials: associatedTrials,
     mapClasses: showClasses,
     mapEntries: effectiveShowMapEntries,
+    entryDataState,
+    onRetryEntryData: () => void refetchSecretaryEntries(),
   };
 
   // ShowPresenceProvider wraps only the authed surfaces (matching the prior
@@ -451,6 +467,8 @@ const ShowDetailsPage: React.FC = () => {
           activeManagementSection={activeManagementSection}
           isManagementSection={isManagementSection}
           tabs={tabsProps}
+          entryDataState={entryDataState}
+          onRetryEntryData={() => void refetchSecretaryEntries()}
         />
       ) : (
         <ShowExhibitorView

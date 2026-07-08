@@ -5,7 +5,7 @@
 **Last verified:** 2026-06-25 — screenshots J-01…J-06 and `at-show-access-paths` diagram complete; non-author reviewer still pending
 **Verified by:** draft against outline (`docs/user-guides/judge-steward-quickstart-outline.md`); screenshots and diagram captured against staging 2026-06-25
 
-> **Note:** This is a QA-draft guide written as a testing instrument. The screenshots (J-01…J-06) and the access-paths diagram are **pending capture** — see the checklist at the end. Do not publish to customers until status is `verified`.
+> **Note:** This is a QA-draft guide written as a testing instrument. Screenshots (J-01…J-06) and the access-paths diagram are captured; a non-author reviewer pass is still needed — see the checklist at the end. Do not publish to customers until status is `verified`.
 
 > **For volunteers:** This page is meant to print on a single sheet. Steps only. Keep your eyes on the dog — the app stays out of your way.
 
@@ -112,7 +112,7 @@ Find the trial secretary at the show desk. They control access codes, the run or
 
 ## Screenshot Checklist
 
-Shots from `docs/training/screenshot-shot-list.md`. All **pending capture** — capture against staging at the target viewport once the at-show redeploy is live, then embed each shot and update this table.
+Shots from `docs/training/screenshot-shot-list.md`. All captured 2026-06-25 against staging.
 
 | Shot ID | Section | Description | Viewport | Status |
 |---|---|---|---|---|

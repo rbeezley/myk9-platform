@@ -49,6 +49,11 @@ import { RefundEntryDialog } from './RefundEntryDialog';
 import { isStripeRefundable } from './refundEligibility';
 import { RequestPaymentDialog } from './RequestPaymentDialog';
 import { isPaymentRequestable } from './paymentRequestEligibility';
+import {
+  EntryDecisionEmailStatusBadge,
+  type EntryDecisionEmailJob,
+  type EntryDecisionEmailStatus,
+} from '@/features/lifecycle-emails';
 
 interface EntryListCardProps {
   entries: EntryManagementEntry[];
@@ -73,6 +78,11 @@ interface EntryListCardProps {
   onEntryRefunded?: (() => void) | undefined;
   /** Reload entries after a payment link is requested (refresh "requested" state). */
   onPaymentRequested?: (() => void) | undefined;
+  lifecycleDecisionEmailStatusMap?: Record<string, EntryDecisionEmailStatus> | undefined;
+  onReviewLifecycleEmail?:
+    ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
+  onPrepareCorrectionEmail?:
+    ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
 }
 
 export const EntryListCard: React.FC<EntryListCardProps> = ({
@@ -91,6 +101,9 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   hideHeader,
   onEntryRefunded,
   onPaymentRequested,
+  lifecycleDecisionEmailStatusMap,
+  onReviewLifecycleEmail,
+  onPrepareCorrectionEmail,
 }) => {
   const [withdrawalDialog, setWithdrawalDialog] = useState<{
     open: boolean;
@@ -241,6 +254,15 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                 resendDisabled={isResendDisabled?.(entry.registrationId)}
               />
             )}
+
+            {onReviewLifecycleEmail && onPrepareCorrectionEmail ? (
+              <EntryDecisionEmailStatusBadge
+                entry={entry}
+                status={lifecycleDecisionEmailStatusMap?.[entry.id]}
+                onReviewReady={onReviewLifecycleEmail}
+                onPrepareCorrection={onPrepareCorrectionEmail}
+              />
+            ) : null}
 
             {entry.notes && (
               <Badge variant="outline" className="text-info ">

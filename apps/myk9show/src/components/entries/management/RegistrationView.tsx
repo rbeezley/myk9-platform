@@ -4,6 +4,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { toast } from 'sonner';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
 import { supabase } from '@/lib/supabase';
+import { useEntryDecisionLifecycleEmails } from '@/features/lifecycle-emails';
 import { ListControls } from '@/components/common/ListControls';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,8 @@ interface RegistrationViewProps {
   filteredEntries: EntryManagementEntry[];
   /** Selected show id, used for canonical add-entry links. */
   showId?: string | undefined;
+  /** Selected show name, used in reviewed lifecycle email previews. */
+  showName?: string | undefined;
   /** All entries (for looking up entry by id in comp handler) */
   entries: EntryManagementEntry[];
   /** Bulk enrollment-level action handlers */
@@ -73,7 +76,10 @@ interface RegistrationViewProps {
     paidAmount?: number | null
   ) => void;
   /** Status change handler */
-  onStatusChange: (entryId: string, status: EntryStatus) => void;
+  onStatusChange: (
+    entryId: string,
+    status: EntryStatus
+  ) => boolean | void | Promise<boolean | void>;
   /** Check-in inline handler */
   onCheckInStatusChange: (
     entry: EntryManagementEntry,
@@ -116,6 +122,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   setEntryViewMode,
   filteredEntries,
   showId,
+  showName,
   entries,
   onBulkStatusChange,
   onBulkCheckIn,
@@ -190,6 +197,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
 
   // Resend cooldown state (registrationId -> cooldown expiry timestamp)
   const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
+  const lifecycleEmails = useEntryDecisionLifecycleEmails({ showId, showName, entries });
 
   const handleResendEmail = async (registrationId: string) => {
     setResendCooldowns(prev => ({ ...prev, [registrationId]: Date.now() + 60_000 }));
@@ -211,6 +219,21 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
 
   const isResendDisabled = (registrationId: string) =>
     (resendCooldowns[registrationId] || 0) > Date.now();
+
+  const handleStatusChangeWithDecisionPrompt = async (entryId: string, status: EntryStatus) => {
+    const entry = entries.find(candidate => candidate.id === entryId);
+    const statusSaved = await onStatusChange(entryId, status);
+
+    if (!entry || !onSendDecisionEmail) return;
+    if (statusSaved === false) return;
+    if (status !== EntryStatus.ACCEPTED && status !== EntryStatus.WAITLIST) return;
+    if (!entry.registrationId) return;
+
+    lifecycleEmails.openDecisionPrompt(
+      { ...entry, entryStatus: status },
+      status === EntryStatus.ACCEPTED ? 'accepted' : 'waitlisted'
+    );
+  };
   const hasSearchFilter = searchTerm.trim().length > 0;
   const isTrulyEmpty =
     entries.length === 0 &&
@@ -239,7 +262,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           <EnrollmentCard
             key={group.groupKey}
             group={group}
-            onStatusChange={onStatusChange}
+            onStatusChange={handleStatusChangeWithDecisionPrompt}
             onEntryRefunded={onRefresh}
             onCheckInStatusChange={onCheckInStatusChange}
             onOpenEditEntry={onOpenEditEntry}
@@ -260,6 +283,9 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             lastDecisionEmailedAt={
               group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined
             }
+            lifecycleDecisionEmailStatusMap={lifecycleEmails.statusMap}
+            onReviewLifecycleEmail={lifecycleEmails.reviewReadyEmail}
+            onPrepareCorrectionEmail={lifecycleEmails.prepareCorrectionEmail}
           />
         ))
       ) : (
@@ -320,7 +346,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           emailStatusMap={emailStatusMap}
           onResendEmail={handleResendEmail}
           isResendDisabled={isResendDisabled}
-          onStatusChange={onStatusChange}
+          onStatusChange={handleStatusChangeWithDecisionPrompt}
           onCheckInEntry={entryId => onBulkCheckIn([entryId])}
           onOpenEditEntry={onOpenEditEntry}
           onOpenArmbandDialog={onOpenArmbandDialog}
@@ -331,6 +357,9 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           selection={tableSelection}
           emptyState={emptyStateContent}
           showReviewActions={workMode === 'review'}
+          lifecycleDecisionEmailStatusMap={lifecycleEmails.statusMap}
+          onReviewLifecycleEmail={lifecycleEmails.reviewReadyEmail}
+          onPrepareCorrectionEmail={lifecycleEmails.prepareCorrectionEmail}
         />
       ) : (
         enrollmentCardList
@@ -344,6 +373,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           onClear={selection.clearSelection}
         />
       )}
+
+      {lifecycleEmails.dialog}
     </div>
   );
 };

@@ -10,7 +10,7 @@
 --       pg_catalog.btrim(
 --         pg_catalog.regexp_replace(
 --           pg_catalog.regexp_replace(
---             pg_catalog.upper(pg_catalog.coalesce(name, '')),
+--             pg_catalog.upper(COALESCE(name, '')),
 --             '[^A-Z0-9]+',
 --             ' ',
 --             'g'
@@ -45,7 +45,7 @@ AS $$
   SELECT pg_catalog.btrim(
     pg_catalog.regexp_replace(
       pg_catalog.regexp_replace(
-        pg_catalog.upper(pg_catalog.coalesce(value, '')),
+        pg_catalog.upper(COALESCE(value, '')),
         '[^A-Z0-9]+',
         ' ',
         'g'

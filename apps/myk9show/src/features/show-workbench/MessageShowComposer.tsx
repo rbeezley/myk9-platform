@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { History, Megaphone, RotateCcw, Send } from 'lucide-react';
+import { CalendarClock, History, Megaphone, RotateCcw, Send } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -204,12 +204,22 @@ export function MessageShowComposer({
         </div>
         <div className="flex flex-wrap gap-2">
           {showHistoryLink ? (
-            <Button asChild type="button" variant="outline" size="sm">
-              <Link to={`/secretary/messages?showId=${encodeURIComponent(showId)}`}>
-                <History className="mr-2 h-4 w-4" aria-hidden="true" />
-                History
-              </Link>
-            </Button>
+            <>
+              <Button asChild type="button" variant="outline" size="sm">
+                <Link
+                  to={`/secretary/messages?showId=${encodeURIComponent(showId)}&section=scheduled`}
+                >
+                  <CalendarClock className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Scheduled
+                </Link>
+              </Button>
+              <Button asChild type="button" variant="outline" size="sm">
+                <Link to={`/secretary/messages?showId=${encodeURIComponent(showId)}`}>
+                  <History className="mr-2 h-4 w-4" aria-hidden="true" />
+                  History
+                </Link>
+              </Button>
+            </>
           ) : null}
           <Button
             type="button"

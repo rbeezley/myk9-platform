@@ -415,6 +415,7 @@ const EntryManagementPage: React.FC = () => {
                   setEntryViewMode={setEntryViewMode}
                   filteredEntries={filteredEntries}
                   showId={selectedShowId}
+                  showName={selectedShow?.name ?? undefined}
                   entries={entries}
                   onBulkStatusChange={handleEnrollmentBulkStatusChange}
                   onBulkCheckIn={handleEnrollmentBulkCheckIn}

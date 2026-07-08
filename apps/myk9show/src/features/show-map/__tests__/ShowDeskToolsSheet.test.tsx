@@ -123,11 +123,18 @@ describe('ShowDeskToolsSheet', () => {
     expect(screen.queryByTestId('broadcast-tool')).not.toBeInTheDocument();
   });
 
-  it('uses the wide drawer layout when any tool requests it', async () => {
+  it('uses the wide drawer layout only while a wide tool is open', async () => {
     const { user } = render(
       <ShowDeskToolsSheet
         showId="show-1"
         tools={[
+          {
+            id: 'access-codes',
+            title: 'Access codes',
+            summary: 'Share judge and ringside entry codes',
+            defaultOpen: true,
+            content: <div>Access code content</div>,
+          },
           {
             id: 'people-at-show',
             title: 'People at show',
@@ -140,6 +147,13 @@ describe('ShowDeskToolsSheet', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /open tools panel/i }));
+
+    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toHaveAttribute(
+      'data-layout',
+      'compact'
+    );
+
+    await user.click(screen.getByRole('button', { name: /people at show/i }));
 
     expect(screen.getByRole('dialog', { name: /show desk tools/i })).toHaveAttribute(
       'data-layout',

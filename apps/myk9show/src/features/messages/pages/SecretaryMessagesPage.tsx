@@ -11,12 +11,14 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/common/EmptyState';
 import { MessageSquare } from 'lucide-react';
+import { ScheduledLifecycleEmailsPanel } from '@/features/lifecycle-emails';
 
 const ALL_SHOWS = 'all';
 
 export default function SecretaryMessagesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const showIdParam = searchParams.get('showId');
+  const sectionParam = searchParams.get('section');
   const threadIdParam = searchParams.get('threadId');
   const filterShowId = showIdParam ?? ALL_SHOWS;
 
@@ -83,6 +85,12 @@ export default function SecretaryMessagesPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
   }, [activeMessages.length]);
+
+  useEffect(() => {
+    if (sectionParam !== 'scheduled') return;
+    const section = document.getElementById('scheduled-emails');
+    section?.scrollIntoView({ block: 'start' });
+  }, [sectionParam, selectedShowId]);
 
   function handleFilterChange(next: string) {
     const params = new URLSearchParams(searchParams);
@@ -165,6 +173,7 @@ export default function SecretaryMessagesPage() {
             ))}
           </select>
         </div>
+        {selectedShowId ? <ScheduledLifecycleEmailsPanel showId={selectedShowId} /> : null}
         {visibleThreads.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 py-12 text-center text-muted-foreground">
             <MessageSquare className="h-8 w-8 opacity-40" />

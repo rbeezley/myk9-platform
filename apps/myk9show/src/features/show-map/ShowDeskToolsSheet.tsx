@@ -1,5 +1,5 @@
 import { ChevronRight, Wrench } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -82,7 +82,6 @@ export function ShowDeskToolsSheet({
       ...(tool.layout !== undefined && { layout: tool.layout }),
     }))
   );
-  const hasWideTool = tools.some(tool => tool.layout === 'wide');
 
   return (
     <Sheet>
@@ -106,32 +105,16 @@ export function ShowDeskToolsSheet({
           </Badge>
         </Button>
       </SheetTrigger>
-      <SheetContent
-        side="right"
-        className={cn(
-          'flex w-full flex-col gap-0 overflow-hidden p-0',
-          hasWideTool ? 'sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl' : 'sm:max-w-md'
-        )}
-        aria-label="Tools panel"
-        data-layout={hasWideTool ? 'wide' : 'compact'}
-      >
-        <SheetHeader className="border-b px-6 py-4 text-left">
-          <SheetTitle>Show Desk tools</SheetTitle>
-          <SheetDescription>
-            Entries, hospitality, show messages, incidents, delay scripts, and access codes.
-          </SheetDescription>
-        </SheetHeader>
-        <ShowDeskToolSections
-          key={`${showId}:${toolStateSignature}`}
-          showId={showId}
-          tools={tools}
-        />
-      </SheetContent>
+      <ShowDeskToolsSheetContent
+        key={`${showId}:${toolStateSignature}`}
+        showId={showId}
+        tools={tools}
+      />
     </Sheet>
   );
 }
 
-function ShowDeskToolSections({
+function ShowDeskToolsSheetContent({
   showId,
   tools,
 }: {
@@ -141,7 +124,45 @@ function ShowDeskToolSections({
   const [openToolIds, setOpenToolIds] = useState<Set<string>>(
     () => new Set(loadOpenToolIds(showId, tools))
   );
+  const activeWideTool = tools.some(tool => tool.layout === 'wide' && openToolIds.has(tool.id));
 
+  return (
+    <SheetContent
+      side="right"
+      className={cn(
+        'flex w-full flex-col gap-0 overflow-hidden p-0',
+        activeWideTool ? 'sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl' : 'sm:max-w-md'
+      )}
+      aria-label="Tools panel"
+      data-layout={activeWideTool ? 'wide' : 'compact'}
+    >
+      <SheetHeader className="border-b px-6 py-4 text-left">
+        <SheetTitle>Show Desk tools</SheetTitle>
+        <SheetDescription>
+          Entries, hospitality, show messages, incidents, delay scripts, and access codes.
+        </SheetDescription>
+      </SheetHeader>
+      <ShowDeskToolSections
+        showId={showId}
+        tools={tools}
+        openToolIds={openToolIds}
+        setOpenToolIds={setOpenToolIds}
+      />
+    </SheetContent>
+  );
+}
+
+function ShowDeskToolSections({
+  showId,
+  tools,
+  openToolIds,
+  setOpenToolIds,
+}: {
+  showId: string;
+  tools: readonly ShowDeskToolSection[];
+  openToolIds: Set<string>;
+  setOpenToolIds: Dispatch<SetStateAction<Set<string>>>;
+}) {
   const toggleTool = (toolId: string, open: boolean) => {
     setOpenToolIds(current => {
       const next = new Set(current);

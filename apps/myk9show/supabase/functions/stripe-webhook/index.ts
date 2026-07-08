@@ -303,6 +303,35 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
   );
 }
 
+// Give stripe-refund-show's synchronous stamp_show_refund_entries RPC a
+// chance to finish before treating an unstamped intent as a real failure.
+// It runs immediately after the Stripe refund it just created, so it
+// normally beats Stripe's own webhook-delivery round trip — but that's not
+// guaranteed, and a single unlucky ordering would turn a healthy show
+// refund into a false CRITICAL alert (Codex review).
+const SHOW_REFUND_STAMP_RECHECK_DELAY_MS = 2000;
+
+/** Counts this intent's entries that showRefundPlan.ts's classify() would
+ * consider stamp-eligible (online, paid, positive fee) and are still
+ * unstamped. Mirrors that eligibility exactly so a sibling entry the refund
+ * plan intentionally skips — zero-fee, offline-paid — never gets counted as
+ * a missed stamp (Codex review). Returns null on a query error. */
+async function countUnstampedShowRefundEntries(paymentIntentId: string): Promise<number | null> {
+  const { data, error } = await supabase
+    .from('entries')
+    .select('id')
+    .eq('stripe_payment_intent_id', paymentIntentId)
+    .eq('payment_method', 'online')
+    .eq('payment_status', 'paid')
+    .gt('entry_fee', 0);
+
+  if (error) {
+    console.error(`Error checking show-refund stamp state for intent ${paymentIntentId}:`, error);
+    return null;
+  }
+  return data?.length ?? 0;
+}
+
 /** Confirms stamp_show_refund_entries actually ran for this bulk
  * show-cancellation refund's intent. Unstamped entries mean the payout cron
  * will not deduct their fee — the club would be paid the refunded fee too.
@@ -317,18 +346,16 @@ async function alertIfShowRefundEntriesUnstamped(charge: Stripe.Charge, showId: 
     return;
   }
 
-  const { data, error } = await supabase
-    .from('entries')
-    .select('id')
-    .eq('stripe_payment_intent_id', paymentIntentId)
-    .is('refund_amount', null);
+  let unstampedCount = await countUnstampedShowRefundEntries(paymentIntentId);
+  if (unstampedCount === null) return;
 
-  if (error) {
-    console.error(`Error checking show-refund stamp state for intent ${paymentIntentId}:`, error);
-    return;
+  if (unstampedCount > 0) {
+    await new Promise(resolve => setTimeout(resolve, SHOW_REFUND_STAMP_RECHECK_DELAY_MS));
+    unstampedCount = await countUnstampedShowRefundEntries(paymentIntentId);
+    if (unstampedCount === null) return;
   }
 
-  const decision = decideShowRefundStampAlert(data?.length ?? 0);
+  const decision = decideShowRefundStampAlert(unstampedCount);
   if (decision.action === 'none') {
     console.log(
       `charge.refunded for show ${showId} (intent ${paymentIntentId}) — entries already stamped`

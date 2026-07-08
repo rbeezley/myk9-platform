@@ -303,6 +303,7 @@ export function useEntryManagementFilters({
         entry =>
           entry.dogName.toLowerCase().includes(search) ||
           entry.ownerName.toLowerCase().includes(search) ||
+          entry.handlerName.toLowerCase().includes(search) ||
           entry.entryNumber.toLowerCase().includes(search) ||
           entry.armbandNumber?.toLowerCase().includes(search) ||
           entry.confirmationNumber?.toLowerCase().includes(search)

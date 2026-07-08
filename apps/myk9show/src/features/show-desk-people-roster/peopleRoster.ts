@@ -71,13 +71,13 @@ function unique(values: string[]): string[] {
 }
 
 function displayName(entry: EntryManagementEntry): string {
-  return entry.ownerName || entry.handlerName || 'Unknown exhibitor';
+  return entry.handlerName || entry.ownerName || 'Unknown exhibitor';
 }
 
 function groupKey(entry: EntryManagementEntry): string {
   return (
-    entry.ownerId ||
     entry.handlerId ||
+    entry.ownerId ||
     entry.registrationId ||
     entry.ownerEmail ||
     normalize(displayName(entry)) ||
@@ -87,8 +87,8 @@ function groupKey(entry: EntryManagementEntry): string {
 
 function groupAuthUserId(entries: EntryManagementEntry[]): string | null {
   return (
-    entries.find(entry => entry.ownerAuthUserId)?.ownerAuthUserId ??
     entries.find(entry => entry.handlerAuthUserId)?.handlerAuthUserId ??
+    entries.find(entry => entry.ownerAuthUserId)?.ownerAuthUserId ??
     null
   );
 }
@@ -119,7 +119,11 @@ function checkInEligibility(
     return { eligible: false, reason: 'Not active' };
   }
 
-  if (today && info?.trialDate && info.trialDate !== today) {
+  if (today && !info?.trialDate) {
+    return { eligible: false, reason: 'Date unavailable' };
+  }
+
+  if (today && info?.trialDate !== today) {
     return { eligible: false, reason: 'Not today' };
   }
 
@@ -207,7 +211,14 @@ export function buildPeopleRoster({
       const dogNames = unique(groupEntries.map(entry => entry.dogName));
       const armbands = unique(classRows.map(row => row.armband ?? ''));
       const searchText = normalize(
-        [name, ...dogNames, ...armbands, ...classRows.map(row => row.className)].join(' ')
+        [
+          name,
+          ...groupEntries.map(entry => entry.ownerName),
+          ...groupEntries.map(entry => entry.handlerName),
+          ...dogNames,
+          ...armbands,
+          ...classRows.map(row => row.className),
+        ].join(' ')
       );
 
       return {

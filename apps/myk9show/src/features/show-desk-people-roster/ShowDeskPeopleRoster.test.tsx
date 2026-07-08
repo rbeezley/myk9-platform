@@ -176,6 +176,103 @@ describe('ShowDeskPeopleRoster', () => {
     expect(await screen.findAllByText('Checked in')).toHaveLength(2);
   });
 
+  it('checks in all eligible rows without touching ineligible rows', async () => {
+    const { user } = renderRoster([
+      entry(),
+      entry({
+        id: 'entry-2',
+        dog_id: 'dog-2',
+        armband: '115',
+        check_in_status: 'checked-in',
+      }),
+    ]);
+
+    await user.click(await screen.findByRole('button', { name: /alice martin/i }));
+    await user.click(screen.getByRole('button', { name: /check in all eligible/i }));
+
+    await waitFor(() => {
+      expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledTimes(1);
+      expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    });
+  });
+
+  it('routes message and manage-entry actions to the handler when owner differs', async () => {
+    h.getOrCreateThread.mockResolvedValueOnce({
+      id: 'thread-handler',
+      show_id: 'show-1',
+      participant_id: 'auth-handler',
+      created_at: '2026-07-08T09:00:00.000Z',
+      last_message_at: '2026-07-08T09:00:00.000Z',
+    });
+    const first = renderRoster([
+      entry({
+        handler_id: 'handler-1',
+        handler_person: {
+          id: 'handler-1',
+          first_name: 'Casey',
+          last_name: 'Handler',
+          auth_user_id: 'auth-handler',
+        },
+        dog: {
+          id: 'dog-1',
+          name: 'Poppy',
+          call_name: 'Poppy',
+          breed: 'Beagle',
+          owner: {
+            id: 'owner-1',
+            first_name: 'Alice',
+            last_name: 'Owner',
+            email: 'alice@example.com',
+            auth_user_id: 'auth-owner',
+          },
+        },
+      }),
+    ]);
+
+    await first.user.click(await screen.findByRole('button', { name: /casey handler/i }));
+    await first.user.click(screen.getByRole('button', { name: /message/i }));
+
+    await waitFor(() => {
+      expect(h.getOrCreateThread).toHaveBeenCalledWith('show-1', 'auth-handler');
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        '/secretary/messages?showId=show-1&threadId=thread-handler'
+      );
+    });
+    first.unmount();
+
+    const second = renderRoster([
+      entry({
+        handler_id: 'handler-1',
+        handler_person: {
+          id: 'handler-1',
+          first_name: 'Casey',
+          last_name: 'Handler',
+          auth_user_id: 'auth-handler',
+        },
+        dog: {
+          id: 'dog-1',
+          name: 'Poppy',
+          call_name: 'Poppy',
+          breed: 'Beagle',
+          owner: {
+            id: 'owner-1',
+            first_name: 'Alice',
+            last_name: 'Owner',
+            email: 'alice@example.com',
+            auth_user_id: 'auth-owner',
+          },
+        },
+      }),
+    ]);
+
+    await second.user.click(await screen.findByRole('button', { name: /casey handler/i }));
+    await second.user.click(screen.getByRole('button', { name: /manage entries/i }));
+
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/shows/show-1/entry-management?person=Casey%20Handler'
+    );
+  });
+
   it('keeps a failed check-in actionable and shows retry feedback', async () => {
     h.updateReplicatedCheckInStatus.mockRejectedValueOnce(new Error('offline'));
     const { user } = renderRoster();

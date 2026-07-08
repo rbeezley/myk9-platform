@@ -101,6 +101,23 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     expect(result.current.filteredEntries.map(entry => entry.id)).toEqual(['alice-entry']);
   });
 
+  it('matches handler names from the roster person deep-link param', () => {
+    const entries = [
+      makeEntry({ id: 'handler-entry', ownerName: 'Alice Owner', handlerName: 'Casey Handler' }),
+      makeEntry({ id: 'other-entry', ownerName: 'Bob Owner', handlerName: 'Bob Handler' }),
+    ];
+
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries, tabCounts: emptyTabCounts }),
+      {
+        wrapper: createWrapper('/?person=Casey%20Handler'),
+      }
+    );
+
+    expect(result.current.searchTerm).toBe('Casey Handler');
+    expect(result.current.filteredEntries.map(entry => entry.id)).toEqual(['handler-entry']);
+  });
+
   it('setSelectedTab updates selectedTab and syncs attention to the URL', () => {
     let latestSearch = '';
     const { result } = renderHook(

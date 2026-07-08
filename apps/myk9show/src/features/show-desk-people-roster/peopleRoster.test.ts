@@ -231,4 +231,55 @@ describe('peopleRoster', () => {
       })
     );
   });
+
+  it('keeps rows ineligible when today is known but class date metadata is missing', () => {
+    const roster = buildPeopleRoster({
+      entries: [entry()],
+      presence: [],
+      today: '2026-07-08',
+    });
+
+    expect(roster[0]?.eligibleCount).toBe(0);
+    expect(roster[0]?.classRows[0]).toEqual(
+      expect.objectContaining({
+        eligibleForCheckIn: false,
+        statusLabel: 'Date unavailable',
+      })
+    );
+  });
+
+  it('uses handler identity for show-day rows while keeping owner names searchable', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entry({
+          handlerName: 'Casey Handler',
+          handlerId: 'handler-1',
+          handlerAuthUserId: 'auth-handler',
+          ownerName: 'Alice Owner',
+          ownerId: 'owner-1',
+          ownerAuthUserId: 'auth-owner',
+        }),
+      ],
+      presence: [
+        {
+          userId: 'auth-handler',
+          name: 'Casey Handler',
+          role: 'exhibitor',
+          location: { page: '/shows/show-1' },
+          activity: 'viewing',
+          ts: 1,
+        },
+      ],
+    });
+
+    expect(roster[0]).toEqual(
+      expect.objectContaining({
+        id: 'handler-1',
+        name: 'Casey Handler',
+        authUserId: 'auth-handler',
+      })
+    );
+    expect(roster[0]?.presence?.userId).toBe('auth-handler');
+    expect(filterPeopleRoster(roster, 'alice owner', 'all')).toHaveLength(1);
+  });
 });

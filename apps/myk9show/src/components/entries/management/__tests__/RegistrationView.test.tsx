@@ -2,8 +2,9 @@ import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { RegistrationView } from '../RegistrationView';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
-import type { EntryStats } from '@/types/entry-management-types';
+import type { EntryManagementEntry, EntryStats } from '@/types/entry-management-types';
 import type { EntryWorkMode } from '../entryManagementFilters';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 
 // Mock the heavy children down to markers so the test isolates RegistrationView's
 // own tab-content routing (the F6b fix) rather than their data-fetching.
@@ -14,7 +15,32 @@ vi.mock('../EntriesTableView', () => ({
   EntriesTableView: () => <div data-testid="entries-table" />,
 }));
 vi.mock('../EnrollmentCard', () => ({
-  EnrollmentCard: () => <div data-testid="enrollment-card" />,
+  EnrollmentCard: ({
+    group,
+    onStatusChange,
+  }: {
+    group: EnrollmentGroup;
+    onStatusChange: (entryId: string, status: EntryStatus) => void;
+  }) => (
+    <div data-testid="enrollment-card">
+      {group.entries[0] ? (
+        <>
+          <button
+            type="button"
+            onClick={() => onStatusChange(group.entries[0].id, EntryStatus.ACCEPTED)}
+          >
+            Accept mocked entry
+          </button>
+          <button
+            type="button"
+            onClick={() => onStatusChange(group.entries[0].id, EntryStatus.WAITLIST)}
+          >
+            Waitlist mocked entry
+          </button>
+        </>
+      ) : null}
+    </div>
+  ),
 }));
 vi.mock('@/hooks/useEmailStatus', () => ({
   useEmailStatus: () => ({ data: {} }),
@@ -23,6 +49,27 @@ vi.mock('@/hooks/useEmailStatus', () => ({
 const enrollmentGroups = [
   { groupKey: 'g1', enrollmentId: 'e1', entries: [] },
 ] as unknown as EnrollmentGroup[];
+
+const reviewedEntry: EntryManagementEntry = {
+  id: 'entry-1',
+  registrationId: 'reg-1',
+  entryNumber: '#1',
+  showId: 'show-1',
+  dogId: 'dog-1',
+  dogName: 'Willow',
+  ownerName: 'Jamie Handler',
+  ownerEmail: 'jamie@example.com',
+  handlerName: 'Jamie Handler',
+  classes: [
+    { id: 'class-1', name: 'Advanced Interior', number: '101', fee: 25, status: 'entered' },
+  ],
+  totalFee: 25,
+  paidAmount: 10,
+  entryStatus: EntryStatus.PENDING,
+  paymentStatus: PaymentStatus.PENDING,
+  submittedAt: new Date('2026-07-08T12:00:00Z'),
+  lastUpdated: new Date('2026-07-08T12:00:00Z'),
+};
 
 function mockViewport(matches: boolean) {
   Object.defineProperty(window, 'matchMedia', {
@@ -48,7 +95,11 @@ function renderView(
     workMode: EntryWorkMode;
     setWorkMode: (mode: EntryWorkMode) => void;
     enrollmentGroups: EnrollmentGroup[];
+    entries: EntryManagementEntry[];
+    filteredEntries: EntryManagementEntry[];
     showId: string;
+    showName: string;
+    onStatusChange: (entryId: string, status: EntryStatus) => void | Promise<void>;
   }> = {}
 ) {
   const props = {
@@ -151,6 +202,47 @@ describe('RegistrationView filter content routing', () => {
 
     const link = screen.getByRole('link', { name: 'Add mail-in entry' });
     expect(link).toHaveAttribute('href', '/secretary/register/show%2Fa');
+  });
+
+  it('opens acceptance email review after the accept action resolves', async () => {
+    const onStatusChange = vi.fn().mockResolvedValue(undefined);
+    const { user } = renderView('all', 'cards', {
+      entries: [reviewedEntry],
+      filteredEntries: [reviewedEntry],
+      enrollmentGroups: [
+        { groupKey: 'g1', enrollmentId: 'reg-1', entries: [reviewedEntry] },
+      ] as unknown as EnrollmentGroup[],
+      showName: 'Heartland Trial',
+      onStatusChange,
+    });
+
+    await user.click(screen.getByRole('button', { name: /accept mocked entry/i }));
+
+    expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.ACCEPTED);
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Review acceptance email');
+    expect(screen.getByDisplayValue(/Entry accepted - Heartland Trial/i)).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue(/Your entry for Willow has been accepted/i)
+    ).toBeInTheDocument();
+  });
+
+  it('opens waitlist email review after the waitlist action resolves', async () => {
+    const onStatusChange = vi.fn().mockResolvedValue(undefined);
+    const { user } = renderView('all', 'cards', {
+      entries: [reviewedEntry],
+      filteredEntries: [reviewedEntry],
+      enrollmentGroups: [
+        { groupKey: 'g1', enrollmentId: 'reg-1', entries: [reviewedEntry] },
+      ] as unknown as EnrollmentGroup[],
+      showName: 'Heartland Trial',
+      onStatusChange,
+    });
+
+    await user.click(screen.getByRole('button', { name: /waitlist mocked entry/i }));
+
+    expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.WAITLIST);
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Review waitlist email');
+    expect(screen.getByDisplayValue(/Entry waitlisted - Heartland Trial/i)).toBeInTheDocument();
   });
 
   // Move-ups / pulled are no longer rendered here. EntryManagementPage promotes

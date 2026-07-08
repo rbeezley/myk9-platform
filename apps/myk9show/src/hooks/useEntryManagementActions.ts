@@ -671,7 +671,7 @@ export function useEntryManagementActions({
         toast.success(`Decision email sent to ${first.ownerEmail}`);
       } catch (err) {
         logger.warn('Failed to send decision email', 'pages', {}, err as Error);
-        toast.error('Failed to send decision email. Please try again.');
+        toast.error('Entry decision is saved. The email did not send yet.');
       }
     },
     [entries, selectedShow, selectedShowId]

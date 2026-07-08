@@ -111,16 +111,22 @@ async function selectFirstAvailableClass(page: Page) {
     timeout: 15000,
   });
 
-  const firstClass = page
-    .getByRole('checkbox', {
-      name: /^Select (Excellent|Advanced|Master|Novice B)$/i,
-    })
-    .first();
-  await expect(firstClass).toBeVisible({ timeout: 15000 });
-  await firstClass.click({ force: true });
-  await expect(page.getByRole('button', { name: /^Next$/ })).toBeEnabled({
-    timeout: 10000,
-  });
+  const classOptions = page.getByRole('checkbox', { name: /^Select / });
+  await expect(classOptions.first()).toBeVisible({ timeout: 15000 });
+
+  const count = await classOptions.count();
+  for (let index = 0; index < count; index += 1) {
+    const option = classOptions.nth(index);
+    if ((await option.isVisible()) && (await option.isEnabled())) {
+      await option.click();
+      await expect(page.getByRole('button', { name: /^Next$/ })).toBeEnabled({
+        timeout: 10000,
+      });
+      return;
+    }
+  }
+
+  throw new Error('No enabled class checkbox was available for checkout handoff smoke');
 }
 
 test('exhibitor card entry hands off to cart checkout without enrollment writes', async ({

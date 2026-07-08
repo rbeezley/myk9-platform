@@ -52,14 +52,26 @@ export function CartSummary({
   // exhibitor-ux-remediation (cart-integrity): a cart drafted before entries
   // closed must never let checkout proceed — the audit found a week-old draft
   // with a live "Pay and confirm" button for a show whose entries had closed.
-  // `entry_close_date` is a DATE-only column ("2026-06-30"); `new Date(str)`
-  // parses it as UTC midnight, so reading getFullYear/Month/Date in a timezone
-  // behind UTC yields the PRIOR day and disables checkout for the whole final
-  // entry day. Parse it by its own Y/M/D components as a local calendar date
-  // so the boundary is the start of the day AFTER the close date.
-  // A slow tick re-evaluates so a cart left open across midnight self-corrects
-  // rather than staying enabled until reload (Date.now() can't be read in the
-  // render body — the React Compiler purity rule flags it).
+  //
+  // This is an ADVISORY client gate; the authoritative close enforcement is the
+  // server-side guard on entry submission (tracked as a deferred money-path
+  // change in the exhibitor-ux-remediation tasks). It is deliberately evaluated
+  // against the exhibitor's LOCAL calendar day, not the trial's timezone: the
+  // cart's `shows` join carries only `entry_close_date` (a DATE with no time or
+  // zone — timezone lives on `trials`), so trial-tz precision isn't available
+  // here without new plumbing. For the real failure case (a cart days/weeks
+  // past close) local vs trial tz is irrelevant; the only imprecision is a
+  // sub-day window at the boundary for an exhibitor in a far-off timezone,
+  // which the server guard closes authoritatively.
+  //
+  // `entry_close_date` is DATE-only ("2026-06-30"); `new Date(str)` parses it as
+  // UTC midnight, so reading getFullYear/Month/Date in a timezone behind UTC
+  // yields the PRIOR day and would disable checkout for the whole final entry
+  // day. Parse it by its own Y/M/D components as a local calendar date so the
+  // boundary is the start of the day AFTER the close date. A slow tick
+  // re-evaluates so a cart left open across midnight self-corrects rather than
+  // staying enabled until reload (Date.now() can't be read in the render body —
+  // the React Compiler purity rule flags it).
   const [now, setNow] = useState(() => Date.now());
   const entryCloseDate = cart?.show?.entry_close_date ?? null;
   useEffect(() => {
@@ -73,7 +85,7 @@ export function CartSummary({
     const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(entryCloseDate);
     if (!match) return false;
     const [, year, month, day] = match;
-    // Start of the day AFTER the close date, in local time.
+    // Start of the day AFTER the close date, in the exhibitor's local time.
     const endOfCloseDay = new Date(Number(year), Number(month) - 1, Number(day) + 1);
     return endOfCloseDay.getTime() <= now;
   })();

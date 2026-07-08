@@ -76,14 +76,26 @@ const AppHeader: React.FC = () => {
   // cart drafted in a prior session was invisible on every other page. Hydrate
   // once per session for signed-in exhibitors so a non-empty cart is always
   // discoverable, not just after visiting /cart directly.
+  //
+  // Codex review (PR #1217): this hydration is UNSCOPED (loadActiveCart picks
+  // the exhibitor's most-recent active cart across all shows), so it must NOT
+  // run on routes that own a SHOW-SCOPED cart load — the registration wizard
+  // (ClassSelectionStep's loadCart/createCart), the cart page, and checkout.
+  // On those routes an unscoped load can resolve last and overwrite the
+  // show-specific cart, so subsequent addItem calls target the wrong cart.
+  // Elsewhere (dashboard, dogs, etc.) it's purely for the badge and is safe.
   const { profile: exhibitorProfile } = useExhibitorProfile();
   const loadActiveCart = useCartStore(state => state.loadActiveCart);
   const cartLoadInitiated = useCartStore(state => state.loadInitiated);
+  const ownsScopedCart =
+    location.pathname.startsWith('/cart') ||
+    location.pathname.startsWith('/checkout') ||
+    /^\/shows\/[^/]+\/register/.test(location.pathname);
   useEffect(() => {
-    if (exhibitorProfile?.id && !cartLoadInitiated) {
+    if (exhibitorProfile?.id && !cartLoadInitiated && !ownsScopedCart) {
       loadActiveCart(exhibitorProfile.id);
     }
-  }, [exhibitorProfile?.id, cartLoadInitiated, loadActiveCart]);
+  }, [exhibitorProfile?.id, cartLoadInitiated, ownsScopedCart, loadActiveCart]);
 
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
 

@@ -84,6 +84,23 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     ]);
   });
 
+  it('initializes search from the roster person deep-link param', () => {
+    const entries = [
+      makeEntry({ id: 'alice-entry', ownerName: 'Alice Martin', dogName: 'Poppy' }),
+      makeEntry({ id: 'bob-entry', ownerName: 'Bob Chen', dogName: 'Cedar' }),
+    ];
+
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries, tabCounts: emptyTabCounts }),
+      {
+        wrapper: createWrapper('/?person=Alice%20Martin'),
+      }
+    );
+
+    expect(result.current.searchTerm).toBe('Alice Martin');
+    expect(result.current.filteredEntries.map(entry => entry.id)).toEqual(['alice-entry']);
+  });
+
   it('setSelectedTab updates selectedTab and syncs attention to the URL', () => {
     let latestSearch = '';
     const { result } = renderHook(
@@ -272,10 +289,9 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     const tabCounts = { all: 2, pending: 0, accepted: 2, waitlist: 0, issues: 0 };
 
     // Class filter matches an entry's class directly (no trial class set needed).
-    const byClass = renderHook(
-      () => useEntryManagementFilters({ entries, tabCounts }),
-      { wrapper: createWrapper('/?class=class-1') }
-    );
+    const byClass = renderHook(() => useEntryManagementFilters({ entries, tabCounts }), {
+      wrapper: createWrapper('/?class=class-1'),
+    });
     expect(byClass.result.current.filteredEntries.map(e => e.id)).toEqual(['in-class']);
 
     // Trial filter narrows to entries whose class is in the trial's class set.
@@ -393,9 +409,12 @@ describe('useEntryManagementFilters — trial/class filters', () => {
       }),
     ] as EntryManagementEntry[];
 
-    const { result } = renderHook(() => useEntryManagementFilters({ entries, tabCounts: emptyTabCounts }), {
-      wrapper: createWrapper('/?attention=issues'),
-    });
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries, tabCounts: emptyTabCounts }),
+      {
+        wrapper: createWrapper('/?attention=issues'),
+      }
+    );
 
     expect(result.current.filteredEntries.map(entry => entry.id)).toEqual(['unpaid-entry']);
   });

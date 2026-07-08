@@ -1,9 +1,5 @@
 import { lazy, Suspense, useMemo } from 'react';
-import {
-  FileBarChart,
-  ListChecks,
-  Send,
-} from 'lucide-react';
+import { FileBarChart, ListChecks, Send } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
@@ -20,6 +16,7 @@ import { TasksNotesCard } from '@/features/show-workbench/TasksNotesCard';
 import { VolunteersCard } from '@/features/show-workbench/VolunteersCard';
 import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
 import { ShowCloseoutSummary } from '@/features/show-workbench/ShowCloseoutSummary';
+import { ShowDeskPeopleRoster } from '@/features/show-desk-people-roster/ShowDeskPeopleRoster';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -228,6 +225,13 @@ export function ShowWorkbenchShowDeskPage() {
     if (!currentShow) return [];
 
     return [
+      {
+        id: 'people-at-show',
+        title: 'People at show',
+        summary: 'Look up exhibitors, armbands, class entries, and check-in status',
+        layout: 'wide',
+        content: <ShowDeskPeopleRoster showId={currentShow.id} classes={showClasses} />,
+      },
       {
         id: 'add-entries',
         title: 'Add entries',

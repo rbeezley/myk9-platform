@@ -39,7 +39,12 @@ export interface SecretaryEntry {
     trial_type: string | null;
   } | null;
   /** Joined person for handler_id — online entries set the FK, not the legacy text. */
-  handler_person: { id: string; first_name: string | null; last_name: string | null } | null;
+  handler_person: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    auth_user_id: string | null;
+  } | null;
   dog: {
     id: string;
     name: string;
@@ -50,6 +55,7 @@ export interface SecretaryEntry {
       first_name: string | null;
       last_name: string | null;
       email: string | null;
+      auth_user_id: string | null;
     } | null;
   } | null;
   class: {

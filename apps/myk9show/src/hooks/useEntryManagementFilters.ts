@@ -90,7 +90,8 @@ export function useEntryManagementFilters({
   trialClassIds,
 }: UseEntryManagementFiltersProps): UseEntryManagementFiltersReturn {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [searchTerm, setSearchTerm] = useState('');
+  const urlSearchTerm = searchParams.get('person') ?? searchParams.get('search') ?? '';
+  const [searchTerm, setSearchTerm] = useState(urlSearchTerm);
   const [paymentFilter, setPaymentFilter] = useState('all');
   const normalized = useMemo(
     () => normalizeEntryManagementSearchParams(searchParams),
@@ -113,6 +114,10 @@ export function useEntryManagementFilters({
       setSearchParams(normalized.params, { replace: true });
     }
   }, [normalized, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    setSearchTerm(urlSearchTerm);
+  }, [urlSearchTerm]);
 
   const setAttentionFilter = useCallback(
     (filter: EntryAttentionFilter) => {
@@ -301,7 +306,15 @@ export function useEntryManagementFilters({
     }
 
     return filtered;
-  }, [entries, attentionFilter, searchTerm, paymentFilter, classFilter, trialFilter, trialClassIds]);
+  }, [
+    entries,
+    attentionFilter,
+    searchTerm,
+    paymentFilter,
+    classFilter,
+    trialFilter,
+    trialClassIds,
+  ]);
 
   // Selection handlers
   const handleSelectEntry = useCallback((entryId: string, checked: boolean) => {

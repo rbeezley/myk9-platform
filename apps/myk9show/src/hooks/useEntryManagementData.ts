@@ -79,6 +79,90 @@ function personName(
   return name || null;
 }
 
+export function mapSecretaryEntryToEntryManagementEntry(
+  entry: SecretaryEntry
+): EntryManagementEntry {
+  return {
+    id: entry.id,
+    registrationId: entry.registration?.id ?? entry.registration_id ?? '',
+    entryNumber: entry.armband || entry.id.slice(0, 8).toUpperCase(),
+    showId: entry.show_id || '',
+    dogId: entry.dog_id || '',
+    dogName: entry.dog?.name || 'Unknown Dog',
+    // Online (webhook-created) entries set handler_id/dog.owner FKs but
+    // never the legacy `handler` text; mail-in entries set the text only.
+    ownerName: personName(entry.dog?.owner) || entry.handler || 'Unknown',
+    ownerEmail: entry.dog?.owner?.email ?? '',
+    handlerName: personName(entry.handler_person) || entry.handler || 'Not specified',
+    handlerId: entry.handler_id,
+    handlerAuthUserId: entry.handler_person?.auth_user_id ?? null,
+    ownerId: entry.dog?.owner?.id ?? null,
+    ownerAuthUserId: entry.dog?.owner?.auth_user_id ?? null,
+    classes: entry.class
+      ? [
+          {
+            id: entry.id,
+            classId: entry.class_id,
+            name: entry.class.name || 'Unknown Class',
+            number: entry.class.class_number || '',
+            fee: entry.entry_fee || 0,
+            ...(entry.jump_height ? { jumpHeight: entry.jump_height } : {}),
+            ...(entry.trial?.trial_type ? { trialType: entry.trial.trial_type } : {}),
+            handlerId: entry.handler_id,
+            status: mapClassEntryStatus(entry.entry_status),
+            checkInStatus: (entry.check_in_status as CheckInStatus) ?? 'no-status',
+          },
+        ]
+      : [],
+    totalFee: entry.entry_fee || 0,
+    paidAmount: getEntryPaidAmount({
+      paymentStatus: mapPaymentStatus(entry.payment_status),
+      enrollmentPaymentStatus:
+        entry.registration?.payment_status != null
+          ? mapPaymentStatus(entry.registration.payment_status)
+          : null,
+      totalFee: entry.entry_fee || 0,
+      refundAmount: entry.refund_amount ?? null,
+    }),
+    entryStatus: mapEntryStatus(entry.entry_status),
+    rawEntryStatus: entry.entry_status ?? null,
+    paymentStatus: mapPaymentStatus(entry.payment_status),
+    submittedAt: entry.submitted_at
+      ? new Date(entry.submitted_at)
+      : new Date(entry.created_at || Date.now()),
+    lastUpdated: new Date(entry.updated_at || Date.now()),
+    ...(entry.special_requests ? { notes: entry.special_requests } : {}),
+    ...(entry.armband ? { armbandNumber: entry.armband } : {}),
+    ...(entry.registration?.confirmation_number != null
+      ? { confirmationNumber: entry.registration.confirmation_number }
+      : {}),
+    ...(entry.registration?.payment_status != null
+      ? { enrollmentPaymentStatus: mapPaymentStatus(entry.registration.payment_status) }
+      : {}),
+    ...(entry.registration?.payment_reference != null
+      ? { enrollmentPaymentReference: entry.registration.payment_reference }
+      : {}),
+    enrollmentTotalAmount: entry.registration?.total_amount ?? null,
+    enrollmentPaidAmount: entry.registration?.paid_amount ?? null,
+    // withdrawal_reason and refund fields populated after migration 175/176 pushed
+    ...(entry.withdrawal_reason ? { withdrawalReason: entry.withdrawal_reason } : {}),
+    ...(entry.registration?.refund_amount != null
+      ? { enrollmentRefundAmount: entry.registration.refund_amount }
+      : {}),
+    ...(entry.registration?.refund_notes != null
+      ? { enrollmentRefundNotes: entry.registration.refund_notes }
+      : {}),
+    ...(entry.registration?.refunded_at != null
+      ? { enrollmentRefundedAt: entry.registration.refunded_at }
+      : {}),
+    // Entry-level Stripe payment/refund state (migration 20260609220000)
+    paymentMethod: entry.payment_method ?? null,
+    refundAmount: entry.refund_amount ?? null,
+    refundedAt: entry.refunded_at ?? null,
+    stripePaymentIntentId: entry.stripe_payment_intent_id ?? null,
+  };
+}
+
 interface EntryManagementShowRow {
   id: string;
   name: string | null;
@@ -146,81 +230,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       // bridge after the next `supabase gen types` run.
       const transformedEntries: EntryManagementEntry[] = (
         (data || []) as unknown as SecretaryEntry[]
-      ).map((entry): EntryManagementEntry => ({
-        id: entry.id,
-        registrationId: entry.registration?.id ?? entry.registration_id ?? '',
-        entryNumber: entry.armband || entry.id.slice(0, 8).toUpperCase(),
-        showId: entry.show_id || '',
-        dogId: entry.dog_id || '',
-        dogName: entry.dog?.name || 'Unknown Dog',
-        // Online (webhook-created) entries set handler_id/dog.owner FKs but
-        // never the legacy `handler` text; mail-in entries set the text only.
-        ownerName: personName(entry.dog?.owner) || entry.handler || 'Unknown',
-        ownerEmail: entry.dog?.owner?.email ?? '',
-        handlerName: personName(entry.handler_person) || entry.handler || 'Not specified',
-        handlerId: entry.handler_id,
-        classes: entry.class
-          ? [
-              {
-                id: entry.id,
-                name: entry.class.name || 'Unknown Class',
-                number: entry.class.class_number || '',
-                fee: entry.entry_fee || 0,
-                ...(entry.jump_height ? { jumpHeight: entry.jump_height } : {}),
-                ...(entry.trial?.trial_type ? { trialType: entry.trial.trial_type } : {}),
-                handlerId: entry.handler_id,
-                status: mapClassEntryStatus(entry.entry_status),
-                checkInStatus: (entry.check_in_status as CheckInStatus) ?? 'no-status',
-              },
-            ]
-          : [],
-        totalFee: entry.entry_fee || 0,
-        paidAmount: getEntryPaidAmount({
-          paymentStatus: mapPaymentStatus(entry.payment_status),
-          enrollmentPaymentStatus:
-            entry.registration?.payment_status != null
-              ? mapPaymentStatus(entry.registration.payment_status)
-              : null,
-          totalFee: entry.entry_fee || 0,
-          refundAmount: entry.refund_amount ?? null,
-        }),
-        entryStatus: mapEntryStatus(entry.entry_status),
-        rawEntryStatus: entry.entry_status ?? null,
-        paymentStatus: mapPaymentStatus(entry.payment_status),
-        submittedAt: entry.submitted_at
-          ? new Date(entry.submitted_at)
-          : new Date(entry.created_at || Date.now()),
-        lastUpdated: new Date(entry.updated_at || Date.now()),
-        ...(entry.special_requests ? { notes: entry.special_requests } : {}),
-        ...(entry.armband ? { armbandNumber: entry.armband } : {}),
-        ...(entry.registration?.confirmation_number != null
-          ? { confirmationNumber: entry.registration.confirmation_number }
-          : {}),
-        ...(entry.registration?.payment_status != null
-          ? { enrollmentPaymentStatus: mapPaymentStatus(entry.registration.payment_status) }
-          : {}),
-        ...(entry.registration?.payment_reference != null
-          ? { enrollmentPaymentReference: entry.registration.payment_reference }
-          : {}),
-        enrollmentTotalAmount: entry.registration?.total_amount ?? null,
-        enrollmentPaidAmount: entry.registration?.paid_amount ?? null,
-        // withdrawal_reason and refund fields populated after migration 175/176 pushed
-        ...(entry.withdrawal_reason ? { withdrawalReason: entry.withdrawal_reason } : {}),
-        ...(entry.registration?.refund_amount != null
-          ? { enrollmentRefundAmount: entry.registration.refund_amount }
-          : {}),
-        ...(entry.registration?.refund_notes != null
-          ? { enrollmentRefundNotes: entry.registration.refund_notes }
-          : {}),
-        ...(entry.registration?.refunded_at != null
-          ? { enrollmentRefundedAt: entry.registration.refunded_at }
-          : {}),
-        // Entry-level Stripe payment/refund state (migration 20260609220000)
-        paymentMethod: entry.payment_method ?? null,
-        refundAmount: entry.refund_amount ?? null,
-        refundedAt: entry.refunded_at ?? null,
-        stripePaymentIntentId: entry.stripe_payment_intent_id ?? null,
-      }));
+      ).map(mapSecretaryEntryToEntryManagementEntry);
 
       setEntries(transformedEntries);
     } catch (err) {

@@ -65,6 +65,14 @@ bash scripts/bootstrap-worktree.sh   # installs deps, copies .env, builds packag
 
 When creating implementation or remediation plans, always save them to a markdown file (e.g., `PLAN.md` or `docs/plan-<topic>.md`) rather than only outputting to chat. Follow existing plans when they exist — do not start from scratch. **Every plan must include a testing phase** — unit tests for new components, hooks, and utilities. Do not consider a phase complete until its tests are written and passing.
 
+## OPSX / OpenSpec Workflow
+
+Prefer OPSX for non-trivial launch-readiness and product changes, especially when work needs a durable proposal/spec, remediation plan, implementation, verification, PR, archive, or cleanup. If the user says "OPSX", "opsx ship", "OpenSpec", "batch", "go-live", "launch readiness", or asks to ship a scoped change end-to-end, read and use the `opsx-ship` skill first.
+
+Use the OPSX phase skills it delegates to (`openspec-propose`, `openspec-apply-change`, `openspec-verify-change`, `ship-pr`, `openspec-archive-change`, and `cleanup`) instead of reconstructing that process from memory. Preserve `opsx-ship` branch-safety checks and shared-system approval gates.
+
+For tiny docs-only edits, test-only nits, or narrow review fixes, the lightweight workflow is fine. If skipping OPSX on non-trivial fall-2026 launch-readiness work, state why in the response or saved plan.
+
 ## Commands
 
 ```bash

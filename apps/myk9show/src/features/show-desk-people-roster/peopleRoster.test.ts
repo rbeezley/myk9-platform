@@ -282,4 +282,52 @@ describe('peopleRoster', () => {
     expect(roster[0]?.presence?.userId).toBe('auth-handler');
     expect(filterPeopleRoster(roster, 'alice owner', 'all')).toHaveLength(1);
   });
+
+  it('does not message the owner from a handler-labeled row when handler auth is missing', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entry({
+          handlerName: 'Casey Handler',
+          handlerId: 'handler-1',
+          handlerAuthUserId: null,
+          ownerName: 'Alice Owner',
+          ownerId: 'owner-1',
+          ownerAuthUserId: 'auth-owner',
+        }),
+      ],
+      presence: [],
+    });
+
+    expect(roster[0]).toEqual(
+      expect.objectContaining({
+        id: 'handler-1',
+        name: 'Casey Handler',
+        authUserId: null,
+      })
+    );
+  });
+
+  it('ignores placeholder handler names for owner-only rows', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entry({
+          handlerName: 'Not specified',
+          handlerId: null,
+          handlerAuthUserId: null,
+          ownerName: 'Alice Owner',
+          ownerId: 'owner-1',
+          ownerAuthUserId: 'auth-owner',
+        }),
+      ],
+      presence: [],
+    });
+
+    expect(roster[0]).toEqual(
+      expect.objectContaining({
+        id: 'owner-1',
+        name: 'Alice Owner',
+        authUserId: 'auth-owner',
+      })
+    );
+  });
 });

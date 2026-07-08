@@ -70,14 +70,38 @@ function unique(values: string[]): string[] {
   return [...new Set(values.filter(value => value.trim()))];
 }
 
+function personName(value: string | null | undefined): string | null {
+  const name = (value ?? '').trim();
+  if (!name) return null;
+  if (normalize(name) === 'not specified') return null;
+  return name;
+}
+
+function hasHandlerIdentity(entry: EntryManagementEntry): boolean {
+  return Boolean(entry.handlerId || entry.handlerAuthUserId || personName(entry.handlerName));
+}
+
 function displayName(entry: EntryManagementEntry): string {
-  return entry.handlerName || entry.ownerName || 'Unknown exhibitor';
+  if (hasHandlerIdentity(entry)) {
+    return personName(entry.handlerName) || personName(entry.ownerName) || 'Unknown exhibitor';
+  }
+
+  return personName(entry.ownerName) || personName(entry.handlerName) || 'Unknown exhibitor';
 }
 
 function groupKey(entry: EntryManagementEntry): string {
+  if (hasHandlerIdentity(entry)) {
+    return (
+      entry.handlerId ||
+      entry.handlerAuthUserId ||
+      normalize(personName(entry.handlerName)) ||
+      entry.id
+    );
+  }
+
   return (
-    entry.handlerId ||
     entry.ownerId ||
+    entry.ownerAuthUserId ||
     entry.registrationId ||
     entry.ownerEmail ||
     normalize(displayName(entry)) ||
@@ -86,11 +110,11 @@ function groupKey(entry: EntryManagementEntry): string {
 }
 
 function groupAuthUserId(entries: EntryManagementEntry[]): string | null {
-  return (
-    entries.find(entry => entry.handlerAuthUserId)?.handlerAuthUserId ??
-    entries.find(entry => entry.ownerAuthUserId)?.ownerAuthUserId ??
-    null
-  );
+  if (entries.some(hasHandlerIdentity)) {
+    return entries.find(entry => entry.handlerAuthUserId)?.handlerAuthUserId ?? null;
+  }
+
+  return entries.find(entry => entry.ownerAuthUserId)?.ownerAuthUserId ?? null;
 }
 
 function classInfoMap(classes: readonly PeopleRosterClassInfo[] = []) {
@@ -213,8 +237,8 @@ export function buildPeopleRoster({
       const searchText = normalize(
         [
           name,
-          ...groupEntries.map(entry => entry.ownerName),
-          ...groupEntries.map(entry => entry.handlerName),
+          ...groupEntries.map(entry => personName(entry.ownerName) ?? ''),
+          ...groupEntries.map(entry => personName(entry.handlerName) ?? ''),
           ...dogNames,
           ...armbands,
           ...classRows.map(row => row.className),

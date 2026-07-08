@@ -273,6 +273,39 @@ describe('ShowDeskPeopleRoster', () => {
     );
   });
 
+  it('does not silently message the owner from a handler row without handler auth', async () => {
+    const { user } = renderRoster([
+      entry({
+        handler_id: 'handler-1',
+        handler_person: {
+          id: 'handler-1',
+          first_name: 'Casey',
+          last_name: 'Handler',
+          auth_user_id: null,
+        },
+        dog: {
+          id: 'dog-1',
+          name: 'Poppy',
+          call_name: 'Poppy',
+          breed: 'Beagle',
+          owner: {
+            id: 'owner-1',
+            first_name: 'Alice',
+            last_name: 'Owner',
+            email: 'alice@example.com',
+            auth_user_id: 'auth-owner',
+          },
+        },
+      }),
+    ]);
+
+    await user.click(await screen.findByRole('button', { name: /casey handler/i }));
+
+    expect(screen.getByRole('button', { name: /message/i })).toBeDisabled();
+    expect(screen.getByText(/no message-capable account/i)).toBeInTheDocument();
+    expect(h.getOrCreateThread).not.toHaveBeenCalled();
+  });
+
   it('keeps a failed check-in actionable and shows retry feedback', async () => {
     h.updateReplicatedCheckInStatus.mockRejectedValueOnce(new Error('offline'));
     const { user } = renderRoster();

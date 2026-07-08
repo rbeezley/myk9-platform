@@ -353,6 +353,10 @@ export function ShowWorkbenchShowDeskPage() {
     return <LoadingSkeleton variant="cards" count={2} />;
   }
 
+  if (showEntriesLoading) {
+    return <LoadingSkeleton variant="cards" count={2} />;
+  }
+
   if (showEntriesIsError) {
     return (
       <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">

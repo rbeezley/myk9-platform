@@ -447,6 +447,31 @@ describe('ResultsSubmissionPage', () => {
       expect(screen.queryByTestId('download-btn')).not.toBeInTheDocument();
     });
 
+    it('preserves a manual selector choice when show details load later', async () => {
+      mockShowState.isLoaded = false;
+      mockShowState.organization = 'UKC';
+
+      const view = renderPage();
+
+      expect(await screen.findByTestId('org-selector')).toHaveTextContent('AKC Scent Work');
+
+      await view.user.click(screen.getByRole('combobox', { name: 'Organization' }));
+      await view.user.click(await screen.findByRole('option', { name: 'ASCA Scent Detection' }));
+
+      await waitFor(() =>
+        expect(screen.getByTestId('org-selector')).toHaveTextContent('ASCA Scent Detection')
+      );
+
+      mockShowState.isLoaded = true;
+      view.rerender(
+        <Routes>
+          <Route path="/shows/:id/*" element={<ResultsSubmissionPage />} />
+        </Routes>
+      );
+
+      expect(screen.getByTestId('org-selector')).toHaveTextContent('ASCA Scent Detection');
+    });
+
     it('shows ASCA as a manual closeout path and hides unsupported XML actions', async () => {
       mockShowState.organization = 'ASCA';
 
@@ -483,6 +508,37 @@ describe('ResultsSubmissionPage', () => {
           expect.objectContaining({
             organization: 'UKC',
             sport_type: 'nosework',
+            status: 'submitted',
+            xml_payload: null,
+          }),
+          expect.objectContaining({
+            onError: expect.any(Function),
+            onSuccess: expect.any(Function),
+          })
+        )
+      );
+      expect(mockInvoke).not.toHaveBeenCalled();
+      expect(screen.getByTestId('mark-success')).toBeInTheDocument();
+    });
+
+    it('records ASCA manual submission history without generating XML or emailing', async () => {
+      mockShowState.organization = 'ASCA';
+      mockMutate.mockImplementationOnce((_input, options) => {
+        options?.onSuccess?.();
+      });
+
+      renderPage();
+
+      const markBtn = await screen.findByTestId('mark-submitted-btn');
+      expect(markBtn).not.toBeDisabled();
+      fireEvent.click(markBtn);
+      fireEvent.click(await screen.findByTestId('mark-confirm-btn'));
+
+      await waitFor(() =>
+        expect(mockMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            organization: 'ASCA',
+            sport_type: 'scent_detection',
             status: 'submitted',
             xml_payload: null,
           }),

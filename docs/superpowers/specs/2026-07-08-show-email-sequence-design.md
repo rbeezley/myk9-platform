@@ -19,6 +19,12 @@ The risk is duplicated communication surfaces. myK9Show already has Message Cent
 - Track recipient status, delivery status, skips, and failures.
 - Keep V1 focused on launch-critical lifecycle emails, not general marketing automation.
 
+## Validation Profile [ADDED]
+
+- Risk: high
+- Validation: full
+- Rationale: Implementation will touch entry decisions, email delivery, database migrations, edge functions, authorization, and scheduled/background jobs.
+
 ## Non-Goals
 
 - No new standalone campaign app.
@@ -71,6 +77,8 @@ Use plain state names:
 
 Entry received remains a transactional receipt. It should send automatically after online submission/payment completion, using the existing registration-confirmation sender where possible. The communications surface should show whether the receipt was sent, delivered, bounced, or failed.
 
+This automatic receipt applies to exhibitor online submissions. Secretary-created mail-in or walk-in entries should follow the secretary-reviewed communication path because the secretary is already acting on behalf of the exhibitor.
+
 ### Accept / Waitlist Prompt
 
 After a secretary accepts or waitlists an entry, open a preview/edit dialog.
@@ -93,6 +101,8 @@ Actions:
 - Save changes
 
 If the secretary chooses Not now, the email remains visible as ready in the Scheduled emails section and on the entry row.
+
+If the secretary sends the email and later changes the entry decision, the system should not try to retract the email. It should show the sent status and offer a Prepare correction email action with a clear default apology/correction draft.
 
 ### Batch Review
 
@@ -173,6 +183,20 @@ Each recipient job should store:
 - idempotency key
 - `email_log.id` when sent
 
+## Migration And Rollout [ADDED]
+
+Migrations should add lifecycle-email tables without changing existing senders in the same step. Existing registration-confirmation delivery should keep working while lifecycle email jobs are introduced.
+
+Rollout should happen in slices:
+
+1. Add schema, RLS, indexes, and read-only status queries.
+2. Surface lifecycle email status without changing send behavior.
+3. Add accept/waitlist preview/send prompts.
+4. Add reminder/results batch preparation.
+5. Add Send now delivery for reviewed batches.
+
+Existing `email_log` rows should remain valid. Backfill is optional for old shows; V1 can show history from new lifecycle jobs plus existing receipt logs when a related id is available.
+
 ## Delivery
 
 Use Resend through edge functions. Reuse existing delivery patterns:
@@ -183,6 +207,8 @@ Use Resend through edge functions. Reuse existing delivery patterns:
 - edge functions enforce secretary/admin authorization for reviewed sends.
 
 Entry received may continue using the existing registration-confirmation function if it matches the receipt contract. Accept/waitlist and batch sends may use a new lifecycle-email function if the existing sender cannot represent the decision/reminder/result payload cleanly.
+
+Reviewed sends should persist the rendered subject and body before delivery. If Resend succeeds but the local status update fails, a retry should use the same idempotency key and reconcile from `email_log` / Resend message id rather than sending a duplicate.
 
 ## Scheduling
 
@@ -198,6 +224,10 @@ The results batch should not depend on a separate show-closeout feature. V1 shou
 
 Only users who can manage the show may review, edit, skip, or send lifecycle emails for that show. Exhibitors may see delivered emails only through their inbox/email client and existing message history surfaces if later connected.
 
+Email content and notes must be escaped or sanitized before rendering HTML. The sender should validate step type, related show id, and recipient ownership server-side; the client cannot choose arbitrary recipients or override delivery scope.
+
+RLS should allow show managers to read lifecycle email status for their shows and deny cross-show reads. Service-role edge functions can insert delivery records, but user-facing mutations must go through authorization checks.
+
 ## Offline Behavior
 
 Online email delivery requires connectivity and Resend. Core show-day operations must not block on email. If the secretary is offline, accept/waitlist should still update entry status through the established offline-safe path, and the email prompt should clearly show that email can be sent when the app is back online.
@@ -212,6 +242,23 @@ Use plain language:
 
 Failures should be retryable per recipient and per batch.
 
+Partial sends should be explicit. If 34 of 36 emails send, the batch should show 34 sent and 2 failed, with retry actions only for the failed recipients.
+
+If the email service is unavailable, the batch remains ready and unsent. The UI should not mark a batch sent until at least one recipient send succeeds and the recipient statuses are recorded.
+
+## Batch Size And Performance [ADDED]
+
+Batch queries should avoid N+1 lookups. The review endpoint should fetch show, recipient, entry, class, armband, and result data in bounded queries and return a compact preview payload.
+
+Large sends should process recipients in chunks and record per-recipient results. Indexes should support:
+
+- due lifecycle email jobs by show and status
+- recipient jobs by step and status
+- lookup by idempotency key
+- lookup by `email_log.id`
+
+The Message Center should load step summaries first and fetch full recipient previews only when the secretary opens a batch.
+
 ## History
 
 V1 should use `email_log` plus lifecycle email job records as the delivery audit trail. It does not need to create in-app conversation messages for each lifecycle email. The communications surface should still display lifecycle email history so the secretary can answer, "Did we send that?"
@@ -220,13 +267,17 @@ V1 should use `email_log` plus lifecycle email job records as the delivery audit
 
 Required tests:
 
+- migration/RLS tests for cross-show lifecycle email access
 - schedule calculation uses the show timezone
 - 2-week and day-before batches become ready on the correct local date
 - reminder/results batches do not send without Send now
 - accept/waitlist opens preview/edit after the status change
 - Not now leaves a ready email job
 - secretary edits subject/body/note before send
+- sent accept/waitlist decision later changed offers a correction email action
 - missing merge data produces warnings and safe fallback copy
+- HTML rendering escapes secretary notes and editable content
 - idempotency key prevents duplicate delivery
+- partial batch failure records per-recipient outcomes
 - failed sends are retryable
 - unauthorized users cannot send show lifecycle emails

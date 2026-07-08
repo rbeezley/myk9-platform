@@ -23,6 +23,7 @@ import {
 interface ShowDeskPeopleRosterProps {
   showId: string;
   classes: readonly ShowWorkbenchClassSummary[];
+  today?: string | null;
 }
 
 const FILTERS: Array<{ id: PeopleRosterFilter; label: string }> = [
@@ -35,7 +36,7 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong';
 }
 
-export function ShowDeskPeopleRoster({ showId, classes }: ShowDeskPeopleRosterProps) {
+export function ShowDeskPeopleRoster({ showId, classes, today }: ShowDeskPeopleRosterProps) {
   const navigate = useNavigate();
   const { present } = useShowPresenceRoster();
   const getOrCreateThread = useMessageStore(s => s.getOrCreateThread);
@@ -85,9 +86,11 @@ export function ShowDeskPeopleRoster({ showId, classes }: ShowDeskPeopleRosterPr
           time: cls.time,
           ring: cls.trialName || cls.trialNumber,
           trialDate: cls.trialDate,
+          timezone: cls.timezone ?? null,
         })),
+        today: today ?? null,
       }),
-    [classes, entries, present]
+    [classes, entries, present, today]
   );
   const visibleRoster = useMemo(
     () => filterPeopleRoster(roster, search, filter),
@@ -167,7 +170,10 @@ export function ShowDeskPeopleRoster({ showId, classes }: ShowDeskPeopleRosterPr
         />
         <Input
           value={search}
-          onChange={event => setSearch(event.target.value)}
+          onChange={event => {
+            setSearch(event.target.value);
+            setExpandedId(null);
+          }}
           placeholder="Search name, dog, armband"
           className="min-h-11 pl-9"
           aria-label="Search exhibitors"
@@ -181,7 +187,10 @@ export function ShowDeskPeopleRoster({ showId, classes }: ShowDeskPeopleRosterPr
             variant={filter === option.id ? 'default' : 'outline'}
             size="sm"
             className="min-h-10 rounded-full"
-            onClick={() => setFilter(option.id)}
+            onClick={() => {
+              setFilter(option.id);
+              setExpandedId(null);
+            }}
           >
             {option.label}
           </Button>

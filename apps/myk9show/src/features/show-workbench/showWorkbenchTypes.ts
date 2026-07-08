@@ -11,6 +11,7 @@ export interface ShowWorkbenchClassSummary {
   entryCount: number;
   scoredCount: number;
   trialDate: string;
+  timezone?: string | null;
   trialNumber: string;
   trialName: string;
 }

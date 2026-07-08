@@ -94,7 +94,10 @@ function LocationProbe() {
   return <div data-testid="location">{`${location.pathname}${location.search}`}</div>;
 }
 
-function renderRoster(entries: SecretaryEntry[] = [entry()]) {
+function renderRoster(
+  entries: SecretaryEntry[] = [entry()],
+  options: { trialDate?: string; today?: string | null } = {}
+) {
   h.getEntriesForShow.mockResolvedValue({ data: entries, error: null });
   if (!h.updateReplicatedCheckInStatus.getMockImplementation()) {
     h.updateReplicatedCheckInStatus.mockResolvedValue(undefined);
@@ -113,6 +116,7 @@ function renderRoster(entries: SecretaryEntry[] = [entry()]) {
     <>
       <ShowDeskPeopleRoster
         showId="show-1"
+        today={options.today ?? '2026-07-08'}
         classes={[
           {
             id: 'class-1',
@@ -126,7 +130,8 @@ function renderRoster(entries: SecretaryEntry[] = [entry()]) {
             status: 'scheduled',
             entryCount: 1,
             scoredCount: 0,
-            trialDate: '2026-07-08',
+            trialDate: options.trialDate ?? '2026-07-08',
+            timezone: 'America/Chicago',
             trialNumber: '1',
             trialName: 'Trial 1',
           },
@@ -215,5 +220,32 @@ describe('ShowDeskPeopleRoster', () => {
     await user.type(screen.getByRole('textbox', { name: /search exhibitors/i }), 'zzz');
 
     expect(screen.getByText(/No exhibitors match this view/i)).toBeInTheDocument();
+  });
+
+  it('does not offer direct check-in for a future-day class', async () => {
+    const { user } = renderRoster([entry()], {
+      today: '2026-07-08',
+      trialDate: '2026-07-09',
+    });
+
+    await user.click(await screen.findByRole('button', { name: /alice martin/i }));
+
+    expect(screen.queryByRole('button', { name: /^check in$/i })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Not today')).toHaveLength(2);
+  });
+
+  it('collapses the expanded person when search changes', async () => {
+    const { user } = renderRoster();
+
+    await user.click(await screen.findByRole('button', { name: /alice martin/i }));
+    expect(screen.getByText('Poppy')).toBeInTheDocument();
+
+    const search = screen.getByRole('textbox', { name: /search exhibitors/i });
+    await user.type(search, 'zzz');
+    expect(screen.getByText(/No exhibitors match this view/i)).toBeInTheDocument();
+
+    await user.clear(search);
+    expect(await screen.findByRole('button', { name: /alice martin/i })).toBeInTheDocument();
+    expect(screen.queryByText('Poppy')).not.toBeInTheDocument();
   });
 });

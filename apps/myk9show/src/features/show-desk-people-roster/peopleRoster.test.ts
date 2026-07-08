@@ -208,4 +208,27 @@ describe('peopleRoster', () => {
       })
     );
   });
+
+  it('keeps future-day classes ineligible when a current show day is supplied', () => {
+    const roster = buildPeopleRoster({
+      entries: [entry()],
+      presence: [],
+      classes: [
+        {
+          id: 'class-1',
+          name: 'Container Novice A',
+          trialDate: '2026-07-09',
+        },
+      ],
+      today: '2026-07-08',
+    });
+
+    expect(roster[0]?.eligibleCount).toBe(0);
+    expect(roster[0]?.classRows[0]).toEqual(
+      expect.objectContaining({
+        eligibleForCheckIn: false,
+        statusLabel: 'Not today',
+      })
+    );
+  });
 });

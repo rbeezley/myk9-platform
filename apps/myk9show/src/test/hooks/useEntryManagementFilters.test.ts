@@ -281,10 +281,11 @@ describe('useEntryManagementFilters — trial/class filters', () => {
   });
 
   it('filters the entry list in place by class, and by trial when class ids are supplied', () => {
-    const klass = (id: string) => ({ id }) as EntryManagementEntry['classes'][number];
+    const klass = (entryId: string, classId: string) =>
+      ({ id: entryId, classId }) as EntryManagementEntry['classes'][number];
     const entries = [
-      makeEntry({ id: 'in-class', classes: [klass('class-1')] }),
-      makeEntry({ id: 'other-class', classes: [klass('class-2')] }),
+      makeEntry({ id: 'in-class', classes: [klass('entry-class-row-1', 'class-1')] }),
+      makeEntry({ id: 'other-class', classes: [klass('entry-class-row-2', 'class-2')] }),
     ] as EntryManagementEntry[];
     const tabCounts = { all: 2, pending: 0, accepted: 2, waitlist: 0, issues: 0 };
 

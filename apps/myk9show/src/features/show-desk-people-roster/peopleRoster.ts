@@ -11,6 +11,7 @@ export interface PeopleRosterClassInfo {
   time?: string;
   ring?: string;
   trialDate?: string;
+  timezone?: string | null;
 }
 
 export interface PeopleRosterClassRow {

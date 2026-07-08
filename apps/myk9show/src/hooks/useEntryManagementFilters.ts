@@ -79,6 +79,10 @@ interface UseEntryManagementFiltersReturn {
   tabCounts: TabCounts;
 }
 
+function getEntryClassId(entryClass: EntryManagementEntry['classes'][number]): string {
+  return entryClass.classId ?? entryClass.id;
+}
+
 /**
  * Custom hook for managing entry filtering and selection
  * Extracted from EntryManagementPage.tsx as part of DEBT-002 refactoring
@@ -265,10 +269,10 @@ export function useEntryManagementFilters({
     // trial. With no class id set available, the trial filter can't narrow, so
     // it leaves the list untouched rather than emptying it.
     if (classFilter) {
-      filtered = filtered.filter(e => e.classes.some(c => c.id === classFilter));
+      filtered = filtered.filter(e => e.classes.some(c => getEntryClassId(c) === classFilter));
     } else if (trialFilter && trialClassIds && trialClassIds.length > 0) {
       const ids = new Set(trialClassIds);
-      filtered = filtered.filter(e => e.classes.some(c => ids.has(c.id)));
+      filtered = filtered.filter(e => e.classes.some(c => ids.has(getEntryClassId(c))));
     }
 
     // Apply tab filters

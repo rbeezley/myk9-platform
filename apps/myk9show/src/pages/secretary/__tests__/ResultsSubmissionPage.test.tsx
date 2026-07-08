@@ -27,13 +27,21 @@ const mockAKCData = vi.hoisted(() => ({
   isSuccess: true,
 }));
 
+const mockShowState = vi.hoisted(() => ({
+  isLoaded: true,
+  organization: 'AKC',
+}));
+
 // ---------------------------------------------------------------------------
 // Module mocks
 // ---------------------------------------------------------------------------
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: (showId: string | undefined) => ({
-    show: showId ? { id: showId, name: 'Spring Scent Trial', organization: 'AKC' } : null,
+    show:
+      showId && mockShowState.isLoaded
+        ? { id: showId, name: 'Spring Scent Trial', organization: mockShowState.organization }
+        : null,
   }),
 }));
 
@@ -108,6 +116,8 @@ describe('ResultsSubmissionPage', () => {
     mockAKCData.isLoading = false;
     mockAKCData.isError = false;
     mockAKCData.isSuccess = true;
+    mockShowState.isLoaded = true;
+    mockShowState.organization = 'AKC';
     mockInvoke.mockResolvedValue({ data: { success: true }, error: null });
     vi.clearAllMocks();
   });
@@ -318,7 +328,10 @@ describe('ResultsSubmissionPage', () => {
     });
 
     it('disables Mark as submitted when AKC scent work has zero entries', async () => {
-      mockAKCData.data = { ...oneEntry, entries: [] } as import('@myk9/secretary').AKCSubmissionData;
+      mockAKCData.data = {
+        ...oneEntry,
+        entries: [],
+      } as import('@myk9/secretary').AKCSubmissionData;
       renderPage();
       const markBtn = await screen.findByTestId('mark-submitted-btn');
       expect(markBtn).toBeDisabled();
@@ -387,6 +400,156 @@ describe('ResultsSubmissionPage', () => {
       ];
       renderPage();
       await waitFor(() => expect(screen.getByText('Marked submitted')).toBeInTheDocument());
+    });
+
+    it('shows UKC as a manual closeout path with reports and official guidance links', async () => {
+      mockShowState.organization = 'UKC';
+
+      renderPage();
+
+      const trigger = await screen.findByTestId('org-selector');
+      expect(trigger).toHaveTextContent('UKC Nosework');
+      expect(screen.queryByTestId('send-btn')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('download-btn')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('xml-details')).not.toBeInTheDocument();
+      expect(screen.getByTestId('registry-submission-guidance')).toHaveTextContent(
+        'UKC Nosework closeout is a paperwork packet'
+      );
+      expect(screen.getByRole('link', { name: 'Open Reports' })).toHaveAttribute(
+        'href',
+        '/shows/show-1/reports?report=trial-secretary-report'
+      );
+      expect(screen.getByRole('link', { name: /UKC Nosework Forms & Rules/ })).toHaveAttribute(
+        'href',
+        'https://www.ukcdogs.com/nosework-forms-rules'
+      );
+    });
+
+    it('updates the default registry when show details load after the first render', async () => {
+      mockShowState.isLoaded = false;
+      mockShowState.organization = 'UKC';
+
+      const view = renderPage();
+
+      expect(await screen.findByTestId('org-selector')).toHaveTextContent('AKC Scent Work');
+
+      mockShowState.isLoaded = true;
+      view.rerender(
+        <Routes>
+          <Route path="/shows/:id/*" element={<ResultsSubmissionPage />} />
+        </Routes>
+      );
+
+      await waitFor(() =>
+        expect(screen.getByTestId('org-selector')).toHaveTextContent('UKC Nosework')
+      );
+      expect(screen.queryByTestId('send-btn')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('download-btn')).not.toBeInTheDocument();
+    });
+
+    it('preserves a manual selector choice when show details load later', async () => {
+      mockShowState.isLoaded = false;
+      mockShowState.organization = 'UKC';
+
+      const view = renderPage();
+
+      expect(await screen.findByTestId('org-selector')).toHaveTextContent('AKC Scent Work');
+
+      await view.user.click(screen.getByRole('combobox', { name: 'Organization' }));
+      await view.user.click(await screen.findByRole('option', { name: 'ASCA Scent Detection' }));
+
+      await waitFor(() =>
+        expect(screen.getByTestId('org-selector')).toHaveTextContent('ASCA Scent Detection')
+      );
+
+      mockShowState.isLoaded = true;
+      view.rerender(
+        <Routes>
+          <Route path="/shows/:id/*" element={<ResultsSubmissionPage />} />
+        </Routes>
+      );
+
+      expect(screen.getByTestId('org-selector')).toHaveTextContent('ASCA Scent Detection');
+    });
+
+    it('shows ASCA as a manual closeout path and hides unsupported XML actions', async () => {
+      mockShowState.organization = 'ASCA';
+
+      renderPage();
+
+      const trigger = await screen.findByTestId('org-selector');
+      expect(trigger).toHaveTextContent('ASCA Scent Detection');
+      expect(screen.queryByTestId('send-btn')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('download-btn')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('xml-details')).not.toBeInTheDocument();
+      expect(screen.getByTestId('submission-summary-manual')).toHaveTextContent(
+        'ASCA Scent Detection uses ASCA online results/payment upload'
+      );
+      expect(
+        screen.getByRole('link', { name: /ASCA Online Results and Payment Upload/ })
+      ).toHaveAttribute('href', 'https://asca.org/online-event-sanctioning/');
+    });
+
+    it('records UKC manual submission history without generating XML or emailing', async () => {
+      mockShowState.organization = 'UKC';
+      mockMutate.mockImplementationOnce((_input, options) => {
+        options?.onSuccess?.();
+      });
+
+      renderPage();
+
+      const markBtn = await screen.findByTestId('mark-submitted-btn');
+      expect(markBtn).not.toBeDisabled();
+      fireEvent.click(markBtn);
+      fireEvent.click(await screen.findByTestId('mark-confirm-btn'));
+
+      await waitFor(() =>
+        expect(mockMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            organization: 'UKC',
+            sport_type: 'nosework',
+            status: 'submitted',
+            xml_payload: null,
+          }),
+          expect.objectContaining({
+            onError: expect.any(Function),
+            onSuccess: expect.any(Function),
+          })
+        )
+      );
+      expect(mockInvoke).not.toHaveBeenCalled();
+      expect(screen.getByTestId('mark-success')).toBeInTheDocument();
+    });
+
+    it('records ASCA manual submission history without generating XML or emailing', async () => {
+      mockShowState.organization = 'ASCA';
+      mockMutate.mockImplementationOnce((_input, options) => {
+        options?.onSuccess?.();
+      });
+
+      renderPage();
+
+      const markBtn = await screen.findByTestId('mark-submitted-btn');
+      expect(markBtn).not.toBeDisabled();
+      fireEvent.click(markBtn);
+      fireEvent.click(await screen.findByTestId('mark-confirm-btn'));
+
+      await waitFor(() =>
+        expect(mockMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            organization: 'ASCA',
+            sport_type: 'scent_detection',
+            status: 'submitted',
+            xml_payload: null,
+          }),
+          expect.objectContaining({
+            onError: expect.any(Function),
+            onSuccess: expect.any(Function),
+          })
+        )
+      );
+      expect(mockInvoke).not.toHaveBeenCalled();
+      expect(screen.getByTestId('mark-success')).toBeInTheDocument();
     });
   });
 

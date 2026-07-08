@@ -1,6 +1,6 @@
 // apps/myk9show/src/pages/secretary/ResultsSubmissionPage/index.tsx
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,13 +27,13 @@ import { supabase } from '@/services/database/supabaseClient';
 import { listFormatters, AKCScentWorkFormatter } from '@myk9/secretary';
 import { useAKCSubmissionData } from '@/hooks/queries/useAKCSubmissionData';
 import { useResultSubmission, useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
-import {
-  buildFilename,
-  buildAKCSubmissionReadiness,
-  downloadXml,
-  formatFormatterLabel,
-} from './helpers';
+import { buildFilename, buildAKCSubmissionReadiness, downloadXml } from './helpers';
 import { SubmissionHistory } from './SubmissionHistory';
+import { RegistrySubmissionGuidance } from './RegistrySubmissionGuidance';
+import {
+  buildRegistrySubmissionOptions,
+  chooseDefaultSubmissionOptionKey,
+} from './submissionOptions';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -44,10 +44,10 @@ export default function ResultsSubmissionPage() {
   const showId = params.showId ?? params.id;
   const { show } = useFastShowDetails(showId);
 
-  const formatters = listFormatters();
-  const [formatterKey, setFormatterKey] = useState<string>(
-    formatters.length > 0 ? `${formatters[0].organization}:${formatters[0].sportType}` : ''
-  );
+  const formatters = useMemo(() => listFormatters(), []);
+  const submissionOptions = useMemo(() => buildRegistrySubmissionOptions(formatters), [formatters]);
+  const [submissionOptionKeyValue, setSubmissionOptionKeyValue] = useState<string>('');
+  const [hasUserSelectedSubmissionOption, setHasUserSelectedSubmissionOption] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -55,11 +55,50 @@ export default function ResultsSubmissionPage() {
   const [showMarkConfirm, setShowMarkConfirm] = useState(false);
   const [markSuccess, setMarkSuccess] = useState(false);
 
-  const activeFormatter = formatters.find(f => `${f.organization}:${f.sportType}` === formatterKey);
-  const selectedOrgLabel = activeFormatter ? formatFormatterLabel(activeFormatter) : undefined;
+  const defaultSubmissionOptionKey = useMemo(
+    () => chooseDefaultSubmissionOptionKey(show?.organization, submissionOptions),
+    [show?.organization, submissionOptions]
+  );
+
+  useEffect(() => {
+    const currentOptionExists = submissionOptions.some(
+      option => option.key === submissionOptionKeyValue
+    );
+    if (!currentOptionExists) {
+      setSubmissionOptionKeyValue(defaultSubmissionOptionKey);
+      setHasUserSelectedSubmissionOption(false);
+      return;
+    }
+
+    if (
+      !hasUserSelectedSubmissionOption &&
+      submissionOptionKeyValue !== defaultSubmissionOptionKey
+    ) {
+      setSubmissionOptionKeyValue(defaultSubmissionOptionKey);
+    }
+  }, [
+    defaultSubmissionOptionKey,
+    hasUserSelectedSubmissionOption,
+    submissionOptionKeyValue,
+    submissionOptions,
+  ]);
+
+  const handleSubmissionOptionChange = (nextOptionKey: string) => {
+    setHasUserSelectedSubmissionOption(true);
+    setSubmissionOptionKeyValue(nextOptionKey);
+  };
+
+  const activeSubmissionOption = submissionOptions.find(
+    option => option.key === submissionOptionKeyValue
+  );
+  const activeFormatter =
+    activeSubmissionOption?.mode === 'electronic' ? activeSubmissionOption.formatter : undefined;
+  const selectedOrgLabel = activeSubmissionOption?.label;
 
   const isAKCScentWork =
-    activeFormatter?.organization === 'AKC' && activeFormatter?.sportType === 'scent_work';
+    activeSubmissionOption?.organization === 'AKC' &&
+    activeSubmissionOption?.sportType === 'scent_work';
+  const isElectronicSubmission = activeSubmissionOption?.mode === 'electronic';
 
   // Fetch real AKC data when AKC scent work formatter is selected
   const { data: akcData, isLoading: isAKCLoading } = useAKCSubmissionData(
@@ -92,7 +131,7 @@ export default function ResultsSubmissionPage() {
   // guard against an accidental record.
   const markSubmittedDisabled =
     !showId ||
-    !activeFormatter ||
+    !activeSubmissionOption ||
     (isAKCScentWork && (isAKCLoading || !akcData || akcData.entries.length === 0));
 
   const { mutate: recordSubmission } = useResultSubmission(showId);
@@ -151,18 +190,18 @@ export default function ResultsSubmissionPage() {
   };
 
   const handleMarkSubmitted = () => {
-    if (markSubmittedDisabled || !showId || !activeFormatter) return;
+    if (markSubmittedDisabled || !showId || !activeSubmissionOption) return;
     setSendSuccess(false);
     setSendError(null);
     setMarkSuccess(false);
     recordSubmission(
       {
         show_id: showId,
-        organization: activeFormatter.organization,
-        sport_type: activeFormatter.sportType,
+        organization: activeSubmissionOption.organization,
+        sport_type: activeSubmissionOption.sportType,
         // Distinct from a `sent` email so the history reads honestly and the
         // record isn't mistaken for an electronic submission from the app.
-        xml_payload: xmlPreview || null,
+        xml_payload: isElectronicSubmission ? xmlPreview || null : null,
         status: 'submitted',
       },
       {
@@ -198,7 +237,7 @@ export default function ResultsSubmissionPage() {
           <label className="text-sm font-medium" htmlFor="org-select">
             Organization
           </label>
-          <Select value={formatterKey} onValueChange={setFormatterKey}>
+          <Select value={submissionOptionKeyValue} onValueChange={handleSubmissionOptionChange}>
             <SelectTrigger
               id="org-select"
               className="min-h-[44px] w-[220px]"
@@ -207,12 +246,9 @@ export default function ResultsSubmissionPage() {
               <SelectValue placeholder="Select organization">{selectedOrgLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {formatters.map(f => (
-                <SelectItem
-                  key={`${f.organization}:${f.sportType}`}
-                  value={`${f.organization}:${f.sportType}`}
-                >
-                  {formatFormatterLabel(f)}
+              {submissionOptions.map(option => (
+                <SelectItem key={option.key} value={option.key}>
+                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -261,22 +297,21 @@ export default function ResultsSubmissionPage() {
               </AlertDialog>
             </>
           )}
-          <Button
-            variant="outline"
-            className="min-h-[44px]"
-            onClick={handleDownload}
-            disabled={!xmlPreview}
-            data-testid="download-btn"
-          >
-            {hasBlockingAKCPreflightIssue ? 'Download draft XML' : 'Download XML'}
-          </Button>
+          {isElectronicSubmission && (
+            <Button
+              variant="outline"
+              className="min-h-[44px]"
+              onClick={handleDownload}
+              disabled={!xmlPreview}
+              data-testid="download-btn"
+            >
+              {hasBlockingAKCPreflightIssue ? 'Download draft XML' : 'Download XML'}
+            </Button>
+          )}
 
           {/* Divider sets the record-keeping action apart from the deliver-the-
               file actions so it never reads as another way to "send". */}
-          <div
-            aria-hidden="true"
-            className="mx-1 hidden h-8 w-px self-center bg-border sm:block"
-          />
+          <div aria-hidden="true" className="mx-1 hidden h-8 w-px self-center bg-border sm:block" />
 
           <Button
             variant="outline"
@@ -291,11 +326,11 @@ export default function ResultsSubmissionPage() {
             <AlertDialogContent data-testid="mark-confirm-dialog">
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  Mark results as submitted to {activeFormatter?.organization}?
+                  Mark results as submitted to {activeSubmissionOption?.organization}?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
                   This records that you already submitted these results to{' '}
-                  {activeFormatter?.organization} through their portal or another method.{' '}
+                  {activeSubmissionOption?.organization} through their portal or another method.{' '}
                   <span className="font-medium">It does not email anything.</span>
                   {isAKCScentWork && akcData && akcData.entries.length > 0 && (
                     <> {akcData.entries.length} entries will be logged with this record.</>
@@ -314,24 +349,28 @@ export default function ResultsSubmissionPage() {
 
         {/* Plain-language contrast between the two intents, branched on whether
             the org accepts an in-app email submission at all. */}
-        {activeFormatter && (
+        {activeSubmissionOption && (
           <p className="w-full text-xs text-muted-foreground" data-testid="action-help">
-            {activeFormatter.submissionEmail ? (
+            {activeFormatter?.submissionEmail ? (
               <>
                 <span className="font-medium">Send to {activeFormatter.organization}</span> emails
-                the file now. Already filed these results through{' '}
-                {activeFormatter.organization}&apos;s portal?{' '}
-                <span className="font-medium">Mark as submitted</span> just logs it here.
+                the file now. Already filed these results through {activeFormatter.organization}
+                &apos;s portal? <span className="font-medium">Mark as submitted</span> just logs it
+                here.
               </>
             ) : (
               <>
-                Download the file and submit it through {activeFormatter.organization}&apos;s portal,
-                then use <span className="font-medium">Mark as submitted</span> to log it here.
+                Submit through {activeSubmissionOption.organization}&apos;s official process, then
+                use <span className="font-medium">Mark as submitted</span> to log it here.
               </>
             )}
           </p>
         )}
       </div>
+
+      {activeSubmissionOption && (
+        <RegistrySubmissionGuidance option={activeSubmissionOption} showId={showId} />
+      )}
 
       {/* Send feedback */}
       {sendSuccess && (
@@ -377,15 +416,13 @@ export default function ResultsSubmissionPage() {
           plain-English readiness check first, not generated XML. */}
       <div className="space-y-3">
         <h2 className="text-base font-semibold">Submission summary</h2>
-        {!activeFormatter ? (
+        {!activeSubmissionOption ? (
           <p className="text-sm text-muted-foreground" data-testid="submission-summary-empty">
             Select an organization to prepare a submission.
           </p>
-        ) : !isAKCScentWork ? (
-          <p className="text-sm text-muted-foreground" data-testid="submission-summary-generic">
-            {formatFormatterLabel(activeFormatter)} results are prepared as a downloadable file. Use{' '}
-            <span className="font-medium">Download XML</span> to save it, then submit through the
-            organization&apos;s portal.
+        ) : activeSubmissionOption.mode === 'manual' ? (
+          <p className="text-sm text-muted-foreground" data-testid="submission-summary-manual">
+            {activeSubmissionOption.guidance.summary}
           </p>
         ) : isAKCLoading ? (
           <p className="text-sm text-muted-foreground">Fetching show data...</p>
@@ -437,25 +474,27 @@ export default function ResultsSubmissionPage() {
         )}
 
         {/* Raw electronic-submission payload — secondary, behind a disclosure. */}
-        <details className="rounded-md border" data-testid="xml-details">
-          <summary className="cursor-pointer select-none px-4 py-2 text-sm font-medium">
-            <FileText className="mr-2 inline h-4 w-4 align-text-bottom" aria-hidden="true" />
-            View electronic-submission details
-          </summary>
-          <div className="space-y-2 px-4 pb-4">
-            <label id="xml-preview-label" className="text-xs font-medium text-muted-foreground">
-              Generated XML
-            </label>
-            <Textarea
-              readOnly
-              aria-labelledby="xml-preview-label"
-              value={isAKCLoading ? 'Fetching show data...' : xmlPreview}
-              placeholder="Select a show and organization to preview the XML."
-              className="font-mono text-xs min-h-[220px] resize-y"
-              data-testid="xml-preview"
-            />
-          </div>
-        </details>
+        {isElectronicSubmission && (
+          <details className="rounded-md border" data-testid="xml-details">
+            <summary className="cursor-pointer select-none px-4 py-2 text-sm font-medium">
+              <FileText className="mr-2 inline h-4 w-4 align-text-bottom" aria-hidden="true" />
+              View electronic-submission details
+            </summary>
+            <div className="space-y-2 px-4 pb-4">
+              <label id="xml-preview-label" className="text-xs font-medium text-muted-foreground">
+                Generated XML
+              </label>
+              <Textarea
+                readOnly
+                aria-labelledby="xml-preview-label"
+                value={isAKCLoading ? 'Fetching show data...' : xmlPreview}
+                placeholder="Select a show and organization to preview the XML."
+                className="font-mono text-xs min-h-[220px] resize-y"
+                data-testid="xml-preview"
+              />
+            </div>
+          </details>
+        )}
       </div>
 
       <SubmissionHistory history={history} isLoading={historyLoading} />

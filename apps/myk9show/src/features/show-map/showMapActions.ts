@@ -450,7 +450,7 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
           why: 'Prepare check-in for this class',
           priority: node.status?.kind === 'neutral' ? 45 : 20,
           icon: ClipboardList,
-          recommended: node.status?.kind === 'neutral',
+          recommended: node.status?.kind === 'neutral' && (node.count ?? 0) > 0,
         },
         showId && trialId && classId
           ? getShowMapReportHref({

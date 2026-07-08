@@ -10,11 +10,14 @@ interface ElementCardProps {
 export function ElementCard({ element, onClick }: ElementCardProps) {
   const badgeClasses = getClassStatusBadgeClasses(element.status);
   const formattedTime = formatStartTime(element.startTime) ?? 'Start Time: TBD';
+  const destinationLabel = `Open trial details for ${element.element}`;
 
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-label={destinationLabel}
+      title={destinationLabel}
       className="w-full rounded-md border border-border bg-card p-2 text-left transition-colors hover:bg-accent"
     >
       <div className="flex items-center justify-between">
@@ -27,6 +30,7 @@ export function ElementCard({ element, onClick }: ElementCardProps) {
         {formattedTime}
         {element.levelRange && ` · ${element.levelRange}`}
       </div>
+      <div className="mt-1 text-sm font-medium text-muted-foreground">Opens trial details</div>
     </button>
   );
 }

@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Show } from '@/types/show-types';
 import { SETUP_PUBLISH_ANCHOR } from '../setupReadinessSignals';
-import {
-  SHOW_STATUS_CONTROL_ANCHOR,
-  buildPublishReadinessItems,
-} from '../publishReadiness';
+import { SHOW_STATUS_CONTROL_ANCHOR, buildPublishReadinessItems } from '../publishReadiness';
 
 function show(overrides: Partial<Show> = {}): Show {
   return {
@@ -58,6 +55,7 @@ describe('buildPublishReadinessItems', () => {
     const items = buildPublishReadinessItems(
       show({
         status: 'published',
+        publishedPremiumUrl: 'https://example.test/premium.pdf',
         publishedPremiumAt: '2026-07-01T12:00:00.000Z',
         experienceIsPublished: true,
       })
@@ -76,11 +74,30 @@ describe('buildPublishReadinessItems', () => {
       show({
         status: 'published',
         publishedPremiumUrl: 'https://example.test/premium.pdf',
+        publishedPremiumAt: '2026-07-01T12:00:00.000Z',
         experienceIsPublished: false,
       })
     );
 
     expect(items.find(item => item.id === 'premium-pdf')?.isReady).toBe(true);
     expect(items.find(item => item.id === 'landing-content')?.isReady).toBe(false);
+  });
+
+  it('distinguishes stale published premium from unpublished premium', () => {
+    const items = buildPublishReadinessItems(
+      show({
+        status: 'published',
+        publishedPremiumUrl: 'https://example.test/premium.pdf',
+        publishedPremiumAt: '2026-07-01T12:00:00.000Z',
+        updatedAt: '2026-07-01T12:05:30.000Z',
+        experienceIsPublished: true,
+      })
+    );
+
+    expect(items.find(item => item.id === 'premium-pdf')).toMatchObject({
+      state: 'Premium PDF needs republish',
+      actionLabel: 'Republish premium PDF',
+      isReady: false,
+    });
   });
 });

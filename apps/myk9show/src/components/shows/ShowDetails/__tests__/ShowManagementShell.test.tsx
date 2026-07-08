@@ -121,10 +121,18 @@ describe('ShowManagementShell', () => {
     renderShell();
     const nav = screen.getByTestId('canonical-show-management-nav');
     expect(nav).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /show management section/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute(
       'href',
       '/shows/show-1/setup'
     );
+  });
+
+  it('labels class management routes in the narrow section selector', () => {
+    renderShell({ activeManagementSection: 'classes', isManagementSection: true });
+    const selector = screen.getByRole('combobox', { name: /show management section/i });
+    expect(selector).toHaveValue('classes');
+    expect(screen.getByRole('option', { name: 'Class Management' })).toBeDisabled();
   });
 
   it('renders the staff armband lookup only when armbands exist', () => {

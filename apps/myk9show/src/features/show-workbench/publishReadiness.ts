@@ -1,5 +1,6 @@
 import type { Show } from '@/types/show-types';
 import { SETUP_PUBLISH_ANCHOR } from './setupReadinessSignals';
+import { classifyPremiumPublishState } from './premiumPublishState';
 
 export const SHOW_STATUS_CONTROL_ANCHOR = 'show-status-control';
 
@@ -21,13 +22,11 @@ function isShowListingLive(status: string | null | undefined): boolean {
   );
 }
 
-function hasPublishedPremium(show: Show): boolean {
-  return Boolean(show.publishedPremiumUrl || show.publishedPremiumAt);
-}
-
 export function buildPublishReadinessItems(show: Show): PublishReadinessItem[] {
   const showListingLive = isShowListingLive(show.status);
-  const premiumPublished = hasPublishedPremium(show);
+  const premiumState = classifyPremiumPublishState(show);
+  const premiumPublished = premiumState !== 'unpublished';
+  const premiumCurrent = premiumState === 'published-current';
   const landingPublished = Boolean(show.experienceIsPublished);
 
   return [
@@ -45,13 +44,23 @@ export function buildPublishReadinessItems(show: Show): PublishReadinessItem[] {
     {
       id: 'premium-pdf',
       title: 'Premium PDF',
-      state: premiumPublished ? 'Premium PDF is published' : 'Premium PDF is not published yet',
-      description: premiumPublished
+      state: premiumCurrent
+        ? 'Premium PDF is published'
+        : premiumPublished
+          ? 'Premium PDF needs republish'
+          : 'Premium PDF is not published yet',
+      description: premiumCurrent
         ? 'The downloadable premium list is ready for exhibitors.'
-        : 'Generate and publish the premium list before exhibitors need the official PDF.',
-      actionLabel: premiumPublished ? 'View premium actions' : 'Publish premium PDF',
+        : premiumPublished
+          ? 'The PDF is published, but show data has changed since then.'
+          : 'Generate and publish the premium list before exhibitors need the official PDF.',
+      actionLabel: premiumCurrent
+        ? 'View premium actions'
+        : premiumPublished
+          ? 'Republish premium PDF'
+          : 'Publish premium PDF',
       href: `#${SETUP_PUBLISH_ANCHOR}`,
-      isReady: premiumPublished,
+      isReady: premiumCurrent,
     },
     {
       id: 'landing-content',

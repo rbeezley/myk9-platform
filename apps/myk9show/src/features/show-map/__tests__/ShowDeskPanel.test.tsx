@@ -141,4 +141,41 @@ describe('ShowDeskPanel', () => {
       '/shows/show-1/entry-management?mode=review&attention=pending'
     );
   });
+
+  it('routes pending closeout signals to Results & Check-In', async () => {
+    const { user } = render(
+      <>
+        <ShowDeskPanel
+          show={show}
+          trials={[futureTrial]}
+          classes={[
+            {
+              id: 'class-ready',
+              trialId: 'trial-1',
+              name: 'Container Novice A',
+              status: 'Complete',
+            },
+          ]}
+          entries={[
+            {
+              id: 'entry-ready',
+              class_id: 'class-ready',
+              is_scored: true,
+              judge_signature_timestamp: '2026-06-12T15:00:00.000Z',
+            },
+          ]}
+          canManageShow
+          scopeNow={new Date('2026-06-12T15:00:00.000Z')}
+        />
+        <LocationProbe />
+      </>,
+      { initialRoute: '/shows/show-1/show-desk' }
+    );
+
+    await user.click(screen.getByRole('button', { name: /1 result pending closeout/i }));
+
+    expect(screen.getByTestId('current-location')).toHaveTextContent(
+      '/shows/show-1/results-control'
+    );
+  });
 });

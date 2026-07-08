@@ -200,11 +200,7 @@ describe('showMapActions', () => {
 
     const attentionNodeIds = getAttentionNodeIds(tree);
     expect(Array.from(attentionNodeIds)).toEqual(
-      expect.arrayContaining([
-        'all-exhibitors:show-1',
-        'dog:dog-1',
-        'dog-entry:entry-1',
-      ])
+      expect.arrayContaining(['all-exhibitors:show-1', 'dog:dog-1', 'dog-entry:entry-1'])
     );
 
     const counts = getAttentionCountsByNodeId(tree);
@@ -406,7 +402,14 @@ describe('showMapActions', () => {
       show,
       trials: [trial],
       classes,
-      entries: [],
+      entries: [
+        {
+          id: 'entry-active',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          entry_status: 'accepted',
+        },
+      ],
     });
 
     // Active class → Score Class (the next operational step).
@@ -428,7 +431,14 @@ describe('showMapActions', () => {
       show,
       trials: [trial],
       classes,
-      entries: [],
+      entries: [
+        {
+          id: 'entry-active',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          entry_status: 'accepted',
+        },
+      ],
     });
     const notStartedClass = tree.nodesById['class:class-future'];
     const actions = getRankedActions(notStartedClass, { tree });
@@ -570,7 +580,14 @@ describe('showMapActions', () => {
       show,
       trials: [trial],
       classes,
-      entries: [],
+      entries: [
+        {
+          id: 'entry-active-print',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          entry_status: 'accepted',
+        },
+      ],
     });
 
     const actions = getRankedActions(tree.nodesById['class:class-active'], { tree });
@@ -604,6 +621,28 @@ describe('showMapActions', () => {
     expect(findAction(actions, 'print-trial-reports')).toMatchObject({
       href: '/shows/show-1/reports?report=trial-secretary-report&trialId=trial-1',
     });
+  });
+
+  it('keeps empty-class check-in sheet actions out of global recommendations', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [],
+    });
+
+    expect(
+      findAction(
+        getRankedActions(tree.nodesById['class:class-active'], { tree }),
+        'print-check-in-sheet'
+      )
+    ).toMatchObject({
+      href: '/shows/show-1/reports?report=check-in-sheet&trialId=trial-1&classId=class-active',
+      recommended: false,
+    });
+    expect(getRecommendedActions('root', { tree }).map(action => action.id)).not.toContain(
+      'print-check-in-sheet'
+    );
   });
 
   it('emits mark checked-in only for entries that still need check-in', () => {
@@ -753,6 +792,12 @@ describe('showMapActions', () => {
           class_id: 'class-needs-signature',
           is_scored: true,
         },
+        {
+          id: 'entry-not-started',
+          class_id: 'class-not-started',
+          dog: { call_name: 'Scout' },
+          entry_status: 'accepted',
+        },
       ],
     });
 
@@ -787,6 +832,12 @@ describe('showMapActions', () => {
           id: 'entry-needs-signature',
           class_id: 'class-needs-signature',
           is_scored: true,
+        },
+        {
+          id: 'entry-not-started',
+          class_id: 'class-not-started',
+          dog: { call_name: 'Scout' },
+          entry_status: 'accepted',
         },
       ],
     });
@@ -829,6 +880,12 @@ describe('showMapActions', () => {
           id: 'entry-needs-signature',
           class_id: 'class-needs-signature',
           is_scored: true,
+        },
+        {
+          id: 'entry-not-started-print',
+          class_id: 'class-not-started',
+          dog: { call_name: 'Scout' },
+          entry_status: 'accepted',
         },
       ],
     });
@@ -959,7 +1016,14 @@ describe('showMapActions', () => {
       show,
       trials: [trial],
       classes: [classes[1]!],
-      entries: [],
+      entries: [
+        {
+          id: 'entry-future',
+          class_id: 'class-future',
+          dog: { call_name: 'Scout' },
+          entry_status: 'accepted',
+        },
+      ],
     });
     const classNode = tree.nodesById['class:class-future'];
     if (!classNode) throw new Error('Expected future class node');

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ClipboardCheck, MessageSquare, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -23,7 +23,7 @@ import {
 interface ShowDeskPeopleRosterProps {
   showId: string;
   classes: readonly ShowWorkbenchClassSummary[];
-  today?: string | null;
+  currentDate?: Date | null;
 }
 
 const FILTERS: Array<{ id: PeopleRosterFilter; label: string }> = [
@@ -36,10 +36,11 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong';
 }
 
-export function ShowDeskPeopleRoster({ showId, classes, today }: ShowDeskPeopleRosterProps) {
+export function ShowDeskPeopleRoster({ showId, classes, currentDate }: ShowDeskPeopleRosterProps) {
   const navigate = useNavigate();
   const { present } = useShowPresenceRoster();
   const getOrCreateThread = useMessageStore(s => s.getOrCreateThread);
+  const [now, setNow] = useState(() => new Date());
   const [checkedInEntryIds, setCheckedInEntryIds] = useState<Set<string>>(new Set());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -57,6 +58,12 @@ export function ShowDeskPeopleRoster({ showId, classes, today }: ShowDeskPeopleR
       );
     },
   });
+
+  useEffect(() => {
+    if (currentDate) return undefined;
+    const interval = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(interval);
+  }, [currentDate]);
 
   const entries = useMemo(
     () =>
@@ -88,9 +95,9 @@ export function ShowDeskPeopleRoster({ showId, classes, today }: ShowDeskPeopleR
           trialDate: cls.trialDate,
           timezone: cls.timezone ?? null,
         })),
-        today: today ?? null,
+        currentDate: currentDate ?? now,
       }),
-    [classes, entries, present, today]
+    [classes, currentDate, entries, now, present]
   );
   const visibleRoster = useMemo(
     () => filterPeopleRoster(roster, search, filter),

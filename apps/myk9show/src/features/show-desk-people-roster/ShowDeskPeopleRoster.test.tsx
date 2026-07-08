@@ -96,7 +96,7 @@ function LocationProbe() {
 
 function renderRoster(
   entries: SecretaryEntry[] = [entry()],
-  options: { trialDate?: string; today?: string | null } = {}
+  options: { currentDate?: Date | null; trialDate?: string } = {}
 ) {
   h.getEntriesForShow.mockResolvedValue({ data: entries, error: null });
   if (!h.updateReplicatedCheckInStatus.getMockImplementation()) {
@@ -116,7 +116,7 @@ function renderRoster(
     <>
       <ShowDeskPeopleRoster
         showId="show-1"
-        today={options.today ?? '2026-07-08'}
+        currentDate={options.currentDate ?? new Date('2026-07-08T15:00:00.000Z')}
         classes={[
           {
             id: 'class-1',
@@ -354,7 +354,7 @@ describe('ShowDeskPeopleRoster', () => {
 
   it('does not offer direct check-in for a future-day class', async () => {
     const { user } = renderRoster([entry()], {
-      today: '2026-07-08',
+      currentDate: new Date('2026-07-08T15:00:00.000Z'),
       trialDate: '2026-07-09',
     });
 

@@ -54,27 +54,6 @@ function relatedObject(
     : null;
 }
 
-function formatDateInTimezone(timezone?: string | null, now = new Date()): string {
-  const options: Intl.DateTimeFormatOptions = {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    ...(timezone ? { timeZone: timezone } : {}),
-  };
-
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(now);
-    const year = parts.find(part => part.type === 'year')?.value;
-    const month = parts.find(part => part.type === 'month')?.value;
-    const day = parts.find(part => part.type === 'day')?.value;
-    if (year && month && day) return `${year}-${month}-${day}`;
-  } catch {
-    return formatDateInTimezone(null, now);
-  }
-
-  return now.toISOString().slice(0, 10);
-}
-
 function toIncidentEntryOption(
   entry: Record<string, unknown>,
   classById: Map<string, ShowWorkbenchClassSummary>
@@ -159,10 +138,6 @@ export function ShowWorkbenchShowDeskPage() {
         }));
       }),
     [associatedTrials, showEntries, trialClasses]
-  );
-  const showToday = useMemo(
-    () => formatDateInTimezone(associatedTrials.find(trial => trial.timezone)?.timezone ?? null),
-    [associatedTrials]
   );
 
   const showMapTrials = useMemo(() => {
@@ -256,9 +231,7 @@ export function ShowWorkbenchShowDeskPage() {
         title: 'People at show',
         summary: 'Look up exhibitors, armbands, class entries, and check-in status',
         layout: 'wide',
-        content: (
-          <ShowDeskPeopleRoster showId={currentShow.id} classes={showClasses} today={showToday} />
-        ),
+        content: <ShowDeskPeopleRoster showId={currentShow.id} classes={showClasses} />,
       },
       {
         id: 'add-entries',
@@ -342,7 +315,6 @@ export function ShowWorkbenchShowDeskPage() {
     incidentAttentionLabel,
     incidentEntryOptions,
     showClasses,
-    showToday,
   ]);
 
   if (isLoading || !currentShow) {

@@ -218,9 +218,10 @@ describe('peopleRoster', () => {
           id: 'class-1',
           name: 'Container Novice A',
           trialDate: '2026-07-09',
+          timezone: 'America/Chicago',
         },
       ],
-      today: '2026-07-08',
+      currentDate: new Date('2026-07-08T15:00:00.000Z'),
     });
 
     expect(roster[0]?.eligibleCount).toBe(0);
@@ -236,7 +237,7 @@ describe('peopleRoster', () => {
     const roster = buildPeopleRoster({
       entries: [entry()],
       presence: [],
-      today: '2026-07-08',
+      currentDate: new Date('2026-07-08T15:00:00.000Z'),
     });
 
     expect(roster[0]?.eligibleCount).toBe(0);
@@ -246,6 +247,49 @@ describe('peopleRoster', () => {
         statusLabel: 'Date unavailable',
       })
     );
+  });
+
+  it('evaluates current show day per class timezone', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entry(),
+        entry({
+          id: 'entry-2',
+          classes: [
+            {
+              id: 'class-2',
+              name: 'Exterior Novice A',
+              number: '2',
+              fee: 25,
+              status: 'entered',
+              checkInStatus: 'no-status',
+            },
+          ],
+        }),
+      ],
+      presence: [],
+      classes: [
+        {
+          id: 'class-1',
+          name: 'Container Novice A',
+          trialDate: '2026-07-07',
+          timezone: 'America/Los_Angeles',
+        },
+        {
+          id: 'class-2',
+          name: 'Exterior Novice A',
+          trialDate: '2026-07-07',
+          timezone: 'America/New_York',
+        },
+      ],
+      currentDate: new Date('2026-07-08T06:30:00.000Z'),
+    });
+
+    expect(roster[0]?.eligibleCount).toBe(1);
+    expect(roster[0]?.classRows.map(row => [row.className, row.statusLabel])).toEqual([
+      ['Container Novice A', 'Needs check-in'],
+      ['Exterior Novice A', 'Not today'],
+    ]);
   });
 
   it('uses handler identity for show-day rows while keeping owner names searchable', () => {

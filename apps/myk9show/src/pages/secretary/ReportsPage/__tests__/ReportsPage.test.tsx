@@ -207,6 +207,17 @@ describe('ReportsPage', () => {
     expect(screen.queryByRole('button', { name: /Download AKC Score Sheet PDF/i })).toBeNull();
   });
 
+  it('does not offer the AKC score sheet PDF for a selected non-AKC trial before class selection', async () => {
+    mockReportState.trialOneRegistryId = 'UKC';
+
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=scoresheet&trialId=trial-1',
+    });
+
+    await screen.findByRole('button', { name: /print/i });
+    expect(screen.queryByRole('button', { name: /Select class for official PDF/i })).toBeNull();
+  });
+
   it('offers the official AKC certification page PDF when a trial is selected', async () => {
     render(<ReportsPage />, {
       initialRoute: '/shows/show-1/reports?report=judges-certification&trialId=trial-1',

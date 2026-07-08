@@ -338,12 +338,12 @@ export function useAKCOfficialPdfAction({
     }
   }, [officialPdfProps]);
 
+  const selectedTrialAllowsAKCAction = trialId === 'all' || isAKCRegistry(officialPdfProps);
+  const selectedClassAllowsAKCAction = classId === 'all' || isAKCRegistry(officialClassPdfProps);
   const canShowScoreSheetAction =
-    isAKCScoreSheetReport &&
-    (trialId === 'all' || classId === 'all' || isAKCRegistry(officialClassPdfProps));
+    isAKCScoreSheetReport && selectedTrialAllowsAKCAction && selectedClassAllowsAKCAction;
   const canShowTransferFormAction =
-    isAKCTransferFormReport &&
-    (trialId === 'all' || classId === 'all' || isAKCRegistry(officialClassPdfProps));
+    isAKCTransferFormReport && selectedTrialAllowsAKCAction && selectedClassAllowsAKCAction;
 
   if (officialPdfConfig) {
     return {

@@ -122,11 +122,11 @@ Every row should gather the strongest applicable evidence:
 
 | Row | Responsibility | Starting status | Verification focus | Likely remediation decision |
 | --- | --- | --- | --- | --- |
-| S7.1 | Generate required AKC Scent Work reports, forms, labels, and XML. | Partially covered | Use AKC forms coverage doc as implementation evidence; launch-verify PDFs, XML recipient, print output. | Implementation row 7 is done; remaining work is launch evidence and recipient confirmation. |
-| S7.2 | Generate required UKC Nose Work closeout materials. | Gap | Inventory official UKC requirements/forms and existing report infrastructure. | New registry-specific plan likely needed. |
-| S7.3 | Generate required ASCA Scent Detection closeout materials. | Gap | Inventory official ASCA requirements/forms and existing report infrastructure. | New registry-specific plan likely needed. |
+| S7.1 | Generate required AKC Scent Work reports, forms, labels, and XML. | Partially covered | Use AKC forms coverage doc and registry closeout verification as implementation evidence; launch-verify PDFs, XML recipient, print output. | Implementation row 7 is done; remaining work is launch evidence and recipient confirmation. |
+| S7.2 | Generate required UKC Nose Work closeout materials. | Partially covered | Use registry closeout verification evidence: UKC Trial Report is wired/tested; remaining official packet artifacts still need implementation and print checks. | Create a focused UKC closeout packet plan for judges books, trial score sheet, entry/change-entry fills if needed, submission guidance, and packet preservation. |
+| S7.3 | Generate required ASCA Scent Detection closeout materials. | Gap | Use registry closeout verification evidence: ASCA source PDFs are present, but app wiring is absent. | Create a focused ASCA closeout packet plan for Trial Report, Trial Roster, Score Sheet, Gross Receipts, Post-Event Evaluation, Secretary Checklist, and portal guidance. |
 | S7.4 | Print reports/forms on representative venue hardware. | Partially covered | Run venue printer, label printer, margin/scaling, and packet checks. | Print remediation by affected artifact. |
-| S7.5 | Submit electronic registry results and preserve club artifacts. | Partially covered | Verify AKC XML and confirm UKC/ASCA submission path expectations. | Submission remediation by registry. |
+| S7.5 | Submit electronic registry results and preserve club artifacts. | Partially covered | Use registry closeout verification evidence: AKC XML exists; ASCA has online results/payment upload; UKC needs confirmed paperwork/manual submission guidance. | Submission remediation by registry, without inventing unsupported XML paths. |
 
 ### S8. Financial Reconciliation And Closeout
 

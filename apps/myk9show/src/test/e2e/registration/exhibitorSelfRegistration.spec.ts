@@ -111,9 +111,13 @@ async function selectFirstAvailableClass(page: Page) {
     timeout: 15000,
   });
 
-  const firstClass = page.getByRole('checkbox', { name: /^Select / }).first();
+  const firstClass = page
+    .getByRole('checkbox', {
+      name: /^Select (Excellent|Advanced|Master|Novice B)$/i,
+    })
+    .first();
   await expect(firstClass).toBeVisible({ timeout: 15000 });
-  await firstClass.click();
+  await firstClass.click({ force: true });
   await expect(page.getByRole('button', { name: /^Next$/ })).toBeEnabled({
     timeout: 10000,
   });

@@ -545,7 +545,7 @@ function buildSecretaryStatusSeed(entry: EntryManagementEntry): SecretaryStatusE
     paymentStatus: entry.paymentStatus,
   };
 
-  const classId = entry.classes[0]?.id;
+  const classId = entry.classes[0]?.classId ?? entry.classes[0]?.id;
   if (classId) seed.classId = classId;
   if (entry.armbandNumber) seed.armband = entry.armbandNumber;
 

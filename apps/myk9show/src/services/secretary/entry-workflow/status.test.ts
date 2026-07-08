@@ -34,7 +34,16 @@ describe('changeSecretaryEntryStatus', () => {
       {
         entry: makeEntry({
           armbandNumber: '140',
-          classes: [{ id: 'class-1', name: 'Novice', number: '1', fee: 25, status: 'entered' }],
+          classes: [
+            {
+              id: 'entry-1',
+              classId: 'class-1',
+              name: 'Novice',
+              number: '1',
+              fee: 25,
+              status: 'entered',
+            },
+          ],
         }),
         newStatus: EntryStatus.ACCEPTED,
         secretaryId: 'secretary-1',

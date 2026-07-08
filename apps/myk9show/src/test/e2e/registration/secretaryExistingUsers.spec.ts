@@ -5,6 +5,7 @@ import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 const SHOW_ID = process.env.QA_EXISTING_USER_REGISTRATION_SHOW_ID ?? LIVE_REGISTRATION_SHOW_ID;
 const PRIMARY_DOG = 'Willow';
 const OTHER_EXHIBITOR_DOG = 'Scout';
+const OPEN_ENTRY_DATE = new Date('2026-05-15T12:00:00.000Z');
 
 async function gotoRegistration(page: Page) {
   await page.goto(`/secretary/register/${SHOW_ID}`, {
@@ -30,6 +31,7 @@ async function searchDog(page: Page, name: string) {
 
 test.describe('Secretary registration for existing users', () => {
   test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(OPEN_ENTRY_DATE);
     await signInAsSecretary(page, '/secretary/dashboard');
     await gotoRegistration(page);
   });

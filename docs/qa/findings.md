@@ -339,6 +339,22 @@ Copy this block for each new finding.
 
 ## Closed Findings
 
+### QA-MUTATION-STALE-CACHE-034
+
+- **Status:** fixed
+- **Severity:** high
+- **Role:** secretary
+- **Surface:** `apps/myk9show/src/services/database/entries/lifecycle.ts`; `apps/myk9show/src/test/e2e/uat/secretary/disposable-entry.spec.ts`.
+- **Suite category:** nightly
+- **Pattern:** mutation-stale-cache
+- **Detected by:** Playwright
+- **Evidence:** 2026-07-08 isolated Nightly from `origin/main` `547aed61810bc9f1dd3c09a1c37d06ea18e41ca4` initially exceeded the global budget (`17 passed, 5 failed, 1 interrupted, 1 skipped, 29 did not run; 31.8m`). After stale time/copy repairs, the exact Phase 2 full replay narrowed to one failure: `uat/secretary/disposable-entry.spec.ts` failed after accepting the seeded entry because the accepted card remained visible but no class row or `Change check-in status` control rendered. Focused replay showed `changeSecretaryEntryStatus` seeded a missing local replicated entry with `sourceEntry.classId = entry.classes[0].id`; `EntryClass.id` is the entry row id, while `EntryClass.classId` is the actual class id. That wrong replica seed broke the class join after the status mutation, leaving the secretary unable to complete the accept-and-check-in path from Entry Management.
+- **User impact:** A secretary accepting an entry from Entry Management could lose the class row/check-in control for that entry in the local replicated view, blocking immediate show-day check-in from the same card.
+- **Intent check:** Harms the secretary "That was easy" target because a successful status change removes the next expected action.
+- **Fix owner:** secretary entry lifecycle/status mutation and Entry Management E2E coverage.
+- **Proof required:** Unit-test the `sourceEntry.classId` seed value, rerun `uat/secretary/disposable-entry.spec.ts` with `--retries=0`, then rerun the exact Phase 2 Nightly command and standalone Phase 3 route-health.
+- **Notes:** Fixed by using `entry.classes[0]?.classId ?? entry.classes[0]?.id` when building the secretary status seed, keeping the old fallback for legacy class shapes. Assertion-first proof: `status.test.ts` failed red with `classId: "entry-1"` before the implementation change and passed green after. Proof passed: `pnpm --dir apps/myk9show exec vitest run src/services/secretary/entry-workflow/status.test.ts` (`4/4`); `pnpm test:e2e:clean src/test/e2e/uat/secretary/disposable-entry.spec.ts --project=chromium --workers=1 --timeout=90000 --retries=0` (`1/1`, `15.1s`); exact Phase 2 active Playwright (`23/23`, `2.1m`, `--retries=0`); standalone Phase 3 route-health (`6/6`, `1.2m`, `--retries=0`).
+
 ### QA-ROLE-RLS-MISMATCH-033
 
 - **Status:** fixed

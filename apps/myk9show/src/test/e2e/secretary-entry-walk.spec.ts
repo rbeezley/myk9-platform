@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { signInAsSecretary } from './uat/shared/auth';
-import { LIVE_SECRETARY_SHOW_ID, LIVE_SECRETARY_SHOW_NAME } from './uat/shared/seededShows';
+import { LIVE_SECRETARY_SHOW_ID } from './uat/shared/seededShows';
 
 const TEST_SHOW_ID = LIVE_SECRETARY_SHOW_ID;
 const DOG_SEARCH = 'Ranger';
@@ -239,11 +239,9 @@ test.describe('Secretary Entry Walk', () => {
       timeout: 10000,
     });
 
-    await page.getByRole('button', { name: 'Done' }).click();
-    await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}`));
-    await expect(
-      page.getByRole('heading', { level: 2, name: LIVE_SECRETARY_SHOW_NAME })
-    ).toBeVisible();
+    await page.getByRole('button', { name: 'Return to Entry Management' }).click();
+    await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}/entry-management`));
+    await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible();
     expect(errors).toHaveLength(0);
   });
 });

@@ -623,7 +623,7 @@ describe('showMapActions', () => {
     });
   });
 
-  it('does not offer check-in sheet actions for empty classes', () => {
+  it('keeps empty-class check-in sheet actions out of global recommendations', () => {
     const tree = buildShowMapTree({
       show,
       trials: [trial],
@@ -632,8 +632,14 @@ describe('showMapActions', () => {
     });
 
     expect(
-      getRankedActions(tree.nodesById['class:class-active'], { tree }).map(action => action.id)
-    ).not.toContain('print-check-in-sheet');
+      findAction(
+        getRankedActions(tree.nodesById['class:class-active'], { tree }),
+        'print-check-in-sheet'
+      )
+    ).toMatchObject({
+      href: '/shows/show-1/reports?report=check-in-sheet&trialId=trial-1&classId=class-active',
+      recommended: false,
+    });
     expect(getRecommendedActions('root', { tree }).map(action => action.id)).not.toContain(
       'print-check-in-sheet'
     );

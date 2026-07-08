@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildClassReportProps,
   buildTrialReportProps,
   mapScopedReportEntries,
   readTrialRegistryId,
@@ -18,6 +19,7 @@ const show = {
 const trial = {
   id: 'trial-1',
   date: '2026-04-12',
+  event_number: '2026123401',
   registry_id: 'UKC',
   trial_number: 2026123401,
 } as DbTrial;
@@ -68,6 +70,7 @@ describe('buildTrialReportProps', () => {
       organization: 'AKC',
       trial: {
         date: '2026-04-12',
+        eventNumber: '2026123401',
         registryId: 'UKC',
         trialNumber: '2026123401',
         judgeName: 'Pat Judge',
@@ -165,6 +168,71 @@ describe('buildTrialReportProps', () => {
 
     expect(props.trial?.judgeName).toBe('Multiple judges');
     expect(props.allClasses?.map(c => c.judgeName)).toEqual(['Pat Judge', 'Second Judge']);
+  });
+});
+
+describe('buildClassReportProps', () => {
+  it('builds class-scoped props for official class PDFs', () => {
+    const props = buildClassReportProps({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          ...classData,
+          time_limit_seconds: 120,
+          time_limit_area2_seconds: 90,
+          time_limit_area3_seconds: null,
+          num_areas: 2,
+        } as DbClass,
+      ],
+      entries: [entry],
+      trialId: 'trial-1',
+      classId: 'class-1',
+      sortOrder: 'armband',
+    });
+
+    expect(props).toMatchObject({
+      trial: {
+        date: '2026-04-12',
+        eventNumber: '2026123401',
+        judgeName: 'Pat Judge',
+      },
+      classData: {
+        element: 'Container',
+        level: 'Novice',
+        section: 'A',
+        timeLimitSeconds: 120,
+        timeLimitArea2Seconds: 90,
+        areaCount: 2,
+      },
+      entries: [{ id: 'entry-1', armband: 7, callName: 'Rocket' }],
+      sortOrder: 'armband',
+    });
+  });
+
+  it('returns null until both a trial and class are selected', () => {
+    expect(
+      buildClassReportProps({
+        show,
+        trials: [trial],
+        classes: [classData],
+        entries: [entry],
+        trialId: 'all',
+        classId: 'class-1',
+        sortOrder: '',
+      })
+    ).toBeNull();
+    expect(
+      buildClassReportProps({
+        show,
+        trials: [trial],
+        classes: [classData],
+        entries: [entry],
+        trialId: 'trial-1',
+        classId: 'all',
+        sortOrder: '',
+      })
+    ).toBeNull();
   });
 });
 

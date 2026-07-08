@@ -95,6 +95,7 @@ function mapReportEntry(
   );
   return {
     ...base,
+    ...(e.dog_id ? { dogId: e.dog_id } : {}),
     ...(e.entry_fee != null ? { entryFee: Number(e.entry_fee) } : {}),
     ...(e.payment_status
       ? { paymentStatus: e.payment_status as NonNullable<ReportEntry['paymentStatus']> }
@@ -136,9 +137,10 @@ export function readTrialRegistryId(trial: DbTrial): string {
 
 export function mapReportTrialFields(
   trial: DbTrial
-): Pick<NonNullable<ReportProps['trial']>, 'date' | 'registryId' | 'trialNumber'> {
+): Pick<NonNullable<ReportProps['trial']>, 'date' | 'eventNumber' | 'registryId' | 'trialNumber'> {
   return {
     date: trial.date ?? '',
+    ...(trial.event_number ? { eventNumber: trial.event_number } : {}),
     registryId: readTrialRegistryId(trial),
     trialNumber: String(trial.trial_number ?? ''),
   };
@@ -187,4 +189,49 @@ export function buildTrialReportProps(input: {
       clubName: show.clubName ?? undefined,
     };
   });
+}
+
+export function buildClassReportProps(input: {
+  show: Show;
+  trials: DbTrial[] | null | undefined;
+  classes: DbClass[] | null | undefined;
+  entries: DbEntry[] | null | undefined;
+  trialId: string;
+  classId: string;
+  sortOrder: string;
+}): ReportProps | null {
+  const { show, trials, classes, entries, trialId, classId, sortOrder } = input;
+  if (trialId === 'all' || classId === 'all') return null;
+
+  const classData = (classes ?? []).find(cls => cls.id === classId);
+  if (!classData) return null;
+
+  const trial = (trials ?? []).find(item => item.id === (classData.trial_id ?? trialId));
+  if (!trial) return null;
+
+  const classEntries = (entries ?? []).filter(entry => entry.class_id === classId);
+
+  return {
+    showId: show.id,
+    showName: show.name ?? '',
+    trial: {
+      ...mapReportTrialFields(trial),
+      judgeName: resolveClassJudgeName(classData, show.assignedJudges ?? []),
+    },
+    classData: {
+      element: classData.element ?? '',
+      level: classData.level ?? '',
+      section: resolveClassSection(classData.section),
+      timeLimitSeconds: classData.time_limit_seconds,
+      timeLimitArea2Seconds: classData.time_limit_area2_seconds,
+      timeLimitArea3Seconds: classData.time_limit_area3_seconds,
+      areaCount: classData.num_areas,
+      hidesText: classData.num_hides ? String(classData.num_hides) : null,
+      distractionsText: classData.distraction_count ? String(classData.distraction_count) : null,
+    },
+    entries: mapReportEntries(classEntries, trial, classData, show.assignedJudges ?? []),
+    sortOrder,
+    organization: show.organization ?? undefined,
+    clubName: show.clubName ?? undefined,
+  };
 }

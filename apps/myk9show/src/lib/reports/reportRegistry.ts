@@ -4,6 +4,7 @@ import { ScoresheetReport } from '@/components/reports/ScoresheetReport';
 import { ResultsSheet } from '@/components/reports/ResultsSheet';
 import { ShowFlyerReport } from '@/components/reports/ShowFlyerReport';
 import { AKCScentWorkEntryForm } from '@/components/reports/AKCScentWorkEntryForm';
+import { AKCScentWorkTransferFormPreview } from '@/components/reports/AKCScentWorkTransferFormPreview';
 import { ShowCatalog } from '@/components/reports/ShowCatalog';
 import { ResultCatalog } from '@/components/reports/ResultCatalog';
 import { JudgesSchedule } from '@/components/reports/JudgesSchedule';
@@ -90,6 +91,17 @@ export const reportRegistry: ReportDefinition[] = [
     ],
     defaultSort: 'armband',
     component: AKCScentWorkEntryForm,
+    enabled: true,
+    supportsDogFilter: true,
+  },
+  {
+    id: 'akc-scent-work-transfer-form',
+    name: 'AKC Scent Work Transfer Form',
+    category: 'organization',
+    scopes: ['trial', 'class'],
+    sortOptions: [],
+    defaultSort: '',
+    component: AKCScentWorkTransferFormPreview,
     enabled: true,
     supportsDogFilter: true,
   },

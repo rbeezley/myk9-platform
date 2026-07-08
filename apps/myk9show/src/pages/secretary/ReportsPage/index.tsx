@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
@@ -12,13 +12,8 @@ import { printIframe } from './reportPreviewUtils';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
 import { ResultLabelsReport } from '@/components/reports/labels/ResultLabelsReport';
 import { LabelModeHeader } from '@/components/reports/labels/LabelModeChrome';
-import { buildTrialReportProps } from './reportDataMapping';
-import { downloadPdfBytes } from '@/features/organization-forms/downloadPdf';
-import {
-  buildOfficialPdfFilename,
-  getOfficialPdfMissingFieldLabels,
-  getOfficialPdfReportConfig,
-} from '@/features/organization-forms/officialPdfReports';
+import { buildClassReportProps, buildTrialReportProps } from './reportDataMapping';
+import { useAKCOfficialPdfAction } from './useAKCOfficialPdfAction';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
@@ -67,7 +62,6 @@ export default function ReportsPage() {
   const [dogId, setDogId] = useState<string>(initialScope.dogId);
   const report = getReportById(reportType);
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
-  const [isDownloadingOfficialPdf, setIsDownloadingOfficialPdf] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const { show, trials, classes, entries, isLoading, isError, refetch } = useReportData({
@@ -140,7 +134,6 @@ export default function ReportsPage() {
   });
 
   const dogOptions = dogOptionsRaw ?? [];
-
   const handleReportTypeChange = (value: string) => {
     setReportType(value);
     const newReport = getReportById(value);
@@ -176,47 +169,33 @@ export default function ReportsPage() {
     );
   }, [show, trials, classes, entries, trialId, sortOrder]);
 
-  const officialPdfConfig = useMemo(
-    () => getOfficialPdfReportConfig(reportType, officialPdfProps),
-    [officialPdfProps, reportType]
-  );
+  const officialClassPdfProps = useMemo(() => {
+    if (!show || trialId === 'all' || classId === 'all') return null;
+    return buildClassReportProps({
+      show,
+      trials: trials as Parameters<typeof buildClassReportProps>[0]['trials'],
+      classes: classes as Parameters<typeof buildClassReportProps>[0]['classes'],
+      entries: entries as Parameters<typeof buildClassReportProps>[0]['entries'],
+      trialId,
+      classId,
+      sortOrder,
+    });
+  }, [show, trials, classes, entries, trialId, classId, sortOrder]);
 
-  const officialPdfMissingFieldLabels = useMemo(() => {
-    if (!officialPdfProps) return [];
-    return getOfficialPdfMissingFieldLabels(reportType, officialPdfProps);
-  }, [officialPdfProps, reportType]);
-
-  const handleOfficialPdfDownload = useCallback(async () => {
-    if (!officialPdfProps) {
-      toast.error('Select a trial before downloading the official PDF');
-      return;
-    }
-    if (!officialPdfConfig) return;
-
-    setIsDownloadingOfficialPdf(true);
-    try {
-      const { buildOfficialPdfBytes } =
-        await import('@/features/organization-forms/officialPdfDownload');
-      const bytes = await buildOfficialPdfBytes(officialPdfConfig, officialPdfProps);
-      downloadPdfBytes(bytes, buildOfficialPdfFilename(officialPdfConfig, officialPdfProps));
-      toast.success('Official PDF downloaded');
-    } catch (error) {
-      console.error('[reports] official PDF download failed', error);
-      toast.error('Could not download the official PDF');
-    } finally {
-      setIsDownloadingOfficialPdf(false);
-    }
-  }, [officialPdfConfig, officialPdfProps]);
-
-  const officialPdfAction = officialPdfConfig
-    ? {
-        disabled: isLoading || isError || !show || trialId === 'all',
-        isLoading: isDownloadingOfficialPdf,
-        label: trialId === 'all' ? 'Select trial for official PDF' : officialPdfConfig.actionLabel,
-        missingFieldLabels: officialPdfMissingFieldLabels,
-        onClick: handleOfficialPdfDownload,
-      }
-    : undefined;
+  const officialPdfAction = useAKCOfficialPdfAction({
+    reportType,
+    showId,
+    showName: show?.name,
+    currentShowName: currentShow?.name,
+    isLoading,
+    isError,
+    hasShow: Boolean(show),
+    trialId,
+    classId,
+    dogId,
+    officialPdfProps,
+    officialClassPdfProps,
+  });
 
   return (
     <div className="container mx-auto py-6 flex flex-col">
@@ -224,8 +203,8 @@ export default function ReportsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Print check-in sheets, catalogs, official forms, and labels. Pick a report, narrow it to
-          a trial or class, then print or download.
+          Print check-in sheets, catalogs, official forms, and labels. Pick a report, narrow it to a
+          trial or class, then print or download.
         </p>
       </div>
 

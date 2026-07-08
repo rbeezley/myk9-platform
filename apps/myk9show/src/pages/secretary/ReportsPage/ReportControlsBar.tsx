@@ -49,7 +49,7 @@ function formatDogOptionLabel(dog: {
   return `${dog.callName}${registered}${armband}`;
 }
 
-interface OfficialPdfAction {
+export interface OfficialPdfAction {
   disabled: boolean;
   isLoading: boolean;
   label: string;
@@ -208,7 +208,11 @@ export function ReportControlsBar({
             Trial
           </label>
           <Select value={trialId} onValueChange={onTrialChange}>
-            <SelectTrigger id="trial-select" className="w-full sm:w-[160px]" aria-label="Select trial">
+            <SelectTrigger
+              id="trial-select"
+              className="w-full sm:w-[160px]"
+              aria-label="Select trial"
+            >
               <SelectValue placeholder="All Trials">{selectedTrialLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -230,7 +234,11 @@ export function ReportControlsBar({
             Class
           </label>
           <Select value={classId} onValueChange={onClassChange} disabled={trialId === 'all'}>
-            <SelectTrigger id="class-select" className="w-full sm:w-[200px]" aria-label="Select class">
+            <SelectTrigger
+              id="class-select"
+              className="w-full sm:w-[200px]"
+              aria-label="Select class"
+            >
               <SelectValue placeholder="All Classes">{selectedClassLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -274,7 +282,11 @@ export function ReportControlsBar({
             Sort
           </label>
           <Select value={sortOrder} onValueChange={onSortChange}>
-            <SelectTrigger id="sort-select" className="w-full sm:w-[160px]" aria-label="Select sort">
+            <SelectTrigger
+              id="sort-select"
+              className="w-full sm:w-[160px]"
+              aria-label="Select sort"
+            >
               <SelectValue placeholder="Sort by">{selectedSortLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>

@@ -205,6 +205,7 @@ export function ReportPreview({
             entries: mapReportEntries(pageEntries, trial, classData, show.assignedJudges ?? []),
             sortOrder,
             organization: show.organization ?? undefined,
+            ...(dogId !== 'all' ? { dogId } : {}),
           };
           return ReactDOMServer.renderToStaticMarkup(<ReportComponent {...props} />);
         })

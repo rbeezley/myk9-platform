@@ -122,6 +122,26 @@ describe('ASCA Scent Detection closeout PDFs', () => {
     });
   });
 
+  it('does not guess unknown ASCA post-event run outcomes', () => {
+    expect(
+      countASCAPostEventRuns([
+        ...reportProps.entries,
+        {
+          ...reportProps.entries[0],
+          callName: 'Mystery',
+          dogId: 'dog-4',
+          handler: 'Cara Handler',
+          id: 'entry-4',
+          resultText: 'ABS',
+        },
+      ])
+    ).toEqual({
+      excusals: 1,
+      nonQualifyingRuns: 1,
+      qualifyingRuns: 1,
+    });
+  });
+
   it('fills the official ASCA post-event PDF with derivable count values', async () => {
     const values = buildASCAScentDetectionPostEventEvaluationValues(reportProps);
     const bytes = await fillPdfForm(

@@ -48,5 +48,6 @@ The fall launch goal is secretary reliability, not a new ASCA workflow surface. 
 
 - **Risk:** Static official PDFs may still require manual completion. -> **Mitigation:** Labels and docs describe them as packet preservation; future overlays can be added after print verification.
 - **Risk:** ASCA gross receipt fees may depend on ASCA rules outside current data. -> **Mitigation:** Fill date/club fields and leave uncertain fee fields blank unless verified.
+- **Risk:** ASCA result labels may differ from the current Q/NQ/excusal vocabulary. -> **Mitigation:** Count only known outcome labels now and source-verify the vocabulary before launch.
 - **Risk:** Report picker becomes crowded with registry-specific forms. -> **Mitigation:** Reuse existing report categories and registry gating; do not add another navigation surface.
 - **Risk:** PDF fields can change when ASCA updates source files. -> **Mitigation:** Template inventory tests assert required field names exist in local PDFs.

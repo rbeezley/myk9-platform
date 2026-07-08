@@ -162,7 +162,7 @@ describe('computeSetupReadinessSignals', () => {
     });
   });
 
-  it('treats experienceIsPublished alone as satisfying exhibitor materials', () => {
+  it('still requires premium PDF when landing content is published', () => {
     const signals = computeSetupReadinessSignals({
       show: show({
         publishedPremiumUrl: '',
@@ -173,7 +173,11 @@ describe('computeSetupReadinessSignals', () => {
       classes: [cls()],
       judges: ['j1'],
     });
-    expect(signals.find(s => s.id === 'exhibitor-materials-unpublished')).toBeUndefined();
+    expect(signals).toContainEqual({
+      id: 'exhibitor-materials-unpublished',
+      label: 'Exhibitor info not published yet',
+      href: '#setup-publish',
+    });
   });
 
   it('emits a republish signal when published premium data is stale', () => {

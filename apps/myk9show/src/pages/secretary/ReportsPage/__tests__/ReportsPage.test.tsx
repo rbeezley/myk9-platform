@@ -262,6 +262,72 @@ describe('ReportsPage', () => {
     ).toBeNull();
   });
 
+  it('offers the official UKC entry form PDF when a UKC trial and dog are selected', async () => {
+    mockReportState.trialOneRegistryId = 'UKC';
+
+    render(<ReportsPage />, {
+      initialRoute:
+        '/shows/show-1/reports?report=ukc-nosework-entry-form&trialId=trial-1&dogId=dog-1',
+    });
+
+    expect(
+      await screen.findByRole('button', { name: /Download UKC Entry Form PDF/i })
+    ).toBeEnabled();
+  });
+
+  it('offers the official UKC change entry PDF when a UKC trial, class, and dog are selected', async () => {
+    mockReportState.trialOneRegistryId = 'UKC';
+
+    render(<ReportsPage />, {
+      initialRoute:
+        '/shows/show-1/reports?report=ukc-nosework-change-entry-form&trialId=trial-1&classId=class-1&dogId=dog-1',
+    });
+
+    expect(
+      await screen.findByRole('button', { name: /Download UKC Change Entry PDF/i })
+    ).toBeEnabled();
+  });
+
+  it('offers static UKC packet PDFs only for UKC trials', async () => {
+    const staticReports = [
+      {
+        label: /Download UKC Element Judges Book PDF/i,
+        reportId: 'ukc-nosework-judges-book-element',
+      },
+      {
+        label: /Download UKC Handler Discrimination Judges Book PDF/i,
+        reportId: 'ukc-nosework-judges-book-handler-discrimination',
+      },
+      {
+        label: /Download UKC Trial Score Sheet PDF/i,
+        reportId: 'ukc-nosework-trial-score-sheet',
+      },
+    ] as const;
+
+    mockReportState.trialOneRegistryId = 'UKC';
+
+    for (const staticReport of staticReports) {
+      const { unmount } = render(<ReportsPage />, {
+        initialRoute: `/shows/show-1/reports?report=${staticReport.reportId}&trialId=trial-1`,
+      });
+
+      expect(await screen.findByRole('button', { name: staticReport.label })).toBeEnabled();
+      unmount();
+    }
+
+    mockReportState.trialOneRegistryId = 'AKC';
+
+    for (const staticReport of staticReports) {
+      const { unmount } = render(<ReportsPage />, {
+        initialRoute: `/shows/show-1/reports?report=${staticReport.reportId}&trialId=trial-1`,
+      });
+
+      await screen.findByRole('button', { name: /print/i });
+      expect(screen.queryByRole('button', { name: staticReport.label })).toBeNull();
+      unmount();
+    }
+  });
+
   it('offers the official AKC certification page PDF when a trial is selected', async () => {
     render(<ReportsPage />, {
       initialRoute: '/shows/show-1/reports?report=judges-certification&trialId=trial-1',

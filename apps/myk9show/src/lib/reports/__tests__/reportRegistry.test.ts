@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { reportRegistry, getReportById, getEnabledReports } from '@/lib/reports/reportRegistry';
 
 describe('reportRegistry', () => {
-  it('has 24 total entries', () => {
-    expect(reportRegistry).toHaveLength(24);
+  it('has 29 total entries', () => {
+    expect(reportRegistry).toHaveLength(29);
   });
 
-  it('has exactly 24 enabled entries', () => {
-    expect(getEnabledReports()).toHaveLength(24);
+  it('has exactly 29 enabled entries', () => {
+    expect(getEnabledReports()).toHaveLength(29);
   });
 
   it('has all unique IDs', () => {
@@ -116,12 +116,18 @@ describe('reportRegistry', () => {
       expect(report?.category).toBe('financial');
     });
 
-    it('the label reports are enabled but render directly from ReportsPage (placeholder component)', () => {
-      // armband-labels and result-labels are not rendered via ReportPreview —
-      // ReportsPage renders their interactive components directly. Their registry
-      // `component` is therefore the null PlaceholderReport by design, so they are
-      // intentionally excluded from the non-placeholder assertion above.
-      for (const id of ['armband-labels', 'result-labels']) {
+    it('official-PDF-only reports are enabled but render directly from ReportsPage', () => {
+      const placeholderReportIds = [
+        'armband-labels',
+        'result-labels',
+        'ukc-nosework-entry-form',
+        'ukc-nosework-change-entry-form',
+        'ukc-nosework-judges-book-element',
+        'ukc-nosework-judges-book-handler-discrimination',
+        'ukc-nosework-trial-score-sheet',
+      ];
+
+      for (const id of placeholderReportIds) {
         const report = getReportById(id);
         expect(report, `${id} should be registered`).toBeDefined();
         expect(report!.enabled, `${id} should be enabled`).toBe(true);

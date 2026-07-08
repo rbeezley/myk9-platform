@@ -13,10 +13,14 @@ import { buildUKCNoseworkTrialReportValues } from './ukcNoseworkTrialReport';
 type ReportIdWithOfficialPdf =
   | 'akc-judge-report'
   | 'trial-chairman-report'
-  | 'trial-secretary-report';
+  | 'trial-secretary-report'
+  | 'ukc-nosework-judges-book-element'
+  | 'ukc-nosework-judges-book-handler-discrimination'
+  | 'ukc-nosework-trial-score-sheet';
 
 export interface OfficialPdfReportConfig {
   actionLabel: string;
+  downloadMode?: 'fillable' | 'static';
   filenamePrefix: string;
   templateId: OrganizationFormTemplateId;
   values: (props: ReportProps) => PdfFormFillValues;
@@ -34,6 +38,30 @@ const UKC_TRIAL_REPORT_CONFIG = {
   filenamePrefix: 'ukc-nosework-trial-report',
   templateId: 'ukc-nosework-trial-report',
   values: buildUKCNoseworkTrialReportValues,
+} as const satisfies OfficialPdfReportConfig;
+
+const UKC_JUDGES_BOOK_ELEMENT_CONFIG = {
+  actionLabel: 'Download UKC Element Judges Book PDF',
+  downloadMode: 'static',
+  filenamePrefix: 'ukc-element-judges-book',
+  templateId: 'ukc-nosework-judges-book-element',
+  values: emptyPdfValues,
+} as const satisfies OfficialPdfReportConfig;
+
+const UKC_JUDGES_BOOK_HANDLER_DISCRIMINATION_CONFIG = {
+  actionLabel: 'Download UKC Handler Discrimination Judges Book PDF',
+  downloadMode: 'static',
+  filenamePrefix: 'ukc-handler-discrimination-judges-book',
+  templateId: 'ukc-nosework-judges-book-handler-discrimination',
+  values: emptyPdfValues,
+} as const satisfies OfficialPdfReportConfig;
+
+const UKC_TRIAL_SCORE_SHEET_CONFIG = {
+  actionLabel: 'Download UKC Trial Score Sheet PDF',
+  downloadMode: 'static',
+  filenamePrefix: 'ukc-trial-score-sheet',
+  templateId: 'ukc-nosework-trial-score-sheet',
+  values: emptyPdfValues,
 } as const satisfies OfficialPdfReportConfig;
 
 const AKC_JUDGE_REPORT_CONFIG = {
@@ -59,6 +87,12 @@ export function getOfficialPdfReportConfig(
   switch (reportId) {
     case 'trial-secretary-report':
       return isUKCTrial(props) ? UKC_TRIAL_REPORT_CONFIG : AKC_TRIAL_SECRETARY_CONFIG;
+    case 'ukc-nosework-judges-book-element':
+      return UKC_JUDGES_BOOK_ELEMENT_CONFIG;
+    case 'ukc-nosework-judges-book-handler-discrimination':
+      return UKC_JUDGES_BOOK_HANDLER_DISCRIMINATION_CONFIG;
+    case 'ukc-nosework-trial-score-sheet':
+      return UKC_TRIAL_SCORE_SHEET_CONFIG;
     case 'akc-judge-report':
       return AKC_JUDGE_REPORT_CONFIG;
     case 'trial-chairman-report':
@@ -68,10 +102,7 @@ export function getOfficialPdfReportConfig(
   }
 }
 
-export function getOfficialPdfMissingFieldLabels(
-  reportId: string,
-  props: ReportProps
-): string[] {
+export function getOfficialPdfMissingFieldLabels(reportId: string, props: ReportProps): string[] {
   const config = getOfficialPdfReportConfig(reportId, props);
   if (!config) return [];
 
@@ -91,12 +122,19 @@ function isReportIdWithOfficialPdf(reportId: string): reportId is ReportIdWithOf
   return (
     reportId === 'akc-judge-report' ||
     reportId === 'trial-chairman-report' ||
-    reportId === 'trial-secretary-report'
+    reportId === 'trial-secretary-report' ||
+    reportId === 'ukc-nosework-judges-book-element' ||
+    reportId === 'ukc-nosework-judges-book-handler-discrimination' ||
+    reportId === 'ukc-nosework-trial-score-sheet'
   );
 }
 
 function isUKCTrial(props: ReportProps | null | undefined): boolean {
   return props?.trial?.registryId?.trim().toUpperCase() === 'UKC';
+}
+
+function emptyPdfValues(): PdfFormFillValues {
+  return {};
 }
 
 function assertNever(value: never): never {

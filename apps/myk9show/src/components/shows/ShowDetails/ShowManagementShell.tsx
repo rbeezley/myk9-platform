@@ -223,7 +223,7 @@ export function ShowManagementShell({
             aria-label="Show management sections"
             data-testid="canonical-show-management-nav"
           >
-            <div className="px-4 py-3 sm:hidden">
+            <div className="px-4 py-3 lg:hidden">
               <label htmlFor="show-management-section" className="sr-only">
                 Show management section
               </label>
@@ -243,7 +243,7 @@ export function ShowManagementShell({
                 ))}
               </select>
             </div>
-            <div className="hidden max-w-full overflow-x-auto no-scrollbar px-4 sm:flex sm:px-6">
+            <div className="hidden max-w-full overflow-x-auto no-scrollbar px-4 lg:flex lg:px-6">
               {SHOW_MANAGEMENT_SECTIONS.map(({ label, path }) => {
                 const href = `${canonicalShowHref}/${path}`;
                 const isActive = activeManagementSection === path;

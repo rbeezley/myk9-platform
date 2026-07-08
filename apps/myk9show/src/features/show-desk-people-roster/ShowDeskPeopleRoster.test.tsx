@@ -91,7 +91,12 @@ function LocationProbe() {
 
 function renderRoster(
   entries: SecretaryEntry[] = [entry()],
-  options: { currentDate?: Date | null; trialDate?: string } = {}
+  options: {
+    currentDate?: Date | null;
+    trialDate?: string;
+    loadError?: unknown;
+    onRetry?: () => void;
+  } = {}
 ) {
   if (!h.updateReplicatedCheckInStatus.getMockImplementation()) {
     h.updateReplicatedCheckInStatus.mockResolvedValue(undefined);
@@ -111,6 +116,8 @@ function renderRoster(
       <ShowDeskPeopleRoster
         showId="show-1"
         entries={entries}
+        loadError={options.loadError}
+        onRetry={options.onRetry}
         currentDate={options.currentDate ?? new Date('2026-07-08T15:00:00.000Z')}
         classes={[
           {
@@ -157,6 +164,21 @@ describe('ShowDeskPeopleRoster', () => {
 
     await user.click(screen.getByRole('button', { name: /alice martin/i }));
     expect(screen.queryByText('Poppy')).not.toBeInTheDocument();
+  });
+
+  it('shows a retryable error instead of a false empty roster when entries fail to load', async () => {
+    const onRetry = vi.fn();
+    const { user } = renderRoster([], {
+      loadError: new Error('Replica unavailable'),
+      onRetry,
+    });
+
+    expect(screen.getByText("Couldn't load exhibitors.")).toBeInTheDocument();
+    expect(screen.getByText('Replica unavailable')).toBeInTheDocument();
+    expect(screen.queryByText(/No exhibitors are entered/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /retry/i }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
   it('checks in an eligible class row through the replicated path', async () => {

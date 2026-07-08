@@ -99,7 +99,13 @@ export function ShowWorkbenchShowDeskPage() {
   const { trials, trialClasses } = useTrialStore(
     useShallow(s => ({ trials: s.trials, trialClasses: s.trialClasses }))
   );
-  const { data: showEntries = [], isLoading: showEntriesLoading } = useQuery<SecretaryEntry[]>({
+  const {
+    data: showEntries = [],
+    isLoading: showEntriesLoading,
+    isError: showEntriesIsError,
+    error: showEntriesError,
+    refetch: refetchShowEntries,
+  } = useQuery<SecretaryEntry[]>({
     queryKey: ['secretary-show-entries', showId],
     queryFn: async () => {
       const result = await getEntriesForShow(showId ?? '');
@@ -250,6 +256,8 @@ export function ShowWorkbenchShowDeskPage() {
             classes={showClasses}
             entries={showEntries}
             isLoading={showEntriesLoading}
+            loadError={showEntriesError}
+            onRetry={() => void refetchShowEntries()}
           />
         ),
       },
@@ -334,13 +342,36 @@ export function ShowWorkbenchShowDeskPage() {
     hospitalityJudges,
     incidentAttentionLabel,
     incidentEntryOptions,
+    refetchShowEntries,
     showClasses,
     showEntries,
+    showEntriesError,
     showEntriesLoading,
   ]);
 
   if (isLoading || !currentShow) {
     return <LoadingSkeleton variant="cards" count={2} />;
+  }
+
+  if (showEntriesIsError) {
+    return (
+      <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
+        <p className="font-medium text-destructive">Couldn't load show entries.</p>
+        <p className="mt-1 text-muted-foreground">
+          Entry counts, People at show, Show Map, and closeout are paused so they do not show a
+          false zero-entry state.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-3"
+          onClick={() => void refetchShowEntries()}
+        >
+          Retry
+        </Button>
+      </div>
+    );
   }
 
   return (

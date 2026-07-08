@@ -96,7 +96,7 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
       label: 'Exhibitor info changed since publish',
       href: `#${SETUP_PUBLISH_ANCHOR}`,
     });
-  } else if (premiumState === 'unpublished' && !input.show.experienceIsPublished) {
+  } else if (premiumState === 'unpublished') {
     signals.push({
       id: 'exhibitor-materials-unpublished',
       label: 'Exhibitor info not published yet',

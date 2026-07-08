@@ -23,6 +23,8 @@ interface ShowDeskPeopleRosterProps {
   classes: readonly ShowWorkbenchClassSummary[];
   entries: readonly SecretaryEntry[];
   isLoading?: boolean;
+  loadError?: unknown;
+  onRetry?: (() => void) | undefined;
   currentDate?: Date | null;
 }
 
@@ -37,6 +39,8 @@ export function ShowDeskPeopleRoster({
   classes,
   entries: sourceEntries,
   isLoading = false,
+  loadError,
+  onRetry,
   currentDate,
 }: ShowDeskPeopleRosterProps) {
   const navigate = useNavigate();
@@ -145,6 +149,20 @@ export function ShowDeskPeopleRoster({
 
   if (isLoading) {
     return <div className="py-6 text-sm text-muted-foreground">Loading exhibitors...</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+        <p className="font-medium text-destructive">Couldn't load exhibitors.</p>
+        <p className="mt-1 text-muted-foreground">{getErrorMessage(loadError)}</p>
+        {onRetry && (
+          <Button variant="outline" size="sm" className="mt-3" onClick={onRetry}>
+            Retry
+          </Button>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -330,4 +348,8 @@ export function ShowDeskPeopleRoster({
       )}
     </div>
   );
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Something went wrong';
 }

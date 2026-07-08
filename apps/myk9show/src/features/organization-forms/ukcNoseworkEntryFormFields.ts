@@ -1,0 +1,33 @@
+export const UKC_NOSEWORK_ENTRY_FORM_FIELDS = {
+  armband: 'Armband',
+  permanentRegistrationCheckbox: 'UKC permanent reg',
+  temporaryListingCheckbox: 'UKC TL',
+  performanceListingCheckbox: 'undefined',
+  registrationNumber: 'UKC PLLP',
+  breed: 'Breed',
+  sex: 'Sex',
+  dateOfBirth: 'undefined_2',
+  registeredName: 'Dogs Reg Name',
+  callName: 'Call Name',
+  ownerName: 'Dog owners names',
+  address: 'Address',
+  city: 'City',
+  state: 'State',
+  postalCode: 'Postal Code',
+  phone: 'undefined_3',
+  email: 'Email',
+} as const;
+
+export const UKC_NOSEWORK_ENTRY_FORM_REQUIRED_FIELDS = [
+  UKC_NOSEWORK_ENTRY_FORM_FIELDS.registeredName,
+  UKC_NOSEWORK_ENTRY_FORM_FIELDS.registrationNumber,
+  UKC_NOSEWORK_ENTRY_FORM_FIELDS.callName,
+  UKC_NOSEWORK_ENTRY_FORM_FIELDS.breed,
+  UKC_NOSEWORK_ENTRY_FORM_FIELDS.sex,
+  UKC_NOSEWORK_ENTRY_FORM_FIELDS.ownerName,
+  UKC_NOSEWORK_ENTRY_FORM_FIELDS.address,
+  UKC_NOSEWORK_ENTRY_FORM_FIELDS.city,
+  UKC_NOSEWORK_ENTRY_FORM_FIELDS.state,
+  UKC_NOSEWORK_ENTRY_FORM_FIELDS.postalCode,
+  UKC_NOSEWORK_ENTRY_FORM_FIELDS.email,
+] as const;

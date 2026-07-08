@@ -22,7 +22,10 @@ import {
   buildAKCScentWorkTransferFormFilename,
   buildAKCScentWorkTransferFormValues,
 } from '@/features/organization-forms/akcScentWorkTransferForm';
-import { getOrganizationFormTemplateUrl } from '@/features/organization-forms/organizationFormTemplates';
+import {
+  getOrganizationFormTemplate,
+  getOrganizationFormTemplateUrl,
+} from '@/features/organization-forms/organizationFormTemplates';
 import { AKC_SCENT_WORK_ENTRY_FORM_REQUIRED_FIELDS } from '@/features/organization-forms/akcScentWorkEntryFormFields';
 import { AKC_SCENT_WORK_TRANSFER_FORM_REQUIRED_FIELDS } from '@/features/organization-forms/akcScentWorkTransferFormFields';
 import { findMissingPdfRequiredFieldLabels } from '@/features/organization-forms/pdfFormCompleteness';
@@ -31,6 +34,18 @@ import {
   getOfficialPdfMissingFieldLabels,
   getOfficialPdfReportConfig,
 } from '@/features/organization-forms/officialPdfReports';
+import {
+  buildUKCNoseworkChangeEntryFormFilename,
+  buildUKCNoseworkChangeEntryFormValues,
+} from '@/features/organization-forms/ukcNoseworkChangeEntryForm';
+import { UKC_NOSEWORK_CHANGE_ENTRY_FORM_REQUIRED_FIELDS } from '@/features/organization-forms/ukcNoseworkChangeEntryFormFields';
+import {
+  buildUKCNoseworkEntryFormFilename,
+  buildUKCNoseworkEntryFormPacketFilename,
+  buildUKCNoseworkEntryFormPacketPdfBytes,
+  buildUKCNoseworkEntryFormValues,
+} from '@/features/organization-forms/ukcNoseworkEntryForm';
+import { UKC_NOSEWORK_ENTRY_FORM_REQUIRED_FIELDS } from '@/features/organization-forms/ukcNoseworkEntryFormFields';
 
 interface UseAKCOfficialPdfActionInput {
   reportType: string;
@@ -49,6 +64,10 @@ interface UseAKCOfficialPdfActionInput {
 
 function isAKCRegistry(props: ReportProps | null | undefined): boolean {
   return props?.trial?.registryId?.trim().toUpperCase() === 'AKC';
+}
+
+function isUKCRegistry(props: ReportProps | null | undefined): boolean {
+  return props?.trial?.registryId?.trim().toUpperCase() === 'UKC';
 }
 
 export function useAKCOfficialPdfAction({
@@ -70,12 +89,20 @@ export function useAKCOfficialPdfAction({
   const isAKCTransferFormReport = reportType === 'akc-scent-work-transfer-form';
   const isAKCScoreSheetReport = reportType === 'scoresheet';
   const isAKCCertificationPageReport = reportType === 'judges-certification';
+  const isUKCEntryFormReport = reportType === 'ukc-nosework-entry-form';
+  const isUKCChangeEntryFormReport = reportType === 'ukc-nosework-change-entry-form';
 
   const entryFormData = useEntryFormData({
     showId: showId ?? '',
     trialId: trialId === 'all' ? undefined : trialId,
     dogId: dogId === 'all' ? undefined : dogId,
-    enabled: isAKCEntryFormReport || isAKCTransferFormReport,
+    preferredRegistrationOrganization:
+      isUKCEntryFormReport || isUKCChangeEntryFormReport ? 'UKC' : 'AKC',
+    enabled:
+      isAKCEntryFormReport ||
+      isAKCTransferFormReport ||
+      isUKCEntryFormReport ||
+      isUKCChangeEntryFormReport,
   });
 
   const officialPdfConfig = useMemo(
@@ -160,6 +187,70 @@ export function useAKCOfficialPdfAction({
       officialTransferPdfValues
     );
   }, [isAKCTransferFormReport, officialTransferPdfValues]);
+
+  const officialUKCEntryPdfDog =
+    isUKCEntryFormReport && dogId !== 'all' ? (entryFormData.dogs[0] ?? null) : null;
+  const officialUKCEntryPdfValues = useMemo(() => {
+    if (!officialUKCEntryPdfDog) return null;
+    return buildUKCNoseworkEntryFormValues(officialUKCEntryPdfDog);
+  }, [officialUKCEntryPdfDog]);
+  const officialUKCEntryPdfMissingFieldLabels = useMemo(() => {
+    if (!isUKCEntryFormReport) return [];
+
+    const values =
+      dogId === 'all'
+        ? entryFormData.dogs.map(dog => buildUKCNoseworkEntryFormValues(dog))
+        : officialUKCEntryPdfValues
+          ? [officialUKCEntryPdfValues]
+          : [];
+
+    const labels = new Set<string>();
+    for (const value of values) {
+      for (const label of findMissingPdfRequiredFieldLabels(
+        UKC_NOSEWORK_ENTRY_FORM_REQUIRED_FIELDS,
+        value
+      )) {
+        labels.add(label);
+      }
+    }
+
+    return [...labels];
+  }, [dogId, entryFormData.dogs, isUKCEntryFormReport, officialUKCEntryPdfValues]);
+
+  const officialUKCChangeEntryPdfDog =
+    isUKCChangeEntryFormReport && dogId !== 'all' ? (entryFormData.dogs[0] ?? null) : null;
+  const officialUKCChangeEntryPdfEntry = useMemo(() => {
+    if (!officialUKCChangeEntryPdfDog || classId === 'all') return null;
+    return officialUKCChangeEntryPdfDog.entries.find(entry => entry.classId === classId) ?? null;
+  }, [classId, officialUKCChangeEntryPdfDog]);
+  const officialUKCChangeEntryPdfValues = useMemo(() => {
+    if (
+      !officialUKCChangeEntryPdfDog ||
+      !officialUKCChangeEntryPdfEntry ||
+      !officialClassPdfProps
+    ) {
+      return null;
+    }
+
+    return buildUKCNoseworkChangeEntryFormValues({
+      dog: officialUKCChangeEntryPdfDog,
+      entry: officialUKCChangeEntryPdfEntry,
+      props: officialClassPdfProps,
+      secretary: entryFormData.secretary,
+    });
+  }, [
+    entryFormData.secretary,
+    officialClassPdfProps,
+    officialUKCChangeEntryPdfDog,
+    officialUKCChangeEntryPdfEntry,
+  ]);
+  const officialUKCChangeEntryPdfMissingFieldLabels = useMemo(() => {
+    if (!isUKCChangeEntryFormReport || !officialUKCChangeEntryPdfValues) return [];
+    return findMissingPdfRequiredFieldLabels(
+      UKC_NOSEWORK_CHANGE_ENTRY_FORM_REQUIRED_FIELDS,
+      officialUKCChangeEntryPdfValues
+    );
+  }, [isUKCChangeEntryFormReport, officialUKCChangeEntryPdfValues]);
 
   const handleOfficialPdfDownload = useCallback(async () => {
     if (!officialPdfProps) {
@@ -338,21 +429,165 @@ export function useAKCOfficialPdfAction({
     }
   }, [officialPdfProps]);
 
+  const handleOfficialUKCEntryPdfDownload = useCallback(async () => {
+    if (dogId !== 'all' && (!officialUKCEntryPdfDog || !officialUKCEntryPdfValues)) {
+      toast.error('The entry form data is still loading. Try again in a moment.');
+      return;
+    }
+    if (dogId === 'all' && entryFormData.dogs.length === 0) {
+      toast.error('No dogs are ready for an official UKC entry form packet yet.');
+      return;
+    }
+
+    setIsDownloadingOfficialPdf(true);
+    try {
+      let bytes: Uint8Array;
+      let filename: string;
+
+      if (dogId === 'all') {
+        const response = await fetch(getOrganizationFormTemplateUrl('ukc-nosework-entry-form'));
+        if (!response.ok) {
+          throw new Error('Unable to load UKC Nosework entry form template.');
+        }
+        bytes = await buildUKCNoseworkEntryFormPacketPdfBytes({
+          dogs: entryFormData.dogs,
+          templateBytes: new Uint8Array(await response.arrayBuffer()),
+        });
+        filename = buildUKCNoseworkEntryFormPacketFilename(showName ?? currentShowName);
+      } else {
+        const { buildOfficialPdfBytesFromValues } =
+          await import('@/features/organization-forms/officialPdfDownload');
+        bytes = await buildOfficialPdfBytesFromValues(
+          'ukc-nosework-entry-form',
+          officialUKCEntryPdfValues!
+        );
+        filename = buildUKCNoseworkEntryFormFilename(officialUKCEntryPdfDog!);
+      }
+
+      downloadPdfBytes(bytes, filename);
+      toast.success('Official PDF downloaded');
+    } catch (error) {
+      console.error('[reports] official UKC entry PDF download failed', error);
+      toast.error('Could not download the official PDF');
+    } finally {
+      setIsDownloadingOfficialPdf(false);
+    }
+  }, [
+    currentShowName,
+    dogId,
+    entryFormData.dogs,
+    officialUKCEntryPdfDog,
+    officialUKCEntryPdfValues,
+    showName,
+  ]);
+
+  const handleOfficialUKCChangeEntryPdfDownload = useCallback(async () => {
+    if (trialId === 'all' || classId === 'all' || dogId === 'all') {
+      toast.error('Select a trial, class, and dog before downloading the change entry PDF');
+      return;
+    }
+    if (
+      !officialUKCChangeEntryPdfDog ||
+      !officialUKCChangeEntryPdfEntry ||
+      !officialUKCChangeEntryPdfValues
+    ) {
+      toast.error('The selected dog is not entered in that class yet.');
+      return;
+    }
+
+    setIsDownloadingOfficialPdf(true);
+    try {
+      const { buildOfficialPdfBytesFromValues } =
+        await import('@/features/organization-forms/officialPdfDownload');
+      const bytes = await buildOfficialPdfBytesFromValues(
+        'ukc-nosework-change-entry-form',
+        officialUKCChangeEntryPdfValues
+      );
+      downloadPdfBytes(
+        bytes,
+        buildUKCNoseworkChangeEntryFormFilename({
+          dog: officialUKCChangeEntryPdfDog,
+          entry: officialUKCChangeEntryPdfEntry,
+        })
+      );
+      toast.success('Official PDF downloaded');
+    } catch (error) {
+      console.error('[reports] official UKC change entry PDF download failed', error);
+      toast.error('Could not download the official PDF');
+    } finally {
+      setIsDownloadingOfficialPdf(false);
+    }
+  }, [
+    classId,
+    dogId,
+    officialUKCChangeEntryPdfDog,
+    officialUKCChangeEntryPdfEntry,
+    officialUKCChangeEntryPdfValues,
+    trialId,
+  ]);
+
   const selectedTrialAllowsAKCAction = trialId === 'all' || isAKCRegistry(officialPdfProps);
   const selectedClassAllowsAKCAction = classId === 'all' || isAKCRegistry(officialClassPdfProps);
-  const officialPdfConfigIsAKC = officialPdfConfig?.templateId.startsWith('akc-') ?? false;
+  const selectedTrialAllowsUKCAction = trialId === 'all' || isUKCRegistry(officialPdfProps);
+  const selectedClassAllowsUKCAction = classId === 'all' || isUKCRegistry(officialClassPdfProps);
+  const officialPdfConfigRegistry = officialPdfConfig
+    ? getOrganizationFormTemplate(officialPdfConfig.templateId).registry
+    : null;
+  const selectedTrialAllowsOfficialPdfConfig =
+    trialId === 'all' || officialPdfConfigRegistry == null
+      ? true
+      : officialPdfConfigRegistry === officialPdfProps?.trial?.registryId?.trim().toUpperCase();
   const canShowScoreSheetAction =
     isAKCScoreSheetReport && selectedTrialAllowsAKCAction && selectedClassAllowsAKCAction;
   const canShowTransferFormAction =
     isAKCTransferFormReport && selectedTrialAllowsAKCAction && selectedClassAllowsAKCAction;
+  const canShowUKCEntryFormAction = isUKCEntryFormReport && selectedTrialAllowsUKCAction;
+  const canShowUKCChangeEntryFormAction =
+    isUKCChangeEntryFormReport && selectedTrialAllowsUKCAction && selectedClassAllowsUKCAction;
 
-  if (officialPdfConfig && (!officialPdfConfigIsAKC || selectedTrialAllowsAKCAction)) {
+  if (officialPdfConfig && selectedTrialAllowsOfficialPdfConfig) {
     return {
       disabled: isLoading || isError || !hasShow || trialId === 'all',
       isLoading: isDownloadingOfficialPdf,
       label: trialId === 'all' ? 'Select trial for official PDF' : officialPdfConfig.actionLabel,
       missingFieldLabels: officialPdfMissingFieldLabels,
       onClick: handleOfficialPdfDownload,
+    };
+  }
+
+  if (canShowUKCEntryFormAction) {
+    return {
+      disabled:
+        isLoading ||
+        isError ||
+        entryFormData.isLoading ||
+        entryFormData.isError ||
+        (dogId === 'all' ? entryFormData.dogs.length === 0 : !officialUKCEntryPdfValues),
+      isLoading: isDownloadingOfficialPdf,
+      label: dogId === 'all' ? 'Download UKC Entry Form Packet' : 'Download UKC Entry Form PDF',
+      missingFieldLabels: officialUKCEntryPdfMissingFieldLabels,
+      onClick: handleOfficialUKCEntryPdfDownload,
+    };
+  }
+
+  if (canShowUKCChangeEntryFormAction) {
+    return {
+      disabled:
+        isLoading ||
+        isError ||
+        entryFormData.isLoading ||
+        entryFormData.isError ||
+        trialId === 'all' ||
+        classId === 'all' ||
+        dogId === 'all' ||
+        !officialUKCChangeEntryPdfValues,
+      isLoading: isDownloadingOfficialPdf,
+      label:
+        trialId === 'all' || classId === 'all' || dogId === 'all'
+          ? 'Select dog and class for official PDF'
+          : 'Download UKC Change Entry PDF',
+      missingFieldLabels: officialUKCChangeEntryPdfMissingFieldLabels,
+      onClick: handleOfficialUKCChangeEntryPdfDownload,
     };
   }
 

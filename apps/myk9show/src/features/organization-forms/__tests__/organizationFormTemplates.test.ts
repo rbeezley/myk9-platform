@@ -71,6 +71,31 @@ describe('organization form templates', () => {
     });
   });
 
+  it('returns the UKC Nosework packet mappings by id', () => {
+    expect(getOrganizationFormTemplate('ukc-nosework-entry-form')).toMatchObject({
+      label: 'UKC Nosework Entry Form',
+      sourcePath: 'docs/UKC-forms/NW-Entry.pdf',
+    });
+    expect(getOrganizationFormTemplate('ukc-nosework-change-entry-form')).toMatchObject({
+      label: 'UKC Nosework Change Entry Form',
+      sourcePath: 'docs/UKC-forms/NW-ChangeEntry.pdf',
+    });
+    expect(getOrganizationFormTemplate('ukc-nosework-judges-book-element')).toMatchObject({
+      label: 'UKC Nosework Judges Book: Element Trial',
+      sourcePath: 'docs/UKC-forms/NW-JudgesBook-Element.pdf',
+    });
+    expect(
+      getOrganizationFormTemplate('ukc-nosework-judges-book-handler-discrimination')
+    ).toMatchObject({
+      label: 'UKC Nosework Judges Book: Handler Discrimination',
+      sourcePath: 'docs/UKC-forms/NW-JudgesBook-HandlerDiscrimination.pdf',
+    });
+    expect(getOrganizationFormTemplate('ukc-nosework-trial-score-sheet')).toMatchObject({
+      label: 'UKC Nosework Trial Score Sheet',
+      sourcePath: 'docs/UKC-forms/NW-TrialScoreSheet.pdf',
+    });
+  });
+
   it('resolves the AKC trial secretary report runtime URL from the registry id', () => {
     expect(getOrganizationFormTemplateUrl('akc-scent-work-trial-secretary-report')).toContain(
       'SW-TSReport.pdf'
@@ -98,6 +123,22 @@ describe('organization form templates', () => {
   it('resolves the AKC Scent Work transfer form runtime URL from the registry id', () => {
     expect(getOrganizationFormTemplateUrl('akc-scent-work-transfer-form')).toContain(
       'SW-Transfer.pdf'
+    );
+  });
+
+  it('resolves the UKC Nosework packet runtime URLs from the registry ids', () => {
+    expect(getOrganizationFormTemplateUrl('ukc-nosework-entry-form')).toContain('NW-Entry.pdf');
+    expect(getOrganizationFormTemplateUrl('ukc-nosework-change-entry-form')).toContain(
+      'NW-ChangeEntry.pdf'
+    );
+    expect(getOrganizationFormTemplateUrl('ukc-nosework-judges-book-element')).toContain(
+      'NW-JudgesBook-Element.pdf'
+    );
+    expect(
+      getOrganizationFormTemplateUrl('ukc-nosework-judges-book-handler-discrimination')
+    ).toContain('NW-JudgesBook-HandlerDiscrimination.pdf');
+    expect(getOrganizationFormTemplateUrl('ukc-nosework-trial-score-sheet')).toContain(
+      'NW-TrialScoreSheet.pdf'
     );
   });
 });

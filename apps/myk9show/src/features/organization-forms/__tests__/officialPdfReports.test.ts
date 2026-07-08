@@ -66,6 +66,19 @@ describe('getOfficialPdfReportConfig', () => {
     );
   });
 
+  it('maps UKC static packet report ids to their official PDFs', () => {
+    expect(
+      getOfficialPdfReportConfig('ukc-nosework-judges-book-element', reportProps)?.templateId
+    ).toBe('ukc-nosework-judges-book-element');
+    expect(
+      getOfficialPdfReportConfig('ukc-nosework-judges-book-handler-discrimination', reportProps)
+        ?.templateId
+    ).toBe('ukc-nosework-judges-book-handler-discrimination');
+    expect(
+      getOfficialPdfReportConfig('ukc-nosework-trial-score-sheet', reportProps)?.templateId
+    ).toBe('ukc-nosework-trial-score-sheet');
+  });
+
   it('returns null for reports without official PDFs', () => {
     expect(getOfficialPdfReportConfig('check-in-sheet', reportProps)).toBeNull();
   });

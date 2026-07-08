@@ -34,6 +34,7 @@ export interface UseEntryFormDataOptions {
   showId: string;
   trialId?: string | undefined;
   dogId?: string | undefined;
+  preferredRegistrationOrganization?: string | undefined;
   enabled?: boolean | undefined;
 }
 
@@ -53,7 +54,8 @@ export interface UseEntryFormDataResult {
 async function fetchEntryFormData(
   showId: string,
   trialId?: string,
-  dogId?: string
+  dogId?: string,
+  preferredRegistrationOrganization = 'AKC'
 ): Promise<{
   dogs: EntryFormDog[];
   secretary: EntryFormSecretary | null;
@@ -192,13 +194,19 @@ async function fetchEntryFormData(
   const regMap = new Map<string, EntryFormRegistration>();
   for (const r of regsRaw ?? []) {
     const existing = regMap.get(r.dog_id);
-    if (!existing || r.organization === 'AKC') {
-      regMap.set(r.dog_id, {
-        registeredName: r.registered_name,
-        registrationNumber: r.registration_number,
-        organization: r.organization,
-        variety: r.variety,
-      });
+    const candidate = {
+      registeredName: r.registered_name,
+      registrationNumber: r.registration_number,
+      organization: r.organization,
+      variety: r.variety,
+    };
+    const selected = chooseEntryFormRegistration(
+      existing,
+      candidate,
+      preferredRegistrationOrganization
+    );
+    if (selected !== existing) {
+      regMap.set(r.dog_id, selected);
     }
   }
 
@@ -208,8 +216,9 @@ async function fetchEntryFormData(
   const { data: officialsData } = await supabase.rpc('get_show_officials', {
     p_show_id: showId,
   });
-  const secretaryRow = ((officialsData as Array<{ user_id: string; role: string }> | null) || [])
-    .find(o => o.role === 'secretary');
+  const secretaryRow = (
+    (officialsData as Array<{ user_id: string; role: string }> | null) || []
+  ).find(o => o.role === 'secretary');
   const secretaryRole = secretaryRow ? { user_id: secretaryRow.user_id } : null;
 
   let secretary: EntryFormSecretary | null = null;
@@ -294,15 +303,42 @@ async function fetchEntryFormData(
   return { dogs, secretary, trials, classes, show };
 }
 
+export function chooseEntryFormRegistration(
+  existing: EntryFormRegistration | undefined,
+  candidate: EntryFormRegistration,
+  preferredOrganization = 'AKC'
+): EntryFormRegistration {
+  if (!existing) return candidate;
+
+  const preferred = preferredOrganization.trim().toUpperCase();
+  const existingOrg = existing.organization.trim().toUpperCase();
+  const candidateOrg = candidate.organization.trim().toUpperCase();
+
+  if (candidateOrg === preferred && existingOrg !== preferred) return candidate;
+  if (candidateOrg !== preferred && existingOrg === preferred) return existing;
+
+  // Preserve the previous AKC-first behavior as a stable fallback.
+  if (candidateOrg === 'AKC' && existingOrg !== 'AKC') return candidate;
+  return existing;
+}
+
 export function useEntryFormData({
   enabled = true,
   showId,
   trialId,
   dogId,
+  preferredRegistrationOrganization,
 }: UseEntryFormDataOptions): UseEntryFormDataResult {
   const query = useQuery({
-    queryKey: ['entry-form-data', showId, trialId ?? 'all', dogId ?? 'all'],
-    queryFn: () => fetchEntryFormData(showId, trialId, dogId),
+    queryKey: [
+      'entry-form-data',
+      showId,
+      trialId ?? 'all',
+      dogId ?? 'all',
+      preferredRegistrationOrganization ?? 'AKC',
+    ],
+    queryFn: () =>
+      fetchEntryFormData(showId, trialId, dogId, preferredRegistrationOrganization ?? 'AKC'),
     enabled: enabled && !!showId,
     ...cacheStrategies.moderate,
   });

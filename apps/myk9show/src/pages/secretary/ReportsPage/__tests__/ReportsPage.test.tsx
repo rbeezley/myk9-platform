@@ -262,6 +262,55 @@ describe('ReportsPage', () => {
     ).toBeNull();
   });
 
+  it('offers the official UKC entry form PDF when a UKC trial and dog are selected', async () => {
+    mockReportState.trialOneRegistryId = 'UKC';
+
+    render(<ReportsPage />, {
+      initialRoute:
+        '/shows/show-1/reports?report=ukc-nosework-entry-form&trialId=trial-1&dogId=dog-1',
+    });
+
+    expect(
+      await screen.findByRole('button', { name: /Download UKC Entry Form PDF/i })
+    ).toBeEnabled();
+  });
+
+  it('offers the official UKC change entry PDF when a UKC trial, class, and dog are selected', async () => {
+    mockReportState.trialOneRegistryId = 'UKC';
+
+    render(<ReportsPage />, {
+      initialRoute:
+        '/shows/show-1/reports?report=ukc-nosework-change-entry-form&trialId=trial-1&classId=class-1&dogId=dog-1',
+    });
+
+    expect(
+      await screen.findByRole('button', { name: /Download UKC Change Entry PDF/i })
+    ).toBeEnabled();
+  });
+
+  it('offers static UKC packet PDFs only for UKC trials', async () => {
+    mockReportState.trialOneRegistryId = 'UKC';
+
+    const { unmount } = render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=ukc-nosework-judges-book-element&trialId=trial-1',
+    });
+
+    expect(
+      await screen.findByRole('button', { name: /Download UKC Element Judges Book PDF/i })
+    ).toBeEnabled();
+
+    unmount();
+    mockReportState.trialOneRegistryId = 'AKC';
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=ukc-nosework-judges-book-element&trialId=trial-1',
+    });
+
+    await screen.findByRole('button', { name: /print/i });
+    expect(
+      screen.queryByRole('button', { name: /Download UKC Element Judges Book PDF/i })
+    ).toBeNull();
+  });
+
   it('offers the official AKC certification page PDF when a trial is selected', async () => {
     render(<ReportsPage />, {
       initialRoute: '/shows/show-1/reports?report=judges-certification&trialId=trial-1',

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  fetchLifecycleEmailJobsForReview,
   fetchEntryDecisionEmailStatuses,
   fetchShowLifecycleEmailSummary,
   saveLifecycleEmailJobForLater,
@@ -209,5 +210,102 @@ describe('lifecycle email api helpers', () => {
         }),
       },
     ]);
+  });
+
+  it('loads failed jobs for retry in the batch review list', async () => {
+    const { client } = createClient({
+      show_lifecycle_email_jobs: [
+        {
+          id: 'job-ready',
+          show_id: 'show-1',
+          step_type: 'two_week_reminder',
+          status: 'ready',
+          recipient_email: 'ready@example.com',
+          recipient_name: 'Ready',
+          subject: 'Ready subject',
+          body: 'Ready body',
+          secretary_note: null,
+          preview_warnings: [],
+        },
+        {
+          id: 'job-failed',
+          show_id: 'show-1',
+          step_type: 'two_week_reminder',
+          status: 'failed',
+          recipient_email: 'failed@example.com',
+          recipient_name: 'Failed',
+          subject: 'Failed subject',
+          body: 'Failed body',
+          secretary_note: null,
+          preview_warnings: ['Previous send failed.'],
+        },
+        {
+          id: 'job-sent',
+          show_id: 'show-1',
+          step_type: 'two_week_reminder',
+          status: 'sent',
+          recipient_email: 'sent@example.com',
+          recipient_name: 'Sent',
+          subject: 'Sent subject',
+          body: 'Sent body',
+          secretary_note: null,
+          preview_warnings: [],
+        },
+      ],
+    });
+
+    const jobs = await fetchLifecycleEmailJobsForReview({
+      supabase: client,
+      showId: 'show-1',
+      stepType: 'two_week_reminder',
+    });
+
+    expect(jobs.map(job => job.id)).toEqual(['job-ready', 'job-failed']);
+    expect(jobs[1]).toMatchObject({
+      status: 'failed',
+      previewWarnings: ['Previous send failed.'],
+    });
+  });
+
+  it('returns null when saving a ready lifecycle email returns no job id', async () => {
+    const client: LifecycleEmailFunctionsClient = {
+      functions: {
+        invoke: async () => ({ data: { jobId: null }, error: null }),
+      },
+    };
+
+    await expect(
+      saveLifecycleEmailJobForLater({
+        supabase: client,
+        showId: 'show-1',
+        stepType: 'accepted',
+        recipientScope: 'enrollment',
+        subject: 'Subject',
+        body: 'Body',
+        secretaryNote: '',
+        idempotencyKey: 'idem-empty',
+      })
+    ).resolves.toBeNull();
+  });
+
+  it('throws when saving a ready lifecycle email fails', async () => {
+    const client: LifecycleEmailFunctionsClient = {
+      functions: {
+        invoke: async () => ({ data: null, error: { message: 'duplicate key' } }),
+      },
+    };
+
+    await expect(
+      saveLifecycleEmailJobForLater({
+        supabase: client,
+        showId: 'show-1',
+        stepType: 'accepted',
+        recipientScope: 'enrollment',
+        subject: 'Subject',
+        body: 'Body',
+        secretaryNote: '',
+        idempotencyKey: 'idem-duplicate',
+      })
+    ).rejects.toThrow('duplicate key');
   });
 });

@@ -32,6 +32,9 @@ function makeQuery(
     single: vi.fn(async () => {
       if (table === 'email_log' && inserted) return { data: { id: 'email-log-1' }, error: null };
       if (table === 'show_lifecycle_email_jobs' && inserted) {
+        if ((inserted as Row).idempotency_key === 'duplicate') {
+          return { data: null, error: { message: 'duplicate key value', code: '23505' } };
+        }
         return { data: { id: 'inserted-job-1' }, error: null };
       }
       return { data: resultRows[0] ?? null, error: null };
@@ -285,6 +288,36 @@ describe('send-lifecycle-email handler', () => {
         }),
       })
     );
+  });
+
+  it('fails save_ready when the ready job insert is rejected', async () => {
+    const { supabase } = makeSupabase(baseTables());
+    const fetch = vi.fn();
+    const handler = createSendLifecycleEmailHandler({
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      resendApiKey: 'resend-key',
+    });
+
+    await expect(
+      handler({
+        body: {
+          action: 'save_ready',
+          show_id: 'show-1',
+          step_type: 'accepted',
+          recipient_scope: 'enrollment',
+          enrollment_id: 'reg-1',
+          recipient_email: 'jamie@example.com',
+          recipient_name: 'Jamie',
+          subject: 'Entry accepted',
+          body: 'You are accepted.',
+          secretary_note: '',
+          idempotency_key: 'duplicate',
+        },
+        user: { id: 'secretary-1' },
+        supabase,
+      })
+    ).rejects.toThrow('Lifecycle email is already saved for review');
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('records partial failure outcomes without blocking successful recipients', async () => {

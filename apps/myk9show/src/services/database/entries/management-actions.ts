@@ -28,8 +28,7 @@ export interface RemoveEntryAdapters {
   deleteEntry: (entryId: string, userId?: string) => Promise<{ error: unknown }>;
   patchEntries: (
     updaterOrSnapshot:
-      | ((prev: EntryManagementEntry[]) => EntryManagementEntry[])
-      | EntryManagementEntry[]
+      ((prev: EntryManagementEntry[]) => EntryManagementEntry[]) | EntryManagementEntry[]
   ) => void;
   setError: (err: string | null) => void;
 }
@@ -54,7 +53,7 @@ export interface StatusChangeParams {
 export async function executeStatusChange(
   params: StatusChangeParams,
   adapters: StatusChangeAdapters
-): Promise<void> {
+): Promise<boolean> {
   const { entryId, newStatus, withdrawalReason, entry, userId } = params;
   const { changeSecretaryStatus, patchEntries } = adapters;
   const oldStatus = entry.entryStatus;
@@ -92,6 +91,7 @@ export async function executeStatusChange(
         )
       );
     }
+    return true;
   } catch (error) {
     logger.error('Failed to update entry status:', 'pages', {}, error as Error);
     patchEntries(prev =>
@@ -107,6 +107,7 @@ export async function executeStatusChange(
           : e
       )
     );
+    return false;
   }
 }
 

@@ -144,16 +144,17 @@ async function saveReadyJob(args: {
   if (!args.payload.recipient_scope) throw new HttpError(400, 'recipient_scope is required');
   if (!args.payload.idempotency_key) throw new HttpError(400, 'idempotency_key is required');
 
-  const { data: step } = (await args.supabase
+  const { data: step, error: stepError } = (await args.supabase
     .from('show_lifecycle_email_steps')
     .select('id')
     .eq('show_id', args.payload.show_id)
     .eq('step_type', args.payload.step_type)
     .single()) as QueryResult<{ id: string }>;
 
+  if (stepError) throw new HttpError(500, 'Failed to load lifecycle email step');
   if (!step) throw new HttpError(404, 'Lifecycle email step not found');
 
-  const { data: job } = (await args.supabase
+  const { data: job, error: jobError } = (await args.supabase
     .from('show_lifecycle_email_jobs')
     .insert({
       show_id: args.payload.show_id,
@@ -177,7 +178,33 @@ async function saveReadyJob(args: {
     .select('id')
     .single()) as QueryResult<{ id: string }>;
 
+  if (jobError) {
+    const message = getErrorMessage(jobError) ?? 'Failed to save lifecycle email';
+    if (isUniqueViolation(jobError)) {
+      throw new HttpError(409, 'Lifecycle email is already saved for review', '23505');
+    }
+    throw new HttpError(500, message);
+  }
+  if (!job?.id) throw new HttpError(500, 'Failed to save lifecycle email');
+
   return { jobId: job?.id };
+}
+
+function getErrorMessage(error: unknown): string | null {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    return typeof message === 'string' ? message : null;
+  }
+  return null;
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    !!error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    (error as { code?: unknown }).code === '23505'
+  );
 }
 
 function callerRoleAuthorizesLifecycleShow(role: RoleRow, show: ShowRow): boolean {

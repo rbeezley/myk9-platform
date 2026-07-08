@@ -61,7 +61,7 @@ interface UseEntryManagementActionsReturn {
     entryId: string,
     newStatus: EntryStatus,
     withdrawalReason?: string
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   handleAssignArmband: () => Promise<void>;
   handleNextArmband: () => Promise<void>;
   handleAutoAssignArmbands: () => Promise<void>;
@@ -70,10 +70,7 @@ interface UseEntryManagementActionsReturn {
     cls: EntryClass,
     status: CheckInStatus
   ) => Promise<void>;
-  handleEnrollmentBulkStatusChange: (
-    entryIds: string[],
-    status: EntryStatus
-  ) => Promise<boolean>;
+  handleEnrollmentBulkStatusChange: (entryIds: string[], status: EntryStatus) => Promise<boolean>;
   handleEnrollmentBulkCheckIn: (entryIds: string[]) => Promise<boolean>;
   handleEnrollmentPaymentChange: (
     enrollmentId: string,
@@ -146,8 +143,8 @@ export function useEntryManagementActions({
   const handleStatusChange = useCallback(
     async (entryId: string, newStatus: EntryStatus, withdrawalReason?: string) => {
       const entry = entries.find(e => e.id === entryId);
-      if (!entry) return;
-      await executeStatusChange(
+      if (!entry) return false;
+      return executeStatusChange(
         { entryId, newStatus, withdrawalReason, entry, userId: user?.id },
         { changeSecretaryStatus: changeSecretaryEntryStatus, patchEntries: setEntries }
       );

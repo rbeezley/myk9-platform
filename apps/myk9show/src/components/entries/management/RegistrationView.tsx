@@ -76,7 +76,10 @@ interface RegistrationViewProps {
     paidAmount?: number | null
   ) => void;
   /** Status change handler */
-  onStatusChange: (entryId: string, status: EntryStatus) => void | Promise<void>;
+  onStatusChange: (
+    entryId: string,
+    status: EntryStatus
+  ) => boolean | void | Promise<boolean | void>;
   /** Check-in inline handler */
   onCheckInStatusChange: (
     entry: EntryManagementEntry,
@@ -219,9 +222,10 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
 
   const handleStatusChangeWithDecisionPrompt = async (entryId: string, status: EntryStatus) => {
     const entry = entries.find(candidate => candidate.id === entryId);
-    await onStatusChange(entryId, status);
+    const statusSaved = await onStatusChange(entryId, status);
 
     if (!entry || !onSendDecisionEmail) return;
+    if (statusSaved === false) return;
     if (status !== EntryStatus.ACCEPTED && status !== EntryStatus.WAITLIST) return;
     if (!entry.registrationId) return;
 

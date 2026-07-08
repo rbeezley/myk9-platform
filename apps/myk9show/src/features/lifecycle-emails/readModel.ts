@@ -136,9 +136,10 @@ function buildReceiptSummary(
       failedCount += 1;
     } else {
       sentCount += 1;
-    }
-    if (!latestSentAtByRegistrationId[log.relatedId]) {
-      latestSentAtByRegistrationId[log.relatedId] = log.createdAt;
+      const latestSentAt = latestSentAtByRegistrationId[log.relatedId];
+      if (!latestSentAt || Date.parse(log.createdAt) > Date.parse(latestSentAt)) {
+        latestSentAtByRegistrationId[log.relatedId] = log.createdAt;
+      }
     }
   }
 

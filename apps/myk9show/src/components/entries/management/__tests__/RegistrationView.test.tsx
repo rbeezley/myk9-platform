@@ -1,4 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { waitFor } from '@testing-library/react';
 import { render, screen } from '@/test/utils/testUtils';
 import { RegistrationView } from '../RegistrationView';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
@@ -99,7 +100,10 @@ function renderView(
     filteredEntries: EntryManagementEntry[];
     showId: string;
     showName: string;
-    onStatusChange: (entryId: string, status: EntryStatus) => void | Promise<void>;
+    onStatusChange: (
+      entryId: string,
+      status: EntryStatus
+    ) => boolean | void | Promise<boolean | void>;
   }> = {}
 ) {
   const props = {
@@ -224,6 +228,26 @@ describe('RegistrationView filter content routing', () => {
     expect(
       screen.getByDisplayValue(/Your entry for Willow has been accepted/i)
     ).toBeInTheDocument();
+  });
+
+  it('does not open decision email review when the entry decision fails to save', async () => {
+    const onStatusChange = vi.fn().mockResolvedValue(false);
+    const { user } = renderView('all', 'cards', {
+      entries: [reviewedEntry],
+      filteredEntries: [reviewedEntry],
+      enrollmentGroups: [
+        { groupKey: 'g1', enrollmentId: 'reg-1', entries: [reviewedEntry] },
+      ] as unknown as EnrollmentGroup[],
+      showName: 'Heartland Trial',
+      onStatusChange,
+    });
+
+    await user.click(screen.getByRole('button', { name: /accept mocked entry/i }));
+
+    expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.ACCEPTED);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 
   it('opens waitlist email review after the waitlist action resolves', async () => {

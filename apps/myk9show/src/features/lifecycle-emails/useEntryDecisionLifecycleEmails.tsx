@@ -173,7 +173,8 @@ export function useEntryDecisionLifecycleEmails({
           return;
         }
         void saveReadyJob(prompt, values)
-          .then(() => {
+          .then(jobId => {
+            if (!jobId) throw new Error('Lifecycle email job was not created');
             toast.info(
               prompt.correctionForJobId
                 ? 'Correction ready for later review'

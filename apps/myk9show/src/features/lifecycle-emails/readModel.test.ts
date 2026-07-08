@@ -91,4 +91,31 @@ describe('lifecycle email read model', () => {
       'reg-online': '2026-07-08T12:00:00Z',
     });
   });
+
+  it('keeps the latest receipt timestamp when email logs are unsorted', () => {
+    const summary = buildLifecycleEmailScheduledSummary({
+      receiptSources: [{ registrationId: 'reg-online', paymentMethod: 'online' }],
+      receiptLogs: [
+        {
+          relatedId: 'reg-online',
+          status: 'sent',
+          createdAt: '2026-07-08T12:00:00Z',
+        },
+        {
+          relatedId: 'reg-online',
+          status: 'sent',
+          createdAt: '2026-07-08T12:10:00Z',
+        },
+        {
+          relatedId: 'reg-online',
+          status: 'sent',
+          createdAt: '2026-07-08T12:05:00Z',
+        },
+      ],
+    });
+
+    expect(summary.receipts.latestSentAtByRegistrationId).toEqual({
+      'reg-online': '2026-07-08T12:10:00Z',
+    });
+  });
 });

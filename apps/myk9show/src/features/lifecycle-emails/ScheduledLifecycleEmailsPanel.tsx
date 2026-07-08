@@ -171,7 +171,8 @@ function LifecycleBatchReviewDialog({
   const [secretaryNote, setSecretaryNote] = useState<string | null>(null);
   const jobsQuery = useQuery({
     queryKey: ['show-lifecycle-email-review', showId, stepType],
-    queryFn: () => fetchLifecycleEmailJobsForReview({ supabase: lifecycleClient, showId, stepType }),
+    queryFn: () =>
+      fetchLifecycleEmailJobsForReview({ supabase: lifecycleClient, showId, stepType }),
   });
   const sendMutation = useMutation({
     mutationFn: (jobs: LifecycleEmailJobReview[]) =>
@@ -189,7 +190,9 @@ function LifecycleBatchReviewDialog({
   const selectedSubject = subject ?? jobs[0]?.subject ?? '';
   const selectedBody = body ?? jobs[0]?.body ?? '';
   const selectedNote = secretaryNote ?? jobs[0]?.secretaryNote ?? '';
-  const sendableJobs = jobs.filter(job => job.recipientEmail);
+  const readyJobs = jobs.filter(job => job.status === 'ready');
+  const failedJobs = jobs.filter(job => job.status === 'failed');
+  const sendableJobs = [...readyJobs, ...failedJobs].filter(job => job.recipientEmail);
   const previewJob = sendableJobs[0] ?? jobs[0] ?? null;
 
   return (
@@ -202,6 +205,12 @@ function LifecycleBatchReviewDialog({
         {jobsQuery.isError ? (
           <p className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             Recipient previews are not available right now.
+          </p>
+        ) : null}
+        {failedJobs.length > 0 ? (
+          <p className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {failedJobs.length} failed {failedJobs.length === 1 ? 'recipient is' : 'recipients are'}{' '}
+            ready to retry.
           </p>
         ) : null}
 
@@ -286,7 +295,9 @@ function LifecycleBatchRecipientRow({ job }: { job: LifecycleEmailJobReview }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-medium">{job.recipientName || 'Exhibitor'}</p>
-          <p className="truncate text-muted-foreground">{job.recipientEmail || 'No email on file'}</p>
+          <p className="truncate text-muted-foreground">
+            {job.recipientEmail || 'No email on file'}
+          </p>
         </div>
         {!job.recipientEmail ? (
           <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">Skipped</span>

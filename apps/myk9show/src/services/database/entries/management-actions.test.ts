@@ -37,11 +37,12 @@ describe('executeStatusChange', () => {
     const changeSecretaryStatus = vi.fn().mockResolvedValue({ armbandPatch: undefined });
     const entry = makeEntry();
 
-    await executeStatusChange(
+    const result = await executeStatusChange(
       { entryId: 'entry-1', newStatus: EntryStatus.ACCEPTED, entry, userId: 'sec-1' },
       { changeSecretaryStatus, patchEntries }
     );
 
+    expect(result).toBe(true);
     // First patchEntries call = optimistic update
     const optimisticUpdater = patchEntries.mock.calls[0]?.[0];
     expect(typeof optimisticUpdater).toBe('function');
@@ -54,11 +55,12 @@ describe('executeStatusChange', () => {
     const changeSecretaryStatus = vi.fn().mockRejectedValue(new Error('network'));
     const entry = makeEntry({ entryStatus: EntryStatus.PENDING });
 
-    await executeStatusChange(
+    const result = await executeStatusChange(
       { entryId: 'entry-1', newStatus: EntryStatus.ACCEPTED, entry, userId: 'sec-1' },
       { changeSecretaryStatus, patchEntries }
     );
 
+    expect(result).toBe(false);
     // Two patchEntries calls: optimistic + rollback
     expect(patchEntries).toHaveBeenCalledTimes(2);
     const rollbackUpdater = patchEntries.mock.calls[1]?.[0];

@@ -186,7 +186,7 @@ export async function fetchLifecycleEmailJobsForReview(args: {
     )
     .eq('show_id', args.showId)
     .eq('step_type', args.stepType)
-    .eq('status', 'ready')) as QueryResult<JobReviewRow[]>;
+    .in('status', ['ready', 'failed'])) as QueryResult<JobReviewRow[]>;
 
   if (result.error) {
     throw new Error(result.error.message ?? 'Failed to load lifecycle email recipients');

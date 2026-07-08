@@ -99,8 +99,10 @@ The organizing body that hosts Shows. A Club has members, roles (secretary,
 treasurer, show chair), and a history of Shows.
 
 **Secretary**
-The Club member responsible for managing entries, armbands, run orders, and
-results for a Show. The primary user of the secretary dashboard.
+The show or trial official accountable for running a specific Show end to end:
+setup, entries, armbands, run orders, show-day changes, results, and closeout.
+Distinct from Club Admin and Treasurer, even when the same person fills more
+than one role.
 
 **Armband**
 The numbered identifier assigned to a Handler for a specific Show day. Used

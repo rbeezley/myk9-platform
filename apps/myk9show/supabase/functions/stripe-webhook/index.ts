@@ -312,18 +312,25 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
 const SHOW_REFUND_STAMP_RECHECK_DELAY_MS = 2000;
 
 /** Counts this intent's entries that showRefundPlan.ts's classify() would
- * consider stamp-eligible (online, paid, positive fee) and are still
- * unstamped. Mirrors that eligibility exactly so a sibling entry the refund
- * plan intentionally skips — zero-fee, offline-paid — never gets counted as
- * a missed stamp (Codex review). Returns null on a query error. */
+ * consider stamp-eligible (online, charged, positive fee) and still lack a
+ * refund_amount stamp. Eligibility mirrors classify() exactly so a sibling
+ * entry the refund plan intentionally skips — zero-fee, offline-paid, never
+ * charged — never gets counted as a missed stamp. The "still needs a stamp"
+ * signal itself checks refund_amount directly, not payment_status: the
+ * alert's own recovery text tells an operator to "stamp the entries
+ * manually," and a manual refund_amount fix that leaves payment_status at
+ * 'paid' must clear the alert on redelivery, not keep re-firing on it
+ * (Codex review). payment_status is only used to admit both the pre-stamp
+ * ('paid') and post-stamp ('refunded') states as "was actually charged". */
 async function countUnstampedShowRefundEntries(paymentIntentId: string): Promise<number | null> {
   const { data, error } = await supabase
     .from('entries')
     .select('id')
     .eq('stripe_payment_intent_id', paymentIntentId)
     .eq('payment_method', 'online')
-    .eq('payment_status', 'paid')
-    .gt('entry_fee', 0);
+    .in('payment_status', ['paid', 'refunded'])
+    .gt('entry_fee', 0)
+    .is('refund_amount', null);
 
   if (error) {
     console.error(`Error checking show-refund stamp state for intent ${paymentIntentId}:`, error);

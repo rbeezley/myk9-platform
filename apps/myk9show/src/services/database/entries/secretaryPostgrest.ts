@@ -29,7 +29,8 @@ const SECRETARY_ENTRIES_SELECT = `
         handler_person:handler_id (
           id,
           first_name,
-          last_name
+          last_name,
+          auth_user_id
         ),
         registration:registration_id (
           id,
@@ -54,7 +55,8 @@ const SECRETARY_ENTRIES_SELECT = `
             id,
             first_name,
             last_name,
-            email
+            email,
+            auth_user_id
           )
         ),
         class:class_id (

@@ -90,12 +90,14 @@ function mockMetadataLookups() {
           first_name: 'Avery',
           last_name: 'Owner',
           email: 'avery@example.com',
+          auth_user_id: 'owner-auth-1',
         },
         {
           id: 'handler-1',
           first_name: 'Harper',
           last_name: 'Handler',
           email: 'harper@example.com',
+          auth_user_id: 'handler-auth-1',
         },
       ]);
     }
@@ -350,6 +352,7 @@ describe('secretary entry read replication', () => {
           id: 'handler-1',
           first_name: 'Harper',
           last_name: 'Handler',
+          auth_user_id: 'handler-auth-1',
         },
         dog: {
           id: 'dog-1',
@@ -361,6 +364,7 @@ describe('secretary entry read replication', () => {
             first_name: 'Avery',
             last_name: 'Owner',
             email: 'avery@example.com',
+            auth_user_id: 'owner-auth-1',
           },
         },
         class: {
@@ -393,6 +397,7 @@ describe('secretary entry read replication', () => {
             first_name: null,
             last_name: null,
             email: null,
+            auth_user_id: null,
           },
         }),
       })

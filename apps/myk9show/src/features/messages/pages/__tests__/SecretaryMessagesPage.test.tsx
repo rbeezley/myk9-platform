@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SecretaryMessagesPage from '../SecretaryMessagesPage';
@@ -179,6 +179,18 @@ describe('SecretaryMessagesPage — filtered mode', () => {
     renderAtUrl('/secretary/messages?showId=show-1');
     expect(screen.getByText('Alice Handler')).toBeInTheDocument();
     expect(screen.queryByText('Bob Handler')).not.toBeInTheDocument();
+  });
+
+  it('selects a valid ?threadId= from the URL', async () => {
+    const fetchMessages = vi.fn().mockResolvedValue(undefined);
+    const markThreadRead = vi.fn();
+    mockStoreState = buildState({ fetchMessages, markThreadRead });
+
+    renderAtUrl('/secretary/messages?showId=show-1&threadId=thread-1');
+
+    await waitFor(() => {
+      expect(fetchMessages).toHaveBeenCalledWith('thread-1');
+    });
   });
 
   it('does not expose compose when a specific show is selected', () => {

@@ -107,6 +107,10 @@ describe('ShowDeskToolsSheet', () => {
     await user.click(screen.getByRole('button', { name: /open tools panel/i }));
 
     expect(screen.getByRole('dialog', { name: /show desk tools/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toHaveAttribute(
+      'data-layout',
+      'compact'
+    );
     expect(screen.getByRole('button', { name: /add entries/i })).toHaveAttribute(
       'aria-expanded',
       'true'
@@ -117,6 +121,30 @@ describe('ShowDeskToolsSheet', () => {
     );
     expect(screen.getByTestId('add-entries-tool')).toBeInTheDocument();
     expect(screen.queryByTestId('broadcast-tool')).not.toBeInTheDocument();
+  });
+
+  it('uses the wide drawer layout when any tool requests it', async () => {
+    const { user } = render(
+      <ShowDeskToolsSheet
+        showId="show-1"
+        tools={[
+          {
+            id: 'people-at-show',
+            title: 'People at show',
+            summary: 'Look up exhibitors',
+            layout: 'wide',
+            content: <div>People roster</div>,
+          },
+        ]}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /open tools panel/i }));
+
+    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toHaveAttribute(
+      'data-layout',
+      'wide'
+    );
   });
 
   it('closes the sheet when Escape is pressed', async () => {
@@ -138,7 +166,7 @@ describe('ShowDeskToolsSheet', () => {
     expect(badge).toHaveAttribute('aria-label', '3 items need attention');
   });
 
-  it("singularizes the actionable aria-label when count is 1", () => {
+  it('singularizes the actionable aria-label when count is 1', () => {
     renderSheet({ actionableCount: 1 });
 
     expect(screen.getByTestId('show-desk-tools-badge')).toHaveAttribute(
@@ -292,7 +320,9 @@ describe('ShowDeskToolsSheet', () => {
         p_show_id: '63165809-e025-25c6-6cf9-979f63165809',
       });
     });
-    expect(notifications.success).toHaveBeenCalledWith('New codes generated. Copy or print them now.');
+    expect(notifications.success).toHaveBeenCalledWith(
+      'New codes generated. Copy or print them now.'
+    );
     expect(await screen.findByText('e4444')).toBeInTheDocument();
   });
 });

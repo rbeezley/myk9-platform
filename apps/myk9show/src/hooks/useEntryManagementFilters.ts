@@ -79,6 +79,10 @@ interface UseEntryManagementFiltersReturn {
   tabCounts: TabCounts;
 }
 
+function getEntryClassId(entryClass: EntryManagementEntry['classes'][number]): string {
+  return entryClass.classId ?? entryClass.id;
+}
+
 /**
  * Custom hook for managing entry filtering and selection
  * Extracted from EntryManagementPage.tsx as part of DEBT-002 refactoring
@@ -90,7 +94,8 @@ export function useEntryManagementFilters({
   trialClassIds,
 }: UseEntryManagementFiltersProps): UseEntryManagementFiltersReturn {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [searchTerm, setSearchTerm] = useState('');
+  const urlSearchTerm = searchParams.get('person') ?? searchParams.get('search') ?? '';
+  const [searchTerm, setSearchTerm] = useState(urlSearchTerm);
   const [paymentFilter, setPaymentFilter] = useState('all');
   const normalized = useMemo(
     () => normalizeEntryManagementSearchParams(searchParams),
@@ -113,6 +118,10 @@ export function useEntryManagementFilters({
       setSearchParams(normalized.params, { replace: true });
     }
   }, [normalized, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    setSearchTerm(urlSearchTerm);
+  }, [urlSearchTerm]);
 
   const setAttentionFilter = useCallback(
     (filter: EntryAttentionFilter) => {
@@ -260,10 +269,10 @@ export function useEntryManagementFilters({
     // trial. With no class id set available, the trial filter can't narrow, so
     // it leaves the list untouched rather than emptying it.
     if (classFilter) {
-      filtered = filtered.filter(e => e.classes.some(c => c.id === classFilter));
+      filtered = filtered.filter(e => e.classes.some(c => getEntryClassId(c) === classFilter));
     } else if (trialFilter && trialClassIds && trialClassIds.length > 0) {
       const ids = new Set(trialClassIds);
-      filtered = filtered.filter(e => e.classes.some(c => ids.has(c.id)));
+      filtered = filtered.filter(e => e.classes.some(c => ids.has(getEntryClassId(c))));
     }
 
     // Apply tab filters
@@ -294,6 +303,7 @@ export function useEntryManagementFilters({
         entry =>
           entry.dogName.toLowerCase().includes(search) ||
           entry.ownerName.toLowerCase().includes(search) ||
+          entry.handlerName.toLowerCase().includes(search) ||
           entry.entryNumber.toLowerCase().includes(search) ||
           entry.armbandNumber?.toLowerCase().includes(search) ||
           entry.confirmationNumber?.toLowerCase().includes(search)
@@ -301,7 +311,15 @@ export function useEntryManagementFilters({
     }
 
     return filtered;
-  }, [entries, attentionFilter, searchTerm, paymentFilter, classFilter, trialFilter, trialClassIds]);
+  }, [
+    entries,
+    attentionFilter,
+    searchTerm,
+    paymentFilter,
+    classFilter,
+    trialFilter,
+    trialClassIds,
+  ]);
 
   // Selection handlers
   const handleSelectEntry = useCallback((entryId: string, checked: boolean) => {

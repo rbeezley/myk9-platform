@@ -27,6 +27,7 @@ interface SecretaryPerson {
   first_name: string | null;
   last_name: string | null;
   email: string | null;
+  auth_user_id: string | null;
 }
 
 interface SecretaryEnrollment {
@@ -109,7 +110,7 @@ async function loadSecretaryPeopleMap(
   try {
     const { data, error } = await supabase
       .from('people')
-      .select('id, first_name, last_name, email')
+      .select('id, first_name, last_name, email, auth_user_id')
       .in('id', uniqueIds);
 
     if (error || !data) return new Map();
@@ -222,6 +223,7 @@ function toSecretaryEntry(
           id: handler.id,
           first_name: handler.first_name,
           last_name: handler.last_name,
+          auth_user_id: handler.auth_user_id,
         }
       : null,
     dog: dog
@@ -236,6 +238,7 @@ function toSecretaryEntry(
                 first_name: owner?.first_name ?? null,
                 last_name: owner?.last_name ?? null,
                 email: owner?.email ?? null,
+                auth_user_id: owner?.auth_user_id ?? null,
               }
             : null,
         }

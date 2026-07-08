@@ -128,4 +128,21 @@ describe('AtShowAccessGate', () => {
     expect(screen.getByText("You don't have ringside access for this show.")).toBeInTheDocument();
     expect(screen.getByText(/Entered this show\?.*Working the show\?/i)).toBeInTheDocument();
   });
+
+  // Codex review round 3 (PR #1217): must not flash the deny copy while the
+  // entry-affiliation lookup is still in flight.
+  it('shows a loading state (not the deny copy) while the entry lookup is pending', () => {
+    mockUser = { id: 'user-1' };
+    mockRoles = [UserRole.EXHIBITOR];
+    mockHasAnyEntry.hasAnyEntryForShow = false;
+    mockHasAnyEntry.isLoading = true;
+
+    renderGate();
+
+    expect(screen.getByRole('status', { name: 'Checking ringside access…' })).toBeInTheDocument();
+    expect(
+      screen.queryByText("You don't have ringside access for this show.")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Ringside isn't open for this show yet.")).not.toBeInTheDocument();
+  });
 });

@@ -35,7 +35,7 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   // early" from "stranger with no relationship to this show" so the no-access
   // gate below can speak to the right audience instead of assuming a worker
   // with a passcode.
-  const { hasAnyEntryForShow } = useHasAnyEntryForShow(
+  const { hasAnyEntryForShow, isLoading: hasAnyEntryLoading } = useHasAnyEntryForShow(
     user && !grantRole && !hasAccountStaffRole && !accountToday.hasAccountEntryForShow
       ? showId
       : undefined
@@ -67,6 +67,19 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   if (!user) {
     const returnTo = `${location.pathname}${location.search}`;
     return <Navigate to={`/sign-in?returnTo=${encodeURIComponent(returnTo)}`} replace />;
+  }
+
+  // Wait for the entry-affiliation lookup before deciding which no-access copy
+  // to show — otherwise an entered exhibitor visiting early would flash the
+  // generic "you don't have access" / passcode path for a frame before
+  // switching to the intended early-entry guidance (the exact audience this
+  // gate is trying to distinguish).
+  if (hasAnyEntryLoading) {
+    return (
+      <FullScreen>
+        <LoadingEmptyState message="Checking ringside access…" />
+      </FullScreen>
+    );
   }
 
   // exhibitor-show-day-access: an entered exhibitor visiting before show day

@@ -5,7 +5,7 @@
  * Shows entry fees, platform fee, and total with expiration countdown.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CreditCard, AlertTriangle, ShoppingCart, ArrowRight, Loader2, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -52,22 +52,30 @@ export function CartSummary({
   // exhibitor-ux-remediation (cart-integrity): a cart drafted before entries
   // closed must never let checkout proceed — the audit found a week-old draft
   // with a live "Pay and confirm" button for a show whose entries had closed.
-  // No trial-timezone helper is wired to the cart join yet; comparing against
-  // end-of-day local on entry_close_date matches the existing isPastShowEntry
-  // convention elsewhere in the exhibitor surface. `Date.now()` is read once
-  // via lazy useState init (matching MyEntryCard's `currentTime` pattern) —
-  // reading it directly in the render body trips the React Compiler purity
-  // rule (impure function during render).
-  const [currentTime] = useState(() => Date.now());
+  // `entry_close_date` is a DATE-only column ("2026-06-30"); `new Date(str)`
+  // parses it as UTC midnight, so reading getFullYear/Month/Date in a timezone
+  // behind UTC yields the PRIOR day and disables checkout for the whole final
+  // entry day. Parse it by its own Y/M/D components as a local calendar date
+  // so the boundary is the start of the day AFTER the close date.
+  // A slow tick re-evaluates so a cart left open across midnight self-corrects
+  // rather than staying enabled until reload (Date.now() can't be read in the
+  // render body — the React Compiler purity rule flags it).
+  const [now, setNow] = useState(() => Date.now());
+  const entryCloseDate = cart?.show?.entry_close_date ?? null;
+  useEffect(() => {
+    if (!entryCloseDate) return;
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, [entryCloseDate]);
+
   const entriesClosed = (() => {
-    if (!cart?.show?.entry_close_date) return false;
-    const closeDate = new Date(cart.show.entry_close_date);
-    const endOfCloseDay = new Date(
-      closeDate.getFullYear(),
-      closeDate.getMonth(),
-      closeDate.getDate() + 1
-    );
-    return endOfCloseDay.getTime() <= currentTime;
+    if (!entryCloseDate) return false;
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(entryCloseDate);
+    if (!match) return false;
+    const [, year, month, day] = match;
+    // Start of the day AFTER the close date, in local time.
+    const endOfCloseDay = new Date(Number(year), Number(month) - 1, Number(day) + 1);
+    return endOfCloseDay.getTime() <= now;
   })();
 
   const itemCount = getItemCount();

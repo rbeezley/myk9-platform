@@ -99,7 +99,7 @@ bookkeeping, site-admin support, and post-fall self-service workflows.
 
 | Responsibility | Fall scope | Current myK9 coverage | Status | Evidence / verification needed |
 | --- | --- | --- | --- | --- |
-| Generate required AKC Scent Work reports, catalogs, judge reports, secretary reports, labels, and XML submission. | Required | `/shows/:showId/reports` and `/shows/:showId/submit-results` | Partially covered | Scorecard says reports render and AKC XML is previewable; print hardware and final submission verification still needed. |
+| Generate required AKC Scent Work reports, catalogs, judge reports, secretary reports, labels, and XML submission. | Required | `/shows/:showId/reports` and `/shows/:showId/submit-results` | Partially covered | Closeout PDFs and XML are partly wired; entry form, score sheet, and transfer form official PDF fill remain gaps. See [`secretary-akc-scent-work-official-forms-coverage.md`](secretary-akc-scent-work-official-forms-coverage.md). |
 | Generate required UKC Nose Work closeout materials. | Required | Reports infrastructure | Gap | Fall scope includes UKC, but this snapshot did not find equivalent UKC-specific verification evidence. Needs rulebook/form inventory and walkthrough. |
 | Generate required ASCA Scent Detection closeout materials. | Required | Reports infrastructure | Gap | Fall scope includes ASCA, but this snapshot did not find ASCA-specific verification evidence. Needs rulebook/form inventory and walkthrough. |
 | Print reports/forms on representative venue hardware. | Required | Browser/PDF print flows | Partially covered | Scorecard explicitly leaves venue printer, label printer, and margin/scaling verification open. |

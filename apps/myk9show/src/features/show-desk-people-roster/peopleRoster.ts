@@ -49,7 +49,7 @@ interface BuildPeopleRosterOptions {
   entries: EntryManagementEntry[];
   presence: ShowPresence[];
   classes?: readonly PeopleRosterClassInfo[];
-  today?: string | null;
+  currentDate?: Date | null;
 }
 
 const TERMINAL_CHECK_IN_STATUSES = new Set<CheckInStatus>(['checked-in', 'pulled', 'completed']);
@@ -121,11 +121,32 @@ function classInfoMap(classes: readonly PeopleRosterClassInfo[] = []) {
   return new Map(classes.map(cls => [cls.id, cls]));
 }
 
+function formatDateInTimezone(timezone: string | null | undefined, date: Date): string {
+  const options: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    ...(timezone ? { timeZone: timezone } : {}),
+  };
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(date);
+    const year = parts.find(part => part.type === 'year')?.value;
+    const month = parts.find(part => part.type === 'month')?.value;
+    const day = parts.find(part => part.type === 'day')?.value;
+    if (year && month && day) return `${year}-${month}-${day}`;
+  } catch {
+    return formatDateInTimezone(null, date);
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
 function checkInEligibility(
   entry: EntryManagementEntry,
   cls: EntryClass,
   info: PeopleRosterClassInfo | undefined,
-  today: string | null | undefined
+  currentDate: Date | null | undefined
 ): { eligible: boolean; reason: string | null } {
   const status = cls.checkInStatus ?? 'no-status';
   if (TERMINAL_CHECK_IN_STATUSES.has(status)) {
@@ -143,12 +164,14 @@ function checkInEligibility(
     return { eligible: false, reason: 'Not active' };
   }
 
-  if (today && !info?.trialDate) {
-    return { eligible: false, reason: 'Date unavailable' };
-  }
+  if (currentDate) {
+    if (!info?.trialDate) {
+      return { eligible: false, reason: 'Date unavailable' };
+    }
 
-  if (today && info?.trialDate !== today) {
-    return { eligible: false, reason: 'Not today' };
+    if (info.trialDate !== formatDateInTimezone(info.timezone, currentDate)) {
+      return { eligible: false, reason: 'Not today' };
+    }
   }
 
   return { eligible: true, reason: null };
@@ -170,13 +193,13 @@ function statusLabel(
 function buildClassRows(
   entries: EntryManagementEntry[],
   classesById: Map<string, PeopleRosterClassInfo>,
-  today: string | null | undefined
+  currentDate: Date | null | undefined
 ): PeopleRosterClassRow[] {
   return entries.flatMap(entry =>
     entry.classes.map(cls => {
       const classId = cls.classId ?? cls.id;
       const info = classesById.get(classId);
-      const eligibility = checkInEligibility(entry, cls, info, today);
+      const eligibility = checkInEligibility(entry, cls, info, currentDate);
       return {
         id: `${entry.id}:${classId}`,
         entryId: entry.id,
@@ -215,7 +238,7 @@ export function buildPeopleRoster({
   entries,
   presence,
   classes = [],
-  today,
+  currentDate,
 }: BuildPeopleRosterOptions): PeopleRosterPerson[] {
   const classesById = classInfoMap(classes);
   const presenceByUserId = new Map(presence.map(person => [person.userId, person]));
@@ -231,7 +254,7 @@ export function buildPeopleRoster({
       const name = displayName(groupEntries[0]!);
       const authUserId = groupAuthUserId(groupEntries);
       const personPresence = authUserId ? (presenceByUserId.get(authUserId) ?? null) : null;
-      const classRows = buildClassRows(groupEntries, classesById, today);
+      const classRows = buildClassRows(groupEntries, classesById, currentDate);
       const dogNames = unique(groupEntries.map(entry => entry.dogName));
       const armbands = unique(classRows.map(row => row.armband ?? ''));
       const searchText = normalize(

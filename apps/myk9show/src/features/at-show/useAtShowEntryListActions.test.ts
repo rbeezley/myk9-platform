@@ -120,6 +120,16 @@ describe('useAtShowEntryListActions', () => {
       scoringCompletedAt: null,
       scoring_completed_at: null,
       disqualification_reason: null,
+      // Detailed scent-work columns also cleared so a reset doesn't leave stale
+      // area times / counts / points on the entry.
+      area1_time_seconds: null,
+      area2_time_seconds: null,
+      area3_time_seconds: null,
+      area4_time_seconds: null,
+      total_correct_finds: null,
+      total_incorrect_finds: null,
+      no_finish_count: null,
+      points_earned: null,
     });
     expect(refresh).toHaveBeenCalledTimes(1);
   });

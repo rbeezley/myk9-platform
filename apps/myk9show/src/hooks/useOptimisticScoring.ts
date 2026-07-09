@@ -77,6 +77,12 @@ export function useOptimisticScoring() {
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
+  // Durable-queue failure is fail-closed and returns BEFORE useOptimisticUpdate
+  // runs, so `hasError` (from useOptimisticUpdate) never flips for it. Track it
+  // here too so EVERY caller — including the secretary ScoresheetPage, which
+  // renders from the hook's hasError rather than its own state — surfaces a
+  // blocking "score not saved" error, not just the at-show sheet.
+  const [submitError, setSubmitError] = useState<Error | null>(null);
 
   // Listen for online/offline events
   useEffect(() => {
@@ -95,6 +101,8 @@ export function useOptimisticScoring() {
   const submitScoreOptimistically = useCallback(
     async (options: OptimisticScoringOptions) => {
       const { entryId, scoreData, armband, onSuccess, onError } = options;
+      // Clear any prior fail-closed error before this attempt.
+      setSubmitError(null);
 
       // Step 1: Update local state IMMEDIATELY (< 50ms)
       const optimisticResult = scoreData.resultText;
@@ -181,6 +189,7 @@ export function useOptimisticScoring() {
           {},
           err
         );
+        setSubmitError(err);
         onError?.(err);
         return;
       }
@@ -240,13 +249,26 @@ export function useOptimisticScoring() {
     submitScoreOptimistically,
     /** Whether currently syncing with server */
     isSyncing,
-    /** Whether last sync failed (but score is saved locally) */
+    /** Whether the BACKGROUND sync failed (score IS saved locally — offline is
+     *  normal). Distinct from a fail-closed queue failure below. */
     hasError,
-    /** Error details if sync failed */
+    /** Background-sync error details. */
     error,
+    /**
+     * Fail-closed durable-queue failure — the score was NOT saved. Kept separate
+     * from `hasError`/`error` so callers can render a BLOCKING "not saved" state,
+     * not the calm "offline, saved locally" indicator. Every caller should
+     * surface this (the at-show sheet and the secretary ScoresheetPage both do).
+     */
+    submitError,
+    /** Clear the fail-closed submit error. */
+    clearSubmitError: () => setSubmitError(null),
     /** Number of retry attempts made */
     retryCount,
-    /** Clear error state */
-    clearError,
+    /** Clear error state (both the sync error and a fail-closed queue error). */
+    clearError: () => {
+      setSubmitError(null);
+      clearError();
+    },
   };
 }

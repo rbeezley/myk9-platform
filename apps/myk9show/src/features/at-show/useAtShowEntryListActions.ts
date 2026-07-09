@@ -26,6 +26,7 @@ import {
   type CheckInWriter,
 } from '@/services/show-day/checkInStatus';
 import { replicatedEntriesTable } from '@/services/replication';
+import { SCORE_DETAIL_CLEAR_FIELDS } from '@/services/replication/scoreResetFields';
 
 export interface UseAtShowEntryListActionsDeps {
   /** Refresh callback from the data hook; awaited after a successful mutation. */
@@ -174,6 +175,7 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
           scoringCompletedAt: null,
           scoring_completed_at: null,
           disqualification_reason: null,
+          ...SCORE_DETAIL_CLEAR_FIELDS,
         });
         await refresh();
       });

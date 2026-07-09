@@ -71,6 +71,26 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     expect((opts.onError.mock.calls[0][0] as Error).message).toContain('queue is full');
     // Score was not durably saved → do not write the local session either.
     expect(addScoreToSession).not.toHaveBeenCalled();
+    // Exposed as hook state so EVERY caller (incl. the secretary ScoresheetPage,
+    // which renders from the hook, not its own state) can show a blocking error.
+    expect(result.current.submitError).toBeInstanceOf(Error);
+  });
+
+  it('clears submitError on the next attempt and after a success', async () => {
+    updateEntry.mockRejectedValueOnce(new Error('Mutation queue is full (1000)'));
+    const failOpts = baseOptions();
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(failOpts);
+    });
+    expect(result.current.submitError).toBeInstanceOf(Error);
+
+    // A subsequent successful submit clears the prior fail-closed error.
+    updateEntry.mockResolvedValue('mutation-ok');
+    await act(async () => {
+      await result.current.submitScoreOptimistically(baseOptions());
+    });
+    expect(result.current.submitError).toBeNull();
   });
 
   it('does NOT call onSuccess when updateEntry returns a null mutation id', async () => {

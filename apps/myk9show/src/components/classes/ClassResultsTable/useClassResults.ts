@@ -14,6 +14,7 @@ import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import type { CheckInStatus } from '@myk9/core';
 import { CHECKIN_STATUS } from '@myk9/core';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { SCORE_DETAIL_CLEAR_FIELDS } from '@/services/replication/scoreResetFields';
 import {
   mapResultStatusToQualification,
   mapQualificationToResultStatus,
@@ -150,6 +151,7 @@ export function useClassResults({
           scoringCompletedAt: null,
           scoring_completed_at: null,
           disqualification_reason: null,
+          ...SCORE_DETAIL_CLEAR_FIELDS,
         });
 
         setEdits(prev => {

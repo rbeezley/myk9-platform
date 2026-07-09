@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { SCORE_DETAIL_CLEAR_FIELDS } from '@/services/replication/scoreResetFields';
 import type { ScoringEntry } from '../types';
 import {
   digitsToSeconds,
@@ -103,6 +104,7 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
         scoringCompletedAt: null,
         scoring_completed_at: null,
         disqualification_reason: null,
+        ...SCORE_DETAIL_CLEAR_FIELDS,
       });
     } finally {
       setIsSaving(false);

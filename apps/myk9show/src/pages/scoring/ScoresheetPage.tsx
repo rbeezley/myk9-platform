@@ -49,7 +49,13 @@ export function ScoresheetPage() {
   const navigate = useNavigate();
   const breadcrumb = useScoringBreadcrumb(classId);
 
-  const { submitScoreOptimistically, isSyncing, hasError: hasSyncError } = useOptimisticScoring();
+  const {
+    submitScoreOptimistically,
+    isSyncing,
+    hasError: hasSyncError,
+    submitError,
+    clearSubmitError,
+  } = useOptimisticScoring();
 
   const [entry, setEntry] = useState<ScoringEntry | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
@@ -234,6 +240,22 @@ export function ScoresheetPage() {
               },
             ]}
           />
+        </div>
+      )}
+      {submitError && (
+        // Fail-closed durable-queue failure — the score was NOT saved. Blocking
+        // and alarm-toned, distinct from the calm "offline, saved locally"
+        // indicator below; the judge stays on the sheet to retry.
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-destructive px-4 py-2 text-center text-sm font-medium text-destructive-foreground"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>Score not saved: {submitError.message}</span>
+          <button type="button" onClick={clearSubmitError} className="ml-2 underline">
+            Dismiss
+          </button>
         </div>
       )}
       {(isSyncing || hasSyncError) && (

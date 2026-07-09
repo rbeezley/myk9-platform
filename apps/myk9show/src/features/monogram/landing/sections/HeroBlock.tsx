@@ -16,6 +16,10 @@ interface HeroBlockProps {
   entryLimit: number | null;
   venueName: string | null;
   venueCity: string | null;
+  /** Full street address fallback — shown when no structured venue name/city
+   * is set, instead of "TBA" while the address is known and already shown
+   * elsewhere on this same page (MonogramFooter). */
+  venueAddress?: string | null;
   timezone: string;
   entryWizardUrl: string;
   classesHref: string | null;
@@ -66,6 +70,7 @@ export function HeroBlock({
   entryLimit,
   venueName,
   venueCity,
+  venueAddress = null,
   timezone,
   entryWizardUrl,
   classesHref,
@@ -81,7 +86,7 @@ export function HeroBlock({
     entryCloseDate && !entryClosed
       ? formatDateInTimezone(entryCloseDate, timezone, 'monthDay')
       : null;
-  const venueLabel = [venueName, venueCity].filter(Boolean).join(' · ') || null;
+  const venueLabel = [venueName, venueCity].filter(Boolean).join(' · ') || venueAddress || null;
 
   // Subtitle: registry license + dateRange, mirroring the handoff's "AKC
   // Licensed Trial · 12–14 June 2026" kicker.

@@ -410,6 +410,12 @@ export function ResultEntryNavigation({
           onOpenChange={setCheckInDialogOpen}
           currentStatus={selectedEntryForCheckIn.checkInStatus || 'no-status'}
           onUpdateStatus={handleCheckInStatusUpdate}
+          // This is a scoring/judge surface — it must keep the full staff status
+          // set (Conflict/Pulled) and staff wording, not the exhibitor variant.
+          // It previously relied on the shared default (exhibitor), which happened
+          // to include those statuses; the exhibitor variant no longer does, so
+          // the staff role must be explicit here.
+          userRole="judge"
           entryInfo={{
             armband: selectedEntryForCheckIn.displayInfo.armband,
             dogName: selectedEntryForCheckIn.displayInfo.dogName,

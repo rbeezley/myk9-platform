@@ -23,7 +23,10 @@ interface CheckInStatusDialogProps {
   onOpenChange: (open: boolean) => void;
   currentStatus: CheckInStatus;
   entryInfo: {
-    armband: string;
+    /** Real armband number, if assigned (usually not until closer to/at the show). */
+    armband?: string | undefined;
+    /** Shown when no armband is assigned yet — never both at once. */
+    confirmationNumber?: string | undefined;
     dogName: string;
     handlerName: string;
     className: string;
@@ -33,6 +36,28 @@ interface CheckInStatusDialogProps {
   readOnly?: boolean;
   userRole?: 'exhibitor' | 'judge' | 'secretary' | 'gate_steward';
 }
+
+// exhibitor-show-day-access: the shared CHECK_IN_STATUS_CONFIG descriptions
+// are third-person staff voice ("Exhibitor has checked in and is ready") —
+// correct for secretary/judge/steward surfaces, wrong when the exhibitor is
+// updating their own status. Overriding wording here (not the shared config)
+// follows the same "one classifier, per-surface voice" pattern already used
+// for entry status (services/entryDisplay).
+const EXHIBITOR_STATUS_DESCRIPTIONS: Partial<Record<CheckInStatus, string>> = {
+  'no-status': "I haven't checked in yet",
+  'checked-in': "I've checked in and I'm ready",
+  'at-gate': "I'm at the gate and ready",
+};
+
+// Staff-only statuses (schedule conflicts, pulled entries) are secretary/judge
+// calls, not something an exhibitor should self-report — hidden from the
+// exhibitor's own status picker (previously selectable, a dead-end since only
+// staff can act on either).
+const EXHIBITOR_SELECTABLE_STATUSES: ReadonlySet<CheckInStatus> = new Set([
+  'no-status',
+  'checked-in',
+  'at-gate',
+]);
 
 export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
   open,
@@ -58,10 +83,8 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
 
     switch (userRole) {
       case 'exhibitor':
-        // Exhibitors can set their practical statuses
-        return allStatuses.filter(config =>
-          ['no-status', 'checked-in', 'conflict', 'pulled', 'at-gate'].includes(config.status)
-        );
+        // Exhibitors self-report; conflict/pulled are staff-only calls.
+        return allStatuses.filter(config => EXHIBITOR_SELECTABLE_STATUSES.has(config.status));
       case 'judge':
       case 'gate_steward':
       case 'secretary':
@@ -107,12 +130,24 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
             <span className="flex items-center gap-2 mt-2">
-              <span className="font-medium">Armband #{entryInfo.armband}</span>
-              <span>•</span>
+              {/* Armbands aren't assigned until closer to/at the show — showing
+                  "Armband #" against a confirmation number (or nothing) taught
+                  the wrong vocabulary. Label whichever identifier is actually
+                  known, or omit the identifier entirely if neither is set. */}
+              {entryInfo.armband ? (
+                <span className="font-medium">Armband #{entryInfo.armband}</span>
+              ) : entryInfo.confirmationNumber ? (
+                <span className="font-medium">Confirmation #{entryInfo.confirmationNumber}</span>
+              ) : null}
+              {/* Only show the separator when an identifier precedes it —
+                  otherwise an entry with no armband/confirmation rendered a
+                  stray "• Handler". */}
+              {(entryInfo.armband || entryInfo.confirmationNumber) && <span>•</span>}
               <span>{entryInfo.handlerName}</span>
             </span>
             <span className="block text-sm mt-2">
-              {entryInfo.dogName} • {entryInfo.className} #{entryInfo.classNumber}
+              {entryInfo.dogName} • {entryInfo.className}
+              {entryInfo.classNumber ? ` #${entryInfo.classNumber}` : ''}
             </span>
           </DialogDescription>
         </DialogHeader>
@@ -163,9 +198,11 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
                         <div>
                           <div className="font-medium text-sm">{config.label}</div>
                           <div className="text-xs text-muted-foreground">
-                            {config.status === 'conflict'
-                              ? 'Scheduled for 2 rings at same time'
-                              : config.description}
+                            {userRole === 'exhibitor'
+                              ? (EXHIBITOR_STATUS_DESCRIPTIONS[config.status] ?? config.description)
+                              : config.status === 'conflict'
+                                ? 'Scheduled for 2 rings at same time'
+                                : config.description}
                           </div>
                         </div>
                       </Label>

@@ -526,7 +526,8 @@ const CheckInDialog: React.FC<CheckInDialogProps> = ({ dialog, user, onClose, on
       onOpenChange={open => !open && onClose()}
       currentStatus={dialog.classEntry.checkInStatus || 'no-status'}
       entryInfo={{
-        armband: dialog.entry.confirmationNumber || dialog.entry.id,
+        armband: dialog.entry.armband,
+        confirmationNumber: dialog.entry.confirmationNumber,
         dogName: dialog.entry.dogName,
         handlerName: user?.email || 'Handler',
         className: dialog.classEntry.name,

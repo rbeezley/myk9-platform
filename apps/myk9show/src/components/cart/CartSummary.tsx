@@ -5,8 +5,9 @@
  * Shows entry fees, platform fee, and total with expiration countdown.
  */
 
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, AlertTriangle, ShoppingCart, ArrowRight, Loader2 } from 'lucide-react';
+import { CreditCard, AlertTriangle, ShoppingCart, ArrowRight, Loader2, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -48,6 +49,47 @@ export function CartSummary({
     return `$${(cents / 100).toFixed(2)}`;
   };
 
+  // exhibitor-ux-remediation (cart-integrity): a cart drafted before entries
+  // closed must never let checkout proceed — the audit found a week-old draft
+  // with a live "Pay and confirm" button for a show whose entries had closed.
+  //
+  // This is an ADVISORY client gate; the authoritative close enforcement is the
+  // server-side guard on entry submission (tracked as a deferred money-path
+  // change in the exhibitor-ux-remediation tasks). It is deliberately evaluated
+  // against the exhibitor's LOCAL calendar day, not the trial's timezone: the
+  // cart's `shows` join carries only `entry_close_date` (a DATE with no time or
+  // zone — timezone lives on `trials`), so trial-tz precision isn't available
+  // here without new plumbing. For the real failure case (a cart days/weeks
+  // past close) local vs trial tz is irrelevant; the only imprecision is a
+  // sub-day window at the boundary for an exhibitor in a far-off timezone,
+  // which the server guard closes authoritatively.
+  //
+  // `entry_close_date` is DATE-only ("2026-06-30"); `new Date(str)` parses it as
+  // UTC midnight, so reading getFullYear/Month/Date in a timezone behind UTC
+  // yields the PRIOR day and would disable checkout for the whole final entry
+  // day. Parse it by its own Y/M/D components as a local calendar date so the
+  // boundary is the start of the day AFTER the close date. A slow tick
+  // re-evaluates so a cart left open across midnight self-corrects rather than
+  // staying enabled until reload (Date.now() can't be read in the render body —
+  // the React Compiler purity rule flags it).
+  const [now, setNow] = useState(() => Date.now());
+  const entryCloseDate = cart?.show?.entry_close_date ?? null;
+  useEffect(() => {
+    if (!entryCloseDate) return;
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, [entryCloseDate]);
+
+  const entriesClosed = (() => {
+    if (!entryCloseDate) return false;
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(entryCloseDate);
+    if (!match) return false;
+    const [, year, month, day] = match;
+    // Start of the day AFTER the close date, in the exhibitor's local time.
+    const endOfCloseDay = new Date(Number(year), Number(month) - 1, Number(day) + 1);
+    return endOfCloseDay.getTime() <= now;
+  })();
+
   const itemCount = getItemCount();
   const subtotal = getTotalEntryFees();
   // Recompute fee + total from the live rate (the store bakes the fallback
@@ -86,8 +128,24 @@ export function CartSummary({
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* Entries-closed notice — takes priority over the hold-expiration
+            warning; a closed show can never be paid for regardless of how
+            much hold time remains. */}
+        {entriesClosed && (
+          <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-destructive">
+            <Lock className="h-5 w-5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Entries are closed for this show</p>
+              <p className="text-xs mt-0.5">
+                This entry can no longer be paid for online. Contact the trial secretary for
+                late-entry help, or remove it and keep shopping.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Expiration Warning */}
-        {(showWarning || showUrgentWarning) && (
+        {!entriesClosed && (showWarning || showUrgentWarning) && (
           <div
             className={cn(
               'flex items-center gap-2 p-3 rounded-lg',
@@ -157,7 +215,7 @@ export function CartSummary({
       <CardFooter className="flex-col gap-2 pt-0">
         <Button
           onClick={handleCheckout}
-          disabled={isCheckingOut || itemCount === 0}
+          disabled={isCheckingOut || itemCount === 0 || entriesClosed}
           className="w-full"
           size="lg"
         >
@@ -165,6 +223,11 @@ export function CartSummary({
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Processing...
+            </>
+          ) : entriesClosed ? (
+            <>
+              <Lock className="h-4 w-4 mr-2" />
+              Entries closed — cannot pay online
             </>
           ) : (
             <>

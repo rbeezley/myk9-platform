@@ -24,7 +24,7 @@ describe('CompactStatsRow', () => {
     const { container } = render(<CompactStatsRow {...defaultProps} />);
     const grid = getGrid(container);
     expect(grid.getByText('5')).toBeInTheDocument();
-    expect(grid.getByText('Entries')).toBeInTheDocument();
+    expect(grid.getByText('Current Entries')).toBeInTheDocument();
     expect(grid.getByText('3 accepted · 2 pending')).toBeInTheDocument();
     expect(grid.getByText('2')).toBeInTheDocument();
     expect(grid.getByText('Upcoming Shows')).toBeInTheDocument();
@@ -51,7 +51,7 @@ describe('CompactStatsRow', () => {
 
     const entriesCard = screen.getByLabelText(/Entries.*View details/i);
     const icon = entriesCard.querySelector('[data-slot="icon"]');
-    const label = screen.getByText('Entries');
+    const label = screen.getByText('Current Entries');
 
     expect(entriesCard).toHaveClass('rounded-xl');
     expect(entriesCard).toHaveClass('bg-card');
@@ -99,7 +99,7 @@ describe('CompactStatsRow', () => {
         pastShows={1}
       />
     );
-    expect(screen.getByText('Entry')).toBeInTheDocument();
+    expect(screen.getByText('Current Entry')).toBeInTheDocument();
     expect(screen.getByText('Upcoming Show')).toBeInTheDocument();
     expect(screen.getByText('Past Show')).toBeInTheDocument();
   });
@@ -114,7 +114,7 @@ describe('CompactStatsRow', () => {
         pastShows={3}
       />
     );
-    expect(screen.getByText('Entries')).toBeInTheDocument();
+    expect(screen.getByText('Current Entries')).toBeInTheDocument();
     expect(screen.getByText('Upcoming Shows')).toBeInTheDocument();
     expect(screen.getByText('Past Shows')).toBeInTheDocument();
   });

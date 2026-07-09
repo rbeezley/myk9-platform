@@ -12,6 +12,10 @@ const mockAccountToday = vi.hoisted(() => ({
   isLoading: false,
   error: null as Error | null,
 }));
+const mockHasAnyEntry = vi.hoisted(() => ({
+  hasAnyEntryForShow: false,
+  isLoading: false,
+}));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -23,6 +27,10 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 vi.mock('@/features/show-today/accountTodayEntries', () => ({
   useAccountTodayAutoFavorites: () => mockAccountToday,
+}));
+
+vi.mock('./useHasAnyEntryForShow', () => ({
+  useHasAnyEntryForShow: () => mockHasAnyEntry,
 }));
 
 function renderGate(initialRoute = '/at-show/show-1') {
@@ -49,6 +57,8 @@ describe('AtShowAccessGate', () => {
     mockAccountToday.hasAccountEntryForShow = false;
     mockAccountToday.isLoading = false;
     mockAccountToday.error = null;
+    mockHasAnyEntry.hasAnyEntryForShow = false;
+    mockHasAnyEntry.isLoading = false;
     useRingsideGrantStore.getState().clearGrant();
   });
 
@@ -91,5 +101,48 @@ describe('AtShowAccessGate', () => {
     renderGate();
 
     expect(screen.getByText("You don't have ringside access for this show.")).toBeInTheDocument();
+  });
+
+  // exhibitor-show-day-access
+  it('gives an entered exhibitor visiting before show day exhibitor-voiced guidance, not a passcode prompt', () => {
+    mockUser = { id: 'user-1' };
+    mockRoles = [UserRole.EXHIBITOR];
+    mockHasAnyEntry.hasAnyEntryForShow = true;
+
+    renderGate();
+
+    expect(screen.getByText("Ringside isn't open for this show yet.")).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /go to my shows/i })).toBeInTheDocument();
+    expect(
+      screen.queryByText("You don't have ringside access for this show.")
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows both audiences to a visitor with no entries and no access', () => {
+    mockUser = { id: 'user-1' };
+    mockRoles = [UserRole.EXHIBITOR];
+    mockHasAnyEntry.hasAnyEntryForShow = false;
+
+    renderGate();
+
+    expect(screen.getByText("You don't have ringside access for this show.")).toBeInTheDocument();
+    expect(screen.getByText(/Entered this show\?.*Working the show\?/i)).toBeInTheDocument();
+  });
+
+  // Codex review round 3 (PR #1217): must not flash the deny copy while the
+  // entry-affiliation lookup is still in flight.
+  it('shows a loading state (not the deny copy) while the entry lookup is pending', () => {
+    mockUser = { id: 'user-1' };
+    mockRoles = [UserRole.EXHIBITOR];
+    mockHasAnyEntry.hasAnyEntryForShow = false;
+    mockHasAnyEntry.isLoading = true;
+
+    renderGate();
+
+    expect(screen.getByRole('status', { name: 'Checking ringside access…' })).toBeInTheDocument();
+    expect(
+      screen.queryByText("You don't have ringside access for this show.")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Ringside isn't open for this show yet.")).not.toBeInTheDocument();
   });
 });

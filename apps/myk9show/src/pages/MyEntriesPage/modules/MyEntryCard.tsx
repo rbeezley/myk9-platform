@@ -41,6 +41,7 @@ import {
   getPaymentStatusBadge,
   getStatusIcon,
   getContextualStatusMessage,
+  formatTrialLabel,
 } from './myEntriesUtils';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import { formatEntryDate, formatMonthDay, formatShortDate } from '@/lib/format/dates';
@@ -184,8 +185,14 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         <div className="myk9-entries-badges">
           {getEntryStatusBadge(entry.entryStatus, { isPastShow })}
           {/* Cash/check "pay at show" entries carry their own calm status line
-              below — the red "Payment Due" debt chip would contradict it (4.C). */}
-          {paymentPrompt.kind !== 'pay-at-show' &&
+              below — the red "Payment Due" debt chip would contradict it (4.C).
+              A raw PENDING paymentStatus with no actionable online balance
+              (waived, secretary-recorded, zero fee, or a non-payable entry
+              status) must not show "Payment Due" either — the chip previously
+              fired off the raw status alone, contradicting the dashboard/My
+              Payments amount-due figure that already derives from
+              getEntryPaymentPrompt (exhibitor-money-clarity). */}
+          {!(entry.paymentStatus === PaymentStatus.PENDING && paymentPrompt.kind !== 'finish-online') &&
             getPaymentStatusBadge(entry.paymentStatus, { isPastShow })}
         </div>
       </div>
@@ -271,7 +278,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
                         )}
                         {cls.trialNumber && (
                           <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 font-semibold text-primary">
-                            Trial {cls.trialNumber}
+                            {formatTrialLabel(cls.trialNumber)}
                           </span>
                         )}
                       </span>

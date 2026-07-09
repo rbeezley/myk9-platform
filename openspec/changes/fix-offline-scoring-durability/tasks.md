@@ -13,16 +13,16 @@
 
 ## 2. Phase 2 — Durability hardening
 
-- [ ] 2.1 Request `navigator.storage.persist()` at app startup and on entering `/at-show`; log the `persisted()` result. Degrade gracefully when denied.
-- [ ] 2.2 On iOS Safari (non-standalone) with unsynced work present, show the Add-to-Home-Screen nudge (reuse existing PWA install affordance; confirm copy/threshold with INTENT owner).
-- [ ] 2.3 Add a persisted monotonic `sequenceNumber` (counter in `sync_metadata`) assigned in `MutationManager.queueMutation`; populate `types.ts` field.
-- [ ] 2.4 Use `sequenceNumber` as the primary sort key in `mutation-ordering.ts` (timestamp as tiebreaker), preserving the topological dependency sort.
-- [ ] 2.5 Test: two same-timestamp edits to one row upload oldest-first; a re-stamped stale payload cannot become the final server value. Assert dependency order still holds.
-- [ ] 2.6 Wrap `uploadPendingMutations` in `navigator.locks.request('replication-upload', ...)`; add an existence re-check before the OCC-backoff `db.put` so a deleted mutation cannot be resurrected.
-- [ ] 2.7 Test: simulate two tabs uploading; assert no duplicate upload and no zombie mutation after an OCC rejection.
-- [ ] 2.8 Wrap the localStorage backup write in `queueMutation` in try/catch (log, don't reject); wrap the `pending_mutations` put in `withQuotaEviction`.
-- [ ] 2.9 Test: backup write throws and quota-pressured put both leave the score durably queued and the submit reporting success.
-- [ ] 2.10 Add a startup scan for dirty rows lacking a pending mutation; regenerate a mutation so the stranded score uploads. Test with a seeded dirty-row-without-mutation.
+- [x] 2.1 Request `navigator.storage.persist()` at app startup and on entering `/at-show`; log the `persisted()` result. Degrade gracefully when denied.
+- [x] 2.2 On iOS Safari (non-standalone) with unsynced work present, show the Add-to-Home-Screen nudge (reuse existing PWA install affordance; confirm copy/threshold with INTENT owner).
+- [x] 2.3 Add a persisted monotonic `sequenceNumber` (counter in `sync_metadata`) assigned in `MutationManager.queueMutation`; populate `types.ts` field.
+- [x] 2.4 Use `sequenceNumber` as the primary sort key in `mutation-ordering.ts` (timestamp as tiebreaker), preserving the topological dependency sort.
+- [x] 2.5 Test: two same-timestamp edits to one row upload oldest-first; a re-stamped stale payload cannot become the final server value. Assert dependency order still holds.
+- [x] 2.6 Wrap `uploadPendingMutations` in `navigator.locks.request('replication-upload', ...)`; add an existence re-check before the OCC-backoff `db.put` so a deleted mutation cannot be resurrected.
+- [x] 2.7 Test: simulate two tabs uploading; assert no duplicate upload and no zombie mutation after an OCC rejection.
+- [x] 2.8 Wrap the localStorage backup write in `queueMutation` in try/catch (log, don't reject); wrap the `pending_mutations` put in `withQuotaEviction`.
+- [x] 2.9 Test: backup write throws and quota-pressured put both leave the score durably queued and the submit reporting success.
+- [x] 2.10 Add a startup scan for dirty rows lacking a pending mutation; regenerate a mutation so the stranded score uploads. Test with a seeded dirty-row-without-mutation.
 
 ## 3. Phase 3 — Transparency
 

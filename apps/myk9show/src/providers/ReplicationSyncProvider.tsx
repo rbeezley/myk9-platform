@@ -45,6 +45,7 @@ import { replicatedJudgeAssignmentsTable } from '@/services/replication/Replicat
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
 import { isAbortSyncError } from '@/services/replication/syncErrorUtils';
+import { requestPersistentStorage } from '@/lib/persistentStorage';
 import type { SyncFailedEventDetail } from './replicationSyncFormatters';
 import { formatSyncFailureToast, formatDownloadFailureToast } from './replicationSyncFormatters';
 import {
@@ -444,7 +445,24 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     hasStartedFlush.current = true;
 
     const startupUpload = async () => {
+      // Ask the browser to make our IndexedDB durable so queued scores aren't
+      // evicted under storage pressure. Best-effort, never blocks.
+      void requestPersistentStorage().then(status =>
+        logger.info('Persistent storage status', 'replication', { status })
+      );
       await mutationManager.restoreMutationsFromLocalStorage();
+      // Repair the crash window between a local dirty write and its queued
+      // mutation: re-queue an UPDATE for any entry that is dirty locally but has
+      // no pending mutation, so a score stranded by a crash still uploads
+      // (audit M6). Entries is the score-bearing table; keep this narrow.
+      try {
+        const repaired = await replicatedEntriesTable.requeueOrphanedDirtyRows();
+        if (repaired > 0) {
+          logger.warn('Startup: re-queued orphaned dirty entries', 'replication', { repaired });
+        }
+      } catch (err) {
+        logger.error('Startup: orphaned-dirty-row repair failed', 'replication', {}, err as Error);
+      }
       const pendingCount = await mutationManager.getPendingCount();
       if (pendingCount > 0) {
         logger.info('Startup: flushing pending mutations', 'replication', { pendingCount });

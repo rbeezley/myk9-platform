@@ -14,11 +14,13 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { IDBPDatabase } from 'idb';
 import type { Logger } from './dependencies';
 import { noopLogger } from './dependencies';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import { markPerf, measurePerf } from './perf';
 import { withTimeout, TIMEOUT_PRESETS, calculateBackoffDelay } from './mutation-utils';
+import { withQuotaEviction } from './quota-eviction';
 import { classifyMutationFailure } from './mutation-retry';
 import {
   classifyEmptyUpdateResult,
@@ -102,6 +104,13 @@ export class MutationManager {
   private backoffRetryAt: number | null = null;
   private isUploading: boolean = false;
 
+  // Monotonic sequence for deterministic upload ordering. Seeded once from the
+  // persisted counter + the max sequence already in the stores (survives
+  // reload), then incremented synchronously per queue so same-millisecond edits
+  // to a row never reorder. See mutation-ordering.compareMutationOrder.
+  private sequenceCounter: number | null = null;
+  private sequenceSeedPromise: Promise<void> | null = null;
+
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
     this.supabase = supabaseClient;
     this.maxRetries = options.maxRetries ?? 3;
@@ -112,6 +121,104 @@ export class MutationManager {
   // ========================================
   // MUTATION QUEUEING
   // ========================================
+
+  /** Reserved SYNC_METADATA key (store is keyed by `tableName`) for the counter. */
+  private static readonly SEQUENCE_METADATA_KEY = '__mutation_sequence__';
+
+  /**
+   * Return the next monotonic sequence number, seeding the in-memory counter on
+   * first use from the persisted value AND the max sequence already present in
+   * the pending/failed stores (whichever is higher), so it survives a reload or
+   * a metadata loss. The increment is synchronous once seeded, so concurrent
+   * queueMutation calls in the same tab always get distinct, increasing values.
+   */
+  private async nextSequenceNumber(db: IDBPDatabase): Promise<number> {
+    if (this.sequenceCounter === null) {
+      if (!this.sequenceSeedPromise) {
+        this.sequenceSeedPromise = (async () => {
+          let seed = 0;
+          try {
+            const rec = (await db.get(
+              REPLICATION_STORES.SYNC_METADATA,
+              MutationManager.SEQUENCE_METADATA_KEY
+            )) as { value?: number } | undefined;
+            if (rec && typeof rec.value === 'number') seed = rec.value;
+          } catch {
+            /* metadata missing — fall back to store scan */
+          }
+          try {
+            const [pending, failed] = await Promise.all([
+              db.getAll(REPLICATION_STORES.PENDING_MUTATIONS) as Promise<PendingMutation[]>,
+              db.getAll(REPLICATION_STORES.FAILED_MUTATIONS) as Promise<PendingMutation[]>,
+            ]);
+            for (const m of [...pending, ...failed]) {
+              if (typeof m.sequenceNumber === 'number' && m.sequenceNumber > seed) {
+                seed = m.sequenceNumber;
+              }
+            }
+          } catch {
+            /* store scan best-effort */
+          }
+          this.sequenceCounter = seed;
+        })();
+      }
+      await this.sequenceSeedPromise;
+    }
+
+    // Synchronous increment — no await between read and write of the counter.
+    const next = (this.sequenceCounter as number) + 1;
+    this.sequenceCounter = next;
+
+    // Persist opportunistically so a reload re-seeds correctly; best-effort
+    // because the in-store max is a sufficient fallback if this write is lost.
+    try {
+      await db.put(REPLICATION_STORES.SYNC_METADATA, {
+        tableName: MutationManager.SEQUENCE_METADATA_KEY,
+        value: next,
+      });
+    } catch {
+      /* non-fatal */
+    }
+
+    return next;
+  }
+
+  /**
+   * Free space by deleting the least-recently-accessed CLEAN cache rows from the
+   * replicated-tables store. Used as the eviction callback when a mutation write
+   * hits storage quota. Dirty/unsynced rows are never deleted, so an offline
+   * score can make room without losing other unsynced data. Best-effort:
+   * returns 0 (write cannot proceed) if nothing clean is evictable or the scan
+   * fails.
+   */
+  private async evictCleanCacheRows(db: IDBPDatabase): Promise<number> {
+    try {
+      const all = (await db.getAll(
+        REPLICATION_STORES.REPLICATED_TABLES
+      )) as ReplicatedRow<unknown>[];
+      const clean = all
+        .filter(row => !row.isDirty)
+        .sort((a, b) => (a.lastAccessedAt ?? 0) - (b.lastAccessedAt ?? 0));
+      if (clean.length === 0) return 0;
+
+      // Free ~10% of clean rows (at least one) — enough to relieve pressure
+      // without nuking the whole cache. Key is [tableName, id] (top-level).
+      const toEvict = Math.max(1, Math.floor(clean.length * 0.1));
+      const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+      let evicted = 0;
+      for (let i = 0; i < toEvict && i < clean.length; i++) {
+        const row = clean[i];
+        if (row && typeof row.tableName === 'string' && typeof row.id === 'string') {
+          await tx.store.delete([row.tableName, row.id]);
+          evicted++;
+        }
+      }
+      await tx.done;
+      return evicted;
+    } catch {
+      return 0;
+    }
+  }
 
   /**
    * Queue a mutation for later upload
@@ -154,6 +261,7 @@ export class MutationManager {
     }
 
     const db = await databaseManager.getDatabase('MutationManager');
+    const sequenceNumber = await this.nextSequenceNumber(db);
     const id = crypto.randomUUID();
     const mutation: PendingMutation = {
       id,
@@ -162,19 +270,40 @@ export class MutationManager {
       rowId,
       data,
       timestamp: Date.now(),
+      sequenceNumber,
       retries: 0,
       status: 'pending',
       dependsOn,
       ...(serverVersion !== undefined && { serverVersion }),
       ...(rpc !== undefined && { rpc }),
     };
-    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
+    // Wrap the durable queue write so storage-quota pressure evicts CLEAN cache
+    // rows and retries once, rather than throwing raw QuotaExceededError and
+    // dropping the score (audit M2). Dirty/unsynced rows and other mutations are
+    // never touched by the evictor.
+    await withQuotaEviction(
+      () => db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation),
+      () => this.evictCleanCacheRows(db),
+      this.logger
+    );
     this.logger.log(`[MutationManager] Queued ${operation} for ${tableName}/${rowId}`);
     // Backup synchronously (not debounced): a page reload inside a debounce
     // window would leave the newest mutations only in IndexedDB, where browser
     // cache eviction can destroy them. Offline scores must hit localStorage
     // before queueMutation resolves.
-    await this.writeCurrentMutationsBackup();
+    //
+    // But the backup is a SECONDARY safety net: the score is already durable in
+    // IndexedDB above. A localStorage-full failure (Safari private mode, a large
+    // queue) must NOT fail a successfully-queued score, so swallow it here
+    // instead of rejecting queueMutation (audit M2).
+    try {
+      await this.writeCurrentMutationsBackup();
+    } catch (backupErr) {
+      this.logger.warn(
+        '[MutationManager] localStorage backup failed (score is durably queued in IndexedDB):',
+        backupErr
+      );
+    }
 
     // Auto-upload: schedule immediate flush to server
     this.scheduleUpload();
@@ -455,12 +584,36 @@ export class MutationManager {
   }
 
   /**
-   * Upload pending mutations (offline changes) to server
+   * Upload pending mutations (offline changes) to server.
    *
-   * Processes mutations in topological order to respect causal dependencies.
-   * Warns when mutation queue size approaches capacity.
+   * Serialized ACROSS TABS via the Web Locks API: two tabs uploading the same
+   * queue can double-apply a mutation or, worse, re-insert one that the other
+   * tab already uploaded and deleted (a zombie stuck in OCC backoff — audit M1).
+   * The per-tab `isUploading` guard still prevents re-entrancy within a tab, and
+   * we fall back to it alone when Web Locks is unavailable (older engines, tests).
    */
   async uploadPendingMutations(): Promise<SyncResult[]> {
+    const locks = (
+      typeof navigator !== 'undefined'
+        ? (navigator as unknown as {
+            locks?: {
+              request?: (name: string, cb: () => Promise<SyncResult[]>) => Promise<SyncResult[]>;
+            };
+          }).locks
+        : undefined
+    );
+    if (locks && typeof locks.request === 'function') {
+      const result = await locks.request('replication-upload', () => this.runUploadPass());
+      return result ?? [];
+    }
+    return this.runUploadPass();
+  }
+
+  /**
+   * Single upload pass (see uploadPendingMutations for the cross-tab wrapper).
+   * Processes mutations in topological order to respect causal dependencies.
+   */
+  private async runUploadPass(): Promise<SyncResult[]> {
     // Prevent concurrent upload runs
     if (this.isUploading) {
       this.logger.log('[MutationManager] Upload already in progress, skipping');
@@ -632,21 +785,37 @@ export class MutationManager {
             // separate counter from `retries` so the conflict is never dead-lettered
             // (which would destroy the offline edit) — it just slows down.
             const occRetries = (queuedMutation.occRetries ?? 0) + 1;
-            const occBackoff: PendingMutation = {
-              ...queuedMutation,
-              occRetries,
-              nextRetryAt: now + calculateBackoffDelay(occRetries - 1, this.retryBackoffBase),
-            };
-            await db.put(REPLICATION_STORES.PENDING_MUTATIONS, occBackoff);
-            if (earliestBackoff === null || occBackoff.nextRetryAt! < earliestBackoff) {
-              earliestBackoff = occBackoff.nextRetryAt!;
+            const nextRetryAt = now + calculateBackoffDelay(occRetries - 1, this.retryBackoffBase);
+            // Re-persist the backoff ONLY if the mutation still exists. A past
+            // upload (from this tab or, before the cross-tab lock, another) may
+            // have already uploaded and deleted it; a blind put() would resurrect
+            // a deleted mutation as a zombie that loops in OCC backoff forever
+            // (audit M1). The cross-tab lock serializes uploads, so no other
+            // uploader can delete it between this get and put.
+            let occPersisted = false;
+            const stillQueued = (await db.get(
+              REPLICATION_STORES.PENDING_MUTATIONS,
+              queuedMutation.id
+            )) as PendingMutation | undefined;
+            if (stillQueued) {
+              await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+                ...stillQueued,
+                occRetries,
+                nextRetryAt,
+              });
+              occPersisted = true;
+            }
+            if (occPersisted && (earliestBackoff === null || nextRetryAt < earliestBackoff)) {
+              earliestBackoff = nextRetryAt;
             }
 
             this.logger.warn(
               `[MutationManager] OCC rejection for ${error.tableName}/${error.rowId} ` +
                 `(server version ${freshServerVersion}, attempt ${occRetries}). ` +
-                `Row token advanced; mutation stays dirty, next retry after ` +
-                `${new Date(occBackoff.nextRetryAt!).toISOString()}.`
+                (occPersisted
+                  ? `Row token advanced; mutation stays dirty, next retry after ` +
+                    `${new Date(nextRetryAt).toISOString()}.`
+                  : `Mutation was already uploaded by another tab; not re-queued.`)
             );
             results.push({
               success: false,

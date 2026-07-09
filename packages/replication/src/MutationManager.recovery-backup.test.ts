@@ -154,4 +154,20 @@ describe('MutationManager recovery backup (pending + failed durability)', () => 
     const restoredFailed = await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
     expect(restoredFailed).toHaveLength(1);
   });
+
+  it('keeps the score durably queued when the localStorage backup write throws', async () => {
+    // Simulate localStorage full: setItem throws (Safari private mode / large
+    // queue). The IDB queue write already succeeded, so queueMutation must NOT
+    // reject (audit M2).
+    (globalThis.localStorage.setItem as unknown) = () => {
+      throw new Error('QuotaExceededError: localStorage is full');
+    };
+
+    const id = await manager.queueMutation('entries', 'UPDATE', 'entry-1', { id: 'entry-1' });
+
+    expect(typeof id).toBe('string');
+    const stored = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, id);
+    expect(stored).toBeDefined();
+    expect(stored!.status).toBe('pending');
+  });
 });

@@ -124,6 +124,20 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     return this.toSupabaseRow(entry);
   }
 
+  /**
+   * Route a repaired (orphaned-dirty-row) re-queue through the ringside RPC when
+   * the payload touches ringside-only columns, exactly as updateEntry does — so
+   * an assigned judge/steward whose direct UPDATE is RLS-denied can still persist
+   * a score stranded by a crash. See requeueOrphanedDirtyRows on the base class.
+   */
+  protected override buildRepairRpc(
+    _entry: ReplicatedEntry,
+    payload: Record<string, unknown>
+  ): { name: string; fields?: Record<string, unknown> } | undefined {
+    const rpcFields = buildRingsideRpcFields(Object.keys(payload), payload);
+    return rpcFields ? { name: RINGSIDE_RPC_FUNCTION, fields: rpcFields } : undefined;
+  }
+
   async sync(syncScopeId: string): Promise<SyncResult> {
     const showScopeId = syncScopeId.trim();
     if (!showScopeId) {

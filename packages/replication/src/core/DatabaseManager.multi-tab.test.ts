@@ -1,25 +1,48 @@
 /**
  * MutationManager multi-tab concurrent-write safety tests
  *
- * These tests encode invariants for HIGH finding R2 (cross-tab flush lock).
- * They are .skip-ped until R2 is fixed — see
- * docs/replication-audit/phase-4-database-manager.md.
- *
- * When un-skipping:
- *  1. Implement navigator.locks.request('myk9-replication-flush', ...) inside
- *     uploadPendingMutations with a graceful fallback.
- *  2. Add navigator.locks stub support to vitest setup (see comment in
- *     beforeEach below).
- *  3. Remove the .skip modifier from both tests.
+ * Encodes invariants for the cross-tab flush lock (audit M1 / legacy R2), now
+ * implemented in uploadPendingMutations via navigator.locks. Two tabs sharing
+ * the module-global fake-indexeddb must not drop, duplicate, or double-apply a
+ * mutation when they flush concurrently.
  */
 
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
-import { openDB, type IDBPDatabase } from 'idb';
+import { type IDBPDatabase } from 'idb';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { MutationManager, type MutationManagerOptions } from '../MutationManager';
 import type { PendingMutation } from '../types';
 import { databaseManager, REPLICATION_STORES } from './DatabaseManager';
+import { createMutationManagerTestDb } from '../test-utils/createMutationManagerTestDb';
+
+/**
+ * Faithful navigator.locks stub: serializes callbacks sharing a lock name (the
+ * real cross-tab guarantee), rather than a passthrough that would let both
+ * "tabs" run concurrently and defeat the test.
+ */
+function installSerializingLocksStub(): void {
+  const chains = new Map<string, Promise<unknown>>();
+  Object.defineProperty(globalThis.navigator, 'locks', {
+    value: {
+      request: (name: string, cb: () => Promise<unknown>) => {
+        const prev = chains.get(name) ?? Promise.resolve();
+        const run = prev.then(() => cb());
+        // Keep the chain alive even if cb rejects.
+        chains.set(
+          name,
+          run.then(
+            () => {},
+            () => {}
+          )
+        );
+        return run;
+      },
+    },
+    writable: true,
+    configurable: true,
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Shared test helpers (mirrors MutationManager.test.ts harness)
@@ -104,9 +127,6 @@ function makeMutation(id: string, overrides: Partial<PendingMutation> = {}): Pen
 // ---------------------------------------------------------------------------
 
 describe('MutationManager multi-tab concurrent-write safety', () => {
-  // These tests encode invariants for HIGH finding R2 (cross-tab flush lock).
-  // They are .skipped until R2 is fixed — see docs/replication-audit/phase-4-database-manager.md.
-
   let sharedDb: IDBPDatabase;
 
   beforeEach(async () => {
@@ -114,14 +134,10 @@ describe('MutationManager multi-tab concurrent-write safety', () => {
 
     // fake-indexeddb is module-global: both MutationManager instances created
     // inside each test naturally share the same in-process IDB state, which
-    // simulates two browser tabs sharing the same origin storage.
-    sharedDb = await openDB(TEST_DB_NAME, 1, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(REPLICATION_STORES.PENDING_MUTATIONS)) {
-          db.createObjectStore(REPLICATION_STORES.PENDING_MUTATIONS, { keyPath: 'id' });
-        }
-      },
-    });
+    // simulates two browser tabs sharing the same origin storage. Use the shared
+    // helper so the FAILED_MUTATIONS / REPLICATED_TABLES stores the upload path
+    // reads all exist.
+    sharedDb = await createMutationManagerTestDb(TEST_DB_NAME);
 
     // Both managers share the same IDB handle via the databaseManager mock.
     vi.spyOn(databaseManager, 'getDatabase').mockResolvedValue(sharedDb);
@@ -152,14 +168,9 @@ describe('MutationManager multi-tab concurrent-write safety', () => {
       configurable: true,
     });
 
-    // NOTE for R2 implementors: once navigator.locks is used inside
-    // uploadPendingMutations you will also need to stub it here, e.g.:
-    //   Object.defineProperty(globalThis.navigator, 'locks', {
-    //     value: {
-    //       request: vi.fn(async (_name, _opts, fn) => fn()),
-    //     },
-    //     configurable: true,
-    //   });
+    // Cross-tab flush lock (R2 / audit M1) is now implemented in
+    // uploadPendingMutations via navigator.locks — install a serializing stub.
+    installSerializingLocksStub();
   });
 
   afterEach(async () => {
@@ -177,14 +188,7 @@ describe('MutationManager multi-tab concurrent-write safety', () => {
     vi.useRealTimers();
   });
 
-  it.skip('does not drop a mutation written in tab A when tab B flushes concurrently', async () => {
-    // Real implementation (un-skip once R2 is fixed):
-    //   Arrange: two MutationManager instances sharing the same fake-indexeddb (fake-indexeddb is module-global
-    //     so two instances naturally share state).
-    //   Stub Supabase client to record observed mutation ids.
-    //   Act: mgrA.queueMutation(m1); mgrB.queueMutation(m2); await Promise.all([mgrA.uploadPendingMutations(), mgrB.uploadPendingMutations()]);
-    //   Assert: supabase stub saw m1 and m2 exactly once each (no drops, no duplicates).
-
+  it('does not drop a mutation written in tab A when tab B flushes concurrently', async () => {
     const supabase = createTrackingSupabaseClient();
     const mgrA = new MutationManager(supabase, makeOptions());
     const mgrB = new MutationManager(supabase, makeOptions());
@@ -215,12 +219,7 @@ describe('MutationManager multi-tab concurrent-write safety', () => {
     mgrB.destroy();
   });
 
-  it.skip('does not double-apply the same mutation if both tabs see it in the queue', async () => {
-    // Real implementation (un-skip once R2 is fixed):
-    //   Arrange: prime shared IDB with one queued mutation m1.
-    //   Act: await Promise.all([mgrA.uploadPendingMutations(), mgrB.uploadPendingMutations()]);
-    //   Assert: supabase stub saw m1 exactly once.
-
+  it('does not double-apply the same mutation if both tabs see it in the queue', async () => {
     const supabase = createTrackingSupabaseClient();
     const mgrA = new MutationManager(supabase, makeOptions());
     const mgrB = new MutationManager(supabase, makeOptions());

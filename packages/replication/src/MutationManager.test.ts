@@ -193,6 +193,38 @@ describe('MutationManager', () => {
       expect(stored.timestamp).toBeGreaterThan(0);
     });
 
+    it('assigns a strictly increasing sequenceNumber per queued mutation', async () => {
+      const id1 = await manager.queueMutation('entries', 'UPDATE', 'entry-1', { id: 'entry-1' });
+      const id2 = await manager.queueMutation('entries', 'UPDATE', 'entry-1', { id: 'entry-1' });
+      const id3 = await manager.queueMutation('entries', 'UPDATE', 'entry-2', { id: 'entry-2' });
+
+      const [m1, m2, m3] = await Promise.all([
+        mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, id1),
+        mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, id2),
+        mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, id3),
+      ]);
+
+      // Monotonic: guarantees oldest-first upload ordering even when timestamps
+      // collide (audit H1).
+      expect(typeof m1.sequenceNumber).toBe('number');
+      expect(m2.sequenceNumber).toBeGreaterThan(m1.sequenceNumber);
+      expect(m3.sequenceNumber).toBeGreaterThan(m2.sequenceNumber);
+    });
+
+    it('seeds the sequence above existing mutations so it survives a reload', async () => {
+      // Simulate a mutation persisted before this manager instance existed.
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'pre-existing', sequenceNumber: 500 })
+      );
+
+      const id = await manager.queueMutation('entries', 'UPDATE', 'entry-1', { id: 'entry-1' });
+      const stored = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, id);
+
+      // New sequence continues above the max already in the store.
+      expect(stored.sequenceNumber).toBeGreaterThan(500);
+    });
+
     it('should report pending count', async () => {
       await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, makeMutation({ id: 'a' }));
       await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, makeMutation({ id: 'b' }));

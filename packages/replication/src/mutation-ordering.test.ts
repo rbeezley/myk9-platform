@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PendingMutation } from './types';
-import { sortMutationsByDependencies } from './mutation-ordering';
+import { compareMutationOrder, sortMutationsByDependencies } from './mutation-ordering';
 
 function mutation(overrides: Partial<PendingMutation>): PendingMutation {
   return {
@@ -29,6 +29,60 @@ describe('sortMutationsByDependencies', () => {
 
     expect(result.sorted.map(m => m.id)).toEqual(['oldest', 'middle', 'newest']);
     expect(result.circularCount).toBe(0);
+  });
+
+  // Audit H1: two edits to the SAME row within the same millisecond must upload
+  // oldest-first by sequenceNumber, so a stale re-stamped payload can't overwrite
+  // a correction. With only timestamp (both = 1), ordering was non-deterministic.
+  it('orders same-timestamp edits to one row by sequenceNumber (oldest-first)', () => {
+    const correction = mutation({
+      id: 'correction',
+      rowId: 'entry-7',
+      timestamp: 1,
+      sequenceNumber: 2,
+    });
+    const original = mutation({
+      id: 'original',
+      rowId: 'entry-7',
+      timestamp: 1,
+      sequenceNumber: 1,
+    });
+
+    // Input deliberately reversed to prove insertion order doesn't decide it.
+    const result = sortMutationsByDependencies([correction, original]);
+
+    expect(result.sorted.map(m => m.id)).toEqual(['original', 'correction']);
+  });
+
+  it('keeps sequence order WITHIN the dependency constraint', () => {
+    const parent = mutation({ id: 'parent', timestamp: 1, sequenceNumber: 1 });
+    // Two independent children of parent; sequence decides their relative order.
+    const childLate = mutation({
+      id: 'child-late',
+      timestamp: 1,
+      sequenceNumber: 3,
+      dependsOn: ['parent'],
+    });
+    const childEarly = mutation({
+      id: 'child-early',
+      timestamp: 1,
+      sequenceNumber: 2,
+      dependsOn: ['parent'],
+    });
+
+    const result = sortMutationsByDependencies([childLate, childEarly, parent]);
+
+    // Parent first (dependency), then children in sequence order.
+    expect(result.sorted.map(m => m.id)).toEqual(['parent', 'child-early', 'child-late']);
+    expect(result.circularCount).toBe(0);
+  });
+
+  it('compareMutationOrder falls back to timestamp when a sequence is missing', () => {
+    const withSeq = mutation({ id: 'a', timestamp: 100, sequenceNumber: 5 });
+    const withoutSeq = mutation({ id: 'b', timestamp: 50, sequenceNumber: undefined });
+    // Not both assigned → timestamp decides (b is older), so b sorts first.
+    expect(compareMutationOrder(withSeq, withoutSeq)).toBeGreaterThan(0);
+    expect(compareMutationOrder(withoutSeq, withSeq)).toBeLessThan(0);
   });
 
   it('uploads dependencies before dependents even when the input is reversed', () => {

@@ -137,4 +137,32 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     expect(payload.no_finish_count).toBe(0);
     expect(payload.points_earned).toBe(95);
   });
+
+  // Rescore correcting nonzero detail down to 0 must WRITE 0, not omit it (which
+  // would leave the cached nonzero value to re-upload stale). audit/Codex P2.
+  it('writes an explicit 0 detail value on a rescore (does not drop it)', async () => {
+    updateEntry.mockResolvedValue('mutation-789');
+    const opts = baseOptions({
+      scoreData: {
+        resultText: 'Qualified',
+        searchTime: '1:00.00',
+        faultCount: 0,
+        correctCount: 0,
+        incorrectCount: 0,
+        finishCallErrors: 0,
+        points: 0,
+      },
+    });
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(opts);
+    });
+
+    const payload = updateEntry.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.total_correct_finds).toBe(0);
+    expect(payload.total_incorrect_finds).toBe(0);
+    expect(payload.no_finish_count).toBe(0);
+    expect(payload.points_earned).toBe(0);
+  });
 });

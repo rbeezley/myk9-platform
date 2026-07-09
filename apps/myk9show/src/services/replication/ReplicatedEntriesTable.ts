@@ -375,7 +375,6 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _syncStatus: 'pending',
     };
 
-    await this.set(entryId, updated, true);
     const supabaseRow = this.toSupabaseRow(updated);
     // Auto-route ringside-only writes (scoring/run-order/check-in/placement)
     // through the SECURITY DEFINER RPC so assigned judges / stewards — who are
@@ -383,6 +382,18 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // any non-ringside column fall through to the direct UPDATE. See
     // ./ringsideEntryRpc.ts.
     const rpcFields = buildRingsideRpcFields(Object.keys(updates), supabaseRow);
+
+    // Durable-first: queue the mutation BEFORE mutating the local cache. If the
+    // queue write THROWS (overflow/quota), the optimistic cache is never touched,
+    // so we don't strand a dirty row that shows as saved but has no mutation to
+    // upload — the caller's error path leaves the list unchanged. (There is no
+    // orphan-repair to rescue such a row.) The OCC serverVersion precondition
+    // reads the pre-update cache row, which our optimistic edit hasn't changed.
+    //
+    // A `null` return means no MutationManager is wired (a dev/test or
+    // misconfiguration case, never production, where the provider always wires
+    // it). We still update the cache so offline-cache behavior works; the scoring
+    // caller separately treats `null` as a failure and surfaces it.
     const mutationId = await this.queueMutation(
       'UPDATE',
       entryId,
@@ -390,6 +401,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       undefined,
       rpcFields ? { name: RINGSIDE_RPC_FUNCTION, fields: rpcFields } : undefined
     );
+
+    await this.set(entryId, updated, true);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId}`);
     return mutationId;

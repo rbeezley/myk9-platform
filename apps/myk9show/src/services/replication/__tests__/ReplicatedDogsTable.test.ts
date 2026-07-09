@@ -205,12 +205,20 @@ describe('ReplicatedDogsTable', () => {
         await new Promise(resolve => setTimeout(resolve, 10));
 
         mockDb.get.mockResolvedValue(mockRow);
-        mockDb.put.mockResolvedValue(undefined);
+        // Access-tracking now runs in a single readwrite transaction (re-reads the
+        // row and bumps only the stat fields) so a concurrent dirty write can't be
+        // clobbered — assert on the tx store's put, not a bare db.put.
+        const storePut = vi.fn().mockResolvedValue(undefined);
+        const storeGet = vi.fn().mockResolvedValue(mockRow);
+        mockDb.transaction.mockReturnValue({
+          store: { get: storeGet, put: storePut },
+          done: Promise.resolve(),
+        });
 
         await dogsTable.getDogById('1');
 
-        expect(mockDb.put).toHaveBeenCalled();
-        const putCall = mockDb.put.mock.calls[0][1];
+        expect(storePut).toHaveBeenCalled();
+        const putCall = storePut.mock.calls[0][0];
         expect(putCall.lastAccessedAt).toBeGreaterThanOrEqual(initialAccessTime);
         expect(putCall.accessCount).toBe(1);
       });

@@ -34,6 +34,7 @@ Click any show to open its workbench.
 The wizard walks you through four steps: show details, trial configuration, class selection, and a review screen. It creates your show, trials, and classes in one pass — there's no separate step for each.
 
 **Before you start,** have these ready:
+
 - Show name, sanctioning organization (AKC, UKC, or Other)
 - Start and end dates
 - Entry fee per class
@@ -75,11 +76,13 @@ After creating your show, you can edit any part of its structure from the **Setu
 ![S-06: Show Workbench — Setup tab with readiness signals](../screenshots/S-06.png)
 
 **Edit show details:**
+
 1. Click the **Setup** tab.
 2. Click **Edit Show** (or the pencil icon next to the field you want to change).
 3. Make your changes → click **Save**.
 
 **Change a judge assignment:**
+
 1. Click the **Setup** tab.
 2. Find the class row → click the judge assignment → select a new judge from the dropdown.
 
@@ -124,6 +127,7 @@ Entry Management is where you act on pending entries, add mail-in entries, and m
 When a class is full, click **Waitlist** instead of Accept on a pending entry.
 
 When a spot opens (someone scratches or is pulled):
+
 1. Open **Waitlist Management** from the sidebar.
 2. Find the next exhibitor in line → click **Offer Spot**.
 3. The exhibitor is notified. If they don't confirm within the notice window, move to the next person.
@@ -149,10 +153,12 @@ Exhibitors receive the announcement in their myK9Show inbox and as a push notifi
 ### Send a message to one exhibitor
 
 **From Entry Management (fastest):**
+
 1. Open the entry card → click **Message Exhibitor**.
 2. A compose window opens with the exhibitor pre-selected.
 
 **From the Message Center:**
+
 1. Open the Message Center → click **New Message**.
 2. Search for the exhibitor by name or email.
 
@@ -172,12 +178,12 @@ Run these reports before the show to prepare your rings, judges, and stewards.
 2. Select the trial from the dropdown.
 3. Select a report type:
 
-| Report | When to run | Who gets it |
-|---|---|---|
-| Check-in Sheet | Morning of show day | Ring steward / check-in table |
-| Steward's Report | Before each class | Steward, posted at ring |
-| Scoresheets | Before judges arrive | Each judge |
-| Armband Labels | Before check-in opens | Print on Avery 18262 stock |
+| Report           | When to run           | Who gets it                   |
+| ---------------- | --------------------- | ----------------------------- |
+| Check-in Sheet   | Morning of show day   | Ring steward / check-in table |
+| Steward's Report | Before each class     | Steward, posted at ring       |
+| Scoresheets      | Before judges arrive  | Each judge                    |
+| Armband Labels   | Before check-in opens | Print on Avery 18262 stock    |
 
 4. Print or download the report.
 
@@ -243,12 +249,14 @@ A move-up promotes a qualifying dog to a higher-level class in the same element.
 ### Enter scores from paper scoresheets
 
 When judges are scoring on paper rather than using the ringside app:
+
 1. From the Show Map, click the class row → **Enter Scores** (or click into the class directly from the results section).
 2. For each dog in run order: select **Q**, **NQ**, or **Absent** → enter the time if the dog qualified → click **Save**.
 
 ### Tools panel
 
 Open the Tools panel from the Show Desk for:
+
 - **Late entries** — add a walk-in entry without leaving Show Desk
 - **Judge hospitality** — track judge meals, breaks, and show-day notes
 - **Incident log** — record any show-day incidents
@@ -267,11 +275,11 @@ Results & Check-In lets you choose when exhibitors can see their results. Open i
 
 There are three visibility settings — pick the one that fits your show:
 
-| Setting | What exhibitors see |
-|---|---|
-| **Immediately** | Q/NQ, time, and faults appear as each dog finishes. Placement appears when the class is complete. |
-| **After Class** | Q/NQ appears as dogs run. Time, faults, and placement wait until the full class is done. |
-| **After Review** | All results are hidden until you manually release them. |
+| Setting          | What exhibitors see                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------- |
+| **Immediately**  | Q/NQ, time, and faults appear as each dog finishes. Placement appears when the class is complete. |
+| **After Class**  | Q/NQ appears as dogs run. Time, faults, and placement wait until the full class is done.          |
+| **After Review** | All results are hidden until you manually release them.                                           |
 
 Click the card for the setting you want. It applies to all classes at once.
 
@@ -323,12 +331,12 @@ After the show closes, generate the official reports for judges, the club chairm
 2. Select the trial.
 3. Generate each report in order:
 
-| Report | Recipient | When |
-|---|---|---|
-| Results Catalog | Club chairman, your records | After closeout |
-| Judge Report | Each judge + AKC submission packet | One per trial |
-| Trial Secretary Report | AKC submission packet | One per trial |
-| Result Labels | Qualifying dogs' ribbons | One per show |
+| Report                 | Recipient                          | When           |
+| ---------------------- | ---------------------------------- | -------------- |
+| Results Catalog        | Club chairman, your records        | After closeout |
+| Judge Report           | Each judge + AKC submission packet | One per trial  |
+| Trial Secretary Report | AKC submission packet              | One per trial  |
+| Result Labels          | Qualifying dogs' ribbons           | One per show   |
 
 **Note on PDF submission:** The downloaded reports are formatted for printing. The AKC results file (Section 9) is the electronic submission — the Judge and Trial Secretary reports are paper supplements for your own records and the judge's copy.
 
@@ -336,9 +344,15 @@ After the show closes, generate the official reports for judges, the club chairm
 
 ## Section 11 — Closeout
 
-> **Status: Not yet available** — The Close Out Show action (archiving all trials and classes) is not yet built as of this guide's verified date. This section will be completed when the feature ships.
->
-> If you need to mark a show as complete or close it after the event, contact support.
+> **Status: Walkthrough needed** — The Show Desk **Close Out Show** action now marks the show, open trials, and open classes completed. This guide section still needs a seeded walkthrough with reports, result submission history, closeout, and sync evidence before final publication.
+
+Draft flow:
+
+1. Open the Show Desk closeout section.
+2. Review Results & Check-In, Reports, Submit Results, and the closeout summary.
+3. Click **Close Out Show**.
+4. Review any concerns shown by myK9.
+5. Confirm the action to mark the show completed.
 
 ---
 
@@ -357,29 +371,29 @@ After the show closes, generate the official reports for judges, the club chairm
 
 All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-25:
 
-| Shot ID | Section | Description | Status |
-|---|---|---|---|
-| S-01 | § 1 | Dashboard — one active show | ready |
-| S-02 | § 2 | Wizard Step 1 (show details) | ready |
-| S-03 | § 2 | Wizard Step 2 (trial configuration) | captured 2026-06-25 |
-| S-04 | § 2 | Wizard Step 3 (class selection) | ready |
-| S-05 | § 2 | Wizard Step 4 (review) | captured 2026-06-25 |
-| S-06 | § 3 | Show Workbench — Setup tab | ready |
-| S-07 | § 4 | Entry Management — Pending tab | ready |
-| S-08 | § 4 | Three-dot menu on entry card | ready |
-| S-09 | § 4 | Bulk select + approve bar | ready |
-| S-10 | § 4 | Waitlist Management page | ready |
-| S-11 | § 5 | Message Center — compose | ready |
-| S-12 | § 6 | Reports — Check-in Sheet | ready |
-| S-13 | § 6 | Reports — Steward's Report selected | ready |
-| S-14 | § 6 | Reports — Armband Labels | ready |
-| S-15 | § 7 | Show Desk — task queue with "Show in progress" banner and Next Best Action | ready |
-| S-16 | § 7 | Entry Management — "Remove entry?" dialog | ready |
-| S-17 | § 7 | Move-up dialog | ready |
-| S-18 | § 7 | Late Entry wizard (Step 1: Select Dogs) | ready |
-| S-19 | § 7 | Tools panel | ready |
-| S-20 | § 8 | Results & Check-In — three preset cards, "After Class" active | ready |
-| S-21 | § 8 | Results & Check-In — classes selected, sticky "Release Results" action bar visible | ready |
-| S-22 | § 9 | Submit Results — preflight summary | ready |
-| S-23 | § 9 | XML download button | ready |
-| S-24 | § 9 | Preflight warning — missing AKC numbers | ready |
+| Shot ID | Section | Description                                                                        | Status              |
+| ------- | ------- | ---------------------------------------------------------------------------------- | ------------------- |
+| S-01    | § 1     | Dashboard — one active show                                                        | ready               |
+| S-02    | § 2     | Wizard Step 1 (show details)                                                       | ready               |
+| S-03    | § 2     | Wizard Step 2 (trial configuration)                                                | captured 2026-06-25 |
+| S-04    | § 2     | Wizard Step 3 (class selection)                                                    | ready               |
+| S-05    | § 2     | Wizard Step 4 (review)                                                             | captured 2026-06-25 |
+| S-06    | § 3     | Show Workbench — Setup tab                                                         | ready               |
+| S-07    | § 4     | Entry Management — Pending tab                                                     | ready               |
+| S-08    | § 4     | Three-dot menu on entry card                                                       | ready               |
+| S-09    | § 4     | Bulk select + approve bar                                                          | ready               |
+| S-10    | § 4     | Waitlist Management page                                                           | ready               |
+| S-11    | § 5     | Message Center — compose                                                           | ready               |
+| S-12    | § 6     | Reports — Check-in Sheet                                                           | ready               |
+| S-13    | § 6     | Reports — Steward's Report selected                                                | ready               |
+| S-14    | § 6     | Reports — Armband Labels                                                           | ready               |
+| S-15    | § 7     | Show Desk — task queue with "Show in progress" banner and Next Best Action         | ready               |
+| S-16    | § 7     | Entry Management — "Remove entry?" dialog                                          | ready               |
+| S-17    | § 7     | Move-up dialog                                                                     | ready               |
+| S-18    | § 7     | Late Entry wizard (Step 1: Select Dogs)                                            | ready               |
+| S-19    | § 7     | Tools panel                                                                        | ready               |
+| S-20    | § 8     | Results & Check-In — three preset cards, "After Class" active                      | ready               |
+| S-21    | § 8     | Results & Check-In — classes selected, sticky "Release Results" action bar visible | ready               |
+| S-22    | § 9     | Submit Results — preflight summary                                                 | ready               |
+| S-23    | § 9     | XML download button                                                                | ready               |
+| S-24    | § 9     | Preflight warning — missing AKC numbers                                            | ready               |

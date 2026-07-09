@@ -7,6 +7,8 @@
 --
 -- Safe to re-run. Existing auth passwords are not changed; missing auth users
 -- are created with the historical TestPass1234! password used by migration 152.
+-- The auth.users token columns below are deliberately empty strings, not NULL:
+-- GoTrue scans them into string fields and cannot load users with NULL tokens.
 
 DO $$
 DECLARE
@@ -58,7 +60,11 @@ BEGIN
       raw_user_meta_data,
       is_super_admin,
       is_sso_user,
-      is_anonymous
+      is_anonymous,
+      confirmation_token,
+      recovery_token,
+      email_change,
+      email_change_token_new
     )
     VALUES (
       v_auth_id,
@@ -74,7 +80,11 @@ BEGIN
       jsonb_build_object('first_name', v_first, 'last_name', v_last),
       false,
       false,
-      false
+      false,
+      '',
+      '',
+      '',
+      ''
     )
     ON CONFLICT (id) DO NOTHING;
 

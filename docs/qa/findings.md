@@ -188,19 +188,19 @@ Copy this block for each new finding.
 
 ### QA-ROLE-SCOPE-024
 
-- **Status:** open
+- **Status:** fixed
 - **Severity:** high
 - **Role:** exhibitor
-- **Surface:** `route-health-by-role.spec.ts` exhibitor group; `exhibitor1@myk9t.com`.
+- **Surface:** `route-health-by-role.spec.ts` exhibitor group; canonical exhibitor login.
 - **Suite category:** nightly
 - **Pattern:** role-scope-empty
 - **Detected by:** Playwright route-health
 - **Evidence:** 2026-06-18 isolated route-health replay on exported `PLAYWRIGHT_BASE_URL=http://127.0.0.1:5857` passed public, secretary, judge, club-admin, and admin groups but failed the exhibitor group. All four exhibitor routes redirected to `/onboarding` instead of the expected route: `/exhibitor/entries`, `/account`, `/shows`, and `/notifications`. Before the code fix in this PR, the same path also produced `406 GET /rest/v1/people?select=*&auth_user_id=eq.a1000001-0000-0000-0000-000000000001&deleted_at=is.null`; after changing `useCurrentUserPerson` to `.maybeSingle()`, the 406/browser-health noise disappeared, leaving only the real onboarding redirect. Evidence path: `apps/myk9show/test-results/route-health-by-role-Route-26df1-hibitor-routes-render-clean-chromium/error-context.md`.
-- **User impact:** The primary exhibitor test account cannot prove the exhibitor route group because the app treats it as an incomplete user and forces onboarding. If this reflects staging seed drift, Nightly cannot currently validate the exhibitor authenticated baseline.
+- **User impact:** The legacy `exhibitor1@myk9t.com` fixture could not prove the exhibitor route group because the app treated it as an incomplete user and forced onboarding. Nightly should validate the authenticated exhibitor baseline with the canonical `e2e-exhibitor@test.myk9.com` account instead.
 - **Intent check:** Harms the exhibitor "ready to enter a show" path by blocking authenticated route access before My Entries and show discovery can render.
-- **Fix owner:** test-account seed/data state for `exhibitor1@myk9t.com` (`people`, `exhibitor_profiles`, onboarding completion fields, and related RLS visibility).
-- **Proof required:** Inventory `auth.users`, `people`, `exhibitor_profiles`, and any onboarding-completion fields for `exhibitor1@myk9t.com`; repair the staging/dev seed state if appropriate; rerun `route-health-by-role.spec.ts --grep "Route health: exhibitor"` and then standalone route-health `6/6` on an isolated exported Playwright port.
-- **Notes:** Do not suppress the redirect in route-health. The `.maybeSingle()` fix removed the false 406 network noise, but the onboarding redirect remains a real test-account readiness issue. 2026-06-19 update: active cross-role and route-health exhibitor checks were moved to the configured `TEST_USERS.DEMO_EXHIBITOR` account and passed focused proof; this finding remains open for the legacy `exhibitor1@myk9t.com` seed/onboarding state.
+- **Fix owner:** E2E credential contract and route-health test-user selection.
+- **Proof required:** Keep `route-health-by-role.spec.ts --grep "Route health: exhibitor"` on `TEST_USERS.DEMO_EXHIBITOR` / `e2e-exhibitor@test.myk9.com`; rerun standalone route-health `6/6` on an isolated exported Playwright port when closing adjacent route-health findings.
+- **Notes:** Do not suppress onboarding redirects in route-health. The `.maybeSingle()` fix removed the false 406 network noise, and 2026-06-19 focused proof passed after active cross-role and route-health exhibitor checks moved to the configured `TEST_USERS.DEMO_EXHIBITOR` account. 2026-07-09 follow-up: the canonical route-health users are `e2e-secretary@test.myk9.com`, `e2e-exhibitor@test.myk9.com`, `e2e-admin@test.myk9.com`, and `e2e-judge@test.myk9.com`; legacy `*@myk9t.com` rows remain fixture/demo data rather than Nightly sign-in credentials.
 
 ### QA-HIDDEN-VALIDATION-025
 

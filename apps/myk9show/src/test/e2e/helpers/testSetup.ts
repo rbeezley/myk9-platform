@@ -7,9 +7,7 @@ type TestRole = 'admin' | 'secretary' | 'user' | 'judge';
 const ROLE_USERS: Record<TestRole, TestUser> = {
   admin: TEST_USERS.SITE_ADMIN,
   secretary: TEST_USERS.SECRETARY,
-  // DEMO_EXHIBITOR (env-backed e2e-exhibitor@test.myk9.com), not EXHIBITOR —
-  // the latter falls back to the dead exhibitor1@myk9t.com fixture with no
-  // password and cannot authenticate.
+  // DEMO_EXHIBITOR is the canonical env-backed exhibitor login.
   user: TEST_USERS.DEMO_EXHIBITOR,
   judge: TEST_USERS.JUDGE,
 };

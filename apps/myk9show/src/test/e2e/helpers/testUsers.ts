@@ -4,14 +4,15 @@
  * All accounts live in the `myk9-platform` Supabase project.
  * Credentials are stored in CI secrets and .env.local only — never hardcoded here.
  *
- * CI-critical accounts (required for A11y smoke + E2E PR Smoke):
+ * Canonical accounts (required for CI, Nightly, and route-health):
  *   E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD
  *   E2E_SECRETARY_EMAIL / E2E_SECRETARY_PASSWORD
  *   E2E_JUDGE_EMAIL / E2E_JUDGE_PASSWORD
- *
- * Nightly-only accounts (EXHIBITOR, CLUB_ADMIN, DEMO_EXHIBITOR):
  *   E2E_DEMO_EXHIBITOR_EMAIL / E2E_DEMO_EXHIBITOR_PASSWORD
- *   Others use env vars or are skipped when absent.
+ *
+ * Legacy/demo-only accounts (EXHIBITOR_2..5) are fixture data, not route-health
+ * sign-in users. Use DEMO_EXHIBITOR for authenticated exhibitor tests.
+ * Club-admin remains optional and is skipped when its env vars are absent.
  */
 
 import { expect, type Page } from '@playwright/test';
@@ -57,47 +58,47 @@ export const TEST_USERS: Record<string, TestUser> = {
   },
 
   EXHIBITOR: {
-    email: process.env.E2E_EXHIBITOR_EMAIL ?? 'exhibitor1@myk9t.com',
-    password: process.env.E2E_EXHIBITOR_PASSWORD ?? '',
+    email: process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'e2e-exhibitor@test.myk9.com',
+    password: process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
-    description: 'Exhibitor (Alice Martin) — nightly only',
+    description: 'Compatibility alias for DEMO_EXHIBITOR',
   },
 
-  // Primary demo exhibitor with seeded dogs (Willow, Ranger, Juniper).
-  // Protected from DB wipes. Use this account for tests that need real dog data.
+  // Canonical exhibitor login with seeded dogs (Willow, Ranger, Juniper).
+  // Protected from DB wipes. Use this account for authenticated exhibitor tests.
   DEMO_EXHIBITOR: {
     email: process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'e2e-exhibitor@test.myk9.com',
     password: process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
-    description: 'Demo exhibitor with seeded dogs — protected from wipes',
+    description: 'Canonical exhibitor with seeded dogs — protected from wipes',
   },
 
   EXHIBITOR_2: {
     email: 'exhibitor2@myk9t.com',
     password: process.env.E2E_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
-    description: 'Exhibitor test account — nightly only',
+    description: 'Legacy exhibitor fixture — not a canonical route-health login',
   },
 
   EXHIBITOR_3: {
     email: 'exhibitor3@myk9t.com',
     password: process.env.E2E_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
-    description: 'Exhibitor test account — nightly only',
+    description: 'Legacy exhibitor fixture — not a canonical route-health login',
   },
 
   EXHIBITOR_4: {
     email: 'exhibitor4@myk9t.com',
     password: process.env.E2E_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
-    description: 'Exhibitor test account — nightly only',
+    description: 'Legacy exhibitor fixture — not a canonical route-health login',
   },
 
   EXHIBITOR_5: {
     email: 'exhibitor5@myk9t.com',
     password: process.env.E2E_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
-    description: 'Exhibitor test account — nightly only',
+    description: 'Legacy exhibitor fixture — not a canonical route-health login',
   },
 };
 

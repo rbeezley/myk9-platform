@@ -37,7 +37,7 @@
 ## 6. Verification, PR, and deploy
 
 - [x] 6.1 Run the full verification matching the blast radius: `pnpm typecheck`, `pnpm lint`, `cd apps/myk9show && pnpm test` (webhook/edge tests, RefundAllEntriesCard, registries helpers, health page), plus any edge-function test suites touched
-- [ ] 6.2 Open PR from this worktree branch; run `/review` and Codex review (`codex review --commit <SHA>`) — user-visible behavior + payment path qualifies for the Codex gate; fix findings
-- [ ] 6.3 Merge from the main repo directory after green CI; then confirm-and-execute the deploy steps (merge ≠ deploy): `supabase db push` for the operator_alerts migration, `supabase functions deploy stripe-webhook cron-process-payouts --no-verify-jwt` from the correct workdir
-- [ ] 6.4 Verify live on staging: unmatched-refund test event produces a visible, resolvable alert on `/admin/health`; resolve RPC gated (rolled-back psql txn check)
-- [ ] 6.5 Update tracking docs: mark Phases 5–7 complete in `docs/plan-money-path-hardening.md` (flip status when fully shipped), check off the corresponding OPEN-TODOS items, and note completion in the launch scorecard's money-path evidence
+- [x] 6.2 Open PR from this worktree branch; run `/review` and Codex review (`codex review --commit <SHA>`) — user-visible behavior + payment path qualifies for the Codex gate; fix findings
+- [x] 6.3 Merge from the main repo directory after green CI; then confirm-and-execute the deploy steps (merge ≠ deploy): `supabase db push` for the operator_alerts migration, `supabase functions deploy stripe-webhook cron-process-payouts --no-verify-jwt` from the correct workdir
+- [x] 6.4 Verify live on staging: unmatched-refund test event produces a visible, resolvable alert on `/admin/health`; resolve RPC gated (rolled-back psql txn check)
+- [x] 6.5 Update tracking docs: mark Phases 5–7 complete in `docs/plan-money-path-hardening.md` (flip status when fully shipped), check off the corresponding OPEN-TODOS items, and note completion in the launch scorecard's money-path evidence

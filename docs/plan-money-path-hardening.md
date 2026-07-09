@@ -13,6 +13,7 @@
 | 1 — MP-01/MP-02 | Merged + DB-pushed                                                   | PR #1165; migration `20260705200000_entries_protect_payment_status.sql`; staging `supabase db push` applied 2026-07-06.                                                                                                                                                            |
 | 2 — MP-03       | Merged + functions redeployed                                        | PR #1170; assertion-first focused tests red then green; affected Stripe functions redeployed 2026-07-06 14:21:03 UTC. Staging duplicate-delivery payment verification still needs evidence.                                                                               |
 | 3 — MP-04/MP-14 | Merged + DB-pushed + functions redeployed                            | PR #1170; migration `20260706013906_stripe_livemode_scoped_ids.sql` applied to `sojmvhhwsjxmfistvzbe`; dry-run now reports remote DB up to date; affected Stripe functions redeployed 2026-07-06 14:21:03 UTC. Staging payment verification still needs evidence.        |
+| 4 — MP-06/MP-10 | Merged + function redeployed                                         | PR #1218 (squash `58dc377e8`), merged 2026-07-08. `charge.refunded`'s allowlist now recognizes `show_refund`-tagged refunds and alerts only on unstamped entries (2 Codex review rounds fixed a stamp/webhook race and an eligibility-filter false-positive before a clean 3rd round). No migration. `stripe-webhook` redeployed 2026-07-08. |
 
 ---
 

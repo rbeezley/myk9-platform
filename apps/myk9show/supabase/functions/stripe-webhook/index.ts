@@ -31,6 +31,7 @@ import {
   findShowRefundId,
 } from '../_shared/chargeRefundedDecision.ts';
 import { decideFreshSessionGate } from '../_shared/freshSessionGate.ts';
+import { buildConfirmationStampPayload } from '../_shared/entryConfirmationStamp.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -1854,8 +1855,48 @@ async function sendEntryConfirmationEmail(
     if (!response.ok) {
       const error = await response.json();
       console.error('Failed to send confirmation email:', error);
-    } else {
-      console.log(`Confirmation email sent to ${person.email}`);
+      // MP-13: no stamp on a failed send — the entry stays eligible for the
+      // scheduled send-confirmation-email sender's audience query
+      // (confirmation_email_sent_at IS NULL / status IN pending,failed).
+      return;
+    }
+
+    console.log(`Confirmation email sent to ${person.email}`);
+
+    // MP-13: stamp every entry this email covered with the SAME send-state
+    // semantics the scheduled sender uses, so its audience query excludes
+    // this entry and no second confirmation email is sent. send-email
+    // returns { success: true, id } where `id` is the Resend message id;
+    // fall back to null if the body is missing/unparseable rather than
+    // failing the whole webhook over a non-critical read.
+    let messageId: string | null = null;
+    try {
+      const result = (await response.json()) as { id?: string };
+      messageId = result?.id ?? null;
+    } catch (parseError) {
+      console.error('Could not parse send-email response for message id:', parseError);
+    }
+
+    const stampPayload = buildConfirmationStampPayload({
+      sendSucceeded: true,
+      messageId,
+      nowIso: new Date().toISOString(),
+    });
+    if (stampPayload) {
+      const { error: stampError } = await supabase
+        .from('entries')
+        .update(stampPayload)
+        .in('id', entryIds);
+      if (stampError) {
+        // Logged, not thrown: worst case is the pre-existing duplicate send
+        // via the scheduled sender's retry, not a lost payment. Per task
+        // 3.2's explicit expansion, a stamp write failure must not fail the
+        // webhook.
+        console.error(
+          `Failed to stamp confirmation_email_* for entries [${entryIds.join(', ')}]:`,
+          stampError
+        );
+      }
     }
   } catch (error) {
     console.error('Error sending confirmation email:', error);

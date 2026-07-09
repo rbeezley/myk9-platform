@@ -20,8 +20,8 @@
 
 ## 3. Confirmation email idempotency (MP-13)
 
-- [ ] 3.1 Write failing integration-style test: webhook confirmation send followed by the scheduled sender's audience query → entry not selected (exactly one email); include the retry case (stamped entry → no resend)
-- [ ] 3.2 Stamp `confirmation_email_sent_at / _message_id / _status='sent'` on affected entries in `sendEntryConfirmationEmail` after successful send (`stripe-webhook/index.ts:1701-1830`); failed send leaves fields unstamped so the scheduled sender retries. [EXPANDED] For multi-entry sessions, stamp every entry the sent email covered; a stamp write failure logs and does not fail the webhook (worst case is the pre-existing duplicate, not a lost payment)
+- [x] 3.1 Write failing integration-style test: webhook confirmation send followed by the scheduled sender's audience query → entry not selected (exactly one email); include the retry case (stamped entry → no resend)
+- [x] 3.2 Stamp `confirmation_email_sent_at / _message_id / _status='sent'` on affected entries in `sendEntryConfirmationEmail` after successful send (`stripe-webhook/index.ts:1701-1830`); failed send leaves fields unstamped so the scheduled sender retries. [EXPANDED] For multi-entry sessions, stamp every entry the sent email covered; a stamp write failure logs and does not fail the webhook (worst case is the pre-existing duplicate, not a lost payment)
 
 ## 4. Refund result transparency (MP-11)
 

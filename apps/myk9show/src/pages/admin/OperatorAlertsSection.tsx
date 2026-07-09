@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { StatusBadge } from '@myk9/ui';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,8 @@ function AlertRow({ alert, now }: { alert: OperatorAlert; now: number }) {
     setResolving(true);
     try {
       await mutateAsync(alert.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resolve alert');
     } finally {
       setResolving(false);
     }

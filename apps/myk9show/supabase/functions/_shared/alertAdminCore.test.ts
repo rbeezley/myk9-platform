@@ -1,5 +1,46 @@
 import { describe, expect, it, vi } from 'vitest';
-import { classifyInsertResult, runAlertAdmin } from './alertAdminCore';
+import { buildAlertRow, classifyInsertResult, runAlertAdmin } from './alertAdminCore';
+
+describe('buildAlertRow', () => {
+  it('falls back to { html } as detail when opts.detail is absent (legacy no-opts callers)', () => {
+    const html = '<p>Entry 123 refund failed for payment intent pi_abc</p>';
+
+    const row = buildAlertRow('Refund failed', html);
+
+    expect(row.detail).toEqual({ html });
+  });
+
+  it('persists an explicit detail verbatim, without merging in html', () => {
+    const html = '<p>ignored for detail purposes</p>';
+    const detail = { entryId: 'entry-1', paymentIntentId: 'pi_abc' };
+
+    const row = buildAlertRow('Refund failed', html, { detail });
+
+    expect(row.detail).toEqual(detail);
+    expect(row.detail).not.toHaveProperty('html');
+  });
+
+  it('defaults source/severity/dedupe_key and carries subject as title', () => {
+    const row = buildAlertRow('Something broke', '<p>x</p>');
+
+    expect(row.source).toBe('unspecified');
+    expect(row.severity).toBe('error');
+    expect(row.title).toBe('Something broke');
+    expect(row.dedupe_key).toBeNull();
+  });
+
+  it('carries opts.source, opts.severity, and opts.dedupeKey into the row', () => {
+    const row = buildAlertRow('Something broke', '<p>x</p>', {
+      source: 'stripe-webhook',
+      severity: 'warn',
+      dedupeKey: 'entry-claim-failed-sess_123',
+    });
+
+    expect(row.source).toBe('stripe-webhook');
+    expect(row.severity).toBe('warn');
+    expect(row.dedupe_key).toBe('entry-claim-failed-sess_123');
+  });
+});
 
 describe('classifyInsertResult', () => {
   it('classifies a clean insert as inserted', () => {

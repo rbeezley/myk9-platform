@@ -209,7 +209,8 @@ async function handleRefundFailed(refund: Stripe.Refund) {
      payout math is docking the club for money that never left.</p>
      <p>Recovery: clear the entry's refund columns (see the runbook's
      "Manual reconciliation" section), then re-issue the refund from the entries
-     page. The refund function ignores dead refunds, so re-issuing is safe.</p>`
+     page. The refund function ignores dead refunds, so re-issuing is safe.</p>`,
+    { source: 'stripe-webhook', dedupeKey: `refund-failed-${refund.id}` }
   );
 }
 
@@ -232,7 +233,8 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
      still counts these entries — if the dispute stands, mark the entries refunded
      BEFORE the payout settles (end date + 3 days) or the club gets paid for a
      charge the platform lost.</p>
-     <p>Respond in the Stripe dashboard: Payments → Disputes.</p>`
+     <p>Respond in the Stripe dashboard: Payments → Disputes.</p>`,
+    { source: 'stripe-webhook', dedupeKey: `dispute-created-${dispute.id}` }
   );
 }
 
@@ -314,7 +316,8 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
      days), either re-issue the refund through the app's entry refund dialog (then
      refund the duplicate in Stripe), or set <code>refund_amount</code> on the affected
      entries. The runbook's "Never refund from the Stripe dashboard" section covers
-     this.</p>`
+     this.</p>`,
+    { source: 'stripe-webhook', dedupeKey: `dashboard-refund-reconcile-${paymentIntentId}` }
   );
 }
 
@@ -397,7 +400,8 @@ async function alertIfShowRefundEntriesUnstamped(charge: Stripe.Charge, showId: 
      <p>The payout calculation will NOT deduct ${unstampedEntryCount === 1 ? 'this entry' : 'these entries'}'
      fee${unstampedEntryCount === 1 ? '' : 's'} from the club's payout unless stamped before the
      show's payout runs. Re-run the show refund (it reuses the existing Stripe refund — no double
-     refund) or stamp the entries manually.</p>`
+     refund) or stamp the entries manually.</p>`,
+    { source: 'stripe-webhook', dedupeKey: `show-refund-unstamped-${paymentIntentId}` }
   );
 }
 
@@ -552,7 +556,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
        ${cartError ? `<pre>${cartError.message}</pre>` : ''}
        <p>Recovery: verify the payment in the Stripe dashboard and refund it
        (Payments → search the session's payment intent → Refund), or recreate the
-       entries manually if the exhibitor confirms what they ordered.</p>`
+       entries manually if the exhibitor confirms what they ordered.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `paid-checkout-no-cart-${session.id}` }
     );
     return;
   }
@@ -588,7 +593,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
        <p>No entries were created for this charge. Refund payment intent
        <code>${stalePiId ?? 'unknown — look up the session in Stripe'}</code> from the
        Stripe dashboard. The exhibitor's cart is untouched and they can check out
-       again normally.</p>`
+       again normally.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `stale-checkout-refund-${session.id}` }
     );
     return;
   }
@@ -644,7 +650,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
        fee data needed to verify the amount could not be loaded, so no entries were
        created and Stripe will not retry. The cart is untouched.</p>
        <p>Recovery: check the function logs; if this was a transient database error,
-       re-send the event from the Stripe dashboard (Developers → Events → Resend).</p>`
+       re-send the event from the Stripe dashboard (Developers → Events → Resend).</p>`,
+      { source: 'stripe-webhook', dedupeKey: `checkout-verify-failed-${session.id}` }
     );
     return;
   }
@@ -667,7 +674,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
        This may indicate a cross-show class_id was injected into the cart.</p>
        <p>Missing class IDs: <code>${missingClassIds.join(', ')}</code></p>
        <p>No entries were created. Refund payment intent from the Stripe dashboard and
-       investigate the cart before manually re-entering.</p>`
+       investigate the cart before manually re-entering.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `cart-classes-mismatch-${session.id}` }
     );
     return;
   }
@@ -719,7 +727,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
        between checkout and payment. Malicious cause: cart values were tampered after
        checkout started. Either way the charge doesn't match current pricing — refund
        payment intent <code>${piId ?? 'unknown'}</code> from the Stripe dashboard and
-       ask the exhibitor to check out again.</p>`
+       ask the exhibitor to check out again.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `paid-amount-mismatch-${session.id}` }
     );
     return;
   }
@@ -752,7 +761,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
        and Stripe will not retry the event.</p>
        <pre>${claimError.message}</pre>
        <p>Recovery: verify the payment in the Stripe dashboard, then create the
-       entries manually from the cart items (or refund the payment).</p>`
+       entries manually from the cart items (or refund the payment).</p>`,
+      { source: 'stripe-webhook', dedupeKey: `cart-claim-failed-${session.id}` }
     );
     return;
   }
@@ -792,7 +802,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
            page confirm the cart's entries exist once. Then refund payment intent
            <code>${dupIntentId}</code> (Payments → search the id → Refund). No entries
            or orders were created for it, so the dashboard refund is the complete
-           fix.</p>`
+           fix.</p>`,
+          { source: 'stripe-webhook', dedupeKey: `duplicate-entry-payment-${session.id}` }
         );
         return;
       }
@@ -934,7 +945,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
        and ${deniedLines.length} denied lines. Failed no-service lines:
        ${failedLines.length}.</p>
        <p>The webhook will auto-refund the denied/waitlisted/no-service share when
-       it can derive the amount.</p>`
+       it can derive the amount.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `cart-overflow-${session.id}` }
     );
   }
 
@@ -1007,7 +1019,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
          this run: <code>${sortedEntryIds.join(', ') || '(none)'}</code></p>
          <p>This likely means duplicate entries were created for a single payment.
          Reconcile: remove the extra entries created by this run and verify payout
-         math (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>`
+         math (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>`,
+        { source: 'stripe-webhook', dedupeKey: `duplicate-stripe-order-${session.id}` }
       );
       // Do NOT fall through to the success log + confirmation email: the order
       // insert failed and these duplicate entries are slated for removal.
@@ -1027,7 +1040,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
        <pre>${orderError.message}</pre>
        <p>Recovery: insert the order row manually (payment intent
        <code>${paymentIntentId ?? 'unknown'}</code>, session <code>${session.id}</code>)
-       so payment history and reconciliation stay complete.</p>`
+       so payment history and reconciliation stay complete.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `order-insert-failed-${session.id}` }
     );
   }
 
@@ -1100,7 +1114,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
        but no <code>entry_payment_links</code> row matches it. No entries were marked
        paid and Stripe will not retry.</p>
        <p>Recovery: verify the payment in Stripe and refund it, or stamp the entries
-       manually.</p>`
+       manually.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-no-record-${session.id}` }
     );
     await issueEntryPaymentAutoRefund({
       session,
@@ -1124,7 +1139,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       'Payment link paid but entries could not be read',
       `<p>Session <code>${session.id}</code> was PAID but loading its entries failed:</p>
        <pre>${entriesError.message}</pre>
-       <p>Recovery: mark entries <code>${entryIds.join(', ')}</code> paid manually.</p>`
+       <p>Recovery: mark entries <code>${entryIds.join(', ')}</code> paid manually.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-entries-unreadable-${session.id}` }
     );
     return;
   }
@@ -1159,7 +1175,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       `<p>Session <code>${session.id}</code> was PAID, but these entries it was created for
        are gone (deleted/withdrawn since): <code>${result.missingEntryIds.join(', ')}</code>
        (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>
-       <p>The webhook will auto-refund the invalid portion after recording payment history.</p>`
+       <p>The webhook will auto-refund the invalid portion after recording payment history.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-missing-entries-${session.id}` }
     );
   }
   if (result.inactiveEntryIds.length > 0) {
@@ -1172,7 +1189,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       `<p>Session <code>${session.id}</code> was PAID, but these entries are no longer
        active in the show: <code>${result.inactiveEntryIds.join(', ')}</code>
        (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>
-       <p>The webhook will auto-refund the invalid portion after recording payment history.</p>`
+       <p>The webhook will auto-refund the invalid portion after recording payment history.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-inactive-entries-${session.id}` }
     );
   }
 
@@ -1212,7 +1230,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
         `<p>Session <code>${session.id}</code> was PAID but stamping entry
          <code>${patch.id}</code> failed:</p><pre>${error.message}</pre>
          <p>Until it is stamped paid+online, cron-process-payouts will NOT pay the
-         club for it. Recovery: stamp the entry manually.</p>`
+         club for it. Recovery: stamp the entry manually.</p>`,
+        { source: 'stripe-webhook', dedupeKey: `payment-link-stamp-failed-${patch.id}` }
       );
     }
     updatedEntryIds.push(...((updatedRows ?? []) as { id: string }[]).map(row => row.id));
@@ -1241,7 +1260,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
          stamps did not update and could not be re-read:
          <code>${noOpPatchIds.join(', ')}</code>.</p>
          <pre>${noOpEntriesError.message}</pre>
-         <p>The webhook will treat them as invalid for refund safety.</p>`
+         <p>The webhook will treat them as invalid for refund safety.</p>`,
+        { source: 'stripe-webhook', dedupeKey: `payment-link-noop-reread-failed-${session.id}` }
       );
     } else {
       rereadNoOpEntries = (noOpEntriesData ?? []) as {
@@ -1299,7 +1319,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
         `<p>Session <code>${session.id}</code> reconciled entries, but updating
          the <code>entry_payment_links</code> row to <code>paid</code> failed:</p>
          <pre>${linkCloseError.message}</pre>
-         <p>Recovery: set the link row to paid after verifying the entry stamps.</p>`
+         <p>Recovery: set the link row to paid after verifying the entry stamps.</p>`,
+        { source: 'stripe-webhook', dedupeKey: `payment-link-latch-failed-${session.id}` }
       );
     } else if ((closedLinks ?? []).length === 0) {
       console.log(`Payment link ${session.id} was already closed by another webhook handler`);
@@ -1332,7 +1353,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
        inserting the <code>stripe_orders</code> record failed:</p>
        <pre>${orderError.message}</pre>
        <p>Recovery: insert the order row manually (payment intent
-       <code>${paymentIntentId ?? 'unknown'}</code>) so payment history stays complete.</p>`
+       <code>${paymentIntentId ?? 'unknown'}</code>) so payment history stays complete.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-order-insert-failed-${session.id}` }
     );
   }
 
@@ -1343,7 +1365,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
        <code>${updateOutcome.alreadyPaidEntryIds.join(', ')}</code> (payment intent
        <code>${paymentIntentId ?? 'unknown'}</code>).</p>
        <p>The webhook will auto-refund the invalid portion; if the exhibitor received
-       no new paid entries, it refunds the full charge including platform fee.</p>`
+       no new paid entries, it refunds the full charge including platform fee.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-already-paid-${session.id}` }
     );
   }
 
@@ -1353,7 +1376,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       `<p>Session <code>${session.id}</code> was PAID but these entries did not update
        despite still being present and not clearly paid/inactive:
        <code>${updateOutcome.unknownNoOpEntryIds.join(', ')}</code>.</p>
-       <p>The webhook will treat them as invalid for refund safety.</p>`
+       <p>The webhook will treat them as invalid for refund safety.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-unknown-noop-${session.id}` }
     );
   }
 
@@ -1377,14 +1401,16 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
          <code>${invalidEntryIds.join(', ')}</code>, but the webhook could not derive
          fees for: <code>${decision.missingFeeEntryIds.join(', ')}</code>.</p>
          <p>Recovery: refund the invalid portion from Stripe, including the matching
-         share of the platform fee.</p>`
+         share of the platform fee.</p>`,
+        { source: 'stripe-webhook', dedupeKey: `payment-link-refund-manual-amount-${session.id}` }
       );
     } else if (decision.action === 'cannot_refund') {
       await alertAdmin(
         'Payment link auto-refund could not be created',
         `<p>Session <code>${session.id}</code> was PAID and has invalid entries
          <code>${invalidEntryIds.join(', ')}</code>, but auto-refund could not run:
-         <code>${decision.reason}</code>.</p>`
+         <code>${decision.reason}</code>.</p>`,
+        { source: 'stripe-webhook', dedupeKey: `payment-link-refund-cannot-refund-${session.id}` }
       );
     }
   }
@@ -1416,7 +1442,8 @@ async function paidExpiredClaimHasReplacementOffer(
       `<p>Session <code>${sessionId}</code> paid expired promotion entry
        <code>${entryId}</code>, but the linked waitlist row could not be loaded.
        The webhook left the entry unpaid so the charge can be refunded.</p>
-       ${linkedOfferError ? `<pre>${linkedOfferError.message}</pre>` : ''}`
+       ${linkedOfferError ? `<pre>${linkedOfferError.message}</pre>` : ''}`,
+      { source: 'stripe-webhook', dedupeKey: `expired-claim-unverified-${entryId}` }
     );
     return true;
   }
@@ -1440,7 +1467,8 @@ async function paidExpiredClaimHasReplacementOffer(
       `<p>Session <code>${sessionId}</code> paid expired promotion entry
        <code>${entryId}</code>, but checking for a replacement offer failed.
        The webhook left the entry unpaid so the charge can be refunded.</p>
-       <pre>${replacementError.message}</pre>`
+       <pre>${replacementError.message}</pre>`,
+      { source: 'stripe-webhook', dedupeKey: `expired-claim-collision-check-failed-${entryId}` }
     );
     return true;
   }
@@ -1454,7 +1482,8 @@ async function paidExpiredClaimHasReplacementOffer(
       `<p>Session <code>${sessionId}</code> paid expired promotion entry
        <code>${entryId}</code>, but waitlist offer <code>${replacementOffer.id}</code>
        is already active for the same class. The webhook left the expired entry
-       unpaid so the charge can be refunded instead of double-selling the spot.</p>`
+       unpaid so the charge can be refunded instead of double-selling the spot.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `expired-claim-collision-${entryId}` }
     );
     return true;
   }
@@ -1480,7 +1509,8 @@ async function resolvePaidWaitlistOffers(entryIds: string[], sessionId: string) 
        <code>waitlist_entries.promoted_entry_id</code> rows failed:</p>
        <pre>${error.message}</pre>
        <p>Recovery: mark the matching waitlist row accepted manually so the
-       cascade does not offer the spot again.</p>`
+       cascade does not offer the spot again.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `waitlist-offer-not-resolved-${sessionId}` }
     );
   }
 }
@@ -1508,7 +1538,11 @@ async function issueEntryPaymentAutoRefund(input: {
       `<p>Session <code>${input.session.id}</code> needs an auto-refund, but the
        payment intent or amount was missing (payment intent
        <code>${input.paymentIntentId ?? 'unknown'}</code>, amount
-       <code>${input.amountCents ?? 'unknown'}</code>).</p>`
+       <code>${input.amountCents ?? 'unknown'}</code>).</p>`,
+      {
+        source: 'stripe-webhook',
+        dedupeKey: `payment-link-refund-missing-inputs-${input.session.id}`,
+      }
     );
     return;
   }
@@ -1543,7 +1577,8 @@ async function issueEntryPaymentAutoRefund(input: {
          input.invalidEntryIds.length > 0
            ? `; invalid entries: <code>${input.invalidEntryIds.join(', ')}</code>`
            : ''
-       }.</p>`
+       }.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-refund-issued-${refund.id}` }
     );
     if (input.reason === 'full_make_whole') {
       const { error: orderUpdateError } = await supabase
@@ -1559,7 +1594,11 @@ async function issueEntryPaymentAutoRefund(input: {
           'Payment link auto-refund issued but order not marked refunded',
           `<p>Auto-refund <code>${refund.id}</code> succeeded for session
            <code>${input.session.id}</code>, but updating <code>stripe_orders</code>
-           failed:</p><pre>${orderUpdateError.message}</pre>`
+           failed:</p><pre>${orderUpdateError.message}</pre>`,
+          {
+            source: 'stripe-webhook',
+            dedupeKey: `payment-link-refund-order-update-failed-${refund.id}`,
+          }
         );
       }
     }
@@ -1574,7 +1613,8 @@ async function issueEntryPaymentAutoRefund(input: {
       `<p>Session <code>${input.session.id}</code> needs an auto-refund of
        ${(input.amountCents / 100).toFixed(2)} USD, but Stripe refund creation failed:</p>
        <pre>${message}</pre>
-       <p>Recovery: refund payment intent <code>${input.paymentIntentId}</code> manually.</p>`
+       <p>Recovery: refund payment intent <code>${input.paymentIntentId}</code> manually.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-refund-failed-${input.session.id}` }
     );
   }
 }
@@ -1652,7 +1692,11 @@ async function issueCartOverflowAutoRefund(input: {
        derive collected line amounts for:
        <code>${input.decision.missingLineIds.join(', ')}</code>.</p>
        <p>Recovery: refund the no-service portion from Stripe, including the matching
-       platform fee share.</p>`
+       platform fee share.</p>`,
+      {
+        source: 'stripe-webhook',
+        dedupeKey: `cart-overflow-refund-manual-amount-${input.session.id}`,
+      }
     );
     return;
   }
@@ -1662,7 +1706,11 @@ async function issueCartOverflowAutoRefund(input: {
       'Cart overflow auto-refund could not be created',
       `<p>Session <code>${input.session.id}</code> has no-service cart items
        <code>${input.invalidCartItemIds.join(', ')}</code>, but auto-refund could not
-       run: <code>${input.decision.reason}</code>.</p>`
+       run: <code>${input.decision.reason}</code>.</p>`,
+      {
+        source: 'stripe-webhook',
+        dedupeKey: `cart-overflow-refund-cannot-refund-${input.session.id}`,
+      }
     );
     return;
   }
@@ -1695,7 +1743,8 @@ async function issueCartOverflowAutoRefund(input: {
        ${(refund.amount / 100).toFixed(2)} USD for Checkout Session
        <code>${input.session.id}</code>.</p>
        <p>Reason: <code>${input.decision.reason}</code>; no-service cart items:
-       <code>${input.invalidCartItemIds.join(', ')}</code>.</p>`
+       <code>${input.invalidCartItemIds.join(', ')}</code>.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `cart-overflow-refund-issued-${refund.id}` }
     );
 
     if (input.decision.reason === 'full_make_whole') {
@@ -1712,7 +1761,11 @@ async function issueCartOverflowAutoRefund(input: {
           'Cart overflow auto-refund issued but order not marked refunded',
           `<p>Auto-refund <code>${refund.id}</code> succeeded for session
            <code>${input.session.id}</code>, but updating <code>stripe_orders</code>
-           failed:</p><pre>${orderUpdateError.message}</pre>`
+           failed:</p><pre>${orderUpdateError.message}</pre>`,
+          {
+            source: 'stripe-webhook',
+            dedupeKey: `cart-overflow-refund-order-update-failed-${refund.id}`,
+          }
         );
       }
     }
@@ -1725,7 +1778,8 @@ async function issueCartOverflowAutoRefund(input: {
        ${(input.decision.amountCents / 100).toFixed(2)} USD, but Stripe refund
        creation failed:</p><pre>${message}</pre>
        <p>Recovery: refund payment intent <code>${input.paymentIntentId}</code>
-       manually.</p>`
+       manually.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `cart-overflow-refund-failed-${input.session.id}` }
     );
   }
 }

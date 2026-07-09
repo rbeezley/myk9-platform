@@ -131,6 +131,15 @@ describe('SystemHealthPage', () => {
     expect(screen.getByText(/couldn.t load system health/i)).toBeInTheDocument();
   });
 
+  it('still renders OperatorAlertsSection when the snapshot query errors — money-path alerts must not hide behind an unrelated snapshots outage', () => {
+    mockedHook.mockReturnValue(hookState({ error: new Error('boom') }));
+
+    render(<SystemHealthPage />);
+
+    expect(screen.getByText(/couldn.t load system health/i)).toBeInTheDocument();
+    expect(screen.getByText('Unresolved Alerts')).toBeInTheDocument();
+  });
+
   it('renders a loading state while fetching', () => {
     mockedHook.mockReturnValue(hookState({ isLoading: true }));
 
@@ -139,6 +148,14 @@ describe('SystemHealthPage', () => {
     expect(screen.getByRole('status', { name: 'Loading system health' })).toBeInTheDocument();
     expect(document.querySelector('.animate-spin')).toBeNull();
     expect(screen.queryByText(/loading the latest health snapshot/i)).not.toBeInTheDocument();
+  });
+
+  it('still renders OperatorAlertsSection while the snapshot query is loading', () => {
+    mockedHook.mockReturnValue(hookState({ isLoading: true }));
+
+    render(<SystemHealthPage />);
+
+    expect(screen.getByText('Unresolved Alerts')).toBeInTheDocument();
   });
 
   it('renders the recent-run history strip', () => {

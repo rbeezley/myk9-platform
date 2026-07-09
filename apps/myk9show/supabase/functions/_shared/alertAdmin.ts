@@ -18,7 +18,7 @@
 // has no colocated vitest of its own; keep it trivial.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { runAlertAdmin, type InsertResultLike } from './alertAdminCore.ts';
+import { buildAlertRow, runAlertAdmin, type InsertResultLike } from './alertAdminCore.ts';
 
 export type AlertSeverity = 'info' | 'warn' | 'error';
 
@@ -50,6 +50,7 @@ const supabase =
 
 async function insertOperatorAlert(
   subject: string,
+  html: string,
   opts: AlertAdminOptions
 ): Promise<InsertResultLike> {
   if (!supabase) {
@@ -59,13 +60,9 @@ async function insertOperatorAlert(
       },
     };
   }
-  const { error } = await supabase.from('operator_alerts').insert({
-    source: opts.source ?? 'unspecified',
-    severity: opts.severity ?? 'error',
-    title: subject,
-    detail: opts.detail ?? null,
-    dedupe_key: opts.dedupeKey ?? null,
-  });
+  const { error } = await supabase
+    .from('operator_alerts')
+    .insert(buildAlertRow(subject, html, opts));
   return {
     error: error ? { code: (error as { code?: string }).code, message: error.message } : null,
   };
@@ -100,7 +97,7 @@ export async function alertAdmin(
   opts: AlertAdminOptions = {}
 ): Promise<void> {
   await runAlertAdmin(subject, {
-    insert: () => insertOperatorAlert(subject, opts),
+    insert: () => insertOperatorAlert(subject, html, opts),
     sendEmail: () => sendAlertEmail(subject, html),
     log: console.log,
     logError: console.error,

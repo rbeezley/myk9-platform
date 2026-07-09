@@ -295,7 +295,8 @@ Deno.serve(async req => {
            <p>Until the entry's refund columns are set, the payout cron computes the
            show's transfer WITHOUT this refund. Recovery: retry the refund from the
            entries page (it reuses the existing Stripe refund — no double refund), or
-           stamp the entry manually.</p>`
+           stamp the entry manually.</p>`,
+          { source: 'stripe-refund-entry', dedupeKey: `entry-refund-not-recorded-${entry_id}` }
         );
         return corsResponse(
           {

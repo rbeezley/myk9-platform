@@ -209,17 +209,23 @@ export default function SystemHealthPage() {
   if (isLoading) {
     return (
       <PageShell>
-        <div role="status" aria-label="Loading system health" className="space-y-6">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-96 max-w-full" />
+        <div className="flex flex-col gap-6">
+          <div role="status" aria-label="Loading system health" className="space-y-6">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-4 w-96 max-w-full" />
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="h-32 rounded-lg" />
+              ))}
+            </div>
+            <Skeleton className="h-24 rounded-lg" />
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton key={index} className="h-32 rounded-lg" />
-            ))}
-          </div>
-          <Skeleton className="h-24 rounded-lg" />
+          {/* OperatorAlertsSection has its own query/loading/error states and
+              must not disappear behind a snapshots-query outage (money-path
+              alerts are unrelated to the daily health-job pipeline). */}
+          <OperatorAlertsSection />
         </div>
       </PageShell>
     );
@@ -228,13 +234,16 @@ export default function SystemHealthPage() {
   if (error) {
     return (
       <PageShell>
-        <Alert variant="destructive" className="bg-destructive/10">
-          <AlertTriangle className="h-5 w-5" aria-hidden="true" />
-          <AlertTitle>Couldn’t load system health</AlertTitle>
-          <AlertDescription>
-            The snapshot read failed. Confirm you have site-admin access and try again.
-          </AlertDescription>
-        </Alert>
+        <div className="flex flex-col gap-6">
+          <Alert variant="destructive" className="bg-destructive/10">
+            <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+            <AlertTitle>Couldn’t load system health</AlertTitle>
+            <AlertDescription>
+              The snapshot read failed. Confirm you have site-admin access and try again.
+            </AlertDescription>
+          </Alert>
+          <OperatorAlertsSection />
+        </div>
       </PageShell>
     );
   }

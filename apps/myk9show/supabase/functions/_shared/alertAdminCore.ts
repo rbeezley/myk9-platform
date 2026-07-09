@@ -21,6 +21,41 @@ export interface InsertResultLike {
   error: { code?: string; message: string } | null;
 }
 
+/** Options accepted by `buildAlertRow` — a structural subset of
+ * `AlertAdminOptions` in alertAdmin.ts (kept separate so this Deno-free file
+ * has no dependency on the Deno glue module). */
+export interface AlertRowOptions {
+  severity?: 'info' | 'warn' | 'error';
+  source?: string;
+  dedupeKey?: string;
+  detail?: Record<string, unknown>;
+}
+
+export interface AlertRow {
+  source: string;
+  severity: 'info' | 'warn' | 'error';
+  title: string;
+  detail: Record<string, unknown> | null;
+  dedupe_key: string | null;
+}
+
+/** Build the `operator_alerts` insert payload. Most existing call sites pass
+ * no `opts.detail` — the entry/refund/payment identifiers they care about
+ * live only in the email `html` body. Without a fallback, those rows persist
+ * with `detail: null` and are unactionable from the alerts board. When
+ * `opts.detail` is absent, fall back to `{ html }` so every row carries its
+ * context. An explicit `opts.detail` always wins verbatim — it is never
+ * merged with `html`. */
+export function buildAlertRow(subject: string, html: string, opts: AlertRowOptions = {}): AlertRow {
+  return {
+    source: opts.source ?? 'unspecified',
+    severity: opts.severity ?? 'error',
+    title: subject,
+    detail: opts.detail ?? { html },
+    dedupe_key: opts.dedupeKey ?? null,
+  };
+}
+
 const UNIQUE_VIOLATION_CODE = '23505';
 
 /** Classify an `operator_alerts` insert result. A unique-violation on the

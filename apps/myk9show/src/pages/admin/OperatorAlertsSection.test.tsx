@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { toast } from 'sonner';
+import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { OperatorAlertsSection } from './OperatorAlertsSection';
 import type { OperatorAlert } from '@/features/admin-system-health/operatorAlertsTypes';
 import {
@@ -13,8 +14,11 @@ vi.mock('@/features/admin-system-health/useOperatorAlerts', () => ({
   OPERATOR_ALERTS_QUERY_KEY: ['admin', 'system-health', 'operator-alerts'],
 }));
 
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
 const mockedUseOperatorAlerts = vi.mocked(useOperatorAlerts);
 const mockedUseResolveOperatorAlert = vi.mocked(useResolveOperatorAlert);
+const mockedToastError = vi.mocked(toast.error);
 
 type QueryResult = ReturnType<typeof useOperatorAlerts>;
 type MutationResult = ReturnType<typeof useResolveOperatorAlert>;
@@ -53,6 +57,7 @@ describe('OperatorAlertsSection', () => {
     mockedUseOperatorAlerts.mockReset();
     mockedUseResolveOperatorAlert.mockReset();
     mutateAsync.mockClear();
+    mockedToastError.mockClear();
     mockedUseResolveOperatorAlert.mockReturnValue({
       mutateAsync,
       isPending: false,
@@ -81,6 +86,21 @@ describe('OperatorAlertsSection', () => {
     await user.click(screen.getByRole('button', { name: /resolve/i }));
 
     expect(mutateAsync).toHaveBeenCalledWith('alert-42');
+  });
+
+  it('shows an error toast (and does not leave an unhandled rejection) when the resolve RPC fails', async () => {
+    mutateAsync.mockRejectedValueOnce(new Error('resolve failed'));
+    mockedUseOperatorAlerts.mockReturnValue(queryState({ data: [alert({ id: 'alert-42' })] }));
+
+    const { user } = render(<OperatorAlertsSection />);
+
+    await user.click(screen.getByRole('button', { name: /resolve/i }));
+
+    await waitFor(() => {
+      expect(mockedToastError).toHaveBeenCalledWith(expect.stringContaining('resolve failed'));
+    });
+    // The resolve button must re-enable after the failure (existing finally block).
+    expect(screen.getByRole('button', { name: /resolve/i })).not.toBeDisabled();
   });
 
   it('shows an explicit empty state when there are no unresolved alerts', () => {

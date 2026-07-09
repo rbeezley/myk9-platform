@@ -18,6 +18,7 @@ import {
   DB_INIT_TIMEOUT_MS,
   INIT_RETRY_DELAY_MS,
   DELETE_DB_TIMEOUT_MS,
+  RECOVERY_SNAPSHOT_TIMEOUT_MS,
   CIRCUIT_BREAKER_THRESHOLD,
 } from '../constants';
 import { withTimeout } from '../mutation-utils';
@@ -477,10 +478,19 @@ export class DatabaseManager {
     // event handler calling restoreMutationsFromLocalStorage().
     if (sharedDB && typeof window !== 'undefined') {
       try {
-        const [pending, failed] = await Promise.all([
-          sharedDB.getAll(REPLICATION_STORES.PENDING_MUTATIONS),
-          sharedDB.getAll(REPLICATION_STORES.FAILED_MUTATIONS),
-        ]);
+        // Time-box the reads: recover() runs precisely when IndexedDB may be
+        // wedged, and an un-bounded getAll could hang forever — blocking the
+        // delete/reopen below and the recovery event, leaving the app stuck. On
+        // timeout we skip the snapshot and proceed; the continuous backup written
+        // on every mutation change is the fallback.
+        const [pending, failed] = await withTimeout(
+          Promise.all([
+            sharedDB.getAll(REPLICATION_STORES.PENDING_MUTATIONS),
+            sharedDB.getAll(REPLICATION_STORES.FAILED_MUTATIONS),
+          ]),
+          RECOVERY_SNAPSHOT_TIMEOUT_MS,
+          'recovery-snapshot'
+        );
         // UNION with the existing continuous backup rather than overwrite it. The
         // DB is failing here, so getAll could return a truncated-but-not-throwing
         // partial set; a plain overwrite would then shrink a more-complete backup

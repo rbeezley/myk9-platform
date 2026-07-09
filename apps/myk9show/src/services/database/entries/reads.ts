@@ -581,6 +581,11 @@ export const getEntryById = async (id: string) => {
 // empty-local-replica-verifies-online pattern used by getEntriesByDog above and
 // getUserEntries in search.ts.
 export const getEntriesByShow = async (showId: string) => {
+  // Raw (pre-`isLiveEntry`) local row count for this show. Distinguishes a truly
+  // cold replica (0 rows) from a replica that HAS rows but filtered them all out
+  // as locally soft-deleted — the latter must win over the server (a queued
+  // delete not yet synced), so we must NOT online-verify in that case.
+  let rawLocalRowCount = 0;
   const result = await readWithReplicationFallback({
     replication: async () => {
       const [entries, dogsMap, classesMap] = await Promise.all([
@@ -588,6 +593,7 @@ export const getEntriesByShow = async (showId: string) => {
         loadDogsMap(),
         loadClassesMap(),
       ]);
+      rawLocalRowCount = entries.length;
       const sortedEntries = sortedCopy(
         entries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
@@ -610,7 +616,11 @@ export const getEntriesByShow = async (showId: string) => {
     errorData: [],
   });
 
-  if (result.data.length > 0 || result.error) return result;
+  // Only online-verify a genuinely cold replica (no local rows at all). If the
+  // show had local rows that were all filtered out as tombstoned, trust the
+  // local delete — reading PostgREST here could resurrect a just-deleted entry
+  // from a stale server row until sync completes.
+  if (result.data.length > 0 || result.error || rawLocalRowCount > 0) return result;
 
   // Cold local replica: verify against the authoritative online read before
   // reporting zero entries for a show that may simply not have synced yet.

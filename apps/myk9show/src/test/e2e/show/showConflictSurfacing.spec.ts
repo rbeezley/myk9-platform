@@ -146,7 +146,12 @@ async function seedConflictRow(page: Page, conflict: SeededConflict): Promise<bo
           };
         };
       }),
-    { dbName: REPLICATION_DB_NAME, storeName: REPLICATED_TABLES_STORE, tableName: CONFLICT_TABLE, c: conflict }
+    {
+      dbName: REPLICATION_DB_NAME,
+      storeName: REPLICATED_TABLES_STORE,
+      tableName: CONFLICT_TABLE,
+      c: conflict,
+    }
   );
 }
 
@@ -154,7 +159,12 @@ async function seedConflictRow(page: Page, conflict: SeededConflict): Promise<bo
 async function readConflictRow(
   page: Page,
   rowId: string
-): Promise<{ syncStatus?: string; isDirty?: boolean; data?: Record<string, unknown>; hasConflict: boolean } | null> {
+): Promise<{
+  syncStatus?: string;
+  isDirty?: boolean;
+  data?: Record<string, unknown>;
+  hasConflict: boolean;
+} | null> {
   return page.evaluate(
     ({ dbName, storeName, tableName, id }) =>
       new Promise<{
@@ -201,7 +211,12 @@ async function readConflictRow(
           };
         };
       }),
-    { dbName: REPLICATION_DB_NAME, storeName: REPLICATED_TABLES_STORE, tableName: CONFLICT_TABLE, id: rowId }
+    {
+      dbName: REPLICATION_DB_NAME,
+      storeName: REPLICATED_TABLES_STORE,
+      tableName: CONFLICT_TABLE,
+      id: rowId,
+    }
   );
 }
 
@@ -251,7 +266,12 @@ test.describe('Show conflict surfacing — toast + both resolution branches pers
       // Sign in directly INTO the show route (returnTo) so post-login replication/RBAC
       // requests are not aborted by a follow-up navigation.
       await signIn(pageA, TEST_USERS.SECRETARY.email, TEST_USERS.SECRETARY.password, SHOW_ROUTE);
-      await signIn(pageB, TEST_USERS.EXHIBITOR.email, TEST_USERS.EXHIBITOR.password, SHOW_ROUTE);
+      await signIn(
+        pageB,
+        TEST_USERS.DEMO_EXHIBITOR.email,
+        TEST_USERS.DEMO_EXHIBITOR.password,
+        SHOW_ROUTE
+      );
 
       // Wait until the replication store exists in each context (provider mounted +
       // IndexedDB schema created) before seeding. Poll the seed, which no-ops false

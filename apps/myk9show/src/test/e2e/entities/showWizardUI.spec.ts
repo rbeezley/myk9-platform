@@ -13,11 +13,10 @@ import { signInAsSecretary } from '../helpers/testUsers';
  *     used to be parsed as local time in west-of-UTC zones and shifted the
  *     visible day forward (Apr 26, 2026).
  *
- * Auth: secretary@myk9t.com / TestPass4567! (matches showsUI.spec.ts).
+ * Auth: TEST_USERS.SECRETARY (`e2e-secretary@test.myk9.com`, password in env).
  */
 
 test.describe.configure({ mode: 'serial' });
-
 
 // ---------------------------------------------------------------------------
 // Step 1 — Show Details

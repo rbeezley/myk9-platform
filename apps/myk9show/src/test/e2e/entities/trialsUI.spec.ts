@@ -26,7 +26,7 @@ import { signInAsSecretary } from '../helpers/testUsers';
  *   - All cleanup runs in afterEach so the parent show stays tidy even if a
  *     UI flow aborts mid-test.
  *
- * Auth: secretary@myk9t.com / TestPass4567! (matches clubsUI / dogsUI / peopleUI).
+ * Auth: TEST_USERS.SECRETARY (`e2e-secretary@test.myk9.com`, password in env).
  */
 
 test.describe.configure({ mode: 'serial' });

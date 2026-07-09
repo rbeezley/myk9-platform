@@ -22,4 +22,4 @@
 - [x] 4.1 Update secretary responsibility coverage and verification plan docs with S8.4 implementation evidence.
 - [x] 4.2 Commit the implementation and OpenSpec artifacts.
 - [x] 4.3 Push the branch, create a PR, and include `Tracked in openspec change: secretary-close-out-show`.
-- [ ] 4.4 Review/CI/merge before archive; do not archive this change until the implementation PR is merged.
+- [x] 4.4 Review/CI/merge before archive; do not archive this change until the implementation PR is merged.

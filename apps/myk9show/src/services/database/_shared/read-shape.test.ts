@@ -29,12 +29,16 @@ describe('read-shape helpers', () => {
     });
 
     expect(result).toEqual({ data: [{ id: 'one' }], error: null });
+    // The helper wraps `replication` in a closure (to capture rawLocalCount), so
+    // the first arg is that wrapper, not the raw fn. Assert the pass-through args
+    // and that the wrapper invokes the provided replication.
     expect(mockWithReplicationFallback).toHaveBeenCalledWith(
-      replication,
+      expect.any(Function),
       postgrest,
       'entries',
       'select_all'
     );
+    expect(replication).toHaveBeenCalledTimes(1);
     expect(postgrest).not.toHaveBeenCalled();
   });
 
@@ -71,6 +75,163 @@ describe('read-shape helpers', () => {
     });
 
     expect(result).toEqual({ data: [], error: dbError });
+  });
+
+  describe('verifyOnlineWhenEmpty', () => {
+    it('online-verifies a genuinely cold replica (empty result, no local tombstones)', async () => {
+      const replication = vi.fn().mockResolvedValue({ data: [], error: null });
+      const postgrest = vi.fn().mockResolvedValue({ data: [{ id: 'online' }], error: null });
+
+      const result = await readWithReplicationFallback({
+        replication,
+        postgrest,
+        table: 'entries',
+        operation: 'select_by_dog',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+      });
+
+      expect(result).toEqual({ data: [{ id: 'online' }], error: null });
+      expect(postgrest).toHaveBeenCalledTimes(1);
+    });
+
+    it('excludes a locally-tombstoned row from the online read (no resurrection)', async () => {
+      // The delete is queued locally but not yet synced, so the server still
+      // returns the row as live. It must NOT reappear.
+      const replication = vi
+        .fn()
+        .mockResolvedValue({ data: [], error: null, locallyDeletedIds: ['deleted-1'] });
+      const postgrest = vi.fn().mockResolvedValue({ data: [{ id: 'deleted-1' }], error: null });
+
+      const result = await readWithReplicationFallback({
+        replication,
+        postgrest,
+        table: 'entries',
+        operation: 'select_by_dog',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+      });
+
+      expect(result).toEqual({ data: [], error: null });
+      expect(postgrest).toHaveBeenCalledTimes(1);
+    });
+
+    it('surfaces a live remote row while excluding a locally-tombstoned one (cross-scope)', async () => {
+      // Codex #1236 case: a dog spans multiple per-show stores. One synced show
+      // holds a pending delete; another unsynced show holds a live entry. The
+      // online read must surface the live entry AND drop the deleted one.
+      const replication = vi
+        .fn()
+        .mockResolvedValue({ data: [], error: null, locallyDeletedIds: ['deleted-1'] });
+      const postgrest = vi
+        .fn()
+        .mockResolvedValue({ data: [{ id: 'deleted-1' }, { id: 'live-2' }], error: null });
+
+      const result = await readWithReplicationFallback({
+        replication,
+        postgrest,
+        table: 'entries',
+        operation: 'select_by_dog',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+      });
+
+      expect(result).toEqual({ data: [{ id: 'live-2' }], error: null });
+      expect(postgrest).toHaveBeenCalledTimes(1);
+    });
+
+    it('honors a custom rowId when excluding tombstones', async () => {
+      const replication = vi
+        .fn()
+        .mockResolvedValue({ data: [], error: null, locallyDeletedIds: ['e-9'] });
+      const postgrest = vi
+        .fn()
+        .mockResolvedValue({ data: [{ entryId: 'e-9' }, { entryId: 'e-10' }], error: null });
+
+      const result = await readWithReplicationFallback({
+        replication,
+        postgrest,
+        table: 'entries',
+        operation: 'select_by_dog',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+        rowId: row => String((row as { entryId: string }).entryId),
+      });
+
+      expect(result).toEqual({ data: [{ entryId: 'e-10' }], error: null });
+    });
+
+    it('does NOT online-verify when the replication result is non-empty', async () => {
+      const replication = vi.fn().mockResolvedValue({ data: [{ id: 'local' }], error: null });
+      const postgrest = vi.fn().mockResolvedValue({ data: [{ id: 'online' }], error: null });
+
+      const result = await readWithReplicationFallback({
+        replication,
+        postgrest,
+        table: 'entries',
+        operation: 'select_by_dog',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+      });
+
+      expect(result).toEqual({ data: [{ id: 'local' }], error: null });
+      expect(postgrest).not.toHaveBeenCalled();
+    });
+
+    it('swallows online-verify failures and returns the original empty result', async () => {
+      const replication = vi.fn().mockResolvedValue({ data: [], error: null });
+      const postgrest = vi.fn().mockRejectedValue(new Error('offline'));
+
+      const result = await readWithReplicationFallback({
+        replication,
+        postgrest,
+        table: 'entries',
+        operation: 'select_by_dog',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+      });
+
+      expect(result).toEqual({ data: [], error: null });
+      expect(postgrest).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not online-verify an empty result when the flag is off (backwards compatible)', async () => {
+      const replication = vi.fn().mockResolvedValue({ data: [], error: null });
+      const postgrest = vi.fn().mockResolvedValue({ data: [{ id: 'online' }], error: null });
+
+      const result = await readWithReplicationFallback({
+        replication,
+        postgrest,
+        table: 'entries',
+        operation: 'select_by_dog',
+        errorData: [],
+      });
+
+      expect(result).toEqual({ data: [], error: null });
+      expect(postgrest).not.toHaveBeenCalled();
+    });
+
+    it('does not re-verify when the empty result came from the PostgREST fallback', async () => {
+      // Replication threw, so withReplicationFallback already served an
+      // authoritative online read — re-querying would double-call PostgREST.
+      mockWithReplicationFallback.mockImplementationOnce(async (_replication, postgrest) =>
+        postgrest()
+      );
+      const replication = vi.fn().mockRejectedValue(new Error('store unavailable'));
+      const postgrest = vi.fn().mockResolvedValue({ data: [], error: null });
+
+      const result = await readWithReplicationFallback({
+        replication,
+        postgrest,
+        table: 'entries',
+        operation: 'select_by_dog',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+      });
+
+      expect(result).toEqual({ data: [], error: null });
+      expect(postgrest).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('constructs lookup maps from loaded rows', async () => {

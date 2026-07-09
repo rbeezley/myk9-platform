@@ -581,19 +581,18 @@ export const getEntryById = async (id: string) => {
 // empty-local-replica-verifies-online pattern used by getEntriesByDog above and
 // getUserEntries in search.ts.
 export const getEntriesByShow = async (showId: string) => {
-  // Raw (pre-`isLiveEntry`) local row count for this show. Distinguishes a truly
-  // cold replica (0 rows) from a replica that HAS rows but filtered them all out
-  // as locally soft-deleted — the latter must win over the server (a queued
-  // delete not yet synced), so we must NOT online-verify in that case.
-  let rawLocalRowCount = 0;
-  const result = await readWithReplicationFallback({
+  return readWithReplicationFallback({
     replication: async () => {
       const [entries, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
         loadDogsMap(),
         loadClassesMap(),
       ]);
-      rawLocalRowCount = entries.length;
+      // IDs of this show's locally-tombstoned entries (a queued delete not yet
+      // synced), reported to the helper so its `verifyOnlineWhenEmpty` online
+      // read excludes them — a stale server row must not resurrect a just-
+      // deleted entry. See read-shape.ts.
+      const locallyDeletedIds = entries.filter(e => !isLiveEntry(e)).map(e => e.id);
       const sortedEntries = sortedCopy(
         entries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
@@ -608,29 +607,14 @@ export const getEntriesByShow = async (showId: string) => {
             : null,
         })
       );
-      return { data, error: null };
+      return { data, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByShow(showId),
     table: 'entries',
     operation: 'select_by_show',
     errorData: [],
+    verifyOnlineWhenEmpty: true,
   });
-
-  // Only online-verify a genuinely cold replica (no local rows at all). If the
-  // show had local rows that were all filtered out as tombstoned, trust the
-  // local delete — reading PostgREST here could resurrect a just-deleted entry
-  // from a stale server row until sync completes.
-  if (result.data.length > 0 || result.error || rawLocalRowCount > 0) return result;
-
-  // Cold local replica: verify against the authoritative online read before
-  // reporting zero entries for a show that may simply not have synced yet.
-  // Swallow failures (offline, RLS edge case) — the safe default is the
-  // original empty replication result, never a thrown error from this branch.
-  try {
-    return await postgrestGetEntriesByShow(showId);
-  } catch {
-    return result;
-  }
 };
 
 // Get entries by show ID with financial joins (promo_code, trial name)
@@ -804,14 +788,22 @@ export const getEntriesByClassId = async (
 // contradiction. Mirrors the same empty-local-replica-verifies-online pattern
 // `services/database/entries/search.ts`'s `getUserEntries` already uses.
 export const getEntriesByDog = async (dogId: string) => {
-  const result = await readWithReplicationFallback({
+  return readWithReplicationFallback({
     replication: async () => {
       const [allEntries, classesMap, showsMap] = await Promise.all([
         replicatedEntriesTable.getAll(),
         loadClassesMap(),
         loadShowsMap(),
       ]);
-      const filtered = allEntries.filter(e => e.dogId === dogId && isLiveEntry(e));
+      // IDs of this dog's locally-tombstoned entries (a queued delete not yet
+      // synced), reported to the helper's `verifyOnlineWhenEmpty` online read so
+      // it excludes them. A dog's entries span multiple per-show stores, so a
+      // pending delete in one synced show must NOT resurrect from the server,
+      // while a live entry in an unsynced show must still surface — the ID
+      // exclusion does both (a coarse local-row count could not).
+      const dogEntries = allEntries.filter(e => e.dogId === dogId);
+      const locallyDeletedIds = dogEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
+      const filtered = dogEntries.filter(isLiveEntry);
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
       const data = sortedEntries.map(entry =>
         mapReplicatedEntryToDbRow(entry, {
@@ -819,25 +811,14 @@ export const getEntriesByDog = async (dogId: string) => {
           show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
         })
       );
-      return { data, error: null };
+      return { data, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByDog(dogId),
     table: 'entries',
     operation: 'select_by_dog',
     errorData: [],
+    verifyOnlineWhenEmpty: true,
   });
-
-  if (result.data.length > 0 || result.error) return result;
-
-  // Cold local replica: verify against the authoritative online read before
-  // reporting "no entries" for a dog that may simply not have synced yet.
-  // Swallow failures here (offline, RLS edge case) — the safe default is the
-  // original empty replication result, never a thrown error from this branch.
-  try {
-    return await postgrestGetEntriesByDog(dogId);
-  } catch {
-    return result;
-  }
 };
 
 // Count a dog's live (non-soft-deleted) entries.

@@ -67,48 +67,6 @@
   line-height: 1;
 }
 
-/* Short-viewport fold cap. On short landscape tablets/phones the tall hero
-   padding still drops the CTA below the fold even after the monogram leaves
-   the flow. Trim the vertical padding and rein in the monogram bleed so the
-   dates/CTA stay reachable without scrolling. Uses !important to override the
-   inline padding on .mg-hero (same technique as the =900px width query). */
-@media (max-height: 800px) {
-  [data-monogram] .mg-hero {
-    padding-top: 40px !important;
-    padding-bottom: 36px !important;
-  }
-  [data-monogram] .mg-hero__monogram {
-    transform: translate(-50%, -50%) scale(0.6);
-  }
-  [data-monogram] .mg-hero__kicker {
-    margin-bottom: 20px !important;
-  }
-}
-@media (max-height: 620px) {
-  [data-monogram] .mg-hero {
-    padding-top: 28px !important;
-    padding-bottom: 24px !important;
-  }
-  [data-monogram] .mg-hero__monogram {
-    transform: translate(-50%, -50%) scale(0.42);
-  }
-  /* The oversized display title is the dominant height on a short landscape
-     phone; scale it (and the italic subtitle) so the dates + CTA clear the
-     fold. Still large enough to keep the brand moment. */
-  [data-monogram] .mg-hero__title {
-    font-size: 52px !important;
-    line-height: 1.05 !important;
-  }
-  [data-monogram] .mg-hero__sub {
-    font-size: 18px !important;
-    margin-top: 14px !important;
-    margin-bottom: 20px !important;
-  }
-  [data-monogram] .mg-hero__meta {
-    margin-bottom: 22px !important;
-  }
-}
-
 /* Hero fact grid. Lives in CSS (not inline) so the media queries below can
    collapse the four cells 4 → 2 → 1 as the viewport narrows; an inline
    grid-template-columns would shadow them and overflow at phone widths. */
@@ -214,6 +172,52 @@
   }
   [data-monogram] .mg-footer__meta {
     text-align: left !important;
+  }
+}
+
+/* Placed AFTER the max-width:900px block on purpose: a viewport that is both
+   narrow (<=900px) and short matches BOTH; equal specificity means source
+   order decides, so these short-height caps must come last to win the
+   .mg-hero padding (Codex review catch). */
+/* Short-viewport fold cap. On short landscape tablets/phones the tall hero
+   padding still drops the CTA below the fold even after the monogram leaves
+   the flow. Trim the vertical padding and rein in the monogram bleed so the
+   dates/CTA stay reachable without scrolling. Uses !important to override the
+   inline padding on .mg-hero (same technique as the =900px width query). */
+@media (max-height: 800px) {
+  [data-monogram] .mg-hero {
+    padding-top: 40px !important;
+    padding-bottom: 36px !important;
+  }
+  [data-monogram] .mg-hero__monogram {
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  [data-monogram] .mg-hero__kicker {
+    margin-bottom: 20px !important;
+  }
+}
+@media (max-height: 620px) {
+  [data-monogram] .mg-hero {
+    padding-top: 28px !important;
+    padding-bottom: 24px !important;
+  }
+  [data-monogram] .mg-hero__monogram {
+    transform: translate(-50%, -50%) scale(0.42);
+  }
+  /* The oversized display title is the dominant height on a short landscape
+     phone; scale it (and the italic subtitle) so the dates + CTA clear the
+     fold. Still large enough to keep the brand moment. */
+  [data-monogram] .mg-hero__title {
+    font-size: 52px !important;
+    line-height: 1.05 !important;
+  }
+  [data-monogram] .mg-hero__sub {
+    font-size: 18px !important;
+    margin-top: 14px !important;
+    margin-bottom: 20px !important;
+  }
+  [data-monogram] .mg-hero__meta {
+    margin-bottom: 22px !important;
   }
 }
 

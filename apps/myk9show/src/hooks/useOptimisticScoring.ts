@@ -98,14 +98,21 @@ export function useOptimisticScoring() {
       // Step 1: Update local state IMMEDIATELY (< 50ms)
       const optimisticResult = scoreData.resultText;
 
-      // Update IndexedDB cache immediately (works offline)
+      // Persist to the durable offline queue FIRST. This is the ONLY write that
+      // makes the score survive a refresh/crash and eventually reach the server,
+      // so it is fail-closed: if it throws (queue overflow, IDB/quota failure,
+      // entry missing from cache) or returns no mutation id (no MutationManager
+      // wired), the score is NOT durably saved and we must surface a blocking
+      // error instead of showing success and navigating away. A green checkmark
+      // over an unsaved score is the one outcome we can never allow — a judge
+      // cannot re-derive a run they already released.
       try {
         const resultStatus = mapQualificationToResultStatus(optimisticResult);
         const searchTimeSeconds = scoreData.searchTime
           ? convertTimeToSeconds(scoreData.searchTime)
           : 0;
 
-        await replicatedEntriesTable.updateEntry(String(entryId), {
+        const mutationId = await replicatedEntriesTable.updateEntry(String(entryId), {
           // Write both camelCase and snake_case so toSupabaseRow() picks up the values
           resultStatus: resultStatus,
           result_status: resultStatus,
@@ -119,18 +126,30 @@ export function useOptimisticScoring() {
           scoring_completed_at: new Date().toISOString(),
         });
 
+        if (mutationId === null) {
+          // The row was marked dirty locally but no mutation was queued, so it
+          // will never upload. Treat as a hard failure.
+          throw new Error(
+            'Score could not be queued for sync (no replication manager). Please retry.'
+          );
+        }
+
         logger.debug(
-          `✅ [useOptimisticScoring] Updated local cache for entry ${entryId}`,
+          `✅ [useOptimisticScoring] Queued score for entry ${entryId} (mutation ${mutationId})`,
           'scoring'
         );
-      } catch (cacheError) {
-        // Non-fatal: cache update failed but we can continue
-        logger.warn(
-          '⚠️ [useOptimisticScoring] Failed to update local cache',
+      } catch (queueError) {
+        // Fatal: the score is not durably saved. Surface a blocking error and
+        // do NOT run the optimistic-success path (no session write, no navigate).
+        const err = queueError instanceof Error ? queueError : new Error(String(queueError));
+        logger.error(
+          '❌ [useOptimisticScoring] Failed to queue score — NOT saved',
           'scoring',
           {},
-          cacheError as Error
+          err
         );
+        onError?.(err);
+        return;
       }
 
       // Add to scoring session for local tracking

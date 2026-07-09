@@ -1055,15 +1055,22 @@ describe('MutationManager', () => {
       expect(remaining).toHaveLength(0);
     });
 
-    it('should fail immediately for non-retryable errors', async () => {
+    it('should fail immediately for affirmatively-permanent (non-retryable) errors', async () => {
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,
         makeMutation({ id: 'mut-nonretry', retries: 0 })
       );
 
       vi.mocked(mockSupabase.from).mockReturnValue({
-        upsert: vi.fn(() => ({
-          select: vi.fn(() => Promise.reject(new Error('Validation failed'))),
+        // Reject through the real UPDATE path (update().eq().select()) with an
+        // affirmatively-permanent error → dead-letter at once. (A bare
+        // 'Validation failed' is now fail-open retryable.)
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() =>
+              Promise.reject(new Error('permission denied for table entries'))
+            ),
+          })),
         })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 

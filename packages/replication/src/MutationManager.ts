@@ -1106,11 +1106,17 @@ export class MutationManager {
     if (typeof window === 'undefined') return;
 
     const db = await databaseManager.getDatabase('MutationManager');
-    const pending = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+    const pending = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
+    // Include dead-lettered mutations (status: 'failed') so a circuit-breaker DB
+    // wipe can't destroy them — they carry the 'failed' status, so restore
+    // routes them back to the failed store, not the active queue.
+    const failed = (await db.getAll(REPLICATION_STORES.FAILED_MUTATIONS)) as PendingMutation[];
 
-    writeMutationBackup(localStorage, pending as PendingMutation[]);
-    if (pending.length > 0) {
-      this.logger.log(`[MutationManager] Backed up ${pending.length} mutations to localStorage`);
+    writeMutationBackup(localStorage, [...pending, ...failed]);
+    if (pending.length > 0 || failed.length > 0) {
+      this.logger.log(
+        `[MutationManager] Backed up ${pending.length} pending + ${failed.length} failed mutation(s) to localStorage`
+      );
     }
   }
 
@@ -1135,7 +1141,12 @@ export class MutationManager {
         return;
       }
 
-      if (!backup || (parsed.mutations.length === 0 && parsed.malformedCount === 0)) {
+      if (
+        !backup ||
+        (parsed.mutations.length === 0 &&
+          parsed.failedMutations.length === 0 &&
+          parsed.malformedCount === 0)
+      ) {
         return; // No backup to restore
       }
 
@@ -1145,29 +1156,40 @@ export class MutationManager {
         );
       }
 
-      if (parsed.mutations.length === 0) {
+      if (parsed.mutations.length === 0 && parsed.failedMutations.length === 0) {
         return;
       }
 
       const db = await databaseManager.getDatabase('MutationManager');
 
-      // Check if mutations already exist in IndexedDB
+      // Restore pending mutations into the active queue (dedup by id).
       const existing = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
       const existingIds = new Set(existing.map((m: PendingMutation) => m.id));
 
       let restoredCount = 0;
-
       for (const mutation of parsed.mutations) {
-        // Only restore pending mutations that aren't already in IndexedDB
         if (!existingIds.has(mutation.id)) {
           await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
           restoredCount++;
         }
       }
 
-      if (restoredCount > 0) {
+      // Restore dead-lettered mutations into the FAILED store (dedup by id) so
+      // they don't auto-retry but remain reviewable after a DB wipe.
+      const existingFailed = await db.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
+      const existingFailedIds = new Set(existingFailed.map((m: PendingMutation) => m.id));
+
+      let restoredFailedCount = 0;
+      for (const mutation of parsed.failedMutations) {
+        if (!existingFailedIds.has(mutation.id)) {
+          await db.put(REPLICATION_STORES.FAILED_MUTATIONS, mutation);
+          restoredFailedCount++;
+        }
+      }
+
+      if (restoredCount > 0 || restoredFailedCount > 0) {
         this.logger.log(
-          `[MutationManager] Restored ${restoredCount} mutations from localStorage backup`
+          `[MutationManager] Restored ${restoredCount} pending + ${restoredFailedCount} failed mutation(s) from localStorage backup`
         );
       }
     } catch (error) {

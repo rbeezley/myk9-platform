@@ -56,6 +56,10 @@ export interface UseAtShowScoresheetResult {
   submit: (scoreData: ScoreData) => Promise<void>;
   isSyncing: boolean;
   hasSyncError: boolean;
+  /** Set when a submit failed to durably queue the score; the judge stays on the sheet. */
+  submitError: string | null;
+  /** Clear the submit error (e.g. when the judge edits and retries). */
+  clearSubmitError: () => void;
 }
 
 export function useAtShowScoresheet({
@@ -82,6 +86,7 @@ export function useAtShowScoresheet({
   const [error, setError] = useState<string | null>(null);
   const [loadedClassId, setLoadedClassId] = useState<string | null>(null);
   const [loadedEntryId, setLoadedEntryId] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -172,6 +177,8 @@ export function useAtShowScoresheet({
 
   const submit = async (scoreData: ScoreData) => {
     if (!entry || !classInfo) return;
+    // Clear any prior failure before this attempt.
+    setSubmitError(null);
     await submitScoreOptimistically({
       entryId: entry.entryId,
       classId: classInfo.id,
@@ -183,7 +190,14 @@ export function useAtShowScoresheet({
         onScored();
       },
       onError: err => {
+        // Durable-queue failure: the score is NOT saved. Keep the judge on the
+        // sheet with a visible error rather than navigating away.
         logger.error('At-show score submission failed:', 'at-show', {}, err as Error);
+        setSubmitError(
+          err instanceof Error
+            ? `Score not saved: ${err.message}`
+            : 'Score not saved — please retry.'
+        );
       },
     });
   };
@@ -203,5 +217,7 @@ export function useAtShowScoresheet({
     submit,
     isSyncing,
     hasSyncError,
+    submitError,
+    clearSubmitError: () => setSubmitError(null),
   };
 }

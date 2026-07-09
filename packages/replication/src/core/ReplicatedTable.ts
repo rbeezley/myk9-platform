@@ -295,10 +295,26 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     // metadata: a read must never fail (or emit an unhandled rejection)
     // because the access-stats write hit a full storage quota. Swallow any
     // write error and return the row we already read.
-    row.lastAccessedAt = Date.now();
-    row.accessCount = (row.accessCount || 0) + 1;
+    //
+    // CRITICAL: read AND write must share a single readwrite transaction and
+    // re-read the CURRENT row inside it, then bump ONLY the access-stat fields.
+    // The original split-tx version read the row here, then put() the whole
+    // stale copy back in a separate auto-commit tx — so a concurrent
+    // set(..., isDirty=true) (a score save) committing in between was silently
+    // clobbered: dirty flag and new value reverted, and the next pull replaced
+    // it with server data. This is the same race PR #351 fixed in
+    // markAsSynced/reconcileDirtyRow; getReplicatedRow (the hottest read path,
+    // also called at the top of the sync loop) was missed. See the July 2026
+    // replication audit finding C3.
     try {
-      await db.put(REPLICATION_STORES.REPLICATED_TABLES, row);
+      const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+      const current = (await tx.store.get(key)) as ReplicatedRow<T> | undefined;
+      if (current) {
+        current.lastAccessedAt = Date.now();
+        current.accessCount = (current.accessCount || 0) + 1;
+        await tx.store.put(current);
+      }
+      await tx.done;
     } catch (error) {
       this.logger.warn(
         `[${this.tableName}] Access-tracking write failed for ${normalizedId} (non-fatal):`,

@@ -1,0 +1,103 @@
+/**
+ * Fail-closed durability tests for useOptimisticScoring.
+ *
+ * The invariant under test: a judge's score submit MUST NOT report success
+ * (onSuccess / navigation) unless the score was durably queued. If the queue
+ * write throws (overflow, IDB/quota failure, entry missing) or returns a null
+ * mutation id (no MutationManager wired), the submit must fail closed —
+ * onError fires, onSuccess does not, and the local session is not written.
+ *
+ * Assertion-first (per CLAUDE.md): these assertions describe the fixed
+ * behavior; before the fix, updateEntry failures were swallowed and onSuccess
+ * fired anyway.
+ */
+
+import { renderHook, act } from '@testing-library/react';
+import { useOptimisticScoring } from './useOptimisticScoring';
+
+const updateEntry = vi.fn();
+const addScoreToSession = vi.fn();
+
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: {
+    updateEntry: (...args: unknown[]) => updateEntry(...args),
+  },
+}));
+
+vi.mock('@/store/scoringStore', () => ({
+  useScoringStore: () => ({ submitScore: addScoreToSession }),
+}));
+
+vi.mock('@/services/LoggingService', () => ({
+  logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn(), log: vi.fn() },
+}));
+
+vi.mock('@/utils/scoringMappings', () => ({
+  mapQualificationToResultStatus: (r: string) => (r === 'Qualified' ? 'qualified' : 'nq'),
+}));
+
+function baseOptions(overrides: Record<string, unknown> = {}) {
+  return {
+    entryId: 'entry-1',
+    classId: 'class-1',
+    armband: 42,
+    className: 'Novice A',
+    scoreData: { resultText: 'Qualified', searchTime: '0:45.00', faultCount: 0 },
+    onSuccess: vi.fn(),
+    onError: vi.fn(),
+    ...overrides,
+  };
+}
+
+describe('useOptimisticScoring — fail-closed durability', () => {
+  beforeEach(() => {
+    updateEntry.mockReset();
+    addScoreToSession.mockReset();
+    // Force the online branch so the no-op serverUpdate resolves to success.
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+  });
+
+  it('does NOT call onSuccess when the queue write throws (e.g. queue overflow)', async () => {
+    updateEntry.mockRejectedValue(new Error('Mutation queue is full (1000)'));
+    const opts = baseOptions();
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(opts);
+    });
+
+    expect(opts.onSuccess).not.toHaveBeenCalled();
+    expect(opts.onError).toHaveBeenCalledTimes(1);
+    expect((opts.onError.mock.calls[0][0] as Error).message).toContain('queue is full');
+    // Score was not durably saved → do not write the local session either.
+    expect(addScoreToSession).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call onSuccess when updateEntry returns a null mutation id', async () => {
+    updateEntry.mockResolvedValue(null);
+    const opts = baseOptions();
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(opts);
+    });
+
+    expect(opts.onSuccess).not.toHaveBeenCalled();
+    expect(opts.onError).toHaveBeenCalledTimes(1);
+    expect(addScoreToSession).not.toHaveBeenCalled();
+  });
+
+  it('calls onSuccess only when the queue returns a real mutation id', async () => {
+    updateEntry.mockResolvedValue('mutation-123');
+    const opts = baseOptions();
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(opts);
+    });
+
+    expect(opts.onError).not.toHaveBeenCalled();
+    expect(opts.onSuccess).toHaveBeenCalledTimes(1);
+    expect(addScoreToSession).toHaveBeenCalledTimes(1);
+  });
+});

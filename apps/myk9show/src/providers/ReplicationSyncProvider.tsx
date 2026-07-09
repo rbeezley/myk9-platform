@@ -495,7 +495,15 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const { reason } = (event as CustomEvent<{ reason: string }>).detail;
       logger.warn('IndexedDB recovery triggered', 'replication', { reason });
       notifications.info('Resyncing local data...');
-      triggerSyncRef.current?.();
+      // The circuit breaker deleted and recreated the DB. Restore pending +
+      // failed mutations from the localStorage backup BEFORE the download sync,
+      // so unsynced scores survive the wipe instead of being silently lost.
+      void mutationManager
+        .restoreMutationsFromLocalStorage()
+        .catch(err =>
+          logger.error('Failed to restore mutations after recovery', 'replication', {}, err)
+        )
+        .finally(() => triggerSyncRef.current?.());
     };
     window.addEventListener('replication:recovery', handleRecovery);
     return () => window.removeEventListener('replication:recovery', handleRecovery);

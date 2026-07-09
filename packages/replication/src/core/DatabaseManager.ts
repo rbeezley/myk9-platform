@@ -21,6 +21,7 @@ import {
   CIRCUIT_BREAKER_THRESHOLD,
 } from '../constants';
 import { withTimeout } from '../mutation-utils';
+import { writeMutationBackup } from '../mutation-backup';
 
 /**
  * Object store names for the replication system
@@ -462,6 +463,33 @@ export class DatabaseManager {
     this.isRecovering = true;
 
     this.logger.warn(`[DatabaseManager] Starting auto-recovery...`);
+
+    // Snapshot pending + failed mutations to localStorage BEFORE we delete the
+    // DB, so a circuit-breaker wipe cannot destroy unsynced or dead-lettered
+    // scores. Best-effort: the DB may already be failing, so any read error is
+    // swallowed — the continuous backup written on every mutation change is the
+    // primary safety net; this is belt-and-suspenders for the just-changed case.
+    // The matching restore runs after re-open via the 'replication:recovery'
+    // event handler calling restoreMutationsFromLocalStorage().
+    if (sharedDB && typeof window !== 'undefined') {
+      try {
+        const [pending, failed] = await Promise.all([
+          sharedDB.getAll(REPLICATION_STORES.PENDING_MUTATIONS),
+          sharedDB.getAll(REPLICATION_STORES.FAILED_MUTATIONS),
+        ]);
+        if (pending.length > 0 || failed.length > 0) {
+          writeMutationBackup(localStorage, [...pending, ...failed]);
+          this.logger.log(
+            `[DatabaseManager] Snapshotted ${pending.length} pending + ${failed.length} failed mutation(s) before recovery`
+          );
+        }
+      } catch (snapshotError) {
+        this.logger.warn(
+          `[DatabaseManager] Could not snapshot mutations before recovery (continuous backup still applies)`,
+          snapshotError
+        );
+      }
+    }
 
     if (sharedDB) {
       try {

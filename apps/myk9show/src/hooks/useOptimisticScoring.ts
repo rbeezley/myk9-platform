@@ -133,8 +133,11 @@ export function useOptimisticScoring() {
         if (scoreData.finishCallErrors !== undefined)
           detailFields.no_finish_count = scoreData.finishCallErrors;
         if (scoreData.points !== undefined) detailFields.points_earned = scoreData.points;
-        if (scoreData.nonQualifyingReason !== undefined)
-          detailFields.disqualification_reason = scoreData.nonQualifyingReason;
+        // A full score submit is authoritative: clear the disqualification reason
+        // to null when there isn't one, so a rescore from NQ/DQ→Qualified doesn't
+        // leave the old reason attached (the RPC delta only touches sent fields,
+        // and updateEntry merges over the cached row). Write the reason when present.
+        detailFields.disqualification_reason = scoreData.nonQualifyingReason ?? null;
 
         const mutationId = await replicatedEntriesTable.updateEntry(String(entryId), {
           // Write both camelCase and snake_case so toSupabaseRow() picks up the values

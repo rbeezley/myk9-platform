@@ -165,4 +165,41 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     expect(payload.no_finish_count).toBe(0);
     expect(payload.points_earned).toBe(0);
   });
+
+  // Rescore NQ/DQ → Qualified must CLEAR the old reason (write null), not omit it
+  // and leave the stale reason on the entry/reports. Codex P2.
+  it('clears disqualification_reason (null) when rescoring to qualified', async () => {
+    updateEntry.mockResolvedValue('mutation-q');
+    const opts = baseOptions({
+      scoreData: { resultText: 'Qualified', searchTime: '0:45.00', faultCount: 0 },
+    });
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(opts);
+    });
+
+    const payload = updateEntry.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload).toHaveProperty('disqualification_reason', null);
+  });
+
+  it('writes the disqualification_reason when the score is non-qualifying', async () => {
+    updateEntry.mockResolvedValue('mutation-nq');
+    const opts = baseOptions({
+      scoreData: {
+        resultText: 'NQ',
+        searchTime: '0:45.00',
+        faultCount: 0,
+        nonQualifyingReason: 'Missed hide',
+      },
+    });
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(opts);
+    });
+
+    const payload = updateEntry.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.disqualification_reason).toBe('Missed hide');
+  });
 });

@@ -17,13 +17,13 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculateShowPayoutCents } from '../_shared/payoutCalc.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
+import { alertAdmin as sharedAlertAdmin } from '../_shared/alertAdmin.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const cronSecret = Deno.env.get('PAYOUT_CRON_SECRET')!;
 const resendApiKey = Deno.env.get('RESEND_API_KEY');
-const alertEmail = Deno.env.get('PLATFORM_ALERT_EMAIL') ?? 'richardbeezley1@gmail.com';
 
 if (!supabaseUrl || !supabaseServiceKey || !stripeSecret || !cronSecret) {
   throw new Error('Missing required environment variables');
@@ -75,8 +75,17 @@ async function sendEmail(to: string, subject: string, html: string) {
   }
 }
 
-function alertAdmin(subject: string, html: string) {
-  return sendEmail(alertEmail, `[myK9Show payouts] ${subject}`, html);
+// Wraps the shared, persist-then-email alertAdmin (MP-08) with this
+// function's identity so operator_alerts.source reads 'cron-process-payouts'
+// instead of the generic default. dedupeKey pairs with source against the
+// DB's partial unique index so a persistent condition (e.g. a show's balance
+// staying insufficient for days) updates nothing on re-runs instead of
+// inserting a fresh unresolved row every day.
+function alertAdmin(subject: string, html: string, opts: { dedupeKey?: string } = {}) {
+  return sharedAlertAdmin(subject, html, {
+    source: 'cron-process-payouts',
+    dedupeKey: opts.dedupeKey,
+  });
 }
 
 function dollars(cents: number): string {
@@ -110,7 +119,8 @@ async function recoverStaleProcessing(summary: Record<string, number>) {
       `<p>Payout row ${row.id} for show ${row.show_id} (${dollars(row.amount_cents)}) was stuck
        in 'processing' for over ${STALE_PROCESSING_HOURS}h and has been failed for automatic retry.
        Before re-sending, the next run checks Stripe for an existing transfer for this show
-       (transfer_group) and reconciles instead of paying twice. No action needed unless it recurs.</p>`
+       (transfer_group) and reconciles instead of paying twice. No action needed unless it recurs.</p>`,
+      { dedupeKey: `payout-stale-recovered-${row.id}` }
     );
   }
 }
@@ -214,7 +224,8 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
          stripeLivemode ? 'live' : 'test'
        } key.</p>
        <p>No transfer was attempted. Recovery: complete Connect onboarding in the
-       matching Stripe mode or rotate the function secret back to the intended mode.</p>`
+       matching Stripe mode or rotate the function secret back to the intended mode.</p>`,
+      { dedupeKey: `payout-mode-mismatch-${show.id}` }
     );
     return;
   }
@@ -360,7 +371,8 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
            today's recompute from entries says ${dollars(finalAmountCents)} is owed.</p>
            <p>Most likely a refund landed after the original transfer was sent. If the
            club was overpaid, recover the difference with a transfer reversal from the
-           Stripe dashboard (Connect → Transfers → ${priorTransfer.id} → Reverse).</p>`
+           Stripe dashboard (Connect → Transfers → ${priorTransfer.id} → Reverse).</p>`,
+          { dedupeKey: `payout-reconcile-mismatch-${show.id}` }
         );
       }
       return;
@@ -427,7 +439,12 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
          benign
            ? '<p>This is the expected card-clearing delay — show-day payments take ~2 business days to become available. Tomorrow’s run retries automatically; no action needed.</p>'
            : '<p>This will retry tomorrow, but a non-balance failure usually needs a look: check the show_payouts row and the Stripe dashboard.</p>'
-       }`
+       }`,
+      {
+        dedupeKey: benign
+          ? `payout-insufficient-balance-${show.id}`
+          : `payout-transfer-failed-${show.id}`,
+      }
     );
   } finally {
     await moneyLock.release();

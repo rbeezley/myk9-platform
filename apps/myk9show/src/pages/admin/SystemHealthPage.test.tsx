@@ -4,13 +4,29 @@ import SystemHealthPage from './SystemHealthPage';
 import type { SystemHealthSnapshot } from '@/features/admin-system-health/systemHealthTypes';
 import type { SystemHealthData } from '@/features/admin-system-health/useSystemHealthSnapshots';
 import { useSystemHealthSnapshots } from '@/features/admin-system-health/useSystemHealthSnapshots';
+import {
+  useOperatorAlerts,
+  useResolveOperatorAlert,
+} from '@/features/admin-system-health/useOperatorAlerts';
 
 vi.mock('@/features/admin-system-health/useSystemHealthSnapshots', () => ({
   useSystemHealthSnapshots: vi.fn(),
   HISTORY_LIMIT: 7,
 }));
 
+// The unresolved-alerts section (OperatorAlertsSection) is mounted on this
+// page but has its own dedicated test coverage — mock it out here so these
+// tests stay isolated to the snapshot board and never issue a real
+// operator_alerts read.
+vi.mock('@/features/admin-system-health/useOperatorAlerts', () => ({
+  useOperatorAlerts: vi.fn(),
+  useResolveOperatorAlert: vi.fn(),
+  OPERATOR_ALERTS_QUERY_KEY: ['admin', 'system-health', 'operator-alerts'],
+}));
+
 const mockedHook = vi.mocked(useSystemHealthSnapshots);
+const mockedOperatorAlertsHook = vi.mocked(useOperatorAlerts);
+const mockedResolveOperatorAlertHook = vi.mocked(useResolveOperatorAlert);
 
 type HookResult = ReturnType<typeof useSystemHealthSnapshots>;
 
@@ -57,6 +73,17 @@ function freshSnapshot(overrides: Partial<SystemHealthSnapshot> = {}): SystemHea
 describe('SystemHealthPage', () => {
   beforeEach(() => {
     mockedHook.mockReset();
+    mockedOperatorAlertsHook.mockReset();
+    mockedResolveOperatorAlertHook.mockReset();
+    mockedOperatorAlertsHook.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof useOperatorAlerts>);
+    mockedResolveOperatorAlertHook.mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof useResolveOperatorAlert>);
   });
 
   it('renders per-check rows for a fresh snapshot', () => {
@@ -104,6 +131,15 @@ describe('SystemHealthPage', () => {
     expect(screen.getByText(/couldn.t load system health/i)).toBeInTheDocument();
   });
 
+  it('still renders OperatorAlertsSection when the snapshot query errors — money-path alerts must not hide behind an unrelated snapshots outage', () => {
+    mockedHook.mockReturnValue(hookState({ error: new Error('boom') }));
+
+    render(<SystemHealthPage />);
+
+    expect(screen.getByText(/couldn.t load system health/i)).toBeInTheDocument();
+    expect(screen.getByText('Unresolved Alerts')).toBeInTheDocument();
+  });
+
   it('renders a loading state while fetching', () => {
     mockedHook.mockReturnValue(hookState({ isLoading: true }));
 
@@ -112,6 +148,14 @@ describe('SystemHealthPage', () => {
     expect(screen.getByRole('status', { name: 'Loading system health' })).toBeInTheDocument();
     expect(document.querySelector('.animate-spin')).toBeNull();
     expect(screen.queryByText(/loading the latest health snapshot/i)).not.toBeInTheDocument();
+  });
+
+  it('still renders OperatorAlertsSection while the snapshot query is loading', () => {
+    mockedHook.mockReturnValue(hookState({ isLoading: true }));
+
+    render(<SystemHealthPage />);
+
+    expect(screen.getByText('Unresolved Alerts')).toBeInTheDocument();
   });
 
   it('renders the recent-run history strip', () => {

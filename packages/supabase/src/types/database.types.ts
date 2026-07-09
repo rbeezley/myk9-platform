@@ -3646,6 +3646,42 @@ export type Database = {
         }
         Relationships: []
       }
+      operator_alerts: {
+        Row: {
+          created_at: string
+          dedupe_key: string | null
+          detail: Json | null
+          id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          source: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          dedupe_key?: string | null
+          detail?: Json | null
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+          source: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          dedupe_key?: string | null
+          detail?: Json | null
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          source?: string
+          title?: string
+        }
+        Relationships: []
+      }
       organization_agreements: {
         Row: {
           agreement_text: string
@@ -9034,6 +9070,10 @@ export type Database = {
           judge: string
           steward: string
         }[]
+      }
+      resolve_operator_alert: {
+        Args: { p_alert_id: string }
+        Returns: Database["public"]["Tables"]["operator_alerts"]["Row"]
       }
       restore_class: { Args: { p_class_id: string }; Returns: Database['public']['Tables']['classes']['Row'][] }
       restore_dog: { Args: { p_dog_id: string }; Returns: Database['public']['Tables']['dogs']['Row'][] }

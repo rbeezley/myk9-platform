@@ -253,7 +253,12 @@ async function refundIntent(
          succeeded, but stamping its ${group.entryIds.length} entr${group.entryIds.length === 1 ? 'y' : 'ies'} failed:</p>
          <pre>${stampError.message}</pre>
          <p>Re-run the show refund (it reuses the existing Stripe refund — no double
-         refund) or stamp the entries manually.</p>`
+         refund) or stamp the entries manually.</p>`,
+        {
+          source: 'stripe-refund-show',
+          dedupeKey: `show-refund-stamp-failed-${intentId}`,
+          detail: { showId, paymentIntentId: intentId, entryIds: group.entryIds },
+        }
       );
       return {
         failed: {

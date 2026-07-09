@@ -6,6 +6,7 @@
  * These are NOT React hooks — they are pure, synchronous selectors.
  */
 
+import * as Sentry from '@sentry/react';
 import { getRegistry, listRegistries } from './lookup';
 import type { Registry, RegistryId } from './types';
 
@@ -31,6 +32,8 @@ interface ShowLike {
 }
 
 interface TrialLike {
+  /** Present on the mapped domain `Trial` / raw row; used only for Sentry context. */
+  id?: string | null | undefined;
   /** Snake-case as it comes off a raw PostgREST row / email TrialInput. */
   registry_id?: string | null;
   /** Camel-case as it rides on the mapped domain `Trial` (trial.types.ts) or a
@@ -112,10 +115,39 @@ export function deriveRegistryId(organization: string | null | undefined): Regis
   return 'AKC';
 }
 
+/** Module-level, per-session: an invalid timezone value reports to Sentry once, not per render. */
+const reportedInvalidTimezones = new Set<string>();
+
+/** Cheap standards-based probe — throws for any string that isn't a resolvable IANA zone. */
+function isValidIanaTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function reportInvalidTrialTimezone(rejected: string, trialId: string | null | undefined): void {
+  if (reportedInvalidTimezones.has(rejected)) return;
+  reportedInvalidTimezones.add(rejected);
+  Sentry.captureMessage(`Invalid trial timezone "${rejected}" — falling back to America/New_York`, {
+    level: 'warning',
+    extra: { trialId: trialId ?? null, rejectedTimezone: rejected },
+  });
+}
+
 /**
- * Resolve the IANA timezone for a trial. Falls back to America/New_York,
- * matching the migration default.
+ * Resolve the IANA timezone for a trial. Falls back to America/New_York
+ * (matching the migration default) when the value is missing, empty, or not
+ * a resolvable IANA zone — callers must never receive a string that makes
+ * `Intl`/`toLocaleDateString` throw. An invalid (non-empty) value is reported
+ * to Sentry once per session so bad data can be repaired.
  */
 export function getTrialTimezone(trial: TrialLike | null | undefined): string {
-  return trial?.timezone || 'America/New_York';
+  const raw = trial?.timezone;
+  if (!raw) return 'America/New_York';
+  if (isValidIanaTimeZone(raw)) return raw;
+  reportInvalidTrialTimezone(raw, trial?.id);
+  return 'America/New_York';
 }

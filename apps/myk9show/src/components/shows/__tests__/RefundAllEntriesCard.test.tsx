@@ -123,6 +123,72 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
     });
     expect(await screen.findByText(/Refunded 2 entries across 1 payment/i)).toBeInTheDocument();
     expect(screen.getByText(/1 skipped/i)).toBeInTheDocument();
+
+    // Aggregate counts alone are not the only presentation — per-entry detail
+    // is available behind a disclosure (secretary INTENT: calm control, detail
+    // only when needed).
+    await user.click(screen.getByRole('button', { name: /view details/i }));
+    expect(await screen.findByText(/entry c/i)).toBeInTheDocument();
+    expect(screen.getByText(/offline_paid/i)).toBeInTheDocument();
+  });
+
+  it('identifies every skipped and failed entry in a mixed outcome (spec: refund-result-transparency)', async () => {
+    mockedInvoke.mockResolvedValue({
+      data: {
+        refunded: [{ paymentIntentId: 'pi_ok', amountCents: 5000, entryIds: ['refunded-entry'] }],
+        skipped: [{ entryId: 'skip-entry', reason: 'offline_paid' }],
+        failed: [
+          {
+            paymentIntentId: 'pi_bad',
+            entryIds: ['failed-entry'],
+            error: 'card_declined: insufficient funds',
+          },
+        ],
+        summary: { intentsRefunded: 1, entriesRefunded: 1, skipped: 1, failed: 1 },
+      },
+      error: null,
+    });
+    const user = userEvent.setup();
+    render(<RefundAllEntriesCard showId="show-42" />);
+
+    await user.click(await screen.findByRole('button', { name: /refund all entries/i }));
+    await user.click(screen.getByRole('button', { name: /yes, refund/i }));
+
+    await screen.findByText(/Refunded 1 entry across 1 payment/i);
+    await user.click(screen.getByRole('button', { name: /view details/i }));
+
+    // Skipped entry: identity + reason, not just a count.
+    expect(await screen.findByText(/skip-entry/i)).toBeInTheDocument();
+    expect(screen.getByText(/offline_paid/i)).toBeInTheDocument();
+
+    // Failed payment intent: entry ids + error message, not just a count.
+    expect(screen.getByText(/pi_bad/i)).toBeInTheDocument();
+    expect(screen.getByText(/failed-entry/i)).toBeInTheDocument();
+    expect(screen.getByText(/card_declined: insufficient funds/i)).toBeInTheDocument();
+  });
+
+  it('shows the summary with no empty detail sections on a clean run (spec: refund-result-transparency)', async () => {
+    mockedInvoke.mockResolvedValue({
+      data: {
+        refunded: [{ paymentIntentId: 'pi_clean', amountCents: 5000, entryIds: ['e1'] }],
+        skipped: [],
+        failed: [],
+        summary: { intentsRefunded: 1, entriesRefunded: 1, skipped: 0, failed: 0 },
+      },
+      error: null,
+    });
+    const user = userEvent.setup();
+    render(<RefundAllEntriesCard showId="show-42" />);
+
+    await user.click(await screen.findByRole('button', { name: /refund all entries/i }));
+    await user.click(screen.getByRole('button', { name: /yes, refund/i }));
+
+    await screen.findByText(/Refunded 1 entry across 1 payment/i);
+
+    // No skipped/failed detail disclosure at all — a clean run stays compact.
+    expect(screen.queryByRole('button', { name: /view details/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/skipped/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/failed/i)).not.toBeInTheDocument();
   });
 
   it('does NOT show a success toast when nothing was actually refunded (review #974 #3)', async () => {

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Production Readiness — Claude Verification &amp; Action Plan (2026-07-09)</title>
+<style>
+  :root { color-scheme: light dark;
+    --bg: #ffffff; --fg: #1a1c1f; --muted: #6b7280; --border: #e5e7eb;
+    --card: #f7f8fa; --green: #15803d; --green-bg: #dcfce7;
+    --yellow: #a16207; --yellow-bg: #fef9c3; --red: #b91c1c; --red-bg: #fee2e2;
+    --blue: #1d4ed8; --blue-bg: #dbeafe; --code-bg: #eef0f3;
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --bg: #181818; --fg: #f3f4f6; --muted: #9ca3af; --border: #333;
+    --card: #222; --green: #4ade80; --green-bg: #14311f;
+    --yellow: #facc15; --yellow-bg: #3a2e08; --red: #f87171; --red-bg: #3b1212;
+    --blue: #93c5fd; --blue-bg: #14263f; --code-bg: #2b2d31;
+  }}
+  * { box-sizing: border-box; }
+  body { margin: 0 auto; max-width: 980px; padding: 2rem 1.25rem 4rem;
+    background: var(--bg); color: var(--fg);
+    font: 15px/1.55 -apple-system, system-ui, "Segoe UI", sans-serif; }
+  h1 { font-size: 1.7rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.25rem; margin: 2.2rem 0 .6rem; border-bottom: 1px solid var(--border); padding-bottom: .3rem; }
+  h3 { font-size: 1.05rem; margin: 1.4rem 0 .4rem; }
+  p.lead { color: var(--muted); margin-top: 0; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 5px; font-size: .88em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+  .verdict { border-left: 4px solid var(--blue); background: var(--card); padding: .9rem 1.1rem; border-radius: 8px; margin: 1.2rem 0; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: .7rem; margin: 1.2rem 0; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: .7rem .9rem; }
+  .stat .n { font-size: 1.5rem; font-weight: 600; }
+  .stat .l { color: var(--muted); font-size: .82rem; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 700px; margin: .6rem 0 1rem; }
+  th, td { text-align: left; vertical-align: top; padding: .55rem .65rem; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: .82rem; text-transform: uppercase; letter-spacing: .03em; }
+  .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: .78rem; font-weight: 600; white-space: nowrap; }
+  .p-green { color: var(--green); background: var(--green-bg); }
+  .p-yellow { color: var(--yellow); background: var(--yellow-bg); }
+  .p-red { color: var(--red); background: var(--red-bg); }
+  .p-blue { color: var(--blue); background: var(--blue-bg); }
+  .phase { border: 1px solid var(--border); border-radius: 10px; padding: .8rem 1rem; margin: .7rem 0; background: var(--card); }
+  .phase h3 { margin: 0 0 .35rem; }
+  ul { margin: .3rem 0 .6rem; padding-left: 1.3rem; }
+  li { margin: .25rem 0; }
+  .small { font-size: .82rem; color: var(--muted); }
+  strong { font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>Production Readiness — Verification &amp; Action Plan</h1>
+<p class="lead">Claude review of the Codex report <code>production-readiness-bug-report-2026-07-09.html</code> · every code-level claim independently verified against the working tree at <code>4e2af59d1</code> · 2026-07-09</p>
+
+<div class="verdict">
+  <strong>Verdict: I agree with Codex's overall conclusion — do not invite a club to pilot yet — and with its structure (0 open P0/P1, defect batch + rehearsal gates + UAT gate).</strong>
+  Three corrections after verifying against the code:
+  (1) <strong>TZ-01 is misdiagnosed</strong> — an invalid trial timezone does <em>not</em> fall back to device-local time; it throws inside a try/catch and renders a blank date. Still worth fixing, but lower urgency and a different fix.
+  (2) <strong>Codex under-counts the open money-path items</strong> — MP-05, MP-07 (both MEDIUM), and MP-09 from <code>docs/plan-money-path-hardening.md</code> are also still open in the code, not just MP-08/11/12/13.
+  (3) The "July production-readiness bug audit" source link mislabels the MP findings' home — they live in <code>docs/plan-money-path-hardening.md</code>, not <code>docs/improve-audit-2026-07/</code> (that folder tracks plans 001–005, all done).
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="n">4 / 5</div><div class="l">Codex code findings confirmed</div></div>
+  <div class="stat"><div class="n">1</div><div class="l">Finding refuted (TZ-01)</div></div>
+  <div class="stat"><div class="n">3</div><div class="l">Open items Codex missed (MP-05/07/09)</div></div>
+  <div class="stat"><div class="n">0</div><div class="l">Open P0/P1 (agreed)</div></div>
+</div>
+
+<h2>1 · Verification of Codex's findings</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>ID</th><th>Codex claim</th><th>Verdict</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td><code>MP-08</code></td>
+  <td>Payment-failure alerts are email-only, not durable/queryable</td>
+  <td><span class="pill p-green">Confirmed</span></td>
+  <td><code>_shared/alertAdmin.ts:10-35</code> only POSTs to Resend; if <code>RESEND_API_KEY</code> unset it just <code>console.log</code>s. No <code>operator_alerts</code> table exists (only forward-references in mig <code>20260704120000</code>). <code>/admin/health</code> does not ingest payment failures. <code>cron-process-payouts</code> carries a duplicate email-only copy.</td></tr>
+<tr><td><code>MP-11</code></td>
+  <td>Bulk-refund UI hides skipped/failed entry detail</td>
+  <td><span class="pill p-green">Confirmed</span></td>
+  <td>Server &amp; hook return per-entry <code>skipped[{entryId,reason}]</code> / <code>failed[{...error}]</code> (<code>useShowRefundAll.ts:15-25</code>) but <code>RefundAllEntriesCard.tsx:165-185</code> renders counts only. Data is already there — UI-only fix.</td></tr>
+<tr><td><code>MP-12</code></td>
+  <td>Unmatched out-of-order refund only logs</td>
+  <td><span class="pill p-green">Confirmed</span></td>
+  <td><code>stripe-webhook/index.ts:282-284</code>: unmatched <code>charge.refunded</code> → <code>console.log(...ignoring)</code> and return. The <em>matched</em> dashboard-refund branch right below does <code>alertAdmin</code>; only the unmatched case is silent.</td></tr>
+<tr><td><code>MP-13</code></td>
+  <td>Online entries can get duplicate confirmation emails</td>
+  <td><span class="pill p-green">Confirmed</span></td>
+  <td>Webhook <code>sendEntryConfirmationEmail</code> (<code>stripe-webhook/index.ts:1701-1830</code>) never stamps <code>confirmation_email_sent_at/_status</code>; scheduled sender <code>send-confirmation-email/index.ts:427-439</code> selects <code>WHERE confirmation_email_sent_at IS NULL</code> — webhook-confirmed entries are still eligible for a second, differently-styled email. Its Resend idempotency key doesn't dedupe across the two paths.</td></tr>
+<tr><td><code>TZ-01</code></td>
+  <td>Invalid trial timezone silently falls back to device-local time</td>
+  <td><span class="pill p-red">Refuted</span></td>
+  <td><code>getTrialTimezone</code> (<code>registries/helpers.ts:119-121</code>) indeed does no IANA validation, but at the use site (<code>gazette/landing/utils/dateFormat.ts:19,47-49</code>) an invalid zone makes <code>toLocaleDateString</code> throw <code>RangeError</code>, caught → renders <strong>blank/raw ISO</strong>, not device-local drift. A separate real device-tz fallback exists in <code>judgeStatsUtils.ts:84</code> but is not the trial-timezone path. Reclassify: LOW polish — validate at boundary, keep the AKC-default fallback, add a Sentry breadcrumb.</td></tr>
+<tr><td><code>ENV-01</code></td>
+  <td>Full-repo <code>pnpm test</code> not reproducible (admin-mcp links)</td>
+  <td><span class="pill p-green">Confirmed</span></td>
+  <td><code>packages/admin-mcp</code> exists, is in <code>pnpm-lock.yaml</code> (importer at <code>:367</code>) and root scripts. This is a stale-install issue in Codex's checkout, not a source/lockfile defect — <code>bash scripts/bootstrap-worktree.sh</code> (or <code>pnpm install --frozen-lockfile</code> in a fresh worktree) is the fix. Keep the "clean-bootstrap preflight" recommendation.</td></tr>
+<tr><td><code>LIVE-01..04</code><br><code>UAT-01</code></td>
+  <td>Evidence gaps: offline rehearsal, golden-show reconciliation, venue printing, rollback drill, silent UAT</td>
+  <td><span class="pill p-green">Agreed</span></td>
+  <td>These match the launch scorecard's own Yellow rationale (<code>docs/goals/fall-2026-launch-readiness-scorecard.md</code>) and open <code>OPEN-TODOS.md</code> items verbatim. Not new findings, but the correct remaining gates.</td></tr>
+</tbody>
+</table></div>
+
+<h2>2 · What Codex missed — open items it should have listed</h2>
+<p>The MP findings come from <code>docs/plan-money-path-hardening.md</code> (source audit: <code>docs/security-audit-2026-07-03-money-path.md</code>). Only Phases 1–4 (MP-01/02/03/04/06/10/14) are merged and deployed. Codex listed the Phase 7 hygiene items but omitted <strong>Phase 5 — the two remaining MEDIUMs — and MP-09</strong>:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>ID</th><th>Severity</th><th>Gap</th><th>Fix (per existing plan)</th></tr></thead>
+<tbody>
+<tr><td><code>MP-05</code></td><td><span class="pill p-yellow">Medium</span></td>
+  <td>Delayed-notification payments: <code>handleEntryPaymentCompleted</code> can process a session whose <code>payment_status</code> isn't <code>paid</code> (async payment methods).</td>
+  <td>After the fresh retrieve (<code>stripe-webhook/index.ts:507</code>): <code>if (freshSession.payment_status !== 'paid') return;</code> — <code>async_payment_succeeded</code> re-drives. Optionally pin <code>payment_method_types: ['card']</code> in checkout to match the link path.</td></tr>
+<tr><td><code>MP-07</code></td><td><span class="pill p-yellow">Medium</span></td>
+  <td>Payment-link path trusts the webhook payload amount → possible <code>$0 stripe_orders</code> corruption and manual-refund degradation.</td>
+  <td>Mirror the cart path in <code>handleEntryPaymentRequestCompleted</code>: retrieve the session fresh, use <code>fresh.amount_total</code>/<code>fresh.payment_status</code> throughout (also covers MP-05 for links).</td></tr>
+<tr><td><code>MP-09</code></td><td><span class="pill p-blue">Low</span></td>
+  <td>Per-entry refund stamp can race/overwrite the show-level stamp.</td>
+  <td>Guard the update with <code>.eq('payment_status','paid').select('id')</code>; 0 rows → already stamped, log, don't overwrite. Assertion-first concurrency test.</td></tr>
+</tbody>
+</table></div>
+<p class="small">These are two MEDIUMs on the money path — arguably more important than three of the four items Codex did list. Phase 5 should lead the defect batch.</p>
+
+<h2>3 · Scorecard — agreed as-is</h2>
+<p>Codex's 4 Green / 6 Yellow / 0 Red matches the canonical scorecard (<code>docs/goals/fall-2026-launch-readiness-scorecard.md</code>) exactly: Green = Secretary path, Exhibitor path, Admin minimum, Test/CI health (the golden paths remain gated on real-user testing, Lane 1.7); Yellow = Show-day reliability, Offline-first, Data correctness, Reports/printing, UX clarity, Operational readiness. No independent disagreement found.</p>
+
+<h2>4 · Path to production ready</h2>
+
+<div class="phase">
+<h3>Phase A — Close the money-path defects <span class="pill p-yellow">~2–3 sessions</span></h3>
+<ul>
+  <li><strong>A1 (MEDIUM, do first):</strong> MP-05 + MP-07 — fresh-retrieve guard + payload-amount hardening in <code>stripe-webhook</code>. Assertion-first tests per the plan; deploy with <code>--no-verify-jwt</code> from <code>apps/myk9show/supabase/functions</code>.</li>
+  <li><strong>A2 (MEDIUM):</strong> MP-08 — create <code>operator_alerts</code> table (the migration comments already reserve the name; include GRANTs per the Oct-2026 Supabase rule), write from <code>alertAdmin</code> alongside email, surface unresolved alerts on the <em>existing</em> <code>/admin/health</code> or <code>/admin/support</code> page — no new page. Also delete the duplicated <code>alertAdmin</code> copy in <code>cron-process-payouts</code>.</li>
+  <li><strong>A3 (LOW batch):</strong> MP-09 (stamp guard), MP-11 (render the skipped/failed arrays the hook already returns in <code>RefundAllEntriesCard</code>), MP-12 (route unmatched refunds through the MP-08 alert path), MP-13 (stamp <code>confirmation_email_*</code> in the webhook send, or exclude online receipts from the scheduled audience — one integration test proving exactly one email).</li>
+  <li><strong>A4 (LOW):</strong> TZ-01 revised — validate IANA name in <code>getTrialTimezone</code>, fall back to <code>'America/New_York'</code> with a Sentry breadcrumb; DST-boundary unit tests. Also fix the blank-date rendering in <code>gazette/landing/utils/dateFormat.ts</code> catch paths.</li>
+  <li><strong>A5:</strong> ENV-01 — add "fresh worktree → <code>pnpm install --frozen-lockfile</code> → <code>pnpm test</code> exits 0" to the audit preflight (it's an install-state issue, not a source defect).</li>
+</ul>
+</div>
+
+<div class="phase">
+<h3>Phase B — Technical dress rehearsal <span class="pill p-yellow">closes LIVE-01/02/03/04</span></h3>
+<ul>
+  <li><strong>Golden show fixture</strong> (LIVE-02): deterministic staged show; reconciliation checklist across DB → secretary → ringside → exhibitor → public results → exports → payout math.</li>
+  <li><strong>Offline/reconnect rehearsal</strong> (LIVE-01): scripted mock show, secretary + judge + steward devices, cut network mid-scoring; assert no lost/duplicate scores, queue drains, devices converge. This also upgrades Show-day reliability and Offline-first to Green.</li>
+  <li><strong>Venue printing</strong> (LIVE-03): AKC/UKC/ASCA artifacts on a label printer + laser printer; photographic evidence matrix (already open in OPEN-TODOS).</li>
+  <li><strong>Rollback drill</strong> (LIVE-04): staged bad deploy, webhook interruption, failed migration; timed recovery; complements the existing Stripe go-live runbook gap (Lane 4).</li>
+</ul>
+</div>
+
+<div class="phase">
+<h3>Phase C — Silent real-user testing <span class="pill p-yellow">closes UAT-01 / Lane 1.7</span></h3>
+<ul>
+  <li>2–3 non-club volunteers matching secretary/exhibitor profiles; tasks, not instructions; confusion log; fix P1/P2 confusion and re-test. This is the explicit gate holding both golden paths at "Green (gated)".</li>
+  <li>Also do the pending <strong>live SITE_ADMIN spot-check</strong> — blocked on the missing <code>admin@myk9t.com</code> auth row (known staging-account issue; use the e2e reset procedure).</li>
+</ul>
+</div>
+
+<div class="phase">
+<h3>Phase D — Club pilot gate</h3>
+<ul>
+  <li>All 10 dimensions Green · 0 open P0/P1 · accepted P2s documented · rollback owner named and drilled (Phase B evidence) · Stripe live-mode runbook + treasurer onboarding complete (Lane 4).</li>
+</ul>
+</div>
+
+<h2>Sources</h2>
+<ul class="small">
+  <li><code>docs/audits/production-readiness-bug-report-2026-07-09.html</code> — the Codex report under review</li>
+  <li><code>docs/plan-money-path-hardening.md</code> — canonical home of MP-01..MP-14 (Phases 1–4 done; 5 &amp; 7 open)</li>
+  <li><code>docs/goals/fall-2026-launch-readiness-scorecard.md</code> — canonical 10-dimension scorecard</li>
+  <li><code>docs/security-audit-2026-07-03-money-path.md</code>, <code>docs/launch-milestone-qa-checklist.md</code>, <code>OPEN-TODOS.md</code></li>
+  <li>Code verification: <code>_shared/alertAdmin.ts</code>, <code>stripe-webhook/index.ts</code>, <code>send-confirmation-email/index.ts</code>, <code>useShowRefundAll.ts</code>, <code>RefundAllEntriesCard.tsx</code>, <code>registries/helpers.ts</code>, <code>gazette/landing/utils/dateFormat.ts</code>, <code>packages/admin-mcp</code></li>
+</ul>
+<p class="small">Prepared by Claude (Fable 5) · worktree <code>production-readiness-audit-77148f</code> · 2026-07-09</p>
+
+</body>
+</html>

@@ -13,6 +13,7 @@ import {
   type WithdrawalPolicy,
 } from '../_shared/withdrawalPolicy.ts';
 import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
+import { decideRefundStampGuard, entryHasRefundStamp } from '../_shared/entryRefundStampGuard.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -274,23 +275,54 @@ Deno.serve(async req => {
         .or('refund_amount.is.null,refund_amount.eq.0')
         .select('id');
 
-      if (updateError || !stamped?.length) {
+      // A zero-row match is only benign if the entry really was stamped by a
+      // concurrent refund. Re-read it to distinguish that race from a deleted
+      // entry or a status change without a stamp — both of which leave the
+      // Stripe refund with no local accounting record. A re-read error fails
+      // closed (record_failure) rather than assuming the benign race.
+      let reread: { found: boolean; hasRefundStamp: boolean } | undefined;
+      if (!updateError && (stamped?.length ?? 0) === 0) {
+        const { data: rereadRow, error: rereadError } = await supabase
+          .from('entries')
+          .select('id, payment_status, refund_amount')
+          .eq('id', entry_id)
+          .maybeSingle();
+        reread = rereadError
+          ? { found: false, hasRefundStamp: false }
+          : {
+              found: !!rereadRow,
+              hasRefundStamp: !!rereadRow && entryHasRefundStamp(rereadRow),
+            };
+      }
+
+      const stampDecision = decideRefundStampGuard({
+        hasUpdateError: !!updateError,
+        matchedEntryCount: stamped?.length ?? 0,
+        reread,
+      });
+
+      if (stampDecision.action === 'record_failure') {
         // The Stripe refund DID happen; until the entry is stamped, the payout
         // cron will overpay the club by this amount. Email, don't just log.
-        const detail = updateError?.message ?? 'entry was already refunded or no longer paid';
+        const failureDetail =
+          updateError?.message ??
+          (reread && !reread.found
+            ? `entry ${entry_id} no longer exists — the refund has no accounting record`
+            : `entry ${entry_id} was not stamped and carries no existing refund stamp`);
         console.error(
           `CRITICAL: refund ${refund.id} created for entry ${entry_id} but the entry update failed:`,
-          detail
+          failureDetail
         );
         await alertAdmin(
           'Refund issued but not recorded — payout will overpay',
           `<p>Stripe refund <code>${refund.id}</code> (${(refund.amount / 100).toFixed(2)} USD)
            was issued for entry <code>${entry_id}</code>, but stamping the entry failed:</p>
-           <pre>${detail}</pre>
+           <pre>${failureDetail}</pre>
            <p>Until the entry's refund columns are set, the payout cron computes the
            show's transfer WITHOUT this refund. Recovery: retry the refund from the
            entries page (it reuses the existing Stripe refund — no double refund), or
-           stamp the entry manually.</p>`
+           stamp the entry manually.</p>`,
+          { source: 'stripe-refund-entry', dedupeKey: `entry-refund-not-recorded-${entry_id}` }
         );
         return corsResponse(
           {
@@ -299,6 +331,20 @@ Deno.serve(async req => {
           },
           500
         );
+      }
+
+      if (stampDecision.action === 'already_stamped_elsewhere') {
+        // MP-09: a concurrent process (most commonly a bulk show-cancellation
+        // refund via stamp_show_refund_entries) already flipped this entry's
+        // payment_status/refund_amount between our initial read and this
+        // UPDATE. That existing stamp is authoritative — the Stripe refund we
+        // just created/reused already has an accounting home, so this is a
+        // benign no-op, not a failure. Log and continue without overwriting.
+        console.log(
+          `Refund ${refund.id} for entry ${entry_id} matched zero rows on the payment_status='paid' ` +
+            `stamp guard — the entry was already stamped by a concurrent refund. Leaving the existing stamp in place.`
+        );
+        return corsResponse({ refund_id: refund.id, amount_cents: refund.amount });
       }
 
       // refund.amount, not validation.amountCents: on a reused refund the

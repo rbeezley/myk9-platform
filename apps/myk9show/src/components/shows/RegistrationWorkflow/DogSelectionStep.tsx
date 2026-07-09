@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { getAgeInMonths } from '@/hooks/useEntryEligibility';
-import { getDogDisplayName, Dog } from '@/types/dog-types';
+import { getDogDisplayName, getDogBreedLabel, Dog } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
@@ -140,7 +140,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                               ` "${dog.registrations[0].registeredName}"`}
                           </Label>
                           <p className="text-sm text-muted-foreground mt-1">
-                            {dog.breed || 'No breed specified'} • {dog.gender || 'Unknown'} • Born{' '}
+                            {getDogBreedLabel(dog)} • {dog.gender || 'Unknown'} • Born{' '}
                             {formatDateMMDDYYYY(dog.dateOfBirth)}
                           </p>
                         </div>

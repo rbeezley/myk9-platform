@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { type ColumnDef } from '@tanstack/react-table';
-import { getDogDisplayName, type Dog, type DogStatus } from '@/types/dog-types';
+import { getDogDisplayName, getDogBreedLabel, type Dog, type DogStatus } from '@/types/dog-types';
 import { DataTable } from '@/components/ui/data-table';
 
 interface DogsTableViewProps {
@@ -84,7 +84,7 @@ const columns: ColumnDef<Dog>[] = [
     header: 'Breed',
     meta: { exportHeader: 'Breed', exportValue: (dog: unknown) => (dog as Dog).breed || '' },
     cell: ({ row }) => (
-      <span className="text-muted-foreground truncate">{row.original.breed || '—'}</span>
+      <span className="text-muted-foreground truncate">{getDogBreedLabel(row.original)}</span>
     ),
   },
   {

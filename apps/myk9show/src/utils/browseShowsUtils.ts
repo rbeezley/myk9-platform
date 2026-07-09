@@ -117,6 +117,71 @@ export function getBrowseShowsCountUserId(
   return user?.databaseUserId ?? user?.id;
 }
 
+/**
+ * Build a minimal "entered" entry stub for a show the account-level source says
+ * the user entered but the local entryStore hasn't synced yet. Only the fields
+ * the entered-membership filters read (`showId`,
+ * `registrationData.handler`/`handlerId`) carry meaning; the rest are inert
+ * placeholders. Stamped with the caller's own user id so the existing filters
+ * (`handlerId === userId`) match. See `useAccountEnteredShowIds`.
+ */
+function buildAccountEnteredShowStub(showId: string, userId: string): SyncableShowEntry {
+  const nowIso = new Date().toISOString();
+  return {
+    id: `account-entered:${showId}`,
+    showId,
+    classId: '',
+    dogId: '',
+    status: 'submitted',
+    registrationData: {
+      submittedAt: nowIso,
+      handler: userId,
+      handlerId: userId,
+      entryFee: 0,
+      paymentStatus: 'pending',
+    },
+    statusHistory: [],
+    createdAt: nowIso,
+    updatedAt: nowIso,
+    _version: 0,
+    _lastModified: new Date(),
+    _lastModifiedBy: userId,
+    _syncStatus: 'synced',
+    _localOnly: true,
+  };
+}
+
+/**
+ * Merge account-level entered show ids into the local entry list as stubs, so
+ * the Shows-page "Entered as exhibitor" tab counts every show the exhibitor has
+ * entered — not only the ones whose entries have synced into the local
+ * per-show `entryStore`. A show already represented for this user is left as-is
+ * (the real entry wins); the merge is purely additive, so it can never drop an
+ * existing entry or mis-count another user's shows.
+ */
+export function mergeAccountEnteredShowStubs(
+  entries: SyncableShowEntry[],
+  accountEnteredShowIds: string[],
+  userId: string | undefined
+): SyncableShowEntry[] {
+  if (!userId || accountEnteredShowIds.length === 0) return entries;
+
+  const alreadyEntered = new Set(
+    entries
+      .filter(
+        e =>
+          e.registrationData.handler === userId || e.registrationData.handlerId === userId
+      )
+      .map(e => e.showId)
+  );
+
+  const stubs = accountEnteredShowIds
+    .filter(showId => !alreadyEntered.has(showId))
+    .map(showId => buildAccountEnteredShowStub(showId, userId));
+
+  return stubs.length > 0 ? [...entries, ...stubs] : entries;
+}
+
 interface BrowseShowsTabCountInput {
   tab: ShowTab | undefined;
   shows: Show[];

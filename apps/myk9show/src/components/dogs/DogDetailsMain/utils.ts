@@ -48,9 +48,10 @@ export function parseOptionalDogNumber(value: string | undefined): number | null
  * Convert Dog form data to DogInput for database updates
  */
 export function convertDogToDogInput(dogData: Partial<Dog>, currentDog: Dog): Partial<DogInput> {
-  // Extract breed from registrations or use existing dog breed
+  // Extract breed from registrations or the existing dog breed. Store '' (not a
+  // fabricated 'Unknown') when none is known; display reads BREED_NOT_SET.
   const breed =
-    dogData.registrations?.[0]?.breed || currentDog.registrations?.[0]?.breed || 'Unknown';
+    dogData.registrations?.[0]?.breed || currentDog.registrations?.[0]?.breed || '';
 
   // Build result object conditionally to comply with exactOptionalPropertyTypes
   const result: Partial<DogInput> = {

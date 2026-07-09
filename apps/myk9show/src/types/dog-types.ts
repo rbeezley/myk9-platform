@@ -284,6 +284,36 @@ export function getDogDisplayName(dog: Pick<Dog, 'callName' | 'name'>): string {
   return dog.callName || dog.name;
 }
 
+/**
+ * Consistent placeholder for a dog whose breed is genuinely not recorded.
+ * Use everywhere instead of the ad-hoc mix ("Unknown", "—", "No breed
+ * specified", "Mixed Breed"-as-a-default) the exhibitor UX audit flagged.
+ */
+export const BREED_NOT_SET = 'Breed not set';
+
+function isMeaningfulBreed(breed: string | null | undefined): breed is string {
+  if (!breed) return false;
+  const trimmed = breed.trim();
+  // '' and a stored legacy "Unknown" are placeholders, not real breeds.
+  // 'Mixed Breed' IS a real, selectable breed and is preserved.
+  return trimmed.length > 0 && trimmed.toLowerCase() !== 'unknown';
+}
+
+/**
+ * Resolve a dog's breed for display: prefer a registration breed, then the
+ * dog's own breed, then the shared not-set placeholder. Centralizes the
+ * field-priority + placeholder so every surface reads the same.
+ */
+export function getDogBreedLabel(dog: {
+  breed?: string | null | undefined;
+  registrations?: Array<{ breed?: string | null | undefined }> | null | undefined;
+}): string {
+  const registrationBreed = dog.registrations?.find(r => isMeaningfulBreed(r.breed))?.breed;
+  if (isMeaningfulBreed(registrationBreed)) return registrationBreed;
+  if (isMeaningfulBreed(dog.breed)) return dog.breed;
+  return BREED_NOT_SET;
+}
+
 export interface PersonInput {
   firstName: string;
   lastName: string;

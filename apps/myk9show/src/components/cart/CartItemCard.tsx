@@ -7,6 +7,7 @@
 
 
 import { Trash2, Dog, Users, Ruler, Loader2 } from 'lucide-react';
+import { getDogBreedLabel } from '@/types/dog-types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +32,7 @@ export function CartItemCard({
   };
 
   const dogName = item.dog?.call_name || item.dog?.name || 'Unknown Dog';
-  const dogBreed = item.dog?.breed || 'Unknown Breed';
+  const dogBreed = getDogBreedLabel({ breed: item.dog?.breed });
   const className_ = item.class?.name || 'Unknown Class';
   const classLevel = item.class?.level;
   const handlerName = item.handler

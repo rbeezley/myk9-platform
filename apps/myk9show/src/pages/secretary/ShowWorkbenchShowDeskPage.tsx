@@ -16,6 +16,11 @@ import { TasksNotesCard } from '@/features/show-workbench/TasksNotesCard';
 import { VolunteersCard } from '@/features/show-workbench/VolunteersCard';
 import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
 import { ShowCloseoutSummary } from '@/features/show-workbench/ShowCloseoutSummary';
+import { CloseOutShowAction } from '@/features/show-workbench/CloseOutShowAction';
+import {
+  toCloseoutClassSummary,
+  type CloseoutTrialSummary,
+} from '@/features/show-workbench/showCloseOutShow';
 import { ShowDeskPeopleRoster } from '@/features/show-desk-people-roster/ShowDeskPeopleRoster';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import { useQuery } from '@tanstack/react-query';
@@ -157,6 +162,15 @@ export function ShowWorkbenchShowDeskPage() {
         }));
       }),
     [associatedTrials, showEntries, trialClasses]
+  );
+  const closeoutClasses = useMemo(() => showClasses.map(toCloseoutClassSummary), [showClasses]);
+  const closeoutTrials = useMemo<CloseoutTrialSummary[]>(
+    () =>
+      associatedTrials.map(trial => ({
+        id: trial.id,
+        status: trial.status,
+      })),
+    [associatedTrials]
   );
 
   const showMapTrials = useMemo(() => {
@@ -421,6 +435,14 @@ export function ShowWorkbenchShowDeskPage() {
                 </Link>
               </Button>
             </div>
+            <CloseOutShowAction
+              show={{ id: currentShow.id, status: currentShow.status }}
+              trials={closeoutTrials}
+              classes={closeoutClasses}
+              entries={reconciliationEntries}
+              incidents={incidentSummary}
+              submissions={resultSubmissions}
+            />
           </>
         }
       />

@@ -571,8 +571,17 @@ export const getEntryById = async (id: string) => {
 };
 
 // Get entries by show ID
+//
+// exhibitor-count-integrity (audit #4): entries replicate per-show, so a show
+// the caller hasn't opened this session has an empty local store — and
+// readWithReplicationFallback only falls back to `postgrest` on a THROW, not on
+// a legitimately-shaped-but-wrong empty array. That produced the audit's
+// "0 Entries received" on the styled landing page (which counts `entries.length`
+// from this hook) while the exhibitor genuinely had entries. Mirrors the
+// empty-local-replica-verifies-online pattern used by getEntriesByDog above and
+// getUserEntries in search.ts.
 export const getEntriesByShow = async (showId: string) => {
-  return readWithReplicationFallback({
+  const result = await readWithReplicationFallback({
     replication: async () => {
       const [entries, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
@@ -600,6 +609,18 @@ export const getEntriesByShow = async (showId: string) => {
     operation: 'select_by_show',
     errorData: [],
   });
+
+  if (result.data.length > 0 || result.error) return result;
+
+  // Cold local replica: verify against the authoritative online read before
+  // reporting zero entries for a show that may simply not have synced yet.
+  // Swallow failures (offline, RLS edge case) — the safe default is the
+  // original empty replication result, never a thrown error from this branch.
+  try {
+    return await postgrestGetEntriesByShow(showId);
+  } catch {
+    return result;
+  }
 };
 
 // Get entries by show ID with financial joins (promo_code, trial name)

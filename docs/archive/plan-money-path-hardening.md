@@ -1,7 +1,7 @@
 # Money-Path Hardening — pay → refund → payout remediation
 
-> **Status:** Active
-> Tracked in openspec change: money-path-hardening-remainder (remaining Phases 5–7, plus TZ-01)
+> **Status:** Complete
+> Tracked in openspec change: money-path-hardening-remainder (Phases 5–7 + TZ-01; archived)
 
 > **Source:** [`docs/security-audit-2026-07-03-money-path.md`](security-audit-2026-07-03-money-path.md) (scoped red-team, 2026-07-03). 0 CRITICAL, 4 HIGH, 4 MEDIUM, 6 LOW. This plan sequences the fixes; the audit holds the evidence.
 
@@ -14,6 +14,10 @@
 | 1 — MP-01/MP-02 | Merged + DB-pushed                                                   | PR #1165; migration `20260705200000_entries_protect_payment_status.sql`; staging `supabase db push` applied 2026-07-06.                                                                                                                                                            |
 | 2 — MP-03       | Merged + functions redeployed                                        | PR #1170; assertion-first focused tests red then green; affected Stripe functions redeployed 2026-07-06 14:21:03 UTC. Staging duplicate-delivery payment verification still needs evidence.                                                                               |
 | 3 — MP-04/MP-14 | Merged + DB-pushed + functions redeployed                            | PR #1170; migration `20260706013906_stripe_livemode_scoped_ids.sql` applied to `sojmvhhwsjxmfistvzbe`; dry-run now reports remote DB up to date; affected Stripe functions redeployed 2026-07-06 14:21:03 UTC. Staging payment verification still needs evidence.        |
+| 5 — MP-05/MP-07 | Merged + functions redeployed | PR #1240 (squash `974e2d598`), merged 2026-07-09. Shared `decideFreshSessionGate`: both entry payment handlers gate on a fresh `sessions.retrieve`; the link path prices exclusively off fresh values. `stripe-webhook` redeployed 2026-07-09. |
+| 6 — MP-08       | Merged + DB-pushed + functions redeployed | PR #1240. Migration `20260709130000_create_operator_alerts.sql` applied 2026-07-09 (dedupe partial unique index + `resolve_operator_alert` RPC live-verified via rolled-back txn: RLS hides non-admin, RPC raises 42501, dedupe fires). `alertAdmin` persists-then-emails with `detail:{html}` fallback; `/admin/health` surfaces unresolved alerts. 3 Codex review rounds (8 findings fixed, 1 accepted residual). |
+| 7 — MP-09/11/12/13 | Merged + functions redeployed | PR #1240. MP-09 zero-row stamp guard fails closed via entry re-read; MP-11 per-entry skipped/failed detail in `RefundAllEntriesCard`; MP-12 unmatched refunds raise deduped alerts; MP-13 webhook confirmation send stamps `confirmation_email_*` (accepted residual: stamp-write-failure window falls back to the scheduled sender's duplicate email, logged). `stripe-webhook`/`stripe-refund-entry`/`stripe-refund-show`/`cron-process-payouts` redeployed 2026-07-09. |
+| TZ-01           | Merged | PR #1240. `getTrialTimezone` validates IANA names (Intl probe), falls back to `America/New_York`, reports invalid values to Sentry once per session; DST-boundary tests. |
 | 4 — MP-06/MP-10 | Merged + function redeployed                                         | PR #1218 (squash `58dc377e8`), merged 2026-07-08. `charge.refunded`'s allowlist now recognizes `show_refund`-tagged refunds and alerts only on unstamped entries (2 Codex review rounds fixed a stamp/webhook race and an eligibility-filter false-positive before a clean 3rd round). No migration. `stripe-webhook` redeployed 2026-07-08. |
 
 ---

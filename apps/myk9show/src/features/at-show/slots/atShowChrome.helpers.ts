@@ -160,11 +160,13 @@ export function getCheckinTier(enabled: boolean): BadgeTier {
 // Sync indicator — mirrors myK9Q SyncIndicator statusConfig
 // ---------------------------------------------------------------------------
 
-export type SyncIndicatorStatusValue = 'synced' | 'syncing' | 'offline' | 'error';
+export type SyncIndicatorStatusValue = 'synced' | 'syncing' | 'pending' | 'offline' | 'error';
 
 const SYNC_LABELS: Record<SyncIndicatorStatusValue, string> = {
   synced: 'Synced',
   syncing: 'Syncing…',
+  // Idle with queued writes — calm, not alarming (offline is normal, PRODUCT.md).
+  pending: 'Waiting to sync',
   offline: 'Offline',
   error: 'Sync error',
 };
@@ -172,6 +174,7 @@ const SYNC_LABELS: Record<SyncIndicatorStatusValue, string> = {
 const SYNC_TIERS: Record<SyncIndicatorStatusValue, BadgeTier> = {
   synced: 'success',
   syncing: 'info',
+  pending: 'neutral',
   offline: 'neutral',
   error: 'destructive',
 };

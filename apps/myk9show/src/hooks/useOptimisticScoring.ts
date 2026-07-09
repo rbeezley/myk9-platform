@@ -14,6 +14,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useOptimisticUpdate } from './useOptimisticUpdate';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
 import { useScoringStore, type QualifyingResult } from '@/store/scoringStore';
 import { logger } from '@/services/LoggingService';
 import { mapQualificationToResultStatus } from '@/utils/scoringMappings';
@@ -112,6 +113,29 @@ export function useOptimisticScoring() {
           ? convertTimeToSeconds(scoreData.searchTime)
           : 0;
 
+        // Full scent-work detail — all ringside-RPC-whitelisted columns, so
+        // updateEntry auto-routes through ringside_update_entry. Include a field
+        // ONLY when present so a non-scent-work / partial score doesn't null out
+        // columns it never set. Previously these lived only in the local Zustand
+        // session and were lost on device loss, invisible to reports (audit M3).
+        const areaSeconds = (scoreData.areaTimes ?? []).map(t =>
+          t ? convertTimeToSeconds(t) : 0
+        );
+        const detailFields: Partial<ReplicatedEntry> = {};
+        if (areaSeconds[0] !== undefined) detailFields.area1_time_seconds = areaSeconds[0];
+        if (areaSeconds[1] !== undefined) detailFields.area2_time_seconds = areaSeconds[1];
+        if (areaSeconds[2] !== undefined) detailFields.area3_time_seconds = areaSeconds[2];
+        if (areaSeconds[3] !== undefined) detailFields.area4_time_seconds = areaSeconds[3];
+        if (scoreData.correctCount !== undefined)
+          detailFields.total_correct_finds = scoreData.correctCount;
+        if (scoreData.incorrectCount !== undefined)
+          detailFields.total_incorrect_finds = scoreData.incorrectCount;
+        if (scoreData.finishCallErrors !== undefined)
+          detailFields.no_finish_count = scoreData.finishCallErrors;
+        if (scoreData.points !== undefined) detailFields.points_earned = scoreData.points;
+        if (scoreData.nonQualifyingReason !== undefined)
+          detailFields.disqualification_reason = scoreData.nonQualifyingReason;
+
         const mutationId = await replicatedEntriesTable.updateEntry(String(entryId), {
           // Write both camelCase and snake_case so toSupabaseRow() picks up the values
           resultStatus: resultStatus,
@@ -124,6 +148,7 @@ export function useOptimisticScoring() {
           total_faults: scoreData.faultCount ?? 0,
           scoringCompletedAt: new Date().toISOString(),
           scoring_completed_at: new Date().toISOString(),
+          ...detailFields,
         });
 
         if (mutationId === null) {

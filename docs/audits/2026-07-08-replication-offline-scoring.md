@@ -1,6 +1,7 @@
 # Replication Layer Audit — Offline Scoring Durability (July 2026)
 
 > **Status:** Active
+> **Remediation:** Tracked in openspec change `fix-offline-scoring-durability`. As of 2026-07-09, Phases 1–3 are implemented and tested — score-loss closures (C1–C3, H2), durability hardening (C4, H1, M1, M2, M6), and transparency (C5, H3, M3, M4). Deferred as non-blocking: M5 (download-fetch timeout + reachability probe) and the L-tier cleanup (dead TTL machinery, legacy `ConflictResolver`, `conflictCount` diagnostics).
 
 Four parallel read-only audits of `packages/replication` and the `/at-show` scoring path, focused on the invariant **"a judge's score must never be lost, and failures must be visible."** Every finding below was verified against source with file:line evidence.
 

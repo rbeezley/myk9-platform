@@ -99,6 +99,15 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       total_faults: entry.totalFaults ?? entry.total_faults ?? null,
       judge_notes: entry.judgeNotes ?? entry.judge_notes ?? null,
       scoring_completed_at: entry.scoringCompletedAt ?? entry.scoring_completed_at ?? null,
+      // Detailed scent-work scoring (ringside-RPC whitelisted).
+      area1_time_seconds: entry.area1_time_seconds ?? null,
+      area2_time_seconds: entry.area2_time_seconds ?? null,
+      area3_time_seconds: entry.area3_time_seconds ?? null,
+      area4_time_seconds: entry.area4_time_seconds ?? null,
+      total_correct_finds: entry.total_correct_finds ?? null,
+      total_incorrect_finds: entry.total_incorrect_finds ?? null,
+      no_finish_count: entry.no_finish_count ?? null,
+      points_earned: entry.points_earned ?? null,
       // Only write placement if result is qualified — NQ/absent/etc. should never have a placement
       final_placement:
         entry.resultStatus && entry.resultStatus !== 'qualified'

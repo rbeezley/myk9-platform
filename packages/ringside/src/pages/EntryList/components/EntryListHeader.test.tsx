@@ -31,8 +31,8 @@ const StubHamburgerMenu: ComponentType<HamburgerMenuProps> = ({ currentPage }) =
 const StubOffline: ComponentType<CompactOfflineIndicatorProps> = () => (
   <span data-testid="offline" />
 );
-const StubSync: ComponentType<SyncIndicatorProps> = ({ status }) => (
-  <span data-testid="sync" data-status={status} />
+const StubSync: ComponentType<SyncIndicatorProps> = ({ status, pendingCount }) => (
+  <span data-testid="sync" data-status={status} data-pending={String(pendingCount ?? '')} />
 );
 const StubRefresh: ComponentType<RefreshIndicatorProps> = ({ isRefreshing }) => (
   <span data-testid="refresh" data-refreshing={String(isRefreshing)} />
@@ -113,6 +113,25 @@ describe('EntryListHeader', () => {
     renderHeader();
     const heading = screen.getByRole('heading');
     expect(heading.textContent).toMatch(/Container Novice A/);
+  });
+
+  it('shows a "waiting to sync" indicator with the count when idle with a queue', () => {
+    renderHeader({ isSyncing: false, hasError: false, pendingCount: 3 });
+    const sync = screen.getByTestId('sync');
+    expect(sync.getAttribute('data-status')).toBe('pending');
+    expect(sync.getAttribute('data-pending')).toBe('3');
+  });
+
+  it('does NOT show the pending indicator when the queue is empty', () => {
+    renderHeader({ isSyncing: false, hasError: false, pendingCount: 0 });
+    expect(screen.queryByTestId('sync')).toBeNull();
+  });
+
+  it('shows the syncing indicator (not the idle-pending one) while actively syncing', () => {
+    renderHeader({ isSyncing: true, pendingCount: 2 });
+    const sync = screen.getByTestId('sync');
+    expect(sync.getAttribute('data-status')).toBe('syncing');
+    expect(sync.getAttribute('data-pending')).toBe('2');
   });
 
   it('exposes the filter button and active-filters flag', () => {

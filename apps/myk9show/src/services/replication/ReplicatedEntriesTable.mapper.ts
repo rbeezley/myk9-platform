@@ -87,6 +87,19 @@ export interface ReplicatedEntry {
   total_faults?: number | undefined;
   judge_notes?: string | null | undefined;
   scoring_completed_at?: string | null | undefined;
+
+  // Detailed scent-work scoring (snake_case; ringside-RPC whitelisted). Persisted
+  // so multi-area detail survives device loss and reaches the secretary/reports
+  // instead of living only in the local scoring session.
+  area1_time_seconds?: number | null | undefined;
+  area2_time_seconds?: number | null | undefined;
+  area3_time_seconds?: number | null | undefined;
+  area4_time_seconds?: number | null | undefined;
+  total_correct_finds?: number | null | undefined;
+  total_incorrect_finds?: number | null | undefined;
+  no_finish_count?: number | null | undefined;
+  points_earned?: number | null | undefined;
+
   class_id?: string | undefined;
   entry_status?: string | undefined;
   element?: string | undefined;
@@ -203,6 +216,16 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     total_faults: (dbRow.total_faults as number | undefined) ?? undefined,
     judge_notes: (dbRow.judge_notes as string | undefined) ?? undefined,
     scoring_completed_at: (dbRow.scoring_completed_at as string | undefined) ?? undefined,
+    // Detailed scent-work scoring — read back so a full-row direct UPDATE
+    // doesn't null out server values it didn't intend to change.
+    area1_time_seconds: (dbRow.area1_time_seconds as number | undefined) ?? undefined,
+    area2_time_seconds: (dbRow.area2_time_seconds as number | undefined) ?? undefined,
+    area3_time_seconds: (dbRow.area3_time_seconds as number | undefined) ?? undefined,
+    area4_time_seconds: (dbRow.area4_time_seconds as number | undefined) ?? undefined,
+    total_correct_finds: (dbRow.total_correct_finds as number | undefined) ?? undefined,
+    total_incorrect_finds: (dbRow.total_incorrect_finds as number | undefined) ?? undefined,
+    no_finish_count: (dbRow.no_finish_count as number | undefined) ?? undefined,
+    points_earned: (dbRow.points_earned as number | undefined) ?? undefined,
     class_id: row.class_id ?? undefined,
     entry_status: row.entry_status ?? undefined,
     element: (dbRow.element as string | undefined) ?? undefined,

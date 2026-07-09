@@ -100,4 +100,41 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     expect(opts.onSuccess).toHaveBeenCalledTimes(1);
     expect(addScoreToSession).toHaveBeenCalledTimes(1);
   });
+
+  // Audit M3: full multi-area detail must reach the whitelisted ringside columns,
+  // not just the 5 summary fields. Assertion-first — pins the exact column names
+  // and values the write carries.
+  it('persists the full multi-area ScoreData to the whitelisted ringside columns', async () => {
+    updateEntry.mockResolvedValue('mutation-456');
+    const opts = baseOptions({
+      scoreData: {
+        resultText: 'Qualified',
+        searchTime: '1:30.00',
+        faultCount: 2,
+        areaTimes: ['0:45.00', '0:30.00', '0:15.00'],
+        correctCount: 3,
+        incorrectCount: 1,
+        finishCallErrors: 0,
+        points: 95,
+        nonQualifyingReason: undefined,
+      },
+    });
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(opts);
+    });
+
+    expect(updateEntry).toHaveBeenCalledTimes(1);
+    const payload = updateEntry.mock.calls[0][1] as Record<string, unknown>;
+    // Per-area times converted from M:SS.ss to seconds.
+    expect(payload.area1_time_seconds).toBe(45);
+    expect(payload.area2_time_seconds).toBe(30);
+    expect(payload.area3_time_seconds).toBe(15);
+    // Counts + points mapped to their DB column names.
+    expect(payload.total_correct_finds).toBe(3);
+    expect(payload.total_incorrect_finds).toBe(1);
+    expect(payload.no_finish_count).toBe(0);
+    expect(payload.points_earned).toBe(95);
+  });
 });

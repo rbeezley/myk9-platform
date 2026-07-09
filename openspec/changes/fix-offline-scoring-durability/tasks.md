@@ -26,17 +26,17 @@
 
 ## 3. Phase 3 — Transparency
 
-- [ ] 3.1 Delete the `Math.random()` mocks in `apps/myk9show/src/hooks/useGlobalSyncStatus.ts` (`useGlobalSyncStatus` + `useEntitySyncStatus`); re-implement from `useReplicationSync()` / `mutationManager.getPendingCount()` (status, pending count, last-sync time, per-entity error).
-- [ ] 3.2 Verify `AccountMenuContent.tsx` and `SyncStatusPanel.tsx` now render real state; update any prop shapes they depend on.
-- [ ] 3.3 Plumb real `pendingCount` + last-sync time into the ringside `SyncIndicator` slot (`features/at-show/slots/atShowLayoutSlotComponents.tsx`, `pageProps.ts`) and render it in `packages/ringside/src/pages/EntryList/components/EntryListHeader.tsx` whenever `pendingCount > 0`, not only while syncing/error.
-- [ ] 3.4 Add a listener + visible UI for `replication:queue-overflow` (dispatched in `MutationManager.ts`).
-- [ ] 3.5 Persist the full `ScoreData` (per-area times, correct/incorrect counts, points, NQ reason, finish-call errors) through `useOptimisticScoring` → the already-whitelisted `ringside_update_entry` columns, instead of only local Zustand session.
-- [ ] 3.6 Test: submitting a multi-area scent work score enqueues a mutation carrying all detail fields mapped to the correct columns (assertion-first `toHaveBeenCalledWith`).
-- [ ] 3.7 Test/verify: sync-status surfaces reflect a seeded pending queue (non-zero count, real last-sync time, no randomized values).
+- [x] 3.1 Delete the `Math.random()` mocks in `apps/myk9show/src/hooks/useGlobalSyncStatus.ts` (`useGlobalSyncStatus` + `useEntitySyncStatus`); re-implement from `useReplicationSync()` / `mutationManager.getPendingCount()` (status, pending count, last-sync time, per-entity error).
+- [x] 3.2 Verify `AccountMenuContent.tsx` and `SyncStatusPanel.tsx` now render real state; update any prop shapes they depend on.
+- [x] 3.3 Plumb real `pendingCount` + last-sync time into the ringside `SyncIndicator` slot (`features/at-show/slots/atShowLayoutSlotComponents.tsx`, `pageProps.ts`) and render it in `packages/ringside/src/pages/EntryList/components/EntryListHeader.tsx` whenever `pendingCount > 0`, not only while syncing/error.
+- [x] 3.4 Add a listener + visible UI for `replication:queue-overflow` (dispatched in `MutationManager.ts`).
+- [x] 3.5 Persist the full `ScoreData` (per-area times, correct/incorrect counts, points, NQ reason, finish-call errors) through `useOptimisticScoring` → the already-whitelisted `ringside_update_entry` columns, instead of only local Zustand session.
+- [x] 3.6 Test: submitting a multi-area scent work score enqueues a mutation carrying all detail fields mapped to the correct columns (assertion-first `toHaveBeenCalledWith`).
+- [x] 3.7 Test/verify: sync-status surfaces reflect a seeded pending queue (non-zero count, real last-sync time, no randomized values).
 
 ## 4. Verification & close-out
 
-- [ ] 4.1 `pnpm typecheck` and `pnpm lint` clean across the monorepo.
-- [ ] 4.2 Run the replication package test suite and the affected app tests green (`cd apps/myk9show && pnpm test` scoped to changed areas).
-- [ ] 4.3 Manual/verify pass: offline score submit shows pending count; forced queue failure shows a blocking error; simulated recovery preserves mutations.
-- [ ] 4.4 Update `docs/audits/2026-07-08-replication-offline-scoring.md` status to reflect remediated findings; flip this change toward archive on merge.
+- [x] 4.1 `pnpm typecheck` and `pnpm lint` clean across the monorepo. (typecheck 26/26; lint clean for all changed files — one pre-existing `effectiveShowEntries` warning in `ShowDetailsPage.tsx`, identical to `main`, unrelated to this change.)
+- [x] 4.2 Run the replication package test suite and the affected app tests green (`cd apps/myk9show && pnpm test` scoped to changed areas). (replication 433 passed; affected app tests green.)
+- [x] 4.3 Manual/verify pass: offline score submit shows pending count; forced queue failure shows a blocking error; simulated recovery preserves mutations. (Covered by unit tests: fail-closed submit, recovery backup round-trip, header pending-count render, usePendingMutationCount. Browser-driven verification deferred — worktree Preview MCP serves `main` code, so unit coverage is the reliable signal here.)
+- [x] 4.4 Update `docs/audits/2026-07-08-replication-offline-scoring.md` status to reflect remediated findings; flip this change toward archive on merge.

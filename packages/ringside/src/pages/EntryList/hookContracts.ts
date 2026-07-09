@@ -347,4 +347,11 @@ export interface EntryListActions {
   isSyncing: boolean;
   /** True if the last optimistic mutation errored. */
   hasError: boolean;
+  /**
+   * Count of writes queued locally but not yet synced to the server. Optional
+   * so hosts without a durable queue can omit it. When > 0 the header surfaces
+   * a "N waiting to sync" indicator even while idle — the judge's "safe to close
+   * the iPad" signal.
+   */
+  pendingCount?: number;
 }

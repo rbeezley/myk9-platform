@@ -22,7 +22,6 @@ import {
   type ReplicationSyncContextValue,
 } from '@/context/ReplicationSyncContext';
 import {
-  MutationManager,
   SYNC_INTERVAL_MS,
   ReplicatedTable,
   configureConflictSurfacing,
@@ -46,6 +45,7 @@ import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmban
 import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
 import { isAbortSyncError } from '@/services/replication/syncErrorUtils';
 import { requestPersistentStorage } from '@/lib/persistentStorage';
+import { mutationManager } from '@/services/replication/sharedMutationManager';
 import type { SyncFailedEventDetail } from './replicationSyncFormatters';
 import { formatSyncFailureToast, formatDownloadFailureToast } from './replicationSyncFormatters';
 import {
@@ -98,27 +98,8 @@ const REPLICATED_TABLE_NAME_SET: ReadonlySet<string> = new Set(REPLICATED_TABLE_
 const ENTRY_RESULT_REPLICA_VERSION_KEY = 'myk9:entry-result-replica-version';
 const ENTRY_RESULT_REPLICA_VERSION = '20260620-authenticated-entry-results-view-v2';
 
-// Adapt myK9Show's LoggingService to the @myk9/replication Logger interface
-const replicationLogger = {
-  log: (...args: unknown[]) => logger.debug(String(args[0]), 'replication'),
-  warn: (...args: unknown[]) => logger.warn(String(args[0]), 'replication'),
-  error: (...args: unknown[]) => {
-    const msg = String(args[0]);
-    const err = args[1];
-    // Include actual error details (Supabase errors have message/code/details)
-    if (err && typeof err === 'object') {
-      const e = err as Record<string, unknown>;
-      const details = e.message || e.code || e.details || JSON.stringify(err);
-      logger.error(`${msg} ${details}`, 'replication');
-    } else {
-      logger.error(msg, 'replication');
-    }
-  },
-  debug: (...args: unknown[]) => logger.debug(String(args[0]), 'replication'),
-};
-
-// Create shared MutationManager and connect to all tables
-const mutationManager = new MutationManager(supabase, { logger: replicationLogger });
+// Connect the shared MutationManager (owned by sharedMutationManager.ts so
+// hooks can import it read-only) to all replicated tables.
 for (const { table } of REPLICATED_TABLES) {
   table.setMutationManager(mutationManager);
 }
@@ -505,6 +486,29 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     };
     window.addEventListener('replication:sync-requested', handleSyncRequest);
     return () => window.removeEventListener('replication:sync-requested', handleSyncRequest);
+  }, []);
+
+  // Listen for mutation-queue overflow — the queue hit its hard cap and is now
+  // rejecting new writes. This is a data-loss risk (a new score can't be
+  // queued), so surface it loudly and prompt an immediate sync rather than
+  // letting the rejection fail silently. (audit M4)
+  useEffect(() => {
+    const handleQueueOverflow = (event: Event) => {
+      const detail = (event as CustomEvent<{ count?: number; queueSize?: number }>).detail || {};
+      const count = detail.count ?? detail.queueSize;
+      logger.error('Mutation queue overflow', 'replication', { count });
+      // Persistent (duration: Infinity) like the sync-failure toast — this is a
+      // standing data-loss risk the user must act on, not a transient blip.
+      toast.error(
+        count
+          ? `Sync backlog is full (${count} changes waiting). Connect to the internet to sync now — new changes may not save until it clears.`
+          : 'Sync backlog is full. Connect to the internet to sync now — new changes may not save until it clears.',
+        { id: 'replication-queue-overflow', duration: Infinity }
+      );
+      triggerSyncRef.current?.();
+    };
+    window.addEventListener('replication:queue-overflow', handleQueueOverflow);
+    return () => window.removeEventListener('replication:queue-overflow', handleQueueOverflow);
   }, []);
 
   // Listen for circuit breaker recovery — show toast and re-sync

@@ -19,6 +19,7 @@ import {
   FileText,
   BarChart3,
 } from 'lucide-react';
+import { EntryClosedNotice } from '@/components/shows/browse/EntryClosedNotice';
 import { ShowCalendar } from '@/components/common/LazyComponents';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import '@/styles/myk9-show-details.css';
@@ -476,7 +477,10 @@ const BrowseShowsPage: React.FC = () => {
               {isTabSwitching || isViewModeChanging ? (
                 <TabContentSkeleton viewMode={viewMode} count={4} />
               ) : (
-                renderShowsView()
+                <>
+                  <EntryClosedNotice shows={enhancedShows} selectedTab={selectedTab} />
+                  {renderShowsView()}
+                </>
               )}
             </TabsContent>
           </PrimaryTabs>

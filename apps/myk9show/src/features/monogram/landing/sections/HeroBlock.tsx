@@ -2,7 +2,11 @@ import { MonogramEmboss } from '../../components/MonogramEmboss';
 import { MonogramHeading } from '../../components/MonogramHeading';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
-import { MONOGRAM_BODY_FAMILY, MONOGRAM_DISPLAY_FAMILY, MONOGRAM_MONOGRAM_FAMILY } from '../../fonts';
+import {
+  MONOGRAM_BODY_FAMILY,
+  MONOGRAM_DISPLAY_FAMILY,
+  MONOGRAM_MONOGRAM_FAMILY,
+} from '../../fonts';
 import { monogramColors, monogramSpacing } from '../../tokens';
 import { formatDateInTimezone, formatDateRange } from '../utils/dateFormat';
 
@@ -102,13 +106,22 @@ export function HeroBlock({
         borderBottom: '1px solid rgba(28, 24, 21, 0.12)',
       }}
     >
-      <MonogramEmboss
-        letters={monogramLetters}
-        size={monogramSpacing.heroMonogramSize}
-        variant="embossed"
-        surface="paper"
-        className="mg-hero__monogram"
-      />
+      {/* The monogram is a decorative bleed that must sit BEHIND the content,
+          not in the flow. Mirrors WelcomeSection/RosterSection/FinalCtaBand:
+          an absolute-centered, pointer-events:none layer inside the
+          position:relative + overflow:hidden header (positioning lives in
+          monogram.css `.mg-hero__monogram`). Without the wrapper the 640px
+          glyph rendered in normal flow and pushed the whole hero to ~1554px,
+          dropping the CTA far below the fold on short landscape tablets
+          (measured at 768px-tall: CTA sat at 1395px). */}
+      <div className="mg-hero__monogram" aria-hidden>
+        <MonogramEmboss
+          letters={monogramLetters}
+          size={monogramSpacing.heroMonogramSize}
+          variant="embossed"
+          surface="paper"
+        />
+      </div>
 
       <div
         className="mg-hero__inner"
@@ -186,9 +199,7 @@ export function HeroBlock({
           </div>
           <div className="mg-hero__meta-cell" style={metaCellStyle}>
             <span style={SMALLCAPS_MUTE}>Closes</span>
-            <span style={META_VALUE}>
-              {closesLabel || (entryClosed ? 'Closed' : 'TBA')}
-            </span>
+            <span style={META_VALUE}>{closesLabel || (entryClosed ? 'Closed' : 'TBA')}</span>
           </div>
           <div className="mg-hero__meta-cell" style={metaCellStyle}>
             <span style={SMALLCAPS_MUTE}>Limit</span>
@@ -218,11 +229,17 @@ export function HeroBlock({
               letterSpacing: '0.06em',
             }}
           >
-            <span style={{ fontFamily: MONOGRAM_MONOGRAM_FAMILY, fontSize: 18, color: monogramColors.bronze }}>
+            <span
+              style={{
+                fontFamily: MONOGRAM_MONOGRAM_FAMILY,
+                fontSize: 18,
+                color: monogramColors.bronze,
+              }}
+            >
               {countdown.days}
             </span>{' '}
-            days · {String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')} until
-            entries close
+            days · {String(countdown.hours).padStart(2, '0')}:
+            {String(countdown.minutes).padStart(2, '0')} until entries close
           </p>
         )}
         {entryClosed && (

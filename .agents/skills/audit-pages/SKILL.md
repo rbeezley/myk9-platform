@@ -28,11 +28,14 @@ Before starting, read:
 
 **Credentials (from `.env`):**
 
-- Secretary: `secretary@myk9t.com`
-- Site admin: any account with `SITE_ADMIN` role
-- Exhibitor: `exhibitor1@myk9t.com`
-- Club admin: `club@myk9t.com` (password in `.env` or Supabase Auth dashboard)
-- Judge / other roles: accounts with those roles (check Supabase `user_roles` table if unsure)
+- Secretary: `e2e-secretary@test.myk9.com`
+- Site admin: `e2e-admin@test.myk9.com`
+- Exhibitor: `e2e-exhibitor@test.myk9.com`
+- Judge: `e2e-judge@test.myk9.com`
+- Club admin: use `E2E_CLUB_EMAIL` when configured; otherwise skip the club-admin route group.
+
+Passwords live in `apps/myk9show/.env.local` / CI secrets. Do not use legacy
+`*@myk9t.com` fixture rows as route-health sign-in accounts.
 
 ## Known Noise (do not re-log)
 

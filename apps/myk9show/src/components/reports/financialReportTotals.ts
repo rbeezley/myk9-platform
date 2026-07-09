@@ -1,0 +1,221 @@
+import { PaymentStatus } from '@/types/show-registration-types';
+import type { ReportEntry } from '@/lib/reports/types';
+
+export type FinancialReportMode = 'current' | 'waitlist';
+
+export interface FinancialReportLine {
+  entry: ReportEntry;
+  gross: number;
+  discount: number;
+  netFee: number;
+  collected: number;
+  refunded: number;
+  outstanding: number;
+  waived: number;
+  netRetained: number;
+  paymentLabel: string;
+}
+
+export interface FinancialReportBucket {
+  label: string;
+  count: number;
+  gross: number;
+  discount: number;
+  waived: number;
+  collected: number;
+  refunded: number;
+  outstanding: number;
+  netRetained: number;
+}
+
+export interface FinancialReportTotals {
+  lines: FinancialReportLine[];
+  summary: FinancialReportBucket;
+  paymentBreakdown: FinancialReportBucket[];
+  trialBreakdown: FinancialReportBucket[];
+}
+
+const WAITLIST_STATUSES = new Set(['waitlist', 'waitlisted']);
+const EXCLUDED_CURRENT_STATUSES = new Set([
+  'waitlist',
+  'waitlisted',
+  'withdrawn',
+  'scratched',
+  'not_accepted',
+  'rejected',
+  'missing_info',
+]);
+
+function readMoney(value: number | null | undefined): number {
+  if (value == null || !Number.isFinite(value)) return 0;
+  return Math.max(0, Number(value));
+}
+
+function normalize(value: string | null | undefined): string {
+  return value?.trim().toLowerCase() ?? '';
+}
+
+function getEffectivePaymentStatus(entry: ReportEntry): string {
+  const entryStatus = normalize(entry.paymentStatus);
+  const enrollmentStatus = normalize(entry.enrollmentPaymentStatus);
+
+  if (!entryStatus || entryStatus === PaymentStatus.PENDING) {
+    return enrollmentStatus || entryStatus;
+  }
+
+  return entryStatus;
+}
+
+export function isEntryIncludedInFinancialReport(
+  entry: ReportEntry,
+  mode: FinancialReportMode
+): boolean {
+  const entryStatus = normalize(entry.entryStatus);
+
+  if (mode === 'waitlist') {
+    return WAITLIST_STATUSES.has(entryStatus);
+  }
+
+  return !EXCLUDED_CURRENT_STATUSES.has(entryStatus);
+}
+
+function isWaived(entry: ReportEntry): boolean {
+  return Boolean(entry.comped) || getEffectivePaymentStatus(entry) === PaymentStatus.WAIVED;
+}
+
+function isPending(entry: ReportEntry): boolean {
+  return getEffectivePaymentStatus(entry) === PaymentStatus.PENDING;
+}
+
+function isFullyRefunded(entry: ReportEntry): boolean {
+  return getEffectivePaymentStatus(entry) === PaymentStatus.REFUNDED;
+}
+
+function isPartiallyRefunded(entry: ReportEntry): boolean {
+  return getEffectivePaymentStatus(entry) === PaymentStatus.PARTIAL_REFUND;
+}
+
+function isPaid(entry: ReportEntry): boolean {
+  const status = getEffectivePaymentStatus(entry);
+  return (
+    status === 'paid' ||
+    status === PaymentStatus.PAID_ONLINE ||
+    status === PaymentStatus.PAID_BY_CHECK ||
+    status === PaymentStatus.PAID_BY_CASH ||
+    isFullyRefunded(entry) ||
+    isPartiallyRefunded(entry)
+  );
+}
+
+export function getFinancialPaymentLabel(entry: ReportEntry): string {
+  if (isWaived(entry)) return 'Waived/Comped';
+  if (isPending(entry)) return 'Pending';
+  if (isFullyRefunded(entry)) return 'Refunded';
+  if (isPartiallyRefunded(entry)) return 'Partial Refund';
+
+  const method = normalize(entry.paymentMethod);
+  if (method === 'check') return 'Check';
+  if (method === 'cash') return 'Cash';
+  if (method === 'credit_card' || method === 'online' || method === 'stripe') return 'Online';
+  if (method === 'secretary_paid') return 'Secretary Paid';
+  if (method === 'group_payment') return 'Group Payment';
+
+  const status = getEffectivePaymentStatus(entry);
+  if (status === PaymentStatus.PAID_BY_CHECK) return 'Check';
+  if (status === PaymentStatus.PAID_BY_CASH) return 'Cash';
+  if (status === PaymentStatus.PAID_ONLINE || status === 'paid') return 'Online';
+
+  return entry.paymentMethod || entry.paymentStatus || 'Unknown';
+}
+
+export function buildFinancialReportLine(entry: ReportEntry): FinancialReportLine {
+  const gross = readMoney(entry.entryFee);
+  const discount = Math.min(readMoney(entry.discountAmount), gross);
+  const netFee = Math.max(0, gross - discount);
+  const explicitRefund = readMoney(entry.refundAmount);
+  const refunded =
+    explicitRefund > 0 ? Math.min(explicitRefund, netFee) : isFullyRefunded(entry) ? netFee : 0;
+  const waived = isWaived(entry) ? netFee : 0;
+  const outstanding = !waived && isPending(entry) ? netFee : 0;
+  const collected = !waived && isPaid(entry) ? netFee : 0;
+  const netRetained = collected - refunded;
+
+  return {
+    entry,
+    gross,
+    discount,
+    netFee,
+    collected,
+    refunded,
+    outstanding,
+    waived,
+    netRetained,
+    paymentLabel: getFinancialPaymentLabel(entry),
+  };
+}
+
+function emptyBucket(label: string): FinancialReportBucket {
+  return {
+    label,
+    count: 0,
+    gross: 0,
+    discount: 0,
+    waived: 0,
+    collected: 0,
+    refunded: 0,
+    outstanding: 0,
+    netRetained: 0,
+  };
+}
+
+function addLine(bucket: FinancialReportBucket, line: FinancialReportLine): void {
+  bucket.count += 1;
+  bucket.gross += line.gross;
+  bucket.discount += line.discount;
+  bucket.waived += line.waived;
+  bucket.collected += line.collected;
+  bucket.refunded += line.refunded;
+  bucket.outstanding += line.outstanding;
+  bucket.netRetained += line.netRetained;
+}
+
+function getTrialLabel(entry: ReportEntry): string {
+  const trial = entry.trialNumber ? `Trial ${entry.trialNumber}` : 'Unassigned trial';
+  return entry.trialDate ? `${trial} (${entry.trialDate})` : trial;
+}
+
+function sortBuckets(a: FinancialReportBucket, b: FinancialReportBucket): number {
+  return a.label.localeCompare(b.label);
+}
+
+export function calculateFinancialReportTotals(
+  entries: ReportEntry[],
+  mode: FinancialReportMode
+): FinancialReportTotals {
+  const lines = entries
+    .filter(entry => isEntryIncludedInFinancialReport(entry, mode))
+    .map(buildFinancialReportLine);
+  const summary = emptyBucket('Total');
+  const paymentMap = new Map<string, FinancialReportBucket>();
+  const trialMap = new Map<string, FinancialReportBucket>();
+
+  for (const line of lines) {
+    addLine(summary, line);
+
+    const paymentBucket = paymentMap.get(line.paymentLabel) ?? emptyBucket(line.paymentLabel);
+    addLine(paymentBucket, line);
+    paymentMap.set(line.paymentLabel, paymentBucket);
+
+    const trialLabel = getTrialLabel(line.entry);
+    const trialBucket = trialMap.get(trialLabel) ?? emptyBucket(trialLabel);
+    addLine(trialBucket, line);
+    trialMap.set(trialLabel, trialBucket);
+  }
+
+  return {
+    lines,
+    summary,
+    paymentBreakdown: [...paymentMap.values()].sort(sortBuckets),
+    trialBreakdown: [...trialMap.values()].sort(sortBuckets),
+  };
+}

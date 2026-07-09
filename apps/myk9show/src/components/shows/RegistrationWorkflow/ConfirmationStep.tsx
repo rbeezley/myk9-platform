@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { getDogBreedLabel } from '@/types/dog-types';
 import {
   CheckCircle,
   Download,
@@ -119,7 +120,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
 
         return {
           name: dog.callName || dog.name,
-          breed: dog.registrations?.[0]?.breed || 'Unknown breed',
+          breed: getDogBreedLabel(dog),
           classes: dogClasses,
         };
       })

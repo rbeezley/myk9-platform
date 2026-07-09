@@ -22,7 +22,7 @@ import { cn } from '../../lib/utils';
 import { formatShortDate } from '@/lib/format/dates';
 import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator';
 import type { SyncStatus } from '@/components/sync/SyncStatusIndicator';
-import { getDogDisplayName } from '@/types/dog-types';
+import { getDogDisplayName, getDogBreedLabel } from '@/types/dog-types';
 
 interface LazyDogCardProps {
   dogId: string;
@@ -323,11 +323,7 @@ export function LazyDogCard({
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex items-center gap-2">
                 <Dog className="h-4 w-4 text-muted-foreground" />
-                <span>
-                  {dog.registrations?.find(r => r.breed && r.breed !== 'Unknown')?.breed ||
-                    dog.breed ||
-                    'No breed specified'}
-                </span>
+                <span>{getDogBreedLabel(dog)}</span>
               </div>
 
               <div className="flex items-center gap-2">

@@ -97,6 +97,9 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
     const dogInput: DogInput = {
       name: formData.callName,
       callName: formData.callName,
+      // No-registration dogs are saved as "Mixed Breed" — a disclosed default
+      // the RegistrationTab empty state states explicitly (task 4.E). Keep it in
+      // sync with that copy; don't silently store a blank here.
       breed: formData.registrations?.[0]?.breed || 'Mixed Breed',
       birthDate: formData.dateOfBirth,
       sex: formData.gender === 'Female' ? 'female' : 'male',

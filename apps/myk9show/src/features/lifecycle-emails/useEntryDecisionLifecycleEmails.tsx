@@ -22,6 +22,14 @@ import {
 
 type DecisionStepType = Extract<LifecycleEmailStepType, 'accepted' | 'waitlisted'>;
 
+interface EntryDecisionLifecycleEmailIdempotencyKeyArgs {
+  showId: string;
+  stepType: DecisionStepType;
+  entryId: string;
+  enrollmentId?: string | null | undefined;
+  correctionForJobId?: string | null | undefined;
+}
+
 interface DecisionEmailPrompt {
   entry: EntryManagementEntry;
   stepType: DecisionStepType;
@@ -46,6 +54,23 @@ interface UseEntryDecisionLifecycleEmailsResult {
   reviewReadyEmail: (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void;
   prepareCorrectionEmail: (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void;
   dialog: ReactNode;
+}
+
+export function buildEntryDecisionLifecycleEmailIdempotencyKey({
+  showId,
+  stepType,
+  entryId,
+  enrollmentId,
+  correctionForJobId,
+}: EntryDecisionLifecycleEmailIdempotencyKeyArgs): string {
+  return buildLifecycleEmailIdempotencyKey({
+    showId,
+    stepType,
+    recipientScope: 'enrollment',
+    entryId,
+    enrollmentId: enrollmentId ?? null,
+    correctionForJobId: correctionForJobId ?? null,
+  });
 }
 
 export function useEntryDecisionLifecycleEmails({
@@ -103,10 +128,10 @@ export function useEntryDecisionLifecycleEmails({
       body: values.body,
       secretaryNote: values.secretaryNote,
       correctionForJobId: currentPrompt.correctionForJobId ?? null,
-      idempotencyKey: buildLifecycleEmailIdempotencyKey({
+      idempotencyKey: buildEntryDecisionLifecycleEmailIdempotencyKey({
         showId: currentPrompt.entry.showId,
         stepType: currentPrompt.stepType,
-        recipientScope: 'enrollment',
+        entryId: currentPrompt.entry.id,
         enrollmentId: currentPrompt.entry.registrationId,
         correctionForJobId: currentPrompt.correctionForJobId ?? null,
       }),

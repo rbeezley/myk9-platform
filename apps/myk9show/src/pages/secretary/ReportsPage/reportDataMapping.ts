@@ -72,6 +72,10 @@ function mapReportEntry(
 ): ReportEntry {
   const dog = (e as Record<string, unknown>).dog as Record<string, unknown> | null;
   const owner = dog?.owner as Record<string, unknown> | null;
+  const registration = (e as Record<string, unknown>).registration as Record<
+    string,
+    unknown
+  > | null;
   const handlerName = owner ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim() : '';
   const armbandNum = e.armband != null ? Number(e.armband) : null;
   const entrySource = readEntrySource(e.entry_source);
@@ -96,11 +100,22 @@ function mapReportEntry(
   return {
     ...base,
     ...(e.dog_id ? { dogId: e.dog_id } : {}),
+    ...(e.entry_status ? { entryStatus: e.entry_status } : {}),
     ...(e.entry_fee != null ? { entryFee: Number(e.entry_fee) } : {}),
     ...(e.payment_status
       ? { paymentStatus: e.payment_status as NonNullable<ReportEntry['paymentStatus']> }
       : {}),
     ...(e.payment_method ? { paymentMethod: e.payment_method } : {}),
+    ...(typeof registration?.payment_status === 'string'
+      ? {
+          enrollmentPaymentStatus: registration.payment_status as NonNullable<
+            ReportEntry['enrollmentPaymentStatus']
+          >,
+        }
+      : {}),
+    ...(e.discount_amount != null ? { discountAmount: Number(e.discount_amount) } : {}),
+    ...(e.refund_amount != null ? { refundAmount: Number(e.refund_amount) } : {}),
+    ...(e.comped != null ? { comped: Boolean(e.comped) } : {}),
     ...(entrySource ? { entrySource } : {}),
     ...(e.is_day_of_show != null ? { isDayOfShow: Boolean(e.is_day_of_show) } : {}),
     ...(trial

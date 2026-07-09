@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Pencil } from 'lucide-react';
 import DogBasicInfoMenu from './DogBasicInfoMenu';
 import type { Dog, Owner } from '@/types/dog-types';
+import { getDogBreedLabel } from '@/types/dog-types';
 import { getInitials } from '@/lib/utils';
 
 /**
@@ -111,7 +112,7 @@ const DogBasicInfoCard: React.FC<DogBasicInfoCardProps> = ({ dog, owner, onEdit,
           <h2 className="text-2xl font-bold text-foreground">{dog.callName}</h2>
           <Badge variant="secondary">{dog.gender}</Badge>
         </div>
-        <div className="text-muted-foreground">{dog.registrations?.[0]?.breed || 'Breed not specified'}</div>
+        <div className="text-muted-foreground">{getDogBreedLabel(dog)}</div>
         <div className="flex flex-wrap gap-4 mt-2">
           <EditableField
             label="Height"

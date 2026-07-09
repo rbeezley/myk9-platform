@@ -150,12 +150,12 @@ The last dog has run. Now you need to verify every result is correct, release th
 4. You print / download each report → distribute to judges and the club's trial chairman → mail the printed Show Catalog to AKC.
 5. You open `ResultsSubmissionPage` → select the show → preview the generated AKC XML → click **Download XML** → email the file to eresults@akc.org with the club name, event dates, and event numbers in the message body.
 6. You return to `EntryManagementPage` → filter by show → review the accepted entries list against payments recorded → note any outstanding balances for the club treasurer.
-7. You open `ShowManagementPage` → click **Close Out Show** → all open trials and classes are marked closed. _(Fall 2026 deliverable — not yet built; verify action name and cascade behavior before Phase 2 implementation.)_
+7. You return to the Show Desk closeout section → click **Close Out Show** → the show is marked completed and open trials/classes are marked completed through the replicated closeout cascade. _(Implementation added by `secretary-close-out-show`; run seeded closeout rehearsal before marking launch-verified.)_
 
 ### Current-state notes
 
 - mySWT auto-populates fillable AKC PDF forms (Trial Secretary Report, High in Trial, §3.15) by writing directly into PDFs via Adobe Reader. `ReportsPage` generates equivalent reports; the exact AKC PDF format fidelity should be verified against AKC's current submission requirements before the first fall show.
-- mySWT closes show/trial/class in explicit steps from three separate ribbon buttons (§3.30); a **Close Out Show** action in `ShowManagementPage` that cascades to all trials and classes is a fall 2026 deliverable — not yet built.
+- mySWT closes show/trial/class in explicit steps from three separate ribbon buttons (§3.30); myK9Show now uses the Show Desk closeout section's **Close Out Show** action to mark the show and open trials/classes completed.
 - Financial reconciliation is a fall 2026 deliverable; today `EntryManagementPage` shows payment data per entry but there is no dedicated reconciliation report or totals view.
 - Result labels (§3.28, ribbon stickers for qualifying dogs) appear in `ReportsPage` — confirm label template format against Avery 18262 stock before first use.
 - The AKC XML submission path (`ResultsSubmissionPage`) downloads the file; the secretary still emails it manually to eresults@akc.org, matching the mySWT workflow (§3.14 Send Results to AKC).

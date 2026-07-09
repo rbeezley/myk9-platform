@@ -5,7 +5,7 @@ import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
 /**
  * UI tests for the Entry Management page (secretary role).
  *
- * Walks /secretary/entries/:showId as secretary@myk9t.com against the seeded
+ * Walks /secretary/entries/:showId as TEST_USERS.SECRETARY against the seeded
  * June 2026 AKC Scent Work show. Tests are stateless w.r.t. DB content — they
  * verify UI flows (browse, bulk dialogs, armband, comp) regardless of what
  * status the seeded entries currently have.

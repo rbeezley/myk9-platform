@@ -65,7 +65,7 @@ export const DogStrip: React.FC<DogStripProps> = ({
           {dogs.length}
         </span>
       </p>
-      <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="flex gap-3 overflow-x-auto pb-1 hide-scrollbar scroll-shadow-x">
         {dogs.map(dog => (
           <DogStripCard
             key={dog.id}

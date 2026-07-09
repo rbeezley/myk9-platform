@@ -129,7 +129,10 @@ const ShowDetailsPage: React.FC = () => {
         ? 'error'
         : 'loading';
   const managerEntryDataUnavailable = canManageShow && entryDataState !== 'ready';
-  const effectiveShowEntries = canManageShow ? (secretaryEntries ?? []) : showEntries;
+  const effectiveShowEntries = useMemo(
+    () => (canManageShow ? (secretaryEntries ?? []) : showEntries),
+    [canManageShow, secretaryEntries, showEntries]
+  );
   const effectiveShowMapEntries = effectiveShowEntries as unknown as ShowMapEntryInput[];
   const catalogEntryCount = countCatalogEntries(effectiveShowEntries);
   const canonicalShowHref = actualCurrentShow?.id ? `/shows/${actualCurrentShow.id}` : '';

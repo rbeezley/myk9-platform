@@ -434,11 +434,43 @@ async function handleEntryCheckout(
   if (!entryStatuses.includes(showFees.status)) {
     return corsResponse({ error: 'Online entries are not currently open for this show.' }, 403);
   }
-  const nowMs = Date.now();
-  if (showFees.entry_open_date && nowMs < new Date(showFees.entry_open_date).getTime()) {
+
+  // Entry window is anchored to the show's local calendar day, not a UTC
+  // instant. shows.entry_open_date / entry_close_date are timestamptz whose
+  // value for a typed calendar date is midnight UTC of that day, so the intended
+  // open/close *day* is that value read in UTC. "Now" is compared as the current
+  // calendar date in the show's timezone (primary trial's timezone, default
+  // America/New_York) so a direct call never blocks an exhibitor before the end
+  // of the local close day — matching the cart gate (CartSummary) and the
+  // submit_show_entries RPC guard. Parsing the timestamptz as a UTC instant
+  // (`new Date(...).getTime()`) previously closed entries ~a day early for shows
+  // west of UTC.
+  const { data: tzRow } = await supabase
+    .from('trials')
+    .select('timezone')
+    .eq('show_id', cart.show_id)
+    .order('date', { ascending: true, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  const showTz = tzRow?.timezone || 'America/New_York';
+  const calendarDateInTz = (instant: Date, tz: string): string =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(instant);
+  const todayLocal = calendarDateInTz(new Date(), showTz);
+  const openDay = showFees.entry_open_date
+    ? calendarDateInTz(new Date(showFees.entry_open_date as string), 'UTC')
+    : null;
+  const closeDay = showFees.entry_close_date
+    ? calendarDateInTz(new Date(showFees.entry_close_date as string), 'UTC')
+    : null;
+  if (openDay && todayLocal < openDay) {
     return corsResponse({ error: 'Online entry has not opened yet for this show.' }, 403);
   }
-  if (showFees.entry_close_date && nowMs > new Date(showFees.entry_close_date).getTime()) {
+  if (closeDay && todayLocal > closeDay) {
     return corsResponse({ error: 'Online entry has closed for this show.' }, 403);
   }
   {

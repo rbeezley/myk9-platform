@@ -315,6 +315,7 @@ export const mapReplicatedEntryToDbRow = (
     dog?: ReplicatedDog | null;
     cls?: ReplicatedClass | null;
     show?: ReplicatedShow | null;
+    registration?: Record<string, unknown> | null;
     promoCode?: Record<string, unknown> | null;
     trial?: Record<string, unknown> | null;
   }
@@ -334,6 +335,11 @@ export const mapReplicatedEntryToDbRow = (
       total_fees: 'totalFees',
       payment_status: 'paymentStatus',
       payment_method: 'paymentMethod',
+      discount_amount: 'discountAmount',
+      refund_amount: 'refundAmount',
+      refunded_at: 'refundedAt',
+      comped: 'comped',
+      comped_reason: 'compedReason',
       entry_source: 'entrySource',
       is_day_of_show: 'isDayOfShow',
       run_order: 'runOrder',
@@ -354,6 +360,11 @@ export const mapReplicatedEntryToDbRow = (
       updated_at: 'updated_at',
     }),
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
+    discount_amount: entry.discountAmount ?? entry.discount_amount ?? null,
+    refund_amount: entry.refundAmount ?? entry.refund_amount ?? null,
+    refunded_at: entry.refundedAt ?? entry.refunded_at ?? null,
+    comped: entry.comped ?? null,
+    comped_reason: entry.compedReason ?? entry.comped_reason ?? null,
     is_scored: entry.isScored ?? false,
     created_at: entry.submittedAt ?? entry.updated_at ?? null,
     deleted_at: null,
@@ -378,6 +389,10 @@ export const mapReplicatedEntryToDbRow = (
     row.show = mapReplicatedShowToEntryRow(options.show);
   } else if (options?.show === null) {
     row.show = null;
+  }
+
+  if (options?.registration !== undefined) {
+    row.registration = options.registration;
   }
 
   // Attach promo_code sub-object when provided (already snake_case from PostgREST batch)

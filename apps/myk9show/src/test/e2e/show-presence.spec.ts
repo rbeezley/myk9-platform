@@ -11,7 +11,7 @@
  *        VITE_SHOW_PRESENCE=true RUN_PRESENCE_E2E=1 npx playwright test \
  *          src/test/e2e/show-presence.spec.ts --project=chromium
  *
- * It is skipped by default because it needs the flag enabled, the seeded
+ * It is skipped by default because it needs the flag enabled, the canonical
  * secretary/exhibitor accounts, and a live Supabase Realtime connection (timing-
  * flaky, not available in the CI E2E job).
  *
@@ -65,7 +65,7 @@ test.describe('Show presence — live Realtime', () => {
       const ex = await ctxEx.newPage();
 
       // Parallel sign-ins to cut wall-time.
-      await Promise.all([signIn(sec, TEST_USERS.SECRETARY), signIn(ex, TEST_USERS.EXHIBITOR)]);
+      await Promise.all([signIn(sec, TEST_USERS.SECRETARY), signIn(ex, TEST_USERS.DEMO_EXHIBITOR)]);
 
       const showUrl = await openFirstShow(sec);
       await ex.goto(showUrl, { waitUntil: 'domcontentloaded' });
@@ -86,35 +86,33 @@ test.describe('Show presence — live Realtime', () => {
   // It was ALSO confirmed live during this feature's validation: two non-staff
   // users were both present on the channel (raw roster of 2) yet each rendered
   // only "1 person here". This live variant stays `fixme` because it needs a
-  // SECOND well-formed exhibitor account — exhibitor2..5 in TEST_USERS are bare
-  // stubs that don't reliably converge on Realtime as a second browser context
-  // (exhibitor1/"Alice Martin" is the only confirmed-good exhibitor). Re-enable
-  // once a second real exhibitor account exists.
-  test.fixme(
-    'exhibitors are hidden from each other (privacy filter, live)',
-    async ({ browser }) => {
-      const ctxA = await browser.newContext();
-      const ctxB = await browser.newContext();
-      try {
-        const a = await ctxA.newPage();
-        const b = await ctxB.newPage();
+  // SECOND well-formed canonical exhibitor account. EXHIBITOR_2..5 are legacy
+  // fixture rows, not supported sign-in accounts for route-health/Nightly. Re-enable
+  // once a second env-backed e2e exhibitor account exists.
+  test.fixme('exhibitors are hidden from each other (privacy filter, live)', async ({
+    browser,
+  }) => {
+    const ctxA = await browser.newContext();
+    const ctxB = await browser.newContext();
+    try {
+      const a = await ctxA.newPage();
+      const b = await ctxB.newPage();
 
-        await Promise.all([signIn(a, TEST_USERS.EXHIBITOR), signIn(b, TEST_USERS.EXHIBITOR_2)]);
+      await Promise.all([signIn(a, TEST_USERS.DEMO_EXHIBITOR), signIn(b, TEST_USERS.EXHIBITOR_2)]);
 
-        const showUrl = await openFirstShow(a);
-        await b.goto(showUrl, { waitUntil: 'domcontentloaded' });
+      const showUrl = await openFirstShow(a);
+      await b.goto(showUrl, { waitUntil: 'domcontentloaded' });
 
-        // Both present on the channel, but each exhibitor's filter keeps only
-        // self → "1 person here", never plural.
-        await expect(a.locator(SELF_ONLY)).toBeVisible({ timeout: 20000 });
-        await expect(b.locator(SELF_ONLY)).toBeVisible({ timeout: 20000 });
-        await a.waitForTimeout(4000);
-        await expect(a.locator(SELF_ONLY)).toBeVisible();
-        await expect(a.locator(PLURAL)).toHaveCount(0);
-      } finally {
-        await ctxA.close();
-        await ctxB.close();
-      }
+      // Both present on the channel, but each exhibitor's filter keeps only
+      // self → "1 person here", never plural.
+      await expect(a.locator(SELF_ONLY)).toBeVisible({ timeout: 20000 });
+      await expect(b.locator(SELF_ONLY)).toBeVisible({ timeout: 20000 });
+      await a.waitForTimeout(4000);
+      await expect(a.locator(SELF_ONLY)).toBeVisible();
+      await expect(a.locator(PLURAL)).toHaveCount(0);
+    } finally {
+      await ctxA.close();
+      await ctxB.close();
     }
-  );
+  });
 });

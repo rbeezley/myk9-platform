@@ -4,7 +4,9 @@ import { formatReportDate } from '@/lib/reports/reportUtils';
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
 
 export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, entries }) => {
-  const waitlisted = entries.filter(e => e.paymentStatus === 'waitlisted');
+  const waitlisted = entries.filter(
+    e => e.entryStatus === 'waitlist' || e.entryStatus === 'waitlisted'
+  );
   const orgTitle = organization ? `${organization} Scent Work` : 'Scent Work';
 
   const header = (

@@ -2,6 +2,11 @@ import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatFee } from '@/utils/format';
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
+import {
+  calculateFinancialReportTotals,
+  type FinancialReportBucket,
+  type FinancialReportLine,
+} from './financialReportTotals';
 
 export const FinancialReport: React.FC<ReportProps> = ({
   showName,
@@ -10,20 +15,18 @@ export const FinancialReport: React.FC<ReportProps> = ({
   entries,
   sortOrder,
 }) => {
-  const filterStatus = sortOrder === 'waitlist' ? 'waitlisted' : 'accepted';
-  const filtered = entries.filter(e => e.paymentStatus === filterStatus);
+  const mode = sortOrder === 'waitlist' ? 'waitlist' : 'current';
+  const totals = calculateFinancialReportTotals(entries, mode);
 
   const orgTitle = organization ? `${organization} Scent Work` : 'Scent Work';
-  const variantLabel = filterStatus === 'accepted' ? 'Accepted Entries' : 'Waitlisted Entries';
+  const variantLabel = mode === 'current' ? 'Current Entries' : 'Waitlisted Entries';
 
-  const exhibitorMap = new Map<string, typeof filtered>();
-  for (const entry of filtered) {
-    const handler = entry.handler || 'Unknown';
+  const exhibitorMap = new Map<string, FinancialReportLine[]>();
+  for (const line of totals.lines) {
+    const handler = line.entry.handler || 'Unknown';
     if (!exhibitorMap.has(handler)) exhibitorMap.set(handler, []);
-    exhibitorMap.get(handler)!.push(entry);
+    exhibitorMap.get(handler)!.push(line);
   }
-
-  const grandTotal = filtered.reduce((sum, e) => sum + (e.entryFee ?? 0), 0);
 
   const header = (
     <div className="report-header">
@@ -35,7 +38,7 @@ export const FinancialReport: React.FC<ReportProps> = ({
     </div>
   );
 
-  if (filtered.length === 0) {
+  if (totals.lines.length === 0) {
     return (
       <div className="report-page">
         {header}
@@ -48,8 +51,20 @@ export const FinancialReport: React.FC<ReportProps> = ({
     <div className="report-page">
       {header}
 
+      <FinancialSummaryTable summary={totals.summary} />
+
+      <BreakdownTable
+        title="Payment Method Breakdown"
+        rows={totals.paymentBreakdown}
+        showOutstanding
+      />
+
+      {totals.trialBreakdown.length > 1 && (
+        <BreakdownTable title="Trial Breakdown" rows={totals.trialBreakdown} showOutstanding />
+      )}
+
       {[...exhibitorMap.entries()].map(([handler, exhibitorEntries]) => {
-        const subtotal = exhibitorEntries.reduce((sum, e) => sum + (e.entryFee ?? 0), 0);
+        const subtotal = exhibitorEntries.reduce((sum, line) => sum + line.netRetained, 0);
         return (
           <div key={handler} className="catalog-exhibitor-group">
             <div className="catalog-exhibitor-header">{handler}</div>
@@ -58,29 +73,130 @@ export const FinancialReport: React.FC<ReportProps> = ({
                 <tr>
                   <th>Dog</th>
                   <th>Armband</th>
-                  <th>Payment Method</th>
-                  <th>Fee</th>
+                  <th>Trial</th>
+                  <th>Status</th>
+                  <th>Method</th>
+                  <th>Gross</th>
+                  <th>Discount</th>
+                  <th>Refund</th>
+                  <th>Outstanding</th>
+                  <th>Net</th>
                 </tr>
               </thead>
               <tbody>
-                {exhibitorEntries.map(entry => (
-                  <tr key={entry.id}>
-                    <td>{entry.callName}</td>
-                    <td>{formatArmbandDisplay(entry.armband)}</td>
-                    <td>{entry.paymentMethod ?? '—'}</td>
-                    <td>{entry.entryFee != null ? formatFee(entry.entryFee) : '—'}</td>
+                {exhibitorEntries.map(line => (
+                  <tr key={line.entry.id}>
+                    <td>{line.entry.callName}</td>
+                    <td>{formatArmbandDisplay(line.entry.armband)}</td>
+                    <td>{line.entry.trialNumber ?? '—'}</td>
+                    <td>{formatStatus(line.entry.paymentStatus)}</td>
+                    <td>{line.paymentLabel}</td>
+                    <td>{formatFee(line.gross)}</td>
+                    <td>{line.discount > 0 ? formatFee(line.discount) : '—'}</td>
+                    <td>{line.refunded > 0 ? formatFee(line.refunded) : '—'}</td>
+                    <td>{line.outstanding > 0 ? formatFee(line.outstanding) : '—'}</td>
+                    <td>{formatFee(line.netRetained)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <div className="catalog-exhibitor-subtotal">
-              {handler} Subtotal: {formatFee(subtotal)}
+              {handler} Net Retained: {formatFee(subtotal)}
             </div>
           </div>
         );
       })}
 
-      <div className="report-grand-total">Grand Total: {formatFee(grandTotal)}</div>
+      <div className="report-grand-total">
+        Net Retained: {formatFee(totals.summary.netRetained)}
+      </div>
     </div>
   );
 };
+
+function FinancialSummaryTable({ summary }: { summary: FinancialReportBucket }) {
+  return (
+    <table className="report-table">
+      <thead>
+        <tr>
+          <th>Entries</th>
+          <th>Gross Fees</th>
+          <th>Discounts</th>
+          <th>Waived/Comped</th>
+          <th>Collected</th>
+          <th>Refunded</th>
+          <th>Outstanding</th>
+          <th>Net Retained</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{summary.count}</td>
+          <td>{formatFee(summary.gross)}</td>
+          <td>{formatFee(summary.discount)}</td>
+          <td>{formatFee(summary.waived)}</td>
+          <td>{formatFee(summary.collected)}</td>
+          <td>{formatFee(summary.refunded)}</td>
+          <td>{formatFee(summary.outstanding)}</td>
+          <td>{formatFee(summary.netRetained)}</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+function BreakdownTable({
+  title,
+  rows,
+  showOutstanding = false,
+}: {
+  title: string;
+  rows: FinancialReportBucket[];
+  showOutstanding?: boolean;
+}) {
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="catalog-exhibitor-group">
+      <div className="catalog-exhibitor-header">{title}</div>
+      <table className="report-table">
+        <thead>
+          <tr>
+            <th>Group</th>
+            <th>Entries</th>
+            <th>Gross</th>
+            <th>Discount</th>
+            <th>Waived</th>
+            <th>Collected</th>
+            <th>Refunded</th>
+            {showOutstanding && <th>Outstanding</th>}
+            <th>Net</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(row => (
+            <tr key={row.label}>
+              <td>{row.label}</td>
+              <td>{row.count}</td>
+              <td>{formatFee(row.gross)}</td>
+              <td>{row.discount > 0 ? formatFee(row.discount) : '—'}</td>
+              <td>{row.waived > 0 ? formatFee(row.waived) : '—'}</td>
+              <td>{formatFee(row.collected)}</td>
+              <td>{row.refunded > 0 ? formatFee(row.refunded) : '—'}</td>
+              {showOutstanding && <td>{row.outstanding > 0 ? formatFee(row.outstanding) : '—'}</td>}
+              <td>{formatFee(row.netRetained)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function formatStatus(status: string | null | undefined): string {
+  if (!status) return 'Unknown';
+  return status
+    .split('_')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}

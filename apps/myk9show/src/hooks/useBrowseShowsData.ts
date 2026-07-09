@@ -20,6 +20,9 @@ import {
 } from '@/utils/show-management-tracking';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { userHasEntriesForShow } from '@/utils/entryStatusUtils';
+import { mergeAccountEnteredShowStubs } from '@/utils/browseShowsUtils';
+import { useAccountEnteredShowIds } from '@/hooks/queries/useAccountEnteredShowIds';
+import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 
 /**
  * Enhanced show with relationship metadata
@@ -100,8 +103,26 @@ export function useBrowseShowsData({
   const shows = user ? storeShows : (publicShows ?? storeShows);
   const storeErrorMsg = useShowStore(s => s.error);
   const showsError = storeErrorMsg ? new Error(storeErrorMsg) : null;
-  const { entries, isLoading: entriesLoading, error: entriesError, loadEntries } = useEntryStore();
+  const {
+    entries: storeEntries,
+    isLoading: entriesLoading,
+    error: entriesError,
+    loadEntries,
+  } = useEntryStore();
   const { status: syncStatus } = useReplicationSync();
+
+  // "Entered as exhibitor" count integrity: the local per-show entryStore is
+  // empty for a show the exhibitor hasn't opened this session, so merge in the
+  // authoritative account-level entered show ids (same source as My Shows) as
+  // additive stubs. Membership filters key on show id + the caller's user id,
+  // so this corrects the tab count/list without swapping the shared store.
+  const personId = useCurrentUserPersonId();
+  const accountEnteredShowIds = useAccountEnteredShowIds(personId);
+  const derivedUserId = user?.databaseUserId ?? user?.id;
+  const entries = useMemo(
+    () => mergeAccountEnteredShowStubs(storeEntries, accountEnteredShowIds, derivedUserId),
+    [storeEntries, accountEnteredShowIds, derivedUserId]
+  );
 
   // The auth-gated initial sync only fires once authLoading flips to false
   // and a session is available, so for signed-in users there's a window where

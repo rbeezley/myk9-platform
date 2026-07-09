@@ -95,9 +95,7 @@ export function CompactStatsRow({
       href: feeHref,
       iconColor: amountDue > 0 ? 'text-warning' : 'text-success',
       iconChipClassName:
-        amountDue > 0
-          ? 'border-warning/30 bg-warning/10'
-          : 'border-success/25 bg-success/10',
+        amountDue > 0 ? 'border-warning/30 bg-warning/10' : 'border-success/25 bg-success/10',
     },
   ];
 
@@ -153,7 +151,14 @@ export function CompactStatsRow({
       <div
         id="exhibitor-stat-cards"
         className={cn(
-          'grid grid-cols-4 gap-3 max-[720px]:grid-cols-2',
+          // Base 2 columns covers the phone grid (≤720px, revealed behind the
+          // summary toggle) AND every tablet/small-laptop width up to xl. The
+          // 4-across grid only returns at ≥1280px (xl): the persistent ~310px
+          // sidebar means a viewport below xl leaves the grid < ~830px, at
+          // which four cells truncate the "N accepted · N pending" detail
+          // (measured live — clips at 1024px). At xl the grid is ~970px and
+          // four 234px tiles fit cleanly, so desktop keeps its four-across row.
+          'grid grid-cols-2 gap-3 xl:grid-cols-4',
           !expanded && 'max-[720px]:hidden'
         )}
       >

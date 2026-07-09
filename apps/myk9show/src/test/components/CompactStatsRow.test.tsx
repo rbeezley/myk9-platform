@@ -42,12 +42,17 @@ describe('CompactStatsRow', () => {
     expect(screen.queryByText(/Amount due/i)).not.toBeInTheDocument();
   });
 
-  it('uses the compact four-column layout with icons before the stat data', () => {
+  it('uses a responsive column layout (2 up to xl, 4 across on desktop) with icons before the stat data', () => {
     const { container } = render(<CompactStatsRow {...defaultProps} />);
 
     const grid = container.querySelector('#exhibitor-stat-cards');
-    expect(grid).toHaveClass('grid-cols-4');
-    expect(grid).toHaveClass('max-[720px]:grid-cols-2');
+    // Base 2 columns keeps the phone grid and the tablet/small-laptop band from
+    // cramming four cells (which truncated the "N accepted · N pending" detail
+    // once the persistent sidebar narrowed the grid). The four-across grid only
+    // returns at xl, where there is room for it.
+    expect(grid).toHaveClass('grid-cols-2');
+    expect(grid).toHaveClass('xl:grid-cols-4');
+    expect(grid).not.toHaveClass('grid-cols-4');
 
     const entriesCard = screen.getByLabelText(/Entries.*View details/i);
     const icon = entriesCard.querySelector('[data-slot="icon"]');

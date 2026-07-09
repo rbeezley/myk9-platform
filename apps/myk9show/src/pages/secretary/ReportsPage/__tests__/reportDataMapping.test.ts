@@ -5,7 +5,10 @@ import {
   mapScopedReportEntries,
   readTrialRegistryId,
 } from '../reportDataMapping';
+import { calculateFinancialReportTotals } from '@/components/reports/financialReportTotals';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
+import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
+import { rowToEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 
@@ -314,6 +317,43 @@ describe('mapScopedReportEntries', () => {
     const result = mapScopedReportEntries([e1], trials, classes, 'trial-1', 'class-1');
     expect(result.map(r => r.id)).toEqual(['e1']);
     expect(result[0]).toMatchObject({ classElement: 'Container', trialNumber: '1' });
+  });
+
+  it('preserves replicated financial fields through report totals', () => {
+    const replicated = rowToEntry({
+      id: 'entry-financial',
+      class_id: 'class-1',
+      show_id: 'show-1',
+      dog_id: 'dog-1',
+      entry_status: 'accepted',
+      armband: '101',
+      entry_fee: 60,
+      payment_status: 'partial_refund',
+      payment_method: 'credit_card',
+      discount_amount: 10,
+      refund_amount: 20,
+      comped: false,
+      updated_at: '2026-06-01T12:00:00.000Z',
+    } as Parameters<typeof rowToEntry>[0]);
+    const dbRow = mapReplicatedEntryToDbRow(replicated, {
+      dog: { id: 'dog-1', name: 'Rocket', callName: 'Rocket', breed: 'Beagle' },
+    }) as DbEntry;
+
+    const reportEntries = mapScopedReportEntries([dbRow], trials, classes, 'all', 'all');
+    const totals = calculateFinancialReportTotals(reportEntries, 'current');
+
+    expect(reportEntries[0]).toMatchObject({
+      discountAmount: 10,
+      refundAmount: 20,
+      comped: false,
+    });
+    expect(totals.summary).toMatchObject({
+      gross: 60,
+      discount: 10,
+      collected: 50,
+      refunded: 20,
+      netRetained: 30,
+    });
   });
 });
 

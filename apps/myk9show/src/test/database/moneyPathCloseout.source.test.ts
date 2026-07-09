@@ -22,6 +22,10 @@ const payoutSource = readFileSync(
   resolve(__dirname, '../../../supabase/functions/cron-process-payouts/index.ts'),
   'utf8'
 );
+const freshSessionGateSource = readFileSync(
+  resolve(__dirname, '../../../supabase/functions/_shared/freshSessionGate.ts'),
+  'utf8'
+);
 const runbookSource = readFileSync(
   resolve(__dirname, '../../../../../docs/operations/go-live-runbook.md'),
   'utf8'
@@ -40,7 +44,11 @@ describe('money-path closeout source contracts', () => {
 
   it('keeps entry checkout card-only and refuses unpaid fresh sessions', () => {
     expect(checkoutSource).toContain("payment_method_types: ['card']");
-    expect(webhookSource).toContain("freshSession.payment_status !== 'paid'");
+    // MP-05/MP-07: the unpaid-session refusal lives in the shared
+    // decideFreshSessionGate decision, called on the fresh retrieve by both
+    // entry payment handlers (cart checkout + payment link).
+    expect(webhookSource).toContain('decideFreshSessionGate(freshSession)');
+    expect(freshSessionGateSource).toContain("fresh.payment_status !== 'paid'");
   });
 
   it('serializes per-show refund and payout critical sections with show_money_locks', () => {

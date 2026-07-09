@@ -42,7 +42,10 @@ describe('stripe-webhook entry_payment_request branch', () => {
   });
 
   it('feeds the session payment_status + expected entry ids to the helper (F3/F4 coherence checks)', () => {
-    expect(source).toContain('sessionPaymentStatus: session.payment_status');
+    // MP-07: the helper must see the FRESH-retrieved payment_status, never the
+    // untrusted webhook payload's.
+    expect(source).toContain('sessionPaymentStatus: freshSession.payment_status');
+    expect(source).not.toContain('sessionPaymentStatus: session.payment_status');
     expect(source).toContain('expectedEntryIds: entryIds');
     // alerts when the paid link references entries that no longer exist (F4)
     expect(source).toContain('missingEntryIds');

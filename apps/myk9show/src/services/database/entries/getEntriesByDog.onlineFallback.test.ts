@@ -87,4 +87,29 @@ describe('getEntriesByDog — cold local replica verifies online', () => {
     expect(result.data).toHaveLength(1);
     expect((result.data[0] as Record<string, unknown>).id).toBe('entry-local-1');
   });
+
+  it('does NOT online-verify when the dog’s local rows are all tombstoned (offline delete wins)', async () => {
+    // A queued soft-delete not yet synced: isLiveEntry filters the row out, so
+    // the mapped result is empty — but the raw local replica had a row for this
+    // dog, so falling back to the (stale) server would resurrect the deleted
+    // entry. The raw-count guard must keep the result empty.
+    mockEntriesTable.getAll.mockResolvedValue([
+      {
+        id: 'entry-tombstoned',
+        dogId: 'dog-1',
+        classId: null,
+        showId: null,
+        deletedAt: '2026-07-09T00:00:00.000Z',
+        entryStatus: 'confirmed',
+      },
+    ]);
+
+    const result = await getEntriesByDog('dog-1');
+
+    // Empty (the tombstone), and specifically NOT the online row.
+    expect(result.data).toHaveLength(0);
+    expect(result.data.some(r => (r as Record<string, unknown>).id === 'entry-online-1')).toBe(
+      false
+    );
+  });
 });

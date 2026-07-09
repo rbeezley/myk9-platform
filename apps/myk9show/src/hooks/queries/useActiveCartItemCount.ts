@@ -18,12 +18,18 @@ export function useActiveCartItemCount(exhibitorId: string | undefined): number 
   const { data } = useQuery({
     queryKey: ['active-cart-item-count', exhibitorId],
     queryFn: async (): Promise<number> => {
+      // Mirror CartPage's `loadActiveCart` recovery predicate exactly:
+      // `status IN ('active','expired')` and NO `expires_at > now` filter. A
+      // cart from a prior session often has a lapsed hold (expired status or a
+      // past expires_at) that /cart transparently recovers and extends — the
+      // audit's week-old draft is exactly that case. Filtering those out here
+      // would hide the badge for the very carts this affordance exists to
+      // surface.
       const { data, error } = await supabase
         .from('entry_carts')
         .select('id, entry_cart_items(count)')
         .eq('exhibitor_id', exhibitorId as string)
-        .eq('status', 'active')
-        .gt('expires_at', new Date().toISOString())
+        .in('status', ['active', 'expired'])
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();

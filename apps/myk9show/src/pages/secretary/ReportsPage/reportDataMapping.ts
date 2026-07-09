@@ -113,15 +113,6 @@ function mapReportEntry(
           >,
         }
       : {}),
-    ...(registration?.paid_amount != null
-      ? { enrollmentPaidAmount: Number(registration.paid_amount) }
-      : {}),
-    ...(registration?.refund_amount != null
-      ? { enrollmentRefundAmount: Number(registration.refund_amount) }
-      : {}),
-    ...(typeof registration?.refunded_at === 'string'
-      ? { enrollmentRefundedAt: registration.refunded_at }
-      : {}),
     ...(e.discount_amount != null ? { discountAmount: Number(e.discount_amount) } : {}),
     ...(e.refund_amount != null ? { refundAmount: Number(e.refund_amount) } : {}),
     ...(e.comped != null ? { comped: Boolean(e.comped) } : {}),

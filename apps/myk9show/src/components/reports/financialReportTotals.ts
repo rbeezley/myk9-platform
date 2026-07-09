@@ -56,7 +56,14 @@ function normalize(value: string | null | undefined): string {
 }
 
 function getEffectivePaymentStatus(entry: ReportEntry): string {
-  return normalize(entry.enrollmentPaymentStatus) || normalize(entry.paymentStatus);
+  const entryStatus = normalize(entry.paymentStatus);
+  const enrollmentStatus = normalize(entry.enrollmentPaymentStatus);
+
+  if (!entryStatus || entryStatus === PaymentStatus.PENDING) {
+    return enrollmentStatus || entryStatus;
+  }
+
+  return entryStatus;
 }
 
 export function isEntryIncludedInFinancialReport(

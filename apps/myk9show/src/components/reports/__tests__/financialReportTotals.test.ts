@@ -171,7 +171,6 @@ describe('financialReportTotals', () => {
           paymentStatus: PaymentStatus.PENDING,
           paymentMethod: 'check',
           enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
-          enrollmentPaidAmount: 45,
         }),
       ],
       'current'
@@ -185,5 +184,31 @@ describe('financialReportTotals', () => {
       netRetained: 45,
     });
     expect(totals.paymentBreakdown.map(bucket => bucket.label)).toEqual(['Check']);
+  });
+
+  it('keeps entry-level refunds authoritative over enrollment payment status', () => {
+    const totals = calculateFinancialReportTotals(
+      [
+        entry({
+          id: 'entry-refunded-after-check',
+          entryFee: 45,
+          paymentStatus: PaymentStatus.REFUNDED,
+          refundAmount: 45,
+          paymentMethod: 'check',
+          enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+        }),
+      ],
+      'current'
+    );
+
+    expect(totals.summary).toMatchObject({
+      count: 1,
+      gross: 45,
+      collected: 45,
+      refunded: 45,
+      outstanding: 0,
+      netRetained: 0,
+    });
+    expect(totals.paymentBreakdown.map(bucket => bucket.label)).toEqual(['Refunded']);
   });
 });

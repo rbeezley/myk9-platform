@@ -31,9 +31,6 @@ export interface ReportEntry {
   paymentStatus?: PaymentStatus | 'paid' | 'refunded';
   paymentMethod?: string;
   enrollmentPaymentStatus?: PaymentStatus | 'paid' | 'refunded';
-  enrollmentPaidAmount?: number;
-  enrollmentRefundAmount?: number;
-  enrollmentRefundedAt?: string;
   discountAmount?: number;
   refundAmount?: number;
   comped?: boolean;

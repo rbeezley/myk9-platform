@@ -364,9 +364,6 @@ describe('mapScopedReportEntries', () => {
       entry_fee: 45,
       registration: {
         payment_status: 'paid_by_check',
-        paid_amount: 45,
-        refund_amount: null,
-        refunded_at: null,
       },
     } as unknown as DbEntry;
 
@@ -382,7 +379,6 @@ describe('mapScopedReportEntries', () => {
     expect(reportEntries[0]).toMatchObject({
       paymentStatus: 'pending',
       enrollmentPaymentStatus: 'paid_by_check',
-      enrollmentPaidAmount: 45,
     });
     expect(totals.summary).toMatchObject({
       collected: 45,

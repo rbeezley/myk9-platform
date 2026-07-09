@@ -35,14 +35,7 @@ import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 
 const ENROLLMENT_FINANCIAL_SELECT = `
         id,
-        confirmation_number,
-        payment_status,
-        payment_reference,
-        total_amount,
-        paid_amount,
-        refund_amount,
-        refund_notes,
-        refunded_at
+        payment_status
       `;
 
 async function loadDogsMap(): Promise<Map<string, ReplicatedDog>> {

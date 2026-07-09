@@ -2,11 +2,11 @@
 
 ## 1. Webhook trust (MP-05, MP-07, MP-09)
 
-- [ ] 1.1 Write assertion-first failing tests for `handleEntryPaymentCompleted`: fresh session with `payment_status: 'unpaid'` → no entry update, no `stripe_orders` insert; `async_payment_succeeded` with `paid` → full processing (run red first)
-- [ ] 1.2 Add the `freshSession.payment_status !== 'paid'` early return after the fresh retrieve (`stripe-webhook/index.ts:507`) and confirm `checkout.session.async_payment_succeeded` routes to the same completion logic (wire it if not)
-- [ ] 1.3 Write assertion-first failing test for `handleEntryPaymentRequestCompleted`: payload `amount_total: 0` with fresh session reporting the true amount → order/entry writes use the fresh amount; fresh `payment_status !== 'paid'` → skipped
-- [ ] 1.4 Refactor `handleEntryPaymentRequestCompleted` to retrieve the session fresh at the top and use `fresh.amount_total` / `fresh.payment_status` throughout
-- [ ] 1.5 Write failing concurrency test for the per-entry refund stamp (already-refunded entry → zero-row update, no overwrite, log), then add the `.eq('payment_status','paid').select('id')` guard (MP-09)
+- [x] 1.1 Write assertion-first failing tests for `handleEntryPaymentCompleted`: fresh session with `payment_status: 'unpaid'` → no entry update, no `stripe_orders` insert; `async_payment_succeeded` with `paid` → full processing (run red first)
+- [x] 1.2 Add the `freshSession.payment_status !== 'paid'` early return after the fresh retrieve (`stripe-webhook/index.ts:507`) and confirm `checkout.session.async_payment_succeeded` routes to the same completion logic (wire it if not)
+- [x] 1.3 Write assertion-first failing test for `handleEntryPaymentRequestCompleted`: payload `amount_total: 0` with fresh session reporting the true amount → order/entry writes use the fresh amount; fresh `payment_status !== 'paid'` → skipped
+- [x] 1.4 Refactor `handleEntryPaymentRequestCompleted` to retrieve the session fresh at the top and use `fresh.amount_total` / `fresh.payment_status` throughout
+- [x] 1.5 Write failing concurrency test for the per-entry refund stamp (already-refunded entry → zero-row update, no overwrite, log), then add the `.eq('payment_status','paid').select('id')` guard (MP-09)
 
 ## 2. Durable operator alerts (MP-08, MP-12)
 
@@ -25,14 +25,14 @@
 
 ## 4. Refund result transparency (MP-11)
 
-- [ ] 4.1 Write failing component test for `RefundAllEntriesCard`: result with 1 refunded / 1 skipped (reason) / 1 failed (error) → each skipped entry shown with reason, each failed intent shown with entry ids + error; clean run shows no empty detail sections
-- [ ] 4.2 Render grouped skipped/failed detail from the existing `useShowRefundAll` result arrays in the card (no API changes)
+- [x] 4.1 Write failing component test for `RefundAllEntriesCard`: result with 1 refunded / 1 skipped (reason) / 1 failed (error) → each skipped entry shown with reason, each failed intent shown with entry ids + error; clean run shows no empty detail sections
+- [x] 4.2 Render grouped skipped/failed detail from the existing `useShowRefundAll` result arrays in the card (no API changes)
 
 ## 5. Trial timezone validation (TZ-01)
 
-- [ ] 5.1 Write failing unit tests for `getTrialTimezone`: invalid zone → `'America/New_York'`; valid zone passes through; null/empty → default; error signal emitted once per invalid value
-- [ ] 5.2 Implement the `Intl.DateTimeFormat` probe validation + memoized Sentry report in `features/registries/helpers.ts`
-- [ ] 5.3 Add DST-boundary formatting tests for the landing `dateFormat` helpers using a valid zone (spring-forward and fall-back dates render device-independently)
+- [x] 5.1 Write failing unit tests for `getTrialTimezone`: invalid zone → `'America/New_York'`; valid zone passes through; null/empty → default; error signal emitted once per invalid value
+- [x] 5.2 Implement the `Intl.DateTimeFormat` probe validation + memoized Sentry report in `features/registries/helpers.ts`
+- [x] 5.3 Add DST-boundary formatting tests for the landing `dateFormat` helpers using a valid zone (spring-forward and fall-back dates render device-independently)
 
 ## 6. Verification, PR, and deploy
 

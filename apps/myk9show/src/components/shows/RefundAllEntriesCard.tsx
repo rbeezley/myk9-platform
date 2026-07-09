@@ -17,6 +17,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useShowRefundAll, type ShowRefundAllResult } from '@/features/payments/useShowRefundAll';
 import { friendlyDbError } from '@/utils/friendlyDbError';
+import { RefundResultDetail } from '@/components/shows/RefundResultDetail';
 
 // INTENT: A bulk make-whole refund is a SHOW-CANCELLATION action and irreversible
 // money movement. It is deliberately TWO steps — mark the show cancelled, THEN
@@ -66,14 +67,18 @@ function useMarkShowCancelled(showId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('shows').update({ status: 'cancelled' }).eq('id', showId);
+      const { error } = await supabase
+        .from('shows')
+        .update({ status: 'cancelled' })
+        .eq('id', showId);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['show-status', showId] });
       toast.success('Show marked cancelled. You can now refund all entries.');
     },
-    onError: err => toast.error(friendlyDbError(err, 'Could not cancel the show. Please try again.')),
+    onError: err =>
+      toast.error(friendlyDbError(err, 'Could not cancel the show. Please try again.')),
   });
 }
 
@@ -102,12 +107,15 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
             toast.warning(`No refunds issued — ${skipped} skipped, handle manually.`);
           else toast.info('Nothing to refund.');
         } else if (failed > 0) {
-          toast.warning(`Refunded ${entriesRefunded} ${noun(entriesRefunded)}, ${failed} failed — see details.`);
+          toast.warning(
+            `Refunded ${entriesRefunded} ${noun(entriesRefunded)}, ${failed} failed — see details.`
+          );
         } else {
           toast.success(`Refunded ${entriesRefunded} ${noun(entriesRefunded)} in full.`);
         }
       },
-      onError: err => toast.error(friendlyDbError(err, 'Could not refund entries. Please try again.')),
+      onError: err =>
+        toast.error(friendlyDbError(err, 'Could not refund entries. Please try again.')),
     });
   };
 
@@ -181,6 +189,7 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
                     {result.summary.failed} failed — retry is safe (refunds are not duplicated).
                   </p>
                 )}
+                <RefundResultDetail result={result} />
               </div>
             )}
           </>

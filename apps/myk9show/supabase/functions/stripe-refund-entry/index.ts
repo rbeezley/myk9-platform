@@ -13,6 +13,7 @@ import {
   type WithdrawalPolicy,
 } from '../_shared/withdrawalPolicy.ts';
 import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
+import { decideRefundStampGuard } from '../_shared/entryRefundStampGuard.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -274,19 +275,23 @@ Deno.serve(async req => {
         .or('refund_amount.is.null,refund_amount.eq.0')
         .select('id');
 
-      if (updateError || !stamped?.length) {
+      const stampDecision = decideRefundStampGuard({
+        hasUpdateError: !!updateError,
+        matchedEntryCount: stamped?.length ?? 0,
+      });
+
+      if (stampDecision.action === 'record_failure') {
         // The Stripe refund DID happen; until the entry is stamped, the payout
         // cron will overpay the club by this amount. Email, don't just log.
-        const detail = updateError?.message ?? 'entry was already refunded or no longer paid';
         console.error(
           `CRITICAL: refund ${refund.id} created for entry ${entry_id} but the entry update failed:`,
-          detail
+          updateError?.message
         );
         await alertAdmin(
           'Refund issued but not recorded — payout will overpay',
           `<p>Stripe refund <code>${refund.id}</code> (${(refund.amount / 100).toFixed(2)} USD)
            was issued for entry <code>${entry_id}</code>, but stamping the entry failed:</p>
-           <pre>${detail}</pre>
+           <pre>${updateError?.message}</pre>
            <p>Until the entry's refund columns are set, the payout cron computes the
            show's transfer WITHOUT this refund. Recovery: retry the refund from the
            entries page (it reuses the existing Stripe refund — no double refund), or
@@ -299,6 +304,20 @@ Deno.serve(async req => {
           },
           500
         );
+      }
+
+      if (stampDecision.action === 'already_stamped_elsewhere') {
+        // MP-09: a concurrent process (most commonly a bulk show-cancellation
+        // refund via stamp_show_refund_entries) already flipped this entry's
+        // payment_status/refund_amount between our initial read and this
+        // UPDATE. That existing stamp is authoritative — the Stripe refund we
+        // just created/reused already has an accounting home, so this is a
+        // benign no-op, not a failure. Log and continue without overwriting.
+        console.log(
+          `Refund ${refund.id} for entry ${entry_id} matched zero rows on the payment_status='paid' ` +
+            `stamp guard — the entry was already stamped by a concurrent refund. Leaving the existing stamp in place.`
+        );
+        return corsResponse({ refund_id: refund.id, amount_cents: refund.amount });
       }
 
       // refund.amount, not validation.amountCents: on a reused refund the

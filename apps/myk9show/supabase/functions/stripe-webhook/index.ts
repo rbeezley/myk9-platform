@@ -29,6 +29,7 @@ import {
   decideShowRefundStampAlert,
   findShowRefundId,
 } from '../_shared/chargeRefundedDecision.ts';
+import { decideFreshSessionGate } from '../_shared/freshSessionGate.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -589,13 +590,17 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   // per-item fees recomputed from show/class pricing. Runs BEFORE the claim
   // so a rejected cart stays active.
   const freshSession = await stripe.checkout.sessions.retrieve(session.id);
-  if (freshSession.payment_status !== 'paid') {
-    console.log(
-      `Checkout session ${session.id} is ${freshSession.payment_status ?? 'unknown'} after fresh retrieve — waiting for a paid event`
-    );
+  const freshGate = decideFreshSessionGate(freshSession);
+  if (freshGate.action === 'skip') {
+    // Delayed-notification methods (e.g. some bank debits) fire
+    // checkout.session.completed before money actually lands; Stripe redrives
+    // this exact handler via checkout.session.async_payment_succeeded once it
+    // does (both events route to handleCheckoutCompleted — see the event
+    // switch above). ACK the webhook without processing.
+    console.log(`Checkout session ${session.id}: ${freshGate.reason} — waiting for a paid event`);
     return;
   }
-  const freshTotalCents = freshSession.amount_total ?? null;
+  const freshTotalCents = freshGate.amountTotalCents;
 
   const { data: showFees, error: showFeesError } = await supabase
     .from('shows')
@@ -1047,6 +1052,22 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
  * re-delivered event is a no-op).
  */
 async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Session) {
+  // MP-07: the webhook payload's payment_status/amount_total are untrusted
+  // (same reasoning as the cart path's fresh retrieve above) — a payment
+  // link's payload could carry a stale/tampered amount_total, and delayed
+  // payment methods can deliver checkout.session.completed before money
+  // actually lands. Retrieve fresh and use ONLY the fresh values for every
+  // downstream write; never the payload's.
+  const freshSession = await stripe.checkout.sessions.retrieve(session.id);
+  const freshGate = decideFreshSessionGate(freshSession);
+  if (freshGate.action === 'skip') {
+    console.log(
+      `Payment link session ${session.id}: ${freshGate.reason} — waiting for a paid event`
+    );
+    return;
+  }
+  const freshAmountTotalCents = freshGate.amountTotalCents;
+
   const paymentIntentId = extractPaymentIntentId(session.payment_intent);
 
   const { data: link, error: linkError } = await supabase
@@ -1070,7 +1091,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     await issueEntryPaymentAutoRefund({
       session,
       paymentIntentId,
-      amountCents: session.amount_total ?? null,
+      amountCents: freshAmountTotalCents,
       reason: 'no_link_record',
       invalidEntryIds: [],
       linkId: null,
@@ -1096,7 +1117,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
 
   const result = reconcileEntryPaymentRequest({
     linkStatus: link.status,
-    sessionPaymentStatus: session.payment_status ?? null,
+    sessionPaymentStatus: freshSession.payment_status ?? null,
     expectedEntryIds: entryIds,
     entries: (entriesData ?? []) as {
       id: string;
@@ -1109,7 +1130,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
 
   if (result.action === 'skip') {
     console.log(
-      `Payment link ${session.id} skipped (${result.skipReason}; link status: ${link.status}, payment_status: ${session.payment_status})`
+      `Payment link ${session.id} skipped (${result.skipReason}; link status: ${link.status}, payment_status: ${freshSession.payment_status})`
     );
     return;
   }
@@ -1235,7 +1256,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     initialAlreadyPaidEntryIds: result.alreadyPaidEntryIds,
     initialSameIntentPaidEntryIds: result.sameIntentPaidEntryIds,
     paymentIntentId,
-    sessionAmountTotalCents: session.amount_total ?? null,
+    sessionAmountTotalCents: freshAmountTotalCents,
     entryFeesById,
   });
 
@@ -1280,7 +1301,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     customer_id: null,
     stripe_payment_intent_id: paymentIntentId,
     stripe_checkout_session_id: session.id,
-    amount_cents: session.amount_total ?? 0,
+    amount_cents: freshAmountTotalCents ?? 0,
     currency: session.currency || 'usd',
     status: 'succeeded',
     order_type: 'entry',

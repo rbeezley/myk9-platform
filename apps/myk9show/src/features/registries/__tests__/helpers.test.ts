@@ -1,4 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+const sentryMocks = vi.hoisted(() => ({
+  captureMessage: vi.fn(),
+}));
+
+vi.mock('@sentry/react', () => ({
+  captureMessage: sentryMocks.captureMessage,
+}));
+
 import {
   getShowStyle,
   getShowLandingStyle,
@@ -171,13 +180,65 @@ describe('deriveRegistryId', () => {
 });
 
 describe('getTrialTimezone', () => {
-  it('returns the trial timezone when set', () => {
+  beforeEach(() => {
+    sentryMocks.captureMessage.mockClear();
+  });
+
+  it('returns the trial timezone when set to a valid IANA zone', () => {
     expect(getTrialTimezone({ timezone: 'America/Chicago' })).toBe('America/Chicago');
+  });
+
+  it('does not report a valid timezone to Sentry', () => {
+    getTrialTimezone({ timezone: 'America/Chicago' });
+    expect(sentryMocks.captureMessage).not.toHaveBeenCalled();
   });
 
   it('falls back to America/New_York when missing', () => {
     expect(getTrialTimezone({ timezone: null })).toBe('America/New_York');
     expect(getTrialTimezone({})).toBe('America/New_York');
     expect(getTrialTimezone(undefined)).toBe('America/New_York');
+    expect(getTrialTimezone({ timezone: '' })).toBe('America/New_York');
+  });
+
+  it('does not report a missing/empty timezone to Sentry (not an invalid value)', () => {
+    getTrialTimezone({ timezone: null });
+    getTrialTimezone({});
+    getTrialTimezone({ timezone: '' });
+    expect(sentryMocks.captureMessage).not.toHaveBeenCalled();
+  });
+
+  // Each test below uses its own unique rejected-value string. The dedupe Set
+  // that backs "once per session" reporting is module-level and persists for
+  // the life of the test file, so reusing a value across tests would make a
+  // later test see zero calls simply because an earlier test already
+  // reported it — that's the memoization working as designed, not a bug, but
+  // it means test values must not collide with each other.
+  it('falls back to America/New_York for an unresolvable IANA zone', () => {
+    expect(getTrialTimezone({ timezone: 'America/Nowhere-1' })).toBe('America/New_York');
+  });
+
+  it('never returns a string that makes Intl throw', () => {
+    const result = getTrialTimezone({ timezone: 'Not/AZone-1' });
+    expect(() => new Intl.DateTimeFormat('en-US', { timeZone: result })).not.toThrow();
+  });
+
+  it('reports an invalid timezone to Sentry with the trial id and rejected value', () => {
+    getTrialTimezone({ id: 'trial-1', timezone: 'America/Nowhere-2' });
+    expect(sentryMocks.captureMessage).toHaveBeenCalledTimes(1);
+    const [message, options] = sentryMocks.captureMessage.mock.calls[0];
+    expect(message).toEqual(expect.stringContaining('America/Nowhere-2'));
+    expect(options).toMatchObject({
+      extra: expect.objectContaining({
+        trialId: 'trial-1',
+        rejectedTimezone: 'America/Nowhere-2',
+      }),
+    });
+  });
+
+  it('reports a given invalid value only once per session, not per render', () => {
+    getTrialTimezone({ id: 'trial-1', timezone: 'America/Nowhere-3' });
+    getTrialTimezone({ id: 'trial-1', timezone: 'America/Nowhere-3' });
+    getTrialTimezone({ id: 'trial-2', timezone: 'America/Nowhere-3' });
+    expect(sentryMocks.captureMessage).toHaveBeenCalledTimes(1);
   });
 });

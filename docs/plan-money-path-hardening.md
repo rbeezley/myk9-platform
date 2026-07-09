@@ -1,6 +1,7 @@
 # Money-Path Hardening — pay → refund → payout remediation
 
 > **Status:** Active
+> Tracked in openspec change: money-path-hardening-remainder (remaining Phases 5–7, plus TZ-01)
 
 > **Source:** [`docs/security-audit-2026-07-03-money-path.md`](security-audit-2026-07-03-money-path.md) (scoped red-team, 2026-07-03). 0 CRITICAL, 4 HIGH, 4 MEDIUM, 6 LOW. This plan sequences the fixes; the audit holds the evidence.
 

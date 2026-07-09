@@ -399,6 +399,11 @@ export class MutationManager {
   async discardFailedMutation(mutationId: string): Promise<void> {
     const db = await databaseManager.getDatabase('MutationManager');
     await db.delete(REPLICATION_STORES.FAILED_MUTATIONS, mutationId);
+    // Refresh the localStorage backup: failed mutations are included in it, so
+    // without this a discarded mutation is restored (and re-surfaced) after a
+    // circuit-breaker recovery or startup restore — the discard wouldn't be
+    // durable.
+    await this.writeCurrentMutationsBackup();
     this.logger.log(`[MutationManager] Discarded failed mutation ${mutationId}`);
   }
 

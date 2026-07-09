@@ -22,11 +22,7 @@ import type { CheckInStatus } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { rowToEntry, type EntryRow, type ReplicatedEntry } from './ReplicatedEntriesTable.mapper';
-import {
-  buildRingsideRpcFields,
-  RINGSIDE_RPC_COLUMNS,
-  RINGSIDE_RPC_FUNCTION,
-} from './ringsideEntryRpc';
+import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 
 export { rowToEntry };
 export type { ReplicatedEntry };
@@ -135,29 +131,6 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
   protected override rebuildUpdatePayload(entry: ReplicatedEntry): Record<string, unknown> {
     return this.toSupabaseRow(entry);
-  }
-
-  /**
-   * Route a repaired (orphaned-dirty-row) re-queue through the ringside RPC so an
-   * assigned judge/steward whose direct UPDATE is RLS-denied can still persist a
-   * score stranded by a crash. See requeueOrphanedDirtyRows on the base class.
-   *
-   * The repair payload is a FULL row (rebuildUpdatePayload → toSupabaseRow), which
-   * always contains non-ringside columns (entry_status, armband, …). Passing the
-   * full key set to buildRingsideRpcFields would return null (mixed columns) and
-   * silently fall back to the RLS-denied direct UPDATE. So we first project the
-   * payload down to the ringside-whitelisted columns and route THAT subset —
-   * re-asserting the current ringside/scoring state, which is exactly what a
-   * stranded ringside write needs to persist.
-   */
-  protected override buildRepairRpc(
-    _entry: ReplicatedEntry,
-    payload: Record<string, unknown>
-  ): { name: string; fields?: Record<string, unknown> } | undefined {
-    const ringsideKeys = Object.keys(payload).filter(key => RINGSIDE_RPC_COLUMNS.has(key));
-    if (ringsideKeys.length === 0) return undefined;
-    const rpcFields = buildRingsideRpcFields(ringsideKeys, payload);
-    return rpcFields ? { name: RINGSIDE_RPC_FUNCTION, fields: rpcFields } : undefined;
   }
 
   async sync(syncScopeId: string): Promise<SyncResult> {

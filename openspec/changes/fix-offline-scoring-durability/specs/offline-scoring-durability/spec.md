@@ -64,10 +64,6 @@ The app SHALL request persistent storage so the browser does not silently evict 
 - **WHEN** the IndexedDB queue write succeeds but the localStorage backup write throws (e.g. localStorage full)
 - **THEN** the submit still reports success (the backup failure is logged, not fatal) and the score remains queued for upload
 
-#### Scenario: Dirty row without a queued mutation at startup
-- **WHEN** the app starts and finds a dirty row that has no corresponding pending mutation (crash between the local write and the queue write)
-- **THEN** the system repairs it by regenerating a mutation so the stranded score uploads
-
 ### Requirement: Sync status shown to the user is truthful and attributable
 
 Surfaces that report sync state SHALL reflect real replication state, and the scoring surface SHALL show the count of unsynced scores whenever any are pending.

@@ -22,7 +22,7 @@
 - [x] 2.7 Test: simulate two tabs uploading; assert no duplicate upload and no zombie mutation after an OCC rejection.
 - [x] 2.8 Wrap the localStorage backup write in `queueMutation` in try/catch (log, don't reject); wrap the `pending_mutations` put in `withQuotaEviction`.
 - [x] 2.9 Test: backup write throws and quota-pressured put both leave the score durably queued and the submit reporting success.
-- [x] 2.10 Add a startup scan for dirty rows lacking a pending mutation; regenerate a mutation so the stranded score uploads. Test with a seeded dirty-row-without-mutation.
+- [~] 2.10 Add a startup scan for dirty rows lacking a pending mutation; regenerate a mutation so the stranded score uploads. **REMOVED after code review** (Claude + Codex): the repair guards a crash window between two adjacent awaits that Phase 1's fail-closed submit already de-risks (no false success), and a correct implementation needs `baseData`-delta reconstruction that isn't reliably available (baseData is only captured when a clean cached row first goes dirty). The repair produced 5 review findings (dead-letter resurrection, RLS-denied direct UPDATE, dropped non-ringside edits, discard non-durability). M6 is deferred as a documented, low-severity gap alongside M5.
 
 ## 3. Phase 3 — Transparency
 

@@ -155,6 +155,27 @@ describe('MutationManager recovery backup (pending + failed durability)', () => 
     expect(restoredFailed).toHaveLength(1);
   });
 
+  it('removes a discarded failed mutation from the localStorage backup', async () => {
+    // Failed mutations are included in the backup, so discarding one must rewrite
+    // the backup — otherwise a recovery/restore resurrects the discarded mutation.
+    const failed = makeMutation({
+      id: 'failed-discard',
+      status: 'failed',
+      error: 'permission denied',
+      failedAt: 1,
+    });
+    await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, failed);
+    // Seed the backup as writeCurrentMutationsBackup would (includes failed).
+    localStorageMock[BACKUP_KEY] = JSON.stringify([failed]);
+
+    await manager.discardFailedMutation('failed-discard');
+
+    // Gone from the failed store AND from the backup.
+    expect(await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS)).toHaveLength(0);
+    const backup = localStorageMock[BACKUP_KEY];
+    expect(backup === undefined || !backup.includes('failed-discard')).toBe(true);
+  });
+
   it('keeps the score durably queued when the localStorage backup write throws', async () => {
     // Simulate localStorage full: setItem throws (Safari private mode / large
     // queue). The IDB queue write already succeeded, so queueMutation must NOT

@@ -432,18 +432,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         logger.info('Persistent storage status', 'replication', { status })
       );
       await mutationManager.restoreMutationsFromLocalStorage();
-      // Repair the crash window between a local dirty write and its queued
-      // mutation: re-queue an UPDATE for any entry that is dirty locally but has
-      // no pending mutation, so a score stranded by a crash still uploads
-      // (audit M6). Entries is the score-bearing table; keep this narrow.
-      try {
-        const repaired = await replicatedEntriesTable.requeueOrphanedDirtyRows();
-        if (repaired > 0) {
-          logger.warn('Startup: re-queued orphaned dirty entries', 'replication', { repaired });
-        }
-      } catch (err) {
-        logger.error('Startup: orphaned-dirty-row repair failed', 'replication', {}, err as Error);
-      }
       const pendingCount = await mutationManager.getPendingCount();
       if (pendingCount > 0) {
         logger.info('Startup: flushing pending mutations', 'replication', { pendingCount });

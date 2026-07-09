@@ -96,11 +96,15 @@ function mapReportEntry(
   return {
     ...base,
     ...(e.dog_id ? { dogId: e.dog_id } : {}),
+    ...(e.entry_status ? { entryStatus: e.entry_status } : {}),
     ...(e.entry_fee != null ? { entryFee: Number(e.entry_fee) } : {}),
     ...(e.payment_status
       ? { paymentStatus: e.payment_status as NonNullable<ReportEntry['paymentStatus']> }
       : {}),
     ...(e.payment_method ? { paymentMethod: e.payment_method } : {}),
+    ...(e.discount_amount != null ? { discountAmount: Number(e.discount_amount) } : {}),
+    ...(e.refund_amount != null ? { refundAmount: Number(e.refund_amount) } : {}),
+    ...(e.comped != null ? { comped: Boolean(e.comped) } : {}),
     ...(entrySource ? { entrySource } : {}),
     ...(e.is_day_of_show != null ? { isDayOfShow: Boolean(e.is_day_of_show) } : {}),
     ...(trial

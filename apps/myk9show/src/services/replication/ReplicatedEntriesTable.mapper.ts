@@ -47,6 +47,11 @@ export interface ReplicatedEntry {
   trial_id?: string | undefined;
 
   // Payment/refund metadata
+  discountAmount?: number | undefined;
+  discount_amount?: number | undefined;
+  comped?: boolean | undefined;
+  compedReason?: string | null | undefined;
+  comped_reason?: string | null | undefined;
   refundAmount?: number | undefined;
   refund_amount?: number | undefined;
   refundedAt?: string | undefined;
@@ -142,6 +147,11 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     totalFees: (dbRow.total_fees as number | undefined) ?? undefined,
     paymentStatus: row.payment_status ?? undefined,
     paymentMethod: row.payment_method ?? undefined,
+    discountAmount: row.discount_amount ?? undefined,
+    discount_amount: row.discount_amount ?? undefined,
+    comped: row.comped ?? undefined,
+    compedReason: row.comped_reason ?? undefined,
+    comped_reason: row.comped_reason ?? undefined,
     entrySource: (dbRow.entry_source as string | undefined) ?? undefined,
     isDayOfShow: row.is_day_of_show ?? undefined,
     isInRing: row.is_in_ring ?? undefined,

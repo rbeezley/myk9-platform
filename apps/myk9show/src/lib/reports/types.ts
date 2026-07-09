@@ -1,5 +1,6 @@
 import type React from 'react';
 import type { DbShow, DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
+import type { PaymentStatus } from '@/types/show-registration-types';
 
 export const REPORT_ENTRY_SOURCE = {
   MYK9: 'myk9',
@@ -25,9 +26,13 @@ export interface ReportEntry {
   totalFaults: number | null;
   finalPlacement: number | null;
   // Financial fields — populated when DB has entry_fee/payment columns
+  entryStatus?: string;
   entryFee?: number;
-  paymentStatus?: 'accepted' | 'waitlisted' | 'withdrawn';
+  paymentStatus?: PaymentStatus | 'paid' | 'refunded';
   paymentMethod?: string;
+  discountAmount?: number;
+  refundAmount?: number;
+  comped?: boolean;
   entrySource?: ReportEntrySource;
   isDayOfShow?: boolean;
   // Class/trial context — populated for show-level and trial-level catalog reports

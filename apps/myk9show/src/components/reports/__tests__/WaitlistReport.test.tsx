@@ -1,5 +1,6 @@
 import { render, screen } from '@/test/utils/testUtils';
 import { WaitlistReport } from '../WaitlistReport';
+import { PaymentStatus } from '@/types/show-registration-types';
 import type { ReportProps } from '@/lib/reports/types';
 
 const baseProps: ReportProps = {
@@ -22,8 +23,9 @@ const baseProps: ReportProps = {
       searchTimeSeconds: null,
       totalFaults: null,
       finalPlacement: null,
-      paymentStatus: 'waitlisted',
-      paymentMethod: 'Check',
+      entryStatus: 'waitlist',
+      paymentStatus: PaymentStatus.PENDING,
+      paymentMethod: 'check',
       entryFee: 25,
       trialId: 't1',
       trialNumber: '1',
@@ -48,8 +50,9 @@ const baseProps: ReportProps = {
       searchTimeSeconds: null,
       totalFaults: null,
       finalPlacement: null,
-      paymentStatus: 'waitlisted',
-      paymentMethod: 'PayPal',
+      entryStatus: 'waitlist',
+      paymentStatus: PaymentStatus.PENDING,
+      paymentMethod: 'credit_card',
       entryFee: 25,
       trialId: 't1',
       trialNumber: '1',
@@ -74,8 +77,9 @@ const baseProps: ReportProps = {
       searchTimeSeconds: null,
       totalFaults: null,
       finalPlacement: null,
-      paymentStatus: 'accepted',
-      paymentMethod: 'Check',
+      entryStatus: 'accepted',
+      paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      paymentMethod: 'check',
       entryFee: 25,
       trialId: 't1',
       trialNumber: '1',
@@ -120,7 +124,7 @@ describe('WaitlistReport', () => {
   it('shows empty state when no waitlisted entries', () => {
     const props = {
       ...baseProps,
-      entries: baseProps.entries.filter(e => e.paymentStatus === 'accepted'),
+      entries: baseProps.entries.filter(e => e.entryStatus === 'accepted'),
     };
     render(<WaitlistReport {...props} />);
     expect(screen.getByText(/No waitlisted entries/i)).toBeInTheDocument();

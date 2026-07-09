@@ -311,10 +311,10 @@ export const reportRegistry: ReportDefinition[] = [
     category: 'financial',
     scopes: ['show'],
     sortOptions: [
-      { value: 'accepted', label: 'Accepted Entries' },
+      { value: 'current', label: 'Current Entries' },
       { value: 'waitlist', label: 'Waitlisted Entries' },
     ],
-    defaultSort: 'accepted',
+    defaultSort: 'current',
     component: FinancialReport,
     enabled: true,
   },

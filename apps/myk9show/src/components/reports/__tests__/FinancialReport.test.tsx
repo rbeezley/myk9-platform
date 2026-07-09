@@ -1,11 +1,12 @@
 import { render, screen } from '@/test/utils/testUtils';
 import { FinancialReport } from '../FinancialReport';
+import { PaymentStatus } from '@/types/show-registration-types';
 import type { ReportProps } from '@/lib/reports/types';
 
 const baseProps: ReportProps = {
   showName: 'Spring Scent Trial 2026',
   organization: 'AKC',
-  sortOrder: 'accepted',
+  sortOrder: 'current',
   entries: [
     {
       id: 'e1',
@@ -23,8 +24,10 @@ const baseProps: ReportProps = {
       totalFaults: null,
       finalPlacement: null,
       entryFee: 25,
-      paymentStatus: 'accepted',
-      paymentMethod: 'Check',
+      entryStatus: 'accepted',
+      paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      paymentMethod: 'check',
+      trialNumber: '1',
     },
     {
       id: 'e2',
@@ -42,8 +45,11 @@ const baseProps: ReportProps = {
       totalFaults: null,
       finalPlacement: null,
       entryFee: 25,
-      paymentStatus: 'accepted',
-      paymentMethod: 'Check',
+      discountAmount: 5,
+      entryStatus: 'accepted',
+      paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      paymentMethod: 'check',
+      trialNumber: '1',
     },
     {
       id: 'e3',
@@ -61,8 +67,9 @@ const baseProps: ReportProps = {
       totalFaults: null,
       finalPlacement: null,
       entryFee: 30,
-      paymentStatus: 'accepted',
-      paymentMethod: 'PayPal',
+      entryStatus: 'accepted',
+      paymentStatus: PaymentStatus.PENDING,
+      trialNumber: '2',
     },
     {
       id: 'e4',
@@ -80,8 +87,9 @@ const baseProps: ReportProps = {
       totalFaults: null,
       finalPlacement: null,
       entryFee: 25,
-      paymentStatus: 'waitlisted',
-      paymentMethod: 'Check',
+      entryStatus: 'waitlist',
+      paymentStatus: PaymentStatus.PENDING,
+      trialNumber: '2',
     },
   ],
 };
@@ -98,21 +106,24 @@ describe('FinancialReport', () => {
     expect(screen.getByText('Bob Smith')).toBeInTheDocument();
   });
 
-  it('shows per-entry fee', () => {
+  it('shows per-entry gross fee', () => {
     render(<FinancialReport {...baseProps} />);
     const feeCells = screen.getAllByText('$25.00');
     expect(feeCells.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('shows exhibitor subtotal', () => {
+  it('shows exhibitor net retained subtotal', () => {
     render(<FinancialReport {...baseProps} />);
-    expect(screen.getByText('Jane Mitchell Subtotal: $50.00')).toBeInTheDocument();
+    expect(screen.getByText('Jane Mitchell Net Retained: $45.00')).toBeInTheDocument();
   });
 
-  it('shows grand total', () => {
+  it('shows closeout totals', () => {
     render(<FinancialReport {...baseProps} />);
-    // accepted entries: Jane $50 + Bob $30 = $80
-    expect(screen.getByText('Grand Total: $80.00')).toBeInTheDocument();
+    expect(screen.getByText('Current Entries')).toBeInTheDocument();
+    expect(screen.getByText('Payment Method Breakdown')).toBeInTheDocument();
+    expect(screen.getByText('Trial Breakdown')).toBeInTheDocument();
+    expect(screen.getByText('Net Retained: $45.00')).toBeInTheDocument();
+    expect(screen.getAllByText('$30.00').length).toBeGreaterThanOrEqual(1);
   });
 
   it('filters to waitlisted when sortOrder=waitlist', () => {
@@ -127,7 +138,7 @@ describe('FinancialReport', () => {
       <FinancialReport
         {...baseProps}
         sortOrder="waitlist"
-        entries={baseProps.entries.filter(e => e.paymentStatus === 'accepted')}
+        entries={baseProps.entries.filter(e => e.entryStatus === 'accepted')}
       />
     );
     expect(screen.getByText(/No entries match/i)).toBeInTheDocument();
@@ -149,7 +160,7 @@ describe('FinancialReport', () => {
       />
     );
 
-    const rows = screen.getAllByRole('row');
-    expect(rows[1].querySelectorAll('td')[1]).toHaveTextContent('—');
+    const noArmCell = screen.getByText('NoArm');
+    expect(noArmCell.parentElement?.querySelectorAll('td')[1]).toHaveTextContent('—');
   });
 });

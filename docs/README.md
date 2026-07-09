@@ -34,63 +34,63 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 ### Root — plans & playbooks
 
-| Doc                                                                                        | Status    | Title                                                                 |
-| ------------------------------------------------------------------------------------------ | --------- | --------------------------------------------------------------------- |
-| [DEFERRED-WORK.md](DEFERRED-WORK.md)                                                       | Reference | Deferred Work Items                                                   |
-| [INTENT.md](INTENT.md)                                                                     | Reference | myK9 Platform Intent Document                                         |
-| [admin-mcp-local-setup.md](admin-mcp-local-setup.md)                                       | Reference | Site-Admin MCP — local setup (read-only diagnostics)                 |
-| [ai-ux-adaptation.md](ai-ux-adaptation.md)                                                 | Reference | myK9 Adaptation Notes — "4 AI UX Prompts" Guide                       |
-| [codex-review-playbook.md](codex-review-playbook.md)                                       | Reference | Codex review playbook                                                 |
-| [feature-audit-2026.md](feature-audit-2026.md)                                             | Reference | Feature Audit — Fall 2026                                             |
-| [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                   | Active    | IA Review: Entry-Status Surfaces (cross-role)                         |
-| [ia-review-secretary-entry-management.md](ia-review-secretary-entry-management.md)          | Active    | IA Review: Secretary Entry Management (cognitive-load track)          |
-| [improve-audit-2026-06/README.md](improve-audit-2026-06/README.md)                         | Active    | Improve Audit — June 2026 (remaining plans 003–006)                  |
-| [improve-audit-2026-07/README.md](improve-audit-2026-07/README.md)                         | Active    | Production-Readiness Bug Audit — July 2026 (5 plans; reconciled vs UX walk) |
-| [launch-milestone-qa-checklist.md](launch-milestone-qa-checklist.md)                       | Reference | Launch-Milestone QA Checklist                                         |
-| [navigation-ia.md](navigation-ia.md)                                                       | Reference | Navigation & IA Sketch — Fall 2026                                    |
-| [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)             | Active    | Active-Docs Triage — 2026-06-14                                       |
-| [plan-architecture-deepening.md](plan-architecture-deepening.md)                           | Active    | Architecture Deepening Plan                                           |
-| [plan-asca-level-c-classes.md](plan-asca-level-c-classes.md)                               | Active    | ASCA Level C — seed continuation classes into the wizard template     |
-| [plan-askq-revival.md](plan-askq-revival.md)                                               | Active    | AskQ Revival & Simplification (select-then-bundle)                    |
-| [plan-atshow-ringside-writes.md](plan-atshow-ringside-writes.md)                           | Active    | At-Show Ringside — wire deferred writes + judge/steward write authz   |
-| [plan-block-person-delete-owns-dogs.md](plan-block-person-delete-owns-dogs.md)             | Active    | Block deleting a person who still owns dogs                           |
-| [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md)               | Active    | Plan — Class Status Auto-Derivation (Stub)                            |
-| [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                       | Active    | Data Access Module Drift Plan                                         |
-| [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md)                     | Complete  | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit) |
-| [plan-entries-read-consolidation.md](plan-entries-read-consolidation.md)                   | Active    | Entry-Read Module Consolidation (findings from Plan 004 spike)        |
-| [plan-show-details-step-extraction/README.md](plan-show-details-step-extraction/README.md) | Active    | Show Details Step Extraction (ShowDetailsStep.tsx hotspot follow-up)  |
-| [plan-entry-management-layout.md](plan-entry-management-layout.md)                         | Active    | Entry Management Layout Plan                                          |
-| [plan-entry-draw-lottery.md](plan-entry-draw-lottery.md)                                   | Active    | Entry Draw / Lottery — random-draw intake (depends on payment plan)   |
-| [plan-entry-payment-request.md](plan-entry-payment-request.md)                             | Active    | Entry Payment, Waitlist & Capacity (links, pay-to-claim, judge-day)   |
-| [plan-exhibitor-early-checkin.md](plan-exhibitor-early-checkin.md)                         | Active    | Exhibitor early check-in — toggle gate (P1 done) + /at-show fix (P2)  |
-| [plan-landing-hero-lcp-prerender.md](plan-landing-hero-lcp-prerender.md)                   | Active    | Landing-page mobile LCP — prerender + hydrate the hero                |
-| [plan-lane-2-2-entry-multiselect.md](plan-lane-2-2-entry-multiselect.md)                   | Active    | Plan: Lane 2.2 — Entry Management checkbox multi-select               |
-| [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                           | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                 |
-| [plan-money-path-hardening.md](plan-money-path-hardening.md)                               | Active    | Money-Path Hardening — pay→refund→payout remediation (4 HIGH from red-team) |
-| [plan-motion-consistency.md](plan-motion-consistency.md)                                   | Active    | Motion Consistency — one motion language across myK9Show + ringside  |
-| [plan-operator-docs-portal.md](plan-operator-docs-portal.md)                               | Deferred  | Gated Operator Docs Portal — searchable runbooks (deferred 2026-06-27)|
-| [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                         | Active    | Plan: Phase 4 seam render-only read strategy                          |
-| [plan-pull-management-split.md](plan-pull-management-split.md)                             | Active    | Pull Management — separate show-day pull state from refund accounting  |
-| [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                 | Active    | Plan: Server-side gate for public/anon scored results                 |
-| [plan-remove-unified-ringside-flag.md](plan-remove-unified-ringside-flag.md)               | Active    | Remove the `unified_ringside_enabled` feature flag (unblocks docs)    |
-| [plan-replication-occ-watermark-findings.md](plan-replication-occ-watermark-findings.md)   | Complete  | Replication OCC / Watermark Findings + S1/S2 Re-check                 |
-| [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)           | Active    | Replication INSERT retry idempotency — investigation verdict (B)      |
-| [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                           |
-| [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                       | Active    | Plan: Result Reveal + Share Card                                      |
-| [plan-ringside-entries-read-authz.md](plan-ringside-entries-read-authz.md)                 | Active    | Ringside entry-read authz — judge/steward/passcode see entries (RLS)  |
+| Doc                                                                                        | Status    | Title                                                                        |
+| ------------------------------------------------------------------------------------------ | --------- | ---------------------------------------------------------------------------- |
+| [DEFERRED-WORK.md](DEFERRED-WORK.md)                                                       | Reference | Deferred Work Items                                                          |
+| [INTENT.md](INTENT.md)                                                                     | Reference | myK9 Platform Intent Document                                                |
+| [admin-mcp-local-setup.md](admin-mcp-local-setup.md)                                       | Reference | Site-Admin MCP — local setup (read-only diagnostics)                         |
+| [ai-ux-adaptation.md](ai-ux-adaptation.md)                                                 | Reference | myK9 Adaptation Notes — "4 AI UX Prompts" Guide                              |
+| [codex-review-playbook.md](codex-review-playbook.md)                                       | Reference | Codex review playbook                                                        |
+| [feature-audit-2026.md](feature-audit-2026.md)                                             | Reference | Feature Audit — Fall 2026                                                    |
+| [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                   | Active    | IA Review: Entry-Status Surfaces (cross-role)                                |
+| [ia-review-secretary-entry-management.md](ia-review-secretary-entry-management.md)         | Active    | IA Review: Secretary Entry Management (cognitive-load track)                 |
+| [improve-audit-2026-06/README.md](improve-audit-2026-06/README.md)                         | Active    | Improve Audit — June 2026 (remaining plans 003–006)                          |
+| [improve-audit-2026-07/README.md](improve-audit-2026-07/README.md)                         | Active    | Production-Readiness Bug Audit — July 2026 (5 plans; reconciled vs UX walk)  |
+| [launch-milestone-qa-checklist.md](launch-milestone-qa-checklist.md)                       | Reference | Launch-Milestone QA Checklist                                                |
+| [navigation-ia.md](navigation-ia.md)                                                       | Reference | Navigation & IA Sketch — Fall 2026                                           |
+| [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)             | Active    | Active-Docs Triage — 2026-06-14                                              |
+| [plan-architecture-deepening.md](plan-architecture-deepening.md)                           | Active    | Architecture Deepening Plan                                                  |
+| [plan-asca-level-c-classes.md](plan-asca-level-c-classes.md)                               | Active    | ASCA Level C — seed continuation classes into the wizard template            |
+| [plan-askq-revival.md](plan-askq-revival.md)                                               | Active    | AskQ Revival & Simplification (select-then-bundle)                           |
+| [plan-atshow-ringside-writes.md](plan-atshow-ringside-writes.md)                           | Active    | At-Show Ringside — wire deferred writes + judge/steward write authz          |
+| [plan-block-person-delete-owns-dogs.md](plan-block-person-delete-owns-dogs.md)             | Active    | Block deleting a person who still owns dogs                                  |
+| [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md)               | Active    | Plan — Class Status Auto-Derivation (Stub)                                   |
+| [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                       | Active    | Data Access Module Drift Plan                                                |
+| [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md)                     | Complete  | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit)        |
+| [plan-entries-read-consolidation.md](plan-entries-read-consolidation.md)                   | Active    | Entry-Read Module Consolidation (findings from Plan 004 spike)               |
+| [plan-show-details-step-extraction/README.md](plan-show-details-step-extraction/README.md) | Active    | Show Details Step Extraction (ShowDetailsStep.tsx hotspot follow-up)         |
+| [plan-entry-management-layout.md](plan-entry-management-layout.md)                         | Active    | Entry Management Layout Plan                                                 |
+| [plan-entry-draw-lottery.md](plan-entry-draw-lottery.md)                                   | Active    | Entry Draw / Lottery — random-draw intake (depends on payment plan)          |
+| [plan-entry-payment-request.md](plan-entry-payment-request.md)                             | Active    | Entry Payment, Waitlist & Capacity (links, pay-to-claim, judge-day)          |
+| [plan-exhibitor-early-checkin.md](plan-exhibitor-early-checkin.md)                         | Active    | Exhibitor early check-in — toggle gate (P1 done) + /at-show fix (P2)         |
+| [plan-landing-hero-lcp-prerender.md](plan-landing-hero-lcp-prerender.md)                   | Active    | Landing-page mobile LCP — prerender + hydrate the hero                       |
+| [plan-lane-2-2-entry-multiselect.md](plan-lane-2-2-entry-multiselect.md)                   | Active    | Plan: Lane 2.2 — Entry Management checkbox multi-select                      |
+| [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                           | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                        |
+| [plan-money-path-hardening.md](plan-money-path-hardening.md)                               | Active    | Money-Path Hardening — pay→refund→payout remediation (4 HIGH from red-team)  |
+| [plan-motion-consistency.md](plan-motion-consistency.md)                                   | Active    | Motion Consistency — one motion language across myK9Show + ringside          |
+| [plan-operator-docs-portal.md](plan-operator-docs-portal.md)                               | Deferred  | Gated Operator Docs Portal — searchable runbooks (deferred 2026-06-27)       |
+| [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                         | Active    | Plan: Phase 4 seam render-only read strategy                                 |
+| [plan-pull-management-split.md](plan-pull-management-split.md)                             | Active    | Pull Management — separate show-day pull state from refund accounting        |
+| [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                 | Active    | Plan: Server-side gate for public/anon scored results                        |
+| [plan-remove-unified-ringside-flag.md](plan-remove-unified-ringside-flag.md)               | Active    | Remove the `unified_ringside_enabled` feature flag (unblocks docs)           |
+| [plan-replication-occ-watermark-findings.md](plan-replication-occ-watermark-findings.md)   | Complete  | Replication OCC / Watermark Findings + S1/S2 Re-check                        |
+| [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)           | Active    | Replication INSERT retry idempotency — investigation verdict (B)             |
+| [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                                  |
+| [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                       | Active    | Plan: Result Reveal + Share Card                                             |
+| [plan-ringside-entries-read-authz.md](plan-ringside-entries-read-authz.md)                 | Active    | Ringside entry-read authz — judge/steward/passcode see entries (RLS)         |
 | [plan-ringside-occ-conflict-storm.md](plan-ringside-occ-conflict-storm.md)                 | Active    | Ringside OCC conflict storm — high-CPU remediation (token advance + backoff) |
-| [plan-ringside-navigation.md](plan-ringside-navigation.md)                                 | Active    | Ringside navigation — permanent sidebar entry + smart /at-show landing |
-| [plan-show-day-sequencing.md](plan-show-day-sequencing.md)                                 | Active    | Plan — Show-Day Workflow Sequencing                                   |
-| [plan-site-admin-mcp-v1.md](plan-site-admin-mcp-v1.md)                                     | Active    | Site Admin MCP V1 Implementation Plan                                 |
-| [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                           | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                   |
-| [security-audit-2026-07/README.md](security-audit-2026-07/README.md)                       | Active    | Security Audit Remediation — July 2026 (17 findings; 0 P0/P1; 6 plans) |
-| [plan-ux-journey-audit.md](plan-ux-journey-audit.md)                                       | Active    | Plan: UX Journey Audit — Exhibitor & Secretary                        |
-| [plan-ux-journey-phase6.md](plan-ux-journey-phase6.md)                                     | Active    | Plan: UX Journey Audit — Phase 6 (Remediation Verification)           |
-| [plan-wave1-exhibitor-entry-payment-trust.md](plan-wave1-exhibitor-entry-payment-trust.md) | Active    | Wave 1 Exhibitor Entry And Payment Trust Implementation Plan          |
-| [plan-wave3a-at-show-phone-polish.md](plan-wave3a-at-show-phone-polish.md)                 | Active    | Wave 3A At-Show Phone Polish Plan                                     |
-| [plan-wave3b-results-my-shows-clarity.md](plan-wave3b-results-my-shows-clarity.md)         | Active    | Wave 3B Results and My Shows Clarity Plan                             |
-| [playbook-impeccable-page-improvements.md](playbook-impeccable-page-improvements.md)       | Reference | Impeccable Page-Improvement Playbook                                  |
-| [rulebooks/README.md](rulebooks/README.md)                                                 | Reference | Sport & Registry Rulebooks — source reference library                |
+| [plan-ringside-navigation.md](plan-ringside-navigation.md)                                 | Active    | Ringside navigation — permanent sidebar entry + smart /at-show landing       |
+| [plan-show-day-sequencing.md](plan-show-day-sequencing.md)                                 | Active    | Plan — Show-Day Workflow Sequencing                                          |
+| [plan-site-admin-mcp-v1.md](plan-site-admin-mcp-v1.md)                                     | Active    | Site Admin MCP V1 Implementation Plan                                        |
+| [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                           | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                          |
+| [security-audit-2026-07/README.md](security-audit-2026-07/README.md)                       | Active    | Security Audit Remediation — July 2026 (17 findings; 0 P0/P1; 6 plans)       |
+| [plan-ux-journey-audit.md](plan-ux-journey-audit.md)                                       | Active    | Plan: UX Journey Audit — Exhibitor & Secretary                               |
+| [plan-ux-journey-phase6.md](plan-ux-journey-phase6.md)                                     | Active    | Plan: UX Journey Audit — Phase 6 (Remediation Verification)                  |
+| [plan-wave1-exhibitor-entry-payment-trust.md](plan-wave1-exhibitor-entry-payment-trust.md) | Active    | Wave 1 Exhibitor Entry And Payment Trust Implementation Plan                 |
+| [plan-wave3a-at-show-phone-polish.md](plan-wave3a-at-show-phone-polish.md)                 | Active    | Wave 3A At-Show Phone Polish Plan                                            |
+| [plan-wave3b-results-my-shows-clarity.md](plan-wave3b-results-my-shows-clarity.md)         | Active    | Wave 3B Results and My Shows Clarity Plan                                    |
+| [playbook-impeccable-page-improvements.md](playbook-impeccable-page-improvements.md)       | Reference | Impeccable Page-Improvement Playbook                                         |
+| [rulebooks/README.md](rulebooks/README.md)                                                 | Reference | Sport & Registry Rulebooks — source reference library                        |
 
 ### plans/ — feature & phase plans
 
@@ -128,23 +128,23 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 ### audits/ — active audits
 
-| Doc                                                                                                              | Status    | Title                              |
-| ---------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------- |
-| [audits/2026-06-28-overnight-launch-readiness-sweep.md](audits/2026-06-28-overnight-launch-readiness-sweep.md)   | Active    | Overnight Launch-Readiness Sweep   |
-| [audits/2026-07-01-show-creation-wizard-ux.md](audits/2026-07-01-show-creation-wizard-ux.md)                     | Active    | UX Findings — Show Creation Wizard |
-| [audits/2026-07-01-secretary-journey-ux-audit.md](audits/2026-07-01-secretary-journey-ux-audit.md)               | Active    | UX Audit — Secretary Journey Walkthrough |
+| Doc                                                                                                              | Status    | Title                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| [audits/2026-06-28-overnight-launch-readiness-sweep.md](audits/2026-06-28-overnight-launch-readiness-sweep.md)   | Active    | Overnight Launch-Readiness Sweep                                                                                                               |
+| [audits/2026-07-01-show-creation-wizard-ux.md](audits/2026-07-01-show-creation-wizard-ux.md)                     | Active    | UX Findings — Show Creation Wizard                                                                                                             |
+| [audits/2026-07-01-secretary-journey-ux-audit.md](audits/2026-07-01-secretary-journey-ux-audit.md)               | Active    | UX Audit — Secretary Journey Walkthrough                                                                                                       |
 | [audits/2026-07-01-ui-verification-matrix.md](audits/2026-07-01-ui-verification-matrix.md)                       | Active    | UI Verification Matrix — Theme × Viewport × A11y (+ [icon-button appendix](audits/2026-07-01-ui-verification-matrix-appendix-icon-buttons.md)) |
-| [audits/2026-06-code-quality/08-config-flag-debt.md](audits/2026-06-code-quality/08-config-flag-debt.md)         | Active    | 08 Config And Flag Debt            |
-| [audits/2026-06-code-quality/09-phase-2-verification.md](audits/2026-06-code-quality/09-phase-2-verification.md) | Active    | 09 Phase 2 Verification            |
-| [audits/2026-06-code-quality/README.md](audits/2026-06-code-quality/README.md)                                   | Reference | Code-Quality Audit Run             |
-| [audits/2026-06-code-quality/SUMMARY.md](audits/2026-06-code-quality/SUMMARY.md)                                 | Active    | Code-Quality Audit Summary         |
-| [audits/2026-06-proactive-qa/db-advisors.md](audits/2026-06-proactive-qa/db-advisors.md)                         | Active    | Database Drift Checks — 2026-06-12 |
-| [audits/2026-06-ux-journeys/00-recon.md](audits/2026-06-ux-journeys/00-recon.md)                                 | Reference | UX Journey Audit Recon             |
-| [audits/2026-06-ux-journeys/01-exhibitor-journey.md](audits/2026-06-ux-journeys/01-exhibitor-journey.md)         | Active    | UX Audit: Exhibitor Journey        |
-| [audits/2026-06-ux-journeys/02-secretary-journey.md](audits/2026-06-ux-journeys/02-secretary-journey.md)         | Active    | UX Audit: Secretary Journey        |
-| [audits/2026-06-ux-journeys/03-cross-role-seams.md](audits/2026-06-ux-journeys/03-cross-role-seams.md)           | Active    | UX Audit: Cross-Role Seams         |
-| [audits/2026-06-ux-journeys/SUMMARY.md](audits/2026-06-ux-journeys/SUMMARY.md)                                   | Active    | UX Journey Audit Summary           |
-| [audits/REVIEW.md](audits/REVIEW.md)                                                                             | Reference | Code Review Guidelines             |
+| [audits/2026-06-code-quality/08-config-flag-debt.md](audits/2026-06-code-quality/08-config-flag-debt.md)         | Active    | 08 Config And Flag Debt                                                                                                                        |
+| [audits/2026-06-code-quality/09-phase-2-verification.md](audits/2026-06-code-quality/09-phase-2-verification.md) | Active    | 09 Phase 2 Verification                                                                                                                        |
+| [audits/2026-06-code-quality/README.md](audits/2026-06-code-quality/README.md)                                   | Reference | Code-Quality Audit Run                                                                                                                         |
+| [audits/2026-06-code-quality/SUMMARY.md](audits/2026-06-code-quality/SUMMARY.md)                                 | Active    | Code-Quality Audit Summary                                                                                                                     |
+| [audits/2026-06-proactive-qa/db-advisors.md](audits/2026-06-proactive-qa/db-advisors.md)                         | Active    | Database Drift Checks — 2026-06-12                                                                                                             |
+| [audits/2026-06-ux-journeys/00-recon.md](audits/2026-06-ux-journeys/00-recon.md)                                 | Reference | UX Journey Audit Recon                                                                                                                         |
+| [audits/2026-06-ux-journeys/01-exhibitor-journey.md](audits/2026-06-ux-journeys/01-exhibitor-journey.md)         | Active    | UX Audit: Exhibitor Journey                                                                                                                    |
+| [audits/2026-06-ux-journeys/02-secretary-journey.md](audits/2026-06-ux-journeys/02-secretary-journey.md)         | Active    | UX Audit: Secretary Journey                                                                                                                    |
+| [audits/2026-06-ux-journeys/03-cross-role-seams.md](audits/2026-06-ux-journeys/03-cross-role-seams.md)           | Active    | UX Audit: Cross-Role Seams                                                                                                                     |
+| [audits/2026-06-ux-journeys/SUMMARY.md](audits/2026-06-ux-journeys/SUMMARY.md)                                   | Active    | UX Journey Audit Summary                                                                                                                       |
+| [audits/REVIEW.md](audits/REVIEW.md)                                                                             | Reference | Code Review Guidelines                                                                                                                         |
 
 ### qa/ — quality system
 
@@ -195,14 +195,16 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 ### roles/ — role definitions
 
-| Doc                                        | Status    | Title                                         |
-| ------------------------------------------ | --------- | --------------------------------------------- |
-| [roles/admin.md](roles/admin.md)           | Reference | Role: Site Admin                              |
-| [roles/club-admin.md](roles/club-admin.md) | Reference | Role: Club Admin                              |
-| [roles/exhibitor.md](roles/exhibitor.md)   | Reference | Role: Exhibitor                               |
-| [roles/judge.md](roles/judge.md)           | Reference | Role: Judge (stub — deferred for fall 2026)   |
-| [roles/secretary.md](roles/secretary.md)   | Reference | Role: Secretary                               |
-| [roles/steward.md](roles/steward.md)       | Reference | Role: Steward (stub — deferred for fall 2026) |
+| Doc                                                                                                        | Status    | Title                                         |
+| ---------------------------------------------------------------------------------------------------------- | --------- | --------------------------------------------- |
+| [roles/admin.md](roles/admin.md)                                                                           | Reference | Role: Site Admin                              |
+| [roles/club-admin.md](roles/club-admin.md)                                                                 | Reference | Role: Club Admin                              |
+| [roles/exhibitor.md](roles/exhibitor.md)                                                                   | Reference | Role: Exhibitor                               |
+| [roles/judge.md](roles/judge.md)                                                                           | Reference | Role: Judge (stub — deferred for fall 2026)   |
+| [roles/secretary.md](roles/secretary.md)                                                                   | Reference | Role: Secretary                               |
+| [roles/secretary-responsibility-coverage.md](roles/secretary-responsibility-coverage.md)                   | Active    | Secretary Responsibility Coverage Matrix      |
+| [roles/secretary-responsibility-verification-plan.md](roles/secretary-responsibility-verification-plan.md) | Active    | Secretary Responsibility Verification Plan    |
+| [roles/steward.md](roles/steward.md)                                                                       | Reference | Role: Steward (stub — deferred for fall 2026) |
 
 ### testing/ — golden-path checklists
 

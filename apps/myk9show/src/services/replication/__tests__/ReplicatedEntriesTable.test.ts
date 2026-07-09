@@ -118,6 +118,9 @@ describe('ReplicatedEntriesTable', () => {
         show_id: 'show-1',
         dog_id: 'dog-1',
         is_in_ring: true,
+        discount_amount: 7.5,
+        comped: true,
+        comped_reason: 'Judge comp',
         refund_amount: 12.5,
         refunded_at: '2026-06-01T12:00:00.000Z',
         stripe_payment_intent_id: 'pi_secretary_123',
@@ -126,6 +129,11 @@ describe('ReplicatedEntriesTable', () => {
 
       expect(entry.isInRing).toBe(true);
       expect(entry.is_in_ring).toBe(true);
+      expect(entry.discountAmount).toBe(7.5);
+      expect(entry.discount_amount).toBe(7.5);
+      expect(entry.comped).toBe(true);
+      expect(entry.compedReason).toBe('Judge comp');
+      expect(entry.comped_reason).toBe('Judge comp');
       expect(entry.refundAmount).toBe(12.5);
       expect(entry.refund_amount).toBe(12.5);
       expect(entry.refundedAt).toBe('2026-06-01T12:00:00.000Z');
@@ -672,7 +680,10 @@ describe('ReplicatedEntriesTable', () => {
         }),
         undefined,
         // result_status + final_placement are ringside-whitelisted → routes via RPC.
-        { name: 'ringside_update_entry', fields: { result_status: 'pending', final_placement: null } }
+        {
+          name: 'ringside_update_entry',
+          fields: { result_status: 'pending', final_placement: null },
+        }
       );
     });
 

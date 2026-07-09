@@ -122,10 +122,15 @@ export function useOptimisticScoring() {
           t ? convertTimeToSeconds(t) : 0
         );
         const detailFields: Partial<ReplicatedEntry> = {};
-        if (areaSeconds[0] !== undefined) detailFields.area1_time_seconds = areaSeconds[0];
-        if (areaSeconds[1] !== undefined) detailFields.area2_time_seconds = areaSeconds[1];
-        if (areaSeconds[2] !== undefined) detailFields.area3_time_seconds = areaSeconds[2];
-        if (areaSeconds[3] !== undefined) detailFields.area4_time_seconds = areaSeconds[3];
+        // A full score submit is authoritative for all four area columns: write
+        // each one, clearing an omitted/cleared area to null. Blank times are
+        // filtered from areaTimes, so a rescore that drops a later area sends a
+        // shorter array — writing null (not omitting) overwrites the stale value
+        // instead of leaving the old area2/3/4 time on the entry and in reports.
+        detailFields.area1_time_seconds = areaSeconds[0] ?? null;
+        detailFields.area2_time_seconds = areaSeconds[1] ?? null;
+        detailFields.area3_time_seconds = areaSeconds[2] ?? null;
+        detailFields.area4_time_seconds = areaSeconds[3] ?? null;
         if (scoreData.correctCount !== undefined)
           detailFields.total_correct_finds = scoreData.correctCount;
         if (scoreData.incorrectCount !== undefined)

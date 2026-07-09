@@ -131,6 +131,9 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     expect(payload.area1_time_seconds).toBe(45);
     expect(payload.area2_time_seconds).toBe(30);
     expect(payload.area3_time_seconds).toBe(15);
+    // Only 3 areas supplied → the 4th is written as null (authoritative full
+    // submit), not omitted, so a dropped area can't leave a stale time.
+    expect(payload.area4_time_seconds).toBeNull();
     // Counts + points mapped to their DB column names.
     expect(payload.total_correct_finds).toBe(3);
     expect(payload.total_incorrect_finds).toBe(1);

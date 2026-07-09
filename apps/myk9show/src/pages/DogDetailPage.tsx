@@ -7,7 +7,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import DogDetailsMain from '@/components/dogs/DogDetailsMain';
-import type { Dog } from '@/types/dog-types';
+import { getDogDisplayName, type Dog } from '@/types/dog-types';
 
 /**
  * DogDetailPage is a thin wrapper around DogDetailsMain for the /dogs/:id route.
@@ -57,7 +57,9 @@ const DogDetailPage: React.FC = () => {
   async function handleDeleteDog() {
     if (!dog) return;
     try {
-      const dogName = dog.callName;
+      // callName is optional; fall back to the registered name so a dog
+      // without a nickname never yields "undefined was deleted."
+      const dogName = getDogDisplayName(dog);
       await deleteDog(dog.id, userWithRoles?.id);
       notifications.success(`${dogName} was deleted.`);
       navigate('/dogs', { replace: true });

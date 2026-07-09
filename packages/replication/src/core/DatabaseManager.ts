@@ -18,9 +18,15 @@ import {
   DB_INIT_TIMEOUT_MS,
   INIT_RETRY_DELAY_MS,
   DELETE_DB_TIMEOUT_MS,
+  RECOVERY_SNAPSHOT_TIMEOUT_MS,
   CIRCUIT_BREAKER_THRESHOLD,
 } from '../constants';
 import { withTimeout } from '../mutation-utils';
+import {
+  writeMutationBackup,
+  parseMutationBackup,
+  MUTATION_BACKUP_STORAGE_KEY,
+} from '../mutation-backup';
 
 /**
  * Object store names for the replication system
@@ -462,6 +468,55 @@ export class DatabaseManager {
     this.isRecovering = true;
 
     this.logger.warn(`[DatabaseManager] Starting auto-recovery...`);
+
+    // Snapshot pending + failed mutations to localStorage BEFORE we delete the
+    // DB, so a circuit-breaker wipe cannot destroy unsynced or dead-lettered
+    // scores. Best-effort: the DB may already be failing, so any read error is
+    // swallowed — the continuous backup written on every mutation change is the
+    // primary safety net; this is belt-and-suspenders for the just-changed case.
+    // The matching restore runs after re-open via the 'replication:recovery'
+    // event handler calling restoreMutationsFromLocalStorage().
+    if (sharedDB && typeof window !== 'undefined') {
+      try {
+        // Time-box the reads: recover() runs precisely when IndexedDB may be
+        // wedged, and an un-bounded getAll could hang forever — blocking the
+        // delete/reopen below and the recovery event, leaving the app stuck. On
+        // timeout we skip the snapshot and proceed; the continuous backup written
+        // on every mutation change is the fallback.
+        const [pending, failed] = await withTimeout(
+          Promise.all([
+            sharedDB.getAll(REPLICATION_STORES.PENDING_MUTATIONS),
+            sharedDB.getAll(REPLICATION_STORES.FAILED_MUTATIONS),
+          ]),
+          RECOVERY_SNAPSHOT_TIMEOUT_MS,
+          'recovery-snapshot'
+        );
+        // UNION with the existing continuous backup rather than overwrite it. The
+        // DB is failing here, so getAll could return a truncated-but-not-throwing
+        // partial set; a plain overwrite would then shrink a more-complete backup
+        // and lose exactly the scores this snapshot protects. Merging by id keeps
+        // every mutation from both sources (replay is idempotent via INSERT/OCC).
+        const existing = parseMutationBackup(localStorage.getItem(MUTATION_BACKUP_STORAGE_KEY));
+        const byId = new Map<string, (typeof pending)[number]>();
+        for (const m of [...existing.mutations, ...existing.failedMutations]) {
+          byId.set((m as { id: string }).id, m as unknown as (typeof pending)[number]);
+        }
+        for (const m of [...pending, ...failed]) byId.set((m as { id: string }).id, m);
+        const union = Array.from(byId.values());
+        if (union.length > 0) {
+          writeMutationBackup(localStorage, union as Parameters<typeof writeMutationBackup>[1]);
+          this.logger.log(
+            `[DatabaseManager] Snapshotted ${union.length} mutation(s) before recovery ` +
+              `(${pending.length} pending + ${failed.length} failed read, unioned with backup)`
+          );
+        }
+      } catch (snapshotError) {
+        this.logger.warn(
+          `[DatabaseManager] Could not snapshot mutations before recovery (continuous backup still applies)`,
+          snapshotError
+        );
+      }
+    }
 
     if (sharedDB) {
       try {

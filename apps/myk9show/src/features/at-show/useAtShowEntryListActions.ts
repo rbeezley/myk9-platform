@@ -19,12 +19,14 @@ import { useCallback, useRef, useState } from 'react';
 import type { EntryListActions } from '@myk9/ringside';
 import type { EntryStatus } from '@myk9/core';
 import { logger } from '@/utils/logger';
+import { usePendingMutationCount } from '@/hooks/usePendingMutationCount';
 import {
   updateReplicatedCheckInStatus,
   updateSelfCheckInStatus,
   type CheckInWriter,
 } from '@/services/show-day/checkInStatus';
 import { replicatedEntriesTable } from '@/services/replication';
+import { SCORE_DETAIL_CLEAR_FIELDS } from '@/services/replication/scoreResetFields';
 
 export interface UseAtShowEntryListActionsDeps {
   /** Refresh callback from the data hook; awaited after a successful mutation. */
@@ -72,6 +74,9 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
   const writer: CheckInWriter = deps.writer ?? 'replicated';
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasError, setHasError] = useState(false);
+  // Real count of queued-but-unsynced writes — powers the header's "N waiting to
+  // sync" signal so a judge can tell whether it's safe to close the iPad.
+  const pendingCount = usePendingMutationCount();
   // Tracks concurrent in-flight mutations so `isSyncing` only clears when the
   // last one settles (useState lags within a sync burst).
   const inFlight = useRef(0);
@@ -170,6 +175,7 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
           scoringCompletedAt: null,
           scoring_completed_at: null,
           disqualification_reason: null,
+          ...SCORE_DETAIL_CLEAR_FIELDS,
         });
         await refresh();
       });
@@ -186,5 +192,6 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
     handleBatchStatusUpdate,
     isSyncing,
     hasError,
+    pendingCount,
   };
 }

@@ -145,7 +145,7 @@ export type PullToRefreshState = 'idle' | 'pulling' | 'ready' | 'refreshing' | '
  * `EntryListActions.{isSyncing,hasError}` plus the network state it
  * already tracks.
  */
-export type SyncIndicatorStatus = 'synced' | 'syncing' | 'offline' | 'error';
+export type SyncIndicatorStatus = 'synced' | 'syncing' | 'pending' | 'offline' | 'error';
 
 /**
  * Sort-option descriptor for the filter panel. The page builds the

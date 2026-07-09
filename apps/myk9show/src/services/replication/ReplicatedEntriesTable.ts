@@ -99,6 +99,33 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       total_faults: entry.totalFaults ?? entry.total_faults ?? null,
       judge_notes: entry.judgeNotes ?? entry.judge_notes ?? null,
       scoring_completed_at: entry.scoringCompletedAt ?? entry.scoring_completed_at ?? null,
+      // Detailed scent-work scoring (ringside-RPC whitelisted). Include a column
+      // ONLY when the local row actually has it (`!== undefined`), NOT `?? null`.
+      // An entry replica cached before these fields were mapped lacks them; a
+      // full-row direct UPDATE (e.g. a manager editing a non-ringside column)
+      // would otherwise serialize them as null and wipe already-saved area
+      // times/counts/points on the server. Omitting an unset column leaves the
+      // server value untouched; an explicit null (a real clear) is still written.
+      ...(entry.area1_time_seconds !== undefined && {
+        area1_time_seconds: entry.area1_time_seconds,
+      }),
+      ...(entry.area2_time_seconds !== undefined && {
+        area2_time_seconds: entry.area2_time_seconds,
+      }),
+      ...(entry.area3_time_seconds !== undefined && {
+        area3_time_seconds: entry.area3_time_seconds,
+      }),
+      ...(entry.area4_time_seconds !== undefined && {
+        area4_time_seconds: entry.area4_time_seconds,
+      }),
+      ...(entry.total_correct_finds !== undefined && {
+        total_correct_finds: entry.total_correct_finds,
+      }),
+      ...(entry.total_incorrect_finds !== undefined && {
+        total_incorrect_finds: entry.total_incorrect_finds,
+      }),
+      ...(entry.no_finish_count !== undefined && { no_finish_count: entry.no_finish_count }),
+      ...(entry.points_earned !== undefined && { points_earned: entry.points_earned }),
       // Only write placement if result is qualified — NQ/absent/etc. should never have a placement
       final_placement:
         entry.resultStatus && entry.resultStatus !== 'qualified'
@@ -348,7 +375,6 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _syncStatus: 'pending',
     };
 
-    await this.set(entryId, updated, true);
     const supabaseRow = this.toSupabaseRow(updated);
     // Auto-route ringside-only writes (scoring/run-order/check-in/placement)
     // through the SECURITY DEFINER RPC so assigned judges / stewards — who are
@@ -356,13 +382,35 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // any non-ringside column fall through to the direct UPDATE. See
     // ./ringsideEntryRpc.ts.
     const rpcFields = buildRingsideRpcFields(Object.keys(updates), supabaseRow);
+
+    // Durable-first: queue the mutation BEFORE mutating the local cache. If the
+    // queue write THROWS (overflow/quota), the optimistic cache is never touched,
+    // so we don't strand a dirty row that shows as saved but has no mutation to
+    // upload — the caller's error path leaves the list unchanged. (There is no
+    // orphan-repair to rescue such a row.) The OCC serverVersion precondition
+    // reads the pre-update cache row, which our optimistic edit hasn't changed.
+    //
+    // A `null` return means no MutationManager is wired (a dev/test or
+    // misconfiguration case, never production, where the provider always wires
+    // it). We still update the cache so offline-cache behavior works; the scoring
+    // caller separately treats `null` as a failure and surfaces it.
+    //
+    // deferUpload: don't let the auto-upload flush (and delete) this mutation
+    // before the dirty cache row exists — otherwise, when online with slow
+    // storage, the row could be written dirty AFTER its mutation was already
+    // uploaded+removed, stranding it as pending forever. We trigger the upload
+    // ourselves after set() below.
     const mutationId = await this.queueMutation(
       'UPDATE',
       entryId,
       supabaseRow,
       undefined,
-      rpcFields ? { name: RINGSIDE_RPC_FUNCTION, fields: rpcFields } : undefined
+      rpcFields ? { name: RINGSIDE_RPC_FUNCTION, fields: rpcFields } : undefined,
+      /* deferUpload */ true
     );
+
+    await this.set(entryId, updated, true);
+    this.requestUpload();
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId}`);
     return mutationId;

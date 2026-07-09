@@ -66,10 +66,11 @@ describe('classifyMutationFailure', () => {
     expect(result.mutation.nextRetryAt).toBeUndefined();
   });
 
-  it('marks non-retryable errors as failed immediately', () => {
+  it('marks affirmatively-permanent errors as failed immediately', () => {
     const result = classifyMutationFailure({
       mutation: mutation({ retries: 0 }),
-      error: new Error('Validation failed'),
+      // RLS / permission denials never succeed on retry → dead-letter at once.
+      error: new Error('permission denied for table entries'),
       maxRetries: 3,
       retryBackoffBase: 10,
       now: 3_000,
@@ -80,13 +81,13 @@ describe('classifyMutationFailure', () => {
     expect(result.mutation).toMatchObject({
       retries: 1,
       status: 'failed',
-      error: 'Non-retryable error: Validation failed',
+      error: 'Non-retryable error: permission denied for table entries',
       failedAt: 3_000,
     });
     expect(result.mutation.nextRetryAt).toBeUndefined();
   });
 
-  it('stringifies non-Error values safely', () => {
+  it('FAIL-OPEN: an ambiguous non-Error value is retried, not dead-lettered', () => {
     const result = classifyMutationFailure({
       mutation: mutation(),
       error: 'plain failure',
@@ -95,7 +96,13 @@ describe('classifyMutationFailure', () => {
       now: 4_000,
     });
 
+    // Message is still stringified safely...
     expect(result.message).toBe('plain failure');
-    expect(result.mutation.error).toBe('Non-retryable error: plain failure');
+    // ...but an unrecognized error keeps its retry budget so no score is lost.
+    expect(result.canRetry).toBe(true);
+    expect(result.permanentlyFailed).toBe(false);
+    expect(result.mutation.status).toBe('pending');
+    expect(result.mutation.error).toBe('plain failure');
+    expect(result.mutation.nextRetryAt).toBeGreaterThanOrEqual(4_000);
   });
 });

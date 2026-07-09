@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   CheckCircle,
   CloudOff,
+  CloudUpload,
   RefreshCw,
   SlidersHorizontal,
   type LucideIcon,
@@ -67,9 +68,11 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
       ? CheckCircle
       : status === 'syncing'
         ? RefreshCw
-        : status === 'offline'
-          ? CloudOff
-          : AlertCircle;
+        : status === 'pending'
+          ? CloudUpload
+          : status === 'offline'
+            ? CloudOff
+            : AlertCircle;
   const label = getSyncLabel(status);
   const hasPending = typeof pendingCount === 'number' && pendingCount > 0;
 

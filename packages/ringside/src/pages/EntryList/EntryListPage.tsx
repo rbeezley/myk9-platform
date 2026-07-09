@@ -248,6 +248,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         isRefreshing={isRefreshing || isManualRefreshing}
         isSyncing={isSyncing}
         hasError={hasError}
+        pendingCount={actions.pendingCount}
         hasActiveFilters={hasActiveFilters}
         onFilterClick={() => setIsFilterPanelOpen(true)}
         onRefresh={handlers.handleManualRefresh}

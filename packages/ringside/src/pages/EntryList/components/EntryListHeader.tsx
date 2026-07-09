@@ -42,6 +42,8 @@ export interface EntryListHeaderProps {
   isRefreshing: boolean;
   isSyncing: boolean;
   hasError: boolean;
+  /** Count of writes queued locally but not yet synced (see EntryListActions). */
+  pendingCount?: number;
   hasActiveFilters: boolean;
   onFilterClick: () => void;
   onRefresh: () => void;
@@ -76,6 +78,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   isRefreshing,
   isSyncing,
   hasError,
+  pendingCount,
   hasActiveFilters,
   onFilterClick,
   onRefresh,
@@ -216,18 +219,13 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
       <div className="relative z-[100] ml-auto flex shrink-0 items-center gap-2">
         {isRefreshing && <RefreshIndicator isRefreshing={isRefreshing} />}
 
-        {isSyncing && (
-          <SyncIndicator
-            status="syncing"
-            compact
-          />
-        )}
-        {hasError && (
-          <SyncIndicator
-            status="error"
-            compact
-            errorMessage="Sync failed"
-          />
+        {isSyncing && <SyncIndicator status="syncing" compact pendingCount={pendingCount} />}
+        {hasError && <SyncIndicator status="error" compact errorMessage="Sync failed" />}
+        {/* Idle but with queued writes: show "N waiting to sync" so a judge can
+            tell whether it's safe to close the iPad, not just while a sync is
+            actively running (audit H3). */}
+        {!isSyncing && !hasError && typeof pendingCount === 'number' && pendingCount > 0 && (
+          <SyncIndicator status="pending" compact pendingCount={pendingCount} />
         )}
 
         {/* Filter button */}

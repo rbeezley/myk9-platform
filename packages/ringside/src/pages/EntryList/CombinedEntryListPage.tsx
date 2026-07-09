@@ -282,6 +282,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
         isRefreshing={isRefreshing}
         isSyncing={isSyncing}
         hasError={hasError}
+        pendingCount={actions.pendingCount}
         hasActiveFilters={hasActiveFilters}
         onFilterClick={() => setIsFilterPanelOpen(true)}
         onRefresh={() => refresh(true)}

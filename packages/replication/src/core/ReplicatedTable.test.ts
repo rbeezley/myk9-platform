@@ -97,6 +97,26 @@ describe('ReplicatedTable', () => {
       expect(result).not.toBeNull();
     });
 
+    // Regression: getReplicatedRow's access-tracking write must NOT clobber a
+    // concurrent dirty set. The old split-transaction version read a clean row,
+    // then put the whole stale copy back — reverting a score save that landed in
+    // between (July 2026 audit finding C3). The fix re-reads inside a single
+    // readwrite tx and bumps only access-stat fields.
+    it('should NOT drop a concurrent dirty write during getReplicatedRow access-tracking', async () => {
+      const clean: TestEntity = { id: '1', name: 'Rex', score: 0 };
+      await table.set('1', clean); // clean baseline
+
+      // A read (which triggers access-tracking) races a dirty score save.
+      const scored: TestEntity = { id: '1', name: 'Rex', score: 100 };
+      await Promise.all([table.getReplicatedRow('1'), table.set('1', scored, true)]);
+
+      const row = await table.getReplicatedRow('1');
+      expect(row).not.toBeNull();
+      // The dirty flag and the new score must both survive the interleaving.
+      expect(row!.isDirty).toBe(true);
+      expect(row!.data.score).toBe(100);
+    });
+
     it('should throw on version conflict with expectedVersion', async () => {
       const entity: TestEntity = { id: '1', name: 'Rex' };
       await table.set('1', entity); // version = 1

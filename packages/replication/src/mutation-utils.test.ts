@@ -82,10 +82,19 @@ describe('isRetryableError', () => {
       expect(isRetryableError(new Error('RLS policy blocked INSERT'))).toBe(false);
     });
 
-    it('defaults to false for unknown error shapes', () => {
-      expect(isRetryableError(new Error('something else'))).toBe(false);
-      expect(isRetryableError('plain string')).toBe(false);
-      expect(isRetryableError(null)).toBe(false);
+    // FAIL-OPEN (audit H2): a score must never be discarded because an ambiguous
+    // error was pattern-missed. Anything not affirmatively permanent retries.
+    it('defaults to TRUE (retryable) for unknown/ambiguous error shapes', () => {
+      expect(isRetryableError(new Error('something else'))).toBe(true);
+      expect(isRetryableError('plain string')).toBe(true);
+      expect(isRetryableError(null)).toBe(true);
+    });
+
+    it('still dead-letters affirmatively-permanent errors', () => {
+      expect(isRetryableError(new Error('permission denied for table entries'))).toBe(false);
+      expect(isRetryableError(new Error('new row violates check constraint'))).toBe(false);
+      expect(isRetryableError({ message: 'nope', code: '23505' })).toBe(false); // unique violation
+      expect(isRetryableError({ message: 'denied', code: '42501' })).toBe(false); // RLS
     });
   });
 
@@ -97,16 +106,17 @@ describe('isRetryableError', () => {
     //
     // The fix: tighten the type guard so a non-string `code` disqualifies an
     // error from the Supabase branch. The error should fall through to the
-    // generic-Error path (and from there to the "unknown → don't retry"
-    // default) without ever throwing.
+    // generic-Error path without ever throwing. Under the fail-open default
+    // (audit H2), an unrecognized DOMException is now retryable rather than
+    // silently dead-lettered.
     it('does not throw when error has a numeric code (DOMException shape)', () => {
       const domLike = { message: 'NotFoundError', code: 8, name: 'NotFoundError' };
       expect(() => isRetryableError(domLike)).not.toThrow();
     });
 
-    it('returns false (not retryable) for DOMException-shaped object', () => {
+    it('returns TRUE (fail-open retry) for an ambiguous DOMException-shaped object', () => {
       const domLike = { message: 'NotFoundError', code: 8 };
-      expect(isRetryableError(domLike)).toBe(false);
+      expect(isRetryableError(domLike)).toBe(true);
     });
 
     it('does not throw for an actual DOMException instance when available', () => {

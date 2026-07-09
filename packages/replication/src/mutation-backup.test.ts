@@ -64,7 +64,7 @@ describe('parseMutationBackup', () => {
     expect(result.malformedCount).toBe(4);
   });
 
-  it('filters failed mutations before restore', () => {
+  it('separates failed mutations from the active queue but PRESERVES them for restore', () => {
     const pending = mutation({ id: 'pending' });
     const failed = mutation({
       id: 'failed',
@@ -75,7 +75,11 @@ describe('parseMutationBackup', () => {
 
     const result = parseMutationBackup(JSON.stringify([pending, failed]));
 
+    // Pending mutations restore into the active queue.
     expect(result.mutations.map(m => m.id)).toEqual(['pending']);
+    // Failed mutations are NOT discarded — they are returned separately so a
+    // DB-wipe recovery can restore them into the failed store for review.
+    expect(result.failedMutations.map(m => m.id)).toEqual(['failed']);
     expect(result.failedCount).toBe(1);
   });
 });

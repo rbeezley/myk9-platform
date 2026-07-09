@@ -455,10 +455,15 @@ export function toOptimisticScorePayload(scoreData: ScoreData): ScoreSubmissionD
     ...(scoreData.nonQualifyingReason && { nonQualifyingReason: scoreData.nonQualifyingReason }),
     ...(scoreData.element && { element: scoreData.element }),
     ...(scoreData.level && { level: scoreData.level }),
-    ...(scoreData.correctCount > 0 && { correctCount: scoreData.correctCount }),
-    ...(scoreData.incorrectCount > 0 && { incorrectCount: scoreData.incorrectCount }),
-    ...(scoreData.finishCallErrors > 0 && { finishCallErrors: scoreData.finishCallErrors }),
-    ...(scoreData.points > 0 && { points: scoreData.points }),
+    // Pass the scoresheet's ACTUAL count/point values, including a real 0. These
+    // are authoritative for a full score submission, so stripping zeros made a
+    // correction from N→0 omit the field — leaving the cached (nonzero) value to
+    // re-upload and go stale on the server (secretary reports). See the write
+    // mapping in useOptimisticScoring.
+    correctCount: scoreData.correctCount,
+    incorrectCount: scoreData.incorrectCount,
+    finishCallErrors: scoreData.finishCallErrors,
+    points: scoreData.points,
     ...(Object.keys(scoreData.areas).length > 0 && { areas: scoreData.areas }),
   };
 }

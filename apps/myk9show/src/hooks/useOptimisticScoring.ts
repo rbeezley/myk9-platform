@@ -14,6 +14,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useOptimisticUpdate } from './useOptimisticUpdate';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
 import { useScoringStore, type QualifyingResult } from '@/store/scoringStore';
 import { logger } from '@/services/LoggingService';
 import { mapQualificationToResultStatus } from '@/utils/scoringMappings';
@@ -76,6 +77,12 @@ export function useOptimisticScoring() {
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
+  // Durable-queue failure is fail-closed and returns BEFORE useOptimisticUpdate
+  // runs, so `hasError` (from useOptimisticUpdate) never flips for it. Track it
+  // here too so EVERY caller — including the secretary ScoresheetPage, which
+  // renders from the hook's hasError rather than its own state — surfaces a
+  // blocking "score not saved" error, not just the at-show sheet.
+  const [submitError, setSubmitError] = useState<Error | null>(null);
 
   // Listen for online/offline events
   useEffect(() => {
@@ -94,18 +101,58 @@ export function useOptimisticScoring() {
   const submitScoreOptimistically = useCallback(
     async (options: OptimisticScoringOptions) => {
       const { entryId, scoreData, armband, onSuccess, onError } = options;
+      // Clear any prior fail-closed error before this attempt.
+      setSubmitError(null);
 
       // Step 1: Update local state IMMEDIATELY (< 50ms)
       const optimisticResult = scoreData.resultText;
 
-      // Update IndexedDB cache immediately (works offline)
+      // Persist to the durable offline queue FIRST. This is the ONLY write that
+      // makes the score survive a refresh/crash and eventually reach the server,
+      // so it is fail-closed: if it throws (queue overflow, IDB/quota failure,
+      // entry missing from cache) or returns no mutation id (no MutationManager
+      // wired), the score is NOT durably saved and we must surface a blocking
+      // error instead of showing success and navigating away. A green checkmark
+      // over an unsaved score is the one outcome we can never allow — a judge
+      // cannot re-derive a run they already released.
       try {
         const resultStatus = mapQualificationToResultStatus(optimisticResult);
         const searchTimeSeconds = scoreData.searchTime
           ? convertTimeToSeconds(scoreData.searchTime)
           : 0;
 
-        await replicatedEntriesTable.updateEntry(String(entryId), {
+        // Full scent-work detail — all ringside-RPC-whitelisted columns, so
+        // updateEntry auto-routes through ringside_update_entry. Include a field
+        // ONLY when present so a non-scent-work / partial score doesn't null out
+        // columns it never set. Previously these lived only in the local Zustand
+        // session and were lost on device loss, invisible to reports (audit M3).
+        const areaSeconds = (scoreData.areaTimes ?? []).map(t =>
+          t ? convertTimeToSeconds(t) : 0
+        );
+        const detailFields: Partial<ReplicatedEntry> = {};
+        // A full score submit is authoritative for all four area columns: write
+        // each one, clearing an omitted/cleared area to null. Blank times are
+        // filtered from areaTimes, so a rescore that drops a later area sends a
+        // shorter array — writing null (not omitting) overwrites the stale value
+        // instead of leaving the old area2/3/4 time on the entry and in reports.
+        detailFields.area1_time_seconds = areaSeconds[0] ?? null;
+        detailFields.area2_time_seconds = areaSeconds[1] ?? null;
+        detailFields.area3_time_seconds = areaSeconds[2] ?? null;
+        detailFields.area4_time_seconds = areaSeconds[3] ?? null;
+        if (scoreData.correctCount !== undefined)
+          detailFields.total_correct_finds = scoreData.correctCount;
+        if (scoreData.incorrectCount !== undefined)
+          detailFields.total_incorrect_finds = scoreData.incorrectCount;
+        if (scoreData.finishCallErrors !== undefined)
+          detailFields.no_finish_count = scoreData.finishCallErrors;
+        if (scoreData.points !== undefined) detailFields.points_earned = scoreData.points;
+        // A full score submit is authoritative: clear the disqualification reason
+        // to null when there isn't one, so a rescore from NQ/DQ→Qualified doesn't
+        // leave the old reason attached (the RPC delta only touches sent fields,
+        // and updateEntry merges over the cached row). Write the reason when present.
+        detailFields.disqualification_reason = scoreData.nonQualifyingReason ?? null;
+
+        const mutationId = await replicatedEntriesTable.updateEntry(String(entryId), {
           // Write both camelCase and snake_case so toSupabaseRow() picks up the values
           resultStatus: resultStatus,
           result_status: resultStatus,
@@ -117,20 +164,34 @@ export function useOptimisticScoring() {
           total_faults: scoreData.faultCount ?? 0,
           scoringCompletedAt: new Date().toISOString(),
           scoring_completed_at: new Date().toISOString(),
+          ...detailFields,
         });
 
+        if (mutationId === null) {
+          // The row was marked dirty locally but no mutation was queued, so it
+          // will never upload. Treat as a hard failure.
+          throw new Error(
+            'Score could not be queued for sync (no replication manager). Please retry.'
+          );
+        }
+
         logger.debug(
-          `✅ [useOptimisticScoring] Updated local cache for entry ${entryId}`,
+          `✅ [useOptimisticScoring] Queued score for entry ${entryId} (mutation ${mutationId})`,
           'scoring'
         );
-      } catch (cacheError) {
-        // Non-fatal: cache update failed but we can continue
-        logger.warn(
-          '⚠️ [useOptimisticScoring] Failed to update local cache',
+      } catch (queueError) {
+        // Fatal: the score is not durably saved. Surface a blocking error and
+        // do NOT run the optimistic-success path (no session write, no navigate).
+        const err = queueError instanceof Error ? queueError : new Error(String(queueError));
+        logger.error(
+          '❌ [useOptimisticScoring] Failed to queue score — NOT saved',
           'scoring',
           {},
-          cacheError as Error
+          err
         );
+        setSubmitError(err);
+        onError?.(err);
+        return;
       }
 
       // Add to scoring session for local tracking
@@ -188,13 +249,26 @@ export function useOptimisticScoring() {
     submitScoreOptimistically,
     /** Whether currently syncing with server */
     isSyncing,
-    /** Whether last sync failed (but score is saved locally) */
+    /** Whether the BACKGROUND sync failed (score IS saved locally — offline is
+     *  normal). Distinct from a fail-closed queue failure below. */
     hasError,
-    /** Error details if sync failed */
+    /** Background-sync error details. */
     error,
+    /**
+     * Fail-closed durable-queue failure — the score was NOT saved. Kept separate
+     * from `hasError`/`error` so callers can render a BLOCKING "not saved" state,
+     * not the calm "offline, saved locally" indicator. Every caller should
+     * surface this (the at-show sheet and the secretary ScoresheetPage both do).
+     */
+    submitError,
+    /** Clear the fail-closed submit error. */
+    clearSubmitError: () => setSubmitError(null),
     /** Number of retry attempts made */
     retryCount,
-    /** Clear error state */
-    clearError,
+    /** Clear error state (both the sync error and a fail-closed queue error). */
+    clearError: () => {
+      setSubmitError(null);
+      clearError();
+    },
   };
 }

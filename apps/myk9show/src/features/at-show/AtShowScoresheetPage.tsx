@@ -32,6 +32,7 @@ import {
   toScoresheetClassInfo,
 } from '@/pages/scoring/types';
 import { useAtShowScoresheet } from './useAtShowScoresheet';
+import { useAtShowStoragePersistence } from './useAtShowStoragePersistence';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { badgeClass } from './slots/atShowChrome.helpers';
 
@@ -139,7 +140,12 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({ classId, entryId,
     submit,
     isSyncing,
     hasSyncError,
+    submitError,
+    clearSubmitError,
   } = useAtShowScoresheet({ classId, entryId, onScored: onBack });
+  // Requests persistent storage on entering the scoring surface; may surface an
+  // iOS "Add to Home Screen" nudge when durable storage isn't granted.
+  const { showAddToHomeNudge, installInstructions, dismissNudge } = useAtShowStoragePersistence();
   const isLoadedRoute = loadedClassId === classId && loadedEntryId === entryId;
   const hasAnyScoresheetState = Boolean(entry || classInfo || rules);
 
@@ -193,6 +199,45 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({ classId, entryId,
 
   return (
     <div className="ringside-root">
+      {showAddToHomeNudge && (
+        // iOS Safari, not installed, persistence not granted: without Add-to-Home
+        // the browser purges IndexedDB (and the backup) after 7 days idle, which
+        // would lose queued scores. Calm, dismissible — this is guidance, not an error.
+        <div
+          role="status"
+          className={`flex items-start justify-between gap-3 rounded-lg px-3 py-2 text-sm ${badgeClass(
+            'neutral'
+          )}`}
+        >
+          <span>
+            <strong>Add to Home Screen</strong> for reliable offline scoring. {installInstructions}
+          </span>
+          <button type="button" onClick={dismissNudge} className="shrink-0 underline">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {submitError && (
+        // A genuine "score not saved" failure — the durable queue write threw or
+        // returned no mutation id. Unlike the calm offline indicator, this is an
+        // error the judge MUST act on: the score is NOT saved and they stayed on
+        // the sheet to retry. Alarm tone is intentional here.
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-destructive px-4 py-2 text-center text-sm font-medium text-destructive-foreground"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{submitError}</span>
+          <button
+            type="button"
+            onClick={clearSubmitError}
+            className="ml-2 underline underline-offset-2"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       {(isSyncing || hasSyncError) && (
         <div
           role="status"

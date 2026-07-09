@@ -183,13 +183,22 @@ function isSupabaseError(error: unknown): error is SupabaseError {
  * - Server errors (5xx)
  * - Rate limiting (429)
  *
- * Non-retryable errors include:
+ * Affirmatively-permanent (non-retryable) errors — these dead-letter on the
+ * first failure because retrying can never succeed without a code/data/role fix:
  * - Client errors (4xx except 429)
- * - Validation errors
- * - Authentication errors
+ * - Integrity/constraint violations (Postgres class 23xxx)
+ * - RLS / permission denials (42501, "row-level security")
+ * - Authentication/authorization failures
+ *
+ * FAIL-OPEN default: anything NOT affirmatively classified as permanent is
+ * treated as retryable. A dog-show score must never be discarded because an
+ * ambiguous, unrecognized error (AbortError, statement timeout 57014, an
+ * unusual 5xx body) was pattern-missed and dead-lettered on the first try. The
+ * cost of an over-retry is a wasted request; the cost of an over-eager
+ * dead-letter is a lost score. See July 2026 replication audit finding H2.
  *
  * @param error - The error to check
- * @returns true if the error is retryable
+ * @returns true if the error is retryable (the default for anything ambiguous)
  */
 export function isRetryableError(error: unknown): boolean {
   // Timeout errors are always retryable
@@ -202,61 +211,60 @@ export function isRetryableError(error: unknown): boolean {
     return true;
   }
 
-  // Check for Supabase/PostgreSQL errors
+  // Affirmatively-permanent classification for Supabase/PostgreSQL errors.
   if (isSupabaseError(error)) {
     const message = error.message.toLowerCase();
     const code = error.code;
 
-    // Rate limiting is retryable
+    // Rate limiting is retryable (429 is a 4xx but transient).
     if (code === '429' || message.includes('rate limit')) {
       return true;
     }
 
-    // Server errors (5xx) are retryable
-    if (code?.startsWith('5') || message.includes('server error')) {
-      return true;
+    // Integrity/constraint violations (Postgres class 23) never succeed on retry.
+    if (code?.startsWith('23')) {
+      return false;
     }
 
-    // Connection errors are retryable
+    // RLS / insufficient-privilege denials need a role/permission fix.
     if (
-      message.includes('connection') ||
-      message.includes('timeout') ||
-      message.includes('network') ||
-      message.includes('econnreset') ||
-      message.includes('socket hang up')
+      code === '42501' ||
+      message.includes('row-level security') ||
+      message.includes('rls policy') ||
+      message.includes('permission denied') ||
+      message.includes('not authorized') ||
+      message.includes('unauthorized') ||
+      message.includes('forbidden')
     ) {
-      return true;
+      return false;
     }
 
-    // Client errors (4xx) are generally not retryable
+    // Client errors (4xx, except 429 handled above) are permanent.
     if (code?.startsWith('4') && code !== '429') {
       return false;
     }
+
+    // Any other Supabase error (5xx, connection, statement timeout 57014,
+    // unrecognized codes) falls through to the fail-open default below.
   }
 
-  // Check for generic Error objects
+  // Generic Error objects: only affirmatively-permanent messages dead-letter.
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
 
-    // RLS policy rejections are never retryable (need role/permission fix)
-    if (message.includes('rls policy blocked')) {
-      return false;
-    }
-
-    // Network-related errors are retryable
     if (
-      message.includes('network') ||
-      message.includes('timeout') ||
-      message.includes('connection') ||
-      message.includes('econnreset') ||
-      message.includes('socket')
+      message.includes('rls policy blocked') ||
+      message.includes('row-level security') ||
+      message.includes('permission denied') ||
+      message.includes('violates') // constraint/check violation text
     ) {
-      return true;
+      return false;
     }
   }
 
-  // Default: don't retry unknown errors
-  return false;
+  // FAIL-OPEN default: retry anything not proven permanent, so an ambiguous
+  // error never silently discards a score.
+  return true;
 }
 
 // ============================================

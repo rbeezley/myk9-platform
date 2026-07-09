@@ -141,4 +141,80 @@ describe('organization form templates', () => {
       'NW-TrialScoreSheet.pdf'
     );
   });
+
+  it('returns the ASCA Scent Detection packet mappings by id', () => {
+    expect(getOrganizationFormTemplate('asca-scent-detection-entry-form')).toMatchObject({
+      label: 'ASCA Scent Detection Entry Form',
+      sourcePath: 'docs/rulebooks/asca-scent-detection-forms/ASCA_Scent-Entry-Form.pdf',
+    });
+    expect(getOrganizationFormTemplate('asca-scent-detection-trial-report')).toMatchObject({
+      label: 'ASCA Scent Detection Trial Report',
+      sourcePath: 'docs/rulebooks/asca-scent-detection-forms/ASCA_Scent-Trial-Report.pdf',
+    });
+    expect(getOrganizationFormTemplate('asca-scent-detection-trial-roster')).toMatchObject({
+      label: 'ASCA Scent Detection Trial Roster',
+      sourcePath: 'docs/rulebooks/asca-scent-detection-forms/ASCA_SD-Trial-Roster.pdf',
+    });
+    expect(getOrganizationFormTemplate('asca-scent-detection-score-sheet')).toMatchObject({
+      label: 'ASCA Scent Detection Score Sheet',
+      sourcePath: 'docs/rulebooks/asca-scent-detection-forms/ASCA_SD-Scoresheet.pdf',
+    });
+    expect(getOrganizationFormTemplate('asca-scent-detection-gross-receipts')).toMatchObject({
+      label: 'ASCA Scent Detection Gross Receipts Report',
+      sourcePath:
+        'docs/rulebooks/asca-scent-detection-forms/ASCA_ScentDetectionGrossReceiptsReport.pdf',
+    });
+    expect(getOrganizationFormTemplate('asca-scent-detection-post-event-evaluation')).toMatchObject(
+      {
+        label: 'ASCA Scent Detection Post-Event Evaluation',
+        sourcePath: 'docs/rulebooks/asca-scent-detection-forms/ASCA_scentpostevaluationform.pdf',
+      }
+    );
+  });
+
+  it('resolves the ASCA Scent Detection packet runtime URLs from the registry ids', () => {
+    expect(getOrganizationFormTemplateUrl('asca-scent-detection-entry-form')).toContain(
+      'ASCA_Scent-Entry-Form.pdf'
+    );
+    expect(getOrganizationFormTemplateUrl('asca-scent-detection-trial-report')).toContain(
+      'ASCA_Scent-Trial-Report.pdf'
+    );
+    expect(getOrganizationFormTemplateUrl('asca-scent-detection-trial-roster')).toContain(
+      'ASCA_SD-Trial-Roster.pdf'
+    );
+    expect(getOrganizationFormTemplateUrl('asca-scent-detection-score-sheet')).toContain(
+      'ASCA_SD-Scoresheet.pdf'
+    );
+    expect(getOrganizationFormTemplateUrl('asca-scent-detection-gross-receipts')).toContain(
+      'ASCA_ScentDetectionGrossReceiptsReport.pdf'
+    );
+    expect(getOrganizationFormTemplateUrl('asca-scent-detection-post-event-evaluation')).toContain(
+      'ASCA_scentpostevaluationform.pdf'
+    );
+  });
+
+  it('keeps ASCA fillable source PDFs available for closeout builders', async () => {
+    const fillableTemplates = [
+      {
+        field: 'Name of Affiliate Club.0',
+        id: 'asca-scent-detection-gross-receipts',
+      },
+      {
+        field: 'Name of Host Club',
+        id: 'asca-scent-detection-post-event-evaluation',
+      },
+      {
+        field: 'HOST CLUB',
+        id: 'asca-scent-detection-entry-form',
+      },
+    ] as const;
+
+    for (const { field, id } of fillableTemplates) {
+      const template = getOrganizationFormTemplate(id);
+      const fields = await listPdfFormFields(await readTemplatePdf(template.sourcePath));
+      const fieldNames = new Set(fields.map(pdfField => pdfField.name));
+
+      expect(fieldNames.has(field), `${template.label}: ${field}`).toBe(true);
+    }
+  });
 });

@@ -21,8 +21,11 @@ vi.mock('./useAppShellMobileNav', () => ({
 
 vi.mock('@/store/cartStore', () => ({
   useCartItemCount: () => 2,
-  useCartStore: (selector: (s: { loadActiveCart: () => void; loadInitiated: boolean }) => unknown) =>
-    selector({ loadActiveCart: vi.fn(), loadInitiated: true }),
+  useCartStore: (selector: (s: { cart: unknown }) => unknown) => selector({ cart: null }),
+}));
+
+vi.mock('@/hooks/queries/useActiveCartItemCount', () => ({
+  useActiveCartItemCount: () => 0,
 }));
 
 vi.mock('@/hooks/useExhibitorProfile', () => ({

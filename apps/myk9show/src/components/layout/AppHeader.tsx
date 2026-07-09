@@ -14,6 +14,7 @@ import {
 } from '@/hooks/useKeyboardShortcuts';
 import { buildClasses } from '@/utils/designTokens';
 import { useCartItemCount, useCartStore } from '@/store/cartStore';
+import { useActiveCartItemCount } from '@/hooks/queries/useActiveCartItemCount';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { AboutDialog } from '@/components/common/AboutDialog';
 import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
@@ -67,35 +68,27 @@ const AppHeader: React.FC = () => {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const cartItemCount = useCartItemCount();
+  const storeCartItemCount = useCartItemCount();
   const { toggle: toggleAskQ } = useAskQPanelStore();
 
   // exhibitor-ux-remediation (cart-integrity): the cart badge only reflected
   // whatever the in-memory store happened to hold, which stayed empty
   // everywhere except /cart itself (the only place that hydrated it) — so a
-  // cart drafted in a prior session was invisible on every other page. Hydrate
-  // once per session for signed-in exhibitors so a non-empty cart is always
-  // discoverable, not just after visiting /cart directly.
+  // cart drafted in a prior session was invisible on every other page.
   //
-  // Codex review (PR #1217): this hydration is UNSCOPED (loadActiveCart picks
-  // the exhibitor's most-recent active cart across all shows), so it must NOT
-  // run on routes that own a SHOW-SCOPED cart load — the registration wizard
-  // (ClassSelectionStep's loadCart/createCart), the cart page, and checkout.
-  // On those routes an unscoped load can resolve last and overwrite the
-  // show-specific cart, so subsequent addItem calls target the wrong cart.
-  // Elsewhere (dashboard, dogs, etc.) it's purely for the badge and is safe.
+  // The badge is now driven by a READ-ONLY count query that never writes the
+  // shared cart store. An earlier version had the header call `loadActiveCart`
+  // (a store write); even route-guarded, an in-flight unscoped load started on
+  // an ordinary route could resolve after the registration wizard's
+  // show-scoped `loadCart`/`createCart` and overwrite the show-specific cart,
+  // sending later `addItem` calls to the wrong cart (Codex review PR #1217).
+  // When the store genuinely owns the cart (on /cart and in the registration
+  // wizard, where it's loaded and updates optimistically) we prefer its count;
+  // everywhere else the read-only query supplies the badge.
   const { profile: exhibitorProfile } = useExhibitorProfile();
-  const loadActiveCart = useCartStore(state => state.loadActiveCart);
-  const cartLoadInitiated = useCartStore(state => state.loadInitiated);
-  const ownsScopedCart =
-    location.pathname.startsWith('/cart') ||
-    location.pathname.startsWith('/checkout') ||
-    /^\/shows\/[^/]+\/register/.test(location.pathname);
-  useEffect(() => {
-    if (exhibitorProfile?.id && !cartLoadInitiated && !ownsScopedCart) {
-      loadActiveCart(exhibitorProfile.id);
-    }
-  }, [exhibitorProfile?.id, cartLoadInitiated, ownsScopedCart, loadActiveCart]);
+  const storeCartLoaded = useCartStore(state => state.cart != null);
+  const queryCartItemCount = useActiveCartItemCount(exhibitorProfile?.id);
+  const cartItemCount = storeCartLoaded ? storeCartItemCount : queryCartItemCount;
 
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
 

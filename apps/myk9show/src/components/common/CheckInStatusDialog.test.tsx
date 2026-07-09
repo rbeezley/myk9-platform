@@ -128,4 +128,23 @@ describe('CheckInStatusDialog — exhibitor voice', () => {
 
     expect(screen.getByText('Ace • Container Novice A')).toBeInTheDocument();
   });
+
+  it('does not render a stray leading separator when no identifier is known', () => {
+    render(
+      <CheckInStatusDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        currentStatus="no-status"
+        entryInfo={{ ...entryInfo, armband: undefined, confirmationNumber: undefined }}
+        onUpdateStatus={vi.fn()}
+      />
+    );
+
+    // Handler still shows, but the standalone "•" span that separates it from
+    // an identifier must not render when there is no identifier before it.
+    // (The dogName/className "•" on the second line is inline text within a
+    // larger node, so it is not matched as a standalone "•" element.)
+    expect(screen.getByText('Pat Handler')).toBeInTheDocument();
+    expect(screen.queryByText('•')).not.toBeInTheDocument();
+  });
 });

@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
+import { Button } from '@/components/ui/button';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import { ClassesTab, type ClassInfo } from '@/components/shows/tabs/ClassesTab';
@@ -40,6 +41,33 @@ export interface ShowDetailTabsProps {
   mapTrials: ShowMapTrialInput[];
   mapClasses: ShowMapClassInput[];
   mapEntries: ShowMapEntryInput[];
+  entryDataState?: 'ready' | 'loading' | 'error';
+  onRetryEntryData?: (() => void) | undefined;
+}
+
+function EntryDataUnavailablePanel({
+  state,
+  onRetry,
+}: {
+  state: 'loading' | 'error';
+  onRetry?: (() => void) | undefined;
+}) {
+  return (
+    <div className="rounded-md border border-dashed bg-muted/20 px-4 py-6 text-sm">
+      <div className="font-medium text-foreground">
+        {state === 'loading' ? 'Entry counts are loading.' : "Couldn't load entry counts."}
+      </div>
+      <p className="mt-1 text-muted-foreground">
+        Entry-derived counts and Show Map are paused so this page does not show a false zero-entry
+        state.
+      </p>
+      {state === 'error' && onRetry && (
+        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>
+          Retry
+        </Button>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -64,7 +92,11 @@ export function ShowDetailTabs({
   mapTrials,
   mapClasses,
   mapEntries,
+  entryDataState = 'ready',
+  onRetryEntryData,
 }: ShowDetailTabsProps) {
+  const managerEntryDataUnavailable = canManageShow && entryDataState !== 'ready';
+
   return (
     <PrimaryTabs tabs={tabs} value={activeTab} onValueChange={onTabChange}>
       <TabsContent value="overview">
@@ -78,30 +110,34 @@ export function ShowDetailTabs({
       </TabsContent>
 
       <TabsContent value="trials">
-        <TrialsTab trials={trials} showId={show.id} trialStats={trialStats} />
+        {managerEntryDataUnavailable ? (
+          <EntryDataUnavailablePanel state={entryDataState} onRetry={onRetryEntryData} />
+        ) : (
+          <TrialsTab trials={trials} showId={show.id} trialStats={trialStats} />
+        )}
       </TabsContent>
 
       <TabsContent value="classes">
-        <ClassesTab
-          classes={classes}
-          showId={show.id}
-          userHasEntries={hasUserEntries}
-          hideRing={trials.some(
-            t =>
-              t.trialType === 'Scent Work' ||
-              t.trialType === 'Nosework' ||
-              t.trialType === 'Scent Detection'
-          )}
-        />
+        {managerEntryDataUnavailable ? (
+          <EntryDataUnavailablePanel state={entryDataState} onRetry={onRetryEntryData} />
+        ) : (
+          <ClassesTab
+            classes={classes}
+            showId={show.id}
+            userHasEntries={hasUserEntries}
+            hideRing={trials.some(
+              t =>
+                t.trialType === 'Scent Work' ||
+                t.trialType === 'Nosework' ||
+                t.trialType === 'Scent Detection'
+            )}
+          />
+        )}
       </TabsContent>
 
       {isAuthenticated && (
         <TabsContent value="my-entries">
-          {canManageShow ? (
-            <EntriesTab showId={show.id} />
-          ) : (
-            <MyEntriesTab showId={show.id} />
-          )}
+          {canManageShow ? <EntriesTab showId={show.id} /> : <MyEntriesTab showId={show.id} />}
         </TabsContent>
       )}
 
@@ -111,15 +147,19 @@ export function ShowDetailTabs({
 
       {canShowMap && (
         <TabsContent value="map">
-          <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
-            <ShowMapTab
-              show={show}
-              trials={mapTrials}
-              classes={mapClasses}
-              entries={mapEntries}
-              canManageShow={false}
-            />
-          </Suspense>
+          {managerEntryDataUnavailable ? (
+            <EntryDataUnavailablePanel state={entryDataState} onRetry={onRetryEntryData} />
+          ) : (
+            <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+              <ShowMapTab
+                show={show}
+                trials={mapTrials}
+                classes={mapClasses}
+                entries={mapEntries}
+                canManageShow={false}
+              />
+            </Suspense>
+          )}
         </TabsContent>
       )}
     </PrimaryTabs>

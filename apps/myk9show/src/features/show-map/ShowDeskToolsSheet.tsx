@@ -139,7 +139,7 @@ function ShowDeskToolsSheetContent({
       <SheetHeader className="border-b px-6 py-4 text-left">
         <SheetTitle>Show Desk tools</SheetTitle>
         <SheetDescription>
-          Entries, hospitality, show messages, incidents, delay scripts, and access codes.
+          Entries, people lookup, hospitality, incidents, delay scripts, tasks, and access codes.
         </SheetDescription>
       </SheetHeader>
       <ShowDeskToolSections

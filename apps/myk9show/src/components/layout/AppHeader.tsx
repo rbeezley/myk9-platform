@@ -13,7 +13,9 @@ import {
   type ShortcutDefinition,
 } from '@/hooks/useKeyboardShortcuts';
 import { buildClasses } from '@/utils/designTokens';
-import { useCartItemCount } from '@/store/cartStore';
+import { useCartItemCount, useCartStore } from '@/store/cartStore';
+import { useActiveCartItemCount } from '@/hooks/queries/useActiveCartItemCount';
+import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { AboutDialog } from '@/components/common/AboutDialog';
 import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -66,8 +68,27 @@ const AppHeader: React.FC = () => {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const cartItemCount = useCartItemCount();
+  const storeCartItemCount = useCartItemCount();
   const { toggle: toggleAskQ } = useAskQPanelStore();
+
+  // exhibitor-ux-remediation (cart-integrity): the cart badge only reflected
+  // whatever the in-memory store happened to hold, which stayed empty
+  // everywhere except /cart itself (the only place that hydrated it) — so a
+  // cart drafted in a prior session was invisible on every other page.
+  //
+  // The badge is now driven by a READ-ONLY count query that never writes the
+  // shared cart store. An earlier version had the header call `loadActiveCart`
+  // (a store write); even route-guarded, an in-flight unscoped load started on
+  // an ordinary route could resolve after the registration wizard's
+  // show-scoped `loadCart`/`createCart` and overwrite the show-specific cart,
+  // sending later `addItem` calls to the wrong cart (Codex review PR #1217).
+  // When the store genuinely owns the cart (on /cart and in the registration
+  // wizard, where it's loaded and updates optimistically) we prefer its count;
+  // everywhere else the read-only query supplies the badge.
+  const { profile: exhibitorProfile } = useExhibitorProfile();
+  const storeCartLoaded = useCartStore(state => state.cart != null);
+  const queryCartItemCount = useActiveCartItemCount(exhibitorProfile?.id);
+  const cartItemCount = storeCartLoaded ? storeCartItemCount : queryCartItemCount;
 
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
 

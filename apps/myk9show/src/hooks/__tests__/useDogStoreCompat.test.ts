@@ -379,6 +379,27 @@ describe('useDogStoreCompat.deleteDog — soft-delete + IndexedDB cleanup', () =
     expect(mockDeleteReplicatedDog).toHaveBeenCalledWith('dog-123');
   });
 
+  it('invalidates the dogs query again after IndexedDB cleanup (closes the resurrection race)', async () => {
+    // exhibitor-ux-remediation: getAllDogs falls back to the same IndexedDB
+    // table, so the mutation's own onSuccess invalidate/refetch can race this
+    // cleanup and resurrect the just-deleted dog. A second invalidation after
+    // the local row is definitely gone closes that race.
+    const invalidateSpy = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await result.current.deleteDog('dog-123');
+    });
+
+    const deleteCleanupOrder = mockDeleteReplicatedDog.mock.invocationCallOrder[0];
+    const laterInvalidateCall = invalidateSpy.mock.invocationCallOrder.find(
+      order => order > deleteCleanupOrder
+    );
+    expect(laterInvalidateCall).toBeDefined();
+
+    invalidateSpy.mockRestore();
+  });
+
   it('does not throw when replicatedDogsTable.delete rejects (warn-only contract)', async () => {
     mockDeleteReplicatedDog.mockRejectedValue(new Error('IndexedDB unavailable'));
 

@@ -2,10 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ShowWorkbenchClassSummary } from '../showWorkbenchTypes';
-import {
-  computeSetupReadinessSignals,
-  isSetupReady,
-} from '../setupReadinessSignals';
+import { computeSetupReadinessSignals, isSetupReady } from '../setupReadinessSignals';
 
 function show(overrides: Partial<Show> = {}): Show {
   return {
@@ -165,7 +162,7 @@ describe('computeSetupReadinessSignals', () => {
     });
   });
 
-  it('treats experienceIsPublished alone as satisfying exhibitor materials', () => {
+  it('still requires premium PDF when landing content is published', () => {
     const signals = computeSetupReadinessSignals({
       show: show({
         publishedPremiumUrl: '',
@@ -176,7 +173,31 @@ describe('computeSetupReadinessSignals', () => {
       classes: [cls()],
       judges: ['j1'],
     });
-    expect(signals.find(s => s.id === 'exhibitor-materials-unpublished')).toBeUndefined();
+    expect(signals).toContainEqual({
+      id: 'exhibitor-materials-unpublished',
+      label: 'Exhibitor info not published yet',
+      href: '#setup-publish',
+    });
+  });
+
+  it('emits a republish signal when published premium data is stale', () => {
+    const signals = computeSetupReadinessSignals({
+      show: show({
+        publishedPremiumUrl: 'https://example.com/premium.pdf',
+        publishedPremiumAt: '2026-05-01T00:00:00Z',
+        updatedAt: '2026-05-01T00:10:00Z',
+        experienceIsPublished: true,
+      }),
+      trials: [trial()],
+      classes: [cls()],
+      judges: ['j1'],
+    });
+
+    expect(signals).toContainEqual({
+      id: 'exhibitor-materials-unpublished',
+      label: 'Exhibitor info changed since publish',
+      href: '#setup-publish',
+    });
   });
 });
 

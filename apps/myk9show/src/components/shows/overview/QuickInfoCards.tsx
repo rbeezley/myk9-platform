@@ -36,7 +36,7 @@ const PAYMENT_BADGE_CLASS = 'bg-[#e8e6dc] border-[#d1cfc5] text-[#4d4c48] font-n
 interface QuickInfoCardsProps {
   show: Show;
   canManageShow?: boolean;
-  entryCount?: number;
+  entryCount?: number | null;
 }
 
 export function QuickInfoCards({ show, canManageShow, entryCount }: QuickInfoCardsProps) {
@@ -47,7 +47,7 @@ export function QuickInfoCards({ show, canManageShow, entryCount }: QuickInfoCar
       {canManageShow && entryCount !== undefined ? (
         <MetadataItem
           label="Total Entries"
-          value={String(entryCount)}
+          value={entryCount === null ? 'Unavailable' : String(entryCount)}
           {...(entryCloseValue ? { secondary: `Closes ${entryCloseValue}` } : {})}
         />
       ) : (

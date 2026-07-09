@@ -7,16 +7,47 @@
  * self-contained for future style-level refactors.
  */
 
+// exhibitor-ux-remediation (date-formatting delta): `shows.start_date` /
+// `end_date` / `entry_close_date` are DATE-only columns ("2026-08-01", no time
+// component). `new Date('2026-08-01')` parses that as UTC midnight, and
+// formatting a UTC instant in a timezone behind UTC (e.g. America/Chicago for
+// a Tulsa, OK show) rolls the displayed date back a day — the audit walk saw
+// "Jul 31 – Aug 2" here while the shows list correctly showed "Aug 1–3" for
+// the same show. A date-only value is a calendar date, not an instant — it
+// must never be converted through a timezone, only a genuine timestamp
+// (with a time component) should be.
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Build a local `Date` from a "YYYY-MM-DD" string's own Y/M/D — no UTC/timezone
+ * conversion. Callers gate on DATE_ONLY_PATTERN first, so all three parts exist;
+ * `Number(...)` (which accepts `undefined`) keeps this compiling cleanly even
+ * under `noUncheckedIndexedAccess`, where the split parts type as
+ * `string | undefined`.
+ */
+function parseDateOnlyAsLocalCalendarDate(dateOnly: string): Date {
+  const parts = dateOnly.split('-');
+  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+}
+
+function parseAsCalendarOrInstant(iso: string): { date: Date; isDateOnly: boolean } {
+  const isDateOnly = DATE_ONLY_PATTERN.test(iso);
+  return { date: isDateOnly ? parseDateOnlyAsLocalCalendarDate(iso) : new Date(iso), isDateOnly };
+}
+
 export function formatDateInTimezone(
   iso: string,
   timezone: string,
   format: 'short' | 'long' | 'time' | 'monthDay'
 ): string {
   try {
-    const date = new Date(iso);
+    const { date, isDateOnly } = parseAsCalendarOrInstant(iso);
     if (isNaN(date.getTime())) return '';
 
-    const opts: Intl.DateTimeFormatOptions = { timeZone: timezone };
+    // A date-only value has no meaningful timezone to convert through —
+    // format it as the calendar date it is. Only a real timestamp gets the
+    // trial's IANA timezone applied.
+    const opts: Intl.DateTimeFormatOptions = isDateOnly ? {} : { timeZone: timezone };
 
     if (format === 'short') {
       return date.toLocaleDateString('en-US', {
@@ -36,6 +67,7 @@ export function formatDateInTimezone(
       });
     }
     if (format === 'time') {
+      if (isDateOnly) return ''; // a calendar date has no time-of-day to show
       return date.toLocaleTimeString('en-US', {
         ...opts,
         hour: 'numeric',
@@ -65,19 +97,25 @@ export function formatDateRange(
   timezone: string
 ): string {
   if (!startIso) return '';
-  const start = new Date(startIso);
-  const end = endIso ? new Date(endIso) : null;
+  const { date: start, isDateOnly: startIsDateOnly } = parseAsCalendarOrInstant(startIso);
   if (isNaN(start.getTime())) return '';
+  const startOpts: Intl.DateTimeFormatOptions = startIsDateOnly ? {} : { timeZone: timezone };
 
-  const startMonth = start.toLocaleDateString('en-US', { timeZone: timezone, month: 'short' });
-  const startDay = start.toLocaleDateString('en-US', { timeZone: timezone, day: 'numeric' });
+  const startMonth = start.toLocaleDateString('en-US', { ...startOpts, month: 'short' });
+  const startDay = start.toLocaleDateString('en-US', { ...startOpts, day: 'numeric' });
 
-  if (!end || isNaN(end.getTime()) || endIso === startIso) {
+  if (!endIso || endIso === startIso) {
     return `${startMonth} ${startDay}`;
   }
 
-  const endMonth = end.toLocaleDateString('en-US', { timeZone: timezone, month: 'short' });
-  const endDay = end.toLocaleDateString('en-US', { timeZone: timezone, day: 'numeric' });
+  const { date: end, isDateOnly: endIsDateOnly } = parseAsCalendarOrInstant(endIso);
+  if (isNaN(end.getTime())) {
+    return `${startMonth} ${startDay}`;
+  }
+  const endOpts: Intl.DateTimeFormatOptions = endIsDateOnly ? {} : { timeZone: timezone };
+
+  const endMonth = end.toLocaleDateString('en-US', { ...endOpts, month: 'short' });
+  const endDay = end.toLocaleDateString('en-US', { ...endOpts, day: 'numeric' });
 
   if (startMonth === endMonth) {
     return `${startMonth} ${startDay}–${endDay}`;

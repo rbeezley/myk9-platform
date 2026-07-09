@@ -57,7 +57,13 @@ export function CompactStatsRow({
   const stats: StatItem[] = [
     {
       icon: <FileText className="h-5 w-5" />,
-      label: currentEntries === 1 ? 'Entry' : 'Entries',
+      // exhibitor-count-integrity: this is intentionally scoped to CURRENT
+      // (non-past) entries, while the My Entries "All" tab below counts every
+      // entry ever made (including completed/past shows) — a different scope
+      // with the same generic "Entries" word read as a contradiction in the
+      // audit. Naming the scope here removes the ambiguity without changing
+      // either number.
+      label: currentEntries === 1 ? 'Current Entry' : 'Current Entries',
       value: currentEntries,
       detail: `${acceptedEntries} accepted · ${pendingEntries} pending`,
       href: '/exhibitor/entries',

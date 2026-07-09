@@ -695,8 +695,18 @@ export const getEntriesByClassId = async (
 };
 
 // Get entries by dog ID
+//
+// exhibitor-count-integrity: entries replicate per-show (see
+// countActiveEntriesByDog above), so a dog whose entries haven't synced
+// locally yet returned a false EMPTY result here — and withReplicationFallback
+// only falls back to `postgrest` on a THROW, not on a legitimately-shaped-but-
+// wrong empty array. That produced the audit's "Willow — 3 upcoming classes"
+// (dashboard, summed from the account-level entries the page already loaded)
+// vs. "No upcoming entries for Willow" (this hook, cold local replica)
+// contradiction. Mirrors the same empty-local-replica-verifies-online pattern
+// `services/database/entries/search.ts`'s `getUserEntries` already uses.
 export const getEntriesByDog = async (dogId: string) => {
-  return readWithReplicationFallback({
+  const result = await readWithReplicationFallback({
     replication: async () => {
       const [allEntries, classesMap, showsMap] = await Promise.all([
         replicatedEntriesTable.getAll(),
@@ -718,6 +728,18 @@ export const getEntriesByDog = async (dogId: string) => {
     operation: 'select_by_dog',
     errorData: [],
   });
+
+  if (result.data.length > 0 || result.error) return result;
+
+  // Cold local replica: verify against the authoritative online read before
+  // reporting "no entries" for a dog that may simply not have synced yet.
+  // Swallow failures here (offline, RLS edge case) — the safe default is the
+  // original empty replication result, never a thrown error from this branch.
+  try {
+    return await postgrestGetEntriesByDog(dogId);
+  } catch {
+    return result;
+  }
 };
 
 // Count a dog's live (non-soft-deleted) entries.

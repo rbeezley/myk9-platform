@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { reportRegistry, getReportById, getEnabledReports } from '@/lib/reports/reportRegistry';
 
 describe('reportRegistry', () => {
-  it('has 29 total entries', () => {
-    expect(reportRegistry).toHaveLength(29);
+  it('has 35 total entries', () => {
+    expect(reportRegistry).toHaveLength(35);
   });
 
-  it('has exactly 29 enabled entries', () => {
-    expect(getEnabledReports()).toHaveLength(29);
+  it('has exactly 35 enabled entries', () => {
+    expect(getEnabledReports()).toHaveLength(35);
   });
 
   it('has all unique IDs', () => {
@@ -125,6 +125,12 @@ describe('reportRegistry', () => {
         'ukc-nosework-judges-book-element',
         'ukc-nosework-judges-book-handler-discrimination',
         'ukc-nosework-trial-score-sheet',
+        'asca-scent-detection-entry-form',
+        'asca-scent-detection-trial-report',
+        'asca-scent-detection-trial-roster',
+        'asca-scent-detection-score-sheet',
+        'asca-scent-detection-gross-receipts',
+        'asca-scent-detection-post-event-evaluation',
       ];
 
       for (const id of placeholderReportIds) {

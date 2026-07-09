@@ -111,6 +111,8 @@ describe('ShowDeskToolsSheet', () => {
       'data-layout',
       'compact'
     );
+    expect(screen.getByText(/entries, people lookup, hospitality/i)).toBeInTheDocument();
+    expect(screen.queryByText(/show messages/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /add entries/i })).toHaveAttribute(
       'aria-expanded',
       'true'

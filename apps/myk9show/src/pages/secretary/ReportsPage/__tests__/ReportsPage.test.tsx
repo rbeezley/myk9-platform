@@ -328,6 +328,58 @@ describe('ReportsPage', () => {
     }
   });
 
+  it('offers ASCA packet PDFs only for ASCA trials', async () => {
+    const ascaReports = [
+      {
+        label: /Download ASCA Entry Form PDF/i,
+        reportId: 'asca-scent-detection-entry-form',
+      },
+      {
+        label: /Download ASCA Trial Report PDF/i,
+        reportId: 'asca-scent-detection-trial-report',
+      },
+      {
+        label: /Download ASCA Trial Roster PDF/i,
+        reportId: 'asca-scent-detection-trial-roster',
+      },
+      {
+        label: /Download ASCA Score Sheet PDF/i,
+        reportId: 'asca-scent-detection-score-sheet',
+      },
+      {
+        label: /Download ASCA Gross Receipts PDF/i,
+        reportId: 'asca-scent-detection-gross-receipts',
+      },
+      {
+        label: /Download ASCA Post-Event Evaluation PDF/i,
+        reportId: 'asca-scent-detection-post-event-evaluation',
+      },
+    ] as const;
+
+    mockReportState.trialOneRegistryId = 'ASCA';
+
+    for (const ascaReport of ascaReports) {
+      const { unmount } = render(<ReportsPage />, {
+        initialRoute: `/shows/show-1/reports?report=${ascaReport.reportId}&trialId=trial-1`,
+      });
+
+      expect(await screen.findByRole('button', { name: ascaReport.label })).toBeEnabled();
+      unmount();
+    }
+
+    mockReportState.trialOneRegistryId = 'AKC';
+
+    for (const ascaReport of ascaReports) {
+      const { unmount } = render(<ReportsPage />, {
+        initialRoute: `/shows/show-1/reports?report=${ascaReport.reportId}&trialId=trial-1`,
+      });
+
+      await screen.findByRole('button', { name: /print/i });
+      expect(screen.queryByRole('button', { name: ascaReport.label })).toBeNull();
+      unmount();
+    }
+  });
+
   it('offers the official AKC certification page PDF when a trial is selected', async () => {
     render(<ReportsPage />, {
       initialRoute: '/shows/show-1/reports?report=judges-certification&trialId=trial-1',

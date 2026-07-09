@@ -17,9 +17,15 @@ export interface MutationOrderingResult {
  * stable rather than sorting all unassigned rows ahead of assigned ones.
  */
 export function compareMutationOrder(a: PendingMutation, b: PendingMutation): number {
-  if (a.sequenceNumber !== undefined && b.sequenceNumber !== undefined) {
-    if (a.sequenceNumber !== b.sequenceNumber) return a.sequenceNumber - b.sequenceNumber;
-  }
+  // Use ONE consistent key space so the comparator stays transitive even for a
+  // mixed queue (some mutations pre-date sequence assignment). A missing
+  // sequenceNumber sorts as -Infinity — i.e. oldest — which is correct: those
+  // mutations were queued before the upgrade that started assigning sequences.
+  // (Switching keys per-pair — seq for both-present, timestamp otherwise —
+  // breaks transitivity and yields an engine-defined sort.)
+  const seqA = a.sequenceNumber ?? -Infinity;
+  const seqB = b.sequenceNumber ?? -Infinity;
+  if (seqA !== seqB) return seqA - seqB;
   return a.timestamp - b.timestamp;
 }
 

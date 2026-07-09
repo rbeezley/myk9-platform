@@ -3,6 +3,10 @@ import { mutationManager } from '@/services/replication/sharedMutationManager';
 
 // Replication events after which the pending-mutation count may have changed.
 const REFRESH_EVENTS = [
+  // Fired on every successful queueMutation — the ONLY signal that arrives while
+  // offline, so the count reflects a just-queued score immediately, not after a
+  // poll tick.
+  'replication:mutation-queued',
   'replication:upload-complete',
   'replication:sync-failed',
   'replication:queue-overflow',

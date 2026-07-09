@@ -190,8 +190,20 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       row => row.tableName === this.tableName && row.isDirty && row.syncStatus !== 'conflict'
     );
 
+    // A dead-lettered mutation leaves its row dirty (only the SUCCESS path clears
+    // isDirty), but that row is NOT orphaned — its write is parked in the failed
+    // store awaiting the user's retry/discard. Re-queuing it would re-run the
+    // permanently-failing write on every reload and pile duplicates into the
+    // failed store. Skip any row with a failed mutation, not just a pending one.
+    const failedRowIds = new Set(
+      (await this.mutationManager.getFailedMutations())
+        .filter(m => m.tableName === this.tableName)
+        .map(m => m.rowId)
+    );
+
     let requeued = 0;
     for (const row of dirty) {
+      if (failedRowIds.has(row.id)) continue;
       const pending = await this.mutationManager.getPendingMutationsForRow(this.tableName, row.id);
       if (pending.length > 0) continue;
 

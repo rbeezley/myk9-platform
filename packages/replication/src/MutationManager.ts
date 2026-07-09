@@ -305,6 +305,14 @@ export class MutationManager {
       );
     }
 
+    // Announce the queue grew so pending-count UIs update immediately rather
+    // than waiting for the next poll tick. Critical offline: no upload-complete
+    // event can fire while offline, so without this the "N waiting to sync"
+    // signal would lag a queued score by up to the poll interval.
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('replication:mutation-queued', { detail: { rowId } }));
+    }
+
     // Auto-upload: schedule immediate flush to server
     this.scheduleUpload();
 

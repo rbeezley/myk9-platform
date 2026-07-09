@@ -21,7 +21,11 @@ import {
   CIRCUIT_BREAKER_THRESHOLD,
 } from '../constants';
 import { withTimeout } from '../mutation-utils';
-import { writeMutationBackup } from '../mutation-backup';
+import {
+  writeMutationBackup,
+  parseMutationBackup,
+  MUTATION_BACKUP_STORAGE_KEY,
+} from '../mutation-backup';
 
 /**
  * Object store names for the replication system
@@ -477,10 +481,23 @@ export class DatabaseManager {
           sharedDB.getAll(REPLICATION_STORES.PENDING_MUTATIONS),
           sharedDB.getAll(REPLICATION_STORES.FAILED_MUTATIONS),
         ]);
-        if (pending.length > 0 || failed.length > 0) {
-          writeMutationBackup(localStorage, [...pending, ...failed]);
+        // UNION with the existing continuous backup rather than overwrite it. The
+        // DB is failing here, so getAll could return a truncated-but-not-throwing
+        // partial set; a plain overwrite would then shrink a more-complete backup
+        // and lose exactly the scores this snapshot protects. Merging by id keeps
+        // every mutation from both sources (replay is idempotent via INSERT/OCC).
+        const existing = parseMutationBackup(localStorage.getItem(MUTATION_BACKUP_STORAGE_KEY));
+        const byId = new Map<string, (typeof pending)[number]>();
+        for (const m of [...existing.mutations, ...existing.failedMutations]) {
+          byId.set((m as { id: string }).id, m as unknown as (typeof pending)[number]);
+        }
+        for (const m of [...pending, ...failed]) byId.set((m as { id: string }).id, m);
+        const union = Array.from(byId.values());
+        if (union.length > 0) {
+          writeMutationBackup(localStorage, union as Parameters<typeof writeMutationBackup>[1]);
           this.logger.log(
-            `[DatabaseManager] Snapshotted ${pending.length} pending + ${failed.length} failed mutation(s) before recovery`
+            `[DatabaseManager] Snapshotted ${union.length} mutation(s) before recovery ` +
+              `(${pending.length} pending + ${failed.length} failed read, unioned with backup)`
           );
         }
       } catch (snapshotError) {

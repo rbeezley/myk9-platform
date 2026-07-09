@@ -536,6 +536,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     const handleUploadComplete = (event: Event) => {
       const { tables } = (event as CustomEvent<{ tables: string[]; count: number }>).detail;
       logger.info('Auto-upload complete, invalidating queries', 'replication', { tables });
+      // A successful upload means the backlog is draining — clear the standing
+      // "backlog is full" overflow toast so it doesn't linger over a now-healthy
+      // queue. (The overflow handler shows it with this fixed id.)
+      toast.dismiss('replication-queue-overflow');
       for (const table of tables) {
         queryClient.invalidateQueries({ queryKey: [table] });
       }

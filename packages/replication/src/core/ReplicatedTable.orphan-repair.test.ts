@@ -91,11 +91,16 @@ describe('ReplicatedTable.requeueOrphanedDirtyRows', () => {
 
     // Clean shared stores between tests.
     const clearTx = db.transaction(
-      [REPLICATION_STORES.REPLICATED_TABLES, REPLICATION_STORES.PENDING_MUTATIONS],
+      [
+        REPLICATION_STORES.REPLICATED_TABLES,
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        REPLICATION_STORES.FAILED_MUTATIONS,
+      ],
       'readwrite'
     );
     await clearTx.objectStore(REPLICATION_STORES.REPLICATED_TABLES).clear();
     await clearTx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).clear();
+    await clearTx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).clear();
     await clearTx.done;
   });
 
@@ -130,6 +135,34 @@ describe('ReplicatedTable.requeueOrphanedDirtyRows', () => {
 
   it('does NOT re-queue clean rows', async () => {
     await table.set('1', { id: '1', score: 50 }, false); // clean
+
+    const repaired = await table.requeueOrphanedDirtyRows();
+
+    expect(repaired).toBe(0);
+    expect(await table.getPendingMutationIdsForRow('1')).toHaveLength(0);
+  });
+
+  it('does NOT re-queue a dirty row whose mutation dead-lettered to the failed store', async () => {
+    // A dead-lettered mutation leaves its row dirty (only the success path clears
+    // isDirty) but parked in FAILED_MUTATIONS for user retry/discard. Re-queuing
+    // it would re-run the permanently-failing write every reload and pile up
+    // duplicates in the failed store (code-review HIGH finding).
+    await table.set('1', { id: '1', score: 50 }, true);
+    const db = await databaseManager.getDatabase('test');
+    await db.put(REPLICATION_STORES.FAILED_MUTATIONS, {
+      id: 'failed-mut-1',
+      tableName,
+      operation: 'UPDATE',
+      rowId: '1',
+      data: { id: '1', score: 50 },
+      timestamp: 1,
+      retries: 3,
+      status: 'failed',
+      error: 'permission denied for table entries',
+      failedAt: 1,
+    });
+    // Sanity: the row is dirty with no PENDING mutation (the orphan precondition).
+    expect(await table.getPendingMutationIdsForRow('1')).toHaveLength(0);
 
     const repaired = await table.requeueOrphanedDirtyRows();
 

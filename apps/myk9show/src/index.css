@@ -47,8 +47,9 @@
     background:
       linear-gradient(to right, var(--background) 30%, transparent) left center,
       linear-gradient(to left, var(--background) 30%, transparent) right center,
-      radial-gradient(farthest-side at 0 50%, rgba(28, 24, 21, 0.16), transparent) left center,
-      radial-gradient(farthest-side at 100% 50%, rgba(28, 24, 21, 0.16), transparent) right center;
+      radial-gradient(farthest-side at 0 50%, var(--scroll-shadow-tint), transparent) left center,
+      radial-gradient(farthest-side at 100% 50%, var(--scroll-shadow-tint), transparent) right
+        center;
     background-repeat: no-repeat;
     background-size:
       36px 100%,
@@ -420,6 +421,10 @@ select:hover {
     --font-sans: 'Montserrat', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     /* Warm parchment backgrounds — Claude-inspired */
     --background: #faf7f2; /* was #f5f4ed — v2 ivory-50 */
+    /* Scroll-shadow tint for .scroll-shadow-x — a dark wash that reads on the
+       light parchment background. Flipped to a light wash in .dark below so
+       the dog-rail scroll hint stays visible in both themes. */
+    --scroll-shadow-tint: rgba(28, 24, 21, 0.16);
     --foreground: #181411; /* was #141413 — v2 ink-900 */
     --background-alt: #f3efe6; /* was #f5f4ed — v2 ivory-100 */
     --card: #ffffff; /* was #faf9f5 — v2 pure white card */
@@ -504,6 +509,9 @@ select:hover {
        (#1e1c19, #2e2b27) are dark-mode-only and stay as literals. */
     --background: var(--ink-900);
     --foreground: var(--ivory-50);
+    /* Light wash so the scroll-shadow hint is visible on the near-black dark
+       surface (a near-black tint would vanish against --ink-900). */
+    --scroll-shadow-tint: rgba(245, 240, 230, 0.22);
     --background-alt: #1e1c19;
     --card: #1e1c19;
     --card-foreground: var(--ivory-50);

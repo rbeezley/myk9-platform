@@ -571,14 +571,29 @@ export const getEntryById = async (id: string) => {
 };
 
 // Get entries by show ID
+//
+// exhibitor-count-integrity (audit #4): entries replicate per-show, so a show
+// the caller hasn't opened this session has an empty local store — and
+// readWithReplicationFallback only falls back to `postgrest` on a THROW, not on
+// a legitimately-shaped-but-wrong empty array. That produced the audit's
+// "0 Entries received" on the styled landing page (which counts `entries.length`
+// from this hook) while the exhibitor genuinely had entries. Mirrors the
+// empty-local-replica-verifies-online pattern used by getEntriesByDog above and
+// getUserEntries in search.ts.
 export const getEntriesByShow = async (showId: string) => {
-  return readWithReplicationFallback({
+  // Raw (pre-`isLiveEntry`) local row count for this show. Distinguishes a truly
+  // cold replica (0 rows) from a replica that HAS rows but filtered them all out
+  // as locally soft-deleted — the latter must win over the server (a queued
+  // delete not yet synced), so we must NOT online-verify in that case.
+  let rawLocalRowCount = 0;
+  const result = await readWithReplicationFallback({
     replication: async () => {
       const [entries, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
         loadDogsMap(),
         loadClassesMap(),
       ]);
+      rawLocalRowCount = entries.length;
       const sortedEntries = sortedCopy(
         entries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
@@ -600,6 +615,22 @@ export const getEntriesByShow = async (showId: string) => {
     operation: 'select_by_show',
     errorData: [],
   });
+
+  // Only online-verify a genuinely cold replica (no local rows at all). If the
+  // show had local rows that were all filtered out as tombstoned, trust the
+  // local delete — reading PostgREST here could resurrect a just-deleted entry
+  // from a stale server row until sync completes.
+  if (result.data.length > 0 || result.error || rawLocalRowCount > 0) return result;
+
+  // Cold local replica: verify against the authoritative online read before
+  // reporting zero entries for a show that may simply not have synced yet.
+  // Swallow failures (offline, RLS edge case) — the safe default is the
+  // original empty replication result, never a thrown error from this branch.
+  try {
+    return await postgrestGetEntriesByShow(showId);
+  } catch {
+    return result;
+  }
 };
 
 // Get entries by show ID with financial joins (promo_code, trial name)

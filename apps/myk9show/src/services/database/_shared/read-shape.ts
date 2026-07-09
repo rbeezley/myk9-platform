@@ -7,13 +7,20 @@ export interface ReadResult<T> {
 }
 
 /**
- * A replication read result that may additionally report the RAW local row
- * count — the number of matching rows in the local replica BEFORE any
- * tombstone/live filtering. Only meaningful with `verifyOnlineWhenEmpty`
- * (see below); ordinary callers keep returning a plain {@link ReadResult}.
+ * A replication read result that may additionally report the IDs of rows the
+ * local replica has soft-deleted but not yet synced. Only meaningful with
+ * `verifyOnlineWhenEmpty` (see below); ordinary callers keep returning a plain
+ * {@link ReadResult}.
  */
 export interface ReplicationReadResult<T> extends ReadResult<T> {
-  rawLocalCount?: number;
+  /**
+   * IDs of rows present in the LOCAL replica as soft-delete tombstones — a
+   * queued delete not yet synced to the server. When the empty-result online
+   * read runs, rows whose id is in this list are removed from the online result
+   * so a stale server row (the server hasn't seen the delete yet) can't
+   * resurrect a just-deleted row.
+   */
+  locallyDeletedIds?: readonly string[];
 }
 
 interface ReadWithReplicationFallbackOptions<T> {
@@ -31,28 +38,39 @@ interface ReadWithReplicationFallbackOptions<T> {
    * reported as truth even when the server has rows that simply haven't synced.
    *
    * When enabled, the helper verifies an empty replication result against the
-   * authoritative online read. It does so ONLY for a genuinely cold replica:
+   * authoritative online read, but excludes any rows the local replica has
+   * already soft-deleted (see `locallyDeletedIds`). It runs the online read when:
    *   - the replication result is empty, AND
    *   - the replication call succeeded (not a PostgREST-fallback result), AND
-   *   - there was no error, AND
-   *   - the RAW local row count is 0 (see `rawLocalCount`).
+   *   - there was no error.
    *
-   * The raw-count gate is the tombstone guard: if the replica HAS rows that were
-   * all filtered out as local soft-delete tombstones (a queued delete not yet
-   * synced), the empty result is CORRECT and must win over the server — reading
-   * PostgREST there would resurrect a just-deleted entry from a stale server row.
-   * Online-verify failures are swallowed; the safe default is the empty result.
-   *
-   * The replication callback MUST report `rawLocalCount` for the tombstone guard
-   * to engage; a missing count is treated as 0 (cold), reproducing the original
-   * bug for tombstoned rows — so always set it when opting in.
+   * The tombstone exclusion — not a coarse "any local rows?" count — is what
+   * makes this correct across scopes that span replication units. A dog's
+   * entries live across many per-show stores, so a nonzero local row count for
+   * the dog does NOT prove the whole dog scope is warm: it may hold a pending
+   * delete in one synced show while a live entry sits in an unsynced show. The
+   * ID exclusion surfaces that genuinely-live remote entry while still refusing
+   * to resurrect the locally-deleted one from a stale server row. For a
+   * scope-equals-replication-unit read (per-show), the same exclusion is a
+   * strict superset of "trust the local delete". Online-verify failures are
+   * swallowed; the safe default is the original empty result.
    */
   verifyOnlineWhenEmpty?: boolean;
+  /**
+   * How to read a row's identity for tombstone exclusion. Defaults to `row.id`.
+   * Only consulted when `verifyOnlineWhenEmpty` runs an online read AND the
+   * replication callback reported `locallyDeletedIds`.
+   */
+  rowId?: (row: unknown) => string;
 }
 
 function isEmptyReadData(data: unknown): boolean {
   if (Array.isArray(data)) return data.length === 0;
   return data == null;
+}
+
+function defaultRowId(row: unknown): string {
+  return String((row as { id?: unknown }).id);
 }
 
 export async function readWithReplicationFallback<T>({
@@ -62,8 +80,9 @@ export async function readWithReplicationFallback<T>({
   operation,
   errorData,
   verifyOnlineWhenEmpty,
+  rowId,
 }: ReadWithReplicationFallbackOptions<T>): Promise<ReadResult<T>> {
-  let rawLocalCount: number | undefined;
+  let locallyDeletedIds: readonly string[] | undefined;
   // Distinguishes "the result came from the local replica" from "the result came
   // from the PostgREST fallback because replication threw". Only the former is a
   // candidate for empty-verify; a fallback result is already an authoritative
@@ -75,7 +94,7 @@ export async function readWithReplicationFallback<T>({
     result = await withReplicationFallback<ReadResult<T>>(
       async () => {
         const r = await replication();
-        rawLocalCount = r.rawLocalCount;
+        locallyDeletedIds = r.locallyDeletedIds;
         replicationSucceeded = true;
         return { data: r.data, error: r.error };
       },
@@ -91,17 +110,24 @@ export async function readWithReplicationFallback<T>({
     !verifyOnlineWhenEmpty ||
     !replicationSucceeded ||
     result.error ||
-    !isEmptyReadData(result.data) ||
-    (rawLocalCount ?? 0) > 0
+    !isEmptyReadData(result.data)
   ) {
     return result;
   }
 
-  // Genuinely cold local replica: verify against the authoritative online read
-  // before reporting an empty result. Swallow failures (offline, RLS edge case)
-  // — the safe default is the original empty replication result.
+  // Empty local result: the scope may simply not have synced (entries replicate
+  // per-show). Verify against the authoritative online read, then drop any rows
+  // the local replica has already tombstoned so a stale server row can't
+  // resurrect a just-deleted entry. Swallow failures (offline, RLS edge case) —
+  // the safe default is the original empty replication result.
   try {
-    return await postgrest();
+    const online = await postgrest();
+    if (online.error || !Array.isArray(online.data)) return online;
+    const deleted = new Set(locallyDeletedIds ?? []);
+    if (deleted.size === 0) return online;
+    const idOf = rowId ?? defaultRowId;
+    const kept = (online.data as unknown[]).filter(row => !deleted.has(idOf(row)));
+    return { data: kept as T, error: online.error };
   } catch {
     return result;
   }

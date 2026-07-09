@@ -588,11 +588,11 @@ export const getEntriesByShow = async (showId: string) => {
         loadDogsMap(),
         loadClassesMap(),
       ]);
-      // Raw (pre-`isLiveEntry`) local row count for this show, reported to the
-      // helper so its `verifyOnlineWhenEmpty` guard can distinguish a truly cold
-      // replica (0 rows) from one whose rows were all filtered out as local
-      // tombstones (a queued delete not yet synced) — see read-shape.ts.
-      const rawLocalCount = entries.length;
+      // IDs of this show's locally-tombstoned entries (a queued delete not yet
+      // synced), reported to the helper so its `verifyOnlineWhenEmpty` online
+      // read excludes them — a stale server row must not resurrect a just-
+      // deleted entry. See read-shape.ts.
+      const locallyDeletedIds = entries.filter(e => !isLiveEntry(e)).map(e => e.id);
       const sortedEntries = sortedCopy(
         entries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
@@ -607,7 +607,7 @@ export const getEntriesByShow = async (showId: string) => {
             : null,
         })
       );
-      return { data, error: null, rawLocalCount };
+      return { data, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByShow(showId),
     table: 'entries',
@@ -795,13 +795,14 @@ export const getEntriesByDog = async (dogId: string) => {
         loadClassesMap(),
         loadShowsMap(),
       ]);
-      // Rows matching this dog BEFORE the `isLiveEntry` filter. Reported to the
-      // helper's `verifyOnlineWhenEmpty` guard so a dog whose only local entries
-      // are queued soft-delete tombstones (a delete not yet synced) is NOT
-      // online-verified — otherwise a stale server row would resurrect the just-
-      // deleted entry. A genuinely cold replica (0 matching rows) still verifies.
+      // IDs of this dog's locally-tombstoned entries (a queued delete not yet
+      // synced), reported to the helper's `verifyOnlineWhenEmpty` online read so
+      // it excludes them. A dog's entries span multiple per-show stores, so a
+      // pending delete in one synced show must NOT resurrect from the server,
+      // while a live entry in an unsynced show must still surface — the ID
+      // exclusion does both (a coarse local-row count could not).
       const dogEntries = allEntries.filter(e => e.dogId === dogId);
-      const rawLocalCount = dogEntries.length;
+      const locallyDeletedIds = dogEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
       const filtered = dogEntries.filter(isLiveEntry);
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
       const data = sortedEntries.map(entry =>
@@ -810,7 +811,7 @@ export const getEntriesByDog = async (dogId: string) => {
           show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
         })
       );
-      return { data, error: null, rawLocalCount };
+      return { data, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByDog(dogId),
     table: 'entries',

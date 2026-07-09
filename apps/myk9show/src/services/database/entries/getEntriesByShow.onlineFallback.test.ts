@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /**
  * exhibitor-count-integrity (audit #4): getEntriesByShow must verify online when
@@ -37,7 +37,10 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: mockTrialsTable,
 }));
 
-const onlineRow = { id: 'entry-online-1', show_id: 's1', class: { id: 'c1' } };
+const defaultOnlineRow = { id: 'entry-online-1', show_id: 's1', class: { id: 'c1' } };
+// Mutable so individual tests can model what the SERVER still returns (e.g. a
+// row whose delete has not yet synced is still live server-side).
+let onlineRows: Array<Record<string, unknown>> = [defaultOnlineRow];
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -45,7 +48,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
       select: () => ({
         eq: () => ({
           is: () => ({
-            order: () => Promise.resolve({ data: [onlineRow], error: null }),
+            order: () => Promise.resolve({ data: onlineRows, error: null }),
           }),
         }),
       }),
@@ -61,6 +64,10 @@ vi.mock('@/services/database/supabaseClient', () => ({
 import { getEntriesByShow } from '@/services/database/entries';
 
 describe('getEntriesByShow — cold local replica verifies online', () => {
+  beforeEach(() => {
+    onlineRows = [defaultOnlineRow];
+  });
+
   it('falls back to the online read when the local replica has zero rows for the show', async () => {
     mockEntriesTable.getEntriesByShow.mockResolvedValue([]);
 
@@ -89,10 +96,12 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
     expect((result.data[0] as Record<string, unknown>).id).toBe('entry-local-1');
   });
 
-  it('does NOT online-verify when local rows exist but are all tombstoned (offline delete wins)', async () => {
+  it('does not resurrect a locally-tombstoned entry the server still returns as live', async () => {
     // A queued soft-delete not yet synced: isLiveEntry filters the row out, so
-    // the mapped result is empty — but the raw local replica had a row, so
-    // falling back to the (stale) server would resurrect the deleted entry.
+    // the mapped result is empty and the online read runs. The server hasn't
+    // seen the delete yet, so it still returns that same entry as live — it must
+    // NOT reappear. (A show is a single replication unit, so the only online row
+    // in scope here is the tombstoned one.)
     mockEntriesTable.getEntriesByShow.mockResolvedValue([
       {
         id: 'entry-tombstoned',
@@ -104,12 +113,12 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
         entryStatus: 'confirmed',
       },
     ]);
+    onlineRows = [{ id: 'entry-tombstoned', show_id: 's1', class: { id: 'c1' } }];
 
     const result = await getEntriesByShow('s1');
 
-    // Empty (the tombstone), and specifically NOT the online row.
     expect(result.data).toHaveLength(0);
-    expect(result.data.some(r => (r as Record<string, unknown>).id === 'entry-online-1')).toBe(
+    expect(result.data.some(r => (r as Record<string, unknown>).id === 'entry-tombstoned')).toBe(
       false
     );
   });

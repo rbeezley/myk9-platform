@@ -24,7 +24,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { getDogDisplayName, Dog, User } from '@/types/dog-types';
+import { getDogDisplayName, getDogBreedLabel, Dog, User } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { UserRole } from '@/types/auth-types';
@@ -137,7 +137,7 @@ const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
   const dog = dogs[index];
   const { eligible, issues } = getDogEligibilityStatus(dog);
   const isSelected = selectedDogs.includes(dog.id);
-  const breed = dog.registrations?.[0]?.breed || dog.breed || '—';
+  const breed = getDogBreedLabel(dog);
   const reg = dog.registrations?.[0];
   const ownerDisplay = dog.ownerName || dog.owner?.name || '—';
   const dogDisplayName = getDogDisplayName(dog);

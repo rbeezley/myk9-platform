@@ -10,13 +10,13 @@
 
 ## 2. Durable operator alerts (MP-08, MP-12)
 
-- [ ] 2.1 Run `supabase migration list`, then create migration `NNN_create_operator_alerts.sql`: table per spec (id, created_at, source, severity CHECK, title, detail jsonb, dedupe_key, resolved_at, resolved_by), index on `created_at desc`, partial unique index on `(source, dedupe_key) WHERE resolved_at IS NULL` [ADDED — dedupe under Stripe re-delivery], explicit GRANTs (authenticated SELECT, service_role INSERT — no anon), RLS via `is_site_admin()`, and SECURITY DEFINER RPC `resolve_operator_alert(alert_id)` gated by `is_site_admin()`
-- [ ] 2.2 Run the `migration-auditor` agent on the new migration and fix findings
-- [ ] 2.3 Rework `_shared/alertAdmin.ts`: insert `operator_alerts` row first (own try/catch), then existing email attempt (own try/catch); missing `RESEND_API_KEY` no longer short-circuits persistence; add unit tests for both failure orders
-- [ ] 2.4 Delete the duplicate `alertAdmin` in `cron-process-payouts/index.ts` and import the shared helper
-- [ ] 2.5 Write assertion-first failing webhook test: unmatched `charge.refunded` → exactly one `alertAdmin` call with payment intent id, charge id, and amount; then replace the `console.log … ignoring` branch (`stripe-webhook/index.ts:282-284`) with the alert call, passing the Stripe event id as `dedupe_key` (MP-12)
-- [ ] 2.5b [ADDED] Test alert dedupe: same `charge.refunded` event delivered twice → exactly one unresolved `operator_alerts` row (upsert/ignore on the partial unique index); resolved-then-recurred condition creates a fresh row
-- [ ] 2.6 Add unresolved-alerts section to the existing `/admin/health` page: React Query read of `operator_alerts` (newest first, unresolved only), source/severity/title/detail/age display, resolve action calling the RPC, explicit all-clear empty state; component tests for populated, resolve, and empty states
+- [x] 2.1 Run `supabase migration list`, then create migration `NNN_create_operator_alerts.sql`: table per spec (id, created_at, source, severity CHECK, title, detail jsonb, dedupe_key, resolved_at, resolved_by), index on `created_at desc`, partial unique index on `(source, dedupe_key) WHERE resolved_at IS NULL` [ADDED — dedupe under Stripe re-delivery], explicit GRANTs (authenticated SELECT, service_role INSERT — no anon), RLS via `is_site_admin()`, and SECURITY DEFINER RPC `resolve_operator_alert(alert_id)` gated by `is_site_admin()`
+- [x] 2.2 Run the `migration-auditor` agent on the new migration and fix findings
+- [x] 2.3 Rework `_shared/alertAdmin.ts`: insert `operator_alerts` row first (own try/catch), then existing email attempt (own try/catch); missing `RESEND_API_KEY` no longer short-circuits persistence; add unit tests for both failure orders
+- [x] 2.4 Delete the duplicate `alertAdmin` in `cron-process-payouts/index.ts` and import the shared helper
+- [x] 2.5 Write assertion-first failing webhook test: unmatched `charge.refunded` → exactly one `alertAdmin` call with payment intent id, charge id, and amount; then replace the `console.log … ignoring` branch (`stripe-webhook/index.ts:282-284`) with the alert call, passing the Stripe event id as `dedupe_key` (MP-12)
+- [x] 2.5b [ADDED] Test alert dedupe: same `charge.refunded` event delivered twice → exactly one unresolved `operator_alerts` row (upsert/ignore on the partial unique index); resolved-then-recurred condition creates a fresh row
+- [x] 2.6 Add unresolved-alerts section to the existing `/admin/health` page: React Query read of `operator_alerts` (newest first, unresolved only), source/severity/title/detail/age display, resolve action calling the RPC, explicit all-clear empty state; component tests for populated, resolve, and empty states
 
 ## 3. Confirmation email idempotency (MP-13)
 

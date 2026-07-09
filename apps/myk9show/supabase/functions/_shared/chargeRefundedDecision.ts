@@ -44,9 +44,60 @@ export function findShowRefundId(refunds: ChargeRefundLike[]): string | undefine
 }
 
 export type ShowRefundStampAlertDecision =
-  | { action: 'none' }
-  | { action: 'alert'; unstampedEntryCount: number };
+  { action: 'none' } | { action: 'alert'; unstampedEntryCount: number };
 
-export function decideShowRefundStampAlert(unstampedEntryCount: number): ShowRefundStampAlertDecision {
+export function decideShowRefundStampAlert(
+  unstampedEntryCount: number
+): ShowRefundStampAlertDecision {
   return unstampedEntryCount > 0 ? { action: 'alert', unstampedEntryCount } : { action: 'none' };
+}
+
+/**
+ * MP-12: a `charge.refunded` event whose payment intent matches no
+ * `stripe_orders` row previously only logged ("matched no order — ignoring").
+ * That refund is real Stripe money movement with no local record to
+ * reconcile against — worth a durable, resolvable alert, not just a log line
+ * that scrolls away. `dedupeKey` is the Stripe event id: Stripe re-delivers
+ * webhook events, and re-delivery of the SAME unmatched refund must not
+ * create a second unresolved alert (the DB partial unique index enforces
+ * this; alertAdmin's dedupe unit tests cover the benign-violation path).
+ */
+export interface UnmatchedRefundAlertInput {
+  paymentIntentId: string;
+  chargeId: string;
+  refundedAmountCents: number;
+  /** The Stripe event id delivering this charge.refunded — used as dedupeKey. */
+  eventId: string;
+}
+
+export interface UnmatchedRefundAlertPayload {
+  severity: 'warn';
+  title: string;
+  html: string;
+  dedupeKey: string;
+  detail: {
+    paymentIntentId: string;
+    chargeId: string;
+    refundedAmountCents: number;
+  };
+}
+
+export function buildUnmatchedRefundAlert(
+  input: UnmatchedRefundAlertInput
+): UnmatchedRefundAlertPayload {
+  const { paymentIntentId, chargeId, refundedAmountCents, eventId } = input;
+  const dollars = (refundedAmountCents / 100).toFixed(2);
+  return {
+    severity: 'warn',
+    title: `Unmatched refund for payment intent ${paymentIntentId} — no order found`,
+    html: `<p>A <code>charge.refunded</code> event arrived for payment intent
+     <code>${paymentIntentId}</code> (charge <code>${chargeId}</code>, $${dollars} refunded),
+     but no <code>stripe_orders</code> row matches it.</p>
+     <p>This refund is real Stripe money movement with nothing local to reconcile against —
+     it may be a different Stripe account/environment's charge, a pre-migration order, or a
+     data gap. Investigate in the Stripe dashboard and, if it belongs to this platform,
+     reconcile manually.</p>`,
+    dedupeKey: eventId,
+    detail: { paymentIntentId, chargeId, refundedAmountCents },
+  };
 }

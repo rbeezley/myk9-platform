@@ -26,6 +26,7 @@ import {
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import {
   allRefundsAppOriginated,
+  buildUnmatchedRefundAlert,
   decideShowRefundStampAlert,
   findShowRefundId,
 } from '../_shared/chargeRefundedDecision.ts';
@@ -162,7 +163,7 @@ async function handleEvent(event: Stripe.Event) {
       break;
 
     case 'charge.refunded':
-      await handleChargeRefunded(event.data.object as Stripe.Charge);
+      await handleChargeRefunded(event.data.object as Stripe.Charge, event.id);
       break;
 
     case 'refund.failed':
@@ -241,7 +242,7 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
  * log loudly for manual entry-level reconciliation. Refunds from
  * app-originated refunds carry metadata and were already recorded.
  */
-async function handleChargeRefunded(charge: Stripe.Charge) {
+async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
   const refunds = charge.refunds?.data ?? [];
   // Skip only when EVERY refund came from an app flow (.some would let an app
   // refund mask a later dashboard refund on the same charge — review finding
@@ -281,7 +282,19 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
     return;
   }
   if (!data || data.length === 0) {
-    console.log(`charge.refunded for ${paymentIntentId} matched no order — ignoring`);
+    console.error(`charge.refunded for ${paymentIntentId} matched no order — alerting`);
+    const alert = buildUnmatchedRefundAlert({
+      paymentIntentId,
+      chargeId: charge.id,
+      refundedAmountCents: charge.amount_refunded,
+      eventId,
+    });
+    await alertAdmin(alert.title, alert.html, {
+      source: 'stripe-webhook',
+      severity: alert.severity,
+      dedupeKey: alert.dedupeKey,
+      detail: alert.detail,
+    });
     return;
   }
   console.error(

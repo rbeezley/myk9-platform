@@ -17,13 +17,13 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculateShowPayoutCents } from '../_shared/payoutCalc.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
+import { alertAdmin as sharedAlertAdmin } from '../_shared/alertAdmin.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const cronSecret = Deno.env.get('PAYOUT_CRON_SECRET')!;
 const resendApiKey = Deno.env.get('RESEND_API_KEY');
-const alertEmail = Deno.env.get('PLATFORM_ALERT_EMAIL') ?? 'richardbeezley1@gmail.com';
 
 if (!supabaseUrl || !supabaseServiceKey || !stripeSecret || !cronSecret) {
   throw new Error('Missing required environment variables');
@@ -75,8 +75,11 @@ async function sendEmail(to: string, subject: string, html: string) {
   }
 }
 
+// Wraps the shared, persist-then-email alertAdmin (MP-08) with this
+// function's identity so operator_alerts.source reads 'cron-process-payouts'
+// instead of the generic default.
 function alertAdmin(subject: string, html: string) {
-  return sendEmail(alertEmail, `[myK9Show payouts] ${subject}`, html);
+  return sharedAlertAdmin(subject, html, { source: 'cron-process-payouts' });
 }
 
 function dollars(cents: number): string {

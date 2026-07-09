@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { useSystemHealthSnapshots } from '@/features/admin-system-health/useSystemHealthSnapshots';
+import { OperatorAlertsSection } from './OperatorAlertsSection';
 import {
   deriveEffectiveStatus,
   formatCheckedAgo,
@@ -268,6 +269,8 @@ export default function SystemHealthPage() {
             )}
           </CardContent>
         </Card>
+
+        <OperatorAlertsSection />
       </div>
     </PageShell>
   );

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   allRefundsAppOriginated,
+  buildUnmatchedRefundAlert,
   decideShowRefundStampAlert,
   findShowRefundId,
   isAppOriginatedRefund,
@@ -12,9 +13,9 @@ describe('isAppOriginatedRefund', () => {
   });
 
   it('recognizes an entry payment request auto-refund', () => {
-    expect(
-      isAppOriginatedRefund({ metadata: { type: 'entry_payment_request_auto_refund' } })
-    ).toBe(true);
+    expect(isAppOriginatedRefund({ metadata: { type: 'entry_payment_request_auto_refund' } })).toBe(
+      true
+    );
   });
 
   it('recognizes a cart overflow auto-refund', () => {
@@ -44,9 +45,9 @@ describe('allRefundsAppOriginated', () => {
   });
 
   it('is false when mixed with a dashboard refund (never masks it)', () => {
-    expect(
-      allRefundsAppOriginated([{ metadata: { entry_id: 'e1' } }, { metadata: {} }])
-    ).toBe(false);
+    expect(allRefundsAppOriginated([{ metadata: { entry_id: 'e1' } }, { metadata: {} }])).toBe(
+      false
+    );
   });
 
   it('is false for an empty refund list', () => {
@@ -75,5 +76,41 @@ describe('decideShowRefundStampAlert', () => {
       action: 'alert',
       unstampedEntryCount: 200,
     });
+  });
+});
+
+describe('buildUnmatchedRefundAlert', () => {
+  const input = {
+    paymentIntentId: 'pi_123',
+    chargeId: 'ch_456',
+    refundedAmountCents: 5000,
+    eventId: 'evt_789',
+  };
+
+  it('includes the payment intent id, charge id, and refunded amount in detail', () => {
+    const alert = buildUnmatchedRefundAlert(input);
+    expect(alert.detail).toEqual({
+      paymentIntentId: 'pi_123',
+      chargeId: 'ch_456',
+      refundedAmountCents: 5000,
+    });
+  });
+
+  it('keys dedupeKey on the Stripe event id so re-delivery does not duplicate', () => {
+    const alert = buildUnmatchedRefundAlert(input);
+    expect(alert.dedupeKey).toBe('evt_789');
+  });
+
+  it('uses warn severity (needs investigation, not yet a confirmed money loss)', () => {
+    const alert = buildUnmatchedRefundAlert(input);
+    expect(alert.severity).toBe('warn');
+  });
+
+  it('mentions the payment intent id and dollar amount in the human-readable title/html', () => {
+    const alert = buildUnmatchedRefundAlert(input);
+    expect(alert.title).toContain('pi_123');
+    expect(alert.html).toContain('pi_123');
+    expect(alert.html).toContain('ch_456');
+    expect(alert.html).toContain('50.00');
   });
 });

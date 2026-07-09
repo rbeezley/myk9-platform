@@ -13,7 +13,7 @@ import {
   type WithdrawalPolicy,
 } from '../_shared/withdrawalPolicy.ts';
 import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
-import { decideRefundStampGuard } from '../_shared/entryRefundStampGuard.ts';
+import { decideRefundStampGuard, entryHasRefundStamp } from '../_shared/entryRefundStampGuard.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -275,23 +275,49 @@ Deno.serve(async req => {
         .or('refund_amount.is.null,refund_amount.eq.0')
         .select('id');
 
+      // A zero-row match is only benign if the entry really was stamped by a
+      // concurrent refund. Re-read it to distinguish that race from a deleted
+      // entry or a status change without a stamp — both of which leave the
+      // Stripe refund with no local accounting record. A re-read error fails
+      // closed (record_failure) rather than assuming the benign race.
+      let reread: { found: boolean; hasRefundStamp: boolean } | undefined;
+      if (!updateError && (stamped?.length ?? 0) === 0) {
+        const { data: rereadRow, error: rereadError } = await supabase
+          .from('entries')
+          .select('id, payment_status, refund_amount')
+          .eq('id', entry_id)
+          .maybeSingle();
+        reread = rereadError
+          ? { found: false, hasRefundStamp: false }
+          : {
+              found: !!rereadRow,
+              hasRefundStamp: !!rereadRow && entryHasRefundStamp(rereadRow),
+            };
+      }
+
       const stampDecision = decideRefundStampGuard({
         hasUpdateError: !!updateError,
         matchedEntryCount: stamped?.length ?? 0,
+        reread,
       });
 
       if (stampDecision.action === 'record_failure') {
         // The Stripe refund DID happen; until the entry is stamped, the payout
         // cron will overpay the club by this amount. Email, don't just log.
+        const failureDetail =
+          updateError?.message ??
+          (reread && !reread.found
+            ? `entry ${entry_id} no longer exists — the refund has no accounting record`
+            : `entry ${entry_id} was not stamped and carries no existing refund stamp`);
         console.error(
           `CRITICAL: refund ${refund.id} created for entry ${entry_id} but the entry update failed:`,
-          updateError?.message
+          failureDetail
         );
         await alertAdmin(
           'Refund issued but not recorded — payout will overpay',
           `<p>Stripe refund <code>${refund.id}</code> (${(refund.amount / 100).toFixed(2)} USD)
            was issued for entry <code>${entry_id}</code>, but stamping the entry failed:</p>
-           <pre>${updateError?.message}</pre>
+           <pre>${failureDetail}</pre>
            <p>Until the entry's refund columns are set, the payout cron computes the
            show's transfer WITHOUT this refund. Recovery: retry the refund from the
            entries page (it reuses the existing Stripe refund — no double refund), or

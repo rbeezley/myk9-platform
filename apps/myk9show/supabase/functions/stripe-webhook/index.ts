@@ -70,6 +70,12 @@ type CartOverflowLine = {
 };
 
 Deno.serve(async req => {
+  // Hoisted so the outer catch can dedupe re-deliveries: Stripe retries the
+  // same event id on every non-2xx response, and each retry would otherwise
+  // insert a fresh unresolved operator_alerts row. Stays null until signature
+  // verification succeeds — a verification failure has no trusted event id,
+  // so that path correctly stays keyless.
+  let eventId: string | null = null;
   try {
     if (req.method === 'OPTIONS') {
       return new Response(null, { status: 204 });
@@ -96,6 +102,7 @@ Deno.serve(async req => {
         status: 400,
       });
     }
+    eventId = event.id;
 
     await handleEvent(event);
 
@@ -107,7 +114,12 @@ Deno.serve(async req => {
       await alertAdmin(
         'Webhook handler failed before acknowledgment',
         `<p>A Stripe webhook handler failed before returning 2xx, so Stripe should retry it.</p>
-         <pre>${errorMessage}</pre>`
+         <pre>${errorMessage}</pre>`,
+        {
+          source: 'stripe-webhook',
+          dedupeKey: eventId ? `handler-failed-${eventId}` : undefined,
+          detail: { eventId, message: errorMessage },
+        }
       );
     } catch (alertError) {
       console.error('Webhook failure alert also failed:', alertError);

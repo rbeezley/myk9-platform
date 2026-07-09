@@ -14,10 +14,16 @@
 // timezone at all, only a genuine timestamp (with a time component) should be.
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Build a local `Date` from a "YYYY-MM-DD" string's own Y/M/D — no UTC/timezone conversion. */
+/**
+ * Build a local `Date` from a "YYYY-MM-DD" string's own Y/M/D — no UTC/timezone
+ * conversion. Callers gate on DATE_ONLY_PATTERN first, so all three parts exist;
+ * `Number(...)` (which accepts `undefined`) keeps this compiling cleanly even
+ * under `noUncheckedIndexedAccess`, where the split parts type as
+ * `string | undefined`.
+ */
 function parseDateOnlyAsLocalCalendarDate(dateOnly: string): Date {
-  const [year, month, day] = dateOnly.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  const parts = dateOnly.split('-');
+  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
 }
 
 export function formatDateInTimezone(

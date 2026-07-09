@@ -57,3 +57,25 @@ describe('Monogram HeroBlock — venue fallback', () => {
     expect(screen.getByText('TBA')).toBeInTheDocument();
   });
 });
+
+describe('Monogram HeroBlock — decorative monogram is out of flow', () => {
+  // Regression guard for the short-landscape fold fix: the 640px monogram must
+  // render inside a dedicated `.mg-hero__monogram` WRAPPER (positioned absolute
+  // + centered in monogram.css) rather than being applied to the emboss glyph
+  // in normal flow. In flow it pushed the hero to ~1554px and dropped the CTA
+  // far below the fold on short landscape tablets.
+  it('wraps the monogram in an aria-hidden .mg-hero__monogram layer, not the glyph itself', () => {
+    const { container } = render(
+      <HeroBlock {...baseProps} venueName="Expo Hall" venueCity="Tulsa, OK" />
+    );
+
+    const monoLayer = container.querySelector('.mg-hero__monogram');
+    expect(monoLayer).not.toBeNull();
+    // The positioned element is the wrapper DIV, not the emboss SPAN — this is
+    // what keeps the glyph out of the document flow.
+    expect(monoLayer?.tagName).toBe('DIV');
+    expect(monoLayer).toHaveAttribute('aria-hidden');
+    // The emboss letters still render inside the wrapper.
+    expect(monoLayer?.textContent).toContain('HS');
+  });
+});

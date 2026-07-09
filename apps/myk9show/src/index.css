@@ -35,6 +35,29 @@
     display: none;
   }
 
+  /* Overflow-aware horizontal scroll hint (Lea Verou's scroll-shadow trick).
+     A soft fade appears on an edge only while there is more content to scroll
+     toward, and vanishes once that edge is reached — so a rail that fits shows
+     nothing. Needed on the exhibitor dog rail at tablet widths, where touch
+     overlay scrollbars stay hidden and the cards give no clue they scroll.
+     The "cover" gradients use var(--background) (theme-remapped in dark mode)
+     with background-attachment:local so they ride the content; the shadow
+     gradients are pinned to the scroll viewport. */
+  .scroll-shadow-x {
+    background:
+      linear-gradient(to right, var(--background) 30%, transparent) left center,
+      linear-gradient(to left, var(--background) 30%, transparent) right center,
+      radial-gradient(farthest-side at 0 50%, rgba(28, 24, 21, 0.16), transparent) left center,
+      radial-gradient(farthest-side at 100% 50%, rgba(28, 24, 21, 0.16), transparent) right center;
+    background-repeat: no-repeat;
+    background-size:
+      36px 100%,
+      36px 100%,
+      14px 100%,
+      14px 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+
   /* Collapsible animations */
   @keyframes collapsible-down {
     from {

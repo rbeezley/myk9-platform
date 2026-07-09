@@ -161,4 +161,54 @@ describe('financialReportTotals', () => {
       outstanding: 25,
     });
   });
+
+  it('counts enrollment-paid secretary entries as collected revenue', () => {
+    const totals = calculateFinancialReportTotals(
+      [
+        entry({
+          id: 'mail-in-check',
+          entryFee: 45,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: 'check',
+          enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+        }),
+      ],
+      'current'
+    );
+
+    expect(totals.summary).toMatchObject({
+      count: 1,
+      gross: 45,
+      collected: 45,
+      outstanding: 0,
+      netRetained: 45,
+    });
+    expect(totals.paymentBreakdown.map(bucket => bucket.label)).toEqual(['Check']);
+  });
+
+  it('keeps entry-level refunds authoritative over enrollment payment status', () => {
+    const totals = calculateFinancialReportTotals(
+      [
+        entry({
+          id: 'entry-refunded-after-check',
+          entryFee: 45,
+          paymentStatus: PaymentStatus.REFUNDED,
+          refundAmount: 45,
+          paymentMethod: 'check',
+          enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+        }),
+      ],
+      'current'
+    );
+
+    expect(totals.summary).toMatchObject({
+      count: 1,
+      gross: 45,
+      collected: 45,
+      refunded: 45,
+      outstanding: 0,
+      netRetained: 0,
+    });
+    expect(totals.paymentBreakdown.map(bucket => bucket.label)).toEqual(['Refunded']);
+  });
 });

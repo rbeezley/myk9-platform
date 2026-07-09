@@ -72,6 +72,10 @@ function mapReportEntry(
 ): ReportEntry {
   const dog = (e as Record<string, unknown>).dog as Record<string, unknown> | null;
   const owner = dog?.owner as Record<string, unknown> | null;
+  const registration = (e as Record<string, unknown>).registration as Record<
+    string,
+    unknown
+  > | null;
   const handlerName = owner ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim() : '';
   const armbandNum = e.armband != null ? Number(e.armband) : null;
   const entrySource = readEntrySource(e.entry_source);
@@ -102,6 +106,13 @@ function mapReportEntry(
       ? { paymentStatus: e.payment_status as NonNullable<ReportEntry['paymentStatus']> }
       : {}),
     ...(e.payment_method ? { paymentMethod: e.payment_method } : {}),
+    ...(typeof registration?.payment_status === 'string'
+      ? {
+          enrollmentPaymentStatus: registration.payment_status as NonNullable<
+            ReportEntry['enrollmentPaymentStatus']
+          >,
+        }
+      : {}),
     ...(e.discount_amount != null ? { discountAmount: Number(e.discount_amount) } : {}),
     ...(e.refund_amount != null ? { refundAmount: Number(e.refund_amount) } : {}),
     ...(e.comped != null ? { comped: Boolean(e.comped) } : {}),

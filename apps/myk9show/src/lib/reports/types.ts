@@ -30,6 +30,7 @@ export interface ReportEntry {
   entryFee?: number;
   paymentStatus?: PaymentStatus | 'paid' | 'refunded';
   paymentMethod?: string;
+  enrollmentPaymentStatus?: PaymentStatus | 'paid' | 'refunded';
   discountAmount?: number;
   refundAmount?: number;
   comped?: boolean;

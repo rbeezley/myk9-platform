@@ -44,8 +44,8 @@
 
 - [x] 6.1 Update the single `OPEN-TODOS.md` pointer for this OpenSpec change when implementation status changes.
 - [x] 6.2 Open a PR with `Tracked in openspec change: secretary-show-details-ux-remediation` in the body.
-- [ ] 6.3 Wait for required CI and review; address actionable failures or review comments.
-- [ ] 6.4 Merge the PR before archiving this OpenSpec change.
-- [ ] 6.5 Archive the change only after merge evidence exists, then run the archive/sync validation required by `openspec-archive-change`.
+- [x] 6.3 Wait for required CI and review; address actionable failures or review comments.
+- [x] 6.4 Merge the PR before archiving this OpenSpec change.
+- [x] 6.5 Archive the change only after merge evidence exists, then run the archive/sync validation required by `openspec-archive-change`.
 
 Rationale: This remediation touches show-day secretary guidance, offline-sensitive entry/count derivation, and canonical show workbench navigation. It needs focused unit/component tests, OpenSpec validation, a manual multi-viewport re-walk, CI/review/merge evidence, and tracking updates before archive.

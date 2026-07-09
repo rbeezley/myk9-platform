@@ -55,6 +55,10 @@ function normalize(value: string | null | undefined): string {
   return value?.trim().toLowerCase() ?? '';
 }
 
+function getEffectivePaymentStatus(entry: ReportEntry): string {
+  return normalize(entry.enrollmentPaymentStatus) || normalize(entry.paymentStatus);
+}
+
 export function isEntryIncludedInFinancialReport(
   entry: ReportEntry,
   mode: FinancialReportMode
@@ -69,23 +73,23 @@ export function isEntryIncludedInFinancialReport(
 }
 
 function isWaived(entry: ReportEntry): boolean {
-  return Boolean(entry.comped) || normalize(entry.paymentStatus) === PaymentStatus.WAIVED;
+  return Boolean(entry.comped) || getEffectivePaymentStatus(entry) === PaymentStatus.WAIVED;
 }
 
 function isPending(entry: ReportEntry): boolean {
-  return normalize(entry.paymentStatus) === PaymentStatus.PENDING;
+  return getEffectivePaymentStatus(entry) === PaymentStatus.PENDING;
 }
 
 function isFullyRefunded(entry: ReportEntry): boolean {
-  return normalize(entry.paymentStatus) === PaymentStatus.REFUNDED;
+  return getEffectivePaymentStatus(entry) === PaymentStatus.REFUNDED;
 }
 
 function isPartiallyRefunded(entry: ReportEntry): boolean {
-  return normalize(entry.paymentStatus) === PaymentStatus.PARTIAL_REFUND;
+  return getEffectivePaymentStatus(entry) === PaymentStatus.PARTIAL_REFUND;
 }
 
 function isPaid(entry: ReportEntry): boolean {
-  const status = normalize(entry.paymentStatus);
+  const status = getEffectivePaymentStatus(entry);
   return (
     status === 'paid' ||
     status === PaymentStatus.PAID_ONLINE ||
@@ -109,7 +113,7 @@ export function getFinancialPaymentLabel(entry: ReportEntry): string {
   if (method === 'secretary_paid') return 'Secretary Paid';
   if (method === 'group_payment') return 'Group Payment';
 
-  const status = normalize(entry.paymentStatus);
+  const status = getEffectivePaymentStatus(entry);
   if (status === PaymentStatus.PAID_BY_CHECK) return 'Check';
   if (status === PaymentStatus.PAID_BY_CASH) return 'Cash';
   if (status === PaymentStatus.PAID_ONLINE || status === 'paid') return 'Online';

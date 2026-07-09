@@ -355,6 +355,41 @@ describe('mapScopedReportEntries', () => {
       netRetained: 30,
     });
   });
+
+  it('maps joined enrollment payment fields for secretary-recorded closeout totals', () => {
+    const paidEnrollmentEntry = {
+      ...e1,
+      payment_status: 'pending',
+      payment_method: 'check',
+      entry_fee: 45,
+      registration: {
+        payment_status: 'paid_by_check',
+        paid_amount: 45,
+        refund_amount: null,
+        refunded_at: null,
+      },
+    } as unknown as DbEntry;
+
+    const reportEntries = mapScopedReportEntries(
+      [paidEnrollmentEntry],
+      trials,
+      classes,
+      'all',
+      'all'
+    );
+    const totals = calculateFinancialReportTotals(reportEntries, 'current');
+
+    expect(reportEntries[0]).toMatchObject({
+      paymentStatus: 'pending',
+      enrollmentPaymentStatus: 'paid_by_check',
+      enrollmentPaidAmount: 45,
+    });
+    expect(totals.summary).toMatchObject({
+      collected: 45,
+      outstanding: 0,
+      netRetained: 45,
+    });
+  });
 });
 
 describe('readTrialRegistryId', () => {

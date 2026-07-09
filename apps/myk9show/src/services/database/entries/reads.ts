@@ -33,6 +33,18 @@ import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 // Helpers — batch-load related data into Maps to avoid N+1 reads
 // ---------------------------------------------------------------------------
 
+const ENROLLMENT_FINANCIAL_SELECT = `
+        id,
+        confirmation_number,
+        payment_status,
+        payment_reference,
+        total_amount,
+        paid_amount,
+        refund_amount,
+        refund_notes,
+        refunded_at
+      `;
+
 async function loadDogsMap(): Promise<Map<string, ReplicatedDog>> {
   return loadLookupMap(
     () => replicatedDogsTable.getAllDogs(),
@@ -54,6 +66,33 @@ async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
   );
 }
 
+async function loadEnrollmentFinancialsMap(
+  entries: ReadonlyArray<ReplicatedEntry>
+): Promise<Map<string, Record<string, unknown>>> {
+  const enrollmentIds = [
+    ...new Set(
+      entries.map(entry => entry.registrationId).filter((id): id is string => Boolean(id))
+    ),
+  ];
+
+  if (enrollmentIds.length === 0) return new Map();
+
+  try {
+    const { data, error } = await supabase
+      .from('enrollments')
+      .select(ENROLLMENT_FINANCIAL_SELECT)
+      .in('id', enrollmentIds);
+
+    if (error || !data) return new Map();
+
+    return buildMapFromArray(data as Record<string, unknown>[], enrollment =>
+      String(enrollment.id)
+    );
+  } catch {
+    return new Map();
+  }
+}
+
 function getEntryCreatedSortValue(entry: ReplicatedEntry): string | undefined {
   // Replication stores submitted_at as submittedAt; the mapper emits it as
   // created_at for the DB-shaped row, matching the PostgREST order column.
@@ -68,15 +107,22 @@ function mapEntriesWithStandardJoins(
   entries: ReplicatedEntry[],
   dogsMap: Map<string, ReplicatedDog>,
   classesMap: Map<string, ReplicatedClass>,
-  showsMap: Map<string, ReplicatedShow>
+  showsMap: Map<string, ReplicatedShow>,
+  enrollmentsMap?: Map<string, Record<string, unknown>>
 ): Record<string, unknown>[] {
-  return entries.map(entry =>
-    mapReplicatedEntryToDbRow(entry, {
+  return entries.map(entry => {
+    const registration =
+      enrollmentsMap && entry.registrationId
+        ? (enrollmentsMap.get(entry.registrationId) ?? null)
+        : undefined;
+
+    return mapReplicatedEntryToDbRow(entry, {
       dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
       cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
       show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
-    })
-  );
+      ...(registration !== undefined ? { registration } : {}),
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -256,6 +302,9 @@ async function postgrestGetEntriesByShow(showId: string) {
         name,
         class_number,
         entry_fee
+      ),
+      registration:registration_id (
+        ${ENROLLMENT_FINANCIAL_SELECT}
       )
     `
     )
@@ -290,6 +339,9 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
         name,
         class_number,
         entry_fee
+      ),
+      registration:registration_id (
+        ${ENROLLMENT_FINANCIAL_SELECT}
       ),
       promo_code:promo_code_id (
         id,
@@ -336,6 +388,9 @@ async function postgrestGetEntriesByTrial(trialId: string) {
         entry_fee,
         trial_id
       ),
+      registration:registration_id (
+        ${ENROLLMENT_FINANCIAL_SELECT}
+      ),
       promo_code:promo_code_id (
         id,
         code,
@@ -366,9 +421,12 @@ async function postgrestGetEntriesByClass(classId: string) {
         owner:owner_id (
           id,
           first_name,
-          last_name,
-          email
+        last_name,
+        email
         )
+      ),
+      registration:registration_id (
+        ${ENROLLMENT_FINANCIAL_SELECT}
       )
     `
     )
@@ -532,10 +590,14 @@ export const getEntriesByShow = async (showId: string) => {
         entries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
       );
+      const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
       const data = sortedEntries.map(entry =>
         mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
           cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+          registration: entry.registrationId
+            ? (enrollmentsMap.get(entry.registrationId) ?? null)
+            : null,
         })
       );
       return { data, error: null };
@@ -586,6 +648,7 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
       }
 
       const sortedEntries = sortedCopy(entries, compareDateDesc(getEntryCreatedSortValue));
+      const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
       const data = sortedEntries.map(entry => {
         const raw = entry as unknown as Record<string, unknown>;
         const promoCodeId = raw.promoCodeId as string | undefined;
@@ -594,6 +657,9 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
         return mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
           cls: cls ?? null,
+          registration: entry.registrationId
+            ? (enrollmentsMap.get(entry.registrationId) ?? null)
+            : null,
           promoCode: promoCodeId ? (promoCodesMap.get(promoCodeId) ?? null) : null,
           trial: trialRow,
         });
@@ -625,10 +691,14 @@ export const getEntriesByTrial = async (trialId: string) => {
         e => e.classId && trialClassIds.has(e.classId) && isLiveEntry(e)
       );
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
+      const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
       const data = sortedEntries.map(entry =>
         mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
           cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+          registration: entry.registrationId
+            ? (enrollmentsMap.get(entry.registrationId) ?? null)
+            : null,
         })
       );
       return { data, error: null };
@@ -652,9 +722,13 @@ export const getEntriesByClass = async (classId: string) => {
         entries.filter(isLiveEntry),
         compareNumberAscNullsLast(entry => entry.runOrder)
       );
+      const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
       const data = sortedEntries.map(entry =>
         mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
+          registration: entry.registrationId
+            ? (enrollmentsMap.get(entry.registrationId) ?? null)
+            : null,
         })
       );
       // Backfill armbands from the authoritative armbands table for entries

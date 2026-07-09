@@ -315,6 +315,7 @@ export const mapReplicatedEntryToDbRow = (
     dog?: ReplicatedDog | null;
     cls?: ReplicatedClass | null;
     show?: ReplicatedShow | null;
+    registration?: Record<string, unknown> | null;
     promoCode?: Record<string, unknown> | null;
     trial?: Record<string, unknown> | null;
   }
@@ -388,6 +389,10 @@ export const mapReplicatedEntryToDbRow = (
     row.show = mapReplicatedShowToEntryRow(options.show);
   } else if (options?.show === null) {
     row.show = null;
+  }
+
+  if (options?.registration !== undefined) {
+    row.registration = options.registration;
   }
 
   // Attach promo_code sub-object when provided (already snake_case from PostgREST batch)

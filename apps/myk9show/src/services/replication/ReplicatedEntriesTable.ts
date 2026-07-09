@@ -394,15 +394,23 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // misconfiguration case, never production, where the provider always wires
     // it). We still update the cache so offline-cache behavior works; the scoring
     // caller separately treats `null` as a failure and surfaces it.
+    //
+    // deferUpload: don't let the auto-upload flush (and delete) this mutation
+    // before the dirty cache row exists — otherwise, when online with slow
+    // storage, the row could be written dirty AFTER its mutation was already
+    // uploaded+removed, stranding it as pending forever. We trigger the upload
+    // ourselves after set() below.
     const mutationId = await this.queueMutation(
       'UPDATE',
       entryId,
       supabaseRow,
       undefined,
-      rpcFields ? { name: RINGSIDE_RPC_FUNCTION, fields: rpcFields } : undefined
+      rpcFields ? { name: RINGSIDE_RPC_FUNCTION, fields: rpcFields } : undefined,
+      /* deferUpload */ true
     );
 
     await this.set(entryId, updated, true);
+    this.requestUpload();
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId}`);
     return mutationId;

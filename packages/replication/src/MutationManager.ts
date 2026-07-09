@@ -231,6 +231,11 @@ export class MutationManager {
    * @param rowId - Primary key of the affected row
    * @param data - Mutation payload
    * @param dependsOn - Optional array of mutation IDs this depends on
+   * @param scheduleUploadNow - When false, the mutation is persisted but the
+   *   auto-upload is NOT scheduled; the caller must call requestUpload() after
+   *   it has finished any dependent local write. Prevents an online upload from
+   *   flushing (and deleting) the mutation before the caller marks its cache row
+   *   dirty — which would strand the row as pending forever.
    * @returns The generated mutation ID
    */
   async queueMutation(
@@ -240,7 +245,8 @@ export class MutationManager {
     data: Record<string, unknown>,
     dependsOn?: string[],
     serverVersion?: number,
-    rpc?: PendingMutation['rpc']
+    rpc?: PendingMutation['rpc'],
+    scheduleUploadNow = true
   ): Promise<string> {
     // Queue overflow protection
     const pendingCount = await this.getPendingCount();
@@ -313,10 +319,22 @@ export class MutationManager {
       window.dispatchEvent(new CustomEvent('replication:mutation-queued', { detail: { rowId } }));
     }
 
-    // Auto-upload: schedule immediate flush to server
-    this.scheduleUpload();
+    // Auto-upload: schedule immediate flush to server — unless the caller is
+    // deferring it until after a dependent local write (see scheduleUploadNow).
+    if (scheduleUploadNow) {
+      this.scheduleUpload();
+    }
 
     return id;
+  }
+
+  /**
+   * Public trigger for a debounced upload. Used by callers that queued a
+   * mutation with `scheduleUploadNow: false` and have now finished the dependent
+   * local write (e.g. marking the cache row dirty), so it is safe to flush.
+   */
+  requestUpload(): void {
+    this.scheduleUpload();
   }
 
   /**

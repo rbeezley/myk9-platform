@@ -171,7 +171,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       fields?: Record<string, unknown>;
       args?: Record<string, unknown>;
       expectRowId?: boolean;
-    }
+    },
+    /**
+     * When true, persist the mutation but DON'T schedule the upload yet — the
+     * caller will mark the cache row dirty and then call {@link requestUpload}.
+     * Prevents an online flush from deleting the mutation before the dirty row
+     * exists (which would strand the row as pending).
+     */
+    deferUpload = false
   ): Promise<string | null> {
     if (!this.mutationManager) {
       this.logger.warn(`[${this.tableName}] No MutationManager set — mutation not queued`);
@@ -199,8 +206,17 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       supabasePayload,
       dependsOn,
       serverVersion,
-      rpc
+      rpc,
+      !deferUpload
     );
+  }
+
+  /**
+   * Trigger a debounced upload after a deferred queueMutation (deferUpload) and
+   * its dependent cache write have completed. No-op if no MutationManager.
+   */
+  protected requestUpload(): void {
+    this.mutationManager?.requestUpload();
   }
 
   // ========================================

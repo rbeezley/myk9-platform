@@ -672,7 +672,9 @@ describe('ReplicatedEntriesTable', () => {
         }),
         undefined,
         // result_status + final_placement are ringside-whitelisted → routes via RPC.
-        { name: 'ringside_update_entry', fields: { result_status: 'pending', final_placement: null } }
+        { name: 'ringside_update_entry', fields: { result_status: 'pending', final_placement: null } },
+        // updateEntry defers the auto-upload until after the cache write.
+        true
       );
     });
 
@@ -726,7 +728,9 @@ describe('ReplicatedEntriesTable', () => {
         }),
         undefined,
         // entry_status is a management column → NOT routed through the ringside RPC.
-        undefined
+        undefined,
+        // updateEntry defers the auto-upload until after the cache write.
+        true
       );
     });
 
@@ -762,7 +766,9 @@ describe('ReplicatedEntriesTable', () => {
         }),
         undefined,
         // deleted_at is not a ringside column → NOT routed through the RPC.
-        undefined
+        undefined,
+        // updateEntry defers the auto-upload until after the cache write.
+        true
       );
     });
 

@@ -21,4 +21,4 @@
 - [x] 4.1 Update secretary responsibility docs with S7.3 implementation evidence and remaining print/source gates.
 - [x] 4.2 Run focused organization-form and Reports tests.
 - [x] 4.3 Run `pnpm --filter @myk9/show typecheck`, `pnpm --filter @myk9/show lint`, OpenSpec validation, and `git diff --check`.
-- [ ] 4.4 Open PR, pass CI/review, merge, then archive the OpenSpec change.
+- [x] 4.4 Open PR, pass CI/review, merge, then archive the OpenSpec change.

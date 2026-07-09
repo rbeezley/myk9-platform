@@ -33,3 +33,8 @@ This does not duplicate an existing page. The closeout destination already exist
 - Affected data paths: replicated show, trial, and class update mutations.
 - Affected docs: secretary responsibility coverage and verification plan evidence for S8.4.
 - No database migration expected; existing status values already include `completed` for shows, trials, and classes.
+
+## Archive Evidence
+
+- Implemented and merged in PR #1226: https://github.com/rbeezley/myk9-platform/pull/1226
+- CI, PR review, merge, and branch/worktree cleanup completed on 2026-07-09 before archive.

@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-07-09
+
+- **Playwright command:** pass. Phase 1 promoted Vitest passed (`18/18`, `3.25s`). The exact Phase 2 active Playwright command from `docs/qa/e2e-suite-map.md` passed under budget with `51 passed, 1 skipped (3.3m, --retries=0)`.
+- **Route sweep:** pass. The committed `route-health-by-role.spec.ts` passed inside Phase 2 for public, exhibitor, secretary, judge, club-admin, and admin. Standalone Phase 3 route-health also passed all configured role groups (`6/6`, `1.2m`, `--retries=0`).
+- **Active specs:** Vitest `18/18`; active Playwright `51/52` with the existing public show-card skip.
+- **Failures:** none.
+- **Fixes made:** docs only (`docs/qa/nightly-history.md`).
+- **Demotions/promotions:** none.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-07-09-024210` on `origin/main` `ff3157af586b00ca9fd43121f9c9047e01fba070`, using `PLAYWRIGHT_PORT=6606`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6606`, and `PLAYWRIGHT_HMR_PORT=26606`. The primary checkout had unrelated Monogram landing WIP, but the isolated baseline was clean except for generated `.qa-nightly.env`. The first Phase 2 attempt was blocked by sandbox `listen EPERM` on the generated ports, then succeeded outside the sandbox. No findings were opened or closed. `QA-ROLE-SCOPE-024` remains the only open finding and was not addressed because today's route-health uses the configured demo exhibitor account, not the legacy `exhibitor1@myk9t.com` seed.
+
 ### 2026-07-08
 
 - **Playwright command:** pass after low-risk repairs. Phase 1 promoted Vitest passed after bootstrapping the isolated worktree (`18/18`). Initial Phase 2 exact active Playwright exceeded the 30-minute global budget and was stopped at `17 passed, 5 failed, 1 interrupted, 1 skipped, 29 did not run (31.8m, --retries=0)`. After repairs, the exact Phase 2 command passed under budget (`23 passed, 2.1m, --retries=0`).

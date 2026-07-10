@@ -83,7 +83,7 @@ const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
           const notificationOptions: NotificationOptions = {
             body: ringLabel ? `You're needed at ${ringLabel}` : "You're needed at the ring",
             icon: '/logo.png',
-            badge: '/badge.png',
+            badge: '/notification-badge-96.png',
           };
           // Add vibrate if supported
           if ('vibrate' in navigator) {

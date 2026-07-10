@@ -55,46 +55,20 @@ export default defineConfig({
       registerType: 'prompt',
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,pdf}'],
+        globIgnores: ['brand-concepts/**'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit for large chunks
       },
       includeAssets: [
         'favicon.ico',
         'apple-touch-icon.png',
-        'mask-icon.svg',
+        'notification-badge-96.png',
         'pwa-192x192.png',
         'pwa-512x512.png',
+        'pwa-maskable-512x512.png',
       ],
-      manifest: {
-        name: 'MyK9Show - Dog Show Management',
-        short_name: 'MyK9Show',
-        description:
-          'Comprehensive dog show management platform for exhibitors, organizers, and judges',
-        theme_color: '#007AFF',
-        background_color: '#ffffff',
-        display: 'standalone',
-        scope: '/',
-        start_url: '/',
-        orientation: 'portrait-primary',
-        categories: ['business', 'productivity', 'utilities'],
-        icons: [
-          {
-            src: '/pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-          },
-          {
-            src: '/pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-          },
-          {
-            src: '/pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable',
-          },
-        ],
-      },
+      // index.html links the checked-in public/manifest.json. Keep one manifest
+      // source so icon metadata and launch colors cannot drift.
+      manifest: false,
       devOptions: {
         enabled: false,
       },

@@ -133,12 +133,11 @@
   height: 32px;
   color: var(--primary);
 }
-.landing-v2 .l-brand-mark svg {
+.landing-v2 .l-brand-mark img {
+  display: block;
   width: 100%;
   height: 100%;
-}
-.landing-v2 .l-brand-mark .ribbon {
-  color: var(--terracotta-500);
+  object-fit: contain;
 }
 .landing-v2 .l-status-chip {
   display: inline-flex;

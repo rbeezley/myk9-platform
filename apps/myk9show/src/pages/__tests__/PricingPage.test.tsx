@@ -33,7 +33,9 @@ vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return { ...actual, useNavigate: () => mockNavigate };
 });
-vi.mock('@/components/layout/AppHeader', () => ({ default: () => null }));
+vi.mock('@/components/layout/AppHeader', () => ({
+  default: () => <div data-testid="duplicate-app-header" />,
+}));
 vi.mock('@/components/layout/Footer', () => ({ default: () => null }));
 
 const mockedCheckout = vi.mocked(createCheckoutSession);
@@ -45,6 +47,12 @@ beforeEach(() => {
 });
 
 describe('PricingPage billing interval', () => {
+  it('relies on the app shell instead of mounting a second header', () => {
+    render(<PricingPage />);
+
+    expect(screen.queryByTestId('duplicate-app-header')).not.toBeInTheDocument();
+  });
+
   it('defaults to monthly: subscribe sends the monthly price id', async () => {
     const user = userEvent.setup();
     render(<PricingPage />);

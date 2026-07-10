@@ -46,21 +46,23 @@ interface CheckInStatusDialogProps {
 const EXHIBITOR_STATUS_DESCRIPTIONS: Partial<Record<CheckInStatus, string>> = {
   'no-status': "I haven't checked in yet",
   'checked-in': "I've checked in and I'm ready",
+  conflict: "I'll let the secretary know about this conflict",
   'at-gate': "I'm at the gate and ready",
 };
 
 const EXHIBITOR_STATUS_LABELS: Partial<Record<CheckInStatus, string>> = {
   'no-status': 'I am not there yet',
   'checked-in': 'I am here',
+  conflict: 'I have a conflict — tell the secretary',
 };
 
-// Staff-only statuses (schedule conflicts, pulled entries) are secretary/judge
-// calls, not something an exhibitor should self-report — hidden from the
-// exhibitor's own status picker (previously selectable, a dead-end since only
-// staff can act on either).
+// An exhibitor can flag a scheduling conflict through the owner-scoped
+// self_checkin_entry RPC. Pulled remains staff-only because it removes a dog
+// from the running order rather than reporting an exhibitor's availability.
 const EXHIBITOR_SELECTABLE_STATUSES: ReadonlySet<CheckInStatus> = new Set([
   'no-status',
   'checked-in',
+  'conflict',
   'at-gate',
 ]);
 
@@ -88,7 +90,7 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
 
     switch (userRole) {
       case 'exhibitor':
-        // Exhibitors self-report; conflict/pulled are staff-only calls.
+        // Exhibitors self-report availability; Pulled remains staff-only.
         return allStatuses.filter(config => EXHIBITOR_SELECTABLE_STATUSES.has(config.status));
       case 'judge':
       case 'gate_steward':

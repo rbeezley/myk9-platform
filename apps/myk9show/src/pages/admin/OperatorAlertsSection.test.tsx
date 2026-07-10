@@ -97,7 +97,10 @@ describe('OperatorAlertsSection', () => {
     await user.click(screen.getByRole('button', { name: /resolve/i }));
 
     await waitFor(() => {
-      expect(mockedToastError).toHaveBeenCalledWith(expect.stringContaining('resolve failed'));
+      // SA-026: the toast shows a friendly message, never the raw error text
+      // ('resolve failed'), so Postgres/PostgREST internals aren't leaked.
+      expect(mockedToastError).toHaveBeenCalledWith('Failed to resolve alert. Please try again.');
+      expect(mockedToastError).not.toHaveBeenCalledWith(expect.stringContaining('resolve failed'));
     });
     // The resolve button must re-enable after the failure (existing finally block).
     expect(screen.getByRole('button', { name: /resolve/i })).not.toBeDisabled();

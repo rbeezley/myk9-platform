@@ -204,6 +204,8 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [roles/secretary.md](roles/secretary.md)                                                                   | Reference | Role: Secretary                               |
 | [roles/secretary-responsibility-coverage.md](roles/secretary-responsibility-coverage.md)                   | Active    | Secretary Responsibility Coverage Matrix      |
 | [roles/secretary-responsibility-verification-plan.md](roles/secretary-responsibility-verification-plan.md) | Active    | Secretary Responsibility Verification Plan    |
+| [roles/judge-responsibility-coverage.md](roles/judge-responsibility-coverage.md)                           | Active    | Judge Responsibility Coverage Matrix          |
+| [roles/judge-responsibility-verification-plan.md](roles/judge-responsibility-verification-plan.md)         | Active    | Judge Responsibility Verification Plan        |
 | [roles/steward.md](roles/steward.md)                                                                       | Reference | Role: Steward (stub — deferred for fall 2026) |
 
 ### testing/ — golden-path checklists

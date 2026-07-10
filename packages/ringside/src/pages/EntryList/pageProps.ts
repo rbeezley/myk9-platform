@@ -122,14 +122,7 @@ export type DogCardStatusBorder =
  * full union for hosts reusing the primitive elsewhere.
  */
 export type HamburgerMenuPage =
-  | 'home'
-  | 'announcements'
-  | 'settings'
-  | 'stats'
-  | 'entries'
-  | 'tv'
-  | 'show'
-  | 'results';
+  'home' | 'announcements' | 'settings' | 'stats' | 'entries' | 'tv' | 'show' | 'results';
 
 /** Edge a popover anchors against. Inlined from the host's `Popover`. */
 export type PopoverPosition = 'top' | 'bottom' | 'left' | 'right';
@@ -286,6 +279,9 @@ export interface ClassDetailsData {
   areaCount?: number;
   visibilityPreset?: 'open' | 'standard' | 'review' | 'custom';
   selfCheckinEnabled?: boolean;
+  /** Class-aggregate scoring rules (one value per class, not per area). */
+  hidesKnown?: boolean;
+  distractionCount?: number;
 }
 
 export interface ClassDetailsPopoverProps {

@@ -9160,11 +9160,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      ringside_claim_generation_current: { Args: never; Returns: boolean }
       validate_passcode: {
         Args: { p_code: string }
         Returns: {
           role: string
           show_id: string
+          passcode_generation: string
         }[]
       }
       volunteer_show_id: { Args: { vol_id: string }; Returns: string }

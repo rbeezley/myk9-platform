@@ -47,6 +47,10 @@ import { isAbortSyncError } from '@/services/replication/syncErrorUtils';
 import { requestPersistentStorage } from '@/lib/persistentStorage';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
 import type { SyncFailedEventDetail } from './replicationSyncFormatters';
+import {
+  isPasscodeRegeneratedMessage,
+  revokeRingsidePasscodeAccess,
+} from '@/features/at-show/ringsidePasscodeRevocation';
 import { formatSyncFailureToast, formatDownloadFailureToast } from './replicationSyncFormatters';
 import {
   classifyTableSyncResults,
@@ -555,6 +559,17 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         count: detail.count,
         mutations: detail.mutations,
       });
+
+      // J1.3 — a ringside SCORE/check-in write rejected because the secretary
+      // regenerated passcodes surfaces here (42501, non-retryable). Route it to
+      // the revocation UX ("access revoked — re-enter code" + back to sign-in)
+      // instead of the generic "check your connection" retry toast — a passcode
+      // that no longer exists will never succeed on retry. This makes revocation
+      // work even for a device with no push subscription (the heartbeat path).
+      if (detail.mutations.some(m => isPasscodeRegeneratedMessage(m.error))) {
+        revokeRingsidePasscodeAccess();
+        return;
+      }
 
       const ids = detail.mutations.map(m => m.id).filter(Boolean);
       const toastId = `sync-failed:${ids[0] ?? 'unknown'}`;

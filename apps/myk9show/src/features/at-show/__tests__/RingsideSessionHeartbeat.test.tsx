@@ -13,7 +13,13 @@ vi.mock('@myk9/notifications', () => ({
 }));
 
 vi.mock('@/lib/supabase', () => ({
-  supabase: { rpc: rpcMock },
+  supabase: {
+    rpc: rpcMock,
+    auth: {
+      getSession: vi.fn(() => Promise.resolve({ data: { session: null } })),
+      signOut: vi.fn(() => Promise.resolve({ error: null })),
+    },
+  },
 }));
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -106,10 +112,7 @@ describe('RingsideSessionHeartbeat', () => {
     renderHeartbeat();
 
     await waitFor(() =>
-      expect(rpcMock).toHaveBeenCalledWith(
-        'upsert_ringside_session',
-        expect.anything()
-      )
+      expect(rpcMock).toHaveBeenCalledWith('upsert_ringside_session', expect.anything())
     );
 
     const passcodesSent = rpcMock.mock.calls
@@ -133,7 +136,7 @@ describe('RingsideSessionHeartbeat', () => {
     );
   });
 
-  it('does not clear presence when no push endpoint has been found', async () => {
+  it('does not upsert presence or clear presence when no push endpoint has been found', async () => {
     getExistingSubscriptionMock.mockResolvedValue(null);
     const { unmount } = renderHeartbeat();
 
@@ -143,6 +146,19 @@ describe('RingsideSessionHeartbeat', () => {
     document.dispatchEvent(new Event('visibilitychange'));
     unmount();
 
-    expect(rpcMock).not.toHaveBeenCalled();
+    // No push endpoint: never upserts presence and never clears it...
+    const presenceCalls = rpcMock.mock.calls.filter(
+      ([fn]) => fn === 'upsert_ringside_session' || fn === 'clear_ringside_session_presence'
+    );
+    expect(presenceCalls).toHaveLength(0);
+  });
+
+  it('does a push-independent generation check with no endpoint (J1.3)', async () => {
+    getExistingSubscriptionMock.mockResolvedValue(null);
+    renderHeartbeat();
+
+    // Even without a push subscription, the heartbeat must still detect a
+    // revoked (regenerated) passcode via the lightweight generation-check RPC.
+    await waitFor(() => expect(rpcMock).toHaveBeenCalledWith('ringside_claim_generation_current'));
   });
 });

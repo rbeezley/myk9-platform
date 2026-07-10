@@ -27,6 +27,8 @@ import {
   Eye,
   Smartphone,
   Hash,
+  Search,
+  Zap,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -48,7 +50,7 @@ type PopoverCoords = { top: number; left: number };
 
 function getPopoverCoords(
   anchor: HTMLElement | null,
-  position: ClassDetailsPopoverProps['position'],
+  position: ClassDetailsPopoverProps['position']
 ): PopoverCoords | null {
   if (!anchor || typeof window === 'undefined') return null;
 
@@ -86,7 +88,7 @@ const DetailValue: React.FC<{ mono?: boolean; children: React.ReactNode }> = ({
   <span
     className={cn(
       'ml-auto text-[13px] font-medium text-foreground',
-      mono && 'font-mono text-[11px] tracking-wider',
+      mono && 'font-mono text-[11px] tracking-wider'
     )}
   >
     {children}
@@ -98,7 +100,9 @@ const DetailBadge: React.FC<{ tier: BadgeTier; children: React.ReactNode }> = ({
   tier,
   children,
 }) => (
-  <span className={cn('ml-auto rounded-full px-2.5 py-0.5 text-xs font-semibold', badgeClass(tier))}>
+  <span
+    className={cn('ml-auto rounded-full px-2.5 py-0.5 text-xs font-semibold', badgeClass(tier))}
+  >
     {children}
   </span>
 );
@@ -224,6 +228,20 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
               )}
             </DetailValue>
           </DetailRow>
+
+          {/* Class-aggregate scoring rules (one value per class, not per
+              search area) — see design.md R4. */}
+          {typeof data.hidesKnown === 'boolean' && (
+            <DetailRow icon={Search} label="Hides">
+              <DetailValue>{data.hidesKnown ? 'Known' : 'Unknown'}</DetailValue>
+            </DetailRow>
+          )}
+
+          {typeof data.distractionCount === 'number' && (
+            <DetailRow icon={Zap} label="Distractions">
+              <DetailValue>{data.distractionCount}</DetailValue>
+            </DetailRow>
+          )}
 
           {visibilityLabel && (
             <DetailRow icon={Eye} label="Results">

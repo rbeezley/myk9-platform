@@ -7,6 +7,7 @@ import { UserRole } from '@/types/auth-types';
 import { selectGrantRoleForShow, useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import { useAccountTodayAutoFavorites } from '@/features/show-today/accountTodayEntries';
 import { useHasAnyEntryForShow } from './useHasAnyEntryForShow';
+import { AtShowAnnouncementFeed } from './AtShowAnnouncementFeed';
 
 const STAFF_ROLES = [
   UserRole.SITE_ADMIN,
@@ -53,7 +54,7 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   }
 
   if (grantRole || hasAccountStaffRole || accountToday.hasAccountEntryForShow) {
-    return <>{children}</>;
+    return <AtShowAnnouncementFeed showId={showId}>{children}</AtShowAnnouncementFeed>;
   }
 
   if (user && accountToday.isLoading) {
@@ -107,8 +108,7 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
               to="/at-show?passcode=1"
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-input px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <KeyRound className="h-4 w-4" aria-hidden />
-              I have a show-day passcode
+              <KeyRound className="h-4 w-4" aria-hidden />I have a show-day passcode
             </Link>
           </div>
         </div>
@@ -124,8 +124,8 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
           You don&apos;t have ringside access for this show.
         </p>
         <p className="text-sm text-muted-foreground">
-          Entered this show? Check your entries under My Shows. Working the show? Enter the
-          passcode your secretary gave you.
+          Entered this show? Check your entries under My Shows. Working the show? Enter the passcode
+          your secretary gave you.
         </p>
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
           <Link

@@ -26,7 +26,10 @@ import {
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
-import { composeClassTitle, resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
+import {
+  composeClassTitle,
+  resolveClassSection,
+} from '@/services/entryDisplay/entryDisplaySelectors';
 
 /**
  * Build the rendered class name from element + level (+ section). Delegates to
@@ -71,7 +74,9 @@ function timeLimitString(seconds?: number): string | undefined {
  * deriving from the lifecycle `entry_status` string the way myK9Q must.
  */
 export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null): Entry {
-  const status: EntryStatus = (re.checkInStatus ?? re.check_in_status ?? 'no-status') as EntryStatus;
+  const status: EntryStatus = (re.checkInStatus ??
+    re.check_in_status ??
+    'no-status') as EntryStatus;
   const checkinStatus = re.checkInStatus ?? re.check_in_status;
   const finalPlacement = re.finalPlacement ?? re.final_placement;
   const searchTimeSeconds = re.searchTimeSeconds ?? re.search_time_seconds;
@@ -177,6 +182,8 @@ export function buildClassInfo(
     ...(timeLimit2 != null && { timeLimit2 }),
     ...(timeLimit3 != null && { timeLimit3 }),
     ...(areas != null && { areas }),
+    ...(cls.hidesKnown != null && { hidesKnown: cls.hidesKnown }),
+    ...(cls.distractionCount != null && { distractionCount: cls.distractionCount }),
   };
 }
 
@@ -188,9 +195,10 @@ async function fetchClassData(classId: string): Promise<{
   const cls = await replicatedClassesTable.getClassById(classId);
   const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
   const entries = rawEntries.map(re => transformEntry(re, cls));
-  const trial = cls?.trialId ?? cls?.trial_id
-    ? await replicatedTrialsTable.getTrialById((cls?.trialId ?? cls?.trial_id) as string)
-    : null;
+  const trial =
+    (cls?.trialId ?? cls?.trial_id)
+      ? await replicatedTrialsTable.getTrialById((cls?.trialId ?? cls?.trial_id) as string)
+      : null;
   return { cls, trial, entries };
 }
 
@@ -200,7 +208,10 @@ async function fetchClassData(classId: string): Promise<{
  */
 export function createAtShowDataDependencies(): Pick<
   EntryListDataDependencies,
-  'fetchSingleClass' | 'fetchCombinedClasses' | 'forceSyncEntriesAndClasses' | 'subscribeToReplicationChanges'
+  | 'fetchSingleClass'
+  | 'fetchCombinedClasses'
+  | 'forceSyncEntriesAndClasses'
+  | 'subscribeToReplicationChanges'
 > {
   return {
     fetchSingleClass: async (classId): Promise<EntryListData> => {

@@ -33,7 +33,7 @@ import { initSupabase } from '@myk9/supabase';
 // In your app entry point (main.tsx)
 initSupabase({
   url: import.meta.env.VITE_SUPABASE_URL,
-  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY
+  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
 });
 ```
 
@@ -57,10 +57,7 @@ function MyComponent() {
   const supabase = useSupabase();
 
   const fetchClasses = async () => {
-    const { data, error } = await supabase
-      .from('classes')
-      .select('*')
-      .order('name');
+    const { data, error } = await supabase.from('classes').select('*').order('name');
 
     if (error) throw error;
     return data;
@@ -79,10 +76,7 @@ import { getSupabase } from '@myk9/supabase';
 export async function fetchTrials(showId: string) {
   const supabase = getSupabase();
 
-  const { data, error } = await supabase
-    .from('trials')
-    .select('*')
-    .eq('show_id', showId);
+  const { data, error } = await supabase.from('trials').select('*').eq('show_id', showId);
 
   if (error) throw error;
   return data;
@@ -142,6 +136,7 @@ const createCustomFetch = () => {
 ```
 
 This ensures that:
+
 - All Supabase API calls include the license key
 - RLS policies receive the header for filtering
 - Multi-tenant isolation is automatic and transparent
@@ -155,7 +150,7 @@ This ensures that:
 Initialize the Supabase client with configuration.
 
 ```typescript
-function initSupabase(config: SupabaseConfig): SupabaseClient
+function initSupabase(config: SupabaseConfig): SupabaseClient;
 
 interface SupabaseConfig {
   url: string;
@@ -171,11 +166,12 @@ import { initSupabase } from '@myk9/supabase';
 // Initialize once at app startup
 initSupabase({
   url: 'https://sojmvhhwsjxmfistvzbe.supabase.co',
-  anonKey: 'your-anon-key-here'
+  anonKey: 'your-anon-key-here',
 });
 ```
 
 **Notes:**
+
 - Call once at app startup (e.g., `main.tsx`)
 - Subsequent calls with same config return existing instance
 - Throws error if config is missing or invalid
@@ -186,7 +182,7 @@ initSupabase({
 Get the initialized Supabase client instance.
 
 ```typescript
-function getSupabase(): SupabaseClient
+function getSupabase(): SupabaseClient;
 ```
 
 **Usage:**
@@ -198,9 +194,7 @@ import { getSupabase } from '@myk9/supabase';
 export async function fetchData() {
   const supabase = getSupabase();
 
-  const { data, error } = await supabase
-    .from('dogs')
-    .select('*');
+  const { data, error } = await supabase.from('dogs').select('*');
 
   if (error) throw error;
   return data;
@@ -208,6 +202,7 @@ export async function fetchData() {
 ```
 
 **Notes:**
+
 - Throws error if `initSupabase()` hasn't been called
 - Use for non-React code (services, utilities)
 - Returns singleton instance
@@ -217,7 +212,7 @@ export async function fetchData() {
 Check if the Supabase client is initialized.
 
 ```typescript
-function isSupabaseInitialized(): boolean
+function isSupabaseInitialized(): boolean;
 ```
 
 **Usage:**
@@ -238,7 +233,7 @@ if (!isSupabaseInitialized()) {
 Set the license key for RLS filtering.
 
 ```typescript
-function setLicenseKey(licenseKey: string | null): void
+function setLicenseKey(licenseKey: string | null): void;
 ```
 
 **Usage:**
@@ -259,6 +254,7 @@ function logout() {
 ```
 
 **Notes:**
+
 - Must be called after authentication
 - Affects all subsequent Supabase queries
 - Pass `null` to clear (e.g., on logout)
@@ -269,7 +265,7 @@ function logout() {
 Get the current license key.
 
 ```typescript
-function getLicenseKey(): string | null
+function getLicenseKey(): string | null;
 ```
 
 **Usage:**
@@ -293,7 +289,7 @@ if (currentKey) {
 React hook for accessing the Supabase client.
 
 ```typescript
-function useSupabase(): SupabaseClient
+function useSupabase(): SupabaseClient;
 ```
 
 **Usage:**
@@ -334,6 +330,7 @@ function ClassList() {
 ```
 
 **Notes:**
+
 - Returns the singleton Supabase instance
 - Safe to use in dependency arrays
 - Throws error if `initSupabase()` not called
@@ -370,7 +367,7 @@ import type {
   PostgrestSingleResponse,
   PostgrestMaybeSingleResponse,
   RealtimeChannel,
-  RealtimePostgresChangesPayload
+  RealtimePostgresChangesPayload,
 } from '@myk9/supabase';
 
 // Use in error handling
@@ -379,9 +376,7 @@ function handleError(error: PostgrestError) {
 }
 
 // Use with queries
-const response: PostgrestResponse<Class> = await supabase
-  .from('classes')
-  .select('*');
+const response: PostgrestResponse<Class> = await supabase.from('classes').select('*');
 ```
 
 ## Usage Examples
@@ -395,13 +390,13 @@ import { initSupabase, setLicenseKey } from '@myk9/supabase';
 // Initialize Supabase
 initSupabase({
   url: import.meta.env.VITE_SUPABASE_URL,
-  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY
+  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
 });
 
 // Set license key after authentication
 async function authenticate(passcode: string) {
-  const { data, error } = await getSupabase()
-    .rpc('validate_passcode', { p_passcode: passcode });
+  const { data, error } = await getSupabase().rpc('validate_passcode', { p_code: passcode });
+  // Returns { show_id, role, passcode_generation }[]
 
   if (error) throw error;
 
@@ -532,22 +527,14 @@ export const classService = {
   },
 
   async getById(id: string): Promise<Class> {
-    const { data, error } = await getSupabase()
-      .from('classes')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const { data, error } = await getSupabase().from('classes').select('*').eq('id', id).single();
 
     if (error) throw error;
     return data;
   },
 
   async create(classData: ClassInsert): Promise<Class> {
-    const { data, error } = await getSupabase()
-      .from('classes')
-      .insert(classData)
-      .select()
-      .single();
+    const { data, error } = await getSupabase().from('classes').insert(classData).select().single();
 
     if (error) throw error;
     return data;
@@ -566,13 +553,10 @@ export const classService = {
   },
 
   async delete(id: string): Promise<void> {
-    const { error } = await getSupabase()
-      .from('classes')
-      .delete()
-      .eq('id', id);
+    const { error } = await getSupabase().from('classes').delete().eq('id', id);
 
     if (error) throw error;
-  }
+  },
 };
 ```
 
@@ -583,10 +567,7 @@ import { getSupabase, type PostgrestError } from '@myk9/supabase';
 
 async function fetchClassesSafely(trialId: string) {
   try {
-    const { data, error } = await getSupabase()
-      .from('classes')
-      .select('*')
-      .eq('trial_id', trialId);
+    const { data, error } = await getSupabase().from('classes').select('*').eq('trial_id', trialId);
 
     if (error) {
       handleSupabaseError(error);
@@ -605,7 +586,7 @@ function handleSupabaseError(error: PostgrestError) {
     message: error.message,
     details: error.details,
     hint: error.hint,
-    code: error.code
+    code: error.code,
   });
 
   // Show user-friendly message
@@ -629,11 +610,13 @@ pnpm generate-types
 ```
 
 This runs:
+
 ```bash
 supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/database.types.ts
 ```
 
 **Notes:**
+
 - Requires `SUPABASE_PROJECT_ID` environment variable
 - Requires Supabase CLI installed and authenticated
 - Run after schema changes to update types
@@ -667,14 +650,14 @@ export {
   getLicenseKey,
   isSupabaseInitialized,
   type SupabaseConfig,
-  type SupabaseClient
-}
+  type SupabaseClient,
+};
 
 // React hooks
-export { useSupabase }
+export { useSupabase };
 
 // Database types
-export type { Database }
+export type { Database };
 
 // Re-exported Supabase types
 export type {
@@ -683,8 +666,8 @@ export type {
   PostgrestSingleResponse,
   PostgrestMaybeSingleResponse,
   RealtimeChannel,
-  RealtimePostgresChangesPayload
-}
+  RealtimePostgresChangesPayload,
+};
 ```
 
 ## Development
@@ -850,13 +833,14 @@ Error: Supabase client not initialized. Call initSupabase() first.
 ```
 
 **Solution:**
+
 ```typescript
 // Add to app entry point (main.tsx)
 import { initSupabase } from '@myk9/supabase';
 
 initSupabase({
   url: import.meta.env.VITE_SUPABASE_URL,
-  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY
+  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
 });
 ```
 
@@ -889,6 +873,7 @@ Error: useSupabase must be called within a React component
 ```
 
 **Solution:**
+
 ```typescript
 // Use hook only in React components
 function MyComponent() {
@@ -920,6 +905,7 @@ Private - myK9 Platform
 ## Support
 
 For questions or issues related to `@myk9/supabase`:
+
 - Review this README and source code
 - Check Supabase documentation
 - Verify RLS policies in dashboard

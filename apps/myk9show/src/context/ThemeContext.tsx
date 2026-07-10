@@ -35,20 +35,22 @@ function readStoredMode(): ThemeMode {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>(() => readStoredMode());
-  const [theme, setTheme] = useState<ResolvedTheme>(() => resolveTheme(readStoredMode()));
+  // Track the OS preference as its own state (updated only by the media-query
+  // listener below) so `theme` is derived during render — no setState inside
+  // effects (react-hooks/set-state-in-effect).
+  const [systemDark, setSystemDark] = useState<boolean>(() => getSystemPrefersDark());
+  const theme: ResolvedTheme = mode === 'system' ? (systemDark ? 'dark' : 'light') : mode;
 
   // Apply the full theme-class trio (theme-light/theme-dark/dark) — NOT just
   // `.dark`. Toggling `.dark` alone left a stale `.theme-dark` behind (set by
   // theme-init.js / settingsStore on an OS-dark boot), which leaks the DARK
   // --accent into a LIGHT page: hover:bg-accent buttons filled near-black.
   // See applyThemeClasses for the full explanation. This applies on boot
-  // (mount) and on every subsequent mode change, including 'system'.
+  // (mount) and on every subsequent mode or OS-preference change.
   useEffect(() => {
-    const resolved = resolveTheme(mode);
-    setTheme(resolved);
-    applyThemeClasses(document.documentElement, resolved === 'dark');
+    applyThemeClasses(document.documentElement, theme === 'dark');
     localStorage.setItem(STORAGE_KEY, mode);
-  }, [mode]);
+  }, [mode, theme]);
 
   // Apply the persisted font-size scale on boot, alongside theme. Runs once
   // on mount — the ThemeProvider sits at the app root, so this is the
@@ -61,20 +63,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // While in 'system' mode, follow live OS theme changes.
+  // Follow live OS theme changes; while in 'system' mode the derived `theme`
+  // flips with this state and the apply-effect above re-runs.
   useEffect(() => {
-    if (mode !== 'system' || typeof window.matchMedia !== 'function') {
+    if (typeof window.matchMedia !== 'function') {
       return undefined;
     }
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (e: MediaQueryListEvent) => {
-      const resolved: ResolvedTheme = e.matches ? 'dark' : 'light';
-      setTheme(resolved);
-      applyThemeClasses(document.documentElement, resolved === 'dark');
+      setSystemDark(e.matches);
     };
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [mode]);
+  }, []);
 
   const setThemeMode = useCallback((newMode: ThemeMode) => {
     setMode(newMode);

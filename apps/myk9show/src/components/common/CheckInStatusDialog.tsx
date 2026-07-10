@@ -49,6 +49,11 @@ const EXHIBITOR_STATUS_DESCRIPTIONS: Partial<Record<CheckInStatus, string>> = {
   'at-gate': "I'm at the gate and ready",
 };
 
+const EXHIBITOR_STATUS_LABELS: Partial<Record<CheckInStatus, string>> = {
+  'no-status': 'I am not there yet',
+  'checked-in': 'I am here',
+};
+
 // Staff-only statuses (schedule conflicts, pulled entries) are secretary/judge
 // calls, not something an exhibitor should self-report — hidden from the
 // exhibitor's own status picker (previously selectable, a dead-end since only
@@ -196,7 +201,11 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
                           showTooltip={false}
                         />
                         <div>
-                          <div className="font-medium text-sm">{config.label}</div>
+                          <div className="font-medium text-sm">
+                            {userRole === 'exhibitor'
+                              ? (EXHIBITOR_STATUS_LABELS[config.status] ?? config.label)
+                              : config.label}
+                          </div>
                           <div className="text-xs text-muted-foreground">
                             {userRole === 'exhibitor'
                               ? (EXHIBITOR_STATUS_DESCRIPTIONS[config.status] ?? config.description)

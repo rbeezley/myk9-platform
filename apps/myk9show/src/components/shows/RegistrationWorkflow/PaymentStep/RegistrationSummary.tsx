@@ -37,7 +37,7 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="min-h-11 min-w-11"
                           title={`Remove ${cls.className}`}
                           aria-label={`Remove ${cls.className}`}
                           disabled={removingLineKey === `${item.dogId}:${cls.classId}`}

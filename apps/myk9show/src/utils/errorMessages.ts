@@ -44,6 +44,12 @@ export function getUserFriendlyError(error: unknown, fallback: string = DEFAULT_
     // In dev, return the raw message for easier debugging
     if (error instanceof Error) return error.message;
     if (typeof error === 'string') return error;
+    // Plain error objects (e.g. DatabaseError from createDatabaseError) carry
+    // their message as a property without being Error instances.
+    if (error && typeof error === 'object') {
+      const msg = (error as Record<string, unknown>).message;
+      if (typeof msg === 'string' && msg) return msg;
+    }
     return fallback;
   }
 

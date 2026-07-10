@@ -69,6 +69,29 @@ vi.mock('sonner', () => ({
 }));
 
 describe('PaymentStep summary line removal', () => {
+  it('keeps the remove control at the 44px touch-target floor', () => {
+    const classSelections: ClassSelectionData[] = [
+      {
+        dogId: 'dog-1',
+        trialId: 'trial-1',
+        selectedClasses: [{ classId: 'class-1' }],
+      },
+    ];
+
+    render(
+      <PaymentStep
+        selectedDogs={['dog-1']}
+        classSelections={classSelections}
+        paymentMethod="check"
+        onPaymentMethodChange={vi.fn()}
+        showId="show-1"
+        onClassSelectionChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Remove Novice Interior' })).toHaveClass('min-h-11');
+  });
+
   it('removes the cart line and matching class selection', async () => {
     const classSelections: ClassSelectionData[] = [
       {

@@ -23,7 +23,7 @@ self.addEventListener('push', (event: PushEvent) => {
     const options: NotificationOptions = {
       body: payload.body || '',
       icon: '/pwa-192x192.png',
-      badge: '/pwa-192x192.png',
+      badge: '/notification-badge-96.png',
       tag: payload.data?.announcementId || payload.data?.messageId || payload.type || 'default',
       data: payload,
     };

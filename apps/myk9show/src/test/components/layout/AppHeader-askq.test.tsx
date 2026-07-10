@@ -57,6 +57,10 @@ vi.mock('@/components/common/AboutDialog', () => ({
   AboutDialog: () => null,
 }));
 
+vi.mock('@/components/askq/AskQPanel', () => ({
+  AskQPanel: () => <div data-testid="askq-panel-host" />,
+}));
+
 vi.mock('@/components/notifications/NotificationBell', () => ({
   NotificationBell: () => null,
 }));
@@ -85,7 +89,10 @@ describe('AppHeader AskQ integration', () => {
 
   it('renders the AskQ button in the header', () => {
     render(<AppHeader />);
-    expect(screen.getByLabelText('AskQ Assistant')).toBeInTheDocument();
+    const askQButton = screen.getByLabelText('AskQ Assistant');
+    expect(askQButton).toBeInTheDocument();
+    expect(askQButton).toHaveClass('hidden', 'md:flex');
+    expect(askQButton.querySelector('[data-icon="askq"]')).toBeInTheDocument();
   });
 
   it('does not emit the Base UI native button warning for the account menu trigger', () => {
@@ -102,6 +109,7 @@ describe('AppHeader AskQ integration', () => {
     await user.click(screen.getByLabelText('AskQ Assistant'));
 
     expect(useAskQPanelStore.getState().isOpen).toBe(true);
+    expect(screen.getByTestId('askq-panel-host')).toBeInTheDocument();
   });
 
   it('shows mobile navigation in the app bar when a sidebar registers it', async () => {

@@ -4,6 +4,13 @@ import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu
 import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
 import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
+import { useAskQPanelStore } from '@/store/useAskQPanelStore';
+
+const { networkState, syncState, themeState } = vi.hoisted(() => ({
+  networkState: { isOnline: true },
+  syncState: { status: 'synced' as 'synced' | 'pending' | 'offline' | 'error' },
+  themeState: { theme: 'light' as 'light' | 'dark' },
+}));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -16,16 +23,16 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 
 vi.mock('@/hooks/useNetworkStatus', () => ({
-  useNetworkStatus: () => ({ isOnline: true }),
+  useNetworkStatus: () => networkState,
 }));
 
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
-  useGlobalSyncStatus: () => ({ status: 'synced' }),
+  useGlobalSyncStatus: () => syncState,
 }));
 
 const toggleTheme = vi.fn();
 vi.mock('@/hooks/useTheme', () => ({
-  useTheme: () => ({ theme: 'light', toggleTheme }),
+  useTheme: () => ({ theme: themeState.theme, toggleTheme }),
 }));
 
 vi.mock('@/utils/debugUtils', () => ({
@@ -46,6 +53,14 @@ function renderOpenAccountMenu() {
     </DropdownMenu>
   );
 }
+
+beforeEach(() => {
+  networkState.isOnline = true;
+  syncState.status = 'synced';
+  themeState.theme = 'light';
+  toggleTheme.mockClear();
+  useAskQPanelStore.getState().close();
+});
 
 describe('AccountMenuContent developer tools', () => {
   beforeEach(() => {
@@ -125,14 +140,89 @@ describe('AccountMenuContent developer tools', () => {
 });
 
 describe('AccountMenuContent theme + AskQ items (phone consolidation)', () => {
-  it('exposes Theme and AskQ Assistant items that fire the same handlers as the header icons', async () => {
+  it('exposes concise appearance and AskQ items that fire the same handlers as the header icons', async () => {
     const { user } = renderOpenAccountMenu();
 
-    const themeItem = screen.getByRole('menuitem', { name: /switch to dark mode/i });
+    const themeItem = screen.getByRole('menuitem', { name: 'Dark mode' });
     expect(themeItem).toBeInTheDocument();
     await user.click(themeItem);
     expect(toggleTheme).toHaveBeenCalledTimes(1);
 
-    expect(screen.getByRole('menuitem', { name: /askq assistant/i })).toBeInTheDocument();
+    const askQItem = screen.getByRole('menuitem', { name: 'AskQ' });
+    expect(askQItem).toBeInTheDocument();
+    expect(askQItem.querySelector('[data-icon="askq"]')).toBeInTheDocument();
+    await user.click(askQItem);
+    expect(useAskQPanelStore.getState().isOpen).toBe(true);
+  });
+
+  it('offers the mode the theme action will activate', () => {
+    themeState.theme = 'dark';
+
+    renderOpenAccountMenu();
+
+    expect(screen.getByRole('menuitem', { name: 'Light mode' })).toBeInTheDocument();
+  });
+});
+
+describe('AccountMenuContent organization', () => {
+  it('renders visible dividers between menu groups', () => {
+    renderOpenAccountMenu();
+
+    const dividers = screen.getAllByRole('separator');
+
+    expect(dividers.length).toBeGreaterThanOrEqual(3);
+    dividers.forEach(divider => expect(divider).toHaveClass('bg-border'));
+  });
+
+  it('keeps plan details reachable from every account menu', () => {
+    renderOpenAccountMenu();
+
+    expect(screen.getByRole('menuitem', { name: 'Plan & billing' })).toHaveAttribute(
+      'href',
+      '/subscription'
+    );
+    expect(screen.queryByRole('menuitem', { name: /view plans/i })).not.toBeInTheDocument();
+  });
+
+  it('orders assistance, appearance, information, and session actions by task', () => {
+    renderOpenAccountMenu();
+
+    const itemNames = screen.getAllByRole('menuitem').map(item => item.textContent?.trim());
+
+    expect(itemNames).toEqual([
+      'Account',
+      'Plan & billing',
+      'AskQ',
+      'Help & Guides',
+      'Dark mode',
+      'About',
+      'Sign out',
+    ]);
+  });
+
+  it('keeps Sign out neutral until focus or highlight', () => {
+    renderOpenAccountMenu();
+
+    const signOut = screen.getByRole('menuitem', { name: 'Sign out' });
+    expect(signOut).not.toHaveClass('text-destructive');
+    expect(signOut).toHaveClass('focus:text-destructive');
+  });
+});
+
+describe('AccountMenuContent save status', () => {
+  it.each([
+    { isOnline: true, status: 'synced' as const, expected: 'All changes saved' },
+    { isOnline: true, status: 'pending' as const, expected: 'Saving changes...' },
+    { isOnline: true, status: 'error' as const, expected: 'Some changes need attention' },
+    { isOnline: false, status: 'offline' as const, expected: 'Offline — changes saved here' },
+  ])('shows "$expected" for $status state', ({ isOnline, status, expected }) => {
+    networkState.isOnline = isOnline;
+    syncState.status = status;
+
+    renderOpenAccountMenu();
+
+    expect(screen.getByText(expected)).toBeInTheDocument();
+    expect(screen.queryByText('Online')).not.toBeInTheDocument();
+    expect(screen.queryByText('Synced')).not.toBeInTheDocument();
   });
 });

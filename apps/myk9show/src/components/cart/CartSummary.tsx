@@ -236,7 +236,11 @@ export function CartSummary({
             </>
           )}
         </Button>
-        <Button variant="outline" onClick={handleContinueShopping} className="w-full">
+        <Button
+          variant="outline"
+          onClick={handleContinueShopping}
+          className="min-h-11 w-full"
+        >
           Continue Shopping
           <ArrowRight className="h-4 w-4 ml-2" />
         </Button>

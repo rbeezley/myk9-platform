@@ -70,7 +70,22 @@ describe('support notifications contract', () => {
     expect(sendEmailAuthz).toContain("args.data.type === 'support_notification'");
     expect(sendEmailAuthz).toContain(".from('support_tickets')");
     expect(sendEmailAuthz).toContain("select('id, owner_id')");
-    expect(sendEmailAuthz).toContain('ticket.owner_id === args.user?.id');
+    expect(sendEmailAuthz).toContain('ticket.owner_id !== args.user?.id');
     expect(sendEmailAuthz).toContain("role.roles?.name === 'site_admin'");
+  });
+
+  it('derives the support_notification recipient from the ticket owner, not the request body (SA-018)', () => {
+    // The ticket's owner_id is an auth.users id; resolve it to an email via
+    // the `people` row linked by auth_user_id, then hand it to the pure
+    // recipient-resolution helper so Resend never sees a body-supplied `to`.
+    expect(sendEmailAuthz).toContain('resolveTicketOwnerEmail(args.supabase, ticket.owner_id)');
+    expect(sendEmailAuthz).toContain(".from('people')");
+    expect(sendEmailAuthz).toContain("eq('auth_user_id', ownerId)");
+    expect(sendEmailAuthz).toContain(
+      "return { type: 'support_notification', ticket: { ownerEmail } };"
+    );
+
+    expect(sendEmailFunction).toContain('resolveDerivedRecipient(authzResult)');
+    expect(sendEmailFunction).not.toContain('to: data.to');
   });
 });

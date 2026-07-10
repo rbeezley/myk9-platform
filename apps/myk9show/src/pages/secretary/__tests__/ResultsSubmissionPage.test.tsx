@@ -208,7 +208,9 @@ describe('ResultsSubmissionPage', () => {
           body: expect.objectContaining({
             organization: 'AKC',
             sportType: 'scent_work',
-            secretaryEmail: 'jane@example.com',
+            // Server derives cc/reply-to from the show record; the client only
+            // sends showId so the edge function can authorize + resolve it.
+            showId: 'show-1',
           }),
         })
       );

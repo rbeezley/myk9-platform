@@ -18,11 +18,23 @@ export function SecuritySettings() {
   const [success, setSuccess] = useState(false);
 
   const passwordsMatch = newPassword === confirmPassword;
-  const isValid = newPassword.length >= 8 && passwordsMatch;
+
+  const validationError = (): string | null => {
+    if (!newPassword || !confirmPassword) return 'Please fill in both password fields.';
+    if (newPassword.length < 8) return 'Password must be at least 8 characters.';
+    if (!passwordsMatch) return 'Passwords do not match.';
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid) return;
+
+    const inlineError = validationError();
+    if (inlineError) {
+      setError(inlineError);
+      setSuccess(false);
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -116,7 +128,7 @@ export function SecuritySettings() {
               )}
             </div>
 
-            <Button type="submit" disabled={!isValid || isSubmitting}>
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Updating...' : 'Update Password'}
             </Button>
           </form>

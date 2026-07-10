@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
+import { friendlyDbError } from '@/utils/friendlyDbError';
 import { formatCheckedAgo } from '@/features/admin-system-health/systemHealthSelectors';
 import {
   formatAlertDetail,
@@ -42,7 +43,7 @@ function AlertRow({ alert, now }: { alert: OperatorAlert; now: number }) {
     try {
       await mutateAsync(alert.id);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to resolve alert');
+      toast.error(friendlyDbError(err, 'Failed to resolve alert. Please try again.'));
     } finally {
       setResolving(false);
     }

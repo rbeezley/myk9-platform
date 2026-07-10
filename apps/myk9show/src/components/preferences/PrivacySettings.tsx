@@ -7,7 +7,6 @@
 
 import {
   Shield,
-  Eye,
   Users,
   BarChart3,
   Bug,
@@ -33,25 +32,6 @@ interface PrivacySettingsProps {
 }
 
 const privacySettings = [
-  {
-    key: 'sharePresence' as keyof PrivacyPreferences,
-    label: 'Share Presence',
-    description: "Allow others to see when you're active in competitions",
-    icon: Users,
-    impact: 'medium' as const,
-    category: 'social' as const,
-    details:
-      "Other users in the same competition can see when you're currently viewing results or making entries.",
-  },
-  {
-    key: 'showOnlineStatus' as keyof PrivacyPreferences,
-    label: 'Online Status',
-    description: "Show when you're online to other users",
-    icon: Eye,
-    impact: 'low' as const,
-    category: 'social' as const,
-    details: "Display a green indicator when you're actively using the platform.",
-  },
   {
     key: 'allowAnalytics' as keyof PrivacyPreferences,
     label: 'Usage Analytics',
@@ -95,11 +75,6 @@ const privacySettings = [
 ];
 
 const privacyCategories = {
-  social: {
-    label: 'Social & Visibility',
-    description: 'Control what others can see about your activity',
-    icon: Users,
-  },
   analytics: {
     label: 'Analytics & Insights',
     description: 'Help improve the platform through data sharing',
@@ -243,10 +218,7 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
                           <Badge
                             variant={
                               getImpactColor(setting.impact) as
-                                | 'destructive'
-                                | 'default'
-                                | 'secondary'
-                                | 'outline'
+                                'destructive' | 'default' | 'secondary' | 'outline'
                             }
                             className="text-xs"
                           >
@@ -324,8 +296,6 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
               onClick={() => {
                 // Maximum privacy - disable all non-essential features
                 onUpdate({
-                  sharePresence: false,
-                  showOnlineStatus: false,
                   allowAnalytics: false,
                   dataCollection: false,
                   shareUsageStats: false,
@@ -346,8 +316,6 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
               onClick={() => {
                 // Balanced privacy - enable helpful features
                 onUpdate({
-                  sharePresence: true,
-                  showOnlineStatus: false,
                   allowAnalytics: true,
                   dataCollection: false,
                   shareUsageStats: true,
@@ -370,8 +338,6 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
               onClick={() => {
                 // Full sharing - enable all features
                 onUpdate({
-                  sharePresence: true,
-                  showOnlineStatus: true,
                   allowAnalytics: true,
                   dataCollection: true,
                   shareUsageStats: true,

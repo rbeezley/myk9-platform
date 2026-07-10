@@ -26,3 +26,10 @@ export const ALL_ENTRIES_SCOPE_NOTE = 'Includes past shows';
  */
 export const ENTRIES_LOAD_ERROR =
   "We couldn't refresh your entries just now. Your saved information is still here — try again in a moment.";
+
+/**
+ * One-line reassurance shown on the `MyEntryCard` summary band while an
+ * entry's status is "Pending Review" — calms the "did this vanish into a
+ * void?" anxiety before the exhibitor expands details.
+ */
+export const PENDING_REVIEW_REASSURANCE = 'The show secretary is reviewing this entry.';

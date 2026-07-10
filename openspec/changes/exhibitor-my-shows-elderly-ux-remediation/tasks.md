@@ -11,19 +11,19 @@
 
 ## 2. Counts, stats row, and fees tile
 
-- [ ] 2.1 Update `CompactStatsRow.tsx`: rename the current-entries card label to current-scope wording with upcoming/in-review qualifier; add trailing `ChevronRight` (aria-hidden) to all clickable cards; preserve the `exhibitor-count-integrity` INTENT comment
+- [x] 2.1 Update `CompactStatsRow.tsx`: rename the current-entries card label to current-scope wording with upcoming/in-review qualifier; add trailing `ChevronRight` (aria-hidden) to all clickable cards; preserve the `exhibitor-count-integrity` INTENT comment
 - [ ] 2.2 Update the entries-section eyebrow in `MyEntriesPage/index.tsx` to "All entries" plus a visible "Includes past shows" note
-- [ ] 2.3 Fees tile: when shared amount-due derivation is $0, render muted "Paid in full" linking to My Payments (no large $ total); positive due keeps prominent amount and existing cart/recovery href — do NOT recompute amount due
-- [ ] 2.4 Update/extend CompactStatsRow unit tests for labels, chevron, and both fee states
+- [x] 2.3 Fees tile: when shared amount-due derivation is $0, render muted "Paid in full" linking to My Payments (no large $ total); positive due keeps prominent amount and existing cart/recovery href — do NOT recompute amount due
+- [x] 2.4 Update/extend CompactStatsRow unit tests for labels, chevron, and both fee states
 
 ## 3. Entry card progressive disclosure
 
-- [ ] 3.1 Refactor `MyEntryCard.tsx` into summary band (status, dog+armband, show date, location/directions, single next action from `deriveEntryNextAction`) + `Show details` collapsible (class rows, confirmation number, results, per-class check-in controls); the toggle carries `aria-expanded`/`aria-controls` and a ≥44px hit area [ADDED a11y]
-- [ ] 3.1b Pending-review entries show a one-line reassurance subtext on the status ("The show secretary is reviewing this entry") in the summary band [ADDED]
-- [ ] 3.2 Wire summary-band check-in action to the existing check-in mutation path (reuse the same handler; no duplicate write path)
-- [ ] 3.3 Show "Entries close" in summary only while editing is still possible; move it into details afterward
-- [ ] 3.4 Directions link: add `min-h-[44px]` interactive area; keep external-link semantics and aria-label
-- [ ] 3.5 Update MyEntryCard tests: collapsed-by-default rendering, details toggle, next-action per state, check-in called with same args as before (assertion-first for the mutation call)
+- [x] 3.1 Refactor `MyEntryCard.tsx` into summary band (status, dog+armband, show date, location/directions, single next action from `deriveEntryNextAction`) + `Show details` collapsible (class rows, confirmation number, results, per-class check-in controls); the toggle carries `aria-expanded`/`aria-controls` and a ≥44px hit area [ADDED a11y]
+- [x] 3.1b Pending-review entries show a one-line reassurance subtext on the status ("The show secretary is reviewing this entry") in the summary band [ADDED]
+- [x] 3.2 Wire summary-band check-in action to the existing check-in mutation path (reuse the same handler; no duplicate write path)
+- [x] 3.3 Show "Entries close" in summary only while editing is still possible; move it into details afterward
+- [x] 3.4 Directions link: add `min-h-[44px]` interactive area; keep external-link semantics and aria-label
+- [x] 3.5 Update MyEntryCard tests: collapsed-by-default rendering, details toggle, next-action per state, check-in called with same args as before (assertion-first for the mutation call)
 
 ## 4. Page shell, filters, header
 

@@ -5,6 +5,12 @@ import { MyEntryCard } from './MyEntryCard';
 import { groupEntriesByShowAndDog } from './useMyEntriesData';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { MyEntry, EntryClass } from './my-entries-types';
+import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
+
+/** Expand the collapsed "Show details" panel so its contents are queryable. */
+function openDetails() {
+  fireEvent.click(screen.getByRole('button', { name: /show details/i }));
+}
 
 function makeEntry(overrides: Partial<MyEntry> = {}): MyEntry {
   return {
@@ -291,6 +297,7 @@ describe('MyEntryCard placement — edge cases (beyond the #775 "scored result d
         classes: [makeClass({ isScored: true, resultStatus: 'qualified', finalPlacement: 5 })],
       })
     );
+    openDetails();
 
     expect(screen.getByText('Q')).toBeInTheDocument();
     expect(screen.getByText('5th')).toBeInTheDocument();
@@ -302,6 +309,7 @@ describe('MyEntryCard placement — edge cases (beyond the #775 "scored result d
         classes: [makeClass({ isScored: true, resultStatus: 'qualified', finalPlacement: 0 })],
       })
     );
+    openDetails();
 
     expect(screen.getByText('Q')).toBeInTheDocument();
     expect(screen.queryByText('0th')).not.toBeInTheDocument();
@@ -318,6 +326,7 @@ describe('MyEntryCard post-deadline recovery', () => {
         entryCloseDate: new Date('2026-01-01T00:00:00Z'),
       })
     );
+    openDetails();
 
     expect(screen.getByRole('link', { name: /Message the show team/i })).toHaveAttribute(
       'href',
@@ -351,6 +360,7 @@ describe('MyEntryCard result reveal prompt', () => {
         />
       </MemoryRouter>
     );
+    openDetails();
 
     const resultButton = screen.getByRole('button', { name: /New result/i });
     expect(resultButton).toBeInTheDocument();
@@ -386,6 +396,7 @@ describe('MyEntryCard result reveal prompt', () => {
         />
       </MemoryRouter>
     );
+    openDetails();
 
     expect(screen.queryByRole('button', { name: /New result/i })).not.toBeInTheDocument();
     const resultCardButton = screen.getByRole('button', { name: /Result card/i });
@@ -418,6 +429,7 @@ describe('MyEntryCard result reveal prompt', () => {
         />
       </MemoryRouter>
     );
+    openDetails();
 
     expect(screen.queryByRole('button', { name: /New result/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Result card/i })).not.toBeInTheDocument();
@@ -560,6 +572,7 @@ describe('MyEntryCard scored result display', () => {
         ],
       })
     );
+    openDetails();
 
     expect(screen.getByText('Q')).toBeInTheDocument();
     expect(screen.getByText('2nd')).toBeInTheDocument();
@@ -579,6 +592,7 @@ describe('MyEntryCard scored result display', () => {
         ],
       })
     );
+    openDetails();
 
     expect(screen.getByText('NQ')).toBeInTheDocument();
     expect(screen.queryByText('2nd')).not.toBeInTheDocument();
@@ -597,6 +611,7 @@ describe('MyEntryCard scored result display', () => {
         ],
       })
     );
+    openDetails();
 
     expect(screen.getByText('Q')).toBeInTheDocument();
     expect(screen.queryByText(/\d(st|nd|rd|th)$/)).not.toBeInTheDocument();
@@ -606,22 +621,26 @@ describe('MyEntryCard scored result display', () => {
 describe('MyEntryCard confirmation number fallback (P1-04w-1)', () => {
   it('shows "Pending" fallback for an active entry with no confirmation number', () => {
     renderCard(makeEntry({ confirmationNumber: undefined, entryStatus: EntryStatus.PENDING }));
+    openDetails();
     expect(screen.getByText(/Confirmation # Pending/)).toBeInTheDocument();
   });
 
   it('shows "—" fallback for a withdrawn entry with no confirmation number', () => {
     renderCard(makeEntry({ confirmationNumber: undefined, entryStatus: EntryStatus.CANCELLED }));
+    openDetails();
     expect(screen.getByText(/Confirmation # —/)).toBeInTheDocument();
     expect(screen.queryByText(/Confirmation # Pending/)).not.toBeInTheDocument();
   });
 
   it('shows "—" fallback for a scratched entry with no confirmation number', () => {
     renderCard(makeEntry({ confirmationNumber: undefined, entryStatus: EntryStatus.SCRATCHED }));
+    openDetails();
     expect(screen.getByText(/Confirmation # —/)).toBeInTheDocument();
   });
 
   it('always shows the enrollment confirmation number when present, regardless of status', () => {
     renderCard(makeEntry({ confirmationNumber: 'MK9-12345', entryStatus: EntryStatus.CANCELLED }));
+    openDetails();
     expect(screen.getByText(/Confirmation # MK9-12345/)).toBeInTheDocument();
     expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
@@ -648,6 +667,7 @@ describe('MyEntryCard run order link', () => {
         classes: [makeClass({ runOrder: 3 })],
       })
     );
+    openDetails();
 
     expect(screen.getByRole('link', { name: /View run order/i })).toHaveAttribute(
       'href',
@@ -665,6 +685,7 @@ describe('MyEntryCard run order link', () => {
         classes: [makeClass({ runOrder: 7 })],
       })
     );
+    openDetails();
 
     expect(screen.getByRole('link', { name: /View run order/i })).toHaveAttribute(
       'href',
@@ -680,6 +701,7 @@ describe('MyEntryCard run order link', () => {
         classes: [makeClass({ runOrder: undefined })],
       })
     );
+    openDetails();
 
     expect(screen.queryByRole('link', { name: /View run order/i })).not.toBeInTheDocument();
   });
@@ -692,6 +714,7 @@ describe('MyEntryCard run order link', () => {
         classes: [makeClass({ runOrder: 5 })],
       })
     );
+    openDetails();
 
     expect(screen.queryByRole('link', { name: /View run order/i })).not.toBeInTheDocument();
   });
@@ -705,6 +728,7 @@ describe('MyEntryCard run order link', () => {
         classes: [makeClass({ runOrder: 2 })],
       })
     );
+    openDetails();
 
     expect(screen.queryByRole('link', { name: /View run order/i })).not.toBeInTheDocument();
   });
@@ -716,6 +740,7 @@ describe('MyEntryCard handler display', () => {
       classes: [makeClass({ handler: 'Sarah M.' })],
     });
     renderCard(entry);
+    openDetails();
     expect(screen.getByText('Sarah M.')).toBeInTheDocument();
   });
 
@@ -724,6 +749,7 @@ describe('MyEntryCard handler display', () => {
       classes: [makeClass({ handler: undefined })],
     });
     renderCard(entry);
+    openDetails();
     expect(screen.queryByText('Sarah M.')).not.toBeInTheDocument();
   });
 
@@ -735,6 +761,7 @@ describe('MyEntryCard handler display', () => {
       ],
     });
     renderCard(entry);
+    openDetails();
     expect(screen.getByText('R. Beezley')).toBeInTheDocument();
     expect(screen.getByText('Sarah M.')).toBeInTheDocument();
   });
@@ -748,6 +775,7 @@ describe('MyEntryCard run order link', () => {
         classes: [makeClass({ runOrder: 3 }), makeClass({ id: 'c2', runOrder: undefined })],
       })
     );
+    openDetails();
 
     expect(screen.getByRole('link', { name: /View run order/i })).toHaveAttribute(
       'href',
@@ -762,6 +790,7 @@ describe('MyEntryCard run order link', () => {
         classes: [makeClass({ runOrder: undefined })],
       })
     );
+    openDetails();
 
     expect(screen.queryByRole('link', { name: /View run order/i })).not.toBeInTheDocument();
   });
@@ -769,9 +798,9 @@ describe('MyEntryCard run order link', () => {
 
 describe('MyEntryCard class detail display', () => {
   it('shows the dog armband before the dog name', () => {
-    renderCard(makeEntry({ armband: '142' }));
+    const { container } = renderCard(makeEntry({ armband: '142' }));
 
-    const subtitle = screen.getByText(/Confirmation #/).parentElement;
+    const subtitle = container.querySelector('.myk9-entries-card-subtitle');
     expect(subtitle).not.toBeNull();
     expect(subtitle).toHaveTextContent('142');
     expect(subtitle).toHaveTextContent('Rex');
@@ -792,6 +821,7 @@ describe('MyEntryCard class detail display', () => {
         ],
       })
     );
+    openDetails();
 
     expect(screen.getByText('Sep 2')).toBeInTheDocument();
     expect(screen.getByText('Trial 2')).toBeInTheDocument();
@@ -826,6 +856,7 @@ describe('MyEntryCard class detail display', () => {
         ],
       })
     );
+    openDetails();
 
     expect(container.querySelectorAll('.myk9-entries-class-row')).toHaveLength(3);
     expect(container.querySelector('.myk9-entries-classes-grid')).not.toBeInTheDocument();
@@ -848,6 +879,7 @@ describe('MyEntryCard class detail display', () => {
         classes: [makeClass({ name: longClassName, jumpHeight: '24 in' })],
       })
     );
+    openDetails();
 
     const className = screen.getByText(`${longClassName} #101 (24 in)`);
     expect(className).toHaveClass('myk9-entries-class-name');
@@ -881,6 +913,7 @@ describe('MyEntryCard self-check-in gating', () => {
 
   it('renders an interactive check-in control when self-check-in is enabled', () => {
     const onCheckInClick = renderWithMap(makeEntry({ classes: [unscored] }), { 'class-1': true });
+    openDetails();
     const btn = screen.getByRole('button', {
       name: /update check-in for rex in container search/i,
     });
@@ -890,6 +923,7 @@ describe('MyEntryCard self-check-in gating', () => {
 
   it('defaults to enabled when the class id is missing from the map', () => {
     renderWithMap(makeEntry({ classes: [unscored] }), {});
+    openDetails();
     expect(
       screen.getByRole('button', { name: /update check-in for rex in container search/i })
     ).toBeInTheDocument();
@@ -897,6 +931,7 @@ describe('MyEntryCard self-check-in gating', () => {
 
   it('disables the check-in control with a reason when self-check-in is off', () => {
     const onCheckInClick = renderWithMap(makeEntry({ classes: [unscored] }), { 'class-1': false });
+    openDetails();
     // No interactive button…
     expect(
       screen.queryByRole('button', { name: /update check-in for rex in container search/i })
@@ -904,5 +939,154 @@ describe('MyEntryCard self-check-in gating', () => {
     // …a non-interactive indicator with an explanatory label instead.
     expect(screen.getByLabelText('Self check-in not available')).toBeInTheDocument();
     expect(onCheckInClick).not.toHaveBeenCalled();
+  });
+});
+
+describe('MyEntryCard progressive disclosure (exhibitor-my-shows-elderly-ux-remediation 3.1-3.5)', () => {
+  it('collapses the details panel by default on render — class rows and confirmation number are not in the document', () => {
+    renderCard(
+      makeEntry({
+        confirmationNumber: 'MK9-99999',
+        classes: [makeClass({ name: 'Container Search' })],
+      })
+    );
+
+    const toggle = screen.getByRole('button', { name: /show details/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Container Search #101')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Confirmation # MK9-99999/)).not.toBeInTheDocument();
+  });
+
+  it('expands the details panel on toggle click and flips aria-expanded', () => {
+    renderCard(
+      makeEntry({
+        confirmationNumber: 'MK9-99999',
+        classes: [makeClass({ name: 'Container Search' })],
+      })
+    );
+
+    const toggle = screen.getByRole('button', { name: /show details/i });
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Container Search #101')).toBeInTheDocument();
+    expect(screen.getByText(/Confirmation # MK9-99999/)).toBeInTheDocument();
+
+    // Toggling again collapses it — details drop back out of the document.
+    fireEvent.click(screen.getByRole('button', { name: /hide details/i }));
+    expect(screen.queryByText('Container Search #101')).not.toBeInTheDocument();
+  });
+
+  it('shows Finish Payment as the next action for an unpaid, still-payable entry', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.PENDING,
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'online',
+        totalFee: 50,
+        classes: [makeClass({ id: 'entry-1' })],
+      })
+    );
+
+    expect(screen.getByRole('link', { name: /Finish Payment/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Check In' })).not.toBeInTheDocument();
+  });
+
+  it('shows Check In as the next action for a paid entry with an eligible unscored class', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.ACCEPTED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        classes: [makeClass({ id: 'entry-1', classId: 'class-1', isScored: false })],
+      })
+    );
+
+    expect(screen.getByRole('button', { name: 'Check In' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
+  });
+
+  it('falls back to View Show as the next action when paid with no check-in-eligible class', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.ACCEPTED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        classes: [makeClass({ id: 'entry-1', classId: 'class-1', isScored: true })],
+      })
+    );
+
+    expect(screen.getByRole('link', { name: /^View Show$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Check In' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
+  });
+
+  it('summary-band Check In calls the exact same handler with the same args as the per-class details control', () => {
+    const onCheckInClick = vi.fn();
+    const cls = makeClass({ id: 'entry-1', classId: 'class-1', isScored: false });
+    const entry = makeEntry({
+      entryStatus: EntryStatus.ACCEPTED,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      classes: [cls],
+    });
+    render(
+      <MemoryRouter>
+        <MyEntryCard
+          entry={entry}
+          onCheckInClick={onCheckInClick}
+          onEditClick={vi.fn()}
+          onReceiptClick={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check In' }));
+    expect(onCheckInClick).toHaveBeenCalledWith(entry, cls);
+
+    openDetails();
+    onCheckInClick.mockClear();
+    fireEvent.click(
+      screen.getByRole('button', { name: /Update check-in for Rex in Container Search/i })
+    );
+    expect(onCheckInClick).toHaveBeenCalledWith(entry, cls);
+  });
+
+  it('shows "Entries close" in the summary band while editing is still possible', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.ACCEPTED,
+        entryCloseDate: new Date('2099-01-01T00:00:00Z'),
+      })
+    );
+
+    expect(screen.getByText('Entries close')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show details/i })).toBeInTheDocument();
+  });
+
+  it('moves "Entries close" into details once editing is no longer possible', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.ACCEPTED,
+        entryCloseDate: new Date('2020-01-01T00:00:00Z'),
+      })
+    );
+
+    expect(screen.queryByText('Entries close')).not.toBeInTheDocument();
+    openDetails();
+    expect(screen.getByText('Entries close')).toBeInTheDocument();
+  });
+
+  it('shows the pending-review reassurance line on the summary band', () => {
+    renderCard(
+      makeEntry({ entryStatus: EntryStatus.PENDING, paymentStatus: PaymentStatus.PENDING })
+    );
+
+    expect(screen.getByText(PENDING_REVIEW_REASSURANCE)).toBeInTheDocument();
+  });
+
+  it('does not show the pending-review reassurance line for a non-pending entry', () => {
+    renderCard(
+      makeEntry({ entryStatus: EntryStatus.ACCEPTED, paymentStatus: PaymentStatus.PAID_ONLINE })
+    );
+
+    expect(screen.queryByText(PENDING_REVIEW_REASSURANCE)).not.toBeInTheDocument();
   });
 });

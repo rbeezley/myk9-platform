@@ -12,14 +12,22 @@
  */
 
 import { cn } from '@/lib/utils';
-import { FileText, Calendar, DollarSign, History, ChevronDown } from 'lucide-react';
+import { FileText, Calendar, DollarSign, History, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import {
+  CURRENT_ENTRIES_LABEL,
+  CURRENT_ENTRIES_QUALIFIER,
+} from '@/pages/MyEntriesPage/modules/myShowsCopy';
 
 interface StatItem {
   icon: ReactNode;
   label: string;
+  /** Small muted sub-label rendered under the label, above the value. */
+  qualifier?: string;
   value: number;
   displayValue?: string;
+  /** When set, renders a quiet text state instead of a large numeric/dollar value. */
+  quietValue?: string;
   detail?: string;
   detailClassName?: string;
   href: string;
@@ -52,18 +60,19 @@ export function CompactStatsRow({
 }: CompactStatsRowProps) {
   const [expanded, setExpanded] = useState(false);
   const currentEntries = acceptedEntries + pendingEntries;
-  const feeDetail = amountDue > 0 ? `Amount due $${amountDue.toLocaleString()}` : 'Paid in full';
-  const feeHref = amountDue > 0 ? (currentFeesHref ?? '/cart') : '/exhibitor/entries';
+  const paidInFull = amountDue <= 0;
+  const feeHref = paidInFull ? '/exhibitor/payments' : (currentFeesHref ?? '/cart');
   const stats: StatItem[] = [
     {
       icon: <FileText className="h-5 w-5" />,
-      // exhibitor-count-integrity: this is intentionally scoped to CURRENT
+      // exhibitor-count-integrity: this card is intentionally scoped to CURRENT
       // (non-past) entries, while the My Entries "All" tab below counts every
       // entry ever made (including completed/past shows) — a different scope
       // with the same generic "Entries" word read as a contradiction in the
-      // audit. Naming the scope here removes the ambiguity without changing
-      // either number.
-      label: currentEntries === 1 ? 'Current Entry' : 'Current Entries',
+      // audit. The visible label + qualifier below name the scope explicitly
+      // so the two numbers are never read as the same count.
+      label: CURRENT_ENTRIES_LABEL,
+      qualifier: CURRENT_ENTRIES_QUALIFIER,
       value: currentEntries,
       detail: `${acceptedEntries} accepted · ${pendingEntries} pending`,
       href: '/exhibitor/entries',
@@ -89,13 +98,18 @@ export function CompactStatsRow({
       icon: <DollarSign className="h-5 w-5" />,
       label: 'Current Fees',
       value: currentFees,
-      displayValue: `$${currentFees.toLocaleString()}`,
-      detail: feeDetail,
-      ...(amountDue > 0 ? { detailClassName: 'text-warning' } : {}),
+      ...(paidInFull
+        ? { quietValue: 'Paid in full' }
+        : {
+            displayValue: `$${currentFees.toLocaleString()}`,
+            detail: `Amount due $${amountDue.toLocaleString()}`,
+            detailClassName: 'text-warning',
+          }),
       href: feeHref,
-      iconColor: amountDue > 0 ? 'text-warning' : 'text-success',
-      iconChipClassName:
-        amountDue > 0 ? 'border-warning/30 bg-warning/10' : 'border-success/25 bg-success/10',
+      iconColor: paidInFull ? 'text-success' : 'text-warning',
+      iconChipClassName: paidInFull
+        ? 'border-success/25 bg-success/10'
+        : 'border-warning/30 bg-warning/10',
     },
   ];
 
@@ -173,9 +187,13 @@ export function CompactStatsRow({
               'transition-all duration-300',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
             )}
-            aria-label={`${stat.value} ${stat.label}.${stat.detail ? ` ${stat.detail}.` : ''} View details.`}
+            aria-label={`${stat.label}: ${stat.quietValue ?? stat.value}.${stat.qualifier ? ` ${stat.qualifier}.` : ''}${stat.detail ? ` ${stat.detail}.` : ''} View details.`}
           >
-            <span className="flex items-start gap-4">
+            <ChevronRight
+              aria-hidden="true"
+              className="absolute right-3 top-3 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground"
+            />
+            <span className="flex items-start gap-4 pr-4">
               <span
                 data-slot="icon"
                 className={cn(
@@ -190,9 +208,20 @@ export function CompactStatsRow({
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {stat.label}
                 </span>
-                <span className="text-2xl font-bold leading-none text-foreground tabular-nums">
-                  {stat.displayValue ?? stat.value}
-                </span>
+                {stat.qualifier && (
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    {stat.qualifier}
+                  </span>
+                )}
+                {stat.quietValue ? (
+                  <span className="text-sm font-semibold leading-none text-muted-foreground">
+                    {stat.quietValue}
+                  </span>
+                ) : (
+                  <span className="text-2xl font-bold leading-none text-foreground tabular-nums">
+                    {stat.displayValue ?? stat.value}
+                  </span>
+                )}
                 {stat.detail && (
                   <span
                     className={cn(

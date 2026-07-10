@@ -5,6 +5,7 @@ import {
   ALL_ENTRIES_LABEL,
   ALL_ENTRIES_SCOPE_NOTE,
   ENTRIES_LOAD_ERROR,
+  PENDING_REVIEW_REASSURANCE,
 } from './myShowsCopy';
 
 describe('myShowsCopy pinned strings', () => {
@@ -32,5 +33,9 @@ describe('myShowsCopy pinned strings', () => {
 
   it('does not use blaming "check your connection" phrasing', () => {
     expect(ENTRIES_LOAD_ERROR.toLowerCase()).not.toContain('check your connection');
+  });
+
+  it('pins the pending-review reassurance line', () => {
+    expect(PENDING_REVIEW_REASSURANCE).toBe('The show secretary is reviewing this entry.');
   });
 });

@@ -9,7 +9,7 @@ import type {
   PreferencesUpdate,
   DeviceInfo,
   SyncState,
-  DeviceOverrides
+  DeviceOverrides,
 } from '@/types/user-preferences';
 import {
   DEFAULT_THEME_PREFERENCES,
@@ -75,7 +75,11 @@ interface StoredPreferences {
 /**
  * Deep-merge stored preferences from the DB into defaults.
  */
-function mergeWithDefaults(userId: string, stored: StoredPreferences, dbRow: { created_at?: string | null; updated_at?: string | null }): UserPreferences {
+function mergeWithDefaults(
+  userId: string,
+  stored: StoredPreferences,
+  dbRow: { created_at?: string | null; updated_at?: string | null }
+): UserPreferences {
   const defaults = buildDefaults(userId);
   return {
     ...defaults,
@@ -103,7 +107,10 @@ function mergeWithDefaults(userId: string, stored: StoredPreferences, dbRow: { c
               ...(stored.notifications.timing?.quietHours ?? {}),
             },
           },
-          delivery: { ...defaults.notifications.delivery, ...(stored.notifications.delivery ?? {}) },
+          delivery: {
+            ...defaults.notifications.delivery,
+            ...(stored.notifications.delivery ?? {}),
+          },
           sound: { ...defaults.notifications.sound, ...(stored.notifications.sound ?? {}) },
         }
       : defaults.notifications,
@@ -112,7 +119,8 @@ function mergeWithDefaults(userId: string, stored: StoredPreferences, dbRow: { c
     deviceOverrides: stored.deviceOverrides ?? defaults.deviceOverrides,
     version: stored.version ?? defaults.version,
     lastModifiedBy: stored.lastModifiedBy ?? defaults.lastModifiedBy,
-    syncConflicts: stored.syncConflicts != null ? stored.syncConflicts : (defaults.syncConflicts ?? []),
+    syncConflicts:
+      stored.syncConflicts != null ? stored.syncConflicts : (defaults.syncConflicts ?? []),
     lastSyncedAt: new Date(),
     lastModifiedAt: dbRow.updated_at ? new Date(dbRow.updated_at) : defaults.lastModifiedAt,
     createdAt: dbRow.created_at ? new Date(dbRow.created_at) : defaults.createdAt,
@@ -146,7 +154,7 @@ export class UserPreferencesService {
     status: 'idle',
     lastSyncAt: null,
     pendingChanges: false,
-    conflictCount: 0
+    conflictCount: 0,
   };
 
   private constructor() {}
@@ -163,7 +171,12 @@ export class UserPreferencesService {
       logger.debug('Loading user preferences', 'preferences', { userId });
       return await this.loadPreferences(userId);
     } catch (error) {
-      logger.error('Failed to load user preferences, returning defaults', 'preferences', { userId }, error as Error);
+      logger.error(
+        'Failed to load user preferences, returning defaults',
+        'preferences',
+        { userId },
+        error as Error
+      );
       return buildDefaults(userId);
     }
   }
@@ -180,13 +193,21 @@ export class UserPreferencesService {
       const merged: UserPreferences = {
         ...current,
         theme: updates.theme ? { ...current.theme, ...updates.theme } : current.theme,
-        competition: updates.competition ? { ...current.competition, ...updates.competition } : current.competition,
-        notifications: updates.notifications ? { ...current.notifications, ...updates.notifications } : current.notifications,
+        competition: updates.competition
+          ? { ...current.competition, ...updates.competition }
+          : current.competition,
+        notifications: updates.notifications
+          ? { ...current.notifications, ...updates.notifications }
+          : current.notifications,
         data: updates.data ? { ...current.data, ...updates.data } : current.data,
         privacy: updates.privacy ? { ...current.privacy, ...updates.privacy } : current.privacy,
-        deviceOverrides: updates.deviceOverrides != null
-          ? { ...current.deviceOverrides, ...updates.deviceOverrides } as Record<string, DeviceOverrides>
-          : current.deviceOverrides,
+        deviceOverrides:
+          updates.deviceOverrides != null
+            ? ({ ...current.deviceOverrides, ...updates.deviceOverrides } as Record<
+                string,
+                DeviceOverrides
+              >)
+            : current.deviceOverrides,
         version: updates.version ?? current.version,
         lastModifiedBy: updates.lastModifiedBy ?? current.lastModifiedBy,
         syncConflicts: updates.syncConflicts ?? current.syncConflicts ?? [],
@@ -250,12 +271,19 @@ export class UserPreferencesService {
         .maybeSingle();
 
       if (error) {
-        logger.error('Supabase query error loading preferences', 'preferences', { userId, error: error.message }, error as unknown as Error);
+        logger.error(
+          'Supabase query error loading preferences',
+          'preferences',
+          { userId, error: error.message },
+          error as unknown as Error
+        );
         throw error;
       }
 
       if (!data || data.preferences == null) {
-        logger.debug('No preferences found in database, returning defaults', 'preferences', { userId });
+        logger.debug('No preferences found in database, returning defaults', 'preferences', {
+          userId,
+        });
         return buildDefaults(userId);
       }
 
@@ -287,14 +315,21 @@ export class UserPreferencesService {
       const updated: UserPreferences = {
         ...current,
         theme: updates.theme ? { ...current.theme, ...updates.theme } : current.theme,
-        competition: updates.competition ? { ...current.competition, ...updates.competition } : current.competition,
-        notifications: updates.notifications ? { ...current.notifications, ...updates.notifications } : current.notifications,
+        competition: updates.competition
+          ? { ...current.competition, ...updates.competition }
+          : current.competition,
+        notifications: updates.notifications
+          ? { ...current.notifications, ...updates.notifications }
+          : current.notifications,
         data: updates.data ? { ...current.data, ...updates.data } : current.data,
         privacy: updates.privacy ? { ...current.privacy, ...updates.privacy } : current.privacy,
         deviceOverrides: updates.deviceOverrides
-          ? { ...current.deviceOverrides, ...updates.deviceOverrides } as Record<string, DeviceOverrides>
+          ? ({ ...current.deviceOverrides, ...updates.deviceOverrides } as Record<
+              string,
+              DeviceOverrides
+            >)
           : current.deviceOverrides,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       await this.upsertPreferences(userId, updated);
@@ -305,7 +340,10 @@ export class UserPreferencesService {
     }
   }
 
-  async resetToDefaults(userId: string, category?: keyof PreferencesUpdate): Promise<UserPreferences> {
+  async resetToDefaults(
+    userId: string,
+    category?: keyof PreferencesUpdate
+  ): Promise<UserPreferences> {
     try {
       logger.debug('Resetting user preferences to defaults', 'preferences', { userId, category });
 
@@ -327,7 +365,12 @@ export class UserPreferencesService {
       await this.upsertPreferences(userId, defaults);
       return defaults;
     } catch (error) {
-      logger.error('Failed to reset user preferences', 'preferences', { userId, category }, error as Error);
+      logger.error(
+        'Failed to reset user preferences',
+        'preferences',
+        { userId, category },
+        error as Error
+      );
       throw error;
     }
   }
@@ -371,49 +414,14 @@ export class UserPreferencesService {
 
       return preferences;
     } catch (error) {
-      logger.error('Failed to force sync user preferences', 'preferences', { userId }, error as Error);
+      logger.error(
+        'Failed to force sync user preferences',
+        'preferences',
+        { userId },
+        error as Error
+      );
       this.syncState.status = 'error';
       this.syncState.errorMessage = error instanceof Error ? error.message : 'Sync failed';
-      throw error;
-    }
-  }
-
-  async registerDevice(userId: string, deviceInfo?: Partial<DeviceInfo>): Promise<void> {
-    try {
-      logger.debug('Registering device (mock)', 'preferences', { userId, deviceInfo });
-      // Device registration not stored in user_preferences table
-    } catch (error) {
-      logger.error('Failed to register device', 'preferences', { userId }, error as Error);
-      throw error;
-    }
-  }
-
-  async getDevices(userId: string): Promise<DeviceInfo[]> {
-    try {
-      logger.debug('Loading user devices (mock)', 'preferences', { userId });
-      return [
-        {
-          id: 'device-1',
-          name: 'Mock Device',
-          type: 'desktop',
-          platform: 'web',
-          userAgent: navigator.userAgent,
-          lastSeen: new Date(),
-          isCurrentDevice: true
-        }
-      ];
-    } catch (error) {
-      logger.error('Failed to load user devices', 'preferences', { userId }, error as Error);
-      return [];
-    }
-  }
-
-  async removeDevice(userId: string, deviceId: string): Promise<void> {
-    try {
-      logger.debug('Removing device (mock)', 'preferences', { userId, deviceId });
-      // Device removal not stored in user_preferences table
-    } catch (error) {
-      logger.error('Failed to remove device', 'preferences', { userId, deviceId }, error as Error);
       throw error;
     }
   }
@@ -438,26 +446,31 @@ export class UserPreferencesService {
     const jsonCompatible = JSON.parse(JSON.stringify(stored));
 
     // RLS policy requires auth_user_id = auth.uid(), so we must include it
-    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
     if (!authUser?.id) {
       throw new Error('Cannot save preferences: no authenticated user');
     }
 
-    const { error } = await supabase
-      .from('user_preferences')
-      .upsert(
-        {
-          user_id: userId,
-          auth_user_id: authUser.id,
-          app: APP_ID,
-          preferences: jsonCompatible,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id,app' }
-      );
+    const { error } = await supabase.from('user_preferences').upsert(
+      {
+        user_id: userId,
+        auth_user_id: authUser.id,
+        app: APP_ID,
+        preferences: jsonCompatible,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,app' }
+    );
 
     if (error) {
-      logger.error('Supabase upsert error for preferences', 'preferences', { userId, error: error.message }, error as unknown as Error);
+      logger.error(
+        'Supabase upsert error for preferences',
+        'preferences',
+        { userId, error: error.message },
+        error as unknown as Error
+      );
       throw error;
     }
 

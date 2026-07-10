@@ -1,22 +1,25 @@
 import { useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Camera, Dog, Loader2, Mail, MapPin, Phone } from 'lucide-react';
+import { AlertTriangle, Camera, Dog, Loader2, Mail, MapPin, Phone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { useProfileForm, useCurrentUserPerson } from '@/hooks/useProfileForm';
-import { deleteUser } from '@/services/database/users';
-import { getUserFriendlyError } from '@/utils/errorMessages';
+import { useProfileForm } from '@/hooks/useProfileForm';
 import { useAvatarUpload } from '@/hooks/useAvatarUpload';
 import { useUpdatePerson } from '@/hooks/useUsers';
 import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { mapDatabaseDogsArray } from '@/services/mappers/dogMappers';
+import { deleteUser } from '@/services/database/users/reads';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 import type { Dog as DogType } from '@/types/dog-types';
+
+const DELETE_CONFIRMATION_TEXT = 'DELETE';
 
 export function ProfileSection() {
   const form = useProfileForm();
@@ -230,33 +233,46 @@ export function DogsSection() {
 }
 
 export function DeleteSection() {
-  const { user: authUser, signOut } = useAuthContext();
-  const { data: person } = useCurrentUserPerson(authUser?.id);
+  const { signOut } = useAuthContext();
+  const form = useProfileForm();
   const [confirm, setConfirm] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [deleting, setDeleting] = useState(false);
+  const canDelete = confirmText === DELETE_CONFIRMATION_TEXT;
+
+  const handleCancel = () => {
+    setConfirm(false);
+    setConfirmText('');
+    setError(null);
+  };
+
+  // Guard double-submits via ref — state updates lag a second synchronous click.
   const inFlight = useRef(false);
 
   const handleDelete = async () => {
-    if (inFlight.current) return;
-    if (!person?.id) {
-      toast.error('No profile found for this account.');
+    if (inFlight.current || !canDelete) return;
+    if (!form.person?.id) {
+      setError('No profile found for this account.');
       return;
     }
     inFlight.current = true;
-    setDeleting(true);
-    try {
-      const { error } = await deleteUser(person.id);
-      // Pass the DatabaseError object itself (not new Error(message)) to
-      // getUserFriendlyError so its `code` survives — MK001 (owns live dogs)
-      // must map to the "delete your dogs first" message.
-      if (error) throw error;
-    } catch (err) {
-      toast.error(getUserFriendlyError(err, 'Failed to delete account'));
+    setIsDeleting(true);
+    setError(null);
+
+    // Pass the DatabaseError object itself to getUserFriendlyError so its
+    // `code` survives — MK001 (owns live dogs) must map to the "delete your
+    // dogs first" message.
+    const { error: deleteError } = await deleteUser(form.person.id);
+
+    if (deleteError) {
+      setError(getUserFriendlyError(deleteError));
       inFlight.current = false;
-      setDeleting(false);
+      setIsDeleting(false);
       return;
     }
+
     toast.success('Your account has been deleted.');
     try {
       // Await so a sign-out failure (network/auth outage) surfaces here
@@ -264,11 +280,11 @@ export function DeleteSection() {
       // already tombstoned, so the message must not claim the delete failed.
       await signOut();
     } catch {
-      toast.error(
+      setError(
         'Your account was deleted, but signing out failed. Please close this tab or refresh.'
       );
       inFlight.current = false;
-      setDeleting(false);
+      setIsDeleting(false);
     }
   };
 
@@ -290,21 +306,34 @@ export function DeleteSection() {
             <p className="text-sm font-medium text-destructive">
               Are you sure? This cannot be undone.
             </p>
+            {error && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="delete-confirm-text">
+                Type <span className="font-semibold">{DELETE_CONFIRMATION_TEXT}</span> to confirm
+              </Label>
+              <Input
+                id="delete-confirm-text"
+                value={confirmText}
+                onChange={e => setConfirmText(e.target.value)}
+                autoComplete="off"
+                placeholder={DELETE_CONFIRMATION_TEXT}
+              />
+            </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button
                 variant="destructive"
                 size="sm"
-                disabled={deleting}
                 onClick={() => void handleDelete()}
+                disabled={!canDelete || isDeleting}
               >
-                {deleting ? 'Deleting…' : 'Yes, delete account'}
+                {isDeleting ? 'Deleting…' : 'Yes, delete account'}
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={deleting}
-                onClick={() => setConfirm(false)}
-              >
+              <Button variant="ghost" size="sm" onClick={handleCancel} disabled={isDeleting}>
                 Cancel
               </Button>
             </div>

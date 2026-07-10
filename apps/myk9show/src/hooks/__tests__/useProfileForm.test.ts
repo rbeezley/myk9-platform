@@ -34,10 +34,9 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 vi.mock('@/lib/notifications', () => ({
   notifications: { error: vi.fn(), success: vi.fn() },
-  actionNotifications: { updated: vi.fn() },
 }));
 
-import { notifications, actionNotifications } from '@/lib/notifications';
+import { notifications } from '@/lib/notifications';
 import { useProfileForm } from '../useProfileForm';
 
 const dbPersonData = {
@@ -252,7 +251,7 @@ describe('useProfileForm', () => {
     expect(notifications.error).toHaveBeenCalledWith('First name is required');
   });
 
-  it('save() shows success notification on success', async () => {
+  it('save() shows success notification with an auto-dismiss duration', async () => {
     const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
     await waitForFormLoaded(result);
@@ -265,7 +264,10 @@ describe('useProfileForm', () => {
       await result.current.save();
     });
 
-    expect(actionNotifications.updated).toHaveBeenCalledWith('Profile', 'Janet Doe');
+    expect(notifications.success).toHaveBeenCalledWith(
+      expect.stringContaining('Janet Doe'),
+      expect.objectContaining({ duration: 4000 })
+    );
   });
 
   it('save() shows error notification on failure', async () => {

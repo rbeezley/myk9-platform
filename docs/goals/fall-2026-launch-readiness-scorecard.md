@@ -218,6 +218,10 @@ Supporting measures:
 
 ## Scorecard Close-Out — 2026-06-18 (Lane 1.6)
 
+> Historical close-out snapshot. Use the 2026-07-10 reconciliation below and the Go-Live
+> Runbook for current launch sequencing; do not treat this June status narrative as a current
+> sign-off.
+
 Post-remediation status after the Lane 1.5 time-to-task re-measure:
 
 | Status | Dimensions |
@@ -254,3 +258,20 @@ The golden-path rows stay Green-gated-on-real-user-test until then.
    once a SITE_ADMIN staging login exists.
 3. **Final gate — real-user testing** (2–3 non-technical users): closes the overall launch criterion
    + the UX-clarity dimension. Run after #1.
+
+## Current Reconciliation — 2026-07-10
+
+The scorecard statuses above remain evidence-based, not forecasts. The launch gate is still open:
+six Primary dimensions are Yellow, and the June close-out predated current launch remediation.
+
+Before human testing, complete or explicitly accept the remaining agent-owned work tracked in
+`OPEN-TODOS.md`: exhibitor entry-state and touch-target fixes, the remaining
+`exhibitor-elderly-ux-remediation` tasks, `ux-contrast-token-system`, and the code/CI close-out
+of the current exhibitor and secretary UX changes. Also merge and deploy
+`security-audit-remediation` (SA-018–023, SA-026, SA-027).
+
+The final evidence pass must additionally reconcile cross-app data correctness and operational
+readiness; the earlier Phase 4 checklist did not explicitly cover those two Yellow rows. The
+canonical current sequence and evidence slots are in
+[`docs/operations/go-live-runbook.md`](../operations/go-live-runbook.md) and
+[`docs/operations/go-live-phase-4-evidence-checklist.md`](../operations/go-live-phase-4-evidence-checklist.md).

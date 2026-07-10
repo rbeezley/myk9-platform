@@ -127,7 +127,8 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
 
   // Check if there's extra info to show in popup
   const statusBadge = getStatusBadge(classInfo?.classStatus);
-  const hasExtraInfo = classInfo?.judgeName || statusBadge || (showSectionsBadge && classInfo?.judgeNameB);
+  const hasExtraInfo =
+    classInfo?.judgeName || statusBadge || (showSectionsBadge && classInfo?.judgeNameB);
 
   // Memoize popover data to reduce inline complexity
   const popoverData = React.useMemo(() => {
@@ -154,7 +155,9 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
       timeLimitArea3Seconds: parseTimeLimit(classInfo.timeLimit3),
       areaCount: classInfo.areas,
       visibilityPreset: classInfo.visibilityPreset,
-      selfCheckinEnabled: classInfo.selfCheckin
+      selfCheckinEnabled: classInfo.selfCheckin,
+      hidesKnown: classInfo.hidesKnown,
+      distractionCount: classInfo.distractionCount,
     };
   }, [classInfo]);
 
@@ -162,8 +165,8 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
     <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-4 rounded-b-xl border-b border-border bg-card p-3">
       <HamburgerMenu
         backNavigation={{
-          label: "Back to Classes",
-          action: () => navigate(-1)
+          label: 'Back to Classes',
+          action: () => navigate(-1),
         }}
         currentPage="entries"
       />
@@ -174,19 +177,23 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         data-class-info-trigger={hasExtraInfo ? '' : undefined}
         className={cn(
           'absolute left-1/2 top-1/2 flex max-w-[55%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-0.5 text-center',
-          hasExtraInfo && 'group cursor-pointer rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent'
+          hasExtraInfo &&
+            'group cursor-pointer rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent'
         )}
         onClick={hasExtraInfo ? () => setShowInfoPopup(!showInfoPopup) : undefined}
         onMouseEnter={hasExtraInfo ? () => setShowInfoPopup(true) : undefined}
         onMouseLeave={hasExtraInfo ? () => setShowInfoPopup(false) : undefined}
         role={hasExtraInfo ? 'button' : undefined}
         tabIndex={hasExtraInfo ? 0 : undefined}
-        onKeyDown={hasExtraInfo ? (e) => e.key === 'Enter' && setShowInfoPopup(!showInfoPopup) : undefined}
+        onKeyDown={
+          hasExtraInfo ? e => e.key === 'Enter' && setShowInfoPopup(!showInfoPopup) : undefined
+        }
       >
         {/* Class name with small info indicator */}
         <div className="flex items-center justify-center gap-1">
           <h1 className="m-0 whitespace-nowrap text-center text-lg font-[590] leading-none tracking-tight text-foreground">
-            {classInfo?.className?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) || 'Loading...'}
+            {classInfo?.className?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) ||
+              'Loading...'}
           </h1>
           {hasExtraInfo && (
             <span
@@ -200,7 +207,9 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         {/* Trial date and number */}
         {trialInfoText && (
           <div className="flex w-full justify-center">
-            <span className="text-xs font-medium leading-tight text-muted-foreground">{trialInfoText}</span>
+            <span className="text-xs font-medium leading-tight text-muted-foreground">
+              {trialInfoText}
+            </span>
           </div>
         )}
       </div>
@@ -229,10 +238,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         )}
 
         {/* Filter button */}
-        <FilterTriggerButton
-          onClick={onFilterClick}
-          hasActiveFilters={hasActiveFilters}
-        />
+        <FilterTriggerButton onClick={onFilterClick} hasActiveFilters={hasActiveFilters} />
 
         {/* Actions Menu (3-dot menu) */}
         <ActionsDropdownMenu

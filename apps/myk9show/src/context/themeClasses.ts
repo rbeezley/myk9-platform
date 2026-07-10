@@ -23,3 +23,45 @@ export function applyThemeClasses(root: HTMLElement, isDark: boolean): void {
   if (isDark) root.classList.add('dark');
   root.style.colorScheme = isDark ? 'dark' : 'light';
 }
+
+/**
+ * Font-scale persistence + application.
+ *
+ * The font-size preference (small/medium/large/extra-large) is stored
+ * server-side via userPreferencesService (async, requires a signed-in user),
+ * which is too slow/unavailable for a synchronous app-boot apply. This
+ * mirrors the theme-mode pattern: cache the last-applied scale in
+ * localStorage so it can be re-applied immediately on boot (including for
+ * signed-out/offline sessions), before the async preferences load resolves.
+ */
+const FONT_SCALE_STORAGE_KEY = 'fontScale';
+
+/**
+ * Canonical fontSize-preference → scale mapping. 'small' maps to 1.0 (not
+ * 0.9): tailwind.config.js pins text-xs at 0.875rem as a deliberate 14px
+ * minimum for retired exhibitors / show-day tablet use, and any root scale
+ * below 1 would push that floor to ~12.6px across the whole app.
+ */
+export const FONT_SIZE_SCALES: Record<string, string> = {
+  small: '1.0',
+  medium: '1.0',
+  large: '1.2',
+  'extra-large': '1.4',
+};
+
+export function applyFontScale(scale: string, root: HTMLElement = document.documentElement): void {
+  // Clamp below-1 scales (e.g. a stale cached '0.9') to preserve the 14px
+  // text-xs floor documented in tailwind.config.js.
+  const clamped = Number.parseFloat(scale) < 1 ? '1' : scale;
+  root.style.setProperty('--font-scale', clamped);
+}
+
+export function getStoredFontScale(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(FONT_SCALE_STORAGE_KEY);
+}
+
+export function storeFontScale(scale: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(FONT_SCALE_STORAGE_KEY, scale);
+}

@@ -79,6 +79,38 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### QA-STALE-DERIVED-STATE-035
+
+- **Status:** open
+- **Severity:** high
+- **Role:** exhibitor
+- **Surface:** Browse Shows card, `/shows/dededede-0000-0000-0000-000000000010` exhibitor detail tabs, and `/shows/dededede-0000-0000-0000-000000000010/register`.
+- **Suite category:** feature-audit
+- **Pattern:** stale-derived-state
+- **Detected by:** audit-pages manual browser walk
+- **Evidence:** 2026-07-10 authenticated staging replay after reopening the seeded Heartland test show’s entry window: Browse Shows displayed `Entry Submitted`; the show-detail My Entries tab displayed `My Entries 0` and “You haven't entered any classes in this show yet”; the Classes tab showed `My entry` rows; and the registration wizard showed dogs already entered plus the existing Cart Total. The contradiction reproduced at 390×844 and 1440×900 with no browser console warning/error.
+- **User impact:** An exhibitor cannot reliably determine whether an entry exists. An older novice is likely to distrust the site, attempt a duplicate entry, or call the secretary.
+- **Intent check:** Harms the exhibitor target feeling “This respects my time”; the basic question “am I entered?” should not require reconciling four screens.
+- **Fix owner:** exhibitor show-detail entry aggregation/display selectors and their consumers in Browse Shows and registration state.
+- **Proof required:** Add focused coverage for the seeded combination of submitted entries and a cart line, then replay the show detail and registration on phone and desktop. All surfaces must use one explicit rule: submitted entries, cart items, and no entry must be labelled/countable without contradiction.
+- **Notes:** Preserve the existing surfaces. If cart lines are intentionally excluded from submitted entries, explain that distinction plainly instead of showing an empty-state claim that contradicts the other derived state.
+
+### QA-ACCESSIBILITY-GAP-036
+
+- **Status:** open
+- **Severity:** medium
+- **Role:** exhibitor
+- **Surface:** `apps/myk9show/src/components/shows/RegistrationWorkflow/PaymentStep/RegistrationSummary.tsx` and `apps/myk9show/src/components/cart/CartSummary.tsx`.
+- **Suite category:** feature-audit
+- **Pattern:** accessibility-gap
+- **Detected by:** audit-pages source review and authenticated browser walk
+- **Evidence:** 2026-07-10 payment review at 390×844 showed the icon-only “Remove Container Novice A” action; source gives it `className="h-8 w-8"` (32×32px). The Cart Summary’s “Continue Shopping” uses the default button height, measured 40px in the same phone walk. Both are below the project’s 44×44px elderly touch target.
+- **User impact:** A user with reduced dexterity can miss the remove or continue action, especially while handling a phone at a show.
+- **Intent check:** Harms the exhibitor target feeling “That took 30 seconds” by making routine corrections harder than necessary.
+- **Fix owner:** registration payment summary and shared cart action sizing.
+- **Proof required:** Add component-level assertions for a 44px minimum touch target and manually replay the payment/cart at 390px without horizontal clipping.
+- **Notes:** This is a control-sizing repair inside existing components, not new UI.
+
 ### QA-TEST-FLAKE-032
 
 - **Status:** fixed

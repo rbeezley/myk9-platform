@@ -23,3 +23,29 @@ export function applyThemeClasses(root: HTMLElement, isDark: boolean): void {
   if (isDark) root.classList.add('dark');
   root.style.colorScheme = isDark ? 'dark' : 'light';
 }
+
+/**
+ * Font-scale persistence + application.
+ *
+ * The font-size preference (small/medium/large/extra-large) is stored
+ * server-side via userPreferencesService (async, requires a signed-in user),
+ * which is too slow/unavailable for a synchronous app-boot apply. This
+ * mirrors the theme-mode pattern: cache the last-applied scale in
+ * localStorage so it can be re-applied immediately on boot (including for
+ * signed-out/offline sessions), before the async preferences load resolves.
+ */
+const FONT_SCALE_STORAGE_KEY = 'fontScale';
+
+export function applyFontScale(scale: string, root: HTMLElement = document.documentElement): void {
+  root.style.setProperty('--font-scale', scale);
+}
+
+export function getStoredFontScale(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(FONT_SCALE_STORAGE_KEY);
+}
+
+export function storeFontScale(scale: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(FONT_SCALE_STORAGE_KEY, scale);
+}

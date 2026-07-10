@@ -26,6 +26,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useTheme } from '@/hooks/useTheme';
+import { applyFontScale, storeFontScale } from '@/context/themeClasses';
 import type {
   ThemePreferences,
   ThemeMode,
@@ -57,9 +59,9 @@ const colorSchemes: Array<{
   color: string;
   description: string;
 }> = [
-  { value: 'clay',    label: 'Clay',    color: '#c96442', description: 'Warm terracotta' },
-  { value: 'grove',   label: 'Grove',   color: '#2f8a7f', description: 'Muted grass teal' },
-  { value: 'dusk',    label: 'Dusk',    color: '#3d6d8c', description: 'Dusty slate blue' },
+  { value: 'clay', label: 'Clay', color: '#c96442', description: 'Warm terracotta' },
+  { value: 'grove', label: 'Grove', color: '#2f8a7f', description: 'Muted grass teal' },
+  { value: 'dusk', label: 'Dusk', color: '#3d6d8c', description: 'Dusty slate blue' },
   { value: 'heather', label: 'Heather', color: '#7b5aa6', description: 'Aubergine purple' },
 ];
 
@@ -83,12 +85,17 @@ const fontSizeOptions: Array<{
 
 export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorProps) {
   const { settings, updateSettings } = useSettingsStore();
+  const { setThemeMode } = useTheme();
 
   /**
    * Handle theme mode change
+   * Wires the shared ThemeContext (which the header toggle also reads/writes)
+   * in addition to persisting to the preferences system, so both surfaces
+   * always reflect the same mode.
    */
   const handleModeChange = (mode: ThemeMode) => {
     onUpdate({ mode });
+    setThemeMode(mode);
   };
 
   /**
@@ -119,15 +126,16 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
   const handleFontSizeChange = (fontSize: FontSizeScale) => {
     onUpdate({ fontSize });
 
-    // Apply font size scale
-    const root = document.documentElement;
+    // Apply font size scale immediately and cache it so it survives a
+    // reload (see getStoredFontScale boot hydration in ThemeContext).
     const scales = {
       small: '0.9',
       medium: '1.0',
       large: '1.2',
       'extra-large': '1.4',
     };
-    root.style.setProperty('--font-scale', scales[fontSize]);
+    applyFontScale(scales[fontSize]);
+    storeFontScale(scales[fontSize]);
   };
 
   /**
@@ -194,7 +202,9 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
             <Palette className="h-5 w-5" />
             Your ring color
           </CardTitle>
-          <CardDescription>Pick the accent you want to see in the app. Brand identity always stays terracotta.</CardDescription>
+          <CardDescription>
+            Pick the accent you want to see in the app. Brand identity always stays terracotta.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

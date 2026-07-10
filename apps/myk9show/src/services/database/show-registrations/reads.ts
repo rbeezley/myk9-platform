@@ -545,7 +545,8 @@ export const updateEnrollmentPaymentStatus = async (
   paymentReference?: string | null,
   paidAmount?: number | null,
   refundAmount?: number | null,
-  refundNotes?: string | null
+  refundNotes?: string | null,
+  checkNumber?: string | null
 ) => {
   const startTime = Date.now();
   try {
@@ -555,6 +556,9 @@ export const updateEnrollmentPaymentStatus = async (
     };
     if (paymentReference !== undefined) {
       updateData.payment_reference = paymentReference;
+    }
+    if (checkNumber !== undefined) {
+      updateData.check_number = checkNumber;
     }
     if (paidAmount != null) {
       updateData.paid_amount = paidAmount;

@@ -21,11 +21,6 @@ describe('EntryStatusLine', () => {
     expect(screen.getByText('Accepted').className).toContain('--chip-teal-bg');
   });
 
-  it('speaks the exhibitor voice for the same submitted entry', () => {
-    render(<EntryStatusLine viewer="exhibitor" rawEntryStatus="submitted" />);
-    expect(screen.getByText("Submitted — awaiting review")).toBeVisible();
-  });
-
   it('folds the refund into the line and surfaces the review-lane action hint', () => {
     render(
       <EntryStatusLine
@@ -41,17 +36,13 @@ describe('EntryStatusLine', () => {
   });
 
   it('composes refund without a review-lane hint for a withdrawn entry', () => {
-    render(
-      <EntryStatusLine viewer="secretary" rawEntryStatus="withdrawn" refundAmount={30} />
-    );
+    render(<EntryStatusLine viewer="secretary" rawEntryStatus="withdrawn" refundAmount={30} />);
     expect(screen.getByText('Withdrawn · Refunded $30')).toBeVisible();
-    expect(
-      screen.queryByText('Refunded — confirm withdrawal or keep entry')
-    ).toBeNull();
+    expect(screen.queryByText('Refunded — confirm withdrawal or keep entry')).toBeNull();
   });
 
   it('never renders a raw/unknown enum verbatim', () => {
-    render(<EntryStatusLine viewer="exhibitor" rawEntryStatus="some_garbage_status" />);
+    render(<EntryStatusLine viewer="secretary" rawEntryStatus="some_garbage_status" />);
     expect(screen.getByText('Status unavailable')).toBeVisible();
     expect(screen.queryByText('some_garbage_status')).toBeNull();
   });

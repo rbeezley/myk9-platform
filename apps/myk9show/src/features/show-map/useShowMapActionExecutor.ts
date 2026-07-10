@@ -8,6 +8,11 @@ import { getUserFriendlyError } from '@/utils/errorMessages';
 import { useMessageStore } from '@/store/messageStore';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
+import {
+  markCheckInReportCheckedIn,
+  markRowCheckedIn,
+  markShowDayDetailsCheckedIn,
+} from './showMapCheckInOptimisticUpdates';
 import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import {
@@ -20,8 +25,10 @@ import {
   scratchShowMapEntry,
   sourceIdFromShowMapNodeId,
   undoShowMapMoveUp,
+  undoShowMapScratch,
   type ShowMapMoveUpResult,
   type ShowMapMoveUpUndoInput,
+  type ShowMapScratchUndoInput,
   approveShowMapEntry,
   bulkApproveShowMapEntries,
 } from './showMapActionMutations';
@@ -51,51 +58,11 @@ export interface LastShowMapMoveUp extends ShowMapMoveUpUndoInput {
   classId?: string | undefined;
 }
 
+export interface ShowMapScratchUndoMutationInput extends ShowMapScratchUndoInput {
+  classId?: string | undefined;
+}
+
 export const MOVE_UP_UNDO_BANNER_TIMEOUT_MS = 8000;
-
-function markRowCheckedIn<T extends Record<string, unknown>>(
-  rows: T[] | undefined,
-  entryId: string
-) {
-  if (!rows) return rows;
-  return rows.map(row =>
-    row.id === entryId ? { ...row, check_in_status: 'checked-in' } : row
-  ) as T[];
-}
-
-function markShowDayDetailsCheckedIn(
-  rows: ShowDayDetailRow[] | undefined,
-  entryId: string
-): ShowDayDetailRow[] | undefined {
-  if (!rows) return rows;
-  return rows.map(row => (row.id === entryId ? { ...row, check_in_status: 'checked-in' } : row));
-}
-
-function markCheckInReportCheckedIn(
-  groups: ExhibitorCheckInGroup[] | undefined,
-  entryId: string
-): ExhibitorCheckInGroup[] | undefined {
-  if (!groups) return groups;
-  return groups.map(group => {
-    if (!group.entries.some(entry => entry.entryId === entryId)) return group;
-
-    const entries = group.entries.map(entry =>
-      entry.entryId === entryId ? { ...entry, checkInStatus: 'checked-in' } : entry
-    );
-    const checkedInCount = entries.filter(
-      entry => entry.checkInStatus !== 'no-status' && !!entry.checkInStatus
-    ).length;
-    const allCheckedIn = checkedInCount === entries.length;
-    const noneCheckedIn = checkedInCount === 0;
-
-    return {
-      ...group,
-      entries,
-      checkedInCount,
-      summaryStatus: allCheckedIn ? 'checked-in' : noneCheckedIn ? 'none' : 'partial',
-    };
-  });
-}
 
 export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInput) {
   const queryClient = useQueryClient();
@@ -282,6 +249,19 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     },
   });
 
+  const undoScratchMutation = useMutation({
+    mutationFn: async (input: ShowMapScratchUndoMutationInput) => undoShowMapScratch(input),
+    onSuccess: () => {
+      toast.success('Scratch undone');
+    },
+    onError: error => {
+      toast.error(getUserFriendlyError(error));
+    },
+    onSettled: (_data, _error, variables) => {
+      invalidateShowMapActionQueries(variables?.classId);
+    },
+  });
+
   const scratchMutation = useMutation({
     mutationFn: async ({
       action,
@@ -293,10 +273,16 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       const entryId = sourceIdFromShowMapNodeId(action.nodeId, 'entry');
       if (!entryId) throw new Error('Unable to find the entry for this action.');
 
-      await scratchShowMapEntry(entryId, reason);
+      return scratchShowMapEntry(entryId, reason);
     },
-    onSuccess: () => {
-      toast.success('Entry marked pulled');
+    onSuccess: (result, { action }) => {
+      const undoInput: ShowMapScratchUndoMutationInput = { ...result, classId: action.classId };
+      toast.success('Entry marked pulled', {
+        action: {
+          label: 'Undo',
+          onClick: () => undoScratchMutation.mutate(undoInput),
+        },
+      });
       setScratchAction(null);
     },
     onError: error => {
@@ -380,9 +366,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     },
     onSuccess: (_data, { entryIds }) => {
       const count = entryIds.length;
-      toast.success(
-        count === 1 ? 'Entry approved' : `${count} entries approved`
-      );
+      toast.success(count === 1 ? 'Entry approved' : `${count} entries approved`);
     },
     onError: error => {
       toast.error(getUserFriendlyError(error));

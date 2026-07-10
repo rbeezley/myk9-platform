@@ -58,6 +58,13 @@ export interface Class {
   // Schedule info
   startTime?: string | undefined;
   estimatedDuration?: number | undefined; // in minutes
+  // Scent work specific rule fields (legacy/compatibility; not yet DB-persisted)
+  hidesUsed?: string | undefined;
+  distractionsUsed?: string | undefined;
+  itemsUsed?: string | undefined;
+  timeLimit1?: string | undefined;
+  timeLimit2?: string | undefined;
+  timeLimit3?: string | undefined;
 }
 
 export interface Show {

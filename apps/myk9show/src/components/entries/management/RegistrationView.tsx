@@ -73,7 +73,10 @@ interface RegistrationViewProps {
     enrollmentId: string,
     status: PaymentStatus,
     reference?: string | null,
-    paidAmount?: number | null
+    paidAmount?: number | null,
+    refundAmount?: number | null,
+    refundNotes?: string | null,
+    checkNumber?: string | null
   ) => void;
   /** Status change handler */
   onStatusChange: (

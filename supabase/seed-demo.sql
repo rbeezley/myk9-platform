@@ -160,7 +160,10 @@ DELETE FROM public.entries WHERE id IN (
 DELETE FROM public.classes WHERE id IN (
   'dec1a55e-0000-0000-0000-000000000031','dec1a55e-0000-0000-0000-000000000032',
   'dec1a55e-0000-0000-0000-000000000033','dec1a55e-0000-0000-0000-000000000034',
-  'dec1a55e-0000-0000-0000-000000000035'
+  'dec1a55e-0000-0000-0000-000000000035',
+  -- UKC Nosework / ASCA Scent Detection registry demo classes (task 6.3)
+  'dec1a55e-0000-0000-0000-000000000036','dec1a55e-0000-0000-0000-000000000037',
+  'dec1a55e-0000-0000-0000-000000000038','dec1a55e-0000-0000-0000-000000000039'
 );
 DELETE FROM public.dogs WHERE id IN (
   'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
@@ -168,7 +171,9 @@ DELETE FROM public.dogs WHERE id IN (
   'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
 );
 DELETE FROM public.trials WHERE id IN (
-  'dededede-0000-0000-0000-000000000021','dededede-0000-0000-0000-000000000022'
+  'dededede-0000-0000-0000-000000000021','dededede-0000-0000-0000-000000000022',
+  -- UKC Nosework / ASCA Scent Detection registry demo trials (task 6.3)
+  'dededede-0000-0000-0000-000000000023','dededede-0000-0000-0000-000000000024'
 );
 DELETE FROM public.show_visibility_settings WHERE show_id = 'dededede-0000-0000-0000-000000000010';
 DELETE FROM public.shows WHERE id = 'dededede-0000-0000-0000-000000000010';
@@ -284,11 +289,21 @@ VALUES
    '8:00 AM', false, 'scent_work', 1, 1, 'Saturday Trial', 'AKC', 'America/Chicago', 1),
   ('dededede-0000-0000-0000-000000000022', 'dededede-0000-0000-0000-000000000010',
    'Sunday Trial', '2026-08-02', 'Sunday Trial', 'upcoming',
-   '8:00 AM', false, 'scent_work', 1, 2, 'Sunday Trial', 'AKC', 'America/Chicago', 1);
+   '8:00 AM', false, 'scent_work', 1, 2, 'Sunday Trial', 'AKC', 'America/Chicago', 1),
+  -- Multi-registry demo coverage (task 6.3): same show, different sanctioning
+  -- body per trial (trials.registry_id is per-trial, NOT per-show — see
+  -- CLAUDE.md heritage/registry notes). Same Sunday date as the AKC trial
+  -- above; a later display_order keeps tab ordering stable.
+  ('dededede-0000-0000-0000-000000000023', 'dededede-0000-0000-0000-000000000010',
+   'Sunday UKC Nosework', '2026-08-02', 'UKC-Nosework', 'upcoming',
+   '1:00 PM', false, 'nosework', 1, 3, 'Sunday UKC Nosework', 'UKC', 'America/Chicago', 1),
+  ('dededede-0000-0000-0000-000000000024', 'dededede-0000-0000-0000-000000000010',
+   'Sunday ASCA Scent Detection', '2026-08-02', 'ASCA-ScentDetection', 'upcoming',
+   '2:00 PM', false, 'scent_detection', 1, 4, 'Sunday ASCA Scent Detection', 'ASCA', 'America/Chicago', 1);
 
 -- ---------------------------------------------------------------------------
--- 4. Classes (5)  -- valid element/level/section, status 'upcoming'
---    Saturday: 3 classes  |  Sunday: 2 classes
+-- 4. Classes (9)  -- valid element/level/section, status 'upcoming'
+--    Saturday: 3 classes  |  Sunday: 2 classes  |  Sunday UKC: 2  |  Sunday ASCA: 2
 --    judge_name is a DENORMALIZED SNAPSHOT of the assigned judge ('Test Judge' =
 --    judge@myk9t.com), NOT the source of truth: the relational link is
 --    judge_assignments.person_id (section 11) + judge_qualifications (section 13).
@@ -314,7 +329,25 @@ VALUES
    30.00, 'upcoming', 240, 3, 1, true, 'single', false, 1, 1),
   ('dec1a55e-0000-0000-0000-000000000035', 'dededede-0000-0000-0000-000000000022',
    'Interior Novice B', 'Novice', 'Interior', 'B', 'Test Judge',
-   30.00, 'upcoming', 120, 1, 1, false, 'single', true, 2, 1);
+   30.00, 'upcoming', 120, 1, 1, false, 'single', true, 2, 1),
+  -- UKC Nosework (registry_id 'UKC' on trial ...023) -- elements/levels per
+  -- sport_templates 'ukc-nosework' (030_seed_sport_templates.sql): Container,
+  -- Interior, Exterior, Vehicle, Handler Discrimination x Novice..Elite.
+  ('dec1a55e-0000-0000-0000-000000000036', 'dededede-0000-0000-0000-000000000023',
+   'Container Novice', 'Novice', 'Container', NULL, 'Test Judge',
+   30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, 1),
+  ('dec1a55e-0000-0000-0000-000000000037', 'dededede-0000-0000-0000-000000000023',
+   'Vehicle Advanced', 'Advanced', 'Vehicle', NULL, 'Test Judge',
+   30.00, 'upcoming', 180, 2, 1, false, 'single', true, 2, 1),
+  -- ASCA Scent Detection (registry_id 'ASCA' on trial ...024) -- elements/levels
+  -- per sport_templates 'asca-scent-detection': Container, Interior, Exterior,
+  -- Vehicle x Novice/Open/Advanced/Excellent.
+  ('dec1a55e-0000-0000-0000-000000000038', 'dededede-0000-0000-0000-000000000024',
+   'Container Novice', 'Novice', 'Container', NULL, 'Test Judge',
+   30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, 1),
+  ('dec1a55e-0000-0000-0000-000000000039', 'dededede-0000-0000-0000-000000000024',
+   'Exterior Open', 'Open', 'Exterior', NULL, 'Test Judge',
+   30.00, 'upcoming', 180, 2, 1, false, 'single', true, 2, 1);
 
 -- ---------------------------------------------------------------------------
 -- 5. Dogs (6)  -- owner_id resolved from protected accounts by email

@@ -67,7 +67,7 @@
 - [x] 8.5 Run implementation verification with the OpenSpec verify-change process and fix critical findings.
 - [x] 8.6 Update `OPEN-TODOS.md` / tracking docs when the implementation slice is complete.
 - [x] 8.7 Commit implementation changes and open a PR with `Tracked in openspec change: show-email-sequence` in the body.
-- [ ] 8.8 Wait for CI/review and merge before archiving the OpenSpec change.
+- [x] 8.8 Wait for CI/review and merge before archiving the OpenSpec change. (PR #1202 merged 2026-07-08.)
 
 ## Validation Profile
 

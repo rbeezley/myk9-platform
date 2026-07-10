@@ -96,12 +96,70 @@ export async function markShowMapClassComplete(classId: string): Promise<void> {
   });
 }
 
+export interface ShowMapScratchUndoInput {
+  entryId: string;
+  previousEntryStatus: string | null;
+  previousCheckInStatus: string | null;
+  previousSpecialRequests: string | null;
+  previousWithdrawalReason: string | null;
+}
+
 export async function scratchShowMapEntry(
   entryId: string,
   reason: string | undefined
-): Promise<void> {
+): Promise<ShowMapScratchUndoInput> {
+  const currentEntry = await replicatedEntriesTable.getEntryById(entryId);
+  const previousEntryStatus =
+    currentEntry?.entryStatus ?? currentEntry?.entry_status ?? currentEntry?.status ?? null;
+  const previousCheckInStatus =
+    currentEntry?.checkInStatus ?? currentEntry?.check_in_status ?? null;
+  const previousSpecialRequests =
+    currentEntry?.specialRequests ?? currentEntry?.special_requests ?? null;
+  const previousWithdrawalReason =
+    currentEntry?.withdrawalReason ?? currentEntry?.withdrawal_reason ?? null;
+
   const trimmed = reason?.trim();
   await updateReplicatedDayOfScratch(entryId, trimmed || 'Marked no-show from Show Map');
+
+  return {
+    entryId,
+    previousEntryStatus,
+    previousCheckInStatus,
+    previousSpecialRequests,
+    previousWithdrawalReason,
+  };
+}
+
+export async function undoShowMapScratch(input: ShowMapScratchUndoInput): Promise<void> {
+  if (!input.previousEntryStatus) {
+    throw createDatabaseError(
+      new Error('Cannot undo scratch because the original entry status was not captured.'),
+      'entries',
+      'show_map_undo_scratch_restore'
+    );
+  }
+
+  const restoredCheckInStatus = (input.previousCheckInStatus ?? 'no-status') as CheckInStatus;
+  await replicatedEntriesTable.updateEntry(input.entryId, {
+    entryStatus: input.previousEntryStatus,
+    entry_status: input.previousEntryStatus,
+    checkInStatus: restoredCheckInStatus,
+    check_in_status: restoredCheckInStatus,
+    specialRequests: input.previousSpecialRequests,
+    special_requests: input.previousSpecialRequests,
+    withdrawalReason: input.previousWithdrawalReason,
+    withdrawal_reason: input.previousWithdrawalReason,
+  });
+
+  await logReplicatedEntryStatusChange({
+    entryId: input.entryId,
+    fromStatus: 'scratched',
+    toStatus: input.previousEntryStatus,
+    action: 'restore_entry_status',
+    metadata: {
+      checkInStatus: restoredCheckInStatus,
+    },
+  });
 }
 
 function readNestedName(value: unknown): string | null {

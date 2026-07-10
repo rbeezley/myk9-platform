@@ -61,7 +61,8 @@ interface EnrollmentCardProps {
     reference?: string | null,
     paidAmount?: number | null,
     refundAmount?: number | null,
-    refundNotes?: string | null
+    refundNotes?: string | null,
+    checkNumber?: string | null
   ) => void;
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
@@ -120,10 +121,19 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     reference?: string | null,
     paid?: number | null,
     refundAmt?: number | null,
-    refundNotes?: string | null
+    refundNotes?: string | null,
+    checkNumber?: string | null
   ) => {
     if (enrollmentId)
-      onPaymentStatusChange(enrollmentId, status, reference, paid, refundAmt, refundNotes);
+      onPaymentStatusChange(
+        enrollmentId,
+        status,
+        reference,
+        paid,
+        refundAmt,
+        refundNotes,
+        checkNumber
+      );
   };
 
   const confirmPartialPayment = () => {
@@ -134,7 +144,8 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
       partialDialog.checkNumber
     );
     if (!result) return;
-    handlePayment(result.status, result.reference, result.amount);
+    const checkNumber = partialDialog.method === 'check' ? result.reference : null;
+    handlePayment(result.status, result.reference, result.amount, null, null, checkNumber);
     setPartialDialog(EMPTY_PARTIAL_DIALOG);
   };
 
@@ -429,7 +440,14 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         onCheckNumberChange={value => setCheckDialog(prev => ({ ...prev, checkNumber: value }))}
         onClose={() => setCheckDialog(EMPTY_CHECK_DIALOG)}
         onConfirm={() => {
-          handlePayment(PaymentStatus.PAID_BY_CHECK, checkDialog.checkNumber || null, totalDollars);
+          handlePayment(
+            PaymentStatus.PAID_BY_CHECK,
+            checkDialog.checkNumber || null,
+            totalDollars,
+            null,
+            null,
+            checkDialog.checkNumber || null
+          );
           setCheckDialog(EMPTY_CHECK_DIALOG);
         }}
       />

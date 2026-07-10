@@ -128,6 +128,19 @@ export function getFinancialPaymentLabel(entry: ReportEntry): string {
   return entry.paymentMethod || entry.paymentStatus || 'Unknown';
 }
 
+/**
+ * Shared outstanding-balance rule: a line's net fee is owed only while it is
+ * pending and not waived/comped. Extracted so any surface reconciling
+ * against the Financial Report (e.g. the Entry Management stat card) applies
+ * the exact same rule instead of re-deriving it.
+ */
+export function computeOutstandingAmount(
+  netFee: number,
+  options: { isWaived: boolean; isPending: boolean }
+): number {
+  return !options.isWaived && options.isPending ? netFee : 0;
+}
+
 export function buildFinancialReportLine(entry: ReportEntry): FinancialReportLine {
   const gross = readMoney(entry.entryFee);
   const discount = Math.min(readMoney(entry.discountAmount), gross);
@@ -135,8 +148,12 @@ export function buildFinancialReportLine(entry: ReportEntry): FinancialReportLin
   const explicitRefund = readMoney(entry.refundAmount);
   const refunded =
     explicitRefund > 0 ? Math.min(explicitRefund, netFee) : isFullyRefunded(entry) ? netFee : 0;
-  const waived = isWaived(entry) ? netFee : 0;
-  const outstanding = !waived && isPending(entry) ? netFee : 0;
+  const entryIsWaived = isWaived(entry);
+  const waived = entryIsWaived ? netFee : 0;
+  const outstanding = computeOutstandingAmount(netFee, {
+    isWaived: entryIsWaived,
+    isPending: isPending(entry),
+  });
   const collected = !waived && isPaid(entry) ? netFee : 0;
   const netRetained = collected - refunded;
 

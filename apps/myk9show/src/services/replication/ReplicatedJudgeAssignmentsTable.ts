@@ -283,6 +283,81 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     logger.log(`[${this.getTableName()}] Deleted assignment ${id}`);
     return mutationId;
   }
+
+  /**
+   * Replace all show-level (class_id null) assignments for a show: deletes the
+   * locally-known show-level rows, then creates one confirmed assignment per judge.
+   * Mirrors the delete+insert semantics `persistShowJudgeAssignments` used against
+   * the raw table.
+   */
+  async replaceShowLevelAssignments(showId: string, personIds: string[]): Promise<void> {
+    const existing = (await this.getByShowId(showId)).filter(a => a.classId === null);
+    for (const row of existing) {
+      await this.deleteAssignment(row.id);
+    }
+    for (const personId of personIds) {
+      await this.createAssignment({
+        personId,
+        showId,
+        trialId: null,
+        classId: null,
+        status: 'confirmed',
+        invitedAt: null,
+        confirmedAt: new Date().toISOString(),
+        fee: null,
+        notes: null,
+      });
+    }
+  }
+
+  /**
+   * Replace the assignment for a single class: deletes any existing class-level
+   * assignment(s), then creates a new one unless `judgeId` is null (removal).
+   * Mirrors `upsertClassJudgeAssignment`'s delete-then-insert semantics.
+   */
+  async replaceClassAssignment(
+    showId: string,
+    classId: string,
+    judgeId: string | null
+  ): Promise<void> {
+    const all = await this.getAll();
+    const existing = all.filter(a => a.classId === classId);
+    for (const row of existing) {
+      await this.deleteAssignment(row.id);
+    }
+    if (judgeId) {
+      await this.createAssignment({
+        personId: judgeId,
+        showId,
+        trialId: null,
+        classId,
+        status: 'confirmed',
+        invitedAt: null,
+        confirmedAt: new Date().toISOString(),
+        fee: null,
+        notes: null,
+      });
+    }
+  }
+
+  /**
+   * Reassign a class's judge in place (update, not delete+insert) to preserve the
+   * assignment's identity/history. No-ops if no local row matches the from/class/show
+   * filter, mirroring the raw `.eq()` update's silent no-match behavior.
+   */
+  async reassignClassAssignment(
+    showId: string,
+    classId: string,
+    fromPersonId: string,
+    toPersonId: string
+  ): Promise<void> {
+    const all = await this.getAll();
+    const match = all.find(
+      a => a.classId === classId && a.showId === showId && a.personId === fromPersonId
+    );
+    if (!match) return;
+    await this.updateAssignment(match.id, { personId: toPersonId });
+  }
 }
 
 export const replicatedJudgeAssignmentsTable = new ReplicatedJudgeAssignmentsTable();

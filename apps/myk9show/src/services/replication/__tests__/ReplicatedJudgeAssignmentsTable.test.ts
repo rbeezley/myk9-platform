@@ -230,6 +230,160 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
     });
   });
 
+  // D3: the writer functions in judges/reads.ts route through these methods
+  // instead of raw untypedFrom('judge_assignments') writes.
+  describe('replaceShowLevelAssignments', () => {
+    it('deletes existing show-level rows and creates one per judge', async () => {
+      await table.set('ja-1', {
+        id: 'ja-1',
+        personId: 'judge-old',
+        showId: 'show-1',
+        trialId: null,
+        classId: null,
+        status: 'confirmed',
+        invitedAt: null,
+        confirmedAt: null,
+        fee: null,
+        notes: null,
+        ...NULL_ENRICHMENT,
+      });
+      // Class-level assignment for the same show must be left alone.
+      await table.set('ja-2', {
+        id: 'ja-2',
+        personId: 'judge-class',
+        showId: 'show-1',
+        trialId: null,
+        classId: 'class-1',
+        status: 'confirmed',
+        invitedAt: null,
+        confirmedAt: null,
+        fee: null,
+        notes: null,
+        ...NULL_ENRICHMENT,
+      });
+
+      await table.replaceShowLevelAssignments('show-1', ['judge-new-1', 'judge-new-2']);
+
+      expect(await table.get('ja-1')).toBeNull();
+      expect(await table.get('ja-2')).not.toBeNull();
+
+      const showLevel = (await table.getByShowId('show-1')).filter(a => a.classId === null);
+      expect(showLevel).toHaveLength(2);
+      expect(showLevel.map(a => a.personId).sort()).toEqual(['judge-new-1', 'judge-new-2']);
+      expect(showLevel.every(a => a.status === 'confirmed')).toBe(true);
+    });
+
+    it('leaves no show-level rows behind when the judge list is empty', async () => {
+      await table.set('ja-1', {
+        id: 'ja-1',
+        personId: 'judge-old',
+        showId: 'show-1',
+        trialId: null,
+        classId: null,
+        status: 'confirmed',
+        invitedAt: null,
+        confirmedAt: null,
+        fee: null,
+        notes: null,
+        ...NULL_ENRICHMENT,
+      });
+
+      await table.replaceShowLevelAssignments('show-1', []);
+
+      expect(await table.getByShowId('show-1')).toHaveLength(0);
+    });
+  });
+
+  describe('replaceClassAssignment', () => {
+    it('removes the old class assignment and creates the new one', async () => {
+      await table.set('ja-1', {
+        id: 'ja-1',
+        personId: 'judge-old',
+        showId: 'show-1',
+        trialId: null,
+        classId: 'class-1',
+        status: 'confirmed',
+        invitedAt: null,
+        confirmedAt: null,
+        fee: null,
+        notes: null,
+        ...NULL_ENRICHMENT,
+      });
+
+      await table.replaceClassAssignment('show-1', 'class-1', 'judge-new');
+
+      expect(await table.get('ja-1')).toBeNull();
+      const all = await table.getByShowId('show-1');
+      expect(all).toHaveLength(1);
+      expect(all[0].personId).toBe('judge-new');
+      expect(all[0].classId).toBe('class-1');
+    });
+
+    it('removes the assignment without creating a replacement when judgeId is null', async () => {
+      await table.set('ja-1', {
+        id: 'ja-1',
+        personId: 'judge-old',
+        showId: 'show-1',
+        trialId: null,
+        classId: 'class-1',
+        status: 'confirmed',
+        invitedAt: null,
+        confirmedAt: null,
+        fee: null,
+        notes: null,
+        ...NULL_ENRICHMENT,
+      });
+
+      await table.replaceClassAssignment('show-1', 'class-1', null);
+
+      expect(await table.getByShowId('show-1')).toHaveLength(0);
+    });
+  });
+
+  describe('reassignClassAssignment', () => {
+    it('updates the matching row in place instead of delete+insert', async () => {
+      await table.set('ja-1', {
+        id: 'ja-1',
+        personId: 'judge-from',
+        showId: 'show-1',
+        trialId: null,
+        classId: 'class-1',
+        status: 'confirmed',
+        invitedAt: null,
+        confirmedAt: null,
+        fee: null,
+        notes: null,
+        ...NULL_ENRICHMENT,
+      });
+
+      await table.reassignClassAssignment('show-1', 'class-1', 'judge-from', 'judge-to');
+
+      const result = await table.get('ja-1');
+      expect(result?.personId).toBe('judge-to');
+    });
+
+    it('no-ops when no local row matches the from-judge/class/show filter', async () => {
+      await table.set('ja-1', {
+        id: 'ja-1',
+        personId: 'judge-from',
+        showId: 'show-1',
+        trialId: null,
+        classId: 'class-1',
+        status: 'confirmed',
+        invitedAt: null,
+        confirmedAt: null,
+        fee: null,
+        notes: null,
+        ...NULL_ENRICHMENT,
+      });
+
+      await table.reassignClassAssignment('show-1', 'class-1', 'judge-nonexistent', 'judge-to');
+
+      const result = await table.get('ja-1');
+      expect(result?.personId).toBe('judge-from');
+    });
+  });
+
   // Sync-time denormalization: the join snapshot must land on the row so the
   // globally-synced assignment is self-sufficient for the offline dashboard.
   describe('rowToJudgeAssignment (denormalization at sync)', () => {

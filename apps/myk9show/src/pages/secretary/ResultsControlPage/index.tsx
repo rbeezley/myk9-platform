@@ -177,6 +177,13 @@ export default function ResultsControlPage() {
     });
   }, [bulkOps.selectedIds, classOverrideMap, trialOverrideMap, classTrialMap, settings]);
 
+  // Check if any selected class currently has results released — gates "Hide Results".
+  const hasReleasedClasses = useMemo(() => {
+    return showClasses.some(
+      cls => bulkOps.selectedIds.has(cls.id) && Boolean(cls.results_released_at)
+    );
+  }, [showClasses, bulkOps.selectedIds]);
+
   // pb-44/sm:pb-28: extra bottom clearance for the fixed BulkOperationsBar,
   // which wraps to several rows on narrow screens.
   return (
@@ -210,7 +217,9 @@ export default function ResultsControlPage() {
               {readiness.unreleasedClasses === 1 ? 'class' : 'classes'}
             </div>
             <div>Judge signatures: verify paper reports before sending</div>
-            <div>{readiness.totalEntries} entries in {readiness.totalClasses} classes</div>
+            <div>
+              {readiness.totalEntries} entries in {readiness.totalClasses} classes
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm">
@@ -302,6 +311,7 @@ export default function ResultsControlPage() {
         onClearSelection={bulkOps.clearSelection}
         onDeselectClasses={deselectClassesByIds}
         hasManualReleaseClasses={hasManualReleaseClasses}
+        hasReleasedClasses={hasReleasedClasses}
       />
     </div>
   );

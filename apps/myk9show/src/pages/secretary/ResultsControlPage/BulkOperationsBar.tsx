@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 import { PRESET_INFO, PRESET_CONFIGS, type VisibilityPreset } from '@myk9/secretary';
 import { useBulkUpdateClassOverrides } from '@/hooks/mutations/useShowSettingsMutations';
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
+import { useUnreleaseResults } from '@/hooks/mutations/useUnreleaseResults';
 
 interface BulkOperationsBarProps {
   showId: string;
@@ -35,6 +36,8 @@ interface BulkOperationsBarProps {
   /** Drop specific class IDs from the selection (used to keep only failed releases selected). */
   onDeselectClasses: (classIds: string[]) => void;
   hasManualReleaseClasses: boolean;
+  /** Whether at least one selected class currently has results released — gates "Hide results". */
+  hasReleasedClasses: boolean;
 }
 
 /** Filter selected classes to only those belonging to the current show */
@@ -51,13 +54,15 @@ export function BulkOperationsBar({
   onClearSelection,
   onDeselectClasses,
   hasManualReleaseClasses,
+  hasReleasedClasses,
 }: BulkOperationsBarProps) {
   const bulkUpdate = useBulkUpdateClassOverrides();
   const releaseResults = useReleaseResults();
+  const unreleaseResults = useUnreleaseResults();
 
   if (selectedClasses.size === 0) return null;
 
-  const isPending = bulkUpdate.isPending || releaseResults.isPending;
+  const isPending = bulkUpdate.isPending || releaseResults.isPending || unreleaseResults.isPending;
 
   function handleBulkPreset(preset: VisibilityPreset) {
     const cfg = PRESET_CONFIGS[preset];
@@ -133,6 +138,35 @@ export function BulkOperationsBar({
     );
   }
 
+  function handleUnreleaseResults() {
+    const classIds = getValidClassIds(selectedClasses, allClassIds);
+    if (classIds.length === 0) return;
+    unreleaseResults.mutate(
+      { classIds, showId },
+      {
+        // Same success-branch shape as release: clean success clears the whole
+        // selection, partial success keeps only the failed classes selected, and
+        // total failure keeps everything selected so nothing silently resolves.
+        onSuccess: ({ unreleased, failed }) => {
+          if (failed.length === 0) {
+            toast.success(
+              `Hid results for ${unreleased.length} class${unreleased.length === 1 ? '' : 'es'}`
+            );
+            onClearSelection();
+          } else if (unreleased.length > 0) {
+            toast.warning(
+              `Hid ${unreleased.length}, but ${failed.length} failed. The failed class${failed.length === 1 ? '' : 'es'} stayed selected so you can retry.`
+            );
+            onDeselectClasses(unreleased);
+          } else {
+            toast.error('Could not hide the selected results. Try again.');
+          }
+        },
+        onError: () => toast.error('Could not hide the selected results. Try again.'),
+      }
+    );
+  }
+
   const count = selectedClasses.size;
 
   // Surface why Release is disabled instead of leaving a silently greyed
@@ -201,8 +235,9 @@ export function BulkOperationsBar({
                   Release results for {count} class{count === 1 ? '' : 'es'}?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Results become visible to exhibitors and spectators right away. You can&apos;t
-                  hide them again from here once released.
+                  Results become visible to exhibitors and spectators right away. You can hide them
+                  again from here, but anyone who already viewed the page won&apos;t see it refresh
+                  on its own.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -213,6 +248,33 @@ export function BulkOperationsBar({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          {hasReleasedClasses && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="min-h-[44px]" disabled={isPending}>
+                  Hide Results
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Hide results for {count} class{count === 1 ? '' : 'es'}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Exhibitors and spectators will no longer be able to see these results. Anyone
+                    who already viewed the results page won&apos;t see it retroactively refresh — it
+                    only affects new page loads.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleUnreleaseResults} disabled={isPending}>
+                    Hide Results
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </div>
       {showReleaseHint && (

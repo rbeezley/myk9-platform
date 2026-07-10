@@ -144,6 +144,12 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
                 level: cls.level,
                 section: cls.section,
                 entryFee: cls.entryFee,
+                hidesUsed: cls.hidesUsed,
+                distractionsUsed: cls.distractionsUsed,
+                itemsUsed: cls.itemsUsed,
+                timeLimit1: cls.timeLimit1,
+                timeLimit2: cls.timeLimit2,
+                timeLimit3: cls.timeLimit3,
               },
               ...(judgeId ? { judgeId } : {}),
             };
@@ -310,6 +316,12 @@ function mapFetchedClassToShowClass(value: Record<string, unknown>): Class {
     level: optionalString(value.level),
     element: optionalString(value.element),
     section: optionalString(value.section),
+    hidesUsed: optionalString(value.hides_used ?? value.hidesUsed),
+    distractionsUsed: optionalString(value.distractions_used ?? value.distractionsUsed),
+    itemsUsed: optionalString(value.items_used ?? value.itemsUsed),
+    timeLimit1: optionalString(value.time_limit1 ?? value.timeLimit1),
+    timeLimit2: optionalString(value.time_limit2 ?? value.timeLimit2),
+    timeLimit3: optionalString(value.time_limit3 ?? value.timeLimit3),
   };
 }
 

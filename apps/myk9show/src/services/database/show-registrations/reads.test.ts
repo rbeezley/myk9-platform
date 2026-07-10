@@ -440,6 +440,47 @@ describe('updateEnrollmentPaymentStatus', () => {
     expect(entriesQuery.neq).toHaveBeenCalledWith('payment_status', 'waived');
   });
 
+  it('writes check_number alongside payment_reference for check payments', async () => {
+    const enrollmentQuery = makeEnrollmentUpdateQuery();
+    const entriesQuery = makeEntriesUpdateQuery();
+    mocks.from.mockImplementation((table: string) =>
+      table === 'enrollments' ? enrollmentQuery : entriesQuery
+    );
+
+    const result = await updateEnrollmentPaymentStatus(
+      'enrollment-1',
+      PaymentStatus.PAID_BY_CHECK,
+      'check-100',
+      70,
+      undefined,
+      undefined,
+      '1234'
+    );
+
+    expect(result.error).toBeNull();
+    expect(enrollmentQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_status: PaymentStatus.PAID_BY_CHECK,
+        payment_reference: 'check-100',
+        check_number: '1234',
+        paid_amount: 70,
+      })
+    );
+  });
+
+  it('does not write check_number for non-check payments', async () => {
+    const enrollmentQuery = makeEnrollmentUpdateQuery();
+    const entriesQuery = makeEntriesUpdateQuery();
+    mocks.from.mockImplementation((table: string) =>
+      table === 'enrollments' ? enrollmentQuery : entriesQuery
+    );
+
+    await updateEnrollmentPaymentStatus('enrollment-1', PaymentStatus.PAID_BY_CASH, null, 70);
+
+    const updatePayload = enrollmentQuery.update.mock.calls[0][0];
+    expect(updatePayload).not.toHaveProperty('check_number');
+  });
+
   it('returns the saved enrollment data when the entry cascade fails', async () => {
     const enrollmentQuery = makeEnrollmentUpdateQuery();
     const entriesQuery = makeEntriesUpdateQuery({

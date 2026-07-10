@@ -2,12 +2,12 @@
 
 ## 1. Pure helpers first (assertion-first tests)
 
-- [ ] 1.1 Grep for pinned strings before editing ("Please check your connection", "Browse All Shows", "Current Entries", "My Entries") across src and tests to inventory source-text regression tests that must be updated in the same commit
-- [ ] 1.2 Write failing unit tests for `deriveEntryNextAction(entry)` covering precedence: finish payment > check-in eligible > view show, plus paid+no-eligible-class and past-entry cases
-- [ ] 1.3 Implement `deriveEntryNextAction` in `apps/myk9show/src/pages/MyEntriesPage/modules/` (pure, typed against the existing entry shape); tests green
-- [ ] 1.4 Write failing unit tests for `EMPTY_STATE_BY_TAB` lookup (all six tabs: heading, body, CTA; Pending includes secretary-review reassurance; Waitlist explains waitlisting; Completed points to Upcoming)
-- [ ] 1.5 Implement `EMPTY_STATE_BY_TAB`; tests green
-- [ ] 1.6 Write tests pinning the visible scope-label strings ("Current entries" qualifier and "All entries" / includes-past note) and the offline-first error copy
+- [x] 1.1 Grep for pinned strings before editing ("Please check your connection", "Browse All Shows", "Current Entries", "My Entries") across src and tests to inventory source-text regression tests that must be updated in the same commit
+- [x] 1.2 Write failing unit tests for `deriveEntryNextAction(entry)` covering precedence: finish payment > check-in eligible > view show, plus paid+no-eligible-class and past-entry cases
+- [x] 1.3 Implement `deriveEntryNextAction` in `apps/myk9show/src/pages/MyEntriesPage/modules/` (pure, typed against the existing entry shape); tests green
+- [x] 1.4 Write failing unit tests for `EMPTY_STATE_BY_TAB` lookup (all six tabs: heading, body, CTA; Pending includes secretary-review reassurance; Waitlist explains waitlisting; Completed points to Upcoming)
+- [x] 1.5 Implement `EMPTY_STATE_BY_TAB`; tests green
+- [x] 1.6 Write tests pinning the visible scope-label strings ("Current entries" qualifier and "All entries" / includes-past note) and the offline-first error copy
 
 ## 2. Counts, stats row, and fees tile
 

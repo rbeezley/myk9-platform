@@ -157,11 +157,15 @@ export default function ResultsControlPage() {
     [showClasses]
   );
 
-  // Check if any selected class uses manual_release timing on any field
-  const hasManualReleaseClasses = useMemo(() => {
-    if (!settings) return false;
+  // Does this class use manual_release timing on any field? Only those fields
+  // actually respond to clearing results_released_at — 'immediate' fields are
+  // always shown and 'class_complete' fields stay visible once the class is
+  // complete, so Hide Results has no visible effect on them (see
+  // shouldShowField in @myk9/secretary's visibility-cascade).
+  const classHasManualReleaseTiming = useCallback(
+    (classId: string): boolean => {
+      if (!settings) return false;
 
-    return Array.from(bulkOps.selectedIds).some(classId => {
       const classOverride = classOverrideMap.get(classId);
       const trialId = classTrialMap.get(classId);
       const trialOverride = trialId ? trialOverrideMap.get(trialId) : undefined;
@@ -174,15 +178,27 @@ export default function ResultsControlPage() {
           settings.visibility[field];
         return effective === 'manual_release';
       });
-    });
-  }, [bulkOps.selectedIds, classOverrideMap, trialOverrideMap, classTrialMap, settings]);
+    },
+    [classOverrideMap, trialOverrideMap, classTrialMap, settings]
+  );
+
+  // Check if any selected class uses manual_release timing on any field
+  const hasManualReleaseClasses = useMemo(() => {
+    return Array.from(bulkOps.selectedIds).some(classId => classHasManualReleaseTiming(classId));
+  }, [bulkOps.selectedIds, classHasManualReleaseTiming]);
 
   // Check if any selected class currently has results released — gates "Hide Results".
+  // Also require manual_release timing: clearing results_released_at is a no-op
+  // for classes released solely via 'immediate'/'class_complete' timing, so
+  // offering "Hide Results" for those would be misleading.
   const hasReleasedClasses = useMemo(() => {
     return showClasses.some(
-      cls => bulkOps.selectedIds.has(cls.id) && Boolean(cls.results_released_at)
+      cls =>
+        bulkOps.selectedIds.has(cls.id) &&
+        Boolean(cls.results_released_at) &&
+        classHasManualReleaseTiming(cls.id)
     );
-  }, [showClasses, bulkOps.selectedIds]);
+  }, [showClasses, bulkOps.selectedIds, classHasManualReleaseTiming]);
 
   // pb-44/sm:pb-28: extra bottom clearance for the fixed BulkOperationsBar,
   // which wraps to several rows on narrow screens.

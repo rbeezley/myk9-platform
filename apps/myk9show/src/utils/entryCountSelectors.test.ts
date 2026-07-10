@@ -113,6 +113,48 @@ describe('entry count selectors', () => {
     expect(stats.outstanding).toBe(financialTotals.summary.outstanding);
   });
 
+  it('excludes waitlisted/withdrawn entries from outstanding, matching the Financial Report', () => {
+    const financialTotals = calculateFinancialReportTotals(
+      [
+        reportEntry({ id: 'pending', entryFee: 50, paymentStatus: PaymentStatus.PENDING }),
+        reportEntry({
+          id: 'waitlisted',
+          entryFee: 40,
+          entryStatus: 'waitlist',
+          paymentStatus: PaymentStatus.PENDING,
+        }),
+        reportEntry({
+          id: 'withdrawn',
+          entryFee: 35,
+          entryStatus: 'withdrawn',
+          paymentStatus: PaymentStatus.PENDING,
+        }),
+      ],
+      'current'
+    );
+
+    const managementEntries = [
+      entry({ id: 'pending', totalFee: 50, paymentStatus: PaymentStatus.PENDING }),
+      entry({
+        id: 'waitlisted',
+        totalFee: 40,
+        entryStatus: EntryStatus.WAITLIST,
+        paymentStatus: PaymentStatus.PENDING,
+      }),
+      entry({
+        id: 'withdrawn',
+        totalFee: 35,
+        entryStatus: EntryStatus.CANCELLED,
+        paymentStatus: PaymentStatus.PENDING,
+      }),
+    ];
+
+    const { stats } = getEntryManagementCountSummary(managementEntries);
+
+    expect(financialTotals.summary.outstanding).toBe(50);
+    expect(stats.outstanding).toBe(financialTotals.summary.outstanding);
+  });
+
   it('reads zero outstanding for a fully settled show', () => {
     const managementEntries = [
       entry({ id: 'paid-1', totalFee: 50, paymentStatus: PaymentStatus.PAID_BY_CHECK }),

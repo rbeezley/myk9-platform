@@ -25,6 +25,7 @@ export function replicatedToClass(replicated: ReplicatedClass): SyncableClassDat
     section: '', // Local-only
     entryFee: replicated.entryFee || 25,
     maxEntries: replicated.maxEntries || 40,
+    results_released_at: replicated.results_released_at ?? null,
     // Sync metadata
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),
@@ -37,7 +38,10 @@ export function replicatedToClass(replicated: ReplicatedClass): SyncableClassDat
 /**
  * Merge replicated class with existing local data
  */
-export function mergeClassData(replicated: ReplicatedClass, existing: SyncableClassData | undefined): SyncableClassData {
+export function mergeClassData(
+  replicated: ReplicatedClass,
+  existing: SyncableClassData | undefined
+): SyncableClassData {
   const base = replicatedToClass(replicated);
   if (!existing) return base;
 
@@ -88,7 +92,10 @@ export function replicatedToEntry(replicated: ReplicatedEntry): SyncableEntryDat
 /**
  * Merge replicated entry with existing local data
  */
-export function mergeEntryData(replicated: ReplicatedEntry, existing: SyncableEntryData | undefined): SyncableEntryData {
+export function mergeEntryData(
+  replicated: ReplicatedEntry,
+  existing: SyncableEntryData | undefined
+): SyncableEntryData {
   const base = replicatedToEntry(replicated);
   if (!existing) return base;
 
@@ -106,77 +113,77 @@ export const mockClasses: SyncableClassData[] = [
   {
     id: '1',
     trialId: '1',
-    trial: "Scent Work Interior Search",
-    trialDate: "2025-07-20",
-    trialNumber: "T-2025-001",
-    classOrder: "2",
-    status: "Scheduled",
-    judge: "Sarah Johnson",
-    element: "Interior",
-    level: "Advanced",
-    section: "A",
-    hidesUsed: "2",
-    distractionsUsed: "2",
-    itemsUsed: "Furniture, Cabinets",
-    timeLimit1: "3:00",
-    timeLimit2: "",
-    timeLimit3: "",
-    photoUrl: "",
-    className: "Interior Advanced",
+    trial: 'Scent Work Interior Search',
+    trialDate: '2025-07-20',
+    trialNumber: 'T-2025-001',
+    classOrder: '2',
+    status: 'Scheduled',
+    judge: 'Sarah Johnson',
+    element: 'Interior',
+    level: 'Advanced',
+    section: 'A',
+    hidesUsed: '2',
+    distractionsUsed: '2',
+    itemsUsed: 'Furniture, Cabinets',
+    timeLimit1: '3:00',
+    timeLimit2: '',
+    timeLimit3: '',
+    photoUrl: '',
+    className: 'Interior Advanced',
     entryFee: 30,
     // Sync metadata
     _version: 1,
     _lastModified: new Date('2025-01-01T00:00:00Z'),
     _lastModifiedBy: 'system',
     _syncStatus: 'synced',
-    _localOnly: false
+    _localOnly: false,
   },
   {
     id: '2',
     trialId: '1',
-    trial: "Scent Work Interior Search",
-    trialDate: "2025-07-20",
-    trialNumber: "T-2025-001",
-    classOrder: "1",
-    status: "Scheduled",
-    judge: "Sarah Johnson",
-    element: "Interior",
-    level: "Novice",
-    section: "A",
-    hidesUsed: "1",
-    distractionsUsed: "0",
-    itemsUsed: "Furniture",
-    timeLimit1: "4:00",
-    timeLimit2: "",
-    timeLimit3: "",
-    photoUrl: "",
-    className: "Interior Novice",
+    trial: 'Scent Work Interior Search',
+    trialDate: '2025-07-20',
+    trialNumber: 'T-2025-001',
+    classOrder: '1',
+    status: 'Scheduled',
+    judge: 'Sarah Johnson',
+    element: 'Interior',
+    level: 'Novice',
+    section: 'A',
+    hidesUsed: '1',
+    distractionsUsed: '0',
+    itemsUsed: 'Furniture',
+    timeLimit1: '4:00',
+    timeLimit2: '',
+    timeLimit3: '',
+    photoUrl: '',
+    className: 'Interior Novice',
     entryFee: 25,
     // Sync metadata
     _version: 1,
     _lastModified: new Date('2025-01-01T00:00:00Z'),
     _lastModifiedBy: 'system',
     _syncStatus: 'synced',
-    _localOnly: false
-  }
+    _localOnly: false,
+  },
 ];
 
 export const mockEntries: SyncableEntryData[] = [
   {
     id: '1',
-    armband: "A101",
-    handler: "John Smith",
-    dog: "Max",
-    status: "Qualified",
-    score: "95.5",
-    time: "2:15",
-    placement: "1st",
-    classId: "1",
+    armband: 'A101',
+    handler: 'John Smith',
+    dog: 'Max',
+    status: 'Qualified',
+    score: '95.5',
+    time: '2:15',
+    placement: '1st',
+    classId: '1',
     // Sync metadata
     _version: 1,
     _lastModified: new Date('2025-01-01T00:00:00Z'),
     _lastModifiedBy: 'system',
     _syncStatus: 'synced',
-    _localOnly: false
-  }
+    _localOnly: false,
+  },
 ];

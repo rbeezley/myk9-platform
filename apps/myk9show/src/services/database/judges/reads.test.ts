@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   createAssignment: vi.fn(async () => ({ id: 'new-1' })),
   replaceClassAssignment: vi.fn(async () => undefined),
   reassignClassAssignment: vi.fn(async () => undefined),
+  updateClass: vi.fn(async () => 'mutation-1'),
 }));
 
 vi.mock('@/services/replication', () => ({
@@ -13,6 +14,9 @@ vi.mock('@/services/replication', () => ({
     createAssignment: mocks.createAssignment,
     replaceClassAssignment: mocks.replaceClassAssignment,
     reassignClassAssignment: mocks.reassignClassAssignment,
+  },
+  replicatedClassesTable: {
+    updateClass: mocks.updateClass,
   },
 }));
 
@@ -100,11 +104,15 @@ describe('upsertClassJudgeAssignment', () => {
     expect(mocks.replaceClassAssignment).toHaveBeenCalledWith('show-1', 'class-1', null);
   });
 
-  it('still touches classes.updated_at after the replicated write', async () => {
+  it('touches the class through the replicated table (offline-safe) after the assignment write', async () => {
     await upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1');
 
-    expect(untypedFromMocks.untypedFromMock).toHaveBeenCalledWith('classes');
-    expect(untypedFromMocks.eqMock).toHaveBeenCalledWith('id', 'class-1');
+    expect(mocks.updateClass).toHaveBeenCalledWith(
+      'class-1',
+      expect.objectContaining({ _lastModified: expect.any(Date) })
+    );
+    // Must not fall back to a direct, offline-unsafe Supabase write.
+    expect(untypedFromMocks.untypedFromMock).not.toHaveBeenCalledWith('classes');
   });
 
   it('wraps a replace failure in a judge_assignments database error', async () => {
@@ -130,6 +138,15 @@ describe('reassignClassJudge', () => {
       'class-1',
       'judge-1',
       'judge-2'
+    );
+  });
+
+  it('touches the class through the replicated table after reassigning', async () => {
+    await reassignClassJudge('show-1', 'class-1', 'judge-1', 'judge-2');
+
+    expect(mocks.updateClass).toHaveBeenCalledWith(
+      'class-1',
+      expect.objectContaining({ _lastModified: expect.any(Date) })
     );
   });
 

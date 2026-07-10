@@ -8,7 +8,10 @@ import {
   isWaitlistEntry,
 } from '@/utils/entryPredicates';
 import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
-import { computeOutstandingAmount } from '@/components/reports/financialReportTotals';
+import {
+  computeOutstandingAmount,
+  isEntryIncludedInFinancialReport,
+} from '@/components/reports/financialReportTotals';
 
 export interface EntryManagementBucketCounts {
   all: number;
@@ -56,11 +59,16 @@ export function getEntryManagementCountSummary(
     }
     counts.revenue += entry.paidAmount;
 
-    const effectivePaymentStatus = getEffectivePaymentStatus(entry);
-    counts.outstanding += computeOutstandingAmount(entry.totalFee, {
-      isWaived: Boolean(entry.comped) || effectivePaymentStatus === PaymentStatus.WAIVED,
-      isPending: effectivePaymentStatus === PaymentStatus.PENDING,
-    });
+    // Match the Financial Report's inclusion rule: waitlisted/withdrawn/
+    // scratched/not_accepted entries are never counted as money owed, even
+    // if their payment status happens to still read "pending".
+    if (isEntryIncludedInFinancialReport(entry, 'current')) {
+      const effectivePaymentStatus = getEffectivePaymentStatus(entry);
+      counts.outstanding += computeOutstandingAmount(entry.totalFee, {
+        isWaived: Boolean(entry.comped) || effectivePaymentStatus === PaymentStatus.WAIVED,
+        isPending: effectivePaymentStatus === PaymentStatus.PENDING,
+      });
+    }
   }
 
   return {

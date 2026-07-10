@@ -18,7 +18,7 @@ import {
 import { untypedFrom } from '../_shared/untyped-from';
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
 import type { DbJudgeAvailability } from '@/types/database-mappings';
-import { replicatedJudgeAssignmentsTable } from '@/services/replication';
+import { replicatedClassesTable, replicatedJudgeAssignmentsTable } from '@/services/replication';
 
 // Helper to access tables not in generated types
 const qualificationsTable = () => untypedFrom('judge_qualifications');
@@ -332,8 +332,10 @@ export async function upsertClassJudgeAssignment(
     throw createDatabaseError(error, 'judge_assignments', 'upsert_class_assignment');
   }
 
-  // Touch class updated_at so the replication sync picks up the judge change
-  await untypedFrom('classes').update({ updated_at: new Date().toISOString() }).eq('id', classId);
+  // Touch the class row so replication sync picks up the judge change. Queued
+  // through ReplicatedClassesTable (not a direct Supabase write) so it survives
+  // offline show-day use and syncs on reconnect, same as the assignment write.
+  await touchClassForJudgeSync(classId);
 }
 
 export async function reassignClassJudge(
@@ -352,6 +354,21 @@ export async function reassignClassJudge(
   } catch (error) {
     throw createDatabaseError(error, 'judge_assignments', 'reassign_class_judge');
   }
+
+  // Touch the class row so replication sync picks up the judge change.
+  await touchClassForJudgeSync(classId);
+}
+
+/**
+ * Bumps a class's updated_at via the replicated classes table so incremental
+ * class sync refetches joined judge data after a judge assignment change.
+ * Offline-safe: queues through ReplicatedClassesTable instead of writing
+ * directly to Supabase.
+ */
+async function touchClassForJudgeSync(classId: string): Promise<void> {
+  await replicatedClassesTable.updateClass(classId, {
+    _lastModified: new Date(),
+  });
 }
 
 // =============================================================================

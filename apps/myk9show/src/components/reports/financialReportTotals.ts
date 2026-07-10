@@ -67,7 +67,7 @@ function getEffectivePaymentStatus(entry: ReportEntry): string {
 }
 
 export function isEntryIncludedInFinancialReport(
-  entry: ReportEntry,
+  entry: Pick<ReportEntry, 'entryStatus'>,
   mode: FinancialReportMode
 ): boolean {
   const entryStatus = normalize(entry.entryStatus);

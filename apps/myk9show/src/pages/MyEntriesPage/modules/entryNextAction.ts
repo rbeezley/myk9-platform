@@ -55,12 +55,14 @@ export function deriveEntryNextAction(
     return { kind: 'finish-payment' };
   }
 
-  // Check-in is only a live next action for a non-past show; a past entry has
-  // nothing to check in for regardless of the class's scored/self-check-in
-  // state.
-  if (!isPastShowEntry(entry, now)) {
+  // Check-in is only a live next action for an ACCEPTED entry at a non-past
+  // show: terminal/waitlisted/pending entries have no confirmed spot to check
+  // in for even when a class row is unscored, and a scratched/moved/absent
+  // class is no longer participating.
+  if (entry.entryStatus === EntryStatus.ACCEPTED && !isPastShowEntry(entry, now)) {
     const eligibleClass = entry.classes.find(cls => {
       if (cls.isScored) return false;
+      if (cls.status !== 'entered') return false;
       // Same cascade MyEntryCard reads: class-scoped toggle, defaulting open
       // when the class id or map entry is missing.
       if (!cls.classId) return true;

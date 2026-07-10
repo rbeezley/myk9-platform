@@ -114,6 +114,40 @@ describe('deriveEntryNextAction', () => {
     expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'view-show' });
   });
 
+  it.each([
+    EntryStatus.REJECTED,
+    EntryStatus.WAITLIST,
+    EntryStatus.CANCELLED,
+    EntryStatus.SCRATCHED,
+    EntryStatus.MOVED,
+    EntryStatus.COMPLETED,
+    EntryStatus.PENDING,
+    EntryStatus.MISSING_INFO,
+    EntryStatus.MOVE_UP_REQUESTED,
+  ])('never offers check-in for a non-accepted entry (%s) with an unscored class', status => {
+    const entry = makeEntry({
+      entryStatus: status,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      classes: [makeClass({ id: 'entry-1', classId: 'class-1', isScored: false })],
+    });
+
+    expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'view-show' });
+  });
+
+  it.each(['scratched', 'moved', 'absent'] as const)(
+    'never offers check-in for a class whose status is %s',
+    clsStatus => {
+      const entry = makeEntry({
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        classes: [
+          makeClass({ id: 'entry-1', classId: 'class-1', isScored: false, status: clsStatus }),
+        ],
+      });
+
+      expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'view-show' });
+    }
+  );
+
   it('defaults a missing class id to check-in eligible', () => {
     const entry = makeEntry({
       paymentStatus: PaymentStatus.PAID_ONLINE,

@@ -13,7 +13,16 @@ export interface SupportNotificationRecipientSource {
 
 export interface EntryDecisionRecipientSource {
   type: 'entry_decision';
-  registration: { exhibitorEmail: string | null };
+  registration: {
+    exhibitorEmail: string | null;
+    // The referenced registration's show, resolved server-side. Drives the
+    // secretary-cc feature (`cc_secretary_on_exhibitor_emails`) so it is not
+    // silently dropped when the (untrusted) body-supplied cc is ignored.
+    show: {
+      ccSecretaryOnExhibitorEmails: boolean | null;
+      secretaryEmail: string | null;
+    };
+  };
 }
 
 /** Resolved-resource input for the message types with a derived recipient. */
@@ -22,26 +31,48 @@ export type DerivedRecipientSource =
 
 export interface ResolvedEmailRecipient {
   to: string;
+  cc?: string[];
 }
 
 /**
- * Resolve the recipient for a `send-email` message type whose recipient is
- * a specific known party (the ticket owner, the registration exhibitor).
+ * Server-side secretary cc, mirroring `send-registration-email`'s
+ * `resolveSecretaryCc`: cc the show's secretary on exhibitor emails when the
+ * per-show toggle is enabled (default enabled) and a secretary email exists.
+ */
+function resolveSecretaryCc(
+  ccToggle: boolean | null | undefined,
+  secretaryEmail: string | null | undefined
+): string[] {
+  const enabled = ccToggle ?? true;
+  if (!enabled) return [];
+  const trimmed = secretaryEmail?.trim();
+  return trimmed ? [trimmed] : [];
+}
+
+/**
+ * Resolve the recipient (and any server-derived cc) for a `send-email` message
+ * type whose recipient is a specific known party (the ticket owner, the
+ * registration exhibitor).
  *
- * Returns `null` when the resource's email cannot be resolved so the caller
- * can fail closed (no send) instead of falling back to a body-supplied
+ * Returns `null` when the resource's recipient email cannot be resolved so the
+ * caller can fail closed (no send) instead of falling back to a body-supplied
  * address.
  */
 export function resolveDerivedRecipient(
   source: DerivedRecipientSource
 ): ResolvedEmailRecipient | null {
-  const email =
-    source.type === 'support_notification'
-      ? source.ticket.ownerEmail
-      : source.registration.exhibitorEmail;
+  if (source.type === 'support_notification') {
+    const trimmed = source.ticket.ownerEmail?.trim();
+    return trimmed ? { to: trimmed } : null;
+  }
 
-  const trimmed = email?.trim();
+  const trimmed = source.registration.exhibitorEmail?.trim();
   if (!trimmed) return null;
 
-  return { to: trimmed };
+  const cc = resolveSecretaryCc(
+    source.registration.show.ccSecretaryOnExhibitorEmails,
+    source.registration.show.secretaryEmail
+  );
+
+  return cc.length ? { to: trimmed, cc } : { to: trimmed };
 }

@@ -180,7 +180,9 @@ handle<EmailData>(
         );
       }
       recipient = resolved.to;
-      cc = undefined;
+      // cc is server-derived (e.g. secretary cc for entry_decision); body cc
+      // stays ignored for these types.
+      cc = resolved.cc?.length ? resolved.cc : undefined;
     } else {
       recipient = data.to;
       cc = data.cc?.length ? data.cc : undefined;

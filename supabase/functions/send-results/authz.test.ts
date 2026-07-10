@@ -12,6 +12,7 @@ function chain<T>(data: T, error: unknown = null) {
   const query = {
     select: vi.fn(() => query),
     eq: vi.fn(() => query),
+    or: vi.fn(() => query),
     maybeSingle: vi.fn(async () => ({ data, error })),
     then: undefined as never,
   };
@@ -127,5 +128,28 @@ describe('assertSendResultsAuthorization', () => {
         showId: 'show-1',
       })
     ).rejects.toThrow('Unauthorized');
+  });
+
+  it('excludes expired role assignments from the authorization query', async () => {
+    const userRolesQuery = chain([{ club_id: 'club-1', roles: { name: 'secretary' } }]);
+    const from = vi.fn((table: string) => {
+      if (table === 'shows') {
+        return chain({ id: 'show-1', club_id: 'club-1', secretary_email: 'sec@club.org' });
+      }
+      if (table === 'user_roles') {
+        return userRolesQuery;
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
+
+    await assertSendResultsAuthorization({
+      supabase: { from } as unknown as SendResultsSupabaseClient,
+      user: { id: 'secretary-user' },
+      showId: 'show-1',
+    });
+
+    // A role can stay is_active=true past its expiry — the query must also
+    // filter on expires_at so a former temporary official cannot submit results.
+    expect(userRolesQuery.or).toHaveBeenCalledWith('expires_at.is.null,expires_at.gt.now()');
   });
 });

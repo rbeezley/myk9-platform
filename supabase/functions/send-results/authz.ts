@@ -27,8 +27,13 @@ interface SupabaseQueryResult<T = unknown> {
 interface SupabaseQuery<T = unknown> extends PromiseLike<SupabaseQueryResult<T>> {
   select(columns: string): SupabaseQuery<T>;
   eq(column: string, value: unknown): SupabaseQuery<T>;
+  or(filters: string): SupabaseQuery<T>;
   maybeSingle(): Promise<SupabaseQueryResult<T>>;
 }
+
+// Only count role assignments that are active AND not past their expiry — an
+// assignment can stay is_active=true after expires_at passes. Repo standard.
+const ACTIVE_ROLE_NOT_EXPIRED = 'expires_at.is.null,expires_at.gt.now()';
 
 export interface SendResultsSupabaseClient {
   from(table: string): SupabaseQuery;
@@ -94,7 +99,8 @@ export async function assertSendResultsAuthorization(args: {
     .from('user_roles')
     .select(SEND_RESULTS_CALLER_ROLE_SELECT)
     .eq('auth_user_id', args.user.id)
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .or(ACTIVE_ROLE_NOT_EXPIRED);
 
   if (callerRolesError) {
     throw new HttpError(500, 'Failed to verify results authorization');

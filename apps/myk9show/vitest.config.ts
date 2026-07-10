@@ -24,6 +24,8 @@ export default defineConfig({
       '../../supabase/functions/send-confirmation-email/auth.test.ts',
       '../../supabase/functions/resend-webhook/signature.test.ts',
       '../../supabase/functions/send-results/authz.test.ts',
+      '../../supabase/functions/send-email/authz.test.ts',
+      '../../supabase/functions/send-email/recipientResolution.test.ts',
     ],
     exclude: [
       '**/node_modules/**',

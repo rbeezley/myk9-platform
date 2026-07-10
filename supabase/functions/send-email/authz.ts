@@ -24,6 +24,8 @@ export interface CallerRoleSource {
 interface ShowScope {
   id: string;
   club_id: string | null;
+  cc_secretary_on_exhibitor_emails?: boolean | null;
+  secretary_email?: string | null;
 }
 
 interface HandlerScope {
@@ -45,8 +47,13 @@ interface SupabaseQuery<T = unknown> extends PromiseLike<SupabaseQueryResult<T>>
   select(columns: string): SupabaseQuery<T>;
   eq(column: string, value: unknown): SupabaseQuery<T>;
   in(column: string, values: readonly unknown[]): SupabaseQuery<T>;
+  or(filters: string): SupabaseQuery<T>;
   maybeSingle(): Promise<SupabaseQueryResult<T>>;
 }
+
+// Only count role assignments that are active AND not past their expiry — an
+// assignment can stay is_active=true after expires_at passes. Repo standard.
+const ACTIVE_ROLE_NOT_EXPIRED = 'expires_at.is.null,expires_at.gt.now()';
 
 export interface SendEmailSupabaseClient {
   from(table: string): SupabaseQuery;
@@ -125,7 +132,9 @@ export async function assertSendEmailAuthorization(args: {
 
   const { data: registration, error: registrationError } = (await args.supabase
     .from('enrollments')
-    .select('id, show:shows(id, club_id), handler:people!handler_id(email)')
+    .select(
+      'id, show:shows(id, club_id, cc_secretary_on_exhibitor_emails, secretary_email), handler:people!handler_id(email)'
+    )
     .eq('id', args.data.registrationId)
     .maybeSingle()) as SupabaseQueryResult<RegistrationRow>;
 
@@ -142,7 +151,8 @@ export async function assertSendEmailAuthorization(args: {
     .from('user_roles')
     .select(SEND_EMAIL_CALLER_ROLE_SELECT)
     .eq('auth_user_id', args.user.id)
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .or(ACTIVE_ROLE_NOT_EXPIRED);
 
   if (callerRolesError) {
     throw new HttpError(500, 'Failed to verify email authorization');
@@ -158,7 +168,13 @@ export async function assertSendEmailAuthorization(args: {
 
   return {
     type: 'entry_decision',
-    registration: { exhibitorEmail: normalizeJoinedHandlerEmail(registration.handler) },
+    registration: {
+      exhibitorEmail: normalizeJoinedHandlerEmail(registration.handler),
+      show: {
+        ccSecretaryOnExhibitorEmails: show.cc_secretary_on_exhibitor_emails ?? null,
+        secretaryEmail: show.secretary_email ?? null,
+      },
+    },
   };
 }
 
@@ -189,7 +205,8 @@ async function assertSupportNotificationAuthorization(args: {
       .from('user_roles')
       .select(SEND_EMAIL_CALLER_ROLE_SELECT)
       .eq('auth_user_id', args.user?.id)
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .or(ACTIVE_ROLE_NOT_EXPIRED);
 
     if (callerRolesError) {
       throw new HttpError(500, 'Failed to verify support email authorization');

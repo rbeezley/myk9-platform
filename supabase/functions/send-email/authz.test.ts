@@ -13,6 +13,7 @@ function chain<T>(data: T, error: unknown = null) {
     select: vi.fn(() => query),
     eq: vi.fn(() => query),
     in: vi.fn(() => query),
+    or: vi.fn(() => query),
     maybeSingle: vi.fn(async () => ({ data, error })),
     then: undefined as never,
   };
@@ -72,7 +73,12 @@ describe('send-email authorization helpers', () => {
       if (table === 'enrollments') {
         return chain({
           id: 'registration-1',
-          show: { id: 'show-1', club_id: 'club-1' },
+          show: {
+            id: 'show-1',
+            club_id: 'club-1',
+            cc_secretary_on_exhibitor_emails: true,
+            secretary_email: 'sec@example.com',
+          },
           handler: { email: 'exhibitor@example.com' },
         });
       }
@@ -90,7 +96,10 @@ describe('send-email authorization helpers', () => {
       })
     ).resolves.toEqual({
       type: 'entry_decision',
-      registration: { exhibitorEmail: 'exhibitor@example.com' },
+      registration: {
+        exhibitorEmail: 'exhibitor@example.com',
+        show: { ccSecretaryOnExhibitorEmails: true, secretaryEmail: 'sec@example.com' },
+      },
     });
   });
 

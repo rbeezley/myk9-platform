@@ -50,6 +50,15 @@ handle<SendResultsPayload>(
 
     // Fail-closed: only a show official (secretary/admin) for this show may
     // submit its results. Runs before any config probing or Resend invocation.
+    //
+    // NOTE (content binding): authorization is on `showId`, but the `xml`
+    // payload itself is client-generated and not parsed/validated against the
+    // show here. A show official can therefore submit arbitrary results content
+    // for their own show — the same authority they already hold via the scoring
+    // flow — and the destination is a fixed registry inbox, so blast radius is
+    // low. Full content binding (server-side results generation, or validating
+    // the XML's show-identifying fields against showId) is tracked as a
+    // follow-up and intentionally out of scope for this authz remediation.
     const show = await assertSendResultsAuthorization({
       supabase: supabase as unknown as SendResultsSupabaseClient,
       user,

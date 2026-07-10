@@ -24,9 +24,13 @@ which, per the fall scope decision, happens inside the ringside `/at-show`
 experience (passcode access, no judge login) plus the judge-adjacent artifacts
 the secretary produces (assignments, schedules, judge books, certification).
 
-**Out of scope (deferred post-fall):** judge login/dashboard, self-service
-assignment viewing, schedule-update notifications, cross-club judging history,
-and any dedicated steward experience.
+**Also in scope (un-deferred 2026-07-10):** the already-shipped judge
+self-service dashboard (`/judge/dashboard`, `/judge/stats`,
+`/judge/check-in`) — see J6.4 and `judge.md`.
+
+**Out of scope (deferred post-fall):** schedule-update notifications,
+cross-club judging history, self-service assignment management beyond the
+shipped dashboard, and any dedicated steward experience.
 
 ## Status Labels
 
@@ -84,7 +88,7 @@ Implementation partial, Potential gap, Gap, Deferred.
 | Be assigned to classes with workload visible to the secretary.          | Required   | Wizard/setup judge assignment; `JudgesList` counts               | Covered          | Verified + remediated 2026-07-09 (S1.3): assignment writes replicated, tests green. Post-save workload counts verified.                     |
 | Know their schedule (via the secretary-published Judge's Schedule).     | Required   | Judge Schedule / Judge Entry Counts reports                      | Evidence partial | Reports render per S4.3; judge-facing adequacy (est. times, per-ring grouping) needs one review pass with a real judge or proxy.            |
 | Have judging credentials/qualifications on record where required.       | Required   | Judge records + `judge_qualifications`; import tooling (#833)    | Evidence partial | Importer done; real AKC/UKC directory data still not loaded (open OPEN-TODOS item). ASCA judge creation absent from JudgesPicker by design. |
-| View own assignments, get schedule-change notifications, track history. | Post-fall  | `/judge/dashboard`, `/judge/stats`, `/judge/check-in` (shipped)  | Potential gap (doc/scope conflict) | Deferral contradicted by code (found 2026-07-10): a judge dashboard is implemented, routed in `App.tsx`, nav-registered, role-gated, and tested. Owner decision needed: un-defer and own it, or delete per the consolidation rule.                                                       |
+| View own assignments via the shipped dashboard (notifications/history stay post-fall). | Required (un-deferred 2026-07-10) | `/judge/dashboard`, `/judge/stats`, `/judge/check-in` (shipped, routed, nav-registered, role-gated, tested) | Evidence partial | Owner decision 2026-07-10: own the shipped surface, don't delete. Needs a judge-persona verification walk (data correctness, nav reachability, UX adequacy) before Covered. Schedule-change notifications and cross-club history remain post-fall.                                                       |
 
 ## Launch-Risk Summary
 
@@ -99,7 +103,8 @@ Implementation partial, Potential gap, Gap, Deferred.
 
 ### Deferred (Confirmed Out Of Fall Scope)
 
-- Judge login, dashboard, self-service assignment view, notifications, history.
+- Schedule-change notifications and cross-club judging history (the shipped
+  judge dashboard itself was un-deferred 2026-07-10 — see J6.4).
 - Dedicated steward experience (volunteer roster covers fall needs).
 
 ## Maintenance Rules

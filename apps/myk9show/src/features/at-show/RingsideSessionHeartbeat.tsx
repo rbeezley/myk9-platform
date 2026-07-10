@@ -3,7 +3,10 @@ import { useLocation, useParams } from 'react-router-dom';
 import { getExistingSubscription } from '@myk9/notifications';
 import { supabase } from '@/lib/supabase';
 import { readDogFavoriteArmbands } from './ringsideDogFavorites';
-import { handleRingsidePasscodeRevoked } from './ringsidePasscodeRevocation';
+import {
+  handleRingsidePasscodeRevoked,
+  revokeRingsidePasscodeAccess,
+} from './ringsidePasscodeRevocation';
 
 const HEARTBEAT_MS = 30_000;
 
@@ -21,7 +24,18 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
     async function heartbeat() {
       const subscription = await getExistingSubscription();
       endpoint = subscription?.endpoint ?? null;
-      if (!endpoint || cancelled) return;
+      if (cancelled) return;
+
+      // J1.3 — a device that denied notifications has no push endpoint, so it
+      // never reaches upsert_ringside_session and would miss the revocation
+      // signal. Do a lightweight, push-independent generation check: the helper
+      // returns FALSE only for a STALE ringside_passcode claim (NULL when there
+      // is no claim, TRUE when current), so we revoke on FALSE alone.
+      if (!endpoint) {
+        const { data: generationCurrent } = await supabase.rpc('ringside_claim_generation_current');
+        if (!cancelled && generationCurrent === false) revokeRingsidePasscodeAccess();
+        return;
+      }
 
       // SA-011: the passcode is NEVER sent here. A passcode caller is a signed-in
       // anonymous session whose forge-proof app_metadata claim (minted + IP-rate-

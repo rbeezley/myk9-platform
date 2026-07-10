@@ -161,6 +161,12 @@ serve(async req => {
     // soft-deleted shows already filtered out server-side).
     let matchedShow: ShowRow | null = null;
     let matchedRole: Role | null = null;
+    // J1.3 — the passcode GENERATION (show_passcodes.created_at) the code was
+    // valid for, returned ATOMICALLY by validate_passcode. Stamping this (rather
+    // than a separate follow-up SELECT) closes the validate-then-read race: if a
+    // regeneration lands after validation, we stamp the OLD generation → the DB
+    // tier revokes the claim (fail closed), never the reverse.
+    let matchedGeneration: string | null = null;
 
     const { data: rpcRows, error: rpcError } = await supabaseClient.rpc('validate_passcode', {
       p_code: passcode.toLowerCase(),
@@ -175,7 +181,7 @@ serve(async req => {
     }
 
     if (Array.isArray(rpcRows) && rpcRows.length > 0) {
-      const row = rpcRows[0] as { show_id: string; role: Role };
+      const row = rpcRows[0] as { show_id: string; role: Role; passcode_generation: string };
       // Look up the show's display fields for the success response. The
       // `deleted_at` filter is defense-in-depth — validate_passcode already
       // joins through shows and excludes soft-deletes, so this filter only
@@ -207,6 +213,7 @@ serve(async req => {
       if (showRow) {
         matchedShow = showRow as ShowRow;
         matchedRole = row.role;
+        matchedGeneration = row.passcode_generation ?? null;
       }
     }
 
@@ -274,20 +281,15 @@ serve(async req => {
         // J1.3 — stamp the passcode GENERATION so the claim can be revoked when
         // the secretary regenerates codes. show_passcodes.created_at is bumped in
         // place on every regenerate_show_passcodes call (the row id is stable), so
-        // it is a monotonic generation marker. The ringside RPCs re-look-up the
-        // current created_at and reject a claim whose stamped generation no longer
-        // matches. Single indexed lookup on the UNIQUE(show_id, role) key.
-        const { data: passcodeRow, error: passcodeErr } = await supabaseClient
-          .from('show_passcodes')
-          .select('created_at')
-          .eq('show_id', matchedShow.id)
-          .eq('role', matchedRole)
-          .maybeSingle();
-
-        if (passcodeErr || !passcodeRow?.created_at) {
+        // it is a monotonic generation marker. The ringside RPCs + read view
+        // re-look-up the current created_at and reject/narrow a claim whose stamped
+        // generation no longer matches. matchedGeneration was returned ATOMICALLY by
+        // validate_passcode (same row that matched the hash) — no separate SELECT,
+        // no validate-then-read race.
+        if (!matchedGeneration) {
           // Fail closed: without the generation marker the DB tier would reject
           // every write/heartbeat as a stale claim, so a "success" here would lie.
-          console.error('[Auth] Failed to read passcode generation for claim:', passcodeErr);
+          console.error('[Auth] validate_passcode returned no generation for claim');
           return new Response(JSON.stringify({ error: 'session_error' }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -300,7 +302,7 @@ serve(async req => {
             kind: 'ringside_passcode',
             show_id: matchedShow.id,
             ringside_role: matchedRole,
-            passcode_generation: passcodeRow.created_at,
+            passcode_generation: matchedGeneration,
           },
         });
         if (stampErr) {

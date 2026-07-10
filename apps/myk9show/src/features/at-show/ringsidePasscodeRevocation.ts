@@ -42,7 +42,8 @@ interface PostgrestLikeError {
 /**
  * True when `error` is the specific 42501 raised because the passcode was
  * regenerated (NOT a generic "not authorized" 42501, which must keep its own
- * handling).
+ * handling). Matches the structured PostgREST error (code + message) surfaced on
+ * a direct RPC call (e.g. the heartbeat's upsert_ringside_session).
  */
 export function isPasscodeRegeneratedError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
@@ -51,26 +52,41 @@ export function isPasscodeRegeneratedError(error: unknown): boolean {
 }
 
 /**
- * If `error` is the passcode-regeneration 42501, surface it to the user and route
- * back to passcode sign-in. Returns true when it handled the error (so callers can
- * stop further generic error surfacing), false otherwise.
+ * True when a free-text error string carries the regeneration message. The
+ * replication queue collapses a failed mutation's error to a string
+ * (`"Non-retryable error: <message>"`), losing the structured `code`, so the
+ * score-write surface (ReplicationSyncProvider) matches on the message substring.
  */
-export function handleRingsidePasscodeRevoked(error: unknown): boolean {
-  if (!isPasscodeRegeneratedError(error)) return false;
+export function isPasscodeRegeneratedMessage(text: string | undefined | null): boolean {
+  return typeof text === 'string' && text.includes(PASSCODE_REGENERATED_DB_MESSAGE);
+}
 
+/**
+ * Surface the revocation to the user and route back to passcode sign-in: toast,
+ * drop any account-scoped grant, and sign out an anonymous passcode session (a
+ * signed-in account keeps its account session — only the grant is dropped). Both
+ * make `AtShowAccessGate` fall through to the passcode prompt rather than loop.
+ */
+export function revokeRingsidePasscodeAccess(): void {
   logger.warn('[at-show] ringside passcode regenerated — revoking stale claim', 'at-show');
   toast.error(PASSCODE_REVOKED_TOAST_MESSAGE);
 
-  // Drop an account-scoped grant so the gate stops admitting this show.
   useRingsideGrantStore.getState().clearGrant();
 
-  // Sign out an anonymous passcode session so the gate redirects to sign-in
-  // (a signed-in account keeps its account session — only the grant is dropped).
   void supabase.auth.getSession().then(({ data }) => {
     if (data.session?.user?.is_anonymous === true) {
       void supabase.auth.signOut();
     }
   });
+}
 
+/**
+ * If `error` is the passcode-regeneration 42501, surface it and route back to
+ * sign-in. Returns true when it handled the error (so callers can stop further
+ * generic error surfacing), false otherwise.
+ */
+export function handleRingsidePasscodeRevoked(error: unknown): boolean {
+  if (!isPasscodeRegeneratedError(error)) return false;
+  revokeRingsidePasscodeAccess();
   return true;
 }

@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   handleRingsidePasscodeRevoked,
   isPasscodeRegeneratedError,
+  isPasscodeRegeneratedMessage,
   PASSCODE_REGENERATED_DB_MESSAGE,
   PASSCODE_REVOKED_TOAST_MESSAGE,
+  revokeRingsidePasscodeAccess,
 } from './ringsidePasscodeRevocation';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 
@@ -54,6 +56,36 @@ describe('ringsidePasscodeRevocation', () => {
       );
       expect(isPasscodeRegeneratedError(null)).toBe(false);
       expect(isPasscodeRegeneratedError('boom')).toBe(false);
+    });
+  });
+
+  describe('isPasscodeRegeneratedMessage', () => {
+    it('matches the regeneration message wrapped in the replication error string', () => {
+      // The replication queue collapses a failed score-write to this string shape.
+      expect(
+        isPasscodeRegeneratedMessage(`Non-retryable error: ${PASSCODE_REGENERATED_DB_MESSAGE}`)
+      ).toBe(true);
+    });
+
+    it('does not match a generic non-retryable failure', () => {
+      expect(isPasscodeRegeneratedMessage('Non-retryable error: permission denied')).toBe(false);
+      expect(isPasscodeRegeneratedMessage(undefined)).toBe(false);
+      expect(isPasscodeRegeneratedMessage(null)).toBe(false);
+    });
+  });
+
+  describe('revokeRingsidePasscodeAccess', () => {
+    it('surfaces the toast, drops the grant, and signs out an anon session', async () => {
+      useRingsideGrantStore.setState({
+        activeGrant: { showId: 'show-1', role: 'judge', source: 'passcode' },
+      });
+      getSessionMock.mockResolvedValue({ data: { session: { user: { is_anonymous: true } } } });
+
+      revokeRingsidePasscodeAccess();
+
+      expect(toastErrorMock).toHaveBeenCalledWith(PASSCODE_REVOKED_TOAST_MESSAGE);
+      expect(useRingsideGrantStore.getState().activeGrant).toBeNull();
+      await vi.waitFor(() => expect(signOutMock).toHaveBeenCalledTimes(1));
     });
   });
 

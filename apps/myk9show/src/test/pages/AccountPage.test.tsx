@@ -19,6 +19,11 @@ vi.mock('@/hooks/useProfileForm', () => ({
   useProfileForm: () => mockForm,
 }));
 
+const mockToastSuccess = vi.fn();
+vi.mock('sonner', () => ({
+  toast: { success: (...args: unknown[]) => mockToastSuccess(...args), error: vi.fn() },
+}));
+
 vi.mock('@/hooks/useAvatarUpload', () => ({
   useAvatarUpload: () => ({ upload: vi.fn(), uploading: false }),
 }));
@@ -286,6 +291,37 @@ describe('AccountPage', () => {
     );
     expect(mockSignOut).not.toHaveBeenCalled();
     vi.unstubAllEnvs();
+  });
+
+  it('DeleteSection confirms success with a toast before signing out', async () => {
+    mockDeleteUser.mockResolvedValueOnce({ data: { id: 'p-1' }, error: null });
+    render();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));
+    fireEvent.click(screen.getByRole('button', { name: /delete my account/i }));
+    fireEvent.change(screen.getByLabelText(/type.*delete.*to confirm/i), {
+      target: { value: 'DELETE' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /yes, delete account/i }));
+
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
+    await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
+  });
+
+  it('DeleteSection reports an accurate message when only sign-out fails', async () => {
+    mockDeleteUser.mockResolvedValueOnce({ data: { id: 'p-1' }, error: null });
+    mockSignOut.mockRejectedValueOnce(new Error('network down'));
+    render();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));
+    fireEvent.click(screen.getByRole('button', { name: /delete my account/i }));
+    fireEvent.change(screen.getByLabelText(/type.*delete.*to confirm/i), {
+      target: { value: 'DELETE' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /yes, delete account/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/account was deleted, but signing out failed/i)).toBeInTheDocument()
+    );
+    expect(mockToastSuccess).toHaveBeenCalled();
   });
 
   it('shows save/discard buttons when form is dirty', () => {

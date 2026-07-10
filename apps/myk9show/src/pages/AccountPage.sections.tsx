@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { AlertTriangle, Camera, Dog, Loader2, Mail, MapPin, Phone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -247,21 +248,44 @@ export function DeleteSection() {
     setError(null);
   };
 
-  const handleDelete = async () => {
-    if (!canDelete || !form.person?.id) return;
+  // Guard double-submits via ref — state updates lag a second synchronous click.
+  const inFlight = useRef(false);
 
+  const handleDelete = async () => {
+    if (inFlight.current || !canDelete) return;
+    if (!form.person?.id) {
+      setError('No profile found for this account.');
+      return;
+    }
+    inFlight.current = true;
     setIsDeleting(true);
     setError(null);
 
+    // Pass the DatabaseError object itself to getUserFriendlyError so its
+    // `code` survives — MK001 (owns live dogs) must map to the "delete your
+    // dogs first" message.
     const { error: deleteError } = await deleteUser(form.person.id);
 
     if (deleteError) {
       setError(getUserFriendlyError(deleteError));
+      inFlight.current = false;
       setIsDeleting(false);
       return;
     }
 
-    await signOut();
+    toast.success('Your account has been deleted.');
+    try {
+      // Await so a sign-out failure (network/auth outage) surfaces here
+      // instead of vanishing as a detached rejection. The account row is
+      // already tombstoned, so the message must not claim the delete failed.
+      await signOut();
+    } catch {
+      setError(
+        'Your account was deleted, but signing out failed. Please close this tab or refresh.'
+      );
+      inFlight.current = false;
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -304,7 +328,7 @@ export function DeleteSection() {
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={handleDelete}
+                onClick={() => void handleDelete()}
                 disabled={!canDelete || isDeleting}
               >
                 {isDeleting ? 'Deleting…' : 'Yes, delete account'}

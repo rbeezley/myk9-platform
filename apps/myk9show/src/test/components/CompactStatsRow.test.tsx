@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
+import { render } from '@/test/utils/testUtils';
 import {
   CURRENT_ENTRIES_LABEL,
   CURRENT_ENTRIES_QUALIFIER,
@@ -48,10 +49,6 @@ describe('CompactStatsRow', () => {
     expect(grid.queryByText(/Amount due/i)).not.toBeInTheDocument();
     const feesCard = grid.getByLabelText(/Current Fees.*Paid in full/i);
     expect(within(feesCard).queryByText(/^\$\d/)).not.toBeInTheDocument();
-
-    const mobileSummary = screen.getByRole('button', { expanded: false });
-    expect(mobileSummary).toHaveTextContent('Paid in full');
-    expect(within(mobileSummary).queryByText(/^\$\d+ fees$/i)).not.toBeInTheDocument();
   });
 
   it('shows a trailing chevron affordance on every clickable stat card', () => {

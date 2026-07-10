@@ -61,7 +61,7 @@ evidence; see "Phase 1 Results" for confirmed gaps.
 | J6.1 | Assignment + workload (secretary-owned).                  | Verified covered | S1.3 remediation confirmed in code (`ReplicatedJudgeAssignmentsTable` + tests, #1242). |
 | J6.2 | Judge schedule report adequacy.                           | Inventory complete (Evidence partial) | Reports render (grouped by trial; Class/Judge/Entries/Est. Time — no per-ring grouping or wall-clock times). Judge-reader adequacy pass pending. |
 | J6.3 | Credentials/qualifications records.                       | Inventory complete (Evidence partial) | `judge_qualifications` (migration 049) + creation panel exist; importer built but CSV header-only pending real data. `JUDGE_ORGANIZATIONS` omits ASCA (AKC/UKC/FCI/Other only) — confirm intentional. |
-| J6.4 | Self-service judge experience.                            | Potential gap (doc/scope conflict) | Deferral does NOT hold as documented: `/judge/dashboard`, `/judge/stats`, `/judge/check-in` are implemented, routed in `App.tsx`, nav-registered, role-gated, and tested. Decide: un-defer (own it) or delete per the consolidation rule. |
+| J6.4 | Self-service judge experience.                            | Evidence partial (un-deferred) | Owner decision 2026-07-10: shipped dashboard (`/judge/dashboard`, `/judge/stats`, `/judge/check-in`) is owned, in scope. Judge-persona verification walk pending (Phase 2). Notifications/history stay post-fall. |
 
 ## Phase 1 Results (2026-07-10)
 
@@ -84,16 +84,17 @@ rough severity order:
 4. **J2.3 — Reframed.** Hides/distractions columns exist (migration 033) but
    are never wired into ringside display, and are class-aggregate rather than
    per-area. The prior "not persisted anywhere" framing was wrong.
-5. **J6.4 — Doc/scope conflict.** A judge self-service dashboard
-   (`/judge/dashboard`, `/judge/stats`, `/judge/check-in`) is shipped, routed,
-   and nav-registered despite the documented deferral. Requires an owner
-   decision: un-defer or delete the surface.
+5. **J6.4 — Doc/scope conflict. RESOLVED 2026-07-10:** a judge self-service
+   dashboard (`/judge/dashboard`, `/judge/stats`, `/judge/check-in`) was
+   shipped despite the documented deferral. Owner decided to **un-defer and
+   own the shipped surface** (no new features; verification walk added to
+   Phase 2). `judge.md` and the coverage matrix updated accordingly.
 6. **Minor:** J2.1 page tests are AKC-only; J6.3 `JUDGE_ORGANIZATIONS` omits
    ASCA (confirm intentional); J3.1 rulebook cross-check still outstanding.
 
-Items 1–4 are candidates for a `judge-verification-remediation` OpenSpec
-change; item 5 blocks its scoping and needs the owner's call first. Phase 2
-(live walks) covers the remaining Evidence-partial rows.
+Items 1–4 are tracked in the follow-up `judge-verification-remediation`
+OpenSpec change. Phase 2 (live walks) covers the remaining Evidence-partial
+rows, now including the un-deferred J6.4 dashboard walk.
 
 ## Execution Phases
 

@@ -28,7 +28,7 @@
 
 ## 5. PR, CI, Review, and Merge Gate
 
-- [ ] 5.1 Commit the implemented code, tests, and synchronized OpenSpec task evidence on `codex/account-menu-askq`
+- [x] 5.1 Commit the implemented code, tests, and synchronized OpenSpec task evidence on `codex/account-menu-askq`
 - [ ] 5.2 With shared-system approval, push the feature branch and open a PR containing `Tracked in openspec change: consolidate-account-menu-askq`
 - [ ] 5.3 Monitor required CI and review feedback, fix actionable findings locally, rerun focused verification, and push updates as needed
 - [ ] 5.4 Merge only after required checks pass and explicit merge approval is available; record the merged PR URL before archive

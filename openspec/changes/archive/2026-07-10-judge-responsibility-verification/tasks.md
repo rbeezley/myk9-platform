@@ -14,5 +14,9 @@
 
 ## 3. Verification And Merge Gate
 
-- [ ] 3.1 Markdown/link sanity check on touched docs; `pnpm lint` if any code is touched (none expected).
-- [ ] 3.2 Open PR, pass CI and review, merge; archive this change once the planning artifacts land and the sweep is underway per plan.
+- [x] 3.1 Markdown/link sanity check on touched docs; `pnpm lint` if any code is touched (none expected). — DONE 2026-07-10: relative links verified resolvable; no code touched.
+- [x] 3.2 Open PR, pass CI and review, merge; archive this change once the planning artifacts land and the sweep is underway per plan. — DONE 2026-07-10: PR #1248 (sweep results) + PR #1249 (J6.4 un-defer decision, judge-verification-remediation change opened) both merged to main.
+
+Note: task 2.1's live staging judge-passcode session is a Phase 2 rehearsal
+item, not a planning/sweep blocker — tracked ongoing in
+`docs/roles/judge-responsibility-verification-plan.md`, not re-opened here.

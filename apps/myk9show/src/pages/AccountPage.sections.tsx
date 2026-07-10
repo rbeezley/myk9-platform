@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Camera, Dog, Loader2, Mail, MapPin, Phone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,7 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { useProfileForm } from '@/hooks/useProfileForm';
+import { useProfileForm, useCurrentUserPerson } from '@/hooks/useProfileForm';
+import { deleteUser } from '@/services/database/users';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 import { useAvatarUpload } from '@/hooks/useAvatarUpload';
 import { useUpdatePerson } from '@/hooks/useUsers';
 import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
@@ -227,8 +230,35 @@ export function DogsSection() {
 }
 
 export function DeleteSection() {
-  const { signOut } = useAuthContext();
+  const { user: authUser, signOut } = useAuthContext();
+  const { data: person } = useCurrentUserPerson(authUser?.id);
   const [confirm, setConfirm] = useState(false);
+
+  const [deleting, setDeleting] = useState(false);
+  const inFlight = useRef(false);
+
+  const handleDelete = async () => {
+    if (inFlight.current) return;
+    if (!person?.id) {
+      toast.error('No profile found for this account.');
+      return;
+    }
+    inFlight.current = true;
+    setDeleting(true);
+    try {
+      const { error } = await deleteUser(person.id);
+      // Pass the DatabaseError object itself (not new Error(message)) to
+      // getUserFriendlyError so its `code` survives — MK001 (owns live dogs)
+      // must map to the "delete your dogs first" message.
+      if (error) throw error;
+      toast.success('Your account has been deleted.');
+      void signOut();
+    } catch (err) {
+      toast.error(getUserFriendlyError(err, 'Failed to delete account'));
+      inFlight.current = false;
+      setDeleting(false);
+    }
+  };
 
   return (
     <Card className="border-destructive/40">
@@ -249,10 +279,20 @@ export function DeleteSection() {
               Are you sure? This cannot be undone.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Button variant="destructive" size="sm" onClick={() => signOut()}>
-                Yes, delete account
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={deleting}
+                onClick={() => void handleDelete()}
+              >
+                {deleting ? 'Deleting…' : 'Yes, delete account'}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setConfirm(false)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={deleting}
+                onClick={() => setConfirm(false)}
+              >
                 Cancel
               </Button>
             </div>

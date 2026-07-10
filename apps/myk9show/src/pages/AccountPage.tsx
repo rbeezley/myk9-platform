@@ -12,7 +12,6 @@ import {
   RotateCcw,
   Shield,
   SlidersHorizontal,
-  Smartphone,
   Trash2,
   Upload,
   User,
@@ -26,7 +25,6 @@ import { GeneralSettings } from '@/components/preferences/GeneralSettings';
 import { PrivacySettings } from '@/components/preferences/PrivacySettings';
 import { SecuritySettings } from '@/components/preferences/SecuritySettings';
 import { DataSettings } from '@/components/preferences/DataSettings';
-import { DeviceManager } from '@/components/preferences/DeviceManager';
 import { InstallAppSettings } from '@/components/preferences/InstallAppSettings';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -70,7 +68,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Advanced settings',
     items: [
       { key: 'data', label: 'Data & sync', icon: Wifi },
-      { key: 'devices', label: 'Devices', icon: Smartphone },
       { key: 'install', label: 'Install app', icon: Download },
       { key: 'delete', label: 'Delete account', icon: Trash2 },
     ],
@@ -92,8 +89,6 @@ export default function AccountPage() {
   const {
     preferences,
     loading: prefsLoading,
-    syncState,
-    devices,
     updatePreferences,
     resetToDefaults,
     exportPreferences,
@@ -266,8 +261,6 @@ export default function AccountPage() {
             onReset={() => handleReset('data')}
           />
         );
-      case 'devices':
-        return <DeviceManager devices={devices} syncState={syncState} />;
       case 'install':
         return <InstallAppSettings />;
       case 'delete':

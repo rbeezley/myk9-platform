@@ -15,11 +15,11 @@
 
 ## 3. Delete mock and dead controls
 
-- [ ] 3.1 Grep first (`rg -l`, plus `--include="*.md"` docs sweep) for `DeviceManager`, sync/cache strategy strings, presence toggle names
-- [ ] 3.2 Remove Devices nav item + section and `DeviceManager.tsx`; strip mock `getDevices`/`registerDevice`/`removeDevice` from `userPreferencesService.ts`
-- [ ] 3.3 Remove Synchronization Mode + Cache Settings selectors from `DataSettings.tsx` (keep any real storage-usage display); remove the Data & sync section entirely if nothing real remains
-- [ ] 3.4 Remove Share Presence / Online Status toggles from `PrivacySettings.tsx` (presence feature deleted in #576)
-- [ ] 3.5 Update `components/preferences/index.ts`, `AccountPage` nav config, and delete/adjust affected tests (`DeviceManager`, `DataSettings`, `PrivacySettings` tests)
+- [x] 3.1 Grep first (`rg -l`, plus `--include="*.md"` docs sweep) for `DeviceManager`, sync/cache strategy strings, presence toggle names — only code refs were AccountPage/PreferencesDialog/index/tests; docs hits are archives + this change's artifacts
+- [x] 3.2 Remove Devices nav item + section and `DeviceManager.tsx`; strip mock `getDevices`/`registerDevice`/`removeDevice` from `userPreferencesService.ts`. Also deleted dead `PreferencesDialog.tsx` and preferences-local `SyncStatusIndicator.tsx` (only consumers were each other)
+- [x] 3.3 Remove Synchronization Mode + Cache Settings selectors from `DataSettings.tsx` (keep any real storage-usage display); Data & sync section retained — Clear Cache / Bandwidth / Offline toggles are real
+- [x] 3.4 Remove Share Presence / Online Status toggles from `PrivacySettings.tsx` (presence feature deleted in #576) — incl. quick-preset keys and Social & Visibility category
+- [x] 3.5 Update `components/preferences/index.ts`, `AccountPage` nav config, and delete/adjust affected tests (`DeviceManager`, `DataSettings`, `PrivacySettings` tests)
 
 ## 4. Feedback polish
 

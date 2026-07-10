@@ -33,8 +33,14 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useDogsQuery: () => ({ data: mockDogs, isLoading: mockDogsLoading }),
 }));
 
+const mockSignOut = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ signOut: vi.fn() }),
+  useAuthContext: () => ({ signOut: mockSignOut }),
+}));
+
+const mockDeleteUser = vi.fn();
+vi.mock('@/services/database/users/reads', () => ({
+  deleteUser: (...args: unknown[]) => mockDeleteUser(...args),
 }));
 
 vi.mock('@/hooks/useAuthUser', () => ({
@@ -46,7 +52,6 @@ vi.mock('@/hooks/useUserPreferences', () => ({
     preferences: null,
     loading: false,
     syncState: null,
-    devices: [],
     updatePreferences: vi.fn().mockResolvedValue(undefined),
     resetToDefaults: vi.fn().mockResolvedValue(undefined),
     exportPreferences: vi.fn().mockResolvedValue('{}'),
@@ -73,9 +78,6 @@ vi.mock('@/components/preferences/SecuritySettings', () => ({
 }));
 vi.mock('@/components/preferences/DataSettings', () => ({
   DataSettings: () => <div data-testid="data-settings" />,
-}));
-vi.mock('@/components/preferences/DeviceManager', () => ({
-  DeviceManager: () => <div data-testid="device-manager" />,
 }));
 vi.mock('@/components/preferences/InstallAppSettings', () => ({
   InstallAppSettings: () => <div data-testid="install-settings" />,
@@ -120,7 +122,6 @@ describe('AccountPage', () => {
       'Privacy',
       'Security',
       'Data & sync',
-      'Devices',
       'Install app',
       'Delete account',
     ].forEach(label => expect(screen.getByRole('button', { name: label })).toBeInTheDocument());
@@ -183,12 +184,6 @@ describe('AccountPage', () => {
     expect(screen.getByTestId('data-settings')).toBeInTheDocument();
   });
 
-  it('switches to Devices section', () => {
-    render();
-    fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
-    expect(screen.getByTestId('device-manager')).toBeInTheDocument();
-  });
-
   it('switches to Install app section', () => {
     render();
     fireEvent.click(screen.getByRole('button', { name: 'Install app' }));
@@ -222,6 +217,75 @@ describe('AccountPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /delete my account/i }));
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
     expect(screen.queryByText(/are you sure/i)).not.toBeInTheDocument();
+  });
+
+  it('DeleteSection keeps the destructive button disabled until exact confirmation text is typed', () => {
+    render();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));
+    fireEvent.click(screen.getByRole('button', { name: /delete my account/i }));
+
+    const confirmButton = screen.getByRole('button', { name: /yes, delete account/i });
+    const confirmInput = screen.getByLabelText(/type.*delete.*to confirm/i);
+
+    expect(confirmButton).toBeDisabled();
+
+    fireEvent.change(confirmInput, { target: { value: 'delete' } });
+    expect(confirmButton).toBeDisabled();
+
+    fireEvent.change(confirmInput, { target: { value: 'DELETE ME' } });
+    expect(confirmButton).toBeDisabled();
+
+    fireEvent.change(confirmInput, { target: { value: 'DELETE' } });
+    expect(confirmButton).not.toBeDisabled();
+  });
+
+  it('DeleteSection does not call deleteUser when confirmation text is wrong', () => {
+    render();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));
+    fireEvent.click(screen.getByRole('button', { name: /delete my account/i }));
+
+    const confirmInput = screen.getByLabelText(/type.*delete.*to confirm/i);
+    fireEvent.change(confirmInput, { target: { value: 'delete' } });
+    fireEvent.click(screen.getByRole('button', { name: /yes, delete account/i }));
+
+    expect(mockDeleteUser).not.toHaveBeenCalled();
+  });
+
+  it('DeleteSection calls deleteUser with the current person id when confirmation text matches, then signs out', async () => {
+    mockDeleteUser.mockResolvedValueOnce({ data: { id: 'p-1' }, error: null });
+    render();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));
+    fireEvent.click(screen.getByRole('button', { name: /delete my account/i }));
+
+    const confirmInput = screen.getByLabelText(/type.*delete.*to confirm/i);
+    fireEvent.change(confirmInput, { target: { value: 'DELETE' } });
+    fireEvent.click(screen.getByRole('button', { name: /yes, delete account/i }));
+
+    await waitFor(() => expect(mockDeleteUser).toHaveBeenCalledWith('p-1'));
+    await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
+  });
+
+  it('DeleteSection surfaces the owns-live-dogs server rejection reason', async () => {
+    // getUserFriendlyError only maps error codes (MK001 → friendly text) in its
+    // production branch; vitest runs with DEV=true, so stub it off for this test.
+    vi.stubEnv('DEV', false);
+    mockDeleteUser.mockResolvedValueOnce({
+      data: null,
+      error: { code: 'MK001', message: 'people_owns_dogs_guard' },
+    });
+    render();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));
+    fireEvent.click(screen.getByRole('button', { name: /delete my account/i }));
+
+    const confirmInput = screen.getByLabelText(/type.*delete.*to confirm/i);
+    fireEvent.change(confirmInput, { target: { value: 'DELETE' } });
+    fireEvent.click(screen.getByRole('button', { name: /yes, delete account/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/still owns dogs.*delete those dogs first/i)).toBeInTheDocument()
+    );
+    expect(mockSignOut).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
   });
 
   it('shows save/discard buttons when form is dirty', () => {

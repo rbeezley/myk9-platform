@@ -59,7 +59,7 @@ handle<SendResultsPayload>(
     // low. Full content binding (server-side results generation, or validating
     // the XML's show-identifying fields against showId) is tracked as a
     // follow-up and intentionally out of scope for this authz remediation.
-    const show = await assertSendResultsAuthorization({
+    const { show, callerEmail } = await assertSendResultsAuthorization({
       supabase: supabase as unknown as SendResultsSupabaseClient,
       user,
       showId,
@@ -71,8 +71,9 @@ handle<SendResultsPayload>(
       throw new HttpError(400, `No submission email configured for ${organization}:${sportType}`);
     }
 
-    // cc + reply-to are derived from the show record, never the request body.
-    const { secretaryEmail } = deriveResultsAddresses(show);
+    // cc + reply-to come from the show's secretary_email, falling back to the
+    // authenticated caller's own email — never the request body.
+    const { secretaryEmail } = deriveResultsAddresses(show, callerEmail);
 
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',

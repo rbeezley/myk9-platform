@@ -19,6 +19,12 @@ export interface ResultsShowScope {
   secretary_email: string | null;
 }
 
+export interface SendResultsAuthorization {
+  show: ResultsShowScope;
+  /** The authenticated caller's own email (people.email), resolved server-side. */
+  callerEmail: string | null;
+}
+
 interface SupabaseQueryResult<T = unknown> {
   data: T | null;
   error: unknown;
@@ -42,8 +48,10 @@ export interface SendResultsSupabaseClient {
 /**
  * Pure authorization predicate: does this caller role authorize acting on the
  * results' show? Mirrors send-targeted-message's callerRoleAuthorizesShow —
- * platform/site admins always pass; secretary/trial_secretary pass only when
- * scoped to the show's club or the show itself.
+ * platform/site admins always pass; secretary/trial_secretary/club_admin pass
+ * only when scoped to the show's club or the show itself. club_admin is
+ * included to match `ShowManagementSectionRoute`, which grants a club-scoped
+ * club admin access to the submit-results surface.
  */
 export function callerRoleAuthorizesResults(
   role: CallerRoleSource,
@@ -51,33 +59,41 @@ export function callerRoleAuthorizesResults(
 ): boolean {
   const roleName = role.roles?.name;
   if (roleName === 'platform_admin' || roleName === 'site_admin') return true;
-  if (roleName !== 'secretary' && roleName !== 'trial_secretary') return false;
+  if (roleName !== 'secretary' && roleName !== 'trial_secretary' && roleName !== 'club_admin') {
+    return false;
+  }
   return role.club_id === show.club_id || role.show_id === show.id;
 }
 
 /**
  * Pure address derivation: cc + reply-to are a function of the show record's
- * secretary_email, never of the request body. Returns null when the show has no
- * secretary email on file (the caller then omits cc/reply-to entirely).
+ * secretary_email, falling back to the authenticated caller's own email — never
+ * of the request body. Many app-created shows have a null `secretary_email`, so
+ * the caller-email fallback preserves the pre-existing behavior of replying to
+ * the submitting official without trusting a caller-supplied address. Returns
+ * null only when neither is available (caller then omits cc/reply-to).
  */
-export function deriveResultsAddresses(show: { secretary_email: string | null }): {
-  secretaryEmail: string | null;
-} {
-  const trimmed = show.secretary_email?.trim();
-  return { secretaryEmail: trimmed ? trimmed : null };
+export function deriveResultsAddresses(
+  show: { secretary_email: string | null },
+  callerEmail: string | null
+): { secretaryEmail: string | null } {
+  const secretary = show.secretary_email?.trim();
+  if (secretary) return { secretaryEmail: secretary };
+  const caller = callerEmail?.trim();
+  return { secretaryEmail: caller ? caller : null };
 }
 
 /**
  * Fail-closed authorization for send-results. Resolves the results' show, then
- * requires a show-official (secretary/admin) role on it, throwing before the
- * caller can invoke Resend. Returns the resolved show so the handler can derive
- * server-side addresses from the same record.
+ * requires a show-official (secretary/club-admin/admin) role on it, throwing
+ * before the caller can invoke Resend. Returns the resolved show plus the
+ * caller's own email so the handler can derive server-side addresses.
  */
 export async function assertSendResultsAuthorization(args: {
   supabase: SendResultsSupabaseClient;
   user: User | { id: string } | undefined;
   showId: string;
-}): Promise<ResultsShowScope> {
+}): Promise<SendResultsAuthorization> {
   if (!args.user) {
     throw new HttpError(401, 'Unauthorized');
   }
@@ -114,5 +130,11 @@ export async function assertSendResultsAuthorization(args: {
     throw new HttpError(403, 'Forbidden: secretary or admin role required');
   }
 
-  return show;
+  const { data: caller } = (await args.supabase
+    .from('people')
+    .select('email')
+    .eq('auth_user_id', args.user.id)
+    .maybeSingle()) as SupabaseQueryResult<{ email: string | null }>;
+
+  return { show, callerEmail: caller?.email ?? null };
 }

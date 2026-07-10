@@ -21,6 +21,20 @@ function chain<T>(data: T, error: unknown = null) {
   return query;
 }
 
+// A `from` mock that answers shows / user_roles / people for the happy path.
+function makeFrom(opts: {
+  show: { id: string; club_id: string | null; secretary_email: string | null };
+  roles: unknown[];
+  callerEmail?: string | null;
+}) {
+  return vi.fn((table: string) => {
+    if (table === 'shows') return chain(opts.show);
+    if (table === 'user_roles') return chain(opts.roles);
+    if (table === 'people') return chain({ email: opts.callerEmail ?? null });
+    throw new Error(`unexpected table ${table}`);
+  });
+}
+
 describe('send-results authorization predicate', () => {
   const show = { id: 'show-1', club_id: 'club-1' };
 
@@ -38,11 +52,15 @@ describe('send-results authorization predicate', () => {
     expect(
       callerRoleAuthorizesResults({ club_id: 'club-2', roles: { name: 'secretary' } }, show)
     ).toBe(false);
+    // A club admin scoped to a different club is not an official for this show.
+    expect(
+      callerRoleAuthorizesResults({ club_id: 'club-2', roles: { name: 'club_admin' } }, show)
+    ).toBe(false);
     // No role name at all fails closed.
     expect(callerRoleAuthorizesResults({ club_id: 'club-1' }, show)).toBe(false);
   });
 
-  it('allows site/platform admins and show-scoped secretaries', () => {
+  it('allows site/platform admins, show-scoped secretaries, and the club admin', () => {
     expect(
       callerRoleAuthorizesResults({ club_id: null, roles: { name: 'site_admin' } }, show)
     ).toBe(true);
@@ -58,37 +76,54 @@ describe('send-results authorization predicate', () => {
         show
       )
     ).toBe(true);
+    // club_admin scoped to the show's club is authorized — matches the route guard.
+    expect(
+      callerRoleAuthorizesResults({ club_id: 'club-1', roles: { name: 'club_admin' } }, show)
+    ).toBe(true);
   });
 });
 
 describe('send-results address derivation', () => {
   it('derives cc/reply-to from the show record, ignoring body-supplied values', () => {
-    // The helper only accepts the show record — a body-supplied secretaryEmail
-    // has no path into the result. Derivation is a pure function of the show.
-    expect(deriveResultsAddresses({ secretary_email: 'secretary@bckc.org' })).toEqual({
+    // The helper only accepts the show record + the caller's own email — a
+    // body-supplied secretaryEmail has no path into the result.
+    expect(deriveResultsAddresses({ secretary_email: 'secretary@bckc.org' }, null)).toEqual({
       secretaryEmail: 'secretary@bckc.org',
     });
   });
 
-  it('trims whitespace and returns null when the show has no secretary email', () => {
-    expect(deriveResultsAddresses({ secretary_email: '  sec@club.org  ' })).toEqual({
+  it('falls back to the caller email when the show has no secretary email', () => {
+    // Most app-created shows have a null secretary_email; the caller's own
+    // (server-resolved) email preserves the reply-to-submitter behavior.
+    expect(deriveResultsAddresses({ secretary_email: null }, 'caller@club.org')).toEqual({
+      secretaryEmail: 'caller@club.org',
+    });
+    expect(deriveResultsAddresses({ secretary_email: '   ' }, 'caller@club.org')).toEqual({
+      secretaryEmail: 'caller@club.org',
+    });
+  });
+
+  it('prefers the show secretary email over the caller email', () => {
+    expect(deriveResultsAddresses({ secretary_email: 'sec@club.org' }, 'caller@club.org')).toEqual({
       secretaryEmail: 'sec@club.org',
     });
-    expect(deriveResultsAddresses({ secretary_email: null })).toEqual({ secretaryEmail: null });
-    expect(deriveResultsAddresses({ secretary_email: '   ' })).toEqual({ secretaryEmail: null });
+  });
+
+  it('returns null when neither the show nor the caller has an email', () => {
+    expect(deriveResultsAddresses({ secretary_email: null }, null)).toEqual({
+      secretaryEmail: null,
+    });
+    expect(deriveResultsAddresses({ secretary_email: '  ' }, '  ')).toEqual({
+      secretaryEmail: null,
+    });
   });
 });
 
 describe('assertSendResultsAuthorization', () => {
   it('denies a non-official caller before Resend can be invoked', async () => {
-    const from = vi.fn((table: string) => {
-      if (table === 'shows') {
-        return chain({ id: 'show-1', club_id: 'club-1', secretary_email: 'sec@club.org' });
-      }
-      if (table === 'user_roles') {
-        return chain([]);
-      }
-      throw new Error(`unexpected table ${table}`);
+    const from = makeFrom({
+      show: { id: 'show-1', club_id: 'club-1', secretary_email: 'sec@club.org' },
+      roles: [],
     });
 
     await expect(
@@ -100,15 +135,11 @@ describe('assertSendResultsAuthorization', () => {
     ).rejects.toThrow('Forbidden: secretary or admin role required');
   });
 
-  it('allows a secretary of the show and returns the resolved show record', async () => {
-    const from = vi.fn((table: string) => {
-      if (table === 'shows') {
-        return chain({ id: 'show-1', club_id: 'club-1', secretary_email: 'sec@club.org' });
-      }
-      if (table === 'user_roles') {
-        return chain([{ club_id: 'club-1', roles: { name: 'secretary' } }]);
-      }
-      throw new Error(`unexpected table ${table}`);
+  it('allows a secretary of the show and returns the show + caller email', async () => {
+    const from = makeFrom({
+      show: { id: 'show-1', club_id: 'club-1', secretary_email: 'sec@club.org' },
+      roles: [{ club_id: 'club-1', roles: { name: 'secretary' } }],
+      callerEmail: 'secretary@club.org',
     });
 
     await expect(
@@ -117,7 +148,29 @@ describe('assertSendResultsAuthorization', () => {
         user: { id: 'secretary-user' },
         showId: 'show-1',
       })
-    ).resolves.toEqual({ id: 'show-1', club_id: 'club-1', secretary_email: 'sec@club.org' });
+    ).resolves.toEqual({
+      show: { id: 'show-1', club_id: 'club-1', secretary_email: 'sec@club.org' },
+      callerEmail: 'secretary@club.org',
+    });
+  });
+
+  it('allows a club admin scoped to the show club', async () => {
+    const from = makeFrom({
+      show: { id: 'show-1', club_id: 'club-1', secretary_email: null },
+      roles: [{ club_id: 'club-1', roles: { name: 'club_admin' } }],
+      callerEmail: 'admin@club.org',
+    });
+
+    await expect(
+      assertSendResultsAuthorization({
+        supabase: { from } as unknown as SendResultsSupabaseClient,
+        user: { id: 'club-admin-user' },
+        showId: 'show-1',
+      })
+    ).resolves.toEqual({
+      show: { id: 'show-1', club_id: 'club-1', secretary_email: null },
+      callerEmail: 'admin@club.org',
+    });
   });
 
   it('rejects an unauthenticated caller (fail closed)', async () => {
@@ -136,9 +189,8 @@ describe('assertSendResultsAuthorization', () => {
       if (table === 'shows') {
         return chain({ id: 'show-1', club_id: 'club-1', secretary_email: 'sec@club.org' });
       }
-      if (table === 'user_roles') {
-        return userRolesQuery;
-      }
+      if (table === 'user_roles') return userRolesQuery;
+      if (table === 'people') return chain({ email: 'secretary@club.org' });
       throw new Error(`unexpected table ${table}`);
     });
 

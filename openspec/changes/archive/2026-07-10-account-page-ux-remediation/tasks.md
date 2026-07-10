@@ -10,7 +10,7 @@
 ## 2. Font size wiring (with removal fallback)
 
 - [x] 2.1 Consume the root font-scale variable (`html { font-size: calc(16px * var(--font-scale, 1)) }` or equivalent) and apply the saved scale on boot
-- [ ] 2.2 Visual spot-check at 1.2x across Account, My Shows, dog detail; if rem cascade is unacceptable, remove the Font Size control instead (design Decision 2 gate — record outcome here). Implementer confirmed Tailwind utilities are rem-based (cascade sound); visual check deferred to task 7.3 live verify.
+- [x] 2.2 Visual spot-check at 1.2x — done in 7.3 live verify (html 19.2px, layout intact). Decision 2 gate outcome: KEEP the control; rem cascade sound. Amended post-review: Small (0.9x) removed and scale clamped ≥1 to preserve the tailwind 14px text-xs floor.
 - [x] 2.3 Unit tests for scale application + boot hydration (or control-removal tests if the fallback fires)
 
 ## 3. Delete mock and dead controls
@@ -44,5 +44,5 @@
 - [x] 7.1 `pnpm typecheck` (fresh non-incremental tsc clean) and `pnpm lint` (one set-state-in-effect error found and fixed by deriving resolved theme during render)
 - [x] 7.2 `cd apps/myk9show && pnpm test` — full unit suite green (1297 files, 11,768 tests passed)
 - [x] 7.3 Live verify on worktree dev server (served code confirmed via Vite module fetch): theme boot verified for light/dark/system incl. trio classes + colorScheme; font scale 1.2 → html 19.2px, layout intact. Authed /account visuals (Appearance selector, toast, delete gate) covered by unit tests; final visual pass on staging after merge — localhost sign-in not performed (credential-entry restriction)
-- [ ] 7.4 PR → CI green → review (user-visible behavior change: run `/codex:review` per repo default) → merge
-- [ ] 7.5 Update docs/ux-audits/account-page-exhibitor-2026-07-10.md findings table with fixed/deferred status; sync OPEN-TODOS.md if applicable
+- [x] 7.4 PR #1256 → CI green (one flaky AskQPanel shard rerun) → codex review (1 P1 acknowledged/spun off as self-service delete RPC task, 3 P2s fixed in d5cc9e340) → merged 2026-07-10
+- [x] 7.5 Updated docs/ux-audits/account-page-exhibitor-2026-07-10.md findings with fixed/deferred status; OPEN-TODOS.md not applicable (no open items added)

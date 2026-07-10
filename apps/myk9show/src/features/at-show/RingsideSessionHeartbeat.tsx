@@ -3,6 +3,7 @@ import { useLocation, useParams } from 'react-router-dom';
 import { getExistingSubscription } from '@myk9/notifications';
 import { supabase } from '@/lib/supabase';
 import { readDogFavoriteArmbands } from './ringsideDogFavorites';
+import { handleRingsidePasscodeRevoked } from './ringsidePasscodeRevocation';
 
 const HEARTBEAT_MS = 30_000;
 
@@ -27,12 +28,18 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       // limited by the validate-passcode edge function) rides on the JWT that
       // supabase.rpc attaches automatically; upsert_ringside_session authorizes on
       // that claim. Re-sending the raw passcode would reopen the brute-force path.
-      await supabase.rpc('upsert_ringside_session', {
+      const { error } = await supabase.rpc('upsert_ringside_session', {
         p_passcode_or_null: '',
         p_subscription_endpoint: endpoint,
         p_favorited_armbands: readDogFavoriteArmbands(heartbeatShowId).map(String),
         p_route: route,
       });
+
+      // J1.3 — if the secretary regenerated passcodes, this stale claim is now
+      // rejected. Surface "access revoked — re-enter code" and route back to
+      // sign-in instead of silently retrying every 30s. Other errors stay
+      // swallowed (presence is best-effort).
+      if (error) handleRingsidePasscodeRevoked(error);
     }
 
     const runIfVisible = () => {

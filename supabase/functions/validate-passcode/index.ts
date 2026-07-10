@@ -271,12 +271,36 @@ serve(async req => {
       const { data: userData, error: userErr } = await supabaseClient.auth.getUser(bearer);
       const caller = userData?.user;
       if (!userErr && caller?.is_anonymous === true) {
+        // J1.3 — stamp the passcode GENERATION so the claim can be revoked when
+        // the secretary regenerates codes. show_passcodes.created_at is bumped in
+        // place on every regenerate_show_passcodes call (the row id is stable), so
+        // it is a monotonic generation marker. The ringside RPCs re-look-up the
+        // current created_at and reject a claim whose stamped generation no longer
+        // matches. Single indexed lookup on the UNIQUE(show_id, role) key.
+        const { data: passcodeRow, error: passcodeErr } = await supabaseClient
+          .from('show_passcodes')
+          .select('created_at')
+          .eq('show_id', matchedShow.id)
+          .eq('role', matchedRole)
+          .maybeSingle();
+
+        if (passcodeErr || !passcodeRow?.created_at) {
+          // Fail closed: without the generation marker the DB tier would reject
+          // every write/heartbeat as a stale claim, so a "success" here would lie.
+          console.error('[Auth] Failed to read passcode generation for claim:', passcodeErr);
+          return new Response(JSON.stringify({ error: 'session_error' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
         const { error: stampErr } = await supabaseClient.auth.admin.updateUserById(caller.id, {
           app_metadata: {
             ...(caller.app_metadata ?? {}),
             kind: 'ringside_passcode',
             show_id: matchedShow.id,
             ringside_role: matchedRole,
+            passcode_generation: passcodeRow.created_at,
           },
         });
         if (stampErr) {
@@ -326,10 +350,10 @@ serve(async req => {
     // Log the full error server-side; do NOT leak internal error text (DB
     // structure, field names, stack hints) to the client.
     console.error('[Auth] Edge Function error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 

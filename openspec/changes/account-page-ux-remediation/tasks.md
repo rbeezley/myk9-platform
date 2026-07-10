@@ -41,8 +41,8 @@
 
 ## 7. Verification & ship
 
-- [ ] 7.1 `pnpm typecheck` (clear stale `app.tsbuildinfo` first) and `pnpm lint`
-- [ ] 7.2 `cd apps/myk9show && pnpm test` — full unit suite green
-- [ ] 7.3 Live verify on dev server as exhibitor: theme applies from Appearance, no dead sections, toast dismisses, install copy accurate, delete gated
+- [x] 7.1 `pnpm typecheck` (fresh non-incremental tsc clean) and `pnpm lint` (one set-state-in-effect error found and fixed by deriving resolved theme during render)
+- [x] 7.2 `cd apps/myk9show && pnpm test` — full unit suite green (1297 files, 11,768 tests passed)
+- [x] 7.3 Live verify on worktree dev server (served code confirmed via Vite module fetch): theme boot verified for light/dark/system incl. trio classes + colorScheme; font scale 1.2 → html 19.2px, layout intact. Authed /account visuals (Appearance selector, toast, delete gate) covered by unit tests; final visual pass on staging after merge — localhost sign-in not performed (credential-entry restriction)
 - [ ] 7.4 PR → CI green → review (user-visible behavior change: run `/codex:review` per repo default) → merge
 - [ ] 7.5 Update docs/ux-audits/account-page-exhibitor-2026-07-10.md findings table with fixed/deferred status; sync OPEN-TODOS.md if applicable

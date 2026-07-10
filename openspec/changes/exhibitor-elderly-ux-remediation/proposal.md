@@ -11,6 +11,8 @@ The elderly exhibitor browser audit found trust-breaking contradictions in the c
 - Translate exhibitor check-in choices into plain language while preserving existing internal statuses for staff workflows.
 - Simplify dog-profile editing and registration guidance without adding a new dog workflow; keep invalid blank measurements from displaying as `NaN` or accidental zero.
 - Trace onboarding completion state and replace unexpected restart behavior with saved-progress guidance when more setup is required.
+- Reconcile Browse Shows, Show Detail, Classes, and registration against one submitted-entry state while keeping cart-only selections explicitly separate.
+- Raise the audited registration-summary remove and Cart `Continue Shopping` actions to the 44×44px elderly touch floor.
 - Track testing and browser-audit evidence in the existing remediation plan.
 - Non-goals:
   - No new exhibitor dashboard, payment dashboard, show-day dashboard, dog-profile replacement, or standalone entry workflow.
@@ -34,6 +36,8 @@ Duplication answer: this change touches multiple surfaces, but it does not dupli
 - Affected app surfaces:
   - `apps/myk9show/src/features/monogram/landing/*`
   - show detail / landing variants and registration wizard entry gating
+  - show-detail submitted-entry derivation, tab counts/content, and Classes `My entry` labels
+  - registration payment summary and Cart action sizing
   - `apps/myk9show/src/pages/MyEntriesPage/*`
   - `apps/myk9show/src/pages/MyPaymentsPage*` and related payment/cart hooks
   - exhibitor show-day / at-show routes and check-in controls

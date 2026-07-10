@@ -1,7 +1,7 @@
 # Go-Live Runbook — myK9Show Fall 2026 Launch
 
 > **Status:** Active
-> **Last Phase 0-4 audit:** 2026-07-06. Only items with repo/tracking evidence proving
+> **Last reconciliation:** 2026-07-10. Only items with repo/tracking evidence proving
 > 100% completion are checked; operator-only dashboard, venue, live-money, and real-user
 > evidence gates remain open until re-verified at execution time.
 
@@ -22,7 +22,7 @@ this document is the sequence, the gates, and the verification commands.
 
 | #   | Gate                                                                                         | Blocks                   | Status check                                                                                                    |
 | --- | -------------------------------------------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| G1  | Security remediation complete (SA-006/008/011 + plan 003)                                    | Phase 1                  | `pnpm exec openspec status --change <name>` for each; OPEN-TODOS § Security Remediation                         |
+| G1  | Security remediation deployed (including 2026-07-10 SA-018…023/026/027)                       | Phase 1                  | `security-audit-remediation` merged, migration/function deployment recorded, and `OPEN-TODOS.md` updated         |
 | G2  | Pending deploys/migrations reconciled (`ask-myk9show`, withdrawal migrations, edge-fn drift) | Phase 1                  | Phase 0 verification commands below                                                                             |
 | G3  | Money-path hardening Phases 1–3 merged + deployed (MP-01…MP-04)                              | Phase 3 (Stripe cutover) | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md) phase table; PRs merged + fns redeployed |
 | G4  | CI-gated production deploys active                                                           | Phase 4                  | Deploy Production workflow green on `main`; Git auto-deploy off                                                 |
@@ -46,6 +46,15 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       (SA-011). Owner: Agent.
       _Verify:_ archive dirs exist under `openspec/changes/archive/2026-07-04-*`;
       OPEN-TODOS § Security Remediation marks all three done/deployed/verified.
+- [ ] **0.1b Deploy the 2026-07-10 security remediation** — The new full audit found no
+      CRITICAL/HIGH issues, but its three branded-email recipient/authorization findings are
+      MEDIUM and must not ship unresolved. `security-audit-remediation` has code and focused
+      tests complete; merge it, then apply its lifecycle hardening migration and deploy
+      `send-email`, `send-results`, and `resend-webhook` after the required shared-system
+      approval. Owner: Agent (merge/deploy confirmation-gated).
+      _Verify:_ the migration is applied, all three functions are ACTIVE at the deployed
+      revision, and [`security-audit-2026-07-10.md`](../security-audit-2026-07-10.md) records
+      SA-018–023, SA-026, and SA-027 as remediated.
 - [x] **0.2 Deploy the `ask-myk9show` fix** — DONE 2026-07-04. The AskQ
       cross-tenant scope-leak fix (#1089) is deployed live. Owner: Agent.
       _Do:_ `supabase functions deploy ask-myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`
@@ -88,17 +97,17 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
 - [x] **0.6 Class-mgmt mutation-error surfacing (plan 003)** — DONE 2026-07-04.
       OpenSpec change `class-mgmt-mutation-error-surfacing` is archived under
       `openspec/changes/archive/2026-07-04-class-mgmt-mutation-error-surfacing/`. Owner: Agent.
-- [ ] **0.7 Motion-consistency + remaining Yellow-dimension code work** — per OPEN-TODOS; not
-      launch-gating individually, but anything user-visible should land before Phase 4's
-      real-user test so users test a near-final product.
-      _Audit 2026-07-05:_ motion consistency is complete (`docs/plan-motion-consistency.md`;
-      PRs #1143/#1152/#1153/#1154/#1157), and the July UX remediation plan is archived
-      complete. Keep this open until the scorecard's remaining Yellow evidence gates are
-      closed or explicitly accepted.
-      _Audit 2026-07-06:_ no additional repo code gap found for motion/JULY UX in B0. Remaining
-      closure evidence is still the scorecard's named Yellow gates: ringside show-day re-walk,
-      offline→reconnect rehearsal, data correctness reconciliation, venue print test, real-user
-      testing, and deploy/rollback operational readiness.
+- [ ] **0.7 Finish remaining agent-owned launch remediation before human testing** — Do not
+      schedule Phase 4 real-user sessions until these active product changes are merged or
+      explicitly accepted as P2: (a) resolve the contradictory exhibitor entry state and two
+      sub-44px entry/cart controls in `OPEN-TODOS.md`; (b) complete the remaining
+      `exhibitor-elderly-ux-remediation` show-day, check-in-language, and dog-profile tasks;
+      (c) complete `ux-contrast-token-system`; and (d) close the code/CI side of
+      `improve-exhibitor-entries-scan` and `secretary-show-details-ux-remediation`.
+      _Already complete:_ motion consistency and the original July UX remediation plan. The
+      remaining evidence-only gates are the scorecard's show-day re-walk, offline→reconnect
+      rehearsal, data reconciliation, venue print test, real-user testing, and deployment/
+      rollback verification.
 
 ---
 
@@ -286,6 +295,11 @@ spot-check (keep a few hundred dollars available for same-week refunds).
 **Gate in:** Phases 1–3 done; all launch-affecting code merged (users must test a near-final
 product).
 
+- [ ] **4.0 Pre-evidence code freeze** — confirm Phase 0.7's active launch remediation is
+      merged and deployed, or each remaining item is explicitly accepted as P2. Record the
+      decision before booking any real-user session; otherwise those sessions are invalidated by
+      material product changes. Owner: Agent + Operator.
+
 _Audit 2026-07-06:_ PR #1175 merged the Phase 4 evidence checklist and verifier tooling.
 `pnpm qa:go-live:phase4 --allow-blocked` verifies the Phase 4
 operator checklist exists at [`go-live-phase-4-evidence-checklist.md`](go-live-phase-4-evidence-checklist.md),
@@ -302,6 +316,11 @@ close-out; keep those items unchecked until evidence is recorded.
 - [ ] **4.2 Offline → reconnect rehearsal** — two browsers on staging: secretary checks in
       entries, judge (cold passcode session) scores offline, both reconnect, everything
       reconciles with no silent loss. Flips **Offline-first behavior**.
+- [ ] **4.2b Cross-app data reconciliation** — with the same realistic staging fixture, compare
+      entries, dogs, payments/refunds, scores, placements, results, and closeout totals across
+      the secretary, exhibitor, ringside, and report surfaces. Record the query/output or
+      screenshots and resolve every P0/P1 mismatch. Flips **Data correctness**. Owner: Agent +
+      Operator (read-only verification).
 - [ ] **4.3 Venue hardware print test** — CheckInSheet, ScoresheetReport, ResultLabels,
       ArmbandLabelsReport on a real label printer + standard laser; capture margin/scaling/duplex
       issues. Owner: Operator (at venue). Flips **Reports and official forms**.
@@ -319,8 +338,10 @@ close-out; keep those items unchecked until evidence is recorded.
       each before the next user. Sole closer for the "real-user testing completed" launch
       criterion + the UX-clarity scorecard row. Owner: Operator (QA).
 - [ ] **4.6 Scorecard close-out** — flip the verified rows in
-      [`fall-2026-launch-readiness-scorecard.md`](../goals/fall-2026-launch-readiness-scorecard.md);
-      launch requires all Primary dimensions Green, no Red, no open P0/P1.
+      [`fall-2026-launch-readiness-scorecard.md`](../goals/fall-2026-launch-readiness-scorecard.md).
+      Evidence must cover Show-day reliability, Offline-first behavior, Data correctness,
+      Reports and official forms, UX clarity, and Operational readiness; launch requires all
+      Primary dimensions Green, no Red, no open P0/P1.
 
 ---
 
@@ -349,9 +370,11 @@ close-out; keep those items unchecked until evidence is recorded.
 - [ ] **5.3** Edge-function parity: `supabase functions list` — every function's `updated_at` is
       at/after its last code change; no deployed-ahead drift.
 - [ ] **5.4** Payout cron healthy overnight (query in Phase 3 ongoing checks).
-- [ ] **5.5** Admin surfaces walk: `/admin/dashboard`, `/health`, `/users`, `/permissions/*`,
-      `/role-requests`, `/payouts`, `/support`, `/sync`, `/onboarding`, `/performance`, `/alerts`,
-      `/data-lifecycle` all render for the site-admin account.
+- [ ] **5.5** Admin surfaces walk: `/admin/dashboard`, `/admin/health`, `/admin/support`,
+      `/admin/users`, `/admin/payouts`, `/admin/permissions`, `/admin/deleted-items`,
+      `/admin/templates`, `/admin/sync`, `/admin/role-requests`, `/admin/judges/analytics`, and
+      `/admin/help` all render for the site-admin account. (`/admin/alerts` and
+      `/admin/performance` were deleted; `/admin/data-lifecycle` redirects to Deleted Items.)
 - [ ] **5.6** Support posture: `/admin/support` is the primary myK9Show ticket queue;
       [`admin-support-runbook.md`](admin-support-runbook.md) is at hand; the two accepted
       SQL-only gaps (impersonation, arbitrary repair) understood; Sentry + Supabase logs

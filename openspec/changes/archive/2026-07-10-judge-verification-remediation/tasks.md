@@ -25,4 +25,4 @@
 
 - [x] 5.1 Apply the MODIFIED scope requirement to the main `judge-responsibility-verification` spec (via this change's delta). — un-defer scenarios + "Confirmed sweep gaps are remediated with tests" requirement synced into `openspec/specs/judge-responsibility-verification/spec.md`.
 - [x] 5.2 Update matrix rows J1.1/J1.3/J2.3/J5.4 statuses as each R-item lands; `pnpm typecheck`, lint, full test suite green. — matrix rows updated; typecheck 26/26; 35 batch tests green.
-- [ ] 5.3 Verify implementation against artifacts (`opsx:verify`), PR, review, merge, archive. — in progress.
+- [x] 5.3 Verify implementation against artifacts (`opsx:verify`), PR, review, merge, archive. — DONE: migration-auditor on both migrations (byte-for-byte drift check), live DB verification (objects + grants + comparison semantics), fresh-context adversarial second opinion (Codex at capacity → opus substitute; SAFE TO MERGE, all 3 round-1 findings resolved). Merged as PR #1255.

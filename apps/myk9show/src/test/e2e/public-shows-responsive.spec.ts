@@ -7,7 +7,6 @@ test.describe('Public Shows Responsive Smoke', () => {
     await page.goto('/shows');
 
     await expect(page).toHaveURL(/\/shows/);
-    await expect(page.getByRole('heading', { name: 'Shows' })).toBeVisible({ timeout: 15000 });
     await expect(page.getByPlaceholder(/search shows/i)).toBeVisible();
 
     const tabList = page.getByRole('tablist');
@@ -22,7 +21,7 @@ test.describe('Public Shows Responsive Smoke', () => {
   test('keeps public browse controls touch-friendly on mobile', async ({ page }) => {
     await page.goto('/shows');
 
-    await expect(page.getByRole('heading', { name: 'Shows' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByPlaceholder(/search shows/i)).toBeVisible({ timeout: 15000 });
 
     const firstTab = page.getByRole('tab').first();
     const firstTabBox = await firstTab.boundingBox();

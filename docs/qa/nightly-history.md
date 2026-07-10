@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-07-10
+
+- **Playwright command:** pass after one low-risk test repair. Phase 1 promoted Vitest passed (`18/18`, `3.06s`). Initial Phase 2 exact active Playwright failed with `50 passed, 2 failed, 1 skipped (3.4m, --retries=0)` because `public-shows-responsive.spec.ts` used an ambiguous `Shows` heading locator after the empty-state copy also exposed a `No shows are open for entries right now` heading. After repair, focused public responsive proof passed (`2/2`, `8.3s`, `--retries=0`) and the exact Phase 2 command passed (`52 passed, 1 skipped`, `3.5m`, `--retries=0`).
+- **Route sweep:** pass. The committed `route-health-by-role.spec.ts` passed inside final Phase 2 for public, exhibitor, secretary, judge, club-admin, and admin. Standalone Phase 3 route-health also passed all configured role groups (`6/6`, `1.1m`, `--retries=0`).
+- **Active specs:** Vitest `18/18`; active Playwright `52/53` with the existing public show-card skip.
+- **Failures:** none left open. The initial stale responsive locator failure was fixed and proved in the same run.
+- **Fixes made:** test-only. `apps/myk9show/src/test/e2e/public-shows-responsive.spec.ts` now waits on the visible public search control instead of the ambiguous `Shows` heading.
+- **Demotions/promotions:** none.
+- **Notes:** Ran from isolated detached worktree `.worktrees/nightly-qa-2026-07-10-021418` on `origin/main` `e79af34c38ca3048958cf664106940a24136f09a`, using `PLAYWRIGHT_PORT=6341`, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:6341`, and `PLAYWRIGHT_HMR_PORT=26341`. The primary checkout had unrelated WIP (`apps/myk9show/supabase/.temp/project-ref` and `docs/audits/production-readiness-bug-report-2026-07-09.html`), but the isolated baseline was clean except for generated `.qa-nightly.env`. The requested report branch name `codex/nightly-qa-2026-07-10` could not be created in this checkout, so the report branch is `codex-nightly-qa-2026-07-10`.
+
 ### 2026-07-09
 
 - **Playwright command:** pass. Phase 1 promoted Vitest passed (`18/18`, `3.25s`). The exact Phase 2 active Playwright command from `docs/qa/e2e-suite-map.md` passed under budget with `51 passed, 1 skipped (3.3m, --retries=0)`.

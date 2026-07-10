@@ -49,10 +49,17 @@ export function PrimaryTabs({
 
   return (
     <Tabs value={value} onValueChange={onValueChange} {...classNameProps}>
-      <div className="relative max-w-full after:pointer-events-none after:absolute after:right-0 after:top-0 after:h-full after:w-8 after:bg-gradient-to-l after:from-background after:to-transparent">
+      <div className="relative max-w-full">
+        {/* scroll-shadow-x — the same content-aware overflow cue used by the
+            exhibitor DogStrip rail (only shows a fade on an edge while there
+            is more to scroll toward, and disappears once that edge is
+            reached). Replaces a static right-edge gradient that stayed
+            visible even when the strip fit entirely on screen, and pairs
+            with min-width-per-trigger below so labels scroll instead of
+            crushing illegibly at phone widths (390px). */}
         <TabsList
           className={cn(
-            'flex w-full max-w-full overflow-x-auto no-scrollbar border-b border-border bg-transparent p-0 gap-0'
+            'flex w-full max-w-full overflow-x-auto hide-scrollbar scroll-shadow-x border-b border-border bg-transparent p-0 gap-0'
           )}
         >
           {tabs.map(tab => {
@@ -62,7 +69,7 @@ export function PrimaryTabs({
                 key={tab.id}
                 value={tab.id}
                 className={cn(
-                  'inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium sm:min-w-max sm:flex-none sm:px-4 sm:text-sm',
+                  'inline-flex min-h-[48px] min-w-[92px] flex-none items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium sm:min-w-max sm:px-4 sm:text-sm',
                   'text-muted-foreground border-b-2 border-transparent rounded-none bg-transparent',
                   'aria-selected:text-primary aria-selected:border-primary',
                   'hover:text-foreground transition-colors whitespace-nowrap'

@@ -59,7 +59,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
             variant="ghost"
             size="sm"
             onClick={onCloseMobile}
-            className="md:hidden"
+            className="md:hidden min-h-[44px] min-w-[44px]"
             aria-label="Close sidebar"
           >
             <X className="h-4 w-4" />

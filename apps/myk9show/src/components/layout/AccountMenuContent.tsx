@@ -7,9 +7,11 @@ import {
   Info,
   LifeBuoy,
   LogOut,
+  Moon,
   MessageSquare,
   RefreshCw,
   Settings,
+  Sun,
   User as UserIcon,
   Wifi,
   WifiOff,
@@ -27,6 +29,7 @@ import { UserRole } from '@/types/auth-types';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
+import { useTheme } from '@/hooks/useTheme';
 import { helpUrl } from '@/lib/help';
 import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
@@ -44,6 +47,7 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
   const globalSync = useGlobalSyncStatus();
   const networkStatus = useNetworkStatus();
   const { toggle: toggleAskQ } = useAskQPanelStore();
+  const { theme, toggleTheme } = useTheme();
   const [isClearingCache, setIsClearingCache] = useState(false);
 
   const handleResetData = () => {
@@ -125,6 +129,18 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
           <Heart className="h-4 w-4" />
           Pricing
         </Link>
+      </DropdownMenuItem>
+      {/* Theme + AskQ Assistant — shown here (not just as standalone header
+          icons) so both stay reachable below md, where AppHeader hides its
+          own icon buttons (className `hidden md:flex`) to keep the bar from
+          crowding out legible tap targets. Same handlers as the header
+          icons; no duplicate logic. */}
+      <DropdownMenuItem
+        onClick={toggleTheme}
+        className="w-full flex items-center gap-2 cursor-pointer"
+      >
+        {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
       </DropdownMenuItem>
       <DropdownMenuItem
         onClick={toggleAskQ}

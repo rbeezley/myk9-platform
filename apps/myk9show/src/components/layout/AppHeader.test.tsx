@@ -61,6 +61,18 @@ vi.mock('@/components/layout/AccountMenuContent', () => ({
   AccountMenuContent: () => null,
 }));
 
+describe('AppHeader phone-width header consolidation', () => {
+  it('hides the standalone theme and AskQ buttons below md, reachable via the account menu instead', () => {
+    render(<AppHeader />);
+
+    const themeButton = screen.getByRole('button', { name: /switch to dark mode/i });
+    expect(themeButton).toHaveClass('hidden', 'md:flex');
+
+    const askQButton = screen.getByRole('button', { name: /askq assistant/i });
+    expect(askQButton).toHaveClass('hidden', 'md:flex');
+  });
+});
+
 describe('AppHeader onboarding shell', () => {
   it('hides utility actions on onboarding while keeping account access', () => {
     render(<AppHeader />, { initialRoute: '/onboarding' });

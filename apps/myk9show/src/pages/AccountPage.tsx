@@ -12,7 +12,6 @@ import {
   RotateCcw,
   Shield,
   SlidersHorizontal,
-  Smartphone,
   Trash2,
   Upload,
   User,
@@ -21,12 +20,12 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { ThemeSelector } from '@/components/preferences/ThemeSelector';
+import { applyFontScale, storeFontScale, FONT_SIZE_SCALES } from '@/context/themeClasses';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { GeneralSettings } from '@/components/preferences/GeneralSettings';
 import { PrivacySettings } from '@/components/preferences/PrivacySettings';
 import { SecuritySettings } from '@/components/preferences/SecuritySettings';
 import { DataSettings } from '@/components/preferences/DataSettings';
-import { DeviceManager } from '@/components/preferences/DeviceManager';
 import { InstallAppSettings } from '@/components/preferences/InstallAppSettings';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -70,7 +69,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Advanced settings',
     items: [
       { key: 'data', label: 'Data & sync', icon: Wifi },
-      { key: 'devices', label: 'Devices', icon: Smartphone },
       { key: 'install', label: 'Install app', icon: Download },
       { key: 'delete', label: 'Delete account', icon: Trash2 },
     ],
@@ -92,8 +90,6 @@ export default function AccountPage() {
   const {
     preferences,
     loading: prefsLoading,
-    syncState,
-    devices,
     updatePreferences,
     resetToDefaults,
     exportPreferences,
@@ -114,6 +110,18 @@ export default function AccountPage() {
     const section = readSectionParam(searchParams);
     if (section && section !== active) setActive(section);
   }, [active, searchParams]);
+
+  // Keep the applied/cached font scale derived from the loaded preference.
+  // Without this, "Reset" or "Import settings" only replace the server-backed
+  // preference — the localStorage cache that ThemeProvider re-applies on boot
+  // would keep the previous scale (e.g. a stale 1.2 after resetting to Medium).
+  useEffect(() => {
+    const fontSize = preferences?.theme?.fontSize;
+    if (!fontSize) return;
+    const scale = FONT_SIZE_SCALES[fontSize] ?? '1.0';
+    applyFontScale(scale);
+    storeFontScale(scale);
+  }, [preferences?.theme?.fontSize]);
 
   const showFlash = useCallback((msg: string, kind: 'success' | 'error' = 'success') => {
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
@@ -266,8 +274,6 @@ export default function AccountPage() {
             onReset={() => handleReset('data')}
           />
         );
-      case 'devices':
-        return <DeviceManager devices={devices} syncState={syncState} />;
       case 'install':
         return <InstallAppSettings />;
       case 'delete':
@@ -284,17 +290,27 @@ export default function AccountPage() {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <h1 className="text-2xl font-bold mb-8">Account</h1>
 
-        {flash?.kind === 'success' && (
-          <Alert className="mb-4 border-success/30 bg-success/10 text-success ">
-            <CheckCircle2 className="h-4 w-4 text-success " />
-            <AlertDescription>{flash.msg}</AlertDescription>
-          </Alert>
-        )}
-        {flash?.kind === 'error' && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{flash.msg}</AlertDescription>
-          </Alert>
+        {/* Rendered as a fixed overlay (not in normal flow) so the flash never
+            shifts the nav/content layout below — see account-page-ux-remediation
+            Decision 5: the banner previously inserted above the nav and shifted
+            the whole layout down, causing misclicks. */}
+        {flash && (
+          <div
+            data-testid="account-flash-overlay"
+            className="fixed left-1/2 top-24 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2"
+          >
+            {flash.kind === 'success' ? (
+              <Alert className="border-success/30 bg-success/10 text-success shadow-lg">
+                <CheckCircle2 className="h-4 w-4 text-success " />
+                <AlertDescription>{flash.msg}</AlertDescription>
+              </Alert>
+            ) : (
+              <Alert variant="destructive" className="shadow-lg">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{flash.msg}</AlertDescription>
+              </Alert>
+            )}
+          </div>
         )}
 
         <div className="flex flex-col gap-6 md:flex-row md:gap-8">

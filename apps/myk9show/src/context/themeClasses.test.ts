@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { applyThemeClasses } from './themeClasses';
+import {
+  applyThemeClasses,
+  applyFontScale,
+  getStoredFontScale,
+  storeFontScale,
+} from './themeClasses';
 
 describe('applyThemeClasses', () => {
   let root: HTMLElement;
@@ -61,5 +66,36 @@ describe('applyThemeClasses', () => {
     expect(hasLight && hasDark).toBe(false);
     // `dark` must track `theme-dark` exactly.
     expect(root.classList.contains('dark')).toBe(hasDark);
+  });
+});
+
+describe('font scale helpers', () => {
+  let root: HTMLElement;
+
+  beforeEach(() => {
+    root = document.createElement('html');
+    localStorage.clear();
+  });
+
+  it('applyFontScale sets the --font-scale custom property on the given root', () => {
+    applyFontScale('1.2', root);
+    expect(root.style.getPropertyValue('--font-scale')).toBe('1.2');
+  });
+
+  it('storeFontScale persists the scale and getStoredFontScale reads it back', () => {
+    expect(getStoredFontScale()).toBeNull();
+
+    storeFontScale('1.4');
+
+    expect(getStoredFontScale()).toBe('1.4');
+  });
+
+  it('getStoredFontScale returns null when nothing has been stored', () => {
+    expect(getStoredFontScale()).toBeNull();
+  });
+
+  it('applyFontScale clamps sub-1 scales to preserve the 14px text-xs floor', () => {
+    applyFontScale('0.9', root);
+    expect(root.style.getPropertyValue('--font-scale')).toBe('1');
   });
 });

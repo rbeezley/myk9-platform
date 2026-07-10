@@ -32,12 +32,15 @@ import { useTheme } from '@/hooks/useTheme';
 import { helpUrl } from '@/lib/help';
 import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
-import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import { AskQIcon } from '@/components/layout/AskQIcon';
 
 interface AccountMenuContentProps {
   /** Opens the About dialog, whose state lives in the host AppHeader. */
   onAbout: () => void;
+}
+
+function AccountMenuSeparator() {
+  return <DropdownMenuSeparator className="bg-border" />;
 }
 
 /** The account dropdown's menu body. Extracted from AppHeader so that file
@@ -49,7 +52,6 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
   const networkStatus = useNetworkStatus();
   const { toggle: toggleAskQ } = useAskQPanelStore();
   const { theme, toggleTheme } = useTheme();
-  const { isPremium, isLoading: isSubscriptionLoading } = useSubscriptionGate();
   const [isClearingCache, setIsClearingCache] = useState(false);
 
   const isOffline = !networkStatus.isOnline || globalSync.status === 'offline';
@@ -128,24 +130,19 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
           Account
         </Link>
       </DropdownMenuItem>
-      {!isSubscriptionLoading && (
-        <DropdownMenuItem asChild>
-          <Link
-            to={isPremium ? '/subscription' : '/pricing-page'}
-            className="w-full flex items-center gap-2"
-          >
-            <CreditCard className="h-4 w-4" />
-            {isPremium ? 'Plan & billing' : 'View plans'}
-          </Link>
-        </DropdownMenuItem>
-      )}
+      <DropdownMenuItem asChild>
+        <Link to="/subscription" className="w-full flex items-center gap-2">
+          <CreditCard className="h-4 w-4" />
+          Plan &amp; billing
+        </Link>
+      </DropdownMenuItem>
 
       {/* Role-specific menu items */}
       {(hasRole(UserRole.SECRETARY) ||
         hasRole(UserRole.CLUB_ADMIN) ||
         hasRole(UserRole.SITE_ADMIN)) && (
         <>
-          <DropdownMenuSeparator />
+          <AccountMenuSeparator />
           <DropdownMenuItem asChild>
             <Link to="/judge-scoring" className="w-full flex items-center gap-2">
               <Settings className="h-4 w-4" />
@@ -171,7 +168,7 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
           </DropdownMenuItem>
         </>
       )}
-      <DropdownMenuSeparator />
+      <AccountMenuSeparator />
 
       {/* AskQ stays here as the labeled compact-width access path for the
           same panel action exposed by the desktop header button. */}
@@ -193,7 +190,7 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
           Help &amp; Guides
         </a>
       </DropdownMenuItem>
-      <DropdownMenuSeparator />
+      <AccountMenuSeparator />
 
       <DropdownMenuItem
         onClick={toggleTheme}
@@ -210,7 +207,7 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
       {/* Development Tools */}
       {process.env.NODE_ENV === 'development' && (
         <>
-          <DropdownMenuSeparator />
+          <AccountMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="cursor-pointer">
               <Code2 className="h-4 w-4" />
@@ -235,7 +232,7 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
           </DropdownMenuSub>
         </>
       )}
-      <DropdownMenuSeparator />
+      <AccountMenuSeparator />
       <DropdownMenuItem
         onClick={() => {
           signOut();

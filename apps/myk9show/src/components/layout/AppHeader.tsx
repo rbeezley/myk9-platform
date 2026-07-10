@@ -19,6 +19,7 @@ import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { AboutDialog } from '@/components/common/AboutDialog';
 import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
 import { AskQIcon } from '@/components/layout/AskQIcon';
+import { AskQPanel } from '@/components/askq/AskQPanel';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useCurrentUserPerson } from '@/hooks/useProfileForm';
@@ -368,6 +369,7 @@ const AppHeader: React.FC = () => {
 
       {/* About Dialog */}
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      <AskQPanel />
     </nav>
   );
 };

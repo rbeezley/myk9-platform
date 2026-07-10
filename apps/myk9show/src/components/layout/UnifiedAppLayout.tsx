@@ -18,7 +18,6 @@ import { UserRole, ScopeType } from '@/types/auth-types';
 import type { RoleScope } from '@/types/auth-types';
 import { useClubStore } from '@/store/clubStore';
 import { useShowStore } from '@/store/showStore';
-import { AskQPanel } from '@/components/askq/AskQPanel';
 import { useRegisterAppShellMobileNav } from './useAppShellMobileNav';
 import { buildUnifiedSidebarConfig } from './sidebar/unifiedSidebarConfig';
 import type { ClubContext, NextShowContext } from './sidebar/unifiedSidebarConfig';
@@ -74,30 +73,20 @@ export const UnifiedAppLayout: React.FC = () => {
 
   // Guest users see content without sidebar
   if (!user) {
-    return (
-      <>
-        <Outlet />
-        {/* AskQ AI Assistant Panel */}
-        <AskQPanel />
-      </>
-    );
+    return <Outlet />;
   }
 
   return (
-    <>
-      <SidebarLayout
-        sidebar={<RoleSidebar config={sidebarConfig} />}
-        sidebarWidth={240}
-        mobileMenuLabel="Navigation"
-        showMobileMenuButton={false}
-        mobileOpen={mobileOpen}
-        onMobileOpenChange={setMobileOpen}
-      >
-        <Outlet />
-      </SidebarLayout>
-      {/* AskQ AI Assistant Panel */}
-      <AskQPanel />
-    </>
+    <SidebarLayout
+      sidebar={<RoleSidebar config={sidebarConfig} />}
+      sidebarWidth={240}
+      mobileMenuLabel="Navigation"
+      showMobileMenuButton={false}
+      mobileOpen={mobileOpen}
+      onMobileOpenChange={setMobileOpen}
+    >
+      <Outlet />
+    </SidebarLayout>
   );
 };
 

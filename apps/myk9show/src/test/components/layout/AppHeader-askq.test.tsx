@@ -57,6 +57,10 @@ vi.mock('@/components/common/AboutDialog', () => ({
   AboutDialog: () => null,
 }));
 
+vi.mock('@/components/askq/AskQPanel', () => ({
+  AskQPanel: () => <div data-testid="askq-panel-host" />,
+}));
+
 vi.mock('@/components/notifications/NotificationBell', () => ({
   NotificationBell: () => null,
 }));
@@ -105,6 +109,7 @@ describe('AppHeader AskQ integration', () => {
     await user.click(screen.getByLabelText('AskQ Assistant'));
 
     expect(useAskQPanelStore.getState().isOpen).toBe(true);
+    expect(screen.getByTestId('askq-panel-host')).toBeInTheDocument();
   });
 
   it('shows mobile navigation in the app bar when a sidebar registers it', async () => {

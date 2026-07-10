@@ -5,7 +5,6 @@ import { Check } from 'lucide-react';
 import { products, annualPriceId } from '../stripe-config';
 import { createCheckoutSession } from '../lib/stripe';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import AppHeader from '../components/layout/AppHeader';
 import Footer from '../components/layout/Footer';
 import { logger } from '@/services/LoggingService';
 
@@ -96,7 +95,6 @@ export default function PricingPage() {
 
   return (
     <>
-      <AppHeader />
       {/* Add global background and text color wrapper for dark/light mode support */}
       <div className="bg-background text-foreground min-h-screen transition-colors duration-300">
         <main>

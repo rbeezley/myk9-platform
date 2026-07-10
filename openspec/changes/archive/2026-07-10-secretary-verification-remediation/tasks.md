@@ -44,4 +44,4 @@
 
 - [x] 8.1 Run focused vitest suites for every touched area from `apps/myk9show`; all green.
 - [x] 8.2 Run `pnpm typecheck` and `pnpm lint`; fix any fallout.
-- [ ] 8.3 Open PR, pass CI and code review, merge; update tasks and coverage matrix after merge.
+- [x] 8.3 Open PR, pass CI and code review, merge; update tasks and coverage matrix after merge. (PR #1242 merged 2026-07-10; review findings fixed pre-merge.)

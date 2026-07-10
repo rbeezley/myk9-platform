@@ -35,29 +35,65 @@ Identical to the secretary plan (`Not started` → `Inventory complete` →
 
 ## Row Audit Backlog
 
-| Row  | Responsibility                                            | Starting status  | Verification focus                                                                                                     |
+Phase 1 code-inventory sweep completed 2026-07-10 (five parallel auditors,
+orchestrated per the openspec change). Statuses below updated from sweep
+evidence; see "Phase 1 Results" for confirmed gaps.
+
+| Row  | Responsibility                                            | Status after Phase 1 sweep (2026-07-10)  | Verification focus                                                                                                     |
 | ---- | ---------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| J1.1 | Passcode entry into ringside, no account.                 | Evidence partial | Judge-code cold session on staging; throttle behavior; QR/print slip path.                                              |
-| J1.2 | Judge-level write permissions via claim.                  | Evidence partial | **Phase 0 code trace DONE 2026-07-10 — gap CLOSED in code** (RPC four-tier authz, explicit errors, deny-by-default grants). Remaining: live staging session per the checklist in the coverage matrix row. |
-| J1.3 | Show scoping + session expiry/regeneration.               | Evidence partial | `RingsideShowBoundary`/heartbeat behavior when secretary regenerates codes.                                             |
-| J2.1 | Class list for the ring.                                  | Evidence partial | `AtShowClassListPage` walk per registry; adapter tests.                                                                 |
-| J2.2 | Entry list / run order with live check-ins.               | Evidence partial | Combined run order behavior as check-ins/scratches happen (post-#1242 cache fixes).                                     |
-| J2.3 | Search-area parameters visible (hides/distractions/time). | Potential gap    | Known data-model gap: these fields aren't persisted anywhere. Determine what ringside shows and what judges actually need. |
-| J3.1 | Registry-correct scoring inputs and result codes.         | Evidence partial | Compare scoresheet options against AKC/UKC/ASCA rulebook qual codes.                                                    |
-| J3.2 | Authoritative, duplicate-free score writes (OCC).         | Evidence partial | `ringside_update_entry` conflict handling; two-device test.                                                             |
-| J3.3 | Offline scoring durability.                               | Evidence partial | Long-lead rehearsal (shared with secretary S9.1/S9.2 — schedule as one event).                                          |
-| J3.4 | Minimal exhibitor data exposure ringside.                 | Evidence partial | Anon-session read-surface audit; Phase E leftovers.                                                                     |
-| J4.1 | Class completion → placements.                            | Covered          | Refresh judge-side walk only; server logic verified 2026-07-09.                                                         |
-| J4.2 | Ringside↔paper verification rhythm with secretary.        | Evidence partial | Live rehearsal step.                                                                                                    |
-| J4.3 | Official paper signature artifacts.                       | Evidence partial | Print-hardware gate (shared with secretary S7.4).                                                                       |
-| J5.1 | Correct a score at the ring pre-completion.               | Evidence partial | Judge-device clear/re-score walk; placement recalc.                                                                     |
-| J5.2 | Absences/scratches visible at the ring.                   | Evidence partial | Judge-side view after secretary scratch/undo (post-#1242).                                                              |
-| J5.3 | Concurrent-edit conflict resolution.                      | Evidence partial | Two-device OCC walk.                                                                                                    |
-| J5.4 | Escalation path to secretary in-app.                      | Evidence partial | Announcement/message reach into ringside context.                                                                       |
-| J6.1 | Assignment + workload (secretary-owned).                  | Covered          | Verified/remediated 2026-07-09 (S1.3).                                                                                  |
-| J6.2 | Judge schedule report adequacy.                           | Evidence partial | One review pass of Judge Schedule / Entry Counts reports as a judge would read them.                                     |
-| J6.3 | Credentials/qualifications records.                       | Evidence partial | Judge directory import still pending real data (existing OPEN-TODOS item); ASCA judge creation decision.                 |
-| J6.4 | Self-service judge experience.                            | Deferred         | Confirm deferral holds.                                                                                                 |
+| J1.1 | Passcode entry into ringside, no account.                 | Inventory complete (Evidence partial) | `SmartSignInPage` → `validate-passcode` edge fn → claim stamp confirmed; QR/print slip in `ShowAccessCodesCard`. **Finding:** `check_login_rate_limit`/`record_login_attempt` RPCs have no tracked migration — confirm they exist in the live DB. Judge-code cold session still pending. |
+| J1.2 | Judge-level write permissions via claim.                  | Verified covered (code) | Four-tier authz (migrations 20260621171500 + 20260624163000), explicit 42501/40001/P0002 errors, deny-by-default grants, contract test `ringsidePasscodeClaimAuthzRlsContract.test.ts`. Remaining: live staging session per the coverage-matrix checklist. |
+| J1.3 | Show scoping + session expiry/regeneration.               | Potential gap    | Show scoping enforced by `AtShowAccessGate`/`ringsideGrantStore` (tested). **Finding:** `regenerate_show_passcodes` only invalidates unused codes — it does not revoke already-stamped anon-session claims (no expiry on `RingsideGrant` or the claim). Live regeneration walk needed. |
+| J2.1 | Class list for the ring.                                  | Inventory complete (Evidence partial) | `AtShowClassListPage` replication-backed; page tests are AKC-only — UKC/ASCA behavior inferred from shared mappers. Registry-persona walk pending. |
+| J2.2 | Entry list / run order with live check-ins.               | Inventory complete (Evidence partial) | Entry/combined lists read via `atShowDataAdapter` → replicated tables (no direct reads). #1242 fixes verified secretary-side; judge-side reactivity walk pending. |
+| J2.3 | Search-area parameters visible (hides/distractions/time). | Potential gap (reframed) | Correction to prior framing: `classes.hides_known`/`distraction_count` HAVE existed since migration 033, but are never read by `buildClassInfo`/ringside display (only time limits + area count surface), and the schema is class-aggregate, not per-area. Gap = display wiring + granularity, not absence. |
+| J3.1 | Registry-correct scoring inputs and result codes.         | Inventory complete (Evidence partial) | Per-registry `RESULT_OPTIONS` in `packages/scoring-ui` scoresheets, constrained to Q/NQ/EX/ABS; AKC chip test pins them. Rulebook cross-check (docs/rulebooks PDFs vs constants) still pending. |
+| J3.2 | Authoritative, duplicate-free score writes (OCC).         | Verified covered (code) | OCC with conflict-version surfacing (migration 20260625190000) + `mutation-occ.ts` client handling; unit/contract/e2e tests. Live two-device walk remains a rehearsal item, not a code gap. |
+| J3.3 | Offline scoring durability.                               | Inventory complete (Evidence partial) | Durable-first `updateEntry` ordering confirmed at `ReplicatedEntriesTable.ts` with tests. Offline→reconnect rehearsal remains the long-lead gate (shared with S9.1/S9.2). |
+| J3.4 | Minimal exhibitor data exposure ringside.                 | Inventory complete (Evidence partial) | Claims never widen `can_view_admin` (migration 20260624163000); financial/PII columns stay gated. Phase E leftovers still open: anon hard-delete FK-blocked, CAPTCHA operator TODO. |
+| J4.1 | Class completion → placements.                            | Verified covered | No scoring/placement migrations since the 2026-07-09 verification; trigger chain + contract tests unchanged. |
+| J4.2 | Ringside↔paper verification rhythm with secretary.        | Inventory complete (Evidence partial) | No in-app checklist exists (confirmed); shared `entries` row is the single source. Live-rehearsal gate, not a code gap. |
+| J4.3 | Official paper signature artifacts.                       | Verified covered (digital) | Signature blocks render in `JudgesCertification`/`AKCJudgeReport` etc. with tests. Print-hardware gate shared with S7.4. |
+| J5.1 | Correct a score at the ring pre-completion.               | Verified covered | `handleResetScore` clears scored fields via `ringside_update_entry` (judge-writable) and the placement trigger recalcs; test asserts the reset. |
+| J5.2 | Absences/scratches visible at the ring.                   | Inventory complete (Evidence partial) | Single replicated status source; #1242 secretary fixes propagate through it. No distinct ringside scratch indicator beyond generic status rendering — visual walk pending. |
+| J5.3 | Concurrent-edit conflict resolution.                      | Inventory complete (Evidence partial) | Conflict toast (keep-mine/take-theirs) + resolution path tested, but the Playwright spec uses synthetic conflict events (OCC hold descoped in #602). True two-device walk pending. |
+| J5.4 | Escalation path to secretary in-app.                      | Verified gap     | Announcements/messages exist app-side but have ZERO wiring into the `/at-show` route tree — no escalation surface reaches the ringside anon context. Remediation: link/mount existing surfaces, don't build new ones. |
+| J6.1 | Assignment + workload (secretary-owned).                  | Verified covered | S1.3 remediation confirmed in code (`ReplicatedJudgeAssignmentsTable` + tests, #1242). |
+| J6.2 | Judge schedule report adequacy.                           | Inventory complete (Evidence partial) | Reports render (grouped by trial; Class/Judge/Entries/Est. Time — no per-ring grouping or wall-clock times). Judge-reader adequacy pass pending. |
+| J6.3 | Credentials/qualifications records.                       | Inventory complete (Evidence partial) | `judge_qualifications` (migration 049) + creation panel exist; importer built but CSV header-only pending real data. `JUDGE_ORGANIZATIONS` omits ASCA (AKC/UKC/FCI/Other only) — confirm intentional. |
+| J6.4 | Self-service judge experience.                            | Potential gap (doc/scope conflict) | Deferral does NOT hold as documented: `/judge/dashboard`, `/judge/stats`, `/judge/check-in` are implemented, routed in `App.tsx`, nav-registered, role-gated, and tested. Decide: un-defer (own it) or delete per the consolidation rule. |
+
+## Phase 1 Results (2026-07-10)
+
+Every row is now at least Inventory complete. Five rows upgraded to
+code-verified (J1.2, J3.2, J4.1, J4.3, J5.1, J6.1). Confirmed findings, in
+rough severity order:
+
+1. **J5.4 — Verified gap.** No announcement/message surface is mounted
+   anywhere under `/at-show`; a judge has no in-app escalation path. Fix by
+   linking/mounting the existing announcement surface into the ringside
+   context (consolidation rule: no new UI).
+2. **J1.3 — Potential gap.** Regenerating show passcodes does not revoke
+   already-stamped anon-session claims, and claims carry no expiry. A
+   secretary cutting off a compromised device mid-show would not actually cut
+   it off. Needs a live regeneration walk, then likely a revocation mechanism.
+3. **J1.1 — Tracked-schema drift.** `check_login_rate_limit` /
+   `record_login_attempt` are called by `validate-passcode` but defined in no
+   tracked migration. Confirm they exist on the live DB and backfill a
+   migration so the throttle is reproducible.
+4. **J2.3 — Reframed.** Hides/distractions columns exist (migration 033) but
+   are never wired into ringside display, and are class-aggregate rather than
+   per-area. The prior "not persisted anywhere" framing was wrong.
+5. **J6.4 — Doc/scope conflict.** A judge self-service dashboard
+   (`/judge/dashboard`, `/judge/stats`, `/judge/check-in`) is shipped, routed,
+   and nav-registered despite the documented deferral. Requires an owner
+   decision: un-defer or delete the surface.
+6. **Minor:** J2.1 page tests are AKC-only; J6.3 `JUDGE_ORGANIZATIONS` omits
+   ASCA (confirm intentional); J3.1 rulebook cross-check still outstanding.
+
+Items 1–4 are candidates for a `judge-verification-remediation` OpenSpec
+change; item 5 blocks its scoping and needs the owner's call first. Phase 2
+(live walks) covers the remaining Evidence-partial rows.
 
 ## Execution Phases
 

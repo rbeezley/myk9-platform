@@ -9,8 +9,8 @@
 ## 2. Verification Kickoff (execution tracked by the plan doc)
 
 - [ ] 2.1 Phase 0: verify J1.2 — code trace DONE 2026-07-10 (gap closed in code: RPC four-tier authz, explicit errors, correct grants); live staging judge-passcode session still pending per checklist.
-- [ ] 2.2 Phase 1: run the code-inventory sweep over J1–J6 rows (routes, components, RPCs, RLS, tests, offline-safety) and update row states to Inventory complete.
-- [ ] 2.3 Record confirmed gaps/defects and open the follow-up remediation OpenSpec change(s) if any are found.
+- [x] 2.2 Phase 1: run the code-inventory sweep over J1–J6 rows (routes, components, RPCs, RLS, tests, offline-safety) and update row states to Inventory complete. — DONE 2026-07-10: five parallel auditors; every row now ≥ Inventory complete; 6 rows code-verified; findings recorded in the plan doc's "Phase 1 Results" section.
+- [ ] 2.3 Record confirmed gaps/defects and open the follow-up remediation OpenSpec change(s) if any are found. — Gaps RECORDED 2026-07-10 (J5.4 verified gap, J1.3 claim-revocation, J1.1 untracked throttle SQL, J2.3 display wiring). Remediation change NOT yet opened: J6.4 (shipped judge dashboard vs documented deferral) needs an owner scope decision that shapes the remediation set.
 
 ## 3. Verification And Merge Gate
 

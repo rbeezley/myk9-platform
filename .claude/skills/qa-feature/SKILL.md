@@ -9,6 +9,13 @@ Use when the user wants a real-browser audit of an existing feature — "QA the 
 
 This is the engine for **Phase 2 — Walk the Golden Paths** (see `docs/plans/strategy/2026-04-11-north-star-fall-2026.md`). Every role-journey audit should run through this skill so the pattern stays consistent and the artifacts compound.
 
+Before starting, read:
+
+- `docs/INTENT.md` for the target role feeling.
+- `docs/qa/assets.md` for current QA assets and suite commands.
+- `docs/qa/e2e-suite-map.md` before adding or choosing Playwright specs.
+- `docs/qa/findings.md` so confirmed findings use the shared template.
+
 ## Trigger Phrases
 
 - "QA <area>", "audit <area>", "walk <role>'s journey through <area>"
@@ -31,6 +38,11 @@ If any of these are unclear, ask once before recording.
 ### Step 0 — Pre-flight
 
 ```bash
+# Fresh worktrees do not carry gitignored dependencies. If Vite is missing,
+# bootstrap before starting the dev server.
+if [ ! -x apps/myk9show/node_modules/.bin/vite ]; then
+  bash scripts/bootstrap-worktree.sh
+fi
 # Dev server on :5173
 curl -sf http://localhost:5173 >/dev/null || echo "NOT_RUNNING"
 # If not running:

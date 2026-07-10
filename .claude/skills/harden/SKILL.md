@@ -12,6 +12,8 @@ Adversarial code hardening inspired by GAN-style generator/evaluator separation.
 
 **Core principle:** "Do NOT be generous. Your natural inclination will be to praise the work. Resist this. Assume the code has bugs. Find them."
 
+For myK9 Platform QA work, also read `docs/INTENT.md`, `docs/qa/findings.md`, and `docs/qa/e2e-suite-map.md`. Durable user-facing findings should be logged in `docs/qa/findings.md` with proof commands, not only summarized in chat.
+
 ## Input
 
 - `$ARGUMENTS` contains a file or directory path → scope the review to that path
@@ -53,6 +55,8 @@ Hunt for inputs and conditions the code doesn't handle:
 4. **Missing database rows**: What if a foreign key references a deleted record? What if a query returns 0 rows when the code assumes at least 1?
 5. **Type coercion traps**: Loose equality, falsy values (0, "", false, null) treated as missing, parseInt edge cases.
 6. **Concurrent users**: Two users performing the same action simultaneously — does the code handle it or silently corrupt?
+7. **Hidden validation**: Required fields, disabled buttons, or early returns that block progress without visible explanation.
+8. **Silent action paths**: Save/submit/delete handlers where a visible action can return before mutation, toast, inline error, or navigation.
 
 For each finding, provide:
 
@@ -72,6 +76,8 @@ Hunt for state management bugs — these are the hardest to reproduce and debug:
 5. **Subscription leaks**: Supabase realtime subscriptions, event listeners, intervals, or observers that are set up but never cleaned up on unmount/navigation.
 6. **Re-render cascades**: State updates that trigger unnecessary re-renders in unrelated components. Zustand selectors that return new object references on every call.
 7. **Effect dependency bugs**: Missing dependencies that cause stale data, or overly broad dependencies that cause infinite loops.
+8. **Mutation feedback drift**: Successful mutations that do not invalidate/refetch or update local state, leaving stale UI until reload.
+9. **Offline-first drift**: Ringside writes that bypass `@myk9/replication` and break offline behavior.
 
 For each finding, provide:
 
@@ -91,6 +97,8 @@ Hunt for security vulnerabilities and data integrity violations:
 5. **Timing attacks**: Operations where checking permission and performing the action are separate calls — can state change between the check and the action?
 6. **Data integrity**: Can the code leave the database in an inconsistent state? Missing transactions around multi-table writes. Partial failures that leave orphaned records.
 7. **Information leakage**: Error messages that expose internal details (stack traces, table names, query structures). Console.log statements with sensitive data.
+8. **RLS/UI mismatch**: UI presents an action as available even though RLS or RPC permissions reject it, especially for secretary/admin role boundaries.
+9. **Role-scope empty states**: A role-specific page loads empty because the query uses the wrong owner/club/show scope.
 
 For each finding, provide:
 

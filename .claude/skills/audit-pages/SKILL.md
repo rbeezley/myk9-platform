@@ -5,7 +5,14 @@ description: Use when auditing myK9Show pages for console errors, network errors
 
 # Audit Pages for Console and Network Errors
 
-Systematically visit every route in myK9Show, capture errors, fix what's addressable inline, and log the rest as TO-DOS entries.
+Systematically visit every route in myK9Show, capture errors, fix what's addressable inline, and log the rest as `OPEN-TODOS.md` entries.
+
+Before starting, read:
+
+- `docs/INTENT.md` for role intent.
+- `docs/qa/assets.md` for current QA assets and recommended commands.
+- `docs/qa/e2e-suite-map.md` to connect route failures to existing Playwright coverage.
+- `docs/qa/findings.md` for the reusable finding template.
 
 ## Scoping the Audit
 

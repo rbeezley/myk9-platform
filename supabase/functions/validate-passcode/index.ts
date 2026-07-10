@@ -161,6 +161,12 @@ serve(async req => {
     // soft-deleted shows already filtered out server-side).
     let matchedShow: ShowRow | null = null;
     let matchedRole: Role | null = null;
+    // J1.3 — the passcode GENERATION (show_passcodes.created_at) the code was
+    // valid for, returned ATOMICALLY by validate_passcode. Stamping this (rather
+    // than a separate follow-up SELECT) closes the validate-then-read race: if a
+    // regeneration lands after validation, we stamp the OLD generation → the DB
+    // tier revokes the claim (fail closed), never the reverse.
+    let matchedGeneration: string | null = null;
 
     const { data: rpcRows, error: rpcError } = await supabaseClient.rpc('validate_passcode', {
       p_code: passcode.toLowerCase(),
@@ -175,7 +181,7 @@ serve(async req => {
     }
 
     if (Array.isArray(rpcRows) && rpcRows.length > 0) {
-      const row = rpcRows[0] as { show_id: string; role: Role };
+      const row = rpcRows[0] as { show_id: string; role: Role; passcode_generation: string };
       // Look up the show's display fields for the success response. The
       // `deleted_at` filter is defense-in-depth — validate_passcode already
       // joins through shows and excludes soft-deletes, so this filter only
@@ -207,6 +213,7 @@ serve(async req => {
       if (showRow) {
         matchedShow = showRow as ShowRow;
         matchedRole = row.role;
+        matchedGeneration = row.passcode_generation ?? null;
       }
     }
 
@@ -271,12 +278,31 @@ serve(async req => {
       const { data: userData, error: userErr } = await supabaseClient.auth.getUser(bearer);
       const caller = userData?.user;
       if (!userErr && caller?.is_anonymous === true) {
+        // J1.3 — stamp the passcode GENERATION so the claim can be revoked when
+        // the secretary regenerates codes. show_passcodes.created_at is bumped in
+        // place on every regenerate_show_passcodes call (the row id is stable), so
+        // it is a monotonic generation marker. The ringside RPCs + read view
+        // re-look-up the current created_at and reject/narrow a claim whose stamped
+        // generation no longer matches. matchedGeneration was returned ATOMICALLY by
+        // validate_passcode (same row that matched the hash) — no separate SELECT,
+        // no validate-then-read race.
+        if (!matchedGeneration) {
+          // Fail closed: without the generation marker the DB tier would reject
+          // every write/heartbeat as a stale claim, so a "success" here would lie.
+          console.error('[Auth] validate_passcode returned no generation for claim');
+          return new Response(JSON.stringify({ error: 'session_error' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
         const { error: stampErr } = await supabaseClient.auth.admin.updateUserById(caller.id, {
           app_metadata: {
             ...(caller.app_metadata ?? {}),
             kind: 'ringside_passcode',
             show_id: matchedShow.id,
             ringside_role: matchedRole,
+            passcode_generation: matchedGeneration,
           },
         });
         if (stampErr) {
@@ -326,10 +352,10 @@ serve(async req => {
     // Log the full error server-side; do NOT leak internal error text (DB
     // structure, field names, stack hints) to the client.
     console.error('[Auth] Edge Function error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 

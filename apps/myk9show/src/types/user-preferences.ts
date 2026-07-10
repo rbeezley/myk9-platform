@@ -197,7 +197,6 @@ export interface UseUserPreferencesReturn {
 
   // Sync state
   syncState: SyncState;
-  devices: DeviceInfo[];
 
   // Actions
   updatePreferences: (updates: PreferencesUpdate) => Promise<void>;
@@ -206,12 +205,6 @@ export interface UseUserPreferencesReturn {
   importPreferences: (data: string) => Promise<void>;
   resolveConflicts: (resolution: 'local' | 'remote' | 'merge') => Promise<void>;
   forceSync: () => Promise<void>;
-
-  // Device management
-  registerDevice: (
-    deviceInfo: Omit<DeviceInfo, 'id' | 'lastSeen' | 'isCurrentDevice'>
-  ) => Promise<void>;
-  removeDevice: (deviceId: string) => Promise<void>;
 }
 
 // Default preferences

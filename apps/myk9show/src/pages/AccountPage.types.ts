@@ -9,7 +9,6 @@ export type Section =
   | 'privacy'
   | 'security'
   | 'data'
-  | 'devices'
   | 'install'
   | 'delete';
 

@@ -149,7 +149,7 @@ export function CompactStatsRow({
             </span>
           ) : (
             <span className="text-muted-foreground tabular-nums">
-              ${currentFees.toLocaleString()} fees
+              Paid in full
             </span>
           )}
         </span>
@@ -165,14 +165,12 @@ export function CompactStatsRow({
       <div
         id="exhibitor-stat-cards"
         className={cn(
-          // Base 2 columns covers the phone grid (≤720px, revealed behind the
-          // summary toggle) AND every tablet/small-laptop width up to xl. The
-          // 4-across grid only returns at ≥1280px (xl): the persistent ~310px
-          // sidebar means a viewport below xl leaves the grid < ~830px, at
-          // which four cells truncate the "N accepted · N pending" detail
-          // (measured live — clips at 1024px). At xl the grid is ~970px and
-          // four 234px tiles fit cleanly, so desktop keeps its four-across row.
-          'grid grid-cols-2 gap-3 xl:grid-cols-4',
+          // Narrow phones stay one-up: at 390px, two columns leave only ~66px
+          // for text after icon, gap, and padding, which clips the readable 14px
+          // scope/detail copy. Wider phones and tablets return to two columns;
+          // four-across only returns at xl, where the persistent sidebar still
+          // leaves enough width for every label and detail.
+          'grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 xl:grid-cols-4',
           !expanded && 'max-[720px]:hidden'
         )}
       >
@@ -205,11 +203,11 @@ export function CompactStatsRow({
                 {stat.icon}
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {stat.label}
                 </span>
                 {stat.qualifier && (
-                  <span className="text-[11px] font-medium text-muted-foreground">
+                  <span className="text-xs font-medium text-muted-foreground">
                     {stat.qualifier}
                   </span>
                 )}
@@ -225,7 +223,7 @@ export function CompactStatsRow({
                 {stat.detail && (
                   <span
                     className={cn(
-                      'truncate text-[11px] font-medium text-muted-foreground',
+                      'truncate text-xs font-medium text-muted-foreground',
                       stat.detailClassName
                     )}
                   >

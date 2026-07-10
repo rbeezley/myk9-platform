@@ -164,7 +164,9 @@ export default function ResultsSubmissionPage() {
           filename,
           organization: activeFormatter.organization,
           sportType: activeFormatter.sportType,
-          secretaryEmail: akcData.show.secretaryEmail ?? '',
+          // The edge function authorizes against this show and derives the
+          // cc/reply-to secretary email from the show record server-side.
+          showId,
         },
       });
 

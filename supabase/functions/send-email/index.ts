@@ -8,6 +8,7 @@ import {
   generateSupportNotificationEmail,
   type SupportNotificationData,
 } from './supportNotificationEmail.ts';
+import { resolveDerivedRecipient } from './recipientResolution.ts';
 
 // Email sender configuration
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -118,7 +119,7 @@ handle<EmailData>(
     }
 
     await assertSendEmailRateLimit({ supabase, userId: user.id });
-    await assertSendEmailAuthorization({ supabase, user, data });
+    const authzResult = await assertSendEmailAuthorization({ supabase, user, data });
 
     // Generate email content based on type
     let subject: string;
@@ -159,12 +160,40 @@ handle<EmailData>(
         throw new HttpError(400, `Unknown email type: ${(data as EmailData).type}`);
     }
 
+    // For message types whose recipient must be derived from the referenced
+    // resource (SA-018/SA-019), resolve it from the authz result rather than
+    // trusting body `to`/`cc`. A missing/unresolvable resource email fails
+    // closed — no send, no fallback to the body-supplied address.
+    let recipient: string;
+    let cc: string[] | undefined;
+    if (data.type === 'support_notification' || data.type === 'entry_decision') {
+      if (!authzResult || authzResult.type !== data.type) {
+        console.error('send-email: missing derived-recipient authz result', data.type);
+        throw new HttpError(500, 'Failed to resolve email recipient');
+      }
+      const resolved = resolveDerivedRecipient(authzResult);
+      if (!resolved) {
+        throw new HttpError(
+          422,
+          'Unable to determine the email recipient for this resource',
+          'recipient_unresolved'
+        );
+      }
+      recipient = resolved.to;
+      // cc is server-derived (e.g. secretary cc for entry_decision); body cc
+      // stays ignored for these types.
+      cc = resolved.cc?.length ? resolved.cc : undefined;
+    } else {
+      recipient = data.to;
+      cc = data.cc?.length ? data.cc : undefined;
+    }
+
     const resendPayload = {
       from: FROM_EMAIL,
-      to: data.to,
+      to: recipient,
       subject,
       html,
-      ...(data.cc?.length ? { cc: data.cc } : {}),
+      ...(cc ? { cc } : {}),
     };
 
     // Send email via Resend
@@ -184,11 +213,11 @@ handle<EmailData>(
     }
 
     const result = await response.json();
-    console.log(`Email sent successfully: ${result.id} to ${data.to}`);
+    console.log(`Email sent successfully: ${result.id} to ${recipient}`);
 
     // Log the email in the database for tracking
     const logRow: Record<string, unknown> = {
-      recipient_email: data.to,
+      recipient_email: recipient,
       email_type: data.type,
       resend_message_id: result.id,
       status: 'sent',

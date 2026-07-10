@@ -10,28 +10,40 @@
   --font-scale: 1;
 }
 
-/* Font scaling application */
-body {
-  font-size: calc(1rem * var(--font-scale));
+/*
+ * Rescale the rem baseline itself. `rem` units are always relative to the
+ * ROOT (html) element's font-size, never to `body`'s — so scaling only
+ * `body { font-size }` (the previous approach) did nothing for the
+ * Tailwind text-* utilities and h1-h6 rules below, which are all rem-based
+ * against `html`. Scaling `html` here makes every rem-based size in the app
+ * (Tailwind utilities included) scale together with the user's preference.
+ */
+html {
+  font-size: calc(16px * var(--font-scale, 1));
 }
 
+/*
+ * h1-h6 are already expressed in rem, which is now itself scaled by the
+ * `html` rule above — do NOT multiply by --font-scale again here, or the
+ * heading sizes would be scaled twice.
+ */
 h1 {
-  font-size: calc(1.875rem * var(--font-scale));
+  font-size: 1.875rem;
 }
 h2 {
-  font-size: calc(1.5rem * var(--font-scale));
+  font-size: 1.5rem;
 }
 h3 {
-  font-size: calc(1.25rem * var(--font-scale));
+  font-size: 1.25rem;
 }
 h4 {
-  font-size: calc(1.125rem * var(--font-scale));
+  font-size: 1.125rem;
 }
 h5 {
-  font-size: calc(1rem * var(--font-scale));
+  font-size: 1rem;
 }
 h6 {
-  font-size: calc(0.875rem * var(--font-scale));
+  font-size: 0.875rem;
 }
 
 /* Layout Density Classes */

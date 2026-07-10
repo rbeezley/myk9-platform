@@ -34,10 +34,10 @@
 
 ## 6. Destructive-action hardening
 
-- [ ] 6.1 `DeleteSection` (AccountPage.sections.tsx): add type-to-confirm input ("DELETE") gating the destructive button; keep two-step inline pattern
-- [ ] 6.2 Surface server rejection reason (e.g., owns-live-dogs trigger error code) in the failure state
-- [ ] 6.3 Password form: inline validation (empty / <8 chars / mismatch) before network call in `SecuritySettings.tsx`
-- [ ] 6.4 Unit tests: gate disabled until exact text; validation messages; no request on invalid submit (assertion-first for the update call)
+- [x] 6.1 `DeleteSection` (AccountPage.sections.tsx): add type-to-confirm input ("DELETE") gating the destructive button; keep two-step inline pattern
+- [x] 6.2 Surface server rejection reason (e.g., owns-live-dogs trigger error code) in the failure state. Discovery: old button only called signOut() (fake delete); now calls deleteUser. Self-service delete RPC gap flagged as follow-up task (soft_delete_person requires admin/show-manager).
+- [x] 6.3 Password form: inline validation (empty / <8 chars / mismatch) before network call in `SecuritySettings.tsx`
+- [x] 6.4 Unit tests: gate disabled until exact text; validation messages; no request on invalid submit (assertion-first for the update call)
 
 ## 7. Verification & ship
 

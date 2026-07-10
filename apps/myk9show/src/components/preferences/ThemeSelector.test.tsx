@@ -87,4 +87,21 @@ describe('ThemeSelector mode wiring', () => {
     expect(root.style.getPropertyValue('--font-scale')).toBe('1.2');
     expect(localStorage.getItem('fontScale')).toBe('1.2');
   });
+
+  it('does not offer a Small option (14px text-xs floor)', () => {
+    renderSelector();
+    expect(screen.queryByRole('radio', { name: /^Small/ })).toBeNull();
+  });
+
+  it('syncs the legacy settingsStore theme so its OS-change listener agrees', async () => {
+    const user = userEvent.setup();
+    const { useSettingsStore } = await import('@/store/settingsStore');
+    renderSelector();
+
+    await user.click(screen.getByRole('radio', { name: /^Dark/ }));
+    expect(useSettingsStore.getState().settings.theme).toBe('dark');
+
+    await user.click(screen.getByRole('radio', { name: /^System/ }));
+    expect(useSettingsStore.getState().settings.theme).toBe('auto');
+  });
 });

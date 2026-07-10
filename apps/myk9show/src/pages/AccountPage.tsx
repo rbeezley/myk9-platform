@@ -20,6 +20,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { ThemeSelector } from '@/components/preferences/ThemeSelector';
+import { applyFontScale, storeFontScale, FONT_SIZE_SCALES } from '@/context/themeClasses';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { GeneralSettings } from '@/components/preferences/GeneralSettings';
 import { PrivacySettings } from '@/components/preferences/PrivacySettings';
@@ -109,6 +110,18 @@ export default function AccountPage() {
     const section = readSectionParam(searchParams);
     if (section && section !== active) setActive(section);
   }, [active, searchParams]);
+
+  // Keep the applied/cached font scale derived from the loaded preference.
+  // Without this, "Reset" or "Import settings" only replace the server-backed
+  // preference — the localStorage cache that ThemeProvider re-applies on boot
+  // would keep the previous scale (e.g. a stale 1.2 after resetting to Medium).
+  useEffect(() => {
+    const fontSize = preferences?.theme?.fontSize;
+    if (!fontSize) return;
+    const scale = FONT_SIZE_SCALES[fontSize] ?? '1.0';
+    applyFontScale(scale);
+    storeFontScale(scale);
+  }, [preferences?.theme?.fontSize]);
 
   const showFlash = useCallback((msg: string, kind: 'success' | 'error' = 'success') => {
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);

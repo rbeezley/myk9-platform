@@ -36,8 +36,24 @@ export function applyThemeClasses(root: HTMLElement, isDark: boolean): void {
  */
 const FONT_SCALE_STORAGE_KEY = 'fontScale';
 
+/**
+ * Canonical fontSize-preference → scale mapping. 'small' maps to 1.0 (not
+ * 0.9): tailwind.config.js pins text-xs at 0.875rem as a deliberate 14px
+ * minimum for retired exhibitors / show-day tablet use, and any root scale
+ * below 1 would push that floor to ~12.6px across the whole app.
+ */
+export const FONT_SIZE_SCALES: Record<string, string> = {
+  small: '1.0',
+  medium: '1.0',
+  large: '1.2',
+  'extra-large': '1.4',
+};
+
 export function applyFontScale(scale: string, root: HTMLElement = document.documentElement): void {
-  root.style.setProperty('--font-scale', scale);
+  // Clamp below-1 scales (e.g. a stale cached '0.9') to preserve the 14px
+  // text-xs floor documented in tailwind.config.js.
+  const clamped = Number.parseFloat(scale) < 1 ? '1' : scale;
+  root.style.setProperty('--font-scale', clamped);
 }
 
 export function getStoredFontScale(): string | null {

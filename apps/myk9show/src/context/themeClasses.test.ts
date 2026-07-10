@@ -93,4 +93,9 @@ describe('font scale helpers', () => {
   it('getStoredFontScale returns null when nothing has been stored', () => {
     expect(getStoredFontScale()).toBeNull();
   });
+
+  it('applyFontScale clamps sub-1 scales to preserve the 14px text-xs floor', () => {
+    applyFontScale('0.9', root);
+    expect(root.style.getPropertyValue('--font-scale')).toBe('1');
+  });
 });

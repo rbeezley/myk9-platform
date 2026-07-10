@@ -27,7 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTheme } from '@/hooks/useTheme';
-import { applyFontScale, storeFontScale } from '@/context/themeClasses';
+import { applyFontScale, storeFontScale, FONT_SIZE_SCALES } from '@/context/themeClasses';
 import type {
   ThemePreferences,
   ThemeMode,
@@ -77,7 +77,8 @@ const fontSizeOptions: Array<{
   description: string;
   scale: string;
 }> = [
-  { value: 'small', label: 'Small', description: 'Compact text size', scale: '0.9x' },
+  // No 'small' option: tailwind.config.js pins text-xs at a 14px minimum for
+  // this audience, and a sub-1 root scale would break that floor app-wide.
   { value: 'medium', label: 'Medium', description: 'Standard text size', scale: '1.0x' },
   { value: 'large', label: 'Large', description: 'Larger text size', scale: '1.2x' },
   { value: 'extra-large', label: 'Extra Large', description: 'Maximum text size', scale: '1.4x' },
@@ -96,6 +97,11 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
   const handleModeChange = (mode: ThemeMode) => {
     onUpdate({ mode });
     setThemeMode(mode);
+    // Keep the legacy settingsStore in agreement: its initializeSettings()
+    // OS-change listener applies theme classes whenever settings.theme is
+    // 'auto', which would override an explicit Light/Dark picked here the
+    // next time the OS scheme flips.
+    updateSettings({ theme: mode === 'system' ? 'auto' : mode });
   };
 
   /**
@@ -128,14 +134,9 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
 
     // Apply font size scale immediately and cache it so it survives a
     // reload (see getStoredFontScale boot hydration in ThemeContext).
-    const scales = {
-      small: '0.9',
-      medium: '1.0',
-      large: '1.2',
-      'extra-large': '1.4',
-    };
-    applyFontScale(scales[fontSize]);
-    storeFontScale(scales[fontSize]);
+    const scale = FONT_SIZE_SCALES[fontSize] ?? '1.0';
+    applyFontScale(scale);
+    storeFontScale(scale);
   };
 
   /**

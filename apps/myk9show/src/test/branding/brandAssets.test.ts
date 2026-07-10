@@ -65,7 +65,7 @@ describe('myK9Show brand assets', () => {
   it('keeps the checked-in manifest as the single PWA manifest source', () => {
     const viteConfig = readFileSync(join(appRoot, 'vite.config.ts'), 'utf8');
     expect(viteConfig).toContain('manifest: false');
-    expect(viteConfig).toContain("globIgnores: ['brand-concepts/**']");
+    expect(viteConfig).not.toContain('brand-concepts');
   });
 
   it('keeps a WebP logo fallback for the landing hero', () => {

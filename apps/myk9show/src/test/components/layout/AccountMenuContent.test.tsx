@@ -6,9 +6,8 @@ import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 
-const { networkState, subscriptionState, syncState, themeState } = vi.hoisted(() => ({
+const { networkState, syncState, themeState } = vi.hoisted(() => ({
   networkState: { isOnline: true },
-  subscriptionState: { isPremium: false, isLoading: false },
   syncState: { status: 'synced' as 'synced' | 'pending' | 'offline' | 'error' },
   themeState: { theme: 'light' as 'light' | 'dark' },
 }));
@@ -29,10 +28,6 @@ vi.mock('@/hooks/useNetworkStatus', () => ({
 
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
   useGlobalSyncStatus: () => syncState,
-}));
-
-vi.mock('@/hooks/useSubscriptionGate', () => ({
-  useSubscriptionGate: () => subscriptionState,
 }));
 
 const toggleTheme = vi.fn();
@@ -61,8 +56,6 @@ function renderOpenAccountMenu() {
 
 beforeEach(() => {
   networkState.isOnline = true;
-  subscriptionState.isPremium = false;
-  subscriptionState.isLoading = false;
   syncState.status = 'synced';
   themeState.theme = 'light';
   toggleTheme.mockClear();
@@ -181,37 +174,14 @@ describe('AccountMenuContent organization', () => {
     dividers.forEach(divider => expect(divider).toHaveClass('bg-border'));
   });
 
-  it('shows one pricing destination when there is no managed premium plan', () => {
-    renderOpenAccountMenu();
-
-    expect(screen.getByRole('menuitem', { name: 'View plans' })).toHaveAttribute(
-      'href',
-      '/pricing-page'
-    );
-    expect(screen.queryByRole('menuitem', { name: /subscription/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /plan & billing/i })).not.toBeInTheDocument();
-  });
-
-  it('shows one billing destination for a premium user', () => {
-    subscriptionState.isPremium = true;
-
+  it('keeps plan details reachable from every account menu', () => {
     renderOpenAccountMenu();
 
     expect(screen.getByRole('menuitem', { name: 'Plan & billing' })).toHaveAttribute(
       'href',
       '/subscription'
     );
-    expect(screen.queryByRole('menuitem', { name: /pricing/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /view plans/i })).not.toBeInTheDocument();
-  });
-
-  it('omits the plan destination while subscription state is loading', () => {
-    subscriptionState.isLoading = true;
-
-    renderOpenAccountMenu();
-
-    expect(screen.queryByRole('menuitem', { name: /view plans/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /plan & billing/i })).not.toBeInTheDocument();
   });
 
   it('orders assistance, appearance, information, and session actions by task', () => {
@@ -221,7 +191,7 @@ describe('AccountMenuContent organization', () => {
 
     expect(itemNames).toEqual([
       'Account',
-      'View plans',
+      'Plan & billing',
       'AskQ',
       'Help & Guides',
       'Dark mode',

@@ -32,7 +32,6 @@ import { useTheme } from '@/hooks/useTheme';
 import { helpUrl } from '@/lib/help';
 import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
-import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import { AskQIcon } from '@/components/layout/AskQIcon';
 
 interface AccountMenuContentProps {
@@ -53,7 +52,6 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
   const networkStatus = useNetworkStatus();
   const { toggle: toggleAskQ } = useAskQPanelStore();
   const { theme, toggleTheme } = useTheme();
-  const { isPremium, isLoading: isSubscriptionLoading } = useSubscriptionGate();
   const [isClearingCache, setIsClearingCache] = useState(false);
 
   const isOffline = !networkStatus.isOnline || globalSync.status === 'offline';
@@ -132,17 +130,12 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
           Account
         </Link>
       </DropdownMenuItem>
-      {!isSubscriptionLoading && (
-        <DropdownMenuItem asChild>
-          <Link
-            to={isPremium ? '/subscription' : '/pricing-page'}
-            className="w-full flex items-center gap-2"
-          >
-            <CreditCard className="h-4 w-4" />
-            {isPremium ? 'Plan & billing' : 'View plans'}
-          </Link>
-        </DropdownMenuItem>
-      )}
+      <DropdownMenuItem asChild>
+        <Link to="/subscription" className="w-full flex items-center gap-2">
+          <CreditCard className="h-4 w-4" />
+          Plan &amp; billing
+        </Link>
+      </DropdownMenuItem>
 
       {/* Role-specific menu items */}
       {(hasRole(UserRole.SECRETARY) ||

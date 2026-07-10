@@ -48,6 +48,10 @@ describe('CompactStatsRow', () => {
     expect(grid.queryByText(/Amount due/i)).not.toBeInTheDocument();
     const feesCard = grid.getByLabelText(/Current Fees.*Paid in full/i);
     expect(within(feesCard).queryByText(/^\$\d/)).not.toBeInTheDocument();
+
+    const mobileSummary = screen.getByRole('button', { expanded: false });
+    expect(mobileSummary).toHaveTextContent('Paid in full');
+    expect(within(mobileSummary).queryByText(/^\$\d+ fees$/i)).not.toBeInTheDocument();
   });
 
   it('shows a trailing chevron affordance on every clickable stat card', () => {
@@ -60,17 +64,17 @@ describe('CompactStatsRow', () => {
     });
   });
 
-  it('uses a responsive column layout (2 up to xl, 4 across on desktop) with icons before the stat data', () => {
+  it('uses one column on narrow phones, two on wider screens, and four on desktop', () => {
     const { container } = render(<CompactStatsRow {...defaultProps} />);
 
     const grid = container.querySelector('#exhibitor-stat-cards');
-    // Base 2 columns keeps the phone grid and the tablet/small-laptop band from
-    // cramming four cells (which truncated the "N accepted · N pending" detail
-    // once the persistent sidebar narrowed the grid). The four-across grid only
-    // returns at xl, where there is room for it.
-    expect(grid).toHaveClass('grid-cols-2');
+    // A 390px viewport leaves only ~66px for text inside each two-column card
+    // after icon, gap, and padding. Keep narrow phones one-up so 14px scope and
+    // status copy remains readable; return to two columns once there is room.
+    expect(grid).toHaveClass('grid-cols-1');
+    expect(grid).toHaveClass('min-[480px]:grid-cols-2');
     expect(grid).toHaveClass('xl:grid-cols-4');
-    expect(grid).not.toHaveClass('grid-cols-4');
+    expect(grid).not.toHaveClass('grid-cols-2');
 
     const entriesCard = screen.getByLabelText(/Entries.*View details/i);
     const icon = entriesCard.querySelector('[data-slot="icon"]');
@@ -86,6 +90,21 @@ describe('CompactStatsRow', () => {
     expect(icon?.compareDocumentPosition(label) ?? Node.DOCUMENT_POSITION_PRECEDING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
+  });
+
+  it('uses the readable text token for stat labels and explanatory copy', () => {
+    const { container } = render(<CompactStatsRow {...defaultProps} />);
+    const grid = getGrid(container);
+
+    for (const text of [
+      CURRENT_ENTRIES_LABEL,
+      CURRENT_ENTRIES_QUALIFIER,
+      '3 accepted · 2 pending',
+    ]) {
+      const copy = grid.getByText(text);
+      expect(copy).toHaveClass('text-xs');
+      expect(copy).not.toHaveClass('text-[11px]');
+    }
   });
 
   it('uses attention color only for a fee balance due', () => {
@@ -109,7 +128,7 @@ describe('CompactStatsRow', () => {
     expect(feeIcon).toHaveClass('text-success');
     expect(feeIcon).toHaveClass('bg-success/10');
     expect(feeIcon).toHaveClass('border-success/25');
-    expect(screen.getByText('Paid in full')).toHaveClass('text-muted-foreground');
+    expect(within(feeCard).getByText('Paid in full')).toHaveClass('text-muted-foreground');
   });
 
   it('uses singular label for shows when count is 1 (current-entries label is fixed wording)', () => {
@@ -262,11 +281,13 @@ describe('CompactStatsRow', () => {
       expect(toggle).toHaveTextContent('upcoming');
     });
 
-    it('shows total fees in the summary when paid in full', () => {
+    it('shows paid in full in the summary without repeating historical fees', () => {
       render(<CompactStatsRow {...defaultProps} currentFees={150} amountDue={0} />);
 
-      expect(screen.getByText('$150 fees')).toBeInTheDocument();
-      expect(screen.queryByText(/due/)).not.toBeInTheDocument();
+      const toggle = screen.getByRole('button', { expanded: false });
+      expect(toggle).toHaveTextContent('Paid in full');
+      expect(toggle).not.toHaveTextContent('$150 fees');
+      expect(toggle).not.toHaveTextContent(/due/i);
     });
   });
 

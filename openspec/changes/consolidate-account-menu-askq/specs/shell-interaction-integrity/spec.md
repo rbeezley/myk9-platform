@@ -3,13 +3,13 @@
 ### Requirement: Account menu groups shared utilities by user task
 The system SHALL organize the existing account menu into recognizable task groups without creating duplicate account, billing, support, assistant, or appearance surfaces.
 
-#### Scenario: Free user opens the account menu
-- **WHEN** a signed-in free user opens the account menu
+#### Scenario: Free or shows-based trial user opens the account menu
+- **WHEN** a signed-in user has no paid or early-adopter premium plan to manage
 - **THEN** the account group SHALL contain Account and one `View plans` link to the existing pricing page
 - **AND** the menu SHALL NOT also present a Subscription link
 
-#### Scenario: Premium user opens the account menu
-- **WHEN** a signed-in user has effective premium access
+#### Scenario: Managed premium user opens the account menu
+- **WHEN** a signed-in user has paid or early-adopter premium access
 - **THEN** the account group SHALL contain Account and one `Plan & billing` link to the existing subscription page
 - **AND** the menu SHALL NOT also present a Pricing link
 

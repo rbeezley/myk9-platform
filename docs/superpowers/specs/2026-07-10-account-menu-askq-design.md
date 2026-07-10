@@ -19,8 +19,8 @@ Make AskQ recognizable and make the avatar menu easier to scan without adding an
   4. Appearance and About
   5. Sign out
 - Replace separate Subscription and Pricing destinations with one contextual plan item:
-  - Premium or trial user: `Plan & billing`, linking to `/subscription`
-  - Free user: `View plans`, linking to `/pricing-page`
+  - Paid or early-adopter premium user: `Plan & billing`, linking to `/subscription`
+  - Free or shows-based trial user: `View plans`, linking to `/pricing-page`
 - Replace the two technical status labels with one calm status message:
   - Online and settled: `All changes saved`
   - Online and pending: `Saving changes...`

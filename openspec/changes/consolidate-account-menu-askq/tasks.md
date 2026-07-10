@@ -12,7 +12,7 @@
 
 ## 3. Account Menu Consolidation
 
-- [x] 3.1 Use `useSubscriptionGate()` to render exactly one contextual plan action: `Plan & billing` to `/subscription` for effective premium users or `View plans` to `/pricing-page` for free users
+- [x] 3.1 Use `useSubscriptionGate()` to render exactly one contextual plan action: `Plan & billing` to `/subscription` for paid or early-adopter premium users, or `View plans` to `/pricing-page` for free and shows-based trial users
 - [x] 3.2 Replace the split Online/Synced row with one status message for synced, pending, offline, and error states using the existing real status hooks
 - [x] 3.3 Reorder existing actions into account/plan, role-specific, assistance, appearance/information, development, and final session groups without adding a new surface
 - [x] 3.4 Shorten the menu labels to `AskQ`, `Light mode`/`Dark mode`, and `Sign out`, and apply neutral default styling with destructive Sign out hover/focus feedback

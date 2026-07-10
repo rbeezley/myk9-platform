@@ -172,7 +172,7 @@ describe('AccountMenuContent theme + AskQ items (phone consolidation)', () => {
 });
 
 describe('AccountMenuContent organization', () => {
-  it('shows one pricing destination for a free user', () => {
+  it('shows one pricing destination when there is no managed premium plan', () => {
     renderOpenAccountMenu();
 
     expect(screen.getByRole('menuitem', { name: 'View plans' })).toHaveAttribute(

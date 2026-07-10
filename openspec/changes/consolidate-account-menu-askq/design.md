@@ -9,7 +9,7 @@ The relevant existing units are:
 - `AccountMenuContent.tsx` for menu ordering and actions.
 - `AppHeader.tsx` for the icon-only desktop AskQ trigger.
 - `useAskQPanelStore` for the existing assistant panel toggle.
-- `useSubscriptionGate` for the effective premium state, including paid, early-adopter, and trial access.
+- `useSubscriptionGate` for the shell-level managed-plan state, including paid and early-adopter premium access without loading analytics trial history.
 - `useNetworkStatus` and `useGlobalSyncStatus` for real connectivity and replication status.
 - `/subscription`, `/pricing-page`, `helpUrl()`, and the existing About callback for canonical destinations.
 
@@ -57,9 +57,11 @@ Developer tools remain separated and low in the menu because they are environmen
 
 ### 3. Derive one plan destination from `useSubscriptionGate`
 
-Use the hook's existing `isPremium` result. Users whose shell-level subscription gate reports effective premium access see `Plan & billing` linked to `/subscription`. Free users see `View plans` linked to `/pricing-page`. While the hook reports `isLoading`, omit the plan action so the menu does not briefly send a premium user to pricing or a free user to billing.
+Use the hook's existing no-options `isPremium` result. Paid and early-adopter premium users see `Plan & billing` linked to `/subscription`. Free users and users receiving only the shows-based analytics trial see `View plans` linked to `/pricing-page`, because they have no billable subscription to manage. While the hook reports `isLoading`, omit the plan action so the menu does not briefly send a premium user to pricing or a free user to billing.
 
 This removes the choice between two overlapping billing labels while preserving both canonical pages. It avoids changing the subscription model or guessing from raw profile fields.
+
+The alternative—calling `useMyLifetimeStats()` in the global account menu and passing a scored-show count into `useSubscriptionGate`—is rejected. It would fetch lifetime analytics data throughout the app solely to choose a menu label, and `Plan & billing` would be misleading for a trial user with no managed subscription.
 
 ### 4. Translate real status into calm copy locally
 

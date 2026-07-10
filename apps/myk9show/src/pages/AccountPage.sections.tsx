@@ -251,10 +251,22 @@ export function DeleteSection() {
       // getUserFriendlyError so its `code` survives — MK001 (owns live dogs)
       // must map to the "delete your dogs first" message.
       if (error) throw error;
-      toast.success('Your account has been deleted.');
-      void signOut();
     } catch (err) {
       toast.error(getUserFriendlyError(err, 'Failed to delete account'));
+      inFlight.current = false;
+      setDeleting(false);
+      return;
+    }
+    toast.success('Your account has been deleted.');
+    try {
+      // Await so a sign-out failure (network/auth outage) surfaces here
+      // instead of vanishing as a detached rejection. The account row is
+      // already tombstoned, so the message must not claim the delete failed.
+      await signOut();
+    } catch {
+      toast.error(
+        'Your account was deleted, but signing out failed. Please close this tab or refresh.'
+      );
       inFlight.current = false;
       setDeleting(false);
     }

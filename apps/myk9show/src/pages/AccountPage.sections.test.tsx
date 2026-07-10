@@ -22,7 +22,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
   }),
 }));
 
-vi.mock('@/hooks/useProfileForm', async (importOriginal) => {
+vi.mock('@/hooks/useProfileForm', async importOriginal => {
   const actual = await importOriginal<typeof import('@/hooks/useProfileForm')>();
   return {
     ...actual,
@@ -84,6 +84,18 @@ describe('DeleteSection', () => {
       expect(toast.error).toHaveBeenCalled();
     });
     expect(mockSignOut).not.toHaveBeenCalled();
+  });
+
+  it('tells the user the delete succeeded when only sign-out fails', async () => {
+    mockedDeleteUser.mockResolvedValue({ data: { id: 'person-1' }, error: null } as never);
+    mockSignOut.mockRejectedValue(new Error('network down'));
+    render(<DeleteSection />);
+    await clickThroughConfirm();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('signing out failed'));
+    });
+    expect(toast.success).toHaveBeenCalled();
   });
 
   it('does not call deleteUser before the confirmation step', async () => {

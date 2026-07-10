@@ -17,6 +17,7 @@ const mockForm = {
 
 vi.mock('@/hooks/useProfileForm', () => ({
   useProfileForm: () => mockForm,
+  useCurrentUserPerson: () => ({ data: { id: 'person-1' }, isLoading: false }),
 }));
 
 vi.mock('@/hooks/useAvatarUpload', () => ({

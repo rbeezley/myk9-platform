@@ -7,11 +7,8 @@ import { formatRelativeTime } from '@/utils/format';
 import { EntryListCard } from './EntryListCard';
 import { groupEnrollmentEntriesByDog } from './enrollmentDogGroups';
 import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
-import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
-import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import type { CheckInStatus } from '@myk9/core';
-import type { EmailLogEntry } from '@/hooks/useEmailStatus';
+import type { EnrollmentCardProps } from './EnrollmentCard.types';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,44 +34,7 @@ import { EnrollmentPartialPaymentDialog } from './EnrollmentPartialPaymentDialog
 import { EnrollmentRefundDialog } from './EnrollmentRefundDialog';
 import { EnrollmentEmailDialog } from './EnrollmentEmailDialog';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
-import type { EntryDecisionEmailJob, EntryDecisionEmailStatus } from '@/features/lifecycle-emails';
 
-interface EnrollmentCardProps {
-  group: EnrollmentGroup;
-  onStatusChange: (entryId: string, status: EntryStatus, withdrawalReason?: string) => void;
-  onEntryRefunded?: () => void;
-  onCheckInStatusChange: (
-    entry: EntryManagementEntry,
-    cls: EntryClass,
-    status: CheckInStatus
-  ) => void;
-  onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
-  onOpenEditEntry?: ((entry: EntryManagementEntry) => void) | undefined;
-  onCompEntry?: (entryId: string) => void;
-  onUncompEntry?: (entryId: string) => void;
-  onRemoveEntry: (entryId: string) => void;
-  onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
-  onBulkCheckIn: (entryIds: string[]) => void;
-  onPaymentStatusChange: (
-    enrollmentId: string,
-    status: PaymentStatus,
-    reference?: string | null,
-    paidAmount?: number | null,
-    refundAmount?: number | null,
-    refundNotes?: string | null
-  ) => void;
-  emailStatusMap?: Record<string, EmailLogEntry> | undefined;
-  onResendEmail?: ((registrationId: string) => void) | undefined;
-  isResendDisabled?: ((registrationId: string) => boolean) | undefined;
-  onSendDecisionEmail?:
-    ((registrationId: string, message?: string, amountDue?: number) => Promise<void>) | undefined;
-  lastDecisionEmailedAt?: string | undefined;
-  lifecycleDecisionEmailStatusMap?: Record<string, EntryDecisionEmailStatus> | undefined;
-  onReviewLifecycleEmail?:
-    ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
-  onPrepareCorrectionEmail?:
-    ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
-}
 
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   group,
@@ -120,10 +80,19 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     reference?: string | null,
     paid?: number | null,
     refundAmt?: number | null,
-    refundNotes?: string | null
+    refundNotes?: string | null,
+    checkNumber?: string | null
   ) => {
     if (enrollmentId)
-      onPaymentStatusChange(enrollmentId, status, reference, paid, refundAmt, refundNotes);
+      onPaymentStatusChange(
+        enrollmentId,
+        status,
+        reference,
+        paid,
+        refundAmt,
+        refundNotes,
+        checkNumber
+      );
   };
 
   const confirmPartialPayment = () => {
@@ -134,7 +103,8 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
       partialDialog.checkNumber
     );
     if (!result) return;
-    handlePayment(result.status, result.reference, result.amount);
+    const checkNumber = partialDialog.method === 'check' ? result.reference : null;
+    handlePayment(result.status, result.reference, result.amount, null, null, checkNumber);
     setPartialDialog(EMPTY_PARTIAL_DIALOG);
   };
 
@@ -429,7 +399,14 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         onCheckNumberChange={value => setCheckDialog(prev => ({ ...prev, checkNumber: value }))}
         onClose={() => setCheckDialog(EMPTY_CHECK_DIALOG)}
         onConfirm={() => {
-          handlePayment(PaymentStatus.PAID_BY_CHECK, checkDialog.checkNumber || null, totalDollars);
+          handlePayment(
+            PaymentStatus.PAID_BY_CHECK,
+            checkDialog.checkNumber || null,
+            totalDollars,
+            null,
+            null,
+            checkDialog.checkNumber || null
+          );
           setCheckDialog(EMPTY_CHECK_DIALOG);
         }}
       />

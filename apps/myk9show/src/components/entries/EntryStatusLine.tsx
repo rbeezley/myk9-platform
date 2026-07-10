@@ -43,7 +43,15 @@ export interface EntryStatusLineProps {
   /** Explicit refund columns (secretary ground truth); optional on the exhibitor path. */
   refundAmount?: number | null | undefined;
   refundedAt?: string | null | undefined;
-  viewer: 'secretary' | 'exhibitor';
+  /**
+   * The only production caller (EntriesTableView, secretary-facing Entries
+   * Management) always passes 'secretary'. Narrowed from a wider
+   * 'secretary' | 'exhibitor' union after a grep for viewer="exhibitor"
+   * usages of THIS component came up empty (S8.2 cleanup) — the exhibitor
+   * voice itself is still live and tested via deriveEntryPresentation
+   * (see ActivityTab.tsx), just not through this wrapper.
+   */
+  viewer: 'secretary';
   className?: string | undefined;
 }
 

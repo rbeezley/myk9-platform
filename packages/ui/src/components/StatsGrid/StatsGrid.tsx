@@ -1,8 +1,8 @@
 import React from 'react';
 
 export interface StatsGridProps {
-  /** Number of columns in the grid (2–5). Collapses to 1 col on mobile, 2 on sm. */
-  columns?: 2 | 3 | 4 | 5;
+  /** Number of columns in the grid (2–6). Collapses to 1 col on mobile, 2 on sm. */
+  columns?: 2 | 3 | 4 | 5 | 6;
   /** Additional CSS classes */
   className?: string;
   children: React.ReactNode;
@@ -13,6 +13,7 @@ const COLUMN_CLASSES: Record<number, string> = {
   3: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4',
   4: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4',
   5: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4',
+  6: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4',
 };
 
 export const StatsGrid: React.FC<StatsGridProps> = ({ columns = 4, className, children }) => {

@@ -8,6 +8,7 @@ import {
   scratchShowMapEntry,
   sourceIdFromShowMapNodeId,
   undoShowMapMoveUp,
+  undoShowMapScratch,
 } from '../showMapActionMutations';
 
 const mockFrom = vi.fn();
@@ -102,6 +103,7 @@ describe('showMapActionMutations', () => {
       entryStatus: 'checked-in',
       checkInStatus: 'checked-in',
       specialRequests: 'Bring paper form',
+      withdrawalReason: null,
       jumpHeight: '12',
       handler: 'Jane Handler',
       armband: '101',
@@ -185,6 +187,90 @@ describe('showMapActionMutations', () => {
       'entry-1',
       'Marked no-show from Show Map'
     );
+  });
+
+  it('captures the previous entry state before scratching so it can be undone', async () => {
+    const result = await scratchShowMapEntry('entry-1', 'Dog absent');
+
+    expect(result).toEqual({
+      entryId: 'entry-1',
+      previousEntryStatus: 'checked-in',
+      previousCheckInStatus: 'checked-in',
+      previousSpecialRequests: 'Bring paper form',
+      previousWithdrawalReason: null,
+    });
+  });
+
+  describe('undoShowMapScratch', () => {
+    it('restores the entry to its previous status, check-in state, and notes', async () => {
+      await undoShowMapScratch({
+        entryId: 'entry-1',
+        previousEntryStatus: 'checked-in',
+        previousCheckInStatus: 'checked-in',
+        previousSpecialRequests: 'Bring paper form',
+        previousWithdrawalReason: null,
+      });
+
+      expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
+        'entry-1',
+        expect.objectContaining({
+          entryStatus: 'checked-in',
+          entry_status: 'checked-in',
+          checkInStatus: 'checked-in',
+          check_in_status: 'checked-in',
+          specialRequests: 'Bring paper form',
+          special_requests: 'Bring paper form',
+          withdrawalReason: null,
+          withdrawal_reason: null,
+        })
+      );
+      expect(mockAuditLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'update',
+          entityType: 'entry',
+          entityId: 'entry-1',
+          changes: { entryStatus: { from: 'scratched', to: 'checked-in' } },
+          metadata: expect.objectContaining({
+            action: 'restore_entry_status',
+            checkInStatus: 'checked-in',
+          }),
+        })
+      );
+      expect(mockFrom).not.toHaveBeenCalled();
+    });
+
+    it('falls back to no-status check-in when none was captured', async () => {
+      await undoShowMapScratch({
+        entryId: 'entry-1',
+        previousEntryStatus: 'pre-entered',
+        previousCheckInStatus: null,
+        previousSpecialRequests: null,
+        previousWithdrawalReason: null,
+      });
+
+      expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
+        'entry-1',
+        expect.objectContaining({
+          checkInStatus: 'no-status',
+          check_in_status: 'no-status',
+        })
+      );
+    });
+
+    it('fails loudly when undo did not capture the original entry status', async () => {
+      await expect(
+        undoShowMapScratch({
+          entryId: 'entry-1',
+          previousEntryStatus: null,
+          previousCheckInStatus: 'checked-in',
+          previousSpecialRequests: null,
+          previousWithdrawalReason: null,
+        })
+      ).rejects.toThrow('original entry status was not captured');
+
+      expect(mockFrom).not.toHaveBeenCalled();
+      expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
+    });
   });
 
   it('resolves a handler messaging target from the entry handler account', async () => {

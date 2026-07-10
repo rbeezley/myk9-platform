@@ -1,4 +1,4 @@
-import { EntryStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry, EntryStats } from '@/types/entry-management-types';
 import { getEffectivePaymentStatus } from '@/utils/entryManagementUtils';
 import {
@@ -8,6 +8,10 @@ import {
   isWaitlistEntry,
 } from '@/utils/entryPredicates';
 import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
+import {
+  computeOutstandingAmount,
+  isEntryIncludedInFinancialReport,
+} from '@/components/reports/financialReportTotals';
 
 export interface EntryManagementBucketCounts {
   all: number;
@@ -39,7 +43,7 @@ export function countRawEntryManagementPendingBucket(
 export function getEntryManagementCountSummary(
   entries: readonly EntryManagementEntry[]
 ): EntryManagementCountSummary {
-  const counts = { pending: 0, accepted: 0, waitlist: 0, issues: 0, revenue: 0 };
+  const counts = { pending: 0, accepted: 0, waitlist: 0, issues: 0, revenue: 0, outstanding: 0 };
 
   for (const entry of entries) {
     if (isPendingEntry(entry)) counts.pending++;
@@ -54,6 +58,17 @@ export function getEntryManagementCountSummary(
       counts.issues++;
     }
     counts.revenue += entry.paidAmount;
+
+    // Match the Financial Report's inclusion rule: waitlisted/withdrawn/
+    // scratched/not_accepted entries are never counted as money owed, even
+    // if their payment status happens to still read "pending".
+    if (isEntryIncludedInFinancialReport(entry, 'current')) {
+      const effectivePaymentStatus = getEffectivePaymentStatus(entry);
+      counts.outstanding += computeOutstandingAmount(entry.totalFee, {
+        isWaived: Boolean(entry.comped) || effectivePaymentStatus === PaymentStatus.WAIVED,
+        isPending: effectivePaymentStatus === PaymentStatus.PENDING,
+      });
+    }
   }
 
   return {
@@ -63,6 +78,7 @@ export function getEntryManagementCountSummary(
       accepted: counts.accepted,
       waitlist: counts.waitlist,
       revenue: counts.revenue,
+      outstanding: counts.outstanding,
     },
     tabCounts: {
       all: entries.length,

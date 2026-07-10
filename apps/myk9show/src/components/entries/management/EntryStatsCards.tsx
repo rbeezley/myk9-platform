@@ -1,6 +1,6 @@
 import React from 'react';
 import { StatCard, StatsGrid } from '@myk9/ui';
-import { Users, AlertCircle, CheckCircle2, Clock, DollarSign } from 'lucide-react';
+import { Users, AlertCircle, CheckCircle2, Clock, DollarSign, Receipt } from 'lucide-react';
 import type { EntryStats } from '@/types/entry-management-types';
 
 interface EntryStatsCardsProps {
@@ -10,7 +10,7 @@ interface EntryStatsCardsProps {
 /** Stats cards for entry management overview. */
 export const EntryStatsCards: React.FC<EntryStatsCardsProps> = ({ stats }) => {
   return (
-    <StatsGrid columns={5}>
+    <StatsGrid columns={6}>
       <StatCard
         icon={Users}
         title="Total Entries"
@@ -45,6 +45,13 @@ export const EntryStatsCards: React.FC<EntryStatsCardsProps> = ({ stats }) => {
         value={`$${stats.revenue}`}
         color="emerald"
         subtitle="Collected entry fees"
+      />
+      <StatCard
+        icon={Receipt}
+        title="Outstanding"
+        value={`$${stats.outstanding}`}
+        color="amber"
+        subtitle="Balance owed"
       />
     </StatsGrid>
   );

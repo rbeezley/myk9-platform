@@ -18,6 +18,7 @@ import { CLASS_STATUS } from '@myk9/core';
 import { useMyEntries } from '@/hooks/useMyEntries';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { getEntriesForShow } from '@/services/database/entries';
+import { queryKeys } from '@/lib/queryClient';
 import type { SecretaryEntry } from '@/services/database/entries';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
@@ -113,7 +114,7 @@ const ShowDetailsPage: React.FC = () => {
     isError: secretaryEntriesIsError,
     refetch: refetchSecretaryEntries,
   } = useQuery<SecretaryEntry[]>({
-    queryKey: ['secretary-show-entries', id],
+    queryKey: queryKeys.showEntries(id ?? ''),
     queryFn: async () => {
       const result = await getEntriesForShow(id ?? '');
       if (result.error) throw result.error;

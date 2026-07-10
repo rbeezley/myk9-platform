@@ -78,7 +78,8 @@ interface UseEntryManagementActionsReturn {
     reference?: string | null,
     paidAmount?: number | null,
     refundAmount?: number | null,
-    refundNotes?: string | null
+    refundNotes?: string | null,
+    checkNumber?: string | null
   ) => Promise<void>;
   handleExportCSV: () => Promise<void>;
   handleCompEntry: (entryId: string, reason: string) => Promise<void>;
@@ -300,7 +301,8 @@ export function useEntryManagementActions({
       reference?: string | null,
       paidAmount?: number | null,
       refundAmount?: number | null,
-      refundNotes?: string | null
+      refundNotes?: string | null,
+      checkNumber?: string | null
     ) => {
       const snapshot = entries;
 
@@ -336,7 +338,8 @@ export function useEntryManagementActions({
           reference,
           paidAmount,
           refundAmount,
-          refundNotes
+          refundNotes,
+          checkNumber
         );
         if (dbError) {
           if (data) {

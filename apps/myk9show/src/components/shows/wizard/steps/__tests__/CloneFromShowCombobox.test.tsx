@@ -26,9 +26,7 @@ const mockShows: Show[] = [
     acceptCheckPayments: true,
     acceptCashPayments: true,
     status: 'completed',
-    assignedJudges: [
-      { judgeId: 'judge-1', judgeName: 'Alex Judge', assignedClasses: ['class-1'] },
-    ],
+    assignedJudges: [{ judgeId: 'judge-1', judgeName: 'Alex Judge', assignedClasses: ['class-1'] }],
     trials: [
       {
         id: 'trial-1',
@@ -45,6 +43,12 @@ const mockShows: Show[] = [
             element: 'Containers',
             section: 'B',
             entryFee: 28,
+            hidesUsed: '2',
+            distractionsUsed: '1',
+            itemsUsed: 'Furniture, Cabinets',
+            timeLimit1: '3:00',
+            timeLimit2: '2:00',
+            timeLimit3: '',
           },
         ],
       },
@@ -188,11 +192,68 @@ describe('CloneFromShowCombobox', () => {
               level: 'Novice',
               section: 'B',
               entryFee: 28,
+              hidesUsed: '2',
+              distractionsUsed: '1',
+              itemsUsed: 'Furniture, Cabinets',
+              timeLimit1: '3:00',
+              timeLimit2: '2:00',
+              timeLimit3: '',
             },
             judgeId: 'judge-1',
           },
         ],
       })
+    );
+  });
+
+  it('leaves scent-work rule fields undefined when the source class has none set', async () => {
+    const sourceTrial = mockShows[0]!.trials[0]!;
+    const sourceClass = sourceTrial.classes![0]!;
+    mockShowsQueryState = {
+      data: [
+        {
+          ...mockShows[0]!,
+          trials: [
+            {
+              ...sourceTrial,
+              classes: [
+                {
+                  ...sourceClass,
+                  hidesUsed: undefined,
+                  distractionsUsed: undefined,
+                  itemsUsed: undefined,
+                  timeLimit1: undefined,
+                  timeLimit2: undefined,
+                  timeLimit3: undefined,
+                },
+              ],
+            },
+          ],
+        } as Show,
+      ],
+      isLoading: false,
+      isError: false,
+    };
+
+    await selectSourceShow();
+
+    await waitFor(() =>
+      expect(mockAddTrial).toHaveBeenCalledWith(
+        expect.objectContaining({
+          classes: [
+            expect.objectContaining({
+              customizations: expect.objectContaining({
+                hidesUsed: undefined,
+                distractionsUsed: undefined,
+                itemsUsed: undefined,
+                timeLimit1: undefined,
+                timeLimit2: undefined,
+                timeLimit3: undefined,
+              }),
+            }),
+          ],
+        })
+      )
     );
   });
 

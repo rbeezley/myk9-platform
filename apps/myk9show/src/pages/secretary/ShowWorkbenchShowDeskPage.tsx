@@ -24,6 +24,7 @@ import {
 import { ShowDeskPeopleRoster } from '@/features/show-desk-people-roster/ShowDeskPeopleRoster';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryClient';
 import {
   listShowIncidentCloseout,
   showIncidentCloseoutQueryKey,
@@ -111,7 +112,7 @@ export function ShowWorkbenchShowDeskPage() {
     error: showEntriesError,
     refetch: refetchShowEntries,
   } = useQuery<SecretaryEntry[]>({
-    queryKey: ['secretary-show-entries', showId],
+    queryKey: queryKeys.showEntries(showId ?? ''),
     queryFn: async () => {
       const result = await getEntriesForShow(showId ?? '');
       if (result.error) throw result.error;

@@ -88,7 +88,10 @@ function makeEntry(): EntryManagementEntry {
 describe('useEntryManagementActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.setEntryArmband.mockResolvedValue({ data: { updated: 1, armband: '89742' }, error: null });
+    mocks.setEntryArmband.mockResolvedValue({
+      data: { updated: 1, armband: '89742' },
+      error: null,
+    });
     vi.mocked(updateReplicatedCheckInStatus).mockResolvedValue('mutation-1');
   });
 
@@ -235,6 +238,7 @@ describe('useEntryManagementActions', () => {
       'check-100',
       35,
       undefined,
+      undefined,
       undefined
     );
 
@@ -251,6 +255,50 @@ describe('useEntryManagementActions', () => {
       },
       otherEntry,
     ]);
+  });
+
+  it('threads checkNumber through to updateEnrollmentPaymentStatus for check payments', async () => {
+    vi.mocked(updateEnrollmentPaymentStatus).mockResolvedValue({
+      data: { id: 'registration-1', payment_status: 'paid_by_check' },
+      error: null,
+    });
+    const entry = { ...makeEntry(), totalFee: 35 };
+    const setEntries = vi.fn();
+    const setError = vi.fn();
+
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [entry],
+        setEntries,
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        loadEntries: vi.fn(),
+        setError,
+        user: { id: 'secretary-1', email: 'secretary@example.test' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleEnrollmentPaymentChange(
+        'registration-1',
+        PaymentStatus.PAID_BY_CHECK,
+        'check-100',
+        35,
+        undefined,
+        undefined,
+        '1234'
+      );
+    });
+
+    expect(updateEnrollmentPaymentStatus).toHaveBeenCalledWith(
+      'registration-1',
+      PaymentStatus.PAID_BY_CHECK,
+      'check-100',
+      35,
+      undefined,
+      undefined,
+      '1234'
+    );
   });
 
   it('keeps entry-level refunds when an enrollment payment changes later', async () => {

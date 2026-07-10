@@ -89,6 +89,7 @@ export interface EntryStats {
   accepted: number;
   waitlist: number;
   revenue: number;
+  outstanding: number;
 }
 
 export interface CheckInDialogState {

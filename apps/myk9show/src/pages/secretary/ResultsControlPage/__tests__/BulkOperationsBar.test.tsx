@@ -5,6 +5,7 @@ import { BulkOperationsBar } from '../BulkOperationsBar';
 
 const mockBulkMutate = vi.hoisted(() => vi.fn());
 const mockReleaseMutate = vi.hoisted(() => vi.fn());
+const mockUnreleaseMutate = vi.hoisted(() => vi.fn());
 const mockToast = vi.hoisted(() => ({
   success: vi.fn(),
   warning: vi.fn(),
@@ -21,6 +22,10 @@ vi.mock('@/hooks/mutations/useReleaseResults', () => ({
   useReleaseResults: () => ({ mutate: mockReleaseMutate, isPending: false }),
 }));
 
+vi.mock('@/hooks/mutations/useUnreleaseResults', () => ({
+  useUnreleaseResults: () => ({ mutate: mockUnreleaseMutate, isPending: false }),
+}));
+
 function renderBar(overrides: Partial<React.ComponentProps<typeof BulkOperationsBar>> = {}) {
   const props: React.ComponentProps<typeof BulkOperationsBar> = {
     showId: 'show-1',
@@ -30,6 +35,7 @@ function renderBar(overrides: Partial<React.ComponentProps<typeof BulkOperations
     onClearSelection: vi.fn(),
     onDeselectClasses: vi.fn(),
     hasManualReleaseClasses: true,
+    hasReleasedClasses: false,
     ...overrides,
   };
   return render(<BulkOperationsBar {...props} />);
@@ -51,9 +57,7 @@ describe('BulkOperationsBar', () => {
     expect(mockReleaseMutate).not.toHaveBeenCalled();
 
     // The irreversible-exposure warning is shown before any release happens.
-    expect(
-      await screen.findByText(/Results become visible to exhibitors/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Results become visible to exhibitors/i)).toBeInTheDocument();
 
     // Confirming in the dialog fires the release for the valid selected classes.
     const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
@@ -136,9 +140,7 @@ describe('BulkOperationsBar', () => {
 
   it('shows no release hint when Release is available', () => {
     renderBar({ hasManualReleaseClasses: true });
-    expect(
-      screen.queryByText(/Only classes set to hold for review/i)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Only classes set to hold for review/i)).not.toBeInTheDocument();
   });
 
   it('toasts success on a clean release', async () => {
@@ -150,7 +152,9 @@ describe('BulkOperationsBar', () => {
     const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
     await user.click(confirm as HTMLElement);
 
-    expect(mockToast.success).toHaveBeenCalledWith(expect.stringMatching(/Released results for 2/i));
+    expect(mockToast.success).toHaveBeenCalledWith(
+      expect.stringMatching(/Released results for 2/i)
+    );
   });
 
   it('warns on a partial release so it never resolves silently', async () => {
@@ -192,5 +196,113 @@ describe('BulkOperationsBar', () => {
     for (const name of ['Clear', 'Enable Check-in', 'Disable Check-in', 'Release Results']) {
       expect(screen.getByRole('button', { name: new RegExp(name) })).toHaveClass('min-h-[44px]');
     }
+  });
+
+  describe('Hide Results (un-release)', () => {
+    it('is not offered when no selected class is released', () => {
+      renderBar({ hasReleasedClasses: false });
+      expect(screen.queryByRole('button', { name: /hide results/i })).not.toBeInTheDocument();
+    });
+
+    it('is offered when a selected class is released', () => {
+      renderBar({ hasReleasedClasses: true });
+      expect(screen.getByRole('button', { name: /hide results/i })).toBeInTheDocument();
+    });
+
+    it('does not un-release until the confirm dialog is accepted', async () => {
+      const { user } = renderBar({ hasReleasedClasses: true });
+
+      await user.click(screen.getByRole('button', { name: /hide results/i }));
+      expect(mockUnreleaseMutate).not.toHaveBeenCalled();
+
+      // Confirmation notes already-viewed pages won't retroactively refresh.
+      expect(await screen.findByText(/won.t see it retroactively/i)).toBeInTheDocument();
+
+      const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
+      await user.click(confirm as HTMLElement);
+
+      await waitFor(() => expect(mockUnreleaseMutate).toHaveBeenCalledTimes(1));
+      expect(mockUnreleaseMutate.mock.calls[0][0]).toEqual({
+        classIds: ['a', 'b'],
+        showId: 'show-1',
+      });
+    });
+
+    it('cancelling the dialog does not un-release', async () => {
+      const { user } = renderBar({ hasReleasedClasses: true });
+
+      await user.click(screen.getByRole('button', { name: /hide results/i }));
+      await user.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+      expect(mockUnreleaseMutate).not.toHaveBeenCalled();
+    });
+
+    it('on a clean hide, clears the whole selection', async () => {
+      mockUnreleaseMutate.mockImplementation((_vars, opts) =>
+        opts?.onSuccess?.({ unreleased: ['a', 'b'], failed: [] })
+      );
+      const onClearSelection = vi.fn();
+      const { user } = renderBar({ hasReleasedClasses: true, onClearSelection });
+
+      await user.click(screen.getByRole('button', { name: /hide results/i }));
+      const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
+      await user.click(confirm as HTMLElement);
+
+      expect(onClearSelection).toHaveBeenCalledTimes(1);
+      expect(mockToast.success).toHaveBeenCalledWith(expect.stringMatching(/Hid results for 2/i));
+    });
+
+    it('on partial failure, keeps only the failed classes selected and warns', async () => {
+      mockUnreleaseMutate.mockImplementation((_vars, opts) =>
+        opts?.onSuccess?.({ unreleased: ['a'], failed: ['b'] })
+      );
+      const onClearSelection = vi.fn();
+      const onDeselectClasses = vi.fn();
+      const { user } = renderBar({
+        hasReleasedClasses: true,
+        onClearSelection,
+        onDeselectClasses,
+      });
+
+      await user.click(screen.getByRole('button', { name: /hide results/i }));
+      const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
+      await user.click(confirm as HTMLElement);
+
+      expect(onDeselectClasses).toHaveBeenCalledWith(['a']);
+      expect(onClearSelection).not.toHaveBeenCalled();
+      expect(mockToast.warning).toHaveBeenCalledWith(expect.stringMatching(/1 failed/i));
+    });
+
+    it('on total failure, keeps the whole selection and errors', async () => {
+      mockUnreleaseMutate.mockImplementation((_vars, opts) =>
+        opts?.onSuccess?.({ unreleased: [], failed: ['a', 'b'] })
+      );
+      const onClearSelection = vi.fn();
+      const onDeselectClasses = vi.fn();
+      const { user } = renderBar({
+        hasReleasedClasses: true,
+        onClearSelection,
+        onDeselectClasses,
+      });
+
+      await user.click(screen.getByRole('button', { name: /hide results/i }));
+      const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
+      await user.click(confirm as HTMLElement);
+
+      expect(onDeselectClasses).not.toHaveBeenCalled();
+      expect(onClearSelection).not.toHaveBeenCalled();
+      expect(mockToast.error).toHaveBeenCalledWith(expect.stringMatching(/Could not hide/i));
+    });
+
+    it('errors when the unrelease mutation rejects', async () => {
+      mockUnreleaseMutate.mockImplementation((_vars, opts) => opts?.onError?.());
+      const { user } = renderBar({ hasReleasedClasses: true });
+
+      await user.click(screen.getByRole('button', { name: /hide results/i }));
+      const confirm = screen.getByRole('alertdialog').querySelector('button:last-of-type');
+      await user.click(confirm as HTMLElement);
+
+      expect(mockToast.error).toHaveBeenCalledWith(expect.stringMatching(/Could not hide/i));
+    });
   });
 });

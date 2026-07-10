@@ -58,6 +58,16 @@ Every row should gather the strongest applicable evidence:
 | Registry/source check           | AKC, UKC, ASCA official forms, closeout packets, and submission requirements.                                         |
 | Real-user or operator rehearsal | Rows already Green-gated-on-real-user-test or involving non-technical secretary confidence.                           |
 
+## 2026-07-09 Sweep Results
+
+Phase 1 (code inventory) and the first Phase 3/4 remediation batch are complete:
+
+- All 44 rows audited against current code with ~600 focused tests green.
+- Six code defects fixed with tests via OpenSpec change `secretary-verification-remediation`: Show Desk same-page cache staleness (S5.5), scratch/no-show undo (S5.2/S9.4), judge-assignment replication bypass (S1.3), results un-release (S6.5), `check_number` persistence on payment updates (S2.6), and Entry Management outstanding-balance visibility (S8.1).
+- Cleanups: clone customization fidelity, refund-status parity test (S8.2), UKC/ASCA seed data + registry wizard test (S1.2), `show-email-sequence` archived, S1.4 reworded to run-order-only.
+- Row statuses and evidence are updated in `secretary-responsibility-coverage.md`.
+- Remaining gates are manual/long-lead: representative print hardware, offline/reconnect rehearsal, club reconciliation rehearsal, real-user walks, and AKC results recipient confirmation (tracked in `OPEN-TODOS.md`).
+
 ## Row Audit Backlog
 
 ### S1. Show Setup

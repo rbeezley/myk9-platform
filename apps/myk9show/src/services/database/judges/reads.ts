@@ -18,6 +18,7 @@ import {
 import { untypedFrom } from '../_shared/untyped-from';
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
 import type { DbJudgeAvailability } from '@/types/database-mappings';
+import { replicatedClassesTable, replicatedJudgeAssignmentsTable } from '@/services/replication';
 
 // Helper to access tables not in generated types
 const qualificationsTable = () => untypedFrom('judge_qualifications');
@@ -276,30 +277,37 @@ const assignmentsTable = () => untypedFrom('judge_assignments');
 /**
  * Replace all judge assignments for a show (delete + insert).
  * Used by both the show creation wizard and the show edit form.
+ * Writes are queued through `ReplicatedJudgeAssignmentsTable` so they survive
+ * offline show-day use and sync on reconnect.
  */
 export async function persistShowJudgeAssignments(
   showId: string,
   judges: Array<{ judgeId: string }>,
   options?: { skipDelete?: boolean }
 ): Promise<void> {
-  if (!options?.skipDelete) {
-    const { error } = await assignmentsTable().delete().eq('show_id', showId).is('class_id', null);
-    if (error) {
-      throw createDatabaseError(error, 'judge_assignments', 'delete_show_assignments');
+  try {
+    if (options?.skipDelete) {
+      for (const judge of judges) {
+        await replicatedJudgeAssignmentsTable.createAssignment({
+          personId: judge.judgeId,
+          showId,
+          trialId: null,
+          classId: null,
+          status: 'confirmed',
+          invitedAt: null,
+          confirmedAt: new Date().toISOString(),
+          fee: null,
+          notes: null,
+        });
+      }
+      return;
     }
-  }
-  if (judges.length > 0) {
-    const { error } = await assignmentsTable().insert(
-      judges.map(j => ({
-        person_id: j.judgeId,
-        show_id: showId,
-        status: 'confirmed',
-        confirmed_at: new Date().toISOString(),
-      }))
+    await replicatedJudgeAssignmentsTable.replaceShowLevelAssignments(
+      showId,
+      judges.map(j => j.judgeId)
     );
-    if (error) {
-      throw createDatabaseError(error, 'judge_assignments', 'insert_show_assignments');
-    }
+  } catch (error) {
+    throw createDatabaseError(error, 'judge_assignments', 'persist_show_assignments');
   }
 }
 
@@ -307,26 +315,27 @@ export async function persistShowJudgeAssignments(
  * Upsert a judge assignment for a specific class.
  * Removes any existing class-level assignment, then inserts the new one.
  * Pass empty string or 'TBD' as judgeId to remove the assignment.
+ * Writes are queued through `ReplicatedJudgeAssignmentsTable`.
  */
 export async function upsertClassJudgeAssignment(
   showId: string,
   classId: string,
   judgeId: string
 ): Promise<void> {
-  await assignmentsTable().delete().eq('class_id', classId);
-
-  if (judgeId && judgeId !== 'TBD') {
-    await assignmentsTable().insert({
-      person_id: judgeId,
-      show_id: showId,
-      class_id: classId,
-      status: 'confirmed',
-      confirmed_at: new Date().toISOString(),
-    });
+  try {
+    await replicatedJudgeAssignmentsTable.replaceClassAssignment(
+      showId,
+      classId,
+      judgeId && judgeId !== 'TBD' ? judgeId : null
+    );
+  } catch (error) {
+    throw createDatabaseError(error, 'judge_assignments', 'upsert_class_assignment');
   }
 
-  // Touch class updated_at so the replication sync picks up the judge change
-  await untypedFrom('classes').update({ updated_at: new Date().toISOString() }).eq('id', classId);
+  // Touch the class row so replication sync picks up the judge change. Queued
+  // through ReplicatedClassesTable (not a direct Supabase write) so it survives
+  // offline show-day use and syncs on reconnect, same as the assignment write.
+  await touchClassForJudgeSync(classId);
 }
 
 export async function reassignClassJudge(
@@ -335,15 +344,31 @@ export async function reassignClassJudge(
   fromJudgeId: string,
   toJudgeId: string
 ): Promise<void> {
-  const { error } = await assignmentsTable()
-    .update({ person_id: toJudgeId })
-    .eq('class_id', classId)
-    .eq('show_id', showId)
-    .eq('person_id', fromJudgeId);
-
-  if (error) {
+  try {
+    await replicatedJudgeAssignmentsTable.reassignClassAssignment(
+      showId,
+      classId,
+      fromJudgeId,
+      toJudgeId
+    );
+  } catch (error) {
     throw createDatabaseError(error, 'judge_assignments', 'reassign_class_judge');
   }
+
+  // Touch the class row so replication sync picks up the judge change.
+  await touchClassForJudgeSync(classId);
+}
+
+/**
+ * Bumps a class's updated_at via the replicated classes table so incremental
+ * class sync refetches joined judge data after a judge assignment change.
+ * Offline-safe: queues through ReplicatedClassesTable instead of writing
+ * directly to Supabase.
+ */
+async function touchClassForJudgeSync(classId: string): Promise<void> {
+  await replicatedClassesTable.updateClass(classId, {
+    _lastModified: new Date(),
+  });
 }
 
 // =============================================================================

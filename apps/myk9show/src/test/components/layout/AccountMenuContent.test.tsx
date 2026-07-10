@@ -4,6 +4,14 @@ import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu
 import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
 import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
+import { useAskQPanelStore } from '@/store/useAskQPanelStore';
+
+const { networkState, subscriptionState, syncState, themeState } = vi.hoisted(() => ({
+  networkState: { isOnline: true },
+  subscriptionState: { isPremium: false, isLoading: false },
+  syncState: { status: 'synced' as 'synced' | 'pending' | 'offline' | 'error' },
+  themeState: { theme: 'light' as 'light' | 'dark' },
+}));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -16,16 +24,20 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 
 vi.mock('@/hooks/useNetworkStatus', () => ({
-  useNetworkStatus: () => ({ isOnline: true }),
+  useNetworkStatus: () => networkState,
 }));
 
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
-  useGlobalSyncStatus: () => ({ status: 'synced' }),
+  useGlobalSyncStatus: () => syncState,
+}));
+
+vi.mock('@/hooks/useSubscriptionGate', () => ({
+  useSubscriptionGate: () => subscriptionState,
 }));
 
 const toggleTheme = vi.fn();
 vi.mock('@/hooks/useTheme', () => ({
-  useTheme: () => ({ theme: 'light', toggleTheme }),
+  useTheme: () => ({ theme: themeState.theme, toggleTheme }),
 }));
 
 vi.mock('@/utils/debugUtils', () => ({
@@ -46,6 +58,16 @@ function renderOpenAccountMenu() {
     </DropdownMenu>
   );
 }
+
+beforeEach(() => {
+  networkState.isOnline = true;
+  subscriptionState.isPremium = false;
+  subscriptionState.isLoading = false;
+  syncState.status = 'synced';
+  themeState.theme = 'light';
+  toggleTheme.mockClear();
+  useAskQPanelStore.getState().close();
+});
 
 describe('AccountMenuContent developer tools', () => {
   beforeEach(() => {
@@ -125,14 +147,103 @@ describe('AccountMenuContent developer tools', () => {
 });
 
 describe('AccountMenuContent theme + AskQ items (phone consolidation)', () => {
-  it('exposes Theme and AskQ Assistant items that fire the same handlers as the header icons', async () => {
+  it('exposes concise appearance and AskQ items that fire the same handlers as the header icons', async () => {
     const { user } = renderOpenAccountMenu();
 
-    const themeItem = screen.getByRole('menuitem', { name: /switch to dark mode/i });
+    const themeItem = screen.getByRole('menuitem', { name: 'Dark mode' });
     expect(themeItem).toBeInTheDocument();
     await user.click(themeItem);
     expect(toggleTheme).toHaveBeenCalledTimes(1);
 
-    expect(screen.getByRole('menuitem', { name: /askq assistant/i })).toBeInTheDocument();
+    const askQItem = screen.getByRole('menuitem', { name: 'AskQ' });
+    expect(askQItem).toBeInTheDocument();
+    expect(askQItem.querySelector('[data-icon="askq"]')).toBeInTheDocument();
+    await user.click(askQItem);
+    expect(useAskQPanelStore.getState().isOpen).toBe(true);
+  });
+
+  it('offers the mode the theme action will activate', () => {
+    themeState.theme = 'dark';
+
+    renderOpenAccountMenu();
+
+    expect(screen.getByRole('menuitem', { name: 'Light mode' })).toBeInTheDocument();
+  });
+});
+
+describe('AccountMenuContent organization', () => {
+  it('shows one pricing destination for a free user', () => {
+    renderOpenAccountMenu();
+
+    expect(screen.getByRole('menuitem', { name: 'View plans' })).toHaveAttribute(
+      'href',
+      '/pricing-page'
+    );
+    expect(screen.queryByRole('menuitem', { name: /subscription/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /plan & billing/i })).not.toBeInTheDocument();
+  });
+
+  it('shows one billing destination for a premium user', () => {
+    subscriptionState.isPremium = true;
+
+    renderOpenAccountMenu();
+
+    expect(screen.getByRole('menuitem', { name: 'Plan & billing' })).toHaveAttribute(
+      'href',
+      '/subscription'
+    );
+    expect(screen.queryByRole('menuitem', { name: /pricing/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /view plans/i })).not.toBeInTheDocument();
+  });
+
+  it('omits the plan destination while subscription state is loading', () => {
+    subscriptionState.isLoading = true;
+
+    renderOpenAccountMenu();
+
+    expect(screen.queryByRole('menuitem', { name: /view plans/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /plan & billing/i })).not.toBeInTheDocument();
+  });
+
+  it('orders assistance, appearance, information, and session actions by task', () => {
+    renderOpenAccountMenu();
+
+    const itemNames = screen.getAllByRole('menuitem').map(item => item.textContent?.trim());
+
+    expect(itemNames).toEqual([
+      'Account',
+      'View plans',
+      'AskQ',
+      'Help & Guides',
+      'Dark mode',
+      'About',
+      'Sign out',
+    ]);
+  });
+
+  it('keeps Sign out neutral until focus or highlight', () => {
+    renderOpenAccountMenu();
+
+    const signOut = screen.getByRole('menuitem', { name: 'Sign out' });
+    expect(signOut).not.toHaveClass('text-destructive');
+    expect(signOut).toHaveClass('focus:text-destructive');
+  });
+});
+
+describe('AccountMenuContent save status', () => {
+  it.each([
+    { isOnline: true, status: 'synced' as const, expected: 'All changes saved' },
+    { isOnline: true, status: 'pending' as const, expected: 'Saving changes...' },
+    { isOnline: true, status: 'error' as const, expected: 'Some changes need attention' },
+    { isOnline: false, status: 'offline' as const, expected: 'Offline — changes saved here' },
+  ])('shows "$expected" for $status state', ({ isOnline, status, expected }) => {
+    networkState.isOnline = isOnline;
+    syncState.status = status;
+
+    renderOpenAccountMenu();
+
+    expect(screen.getByText(expected)).toBeInTheDocument();
+    expect(screen.queryByText('Online')).not.toBeInTheDocument();
+    expect(screen.queryByText('Synced')).not.toBeInTheDocument();
   });
 });

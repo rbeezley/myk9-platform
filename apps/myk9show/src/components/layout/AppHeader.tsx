@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { ChevronDown, Search, ShoppingCart, MessageSquare, Menu } from 'lucide-react';
+import { ChevronDown, Search, ShoppingCart, Menu } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { CommandPalette } from '@/components/common/CommandPalette';
@@ -18,6 +18,7 @@ import { useActiveCartItemCount } from '@/hooks/queries/useActiveCartItemCount';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { AboutDialog } from '@/components/common/AboutDialog';
 import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
+import { AskQIcon } from '@/components/layout/AskQIcon';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useCurrentUserPerson } from '@/hooks/useProfileForm';
@@ -309,7 +310,7 @@ const AppHeader: React.FC = () => {
                     className="hidden md:flex min-h-11 min-w-11 rounded-lg p-2"
                     aria-label="AskQ Assistant"
                   >
-                    <MessageSquare className="h-4 w-4" />
+                    <AskQIcon className="h-4 w-4" />
                   </Button>
                 )}
 

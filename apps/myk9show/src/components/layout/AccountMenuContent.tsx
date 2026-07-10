@@ -1,19 +1,18 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  CircleAlert,
+  CircleCheck,
   Code2,
   CreditCard,
-  Heart,
   Info,
   LifeBuoy,
   LogOut,
   Moon,
-  MessageSquare,
   RefreshCw,
   Settings,
   Sun,
   User as UserIcon,
-  Wifi,
   WifiOff,
 } from 'lucide-react';
 import {
@@ -33,6 +32,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { helpUrl } from '@/lib/help';
 import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
+import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
+import { AskQIcon } from '@/components/layout/AskQIcon';
 
 interface AccountMenuContentProps {
   /** Opens the About dialog, whose state lives in the host AppHeader. */
@@ -48,7 +49,26 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
   const networkStatus = useNetworkStatus();
   const { toggle: toggleAskQ } = useAskQPanelStore();
   const { theme, toggleTheme } = useTheme();
+  const { isPremium, isLoading: isSubscriptionLoading } = useSubscriptionGate();
   const [isClearingCache, setIsClearingCache] = useState(false);
+
+  const isOffline = !networkStatus.isOnline || globalSync.status === 'offline';
+  const needsAttention = globalSync.status === 'error' || globalSync.status === 'conflict';
+  const isSaving = globalSync.status === 'pending';
+  const StatusIcon = isOffline
+    ? WifiOff
+    : needsAttention
+      ? CircleAlert
+      : isSaving
+        ? RefreshCw
+        : CircleCheck;
+  const statusLabel = isOffline
+    ? 'Offline — changes saved here'
+    : needsAttention
+      ? 'Some changes need attention'
+      : isSaving
+        ? 'Saving changes...'
+        : 'All changes saved';
 
   const handleResetData = () => {
     if (
@@ -93,22 +113,12 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
 
       {/* Status Section */}
       <div className="px-3 py-2 border-b">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground flex items-center gap-1.5">
-            {networkStatus.isOnline ? (
-              <Wifi className="h-3 w-3 text-green-500" />
-            ) : (
-              <WifiOff className="h-3 w-3 text-red-500" />
-            )}
-            {networkStatus.isOnline ? 'Online' : 'Offline'}
-          </span>
-          <span className="text-muted-foreground flex items-center gap-1.5">
-            <RefreshCw
-              className={`h-3 w-3 ${globalSync.status === 'pending' ? 'animate-spin text-blue-500' : 'text-green-500'}`}
-            />
-            {globalSync.status === 'pending' ? 'Syncing...' : 'Synced'}
-          </span>
-        </div>
+        <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+          <StatusIcon
+            className={`h-3 w-3 ${isSaving ? 'animate-spin text-blue-500' : needsAttention ? 'text-destructive' : isOffline ? '' : 'text-green-500'}`}
+          />
+          {statusLabel}
+        </span>
       </div>
 
       {/* Common menu items */}
@@ -118,37 +128,17 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
           Account
         </Link>
       </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        <Link to="/subscription" className="w-full flex items-center gap-2">
-          <CreditCard className="h-4 w-4" />
-          Subscription
-        </Link>
-      </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        <Link to="/pricing-page" className="w-full flex items-center gap-2">
-          <Heart className="h-4 w-4" />
-          Pricing
-        </Link>
-      </DropdownMenuItem>
-      {/* Theme + AskQ Assistant — shown here (not just as standalone header
-          icons) so both stay reachable below md, where AppHeader hides its
-          own icon buttons (className `hidden md:flex`) to keep the bar from
-          crowding out legible tap targets. Same handlers as the header
-          icons; no duplicate logic. */}
-      <DropdownMenuItem
-        onClick={toggleTheme}
-        className="w-full flex items-center gap-2 cursor-pointer"
-      >
-        {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        onClick={toggleAskQ}
-        className="w-full flex items-center gap-2 cursor-pointer"
-      >
-        <MessageSquare className="h-4 w-4" />
-        AskQ Assistant
-      </DropdownMenuItem>
+      {!isSubscriptionLoading && (
+        <DropdownMenuItem asChild>
+          <Link
+            to={isPremium ? '/subscription' : '/pricing-page'}
+            className="w-full flex items-center gap-2"
+          >
+            <CreditCard className="h-4 w-4" />
+            {isPremium ? 'Plan & billing' : 'View plans'}
+          </Link>
+        </DropdownMenuItem>
+      )}
 
       {/* Role-specific menu items */}
       {(hasRole(UserRole.SECRETARY) ||
@@ -183,32 +173,15 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
       )}
       <DropdownMenuSeparator />
 
-      {/* Development Tools */}
-      {process.env.NODE_ENV === 'development' && (
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="cursor-pointer">
-            <Code2 className="h-4 w-4" />
-            Developer
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-48">
-            <DropdownMenuItem onClick={handleResetData} className="cursor-pointer">
-              <RefreshCw className="h-4 w-4" />
-              Reset Data
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                void handleClearCache();
-              }}
-              disabled={isClearingCache}
-              className="cursor-pointer"
-            >
-              <RefreshCw className={`h-4 w-4 ${isClearingCache ? 'animate-spin' : ''}`} />
-              {isClearingCache ? 'Clearing Cache...' : 'Clear Cache'}
-            </DropdownMenuItem>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-      )}
-
+      {/* AskQ stays here as the labeled compact-width access path for the
+          same panel action exposed by the desktop header button. */}
+      <DropdownMenuItem
+        onClick={toggleAskQ}
+        className="w-full flex items-center gap-2 cursor-pointer"
+      >
+        <AskQIcon className="h-4 w-4" />
+        AskQ
+      </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <a
           href={helpUrl()}
@@ -220,19 +193,57 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
           Help &amp; Guides
         </a>
       </DropdownMenuItem>
+      <DropdownMenuSeparator />
+
+      <DropdownMenuItem
+        onClick={toggleTheme}
+        className="w-full flex items-center gap-2 cursor-pointer"
+      >
+        {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      </DropdownMenuItem>
       <DropdownMenuItem onClick={onAbout} className="cursor-pointer">
         <Info className="h-4 w-4 mr-2" />
         About
       </DropdownMenuItem>
+
+      {/* Development Tools */}
+      {process.env.NODE_ENV === 'development' && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="cursor-pointer">
+              <Code2 className="h-4 w-4" />
+              Developer
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-48">
+              <DropdownMenuItem onClick={handleResetData} className="cursor-pointer">
+                <RefreshCw className="h-4 w-4" />
+                Reset Data
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  void handleClearCache();
+                }}
+                disabled={isClearingCache}
+                className="cursor-pointer"
+              >
+                <RefreshCw className={`h-4 w-4 ${isClearingCache ? 'animate-spin' : ''}`} />
+                {isClearingCache ? 'Clearing Cache...' : 'Clear Cache'}
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        </>
+      )}
       <DropdownMenuSeparator />
       <DropdownMenuItem
         onClick={() => {
           signOut();
         }}
-        className="text-destructive "
+        className="focus:bg-destructive/10 focus:text-destructive"
       >
         <LogOut className="h-4 w-4 mr-2" />
-        Sign Out
+        Sign out
       </DropdownMenuItem>
     </DropdownMenuContent>
   );

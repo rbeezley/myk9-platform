@@ -26,16 +26,19 @@ Before starting, read:
 2. Tools: `preview_start` / `preview_navigate` / `preview_console_logs` / `preview_network` / `preview_snapshot` / `preview_resize`
 3. Log in as the role you're auditing before walking that role's routes (see credentials below)
 
-**Credentials (from `.env`):**
+**Credentials — canonical accounts only:**
 
-- Secretary: `e2e-secretary@test.myk9.com`
-- Site admin: `e2e-admin@test.myk9.com`
-- Exhibitor: `e2e-exhibitor@test.myk9.com`
-- Judge: `e2e-judge@test.myk9.com`
-- Club admin: use `E2E_CLUB_EMAIL` when configured; otherwise skip the club-admin route group.
+Use these `e2e-*@test.myk9.com` accounts. The old `*@myk9t.com` accounts have **no `auth.users` row and cannot sign in** — do not use them (confirmed in `apps/myk9show/src/test/e2e/helpers/testUsers.ts`).
 
-Passwords live in `apps/myk9show/.env.local` / CI secrets. Do not use legacy
-`*@myk9t.com` fixture rows as route-health sign-in accounts.
+| Role       | Email                         | `TEST_USERS` key |
+| ---------- | ----------------------------- | ---------------- |
+| Exhibitor  | `e2e-exhibitor@test.myk9.com` | `DEMO_EXHIBITOR` (protected demo account, seeded dogs) |
+| Secretary  | `e2e-secretary@test.myk9.com` | `SECRETARY`      |
+| Judge      | `e2e-judge@test.myk9.com`     | `JUDGE`          |
+| Club admin | `e2e-clubadmin@test.myk9.com` | `CLUB_ADMIN`     |
+| Admin      | `e2e-admin@test.myk9.com`     | `SITE_ADMIN`     |
+
+Passwords live in `.env.local` (all e2e accounts share one secret) / CI secrets.
 
 ## Known Noise (do not re-log)
 

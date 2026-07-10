@@ -14,7 +14,7 @@ Two distinct verification gates, on purpose:
 
 This is an **orchestrator**. Each phase delegates to an existing skill via the Skill tool — do NOT reimplement their steps here. If a delegated skill pauses (ambiguity, blocker, failed check), the pipeline pauses with it; resolve, then continue from that phase.
 
-**Skill-name fallback**: the `opsx:<x>` commands are usually registered as Skill-tool names. If an `opsx:<x>` name is not in the available-skills list, invoke its equivalent skill instead: `opsx:propose` → `openspec-propose`, `opsx:apply` → `openspec-apply-change`, `opsx:verify` → `openspec-verify-change`, `opsx:archive` → `openspec-archive-change`.
+**Skill-name fallback**: the `opsx:<x>` commands are registered as Skill-tool names (e.g. `opsx:propose`, `opsx:apply`). The standalone `openspec-*` skill copies were removed 2026-07-10 — always invoke the `opsx:<x>` names.
 
 **Input**: A description of what to build (e.g., `/opsx:ship add heritage entry confirmations`) OR the name of an existing change (e.g., `/opsx:ship security-passcode-throttle`). If the name matches a directory in `openspec/changes/`, skip Phase 1 and resume from the first incomplete phase (check artifact status, then task checkboxes, then PR state).
 

@@ -39,3 +39,23 @@ describe('buildClassInfo — visibility', () => {
     expect(info.visibilityPreset).toBe('standard');
   });
 });
+
+describe('buildClassInfo — hides/distractions (R4)', () => {
+  it('maps hidesKnown + distractionCount onto ClassInfo', () => {
+    const info = buildClassInfo(makeClass({ hidesKnown: true, distractionCount: 3 }), null, []);
+    expect(info.hidesKnown).toBe(true);
+    expect(info.distractionCount).toBe(3);
+  });
+
+  it('maps hidesKnown: false and distractionCount: 0 without dropping falsy values', () => {
+    const info = buildClassInfo(makeClass({ hidesKnown: false, distractionCount: 0 }), null, []);
+    expect(info.hidesKnown).toBe(false);
+    expect(info.distractionCount).toBe(0);
+  });
+
+  it('omits both fields when the class row has not been enriched yet', () => {
+    const info = buildClassInfo(makeClass(), null, []);
+    expect(info.hidesKnown).toBeUndefined();
+    expect(info.distractionCount).toBeUndefined();
+  });
+});

@@ -20,12 +20,7 @@ import type { Entry } from '../../stores/entryStore';
 export type SortOrder = 'run' | 'armband' | 'placement' | 'section-armband';
 
 export type PrintDialogType =
-  | 'check-in'
-  | 'results-a'
-  | 'results-b'
-  | 'scoresheet-a'
-  | 'scoresheet-b'
-  | null;
+  'check-in' | 'results-a' | 'results-b' | 'scoresheet-a' | 'scoresheet-b' | null;
 
 export interface PrintDialogState {
   type: PrintDialogType;
@@ -72,6 +67,9 @@ export interface ClassInfo {
   timeLimit3?: string;
   areas?: number;
   visibilityPreset?: 'open' | 'standard' | 'review' | 'custom';
+  /** Class-aggregate scoring rules (one value per class, not per area). */
+  hidesKnown?: boolean;
+  distractionCount?: number;
 }
 
 /** The pair `useEntryListData` returns and React Query caches. */
@@ -127,7 +125,7 @@ export interface EntryListDataDependencies {
   fetchSingleClass: (
     classId: string,
     licenseKey: string,
-    userRole: UserRole,
+    userRole: UserRole
   ) => Promise<EntryListData>;
   /**
    * Fetch entries + classInfo for a combined-class (A + B) view. Same
@@ -137,7 +135,7 @@ export interface EntryListDataDependencies {
     classIdA: string,
     classIdB: string,
     licenseKey: string,
-    userRole: UserRole,
+    userRole: UserRole
   ) => Promise<EntryListData>;
   /**
    * Force-sync the entries and classes replicated tables. Resolves when

@@ -19,6 +19,15 @@ const SUBMISSION_EMAILS: Record<string, string> = {
 
 const FROM_EMAIL = 'myK9Show <results@myk9show.com>';
 
+// DEPLOY CONTRACT: this handler replaces the caller-supplied `secretaryEmail`
+// field with a required `showId` (the security anchor for authorization). This
+// is a BREAKING payload change vs the previously-deployed handler, so the new
+// edge function must be deployed together with — or before — the new client.
+// Supporting the old `secretaryEmail`-only payload is deliberately NOT done: it
+// carries no show reference, so it cannot be authorized, and honoring its
+// caller-supplied address is the exact SA-020 vector this change closes. The
+// app is pre-launch with no real users, so no transitional shim is warranted
+// (see memory: pre-launch — skip backwards-compat shims).
 interface SendResultsPayload {
   xml: string;
   filename: string;

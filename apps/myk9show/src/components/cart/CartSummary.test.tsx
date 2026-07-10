@@ -43,6 +43,14 @@ vi.mock('@/store/cartStore', () => ({
 }));
 
 describe('CartSummary — entries-closed gating', () => {
+  it('keeps Continue Shopping at the 44px touch-target floor', () => {
+    const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    storeState.cart = mockCart({ entry_close_date: future.toISOString().slice(0, 10) });
+    render(<CartSummary />);
+
+    expect(screen.getByRole('button', { name: /continue shopping/i })).toHaveClass('min-h-11');
+  });
+
   it('disables checkout and explains when the show has closed entries', () => {
     storeState.cart = mockCart({ entry_close_date: '2026-06-30' });
     render(<CartSummary />);

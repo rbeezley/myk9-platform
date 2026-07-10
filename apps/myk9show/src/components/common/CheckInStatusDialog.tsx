@@ -46,16 +46,26 @@ interface CheckInStatusDialogProps {
 const EXHIBITOR_STATUS_DESCRIPTIONS: Partial<Record<CheckInStatus, string>> = {
   'no-status': "I haven't checked in yet",
   'checked-in': "I've checked in and I'm ready",
+  conflict: "I'll let the secretary know about this conflict",
+  pulled: "The secretary will see that this dog won't run in this class",
   'at-gate': "I'm at the gate and ready",
 };
 
-// Staff-only statuses (schedule conflicts, pulled entries) are secretary/judge
-// calls, not something an exhibitor should self-report — hidden from the
-// exhibitor's own status picker (previously selectable, a dead-end since only
-// staff can act on either).
+const EXHIBITOR_STATUS_LABELS: Partial<Record<CheckInStatus, string>> = {
+  'no-status': 'I am not there yet',
+  'checked-in': 'I am here',
+  conflict: 'I have a conflict — tell the secretary',
+  pulled: 'I need to withdraw from this class',
+};
+
+// The owner-scoped self_checkin_entry RPC permits exhibitors to report their
+// own availability, including a conflict or withdrawal. Staff surfaces retain
+// the operational labels from CHECK_IN_STATUS_CONFIG.
 const EXHIBITOR_SELECTABLE_STATUSES: ReadonlySet<CheckInStatus> = new Set([
   'no-status',
   'checked-in',
+  'conflict',
+  'pulled',
   'at-gate',
 ]);
 
@@ -83,7 +93,7 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
 
     switch (userRole) {
       case 'exhibitor':
-        // Exhibitors self-report; conflict/pulled are staff-only calls.
+        // Exhibitors self-report their own availability.
         return allStatuses.filter(config => EXHIBITOR_SELECTABLE_STATUSES.has(config.status));
       case 'judge':
       case 'gate_steward':
@@ -196,7 +206,11 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
                           showTooltip={false}
                         />
                         <div>
-                          <div className="font-medium text-sm">{config.label}</div>
+                          <div className="font-medium text-sm">
+                            {userRole === 'exhibitor'
+                              ? (EXHIBITOR_STATUS_LABELS[config.status] ?? config.label)
+                              : config.label}
+                          </div>
                           <div className="text-xs text-muted-foreground">
                             {userRole === 'exhibitor'
                               ? (EXHIBITOR_STATUS_DESCRIPTIONS[config.status] ?? config.description)

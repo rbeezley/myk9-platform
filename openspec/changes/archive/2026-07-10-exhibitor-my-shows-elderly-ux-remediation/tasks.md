@@ -45,7 +45,9 @@
 
 ## 6. Ship gate
 
-- [ ] 6.1 Commit in worktree, open PR to main, ensure CI (Quality → Test → Build) green
-- [ ] 6.2 Run `/review`; this PR changes user-visible behavior, so also run the Codex second-opinion review before merge; address findings
-- [ ] 6.3 Merge from the main repo directory; branch/worktree hygiene per CLAUDE.md
-- [ ] 6.4 Update tracking docs (OPEN-TODOS.md if referenced) and note remediation completion in `docs/ux-audits/exhibitor-my-shows-elderly-ux-audit-2026-07-09.md` follow-up or docs index as applicable
+- [x] 6.1 Commit in worktree, open PR to main, ensure CI (Quality → Test → Build) green
+- [x] 6.2 Run `/review`; this PR changes user-visible behavior, so also run the Codex second-opinion review before merge; address findings
+- [x] 6.3 Merge from the main repo directory; branch/worktree hygiene per CLAUDE.md
+- [x] 6.4 Update tracking docs (OPEN-TODOS.md if referenced) and note remediation completion in `docs/ux-audits/exhibitor-my-shows-elderly-ux-audit-2026-07-09.md` follow-up or docs index as applicable
+
+> Ship notes: PR #1243 merged 2026-07-10. Codex second-opinion P2 (check-in gating) fixed pre-merge. Task 6.4: the source audit doc lives only in the codex audit worktree (not on main); completion is recorded here and in the archive. Post-merge staging walk at 390/834px both themes still recommended (PR Test Plan).

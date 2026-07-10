@@ -8,43 +8,33 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import {
   Calendar,
-  CalendarDays,
-  ListOrdered,
+  ChevronDown,
   MapPin,
   Eye,
-  Edit,
-  Download,
-  User,
   CreditCard,
-  MessageSquare,
+  ClipboardCheck,
   Wallet,
 } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
-import { ResultBadge } from '@/components/common/ResultBadge';
-import { PlacementPill } from '@/components/base/PlacementPill';
-import {
-  buildResultCardModel,
-  buildResultCardVisibility,
-  type ResultCardModel,
-} from '@/features/result-card';
+import { type ResultCardModel } from '@/features/result-card';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
 import { getEntryPaymentPrompt } from '@/features/payments/entryPaymentPrompt';
-import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import {
   getEntryStatusBadge,
   getPaymentStatusBadge,
   getStatusIcon,
   getContextualStatusMessage,
-  formatTrialLabel,
 } from './myEntriesUtils';
 import { isPastShowEntry } from './myEntriesStats.helpers';
-import { formatEntryDate, formatMonthDay, formatShortDate } from '@/lib/format/dates';
+import { formatEntryDate, formatShortDate } from '@/lib/format/dates';
+import { deriveEntryNextAction } from './entryNextAction';
+import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
+import { MyEntryCardDetails } from './MyEntryCardDetails';
 
 interface MyEntryCardProps {
   entry: MyEntry;
@@ -84,6 +74,11 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
   seenResultReleaseKeys = new Set(),
 }) => {
   const [currentTime] = React.useState(() => Date.now());
+  // Details panel is collapsed by default on every viewport (progressive
+  // disclosure — exhibitor-my-shows-legibility). Per-card local state, no
+  // effect involved.
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const detailsId = `entry-details-${entry.id}`;
   const statusMessage = getContextualStatusMessage(
     entry,
     formatDistanceToNow,
@@ -126,6 +121,18 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
       entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED);
 
   const canShowReceipt = entry.confirmationNumber && isPaid;
+  // Pending Review reassurance line — only while the badge itself reads
+  // "Pending Review" (never for a past/unresolved history card, which uses
+  // "Review incomplete" wording instead).
+  const isPendingReview = entry.entryStatus === EntryStatus.PENDING && !isPastShow;
+  const nextAction = deriveEntryNextAction(entry, {
+    now: new Date(currentTime),
+    selfCheckinByClassId,
+  });
+  const nextActionClass =
+    nextAction.kind === 'check-in'
+      ? entry.classes.find(cls => cls.id === nextAction.classId)
+      : undefined;
   // Payment eligibility is intentionally split from edit eligibility: a
   // move-up request is a confirmed entry that can still owe its fee even though
   // it isn't editable while awaiting secretary approval. Waitlisted entries stay
@@ -162,7 +169,8 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
 
   return (
     <div className="myk9-entries-card">
-      {/* Header */}
+      {/* Summary band — always visible: status, dog + armband, show date,
+          location/directions, and the single next-action button. */}
       <div className="myk9-entries-card-header">
         <div>
           <div className="myk9-entries-card-title">
@@ -174,12 +182,6 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
               <ArmbandBadge armband={entry.armband} className="size-8 rounded-lg text-xs" />
             )}
             <span>{entry.dogName}</span>
-            <span aria-hidden="true">•</span>
-            <span>
-              {formatConfirmationNumberLabel(
-                entry.confirmationNumber || (isTerminalStatus ? '—' : 'Pending')
-              )}
-            </span>
           </div>
         </div>
         <div className="myk9-entries-badges">
@@ -192,19 +194,28 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
               fired off the raw status alone, contradicting the dashboard/My
               Payments amount-due figure that already derives from
               getEntryPaymentPrompt (exhibitor-money-clarity). */}
-          {!(entry.paymentStatus === PaymentStatus.PENDING && paymentPrompt.kind !== 'finish-online') &&
-            getPaymentStatusBadge(entry.paymentStatus, { isPastShow })}
+          {!(
+            entry.paymentStatus === PaymentStatus.PENDING && paymentPrompt.kind !== 'finish-online'
+          ) && getPaymentStatusBadge(entry.paymentStatus, { isPastShow })}
         </div>
       </div>
 
-      {/* Show Details */}
+      {isPendingReview && (
+        <p className="myk9-entries-pending-reassurance text-base text-muted-foreground">
+          {PENDING_REVIEW_REASSURANCE}
+        </p>
+      )}
+
       <div className="myk9-entries-details-grid">
         <div className="myk9-entries-detail-item">
           <Calendar className="h-4 w-4" />
           <span>{formatEntryDate(entry.showDate)}</span>
         </div>
 
-        {entry.entryCloseDate && (
+        {/* "Entries close" only while editing is still possible (same
+            predicate gating Edit Entry, task 3.3) — once the deadline has
+            passed it moves into details alongside the rest of the history. */}
+        {canEdit && entry.entryCloseDate && (
           <div className="myk9-entries-detail-item">
             <Calendar className="h-4 w-4" />
             <span>
@@ -220,167 +231,52 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Get directions to ${mapAddress}`}
-            className="myk9-entries-detail-item rounded text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            className="myk9-entries-detail-item flex min-h-[44px] items-center rounded text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             {locationContent}
           </a>
         ) : (
           <div className="myk9-entries-detail-item">{locationContent}</div>
         )}
-
-        <div className="myk9-entries-detail-item">
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded bg-primary/10 px-1 text-sm font-bold text-primary">
-            {entry.classes.length}
-          </span>
-          <span>
-            {entry.classes.length === 1
-              ? '1 class entered'
-              : `${entry.classes.length} classes entered`}
-          </span>
-        </div>
       </div>
 
-      {/* Classes */}
-      <div className="myk9-entries-classes-section">
-        <h5 className="myk9-entries-classes-title">Classes Entered:</h5>
-        <div className="myk9-entries-classes-list">
-          {entry.classes.map(cls => {
-            const resultModel = buildResultCardModel({
-              entry,
-              classEntry: cls,
-              visibility: buildResultCardVisibility(cls),
-            });
-            const showNewResult =
-              resultModel != null && !seenResultReleaseKeys.has(resultModel.releaseKey);
-            const showResultCardAction = resultModel != null && onResultRevealClick != null;
-
-            return (
-              <div key={cls.id} className="myk9-entries-class-row">
-                <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <span
-                      className="myk9-entries-class-name"
-                      title={`${cls.name}${cls.number ? ` #${cls.number}` : ''}${
-                        cls.jumpHeight ? ` (${cls.jumpHeight})` : ''
-                      }`}
-                    >
-                      {cls.name}
-                      {cls.number ? ` #${cls.number}` : ''}
-                      {cls.jumpHeight && ` (${cls.jumpHeight})`}
-                    </span>
-                    {(cls.trialDate || cls.trialNumber) && (
-                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                        {cls.trialDate && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-muted/70 px-2 py-1 font-medium">
-                            <CalendarDays className="h-3 w-3" />
-                            {formatMonthDay(cls.trialDate)}
-                          </span>
-                        )}
-                        {cls.trialNumber && (
-                          <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 font-semibold text-primary">
-                            {formatTrialLabel(cls.trialNumber)}
-                          </span>
-                        )}
-                      </span>
-                    )}
-                    {cls.handler && (
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                        <User className="h-3 w-3 flex-shrink-0" />
-                        {cls.handler}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Result badge for scored entries */}
-                  {cls.isScored && cls.resultStatus && (
-                    <div className="flex items-center gap-1.5">
-                      <ResultBadge resultStatus={cls.resultStatus} />
-                      {/* Show the finishing rank for every qualifying run. 1st–4th are the official
-                        AKC ribbon placements (PlacementPill gives them medal colors); 5th+ render
-                        as a muted participation rank — nice to know where you came in (not capped
-                        at 4th). final_placement is only set once the whole class is scored and
-                        ranked by the trigger; exclude null and the 0 default so an un-ranked row
-                        never renders "0th". */}
-                      {cls.resultStatus === 'qualified' &&
-                        cls.finalPlacement != null &&
-                        cls.finalPlacement >= 1 && (
-                          <PlacementPill placement={cls.finalPlacement} size="sm" />
-                        )}
-                    </div>
-                  )}
-
-                  {showResultCardAction && resultModel && onResultRevealClick && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onResultRevealClick(resultModel)}
-                      className={
-                        showNewResult
-                          ? 'min-h-[44px] w-full shrink-0 border-primary/30 text-primary sm:w-auto'
-                          : 'min-h-[44px] w-full shrink-0 border-muted-foreground/25 text-muted-foreground sm:w-auto'
-                      }
-                    >
-                      {showNewResult ? 'New result' : 'Result card'}
-                    </Button>
-                  )}
-
-                  {/* Check-in Status Controls — gated by the secretary's
-                      self-check-in toggle (cascade resolved per class; defaults
-                      open). When off, show a non-interactive indicator with a
-                      reason instead of a tappable button the RPC would reject. */}
-                  {!cls.isScored &&
-                    ((cls.classId ? (selfCheckinByClassId[cls.classId] ?? true) : true) ? (
-                      <button
-                        type="button"
-                        onClick={() => onCheckInClick(entry, cls)}
-                        aria-label={`Update check-in for ${entry.dogName} in ${cls.name}`}
-                        className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-border/60 bg-background px-2 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-transform"
-                      >
-                        <CheckInStatusIndicator
-                          status={cls.checkInStatus || 'no-status'}
-                          size="sm"
-                          showLabel={true}
-                          showTooltip={true}
-                        />
-                      </button>
-                    ) : (
-                      <span
-                        className="cursor-not-allowed opacity-60"
-                        title="Self check-in isn't available for this class right now."
-                        aria-label="Self check-in not available"
-                      >
-                        <CheckInStatusIndicator
-                          status={cls.checkInStatus || 'no-status'}
-                          size="sm"
-                          showLabel={true}
-                          showTooltip={false}
-                        />
-                      </span>
-                    ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  {cls.isScored && cls.searchTimeSeconds != null && (
-                    <span className="text-xs text-muted-foreground">
-                      {cls.searchTimeSeconds.toFixed(1)}s
-                    </span>
-                  )}
-                  {cls.isScored && cls.totalFaults != null && cls.totalFaults > 0 && (
-                    <span className="text-xs text-warning">{cls.totalFaults}F</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      <div className="myk9-entries-last-updated">
+        <span className={statusMessage.className}>{statusMessage.message}</span>
       </div>
 
-      {/* Actions */}
-      <div className="myk9-entries-actions">
-        <div className="myk9-entries-last-updated">
-          <span className={statusMessage.className}>{statusMessage.message}</span>
-        </div>
-        <div className="myk9-entries-action-buttons">
+      {paymentPrompt.kind === 'pay-at-show' && (
+        <p className="flex min-h-[44px] items-center gap-1.5 text-sm text-muted-foreground">
+          <Wallet className="h-4 w-4 flex-shrink-0" />
+          {paymentPrompt.text}
+        </p>
+      )}
+
+      {/* INTENT: single next action, precedence finish payment > check-in >
+          view show (deriveEntryNextAction). Check-in MUST reuse the same
+          onCheckInClick(entry, cls) handler the per-class details control
+          calls — never a separate write path. */}
+      <div className="myk9-entries-action-buttons">
+        {nextAction.kind === 'finish-payment' && (
+          <Button asChild className="min-h-[44px] transition-all duration-200">
+            <Link to={buildEntryPaymentHref(entry)}>
+              <CreditCard className="h-5 w-5 mr-1.5" />
+              Finish Payment
+            </Link>
+          </Button>
+        )}
+
+        {nextAction.kind === 'check-in' && nextActionClass && (
+          <Button
+            type="button"
+            onClick={() => onCheckInClick(entry, nextActionClass)}
+            className="min-h-[44px] transition-all duration-200"
+          >
+            <ClipboardCheck className="h-5 w-5 mr-1.5" />
+            Check In
+          </Button>
+        )}
+
+        {nextAction.kind === 'view-show' && (
           <Button
             variant="outline"
             asChild
@@ -391,72 +287,43 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
               View Show
             </Link>
           </Button>
-
-          {paymentPrompt.kind === 'finish-online' && (
-            <Button asChild className="min-h-[44px] transition-all duration-200">
-              <Link to={buildEntryPaymentHref(entry)}>
-                <CreditCard className="h-5 w-5 mr-1.5" />
-                Finish Payment
-              </Link>
-            </Button>
-          )}
-
-          {paymentPrompt.kind === 'pay-at-show' && (
-            <p className="flex min-h-[44px] items-center gap-1.5 text-sm text-muted-foreground">
-              <Wallet className="h-4 w-4 flex-shrink-0" />
-              {paymentPrompt.text}
-            </p>
-          )}
-
-          {canEdit && (
-            <Button
-              variant="outline"
-              onClick={() => onEditClick(entry)}
-              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
-            >
-              <Edit className="h-5 w-5 mr-1.5" />
-              Edit Entry
-            </Button>
-          )}
-
-          {canViewRunOrder && (
-            <Button
-              variant="outline"
-              asChild
-              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
-            >
-              <Link to={`/shows/${entry.showId}?tab=classes`}>
-                <ListOrdered className="h-5 w-5 mr-1.5" />
-                View run order
-              </Link>
-            </Button>
-          )}
-
-          {canRequestPostDeadlineHelp && (
-            <Button
-              variant="outline"
-              asChild
-              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
-            >
-              <Link to={`/messages/${entry.showId}`}>
-                <MessageSquare className="h-5 w-5 mr-1.5" />
-                Message the show team
-              </Link>
-            </Button>
-          )}
-
-          {canShowReceipt && (
-            <Button
-              variant="outline"
-              onClick={() => onReceiptClick(entry)}
-              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
-            >
-              <Download className="h-5 w-5 mr-1.5" />
-              Receipt
-            </Button>
-          )}
-        </div>
+        )}
       </div>
+
+      {/* Details toggle — full-width, labeled, collapsed by default on every
+          viewport (task 3.1). */}
+      <button
+        type="button"
+        onClick={() => setDetailsOpen(open => !open)}
+        aria-expanded={detailsOpen}
+        aria-controls={detailsId}
+        className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-md border border-border/60 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
+      >
+        {detailsOpen ? 'Hide details' : 'Show details'}
+        <ChevronDown
+          className={`h-4 w-4 transition-transform ${detailsOpen ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        />
+      </button>
+
+      {detailsOpen && (
+        <MyEntryCardDetails
+          entry={entry}
+          detailsId={detailsId}
+          isTerminalStatus={isTerminalStatus}
+          canEdit={canEdit}
+          canViewRunOrder={canViewRunOrder}
+          canRequestPostDeadlineHelp={canRequestPostDeadlineHelp}
+          canShowReceipt={Boolean(canShowReceipt)}
+          summaryShowsViewShow={nextAction.kind === 'view-show'}
+          selfCheckinByClassId={selfCheckinByClassId}
+          seenResultReleaseKeys={seenResultReleaseKeys}
+          onCheckInClick={onCheckInClick}
+          onEditClick={onEditClick}
+          onReceiptClick={onReceiptClick}
+          onResultRevealClick={onResultRevealClick}
+        />
+      )}
     </div>
   );
 };

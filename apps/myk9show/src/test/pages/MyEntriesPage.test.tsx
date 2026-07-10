@@ -321,8 +321,8 @@ describe('MyEntriesPage UI Improvements', () => {
 
       await screen.findByRole('tablist');
 
-      // The "My Entries" label anchors the entries section wrapper.
-      const entriesWrapper = screen.getByText('My Entries').closest('div');
+      // The "All entries" label anchors the entries section wrapper.
+      const entriesWrapper = screen.getByText('All entries').closest('div');
       expect(entriesWrapper).not.toBeNull();
       expect(entriesWrapper).toHaveClass('max-[720px]:order-1');
 
@@ -501,6 +501,8 @@ describe('MyEntriesPage UI Improvements', () => {
 
       expect(mockUseCheckInMutation).toHaveBeenCalledWith({ writer: 'self-checkin-rpc' });
       await screen.findByText('Spring Trial');
+      // Per-class check-in controls live behind the collapsed details panel.
+      await user.click(screen.getByRole('button', { name: /show details/i }));
       await user.click(
         screen.getByRole('button', { name: /update check-in for koda in novice a/i })
       );
@@ -614,6 +616,8 @@ describe('MyEntriesPage UI Improvements', () => {
 
       renderWithProviders(<MyEntriesPage />, '/exhibitor/entries');
 
+      // Result buttons render inside the collapsed details panel.
+      await user.click(await screen.findByRole('button', { name: /show details/i }));
       await user.click(await screen.findByRole('button', { name: /New result/i }));
 
       expect(await screen.findByRole('dialog', { name: /New result/i })).toBeInTheDocument();
@@ -654,7 +658,7 @@ describe('MyEntriesPage UI Improvements', () => {
 
       renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?resultEntryId=entry-1');
 
-      expect(await screen.findByText('My Entries')).toBeInTheDocument();
+      expect(await screen.findByText('All entries')).toBeInTheDocument();
       expect(screen.queryByRole('dialog', { name: /New result/i })).not.toBeInTheDocument();
     });
   });

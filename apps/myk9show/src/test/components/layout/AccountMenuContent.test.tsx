@@ -23,6 +23,11 @@ vi.mock('@/hooks/useGlobalSyncStatus', () => ({
   useGlobalSyncStatus: () => ({ status: 'synced' }),
 }));
 
+const toggleTheme = vi.fn();
+vi.mock('@/hooks/useTheme', () => ({
+  useTheme: () => ({ theme: 'light', toggleTheme }),
+}));
+
 vi.mock('@/utils/debugUtils', () => ({
   resetAllMockData: vi.fn(),
 }));
@@ -46,6 +51,7 @@ describe('AccountMenuContent developer tools', () => {
   beforeEach(() => {
     vi.mocked(resetAllMockData).mockClear();
     vi.mocked(clearDevelopmentCache).mockClear();
+    toggleTheme.mockClear();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
 
@@ -115,5 +121,18 @@ describe('AccountMenuContent developer tools', () => {
     await secondRender.user.hover(screen.getByRole('menuitem', { name: /developer/i }));
     fireEvent.click(await screen.findByRole('menuitem', { name: /clear cache/i }));
     expect(clearDevelopmentCache).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('AccountMenuContent theme + AskQ items (phone consolidation)', () => {
+  it('exposes Theme and AskQ Assistant items that fire the same handlers as the header icons', async () => {
+    const { user } = renderOpenAccountMenu();
+
+    const themeItem = screen.getByRole('menuitem', { name: /switch to dark mode/i });
+    expect(themeItem).toBeInTheDocument();
+    await user.click(themeItem);
+    expect(toggleTheme).toHaveBeenCalledTimes(1);
+
+    expect(screen.getByRole('menuitem', { name: /askq assistant/i })).toBeInTheDocument();
   });
 });

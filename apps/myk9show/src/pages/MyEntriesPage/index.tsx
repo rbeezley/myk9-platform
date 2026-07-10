@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
@@ -24,12 +24,7 @@ import {
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { AddDogPanel } from '@/components/panels/edit';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
-import { PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
-import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
-import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
-import { EntryReceipt } from '@/components/entries/EntryReceipt';
-import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import {
   buildResultCardModel,
   buildResultCardVisibility,
@@ -39,38 +34,25 @@ import {
   type ResultCardModel,
 } from '@/features/result-card';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
-import {
-  Calendar,
-  RefreshCw,
-  List,
-  Clock,
-  CheckCircle,
-  Users,
-  CalendarDays,
-  CircleCheck,
-  Calendar as CalendarIcon,
-} from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import '@/styles/myk9-show-details.css';
-
-const ENTRY_TAB_DEFS = [
-  { id: 'all', label: 'All', icon: List },
-  { id: 'pending', label: 'Pending', icon: Clock },
-  { id: 'accepted', label: 'Accepted', icon: CheckCircle },
-  { id: 'waitlist', label: 'Waitlist', icon: Users },
-  { id: 'upcoming', label: 'Upcoming', icon: CalendarDays },
-  { id: 'completed', label: 'Completed', icon: CircleCheck },
-] as const satisfies Omit<PrimaryTabDef, 'count'>[];
 import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { useMyWaitlistEntries } from '@/hooks/queries/useMyWaitlistEntries';
 import { useSelfCheckinMap } from '@/hooks/queries/useSelfCheckinEnabled';
-import type { WaitListEntry } from '@/types/waitlist-types';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useMyEntriesData,
   useMyEntriesFilters,
   MyEntryCard,
+  EntriesEmptyState,
+  EntriesLoadErrorCard,
+  CheckInDialog,
+  EditEntryDialog,
+  ReceiptEntryDialog,
+  WaitListSection,
+  ENTRY_TAB_DEFS,
+  ALL_ENTRIES_LABEL,
+  ALL_ENTRIES_SCOPE_NOTE,
   type MyEntry,
   type EntryClass,
   type CheckInDialogState,
@@ -269,26 +251,7 @@ const MyEntriesPage: React.FC = () => {
 
   // Error state
   if (isError && !isLoading) {
-    return (
-      <div className="bg-background">
-        <div className="container mx-auto px-6 py-6 max-w-7xl">
-          <div className="myk9-entries-card text-center">
-            <p className="text-muted-foreground mb-4">
-              Failed to load your entries. Please check your connection.
-            </p>
-            <Button
-              variant="outline"
-              onClick={refreshEntries}
-              disabled={refreshing}
-              className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              Retry
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
+    return <EntriesLoadErrorCard refreshing={refreshing} onRetry={refreshEntries} />;
   }
 
   // Loading state
@@ -320,16 +283,18 @@ const MyEntriesPage: React.FC = () => {
             Exhibitor: "this respects my time". gap-8 == the prior space-y-8. */}
         <div className="flex flex-col gap-8">
           <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/10 p-5 sm:p-6">
-            <h1 className="sr-only">My Shows</h1>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                  My Shows
+                </h1>
                 <DashboardGreeting
                   firstName={firstName}
                   subtitle="Here's what's happening with your shows"
-                  className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground"
+                  className="text-base font-medium text-muted-foreground mt-1"
                 />
               </div>
-              <Button onClick={() => navigate('/shows')} size="sm">
+              <Button onClick={() => navigate('/shows')} className="min-h-[44px]">
                 <CalendarIcon className="h-4 w-4 mr-2" />
                 Enter a Show
               </Button>
@@ -387,15 +352,19 @@ const MyEntriesPage: React.FC = () => {
                   spacing between them. */}
               <div className="space-y-8 max-[720px]:order-1">
                 {/* This branch only renders when entries.length > 0, so the count
-                    badge is always shown here. aria-hidden keeps it decorative —
-                    the tab counts already convey the number to assistive tech. */}
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  My Entries
+                    badge is always shown here. The scope note distinguishes this
+                    all-time count from the "Current entries" stat card above,
+                    which is scoped to upcoming/in-review only. */}
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex flex-wrap items-center gap-2">
+                  {ALL_ENTRIES_LABEL}
                   <span
                     aria-hidden="true"
                     className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5"
                   >
                     {entries.length}
+                  </span>
+                  <span className="normal-case tracking-normal font-normal text-muted-foreground/80">
+                    {ALL_ENTRIES_SCOPE_NOTE}
                   </span>
                 </p>
 
@@ -408,7 +377,7 @@ const MyEntriesPage: React.FC = () => {
                 >
                   <TabsContent value={selectedTab} className="space-y-4">
                     {filteredEntries.length === 0 ? (
-                      <EmptyState selectedTab={selectedTab} />
+                      <EntriesEmptyState selectedTab={selectedTab} onSwitchTab={setSelectedTab} />
                     ) : (
                       filteredEntries.map(entry => (
                         <MyEntryCard
@@ -482,229 +451,5 @@ const MyEntriesPage: React.FC = () => {
     </div>
   );
 };
-
-// Sub-components
-
-interface EmptyStateProps {
-  selectedTab: string;
-}
-
-// Per-tab empty state. The whole-page zero-state (no entries at all) is handled
-// upstream by FirstRunZeroState, so by the time this renders the exhibitor has
-// entries — just none matching the active filter (e.g. an empty Waitlist tab).
-const EmptyState: React.FC<EmptyStateProps> = ({ selectedTab }) => (
-  <div className="myk9-entries-card text-center">
-    <div className="bg-muted/50 rounded-full p-6 mb-4 inline-block">
-      <Calendar className="h-12 w-12 text-muted-foreground" />
-    </div>
-    <h3 className="text-lg font-semibold mb-2">No entries found</h3>
-    <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-      No entries match the {selectedTab} filter
-    </p>
-    <Button
-      asChild
-      className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
-    >
-      <Link to="/shows">Browse All Shows</Link>
-    </Button>
-  </div>
-);
-
-interface CheckInDialogProps {
-  dialog: CheckInDialogState;
-  user: { email?: string; id?: string } | null;
-  onClose: () => void;
-  onUpdateStatus: (status: CheckInStatus, notes?: string) => Promise<void>;
-}
-
-const CheckInDialog: React.FC<CheckInDialogProps> = ({ dialog, user, onClose, onUpdateStatus }) => {
-  if (!dialog.entry || !dialog.classEntry) return null;
-
-  return (
-    <CheckInStatusDialog
-      open={dialog.open}
-      onOpenChange={open => !open && onClose()}
-      currentStatus={dialog.classEntry.checkInStatus || 'no-status'}
-      entryInfo={{
-        armband: dialog.entry.armband,
-        confirmationNumber: dialog.entry.confirmationNumber,
-        dogName: dialog.entry.dogName,
-        handlerName: user?.email || 'Handler',
-        className: dialog.classEntry.name,
-        classNumber: dialog.classEntry.number,
-      }}
-      onUpdateStatus={onUpdateStatus}
-      readOnly={false}
-      userRole="exhibitor"
-    />
-  );
-};
-
-interface EditEntryDialogProps {
-  dialog: EditDialogState;
-  onClose: () => void;
-  onUpdate: () => void;
-}
-
-const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClose, onUpdate }) => {
-  if (!dialog.entry) return null;
-
-  // Map classes to match EntryEditDialog's expected type
-  const mappedClasses = dialog.entry.classes.map(c => ({
-    id: c.id,
-    name: c.name,
-    number: c.number,
-    fee: c.fee,
-    status: c.status,
-    ...(c.jumpHeight !== undefined && { jumpHeight: c.jumpHeight }),
-    ...(c.trialType !== undefined && { trialType: c.trialType }),
-    ...(c.handler !== undefined && { handler: c.handler }),
-    ...(c.runOrder !== undefined && { runOrder: c.runOrder }),
-  }));
-
-  // MyEntriesPage is cross-show (/my-entries spans many shows), so it can't take a
-  // single page-level presence boundary. Instead wrap just the open dialog in a
-  // per-show ShowPresenceProvider keyed on this entry's show — that makes the
-  // exhibitor a presence producer for the relevant show while editing, so the
-  // Phase 3 edit-awareness hook/badge inside the dialog have a roster to ride.
-  return (
-    <ShowPresenceProvider showId={dialog.entry.showId}>
-      <EntryEditDialog
-        open={dialog.open}
-        onOpenChange={open => !open && onClose()}
-        entry={{
-          id: dialog.entry.id,
-          showId: dialog.entry.showId,
-          showName: dialog.entry.showName,
-          dogName: dialog.entry.dogName,
-          classes: mappedClasses,
-        }}
-        onUpdate={onUpdate}
-      />
-    </ShowPresenceProvider>
-  );
-};
-
-interface ReceiptEntryDialogProps {
-  dialog: ReceiptDialogState;
-  user: { email?: string; user_metadata?: Record<string, string> } | null;
-  onClose: () => void;
-}
-
-const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({ dialog, user, onClose }) => {
-  if (!dialog.entry) return null;
-
-  const entry = dialog.entry;
-  const isPaid =
-    entry.paymentStatus === PaymentStatus.PAID_ONLINE ||
-    entry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
-    entry.paymentStatus === PaymentStatus.PAID_BY_CASH;
-
-  const exhibitorName = user?.user_metadata?.full_name || user?.email?.split('@')[0];
-  const exhibitorEmail = user?.email;
-
-  // Map classes to match EntryReceipt's expected type
-  const mappedClasses = entry.classes.map(c => ({
-    id: c.id,
-    name: c.name,
-    number: c.number,
-    fee: c.fee,
-    status: c.status,
-    ...(c.jumpHeight !== undefined && { jumpHeight: c.jumpHeight }),
-    ...(c.runOrder !== undefined && { runOrder: c.runOrder }),
-  }));
-
-  return (
-    <EntryReceipt
-      open={dialog.open}
-      onOpenChange={open => !open && onClose()}
-      entry={{
-        id: entry.id,
-        confirmationNumber: entry.confirmationNumber ?? entry.id.slice(0, 8).toUpperCase(),
-        showName: entry.showName,
-        showDate: entry.showDate,
-        location: entry.location,
-        dogName: entry.dogName,
-        classes: mappedClasses,
-        totalFee: entry.totalFee,
-        submittedAt: entry.submittedAt,
-        paymentStatus: isPaid ? 'Paid' : 'Pending',
-      }}
-      {...(exhibitorName && { exhibitorName })}
-      {...(exhibitorEmail && { exhibitorEmail })}
-    />
-  );
-};
-
-interface WaitListSectionProps {
-  entries: WaitListEntry[];
-  isLoading: boolean;
-  onWithdraw: (id: string) => void;
-  isWithdrawing: boolean;
-}
-
-const WaitListSection: React.FC<WaitListSectionProps> = ({
-  entries,
-  isLoading,
-  onWithdraw,
-  isWithdrawing,
-}) => (
-  <div className="container mx-auto px-6 pb-4 max-w-7xl">
-    <Card className="border border-warning/30 bg-warning/10 ">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base font-semibold text-warning ">
-          <Users className="h-4 w-4" />
-          My Wait List Positions
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2].map(i => (
-              <div key={i} className="h-14 bg-muted/50 rounded-lg animate-pulse" />
-            ))}
-          </div>
-        ) : entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No active wait list positions.</p>
-        ) : (
-          <div className="space-y-2">
-            {entries.map(entry => (
-              <div
-                key={entry.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-background/60 px-4 py-3"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning text-sm font-semibold">
-                    #{entry.position}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{entry.dogName}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {entry.className} <span aria-hidden="true">·</span> {entry.showName}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {entry.status === 'offered' && (
-                    <Badge variant="outline" className="border-success/50 text-success text-xs">
-                      Spot Offered
-                    </Badge>
-                  )}
-                  <button
-                    onClick={() => onWithdraw(entry.id)}
-                    disabled={isWithdrawing}
-                    className="inline-flex min-h-[44px] items-center rounded px-2 text-xs text-muted-foreground transition-colors duration-150 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
-                  >
-                    Withdraw
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  </div>
-);
 
 export default MyEntriesPage;

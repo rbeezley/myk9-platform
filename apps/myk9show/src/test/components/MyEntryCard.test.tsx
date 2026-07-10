@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { MyEntryCard } from '@/pages/MyEntriesPage/modules/MyEntryCard';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
@@ -35,8 +36,9 @@ const baseEntry: MyEntry = {
 const noop = vi.fn();
 
 describe('MyEntryCard — entry close date label', () => {
-  it('renders "Entries close" label with the entry close date when entryCloseDate is set', () => {
-    const closeDate = new Date('2026-06-30');
+  it('renders "Entries close" in the summary while the close date is still in the future', () => {
+    // Editing is still possible, so the deadline is summary-band information.
+    const closeDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     render(
       <MyEntryCard
         entry={{ ...baseEntry, entryCloseDate: closeDate }}
@@ -50,6 +52,23 @@ describe('MyEntryCard — entry close date label', () => {
     expect(screen.getByText('Entries close').parentElement).toHaveTextContent(
       formatShortDate(closeDate)
     );
+  });
+
+  it('moves a past "Entries close" date into the collapsed details panel', async () => {
+    const user = userEvent.setup();
+    const closeDate = new Date('2026-06-30');
+    render(
+      <MyEntryCard
+        entry={{ ...baseEntry, entryCloseDate: closeDate }}
+        onCheckInClick={noop}
+        onEditClick={noop}
+        onReceiptClick={noop}
+      />
+    );
+
+    expect(screen.queryByText('Entries close')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /show details/i }));
+    expect(screen.getByText('Entries close')).toBeInTheDocument();
   });
 
   it('does not render the close date row when entryCloseDate is absent', () => {

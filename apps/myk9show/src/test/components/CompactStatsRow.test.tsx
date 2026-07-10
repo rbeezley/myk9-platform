@@ -2,6 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
+import {
+  CURRENT_ENTRIES_LABEL,
+  CURRENT_ENTRIES_QUALIFIER,
+} from '@/pages/MyEntriesPage/modules/myShowsCopy';
 
 // The four stat cards live in this grid; the mobile summary line restates some
 // of the same numbers, so card-specific assertions scope here to avoid colliding
@@ -24,7 +28,8 @@ describe('CompactStatsRow', () => {
     const { container } = render(<CompactStatsRow {...defaultProps} />);
     const grid = getGrid(container);
     expect(grid.getByText('5')).toBeInTheDocument();
-    expect(grid.getByText('Current Entries')).toBeInTheDocument();
+    expect(grid.getByText(CURRENT_ENTRIES_LABEL)).toBeInTheDocument();
+    expect(grid.getByText(CURRENT_ENTRIES_QUALIFIER)).toBeInTheDocument();
     expect(grid.getByText('3 accepted · 2 pending')).toBeInTheDocument();
     expect(grid.getByText('2')).toBeInTheDocument();
     expect(grid.getByText('Upcoming Shows')).toBeInTheDocument();
@@ -36,10 +41,23 @@ describe('CompactStatsRow', () => {
     expect(grid.getByText('Amount due $75')).toHaveClass('text-warning');
   });
 
-  it('shows paid in full when there is no amount due', () => {
-    render(<CompactStatsRow {...defaultProps} amountDue={0} />);
-    expect(screen.getByText('Paid in full')).toBeInTheDocument();
-    expect(screen.queryByText(/Amount due/i)).not.toBeInTheDocument();
+  it('shows paid in full when there is no amount due, without a dollar total on the fees card', () => {
+    const { container } = render(<CompactStatsRow {...defaultProps} amountDue={0} />);
+    const grid = getGrid(container);
+    expect(grid.getByText('Paid in full')).toBeInTheDocument();
+    expect(grid.queryByText(/Amount due/i)).not.toBeInTheDocument();
+    const feesCard = grid.getByLabelText(/Current Fees.*Paid in full/i);
+    expect(within(feesCard).queryByText(/^\$\d/)).not.toBeInTheDocument();
+  });
+
+  it('shows a trailing chevron affordance on every clickable stat card', () => {
+    const { container } = render(<CompactStatsRow {...defaultProps} />);
+    const grid = getGrid(container);
+    const cards = grid.getAllByRole('button');
+    expect(cards).toHaveLength(4);
+    cards.forEach(card => {
+      expect(card.querySelector('svg.lucide-chevron-right')).toBeInTheDocument();
+    });
   });
 
   it('uses a responsive column layout (2 up to xl, 4 across on desktop) with icons before the stat data', () => {
@@ -56,7 +74,7 @@ describe('CompactStatsRow', () => {
 
     const entriesCard = screen.getByLabelText(/Entries.*View details/i);
     const icon = entriesCard.querySelector('[data-slot="icon"]');
-    const label = screen.getByText('Current Entries');
+    const label = screen.getByText(CURRENT_ENTRIES_LABEL);
 
     expect(entriesCard).toHaveClass('rounded-xl');
     expect(entriesCard).toHaveClass('bg-card');
@@ -94,7 +112,7 @@ describe('CompactStatsRow', () => {
     expect(screen.getByText('Paid in full')).toHaveClass('text-muted-foreground');
   });
 
-  it('uses singular label when count is 1', () => {
+  it('uses singular label for shows when count is 1 (current-entries label is fixed wording)', () => {
     render(
       <CompactStatsRow
         {...defaultProps}
@@ -104,12 +122,12 @@ describe('CompactStatsRow', () => {
         pastShows={1}
       />
     );
-    expect(screen.getByText('Current Entry')).toBeInTheDocument();
+    expect(screen.getByText(CURRENT_ENTRIES_LABEL)).toBeInTheDocument();
     expect(screen.getByText('Upcoming Show')).toBeInTheDocument();
     expect(screen.getByText('Past Show')).toBeInTheDocument();
   });
 
-  it('uses plural label when count is not 1', () => {
+  it('uses plural label for shows when count is not 1', () => {
     render(
       <CompactStatsRow
         {...defaultProps}
@@ -119,7 +137,7 @@ describe('CompactStatsRow', () => {
         pastShows={3}
       />
     );
-    expect(screen.getByText('Current Entries')).toBeInTheDocument();
+    expect(screen.getByText(CURRENT_ENTRIES_LABEL)).toBeInTheDocument();
     expect(screen.getByText('Upcoming Shows')).toBeInTheDocument();
     expect(screen.getByText('Past Shows')).toBeInTheDocument();
   });
@@ -186,7 +204,7 @@ describe('CompactStatsRow', () => {
     expect(onNavigate).toHaveBeenCalledWith('/cart?showId=show-1&entryIds=entry-1%2Centry-2');
   });
 
-  it('keeps Current Fees on My Shows when no payment is due', async () => {
+  it('links Current Fees to My Payments when no payment is due', async () => {
     const onNavigate = vi.fn();
     render(
       <CompactStatsRow {...defaultProps} currentFees={125} amountDue={0} onNavigate={onNavigate} />
@@ -195,7 +213,7 @@ describe('CompactStatsRow', () => {
     const feesCard = screen.getByLabelText(/Current Fees.*Paid in full/i);
     await userEvent.click(feesCard);
 
-    expect(onNavigate).toHaveBeenCalledWith('/exhibitor/entries');
+    expect(onNavigate).toHaveBeenCalledWith('/exhibitor/payments');
   });
 
   it('applies custom className', () => {
@@ -268,6 +286,6 @@ describe('CompactStatsRow', () => {
     const zeros = grid.getAllByText('0');
     expect(zeros).toHaveLength(3);
     expect(grid.getByText('0 accepted · 0 pending')).toBeInTheDocument();
-    expect(grid.getByText('$0')).toBeInTheDocument();
+    expect(grid.getByText('Paid in full')).toBeInTheDocument();
   });
 });

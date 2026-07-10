@@ -172,6 +172,15 @@ describe('AccountMenuContent theme + AskQ items (phone consolidation)', () => {
 });
 
 describe('AccountMenuContent organization', () => {
+  it('renders visible dividers between menu groups', () => {
+    renderOpenAccountMenu();
+
+    const dividers = screen.getAllByRole('separator');
+
+    expect(dividers.length).toBeGreaterThanOrEqual(3);
+    dividers.forEach(divider => expect(divider).toHaveClass('bg-border'));
+  });
+
   it('shows one pricing destination when there is no managed premium plan', () => {
     renderOpenAccountMenu();
 

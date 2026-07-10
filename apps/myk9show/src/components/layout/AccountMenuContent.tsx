@@ -40,6 +40,10 @@ interface AccountMenuContentProps {
   onAbout: () => void;
 }
 
+function AccountMenuSeparator() {
+  return <DropdownMenuSeparator className="bg-border" />;
+}
+
 /** The account dropdown's menu body. Extracted from AppHeader so that file
  * stays under the 500-line ratchet; it re-derives everything it needs from
  * hooks, so the only coupling back to the header is the About dialog toggle. */
@@ -145,7 +149,7 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
         hasRole(UserRole.CLUB_ADMIN) ||
         hasRole(UserRole.SITE_ADMIN)) && (
         <>
-          <DropdownMenuSeparator />
+          <AccountMenuSeparator />
           <DropdownMenuItem asChild>
             <Link to="/judge-scoring" className="w-full flex items-center gap-2">
               <Settings className="h-4 w-4" />
@@ -171,7 +175,7 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
           </DropdownMenuItem>
         </>
       )}
-      <DropdownMenuSeparator />
+      <AccountMenuSeparator />
 
       {/* AskQ stays here as the labeled compact-width access path for the
           same panel action exposed by the desktop header button. */}
@@ -193,7 +197,7 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
           Help &amp; Guides
         </a>
       </DropdownMenuItem>
-      <DropdownMenuSeparator />
+      <AccountMenuSeparator />
 
       <DropdownMenuItem
         onClick={toggleTheme}
@@ -210,7 +214,7 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
       {/* Development Tools */}
       {process.env.NODE_ENV === 'development' && (
         <>
-          <DropdownMenuSeparator />
+          <AccountMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="cursor-pointer">
               <Code2 className="h-4 w-4" />
@@ -235,7 +239,7 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
           </DropdownMenuSub>
         </>
       )}
-      <DropdownMenuSeparator />
+      <AccountMenuSeparator />
       <DropdownMenuItem
         onClick={() => {
           signOut();

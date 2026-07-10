@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useUpdatePerson } from '@/hooks/useUsers';
 import { mapDbUserToUser } from '@/hooks/queries/useUsersQuery';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { notifications, actionNotifications } from '@/lib/notifications';
+import { notifications } from '@/lib/notifications';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { friendlyDbError } from '@/utils/friendlyDbError';
@@ -130,7 +130,13 @@ export function useProfileForm() {
         state: values.state.trim(),
         zipCode: values.zipCode.trim(),
       });
-      actionNotifications.updated('Profile', `${values.firstName} ${values.lastName}`);
+      // Explicit duration at this callsite: the profile save toast previously
+      // persisted indefinitely (defaulted to no auto-dismiss) and stuck around
+      // across navigations. Auto-dismiss after ~4s.
+      notifications.success(
+        `Profile "${values.firstName} ${values.lastName}" updated successfully`,
+        { duration: 4000 }
+      );
     } catch (err) {
       notifications.error(friendlyDbError(err, 'Failed to update profile.'));
     } finally {

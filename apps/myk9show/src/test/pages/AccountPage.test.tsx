@@ -302,4 +302,21 @@ describe('AccountPage', () => {
       expect(screen.getByText(/reset to defaults/i)).toBeInTheDocument();
     });
   });
+
+  it('renders the flash as a fixed overlay so it never reflows the nav', async () => {
+    render();
+    const nav = screen.getByRole('navigation', { name: /account sections/i });
+    const navTopBefore = nav.getBoundingClientRect().top;
+
+    fireEvent.click(screen.getByRole('button', { name: /reset all settings/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('account-flash-overlay')).toBeInTheDocument();
+    });
+
+    // Overlay is taken out of document flow (fixed position), so it never
+    // pushes the nav down — geometry assertion per account-page-ux-remediation
+    // Decision 5.
+    expect(screen.getByTestId('account-flash-overlay')).toHaveClass('fixed');
+    expect(nav.getBoundingClientRect().top).toBe(navTopBefore);
+  });
 });

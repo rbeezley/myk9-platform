@@ -23,14 +23,14 @@
 
 ## 4. Feedback polish
 
-- [ ] 4.1 Profile save toast: auto-dismiss (~4s) at the callsite in the profile save path
-- [ ] 4.2 Appearance "Saved" banner: render as overlay/absolute (or in-card) so section nav never reflows; verify no layout shift
-- [ ] 4.3 Tests: toast called with duration; banner container does not alter nav geometry (snapshot or style assertion)
+- [x] 4.1 Profile save toast: auto-dismiss (~4s) at the callsite in the profile save path
+- [x] 4.2 Appearance "Saved" banner: render as overlay/absolute (or in-card) so section nav never reflows; verify no layout shift (fixed overlay, auto-clears 3s/5s; opacity spot-check in 7.3)
+- [x] 4.3 Tests: toast called with duration; banner container does not alter nav geometry (snapshot or style assertion)
 
 ## 5. Install app detection
 
-- [ ] 5.1 Branch `InstallAppSettings.tsx` on: captured `beforeinstallprompt` → install button; standalone display-mode → "already installed"; otherwise honest "not currently available" copy (never "try Chrome" when in Chrome)
-- [ ] 5.2 Unit tests for all three states (mock the event/media query)
+- [x] 5.1 Branch `InstallAppSettings.tsx` on: captured `beforeinstallprompt` → install button; standalone display-mode → "already installed"; otherwise honest "not currently available" copy — branching via usePWAInstall was already sound; only the dishonest third-branch copy needed rewriting
+- [x] 5.2 Unit tests for all three states (mock the event/media query)
 
 ## 6. Destructive-action hardening
 

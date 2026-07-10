@@ -277,17 +277,27 @@ export default function AccountPage() {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <h1 className="text-2xl font-bold mb-8">Account</h1>
 
-        {flash?.kind === 'success' && (
-          <Alert className="mb-4 border-success/30 bg-success/10 text-success ">
-            <CheckCircle2 className="h-4 w-4 text-success " />
-            <AlertDescription>{flash.msg}</AlertDescription>
-          </Alert>
-        )}
-        {flash?.kind === 'error' && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{flash.msg}</AlertDescription>
-          </Alert>
+        {/* Rendered as a fixed overlay (not in normal flow) so the flash never
+            shifts the nav/content layout below — see account-page-ux-remediation
+            Decision 5: the banner previously inserted above the nav and shifted
+            the whole layout down, causing misclicks. */}
+        {flash && (
+          <div
+            data-testid="account-flash-overlay"
+            className="fixed left-1/2 top-24 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2"
+          >
+            {flash.kind === 'success' ? (
+              <Alert className="border-success/30 bg-success/10 text-success shadow-lg">
+                <CheckCircle2 className="h-4 w-4 text-success " />
+                <AlertDescription>{flash.msg}</AlertDescription>
+              </Alert>
+            ) : (
+              <Alert variant="destructive" className="shadow-lg">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{flash.msg}</AlertDescription>
+              </Alert>
+            )}
+          </div>
         )}
 
         <div className="flex flex-col gap-6 md:flex-row md:gap-8">

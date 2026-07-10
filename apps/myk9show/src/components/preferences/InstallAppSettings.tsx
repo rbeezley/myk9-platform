@@ -84,13 +84,17 @@ export function InstallAppSettings() {
         </Card>
       )}
 
-      {/* No install available */}
+      {/* No install available — honest copy only. We don't know which browser
+          the user is in from here, so we never suggest switching to a specific
+          browser (that could be the one they're already using). See
+          account-page-ux-remediation Decision 6. */}
       {!canInstall && !isIOSSafari && !isInstalled && (
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">
-              Your browser doesn&apos;t support app installation. Try opening myK9Show in Chrome,
-              Edge, or Safari on iOS.
+              Installing myK9Show as an app isn&apos;t currently available in this browser session.
+              You can still use myK9Show normally in the browser — check back later, or try again
+              after reloading the page.
             </p>
           </CardContent>
         </Card>

@@ -77,4 +77,31 @@ describe('InstallAppSettings', () => {
     render(<InstallAppSettings />);
     expect(screen.queryByRole('button', { name: /install/i })).not.toBeInTheDocument();
   });
+
+  it('shows honest "not currently available" copy when no install path exists, without recommending a specific browser', () => {
+    mockUsePWAInstall.mockReturnValue({
+      ...defaultPWAState,
+      canInstall: false,
+      isIOSSafari: false,
+      isInstalled: false,
+    });
+    render(<InstallAppSettings />);
+    expect(
+      screen.getByText(/isn't currently available in this browser session/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/chrome/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/edge/i)).not.toBeInTheDocument();
+  });
+
+  it('does not show the install button or already-installed banner when neither state applies', () => {
+    mockUsePWAInstall.mockReturnValue({
+      ...defaultPWAState,
+      canInstall: false,
+      isIOSSafari: false,
+      isInstalled: false,
+    });
+    render(<InstallAppSettings />);
+    expect(screen.queryByText(/app installed/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /install/i })).not.toBeInTheDocument();
+  });
 });

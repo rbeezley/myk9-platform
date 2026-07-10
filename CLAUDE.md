@@ -144,6 +144,17 @@ Use the custom render from `src/test/utils/testUtils.tsx` instead of raw `render
 
 Update plan/tracking documents (`OPEN-TODOS.md`, sprint docs, debt register) after completing each task or sprint item. Keep them in sync with actual progress.
 
+### Which review when
+
+| Situation | Use |
+| --- | --- |
+| Uncommitted working diff, pre-commit | `/code-review` (cleanup order: `/simplify` → `/harden` → commit) |
+| Open GitHub PR | `/review` |
+| Commits already on `main` / a finished phase, no PR | `phase-review` skill |
+| High-stakes or user-visible behavior change | Add `/codex:review` (non-Claude second opinion — see below) |
+| Whole-branch, multi-agent deep review | `/code-review ultra` (user-triggered, billed) |
+| PR touches package.json / auth / RLS / migrations / list views | Also load `code-review-extensions` checklists |
+
 ### Codex second opinion (optional)
 
 For high-stakes diffs — RLS, migrations, payment flows, auth, RBAC seed data — run `/codex:review` alongside the standard `/review` to get a non-Claude model's read. The value is independent failure modes: Codex (GPT-5) often catches issues both Claude reviewers miss for the same reason, and vice versa. Skip on docs and trivial fixes. The review gate is intentionally OFF — opt in per PR, don't gate every stop.

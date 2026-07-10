@@ -1,6 +1,8 @@
 // supabase/functions/resend-webhook/index.ts
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
+import { matchesAnySignature } from './signature.ts';
+
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const webhookSecret = Deno.env.get('RESEND_WEBHOOK_SECRET');
@@ -66,7 +68,7 @@ Deno.serve(async (req: Request) => {
 
       // Svix sends multiple signatures separated by spaces, each prefixed with "v1,"
       const signatures = svixSignature.split(' ').map(s => s.replace('v1,', ''));
-      if (!signatures.includes(expectedSig)) {
+      if (!matchesAnySignature(signatures, expectedSig)) {
         console.error('Invalid webhook signature');
         return new Response('Invalid signature', { status: 401 });
       }

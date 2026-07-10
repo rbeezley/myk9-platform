@@ -11,13 +11,15 @@
 | --------- | ------ |
 | CRITICAL  | 0      |
 | HIGH      | 0      |
-| MEDIUM    | 5      |
+| MEDIUM    | 4      |
 | LOW       | 6      |
-| **Total** | **11** |
+| **Total** | **10** |
 
-Auto-fixable: 6 of 11 findings.
+Auto-fixable: 5 of 10 findings.
 
-**Headline:** No exploitable-now (CRITICAL/HIGH) vulnerability found. The cross-tenant **AskQ scope fail-open** reported this week is **fixed and regression-tested** (`_shared/askq/showScope.ts` now fails closed to an impossible UUID; defense-in-depth caller-access check in the edge fn). **14 of 16** prior audit findings are remediated by dedicated migrations/edge-fn fixes shipped 2026-07-03→08. Residual risk is concentrated in one theme: **caller-target authorization gaps in branded-email origination** (SA-004 was only partially closed — three MEDIUM recipient-spoofing paths remain across `send-email` and `send-results`). Everything else is defense-in-depth: one FORCE-RLS sweep regression on 5 post-sweep tables, and assorted LOW hardening nits. The core privilege-escalation surface (role tables, RBAC helpers, SECURITY DEFINER REVOKEs), the entire Stripe + payout-cron surface, the anon passcode/claim tier, and route gating are all verified correct.
+> **Correction (2026-07-10, post-remediation):** SA-009 was initially filed here as "STILL PRESENT" but is a **false positive** — `AuthContext.tsx` already reloads full RBAC on a 60s `window.setInterval(loadRbacData, 60_000)` (introduced 2026-07-03 in #1099, the prior audit's SA-009 fix). The client scan missed the manual `setInterval` (it is not a React Query `refetchInterval`). Client permission staleness is already bounded to ≤60s for both grant and revoke, so SA-009 is **resolved**, not open. Counts above reflect the correction (MEDIUM 5→4, Total 11→10).
+
+**Headline:** No exploitable-now (CRITICAL/HIGH) vulnerability found. The cross-tenant **AskQ scope fail-open** reported this week is **fixed and regression-tested** (`_shared/askq/showScope.ts` now fails closed to an impossible UUID; defense-in-depth caller-access check in the edge fn). **15 of 16** prior audit findings are remediated by dedicated migrations/edge-fn fixes shipped 2026-07-03→08 (SA-009 included — see correction above). Residual risk is concentrated in one theme: **caller-target authorization gaps in branded-email origination** (SA-004 was only partially closed — three MEDIUM recipient-spoofing paths remain across `send-email` and `send-results`). Everything else is defense-in-depth: one FORCE-RLS sweep regression on 5 post-sweep tables, and assorted LOW hardening nits. The core privilege-escalation surface (role tables, RBAC helpers, SECURITY DEFINER REVOKEs), the entire Stripe + payout-cron surface, the anon passcode/claim tier, and route gating are all verified correct.
 
 ---
 
@@ -67,14 +69,11 @@ Auto-fixable: 6 of 11 findings.
 
 ---
 
-### [MEDIUM] SA-009 (carried over — STILL PRESENT): No permission invalidation for a target user's live session on role change
+### [RESOLVED — false positive] SA-009: Permission invalidation on role change was already fixed
 
 **Category:** Client Auth Patterns (privilege staleness)
-**Location:** `apps/myk9show/src/context/AuthContext.tsx` (`assignRole`/`revokeRole` → `refreshPermissions()`); no `user_roles` realtime subscription anywhere (`grep postgres_changes|.channel(|user_roles` = 0 hits)
-**Evidence:** `assignRole`/`revokeRole` refresh only the **acting admin's own** session, not the target user's. There is no realtime subscription to `user_roles`. A user who is demoted/suspended mid-session keeps stale client permissions (and the privileged UI) until reload/token refresh.
-**Risk:** Client-only staleness. Server RLS still gates every read/write (verified: RPCs/helpers check `expires_at`/roles server-side), so this is not a data-exposure bypass — reads that RLS still permits (e.g. global-synced replication tables) remain visible until reload. Unchanged severity from the prior audit.
-**Fix:** Subscribe to `user_roles` `postgres_changes` for the current `auth_user_id`; force `refreshPermissions()` on change and hard sign-out on suspension. Alternatively piggyback a role reload on the existing 60s `userProfile` suspension poll.
-**Auto-fixable:** Yes (mechanical: add a `refetchInterval`-driven RBAC reload).
+**Status:** Not a live finding. During remediation, `AuthContext.tsx:322-326` was found to already run `loadRbacData()` on a `window.setInterval(..., 60 * 1000)` — a full RBAC reload (roles + effective + scoped permissions) every 60s, introduced 2026-07-03 in #1099 (the prior audit's SA-009 fix). Suspension is separately enforced by the 60s `userProfile` poll → forced sign-out. Both this audit's client scan and the prior audit misread this as "loads once, no TTL" because the poll is a manual `setInterval`, not a React Query `refetchInterval`, and did not appear in a `refetchInterval` grep.
+**Verdict:** Client permission staleness is bounded to ≤60s for grant and revoke. No code change shipped for SA-009 in the `security-audit-remediation` change. A realtime subscription was prototyped as a latency optimization and dropped — it added `REPLICA IDENTITY FULL` WAL cost on `user_roles` and a shared-publication change for a marginal gain on an already-closed finding.
 
 ---
 
@@ -151,7 +150,7 @@ Auto-fixable: 6 of 11 findings.
 | RLS Policy Integrity        | 355 migrations (full timeline) | SA-021, SA-027                                 | Core RLS strong; one FORCE-sweep regression + one idiom drift                                   |
 | Edge Function Auth          | 33 fns + shared                | SA-018, SA-019, SA-020, SA-023, SA-024, SA-025 | Email-origination caller-target authz cluster (SA-004 residual)                                 |
 | RBAC & Privilege Escalation | migrations + rbac services     | SA-022                                         | Role tables locked; one un-REVOKE'd definer write primitive                                     |
-| Client Auth Patterns        | routes, AuthContext, RBAC      | SA-009                                         | Route gating complete; role-change staleness only                                               |
+| Client Auth Patterns        | routes, AuthContext, RBAC      | none (SA-009 was a false positive — see above) | Route gating complete; RBAC already reloads on a 60s poll                                       |
 | Data Exposure               | client scan                    | SA-026                                         | AskQ fail-open FIXED; one residual admin-only raw error                                         |
 | Payment Security (Stripe)   | 11 Stripe/payout fns + shared  | **0**                                          | Clean — signatures, server-side pricing, refund caps, portal scoping, cron secrets all verified |
 | Input Validation            | client scan                    | **0**                                          | Parameterized queries; file uploads validated; HTML sinks sanitized                             |
@@ -182,7 +181,7 @@ Prior report: `security-audit-2026-07-03.md` (17 findings: 0C/0H/8M/9L).
 **Unchanged / still present:**
 
 - **SA-004** — PARTIALLY fixed. Unauthed types now 403 and `entry_decision` is show-official-gated, but caller-target recipient authz is still missing → re-filed as **SA-018**, **SA-019**, **SA-020** (recipient/CC spoofing).
-- **SA-009** — STILL PRESENT (carried over; MEDIUM defense-in-depth).
+- **SA-009** — RESOLVED (correction). Was carried over as "still present," but `AuthContext` already reloads RBAC on a 60s `setInterval` (shipped 2026-07-03 in #1099). Both audit passes misread the manual `setInterval` as no-TTL. No new code needed.
 
 **New this audit:** SA-018, SA-019, SA-020, SA-021, SA-022, SA-023, SA-024, SA-025, SA-026, SA-027.
 

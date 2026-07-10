@@ -1,6 +1,10 @@
 import type { User } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { HttpError } from '../_shared/http/responses.ts';
+import type {
+  EntryDecisionRecipientSource,
+  SupportNotificationRecipientSource,
+} from './recipientResolution.ts';
 
 export const SEND_EMAIL_CALLER_ROLE_SELECT =
   'id, club_id, show_id, auth_user_id, is_active, roles!inner(name)';
@@ -22,9 +26,14 @@ interface ShowScope {
   club_id: string | null;
 }
 
+interface HandlerScope {
+  email: string | null;
+}
+
 interface RegistrationRow {
   id: string;
   show?: ShowScope | ShowScope[] | null;
+  handler?: HandlerScope | HandlerScope[] | null;
 }
 
 interface SupabaseQueryResult<T = unknown> {
@@ -56,6 +65,19 @@ function normalizeJoinedShow(show: RegistrationRow['show']): ShowScope | null {
   return show ?? null;
 }
 
+function normalizeJoinedHandlerEmail(handler: RegistrationRow['handler']): string | null {
+  const row = Array.isArray(handler) ? (handler[0] ?? null) : (handler ?? null);
+  return row?.email ?? null;
+}
+
+/**
+ * Result of a successful authorization check, for message types whose
+ * recipient must be derived from the resource (SA-018/SA-019). `undefined`
+ * for other message types, which keep their existing body-supplied `to`.
+ */
+export type SendEmailAuthorizationResult =
+  SupportNotificationRecipientSource | EntryDecisionRecipientSource | undefined;
+
 export async function assertSendEmailRateLimit(args: {
   supabase: SendEmailSupabaseClient;
   userId: string;
@@ -84,14 +106,13 @@ export async function assertSendEmailAuthorization(args: {
   supabase: SendEmailSupabaseClient;
   user: User | { id: string } | undefined;
   data: SendEmailAuthData;
-}): Promise<void> {
+}): Promise<SendEmailAuthorizationResult> {
   if (!args.user) {
     throw new HttpError(401, 'Unauthorized');
   }
 
   if (args.data.type === 'support_notification') {
-    await assertSupportNotificationAuthorization(args);
-    return;
+    return await assertSupportNotificationAuthorization(args);
   }
 
   if (args.data.type !== 'entry_decision') {
@@ -104,7 +125,7 @@ export async function assertSendEmailAuthorization(args: {
 
   const { data: registration, error: registrationError } = (await args.supabase
     .from('enrollments')
-    .select('id, show:shows(id, club_id)')
+    .select('id, show:shows(id, club_id), handler:people!handler_id(email)')
     .eq('id', args.data.registrationId)
     .maybeSingle()) as SupabaseQueryResult<RegistrationRow>;
 
@@ -134,13 +155,18 @@ export async function assertSendEmailAuthorization(args: {
   if (!canSend) {
     throw new HttpError(403, 'Forbidden: show official role required');
   }
+
+  return {
+    type: 'entry_decision',
+    registration: { exhibitorEmail: normalizeJoinedHandlerEmail(registration.handler) },
+  };
 }
 
 async function assertSupportNotificationAuthorization(args: {
   supabase: SendEmailSupabaseClient;
   user: User | { id: string } | undefined;
   data: SendEmailAuthData;
-}): Promise<void> {
+}): Promise<SupportNotificationRecipientSource> {
   if (!args.data.ticketId) {
     throw new HttpError(400, 'ticketId is required');
   }
@@ -157,22 +183,47 @@ async function assertSupportNotificationAuthorization(args: {
   if (!ticket) {
     throw new HttpError(404, 'Support ticket not found');
   }
-  if (ticket.owner_id === args.user?.id) return;
 
-  const { data: callerRoles, error: callerRolesError } = await args.supabase
-    .from('user_roles')
-    .select(SEND_EMAIL_CALLER_ROLE_SELECT)
-    .eq('auth_user_id', args.user?.id)
-    .eq('is_active', true);
+  if (ticket.owner_id !== args.user?.id) {
+    const { data: callerRoles, error: callerRolesError } = await args.supabase
+      .from('user_roles')
+      .select(SEND_EMAIL_CALLER_ROLE_SELECT)
+      .eq('auth_user_id', args.user?.id)
+      .eq('is_active', true);
 
-  if (callerRolesError) {
-    throw new HttpError(500, 'Failed to verify support email authorization');
+    if (callerRolesError) {
+      throw new HttpError(500, 'Failed to verify support email authorization');
+    }
+
+    const isSiteAdmin = ((callerRoles ?? []) as CallerRoleSource[]).some(
+      role => role.roles?.name === 'site_admin'
+    );
+    if (!isSiteAdmin) {
+      throw new HttpError(403, 'Forbidden: support ticket access required');
+    }
   }
 
-  const isSiteAdmin = ((callerRoles ?? []) as CallerRoleSource[]).some(
-    role => role.roles?.name === 'site_admin'
-  );
-  if (!isSiteAdmin) {
-    throw new HttpError(403, 'Forbidden: support ticket access required');
+  const ownerEmail = await resolveTicketOwnerEmail(args.supabase, ticket.owner_id);
+
+  return { type: 'support_notification', ticket: { ownerEmail } };
+}
+
+/** The ticket's `owner_id` is an `auth.users.id`; resolve it to an email via
+ * the `people` row linked by `auth_user_id`, matching the pattern used by
+ * `push-trigger-support-message`'s `getOwnerRecipient`. */
+async function resolveTicketOwnerEmail(
+  supabase: SendEmailSupabaseClient,
+  ownerId: string
+): Promise<string | null> {
+  const { data: owner, error } = (await supabase
+    .from('people')
+    .select('email')
+    .eq('auth_user_id', ownerId)
+    .maybeSingle()) as SupabaseQueryResult<{ email: string | null }>;
+
+  if (error) {
+    throw new HttpError(500, 'Failed to resolve support ticket recipient');
   }
+
+  return owner?.email ?? null;
 }

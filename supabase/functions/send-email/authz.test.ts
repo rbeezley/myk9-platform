@@ -67,10 +67,14 @@ describe('send-email authorization helpers', () => {
     ).rejects.toThrow('Forbidden: show official role required');
   });
 
-  it('allows a secretary of the show to send', async () => {
+  it('allows a secretary of the show to send, resolving the exhibitor email from the registration', async () => {
     const from = vi.fn((table: string) => {
       if (table === 'enrollments') {
-        return chain({ id: 'registration-1', show: { id: 'show-1', club_id: 'club-1' } });
+        return chain({
+          id: 'registration-1',
+          show: { id: 'show-1', club_id: 'club-1' },
+          handler: { email: 'exhibitor@example.com' },
+        });
       }
       if (table === 'user_roles') {
         return chain([{ club_id: 'club-1', roles: { name: 'secretary' } }]);
@@ -84,7 +88,59 @@ describe('send-email authorization helpers', () => {
         user: { id: 'secretary-user' },
         data: { type: 'entry_decision', registrationId: 'registration-1' },
       })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({
+      type: 'entry_decision',
+      registration: { exhibitorEmail: 'exhibitor@example.com' },
+    });
+  });
+
+  it('resolves the support_notification recipient to the ticket owner email, ignoring the caller', async () => {
+    const from = vi.fn((table: string) => {
+      if (table === 'support_tickets') {
+        return chain({ id: 'ticket-1', owner_id: 'owner-user' });
+      }
+      if (table === 'people') {
+        return chain({ email: 'owner@example.com' });
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
+
+    await expect(
+      assertSendEmailAuthorization({
+        supabase: { from, rpc: vi.fn() } as unknown as SendEmailSupabaseClient,
+        user: { id: 'owner-user' },
+        data: { type: 'support_notification', ticketId: 'ticket-1' },
+      })
+    ).resolves.toEqual({
+      type: 'support_notification',
+      ticket: { ownerEmail: 'owner@example.com' },
+    });
+  });
+
+  it('resolves the support_notification recipient to the ticket owner email for a site-admin caller', async () => {
+    const from = vi.fn((table: string) => {
+      if (table === 'support_tickets') {
+        return chain({ id: 'ticket-1', owner_id: 'owner-user' });
+      }
+      if (table === 'user_roles') {
+        return chain([{ club_id: null, roles: { name: 'site_admin' } }]);
+      }
+      if (table === 'people') {
+        return chain({ email: 'owner@example.com' });
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
+
+    await expect(
+      assertSendEmailAuthorization({
+        supabase: { from, rpc: vi.fn() } as unknown as SendEmailSupabaseClient,
+        user: { id: 'site-admin-user' },
+        data: { type: 'support_notification', ticketId: 'ticket-1' },
+      })
+    ).resolves.toEqual({
+      type: 'support_notification',
+      ticket: { ownerEmail: 'owner@example.com' },
+    });
   });
 
   it('rejects callers who exceed the per-user limiter', async () => {

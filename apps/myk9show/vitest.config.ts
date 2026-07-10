@@ -22,6 +22,8 @@ export default defineConfig({
       '../../supabase/functions/_shared/askq/*.test.ts',
       '../../supabase/functions/_shared/pushWebhookAuth.test.ts',
       '../../supabase/functions/send-confirmation-email/auth.test.ts',
+      '../../supabase/functions/resend-webhook/signature.test.ts',
+      '../../supabase/functions/send-results/authz.test.ts',
     ],
     exclude: [
       '**/node_modules/**',
@@ -52,10 +54,7 @@ export default defineConfig({
       // Stub packages that are not installed but imported by source files under test.
       // Tests that need real behavior mock these via vi.mock() in the test file.
       pako: path.resolve(__dirname, 'src/test/mocks/pako.ts'),
-      'virtual:pwa-register': path.resolve(
-        __dirname,
-        'src/test/mocks/virtual-pwa-register.ts'
-      ),
+      'virtual:pwa-register': path.resolve(__dirname, 'src/test/mocks/virtual-pwa-register.ts'),
     },
   },
 });

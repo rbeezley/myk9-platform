@@ -29,14 +29,13 @@ Constraints: TypeScript only; edge functions run on Deno; the repo's hardened SQ
 
 **D3 — One migration for all SQL findings (SA-021/022/027).** A single new migration file does the FORCE RLS on five tables, the REVOKE, and redefines the three lifecycle helper functions with `SET search_path = ''`. Redefining functions via `CREATE OR REPLACE` preserves the trigger wiring. Never modify the original migrations (append-only history).
 
-**D4 — Client role-change refresh (SA-009).** Prefer a Supabase realtime subscription to `user_roles` filtered by the current `auth_user_id`; on any change, call the existing `refreshPermissions()` and, if the new `userProfile.status` is `suspended`, force sign-out. Fallback if realtime is undesirable: piggyback the existing 60s `userProfile` suspension poll to also reload RBAC. This is client-only hardening — server RLS already enforces revocation.
+**D4 — SA-009 dropped (false positive).** Initially planned as a client role-change refresh, but implementation found `AuthContext.tsx` already reloads full RBAC on a 60s `window.setInterval(loadRbacData, 60_000)` (shipped 2026-07-03 in #1099), bounding permission staleness to ≤60s for grant and revoke; suspension sign-out is handled by the 60s `userProfile` poll. Both audit passes misread the manual `setInterval` as no-TTL. A realtime subscription was prototyped and rejected — `REPLICA IDENTITY FULL` on `user_roles` adds permanent WAL cost and the publication add is a shared-DB change, both unjustified for a marginal latency gain on an already-closed finding. No SA-009 code ships in this change; the audit report is corrected.
 
 **D5 — Constant-time compare (SA-023).** Replace `signatures.includes(expectedSig)` with a constant-time equality over the candidate signatures (e.g. `crypto.subtle`-based or a length-checked XOR compare), matching the fail-closed posture elsewhere.
 
 ## Risks / Trade-offs
 
 - **Dropping body `to`/`cc` could break a legitimate caller that relied on it** → Grep all client callers of `send-email` for `support_notification`/`entry_decision`; the audit shows recipients are always the resource's own party, so derivation matches real usage. Tests assert the derived address.
-- **Realtime subscription adds a client connection per session** → Filtered to one `auth_user_id`; negligible. Fallback to the existing poll if connection budget is a concern.
 - **Function redefinition search_path change could alter resolution** → All references are already fully-qualified or builtins; redefining with `= ''` is behavior-preserving. Verified by reading the current function bodies before editing.
 - **Migration not pushed in this change** → Intentional; the PR documents that push + deploy are the follow-up confirmed step, consistent with Auto Mode shared-system gates.
 

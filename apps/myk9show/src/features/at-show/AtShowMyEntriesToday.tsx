@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { cn } from '@/lib/utils';
 import { notifications } from '@/lib/notifications';
+import { replicatedEntriesTable } from '@/services/replication';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import { EXHIBITOR_STATUS_LABELS, getCheckInStatusConfig } from '@/types/check-in-types';
 import { deriveAtShowNextAction, type AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
@@ -179,6 +180,14 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
           newStatus: 'checked-in',
           classId: detail.classId ?? undefined,
         });
+        // The self-checkin RPC writes only to the remote DB — nothing pulls
+        // that write back into replicatedEntriesTable (the app-wide
+        // replication provider syncs `entries` with an empty show scope, a
+        // permanent no-op). Pull this show's rows explicitly so the
+        // subscription above actually has real, confirmed data to reconcile
+        // the optimistic override against, instead of the override just
+        // persisting unconfirmed for the rest of the session.
+        void replicatedEntriesTable.sync(showId).catch(() => {});
       } catch {
         setStatusOverrides(prev => {
           const next = { ...prev };
@@ -192,7 +201,7 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
         setPendingEntryId(null);
       }
     },
-    [checkInMutation]
+    [checkInMutation, showId]
   );
 
   return (

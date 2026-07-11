@@ -5,6 +5,7 @@ import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 
 const mockMutateAsync = vi.hoisted(() => vi.fn());
+const mockSync = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
   useCheckInMutation: () => ({ mutateAsync: mockMutateAsync, isPending: false }),
@@ -12,6 +13,10 @@ vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
 
 vi.mock('@/lib/notifications', () => ({
   notifications: { error: vi.fn(), success: vi.fn() },
+}));
+
+vi.mock('@/services/replication', () => ({
+  replicatedEntriesTable: { sync: mockSync },
 }));
 
 function entry(overrides: Partial<AtShowEntryDetail>): AtShowEntryDetail {
@@ -71,6 +76,27 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
 describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
   beforeEach(() => {
     mockMutateAsync.mockReset();
+    mockSync.mockReset();
+    mockSync.mockResolvedValue(undefined);
+  });
+
+  it("pulls this show's rows back down after a successful check-in — the RPC write never reaches replicatedEntriesTable any other way, so the subscription would otherwise have nothing real to reconcile against", async () => {
+    mockMutateAsync.mockResolvedValue(undefined);
+    render(
+      <AtShowMyEntriesToday
+        showId="show-1"
+        entries={[entry({ checkInStatus: 'no-status' })]}
+        isLoading={false}
+        dataUpdatedAt={1}
+        onSeeAllClasses={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Check in/ }));
+
+    await waitFor(() => {
+      expect(mockSync).toHaveBeenCalledWith('show-1');
+    });
   });
 
   it('flips the badge to "I am here" and hides the Check in button immediately on tap', async () => {

@@ -56,7 +56,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-asca-level-c-classes.md](plan-asca-level-c-classes.md)                               | Active    | ASCA Level C — seed continuation classes into the wizard template            |
 | [plan-askq-revival.md](plan-askq-revival.md)                                               | Active    | AskQ Revival & Simplification (select-then-bundle)                           |
 | [plan-atshow-ringside-writes.md](plan-atshow-ringside-writes.md)                           | Active    | At-Show Ringside — wire deferred writes + judge/steward write authz          |
-| [plan-block-person-delete-owns-dogs.md](plan-block-person-delete-owns-dogs.md)             | Active    | Block deleting a person who still owns dogs                                  |
 | [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md)               | Active    | Plan — Class Status Auto-Derivation (Stub)                                   |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                       | Active    | Data Access Module Drift Plan                                                |
 | [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md)                     | Complete  | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit)        |
@@ -67,7 +66,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-entry-payment-request.md](plan-entry-payment-request.md)                             | Active    | Entry Payment, Waitlist & Capacity (links, pay-to-claim, judge-day)          |
 | [plan-exhibitor-early-checkin.md](plan-exhibitor-early-checkin.md)                         | Active    | Exhibitor early check-in — toggle gate (P1 done) + /at-show fix (P2)         |
 | [plan-landing-hero-lcp-prerender.md](plan-landing-hero-lcp-prerender.md)                   | Active    | Landing-page mobile LCP — prerender + hydrate the hero                       |
-| [plan-lane-2-2-entry-multiselect.md](plan-lane-2-2-entry-multiselect.md)                   | Active    | Plan: Lane 2.2 — Entry Management checkbox multi-select                      |
 | [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                           | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                        |
 | [plan-motion-consistency.md](plan-motion-consistency.md)                                   | Active    | Motion Consistency — one motion language across myK9Show + ringside          |
 | [plan-operator-docs-portal.md](plan-operator-docs-portal.md)                               | Deferred  | Gated Operator Docs Portal — searchable runbooks (deferred 2026-06-27)       |

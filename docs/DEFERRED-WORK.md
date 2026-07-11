@@ -4,6 +4,8 @@
 **Updated:** 2026-02-15 (ALL SECTIONS COMPLETE — Stripe Edge Functions implemented)
 **Source:** Automated scan of TODO/FIXME/HACK comments across the monorepo
 
+> **Scope note (2026-07-11):** This file reflects the **Feb-2026 deferred-work sweep only** — a point-in-time snapshot, not the live backlog. "ALL SECTIONS COMPLETE" applies to that sweep's items, not to the project overall. Live deferred/open work is now tracked in `OPEN-TODOS.md` and the current audit backlog at [`docs/improve-audit-2026-07-11/README.md`](improve-audit-2026-07-11/README.md); static code-quality debt is tracked by `pnpm qa:code-quality-ratchet` (175 files over the 500-line rule as of 2026-07-11). Retained below for provenance.
+
 ---
 
 ## Summary

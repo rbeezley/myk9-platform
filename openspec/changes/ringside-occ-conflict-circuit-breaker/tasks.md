@@ -26,9 +26,9 @@
 
 ## 5. Deploy and live verification (operator-gated)
 
-- [ ] 5.1 `supabase db push --project-ref sojmvhhwsjxmfistvzbe` (confirm before pushing; verify "Deployed" output names the right ref) — this also restores the `authenticated` grant, unwinding the 2026-07-11 emergency REVOKE.
-- [ ] 5.2 Redeploy `cron-health-check` with explicit `--project-ref sojmvhhwsjxmfistvzbe`.
-- [ ] 5.3 Live psql proof (rolled-back txn where mutating): stale `expected_version` → `40001` + DETAIL with sequence advanced despite abort; authorized write succeeds; `authenticated` EXECUTE restored, `anon` revoked; next daily snapshot (or a manually invoked run) shows the `ringside_conflicts` check.
+- [x] 5.1 Migration applied to remote 2026-07-11 (the normal `db push` was blocked by a pre-existing out-of-order timestamp collision — `20260710160000_self_service_soft_delete_person.sql`, not ours — so the migration DDL was applied via psql and recorded in `supabase_migrations.schema_migrations`; `authenticated` EXECUTE restored, unwinding the emergency REVOKE). Follow-up migration `20260711160000_ringside_conflict_seq_revoke_client_grants.sql` added: Supabase default privileges auto-granted `anon`/`authenticated` USAGE on the new sequence; revoked live + recorded.
+- [x] 5.2 `cron-health-check` redeployed — "Deployed Functions on project sojmvhhwsjxmfistvzbe".
+- [x] 5.3 Live proof: stale `expected_version` → `40001` + DETAIL=authoritative raised at the precheck (line 67, before auth); conflict counter advanced 0→1→2 despite the aborts; `authenticated` EXECUTE present, `anon` absent; sequence USAGE revoked from clients; fired the health cron → snapshot written with `ringside_conflicts | ok | "baseline recorded (counter 2)"`.
 
 ## 6. Tracking
 

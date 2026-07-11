@@ -78,6 +78,15 @@ export interface MutationManagerOptions {
   maxRetries?: number;
   /** Exponential backoff base delay in ms (default: 1000) */
   retryBackoffBase?: number;
+  /**
+   * Lifetime cap on OCC-conflict upload attempts for one mutation (default:
+   * 50). occRetries persists on the queued mutation, so the cap holds across
+   * page reloads. On reaching it the mutation is PARKED into the
+   * failed-mutations store (visible, user-recoverable via retry/discard —
+   * never silently dropped) instead of retrying the same conflicting write
+   * forever — the 2026-07-11 ringside conflict storm.
+   */
+  maxOccAttempts?: number;
   /** Logger instance for diagnostics */
   logger?: Logger;
 }
@@ -96,6 +105,7 @@ export class MutationManager {
   private supabase: SupabaseClient;
   private maxRetries: number;
   private retryBackoffBase: number;
+  private maxOccAttempts: number;
   private logger: Logger;
 
   // Auto-upload: flush mutations to server shortly after queuing
@@ -115,6 +125,7 @@ export class MutationManager {
     this.supabase = supabaseClient;
     this.maxRetries = options.maxRetries ?? 3;
     this.retryBackoffBase = options.retryBackoffBase ?? 1000;
+    this.maxOccAttempts = options.maxOccAttempts ?? 50;
     this.logger = options.logger ?? noopLogger;
   }
 
@@ -397,6 +408,10 @@ export class MutationManager {
       ...failed,
       status: 'pending',
       retries: 0,
+      // A user-driven retry grants a fresh set of OCC attempts too — without
+      // this, a mutation parked at the occ lifetime cap would re-park on its
+      // very next conflict.
+      occRetries: 0,
     };
     delete requeued.error;
     delete requeued.nextRetryAt;
@@ -624,15 +639,16 @@ export class MutationManager {
    * we fall back to it alone when Web Locks is unavailable (older engines, tests).
    */
   async uploadPendingMutations(): Promise<SyncResult[]> {
-    const locks = (
+    const locks =
       typeof navigator !== 'undefined'
-        ? (navigator as unknown as {
-            locks?: {
-              request?: (name: string, cb: () => Promise<SyncResult[]>) => Promise<SyncResult[]>;
-            };
-          }).locks
-        : undefined
-    );
+        ? (
+            navigator as unknown as {
+              locks?: {
+                request?: (name: string, cb: () => Promise<SyncResult[]>) => Promise<SyncResult[]>;
+              };
+            }
+          ).locks
+        : undefined;
     if (locks && typeof locks.request === 'function') {
       const result = await locks.request('replication-upload', () => this.runUploadPass());
       return result ?? [];
@@ -737,10 +753,8 @@ export class MutationManager {
           continue;
         }
 
-        const queuedMutation = (await db.get(
-          REPLICATION_STORES.PENDING_MUTATIONS,
-          mutation.id
-        )) as PendingMutation | undefined;
+        const queuedMutation = (await db.get(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id)) as
+          PendingMutation | undefined;
         if (!queuedMutation) {
           continue;
         }
@@ -786,7 +800,9 @@ export class MutationManager {
             duration: 0,
           });
 
-          this.logger.log(`[MutationManager] Mutation ${uploadedMutation.id} uploaded successfully`);
+          this.logger.log(
+            `[MutationManager] Mutation ${uploadedMutation.id} uploaded successfully`
+          );
         } catch (error) {
           if (error instanceof OccRejectionError) {
             // Concurrent server write rejected this stale offline mutation.
@@ -813,8 +829,13 @@ export class MutationManager {
 
             // Throttle re-upload of an unresolved conflict (exponential backoff,
             // capped) so it cannot hammer the server every flush cycle. This is a
-            // separate counter from `retries` so the conflict is never dead-lettered
-            // (which would destroy the offline edit) — it just slows down.
+            // separate counter from `retries` so an ordinary conflict is not
+            // dead-lettered after 3 attempts — it slows down and keeps waiting
+            // for reconciliation. It is NOT unlimited: occRetries persists on
+            // the mutation, and at maxOccAttempts (default 50, across reloads)
+            // the mutation is PARKED into the failed-mutations store — visible
+            // and user-recoverable via retry/discard, never silently dropped,
+            // never replayed forever (2026-07-11 ringside conflict storm).
             const occRetries = (queuedMutation.occRetries ?? 0) + 1;
             const nextRetryAt = now + calculateBackoffDelay(occRetries - 1, this.retryBackoffBase);
             // Re-persist the backoff ONLY if the mutation still exists. A past
@@ -828,6 +849,41 @@ export class MutationManager {
               REPLICATION_STORES.PENDING_MUTATIONS,
               queuedMutation.id
             )) as PendingMutation | undefined;
+            if (stillQueued && occRetries >= this.maxOccAttempts) {
+              // Lifetime cap reached: park. The payload survives in the
+              // failed-mutations store and surfaces through the existing
+              // sync-failed toast (Retry resets the counters; Discard is
+              // explicit). Parking, not deleting — durability contract.
+              const parked: PendingMutation = {
+                ...stillQueued,
+                occRetries,
+                status: 'failed',
+                error:
+                  `Version conflict persisted through ${occRetries} attempts ` +
+                  `(${error.tableName}/${error.rowId}); parked for review.`,
+                failedAt: now,
+              };
+              delete parked.nextRetryAt;
+              await db.put(REPLICATION_STORES.FAILED_MUTATIONS, parked);
+              await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, queuedMutation.id);
+              failedMutations.push(parked);
+              blockedDependencyIds.add(queuedMutation.id);
+              failedDependencyIds.add(queuedMutation.id);
+              this.logger.error(
+                `[MutationManager] OCC conflict for ${error.tableName}/${error.rowId} ` +
+                  `exhausted ${occRetries} lifetime attempts; mutation ${queuedMutation.id} ` +
+                  `parked for user review.`
+              );
+              results.push({
+                success: false,
+                tableName: queuedMutation.tableName,
+                operation: queuedMutation.operation,
+                rowsAffected: 0,
+                duration: 0,
+                error: error.message,
+              });
+              continue;
+            }
             if (stillQueued) {
               await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
                 ...stillQueued,
@@ -1189,9 +1245,9 @@ export class MutationManager {
       );
     }
 
-    const replicatedRows = (await db.getAll(
-      REPLICATION_STORES.REPLICATED_TABLES
-    )) as ReplicatedRow<Record<string, unknown>>[];
+    const replicatedRows = (await db.getAll(REPLICATION_STORES.REPLICATED_TABLES)) as ReplicatedRow<
+      Record<string, unknown>
+    >[];
     const existingCanonicalDog = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
       'dogs',
       newRowId,

@@ -53,6 +53,12 @@ Source: [`docs/ux-audits/exhibitor-entry-journey-elderly-ux-audit-2026-07-10.md`
 
 ---
 
+## OCC Conflict-Storm — second incident — 2026-07-11
+
+- [~] **Ship `ringside-occ-conflict-circuit-breaker` (server-side OCC storm containment)** — Staging hit >80% CPU again 2026-07-11 (finding `QA-INFRA-OCC-STORM-037` in [`docs/qa/findings.md`](docs/qa/findings.md)): a stale-bundle Playwright client under the old persistent Codex nightly heartbeat looped `ringside_update_entry` conflicts at ~70/sec for 12+ hours (1,841 zombie sessions). Emergency mitigation live: `EXECUTE` revoked from `authenticated` on the RPC — **staging ringside scoring is disabled until the migration ships.** Implementation complete in openspec change `ringside-occ-conflict-circuit-breaker` (early cheap conflict rejection + rollback-proof `ringside_conflict_seq` counter + `ringside_conflicts` health check + client occ-attempt lifetime cap parking into the existing failed-mutations review flow); migration `20260711150000` auditor-clean, all suites green. **Remaining:** PR/CI/review/merge, then operator-gated `db push` + `cron-health-check` redeploy + live psql proof, then archive. Ops-side fixed same day: Codex nightly converted to standalone job (30-min hard kill, 1 worker/0 retries, ringside writes prohibited).
+
+---
+
 ## OCC Conflict-Storm Follow-ups — 2026-06-25
 
 Two follow-ups from the ringside OCC conflict-storm incident (PR [#961](https://github.com/rbeezley/myk9-platform/pull/961), which fixed the storm itself). A since-fixed unthrottled OCC-conflict bug let repeated/concurrent E2E runs against shared staging drive a sustained high-CPU write storm (Supabase >80% CPU alert, 2026-06-25).

@@ -662,7 +662,10 @@ describe('MutationManager', () => {
     });
 
     it('remaps dog dependents when an RPC INSERT returns an existing dog id', async () => {
-      vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: 'existing-dog-1', error: null } as never);
+      vi.mocked(mockSupabase.rpc).mockResolvedValue({
+        data: 'existing-dog-1',
+        error: null,
+      } as never);
       const entryInsertMock = vi.fn(() => ({
         select: vi.fn(() => Promise.resolve({ data: [{ id: 'entry-1' }], error: null })),
       }));
@@ -941,6 +944,128 @@ describe('MutationManager', () => {
       const failed = await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
       expect(failed).toHaveLength(0);
     });
+
+    it('parks the mutation at the occ lifetime cap instead of retrying forever', async () => {
+      // occRetries persists on the mutation (survives reloads), so seeding 49
+      // models a wedged write that has already conflicted 49 times across any
+      // number of sessions — the 2026-07-11 storm shape. The 50th conflict
+      // must park it, not schedule attempt 51.
+      await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
+        tableName: 'entries',
+        id: 'entry-occ3',
+        data: { id: 'entry-occ3' },
+        version: 4,
+        serverVersion: 3,
+        lastSyncedAt: 0,
+        lastAccessedAt: 0,
+        isDirty: true,
+        syncStatus: 'pending',
+      } as ReplicatedRow<{ id: string }>);
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-occ3',
+          rowId: 'entry-occ3',
+          data: { id: 'entry-occ3', run_order: 7 },
+          serverVersion: 3,
+          occRetries: 49,
+          rpc: { name: 'ringside_update_entry', fields: { run_order: 7 } },
+        })
+      );
+      mockRpcVersionConflict('entry-occ3', 3, 8);
+
+      const results = await manager.uploadPendingMutations();
+
+      expect(results[0]!.success).toBe(false);
+      // Out of the active queue — no further automatic replay.
+      expect(await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).toHaveLength(0);
+      // Parked, not dropped: full payload retained for user review.
+      const failed = (await mockDb.getAll(
+        REPLICATION_STORES.FAILED_MUTATIONS
+      )) as PendingMutation[];
+      expect(failed).toHaveLength(1);
+      expect(failed[0]!.id).toBe('mut-occ3');
+      expect(failed[0]!.status).toBe('failed');
+      expect(failed[0]!.occRetries).toBe(50);
+      expect(failed[0]!.data).toEqual({ id: 'entry-occ3', run_order: 7 });
+      expect(failed[0]!.error).toMatch(/50 attempts/);
+      expect(failed[0]!.nextRetryAt).toBeUndefined();
+    });
+
+    it('a conflict below the cap keeps retrying; a custom cap is honored', async () => {
+      const smallCapManager = new MutationManager(mockSupabase, {
+        logger: mockLogger,
+        maxOccAttempts: 2,
+      });
+      await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
+        tableName: 'entries',
+        id: 'entry-occ4',
+        data: { id: 'entry-occ4' },
+        version: 4,
+        serverVersion: 3,
+        lastSyncedAt: 0,
+        lastAccessedAt: 0,
+        isDirty: true,
+        syncStatus: 'pending',
+      } as ReplicatedRow<{ id: string }>);
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-occ4',
+          rowId: 'entry-occ4',
+          data: { id: 'entry-occ4', run_order: 9 },
+          serverVersion: 3,
+          rpc: { name: 'ringside_update_entry', fields: { run_order: 9 } },
+        })
+      );
+      mockRpcVersionConflict('entry-occ4', 3, 8);
+
+      // Attempt 1 of 2 — still below the cap: stays queued with backoff.
+      await smallCapManager.uploadPendingMutations();
+      let pending = (await mockDb.getAll(
+        REPLICATION_STORES.PENDING_MUTATIONS
+      )) as PendingMutation[];
+      expect(pending).toHaveLength(1);
+      expect(pending[0]!.occRetries).toBe(1);
+
+      // Attempt 2 hits the cap: parked.
+      pending[0]!.nextRetryAt = 0; // make it due immediately
+      await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, pending[0]!);
+      await smallCapManager.uploadPendingMutations();
+      expect(await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).toHaveLength(0);
+      const failed = (await mockDb.getAll(
+        REPLICATION_STORES.FAILED_MUTATIONS
+      )) as PendingMutation[];
+      expect(failed.map(f => f.id)).toEqual(['mut-occ4']);
+    });
+
+    it('a user retry of a parked conflict resets the occ counter for a fresh set of attempts', async () => {
+      await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, {
+        ...makeMutation({
+          id: 'mut-occ5',
+          rowId: 'entry-occ5',
+          data: { id: 'entry-occ5', run_order: 2 },
+          serverVersion: 3,
+        }),
+        status: 'failed',
+        occRetries: 50,
+        error: 'Version conflict persisted through 50 attempts; parked for review.',
+        failedAt: Date.now(),
+      });
+
+      await manager.retryFailedMutation('mut-occ5');
+
+      expect(await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS)).toHaveLength(0);
+      const pending = (await mockDb.getAll(
+        REPLICATION_STORES.PENDING_MUTATIONS
+      )) as PendingMutation[];
+      expect(pending).toHaveLength(1);
+      expect(pending[0]!.id).toBe('mut-occ5');
+      expect(pending[0]!.status).toBe('pending');
+      expect(pending[0]!.retries).toBe(0);
+      expect(pending[0]!.occRetries).toBe(0);
+      expect(pending[0]!.error).toBeUndefined();
+    });
   });
 
   // ========================================
@@ -1099,9 +1224,7 @@ describe('MutationManager', () => {
         // 'Validation failed' is now fail-open retryable.)
         update: vi.fn(() => ({
           eq: vi.fn(() => ({
-            select: vi.fn(() =>
-              Promise.reject(new Error('permission denied for table entries'))
-            ),
+            select: vi.fn(() => Promise.reject(new Error('permission denied for table entries'))),
           })),
         })),
       } as unknown as ReturnType<typeof mockSupabase.from>);

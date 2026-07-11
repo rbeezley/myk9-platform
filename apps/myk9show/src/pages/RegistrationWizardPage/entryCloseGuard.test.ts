@@ -58,6 +58,7 @@ describe('getEntryCloseSubmitBlocker', () => {
       })
     ).toStrictEqual({
       canEnter: false,
+      unavailableReason: 'closed',
       reason: 'Entries are closed for this show. Contact the trial secretary for late-entry help.',
       recoveryHref: '/messages/show-1',
     });
@@ -99,6 +100,21 @@ describe('getEntryOpenSubmitBlocker', () => {
         workflowMode: 'exhibitor',
       })
     ).toBeNull();
+  });
+
+  it('still blocks an exhibitor before open even with the URL late-entry flag set', () => {
+    // isLateEntryMode is derived purely from ?source=show-desk&entryMode=late,
+    // which any exhibitor can append. "Late entry" is a post-close concept, so
+    // the open guard must not honor it — only RBAC-derived organizer modes pass.
+    expect(
+      getEntryOpenSubmitBlocker({
+        entryOpenDate: '2026-07-10',
+        entryCloseDate: '2026-07-20',
+        today: '2026-07-09',
+        isLateEntryMode: true,
+        workflowMode: 'exhibitor',
+      })
+    ).toBe(OPEN_MESSAGE);
   });
 
   it('does not block organizer workflows before entries open', () => {
@@ -150,6 +166,7 @@ describe('getEntrySubmitBlocker', () => {
       })
     ).toStrictEqual({
       canEnter: false,
+      unavailableReason: 'not_yet_open',
       reason: OPEN_MESSAGE,
       recoveryHref: '/messages/show-1',
     });

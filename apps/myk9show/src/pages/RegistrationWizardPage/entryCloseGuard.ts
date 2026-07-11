@@ -12,6 +12,8 @@ export interface EntryCloseSubmitGuardContext {
 
 export interface EntryCloseAvailability {
   canEnter: boolean;
+  /** Which window boundary blocks entry, for boundary-specific UI copy. */
+  unavailableReason: 'not_yet_open' | 'closed' | null;
   reason: string | null;
   recoveryHref: string;
 }
@@ -51,10 +53,13 @@ export function getEntryCloseSubmitBlocker({
 export function getEntryOpenSubmitBlocker({
   entryOpenDate,
   today,
-  isLateEntryMode,
   workflowMode,
 }: EntryCloseSubmitGuardContext): string | null {
-  if (isLateEntryMode || workflowMode !== 'exhibitor') return null;
+  // Only RBAC-derived organizer workflows are exempt. `isLateEntryMode` is
+  // deliberately NOT honored here: it is set purely from URL params
+  // (?source=show-desk&entryMode=late) that any exhibitor can append, and
+  // "late entry" is a post-close concept with no pre-open meaning.
+  if (workflowMode !== 'exhibitor') return null;
 
   const openDate = parseCalendarDate(entryOpenDate);
   if (!openDate) return null;
@@ -80,10 +85,12 @@ export function getEntrySubmitBlocker(context: EntryCloseSubmitGuardContext): st
 export function getEntryCloseAvailability(
   context: EntryCloseSubmitGuardContext & { showId: string }
 ): EntryCloseAvailability {
-  const reason = getEntrySubmitBlocker(context);
+  const openReason = getEntryOpenSubmitBlocker(context);
+  const reason = openReason ?? getEntryCloseSubmitBlocker(context);
 
   return {
     canEnter: reason === null,
+    unavailableReason: reason === null ? null : openReason ? 'not_yet_open' : 'closed',
     reason,
     recoveryHref: `/messages/${context.showId}`,
   };

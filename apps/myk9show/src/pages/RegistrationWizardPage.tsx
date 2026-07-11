@@ -180,10 +180,14 @@ function RegistrationWizardContent() {
               {!entryCloseAvailability.canEnter ? (
                 <div className="mx-auto max-w-2xl rounded-xl border border-border bg-muted/30 p-6 text-center">
                   <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                    Entries closed
+                    {entryCloseAvailability.unavailableReason === 'not_yet_open'
+                      ? 'Entries not open yet'
+                      : 'Entries closed'}
                   </p>
                   <h3 className="mt-2 text-2xl font-semibold text-foreground">
-                    This show is no longer accepting normal online entries.
+                    {entryCloseAvailability.unavailableReason === 'not_yet_open'
+                      ? 'This show is not accepting online entries yet.'
+                      : 'This show is no longer accepting normal online entries.'}
                   </h3>
                   <p className="mt-3 text-sm leading-6 text-muted-foreground">
                     {entryCloseAvailability.reason ??

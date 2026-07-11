@@ -5,7 +5,11 @@
  * of typing IDs. Classes are grouped by trial; Novice Section A/B pairs are
  * collapsed into one "A & B" card (via ringside `groupSectionedClasses`) that
  * routes to the combined EntryList; everything else routes to the single-class
- * EntryList. Mounted at `/at-show/:showId` (flag-gated, staff-guarded).
+ * EntryList. Mounted at `/at-show/:showId` (any account admitted by
+ * `AtShowAccessGate` — staff or passcode). An exhibitor-only account with
+ * owned entries at this show instead lands on `AtShowMyEntriesToday` by
+ * default (see `isExhibitorOnlyForAtShow`); staff always see this class-first
+ * view.
  *
  * Card styling is host-side (Tailwind) under `.ringside-root`; matching myK9Q's
  * exact class-card look is part of the visual-polish pass.

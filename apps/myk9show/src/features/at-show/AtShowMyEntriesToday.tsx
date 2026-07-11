@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { cn } from '@/lib/utils';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
-import { EXHIBITOR_STATUS_LABELS } from '@/types/check-in-types';
+import { EXHIBITOR_STATUS_LABELS, getCheckInStatusConfig } from '@/types/check-in-types';
 import { deriveAtShowNextAction, type AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 
 export interface AtShowMyEntriesTodayProps {
@@ -24,8 +24,16 @@ export interface AtShowMyEntriesTodayProps {
   onSeeAllClasses: () => void;
 }
 
+// Plain-language override where one exists (no-status/checked-in/conflict/
+// pulled); falls back to the staff-grade label — same fallback order
+// CheckInStatusDialog uses — so a status without a plain override (at-gate,
+// come-to-gate, in-ring, completed) still reads correctly instead of always
+// showing "not checked in".
 function statusLabel(detail: AtShowEntryDetail): string {
-  return EXHIBITOR_STATUS_LABELS[detail.checkInStatus] ?? 'Not checked in yet';
+  return (
+    EXHIBITOR_STATUS_LABELS[detail.checkInStatus] ??
+    getCheckInStatusConfig(detail.checkInStatus).label
+  );
 }
 
 function EntryRow({

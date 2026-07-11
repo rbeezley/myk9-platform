@@ -7,6 +7,7 @@ import { UserRole } from '@/types/auth-types';
 import { selectGrantRoleForShow, useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import { useAccountTodayAutoFavorites } from '@/features/show-today/accountTodayEntries';
 import { useHasAnyEntryForShow } from './useHasAnyEntryForShow';
+import { useRehydrateRingsideGrant } from './useRehydrateRingsideGrant';
 import { AtShowAnnouncementFeed } from './AtShowAnnouncementFeed';
 
 const STAFF_ROLES = [
@@ -26,6 +27,7 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   const { showId } = useParams<{ showId: string }>();
   const location = useLocation();
   const { user, loading, hasRole } = useAuthContext();
+  useRehydrateRingsideGrant(showId);
   const activeGrant = useRingsideGrantStore(state => state.activeGrant);
   const grantRole = selectGrantRoleForShow(activeGrant, showId);
   const hasAccountStaffRole = STAFF_ROLES.some(role => hasRole(role));

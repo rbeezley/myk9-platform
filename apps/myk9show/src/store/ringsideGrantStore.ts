@@ -22,6 +22,7 @@
  */
 
 import { create } from 'zustand';
+import type { User } from '@supabase/supabase-js';
 import type { UserRole as RingsideRole } from '@myk9/ringside';
 
 export interface RingsideGrant {
@@ -80,4 +81,35 @@ export function selectGrantRoleForShow(
 ): RingsideRole | null {
   if (!grant || !showId) return null;
   return grant.showId === showId ? grant.role : null;
+}
+
+const RINGSIDE_ROLES: readonly RingsideRole[] = ['admin', 'judge', 'steward', 'exhibitor'];
+
+function isRingsideRole(value: unknown): value is RingsideRole {
+  return typeof value === 'string' && (RINGSIDE_ROLES as readonly string[]).includes(value);
+}
+
+/**
+ * Reads the forge-proof `ringside_passcode` claim straight off a Supabase
+ * session's `app_metadata` (stamped server-side by `validate-passcode`, never
+ * client-writable — see `docs/plan-ringside-entries-read-authz.md` Phase C).
+ *
+ * This exists to REHYDRATE `ringsideGrantStore` after a hard reload wipes it
+ * (the store is deliberately not persisted — see the module docstring — but
+ * Supabase's own session persistence survives reload, so the claim is still
+ * there). Returns the role only when the claim is present, correctly marked,
+ * and scoped to `showId` — the same show-scoping rule as
+ * `selectGrantRoleForShow`. Pure derivation only; callers still go through
+ * `setGrant` to actually repopulate the store (see `useRehydrateRingsideGrant`).
+ */
+export function deriveRingsideRoleFromClaim(
+  user: Pick<User, 'is_anonymous' | 'app_metadata'> | null | undefined,
+  showId: string | undefined
+): RingsideRole | null {
+  if (!user?.is_anonymous || !showId) return null;
+  const claim = user.app_metadata as
+    { kind?: unknown; show_id?: unknown; ringside_role?: unknown } | undefined;
+  if (claim?.kind !== 'ringside_passcode') return null;
+  if (claim.show_id !== showId) return null;
+  return isRingsideRole(claim.ringside_role) ? claim.ringside_role : null;
 }

@@ -5,7 +5,11 @@ import { UserRole } from '@/types/auth-types';
 import { AtShowAccessGate } from './AtShowAccessGate';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 
-let mockUser: { id: string } | null = null;
+let mockUser: {
+  id?: string;
+  is_anonymous?: boolean;
+  app_metadata?: Record<string, unknown>;
+} | null = null;
 let mockRoles: UserRole[] = [];
 const mockAccountToday = vi.hoisted(() => ({
   hasAccountEntryForShow: false,
@@ -60,6 +64,7 @@ describe('AtShowAccessGate', () => {
     mockHasAnyEntry.hasAnyEntryForShow = false;
     mockHasAnyEntry.isLoading = false;
     useRingsideGrantStore.getState().clearGrant();
+    useRingsideGrantStore.getState().setSuppressRehydration(false);
   });
 
   it('admits an anonymous user with a matching passcode grant', () => {
@@ -131,6 +136,55 @@ describe('AtShowAccessGate', () => {
 
   // Codex review round 3 (PR #1217): must not flash the deny copy while the
   // entry-affiliation lookup is still in flight.
+  // 2026-07-10 verification walk: ringsideGrantStore is deliberately not
+  // persisted, but a reload leaves the anon Supabase session (and its claim)
+  // intact — the gate must rehydrate from that claim instead of hanging.
+  it('rehydrates and admits a passcode judge session that survived a reload (no store grant, valid claim)', async () => {
+    mockUser = {
+      is_anonymous: true,
+      app_metadata: { kind: 'ringside_passcode', show_id: 'show-1', ringside_role: 'judge' },
+    };
+
+    renderGate();
+
+    expect(await screen.findByText('AT SHOW CONTENT')).toBeInTheDocument();
+    expect(useRingsideGrantStore.getState().activeGrant).toMatchObject({
+      showId: 'show-1',
+      role: 'judge',
+      source: 'passcode',
+    });
+  });
+
+  it('does not rehydrate a claim scoped to a different show', () => {
+    mockUser = {
+      is_anonymous: true,
+      app_metadata: { kind: 'ringside_passcode', show_id: 'other-show', ringside_role: 'judge' },
+    };
+
+    renderGate();
+
+    expect(screen.getByText("You don't have ringside access for this show.")).toBeInTheDocument();
+    expect(useRingsideGrantStore.getState().activeGrant).toBeNull();
+  });
+
+  // Closes the revocation race: ringsidePasscodeRevocation.ts clears the
+  // grant and sets suppressRehydration synchronously, but the anon session's
+  // claim isn't actually invalidated until its async signOut() resolves.
+  // Without the flag, this hook would see "no grant, valid-shaped claim" in
+  // that gap and immediately re-admit the just-revoked user.
+  it('does not rehydrate while suppressRehydration is set, even with a valid-shaped claim', () => {
+    mockUser = {
+      is_anonymous: true,
+      app_metadata: { kind: 'ringside_passcode', show_id: 'show-1', ringside_role: 'judge' },
+    };
+    useRingsideGrantStore.getState().setSuppressRehydration(true);
+
+    renderGate();
+
+    expect(screen.getByText("You don't have ringside access for this show.")).toBeInTheDocument();
+    expect(useRingsideGrantStore.getState().activeGrant).toBeNull();
+  });
+
   it('shows a loading state (not the deny copy) while the entry lookup is pending', () => {
     mockUser = { id: 'user-1' };
     mockRoles = [UserRole.EXHIBITOR];

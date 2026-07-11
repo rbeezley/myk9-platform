@@ -33,7 +33,7 @@
 
 ## 3. Batch A — Migration Lineage
 
-- [ ] 3.1 Update `softDeletePerson.source.test.ts` first to require self-service authorization and role deactivation from `20260710170000`, observe RED, delete `20260710160000_self_service_soft_delete_person.sql`, and make the focused contract test GREEN.
+- [x] 3.1 Update `softDeletePerson.source.test.ts` first to require self-service authorization and role deactivation from `20260710170000`, observe RED, delete `20260710160000_self_service_soft_delete_person.sql`, and make the focused contract test GREEN.
 - [ ] 3.2 Run the duplicate-version scan, `supabase migration list`, and `supabase db push --dry-run`; stop on any unexpected apply/revert/repair proposal and record that no real database push is required for deletion of the obsolete unapplied file.
 
 ## 4. Batch B — FORCE RLS and Drift Prevention (SA-021)

@@ -22,7 +22,7 @@
 
 - [x] 4.1 Run focused vitest suites for every touched area from `apps/myk9show` (and package suites for `@myk9/replication`); all green.
 - [x] 4.2 Run `pnpm typecheck` and `pnpm lint`; fix fallout.
-- [ ] 4.3 Open PR (`Tracked in openspec change: ringside-occ-conflict-circuit-breaker`), pass CI, standard review + Codex second opinion (security-critical RPC re-emit), merge.
+- [x] 4.3 PR [#1271](https://github.com/rbeezley/myk9-platform/pull/1271) opened, CI green, Codex second opinion (5 rounds → clean; converged on RPC-only OCC cap scoping), merged squash `3dc0dd319`. Follow-up sequence-grant REVOKE PR [#1272](https://github.com/rbeezley/myk9-platform/pull/1272) merged `ef1782ba` after an independent migration-auditor review (Codex rate-limited).
 
 ## 5. Deploy and live verification (operator-gated)
 
@@ -33,4 +33,4 @@
 ## 6. Tracking
 
 - [x] 6.1 Log the 2026-07-11 incident (root cause, mitigations, fix) in `docs/qa/findings.md` — including the ops-side remediation completed 2026-07-11: the Codex nightly converted from persistent heartbeat to a standalone job (25-min work cutoff / 30-min mandatory shutdown killing browsers, runners, dev servers, and child processes; Playwright 1 worker, 0 retries; shared-Supabase and ringside writes prohibited; old persistent QA task archived).
-- [ ] 6.2 Update `OPEN-TODOS.md` pointer for this change as status moves; archive the change after merge + deploy evidence (`opsx:archive`).
+- [x] 6.2 `OPEN-TODOS.md` pointer flipped to DONE+DEPLOYED; change archived via `opsx:archive` after merge + live deploy evidence.

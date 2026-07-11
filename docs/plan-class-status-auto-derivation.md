@@ -23,7 +23,7 @@ If the system derives status automatically from scoring events, the secretary do
 
 ## Why it's its own plan (not bundled into Option B)
 
-1. **Cross-app scope.** myK9Q owns scoring writes; myK9Show consumes the resulting status. A Supabase trigger could handle it without app code. Three layers potentially touched.
+1. **Cross-layer scope.** myK9Show's `/at-show` ringside owns scoring writes (offline-first via the replication layer); the rest of myK9Show consumes the resulting status. A Supabase trigger could handle it without app code. Multiple layers potentially touched.
 2. **Edge-case rules need PO sign-off.** Several real cases (below) don't have obvious answers and shouldn't be guessed at by an implementer.
 3. **Option B's critical path is long enough.** Bundling this into B2b would balloon a phase that already has the row-action wiring.
 
@@ -63,7 +63,7 @@ Before this plan can be fleshed out, the PO needs to lock the following rules:
 | Approach | Pro | Con |
 |---|---|---|
 | **(A) Supabase trigger on `entries` writes** | Single source of truth at the data layer; every consumer sees consistent state | Trigger complexity; harder to debug; needs careful handling of expected-count semantics |
-| **(B) myK9Q application logic** (in score persistence) | Lives close to the originating event; uses existing `replicatedClassesTable.updateClassStatus` | Couples scoring to status transitions; if myK9Q's offline buffer holds a score, status update is delayed too |
+| **(B) myK9Q application logic** (in score persistence) | Lives close to the originating event; uses existing `replicatedClassesTable.updateClassStatus` | Couples scoring to status transitions; if myK9Q's offline buffer holds a score, status update is delayed too — **and `apps/myk9q` was deleted, so this candidate is void; see the 2026-07 note below** |
 | **(C) myK9Show derivation layer** (virtual status from scoring data) | No write-path change; pure compute | Every read recomputes; existing `class.status` consumers stay on the old field; dual sources of truth |
 | **(D) Hybrid: app-layer write + DB constraint** | Belt-and-suspenders | More moving parts |
 

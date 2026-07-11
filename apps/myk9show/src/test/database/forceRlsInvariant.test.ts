@@ -20,10 +20,123 @@ const remediationMigration = resolve(
 );
 const liveVerifier = resolve(repoRoot, 'scripts/qa/db-security/force-rls-live.sql');
 
-function stripSqlComments(sql: string): string {
-  return sql
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/--.*$/gm, '');
+function maskSqlNonCode(sql: string): string {
+  let masked = '';
+  let index = 0;
+
+  const maskCharacter = (character: string): string =>
+    character === '\n' || character === '\r' ? character : ' ';
+
+  while (index < sql.length) {
+    if (sql.startsWith('--', index)) {
+      while (index < sql.length && sql[index] !== '\n') {
+        masked += ' ';
+        index += 1;
+      }
+      continue;
+    }
+
+    if (sql.startsWith('/*', index)) {
+      let depth = 1;
+      masked += '  ';
+      index += 2;
+
+      while (index < sql.length && depth > 0) {
+        if (sql.startsWith('/*', index)) {
+          depth += 1;
+          masked += '  ';
+          index += 2;
+        } else if (sql.startsWith('*/', index)) {
+          depth -= 1;
+          masked += '  ';
+          index += 2;
+        } else {
+          masked += maskCharacter(sql[index]);
+          index += 1;
+        }
+      }
+      continue;
+    }
+
+    if (sql[index] === "'") {
+      const priorCharacter = sql[index - 1];
+      const characterBeforePrefix = sql[index - 2];
+      const allowsBackslashEscapes =
+        priorCharacter?.toLowerCase() === 'e' &&
+        (!characterBeforePrefix || !/[a-z0-9_$]/i.test(characterBeforePrefix));
+
+      masked += ' ';
+      index += 1;
+
+      while (index < sql.length) {
+        if (sql[index] === "'" && sql[index + 1] === "'") {
+          masked += '  ';
+          index += 2;
+        } else if (
+          allowsBackslashEscapes &&
+          sql[index] === '\\' &&
+          index + 1 < sql.length
+        ) {
+          masked += '  ';
+          index += 2;
+        } else if (sql[index] === "'") {
+          masked += ' ';
+          index += 1;
+          break;
+        } else {
+          masked += maskCharacter(sql[index]);
+          index += 1;
+        }
+      }
+      continue;
+    }
+
+    if (sql[index] === '$') {
+      const delimiter = sql.slice(index).match(/^\$(?:[a-z_][a-z0-9_]*)?\$/i)?.[0];
+      if (delimiter) {
+        const closingIndex = sql.indexOf(delimiter, index + delimiter.length);
+        const endIndex = closingIndex === -1 ? sql.length : closingIndex + delimiter.length;
+
+        while (index < endIndex) {
+          masked += maskCharacter(sql[index]);
+          index += 1;
+        }
+        continue;
+      }
+    }
+
+    if (sql[index] === '"') {
+      masked += '"';
+      index += 1;
+
+      while (index < sql.length) {
+        if (sql[index] === '"' && sql[index + 1] === '"') {
+          masked += '""';
+          index += 2;
+        } else if (sql[index] === '"') {
+          masked += '"';
+          index += 1;
+          break;
+        } else {
+          masked += sql[index] === ';' ? ' ' : sql[index];
+          index += 1;
+        }
+      }
+      continue;
+    }
+
+    masked += sql[index];
+    index += 1;
+  }
+
+  return masked;
+}
+
+function executableSqlStatements(sql: string): string[] {
+  return maskSqlNonCode(sql)
+    .split(';')
+    .map(statement => statement.trim())
+    .filter(Boolean);
 }
 
 function publicTableName(reference: string): string | null {
@@ -41,58 +154,59 @@ function deriveTableSecurityState(sources: MigrationSource[]): Map<string, Table
   const tableReference = '(?:"?[a-z_][a-z0-9_]*"?\\.)?"?[a-z_][a-z0-9_]*"?';
 
   for (const source of sources) {
-    const sql = stripSqlComments(source.sql);
-    const operations: Array<{ index: number; apply: () => void }> = [];
+    for (const sql of executableSqlStatements(source.sql)) {
+      const operations: Array<{ index: number; apply: () => void }> = [];
 
-    const createPattern = new RegExp(
-      `\\bcreate\\s+(?:unlogged\\s+)?table\\s+(?:if\\s+not\\s+exists\\s+)?(${tableReference})`,
-      'gi'
-    );
-    for (const match of sql.matchAll(createPattern)) {
-      const table = publicTableName(match[1]);
-      if (!table) continue;
-      operations.push({
-        index: match.index,
-        apply: () => {
-          if (!states.has(table)) {
-            states.set(table, { rlsEnabled: false, rlsForced: false });
-          }
-        },
-      });
+      const createPattern = new RegExp(
+        `\\bcreate\\s+(?:unlogged\\s+)?table\\s+(?:if\\s+not\\s+exists\\s+)?(${tableReference})`,
+        'gi'
+      );
+      for (const match of sql.matchAll(createPattern)) {
+        const table = publicTableName(match[1]);
+        if (!table) continue;
+        operations.push({
+          index: match.index,
+          apply: () => {
+            if (!states.has(table)) {
+              states.set(table, { rlsEnabled: false, rlsForced: false });
+            }
+          },
+        });
+      }
+
+      const dropPattern = new RegExp(
+        `\\bdrop\\s+table\\s+(?:if\\s+exists\\s+)?(${tableReference})`,
+        'gi'
+      );
+      for (const match of sql.matchAll(dropPattern)) {
+        const table = publicTableName(match[1]);
+        if (!table) continue;
+        operations.push({ index: match.index, apply: () => states.delete(table) });
+      }
+
+      const alterPattern = new RegExp(
+        `\\balter\\s+table\\s+(?:if\\s+exists\\s+)?(?:only\\s+)?(${tableReference})\\s+(enable|disable|force|no\\s+force)\\s+row\\s+level\\s+security`,
+        'gi'
+      );
+      for (const match of sql.matchAll(alterPattern)) {
+        const table = publicTableName(match[1]);
+        if (!table) continue;
+        const action = match[2].replace(/\s+/g, ' ').toLowerCase();
+        operations.push({
+          index: match.index,
+          apply: () => {
+            const state = states.get(table) ?? { rlsEnabled: false, rlsForced: false };
+            if (action === 'enable') state.rlsEnabled = true;
+            if (action === 'disable') state.rlsEnabled = false;
+            if (action === 'force') state.rlsForced = true;
+            if (action === 'no force') state.rlsForced = false;
+            states.set(table, state);
+          },
+        });
+      }
+
+      operations.sort((a, b) => a.index - b.index).forEach(operation => operation.apply());
     }
-
-    const dropPattern = new RegExp(
-      `\\bdrop\\s+table\\s+(?:if\\s+exists\\s+)?(${tableReference})`,
-      'gi'
-    );
-    for (const match of sql.matchAll(dropPattern)) {
-      const table = publicTableName(match[1]);
-      if (!table) continue;
-      operations.push({ index: match.index, apply: () => states.delete(table) });
-    }
-
-    const alterPattern = new RegExp(
-      `\\balter\\s+table\\s+(?:if\\s+exists\\s+)?(?:only\\s+)?(${tableReference})\\s+(enable|disable|force|no\\s+force)\\s+row\\s+level\\s+security`,
-      'gi'
-    );
-    for (const match of sql.matchAll(alterPattern)) {
-      const table = publicTableName(match[1]);
-      if (!table) continue;
-      const action = match[2].replace(/\s+/g, ' ').toLowerCase();
-      operations.push({
-        index: match.index,
-        apply: () => {
-          const state = states.get(table) ?? { rlsEnabled: false, rlsForced: false };
-          if (action === 'enable') state.rlsEnabled = true;
-          if (action === 'disable') state.rlsEnabled = false;
-          if (action === 'force') state.rlsForced = true;
-          if (action === 'no force') state.rlsForced = false;
-          states.set(table, state);
-        },
-      });
-    }
-
-    operations.sort((a, b) => a.index - b.index).forEach(operation => operation.apply());
   }
 
   return states;
@@ -165,6 +279,57 @@ describe('FORCE RLS migration invariant', () => {
     ];
 
     expect(unforcedRlsTables(sources)).toEqual(['no_force_table']);
+  });
+
+  it('ignores DDL text inside quoted and dollar-quoted function bodies', () => {
+    const sources = [
+      {
+        name: '001_function_body.sql',
+        sql: `
+          CREATE TABLE public.real_table (id uuid);
+          ALTER TABLE public.real_table ENABLE ROW LEVEL SECURITY;
+
+          CREATE FUNCTION public.fake_force() RETURNS void
+          LANGUAGE plpgsql
+          AS $function$
+          BEGIN
+            EXECUTE 'ALTER TABLE public.real_table FORCE ROW LEVEL SECURITY;';
+          END;
+          $function$;
+        `,
+      },
+    ];
+
+    expect(unforcedRlsTables(sources)).toEqual(['real_table']);
+  });
+
+  it('does not treat comment markers inside string literals as comments', () => {
+    const sources = [
+      {
+        name: '001_literal_comments.sql',
+        sql: `
+          CREATE TABLE public.literal_comment_table (id uuid);
+          SELECT '-- still a string'; ALTER TABLE public.literal_comment_table ENABLE ROW LEVEL SECURITY;
+          SELECT '/* still a string */';
+        `,
+      },
+    ];
+
+    expect(unforcedRlsTables(sources)).toEqual(['literal_comment_table']);
+  });
+
+  it('does not treat a standard-string backslash as a quote escape', () => {
+    const sources = [
+      {
+        name: '001_standard_string.sql',
+        sql: `
+          CREATE TABLE public.standard_string_table (id uuid);
+          SELECT '\\'; ALTER TABLE public.standard_string_table ENABLE ROW LEVEL SECURITY;
+        `,
+      },
+    ];
+
+    expect(unforcedRlsTables(sources)).toEqual(['standard_string_table']);
   });
 
   it('leaves no repository-owned RLS-enabled public table unforced', () => {

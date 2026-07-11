@@ -84,6 +84,8 @@ const features = [
 ];
 
 const getIconColor = (color: string) => {
+  // These hues distinguish decorative feature categories; they do not convey
+  // success, warning, or error state. State-bearing colors use semantic tokens.
   switch (color) {
     case 'blue':
       return 'text-info bg-info/10 ';

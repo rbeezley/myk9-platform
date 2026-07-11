@@ -1,6 +1,6 @@
 # Plan: Lane 2.2 — Entry Management checkbox multi-select (bulk editing)
 
-> **Status:** Active
+> **Status:** Complete (shipped — `EntryBulkActionsBar.tsx` + `bulkActionEligibility.ts` live; archived 2026-07-11)
 
 **Lane:** 2 (Secretary Operational UX), step 2. Depends on Lane 2.1 (shared row-action menu,
 [#825](https://github.com/rbeezley/myk9-platform/pull/825), merged) so the per-row interaction

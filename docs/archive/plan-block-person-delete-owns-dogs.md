@@ -1,6 +1,6 @@
 # Plan: Block deleting a person who still owns dogs
 
-> **Status:** Active
+> **Status:** Complete (shipped — migration `20260617130000_block_person_delete_with_dogs.sql`; archived 2026-07-11)
 
 **Found:** 2026-06-17, follow-up to the restore-UI work (PR #790). While confirming
 cascade behavior we asked: *what happens to a dog (and its entries) when its owner

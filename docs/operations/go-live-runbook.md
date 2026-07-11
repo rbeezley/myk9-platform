@@ -364,6 +364,43 @@ close-out; keep those items unchecked until evidence is recorded.
 > Vault + `HEALTH_CRON_SECRET` on the function); until then, and for the still-manual items, treat the
 > checklist below as authoritative.
 
+### Daily-health delivery activation and proof
+
+The July 11 gate review proved that a successful `pg_cron` dispatch is not delivery evidence. The
+repository remediation adds two independent paths: a pure-SQL
+`daily-health-snapshot-watchdog` at 08:00 UTC that writes a deduplicated `operator_alerts` row when
+the 07:00–08:00 `cron-health-check` snapshot window is empty, and Sentry Cron check-ins emitted by
+the Edge runner. Do not treat either as live until its approval-gated steps below are evidenced.
+
+- [ ] **Database path:** review `supabase db push --dry-run`, obtain shared-system approval, push
+      `20260711151000_daily_health_snapshot_watchdog.sql`, and verify both jobs in `cron.job`:
+      `daily-health-check` at `0 7 * * *` and `daily-health-snapshot-watchdog` at `0 8 * * *`.
+- [ ] **Repair the dispatch credential:** compare redacted SHA-256 digests, then reconcile Vault
+      `service_role_key` to the current Edge runtime service-role key. Never paste either value into
+      evidence. Manually dispatch `cron-health-check` and prove a fresh `cron-health-check` snapshot
+      lands before relying on the schedule.
+- [ ] **Prove the durable miss:** in a disposable database or an explicitly approved rolled-back
+      transaction, simulate an empty expected snapshot window, run the watchdog body, and capture
+      its `daily-health-snapshot-watchdog` / `daily-health-check:YYYY-MM-DD` unresolved alert. Re-run
+      to prove deduplication; resolve it and re-run to prove a genuine recurrence can alert again.
+- [ ] **External path:** create the Sentry Cron Monitor with slug `daily-health-check`, schedule
+      `0 7 * * *`, timezone UTC, 15-minute check-in margin, and 10-minute max runtime. Route missed,
+      error, and recovery notifications to a named human. Keep monitor configuration in Sentry;
+      the function must not upsert it.
+- [ ] **Deploy check-ins:** with approval, set the Supabase-side `SENTRY_DSN` and matching
+      `SENTRY_ENVIRONMENT` secrets, then deploy with
+      `supabase functions deploy cron-health-check --no-verify-jwt --workdir apps/myk9show`.
+      Manually dispatch once and record correlated `in_progress` → `ok` evidence. A failed probe
+      that persists a `fail` snapshot is still an `ok` delivery check-in; the snapshot owns health
+      status.
+- [ ] **Prove independence:** use Sentry's notification test or an approved missed interval to
+      capture the named-human missed and recovery notifications without disabling the database
+      watchdog. Separately prove that a failed Sentry flush does not suppress a committed snapshot.
+
+Rollback: redeploy the last-good `cron-health-check`, remove/restore the Sentry secrets as
+appropriate, disable the Sentry monitor, and unschedule `daily-health-snapshot-watchdog` in a new
+migration. Do not edit an applied migration in place.
+
 - [ ] **5.1** `main` is green; Deploy Production workflow succeeded on the launch build; the
       production URL serves it.
 - [ ] **5.2** Migration parity: `supabase migration list` — local and remote agree;

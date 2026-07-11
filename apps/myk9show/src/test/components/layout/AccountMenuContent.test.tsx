@@ -171,7 +171,7 @@ describe('AccountMenuContent organization', () => {
     const dividers = screen.getAllByRole('separator');
 
     expect(dividers.length).toBeGreaterThanOrEqual(3);
-    dividers.forEach(divider => expect(divider).toHaveClass('bg-border'));
+    dividers.forEach(divider => expect(divider).toHaveClass('bg-muted-foreground/40'));
   });
 
   it('keeps plan details reachable from every account menu', () => {

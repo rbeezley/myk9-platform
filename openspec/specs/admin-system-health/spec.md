@@ -3,7 +3,9 @@
 ## Purpose
 
 Defines the site-admin System Health board and its backing snapshot store: a durable, RLS-protected record of daily server-side health-check runs surfaced at `/admin/health` so an operator sees overall status, per-check freshness, and stale/missing-run failure signals at a glance — automating the recurring parts of the go-live runbook Phase 5 parity checklist. Introduced by the `admin-system-health-board` change; the daily check-runner that writes snapshots is a companion capability. Intentionally shaped as the same family as the planned `operator_alerts` table so they can converge later.
+
 ## Requirements
+
 ### Requirement: Snapshot store schema and access control
 
 The system SHALL persist server-side health-check runs in a `public.system_health_snapshots` table with columns: `id` (uuid PK), `created_at` (timestamptz, default now), `source` (text, not null), `overall_status` (text, not null, constrained to `'ok' | 'warn' | 'fail'`), `checks` (jsonb, not null — an array of `{key, label, status, detail, checked_at}` objects, its array shape enforced by a `jsonb_typeof(checks) = 'array'` CHECK), and `run_duration_ms` (integer, nullable). The table SHALL have an index on `created_at desc`.
@@ -266,17 +268,39 @@ The system SHALL render recent health run history with visible text or an expand
 - **THEN** the health page remains compact and easy to scan while still exposing non-hover run history
 
 ### Requirement: Health board surfaces unresolved operator alerts
+
 The `/admin/health` board SHALL display unresolved `operator_alerts` rows (newest first) alongside the existing snapshot view, showing source, severity, title, structured detail, and age, and SHALL provide a resolve action that stamps `resolved_at`/`resolved_by`. When no unresolved alerts exist, the board SHALL show an explicit all-clear state for the alerts section.
 
 #### Scenario: Unresolved payment alert is visible
+
 - **WHEN** a payment failure has produced an unresolved `operator_alerts` row
 - **THEN** a site admin visiting `/admin/health` sees the alert with its source, severity, and detail without querying the database
 
 #### Scenario: Resolving clears the alert from the board
+
 - **WHEN** the site admin resolves the alert from the board
 - **THEN** the alert leaves the unresolved list and the row is retained with `resolved_at`/`resolved_by` set
 
 #### Scenario: No alerts
+
 - **WHEN** there are no unresolved alerts
 - **THEN** the alerts section shows an explicit "no unresolved alerts" state
 
+### Requirement: Ringside conflict volume is a daily health check
+
+`system_health_probe()` SHALL report the current value of `ringside_conflict_seq`, and the check-runner SHALL emit a `ringside_conflicts` check in each snapshot whose detail records that raw counter value. The check's status SHALL derive from the delta against the previous snapshot's recorded value: `ok` below 1,000 conflicts since the prior snapshot, `warn` at or above 1,000, `fail` at or above 10,000. A missing baseline (first run, prior snapshot without the check) or a counter regression SHALL report `ok` with an explanatory note, never a false failure.
+
+#### Scenario: Storm surfaces on the board
+
+- **WHEN** more than 10,000 conflicts accumulate between two daily snapshots
+- **THEN** the next snapshot's `ringside_conflicts` check is `fail` and `/admin/health` renders it red with the delta in its detail
+
+#### Scenario: Quiet day is green
+
+- **WHEN** fewer than 1,000 conflicts accumulate between snapshots
+- **THEN** the check is `ok`
+
+#### Scenario: First run has no baseline
+
+- **WHEN** the previous snapshot has no `ringside_conflicts` check to diff against
+- **THEN** the check reports `ok` with a note that a baseline was recorded, and the raw counter value is stored for the next run

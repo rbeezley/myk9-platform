@@ -864,7 +864,16 @@ export class MutationManager {
                 // reconciliation. Without this the advertised recovery action
                 // immediately re-conflicts and re-parks (Codex review, P1). The
                 // row token was already advanced above; mirror it here.
-                ...(typeof freshServerVersion === 'number'
+                //   ONLY for RPC/delta mutations (mutation.rpc set): their
+                // payload is a targeted field set, so advancing the token and
+                // re-applying is a safe last-write on those fields. A direct
+                // full-row UPDATE carries a whole stale snapshot — advancing its
+                // token would clobber fields another client changed since, the
+                // exact hazard reconcileQueuedMutationAfterSync/rebuildUpdate
+                // guard against (same isRpc gate as line ~536). Leave full-row
+                // mutations' token stale so Retry re-defers to reconciliation
+                // rather than overwriting the server (Codex review, follow-up P1).
+                ...(stillQueued.rpc !== undefined && typeof freshServerVersion === 'number'
                   ? { serverVersion: freshServerVersion }
                   : {}),
                 error:

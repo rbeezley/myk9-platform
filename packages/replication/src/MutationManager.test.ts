@@ -996,6 +996,61 @@ describe('MutationManager', () => {
       expect(failed[0]!.serverVersion).toBe(8);
     });
 
+    it('does NOT advance the token of a parked full-row (non-RPC) mutation — no clobber on Retry', async () => {
+      // A direct full-row UPDATE carries a whole stale snapshot. Advancing its
+      // token would let a generic Retry overwrite fields another client changed,
+      // bypassing the rebuild-payload reconciliation contract. It must stay stale.
+      await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
+        tableName: 'entries',
+        id: 'entry-fullrow',
+        data: { id: 'entry-fullrow' },
+        version: 4,
+        serverVersion: 3,
+        lastSyncedAt: 0,
+        lastAccessedAt: 0,
+        isDirty: true,
+        syncStatus: 'pending',
+      } as ReplicatedRow<{ id: string }>);
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        // No `rpc` field → direct full-row UPDATE path.
+        makeMutation({
+          id: 'mut-fullrow',
+          rowId: 'entry-fullrow',
+          data: { id: 'entry-fullrow', handler_name: 'Stale Name' },
+          serverVersion: 3,
+          occRetries: 49,
+        })
+      );
+      // Direct UPDATE OCC rejection: empty update result → re-read finds v8.
+      vi.mocked(mockSupabase.from).mockReturnValue({
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              select: vi.fn(() => Promise.resolve({ data: [], error: null })),
+            })),
+            select: vi.fn(() => Promise.resolve({ data: [], error: null })),
+          })),
+        })),
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn(() => Promise.resolve({ data: { version: 8 }, error: null })),
+          })),
+        })),
+      } as unknown as ReturnType<typeof mockSupabase.from>);
+
+      await manager.uploadPendingMutations();
+
+      const failed = (await mockDb.getAll(
+        REPLICATION_STORES.FAILED_MUTATIONS
+      )) as PendingMutation[];
+      expect(failed).toHaveLength(1);
+      expect(failed[0]!.id).toBe('mut-fullrow');
+      // Token NOT advanced — stays at the stale 3 so Retry re-defers to
+      // reconciliation instead of clobbering the server row.
+      expect(failed[0]!.serverVersion).toBe(3);
+    });
+
     it('a conflict below the cap keeps retrying; a custom cap is honored', async () => {
       const smallCapManager = new MutationManager(mockSupabase, {
         logger: mockLogger,

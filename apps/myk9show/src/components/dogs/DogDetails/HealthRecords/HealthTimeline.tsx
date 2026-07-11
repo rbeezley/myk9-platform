@@ -56,8 +56,7 @@ interface HealthTimelineProps {
   onEventClick?: (event: HealthEvent) => void;
   onAddEvent?: () => void;
   onImportRecords?:
-    | ((records: ParsedHealthImportRow[]) => Promise<HealthImportOutcome>)
-    | undefined;
+    ((records: ParsedHealthImportRow[]) => Promise<HealthImportOutcome>) | undefined;
   vaccinationsOnly?: boolean;
 }
 
@@ -92,6 +91,14 @@ const eventTypeConfig = {
     color: 'bg-cyan-500',
     label: 'Checkup',
   },
+};
+
+// Fallback for an unrecognized event type (e.g. a DB enum value added ahead of
+// the frontend) so lookups degrade gracefully instead of throwing.
+const defaultEventTypeConfig = {
+  icon: FileText,
+  color: 'bg-gray-500',
+  label: 'Other',
 };
 
 const exportColumns = [
@@ -183,7 +190,7 @@ export function HealthTimeline({
       .sort((a, b) => b.date.getTime() - a.date.getTime())
       .map(event => ({
         Date: event.date,
-        Type: eventTypeConfig[event.type].label,
+        Type: (eventTypeConfig[event.type] ?? defaultEventTypeConfig).label,
         Title: event.title,
         Status: event.status.charAt(0).toUpperCase() + event.status.slice(1),
         Description: event.description || '',
@@ -209,7 +216,7 @@ export function HealthTimeline({
   };
 
   const EventItem = ({ event, isLast = false }: { event: HealthEvent; isLast?: boolean }) => {
-    const config = eventTypeConfig[event.type];
+    const config = eventTypeConfig[event.type] ?? defaultEventTypeConfig;
     const IconComponent = config.icon;
 
     return (

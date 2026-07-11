@@ -156,3 +156,38 @@ describe('HealthTimeline export', () => {
     expect(toastErrorMock).toHaveBeenCalledWith('Fix CSV errors before importing.');
   });
 });
+
+describe('HealthTimeline unknown event type', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // Simulates the health-event type enum gaining a value ahead of the frontend.
+  // Both eventTypeConfig[event.type] lookups (render + CSV export) were unguarded
+  // and would throw on the .icon / .label access, blanking the timeline.
+  const unknownEvent: HealthEvent = {
+    id: 'event-x',
+    type: 'genetic_test' as HealthEvent['type'],
+    title: 'DNA panel',
+    date: new Date('2026-02-14T12:00:00Z'),
+    status: 'completed',
+  };
+
+  it('renders an event with an unknown type instead of crashing', () => {
+    // A throwing render fails this test, so finding the title proves it degraded.
+    render(<HealthTimeline dogId="dog-123" events={[unknownEvent]} />);
+    expect(screen.getByText('DNA panel')).toBeInTheDocument();
+  });
+
+  it('exports an unknown event type with a fallback label', () => {
+    render(<HealthTimeline dogId="dog-123" events={[unknownEvent]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /export timeline/i }));
+
+    expect(exportToCSVMock).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ Title: 'DNA panel', Type: 'Other' })]),
+      expect.any(String),
+      { dateFormat: 'YYYY-MM-DD' }
+    );
+  });
+});

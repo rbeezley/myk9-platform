@@ -16,12 +16,7 @@ import {
 } from 'lucide-react';
 
 export type PaymentStatus =
-  | 'pending'
-  | 'processing'
-  | 'completed'
-  | 'failed'
-  | 'refunded'
-  | 'cancelled';
+  'pending' | 'processing' | 'completed' | 'failed' | 'refunded' | 'cancelled';
 
 interface PaymentPendingIndicatorProps {
   /** Current payment status */
@@ -171,7 +166,21 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
     },
   };
 
-  const config = statusConfig[status];
+  // Fallback so an unrecognized status (e.g. a DB enum value added ahead of the
+  // frontend) degrades gracefully instead of throwing on the .icon lookup.
+  const defaultConfig = {
+    icon: AlertTriangle,
+    label: 'Payment Status',
+    color: 'text-gray-600',
+    bgColor: 'bg-gray-50',
+    borderColor: 'border-gray-200',
+    badgeVariant: 'secondary' as const,
+    description: 'Payment status unavailable',
+    showProgress: false,
+    animate: false,
+  };
+
+  const config = statusConfig[status] ?? defaultConfig;
   const IconComponent = config.icon;
 
   // Calculate progress for processing status

@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 // regression to a direct update silently re-breaks person delete for everyone.
 const read = (rel: string) => readFileSync(resolve(__dirname, rel), 'utf8');
 const normalizeSql = (sql: string) => sql.replace(/\s+/g, ' ').trim().toLowerCase();
+const compactSql = (sql: string) => sql.replace(/\s+/g, '').toLowerCase();
 
 describe('person soft-delete wiring', () => {
   it('deleteUser calls soft_delete_person RPC with p_person_id', () => {
@@ -21,7 +22,9 @@ describe('soft_delete_person migration', () => {
     '../../../../../../supabase/migrations/20260710170000_soft_delete_person_deactivates_roles.sql';
   const obsoleteMigrationPath =
     '../../../../../../supabase/migrations/20260710160000_self_service_soft_delete_person.sql';
-  const migration = normalizeSql(read(authoritativeMigrationPath));
+  const migrationSource = read(authoritativeMigrationPath);
+  const migration = normalizeSql(migrationSource);
+  const securitySql = compactSql(migrationSource);
 
   it('removes the obsolete pre-role-deactivation migration from local lineage', () => {
     expect(existsSync(resolve(__dirname, obsoleteMigrationPath))).toBe(false);
@@ -34,24 +37,26 @@ describe('soft_delete_person migration', () => {
   });
 
   it('authorizes self-service through the caller person path', () => {
-    expect(migration).toMatch(
-      /or exists\s*\(\s*select 1 from public\.people\s+where id = p_person_id\s+and auth_user_id =\s*\(\s*select auth\.uid\(\)\s*\)\s+and deleted_at is null\s*\)/
+    expect(securitySql).toContain(
+      'orexists(select1frompublic.peoplewhereid=p_person_idandauth_user_id=(selectauth.uid())anddeleted_atisnull)'
     );
   });
 
   it('deactivates matching active roles only after the person soft-delete succeeds', () => {
-    const personSoftDelete = migration.indexOf(
-      'update public.people set deleted_at = now(), deleted_by = auth.uid(), updated_at = now() where id = p_person_id and deleted_at is null;'
+    const personSoftDelete = securitySql.indexOf(
+      'updatepublic.peoplesetdeleted_at=now(),deleted_by=auth.uid(),updated_at=now()whereid=p_person_idanddeleted_atisnull;'
     );
-    const successfulDeleteGuard = migration.indexOf(
-      "if v_rows = 0 then raise exception 'person not found or already deleted' using errcode = 'p0002'; end if;"
+    const rowCountCapture = securitySql.indexOf('getdiagnosticsv_rows=row_count;');
+    const successfulDeleteGuard = securitySql.indexOf(
+      "ifv_rows=0thenraiseexception'personnotfoundoralreadydeleted'usingerrcode='p0002';endif;"
     );
-    const roleDeactivation = migration.indexOf(
-      'update public.user_roles set is_active = false where user_id = p_person_id and is_active;'
+    const roleDeactivation = securitySql.indexOf(
+      'updatepublic.user_rolessetis_active=falsewhereuser_id=p_person_idandis_active;'
     );
 
     expect(personSoftDelete).toBeGreaterThan(-1);
-    expect(successfulDeleteGuard).toBeGreaterThan(personSoftDelete);
+    expect(rowCountCapture).toBeGreaterThan(personSoftDelete);
+    expect(successfulDeleteGuard).toBeGreaterThan(rowCountCapture);
     expect(roleDeactivation).toBeGreaterThan(successfulDeleteGuard);
   });
 

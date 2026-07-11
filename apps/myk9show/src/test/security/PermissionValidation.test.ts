@@ -382,8 +382,11 @@ describe('Permission Validation Security Tests', () => {
     });
 
     it('should prevent registration after entry close date', () => {
+      // entryCloseDate is a DATE column: entry stays open through the whole
+      // close day (inclusive end-of-day, mirroring entryStatusUtils). "After
+      // close" therefore means a fully-past day, not merely an hour ago.
       const closedShow = createMockShow({
-        entryCloseDate: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+        entryCloseDate: new Date(Date.now() - 86400000).toISOString(), // Yesterday
       });
 
       const user = createMockUser('exhibitor');

@@ -15,7 +15,11 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { buildSnapshot, DEFAULT_SOURCE } from '../_shared/systemHealthChecks.ts';
+import {
+  buildSnapshot,
+  DEFAULT_SOURCE,
+  extractConflictCounter,
+} from '../_shared/systemHealthChecks.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -41,6 +45,24 @@ async function secretMatches(provided: string | null): Promise<boolean> {
   let diff = 0;
   for (let i = 0; i < av.length; i++) diff |= av[i] ^ bv[i];
   return diff === 0;
+}
+
+/** Previous snapshot's ringside conflict counter, for the delta check. Any
+ * failure (no rows, query error, malformed checks) yields null = no baseline;
+ * the check then records a fresh baseline instead of failing. */
+async function fetchPreviousConflictCounter(): Promise<number | null> {
+  try {
+    const { data, error } = await supabase
+      .from('system_health_snapshots')
+      .select('checks')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    return extractConflictCounter((data as { checks?: unknown }).checks);
+  } catch {
+    return null;
+  }
 }
 
 async function insertSnapshot(row: ReturnType<typeof buildSnapshot>) {
@@ -84,10 +106,13 @@ Deno.serve(async req => {
       );
     }
 
+    const previousConflictCounter = await fetchPreviousConflictCounter();
+
     const snapshot = buildSnapshot(facts, {
       now: Date.now(),
       source: DEFAULT_SOURCE,
       runDurationMs: Date.now() - startedAt,
+      previousConflictCounter,
     });
     await insertSnapshot(snapshot);
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildSnapshot,
+  extractConflictCounter,
   worstOf,
   PAYOUT_CRON_JOB,
   STALE_AFTER_MS,
@@ -34,6 +35,7 @@ const facts = (over: Record<string, unknown> = {}) => ({
   latest_migration: '20260704140000',
   migration_count: 331,
   cron_jobs: [payoutJob()],
+  ringside_conflict_counter: 0,
   ...over,
 });
 
@@ -60,7 +62,12 @@ describe('buildSnapshot — contract shape', () => {
     expect(snap.overall_status).toBe('ok');
     expect(snap.run_duration_ms).toBe(42);
     // one entry per check; snake_case checked_at populated (board parser reads it)
-    expect(snap.checks.map(c => c.key)).toEqual(['payout_cron', 'background_jobs', 'migrations']);
+    expect(snap.checks.map(c => c.key)).toEqual([
+      'payout_cron',
+      'background_jobs',
+      'migrations',
+      'ringside_conflicts',
+    ]);
     for (const c of snap.checks) {
       expect(typeof c.checked_at).toBe('string');
       expect(c).toHaveProperty('checked_at');
@@ -329,5 +336,83 @@ describe('buildSnapshot — malformed facts never throw', () => {
   it('falls back to now() for checked_at when probed_at is missing', () => {
     const snap = buildSnapshot(facts({ probed_at: undefined }), { now: NOW });
     expect(find(snap, 'migrations').checked_at).toBe(new Date(NOW).toISOString());
+  });
+});
+
+describe('ringside_conflicts check (2026-07-11 OCC storm)', () => {
+  const withCounter = (counter: number, previous: number | null) =>
+    buildSnapshot(facts({ ringside_conflict_counter: counter }), {
+      now: NOW,
+      previousConflictCounter: previous,
+    });
+
+  it('quiet delta below the warn threshold is ok', () => {
+    const check = find(withCounter(1_500, 1_000), 'ringside_conflicts');
+    expect(check.status).toBe('ok');
+    expect(check.detail).toBe('500 conflicts since previous snapshot (counter 1500)');
+    expect(check.counter_value).toBe(1_500);
+  });
+
+  it('warn threshold boundary: delta of exactly 1,000 warns', () => {
+    expect(find(withCounter(2_000, 1_000), 'ringside_conflicts').status).toBe('warn');
+    expect(find(withCounter(1_999, 1_000), 'ringside_conflicts').status).toBe('ok');
+  });
+
+  it('fail threshold boundary: delta of exactly 10,000 fails and reddens the snapshot', () => {
+    const snap = withCounter(11_000, 1_000);
+    expect(find(snap, 'ringside_conflicts').status).toBe('fail');
+    expect(snap.overall_status).toBe('fail');
+    expect(find(withCounter(10_999, 1_000), 'ringside_conflicts').status).toBe('warn');
+  });
+
+  it('first run with no baseline records the counter and reads ok', () => {
+    const check = find(withCounter(123, null), 'ringside_conflicts');
+    expect(check.status).toBe('ok');
+    expect(check.detail).toContain('baseline recorded (counter 123)');
+    expect(check.counter_value).toBe(123);
+  });
+
+  it('undefined baseline (option omitted) behaves like no baseline', () => {
+    const snap = buildSnapshot(facts({ ringside_conflict_counter: 7 }), { now: NOW });
+    const check = find(snap, 'ringside_conflicts');
+    expect(check.status).toBe('ok');
+    expect(check.counter_value).toBe(7);
+  });
+
+  it('counter regression (sequence reset) reads ok with a note, never a false failure', () => {
+    const check = find(withCounter(5, 50_000), 'ringside_conflicts');
+    expect(check.status).toBe('ok');
+    expect(check.detail).toBe('counter regressed (50000 -> 5), baseline reset');
+    expect(check.counter_value).toBe(5);
+  });
+
+  it('probe missing the counter fact warns (deploy-order misconfiguration is visible)', () => {
+    const snap = buildSnapshot(facts({ ringside_conflict_counter: undefined }), {
+      now: NOW,
+      previousConflictCounter: 10,
+    });
+    const check = find(snap, 'ringside_conflicts');
+    expect(check.status).toBe('warn');
+    expect(check.detail).toBe('probe did not report ringside_conflict_counter');
+    expect(check.counter_value).toBeUndefined();
+  });
+});
+
+describe('extractConflictCounter', () => {
+  it('finds the counter_value on the ringside_conflicts check', () => {
+    expect(
+      extractConflictCounter([
+        { key: 'payout_cron', status: 'ok' },
+        { key: 'ringside_conflicts', status: 'ok', counter_value: 42 },
+      ])
+    ).toBe(42);
+  });
+
+  it('is tolerant: junk shapes, missing check, or non-numeric value all yield null', () => {
+    expect(extractConflictCounter(null)).toBeNull();
+    expect(extractConflictCounter('nope')).toBeNull();
+    expect(extractConflictCounter([])).toBeNull();
+    expect(extractConflictCounter([null, 3, { key: 'other' }])).toBeNull();
+    expect(extractConflictCounter([{ key: 'ringside_conflicts', counter_value: '42' }])).toBeNull();
   });
 });

@@ -11,6 +11,14 @@ Overall, the Setup and Show Desk tabs are pointed at the right canonical show-de
 
 **Regression line:** NEW 7 / STILL-OPEN 0 / RESOLVED 0 vs no prior secretary report.
 
+## 2026-07-10 Remediation Re-Walk (partial)
+
+A follow-up live re-walk on the Setup tab (desktop 1280x800, `e2e-secretary@test.myk9.com`) surfaced one additional trust break that the `secretary-show-details-ux-remediation` change did not cover, now fixed here:
+
+- **Publish readiness contradicted the Premium List card.** The Setup "Publish readiness" block always rendered `Premium PDF is not published yet`, even for a show whose premium PDF was published (the Premium List card directly above correctly showed `Show data has changed since publish` / `Republish premium`). Root cause: `PublishReadinessBlock` read `publishedPremiumUrl`/`publishedPremiumAt` off the offline-replicated `show` object, which never syncs those post-189 columns down — the same limitation `PremiumDownloadCard` already worked around with a direct query. Fixed by extracting that query into a shared `usePublishInfo` hook and reading it in both surfaces, so the two premium signals can no longer disagree. Covered by `publishReadiness.test.ts` (override precedence) and `PublishReadinessBlock.test.tsx` (renders published/stale state from the fetched columns even when the show prop lacks them).
+
+**Still outstanding:** the full mobile/tablet/desktop re-walk of Setup + Show Desk could not be completed on 2026-07-10 — the shared staging Supabase pooler began rejecting every request with `Timed out acquiring connection from connection pool` (RBAC, entry sync, and table sync all failed; unrelated to this change). The multi-viewport manual walk remains the last open step.
+
 ## Top 5 To Fix First
 
 1. Unify Show Desk entry counts so hero, Show Map, closeout, and People at show do not disagree.

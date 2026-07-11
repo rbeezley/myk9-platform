@@ -8,6 +8,7 @@ const glyphs: Record<string, { g: string; cls: string }> = {
   'exhibitor-guide': { g: '◆', cls: '' },
   'secretary-guide': { g: '▲', cls: 's' },
   'club-admin-guide': { g: '●', cls: 'g' },
+  'judge-steward-guide': { g: '■', cls: 'b' },
 };
 
 function counts(body: string) {
@@ -50,15 +51,6 @@ function counts(body: string) {
             </a>
           );
         })}
-        <div class="gcard" style="opacity:.85">
-          <div class="ic b">■</div>
-          <h3>Judge &amp; steward quickstart</h3>
-          <p>Get ringside access, score on the tablet, and post results.</p>
-          <div class="meta">
-            <span class="n">4 sections</span>
-            <span class="badge">Coming soon</span>
-          </div>
-        </div>
       </div>
     </div>
   </section>

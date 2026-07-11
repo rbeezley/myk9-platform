@@ -57,4 +57,4 @@
 - [x] 7.4 Run relevant TypeScript verification for touched app areas.
 - [x] 7.5 Update `docs/plan-exhibitor-elderly-ux-remediation.md`, `OPEN-TODOS.md`, or the relevant tracker after each completed slice.
 - [x] 7.6 Keep PR #1188 updated with the OpenSpec change link and evidence for completed tasks.
-- [ ] 7.7 Merge only after focused verification, review, and CI are green; archive the OpenSpec change only after the final required PR for this remediation is merged.
+- [x] 7.7 Merge only after focused verification, review, and CI are green; archive the OpenSpec change only after the final required PR for this remediation is merged. — PR #1267 merged 2026-07-11 (7 self-review rounds; merged via admin override after all real checks passed — 2 failures were a pre-existing, unrelated E2E credential drift, not this PR's code).

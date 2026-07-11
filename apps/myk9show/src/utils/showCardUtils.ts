@@ -1,21 +1,15 @@
 import type { Show } from '@/types/show-types';
 import type { EntryStatus } from '@/utils/entryStatusUtils';
+import { showDateRangeStatus } from '@/utils/date-format';
 
 export type ShowCardStatus =
-  | 'upcoming'
-  | 'accepting'
-  | 'closing_soon'
-  | 'in_progress'
-  | 'completed'
-  | 'closed';
+  'upcoming' | 'accepting' | 'closing_soon' | 'in_progress' | 'completed' | 'closed';
 
 export function getShowCardStatus(show: Show, entryStatus: EntryStatus): ShowCardStatus {
-  const now = new Date();
-  const startDate = new Date(show.startDate);
-  const endDate = new Date(show.endDate);
+  const dateStatus = showDateRangeStatus(show.startDate, show.endDate);
 
-  if (now > endDate) return 'completed';
-  if (now >= startDate && now <= endDate) return 'in_progress';
+  if (dateStatus === 'past') return 'completed';
+  if (dateStatus === 'active') return 'in_progress';
 
   if (entryStatus === 'accepting') return 'accepting';
   if (entryStatus === 'closing_soon') return 'closing_soon';

@@ -18,6 +18,7 @@
     "lint": "eslint . --cache --cache-location node_modules/.cache/eslint/",
     "lint:changed": "node scripts/lint-changed.js",
     "typecheck": "tsc --noEmit --project tsconfig.app.json --incremental --tsBuildInfoFile node_modules/.cache/tsc/app.tsbuildinfo",
+    "typecheck:tests": "tsc --noEmit --project tsconfig.test.json",
     "typecheck:strict": "tsc --noEmit --strict --project tsconfig.app.json",
     "typecheck:watch": "tsc --noEmit --watch --project tsconfig.app.json",
     "quality:quick": "npm run typecheck && npm run lint",

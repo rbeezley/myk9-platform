@@ -7,12 +7,14 @@
  * exhibitor's own entries — dog, class, armband, check-in state, and next
  * action — ahead of the full ringside class-administration list.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, ChevronRight, Clock3, ListChecks } from 'lucide-react';
+import type { CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { cn } from '@/lib/utils';
+import { notifications } from '@/lib/notifications';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import { EXHIBITOR_STATUS_LABELS, getCheckInStatusConfig } from '@/types/check-in-types';
 import { deriveAtShowNextAction, type AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
@@ -128,6 +130,24 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
   const [pendingEntryId, setPendingEntryId] = useState<string | null>(null);
   const checkInMutation = useCheckInMutation({ writer: 'self-checkin-rpc' });
 
+  // The self-checkin RPC writes only to the remote DB (no replication write —
+  // "online-only by design"), and its cache invalidation doesn't touch this
+  // view's query key. Without a local optimistic override, a successful tap
+  // would show no visible change until the next replication sync — exactly
+  // the kind of unconfirmed action this view exists to avoid. Cleared on
+  // error (rollback); kept on success until the replicated read eventually
+  // agrees, which is harmless since it's the same value.
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, CheckInStatus>>({});
+  const displayEntries = useMemo(
+    () =>
+      entries.map(detail =>
+        statusOverrides[detail.entryId]
+          ? { ...detail, checkInStatus: statusOverrides[detail.entryId] as CheckInStatus }
+          : detail
+      ),
+    [entries, statusOverrides]
+  );
+
   const handleOpenClass = useCallback(
     (classId: string) => {
       navigate(`/at-show/${showId}/class/${classId}`);
@@ -138,11 +158,21 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
   const handleCheckIn = useCallback(
     async (detail: AtShowEntryDetail) => {
       setPendingEntryId(detail.entryId);
+      setStatusOverrides(prev => ({ ...prev, [detail.entryId]: 'checked-in' }));
       try {
         await checkInMutation.mutateAsync({
           entryId: detail.entryId,
           newStatus: 'checked-in',
           classId: detail.classId ?? undefined,
+        });
+      } catch {
+        setStatusOverrides(prev => {
+          const next = { ...prev };
+          delete next[detail.entryId];
+          return next;
+        });
+        notifications.error('Check-in failed', {
+          description: 'Please try again, or ask the secretary to check you in.',
         });
       } finally {
         setPendingEntryId(null);
@@ -160,7 +190,7 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
 
       {isLoading ? (
         <AtShowMyEntriesTodaySkeleton />
-      ) : entries.length === 0 ? (
+      ) : displayEntries.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
           <p className="text-sm text-muted-foreground">
             Your entries for this show haven't loaded yet, or the running order isn't posted.
@@ -168,7 +198,7 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
         </div>
       ) : (
         <ul className="mt-3 space-y-2">
-          {entries.map(detail => (
+          {displayEntries.map(detail => (
             <EntryRow
               key={detail.entryId}
               detail={detail}

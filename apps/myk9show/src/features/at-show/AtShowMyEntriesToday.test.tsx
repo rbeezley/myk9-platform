@@ -1,11 +1,17 @@
-import { describe, expect, it, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 
+const mockMutateAsync = vi.hoisted(() => vi.fn());
+
 vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
-  useCheckInMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCheckInMutation: () => ({ mutateAsync: mockMutateAsync, isPending: false }),
+}));
+
+vi.mock('@/lib/notifications', () => ({
+  notifications: { error: vi.fn(), success: vi.fn() },
 }));
 
 function entry(overrides: Partial<AtShowEntryDetail>): AtShowEntryDetail {
@@ -23,6 +29,10 @@ function entry(overrides: Partial<AtShowEntryDetail>): AtShowEntryDetail {
 }
 
 describe('AtShowMyEntriesToday — status badge falls back to the staff-grade label', () => {
+  beforeEach(() => {
+    mockMutateAsync.mockReset();
+  });
+
   it.each([
     ['at-gate', 'At Gate'],
     ['come-to-gate', 'Come to Gate'],
@@ -53,5 +63,50 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
     );
 
     expect(await screen.findByText('I have a conflict — tell the secretary')).toBeInTheDocument();
+  });
+});
+
+describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
+  beforeEach(() => {
+    mockMutateAsync.mockReset();
+  });
+
+  it('flips the badge to "I am here" and hides the Check in button immediately on tap', async () => {
+    mockMutateAsync.mockResolvedValue(undefined);
+    render(
+      <AtShowMyEntriesToday
+        showId="show-1"
+        entries={[entry({ checkInStatus: 'no-status' })]}
+        isLoading={false}
+        onSeeAllClasses={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('I am not there yet')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Check in/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText('I am here')).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /Check in/ })).not.toBeInTheDocument();
+  });
+
+  it('rolls back the optimistic update if the check-in RPC fails', async () => {
+    mockMutateAsync.mockRejectedValue(new Error('offline'));
+    render(
+      <AtShowMyEntriesToday
+        showId="show-1"
+        entries={[entry({ checkInStatus: 'no-status' })]}
+        isLoading={false}
+        onSeeAllClasses={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Check in/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText('I am not there yet')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /Check in/ })).toBeInTheDocument();
   });
 });

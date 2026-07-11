@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { replicatedEntriesTable } from '@/services/replication';
-import { useMyAtShowEntries } from './useMyAtShowEntries';
 import {
   buildMyAtShowEntryDetails,
   type AtShowClassSummary,
@@ -17,17 +16,19 @@ export interface UseMyAtShowEntryDetailsResult {
 /**
  * The exhibitor's own entries for one show, hydrated with dog name, armband,
  * check-in status, and class name — the data behind the "Your dogs today"
- * show-day view. Reuses `useMyAtShowEntries` for ownership (same offline
- * fallback) and `replicatedEntriesTable.getEntriesByShow`, an already-synced
- * table, for entry detail. `classesById` comes from the class-picker's own
- * already-loaded class list, so this adds no extra class fetch.
+ * show-day view. Takes ownership (`ownEntryIds`) from the caller's own
+ * `useMyAtShowEntries` call rather than calling it again here — that hook
+ * subscribes to 4 replicated tables and writes to localStorage, so a second
+ * instance in the same tree would double that work for no benefit.
+ * `classesById` comes from the class-picker's own already-loaded class list,
+ * so this adds no extra class fetch.
  */
 export function useMyAtShowEntryDetails(
   showId: string | undefined,
+  ownEntryIds: ReadonlySet<string>,
+  ownershipLoading: boolean,
   classesById: ReadonlyMap<string, AtShowClassSummary>
 ): UseMyAtShowEntryDetailsResult {
-  const { ownEntryIds, isLoading: ownershipLoading } = useMyAtShowEntries(showId);
-
   const entriesQuery = useQuery({
     queryKey: ['at-show', 'my-entries-detail', showId],
     queryFn: () => replicatedEntriesTable.getEntriesByShow(showId as string),

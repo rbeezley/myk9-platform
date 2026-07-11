@@ -152,7 +152,7 @@ export const AtShowClassListPage: React.FC = () => {
   // Staff accounts — including a secretary who also exhibits — keep the
   // class-first default.
   const isExhibitorOnly = isExhibitorOnlyForAtShow(hasRole);
-  const { ownEntryIds } = useMyAtShowEntries(showId);
+  const { ownEntryIds, isLoading: ownershipLoading } = useMyAtShowEntries(showId);
   const classesById = useMemo(() => {
     const map = new Map<string, AtShowClassSummary>();
     for (const group of groups) {
@@ -164,6 +164,8 @@ export const AtShowClassListPage: React.FC = () => {
   }, [groups]);
   const { entries: myEntries, isLoading: myEntriesLoading } = useMyAtShowEntryDetails(
     showId,
+    ownEntryIds,
+    ownershipLoading,
     classesById
   );
 

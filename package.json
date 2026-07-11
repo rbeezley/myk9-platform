@@ -75,7 +75,7 @@
       "@vercel/static-config>ajv": "8.20.0",
       "serialize-javascript": "7.0.5",
       "workbox-build": "7.4.1",
-      "ws": "8.20.1",
+      "ws": "8.21.0",
       "yaml": "2.8.3"
     }
   }

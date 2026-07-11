@@ -849,43 +849,44 @@ export class MutationManager {
               REPLICATION_STORES.PENDING_MUTATIONS,
               queuedMutation.id
             )) as PendingMutation | undefined;
-            // The lifetime cap parks ONLY RPC/delta mutations — the storm
-            // vector (ringside_update_entry). Their payload is a targeted field
-            // set, so a parked mutation can be re-based onto the fresh OCC token
-            // and a user Retry can actually succeed (last-write on those fields).
-            //   Direct full-row UPDATEs are intentionally NOT capped/parked here:
-            // they carry a whole stale snapshot, so advancing their token would
-            // clobber fields another client changed since — the hazard the
-            // sync-down reconciler (reconcileQueuedMutationAfterSync /
-            // rebuildUpdatePayload) exists to prevent, and which a generic Retry
-            // cannot safely rebuild. They keep their existing behavior (throttled
-            // OCC backoff + reconciliation-on-sync), unchanged by this change.
-            // Full-row OCC conflicts have never stormed; scoping the cap to RPC
-            // keeps this fix's blast radius on the actual incident vector.
-            const occCapReached =
-              stillQueued !== undefined &&
-              stillQueued.rpc !== undefined &&
-              occRetries >= this.maxOccAttempts;
+            // Lifetime cap: park ANY mutation (RPC or full-row) that has
+            // conflicted this many times, so nothing replays forever — the
+            // terminal, visible, Discardable state replaces the old invisible
+            // infinite OCC backoff (Codex review). Parking and token-advance are
+            // SEPARATE decisions (see the token stamp below).
+            const occCapReached = stillQueued !== undefined && occRetries >= this.maxOccAttempts;
             if (occCapReached) {
               // Lifetime cap reached: park. The payload survives in the
               // failed-mutations store and surfaces through the existing
               // sync-failed toast (Retry resets the counters; Discard is
               // explicit). Parking, not deleting — durability contract.
+              //
+              // Advance the OCC token ONLY for RPC/delta mutations. Their
+              // payload is a targeted field set, so re-basing onto the fresh
+              // authoritative version (already applied to the row on the first
+              // rejection) lets a user Retry actually succeed — last-write on
+              // exactly those fields (Codex review, P1). A direct full-row
+              // UPDATE carries a whole stale snapshot, so advancing its token
+              // would let Retry clobber fields another client changed since
+              // (the hazard reconcileQueuedMutationAfterSync/rebuildUpdatePayload
+              // guard against, and which a generic Retry cannot safely rebuild).
+              // Full-row parks with its STALE token: Retry is best-effort (may
+              // re-conflict and re-park), but the mutation is now terminal,
+              // visible, and Discardable instead of looping forever.
+              const isRpc = stillQueued.rpc !== undefined;
               const parked: PendingMutation = {
                 ...stillQueued,
                 occRetries,
                 status: 'failed',
-                // Stamp the AUTHORITATIVE server version so a user Retry
-                // re-uploads with a fresh OCC token instead of the same stale
-                // one it kept while awaiting reconciliation (Codex review, P1).
-                // Safe here because this branch is RPC/delta only (see above);
-                // the row token was already advanced on the first rejection.
-                ...(typeof freshServerVersion === 'number'
+                ...(isRpc && typeof freshServerVersion === 'number'
                   ? { serverVersion: freshServerVersion }
                   : {}),
-                error:
-                  `Version conflict persisted through ${occRetries} attempts ` +
-                  `(${error.tableName}/${error.rowId}); parked for review.`,
+                error: isRpc
+                  ? `Version conflict persisted through ${occRetries} attempts ` +
+                    `(${error.tableName}/${error.rowId}); parked for review.`
+                  : `Version conflict persisted through ${occRetries} attempts ` +
+                    `(${error.tableName}/${error.rowId}); parked for review — this ` +
+                    `edit conflicts with a newer server change and may need to be redone.`,
                 failedAt: now,
               };
               delete parked.nextRetryAt;

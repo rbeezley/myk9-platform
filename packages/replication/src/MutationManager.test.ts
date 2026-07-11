@@ -996,12 +996,11 @@ describe('MutationManager', () => {
       expect(failed[0]!.serverVersion).toBe(8);
     });
 
-    it('does NOT park a full-row (non-RPC) mutation — cap is scoped to the RPC storm vector', async () => {
-      // A direct full-row UPDATE carries a whole stale snapshot; parking + a
-      // generic Retry could only either clobber the server (advance token) or
-      // loop (stale token). Full-row OCC conflicts never stormed, so they are
-      // left on their existing path: throttled backoff + reconciliation-on-sync,
-      // unchanged by this change. Assert it stays queued, NOT parked.
+    it('parks a full-row (non-RPC) mutation at the cap but does NOT advance its token (no clobber)', async () => {
+      // A direct full-row UPDATE also reaches a terminal, visible park at the cap
+      // (no infinite replay), but its token is LEFT STALE: advancing it would let
+      // a generic Retry clobber fields another client changed, bypassing the
+      // rebuild-payload contract. Retry is best-effort; Discard is always safe.
       await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
         tableName: 'entries',
         id: 'entry-fullrow',
@@ -1043,17 +1042,18 @@ describe('MutationManager', () => {
 
       await manager.uploadPendingMutations();
 
-      // NOT parked — the cap does not apply to full-row mutations.
-      expect(await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS)).toHaveLength(0);
-      const pending = (await mockDb.getAll(
-        REPLICATION_STORES.PENDING_MUTATIONS
+      // Parked (terminal + visible) — one store only, no infinite replay.
+      expect(await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).toHaveLength(0);
+      const failed = (await mockDb.getAll(
+        REPLICATION_STORES.FAILED_MUTATIONS
       )) as PendingMutation[];
-      expect(pending).toHaveLength(1);
-      expect(pending[0]!.id).toBe('mut-fullrow');
-      // occRetries still advances (existing behavior), but no lifetime cap and
-      // the token is left for reconciliation — never advanced under a full-row.
-      expect(pending[0]!.occRetries).toBe(50);
-      expect(pending[0]!.serverVersion).toBe(3);
+      expect(failed).toHaveLength(1);
+      expect(failed[0]!.id).toBe('mut-fullrow');
+      expect(failed[0]!.status).toBe('failed');
+      // Token NOT advanced — stays at the stale 3 so Retry can't clobber the
+      // server row; the message flags it may need to be redone.
+      expect(failed[0]!.serverVersion).toBe(3);
+      expect(failed[0]!.error).toMatch(/may need to be redone/);
     });
 
     it('a conflict below the cap keeps retrying; a custom cap is honored', async () => {

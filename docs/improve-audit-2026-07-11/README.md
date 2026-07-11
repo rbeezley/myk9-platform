@@ -27,6 +27,7 @@ Rules of the road for executors: work in a worktree, never the primary checkout;
 | [006](006-intent-and-debt-register-reconcile.md) | INTENT.md §6 documents the deleted myK9Q as live; debt registers claim "0 open" | MED / docs-integrity | S | LOW | TODO |
 | [007](007-replication-core-split.md) | Finish decomposing MutationManager (1480 L) + ReplicatedTable (1099 L) — pinning tests + verbatim extraction, design pre-done | MED / architecture | L | MED | TODO |
 | [008](008-secretary-dayof-plan-consolidation.md) | Day-of plan cluster: 8 Active plans → 2; per-plan archive verdicts pre-decided with verify steps | MED / docs-integrity | S | LOW | TODO |
+| [009](009-advisor-disposition-sweep.md) | Supabase advisor disposition: 364 lints → per-class verdicts; anon EXECUTE default-deny + allowlist queries; go-live item #7 | HIGH / security-hygiene | M | MED (live DB) | TODO |
 
 Dependency order: none block each other; 001 before 002 is mildly preferred (002's tests build on 001's helper usage). 003 will surface a backlog of pre-existing test type errors — budget for triage, don't bail.
 

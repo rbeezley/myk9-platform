@@ -59,12 +59,26 @@ interface RingsideGrantState {
   setGrant: (grant: RingsideGrant) => void;
   /** Drop the grant (explicit "leave show"). */
   clearGrant: () => void;
+  /**
+   * True for the brief window between a passcode REVOCATION clearing the
+   * grant and its anon-session signOut() actually completing (see
+   * `ringsidePasscodeRevocation.ts`). `clearGrant` fires synchronously so the
+   * gate reacts immediately, but the still-present anon session's claim is
+   * only invalidated once signOut() resolves. Without this flag,
+   * `useRehydrateRingsideGrant` would see "no grant, but a claim-shaped
+   * app_metadata" in that gap and re-admit the just-revoked user. Set/cleared
+   * ONLY by `ringsidePasscodeRevocation.ts` — never by a normal reload path.
+   */
+  suppressRehydration: boolean;
+  setSuppressRehydration: (value: boolean) => void;
 }
 
 export const useRingsideGrantStore = create<RingsideGrantState>()(set => ({
   activeGrant: null,
   setGrant: grant => set({ activeGrant: grant }),
   clearGrant: () => set({ activeGrant: null }),
+  suppressRehydration: false,
+  setSuppressRehydration: value => set({ suppressRehydration: value }),
 }));
 
 /**

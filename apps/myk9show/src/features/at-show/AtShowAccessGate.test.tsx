@@ -64,6 +64,7 @@ describe('AtShowAccessGate', () => {
     mockHasAnyEntry.hasAnyEntryForShow = false;
     mockHasAnyEntry.isLoading = false;
     useRingsideGrantStore.getState().clearGrant();
+    useRingsideGrantStore.getState().setSuppressRehydration(false);
   });
 
   it('admits an anonymous user with a matching passcode grant', () => {
@@ -159,6 +160,24 @@ describe('AtShowAccessGate', () => {
       is_anonymous: true,
       app_metadata: { kind: 'ringside_passcode', show_id: 'other-show', ringside_role: 'judge' },
     };
+
+    renderGate();
+
+    expect(screen.getByText("You don't have ringside access for this show.")).toBeInTheDocument();
+    expect(useRingsideGrantStore.getState().activeGrant).toBeNull();
+  });
+
+  // Closes the revocation race: ringsidePasscodeRevocation.ts clears the
+  // grant and sets suppressRehydration synchronously, but the anon session's
+  // claim isn't actually invalidated until its async signOut() resolves.
+  // Without the flag, this hook would see "no grant, valid-shaped claim" in
+  // that gap and immediately re-admit the just-revoked user.
+  it('does not rehydrate while suppressRehydration is set, even with a valid-shaped claim', () => {
+    mockUser = {
+      is_anonymous: true,
+      app_metadata: { kind: 'ringside_passcode', show_id: 'show-1', ringside_role: 'judge' },
+    };
+    useRingsideGrantStore.getState().setSuppressRehydration(true);
 
     renderGate();
 

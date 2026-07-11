@@ -66,18 +66,33 @@ export function isPasscodeRegeneratedMessage(text: string | undefined | null): b
  * drop any account-scoped grant, and sign out an anonymous passcode session (a
  * signed-in account keeps its account session — only the grant is dropped). Both
  * make `AtShowAccessGate` fall through to the passcode prompt rather than loop.
+ *
+ * `suppressRehydration` is held true from the synchronous `clearGrant()` until
+ * the anon session's `signOut()` actually resolves (or immediately, for a
+ * signed-in account with no anon session to sign out) — closing the window
+ * where `useRehydrateRingsideGrant` could otherwise see "no grant, but a
+ * still-claim-shaped session" and re-admit the just-revoked user before the
+ * session catches up.
  */
 export function revokeRingsidePasscodeAccess(): void {
   logger.warn('[at-show] ringside passcode regenerated — revoking stale claim', 'at-show');
   toast.error(PASSCODE_REVOKED_TOAST_MESSAGE);
 
-  useRingsideGrantStore.getState().clearGrant();
+  const { clearGrant, setSuppressRehydration } = useRingsideGrantStore.getState();
+  setSuppressRehydration(true);
+  clearGrant();
 
-  void supabase.auth.getSession().then(({ data }) => {
-    if (data.session?.user?.is_anonymous === true) {
-      void supabase.auth.signOut();
-    }
-  });
+  void supabase.auth
+    .getSession()
+    .then(({ data }) => {
+      if (data.session?.user?.is_anonymous === true) {
+        return supabase.auth.signOut();
+      }
+      return undefined;
+    })
+    .finally(() => {
+      useRingsideGrantStore.getState().setSuppressRehydration(false);
+    });
 }
 
 /**

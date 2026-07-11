@@ -19,6 +19,7 @@ const judgeGrantForX: RingsideGrant = { showId: 'show-X', role: 'judge', source:
 describe('useRingsideGrantStore', () => {
   beforeEach(() => {
     useRingsideGrantStore.getState().clearGrant();
+    useRingsideGrantStore.getState().setSuppressRehydration(false);
   });
 
   it('starts with no active grant', () => {
@@ -43,6 +44,16 @@ describe('useRingsideGrantStore', () => {
   it('resolves a grant with source "account"', () => {
     const accountGrant: RingsideGrant = { showId: 'show-X', role: 'admin', source: 'account' };
     expect(selectGrantRoleForShow(accountGrant, 'show-X')).toBe('admin');
+  });
+
+  it('starts with rehydration not suppressed; setSuppressRehydration toggles it', () => {
+    expect(useRingsideGrantStore.getState().suppressRehydration).toBe(false);
+
+    useRingsideGrantStore.getState().setSuppressRehydration(true);
+    expect(useRingsideGrantStore.getState().suppressRehydration).toBe(true);
+
+    useRingsideGrantStore.getState().setSuppressRehydration(false);
+    expect(useRingsideGrantStore.getState().suppressRehydration).toBe(false);
   });
 });
 

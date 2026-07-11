@@ -21,6 +21,12 @@
  * already fall back gracefully — see `useLocalPresenceIdentity`). A fresh
  * presence `sessionId` is minted, matching the store's own "a fresh session
  * gets a fresh id" contract.
+ *
+ * Skips entirely while `suppressRehydration` is set — the narrow window
+ * `ringsidePasscodeRevocation.ts` holds it open between dropping the grant
+ * and the anon session's `signOut()` actually completing. Without this, a
+ * revocation could be immediately undone by re-deriving from the not-yet-
+ * invalidated claim still sitting in `app_metadata`.
  */
 
 import { useEffect } from 'react';
@@ -35,9 +41,10 @@ export function useRehydrateRingsideGrant(showId: string | undefined): void {
   const { user, loading } = useAuthContext();
   const activeGrant = useRingsideGrantStore(state => state.activeGrant);
   const setGrant = useRingsideGrantStore(state => state.setGrant);
+  const suppressRehydration = useRingsideGrantStore(state => state.suppressRehydration);
 
   useEffect(() => {
-    if (loading || !showId) return;
+    if (loading || !showId || suppressRehydration) return;
     // The store already agrees with this show — nothing to rehydrate. Also
     // covers the signed-in-account grant case, which never needs claim-based
     // rehydration (its session is never anonymous).
@@ -50,5 +57,5 @@ export function useRehydrateRingsideGrant(showId: string | undefined): void {
       sessionId: crypto.randomUUID(),
       source: 'passcode',
     });
-  }, [loading, showId, user, activeGrant, setGrant]);
+  }, [loading, showId, suppressRehydration, user, activeGrant, setGrant]);
 }

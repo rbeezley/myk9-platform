@@ -18,29 +18,29 @@
 
 ## 3. Exhibitor Show-Day Trust
 
-- [ ] 3.1 Identify the current exhibitor show-day route, data source, and class/ringside empty states.
-- [ ] 3.2 Default exhibitor show-day navigation to the user's dogs today while keeping full class/ringside lists secondary.
-- [ ] 3.3 Show entered dog, class, armband/confirmation, check-in state, and next action when available.
-- [ ] 3.4 Replace contradictory "No Entries Yet" states with running-order-not-posted guidance when owned entries exist.
-- [ ] 3.5 Add focused tests for exhibitor-owned entries, empty running-order states, and secondary class-list access.
+- [x] 3.1 Identify the current exhibitor show-day route, data source, and class/ringside empty states. — `/at-show/:showId` → `AtShowClassListPage`, data via `useAtShowClassList` (replicated shows/trials/classes); prior empty state was a generic "This show has no classes yet" not scoped to exhibitor ownership.
+- [x] 3.2 Default exhibitor show-day navigation to the user's dogs today while keeping full class/ringside lists secondary. — new `AtShowMyEntriesToday` view defaults for exhibitor-only accounts (`isExhibitorOnlyForAtShow`) with owned entries; "See all classes" / "Your dogs today" toggle switches between views, class list unchanged for staff.
+- [x] 3.3 Show entered dog, class, armband/confirmation, check-in state, and next action when available. — `myAtShowEntryDetails.helpers.ts` (`buildMyAtShowEntryDetails`, `deriveAtShowNextAction`) sourced from `replicatedEntriesTable.getEntriesByShow` (offline-first); one-tap check-in reuses the existing `useCheckInMutation({writer:'self-checkin-rpc'})`.
+- [x] 3.4 Replace contradictory "No Entries Yet" states with running-order-not-posted guidance when owned entries exist. — per-entry "Running order not posted yet" / "Not posted yet" copy when the class isn't in the loaded class list yet, instead of the class-list's generic empty state. Confirmed distinct from the separate `QA-STALE-DERIVED-STATE-035` todo (Browse Shows vs. Show Detail, not `/at-show`).
+- [x] 3.5 Add focused tests for exhibitor-owned entries, empty running-order states, and secondary class-list access. — `myAtShowEntryDetails.helpers.test.ts` (13 tests) + `AtShowClassListPage.myEntriesToday.test.tsx` (4 integration tests: exhibitor default, staff keeps class-first default, toggle both ways, unposted-running-order copy).
 
 ## 4. Exhibitor Check-In Language
 
-- [ ] 4.1 Inventory current check-in status labels and role-specific render paths.
-- [ ] 4.2 Add a typed exhibitor label-to-internal-status mapping for "I am here", "I am not there yet", and "I have a conflict - tell the secretary".
-- [ ] 4.3 Apply plain exhibitor labels only to exhibitor-facing check-in controls.
-- [ ] 4.4 Preserve existing staff operational status labels.
-- [ ] 4.5 Add focused tests for the mapping and role-specific labels.
+- [x] 4.1 Inventory current check-in status labels and role-specific render paths. — done via PR #1264
+- [x] 4.2 Add a typed exhibitor label-to-internal-status mapping for "I am here", "I am not there yet", and "I have a conflict - tell the secretary". — `EXHIBITOR_STATUS_LABELS` in `CheckInStatusDialog.tsx`, PR #1264
+- [x] 4.3 Apply plain exhibitor labels only to exhibitor-facing check-in controls. — gated on `userRole === 'exhibitor'`, PR #1264
+- [x] 4.4 Preserve existing staff operational status labels. — non-exhibitor roles still render `config.label`, PR #1264
+- [x] 4.5 Add focused tests for the mapping and role-specific labels. — `CheckInStatusDialog.test.tsx`, PR #1264
 
 ## 5. Dog Profile Clarity
 
 - [x] 5.1 Prevent blank or invalid height/weight inputs from saving or displaying as `NaN`.
 - [x] 5.2 Hide invalid or blank dog measurements instead of displaying `NaN` or accidental zero values.
-- [ ] 5.3 Group Edit Dog fields into "Basics" and "More details" without replacing the existing dog profile surface.
-- [ ] 5.4 Add date-of-birth format helper text and mixed-breed/registration guidance near relevant fields.
-- [ ] 5.5 Collapse premium dog tabs behind one "More for this dog" area.
-- [ ] 5.6 Remove duplicate registration add affordances that appear on the same surface.
-- [ ] 5.7 Add focused tests for dog-edit grouping, helper text, registration guidance, and duplicate affordance removal.
+- [x] 5.3 Group Edit Dog fields into "Basics" and "More details" without replacing the existing dog profile surface. — `DogEditPanel.sections.tsx` `BasicInfoTab`: photo/call name/registered name/breed/gender/DOB stay visible under "Basics"; color/weight/height/microchip/spayed-neutered/owner/notes/special-needs moved into a collapsed-by-default "More details" `Accordion`.
+- [x] 5.4 Add date-of-birth format helper text and mixed-breed/registration guidance near relevant fields. — "Format: MM/DD/YYYY" under DOB; mixed-breed/AKC PAL-ILP guidance under Breed.
+- [x] 5.5 Collapse premium dog tabs behind one "More for this dog" area. — `DogEditPanel.tsx`: Registrations + Health tabs replaced with a single "More for this dog" tab containing an `Accordion` (Registrations open by default, Health collapsed).
+- [x] 5.6 Remove duplicate registration add affordances that appear on the same surface. — stale: re-verified 2026-07-10, no duplicate add-registration affordance exists on any single surface today (dog profile page and dogs-list dropdown are two separate surfaces, each with one); likely resolved by an earlier PR before this task was written.
+- [x] 5.7 Add focused tests for dog-edit grouping, helper text, registration guidance, and duplicate affordance removal. — `DogEditPanel.grouping.test.tsx`, 8 tests: Basics visible/More-details collapsed/expands, DOB + breed guidance text, tab consolidation, accordion nesting.
 
 ## 6. Onboarding Confidence
 

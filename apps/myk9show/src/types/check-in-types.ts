@@ -131,3 +131,14 @@ export function requiresAction(status: CheckInStatus): boolean {
 export function canProceedToGate(status: CheckInStatus): boolean {
   return status === 'checked-in' || status === 'come-to-gate';
 }
+
+// Exhibitor-facing plain-language labels, distinct from the staff-grade
+// CHECK_IN_STATUS_CONFIG labels above. Shared by CheckInStatusDialog and any
+// other exhibitor-facing surface (e.g. the at-show "Your dogs today" view)
+// that needs to badge a status in the same first-person voice.
+export const EXHIBITOR_STATUS_LABELS: Partial<Record<CheckInStatus, string>> = {
+  'no-status': 'I am not there yet',
+  'checked-in': 'I am here',
+  conflict: 'I have a conflict — tell the secretary',
+  pulled: 'I need to withdraw from this class',
+};

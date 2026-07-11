@@ -8,6 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -135,6 +141,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* ── Basics: the fields most corrections touch ────────────── */}
+        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          Basics
+        </h4>
+
         {/* Profile Image Section */}
         <div className="flex items-center gap-4 pb-4 border-b border-border/30">
           <Avatar className="h-16 w-16">
@@ -218,6 +229,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               <option key={b.name} value={b.name} />
             ))}
           </datalist>
+          <p className="text-xs text-muted-foreground/80 mt-1">
+            Not sure of the exact breed, or registering a mixed-breed dog? Choose the closest match,
+            or select "Mixed Breed" — this does not affect AKC PAL/ILP or mixed-breed registration
+            eligibility.
+          </p>
         </FormField>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -252,92 +268,103 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               className={cn(dobError && 'border-destructive')}
               {...form?.getFieldProps('dateOfBirth')}
             />
+            <p className="text-xs text-muted-foreground/80 mt-1">Format: MM/DD/YYYY</p>
           </FormField>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormField label="Color" fieldId="color">
-            <Input
-              id="color"
-              value={data.color}
-              onChange={handleInputChange('color')}
-              placeholder="Enter color"
-            />
-          </FormField>
+        {/* ── More details: collapsed by default, out of the way ──── */}
+        <Accordion type="single" collapsible className="pt-2">
+          <AccordionItem value="more-details" className="border-t border-border/30 border-b-0">
+            <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              More details
+            </AccordionTrigger>
+            <AccordionContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField label="Color" fieldId="color">
+                  <Input
+                    id="color"
+                    value={data.color}
+                    onChange={handleInputChange('color')}
+                    placeholder="Enter color"
+                  />
+                </FormField>
 
-          <FormField label="Weight (lbs)" fieldId="weight">
-            <Input
-              id="weight"
-              type="number"
-              value={data.weight}
-              onChange={handleInputChange('weight')}
-              placeholder="Enter weight"
-            />
-          </FormField>
+                <FormField label="Weight (lbs)" fieldId="weight">
+                  <Input
+                    id="weight"
+                    type="number"
+                    value={data.weight}
+                    onChange={handleInputChange('weight')}
+                    placeholder="Enter weight"
+                  />
+                </FormField>
 
-          <FormField label="Height (inches)" fieldId="height">
-            <Input
-              id="height"
-              type="number"
-              value={data.height}
-              onChange={handleInputChange('height')}
-              placeholder="Enter height"
-            />
-          </FormField>
-        </div>
+                <FormField label="Height (inches)" fieldId="height">
+                  <Input
+                    id="height"
+                    type="number"
+                    value={data.height}
+                    onChange={handleInputChange('height')}
+                    placeholder="Enter height"
+                  />
+                </FormField>
+              </div>
 
-        <FormField label="Microchip Number" fieldId="microchip">
-          <Input
-            id="microchip"
-            value={data.microchip}
-            onChange={handleInputChange('microchip')}
-            placeholder="Enter microchip number"
-          />
-        </FormField>
+              <FormField label="Microchip Number" fieldId="microchip">
+                <Input
+                  id="microchip"
+                  value={data.microchip}
+                  onChange={handleInputChange('microchip')}
+                  placeholder="Enter microchip number"
+                />
+              </FormField>
 
-        <div className="flex items-center space-x-3 pt-2">
-          <input
-            type="checkbox"
-            id="spayedNeutered"
-            checked={data.spayedNeutered ?? false}
-            onChange={e => updateData({ spayedNeutered: e.target.checked })}
-            className="h-4 w-4 rounded border-input accent-primary"
-          />
-          <Label htmlFor="spayedNeutered" className="text-sm font-medium cursor-pointer">
-            Spayed/Neutered
-          </Label>
-        </div>
+              <div className="flex items-center space-x-3 pt-2">
+                <input
+                  type="checkbox"
+                  id="spayedNeutered"
+                  checked={data.spayedNeutered ?? false}
+                  onChange={e => updateData({ spayedNeutered: e.target.checked })}
+                  className="h-4 w-4 rounded border-input accent-primary"
+                />
+                <Label htmlFor="spayedNeutered" className="text-sm font-medium cursor-pointer">
+                  Spayed/Neutered
+                </Label>
+              </div>
 
-        {/* Owner Selection - Only shown for admins */}
-        <OwnerSelectionField />
+              {/* Owner Selection - Only shown for admins */}
+              <OwnerSelectionField />
 
-        <Separator />
+              <Separator />
 
-        <div className="space-y-4">
-          <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-            Additional Information
-          </h4>
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                  Additional Information
+                </h4>
 
-          <FormField label="Notes" fieldId="notes">
-            <textarea
-              id="notes"
-              value={data.notes || ''}
-              onChange={handleInputChange('notes')}
-              placeholder="Enter additional notes about the dog"
-              className="min-h-[80px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
-            />
-          </FormField>
+                <FormField label="Notes" fieldId="notes">
+                  <textarea
+                    id="notes"
+                    value={data.notes || ''}
+                    onChange={handleInputChange('notes')}
+                    placeholder="Enter additional notes about the dog"
+                    className="min-h-[80px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
+                  />
+                </FormField>
 
-          <FormField label="Special Needs" fieldId="specialNeeds">
-            <textarea
-              id="specialNeeds"
-              value={data.specialNeeds || ''}
-              onChange={handleInputChange('specialNeeds')}
-              placeholder="Enter any special needs or requirements"
-              className="min-h-[60px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
-            />
-          </FormField>
-        </div>
+                <FormField label="Special Needs" fieldId="specialNeeds">
+                  <textarea
+                    id="specialNeeds"
+                    value={data.specialNeeds || ''}
+                    onChange={handleInputChange('specialNeeds')}
+                    placeholder="Enter any special needs or requirements"
+                    className="min-h-[60px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
+                  />
+                </FormField>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </CardContent>
     </Card>
   );

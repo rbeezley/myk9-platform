@@ -2,7 +2,13 @@ import React, { useState, useCallback, useMemo, createContext } from 'react';
 import { EditPanelWrapper } from './EditPanelWrapper';
 import { useEditPanel } from './useEditPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dog, FileText, Heart } from 'lucide-react';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Dog, FileText, Heart, MoreHorizontal } from 'lucide-react';
 import PhotoDialog from '@/components/common/PhotoDialog';
 import type { DogEditContextType, DogEditPanelProps, DogFormData } from './DogEditPanel.types';
 import { dogToFormData, formDataToDog, dogFormSchema, isAdminRole } from './DogEditPanel.helpers';
@@ -95,7 +101,7 @@ const DogEditForm: React.FC = () => {
   return (
     <div className="space-y-6 p-6">
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
+        <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
           <TabsTrigger
             value="basic"
             className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
@@ -104,18 +110,11 @@ const DogEditForm: React.FC = () => {
             Basic Info
           </TabsTrigger>
           <TabsTrigger
-            value="registrations"
+            value="more"
             className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
           >
-            <FileText className="h-4 w-4" />
-            Registrations
-          </TabsTrigger>
-          <TabsTrigger
-            value="health"
-            className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-          >
-            <Heart className="h-4 w-4" />
-            Health
+            <MoreHorizontal className="h-4 w-4" />
+            More for this dog
           </TabsTrigger>
         </TabsList>
 
@@ -131,20 +130,35 @@ const DogEditForm: React.FC = () => {
           />
         </TabsContent>
 
-        {/* Registrations Tab */}
+        {/* More for this dog: registrations + health, collapsed behind one area */}
         <TabsContent
-          value="registrations"
-          className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
+          value="more"
+          className="space-y-4 animate-in slide-in-from-bottom-2 duration-300 ease-out"
         >
-          <RegistrationsTab />
-        </TabsContent>
-
-        {/* Health Records Tab */}
-        <TabsContent
-          value="health"
-          className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
-        >
-          <HealthRecordsTab />
+          <Accordion type="single" collapsible defaultValue={['registrations']}>
+            <AccordionItem value="registrations">
+              <AccordionTrigger className="gap-2">
+                <span className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Registrations
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <RegistrationsTab />
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="health">
+              <AccordionTrigger className="gap-2">
+                <span className="flex items-center gap-2">
+                  <Heart className="h-4 w-4" />
+                  Health
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <HealthRecordsTab />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </TabsContent>
       </Tabs>
 

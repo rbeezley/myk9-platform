@@ -21,9 +21,9 @@ vi.mock('@/services/database/supabaseClient', () => ({
 const mockUpdateReplicatedCheckInStatus = vi.fn<
   (entryId: string, status: CheckInStatus) => Promise<string | null>
 >(() => Promise.resolve('mutation-1'));
-const mockUpdateSelfCheckInStatus = vi.fn<(entryId: string, status: CheckInStatus) => Promise<void>>(
-  () => Promise.resolve()
-);
+const mockUpdateSelfCheckInStatus = vi.fn<
+  (entryId: string, status: CheckInStatus) => Promise<void>
+>(() => Promise.resolve());
 vi.mock('@/services/show-day/checkInStatus', () => ({
   updateReplicatedCheckInStatus: (entryId: string, status: CheckInStatus) =>
     mockUpdateReplicatedCheckInStatus(entryId, status),

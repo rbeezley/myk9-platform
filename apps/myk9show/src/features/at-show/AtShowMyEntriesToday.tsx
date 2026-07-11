@@ -1,0 +1,188 @@
+/**
+ * AtShowMyEntriesToday — exhibitor-first "Your dogs today" show-day view.
+ *
+ * Mounted as the default view inside `AtShowClassListPage` for exhibitor-only
+ * accounts with owned entries at this show (see
+ * `openspec/changes/exhibitor-elderly-ux-remediation`, section 3). Lists the
+ * exhibitor's own entries — dog, class, armband, check-in state, and next
+ * action — ahead of the full ringside class-administration list.
+ */
+import { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle2, ChevronRight, Clock3, ListChecks } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/common/SkeletonLoaders';
+import { cn } from '@/lib/utils';
+import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
+import { EXHIBITOR_STATUS_LABELS } from '@/types/check-in-types';
+import { deriveAtShowNextAction, type AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
+
+export interface AtShowMyEntriesTodayProps {
+  showId: string;
+  entries: AtShowEntryDetail[];
+  isLoading: boolean;
+  onSeeAllClasses: () => void;
+}
+
+function statusLabel(detail: AtShowEntryDetail): string {
+  return EXHIBITOR_STATUS_LABELS[detail.checkInStatus] ?? 'Not checked in yet';
+}
+
+function EntryRow({
+  detail,
+  onOpenClass,
+  onCheckIn,
+  checkInPending,
+}: {
+  detail: AtShowEntryDetail;
+  onOpenClass: (classId: string) => void;
+  onCheckIn: (detail: AtShowEntryDetail) => void;
+  checkInPending: boolean;
+}) {
+  const action = deriveAtShowNextAction(detail);
+
+  return (
+    <li
+      className="flex min-h-12 items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm"
+      data-testid={`at-show-my-entry-${detail.entryId}`}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate font-medium">{detail.dogName}</span>
+          {detail.armband && (
+            <span className="shrink-0 rounded-full bg-[color:var(--chip-stone-bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--chip-stone-fg)]">
+              #{detail.armband}
+            </span>
+          )}
+        </div>
+        <div className="mt-0.5 truncate text-sm text-muted-foreground">
+          {detail.className ?? 'Running order not posted yet'}
+        </div>
+        <div className="mt-0.5 text-xs text-muted-foreground">{statusLabel(detail)}</div>
+      </div>
+
+      {action.kind === 'check-in' && (
+        <Button
+          type="button"
+          size="sm"
+          className="min-h-11 shrink-0 gap-1.5"
+          disabled={checkInPending}
+          onClick={() => onCheckIn(detail)}
+        >
+          <CheckCircle2 className="h-4 w-4" aria-hidden />
+          Check in
+        </Button>
+      )}
+      {action.kind === 'wait-running-order' && (
+        <span className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
+          <Clock3 className="h-4 w-4" aria-hidden />
+          Not posted yet
+        </span>
+      )}
+      {(action.kind === 'view-class' || action.kind === 'scored') && detail.classId && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="min-h-11 shrink-0 gap-1"
+          onClick={() => detail.classId && onOpenClass(detail.classId)}
+        >
+          View class
+          <ChevronRight className="h-4 w-4" aria-hidden />
+        </Button>
+      )}
+    </li>
+  );
+}
+
+function AtShowMyEntriesTodaySkeleton() {
+  return (
+    <div role="status" aria-label="Loading your dogs today" className="space-y-2">
+      {Array.from({ length: 2 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex min-h-12 items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm"
+        >
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
+  showId,
+  entries,
+  isLoading,
+  onSeeAllClasses,
+}) => {
+  const navigate = useNavigate();
+  const [pendingEntryId, setPendingEntryId] = useState<string | null>(null);
+  const checkInMutation = useCheckInMutation({ writer: 'self-checkin-rpc' });
+
+  const handleOpenClass = useCallback(
+    (classId: string) => {
+      navigate(`/at-show/${showId}/class/${classId}`);
+    },
+    [navigate, showId]
+  );
+
+  const handleCheckIn = useCallback(
+    async (detail: AtShowEntryDetail) => {
+      setPendingEntryId(detail.entryId);
+      try {
+        await checkInMutation.mutateAsync({
+          entryId: detail.entryId,
+          newStatus: 'checked-in',
+          classId: detail.classId ?? undefined,
+        });
+      } finally {
+        setPendingEntryId(null);
+      }
+    },
+    [checkInMutation]
+  );
+
+  return (
+    <div
+      className="ringside-root mx-auto max-w-2xl px-4 py-4"
+      data-testid="at-show-my-entries-today"
+    >
+      <h1 className="mb-1 text-center text-lg font-semibold">Your dogs today</h1>
+
+      {isLoading ? (
+        <AtShowMyEntriesTodaySkeleton />
+      ) : entries.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
+          <p className="text-sm text-muted-foreground">
+            Your entries for this show haven't loaded yet, or the running order isn't posted.
+          </p>
+        </div>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {entries.map(detail => (
+            <EntryRow
+              key={detail.entryId}
+              detail={detail}
+              onOpenClass={handleOpenClass}
+              onCheckIn={handleCheckIn}
+              checkInPending={pendingEntryId === detail.entryId}
+            />
+          ))}
+        </ul>
+      )}
+
+      <Button
+        type="button"
+        variant="outline"
+        className={cn('mt-4 min-h-11 w-full gap-2')}
+        onClick={onSeeAllClasses}
+      >
+        <ListChecks className="h-4 w-4" aria-hidden />
+        See all classes
+      </Button>
+    </div>
+  );
+};
+
+export default AtShowMyEntriesToday;

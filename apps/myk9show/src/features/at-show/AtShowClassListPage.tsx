@@ -32,6 +32,10 @@ import { hasScopedClubRole } from '@/utils/roleScopes';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { useAtShowClassList } from './useAtShowClassList';
+import { useMyAtShowEntries } from './useMyAtShowEntries';
+import { useMyAtShowEntryDetails } from './useMyAtShowEntryDetails';
+import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
+import { isExhibitorOnlyForAtShow, type AtShowClassSummary } from './myAtShowEntryDetails.helpers';
 import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListState';
 import { badgeClass, getClassListStatusTier } from './slots/atShowChrome.helpers';
 
@@ -131,6 +135,7 @@ export const AtShowClassListPage: React.FC = () => {
   const { groups, organization, showName, clubId, isLoading, error, refresh } =
     useAtShowClassList(showId);
   const { status: syncStatus } = useReplicationSync();
+  const { hasRole } = useAuthContext();
 
   // Group Novice A/B pairs into single combined entries per trial.
   const groupedByTrial = useMemo(
@@ -141,6 +146,33 @@ export const AtShowClassListPage: React.FC = () => {
       })),
     [groups, organization]
   );
+
+  // Exhibitor show day starts from owned entries, not ringside class
+  // administration (design decision, section 3 of the elderly-UX remediation).
+  // Staff accounts — including a secretary who also exhibits — keep the
+  // class-first default.
+  const isExhibitorOnly = isExhibitorOnlyForAtShow(hasRole);
+  const { ownEntryIds } = useMyAtShowEntries(showId);
+  const classesById = useMemo(() => {
+    const map = new Map<string, AtShowClassSummary>();
+    for (const group of groups) {
+      for (const cls of group.classes) {
+        map.set(cls.id, { className: cls.class_name, classStatus: cls.class_status });
+      }
+    }
+    return map;
+  }, [groups]);
+  const { entries: myEntries, isLoading: myEntriesLoading } = useMyAtShowEntryDetails(
+    showId,
+    classesById
+  );
+
+  // `null` = no manual override yet, so the view tracks ownership as it
+  // resolves (starts 'all' while ownEntryIds is still loading, flips to
+  // 'mine' once entries are known) without fighting an explicit user choice.
+  const [manualView, setManualView] = useState<'mine' | 'all' | null>(null);
+  const view: 'mine' | 'all' =
+    manualView ?? (isExhibitorOnly && ownEntryIds.size > 0 ? 'mine' : 'all');
 
   const handleClassClick = useCallback(
     (entry: ClassEntry) => {
@@ -211,6 +243,17 @@ export const AtShowClassListPage: React.FC = () => {
     );
   }
 
+  if (view === 'mine') {
+    return (
+      <AtShowMyEntriesToday
+        showId={showId as string}
+        entries={myEntries}
+        isLoading={myEntriesLoading}
+        onSeeAllClasses={() => setManualView('all')}
+      />
+    );
+  }
+
   const hasClasses = groupedByTrial.some(g => g.classes.length > 0);
   if (!hasClasses) {
     return (
@@ -224,8 +267,18 @@ export const AtShowClassListPage: React.FC = () => {
 
   return (
     <div className="ringside-root mx-auto max-w-2xl px-4 py-4">
-      <div className="mb-3">
+      <div className="mb-3 flex items-center justify-between gap-2">
         <BackToRingsideExitButton showId={showId} clubId={clubId} />
+        {isExhibitorOnly && ownEntryIds.size > 0 && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="min-h-11 gap-1.5 px-3"
+            onClick={() => setManualView('mine')}
+          >
+            Your dogs today
+          </Button>
+        )}
       </div>
 
       {showName && <h1 className="mb-4 text-center text-lg font-semibold">{showName}</h1>}

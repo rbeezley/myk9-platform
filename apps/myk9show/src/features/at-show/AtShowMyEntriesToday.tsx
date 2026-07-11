@@ -7,7 +7,7 @@
  * exhibitor's own entries — dog, class, armband, check-in state, and next
  * action — ahead of the full ringside class-administration list.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, ChevronRight, Clock3, ListChecks } from 'lucide-react';
 import type { CheckInStatus } from '@myk9/core';
@@ -23,6 +23,8 @@ export interface AtShowMyEntriesTodayProps {
   showId: string;
   entries: AtShowEntryDetail[];
   isLoading: boolean;
+  /** From `useMyAtShowEntryDetails` — changes only when a fresh fetch lands. */
+  dataUpdatedAt: number;
   onSeeAllClasses: () => void;
 }
 
@@ -124,6 +126,7 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
   showId,
   entries,
   isLoading,
+  dataUpdatedAt,
   onSeeAllClasses,
 }) => {
   const navigate = useNavigate();
@@ -131,13 +134,22 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
   const checkInMutation = useCheckInMutation({ writer: 'self-checkin-rpc' });
 
   // The self-checkin RPC writes only to the remote DB (no replication write —
-  // "online-only by design"), and its cache invalidation doesn't touch this
-  // view's query key. Without a local optimistic override, a successful tap
-  // would show no visible change until the next replication sync — exactly
-  // the kind of unconfirmed action this view exists to avoid. Cleared on
-  // error (rollback); kept on success until the replicated read eventually
-  // agrees, which is harmless since it's the same value.
+  // "online-only by design"), so a tap needs a local optimistic override for
+  // instant feedback — without it, the row would show no visible change
+  // until the next replication sync, exactly the kind of unconfirmed action
+  // this view exists to avoid. Cleared on error (rollback), or once a fresh
+  // fetch actually lands (below) — that covers both our own tap's real value
+  // arriving and a status change made from another surface (e.g. a secretary
+  // reverting a check-in), which `useCheckInMutation` now also invalidates
+  // this view's query for.
   const [statusOverrides, setStatusOverrides] = useState<Record<string, CheckInStatus>>({});
+  const lastReconciledAt = useRef(dataUpdatedAt);
+  useEffect(() => {
+    if (dataUpdatedAt === lastReconciledAt.current) return;
+    lastReconciledAt.current = dataUpdatedAt;
+    setStatusOverrides({});
+  }, [dataUpdatedAt]);
+
   const displayEntries = useMemo(
     () =>
       entries.map(detail =>

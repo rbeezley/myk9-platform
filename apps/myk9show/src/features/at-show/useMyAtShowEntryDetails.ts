@@ -11,6 +11,13 @@ export interface UseMyAtShowEntryDetailsResult {
   entries: AtShowEntryDetail[];
   /** True while the ownership set or the entry rows are still resolving. */
   isLoading: boolean;
+  /**
+   * Timestamp of the last successful fetch — only changes when fresh data
+   * actually lands (unlike `entries`, whose reference can also change from
+   * an unrelated `classesById` update). Lets a caller reconcile a local
+   * optimistic update against real data without over-triggering.
+   */
+  dataUpdatedAt: number;
 }
 
 /**
@@ -43,5 +50,6 @@ export function useMyAtShowEntryDetails(
   return {
     entries,
     isLoading: ownershipLoading || (ownEntryIds.size > 0 && entriesQuery.isLoading),
+    dataUpdatedAt: entriesQuery.dataUpdatedAt,
   };
 }

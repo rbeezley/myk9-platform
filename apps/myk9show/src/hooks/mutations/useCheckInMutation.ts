@@ -144,6 +144,11 @@ export function useCheckInMutation(options: UseCheckInMutationOptions = {}) {
           queryKey: ['classes', variables.classId, 'entries'],
         });
       }
+      // Also invalidate the at-show "Your dogs today" view (any showId) — a
+      // check-in change made from ANY surface using this hook (staff or
+      // self-checkin-rpc) must reach the exhibitor's own show-day view, not
+      // just the surface that made the change.
+      queryClient.invalidateQueries({ queryKey: ['at-show', 'my-entries-detail'] });
     },
   });
 }

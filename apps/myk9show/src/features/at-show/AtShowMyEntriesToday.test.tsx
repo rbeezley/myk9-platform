@@ -44,6 +44,7 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
         showId="show-1"
         entries={[entry({ checkInStatus: status, isScored: status === 'completed' })]}
         isLoading={false}
+        dataUpdatedAt={1}
         onSeeAllClasses={vi.fn()}
       />
     );
@@ -58,6 +59,7 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
         showId="show-1"
         entries={[entry({ checkInStatus: 'conflict' })]}
         isLoading={false}
+        dataUpdatedAt={1}
         onSeeAllClasses={vi.fn()}
       />
     );
@@ -78,6 +80,7 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
         showId="show-1"
         entries={[entry({ checkInStatus: 'no-status' })]}
         isLoading={false}
+        dataUpdatedAt={1}
         onSeeAllClasses={vi.fn()}
       />
     );
@@ -98,6 +101,7 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
         showId="show-1"
         entries={[entry({ checkInStatus: 'no-status' })]}
         isLoading={false}
+        dataUpdatedAt={1}
         onSeeAllClasses={vi.fn()}
       />
     );
@@ -108,5 +112,40 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
       expect(screen.getByText('I am not there yet')).toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: /Check in/ })).toBeInTheDocument();
+  });
+
+  it('defers to fresh authoritative data once it arrives, even from another surface', async () => {
+    mockMutateAsync.mockResolvedValue(undefined);
+    const { rerender } = render(
+      <AtShowMyEntriesToday
+        showId="show-1"
+        entries={[entry({ checkInStatus: 'no-status' })]}
+        isLoading={false}
+        dataUpdatedAt={1}
+        onSeeAllClasses={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Check in/ }));
+    await waitFor(() => {
+      expect(screen.getByText('I am here')).toBeInTheDocument();
+    });
+
+    // A fresh fetch lands (dataUpdatedAt changed) showing the secretary
+    // reverted the exhibitor back to not-checked-in — the stale optimistic
+    // "I am here" must not linger.
+    rerender(
+      <AtShowMyEntriesToday
+        showId="show-1"
+        entries={[entry({ checkInStatus: 'no-status' })]}
+        isLoading={false}
+        dataUpdatedAt={2}
+        onSeeAllClasses={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('I am not there yet')).toBeInTheDocument();
+    });
   });
 });

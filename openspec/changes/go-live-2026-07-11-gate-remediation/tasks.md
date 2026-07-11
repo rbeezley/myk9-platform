@@ -20,7 +20,7 @@
 ## 1. OpenSpec and Evidence Baseline
 
 - [x] 1.1 Validate all proposal, design, delta-spec, and task artifacts with `pnpm openspec validate go-live-2026-07-11-gate-remediation --type change --strict`; run `verify-plan` against the July 11 go-live report and security audit, patch every gap, and record the final coverage score (100/100 on 2026-07-11).
-- [ ] 1.2 Record a redacted read-only evidence baseline covering cron job/run state, latest health snapshot, deployed `cron-health-check` version, relevant Vault/function-secret digests, remote migration lineage/live `soft_delete_person` definition, and all 364 before-remediation Supabase advisor entries (2 ERROR, 3 INFO, 359 WARN).
+- [ ] 1.2 Record a redacted read-only evidence baseline covering cron job/run state, latest health snapshot, deployed `cron-health-check` version, relevant Vault/function-secret digests, remote migration lineage/live `soft_delete_person` definition, and all 364 before-remediation Supabase advisor entries (2 ERROR, 3 INFO, 359 WARN). (Migration parity, dry run, and the live redacted `soft_delete_person` fingerprint/behavior markers are complete; the health, secret-digest, deployed-version, and advisor portions remain open.)
 - [ ] 1.3 [ADDED] [INTEGRATION GATE] Bring the user's uncommitted July 11 go-live report, security audit, and docs-index registration onto the implementation branch through their source commit or an explicitly reviewed patch before editing them; never overwrite the primary checkout's uncommitted files.
 
 ## 2. Batch A — Daily Health Monitoring
@@ -34,7 +34,7 @@
 ## 3. Batch A — Migration Lineage
 
 - [x] 3.1 Update `softDeletePerson.source.test.ts` first to require self-service authorization and role deactivation from `20260710170000`, observe RED, delete `20260710160000_self_service_soft_delete_person.sql`, and make the focused contract test GREEN.
-- [ ] 3.2 Run the duplicate-version scan, `supabase migration list`, and `supabase db push --dry-run`; stop on any unexpected apply/revert/repair proposal and record that no real database push is required for deletion of the obsolete unapplied file.
+- [x] 3.2 Run the duplicate-version scan, `supabase migration list`, and `supabase db push --dry-run`; stop on any unexpected apply/revert/repair proposal and record that no real database push is required for deletion of the obsolete unapplied file.
 
 ## 4. Batch B — FORCE RLS and Drift Prevention (SA-021)
 

@@ -1,7 +1,7 @@
 # FORCE RLS Evidence
 
-**Checked:** 2026-07-11 15:04:23 UTC  
-**Project:** `sojmvhhwsjxmfistvzbe`  
+**Checked:** 2026-07-11 15:04:23 UTC
+**Project:** `sojmvhhwsjxmfistvzbe`
 **Mutation performed:** none
 
 ## Audit correction

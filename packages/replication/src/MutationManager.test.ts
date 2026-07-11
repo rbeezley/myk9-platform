@@ -996,10 +996,12 @@ describe('MutationManager', () => {
       expect(failed[0]!.serverVersion).toBe(8);
     });
 
-    it('does NOT advance the token of a parked full-row (non-RPC) mutation — no clobber on Retry', async () => {
-      // A direct full-row UPDATE carries a whole stale snapshot. Advancing its
-      // token would let a generic Retry overwrite fields another client changed,
-      // bypassing the rebuild-payload reconciliation contract. It must stay stale.
+    it('does NOT park a full-row (non-RPC) mutation — cap is scoped to the RPC storm vector', async () => {
+      // A direct full-row UPDATE carries a whole stale snapshot; parking + a
+      // generic Retry could only either clobber the server (advance token) or
+      // loop (stale token). Full-row OCC conflicts never stormed, so they are
+      // left on their existing path: throttled backoff + reconciliation-on-sync,
+      // unchanged by this change. Assert it stays queued, NOT parked.
       await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
         tableName: 'entries',
         id: 'entry-fullrow',
@@ -1041,14 +1043,17 @@ describe('MutationManager', () => {
 
       await manager.uploadPendingMutations();
 
-      const failed = (await mockDb.getAll(
-        REPLICATION_STORES.FAILED_MUTATIONS
+      // NOT parked — the cap does not apply to full-row mutations.
+      expect(await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS)).toHaveLength(0);
+      const pending = (await mockDb.getAll(
+        REPLICATION_STORES.PENDING_MUTATIONS
       )) as PendingMutation[];
-      expect(failed).toHaveLength(1);
-      expect(failed[0]!.id).toBe('mut-fullrow');
-      // Token NOT advanced — stays at the stale 3 so Retry re-defers to
-      // reconciliation instead of clobbering the server row.
-      expect(failed[0]!.serverVersion).toBe(3);
+      expect(pending).toHaveLength(1);
+      expect(pending[0]!.id).toBe('mut-fullrow');
+      // occRetries still advances (existing behavior), but no lifetime cap and
+      // the token is left for reconciliation — never advanced under a full-row.
+      expect(pending[0]!.occRetries).toBe(50);
+      expect(pending[0]!.serverVersion).toBe(3);
     });
 
     it('a conflict below the cap keeps retrying; a custom cap is honored', async () => {

@@ -849,7 +849,24 @@ export class MutationManager {
               REPLICATION_STORES.PENDING_MUTATIONS,
               queuedMutation.id
             )) as PendingMutation | undefined;
-            if (stillQueued && occRetries >= this.maxOccAttempts) {
+            // The lifetime cap parks ONLY RPC/delta mutations — the storm
+            // vector (ringside_update_entry). Their payload is a targeted field
+            // set, so a parked mutation can be re-based onto the fresh OCC token
+            // and a user Retry can actually succeed (last-write on those fields).
+            //   Direct full-row UPDATEs are intentionally NOT capped/parked here:
+            // they carry a whole stale snapshot, so advancing their token would
+            // clobber fields another client changed since — the hazard the
+            // sync-down reconciler (reconcileQueuedMutationAfterSync /
+            // rebuildUpdatePayload) exists to prevent, and which a generic Retry
+            // cannot safely rebuild. They keep their existing behavior (throttled
+            // OCC backoff + reconciliation-on-sync), unchanged by this change.
+            // Full-row OCC conflicts have never stormed; scoping the cap to RPC
+            // keeps this fix's blast radius on the actual incident vector.
+            const occCapReached =
+              stillQueued !== undefined &&
+              stillQueued.rpc !== undefined &&
+              occRetries >= this.maxOccAttempts;
+            if (occCapReached) {
               // Lifetime cap reached: park. The payload survives in the
               // failed-mutations store and surfaces through the existing
               // sync-failed toast (Retry resets the counters; Discard is
@@ -858,22 +875,12 @@ export class MutationManager {
                 ...stillQueued,
                 occRetries,
                 status: 'failed',
-                // Stamp the AUTHORITATIVE server version onto the parked
-                // mutation so a user Retry re-uploads with a fresh OCC token
-                // instead of the same stale one it kept while awaiting
-                // reconciliation. Without this the advertised recovery action
-                // immediately re-conflicts and re-parks (Codex review, P1). The
-                // row token was already advanced above; mirror it here.
-                //   ONLY for RPC/delta mutations (mutation.rpc set): their
-                // payload is a targeted field set, so advancing the token and
-                // re-applying is a safe last-write on those fields. A direct
-                // full-row UPDATE carries a whole stale snapshot — advancing its
-                // token would clobber fields another client changed since, the
-                // exact hazard reconcileQueuedMutationAfterSync/rebuildUpdate
-                // guard against (same isRpc gate as line ~536). Leave full-row
-                // mutations' token stale so Retry re-defers to reconciliation
-                // rather than overwriting the server (Codex review, follow-up P1).
-                ...(stillQueued.rpc !== undefined && typeof freshServerVersion === 'number'
+                // Stamp the AUTHORITATIVE server version so a user Retry
+                // re-uploads with a fresh OCC token instead of the same stale
+                // one it kept while awaiting reconciliation (Codex review, P1).
+                // Safe here because this branch is RPC/delta only (see above);
+                // the row token was already advanced on the first rejection.
+                ...(typeof freshServerVersion === 'number'
                   ? { serverVersion: freshServerVersion }
                   : {}),
                 error:

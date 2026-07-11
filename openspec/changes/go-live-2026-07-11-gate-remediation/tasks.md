@@ -38,8 +38,8 @@
 
 ## 4. Batch B — FORCE RLS and Drift Prevention (SA-021)
 
-- [ ] 4.1 Add a failing source contract, then create a migration that applies `FORCE ROW LEVEL SECURITY` to `secretary_tasks`, `club_premium_templates`, `premium_generations`, `unified_ringside_overrides`, and `login_attempts`, with exact rollback SQL documented.
-- [ ] 4.2 Add a repository-wide migration-state invariant that derives final public-table RLS/FORCE-RLS state without a static table allowlist and fails for any unforced RLS table; include self-tests proving a future drift fixture fails.
+- [x] 4.1 [CORRECTED] Add a failing source contract, record that `unified_ringside_overrides` was dropped by applied migration `20260623120000` and is absent from the live catalog, then create a migration that applies `FORCE ROW LEVEL SECURITY` to the four extant tables: `secretary_tasks`, `club_premium_templates`, `premium_generations`, and `login_attempts`, with exact rollback SQL documented.
+- [x] 4.2 Add a repository-wide migration-state invariant that derives final public-table RLS/FORCE-RLS state without a static table allowlist and fails for any unforced RLS table; include self-tests proving a future drift fixture fails.
 - [ ] 4.3 [SHARED-SYSTEM GATE] After approval and dry-run review, push the RLS migration and run the live `pg_class` verifier for `relrowsecurity = true AND relforcerowsecurity = false`, recording any named exception.
 
 ## 5. Batch B — Mechanical Security Fixes (SA-023, SA-028, SA-030)

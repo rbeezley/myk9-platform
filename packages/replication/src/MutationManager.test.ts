@@ -977,7 +977,8 @@ describe('MutationManager', () => {
       const results = await manager.uploadPendingMutations();
 
       expect(results[0]!.success).toBe(false);
-      // Out of the active queue — no further automatic replay.
+      // P2: exactly one store holds it — never both (atomic move). A pending
+      // copy surviving here would auto-upload and defeat the breaker.
       expect(await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).toHaveLength(0);
       // Parked, not dropped: full payload retained for user review.
       const failed = (await mockDb.getAll(
@@ -990,6 +991,9 @@ describe('MutationManager', () => {
       expect(failed[0]!.data).toEqual({ id: 'entry-occ3', run_order: 7 });
       expect(failed[0]!.error).toMatch(/50 attempts/);
       expect(failed[0]!.nextRetryAt).toBeUndefined();
+      // P1: parked with the AUTHORITATIVE server version (8 from the RPC DETAIL),
+      // NOT the stale 3 it carried — so a later Retry can actually succeed.
+      expect(failed[0]!.serverVersion).toBe(8);
     });
 
     it('a conflict below the cap keeps retrying; a custom cap is honored', async () => {
@@ -1039,22 +1043,44 @@ describe('MutationManager', () => {
       expect(failed.map(f => f.id)).toEqual(['mut-occ4']);
     });
 
-    it('a user retry of a parked conflict resets the occ counter for a fresh set of attempts', async () => {
-      await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, {
-        ...makeMutation({
+    it('park-then-retry requeues with a FRESH token and reset counters, so recovery can succeed', async () => {
+      // Park via a real conflict (not a hand-seeded failed row) so the parked
+      // mutation goes through the actual stamping path.
+      await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
+        tableName: 'entries',
+        id: 'entry-occ5',
+        data: { id: 'entry-occ5' },
+        version: 4,
+        serverVersion: 3,
+        lastSyncedAt: 0,
+        lastAccessedAt: 0,
+        isDirty: true,
+        syncStatus: 'pending',
+      } as ReplicatedRow<{ id: string }>);
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
           id: 'mut-occ5',
           rowId: 'entry-occ5',
           data: { id: 'entry-occ5', run_order: 2 },
           serverVersion: 3,
-        }),
-        status: 'failed',
-        occRetries: 50,
-        error: 'Version conflict persisted through 50 attempts; parked for review.',
-        failedAt: Date.now(),
-      });
+          occRetries: 49,
+          rpc: { name: 'ringside_update_entry', fields: { run_order: 2 } },
+        })
+      );
+      mockRpcVersionConflict('entry-occ5', 3, 8);
+      await manager.uploadPendingMutations();
+
+      // Parked with the fresh token stamped (P1).
+      const parked = (await mockDb.getAll(
+        REPLICATION_STORES.FAILED_MUTATIONS
+      )) as PendingMutation[];
+      expect(parked).toHaveLength(1);
+      expect(parked[0]!.serverVersion).toBe(8);
 
       await manager.retryFailedMutation('mut-occ5');
 
+      // Back in pending, out of failed — one store only.
       expect(await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS)).toHaveLength(0);
       const pending = (await mockDb.getAll(
         REPLICATION_STORES.PENDING_MUTATIONS
@@ -1065,6 +1091,9 @@ describe('MutationManager', () => {
       expect(pending[0]!.retries).toBe(0);
       expect(pending[0]!.occRetries).toBe(0);
       expect(pending[0]!.error).toBeUndefined();
+      // The requeued mutation carries the FRESH token (8), not the stale 3 —
+      // so its next upload can actually succeed instead of re-conflicting.
+      expect(pending[0]!.serverVersion).toBe(8);
     });
   });
 

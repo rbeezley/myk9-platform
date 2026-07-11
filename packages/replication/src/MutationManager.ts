@@ -858,14 +858,34 @@ export class MutationManager {
                 ...stillQueued,
                 occRetries,
                 status: 'failed',
+                // Stamp the AUTHORITATIVE server version onto the parked
+                // mutation so a user Retry re-uploads with a fresh OCC token
+                // instead of the same stale one it kept while awaiting
+                // reconciliation. Without this the advertised recovery action
+                // immediately re-conflicts and re-parks (Codex review, P1). The
+                // row token was already advanced above; mirror it here.
+                ...(typeof freshServerVersion === 'number'
+                  ? { serverVersion: freshServerVersion }
+                  : {}),
                 error:
                   `Version conflict persisted through ${occRetries} attempts ` +
                   `(${error.tableName}/${error.rowId}); parked for review.`,
                 failedAt: now,
               };
               delete parked.nextRetryAt;
-              await db.put(REPLICATION_STORES.FAILED_MUTATIONS, parked);
-              await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, queuedMutation.id);
+              // Move stores in ONE transaction so an interrupted write can never
+              // leave the mutation in BOTH pending (auto-uploads) and failed
+              // (Retry/Discard toast) — which would defeat the circuit breaker
+              // and surface conflicting user actions (Codex review, P2).
+              const parkTx = db.transaction(
+                [REPLICATION_STORES.FAILED_MUTATIONS, REPLICATION_STORES.PENDING_MUTATIONS],
+                'readwrite'
+              );
+              await Promise.all([
+                parkTx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).put(parked),
+                parkTx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).delete(queuedMutation.id),
+                parkTx.done,
+              ]);
               failedMutations.push(parked);
               blockedDependencyIds.add(queuedMutation.id);
               failedDependencyIds.add(queuedMutation.id);

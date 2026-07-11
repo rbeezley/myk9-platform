@@ -60,6 +60,18 @@ This is a UI/theme contract only. It does not touch persistent show-day data, re
 
 Rollback is straightforward: revert token and test changes. No data migration or shared-system mutation is involved.
 
+## Verification Baseline
+
+- [ADDED] The minimum unauthenticated rendered-page gate is the existing `PUBLIC_PAGES` matrix in `apps/myk9show/src/test/e2e/a11y-smoke.spec.ts`: `/`, `/shows`, `/sign-in`, `/sign-up`, and `/pricing-page`.
+- [ADDED] All five routes must run with axe `color-contrast` enabled and no serious or critical violations. If the test environment cannot start or load a route, report that infrastructure limitation separately rather than treating the route as contrast-clean.
+- [ADDED] Authenticated secretary, judge, and site-admin landing scans remain required when their configured credentials are available; credential absence is an explicit documented skip, not a reason to weaken the public baseline.
+
+## Validation Profile
+
+- Risk: medium
+- Validation: app
+- Rationale: Shared theme tokens affect the entire myK9Show UI, so focused matrix tests must be paired with rendered public-route axe coverage and app typechecking; no database, API, or shared-system behavior changes.
+
 ## Open Questions
 
-- Which exact route set should be the minimum required a11y smoke for this slice if authenticated credentials are unavailable locally?
+- None. The minimum route set is fixed by the Verification Baseline above.

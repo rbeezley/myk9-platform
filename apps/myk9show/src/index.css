@@ -528,8 +528,10 @@ select:hover {
     --secondary-foreground: var(--ivory-50);
     --accent: #2a2520;
     --accent-foreground: #d97757;
-    --destructive: 220 38 38;
-    --destructive-foreground: 255 255 255;
+    /* red-400 keeps destructive text readable on the shared 10% dark tint;
+       red-950 supplies AA contrast when the same token is used as a solid fill. */
+    --destructive: 248 113 113;
+    --destructive-foreground: 69 10 10;
     /* Theme-aware counterpart to the light --destructive-strong: a LIGHT red
        so small text clears AA on the near-black popover/card. red-700 would
        only reach ~2.6:1 here; red-400 clears 6.2:1. */
@@ -713,7 +715,8 @@ html:not([data-accent]) {
   --accent: #fdf5ef;
   --accent-foreground: #7c4a2e;
   --accent-glow: rgba(168, 71, 45, 0.3);
-  --ring: #f2c8a8;
+  /* Focus indicators require 3:1 non-text contrast against the app surface. */
+  --ring: var(--primary);
   --accent-50: #fdf5ef;
   --accent-100: #f9e5d5;
   --accent-200: #f2c8a8;
@@ -740,7 +743,9 @@ html:not([data-accent]).theme-dark {
 
 /* Grove — muted grass-ring teal */
 html[data-accent='grove'] {
-  --primary: #2f8a7f;
+  /* Darkened within the grove hue so both white-on-fill and text-on-surface
+     clear AA; the prior #2f8a7f topped out at 4.15:1 and 3.88:1. */
+  --primary: #26766d;
   --primary-hover: #226b63;
   --primary-foreground: #ffffff;
   --primary-tint: #ecf6f4;
@@ -748,7 +753,7 @@ html[data-accent='grove'] {
   --accent: #ecf6f4;
   --accent-foreground: #184d47;
   --accent-glow: rgba(47, 138, 127, 0.3);
-  --ring: #b9dcd6;
+  --ring: var(--primary);
   --accent-50: #ecf6f4;
   --accent-100: #cce9e4;
   --accent-200: #b9dcd6;
@@ -760,7 +765,7 @@ html[data-accent='grove'] {
 html[data-accent='grove'].dark,
 html[data-accent='grove'].theme-dark {
   --primary: #3aa898;
-  --primary-hover: #2f8a7f;
+  --primary-hover: #318f84;
   --primary-foreground: #181411;
   --accent: #0d2e2b;
   --accent-foreground: #3aa898;
@@ -778,7 +783,7 @@ html[data-accent='dusk'] {
   --accent: #edf2f6;
   --accent-foreground: #213e53;
   --accent-glow: rgba(61, 109, 140, 0.3);
-  --ring: #b9cbd9;
+  --ring: var(--primary);
   --accent-50: #edf2f6;
   --accent-100: #cfdbe6;
   --accent-200: #b9cbd9;
@@ -789,11 +794,11 @@ html[data-accent='dusk'] {
 
 html[data-accent='dusk'].dark,
 html[data-accent='dusk'].theme-dark {
-  --primary: #5088a8;
-  --primary-hover: #3d6d8c;
+  --primary: #548dab;
+  --primary-hover: #4f86a5;
   --primary-foreground: #181411;
   --accent: #0d1e2a;
-  --accent-foreground: #5088a8;
+  --accent-foreground: #548dab;
   --accent-glow: rgba(61, 109, 140, 0.4);
   --ring: #3d6d8c;
 }
@@ -808,7 +813,7 @@ html[data-accent='heather'] {
   --accent: #f1ecf6;
   --accent-foreground: #432f61;
   --accent-glow: rgba(123, 90, 166, 0.3);
-  --ring: #cdbedb;
+  --ring: var(--primary);
   --accent-50: #f1ecf6;
   --accent-100: #e0d5ed;
   --accent-200: #cdbedb;
@@ -820,7 +825,7 @@ html[data-accent='heather'] {
 html[data-accent='heather'].dark,
 html[data-accent='heather'].theme-dark {
   --primary: #9572bf;
-  --primary-hover: #7b5aa6;
+  --primary-hover: #916fbc;
   --primary-foreground: #181411;
   --accent: #1e1028;
   --accent-foreground: #9572bf;

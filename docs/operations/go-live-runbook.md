@@ -102,7 +102,9 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       explicitly accepted as P2: (a) resolve the contradictory exhibitor entry state and two
       sub-44px entry/cart controls in `OPEN-TODOS.md`; (b) complete the remaining
       `exhibitor-elderly-ux-remediation` show-day, check-in-language, and dog-profile tasks;
-      (c) complete `ux-contrast-token-system`; and (d) close the code/CI side of
+      (c) merge, pass CI, and archive `ux-contrast-token-system` (implementation is locally
+      verified: token matrix, typecheck, five public axe routes, and three authenticated role
+      landings); and (d) close the code/CI side of
       `improve-exhibitor-entries-scan` and `secretary-show-details-ux-remediation`.
       _Already complete:_ motion consistency and the original July UX remediation plan. The
       remaining evidence-only gates are the scorecard's show-day re-walk, offline→reconnect

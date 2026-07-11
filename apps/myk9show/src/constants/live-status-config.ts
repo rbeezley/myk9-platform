@@ -25,21 +25,21 @@ export const ENTRY_STATUS_LABELS: Record<EntryDisplayStatus, string> = {
 };
 
 export const ENTRY_STATUS_BORDER: Record<EntryDisplayStatus, string> = {
-  checked_in: 'border-l-green-500',
-  not_checked_in: 'border-l-gray-300',
-  at_gate: 'border-l-yellow-500',
+  checked_in: 'border-l-success',
+  not_checked_in: 'border-l-muted-foreground',
+  at_gate: 'border-l-warning',
   in_ring: 'border-l-primary',
   completed: 'border-l-transparent',
-  pulled: 'border-l-red-500',
+  pulled: 'border-l-destructive',
 };
 
 export const ENTRY_STATUS_BADGE: Record<EntryDisplayStatus, string> = {
-  checked_in: 'bg-green-500/10 text-green-600',
+  checked_in: 'bg-success/10 text-success',
   not_checked_in: 'bg-muted text-muted-foreground',
-  at_gate: 'bg-yellow-500/10 text-yellow-600',
+  at_gate: 'bg-warning/10 text-warning',
   in_ring: 'bg-primary/10 text-primary',
   completed: 'bg-muted text-muted-foreground',
-  pulled: 'bg-red-500/10 text-red-600',
+  pulled: 'bg-destructive/10 text-destructive',
 };
 
 // ---------------------------------------------------------------------------
@@ -50,7 +50,7 @@ export type ClassDisplayStatus = 'not_started' | 'in_progress' | 'completed' | '
 
 export const CLASS_STATUS_CONFIG: Record<ClassDisplayStatus, { label: string; style: string }> = {
   not_started: { label: 'Not Started', style: 'bg-muted text-muted-foreground' },
-  in_progress: { label: 'In Progress', style: 'bg-green-500/10 text-green-600 animate-pulse' },
+  in_progress: { label: 'In Progress', style: 'bg-success/10 text-success animate-pulse' },
   completed: { label: 'Completed', style: 'bg-primary/10 text-primary' },
-  paused: { label: 'Paused', style: 'bg-yellow-500/10 text-yellow-600' },
+  paused: { label: 'Paused', style: 'bg-warning/10 text-warning' },
 };

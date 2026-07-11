@@ -129,30 +129,3 @@ export function toYYYYMMDD(date: string | Date): string {
 
   return '';
 }
-
-/**
- * Calculate show status based on start and end dates.
- */
-export function calculateShowStatus(
-  startDate: string,
-  endDate: string
-): 'Upcoming' | 'In Progress' | 'Completed' {
-  if (!startDate || !endDate) return 'Upcoming';
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const start = new Date(startDate);
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date(endDate);
-  end.setHours(23, 59, 59, 999);
-
-  if (today < start) {
-    return 'Upcoming';
-  } else if (today >= start && today <= end) {
-    return 'In Progress';
-  } else {
-    return 'Completed';
-  }
-}

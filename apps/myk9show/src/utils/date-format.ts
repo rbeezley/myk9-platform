@@ -4,6 +4,33 @@ export function toLocalDate(isoStr: string): Date {
   return new Date(dateOnly + 'T00:00:00');
 }
 
+export type ShowDateRangeStatus = 'upcoming' | 'active' | 'past';
+
+/**
+ * Classify a show's DATE-typed range as upcoming / active / past in the user's
+ * local timezone.
+ *
+ * `shows.start_date` / `shows.end_date` arrive as "YYYY-MM-DD" (or timestamptz
+ * midnight-UTC). A raw `new Date("2026-05-15")` parses as UTC midnight — the
+ * evening of May 14 for any US user — which flips a show to "past" up to a day
+ * early. Parsing via `toLocalDate` and treating `endDate` as inclusive through
+ * 23:59:59.999 local keeps the show active through the whole of its final day.
+ * Mirrors the entry-window handling in `entryStatusUtils.ts`.
+ */
+export function showDateRangeStatus(
+  startDate: string,
+  endDate: string,
+  now: Date = new Date()
+): ShowDateRangeStatus {
+  const start = toLocalDate(startDate);
+  const endOfDay = toLocalDate(endDate);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  if (now < start) return 'upcoming';
+  if (now > endOfDay) return 'past';
+  return 'active';
+}
+
 /**
  * Extract a YYYY-MM-DD string in the user's local timezone from an ISO datetime.
  *

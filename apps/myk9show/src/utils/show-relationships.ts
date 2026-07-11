@@ -1,6 +1,7 @@
 import { Show } from '@/types/show-types';
 import { SyncableShowEntry } from '@/store/entryStore';
 import { UserWithRoles, RoleScope, ScopeType } from '@/types/auth-types';
+import { showDateRangeStatus, toLocalDate } from './date-format';
 
 /**
  * Show relationship utilities for the unified shows interface
@@ -56,8 +57,7 @@ export function getUserManagedShows(
     scopes
       .filter(
         s =>
-          s.scopeType === ScopeType.SHOW &&
-          ['secretary', 'chairman', 'steward'].includes(s.roleId)
+          s.scopeType === ScopeType.SHOW && ['secretary', 'chairman', 'steward'].includes(s.roleId)
       )
       .map(s => s.scopeId)
   );
@@ -122,15 +122,17 @@ export function getUserEntriesByStatus(
 
   switch (status) {
     case 'upcoming':
-      return userEntryShows.filter(show => new Date(show.startDate) > now);
+      return userEntryShows.filter(
+        show => showDateRangeStatus(show.startDate, show.endDate, now) === 'upcoming'
+      );
     case 'past':
-      return userEntryShows.filter(show => new Date(show.endDate) < now);
+      return userEntryShows.filter(
+        show => showDateRangeStatus(show.startDate, show.endDate, now) === 'past'
+      );
     case 'active':
-      return userEntryShows.filter(show => {
-        const startDate = new Date(show.startDate);
-        const endDate = new Date(show.endDate);
-        return startDate <= now && endDate >= now;
-      });
+      return userEntryShows.filter(
+        show => showDateRangeStatus(show.startDate, show.endDate, now) === 'active'
+      );
     default:
       return userEntryShows;
   }
@@ -194,8 +196,9 @@ export function getTabCounts(
   if (!user) {
     const now = new Date();
     return {
-      all: shows.filter(show => new Date(show.startDate) >= now).length,
-      past: shows.filter(show => new Date(show.endDate) < now).length,
+      all: shows.filter(show => toLocalDate(show.startDate) >= now).length,
+      past: shows.filter(show => showDateRangeStatus(show.startDate, show.endDate, now) === 'past')
+        .length,
       entries: 0,
       managing: 0,
       assignments: 0,
@@ -206,8 +209,9 @@ export function getTabCounts(
   const now = new Date();
 
   return {
-    all: shows.filter(show => new Date(show.startDate) >= now).length,
-    past: shows.filter(show => new Date(show.endDate) < now).length,
+    all: shows.filter(show => toLocalDate(show.startDate) >= now).length,
+    past: shows.filter(show => showDateRangeStatus(show.startDate, show.endDate, now) === 'past')
+      .length,
     entries: relationships.entries.length,
     managing: relationships.managing.length,
     assignments: relationships.judging.length,
@@ -292,7 +296,7 @@ export function filterShowsEfficiently(
   if (filters.dateRange) {
     const { start, end } = filters.dateRange;
     result = result.filter(show => {
-      const showStart = new Date(show.startDate);
+      const showStart = toLocalDate(show.startDate);
       return showStart >= start && showStart <= end;
     });
   }

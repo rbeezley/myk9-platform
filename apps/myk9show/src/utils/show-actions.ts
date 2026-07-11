@@ -2,6 +2,7 @@ import { Show } from '@/types/show-types';
 import { UserWithRoles, PERMISSIONS, Permission } from '@/types/auth-types';
 import { ShowWithRelationship, ShowRelationship } from '@/types/unified-shows-types';
 import { ShowPermissionValidator } from './permissionValidation';
+import { showDateRangeStatus } from './date-format';
 import { logger } from '@/services/LoggingService';
 
 /**
@@ -49,12 +50,10 @@ export function getShowActions(
 
   const actions: ShowAction[] = [];
   const userPermissions = user.permissions || [];
-  const now = new Date();
-  const showStart = new Date(show.startDate);
-  const showEnd = new Date(show.endDate);
-  const isUpcoming = showStart > now;
-  const isPast = showEnd < now;
-  const isActive = showStart <= now && showEnd >= now;
+  const dateStatus = showDateRangeStatus(show.startDate, show.endDate);
+  const isUpcoming = dateStatus === 'upcoming';
+  const isPast = dateStatus === 'past';
+  const isActive = dateStatus === 'active';
 
   // Add view details as first action if user has permission
   if (ShowPermissionValidator.canView(user, show)) {

@@ -17,6 +17,7 @@ import {
   getAdminManagedShows,
 } from './show-relationships';
 import { ShowPermissionValidator } from './permissionValidation';
+import { showDateRangeStatus } from './date-format';
 import { Globe, History, ClipboardList, Settings, Gavel } from 'lucide-react';
 
 /**
@@ -45,11 +46,15 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
           description: 'Historical shows for reference',
           getCount: shows =>
             shows.filter(
-              s => new Date(s.endDate) < new Date() && ShowPermissionValidator.canView(null, s)
+              s =>
+                showDateRangeStatus(s.startDate, s.endDate) === 'past' &&
+                ShowPermissionValidator.canView(null, s)
             ).length,
           filterShows: shows =>
             shows.filter(
-              s => new Date(s.endDate) < new Date() && ShowPermissionValidator.canView(null, s)
+              s =>
+                showDateRangeStatus(s.startDate, s.endDate) === 'past' &&
+                ShowPermissionValidator.canView(null, s)
             ),
         },
       ],
@@ -126,11 +131,15 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
       description: 'Historical shows for reference',
       getCount: shows =>
         shows.filter(
-          s => new Date(s.endDate) < new Date() && ShowPermissionValidator.canView(user, s)
+          s =>
+            showDateRangeStatus(s.startDate, s.endDate) === 'past' &&
+            ShowPermissionValidator.canView(user, s)
         ).length,
       filterShows: shows =>
         shows.filter(
-          s => new Date(s.endDate) < new Date() && ShowPermissionValidator.canView(user, s)
+          s =>
+            showDateRangeStatus(s.startDate, s.endDate) === 'past' &&
+            ShowPermissionValidator.canView(user, s)
         ),
     });
   }
@@ -338,7 +347,7 @@ export function enhanceShowsWithRelationships(
   return shows.map(show => {
     const relationships: ShowRelationship[] = ['all'];
 
-    if (new Date(show.endDate) < new Date()) {
+    if (showDateRangeStatus(show.startDate, show.endDate) === 'past') {
       relationships.push('past');
     }
 
@@ -373,7 +382,7 @@ export function filterShowsForTab(
     // Guest filtering
     switch (tabId) {
       case 'past':
-        return shows.filter(s => new Date(s.endDate) < new Date());
+        return shows.filter(s => showDateRangeStatus(s.startDate, s.endDate) === 'past');
       case 'all':
       default:
         return shows;

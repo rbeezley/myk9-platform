@@ -74,6 +74,21 @@ describe('getShowCardStatus', () => {
     const show = makeShow();
     expect(getShowCardStatus(show, 'submitted')).toBe('upcoming');
   });
+
+  // Timezone-boundary cases: DATE columns are local, so a same-day show must stay
+  // in_progress through the local evening rather than flipping to completed at UTC
+  // midnight. `new Date(2026, ...)` builds local time so these hold in any timezone.
+  it('keeps a same-day show in_progress through the local evening (west-of-UTC boundary)', () => {
+    vi.setSystemTime(new Date(2026, 4, 15, 20, 0)); // 2026-05-15 20:00 local
+    const show = makeShow({ startDate: '2026-05-15', endDate: '2026-05-15' });
+    expect(getShowCardStatus(show, 'closed')).toBe('in_progress');
+  });
+
+  it('marks a same-day show completed only after its end date fully elapses locally', () => {
+    vi.setSystemTime(new Date(2026, 4, 16, 0, 1)); // just past local midnight next day
+    const show = makeShow({ startDate: '2026-05-15', endDate: '2026-05-15' });
+    expect(getShowCardStatus(show, 'closed')).toBe('completed');
+  });
 });
 
 describe('computeShowProgress', () => {

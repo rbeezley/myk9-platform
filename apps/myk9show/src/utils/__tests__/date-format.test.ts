@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect } from 'vitest';
-import { toLocalDateOnly, toLocalDate, formatDateRange } from '../date-format';
+import { toLocalDateOnly, toLocalDate, formatDateRange, showDateRangeStatus } from '../date-format';
 
 const originalTimezone = process.env.TZ;
 
@@ -74,5 +74,45 @@ describe('formatDateRange', () => {
 
   it('formats cross-month range', () => {
     expect(formatDateRange('2026-04-30', '2026-05-02', 'short', false)).toBe('Apr 30 – May 2');
+  });
+});
+
+describe('showDateRangeStatus', () => {
+  // Boundary cases from docs/improve-audit-2026-07-11/001-show-date-utc-classification.md.
+  // `now` is built with the local Date constructor so these assertions hold in any
+  // timezone — the same way toLocalDate() interprets the "YYYY-MM-DD" columns.
+
+  it('treats the final day as active through end-of-day local time (the case red under raw parsing)', () => {
+    // Evening of the end date: a west-of-UTC user must still see the show as active.
+    const now = new Date(2026, 4, 15, 20, 0); // 2026-05-15 20:00 local
+    expect(showDateRangeStatus('2026-05-15', '2026-05-15', now)).toBe('active');
+  });
+
+  it('classifies past only after the end date has fully elapsed locally', () => {
+    const now = new Date(2026, 4, 16, 0, 1); // 2026-05-16 00:01 local
+    expect(showDateRangeStatus('2026-05-15', '2026-05-15', now)).toBe('past');
+  });
+
+  it('classifies a future start date as upcoming', () => {
+    const now = new Date(2026, 4, 15, 12, 0); // 2026-05-15 12:00 local
+    expect(showDateRangeStatus('2026-05-16', '2026-05-16', now)).toBe('upcoming');
+  });
+
+  it('treats a timestamptz-shaped UTC-midnight value identically to a date-only value', () => {
+    const now = new Date(2026, 4, 15, 20, 0);
+    expect(showDateRangeStatus('2026-05-15T00:00:00+00:00', '2026-05-15T00:00:00+00:00', now)).toBe(
+      'active'
+    );
+  });
+
+  it('is active on the first day of a multi-day show and past after the last', () => {
+    const midShow = new Date(2026, 4, 16, 9, 0);
+    expect(showDateRangeStatus('2026-05-15', '2026-05-17', midShow)).toBe('active');
+
+    const afterShow = new Date(2026, 4, 18, 0, 1);
+    expect(showDateRangeStatus('2026-05-15', '2026-05-17', afterShow)).toBe('past');
+
+    const beforeShow = new Date(2026, 4, 14, 23, 0);
+    expect(showDateRangeStatus('2026-05-15', '2026-05-17', beforeShow)).toBe('upcoming');
   });
 });

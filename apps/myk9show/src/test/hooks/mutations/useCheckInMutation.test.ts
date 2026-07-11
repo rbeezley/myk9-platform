@@ -149,36 +149,6 @@ describe('useCheckInMutation', () => {
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  it('invalidates the at-show "Your dogs today" query for the replicated writer (its write actually lands there)', async () => {
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-    const { result } = renderHook(() => useCheckInMutation(), { wrapper });
-
-    await act(async () => {
-      result.current.mutate({ entryId: 'entry-1', newStatus: 'checked-in' });
-    });
-
-    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
-
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['at-show', 'my-entries-detail'] });
-  });
-
-  it("does NOT invalidate the at-show query for self-checkin-rpc (its write never lands in replicatedEntriesTable — invalidating would refetch stale local data and wipe the caller's own optimistic update)", async () => {
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-    const { result } = renderHook(() => useCheckInMutation({ writer: 'self-checkin-rpc' }), {
-      wrapper,
-    });
-
-    await act(async () => {
-      result.current.mutate({ entryId: 'entry-1', newStatus: 'checked-in' });
-    });
-
-    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
-
-    expect(invalidateSpy).not.toHaveBeenCalledWith({
-      queryKey: ['at-show', 'my-entries-detail'],
-    });
-  });
-
   it('should expose mutate and mutateAsync', () => {
     const { result } = renderHook(() => useCheckInMutation(), { wrapper });
 

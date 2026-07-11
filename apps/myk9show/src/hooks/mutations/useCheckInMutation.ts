@@ -144,17 +144,6 @@ export function useCheckInMutation(options: UseCheckInMutationOptions = {}) {
           queryKey: ['classes', variables.classId, 'entries'],
         });
       }
-      // Also invalidate the at-show "Your dogs today" view (any showId) — but
-      // only for the 'replicated' writer, whose write actually lands in
-      // replicatedEntriesTable (the view's own data source: a local IndexedDB
-      // read, no network call). The 'self-checkin-rpc' writer is online-only
-      // by design and never touches that table, so invalidating here for it
-      // would refetch unchanged stale local data — bumping dataUpdatedAt and
-      // wiping the exhibitor's own just-set optimistic "I am here" a moment
-      // after they saw it, with no real update to show in its place.
-      if (writer === 'replicated') {
-        queryClient.invalidateQueries({ queryKey: ['at-show', 'my-entries-detail'] });
-      }
     },
   });
 }

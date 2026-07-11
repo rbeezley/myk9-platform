@@ -21,7 +21,7 @@ vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
   replicatedTrialsTable: { getTrialsByShow: vi.fn() },
   replicatedClassesTable: { getClassesByTrial: vi.fn() },
-  replicatedEntriesTable: { getEntriesByShow: vi.fn() },
+  replicatedEntriesTable: { getEntriesByShow: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
 }));
 
 // The "Back to Show Desk" affordance mirrors the show-desk route's admission,

@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { replicatedEntriesTable } from '@/services/replication';
 import {
   buildMyAtShowEntryDetails,
@@ -29,6 +29,15 @@ export interface UseMyAtShowEntryDetailsResult {
  * instance in the same tree would double that work for no benefit.
  * `classesById` comes from the class-picker's own already-loaded class list,
  * so this adds no extra class fetch.
+ *
+ * Subscribes directly to `replicatedEntriesTable` (same pattern
+ * `useAccountTodayEntries` uses) rather than relying on any specific
+ * mutation to call `invalidateQueries` — a check-in change can reach the
+ * local table from several different call sites (the ringside entry-list
+ * page, `ClassResultsTable`, the exhibitor's own self-checkin RPC once
+ * replication syncs it down), and enumerating each one is fragile. This
+ * reacts to the table itself, so it's correct regardless of which surface or
+ * mutation path made the change.
  */
 export function useMyAtShowEntryDetails(
   showId: string | undefined,
@@ -36,6 +45,15 @@ export function useMyAtShowEntryDetails(
   ownershipLoading: boolean,
   classesById: ReadonlyMap<string, AtShowClassSummary>
 ): UseMyAtShowEntryDetailsResult {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!showId) return;
+    return replicatedEntriesTable.subscribe(() => {
+      void queryClient.invalidateQueries({ queryKey: ['at-show', 'my-entries-detail', showId] });
+    });
+  }, [showId, queryClient]);
+
   const entriesQuery = useQuery({
     queryKey: ['at-show', 'my-entries-detail', showId],
     queryFn: () => replicatedEntriesTable.getEntriesByShow(showId as string),

@@ -136,12 +136,14 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
   // The self-checkin RPC writes only to the remote DB (no replication write —
   // "online-only by design"), so a tap needs a local optimistic override for
   // instant feedback — without it, the row would show no visible change
-  // until the next replication sync, exactly the kind of unconfirmed action
-  // this view exists to avoid. Cleared on error (rollback), or once a fresh
-  // fetch actually lands (below) — that covers both our own tap's real value
-  // arriving and a status change made from another surface (e.g. a secretary
-  // reverting a check-in), which `useCheckInMutation` now also invalidates
-  // this view's query for.
+  // until the local table is next synced from the server, exactly the kind
+  // of unconfirmed action this view exists to avoid. Cleared on error
+  // (rollback), or once a fresh fetch actually lands (below) —
+  // `useMyAtShowEntryDetails` subscribes directly to `replicatedEntriesTable`,
+  // so this reconciles against any write to that table regardless of which
+  // surface or mutation path made it (our own tap once replication syncs it
+  // down, or a status change made from another surface, e.g. a secretary
+  // reverting a check-in).
   const [statusOverrides, setStatusOverrides] = useState<Record<string, CheckInStatus>>({});
   const lastReconciledAt = useRef(dataUpdatedAt);
   useEffect(() => {

@@ -34,6 +34,7 @@ Health pipeline (Layer C home): `system_health_probe()` (SECURITY DEFINER, `2026
 - Rate-limiting other RPCs or generic API throttling (gateway-level; not available per-RPC on Supabase).
 - Nightly-QA process hygiene (single-flight lock, budget kill) — tracked as ops follow-up in `OPEN-TODOS.md`, not app code in this change.
 - PWA service-worker cache-lifetime changes.
+- **Full-row (non-RPC) OCC mutation parking.** The Layer B lifetime cap + parking is scoped to RPC/delta mutations (`mutation.rpc` set) — the storm vector. Direct full-row UPDATEs (shows/clubs/dogs) are owned end-to-end by the pre-existing full-row conflict-resolution subsystem (conflict surfacing, `reconcileDirtyRow`, same-field "Keep mine"/"Take theirs", `rebuildUpdatePayload`), all of which operate exclusively on `PENDING_MUTATIONS`. Parking a full-row mutation into `FAILED_MUTATIONS` severs it from that resolver, and advancing its whole-row token would clobber another client's field change — the exact hazard `rebuildUpdatePayload` exists to prevent (and which was previously built-then-removed for unreliability, per the orphan-repair history). Full-row OCC conflicts have never stormed (both 2026-07-11 and 2026-06-25 were RPC). Unifying full-row parking with the resolver (so a capped full-row conflict also reaches a terminal, resolver-aware review state instead of throttled backoff) is a separate, delicate change deferred to its own proposal.
 
 ## Decisions
 

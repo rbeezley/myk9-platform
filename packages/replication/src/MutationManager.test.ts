@@ -996,11 +996,12 @@ describe('MutationManager', () => {
       expect(failed[0]!.serverVersion).toBe(8);
     });
 
-    it('parks a full-row (non-RPC) mutation at the cap but does NOT advance its token (no clobber)', async () => {
-      // A direct full-row UPDATE also reaches a terminal, visible park at the cap
-      // (no infinite replay), but its token is LEFT STALE: advancing it would let
-      // a generic Retry clobber fields another client changed, bypassing the
-      // rebuild-payload contract. Retry is best-effort; Discard is always safe.
+    it('does NOT park a full-row (non-RPC) mutation — it stays with the conflict resolver', async () => {
+      // Direct full-row UPDATEs are owned by the existing conflict-resolution
+      // subsystem (reconcileDirtyRow / "Keep mine" / "Take theirs"), which acts
+      // only on PENDING_MUTATIONS. The OCC cap is scoped to the RPC storm vector
+      // so full-row mutations stay queued and reachable by that resolver —
+      // unchanged from pre-fix behavior (throttled backoff + reconciliation).
       await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
         tableName: 'entries',
         id: 'entry-fullrow',
@@ -1042,18 +1043,18 @@ describe('MutationManager', () => {
 
       await manager.uploadPendingMutations();
 
-      // Parked (terminal + visible) — one store only, no infinite replay.
-      expect(await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).toHaveLength(0);
-      const failed = (await mockDb.getAll(
-        REPLICATION_STORES.FAILED_MUTATIONS
+      // NOT parked — the cap does not apply to full-row mutations; it stays in
+      // PENDING_MUTATIONS where the conflict resolver can still reach it.
+      expect(await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS)).toHaveLength(0);
+      const pending = (await mockDb.getAll(
+        REPLICATION_STORES.PENDING_MUTATIONS
       )) as PendingMutation[];
-      expect(failed).toHaveLength(1);
-      expect(failed[0]!.id).toBe('mut-fullrow');
-      expect(failed[0]!.status).toBe('failed');
-      // Token NOT advanced — stays at the stale 3 so Retry can't clobber the
-      // server row; the message flags it may need to be redone.
-      expect(failed[0]!.serverVersion).toBe(3);
-      expect(failed[0]!.error).toMatch(/may need to be redone/);
+      expect(pending).toHaveLength(1);
+      expect(pending[0]!.id).toBe('mut-fullrow');
+      // occRetries still advances, but the token is left stale for the resolver
+      // (never advanced under a full-row) — pre-fix behavior, unchanged.
+      expect(pending[0]!.occRetries).toBe(50);
+      expect(pending[0]!.serverVersion).toBe(3);
     });
 
     it('a conflict below the cap keeps retrying; a custom cap is honored', async () => {

@@ -849,44 +849,47 @@ export class MutationManager {
               REPLICATION_STORES.PENDING_MUTATIONS,
               queuedMutation.id
             )) as PendingMutation | undefined;
-            // Lifetime cap: park ANY mutation (RPC or full-row) that has
-            // conflicted this many times, so nothing replays forever — the
-            // terminal, visible, Discardable state replaces the old invisible
-            // infinite OCC backoff (Codex review). Parking and token-advance are
-            // SEPARATE decisions (see the token stamp below).
-            const occCapReached = stillQueued !== undefined && occRetries >= this.maxOccAttempts;
+            // Lifetime cap: park ONLY RPC/delta mutations (the storm vector,
+            // ringside_update_entry). Their payload is a targeted field set, so
+            // the parked mutation can rebase onto the fresh authoritative token
+            // (already applied to the row on the first rejection) and a user
+            // Retry can actually succeed — last-write on exactly those fields.
+            //
+            // Direct full-row UPDATEs are DELIBERATELY not capped/parked: they
+            // are owned end-to-end by the existing full-row conflict-resolution
+            // subsystem (conflict surfacing, reconcileDirtyRow / same-field
+            // "Keep mine" / "Take theirs" / rebuildUpdatePayload), which operates
+            // exclusively on PENDING_MUTATIONS. Moving them to FAILED_MUTATIONS
+            // would sever them from that resolver, and advancing their whole-row
+            // token would clobber another client's change. Full-row OCC conflicts
+            // have never stormed (this incident and 2026-06-25 were both RPC), so
+            // they keep their existing behavior unchanged — see the
+            // ringside-occ-conflict-circuit-breaker design "Non-Goals" for the
+            // deferred unification of full-row parking + the resolver.
+            const occCapReached =
+              stillQueued !== undefined &&
+              stillQueued.rpc !== undefined &&
+              occRetries >= this.maxOccAttempts;
             if (occCapReached) {
               // Lifetime cap reached: park. The payload survives in the
               // failed-mutations store and surfaces through the existing
               // sync-failed toast (Retry resets the counters; Discard is
               // explicit). Parking, not deleting — durability contract.
-              //
-              // Advance the OCC token ONLY for RPC/delta mutations. Their
-              // payload is a targeted field set, so re-basing onto the fresh
-              // authoritative version (already applied to the row on the first
-              // rejection) lets a user Retry actually succeed — last-write on
-              // exactly those fields (Codex review, P1). A direct full-row
-              // UPDATE carries a whole stale snapshot, so advancing its token
-              // would let Retry clobber fields another client changed since
-              // (the hazard reconcileQueuedMutationAfterSync/rebuildUpdatePayload
-              // guard against, and which a generic Retry cannot safely rebuild).
-              // Full-row parks with its STALE token: Retry is best-effort (may
-              // re-conflict and re-park), but the mutation is now terminal,
-              // visible, and Discardable instead of looping forever.
-              const isRpc = stillQueued.rpc !== undefined;
               const parked: PendingMutation = {
                 ...stillQueued,
                 occRetries,
                 status: 'failed',
-                ...(isRpc && typeof freshServerVersion === 'number'
+                // Stamp the AUTHORITATIVE server version so a user Retry
+                // re-uploads with a fresh OCC token instead of the stale one it
+                // kept while awaiting reconciliation (Codex review, P1). Safe:
+                // this branch is RPC/delta only; the row token was already
+                // advanced on the first rejection.
+                ...(typeof freshServerVersion === 'number'
                   ? { serverVersion: freshServerVersion }
                   : {}),
-                error: isRpc
-                  ? `Version conflict persisted through ${occRetries} attempts ` +
-                    `(${error.tableName}/${error.rowId}); parked for review.`
-                  : `Version conflict persisted through ${occRetries} attempts ` +
-                    `(${error.tableName}/${error.rowId}); parked for review — this ` +
-                    `edit conflicts with a newer server change and may need to be redone.`,
+                error:
+                  `Version conflict persisted through ${occRetries} attempts ` +
+                  `(${error.tableName}/${error.rowId}); parked for review.`,
                 failedAt: now,
               };
               delete parked.nextRetryAt;

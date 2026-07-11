@@ -22,6 +22,10 @@ export function showDateRangeStatus(
   endDate: string,
   now: Date = new Date()
 ): ShowDateRangeStatus {
+  // Missing dates can't be classified — treat as not-yet-started, matching the
+  // guard in the (now-deleted) calculateShowStatus this helper supersedes.
+  if (!startDate || !endDate) return 'upcoming';
+
   const start = toLocalDate(startDate);
   const endOfDay = toLocalDate(endDate);
   endOfDay.setHours(23, 59, 59, 999);

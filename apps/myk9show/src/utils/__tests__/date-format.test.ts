@@ -105,6 +105,12 @@ describe('showDateRangeStatus', () => {
     );
   });
 
+  it('returns upcoming when either date is missing (unclassifiable)', () => {
+    const now = new Date(2026, 4, 15, 12, 0);
+    expect(showDateRangeStatus('', '2026-05-15', now)).toBe('upcoming');
+    expect(showDateRangeStatus('2026-05-15', '', now)).toBe('upcoming');
+  });
+
   it('is active on the first day of a multi-day show and past after the last', () => {
     const midShow = new Date(2026, 4, 16, 9, 0);
     expect(showDateRangeStatus('2026-05-15', '2026-05-17', midShow)).toBe('active');

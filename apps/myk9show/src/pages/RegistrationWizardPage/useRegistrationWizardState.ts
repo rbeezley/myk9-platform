@@ -324,6 +324,7 @@ export function useRegistrationWizardState() {
       getEntryCloseAvailability({
         showId,
         startDate: currentShow?.startDate,
+        entryOpenDate: currentShow?.entryOpenDate,
         entryCloseDate: currentShow?.entryCloseDate,
         isLateEntryMode,
         workflowMode: currentWorkflowMode,
@@ -331,6 +332,7 @@ export function useRegistrationWizardState() {
     [
       showId,
       currentShow?.startDate,
+      currentShow?.entryOpenDate,
       currentShow?.entryCloseDate,
       isLateEntryMode,
       currentWorkflowMode,

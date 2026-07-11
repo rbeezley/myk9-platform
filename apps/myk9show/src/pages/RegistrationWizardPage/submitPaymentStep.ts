@@ -32,7 +32,7 @@ import type {
   ShowRegistration,
 } from '@/types/show-registration-types';
 import type { CartWithDetails, NewCartItem } from '@/store/cartStore';
-import { getEntryCloseSubmitBlocker } from './entryCloseGuard';
+import { getEntrySubmitBlocker } from './entryCloseGuard';
 
 /** Subset of the cart store actions the checkout handoff needs. */
 export interface PaymentStepCartDeps {
@@ -48,6 +48,7 @@ export interface PaymentStepShowFeeInfo {
   preEntryFee: string;
   dayOfShowFee?: string | undefined;
   startDate: string;
+  entryOpenDate?: string | undefined;
   entryCloseDate?: string | undefined;
 }
 
@@ -95,21 +96,25 @@ export interface SubmitPaymentStepContext {
 }
 
 function buildOfflineLateEntryRegistrationNumber(entryIds: string[]): string {
-  const token = entryIds[0]?.replace(/[^a-z0-9]/gi, '').slice(0, 8).toUpperCase();
+  const token = entryIds[0]
+    ?.replace(/[^a-z0-9]/gi, '')
+    .slice(0, 8)
+    .toUpperCase();
   return token ? `LOCAL-${token}` : 'LOCAL-PENDING';
 }
 
 export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<void> {
   ctx.setIsSubmitting(true);
   try {
-    const entryCloseBlocker = getEntryCloseSubmitBlocker({
+    const entryWindowBlocker = getEntrySubmitBlocker({
       startDate: ctx.showFeeInfo.startDate,
+      entryOpenDate: ctx.showFeeInfo.entryOpenDate,
       entryCloseDate: ctx.showFeeInfo.entryCloseDate,
       isLateEntryMode: ctx.isLateEntryMode,
       workflowMode: ctx.currentWorkflowMode,
     });
-    if (entryCloseBlocker) {
-      throw new Error(entryCloseBlocker);
+    if (entryWindowBlocker) {
+      throw new Error(entryWindowBlocker);
     }
 
     if (ctx.paymentMethod === 'credit_card') {

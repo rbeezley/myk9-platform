@@ -3,6 +3,7 @@ import { formatDateLocal, parseLocalDateString } from '@/utils/dateLocal';
 
 export interface EntryCloseSubmitGuardContext {
   startDate?: string | null | undefined;
+  entryOpenDate?: string | null | undefined;
   entryCloseDate?: string | null | undefined;
   today?: string | undefined;
   isLateEntryMode: boolean;
@@ -40,10 +41,46 @@ export function getEntryCloseSubmitBlocker({
   return null;
 }
 
+/**
+ * Blocks the exhibitor self-service path before entries open. Organizer
+ * workflows (secretary/club_admin/site_admin) and explicit late-entry overrides
+ * legitimately set up entries before the public open date, so they pass through.
+ * Open date is inclusive: the whole open day onward is allowed, mirroring
+ * entryStatusUtils' not_yet_open branch and canRegisterForShow.
+ */
+export function getEntryOpenSubmitBlocker({
+  entryOpenDate,
+  today,
+  isLateEntryMode,
+  workflowMode,
+}: EntryCloseSubmitGuardContext): string | null {
+  if (isLateEntryMode || workflowMode !== 'exhibitor') return null;
+
+  const openDate = parseCalendarDate(entryOpenDate);
+  if (!openDate) return null;
+
+  const currentDate = parseCalendarDate(today ?? formatDateLocal(new Date()));
+  if (!currentDate) return null;
+
+  if (currentDate.getTime() < openDate.getTime()) {
+    return 'Entries have not opened yet for this show. Check back on the entry open date.';
+  }
+
+  return null;
+}
+
+/**
+ * Full submission gate: entries must have opened AND not yet closed. Returns the
+ * first blocking reason (open before close) or null when submission is allowed.
+ */
+export function getEntrySubmitBlocker(context: EntryCloseSubmitGuardContext): string | null {
+  return getEntryOpenSubmitBlocker(context) ?? getEntryCloseSubmitBlocker(context);
+}
+
 export function getEntryCloseAvailability(
   context: EntryCloseSubmitGuardContext & { showId: string }
 ): EntryCloseAvailability {
-  const reason = getEntryCloseSubmitBlocker(context);
+  const reason = getEntrySubmitBlocker(context);
 
   return {
     canEnter: reason === null,

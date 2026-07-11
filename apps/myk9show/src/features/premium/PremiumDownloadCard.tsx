@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { FileText, AlertTriangle, Upload } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { classifyPremiumPublishState } from '@/features/show-workbench/premiumPublishState';
 import { notifications } from '@/lib/notifications';
-import { supabase } from '@/services/database/supabaseClient';
+import { publishInfoQueryKey, usePublishInfo } from './usePublishInfo';
 import { useGeneratePremium } from './useGeneratePremium';
 
 interface PremiumDownloadCardProps {
@@ -19,38 +19,11 @@ interface PremiumDownloadCardProps {
   showStaleBadge?: boolean;
 }
 
-interface PublishInfo {
-  publishedUrl: string | null;
-  publishedAt: string | null;
-  updatedAt: string | null;
-}
-
-async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
-  // Direct query bypasses the IndexedDB-replicated show row, which doesn't
-  // include the post-189 columns. Read-only and cheap.
-  const { data, error } = await supabase
-    .from('shows')
-    .select('published_premium_url, published_premium_at, updated_at')
-    .eq('id', showId)
-    .maybeSingle();
-  if (error) throw error;
-  const row = data as Record<string, unknown> | null;
-  return {
-    publishedUrl: (row?.published_premium_url as string | null) ?? null,
-    publishedAt: (row?.published_premium_at as string | null) ?? null,
-    updatedAt: (row?.updated_at as string | null) ?? null,
-  };
-}
-
 export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumDownloadCardProps) {
   const queryClient = useQueryClient();
   const { generate, isLoading: isGenerating } = useGeneratePremium();
   const [isPublishing, setIsPublishing] = useState(false);
-  const { data } = useQuery({
-    queryKey: ['shows', showId, 'publish-info'],
-    queryFn: () => fetchPublishInfo(showId),
-    staleTime: 30_000,
-  });
+  const { data } = usePublishInfo(showId);
   const publishedUrl = data?.publishedUrl;
   const publishedAt = data?.publishedAt;
   const showUpdatedAt = data?.updatedAt;
@@ -62,7 +35,7 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
       const premium = await generate(showId);
       await publishExperience({ showId, premium, inkSaver: false });
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['shows', showId, 'publish-info'] }),
+        queryClient.invalidateQueries({ queryKey: publishInfoQueryKey(showId) }),
         queryClient.invalidateQueries({
           queryKey: ['shows', showId, 'published-experience-content'],
         }),

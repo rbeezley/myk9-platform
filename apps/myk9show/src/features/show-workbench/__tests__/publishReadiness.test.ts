@@ -100,4 +100,40 @@ describe('buildPublishReadinessItems', () => {
       isReady: false,
     });
   });
+
+  it('reads premium state from the premiumInfo override when the show object lacks it', () => {
+    // Regression: `show` usually comes from the offline-replicated table,
+    // which never carries publishedPremiumUrl/At, so this must not silently
+    // fall back to reporting "not published yet" once fresher data exists.
+    const items = buildPublishReadinessItems(show({ status: 'published' }), {
+      publishedPremiumUrl: 'https://example.test/premium.pdf',
+      publishedPremiumAt: '2026-07-01T12:00:00.000Z',
+      updatedAt: '2026-07-01T12:00:00.000Z',
+    });
+
+    expect(items.find(item => item.id === 'premium-pdf')).toMatchObject({
+      state: 'Premium PDF is published',
+      isReady: true,
+    });
+  });
+
+  it('prefers the premiumInfo override over stale/missing premium fields on the show object', () => {
+    const items = buildPublishReadinessItems(
+      show({
+        status: 'published',
+        publishedPremiumUrl: 'https://example.test/old.pdf',
+        publishedPremiumAt: '2026-01-01T00:00:00.000Z',
+      }),
+      {
+        publishedPremiumUrl: 'https://example.test/premium.pdf',
+        publishedPremiumAt: '2026-07-01T12:00:00.000Z',
+        updatedAt: '2026-07-01T12:05:30.000Z',
+      }
+    );
+
+    expect(items.find(item => item.id === 'premium-pdf')).toMatchObject({
+      state: 'Premium PDF needs republish',
+      isReady: false,
+    });
+  });
 });

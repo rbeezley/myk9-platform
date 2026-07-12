@@ -81,7 +81,13 @@ export interface ClassStatusInput {
 export function getClassDisplayStatus(
   classEntry: ClassStatusInput
 ): 'not-started' | 'in-progress' | 'completed' {
-  // PRIORITY 1: Check is_scoring_finalized field (set automatically when all entries scored)
+  // PRIORITY 1: Check is_scoring_finalized field. The server sets this
+  // authoritatively when `refresh_class_scoring_state()` writes 'completed'
+  // (expected/accounted-for predicate that excludes scratched/withdrawn/
+  // pulled entries — see openspec/changes/class-status-auto-derivation
+  // design.md Decision 2/5). Deferring to it here means a client whose
+  // local entry snapshot is mid-sync never contradicts a server-completed
+  // class.
   if (classEntry.is_scoring_finalized === true) {
     return 'completed';
   }
@@ -97,12 +103,15 @@ export function getClassDisplayStatus(
   // PRIORITY 3: Only use automatic detection if class_status is 'no-status'
   // Manual statuses like setup, briefing, break, start_time should always be respected
   if (classEntry.class_status === 'no-status') {
-    // A class is completed when all dogs are scored
-    const isCompleted =
-      classEntry.completed_count === classEntry.entry_count && classEntry.entry_count > 0;
-    if (isCompleted) {
-      return 'completed';
-    }
+    // Intentionally NOT deriving "completed" from
+    // `completed_count === entry_count`: `ClassStatusInput`/`ClassDog`
+    // carry no per-entry scratch/withdrawn/pulled state, so raw-count
+    // equality can't apply the server's expected/accounted-for exclusion.
+    // A scratched-but-unscored entry would hold completed_count below
+    // entry_count forever and wrongly render "in progress" for a class the
+    // server already marked completed. Rely on is_scoring_finalized /
+    // manual class_status above for the completed verdict instead
+    // (Decision 5).
     // A class is in progress if it has dogs in the ring or some scored
     if (classEntry.dogs.some(dog => dog.in_ring) || classEntry.completed_count > 0) {
       return 'in-progress';
@@ -115,10 +124,7 @@ export function getClassDisplayStatus(
 /**
  * Returns the CSS class-name token for class status coloring.
  */
-export function getClassStatusColor(
-  status: ClassStatus,
-  classEntry?: ClassStatusInput
-): string {
+export function getClassStatusColor(status: ClassStatus, classEntry?: ClassStatusInput): string {
   // PRIORITY 1: Offline scoring status should always use its own color
   // This must be checked BEFORE smart detection to prevent override
   if (status === 'offline-scoring') {

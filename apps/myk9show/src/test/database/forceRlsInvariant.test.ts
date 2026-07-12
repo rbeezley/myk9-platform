@@ -95,12 +95,23 @@ function maskSqlNonCode(sql: string): string {
       const delimiter = sql.slice(index).match(/^\$(?:[a-z_][a-z0-9_]*)?\$/i)?.[0];
       if (delimiter) {
         const closingIndex = sql.indexOf(delimiter, index + delimiter.length);
-        const endIndex = closingIndex === -1 ? sql.length : closingIndex + delimiter.length;
+        const bodyStart = index + delimiter.length;
+        const bodyEnd = closingIndex === -1 ? sql.length : closingIndex;
+        const statementPrefix = masked.slice(0, index).split(';').at(-1)?.trim() ?? '';
+        const isAnonymousDoBlock = /^do(?:\s+language\s+(?:"[^"]+"|[a-z_][a-z0-9_$]*))?$/i.test(
+          statementPrefix
+        );
 
-        while (index < endIndex) {
-          masked += maskCharacter(sql[index]);
-          index += 1;
+        masked += ' '.repeat(delimiter.length);
+        masked += isAnonymousDoBlock
+          ? maskSqlNonCode(sql.slice(bodyStart, bodyEnd))
+          : [...sql.slice(bodyStart, bodyEnd)].map(maskCharacter).join('');
+
+        if (closingIndex !== -1) {
+          masked += ' '.repeat(delimiter.length);
         }
+
+        index = closingIndex === -1 ? sql.length : closingIndex + delimiter.length;
         continue;
       }
     }
@@ -185,24 +196,29 @@ function deriveTableSecurityState(sources: MigrationSource[]): Map<string, Table
       }
 
       const alterPattern = new RegExp(
-        `\\balter\\s+table\\s+(?:if\\s+exists\\s+)?(?:only\\s+)?(${tableReference})\\s+(enable|disable|force|no\\s+force)\\s+row\\s+level\\s+security`,
+        `\\balter\\s+table\\s+(?:if\\s+exists\\s+)?(?:only\\s+)?(${tableReference})`,
         'gi'
       );
       for (const match of sql.matchAll(alterPattern)) {
         const table = publicTableName(match[1]);
         if (!table) continue;
-        const action = match[2].replace(/\s+/g, ' ').toLowerCase();
-        operations.push({
-          index: match.index,
-          apply: () => {
-            const state = states.get(table) ?? { rlsEnabled: false, rlsForced: false };
-            if (action === 'enable') state.rlsEnabled = true;
-            if (action === 'disable') state.rlsEnabled = false;
-            if (action === 'force') state.rlsForced = true;
-            if (action === 'no force') state.rlsForced = false;
-            states.set(table, state);
-          },
-        });
+        const actionOffset = match.index + match[0].length;
+        const actionPattern = /\b(enable|disable|force|no\s+force)\s+row\s+level\s+security\b/gi;
+
+        for (const actionMatch of sql.slice(actionOffset).matchAll(actionPattern)) {
+          const action = actionMatch[1].replace(/\s+/g, ' ').toLowerCase();
+          operations.push({
+            index: actionOffset + actionMatch.index,
+            apply: () => {
+              const state = states.get(table) ?? { rlsEnabled: false, rlsForced: false };
+              if (action === 'enable') state.rlsEnabled = true;
+              if (action === 'disable') state.rlsEnabled = false;
+              if (action === 'force') state.rlsForced = true;
+              if (action === 'no force') state.rlsForced = false;
+              states.set(table, state);
+            },
+          });
+        }
       }
 
       operations.sort((a, b) => a.index - b.index).forEach(operation => operation.apply());
@@ -301,6 +317,40 @@ describe('FORCE RLS migration invariant', () => {
     ];
 
     expect(unforcedRlsTables(sources)).toEqual(['real_table']);
+  });
+
+  it('detects RLS operations inside executable anonymous DO blocks', () => {
+    const sources = [
+      {
+        name: '001_do_block.sql',
+        sql: `
+          CREATE TABLE public.do_block_table (id uuid);
+          DO $migration$
+          BEGIN
+            ALTER TABLE public.do_block_table ENABLE ROW LEVEL SECURITY;
+          END;
+          $migration$;
+        `,
+      },
+    ];
+
+    expect(unforcedRlsTables(sources)).toEqual(['do_block_table']);
+  });
+
+  it('detects RLS operations in compound ALTER TABLE statements', () => {
+    const sources = [
+      {
+        name: '001_compound_alter.sql',
+        sql: `
+          CREATE TABLE public.compound_table (id uuid);
+          ALTER TABLE public.compound_table
+            ADD COLUMN note text,
+            ENABLE ROW LEVEL SECURITY;
+        `,
+      },
+    ];
+
+    expect(unforcedRlsTables(sources)).toEqual(['compound_table']);
   });
 
   it('does not treat comment markers inside string literals as comments', () => {

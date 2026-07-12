@@ -21,7 +21,7 @@ All four report `relrowsecurity = true` and `relforcerowsecurity = false` before
 
 Migration `20260711170000_force_rls_go_live_gap.sql` forces RLS on those four tables only and includes manual `NO FORCE` rollback SQL without changing RLS enablement, policies, or grants.
 
-`forceRlsInvariant.test.ts` replays the ordered migration corpus dynamically. Its pre-migration RED reported exactly the four extant gaps; after the remediation migration, all nine focused tests pass. The checker uses no table allowlist and covers create, drop, enable, disable, force, and no-force transitions.
+`forceRlsInvariant.test.ts` replays the ordered migration corpus dynamically. Its pre-migration RED reported exactly the four extant gaps; after the remediation migration and independent review hardening, all 11 focused tests pass. The checker uses no table allowlist and covers create, drop, enable, disable, force, and no-force transitions, including executable anonymous `DO` blocks and compound `ALTER TABLE` statements while ignoring unexecuted function bodies.
 
 The first linked dry run caught that the integration branch's original `20260711150000` version now collided with the ringside containment migration on `main`. `migrationVersionUniqueness.test.ts` reproduced the collision, the FORCE-RLS migration was renumbered to the next free version, and the invariant then passed. A second linked `supabase db push --dry-run` completed cleanly and proposed exactly `20260711170000_force_rls_go_live_gap.sql`; no database write occurred.
 

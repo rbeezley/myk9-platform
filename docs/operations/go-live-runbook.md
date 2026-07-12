@@ -59,10 +59,13 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       FORCE-RLS remediation (#1283), and health observability (#1284) are merged; SA-021 is pushed
       and live-verified. SA-023/028/030 merged in #1285 and remain applicable-runtime-evidence
       pending. SA-024 merged in #1286 but remains open until an approved `validate-passcode` deploy
-      plus controlled allowed/429/503 smoke evidence. SA-025 is repository-complete with focused
-      red-first tests, an atomic limiter migration, FORCE RLS, typecheck, and lint, but remains open
-      until review/merge, an approved migration push and `generate-premium` deploy, and controlled
-      catalog/concurrency/429/503 evidence. SA-029 and advisor disposition remain separate slices.
+      plus controlled allowed/429/503 smoke evidence. SA-025 merged in #1287 with focused red-first
+      tests, an atomic limiter migration, FORCE RLS, typecheck, and lint, but remains open until an
+      approved migration push and `generate-premium` deploy plus controlled catalog/concurrency/
+      429/503 evidence. SA-029 is repository-prepared with matching redacted
+      Vault/Edge digests, dedicated-secret-only shared authentication, 33 focused tests, and an
+      exact five-function rollout/smoke/rollback manifest; it remains open until review/merge and
+      approval-gated deployment/runtime proof. Advisor disposition remains a separate slice.
       Owner: Agent for repository work; shared-system/operator steps require approval.
       _Verify:_ [`security-audit-2026-07-11.md`](../security-audit-2026-07-11.md),
       [`launch/go-live-2026-07-11.md`](../launch/go-live-2026-07-11.md), and OpenSpec change
@@ -78,6 +81,12 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       fifth/sixth attempts, and smoke exhausted 429 and controlled limiter-failure 503 without
       Claude traffic. A valid Edge generation requires separate paid-traffic approval. Rollback by
       redeploying the last-good Edge revision before running the migration's forward rollback SQL.
+      _SA-029 deploy:_ recheck the matching redacted Vault/Edge digests, deploy announcement,
+      chat-message, support-message, class-status, and scoring push triggers with `--no-verify-jwt`,
+      run inert dedicated-secret success and service-role rejection smokes for all five, then run
+      one controlled Vault-backed database-trigger proof. Follow the rotation and rollback manifest
+      in OpenSpec evidence `push-webhook-dedicated-secret.md`; never restore the service-role
+      fallback.
 - [x] **0.2 Deploy the `ask-myk9show` fix** — DONE 2026-07-04. The AskQ
       cross-tenant scope-leak fix (#1089) is deployed live. Owner: Agent.
       _Do:_ `supabase functions deploy ask-myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`

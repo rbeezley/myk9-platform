@@ -25,6 +25,8 @@ export type HandlerCtx<TBody> = {
 
 export type HandlerOptions = {
   auth: 'jwt' | 'none';
+  /** Runs after method gating but before environment setup or body parsing. */
+  beforeBody?: (req: Request) => void | Promise<void>;
   /**
    * CORS origin allowlist. Omit for webhooks / server-to-server calls that
    * should not advertise any CORS headers.
@@ -62,6 +64,12 @@ export async function processRequest<TBody>(
     return json({ error: 'Method not allowed' }, 405, headers);
   }
 
+  try {
+    await options.beforeBody?.(req);
+  } catch (err) {
+    return errorResponse(err, headers, 'pre-body authentication');
+  }
+
   const supabaseUrl = deps.getEnv('SUPABASE_URL');
   const supabaseServiceKey = deps.getEnv('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !supabaseServiceKey) {
@@ -95,16 +103,20 @@ export async function processRequest<TBody>(
     const result = await handler({ req, body, user, supabase });
     return json(result ?? { success: true }, 200, headers);
   } catch (err) {
-    if (err instanceof HttpError) {
-      return json(
-        { error: err.message, ...(err.code ? { code: err.code } : {}) },
-        err.status,
-        headers,
-      );
-    }
-    console.error('handle: unexpected handler error', err);
-    return json({ error: 'Internal server error' }, 500, headers);
+    return errorResponse(err, headers, 'handler');
   }
+}
+
+function errorResponse(err: unknown, headers: Record<string, string>, phase: string): Response {
+  if (err instanceof HttpError) {
+    return json(
+      { error: err.message, ...(err.code ? { code: err.code } : {}) },
+      err.status,
+      headers,
+    );
+  }
+  console.error(`handle: unexpected ${phase} error`, err);
+  return json({ error: 'Internal server error' }, 500, headers);
 }
 
 /**
@@ -113,6 +125,7 @@ export async function processRequest<TBody>(
  * The envelope:
  * - Replies to OPTIONS with 204 (with CORS headers when `origins` is set).
  * - Rejects non-POST with 405.
+ * - Runs `beforeBody` authentication before environment setup or body parsing.
  * - When `auth: 'jwt'`, validates the bearer token and populates `ctx.user`.
  * - Parses the JSON body into `ctx.body` (400 on parse failure).
  * - Maps thrown `HttpError` to `{ error: message }` with that status.

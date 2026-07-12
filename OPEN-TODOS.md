@@ -67,10 +67,12 @@ High-judgment work to prioritize while strong-model access is available. These a
   `go-live-2026-07-11-gate-remediation`. Migration lineage (#1280), FORCE-RLS invariant/deployment
   (#1283), health observability (#1284), and SA-023/028/030 mechanical fixes (#1285) are merged;
   SA-021 is live-verified. SA-024 merged in #1286 and awaits `validate-passcode` deployment/runtime
-  evidence. SA-025 premium-generation throttling is repository-complete and awaits review/merge,
-  its migration push, `generate-premium` deployment, and controlled runtime evidence. Remaining
-  agent slices: dedicated push secret and advisor disposition. Operator/shared-system gates remain
-  open in the runbook.
+  evidence. SA-025 premium-generation throttling merged in #1287 and awaits its migration push,
+  `generate-premium` deployment, and controlled runtime evidence. SA-029 dedicated push-secret
+  remediation is repository-prepared with aligned redacted digests, a five-function rollout
+  manifest, and red-first tests; review/merge and all five Edge deployments remain open. The
+  remaining agent slice is advisor disposition. Operator/shared-system gates remain open in the
+  runbook.
 
 ---
 

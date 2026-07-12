@@ -25,9 +25,7 @@ interface WebhookPayload {
   };
 }
 
-handle<WebhookPayload>({ auth: 'none' }, async ({ req, body, supabase }) => {
-  requirePushWebhookSecret(req);
-
+handle<WebhookPayload>({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ body, supabase }) => {
   // Only fire when scoring_completed_at transitions from null to a value
   if (
     body.old_record.scoring_completed_at !== null ||

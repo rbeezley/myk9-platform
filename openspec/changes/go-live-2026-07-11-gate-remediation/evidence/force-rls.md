@@ -2,7 +2,7 @@
 
 **Checked:** 2026-07-11 15:04:23 UTC
 **Project:** `sojmvhhwsjxmfistvzbe`
-**Mutation performed:** none
+**Baseline mutation performed:** none
 
 ## Audit correction
 
@@ -25,4 +25,6 @@ Migration `20260711170000_force_rls_go_live_gap.sql` forces RLS on those four ta
 
 The first linked dry run caught that the integration branch's original `20260711150000` version now collided with the ringside containment migration on `main`. `migrationVersionUniqueness.test.ts` reproduced the collision, the FORCE-RLS migration was renumbered to the next free version, and the invariant then passed. A second linked `supabase db push --dry-run` completed cleanly and proposed exactly `20260711170000_force_rls_go_live_gap.sql`; no database write occurred.
 
-The read-only live verifier is `scripts/qa/db-security/force-rls-live.sql`. It has not been used as post-deployment evidence because no database push is authorized yet.
+## Deployment verification
+
+After explicit approval on 2026-07-12, `20260711170000_force_rls_go_live_gap.sql` was applied to project `sojmvhhwsjxmfistvzbe`. The read-only `scripts/qa/db-security/force-rls-live.sql` verifier returned zero public RLS-enabled tables without FORCE RLS. A post-push `supabase db push --dry-run` reported the remote database up to date. No FORCE-RLS exception remains.

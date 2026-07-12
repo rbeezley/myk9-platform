@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const repoRoot = resolve(__dirname, '../../../../..');
 const watchdogMigration = resolve(
   repoRoot,
-  'supabase/migrations/20260711151000_daily_health_snapshot_watchdog.sql'
+  'supabase/migrations/20260711200000_daily_health_snapshot_watchdog.sql'
 );
 const healthCronMigration = resolve(
   repoRoot,

@@ -373,7 +373,7 @@ the 07:00–08:00 `cron-health-check` snapshot window is empty, and Sentry Cron 
 the Edge runner. Do not treat either as live until its approval-gated steps below are evidenced.
 
 - [ ] **Database path:** review `supabase db push --dry-run`, obtain shared-system approval, push
-      `20260711151000_daily_health_snapshot_watchdog.sql`, and verify both jobs in `cron.job`:
+      `20260711200000_daily_health_snapshot_watchdog.sql`, and verify both jobs in `cron.job`:
       `daily-health-check` at `0 7 * * *` and `daily-health-snapshot-watchdog` at `0 8 * * *`.
 - [ ] **Repair the dispatch credential:** compare redacted SHA-256 digests, then reconcile Vault
       `service_role_key` to the current Edge runtime service-role key. Never paste either value into

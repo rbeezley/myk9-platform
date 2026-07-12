@@ -20,7 +20,7 @@
 ## 1. OpenSpec and Evidence Baseline
 
 - [x] 1.1 Validate all proposal, design, delta-spec, and task artifacts with `pnpm openspec validate go-live-2026-07-11-gate-remediation --type change --strict`; run `verify-plan` against the July 11 go-live report and security audit, patch every gap, and record the final coverage score (100/100 on 2026-07-11).
-- [ ] 1.2 Record a redacted read-only evidence baseline covering cron job/run state, latest health snapshot, deployed `cron-health-check` version, relevant Vault/function-secret digests, remote migration lineage/live `soft_delete_person` definition, and all 364 before-remediation Supabase advisor entries (2 ERROR, 3 INFO, 359 WARN). (Migration parity, dry run, and the live redacted `soft_delete_person` fingerprint/behavior markers are complete; the health, secret-digest, deployed-version, and advisor portions remain open.)
+- [ ] 1.2 Record a redacted read-only evidence baseline covering cron job/run state, latest health snapshot, deployed `cron-health-check` version, relevant Vault/function-secret digests, remote migration lineage/live `soft_delete_person` definition, and all 364 before-remediation Supabase advisor entries (2 ERROR, 3 INFO, 359 WARN). (Migration, health, secret-digest, deployed-version, and live `soft_delete_person` portions are complete; the machine-readable advisor baseline remains open.)
 - [ ] 1.3 [ADDED] [INTEGRATION GATE] Bring the user's uncommitted July 11 go-live report, security audit, and docs-index registration onto the implementation branch through their source commit or an explicitly reviewed patch before editing them; never overwrite the primary checkout's uncommitted files.
 
 ## 2. Batch A — Daily Health Monitoring
@@ -40,7 +40,7 @@
 
 - [x] 4.1 [CORRECTED] Add a failing source contract, record that `unified_ringside_overrides` was dropped by applied migration `20260623120000` and is absent from the live catalog, then create a migration that applies `FORCE ROW LEVEL SECURITY` to the four extant tables: `secretary_tasks`, `club_premium_templates`, `premium_generations`, and `login_attempts`, with exact rollback SQL documented.
 - [x] 4.2 Add a repository-wide migration-state invariant that derives final public-table RLS/FORCE-RLS state without a static table allowlist and fails for any unforced RLS table; include self-tests proving a future drift fixture fails.
-- [ ] 4.3 [SHARED-SYSTEM GATE] After approval and dry-run review, push the RLS migration and run the live `pg_class` verifier for `relrowsecurity = true AND relforcerowsecurity = false`, recording any named exception.
+- [x] 4.3 [SHARED-SYSTEM GATE] After approval and dry-run review, push the RLS migration and run the live `pg_class` verifier for `relrowsecurity = true AND relforcerowsecurity = false`, recording any named exception. (Applied 2026-07-12; verifier returned zero rows and the post-push dry run reported the remote up to date.)
 
 ## 5. Batch B — Mechanical Security Fixes (SA-023, SA-028, SA-030)
 

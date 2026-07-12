@@ -24,7 +24,7 @@ No secret value was read into this evidence file.
 ## SQL-only watchdog
 
 The focused source contract was recorded RED with five failures before
-`20260711151000_daily_health_snapshot_watchdog.sql` existed. It is GREEN at 5/5 after adding the
+`20260711200000_daily_health_snapshot_watchdog.sql` existed. It is GREEN at 5/5 after adding the
 08:00 UTC pure-SQL watchdog.
 
 The watchdog:

@@ -809,7 +809,7 @@ describe('ReplicatedClassesTable', () => {
     it('reads status_source and reopened_after_closeout_at from the DB row (DB→domain)', () => {
       const reopenedAt = '2026-07-12T15:00:00.000Z';
       const domain = rowToClass({
-        ...createDbRow({ id: 1 }),
+        ...createDbRow({ id: '1' }),
         status: 'completed',
         status_source: 'manual',
         reopened_after_closeout_at: reopenedAt,
@@ -829,7 +829,7 @@ describe('ReplicatedClassesTable', () => {
       expect(dbRow.status_source).toBe('manual');
 
       const domain = rowToClass({
-        ...createDbRow({ id: 1 }),
+        ...createDbRow({ id: '1' }),
         status: dbRow.status as string,
         status_source: dbRow.status_source as string,
       } as unknown as Database['public']['Tables']['classes']['Row']);
@@ -838,7 +838,7 @@ describe('ReplicatedClassesTable', () => {
     });
 
     it('defaults reopened_after_closeout_at to null when the DB row omits it', () => {
-      const domain = rowToClass(createDbRow({ id: 1 }));
+      const domain = rowToClass(createDbRow({ id: '1' }));
       expect(domain.reopenedAfterCloseoutAt).toBeNull();
       expect(domain.statusSource).toBeUndefined();
     });

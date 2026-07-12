@@ -20,7 +20,8 @@ vi.mock('@/lib/notifications', () => ({
 }));
 
 function mockRegenerateRpc() {
-  mockSupabase.rpc.mockImplementation((fn: string) => {
+  mockSupabase.rpc.mockImplementation((...args: unknown[]) => {
+    const fn = args[0] as string;
     if (fn === 'regenerate_show_passcodes') {
       return Promise.resolve({
         data: [{ admin: 'a1111', judge: 'j2222', steward: 's3333', exhibitor: 'e4444' }],
@@ -77,7 +78,7 @@ describe('ShowDeskToolsSheet', () => {
       <ShowDeskToolsSheet
         showId={props?.showId ?? 'show-1'}
         tools={makeTools()}
-        toolCount={props?.toolCount}
+        {...(props?.toolCount !== undefined && { toolCount: props.toolCount })}
         {...(props?.actionableCount !== undefined && { actionableCount: props.actionableCount })}
         {...(props?.actionableTone !== undefined && { actionableTone: props.actionableTone })}
       />

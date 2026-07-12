@@ -103,6 +103,8 @@ describe('DeletedEntitySection', () => {
         config={config}
         count={0}
         isActionLoading={false}
+        lastActionType={null}
+        actionVersion={0}
         onRestore={vi.fn()}
         onDelete={vi.fn()}
       />
@@ -117,6 +119,8 @@ describe('DeletedEntitySection', () => {
         config={config}
         count={3}
         isActionLoading={false}
+        lastActionType={null}
+        actionVersion={0}
         onRestore={vi.fn()}
         onDelete={vi.fn()}
       />
@@ -133,6 +137,8 @@ describe('DeletedEntitySection', () => {
         config={config}
         count={2}
         isActionLoading={false}
+        lastActionType={null}
+        actionVersion={0}
         onRestore={vi.fn()}
         onDelete={vi.fn()}
       />
@@ -153,6 +159,8 @@ describe('DeletedEntitySection', () => {
         config={config}
         count={2}
         isActionLoading={false}
+        lastActionType={null}
+        actionVersion={0}
         onRestore={vi.fn()}
         onDelete={vi.fn()}
       />
@@ -174,6 +182,8 @@ describe('DeletedEntitySection', () => {
         config={config}
         count={2}
         isActionLoading={false}
+        lastActionType={null}
+        actionVersion={0}
         onRestore={vi.fn()}
         onDelete={vi.fn()}
       />
@@ -194,6 +204,8 @@ describe('DeletedEntitySection', () => {
         config={config}
         count={2}
         isActionLoading={false}
+        lastActionType={null}
+        actionVersion={0}
         onRestore={vi.fn()}
         onDelete={vi.fn()}
       />
@@ -215,6 +227,8 @@ describe('DeletedEntitySection', () => {
         config={config}
         count={2}
         isActionLoading={false}
+        lastActionType={null}
+        actionVersion={0}
         onRestore={onRestore}
         onDelete={vi.fn()}
       />
@@ -241,6 +255,8 @@ describe('DeletedEntitySection', () => {
         config={config}
         count={2}
         isActionLoading={false}
+        lastActionType={null}
+        actionVersion={0}
         onRestore={vi.fn()}
         onDelete={onDelete}
       />
@@ -266,6 +282,8 @@ describe('DeletedEntitySection', () => {
         config={config}
         count={2}
         isActionLoading={true}
+        lastActionType={null}
+        actionVersion={0}
         onRestore={vi.fn()}
         onDelete={vi.fn()}
       />

@@ -1,6 +1,7 @@
 import { render } from '@/test/utils/testUtils';
 import { screen } from '@testing-library/react';
 import { vi } from 'vitest';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { JudgeStatsSubTab } from '../JudgeStatsSubTab';
 import type { StatsEntry } from '../analytics-utils';
 
@@ -46,10 +47,12 @@ function makeEntry(overrides: Partial<StatsEntry> = {}): StatsEntry {
 
 describe('JudgeStatsSubTab', () => {
   it('shows empty state when no judges', () => {
-    mockUseShowJudges.mockReturnValue({
-      data: [],
-      isLoading: false,
-    } as ReturnType<typeof useShowJudges>);
+    mockUseShowJudges.mockReturnValue(
+      fromPartial<ReturnType<typeof useShowJudges>>({
+        data: [],
+        isLoading: false,
+      })
+    );
     mockUseJudgeShowStats.mockReturnValue({
       data: undefined,
       isLoading: false,

@@ -93,7 +93,7 @@ describe('splitDatedUndated', () => {
   });
 
   it('puts tasks without due date in undated', () => {
-    const t = makeTask({ dueDate: undefined });
+    const t = makeTask();
     const { dated, undated } = splitDatedUndated([t]);
     expect(dated).toHaveLength(0);
     expect(undated).toHaveLength(1);
@@ -115,7 +115,7 @@ describe('splitDatedUndated', () => {
   it('splits mixed tasks correctly', () => {
     const tasks = [
       makeTask({ id: 't1', dueDate: '2024-03-15' }),
-      makeTask({ id: 't2', dueDate: undefined }),
+      makeTask({ id: 't2' }),
       makeTask({ id: 't3', dueDate: '2024-04-01' }),
     ];
     const { dated, undated } = splitDatedUndated(tasks);
@@ -226,7 +226,7 @@ describe('calcSummary', () => {
     const tasks = [
       makeTask({ id: 't1', dueDate: fmt(yesterday) }), // overdue
       makeTask({ id: 't2', dueDate: fmt(inThreeDays) }), // this week
-      makeTask({ id: 't3', dueDate: undefined }), // unscheduled
+      makeTask({ id: 't3' }), // unscheduled
     ];
 
     const summary = calcSummary(tasks);

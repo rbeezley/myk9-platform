@@ -986,7 +986,7 @@ describe('ReplicatedClubsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       await table.sync();
 
@@ -1036,7 +1036,7 @@ describe('ReplicatedClubsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       await table.sync();
 
@@ -1078,7 +1078,7 @@ describe('ReplicatedClubsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       await table.sync();
 
@@ -1425,7 +1425,7 @@ describe('ReplicatedClubsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       const result = await table.sync();
 

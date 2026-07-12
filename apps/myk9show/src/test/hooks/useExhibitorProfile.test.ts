@@ -207,7 +207,7 @@ describe('useExhibitorProfile', () => {
   // must fail safe — retry without the column, load the profile, and NOT throw
   // (which would false-trigger the onboarding redirect via needsOnboarding).
   describe('early_adopter_until column resilience', () => {
-    function makeProfile(earlyAdopterUntil: string | null) {
+    function makeProfile(earlyAdopterUntil?: string | null) {
       return {
         id: 'profile-123',
         person_id: 'person-456',
@@ -275,7 +275,7 @@ describe('useExhibitorProfile', () => {
               },
             });
           }
-          return Promise.resolve({ data: makeProfile(undefined), error: null });
+          return Promise.resolve({ data: makeProfile(), error: null });
         }
       );
 

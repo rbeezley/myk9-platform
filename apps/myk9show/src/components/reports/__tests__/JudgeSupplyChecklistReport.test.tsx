@@ -33,7 +33,8 @@ function row(overrides: Partial<TrialJudgeSupplyRow>): TrialJudgeSupplyRow {
   };
 }
 
-const wrapper = (client: QueryClient) =>
+const wrapper =
+  (client: QueryClient) =>
   ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
@@ -59,7 +60,9 @@ beforeEach(() => {
 describe('JudgeSupplyChecklistReport', () => {
   it('shows a context-required notice when showId is missing', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(<JudgeSupplyChecklistReport {...baseProps({ showId: undefined })} />, {
+    const props = baseProps();
+    delete (props as Partial<ReportProps>).showId;
+    render(<JudgeSupplyChecklistReport {...props} />, {
       wrapper: wrapper(client),
     });
     expect(screen.getByText(/show context is required/i)).toBeInTheDocument();

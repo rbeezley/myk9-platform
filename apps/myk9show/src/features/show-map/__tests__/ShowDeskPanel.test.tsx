@@ -52,19 +52,19 @@ const show = {
   endDate: '2026-06-14',
 } as Show;
 
-const futureTrial = {
+const futureTrial: SyncableTrial = {
   id: 'trial-1',
   showId: 'show-1',
   showName: 'Spring Trial',
   trialDate: '2026-06-12',
   trialNumber: '1',
   timezone: 'America/New_York',
-  status: 'Not Started',
+  status: 'Scheduled',
   _version: 1,
   _lastModified: new Date(),
   _lastModifiedBy: 'test',
   _syncStatus: 'synced',
-} as SyncableTrial;
+};
 
 function LocationProbe() {
   const location = useLocation();

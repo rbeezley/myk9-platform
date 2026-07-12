@@ -6,7 +6,11 @@
 
 import { describe, it, expect } from 'vitest';
 import { EntryLimitChecker } from '@/services/entries/EntryLimitChecker';
+import type { LimitCheckContext } from '@/services/entries/EntryLimitChecker';
+import type { ShowEntry } from '@/store/entryStore';
+import type { Class } from '@/types/show-types';
 import { validatePhase34Implementation } from './e2e/registration/phase3-4-validation-report';
+import { fromPartial } from '@total-typescript/shoehorn';
 
 describe('Phase 3.4: Quick Validation', () => {
   it('should have all required entry limit checking functionality', () => {
@@ -20,13 +24,14 @@ describe('Phase 3.4: Quick Validation', () => {
 
   it('should validate class entry statistics correctly', () => {
     // Mock test data
-    const mockClass = {
+    const mockClass: Class = {
       id: 'test-class-001',
+      name: 'Test Class',
       maxEntries: 5,
       allowWaitlist: true,
     };
 
-    const mockEntries = [
+    const mockEntries = fromPartial<ShowEntry[]>([
       {
         id: 'entry-1',
         classId: 'test-class-001',
@@ -45,13 +50,9 @@ describe('Phase 3.4: Quick Validation', () => {
         status: 'waitlist',
         registrationData: { paymentStatus: 'pending' },
       },
-    ] as unknown[];
+    ]);
 
-    const stats = EntryLimitChecker.getClassEntryStats(
-      'test-class-001',
-      mockEntries,
-      mockClass as unknown
-    );
+    const stats = EntryLimitChecker.getClassEntryStats('test-class-001', mockEntries, mockClass);
 
     expect(stats.confirmed).toBe(2); // confirmed + paid
     expect(stats.waitlisted).toBe(1);
@@ -64,12 +65,13 @@ describe('Phase 3.4: Quick Validation', () => {
   });
 
   it('should validate waitlist promotion logic', () => {
-    const mockClass = {
+    const mockClass: Class = {
       id: 'test-class-001',
+      name: 'Test Class',
       maxEntries: 3,
     };
 
-    const mockEntries = [
+    const mockEntries = fromPartial<ShowEntry[]>([
       {
         id: 'entry-1',
         classId: 'test-class-001',
@@ -80,12 +82,12 @@ describe('Phase 3.4: Quick Validation', () => {
         classId: 'test-class-001',
         status: 'paid',
       },
-    ] as unknown[];
+    ]);
 
     const promotionCheck = EntryLimitChecker.checkWaitlistPromotion(
       'test-class-001',
       mockEntries,
-      mockClass as unknown
+      mockClass
     );
 
     expect(promotionCheck.canPromote).toBe(true);
@@ -124,7 +126,7 @@ describe('Phase 3.4: Quick Validation', () => {
       },
     };
 
-    const mockContext = {
+    const mockContext = fromPartial<LimitCheckContext>({
       show: { id: 'test-show', maxTotalEntries: 100 },
       trial: { id: 'test-trial', maxTotalEntries: 50 },
       class: { id: 'test-class', maxEntries: 2, allowWaitlist: true },
@@ -145,7 +147,7 @@ describe('Phase 3.4: Quick Validation', () => {
           status: 'confirmed',
         },
       ],
-    } as unknown;
+    });
 
     // Class is full but allowWaitlist=true, so it should be allowed with a warning (not an error)
     const result = EntryLimitChecker.checkEntryLimits(mockEntryData, mockContext);

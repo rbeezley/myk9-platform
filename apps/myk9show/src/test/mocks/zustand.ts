@@ -14,9 +14,7 @@ const actual = await vi.importActual<typeof ZustandTypes>('zustand');
 const actualCreate = actual.create;
 const actualCreateStore = actual.createStore;
 
-function trackStore<S extends { getInitialState: () => unknown; setState: (s: unknown, replace: true) => void }>(
-  store: S
-): S {
+function trackStore<T, S extends ZustandTypes.StoreApi<T>>(store: S): S {
   const initialState = store.getInitialState();
   registerStoreReset(() => {
     store.setState(initialState, true);

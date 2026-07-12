@@ -35,7 +35,7 @@ const MOCK_SHOW: Show = {
 
 const MOCK_TRIAL: Trial = {
   id: 't1',
-  trialNumber: 1,
+  trialNumber: '1',
   trialDate: '2026-06-12',
 } as Trial;
 

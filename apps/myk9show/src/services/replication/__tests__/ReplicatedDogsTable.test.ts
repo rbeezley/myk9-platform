@@ -87,18 +87,18 @@ describe('ReplicatedDogsTable', () => {
   const createMockRow = (dog: ReplicatedDog): DogDbRow => ({
     id: dog.id,
     name: dog.name,
-    call_name: dog.callName,
     breed: dog.breed,
-    sex: dog.sex,
-    date_of_birth: dog.dateOfBirth,
-    owner_id: dog.ownerId,
-    height: dog.height,
-    weight: dog.weight,
-    color: dog.color,
-    microchip_number: dog.microchipNumber,
-    spayed_neutered: dog.isSpayedNeutered,
-    image_url: dog.imageUrl,
     updated_at: new Date().toISOString(),
+    ...(dog.callName !== undefined ? { call_name: dog.callName } : {}),
+    ...(dog.sex !== undefined ? { sex: dog.sex } : {}),
+    ...(dog.dateOfBirth !== undefined ? { date_of_birth: dog.dateOfBirth } : {}),
+    ...(dog.ownerId !== undefined ? { owner_id: dog.ownerId } : {}),
+    ...(dog.height !== undefined ? { height: dog.height } : {}),
+    ...(dog.weight !== undefined ? { weight: dog.weight } : {}),
+    ...(dog.color !== undefined ? { color: dog.color } : {}),
+    ...(dog.microchipNumber !== undefined ? { microchip_number: dog.microchipNumber } : {}),
+    ...(dog.isSpayedNeutered !== undefined ? { spayed_neutered: dog.isSpayedNeutered } : {}),
+    ...(dog.imageUrl !== undefined ? { image_url: dog.imageUrl } : {}),
   });
 
   // Helper to create replicated row

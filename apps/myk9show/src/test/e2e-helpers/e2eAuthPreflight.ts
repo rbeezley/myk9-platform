@@ -50,6 +50,9 @@ export function resolveAuthPreflightConfig(
   if (missingBase.length > 0) {
     throw new Error(`Missing E2E auth preflight secret(s): ${missingBase.join(', ')}`);
   }
+  if (!supabaseUrl || !anonKey) {
+    throw new Error('Missing base E2E auth preflight configuration');
+  }
 
   const credentials = roles.map(role => {
     if (!isAuthPreflightRole(role)) {
@@ -68,6 +71,9 @@ export function resolveAuthPreflightConfig(
       throw new Error(
         `Missing E2E auth preflight secret(s) for ${role}: ${missingRoleSecrets.join(', ')}`
       );
+    }
+    if (!email || !password) {
+      throw new Error(`Missing E2E auth preflight credentials for ${role}`);
     }
 
     return {

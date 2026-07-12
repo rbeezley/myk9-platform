@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { EntryValidator } from '@/services/entries/EntryValidator';
 import { EntryLimitChecker } from '@/services/entries/EntryLimitChecker';
-import { EntryStatus } from '@/types/show-registration-types';
+import type { ShowEntry } from '@/store/entryStore';
 
 describe('Entry Validation System', () => {
   describe('EntryValidator - Competition Data Validation', () => {
@@ -114,7 +114,7 @@ describe('Entry Validation System', () => {
     it('should calculate class statistics correctly', () => {
       // Previously skipped because test used status='waitlisted', but source checks for 'waitlist'
       // (EntryStatus.WAITLIST = 'waitlist'). Fixed by using EntryStatus.WAITLIST.
-      const entries = [
+      const entries: ShowEntry[] = [
         {
           id: 'entry-1',
           classId: 'class-1',
@@ -134,7 +134,7 @@ describe('Entry Validation System', () => {
         {
           id: 'entry-2',
           classId: 'class-1',
-          status: EntryStatus.WAITLIST,
+          status: 'waitlist',
           showId: 'show-1',
           dogId: 'dog-2',
           registrationData: {

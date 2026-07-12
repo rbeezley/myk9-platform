@@ -37,7 +37,7 @@ describe('ShowCreationWizardPage — Step 1 Next-button feedback', () => {
     // jsdom does not implement scrollIntoView; spy on it so we can assert the
     // banner is scrolled into view without it throwing.
     scrollIntoView = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView as Element['scrollIntoView'];
   });
 
   afterEach(() => {

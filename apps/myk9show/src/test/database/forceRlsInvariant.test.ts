@@ -14,10 +14,7 @@ type MigrationSource = {
 
 const repoRoot = resolve(__dirname, '../../../../..');
 const migrationsDir = resolve(repoRoot, 'supabase/migrations');
-const remediationMigration = resolve(
-  migrationsDir,
-  '20260711170000_force_rls_go_live_gap.sql'
-);
+const remediationMigration = resolve(migrationsDir, '20260711170000_force_rls_go_live_gap.sql');
 const liveVerifier = resolve(repoRoot, 'scripts/qa/db-security/force-rls-live.sql');
 
 function maskSqlNonCode(sql: string): string {
@@ -72,11 +69,7 @@ function maskSqlNonCode(sql: string): string {
         if (sql[index] === "'" && sql[index + 1] === "'") {
           masked += '  ';
           index += 2;
-        } else if (
-          allowsBackslashEscapes &&
-          sql[index] === '\\' &&
-          index + 1 < sql.length
-        ) {
+        } else if (allowsBackslashEscapes && sql[index] === '\\' && index + 1 < sql.length) {
           masked += '  ';
           index += 2;
         } else if (sql[index] === "'") {
@@ -97,7 +90,8 @@ function maskSqlNonCode(sql: string): string {
         const closingIndex = sql.indexOf(delimiter, index + delimiter.length);
         const bodyStart = index + delimiter.length;
         const bodyEnd = closingIndex === -1 ? sql.length : closingIndex;
-        const statementPrefix = masked.slice(0, index).split(';').at(-1)?.trim() ?? '';
+        const statements = masked.slice(0, index).split(';');
+        const statementPrefix = statements[statements.length - 1]?.trim() ?? '';
         const isAnonymousDoBlock = /^do(?:\s+language\s+(?:"[^"]+"|[a-z_][a-z0-9_$]*))?$/i.test(
           statementPrefix
         );
@@ -159,10 +153,7 @@ function executableSqlStatements(sql: string): string[] {
 }
 
 function publicTableName(reference: string): string | null {
-  const parts = reference
-    .replaceAll('"', '')
-    .toLowerCase()
-    .split('.');
+  const parts = reference.replace(/"/g, '').toLowerCase().split('.');
 
   if (parts.length === 1) return parts[0];
   return parts[0] === 'public' ? parts[1] : null;

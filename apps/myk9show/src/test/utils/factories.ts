@@ -1,9 +1,9 @@
 import { faker } from '@faker-js/faker';
-import type { Dog, DogRegistration } from '@/types/dog-types';
+import type { Dog, Registration } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
-import type { Show, Trial } from '@/types/show-types';
+import type { Show, Trial, Class as TrialClass } from '@/types/show-types';
 import type { Club } from '@/types/club-types';
-import type { TrialClass } from '@/types';
+import { UserRole } from '@/types/auth-types';
 
 // Set seed for consistent test data
 faker.seed(123);
@@ -17,33 +17,38 @@ export const dogFactory = {
   build: (overrides: Partial<Dog> = {}): Dog => ({
     id: nextId(),
     callName: faker.animal.dog(),
-    officialName: `${faker.person.lastName()}'s ${faker.word.adjective()} ${faker.animal.dog()}`,
-    breed: faker.helpers.arrayElement(['Golden Retriever', 'German Shepherd', 'Labrador', 'Poodle']),
+    name: `${faker.person.lastName()}'s ${faker.word.adjective()} ${faker.animal.dog()}`,
+    breed: faker.helpers.arrayElement([
+      'Golden Retriever',
+      'German Shepherd',
+      'Labrador',
+      'Poodle',
+    ]),
     birthDate: faker.date.between({ from: '2015-01-01', to: '2023-01-01' }).toISOString(),
     sex: faker.helpers.arrayElement(['male', 'female']) as 'male' | 'female',
     registrations: [],
     ownerId: nextId(),
-    coOwnerIds: [],
-    breederId: nextId(),
-    photos: [],
     microchipNumber: faker.string.numeric(15),
     ...overrides,
   }),
 
-  withRegistration: (dog: Dog, registration: Partial<DogRegistration> = {}): Dog => ({
+  withRegistration: (dog: Dog, registration: Partial<Registration> = {}): Dog => ({
     ...dog,
     registrations: [
-      ...dog.registrations,
+      ...(dog.registrations ?? []),
       {
+        id: nextId(),
         organization: 'AKC',
+        registeredName: dog.name,
+        breed: dog.breed,
         registrationNumber: faker.string.alphanumeric(10).toUpperCase(),
-        isActive: true,
+        status: 'Active',
         ...registration,
       },
     ],
   }),
 
-  createMany: (count: number, overrides: Partial<Dog> = {}): Dog[] => 
+  createMany: (count: number, overrides: Partial<Dog> = {}): Dog[] =>
     Array.from({ length: count }, () => dogFactory.build(overrides)),
 };
 
@@ -57,13 +62,13 @@ export const personFactory = {
       firstName,
       lastName,
       email: faker.internet.email({ firstName, lastName }).toLowerCase(),
-      phone: faker.phone.number('###-###-####'),
+      phone: faker.phone.number(),
       address: faker.location.streetAddress(),
       city: faker.location.city(),
       state: faker.location.state({ abbreviated: true }),
       zipCode: faker.location.zipCode('#####'),
       country: 'USA',
-      roles: ['exhibitor'],
+      roles: [UserRole.EXHIBITOR],
       clubAffiliations: [],
       createdAt: faker.date.past(),
       ...overrides,
@@ -77,7 +82,8 @@ export const personFactory = {
 // Show Factory
 export const showFactory = {
   build: (overrides: Partial<Show> = {}): Show => {
-    const startDate = overrides.startDate ?? new Date(Date.now() + 30 * 86_400_000).toISOString().split('T')[0];
+    const startDate =
+      overrides.startDate ?? new Date(Date.now() + 30 * 86_400_000).toISOString().split('T')[0];
     return {
       id: overrides.id ?? nextId(),
       name: `${faker.location.city()} Dog Show`,
@@ -115,26 +121,17 @@ export const showFactory = {
 export const trialFactory = {
   build: (overrides: Partial<Trial> = {}): Trial => ({
     id: nextId(),
-    showId: nextId(),
-    type: faker.helpers.arrayElement(['agility', 'obedience', 'rally', 'scent work']),
+    name: `${faker.helpers.arrayElement(['Agility', 'Obedience', 'Rally', 'Scent Work'])} Trial`,
     date: faker.date.future().toISOString(),
+    trialNumber: String(faker.number.int({ min: 1, max: 5 })),
+    status: 'upcoming',
     classes: [],
-    judgeAssignments: [
-      {
-        judgeId: nextId(),
-        ringNumber: faker.number.int({ min: 1, max: 5 }),
-        classIds: [],
-      },
-    ],
     ...overrides,
   }),
 
   withClass: (trial: Trial, classData: Partial<TrialClass> = {}): Trial => ({
     ...trial,
-    classes: [
-      ...trial.classes,
-      classFactory.build({ ...classData }),
-    ],
+    classes: [...(trial.classes ?? []), classFactory.build({ ...classData })],
   }),
 
   createMany: (count: number, overrides: Partial<Trial> = {}): Trial[] =>
@@ -145,12 +142,9 @@ export const trialFactory = {
 export const classFactory = {
   build: (overrides: Partial<TrialClass> = {}): TrialClass => ({
     id: nextId(),
-    className: faker.helpers.arrayElement(['Novice A', 'Open B', 'Excellent']),
-    classNumber: faker.string.alphanumeric(3).toUpperCase(),
+    name: faker.helpers.arrayElement(['Novice A', 'Open B', 'Excellent']),
     maxEntries: faker.number.int({ min: 20, max: 50 }),
-    currentEntries: faker.number.int({ min: 0, max: 20 }),
     entryFee: faker.number.int({ min: 25, max: 40 }),
-    judgeId: nextId(),
     ...overrides,
   }),
 
@@ -165,10 +159,12 @@ export const clubFactory = {
     name: `${faker.location.city()} Kennel Club`,
     clubNumber: faker.string.alphanumeric(6).toUpperCase(),
     email: faker.internet.email(),
-    phone: faker.phone.number('###-###-####'),
+    phone: faker.phone.number(),
     website: faker.internet.url(),
     description: faker.lorem.sentence(),
     logo: faker.image.url(),
+    coverImage: faker.image.url(),
+    accentColor: '#0d4d4f',
     address: {
       street: faker.location.streetAddress(),
       city: faker.location.city(),
@@ -177,8 +173,16 @@ export const clubFactory = {
       country: 'USA',
     },
     founded: faker.date.past({ years: 50 }),
-    clubType: faker.helpers.arrayElement(['specialty', 'all-breed', 'local', 'regional', 'national'] as const),
+    clubType: faker.helpers.arrayElement([
+      'specialty',
+      'all-breed',
+      'local',
+      'regional',
+      'national',
+    ] as const),
     memberIds: [],
+    upcomingShows: [],
+    pastShows: [],
     ...overrides,
   }),
 
@@ -190,17 +194,17 @@ export const clubFactory = {
 export const userFactory = {
   build: (overrides: Partial<User> = {}): User => ({
     id: nextId(),
+    firstName: faker.person.firstName(),
+    lastName: faker.person.lastName(),
     email: faker.internet.email(),
-    role: 'user',
-    personId: nextId(),
-    createdAt: faker.date.past().toISOString(),
-    lastLogin: faker.date.recent().toISOString(),
+    roles: [UserRole.EXHIBITOR],
+    createdAt: faker.date.past(),
     ...overrides,
   }),
 
-  withRole: (user: User, role: 'user' | 'secretary' | 'admin' | 'judge'): User => ({
+  withRole: (user: User, role: UserRole): User => ({
     ...user,
-    role,
+    roles: [role],
   }),
 
   createMany: (count: number, overrides: Partial<User> = {}): User[] =>
@@ -243,33 +247,27 @@ export class TestDataBuilder {
   // Create a complete show scenario with dogs, people, and entries
   createShowScenario() {
     const club = clubFactory.build();
-    const judge = personFactory.build({ roles: ['judge'] });
-    const secretary = personFactory.build({ roles: ['secretary'] });
-    
+    const judge = personFactory.build({ roles: [UserRole.JUDGE] });
+    const secretary = personFactory.build({ roles: [UserRole.SECRETARY] });
+
     const show = showFactory.build({
       clubId: club.id,
       clubName: club.name,
     });
 
     const trial = trialFactory.build({
-      showId: show.id,
-      judgeAssignments: [{
-        judgeId: judge.id,
-        ringNumber: 1,
-        classIds: [],
-      }],
+      name: `${show.name} Trial`,
     });
 
     // Add some classes
     const classes = classFactory.createMany(3);
     trial.classes = classes;
-    trial.judgeAssignments[0].classIds = classes.map(c => c.id);
-    
+
     show.trials = [trial];
 
     // Create exhibitors with dogs
-    const exhibitors = personFactory.createMany(5, { roles: ['exhibitor'] });
-    const dogs = exhibitors.flatMap((person) => 
+    const exhibitors = personFactory.createMany(5, { roles: [UserRole.EXHIBITOR] });
+    const dogs = exhibitors.flatMap(person =>
       dogFactory.createMany(faker.number.int({ min: 1, max: 3 }), { ownerId: person.id })
     );
 

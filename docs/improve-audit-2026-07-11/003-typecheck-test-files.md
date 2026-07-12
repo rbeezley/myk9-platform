@@ -1,8 +1,6 @@
 # 003 — Bring test files under a typecheck gate
 
-> **Status:** Active
->
-> Stage 1 implemented 2026-07-12; staged rollout remains in progress.
+> **Status:** Complete — 2026-07-12
 
 > Written against commit `15897d862` (2026-07-11). This plan intentionally starts with a measurement step — if the error backlog exceeds ~150 files, STOP after step 2 and report the count instead of fixing everything.
 
@@ -15,7 +13,19 @@ The measurement gate fired: the full original config reported 1,350 errors acros
 
 Stage 1 corrected test-only drift in sync-scope key iteration, missing template-type imports, and shared template fixtures. It deliberately did not change runtime source. `src/test/lib/classGeneration.test.ts` remains outside the blocking allowlist because it exposed a real source-contract mismatch: `mergeFieldValues` stores the object-valued `defaults.entryFees`, while `CreatedClass.fieldValues` only permits primitive/date/array values. Resolve that contract before admitting the file.
 
-Next slices should add one cohesive directory or explicit file group at a time, run the staged gate red, correct test-side drift against the real interfaces, and only then extend the blocking allowlist. Prefer low-dependency leaf tests before broad component/service suites.
+## Final rollout — 2026-07-12
+
+The remaining 1,034 diagnostics across 294 files were corrected against current source contracts. `tsconfig.test.json` now admits every non-E2E test/spec and excludes only Playwright suites. Both `pnpm typecheck:tests` and the retained inventory command `pnpm typecheck:tests:all` pass, so the root `pnpm typecheck` gate blocks future type drift anywhere in the non-E2E test suite.
+
+The rollout also resolved the documented generated-class contract mismatch: `CreatedClass.fieldValues` now models the structured `entryFees` object that `generateClassesFromTemplate` already stores at runtime. Imported legacy source dependencies exposed by the broader program were corrected without changing behavior.
+
+### Final verification
+
+- Cache-independent `pnpm exec tsc --noEmit --incremental false --project tsconfig.test.json` exits 0.
+- Root `pnpm typecheck` runs the myK9Show test gate and exits 0; root `pnpm lint` exits 0.
+- A deliberate type error in a non-E2E test made root `pnpm typecheck` fail; reverting it restored the green gate.
+- Focused runtime verification after the final fixture cleanup passed 24 files / 341 tests.
+- The full local Vitest suite and three CI-shaped shards exceeded the repository's 60-second local-test limit and were stopped as required. No failures were observed before stopping; three earlier observed regressions were fixed and their focused tests pass. CI remains the final full-suite runtime signal.
 
 ## Why this matters
 
@@ -50,4 +60,4 @@ Next slices should add one cohesive directory or explicit file group at a time, 
 
 ## Maintenance note
 
-Only files matching the staged allowlist are type-gated today. Expand that allowlist whenever a test area is made green; do not silently broaden it past known errors. New tests in an already-green directory must match a directory glob in the allowlist; avoid one-file patterns unless neighboring files are explicitly documented as blocked. Keep the full-inventory config in sync if test layout conventions change.
+Every non-E2E test/spec under `apps/myk9show/src` is type-gated. Keep the blocking config and retained full-inventory config aligned when test layout conventions change. Playwright suites stay outside this TypeScript program because their runner-specific environment is verified separately.

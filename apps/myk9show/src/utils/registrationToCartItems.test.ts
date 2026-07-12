@@ -12,7 +12,11 @@ describe('registrationToCartItems', () => {
         },
       ],
       {
-        'dog-1|class-1': { handlerId: 'handler-1', handlerName: 'Pat Handler' },
+        'dog-1|class-1': {
+          handlerId: 'handler-1',
+          handlerName: 'Pat Handler',
+          isOwner: false,
+        },
       },
       [{ id: 'class-1', entryFee: 20 }],
       {
@@ -48,7 +52,11 @@ describe('registrationToCartItems', () => {
         },
       ],
       {
-        'dog-2|class-2': { handlerId: 'handler-2', handlerName: 'Riley Handler' },
+        'dog-2|class-2': {
+          handlerId: 'handler-2',
+          handlerName: 'Riley Handler',
+          isOwner: false,
+        },
       },
       [
         { id: 'class-1', entryFee: 18 },

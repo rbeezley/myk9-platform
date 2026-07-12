@@ -228,8 +228,7 @@ export interface ClassDefinition {
 
   // Class-specific default values for fields marked as defaultVariesByClass
   classSpecificDefaults?:
-    | Record<string, string | number | boolean | Date | string[] | number[]>
-    | undefined;
+    Record<string, string | number | boolean | Date | string[] | number[]> | undefined;
 
   // Class-specific settings
   settings?:
@@ -337,6 +336,18 @@ export interface ClassTemplate {
 }
 
 // Created class instance (from template)
+export type CreatedClassFieldScalar = string | number | boolean | Date | string[];
+
+export type CreatedClassFieldValue =
+  CreatedClassFieldScalar | Record<string, CreatedClassFieldScalar | undefined>;
+
+export type CreatedClassFieldValues = Record<string, CreatedClassFieldValue> & {
+  entryFees?: {
+    preEntry: number;
+    dayOfShow: number;
+  };
+};
+
 export interface CreatedClass {
   // Identity
   id: string;
@@ -361,7 +372,7 @@ export interface CreatedClass {
   completionTime?: Date | undefined;
 
   // All field values (merged from template + overrides)
-  fieldValues: Record<string, string | number | boolean | Date | string[]>;
+  fieldValues: CreatedClassFieldValues;
 
   // Personnel assignments
   personnel: {

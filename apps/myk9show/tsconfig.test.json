@@ -9,13 +9,15 @@
   "include": [
     "src/vite-env.d.ts",
     "src/types/**/*.d.ts",
-    "src/config/**/*.test.ts",
-    "src/constants/**/*.test.ts",
-    "src/test/*.source.test.ts",
-    "src/test/branding/**/*.test.ts",
-    "src/test/config/**/*.test.ts",
-    "src/test/lib/templateValidation.test.ts",
-    "src/test/styles/**/*.test.ts"
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx",
+    "src/test/**/*"
   ],
-  "exclude": []
+  "exclude": [
+    "src/test/e2e/**/*",
+    "src/test/load/playwright-load-tests.spec.ts",
+    "src/test/performance/performance.spec.ts"
+  ]
 }

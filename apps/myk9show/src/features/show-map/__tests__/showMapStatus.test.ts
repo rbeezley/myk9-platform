@@ -6,14 +6,21 @@ import {
   classifyEntryRunStatus,
 } from '../showMapStatus';
 
+const classInput = (status: string) => ({
+  id: 'class-1',
+  trialId: 'trial-1',
+  name: 'Novice',
+  status,
+});
+
 describe('showMapStatus', () => {
   describe('classifyClassWrapUpStatus', () => {
     it('hides wrap-up status until the class is complete', () => {
-      expect(classifyClassWrapUpStatus({ status: 'In Progress' }, [])).toBeUndefined();
+      expect(classifyClassWrapUpStatus(classInput('In Progress'), [])).toBeUndefined();
     });
 
     it('marks completed classes without closeout metadata as ready for wrap-up', () => {
-      expect(classifyClassWrapUpStatus({ status: 'Complete' }, [])).toMatchObject({
+      expect(classifyClassWrapUpStatus(classInput('Complete'), [])).toMatchObject({
         value: 'class-ready-for-wrap-up',
         label: 'Ready for wrap-up',
         kind: 'neutral',
@@ -22,7 +29,7 @@ describe('showMapStatus', () => {
 
     it('marks completed classes with unsigned entries as attention', () => {
       expect(
-        classifyClassWrapUpStatus({ status: 'Complete' }, [{ judge_signature_timestamp: null }])
+        classifyClassWrapUpStatus(classInput('Complete'), [{ judge_signature_timestamp: null }])
       ).toMatchObject({
         value: 'needs-judge-signature',
         label: 'Needs judge signature',
@@ -32,7 +39,7 @@ describe('showMapStatus', () => {
 
     it('marks signed completed classes before submission', () => {
       expect(
-        classifyClassWrapUpStatus({ status: 'Complete' }, [
+        classifyClassWrapUpStatus(classInput('Complete'), [
           { judge_signature_timestamp: '2026-05-18' },
         ])
       ).toMatchObject({
@@ -44,7 +51,7 @@ describe('showMapStatus', () => {
 
     it('marks submitted completed classes as complete', () => {
       expect(
-        classifyClassWrapUpStatus({ status: 'Complete' }, [], {
+        classifyClassWrapUpStatus(classInput('Complete'), [], {
           resultSubmittedAt: '2026-05-18',
         })
       ).toMatchObject({
@@ -56,7 +63,7 @@ describe('showMapStatus', () => {
 
     it('uses completed entry progress as the completion fallback', () => {
       expect(
-        classifyClassWrapUpStatus({ status: 'Scheduled' }, [
+        classifyClassWrapUpStatus(classInput('Scheduled'), [
           { is_scored: true, judge_signature_timestamp: '2026-05-18' },
         ])
       ).toMatchObject({
@@ -72,12 +79,12 @@ describe('showMapStatus', () => {
         { entry_status: 'scratched', check_in_status: 'pulled' },
       ];
 
-      expect(buildClassProgress({ status: 'In Progress' }, entries)).toMatchObject({
+      expect(buildClassProgress(classInput('In Progress'), entries)).toMatchObject({
         completed: 2,
         total: 2,
         label: '2/2 entries complete',
       });
-      expect(classifyClassWrapUpStatus({ status: 'In Progress' }, entries)).toMatchObject({
+      expect(classifyClassWrapUpStatus(classInput('In Progress'), entries)).toMatchObject({
         value: 'signed-by-judge',
         label: 'Signed by judge',
         kind: 'neutral',
@@ -86,7 +93,7 @@ describe('showMapStatus', () => {
 
     it('skips signature requirement when all entries are scratched', () => {
       expect(
-        classifyClassWrapUpStatus({ status: 'In Progress' }, [
+        classifyClassWrapUpStatus(classInput('In Progress'), [
           { entry_status: 'scratched', check_in_status: 'pulled' },
         ])
       ).toMatchObject({

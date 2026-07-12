@@ -56,12 +56,7 @@ import {
   checkEmailExists,
 } from '@/services/database/users';
 
-import {
-  getAllShows,
-  createShow,
-  searchShows,
-  getShowStatistics,
-} from '@/services/database/shows';
+import { getAllShows, createShow, searchShows, getShowStatistics } from '@/services/database/shows';
 
 import type {
   DbDogInsert,
@@ -177,7 +172,7 @@ describe('Comprehensive Database Test Suite', () => {
       const result = await getAllDogs(TEST_PERSON_ID);
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
-      expect(result.error.message).toBe('Connection failed');
+      expect(result.error?.message).toBe('Connection failed');
     });
   });
 
@@ -256,7 +251,7 @@ describe('Comprehensive Database Test Suite', () => {
       const result = await createUser(invalidUserData);
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('23514');
+      expect(result.error?.code).toBe('23514');
     });
   });
 
@@ -291,6 +286,7 @@ describe('Comprehensive Database Test Suite', () => {
         end_date: '2024-07-03',
         location: 'Convention Center',
         club_id: 'club-2',
+        organization: 'AKC',
       };
 
       const createdShow = {
@@ -328,6 +324,7 @@ describe('Comprehensive Database Test Suite', () => {
         end_date: '2024-07-10',
         location: 'Venue',
         club_id: 'club-1',
+        organization: 'AKC',
       };
 
       const dateError = {
@@ -341,7 +338,7 @@ describe('Comprehensive Database Test Suite', () => {
       const result = await createShow(invalidShowData);
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('23514');
+      expect(result.error?.code).toBe('23514');
     });
   });
 
@@ -397,7 +394,7 @@ describe('Comprehensive Database Test Suite', () => {
       const result = await getAllDogs(TEST_PERSON_ID);
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
-      expect(result.error.message).toBe('Network timeout');
+      expect(result.error?.message).toBe('Network timeout');
     });
 
     it('should handle malformed responses', async () => {
@@ -443,7 +440,7 @@ describe('Comprehensive Database Test Suite', () => {
       const result = await createDog(dogData);
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('23503');
+      expect(result.error?.code).toBe('23503');
     });
   });
 

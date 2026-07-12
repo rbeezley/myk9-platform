@@ -173,6 +173,8 @@ describe('usePageTransition', () => {
         rerender();
 
         const styles = result.current.getTransitionStyles();
+        expect('transform' in styles).toBe(true);
+        if (!('transform' in styles)) throw new Error('Expected transform transition style');
 
         expect(styles).toMatchObject({
           transition: expect.any(String),
@@ -244,6 +246,8 @@ describe('usePageTransition', () => {
       rerender();
 
       const styles = result.current.getTransitionStyles();
+      expect('transform' in styles).toBe(true);
+      if (!('transform' in styles)) throw new Error('Expected transform transition style');
 
       expect(styles.transform).toBe('translateX(100%)');
     });

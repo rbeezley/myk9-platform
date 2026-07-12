@@ -5,18 +5,24 @@ import {
 } from '@/services/mappers/registrationMappers';
 import type { DbRegistration } from '@/types/registration-types';
 
-const makeDbRow = (overrides: Partial<DbRegistration> = {}): DbRegistration => ({
-  id: 'reg-001',
-  confirmation_number: 'MK9-000001',
-  show_id: 'show-abc',
-  handler_id: 'handler-xyz',
-  payment_status: 'pending',
-  payment_reference: null,
-  notes: null,
-  created_at: '2026-03-09T10:00:00Z',
-  updated_at: '2026-03-09T10:00:00Z',
-  ...overrides,
-});
+const makeDbRow = (overrides: Partial<DbRegistration> = {}): DbRegistration => {
+  const row: DbRegistration = {
+    id: 'reg-001',
+    confirmation_number: 'MK9-000001',
+    show_id: 'show-abc',
+    handler_id: 'handler-xyz',
+    payment_status: 'pending',
+    payment_reference: null,
+    check_number: null,
+    payment_date: null,
+    group_reference: null,
+    payment_notes: null,
+    notes: null,
+    created_at: '2026-03-09T10:00:00Z',
+    updated_at: '2026-03-09T10:00:00Z',
+  };
+  return Object.assign(row, overrides);
+};
 
 describe('registrationMappers', () => {
   describe('mapDbToRegistration', () => {

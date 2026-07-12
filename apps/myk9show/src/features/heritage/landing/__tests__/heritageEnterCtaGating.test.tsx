@@ -60,6 +60,7 @@ describe('Heritage entry CTAs', () => {
           venueCity="Austin"
           timezone="America/Chicago"
           entryWizardUrl={WIZARD_URL}
+          classesHref="/shows/show-1/classes"
         />
       );
 
@@ -81,6 +82,7 @@ describe('Heritage entry CTAs', () => {
           venueCity="Austin"
           timezone="America/Chicago"
           entryWizardUrl={WIZARD_URL}
+          classesHref="/shows/show-1/classes"
           canEnterOnline={false}
         />
       );
@@ -102,6 +104,7 @@ describe('Heritage entry CTAs', () => {
           venueCity="Austin"
           timezone="America/Chicago"
           entryWizardUrl={WIZARD_URL}
+          classesHref="/shows/show-1/classes"
           canEnterOnline={false}
           entryClosed
         />

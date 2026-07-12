@@ -50,10 +50,7 @@ describe('getRunOrder', () => {
   });
 
   it('handles missing armbands by sorting to front', () => {
-    const entries = [
-      makeEntry({ id: 'e2', armband: '200' }),
-      makeEntry({ id: 'e1', armband: undefined }),
-    ];
+    const entries = [makeEntry({ id: 'e2', armband: '200' }), makeEntry({ id: 'e1' })];
     const result = getRunOrder(entries);
     expect(result.map(e => e.id)).toEqual(['e1', 'e2']);
   });

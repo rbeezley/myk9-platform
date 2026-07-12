@@ -11,15 +11,27 @@ import {
   type LifecycleEmailSupabaseClient,
 } from './api';
 
+interface TestQueryResult<T> {
+  data: T | null;
+  error: { message?: string } | null;
+}
+
+interface TestQueryBuilder<T> extends PromiseLike<TestQueryResult<T>> {
+  select(columns: string): TestQueryBuilder<T>;
+  eq(column: string, value: unknown): TestQueryBuilder<T>;
+  in(column: string, values: readonly unknown[]): TestQueryBuilder<T>;
+  update(values: Record<string, unknown>): TestQueryBuilder<T>;
+}
+
 function createClient(tables: Record<string, unknown[]>): {
   client: LifecycleEmailSupabaseClient;
   calls: Array<{ table: string; action: string; values?: Record<string, unknown> }>;
 } {
   const calls: Array<{ table: string; action: string; values?: Record<string, unknown> }> = [];
   const client: LifecycleEmailSupabaseClient = {
-    from(table: string) {
+    from<T = unknown>(table: string) {
       let rows = [...(tables[table] ?? [])];
-      const builder = {
+      const builder: TestQueryBuilder<T> = {
         select(columns: string) {
           calls.push({ table, action: `select:${columns}` });
           return builder;
@@ -36,8 +48,11 @@ function createClient(tables: Record<string, unknown[]>): {
           calls.push({ table, action: 'update', values });
           return builder;
         },
-        then(resolve: (value: { data: unknown[]; error: null }) => void) {
-          resolve({ data: rows, error: null });
+        then<TResult1 = TestQueryResult<T>, TResult2 = never>(
+          onfulfilled?: ((value: TestQueryResult<T>) => TResult1 | PromiseLike<TResult1>) | null,
+          onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+        ): PromiseLike<TResult1 | TResult2> {
+          return Promise.resolve({ data: rows as T, error: null }).then(onfulfilled, onrejected);
         },
       };
       return builder;

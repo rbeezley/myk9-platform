@@ -5,12 +5,15 @@ import type { ClassRequirements } from '@/hooks/queries/useClassRequirements';
 
 // Mock the useClassRequirements hook
 const mockUseClassRequirements = vi.fn<
-  [],
-  { requirements: ClassRequirements | null; isLoading: boolean; error: Error | null }
+  (options?: unknown) => {
+    requirements: ClassRequirements | null;
+    isLoading: boolean;
+    error: Error | null;
+  }
 >();
 
 vi.mock('@/hooks/queries/useClassRequirements', () => ({
-  useClassRequirements: (...args: unknown[]) => mockUseClassRequirements(...(args as [])),
+  useClassRequirements: (options: unknown) => mockUseClassRequirements(options),
 }));
 
 const defaultProps = {

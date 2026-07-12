@@ -35,6 +35,7 @@ describe('Sentry observability helpers', () => {
 
   it('scrubs user, request, breadcrumb, and domain-specific PII before sending', () => {
     const event: SentryErrorEvent = {
+      type: undefined,
       message: 'Handler Jane Example hit dog AKC DN123456 with jane@example.com at 555-867-5309',
       user: {
         id: 'user-1',
@@ -94,6 +95,7 @@ describe('Sentry observability helpers', () => {
   it('scrubs secret-shaped strings even outside known sensitive keys', () => {
     const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.signature_123';
     const event: SentryErrorEvent = {
+      type: undefined,
       message: `Auth refresh failed ${jwt} sk_live_abcdefgh12345678`,
       extra: {
         checkout: 'https://checkout.stripe.com/c/pay/cs_test_a1b2c3#fidSecret',

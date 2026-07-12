@@ -11,7 +11,7 @@ const rpc = vi.fn<() => Promise<{ error: Error | null }>>(() => Promise.resolve(
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    rpc: (...args: unknown[]) => rpc(...args),
+    rpc: () => rpc(),
   },
   createDatabaseError: (err: unknown) => {
     if (err instanceof Error) return err;
@@ -21,7 +21,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 vi.mock('@/services/AuditService', () => ({
   auditService: {
-    log: (...args: unknown[]) => auditLog(...args),
+    log: () => auditLog(),
   },
 }));
 
@@ -89,9 +89,7 @@ describe('updateReplicatedCheckInStatus', () => {
   });
 
   it('queues day-of scratch through replicated entry status and check-in status fields', async () => {
-    await expect(updateReplicatedDayOfScratch('entry-1', 'Dog absent')).resolves.toBe(
-      'mutation-1'
-    );
+    await expect(updateReplicatedDayOfScratch('entry-1', 'Dog absent')).resolves.toBe('mutation-1');
 
     expect(updateEntry).toHaveBeenCalledWith('entry-1', {
       entryStatus: 'scratched',

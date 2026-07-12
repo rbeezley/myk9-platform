@@ -9,6 +9,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 type ChangeHandler = (payload: unknown) => void;
+interface MockChannel {
+  on: (event: string, config: { table: string }, handler: ChangeHandler) => MockChannel;
+  subscribe: () => MockChannel;
+}
 
 const handlers: { entries: ChangeHandler[]; classes: ChangeHandler[] } = {
   entries: [],
@@ -23,12 +27,9 @@ const removeChannel = vi.fn(() => {
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     channel: vi.fn(() => {
-      const channel = {
-        on: (
-          _event: string,
-          config: { table: string },
-          handler: ChangeHandler
-        ): typeof channel => {
+      const channel: MockChannel = {
+        on: (event: string, config: { table: string }, handler: ChangeHandler): typeof channel => {
+          void event;
           if (config.table === 'entries') handlers.entries.push(handler);
           if (config.table === 'classes') handlers.classes.push(handler);
           return channel;
@@ -37,7 +38,7 @@ vi.mock('@/lib/supabase', () => ({
       };
       return channel;
     }),
-    removeChannel: (...args: unknown[]) => removeChannel(...args),
+    removeChannel: () => removeChannel(),
   },
 }));
 

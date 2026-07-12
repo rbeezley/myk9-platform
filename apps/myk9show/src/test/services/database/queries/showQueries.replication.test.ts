@@ -145,6 +145,7 @@ function makeJudgeAssignment(
     classStatus: null,
     classStartTime: null,
     classScoredCount: null,
+    classCheckedInCount: null,
     classTotalEntries: null,
     trialDate: null,
     trialTimezone: null,

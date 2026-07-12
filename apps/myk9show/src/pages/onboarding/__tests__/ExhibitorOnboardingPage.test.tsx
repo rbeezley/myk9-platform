@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent } from '@testing-library/react';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import type { User } from '@supabase/supabase-js';
 import { UserRole } from '@/types/auth-types';
@@ -40,22 +41,24 @@ const mockUseAuthContext = vi.mocked(useAuthContext);
 const mockUseExhibitorProfile = vi.mocked(useExhibitorProfile);
 
 function setupAuth(roles: UserRole[]) {
-  mockUseAuthContext.mockReturnValue({
-    user: {
-      id: 'auth-user-id',
-      email: 'secretary@myk9t.com',
-      user_metadata: { first_name: 'Test', last_name: 'Secretary' },
-    },
-    userWithRoles: {
-      id: 'auth-user-id',
-      email: 'secretary@myk9t.com',
-      roles,
-      permissions: [],
-      scopes: [],
-    },
-    loading: false,
-    rbacLoading: false,
-  } as ReturnType<typeof useAuthContext>);
+  mockUseAuthContext.mockReturnValue(
+    fromPartial<ReturnType<typeof useAuthContext>>({
+      user: {
+        id: 'auth-user-id',
+        email: 'secretary@myk9t.com',
+        user_metadata: { first_name: 'Test', last_name: 'Secretary' },
+      },
+      userWithRoles: {
+        id: 'auth-user-id',
+        email: 'secretary@myk9t.com',
+        roles,
+        permissions: [],
+        scopes: [],
+      },
+      loading: false,
+      rbacLoading: false,
+    })
+  );
 }
 
 function setupUnauthenticated() {

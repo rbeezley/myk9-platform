@@ -5,7 +5,9 @@ import { RingsideSessionHeartbeat } from '../RingsideSessionHeartbeat';
 
 const { getExistingSubscriptionMock, rpcMock } = vi.hoisted(() => ({
   getExistingSubscriptionMock: vi.fn(),
-  rpcMock: vi.fn(() => Promise.resolve({ data: null, error: null })),
+  rpcMock: vi.fn<
+    (functionName: string, args?: Record<string, unknown>) => Promise<{ data: null; error: null }>
+  >(() => Promise.resolve({ data: null, error: null })),
 }));
 
 vi.mock('@myk9/notifications', () => ({

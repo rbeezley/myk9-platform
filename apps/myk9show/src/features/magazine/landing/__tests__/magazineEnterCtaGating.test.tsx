@@ -70,6 +70,7 @@ describe('Magazine landing Enter CTA gating', () => {
       const { getByRole, queryByText } = render(
         <FinalEditorialBand
           entryWizardUrl={ENTRY_URL}
+          classesHref="/shows/show-1/classes"
           entryCloseDate={null}
           timezone="America/New_York"
         />
@@ -88,6 +89,7 @@ describe('Magazine landing Enter CTA gating', () => {
       const { getByRole } = render(
         <FinalEditorialBand
           entryWizardUrl={ENTRY_URL}
+          classesHref="/shows/show-1/classes"
           entryCloseDate={null}
           timezone="America/New_York"
           canEnterOnline={true}
@@ -104,6 +106,7 @@ describe('Magazine landing Enter CTA gating', () => {
       const { queryByRole, getByText } = render(
         <FinalEditorialBand
           entryWizardUrl={ENTRY_URL}
+          classesHref="/shows/show-1/classes"
           entryCloseDate={null}
           timezone="America/New_York"
           canEnterOnline={false}
@@ -121,6 +124,7 @@ describe('Magazine landing Enter CTA gating', () => {
       const { queryByRole, getByText, queryByText } = render(
         <FinalEditorialBand
           entryWizardUrl={ENTRY_URL}
+          classesHref="/shows/show-1/classes"
           entryCloseDate={null}
           timezone="America/New_York"
           canEnterOnline={false}

@@ -22,7 +22,7 @@ const mockGetReplicatedEntriesByClass = vi.fn();
 const mockGetReplicatedTrialById = vi.fn();
 const mockCreateReplicatedEntry = vi.fn();
 const mockDeleteReplicatedEntry = vi.fn();
-const mockAuditLog = vi.fn<() => Promise<void>>(() => Promise.resolve());
+const mockAuditLog = vi.fn<(...args: unknown[]) => Promise<void>>(() => Promise.resolve());
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {

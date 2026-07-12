@@ -1,4 +1,9 @@
-import { ClassTemplate, ClassDefinition, CreatedClass } from '@/types/template.types';
+import {
+  ClassTemplate,
+  ClassDefinition,
+  CreatedClass,
+  CreatedClassFieldValues,
+} from '@/types/template.types';
 import { generateClassName } from './templateValidation';
 
 export interface ClassGenerationOptions {
@@ -55,7 +60,7 @@ export const generateClassesFromTemplate = (
     success: errors.length === 0,
     classes,
     errors,
-    warnings
+    warnings,
   };
 };
 
@@ -70,7 +75,7 @@ const generateSingleClass = (
 ): CreatedClass => {
   const className = generateClassName(classDef);
   const classNumber = generateClassNumber(classDef, runOrder);
-  
+
   // Merge field values from template, defaults, and overrides
   const fieldValues = mergeFieldValues(classDef, options.fieldOverrides, template);
 
@@ -88,25 +93,25 @@ const generateSingleClass = (
     section: classDef.section,
     status: 'Scheduled',
     runOrder,
-    
-    // Field values  
+
+    // Field values
     fieldValues,
-    
+
     // Personnel
     personnel: {
-      stewards: {}
+      stewards: {},
     },
-    
+
     // Entry tracking
     entries: {
       maxEntries: (fieldValues.maxEntries as number) || 30,
       currentEntries: 0,
-      waitlistEntries: 0
+      waitlistEntries: 0,
     },
-    
+
     // Audit trail
     createdBy: options.createdBy,
-    createdAt: new Date()
+    createdAt: new Date(),
   };
 
   return createdClass;
@@ -119,8 +124,8 @@ const mergeFieldValues = (
   classDef: ClassDefinition,
   overrides: Record<string, unknown>,
   template: ClassTemplate
-): Record<string, string | number | boolean | Date | string[]> => {
-  const values: Record<string, string | number | boolean | Date | string[]> = {};
+): CreatedClassFieldValues => {
+  const values: CreatedClassFieldValues = {};
 
   // Start with template defaults
   if (template.defaults) {
@@ -156,7 +161,7 @@ const generateClassNumber = (classDef: ClassDefinition, runOrder: number): strin
   const elementCode = classDef.element.charAt(0).toUpperCase();
   const levelCode = classDef.level ? classDef.level.charAt(0).toUpperCase() : '';
   const sectionCode = classDef.section || '';
-  
+
   return `${elementCode}${levelCode}${sectionCode}-${runOrder}`;
 };
 
@@ -167,7 +172,7 @@ const generateClassNumber = (classDef: ClassDefinition, runOrder: number): strin
 // - getDistractions
 // - getFees
 // - getEstimatedJudgingTime
-// 
+//
 // These values should be stored in the fieldValues record instead.
 
 /**
@@ -181,10 +186,11 @@ export const validateClassGeneration = (
   const errors: string[] = [];
 
   // Check if class definition exists in template
-  const exists = template.classDefinitions.some(def => 
-    def.element === classDef.element &&
-    def.level === classDef.level &&
-    def.section === classDef.section
+  const exists = template.classDefinitions.some(
+    def =>
+      def.element === classDef.element &&
+      def.level === classDef.level &&
+      def.section === classDef.section
   );
 
   if (!exists) {
@@ -194,13 +200,13 @@ export const validateClassGeneration = (
   // Validate overrides against field specifications from the template
   template.fieldSpecifications.forEach(fieldSpec => {
     const overrideValue = overrides[fieldSpec.fieldName];
-    
+
     if (overrideValue !== undefined) {
       // Check if field allows overrides
       if (fieldSpec.fieldSource === 'rule-based' && !fieldSpec.editable) {
         errors.push(`Field ${fieldSpec.fieldName} is rule-based and cannot be overridden`);
       }
-      
+
       // Validate data types
       if (fieldSpec.dataType === 'number' && isNaN(Number(overrideValue))) {
         errors.push(`Field ${fieldSpec.fieldName} must be a number`);
@@ -210,6 +216,6 @@ export const validateClassGeneration = (
 
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
   };
 };

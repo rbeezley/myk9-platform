@@ -115,7 +115,7 @@ describe('Phase 5 Support Systems Tests', () => {
       expect(updatedStore.drafts).toHaveLength(1);
 
       // Test load
-      const loadedDraft = store.loadDraft(draftId);
+      const loadedDraft = store.loadDraft<typeof testData>(draftId);
       expect(loadedDraft).not.toBeNull();
       expect(loadedDraft?.data).toEqual(testData);
       expect(loadedDraft?.metadata.title).toBe('Test Draft');
@@ -125,7 +125,7 @@ describe('Phase 5 Support Systems Tests', () => {
       const updateSuccess = store.updateDraft(draftId, updatedData);
       expect(updateSuccess).toBe(true);
 
-      const updatedDraft = store.loadDraft(draftId);
+      const updatedDraft = store.loadDraft<typeof updatedData>(draftId);
       expect(updatedDraft?.data.formField3).toBe('new field');
 
       // Test delete
@@ -174,7 +174,7 @@ describe('Phase 5 Support Systems Tests', () => {
         },
       ];
 
-      const savedIds = store.saveBulkDrafts(draftsToSave);
+      const savedIds = store.saveBulkDrafts<{ field1?: string; field2?: string }>(draftsToSave);
       expect(savedIds).toHaveLength(2);
       expect(useDraftStore.getState().drafts).toHaveLength(2);
 

@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createChainableQuery, mockSupabase, resetMockSupabase } from '@/test/mocks/supabase';
+import { fromAny } from '@total-typescript/shoehorn';
+
+const fromMock = fromAny<
+  {
+    mockImplementation: (implementation: (table: string) => object) => void;
+    mock: { calls: Array<[string]> };
+  },
+  typeof mockSupabase.from
+>(mockSupabase.from);
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: mockSupabase,
@@ -113,7 +122,7 @@ const qualifiedRows = [
 ];
 
 function mockActiveDisplayQueries() {
-  mockSupabase.from.mockImplementation((table: string) => {
+  fromMock.mockImplementation((table: string) => {
     if (table === 'shows') return createChainableQuery({ data: showRow, error: null });
     if (table === 'classes') return createChainableQuery({ data: activeClassRows, error: null });
     if (table === 'entries') return createChainableQuery({ data: activeEntryRows, error: null });
@@ -123,7 +132,7 @@ function mockActiveDisplayQueries() {
 
 function mockCompletedResultQueries() {
   let resultsCall = 0;
-  mockSupabase.from.mockImplementation((table: string) => {
+  fromMock.mockImplementation((table: string) => {
     if (table === 'classes') return createChainableQuery({ data: completedClassRows, error: null });
     // Results are read through the cascade-gated public view, not the raw table.
     if (table === 'view_public_entry_results') {
@@ -148,11 +157,7 @@ describe('tv-display database reads', () => {
 
     const result = await getTVDisplayData('show-1');
 
-    expect(mockSupabase.from.mock.calls.map(([table]) => table)).toEqual([
-      'shows',
-      'classes',
-      'entries',
-    ]);
+    expect(fromMock.mock.calls.map(([table]) => table)).toEqual(['shows', 'classes', 'entries']);
     expect(result.show).toEqual({
       id: 'show-1',
       name: 'Spring Trial 2026',
@@ -174,7 +179,7 @@ describe('tv-display database reads', () => {
   });
 
   it('returns the show with an empty class list when no active classes are online', async () => {
-    mockSupabase.from.mockImplementation((table: string) => {
+    fromMock.mockImplementation((table: string) => {
       if (table === 'shows') return createChainableQuery({ data: showRow, error: null });
       if (table === 'classes') return createChainableQuery({ data: [], error: null });
       return createChainableQuery();
@@ -182,7 +187,7 @@ describe('tv-display database reads', () => {
 
     const result = await getTVDisplayData('show-1');
 
-    expect(mockSupabase.from.mock.calls.map(([table]) => table)).toEqual(['shows', 'classes']);
+    expect(fromMock.mock.calls.map(([table]) => table)).toEqual(['shows', 'classes']);
     expect(result.show?.id).toBe('show-1');
     expect(result.classes).toEqual([]);
   });
@@ -192,7 +197,7 @@ describe('tv-display database reads', () => {
 
     const result = await getTVDisplayResults('show-1');
 
-    expect(mockSupabase.from.mock.calls.map(([table]) => table)).toEqual([
+    expect(fromMock.mock.calls.map(([table]) => table)).toEqual([
       'classes',
       'view_public_entry_results',
       'view_public_entry_results',

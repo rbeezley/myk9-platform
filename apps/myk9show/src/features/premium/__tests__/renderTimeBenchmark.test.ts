@@ -85,7 +85,9 @@ describe.skip('renderTimeBenchmark — manual perf check', () => {
       const { pdf } = await import('@react-pdf/renderer');
       const { AKCPremiumTemplate } = await import('../pdf/AKCPremiumTemplate');
       const premium = makePremium(style);
-      const element = React.createElement(AKCPremiumTemplate, { premium });
+      const element = React.createElement(AKCPremiumTemplate, { premium }) as Parameters<
+        typeof pdf
+      >[0];
 
       // Cold render (warm-up — discarded).
       await pdf(element).toBlob();
@@ -93,7 +95,10 @@ describe.skip('renderTimeBenchmark — manual perf check', () => {
       const samples: number[] = [];
       for (let i = 0; i < 2; i++) {
         const start = performance.now();
-        await pdf(React.createElement(AKCPremiumTemplate, { premium })).toBlob();
+        const warmElement = React.createElement(AKCPremiumTemplate, { premium }) as Parameters<
+          typeof pdf
+        >[0];
+        await pdf(warmElement).toBlob();
         samples.push(performance.now() - start);
       }
       const avgMs = samples.reduce((a, b) => a + b, 0) / samples.length;

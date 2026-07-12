@@ -244,7 +244,7 @@ export class LoadTestRunner {
           break;
 
         case 'realtime':
-          await this.executeRealtimeStep(page, step);
+          await this.executeRealtimeStep(page);
           break;
 
         default:
@@ -513,6 +513,3 @@ interface UserContext {
     favoriteShows: { id: string; name: string; organization: string }[];
   };
 }
-
-// Export main test runner
-export { LoadTestRunner };

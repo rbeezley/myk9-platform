@@ -23,10 +23,10 @@ describe('Phase 3.5: Payment Security and Compliance', () => {
       const tokenizedData = await tokenizePaymentData(paymentData);
 
       // Verify no sensitive data is stored
-      expect(tokenizedData.cardNumber).toBeUndefined();
-      expect(tokenizedData.cvv).toBeUndefined();
-      expect(tokenizedData.expiryMonth).toBeUndefined();
-      expect(tokenizedData.expiryYear).toBeUndefined();
+      expect('cardNumber' in tokenizedData).toBe(false);
+      expect('cvv' in tokenizedData).toBe(false);
+      expect('expiryMonth' in tokenizedData).toBe(false);
+      expect('expiryYear' in tokenizedData).toBe(false);
 
       // Verify only safe data is stored
       expect(tokenizedData.last4).toBe('1111');
@@ -286,8 +286,8 @@ describe('Phase 3.5: Payment Security and Compliance', () => {
       const maskedData = await maskPaymentDataForDisplay(fullPaymentData, 'user');
 
       // Verify sensitive data is masked
-      expect(maskedData.cardNumber).toBeUndefined();
-      expect(maskedData.cvv).toBeUndefined();
+      expect('cardNumber' in maskedData).toBe(false);
+      expect('cvv' in maskedData).toBe(false);
       expect(maskedData.last4).toBe('****1111');
       expect(maskedData.transactionId).toBe('txn_****56789');
 
@@ -307,8 +307,8 @@ describe('Phase 3.5: Payment Security and Compliance', () => {
       const gdprExport = await processGDPRRequest(dataSubject);
 
       expect(gdprExport.success).toBe(true);
-      expect(gdprExport.data.paymentHistory).toBeDefined();
-      expect(gdprExport.data.personalData).toBeDefined();
+      expect(gdprExport.data?.paymentHistory).toBeDefined();
+      expect(gdprExport.data?.personalData).toBeDefined();
       expect(gdprExport.format).toBe('json');
       expect(gdprExport.encrypted).toBe(true);
 
@@ -321,8 +321,8 @@ describe('Phase 3.5: Payment Security and Compliance', () => {
       const deletionResult = await processGDPRRequest(deletionRequest);
 
       expect(deletionResult.success).toBe(true);
-      expect(deletionResult.dataRemoved.paymentReferences).toBeGreaterThan(0);
-      expect(deletionResult.dataRetained.auditLogs).toBeGreaterThan(0); // Legal requirement
+      expect(deletionResult.dataRemoved!.paymentReferences).toBeGreaterThan(0);
+      expect(deletionResult.dataRetained!.auditLogs).toBeGreaterThan(0); // Legal requirement
     });
 
     it('should implement proper consent management for payment data', async () => {

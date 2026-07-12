@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // Mock audit service before any imports that use it
 vi.mock('../../services/AuditService', () => ({
@@ -95,6 +96,9 @@ Object.defineProperty(document, 'readyState', {
 import { PerformanceService } from '../../services/PerformanceService';
 import { auditService } from '../../services/AuditService';
 
+const mutableWindow = fromAny<Record<string, unknown>, typeof window>(window);
+const mutableNavigator = fromAny<Record<string, unknown>, typeof navigator>(navigator);
+
 describe('PerformanceService', () => {
   let service: PerformanceService;
 
@@ -165,16 +169,16 @@ describe('PerformanceService', () => {
     it('should collect basic performance metrics', async () => {
       mockPerformance.getEntriesByType.mockImplementation((type: string) => {
         if (type === 'navigation') {
-          return [{
-            fetchStart: 1000,
-            loadEventEnd: 4000,
-            domContentLoadedEventEnd: 3000,
-          }];
+          return [
+            {
+              fetchStart: 1000,
+              loadEventEnd: 4000,
+              domContentLoadedEventEnd: 3000,
+            },
+          ];
         }
         if (type === 'paint') {
-          return [
-            { name: 'first-contentful-paint', startTime: 1500 },
-          ];
+          return [{ name: 'first-contentful-paint', startTime: 1500 }];
         }
         if (type === 'resource') {
           return [
@@ -255,7 +259,11 @@ describe('PerformanceService', () => {
     });
 
     it('should handle already loaded document', async () => {
-      Object.defineProperty(document, 'readyState', { value: 'complete', writable: true, configurable: true });
+      Object.defineProperty(document, 'readyState', {
+        value: 'complete',
+        writable: true,
+        configurable: true,
+      });
 
       await service.measurePageLoad('already-loaded');
 
@@ -272,11 +280,9 @@ describe('PerformanceService', () => {
         return callCount <= 1 ? 1000 : 2000;
       });
 
-      const result = await service.measureAsyncOperation(
-        mockOperation,
-        'test-operation',
-        { context: 'test' }
-      );
+      const result = await service.measureAsyncOperation(mockOperation, 'test-operation', {
+        context: 'test',
+      });
 
       expect(result).toBe('success');
       expect(auditService.log).toHaveBeenCalledWith(
@@ -370,16 +376,16 @@ describe('PerformanceService', () => {
 
       mockPerformance.getEntriesByType.mockImplementation((type: string) => {
         if (type === 'navigation') {
-          return [{
-            fetchStart: 1000,
-            loadEventEnd: 6000,
-            domContentLoadedEventEnd: 5000,
-          }];
+          return [
+            {
+              fetchStart: 1000,
+              loadEventEnd: 6000,
+              domContentLoadedEventEnd: 5000,
+            },
+          ];
         }
         if (type === 'paint') {
-          return [
-            { name: 'first-contentful-paint', startTime: 2000 },
-          ];
+          return [{ name: 'first-contentful-paint', startTime: 2000 }];
         }
         return [];
       });
@@ -399,16 +405,16 @@ describe('PerformanceService', () => {
 
       mockPerformance.getEntriesByType.mockImplementation((type: string) => {
         if (type === 'navigation') {
-          return [{
-            fetchStart: 1000,
-            loadEventEnd: 3000,
-            domContentLoadedEventEnd: 2500,
-          }];
+          return [
+            {
+              fetchStart: 1000,
+              loadEventEnd: 3000,
+              domContentLoadedEventEnd: 2500,
+            },
+          ];
         }
         if (type === 'paint') {
-          return [
-            { name: 'first-contentful-paint', startTime: 1200 },
-          ];
+          return [{ name: 'first-contentful-paint', startTime: 1200 }];
         }
         return [];
       });
@@ -482,7 +488,7 @@ describe('PerformanceService', () => {
     it('should handle missing PerformanceObserver gracefully', () => {
       const originalObserver = (globalThis as Record<string, unknown>).PerformanceObserver;
       delete (globalThis as Record<string, unknown>).PerformanceObserver;
-      delete (window as Record<string, unknown>).PerformanceObserver;
+      delete mutableWindow.PerformanceObserver;
 
       const svc = new PerformanceService();
       expect(() => svc.startMonitoring()).not.toThrow();
@@ -506,13 +512,13 @@ describe('PerformanceService', () => {
     });
 
     it('should handle missing navigator.connection gracefully', async () => {
-      const originalConnection = (navigator as Record<string, unknown>).connection;
+      const originalConnection = mutableNavigator.connection;
       Object.defineProperty(navigator, 'connection', {
         value: undefined,
         writable: true,
         configurable: true,
       });
-      delete (navigator as Record<string, unknown>).connection;
+      delete mutableNavigator.connection;
 
       const metrics = await collectMetricsWithTimers();
       expect(metrics.connectionInfo).toBeUndefined();

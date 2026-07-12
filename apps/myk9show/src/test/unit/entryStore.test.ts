@@ -38,7 +38,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         },
       };
 
-      const entry = await entryStore.createEntry(entryData);
+      const entry = await entryStore.createEntry(entryData, 'test-user');
 
       // Verify entry creation
       expect(entry).toBeDefined();
@@ -69,7 +69,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         },
       };
 
-      await entryStore.createEntry(entryData);
+      await entryStore.createEntry(entryData, 'test-user');
 
       // Get fresh state to verify entry is in store
       const freshState = useEntryStore.getState();
@@ -86,17 +86,20 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
 
     beforeEach(async () => {
       const entryStore = useEntryStore.getState();
-      const entry = await entryStore.createEntry({
-        showId: 'test-show-123',
-        classId: 'novice-standard',
-        dogId: 'test-dog-1',
-        registrationData: {
-          submittedAt: new Date().toISOString(),
-          handler: 'Test Handler',
-          entryFee: 25.0,
-          paymentStatus: 'pending',
+      const entry = await entryStore.createEntry(
+        {
+          showId: 'test-show-123',
+          classId: 'novice-standard',
+          dogId: 'test-dog-1',
+          registrationData: {
+            submittedAt: new Date().toISOString(),
+            handler: 'Test Handler',
+            entryFee: 25.0,
+            paymentStatus: 'pending',
+          },
         },
-      });
+        'test-user'
+      );
       entryId = entry.id;
     });
 
@@ -166,11 +169,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         .mockResolvedValue('mutation-1');
       const updateEntry = vi.spyOn(replicatedEntriesTable, 'updateEntry');
 
-      const updated = await entryStore.updateCheckInStatus(
-        entryId,
-        'checked-in',
-        'gate-user'
-      );
+      const updated = await entryStore.updateCheckInStatus(entryId, 'checked-in', 'gate-user');
 
       expect(updateCheckInStatus).toHaveBeenCalledWith(entryId, 'checked-in');
       expect(updateEntry).not.toHaveBeenCalled();
@@ -186,87 +185,92 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
 
     beforeEach(async () => {
       const entryStore = useEntryStore.getState();
-      const entry = await entryStore.createEntry({
-        showId: 'test-show-123',
-        classId: 'novice-standard',
-        dogId: 'test-dog-1',
-        registrationData: {
-          submittedAt: new Date().toISOString(),
-          handler: 'Test Handler',
-          entryFee: 25.0,
-          paymentStatus: 'pending',
+      const entry = await entryStore.createEntry(
+        {
+          showId: 'test-show-123',
+          classId: 'novice-standard',
+          dogId: 'test-dog-1',
+          registrationData: {
+            submittedAt: new Date().toISOString(),
+            handler: 'Test Handler',
+            entryFee: 25.0,
+            paymentStatus: 'pending',
+          },
         },
-      });
+        'test-user'
+      );
       entryId = entry.id;
     });
 
     it('should update payment status to paid', async () => {
       const entryStore = useEntryStore.getState();
 
-      const updatedEntry = await entryStore.updateRegistration(entryId, {
-        paymentStatus: 'paid',
-        paymentReference: 'cc-12345',
-      });
+      const updatedEntry = await entryStore.updateRegistration(
+        entryId,
+        { paymentStatus: 'paid' },
+        'payment-system'
+      );
 
       expect(updatedEntry).toBeDefined();
       expect(updatedEntry!.registrationData.paymentStatus).toBe('paid');
-      expect(updatedEntry!.registrationData.paymentReference).toBe('cc-12345');
     });
 
-    it('should handle different payment methods', async () => {
+    it('should update payment status independently for multiple entries', async () => {
       const entryStore = useEntryStore.getState();
 
-      // Test credit card payment
-      const ccEntry = await entryStore.updateRegistration(entryId, {
-        paymentStatus: 'paid',
-        paymentMethod: 'credit_card',
-        paymentReference: 'cc-12345',
-      });
+      const ccEntry = await entryStore.updateRegistration(
+        entryId,
+        { paymentStatus: 'paid' },
+        'payment-system'
+      );
 
       expect(ccEntry!.registrationData.paymentStatus).toBe('paid');
-      expect(ccEntry!.registrationData.paymentMethod).toBe('credit_card');
 
       // Create another entry for check payment
-      const checkEntry = await entryStore.createEntry({
-        showId: 'test-show-123',
-        classId: 'open-standard',
-        dogId: 'test-dog-2',
-        registrationData: {
-          submittedAt: new Date().toISOString(),
-          handler: 'Test Handler 2',
-          entryFee: 30.0,
-          paymentStatus: 'pending',
+      const checkEntry = await entryStore.createEntry(
+        {
+          showId: 'test-show-123',
+          classId: 'open-standard',
+          dogId: 'test-dog-2',
+          registrationData: {
+            submittedAt: new Date().toISOString(),
+            handler: 'Test Handler 2',
+            entryFee: 30.0,
+            paymentStatus: 'pending',
+          },
         },
-      });
+        'test-user'
+      );
 
-      const checkPaid = await entryStore.updateRegistration(checkEntry.id, {
-        paymentStatus: 'paid',
-        paymentMethod: 'check',
-        checkNumber: '1234',
-      });
+      const checkPaid = await entryStore.updateRegistration(
+        checkEntry.id,
+        { paymentStatus: 'paid' },
+        'payment-system'
+      );
 
       expect(checkPaid!.registrationData.paymentStatus).toBe('paid');
-      expect(checkPaid!.registrationData.paymentMethod).toBe('check');
-      expect(checkPaid!.registrationData.checkNumber).toBe('1234');
     });
 
     it('should calculate total fees correctly', async () => {
       const entryStore = useEntryStore.getState();
 
       // Create multiple entries for the same show
-      await entryStore.createEntry({
-        showId: 'test-show-123',
-        classId: 'open-standard',
-        dogId: 'test-dog-2',
-        registrationData: {
-          submittedAt: new Date().toISOString(),
-          handler: 'Handler 2',
-          entryFee: 30.0,
-          paymentStatus: 'paid',
+      await entryStore.createEntry(
+        {
+          showId: 'test-show-123',
+          classId: 'open-standard',
+          dogId: 'test-dog-2',
+          registrationData: {
+            submittedAt: new Date().toISOString(),
+            handler: 'Handler 2',
+            entryFee: 30.0,
+            paymentStatus: 'paid',
+          },
         },
-      });
+        'test-user'
+      );
 
-      await entryStore.updateRegistration(entryId, { paymentStatus: 'paid' });
+      await entryStore.updateRegistration(entryId, { paymentStatus: 'paid' }, 'payment-system');
 
       const stats = entryStore.getStatsForShow('test-show-123');
 
@@ -280,29 +284,35 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
       const entryStore = useEntryStore.getState();
 
       // Create test entries with different statuses
-      const entry1 = await entryStore.createEntry({
-        showId: 'test-show-123',
-        classId: 'novice-standard',
-        dogId: 'dog-1',
-        registrationData: {
-          submittedAt: new Date().toISOString(),
-          handler: 'Handler 1',
-          entryFee: 25.0,
-          paymentStatus: 'paid',
+      const entry1 = await entryStore.createEntry(
+        {
+          showId: 'test-show-123',
+          classId: 'novice-standard',
+          dogId: 'dog-1',
+          registrationData: {
+            submittedAt: new Date().toISOString(),
+            handler: 'Handler 1',
+            entryFee: 25.0,
+            paymentStatus: 'paid',
+          },
         },
-      });
+        'test-user'
+      );
 
-      const entry2 = await entryStore.createEntry({
-        showId: 'test-show-123',
-        classId: 'open-standard',
-        dogId: 'dog-2',
-        registrationData: {
-          submittedAt: new Date().toISOString(),
-          handler: 'Handler 2',
-          entryFee: 30.0,
-          paymentStatus: 'pending',
+      const entry2 = await entryStore.createEntry(
+        {
+          showId: 'test-show-123',
+          classId: 'open-standard',
+          dogId: 'dog-2',
+          registrationData: {
+            submittedAt: new Date().toISOString(),
+            handler: 'Handler 2',
+            entryFee: 30.0,
+            paymentStatus: 'pending',
+          },
         },
-      });
+        'test-user'
+      );
 
       // Update statuses
       await entryStore.updateStatus(entry1.id, 'confirmed', 'secretary');
@@ -379,7 +389,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         },
       ];
 
-      const entries = await entryStore.createMultipleEntries(entriesData);
+      const entries = await entryStore.createMultipleEntries(entriesData, 'test-user');
 
       expect(entries).toHaveLength(2);
       expect(entries[0].showId).toBe('test-show-123');
@@ -392,30 +402,33 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
       const entryStore = useEntryStore.getState();
 
       // Create entries
-      const entries = await entryStore.createMultipleEntries([
-        {
-          showId: 'test-show-123',
-          classId: 'novice-standard',
-          dogId: 'dog-1',
-          registrationData: {
-            submittedAt: new Date().toISOString(),
-            handler: 'Handler 1',
-            entryFee: 25.0,
-            paymentStatus: 'pending',
+      const entries = await entryStore.createMultipleEntries(
+        [
+          {
+            showId: 'test-show-123',
+            classId: 'novice-standard',
+            dogId: 'dog-1',
+            registrationData: {
+              submittedAt: new Date().toISOString(),
+              handler: 'Handler 1',
+              entryFee: 25.0,
+              paymentStatus: 'pending',
+            },
           },
-        },
-        {
-          showId: 'test-show-123',
-          classId: 'open-standard',
-          dogId: 'dog-2',
-          registrationData: {
-            submittedAt: new Date().toISOString(),
-            handler: 'Handler 2',
-            entryFee: 30.0,
-            paymentStatus: 'pending',
+          {
+            showId: 'test-show-123',
+            classId: 'open-standard',
+            dogId: 'dog-2',
+            registrationData: {
+              submittedAt: new Date().toISOString(),
+              handler: 'Handler 2',
+              entryFee: 30.0,
+              paymentStatus: 'pending',
+            },
           },
-        },
-      ]);
+        ],
+        'test-user'
+      );
 
       const entryIds = entries.map(e => e.id);
 
@@ -433,17 +446,20 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
 
     beforeEach(async () => {
       const entryStore = useEntryStore.getState();
-      const entry = await entryStore.createEntry({
-        showId: 'test-show-123',
-        classId: 'novice-standard',
-        dogId: 'test-dog-1',
-        registrationData: {
-          submittedAt: new Date().toISOString(),
-          handler: 'Test Handler',
-          entryFee: 25.0,
-          paymentStatus: 'paid',
+      const entry = await entryStore.createEntry(
+        {
+          showId: 'test-show-123',
+          classId: 'novice-standard',
+          dogId: 'test-dog-1',
+          registrationData: {
+            submittedAt: new Date().toISOString(),
+            handler: 'Test Handler',
+            entryFee: 25.0,
+            paymentStatus: 'paid',
+          },
         },
-      });
+        'test-user'
+      );
       entryId = entry.id;
 
       // Progress to competing status
@@ -463,6 +479,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         qualified: true,
         qualification: 'Qualified',
         recordedBy: 'judge-1',
+        recordedAt: new Date().toISOString(),
       };
 
       const completedEntry = await entryStore.recordResult(entryId, result);
@@ -485,15 +502,20 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         placement: '1st',
         qualified: true,
         recordedBy: 'judge-1',
+        recordedAt: new Date().toISOString(),
       });
 
       // Update result
-      const updatedEntry = await entryStore.updateResult(entryId, {
-        score: '198',
-        placement: '1st',
-        judgeNotes: 'Excellent performance',
-        recordedBy: 'judge-1',
-      });
+      const updatedEntry = await entryStore.updateResult(
+        entryId,
+        {
+          score: '198',
+          placement: '1st',
+          judgeNotes: 'Excellent performance',
+          recordedBy: 'judge-1',
+        },
+        'judge-1'
+      );
 
       expect(updatedEntry!.competitionData!.score).toBe('198');
       expect(updatedEntry!.competitionData!.judgeNotes).toBe('Excellent performance');
@@ -519,17 +541,20 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
     it('should maintain entry relationships', async () => {
       const entryStore = useEntryStore.getState();
 
-      const entry = await entryStore.createEntry({
-        showId: 'test-show-123',
-        classId: 'novice-standard',
-        dogId: 'test-dog-1',
-        registrationData: {
-          submittedAt: new Date().toISOString(),
-          handler: 'Test Handler',
-          entryFee: 25.0,
-          paymentStatus: 'pending',
+      const entry = await entryStore.createEntry(
+        {
+          showId: 'test-show-123',
+          classId: 'novice-standard',
+          dogId: 'test-dog-1',
+          registrationData: {
+            submittedAt: new Date().toISOString(),
+            handler: 'Test Handler',
+            entryFee: 25.0,
+            paymentStatus: 'pending',
+          },
         },
-      });
+        'test-user'
+      );
 
       // Verify relationships
       const dogEntries = entryStore.getEntriesByDog('test-dog-1');

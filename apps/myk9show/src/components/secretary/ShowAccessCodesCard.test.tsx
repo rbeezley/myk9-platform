@@ -50,7 +50,8 @@ function mockRegenerateRpc(response: {
   data: Array<{ admin: string; judge: string; steward: string; exhibitor: string }> | null;
   error: { message: string } | null;
 }) {
-  mockSupabase.rpc.mockImplementation((fn: string) => {
+  mockSupabase.rpc.mockImplementation((...args: unknown[]) => {
+    const fn = args[0] as string;
     if (fn === 'regenerate_show_passcodes') {
       return Promise.resolve(response) as unknown as ReturnType<typeof mockSupabase.rpc>;
     }
@@ -227,7 +228,9 @@ describe('ShowAccessCodesCard', () => {
       error: { message: 'not authorized' },
     });
 
-    const { user } = renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />);
+    const { user } = renderWithProviders(
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />
+    );
 
     await user.click(screen.getByRole('button', { name: /generate new codes/i }));
     const generateConfirm = await screen.findByRole('button', { name: /^generate$/i });

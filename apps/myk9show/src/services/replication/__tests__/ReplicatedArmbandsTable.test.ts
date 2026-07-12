@@ -140,7 +140,13 @@ describe('ReplicatedArmbandsTable', () => {
         armbandNumber: '101',
         isAvailable: false,
       });
-      return { success: true, synced: 1, errors: [] };
+      return {
+        tableName: 'armbands',
+        success: true,
+        operation: 'full-sync',
+        rowsAffected: 1,
+        duration: 0,
+      };
     });
 
     await table.upsertAssignedArmband({

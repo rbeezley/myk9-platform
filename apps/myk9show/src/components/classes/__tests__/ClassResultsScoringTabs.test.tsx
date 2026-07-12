@@ -104,7 +104,17 @@ function makeEntry(
 ): ScentWorkEntry {
   return {
     id,
-    status: 'registered',
+    showId: 'show-1',
+    classId: 'class-1',
+    dogId: `dog-${id}`,
+    status: 'confirmed',
+    registrationData: {
+      submittedAt: new Date('2026-01-01'),
+      handler: `Handler of ${dogName}`,
+      entryFee: 25,
+      paymentStatus: 'paid',
+    },
+    statusHistory: [],
     displayInfo: {
       armband: id.replace('entry-', ''),
       dogName,
@@ -125,12 +135,13 @@ function makeEntry(
       ? {
           competitionData: {
             time: '1:30',
-            qualification: 'Qualified',
+            score: 'Qualified',
             judgeNotes: '',
+            recordedBy: 'judge-1',
           },
         }
       : {}),
-  } as ScentWorkEntry;
+  };
 }
 
 function makeProps(

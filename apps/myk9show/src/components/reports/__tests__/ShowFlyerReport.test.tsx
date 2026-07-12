@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { ShowFlyerReport } from '../ShowFlyerReport';
+import type { ReportProps } from '@/lib/reports/types';
 
 // A real UUID whose generated exhibitor passcode we can check is rendered
 const SHOW_ID = '550e8400-e29b-41d4-a716-446655440000';
@@ -57,13 +58,16 @@ describe('ShowFlyerReport', () => {
   });
 
   it('shows an error state when showId is missing', () => {
-    const props = { ...baseProps, showId: undefined };
+    const props = { ...baseProps };
+    delete (props as Partial<ReportProps>).showId;
     render(<ShowFlyerReport {...props} />);
     expect(screen.getByText(/Show ID is required/)).toBeInTheDocument();
   });
 
   it('renders without optional clubName and showDates', () => {
-    const props = { ...baseProps, clubName: undefined, showDates: undefined };
+    const props = { ...baseProps };
+    delete (props as Partial<ReportProps>).clubName;
+    delete (props as Partial<ReportProps>).showDates;
     render(<ShowFlyerReport {...props} />);
     expect(screen.getByText('Spring Scent Trial 2026')).toBeInTheDocument();
   });

@@ -86,11 +86,10 @@ describe('buildAKCTrialSecretaryReportValues', () => {
   });
 
   it('omits legal club and event fields when source data is missing', () => {
-    const values = buildAKCTrialSecretaryReportValues({
-      ...reportProps,
-      clubName: undefined,
-      trial: undefined,
-    });
+    const props: ReportProps = { ...reportProps };
+    delete props.clubName;
+    delete props.trial;
+    const values = buildAKCTrialSecretaryReportValues(props);
 
     expect(values.text).not.toHaveProperty(AKC_TRIAL_SECRETARY_REPORT_FIELDS.club);
     expect(values.text).not.toHaveProperty(AKC_TRIAL_SECRETARY_REPORT_FIELDS.eventNumber);

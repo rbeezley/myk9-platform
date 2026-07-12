@@ -7,6 +7,7 @@ import { isPaymentRequestable } from '../paymentRequestEligibility';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { supabase } from '@/lib/supabase';
+import { fromAny } from '@total-typescript/shoehorn';
 
 vi.mock('@/lib/supabase', async importOriginal => {
   const original = await importOriginal<typeof import('@/lib/supabase')>();
@@ -31,7 +32,12 @@ const entry = {
 
 function renderDialog(onRequested = vi.fn()) {
   render(
-    <RequestPaymentDialog open={true} onOpenChange={vi.fn()} entry={entry} onRequested={onRequested} />
+    <RequestPaymentDialog
+      open={true}
+      onOpenChange={vi.fn()}
+      entry={entry}
+      onRequested={onRequested}
+    />
   );
   return onRequested;
 }
@@ -70,7 +76,9 @@ describe('RequestPaymentDialog', () => {
     expect(await screen.findByText('$30.00')).toBeInTheDocument();
     expect(screen.getByText('$2.10')).toBeInTheDocument();
     expect(screen.getByText('$32.10')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('https://checkout.stripe.com/c/pay/cs_test_123')).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue('https://checkout.stripe.com/c/pay/cs_test_123')
+    ).toBeInTheDocument();
     expect(onRequested).toHaveBeenCalled();
   });
 
@@ -92,15 +100,23 @@ describe('RequestPaymentDialog', () => {
 });
 
 describe('isPaymentRequestable', () => {
-  const active = { paymentStatus: PaymentStatus.PENDING, comped: false, entryStatus: EntryStatus.ACCEPTED };
+  const active = {
+    paymentStatus: PaymentStatus.PENDING,
+    comped: false,
+    entryStatus: EntryStatus.ACCEPTED,
+  };
 
   it('is true for a pending, active (unpaid) entry', () => {
     expect(isPaymentRequestable(active)).toBe(true);
   });
 
   it('is false once paid, and false for a comped entry', () => {
-    expect(isPaymentRequestable({ ...active, paymentStatus: PaymentStatus.PAID_ONLINE })).toBe(false);
-    expect(isPaymentRequestable({ ...active, paymentStatus: PaymentStatus.PAID_BY_CHECK })).toBe(false);
+    expect(isPaymentRequestable({ ...active, paymentStatus: PaymentStatus.PAID_ONLINE })).toBe(
+      false
+    );
+    expect(isPaymentRequestable({ ...active, paymentStatus: PaymentStatus.PAID_BY_CHECK })).toBe(
+      false
+    );
     expect(isPaymentRequestable({ ...active, comped: true })).toBe(false);
   });
 
@@ -111,12 +127,17 @@ describe('isPaymentRequestable', () => {
   });
 
   it('matches the server inactive list for database-only lifecycle states', () => {
-    const inactiveStatuses = ['absent', 'promotion-expired', 'cancelled'] as Array<
-      EntryManagementEntry['entryStatus']
-    >;
+    const inactiveStatuses = ['absent', 'promotion-expired', 'cancelled'];
 
     for (const entryStatus of inactiveStatuses) {
-      expect(isPaymentRequestable({ ...active, entryStatus })).toBe(false);
+      expect(
+        isPaymentRequestable({
+          ...active,
+          entryStatus: fromAny<EntryManagementEntry['entryStatus'], typeof entryStatus>(
+            entryStatus
+          ),
+        })
+      ).toBe(false);
     }
   });
 });

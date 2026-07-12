@@ -92,9 +92,9 @@ describe('Dog Queries', () => {
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
-      expect(result.error.message).toBe('Connection failed');
-      expect(result.error.table).toBe('dog');
-      expect(result.error.operation).toBe('select_all_with_owners');
+      expect(result.error?.message).toBe('Connection failed');
+      expect(result.error?.table).toBe('dog');
+      expect(result.error?.operation).toBe('select_all_with_owners');
     });
 
     it('should handle network timeout errors', async () => {
@@ -157,7 +157,7 @@ describe('Dog Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('PGRST116');
+      expect(result.error?.code).toBe('PGRST116');
     });
 
     it('should validate response time for single record fetch', async () => {
@@ -255,8 +255,8 @@ describe('Dog Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('23514');
-      expect(result.error.details).toBe('Name cannot be empty');
+      expect(result.error?.code).toBe('23514');
+      expect(result.error?.details).toBe('Name cannot be empty');
     });
   });
 
@@ -303,7 +303,7 @@ describe('Dog Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('PGRST116');
+      expect(result.error?.code).toBe('PGRST116');
     });
   });
 

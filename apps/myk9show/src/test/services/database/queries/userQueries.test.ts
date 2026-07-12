@@ -13,6 +13,7 @@ import {
 } from '@/services/database/users';
 import type { DbUserInsert, DbUserUpdate } from '@/types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
+import { fromAny } from '@total-typescript/shoehorn';
 
 describe('User Queries', () => {
   afterEach(() => {
@@ -21,13 +22,13 @@ describe('User Queries', () => {
 
   describe('getAllUsers', () => {
     it('selects an explicit column allowlist, not "*" (SA-008)', async () => {
-      const chain = createChainableQuery({ data: [], error: null });
+      const query = createChainableQuery({ data: [], error: null });
+      const chain = fromAny<{ select: ReturnType<typeof vi.fn> }, typeof query>(query);
       mockSupabase.from.mockReturnValue(chain);
 
       await getAllUsers();
 
-      const selectArg = (chain.select as unknown as { mock: { calls: unknown[][] } }).mock
-        .calls[0][0] as string;
+      const selectArg = chain.select.mock.calls[0]?.[0] as string;
       expect(selectArg).not.toContain('*');
       // every `people` column the two consumers (mapDatabaseToUser in the
       // userStore, mapDbUserToUser in React Query) read must still be fetched —
@@ -96,9 +97,9 @@ describe('User Queries', () => {
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
-      expect(result.error.message).toBe('Connection timeout');
-      expect(result.error.table).toBe('user');
-      expect(result.error.operation).toBe('select_all');
+      expect(result.error?.message).toBe('Connection timeout');
+      expect(result.error?.table).toBe('user');
+      expect(result.error?.operation).toBe('select_all');
     });
 
     it('should sort users by last name and first name', async () => {
@@ -164,7 +165,7 @@ describe('User Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('PGRST116');
+      expect(result.error?.code).toBe('PGRST116');
     });
 
     it('should validate response time for detailed user fetch', async () => {
@@ -235,8 +236,8 @@ describe('User Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('23505');
-      expect(result.error.details).toBe('Email already exists');
+      expect(result.error?.code).toBe('23505');
+      expect(result.error?.details).toBe('Email already exists');
     });
 
     it('should handle required field validation', async () => {
@@ -258,7 +259,7 @@ describe('User Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('23514');
+      expect(result.error?.code).toBe('23514');
     });
   });
 
@@ -303,7 +304,7 @@ describe('User Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('PGRST116');
+      expect(result.error?.code).toBe('PGRST116');
     });
   });
 
@@ -342,7 +343,7 @@ describe('User Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('MK001');
+      expect(result.error?.code).toBe('MK001');
     });
   });
 
@@ -402,7 +403,9 @@ describe('User Queries', () => {
       const result = await searchUsers(searchTerm);
 
       expect(result.data).toEqual(mockData);
-      expect(result.data[0].dog).toHaveLength(1);
+      expect(
+        fromAny<{ dog: unknown[] }, (typeof result.data)[number]>(result.data[0]).dog
+      ).toHaveLength(1);
     });
   });
 

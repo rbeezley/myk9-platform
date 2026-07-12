@@ -70,7 +70,6 @@ describe('Critical Workflow Tests', () => {
       expect(validationErrors).toHaveLength(0);
 
       // Step 3: Submit registration
-      let authWorkflow;
       try {
         throw new Error('authWorkflow module does not exist'); // Skip module import
       } catch {
@@ -94,19 +93,13 @@ describe('Critical Workflow Tests', () => {
         expect(result.user.email).toBe(registrationData.email);
       }
 
-      if (authWorkflow && authWorkflow.registerUser) {
-        const result = await authWorkflow.registerUser(registrationData);
-        expect(result.success).toBe(true);
-        expect(result.user).toBeDefined();
-      }
-
       // Step 4: Email verification (simulated)
       const verifyEmail = async () => {
         // Simulate email verification
         return { success: true, verified: true };
       };
 
-      const verificationResult = await verifyEmail('user-123', 'mock-token');
+      const verificationResult = await verifyEmail();
       expect(verificationResult.success).toBe(true);
 
       // Step 5: First-time login
@@ -233,7 +226,6 @@ describe('Critical Workflow Tests', () => {
       };
 
       // Step 4: Save dog to database
-      let dogWorkflow;
       try {
         throw new Error('dogWorkflow module does not exist'); // Skip module import
       } catch {
@@ -253,12 +245,6 @@ describe('Critical Workflow Tests', () => {
         const result = await mockRegisterDog(completeDogData);
         expect(result.success).toBe(true);
         expect(result.dog.name).toBe(dogRegistrationData.name);
-      }
-
-      if (dogWorkflow && dogWorkflow.registerDog) {
-        const result = await dogWorkflow.registerDog(completeDogData);
-        expect(result.success).toBe(true);
-        expect(result.dog.registrations.length).toBe(1);
       }
 
       // Step 5: Upload dog photo (optional)
@@ -459,7 +445,6 @@ describe('Critical Workflow Tests', () => {
       expect(entryValidationErrors).toHaveLength(0);
 
       // Step 5: Submit entry
-      let entryWorkflow;
       try {
         throw new Error('entryWorkflow module does not exist'); // Skip module import
       } catch {
@@ -482,12 +467,6 @@ describe('Critical Workflow Tests', () => {
         expect(result.success).toBe(true);
         expect(result.entry.entryNumber).toBe('E001');
         expect(result.entry.status).toBe('pending');
-      }
-
-      if (entryWorkflow && entryWorkflow.submitEntry) {
-        const result = await entryWorkflow.submitEntry(entryData);
-        expect(result.success).toBe(true);
-        expect(result.entry.entryNumber).toBeDefined();
       }
 
       // Step 6: Generate confirmation
@@ -539,7 +518,14 @@ describe('Critical Workflow Tests', () => {
       // Test class conflict within same show
       const checkClassConflicts = (
         selectedClassIds: string[],
-        allClasses: Array<{ id: string; startTime?: string; endTime?: string; judge?: string }>
+        allClasses: Array<{
+          id: string;
+          name: string;
+          timeSlot: string;
+          startTime?: string;
+          endTime?: string;
+          judge?: string;
+        }>
       ) => {
         const selectedClasses = allClasses.filter(c => selectedClassIds.includes(c.id));
         const conflicts: string[] = [];
@@ -676,7 +662,8 @@ describe('Critical Workflow Tests', () => {
       expect(entryFeeStructure.regularEntry).toBeGreaterThan(0);
 
       // Step 5: Open entries
-      const openEntriesForShow = async () => {
+      const openEntriesForShow = async (showId: string) => {
+        void showId;
         // Update show status to accepting entries
         return {
           success: true,
@@ -911,7 +898,13 @@ describe('Critical Workflow Tests', () => {
       const userJourney = {
         step: 1,
         completed: [] as string[],
-        data: {} as Record<string, unknown>,
+        data: {} as {
+          user: { id: string; firstName: string; lastName: string; email: string };
+          dog: { id: string; name: string; breed: string; ownerId: string };
+          entry: { id: string; showId: string; dogId: string; status: string };
+          payment: { transactionId: string; amount: number; status: string };
+          checkin: { checkedInAt: string; armBandNumber: string; ringAssignment: string };
+        },
       };
 
       // Step 1: User Registration

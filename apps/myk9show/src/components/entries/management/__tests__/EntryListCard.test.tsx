@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -20,15 +19,15 @@ vi.mock('@/components/entries/EmailStatusIcon', () => ({
 }));
 
 function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
-  return {
+  const base: EntryClass = {
     id: 'cls-1',
     name: 'Novice A',
     number: '101',
     fee: 25,
     status: 'entered',
-    checkInStatus: 'no-status' as EntryClass['checkInStatus'],
-    ...overrides,
+    checkInStatus: 'no-status',
   };
+  return Object.assign(base, overrides);
 }
 
 function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
@@ -37,6 +36,7 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
     registrationId: 'reg-1',
     entryNumber: '#1',
     showId: 'show-1',
+    dogId: 'dog-1',
     dogName: 'Fido',
     ownerName: 'Jane Smith',
     ownerEmail: 'jane@test.com',

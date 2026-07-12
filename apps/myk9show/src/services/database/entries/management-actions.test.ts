@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import type { EntryStatus as CanonicalEntryStatus } from '@/types/entry-lifecycle';
 import {
   executeStatusChange,
   executeBulkStatusChange,
@@ -87,7 +88,7 @@ describe('executeStatusChange', () => {
       armbandPatch: { armband: '007', dogId: 'dog-1', showId: 'show-1' },
     });
     const entry = makeEntry();
-    const sibling = makeEntry({ id: 'entry-2', armbandNumber: undefined });
+    const sibling = makeEntry({ id: 'entry-2' });
     const other = makeEntry({ id: 'entry-3', dogId: 'dog-2' });
 
     await executeStatusChange(
@@ -110,16 +111,18 @@ describe('executeStatusChange', () => {
 // ─── executeBulkStatusChange ──────────────────────────────────────────────
 
 describe('executeBulkStatusChange', () => {
-  let bulkUpdateStatus: ReturnType<typeof vi.fn>;
-  let reloadEntries: ReturnType<typeof vi.fn>;
-  let patchEntries: ReturnType<typeof vi.fn>;
-  let setError: ReturnType<typeof vi.fn>;
+  const bulkUpdateStatus =
+    vi.fn<(ids: string[], status: CanonicalEntryStatus) => Promise<{ error: unknown }>>();
+  const reloadEntries = vi.fn<(showId: string) => Promise<void>>();
+  const patchEntries =
+    vi.fn<(updater: (prev: EntryManagementEntry[]) => EntryManagementEntry[]) => void>();
+  const setError = vi.fn<(error: string | null) => void>();
 
   beforeEach(() => {
-    bulkUpdateStatus = vi.fn().mockResolvedValue({ error: null });
-    reloadEntries = vi.fn().mockResolvedValue(undefined);
-    patchEntries = vi.fn();
-    setError = vi.fn();
+    bulkUpdateStatus.mockReset().mockResolvedValue({ error: null });
+    reloadEntries.mockReset().mockResolvedValue(undefined);
+    patchEntries.mockReset();
+    setError.mockReset();
   });
 
   it('does not reload immediately for ACCEPTED because replicated mutations upload later', async () => {
@@ -185,14 +188,20 @@ describe('executeBulkStatusChange', () => {
 // ─── executeRemoveEntry ──────────────────────────────────────────────────
 
 describe('executeRemoveEntry', () => {
-  let deleteEntry: ReturnType<typeof vi.fn>;
-  let patchEntries: ReturnType<typeof vi.fn>;
-  let setError: ReturnType<typeof vi.fn>;
+  const deleteEntry = vi.fn<(entryId: string, userId?: string) => Promise<{ error: unknown }>>();
+  const patchEntries =
+    vi.fn<
+      (
+        updaterOrSnapshot:
+          EntryManagementEntry[] | ((prev: EntryManagementEntry[]) => EntryManagementEntry[])
+      ) => void
+    >();
+  const setError = vi.fn<(error: string | null) => void>();
 
   beforeEach(() => {
-    deleteEntry = vi.fn().mockResolvedValue({ error: null });
-    patchEntries = vi.fn();
-    setError = vi.fn();
+    deleteEntry.mockReset().mockResolvedValue({ error: null });
+    patchEntries.mockReset();
+    setError.mockReset();
   });
 
   it('optimistically removes the entry from state before the DB call', async () => {
@@ -205,6 +214,9 @@ describe('executeRemoveEntry', () => {
 
     const optimisticUpdater = patchEntries.mock.calls[0]?.[0];
     expect(typeof optimisticUpdater).toBe('function');
+    if (typeof optimisticUpdater !== 'function') {
+      throw new Error('Expected optimistic updater function');
+    }
     expect(optimisticUpdater([entry])).toEqual([]);
   });
 

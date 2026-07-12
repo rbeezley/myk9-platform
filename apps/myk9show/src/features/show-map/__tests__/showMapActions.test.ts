@@ -13,7 +13,7 @@ import {
 } from '../showMapActions';
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
-import type { ShowMapClassInput } from '../showMapTypes';
+import type { ShowMapClassInput, ShowMapTrialInput } from '../showMapTypes';
 import type { ShowMapActionId } from '../showMapActions';
 
 const show = {
@@ -23,7 +23,7 @@ const show = {
   organization: 'AKC',
 } as Show;
 
-const trial = {
+const trial: ShowMapTrialInput = {
   id: 'trial-1',
   showId: 'show-1',
   showName: 'Spring Trial',
@@ -34,7 +34,7 @@ const trial = {
   _lastModified: new Date(),
   _lastModifiedBy: 'test',
   _syncStatus: 'synced',
-} as SyncableTrial;
+};
 
 const classes: ShowMapClassInput[] = [
   {
@@ -1284,9 +1284,9 @@ describe('showMapActions', () => {
         trials: [
           {
             ...trial,
-            status: 'Complete',
+            status: 'Completed',
             resultSubmittedAt: null,
-          } as SyncableTrial,
+          },
         ],
         classes: [
           {
@@ -1404,7 +1404,7 @@ describe('showMapActions', () => {
         ...trial,
         trialDate: '2026-06-12',
         timezone: 'America/New_York',
-      } as SyncableTrial;
+      } as ShowMapTrialInput;
       const tree = buildShowMapTree({
         show,
         trials: [futureTrial],

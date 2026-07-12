@@ -145,6 +145,9 @@ const mockShows: Show[] = [
     clubName: 'Test Club 1',
     clubAddress: 'Test Address 1',
     clubEmail: 'test1@club.com',
+    logoUrl: '',
+    coverImageUrl: '',
+    accentColor: '',
     assignedJudges: [],
     stats: [],
     trials: [],
@@ -167,6 +170,9 @@ const mockShows: Show[] = [
     clubName: 'Test Club 2',
     clubAddress: 'Test Address 2',
     clubEmail: 'test2@club.com',
+    logoUrl: '',
+    coverImageUrl: '',
+    accentColor: '',
     assignedJudges: [],
     stats: [],
     trials: [],
@@ -208,7 +214,7 @@ const defaultFilters: ShowFilters = {
   discipline: 'all',
   entryStatus: 'all',
   dateRange: 'upcoming',
-  location: 'all',
+  club: 'all',
   organization: 'all',
 };
 
@@ -502,8 +508,9 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         assignedJudges: [
           {
             judgeId: 'judge-1',
+            judgeName: 'Test Judge',
             assignedDate: new Date().toISOString(),
-            breed: 'All Breeds',
+            assignedClasses: [],
           },
         ],
       };

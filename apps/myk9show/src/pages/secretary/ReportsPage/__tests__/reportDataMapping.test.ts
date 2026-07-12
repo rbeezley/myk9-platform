@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { fromAny, fromPartial } from '@total-typescript/shoehorn';
 import {
   buildClassReportProps,
   buildTrialReportProps,
@@ -12,20 +13,20 @@ import { rowToEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 
-const show = {
+const show = fromPartial<Show>({
   id: 'show-1',
   name: 'Spring Trial',
   clubName: 'Demo Scent Work Club',
   organization: 'AKC',
-} as Show;
+});
 
-const trial = {
+const trial = fromPartial<DbTrial>({
   id: 'trial-1',
   date: '2026-04-12',
   event_number: '2026123401',
   registry_id: 'UKC',
-  trial_number: 2026123401,
-} as DbTrial;
+  trial_number: '2026123401',
+});
 
 const classData = {
   id: 'class-1',
@@ -254,8 +255,8 @@ describe('buildClassReportProps', () => {
 });
 
 describe('mapScopedReportEntries', () => {
-  const trial1 = { id: 'trial-1', date: '2026-04-12', trial_number: 1 } as DbTrial;
-  const trial2 = { id: 'trial-2', date: '2026-04-13', trial_number: 2 } as DbTrial;
+  const trial1 = fromPartial<DbTrial>({ id: 'trial-1', date: '2026-04-12', trial_number: '1' });
+  const trial2 = fromPartial<DbTrial>({ id: 'trial-2', date: '2026-04-13', trial_number: '2' });
   const class1 = {
     id: 'class-1',
     trial_id: 'trial-1',
@@ -390,10 +391,12 @@ describe('mapScopedReportEntries', () => {
 
 describe('readTrialRegistryId', () => {
   it('defaults to AKC when registry_id is missing or blank', () => {
-    expect(readTrialRegistryId({ ...trial, registry_id: undefined } as unknown as DbTrial)).toBe(
+    expect(
+      readTrialRegistryId(fromAny<DbTrial, unknown>({ ...trial, registry_id: undefined }))
+    ).toBe('AKC');
+    expect(readTrialRegistryId(fromAny<DbTrial, unknown>({ ...trial, registry_id: null }))).toBe(
       'AKC'
     );
-    expect(readTrialRegistryId({ ...trial, registry_id: null } as unknown as DbTrial)).toBe('AKC');
-    expect(readTrialRegistryId({ ...trial, registry_id: '   ' } as DbTrial)).toBe('AKC');
+    expect(readTrialRegistryId(fromPartial<DbTrial>({ ...trial, registry_id: '   ' }))).toBe('AKC');
   });
 });

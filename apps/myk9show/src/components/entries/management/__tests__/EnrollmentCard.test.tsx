@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
@@ -52,13 +51,18 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
 
 function makeGroup(overrides: Partial<EnrollmentGroup> = {}): EnrollmentGroup {
   return {
+    groupKey: 'reg:enroll-1',
     enrollmentId: 'enroll-1',
     confirmationNumber: 'MK9-000123',
     handlerName: 'Jane Smith',
     paymentStatus: PaymentStatus.PAID_ONLINE,
     totalAmount: 5000,
     totalAmountUnit: 'cents',
+    paidAmount: 50,
     paymentReference: null,
+    refundAmount: null,
+    refundNotes: null,
+    refundedAt: null,
     entries: [makeEntry()],
     ...overrides,
   };

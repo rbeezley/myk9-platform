@@ -198,7 +198,12 @@ describe('useEntryManagementActions', () => {
 
   it('marks matching enrollment entries paid locally when the enrollment payment changes', async () => {
     vi.mocked(updateEnrollmentPaymentStatus).mockResolvedValue({
-      data: { id: 'registration-1', payment_status: 'paid_by_check' },
+      data: {
+        id: 'registration-1',
+        payment_status: 'paid_by_check',
+        payment_reference: null,
+        paid_amount: 0,
+      },
       error: null,
     });
     const entry = { ...makeEntry(), totalFee: 35 };
@@ -259,7 +264,12 @@ describe('useEntryManagementActions', () => {
 
   it('threads checkNumber through to updateEnrollmentPaymentStatus for check payments', async () => {
     vi.mocked(updateEnrollmentPaymentStatus).mockResolvedValue({
-      data: { id: 'registration-1', payment_status: 'paid_by_check' },
+      data: {
+        id: 'registration-1',
+        payment_status: 'paid_by_check',
+        payment_reference: null,
+        paid_amount: 0,
+      },
       error: null,
     });
     const entry = { ...makeEntry(), totalFee: 35 };
@@ -303,7 +313,12 @@ describe('useEntryManagementActions', () => {
 
   it('keeps entry-level refunds when an enrollment payment changes later', async () => {
     vi.mocked(updateEnrollmentPaymentStatus).mockResolvedValue({
-      data: { id: 'registration-1', payment_status: 'paid_by_check' },
+      data: {
+        id: 'registration-1',
+        payment_status: 'paid_by_check',
+        payment_reference: null,
+        paid_amount: 0,
+      },
       error: null,
     });
     const refundedEntry = {
@@ -348,7 +363,7 @@ describe('useEntryManagementActions', () => {
   });
 
   it('updates inline class check-in through the replicated check-in writer', async () => {
-    vi.mocked(updateCheckInStatus).mockResolvedValue({ data: null, error: null });
+    vi.mocked(updateCheckInStatus).mockResolvedValue({ data: null, error: null } as never);
     const cls = {
       id: 'class-1',
       name: 'Novice A',

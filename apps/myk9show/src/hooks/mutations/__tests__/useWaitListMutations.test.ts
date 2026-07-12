@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fromAny } from '@total-typescript/shoehorn';
 import { reassignClassJudge } from '@/services/database/judges';
 import {
   closeWaitlistForClasses,
@@ -40,7 +41,12 @@ describe('useWaitListMutations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(promoteWaitlistEntry).mockResolvedValue('new-entry-uuid');
-    vi.mocked(removeFromWaitlist).mockResolvedValue({ data: null, error: null });
+    vi.mocked(removeFromWaitlist).mockResolvedValue(
+      fromAny<Awaited<ReturnType<typeof removeFromWaitlist>>, { data: null; error: null }>({
+        data: null,
+        error: null,
+      })
+    );
     vi.mocked(closeWaitlistForClasses).mockResolvedValue(undefined);
     vi.mocked(reassignClassJudge).mockResolvedValue(undefined);
   });

@@ -7,7 +7,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { RBACService } from '@/services/rbac/RBACService';
 import { mockSupabase } from '@/test/mocks/supabase';
+import { fromAny } from '@total-typescript/shoehorn';
 // import { ActionType } from '@/types/rbac-types'; // Not used in current tests
+
+const fromMock = fromAny<
+  { mockImplementation: (implementation: (table: string) => object) => void },
+  typeof mockSupabase.from
+>(mockSupabase.from);
 
 describe('RBACService', () => {
   let rbacService: RBACService;
@@ -126,7 +132,7 @@ describe('RBACService', () => {
       const mockUserRole = { id: 'assignment-id' };
 
       // Mock getRole call (from.select.eq.single for roles table)
-      mockSupabase.from.mockImplementation((table: string) => {
+      fromMock.mockImplementation((table: string) => {
         if (table === 'people') {
           return {
             select: vi.fn().mockReturnValue({
@@ -177,7 +183,7 @@ describe('RBACService', () => {
     it('should throw when role is not found by name', async () => {
       // Mock escalation validation to pass (rpc returns true for permission check)
       mockSupabase.rpc.mockResolvedValue({ data: true, error: null });
-      mockSupabase.from.mockImplementation((table: string) => {
+      fromMock.mockImplementation((table: string) => {
         if (table === 'people') {
           return {
             select: vi.fn().mockReturnValue({
@@ -206,7 +212,7 @@ describe('RBACService', () => {
     });
 
     it('should throw when neither roleName nor roleId is provided', async () => {
-      mockSupabase.from.mockImplementation((table: string) => {
+      fromMock.mockImplementation((table: string) => {
         if (table === 'people') {
           return {
             select: vi.fn().mockReturnValue({
@@ -252,7 +258,7 @@ describe('RBACService', () => {
     it('should revoke role from user successfully', async () => {
       const mockRole = { id: 'role123', name: 'secretary' };
 
-      mockSupabase.from.mockImplementation((table: string) => {
+      fromMock.mockImplementation((table: string) => {
         if (table === 'roles') {
           return {
             select: vi.fn().mockReturnValue({
@@ -317,7 +323,7 @@ describe('RBACService', () => {
         },
       ];
 
-      mockSupabase.from.mockImplementation((table: string) => {
+      fromMock.mockImplementation((table: string) => {
         if (table === 'roles') {
           return {
             insert: vi.fn().mockReturnValue({
@@ -413,7 +419,7 @@ describe('RBACService', () => {
       // getAllRoles → from('roles').select('*').order('name') → returns empty array → role not found
       mockSupabase.rpc.mockResolvedValue({ data: true, error: null }); // role:assign
 
-      mockSupabase.from.mockImplementation((table: string) => {
+      fromMock.mockImplementation((table: string) => {
         if (table === 'roles') {
           return {
             select: vi.fn().mockReturnValue({
@@ -585,7 +591,7 @@ describe('RBACService', () => {
       };
       const mockRolePermission = { permission_id: 'perm1', permissions: mockPermission };
 
-      mockSupabase.from.mockImplementation((table: string) => {
+      fromMock.mockImplementation((table: string) => {
         if (table === 'roles') {
           // getAllRoles: from('roles').select('*').order('name')
           return {
@@ -659,7 +665,7 @@ describe('RBACService', () => {
         },
       };
 
-      mockSupabase.from.mockImplementation((table: string) => {
+      fromMock.mockImplementation((table: string) => {
         if (table === 'roles') {
           // getAllRoles: from('roles').select('*').order('name')
           return {

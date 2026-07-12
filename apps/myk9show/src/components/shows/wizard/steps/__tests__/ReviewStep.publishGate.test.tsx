@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -80,7 +79,7 @@ function mockAccount(payoutsEnabled: boolean | null, isLoading = false, isError 
 }
 
 describe('ReviewStep publish gate', () => {
-  let onCreateAndPublish: ReturnType<typeof vi.fn>;
+  let onCreateAndPublish: () => void;
 
   beforeEach(() => {
     vi.clearAllMocks();

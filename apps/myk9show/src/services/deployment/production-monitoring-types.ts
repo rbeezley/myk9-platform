@@ -5,11 +5,7 @@
  * user analytics, and alert management used by ProductionMonitoringService.
  */
 
-import type {
-  MetricType,
-  NotificationChannel,
-  Severity
-} from '../../types/deployment-types';
+import type { MetricType, NotificationChannel, Severity } from '../../types/deployment-types';
 
 // === Error Tracking ===
 
@@ -29,7 +25,7 @@ export interface ErrorReport {
 }
 
 export interface ErrorContext {
-  userId?: string;
+  userId?: string | undefined;
   sessionId: string;
   userAgent: string;
   url: string;
@@ -110,12 +106,12 @@ export interface SpanLog {
 export interface UserEvent {
   id: string;
   event: string;
-  userId?: string;
+  userId?: string | undefined;
   sessionId: string;
   timestamp: Date;
   properties: Record<string, unknown>;
   deviceInfo: DeviceInfo;
-  location?: LocationInfo;
+  location?: LocationInfo | undefined;
 }
 
 export interface DeviceInfo {

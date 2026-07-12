@@ -1,13 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { buildShowMapTree } from '../showMapTree';
-import {
-  computeShowDeskStatus,
-  hasAnyWrapUpEligibleNode,
-} from '../showDeskStatus';
+import { computeShowDeskStatus, hasAnyWrapUpEligibleNode } from '../showDeskStatus';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 import type { Show } from '@/types/show-types';
-import type { SyncableTrial } from '@/store/trial-store-types';
-import type { ShowMapClassInput } from '../showMapTypes';
+import type { ShowMapClassInput, ShowMapTrialInput } from '../showMapTypes';
 
 const baseShow = {
   id: 'show-1',
@@ -18,27 +14,27 @@ const baseShow = {
   endDate: '2026-05-17',
 } as Show;
 
-function makeTrial(overrides: Partial<SyncableTrial> = {}): SyncableTrial {
+function makeTrial(overrides: Partial<ShowMapTrialInput> = {}): ShowMapTrialInput {
   return {
     id: 'trial-1',
     showId: 'show-1',
     showName: 'Spring Trial',
     trialDate: '2026-05-15',
     trialNumber: '1',
-    status: 'Not Started',
+    status: 'Scheduled',
     _version: 1,
     _lastModified: new Date(),
     _lastModifiedBy: 'test',
     _syncStatus: 'synced',
     ...overrides,
-  } as SyncableTrial;
+  };
 }
 
 const TRIAL_NOT_STARTED = makeTrial();
 
 function buildTree(input: {
   show?: Show;
-  trials?: SyncableTrial[];
+  trials?: ShowMapTrialInput[];
   classes?: ShowMapClassInput[];
   entries?: Array<Record<string, unknown>>;
 }) {
@@ -53,9 +49,7 @@ function buildTree(input: {
 describe('computeShowDeskStatus', () => {
   it('returns setup when start date is in the future and no scoring activity', () => {
     const tree = buildTree({
-      classes: [
-        { id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Not Started' },
-      ],
+      classes: [{ id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Not Started' }],
     });
 
     const result = computeShowDeskStatus({
@@ -70,9 +64,7 @@ describe('computeShowDeskStatus', () => {
 
   it('returns show-in-progress when today is between start and end date', () => {
     const tree = buildTree({
-      classes: [
-        { id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Not Started' },
-      ],
+      classes: [{ id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Not Started' }],
     });
 
     const result = computeShowDeskStatus({
@@ -87,9 +79,7 @@ describe('computeShowDeskStatus', () => {
 
   it('returns show-in-progress when at least one class is active, regardless of date', () => {
     const tree = buildTree({
-      classes: [
-        { id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'In Progress' },
-      ],
+      classes: [{ id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'In Progress' }],
     });
 
     const result = computeShowDeskStatus({
@@ -111,9 +101,7 @@ describe('computeShowDeskStatus', () => {
     const tree = buildTree({
       show: singleDayShow,
       trials: [sameDayTrial],
-      classes: [
-        { id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Completed' },
-      ],
+      classes: [{ id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Completed' }],
       entries: [
         {
           id: 'e1',
@@ -142,9 +130,7 @@ describe('computeShowDeskStatus', () => {
     const tree = buildTree({
       show: singleDayShow,
       trials: [sameDayTrial],
-      classes: [
-        { id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'In Progress' },
-      ],
+      classes: [{ id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'In Progress' }],
     });
 
     const result = computeShowDeskStatus({
@@ -159,9 +145,7 @@ describe('computeShowDeskStatus', () => {
 
   it('returns wrap-up when past end date, no active classes, and wrap-up-eligible nodes exist', () => {
     const tree = buildTree({
-      classes: [
-        { id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Completed' },
-      ],
+      classes: [{ id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Completed' }],
       entries: [
         {
           id: 'e1',
@@ -190,9 +174,7 @@ describe('computeShowDeskStatus', () => {
     });
     const tree = buildTree({
       trials: [submittedTrial],
-      classes: [
-        { id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Completed' },
-      ],
+      classes: [{ id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Completed' }],
       entries: [
         {
           id: 'e1',
@@ -259,9 +241,7 @@ describe('computeShowDeskStatus', () => {
     const tree = buildTree({
       show: futureShow,
       trials: [futureTrial],
-      classes: [
-        { id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Completed' },
-      ],
+      classes: [{ id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Completed' }],
       entries: [
         {
           id: 'e1',
@@ -302,9 +282,7 @@ describe('computeShowDeskStatus', () => {
 describe('hasAnyWrapUpEligibleNode', () => {
   it('returns false for a tree with no class-level wrap-up status', () => {
     const tree = buildTree({
-      classes: [
-        { id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Not Started' },
-      ],
+      classes: [{ id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Not Started' }],
     });
 
     expect(hasAnyWrapUpEligibleNode(tree)).toBe(false);
@@ -312,9 +290,7 @@ describe('hasAnyWrapUpEligibleNode', () => {
 
   it('returns true when at least one class carries a wrap-up-eligible status value', () => {
     const tree = buildTree({
-      classes: [
-        { id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Completed' },
-      ],
+      classes: [{ id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Completed' }],
       entries: [
         {
           id: 'e1',

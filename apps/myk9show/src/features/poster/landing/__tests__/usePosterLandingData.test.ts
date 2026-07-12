@@ -1,5 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { usePosterLandingData } from '../usePosterLandingData';
@@ -30,18 +31,18 @@ async function setEntries(count: number) {
 }
 
 function makeTrial(overrides: Partial<Trial>): Trial {
-  return {
+  const trial = {
     id: 'trial-default',
-    trialNumber: 1,
+    trialNumber: '1',
     trialDate: '2026-06-12',
-    judge: undefined,
     maxTotalEntries: null,
     ...overrides,
-  } as unknown as Trial;
+  };
+  return fromAny<Trial, typeof trial>(trial);
 }
 
 function makeShow(overrides: Partial<Show> = {}): Show {
-  return {
+  const show = {
     id: 'show-1',
     name: 'Spring Scent Work',
     organization: 'Bexar County Kennel Club',
@@ -53,7 +54,8 @@ function makeShow(overrides: Partial<Show> = {}): Show {
     preEntryFee: '25',
     dayOfShowFee: '22',
     ...overrides,
-  } as unknown as Show;
+  };
+  return fromAny<Show, typeof show>(show);
 }
 
 describe('usePosterLandingData', () => {
@@ -91,8 +93,8 @@ describe('usePosterLandingData', () => {
 
   it('sorts trials by numeric trialNumber regardless of input order', () => {
     const trials = [
-      makeTrial({ id: 't3', trialNumber: 3 }),
-      makeTrial({ id: 't1', trialNumber: 1 }),
+      makeTrial({ id: 't3', trialNumber: '3' }),
+      makeTrial({ id: 't1', trialNumber: '1' }),
       makeTrial({ id: 't2', trialNumber: '2' }),
     ];
     const { result } = renderHook(() => usePosterLandingData(makeShow(), null, trials));
@@ -101,12 +103,12 @@ describe('usePosterLandingData', () => {
 
   it('forwards trial date and judge to the assembled trial row', () => {
     const trials = [
-      makeTrial({ id: 't1', trialNumber: 1, trialDate: '2026-06-12', judge: 'C. Beagles' }),
+      makeTrial({ id: 't1', trialNumber: '1', trialDate: '2026-06-12', judge: 'C. Beagles' }),
     ];
     const { result } = renderHook(() => usePosterLandingData(makeShow(), null, trials));
     expect(result.current.trials[0]).toMatchObject({
       id: 't1',
-      trialNumber: 1,
+      trialNumber: '1',
       date: '2026-06-12',
       judgeName: 'C. Beagles',
     });
@@ -114,11 +116,11 @@ describe('usePosterLandingData', () => {
 
   it('dedups judges by name and builds a TRIALS NN · NN label per judge', () => {
     const trials = [
-      makeTrial({ id: 't1', trialNumber: 1, judge: 'C. Beagles' }),
-      makeTrial({ id: 't2', trialNumber: 2, judge: 'M. Whitfield' }),
-      makeTrial({ id: 't3', trialNumber: 3, judge: 'C. Beagles' }),
-      makeTrial({ id: 't5', trialNumber: 5, judge: 'C. Beagles' }),
-      makeTrial({ id: 't4', trialNumber: 4, judge: 'M. Whitfield' }),
+      makeTrial({ id: 't1', trialNumber: '1', judge: 'C. Beagles' }),
+      makeTrial({ id: 't2', trialNumber: '2', judge: 'M. Whitfield' }),
+      makeTrial({ id: 't3', trialNumber: '3', judge: 'C. Beagles' }),
+      makeTrial({ id: 't5', trialNumber: '5', judge: 'C. Beagles' }),
+      makeTrial({ id: 't4', trialNumber: '4', judge: 'M. Whitfield' }),
     ];
     const { result } = renderHook(() => usePosterLandingData(makeShow(), null, trials));
     expect(result.current.judges).toHaveLength(2);
@@ -132,8 +134,8 @@ describe('usePosterLandingData', () => {
 
   it('skips trials that have no judge when building the judge list', () => {
     const trials = [
-      makeTrial({ id: 't1', trialNumber: 1, judge: 'C. Beagles' }),
-      makeTrial({ id: 't2', trialNumber: 2, judge: undefined }),
+      makeTrial({ id: 't1', trialNumber: '1', judge: 'C. Beagles' }),
+      makeTrial({ id: 't2', trialNumber: '2' }),
     ];
     const { result } = renderHook(() => usePosterLandingData(makeShow(), null, trials));
     expect(result.current.judges).toHaveLength(1);
@@ -150,16 +152,17 @@ describe('usePosterLandingData', () => {
   });
 
   it('omits the fees rows when fee values are missing', () => {
-    const show = makeShow({ preEntryFee: undefined, dayOfShowFee: undefined } as Partial<Show>);
+    const missingFees = { preEntryFee: undefined, dayOfShowFee: undefined };
+    const show = makeShow(fromAny<Partial<Show>, typeof missingFees>(missingFees));
     const { result } = renderHook(() => usePosterLandingData(show, null, []));
     expect(result.current.fees).toEqual([]);
   });
 
   it('derives entryLimit as the max maxTotalEntries across all trials', () => {
     const trials = [
-      makeTrial({ id: 't1', trialNumber: 1, maxTotalEntries: 120 }),
-      makeTrial({ id: 't2', trialNumber: 2, maxTotalEntries: 360 }),
-      makeTrial({ id: 't3', trialNumber: 3, maxTotalEntries: null }),
+      makeTrial({ id: 't1', trialNumber: '1', maxTotalEntries: 120 }),
+      makeTrial({ id: 't2', trialNumber: '2', maxTotalEntries: 360 }),
+      makeTrial({ id: 't3', trialNumber: '3', maxTotalEntries: null }),
     ];
     const { result } = renderHook(() => usePosterLandingData(makeShow(), null, trials));
     expect(result.current.entryLimit).toBe(360);
@@ -167,8 +170,8 @@ describe('usePosterLandingData', () => {
 
   it('returns null entryLimit when no trial carries a cap', () => {
     const trials = [
-      makeTrial({ id: 't1', trialNumber: 1, maxTotalEntries: null }),
-      makeTrial({ id: 't2', trialNumber: 2, maxTotalEntries: null }),
+      makeTrial({ id: 't1', trialNumber: '1', maxTotalEntries: null }),
+      makeTrial({ id: 't2', trialNumber: '2', maxTotalEntries: null }),
     ];
     const { result } = renderHook(() => usePosterLandingData(makeShow(), null, trials));
     expect(result.current.entryLimit).toBeNull();
@@ -181,12 +184,12 @@ describe('usePosterLandingData', () => {
   });
 
   it('builds the showSubtitle from registry licenseLanguage + trial count', () => {
-    const trials = [makeTrial({ id: 't1', trialNumber: 1 })];
+    const trials = [makeTrial({ id: 't1', trialNumber: '1' })];
     const { result } = renderHook(() => usePosterLandingData(makeShow(), null, trials));
     expect(result.current.showSubtitle).toMatch(/1 Trial$/);
     const trials2 = [
-      makeTrial({ id: 't1', trialNumber: 1 }),
-      makeTrial({ id: 't2', trialNumber: 2 }),
+      makeTrial({ id: 't1', trialNumber: '1' }),
+      makeTrial({ id: 't2', trialNumber: '2' }),
     ];
     const { result: result2 } = renderHook(() => usePosterLandingData(makeShow(), null, trials2));
     expect(result2.current.showSubtitle).toMatch(/2 Trials$/);

@@ -2,14 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { GeneratedPremium } from '../../../types/premium-types';
 
 const toBlobMock = vi.fn();
-const pdfSpy = vi.fn(() => ({ toBlob: toBlobMock }));
+const pdfSpy = vi.fn((element: unknown) => {
+  void element;
+  return { toBlob: toBlobMock };
+});
 const uploadMock = vi.fn();
 const updateEqMock = vi.fn();
 const updateMock = vi.fn(() => ({ eq: updateEqMock }));
 const fromMock = vi.fn();
 
 vi.mock('@react-pdf/renderer', () => ({
-  pdf: (...args: unknown[]) => pdfSpy(...args),
+  pdf: (element: unknown) => pdfSpy(element),
   Document: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   Page: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   View: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -55,7 +58,7 @@ interface ReactElementLike {
 }
 
 function lastRenderedElement(): ReactElementLike {
-  const args = pdfSpy.mock.calls.at(-1) ?? [];
+  const args = pdfSpy.mock.calls[pdfSpy.mock.calls.length - 1] ?? [];
   return args[0] as unknown as ReactElementLike;
 }
 
@@ -78,8 +81,8 @@ const basePremium: GeneratedPremium = {
     acceptCash: false,
   },
   club: { name: 'Club', logoUrl: null },
-  secretary: { name: 'S', email: 's@x.com', phone: null },
-  officials: [],
+  secretary: { name: 'S', email: 's@x.com', phone: null, mailingAddress: null },
+  officials: { chairman: null },
   trials: [],
   supplemental: {
     vetClinic: null,

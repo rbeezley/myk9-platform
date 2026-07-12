@@ -9,6 +9,7 @@ import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { UserRole } from '@/types/auth-types';
 import { mockSupabase } from '@/test/mocks/supabase';
+import { fromAny } from '@total-typescript/shoehorn';
 
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: {
@@ -34,7 +35,10 @@ vi.mock('@/services/replication', () => ({
 }));
 
 const mockAuthState = vi.hoisted(() => ({
-  hasRole: (_role: unknown) => false,
+  hasRole: (role: unknown): boolean => {
+    void role;
+    return false;
+  },
   userWithRoles: null as unknown,
   user: null as { id: string } | null,
 }));
@@ -80,7 +84,13 @@ function seed() {
 }
 
 function seedOwnedEntry(overrides: Record<string, unknown> = {}) {
-  mockSupabase.rpc.mockImplementation((fn: string) => {
+  const rpcMock = fromAny<
+    {
+      mockImplementation: (implementation: (fn: string) => never) => void;
+    },
+    typeof mockSupabase.rpc
+  >(mockSupabase.rpc);
+  rpcMock.mockImplementation((fn: string) => {
     if (fn === 'get_account_today_entries') {
       return Promise.resolve({
         data: [{ entry_id: 'entry-1', show_id: 'show-1', show_name: 'Spring Trial' }],

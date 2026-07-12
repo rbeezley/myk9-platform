@@ -10,7 +10,6 @@ import { logger } from '@/services/LoggingService';
 import {
   SyncOperation,
   SyncPriority,
-  PerformanceMetrics,
   BatchResult,
   BatchQueueItem,
 } from '@/types/performance-types';
@@ -46,11 +45,10 @@ export class BatchProcessor extends EventEmitter {
   private activeBatches: Map<string, BatchGroup>;
   private processingMetrics: Map<string, ProcessingMetrics>;
   private isProcessing: boolean;
-  private processingInterval?: NodeJS.Timeout;
+  private processingInterval: NodeJS.Timeout | undefined;
 
   // Adaptive sizing state
   private currentBatchSize: number;
-  private performanceHistory: PerformanceMetrics[];
   private adaptiveAdjustmentFactor: number;
 
   // Priority queue implementation
@@ -70,7 +68,6 @@ export class BatchProcessor extends EventEmitter {
     this.isProcessing = false;
 
     this.currentBatchSize = Math.floor((this.config.maxBatchSize + this.config.minBatchSize) / 2);
-    this.performanceHistory = [];
     this.adaptiveAdjustmentFactor = 1.0;
 
     this.priorityQueues = new Map([
@@ -319,7 +316,6 @@ export class BatchProcessor extends EventEmitter {
     this.processingQueue.clear();
     this.activeBatches.clear();
     this.processingMetrics.clear();
-    this.performanceHistory = [];
     this.currentBatchSize = Math.floor((this.config.maxBatchSize + this.config.minBatchSize) / 2);
     this.adaptiveAdjustmentFactor = 1.0;
 

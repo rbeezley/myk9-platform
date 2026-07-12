@@ -48,6 +48,7 @@ describe('Monogram entry CTAs', () => {
         venueCity="Austin"
         timezone="America/Chicago"
         entryWizardUrl="/shows/show-1/register"
+        classesHref="/shows/show-1/classes"
         canEnterOnline={false}
       />
     );

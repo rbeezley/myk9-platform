@@ -1,4 +1,5 @@
 import { renderHook } from '@testing-library/react';
+import { fromAny } from '@total-typescript/shoehorn';
 import { describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -26,7 +27,7 @@ function makeShow(overrides: Partial<Show> = {}): Show {
 function makeTrial(overrides: Partial<Trial> = {}): Trial {
   return {
     id: 't1',
-    trialNumber: 1,
+    trialNumber: '1',
     trialDate: '2026-06-12',
     ...overrides,
   } as Trial;
@@ -40,15 +41,18 @@ describe('useMonogramLandingData', () => {
   });
 
   it('falls back to the show name when no club name is set', () => {
-    const show = makeShow({ organization: undefined as unknown as string, name: 'Lone Pine Trial' });
+    const show = makeShow({
+      organization: fromAny<string, undefined>(undefined),
+      name: 'Lone Pine Trial',
+    });
     const { result } = renderHook(() => useMonogramLandingData(show, null, []));
     expect(result.current.monogramLetters).toBe('LPT');
   });
 
   it('returns "?" when neither club nor show name resolve', () => {
     const show = makeShow({
-      organization: undefined as unknown as string,
-      name: undefined as unknown as string,
+      organization: fromAny<string, undefined>(undefined),
+      name: fromAny<string, undefined>(undefined),
     });
     const { result } = renderHook(() => useMonogramLandingData(show, null, []));
     expect(result.current.monogramLetters).toBe('?');
@@ -57,9 +61,9 @@ describe('useMonogramLandingData', () => {
   it('sorts trials by trial number and dedupes judges by name', () => {
     const show = makeShow();
     const trials: Trial[] = [
-      makeTrial({ id: 't3', trialNumber: 3, judge: 'Marcus Whitfield' }),
-      makeTrial({ id: 't1', trialNumber: 1, judge: 'Catherine Beagles' }),
-      makeTrial({ id: 't2', trialNumber: 2, judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't3', trialNumber: '3', judge: 'Marcus Whitfield' }),
+      makeTrial({ id: 't1', trialNumber: '1', judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't2', trialNumber: '2', judge: 'Catherine Beagles' }),
     ];
     const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
 
@@ -75,10 +79,10 @@ describe('useMonogramLandingData', () => {
   it('accumulates uppercase-roman trial numbers per judge across multiple trials', () => {
     const show = makeShow();
     const trials: Trial[] = [
-      makeTrial({ id: 't1', trialNumber: 1, judge: 'Catherine Beagles' }),
-      makeTrial({ id: 't2', trialNumber: 2, judge: 'Marcus Whitfield' }),
-      makeTrial({ id: 't3', trialNumber: 3, judge: 'Catherine Beagles' }),
-      makeTrial({ id: 't4', trialNumber: 4, judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't1', trialNumber: '1', judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't2', trialNumber: '2', judge: 'Marcus Whitfield' }),
+      makeTrial({ id: 't3', trialNumber: '3', judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't4', trialNumber: '4', judge: 'Catherine Beagles' }),
     ];
     const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
 
@@ -92,8 +96,8 @@ describe('useMonogramLandingData', () => {
   it('does not duplicate trial numbers when same trial appears twice for a judge', () => {
     const show = makeShow();
     const trials: Trial[] = [
-      makeTrial({ id: 't1', trialNumber: 1, judge: 'Catherine Beagles' }),
-      makeTrial({ id: 't1-dup', trialNumber: 1, judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't1', trialNumber: '1', judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't1-dup', trialNumber: '1', judge: 'Catherine Beagles' }),
     ];
     const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
     expect(result.current.judges[0]?.trials).toEqual(['I']);
@@ -102,8 +106,8 @@ describe('useMonogramLandingData', () => {
   it('skips trials with no judge assigned when deriving the judges list', () => {
     const show = makeShow();
     const trials: Trial[] = [
-      makeTrial({ trialNumber: 1, judge: 'Catherine Beagles' }),
-      makeTrial({ id: 't2', trialNumber: 2 }), // no judge
+      makeTrial({ trialNumber: '1', judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't2', trialNumber: '2' }), // no judge
     ];
     const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
     expect(result.current.judges.length).toBe(1);
@@ -113,9 +117,9 @@ describe('useMonogramLandingData', () => {
   it('reports the highest configured entry limit across trials', () => {
     const show = makeShow();
     const trials: Trial[] = [
-      makeTrial({ id: 't1', trialNumber: 1, maxTotalEntries: 100 }),
-      makeTrial({ id: 't2', trialNumber: 2, maxTotalEntries: 360 }),
-      makeTrial({ id: 't3', trialNumber: 3, maxTotalEntries: 200 }),
+      makeTrial({ id: 't1', trialNumber: '1', maxTotalEntries: 100 }),
+      makeTrial({ id: 't2', trialNumber: '2', maxTotalEntries: 360 }),
+      makeTrial({ id: 't3', trialNumber: '3', maxTotalEntries: 200 }),
     ];
     const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
     expect(result.current.entryLimit).toBe(360);
@@ -123,7 +127,7 @@ describe('useMonogramLandingData', () => {
 
   it('returns null entryLimit when no trial has a max', () => {
     const show = makeShow();
-    const trials: Trial[] = [makeTrial({ trialNumber: 1 })];
+    const trials: Trial[] = [makeTrial({ trialNumber: '1' })];
     const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
     expect(result.current.entryLimit).toBeNull();
   });

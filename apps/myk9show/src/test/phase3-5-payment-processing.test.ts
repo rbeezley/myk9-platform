@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 
-
 // Mock payment service
 interface PaymentService {
   processPayment(data: PaymentData): Promise<PaymentResult>;
@@ -131,7 +130,8 @@ interface FailureRecovery {
   retryDelay?: number;
 }
 
-type RefundReason = 'cancellation' | 'withdrawal' | 'class_cancelled' | 'duplicate' | 'error' | 'other';
+type RefundReason =
+  'cancellation' | 'withdrawal' | 'class_cancelled' | 'duplicate' | 'error' | 'other';
 type RefundTiming = 'early' | 'standard' | 'late' | 'same_day';
 
 // Mock implementations
@@ -145,7 +145,7 @@ const mockPaymentService: PaymentService = {
         error: 'Card was declined',
       };
     }
-    
+
     if (data.method === 'credit_card' && data.cardData?.number === '4000000000000119') {
       return {
         success: false,
@@ -155,7 +155,7 @@ const mockPaymentService: PaymentService = {
         actionUrl: 'https://stripe.com/3ds/confirm',
       };
     }
-    
+
     return {
       success: true,
       transactionId: `txn_${Date.now()}`,
@@ -171,13 +171,13 @@ const mockPaymentService: PaymentService = {
     if (!cardData.number || cardData.number.length < 13) {
       errors.push('Invalid card number length');
     }
-    
+
     // Test card numbers for different scenarios
     if (cardData.number === '4000000000000002') {
       errors.push('Card number flagged for decline testing');
       riskScore = 0.9;
     }
-    
+
     if (cardData.number === '4000000000000119') {
       riskScore = 0.7; // Requires 3DS authentication
     }
@@ -186,9 +186,11 @@ const mockPaymentService: PaymentService = {
     const now = new Date();
     const currentYear = now.getFullYear() % 100;
     const currentMonth = now.getMonth() + 1;
-    
-    if (cardData.expiryYear < currentYear || 
-        (cardData.expiryYear === currentYear && cardData.expiryMonth < currentMonth)) {
+
+    if (
+      cardData.expiryYear < currentYear ||
+      (cardData.expiryYear === currentYear && cardData.expiryMonth < currentMonth)
+    ) {
       errors.push('Card has expired');
     }
 
@@ -283,7 +285,7 @@ const mockPaymentService: PaymentService = {
       {
         id: 'pay_123',
         entryId: 'entry_1',
-        amount: 35.00,
+        amount: 35.0,
         method: 'credit_card',
         status: PaymentStatus.PAID_ONLINE,
         transactionId: 'txn_123',
@@ -293,7 +295,7 @@ const mockPaymentService: PaymentService = {
             action: 'payment_created',
             timestamp: new Date(),
             user: 'system',
-            details: { amount: 35.00 },
+            details: { amount: 35.0 },
           },
         ],
       },
@@ -347,7 +349,7 @@ describe('Phase 3.5: Payment Processing', () => {
     it('should successfully process valid credit card payment', async () => {
       const futureYear = (new Date().getFullYear() % 100) + 3;
       const paymentData: PaymentData = {
-        amount: 75.00,
+        amount: 75.0,
         method: 'credit_card',
         entryIds: ['entry_1'],
         cardData: {
@@ -420,7 +422,7 @@ describe('Phase 3.5: Payment Processing', () => {
 
     it('should handle declined credit card payments', async () => {
       const paymentData: PaymentData = {
-        amount: 35.00,
+        amount: 35.0,
         method: 'credit_card',
         entryIds: ['entry_1'],
         cardData: {
@@ -447,7 +449,7 @@ describe('Phase 3.5: Payment Processing', () => {
 
     it('should handle 3DS authentication requirements', async () => {
       const paymentData: PaymentData = {
-        amount: 100.00,
+        amount: 100.0,
         method: 'credit_card',
         entryIds: ['entry_1'],
         cardData: {
@@ -476,7 +478,7 @@ describe('Phase 3.5: Payment Processing', () => {
   describe('Check Payments', () => {
     it('should record check payment with validation', async () => {
       const paymentData: PaymentData = {
-        amount: 45.00,
+        amount: 45.0,
         method: 'check',
         reference: 'CHECK-1001',
         entryIds: ['entry_1'],
@@ -492,7 +494,7 @@ describe('Phase 3.5: Payment Processing', () => {
     it('should prevent duplicate check numbers', async () => {
       const checkData = {
         checkNumber: '1001',
-        amount: 35.00,
+        amount: 35.0,
         payerName: 'John Doe',
         bankName: 'First National Bank',
       };
@@ -513,10 +515,7 @@ describe('Phase 3.5: Payment Processing', () => {
     });
 
     it('should track check processing workflow', async () => {
-      const checkStates = [
-        PaymentStatus.PENDING,
-        PaymentStatus.PAID_BY_CHECK,
-      ];
+      const checkStates = [PaymentStatus.PENDING, PaymentStatus.PAID_BY_CHECK];
 
       for (const status of checkStates) {
         const result = await updateCheckStatus('CHECK-1001', status);
@@ -529,7 +528,7 @@ describe('Phase 3.5: Payment Processing', () => {
   describe('Cash Payments', () => {
     it('should handle day-of-show cash payments', async () => {
       const cashPayment: PaymentData = {
-        amount: 35.00,
+        amount: 35.0,
         method: 'cash',
         entryIds: ['entry_1'],
         reference: 'CASH-RECEIPT-001',
@@ -543,8 +542,8 @@ describe('Phase 3.5: Payment Processing', () => {
 
     it('should validate exact cash amounts', async () => {
       const cashValidation = await validateCashPayment({
-        expectedAmount: 35.00,
-        receivedAmount: 35.00,
+        expectedAmount: 35.0,
+        receivedAmount: 35.0,
         receiptNumber: 'CASH-001',
       });
 
@@ -554,33 +553,33 @@ describe('Phase 3.5: Payment Processing', () => {
 
     it('should handle cash overpayment', async () => {
       const cashValidation = await validateCashPayment({
-        expectedAmount: 35.00,
-        receivedAmount: 40.00,
+        expectedAmount: 35.0,
+        receivedAmount: 40.0,
         receiptNumber: 'CASH-002',
       });
 
       expect(cashValidation.isValid).toBe(true);
-      expect(cashValidation.changeRequired).toBe(5.00);
+      expect(cashValidation.changeRequired).toBe(5.0);
       expect(cashValidation.notes).toContain('Change due');
     });
   });
 
   describe('Refund Processing', () => {
     it('should calculate refund amounts based on timing', () => {
-      const originalAmount = 100.00;
-      
+      const originalAmount = 100.0;
+
       // Early refund (7+ days)
       const earlyRefund = paymentService.calculateRefund(originalAmount, 'early');
       expect(earlyRefund.netRefund).toBeGreaterThan(95); // Minimal fees
-      
+
       // Standard refund (3-7 days)
       const standardRefund = paymentService.calculateRefund(originalAmount, 'standard');
       expect(standardRefund.netRefund).toBeLessThan(earlyRefund.netRefund);
-      
+
       // Late refund (1-3 days)
       const lateRefund = paymentService.calculateRefund(originalAmount, 'late');
       expect(lateRefund.netRefund).toBeLessThan(standardRefund.netRefund);
-      
+
       // Same day refund
       const sameDayRefund = paymentService.calculateRefund(originalAmount, 'same_day');
       expect(sameDayRefund.netRefund).toBeLessThan(lateRefund.netRefund);
@@ -589,7 +588,7 @@ describe('Phase 3.5: Payment Processing', () => {
     it('should process full refunds correctly', async () => {
       const refundData: RefundData = {
         originalTransactionId: 'txn_123',
-        amount: 75.00,
+        amount: 75.0,
         reason: 'cancellation',
         notes: 'Exhibitor requested cancellation',
       };
@@ -598,14 +597,14 @@ describe('Phase 3.5: Payment Processing', () => {
 
       expect(result.success).toBe(true);
       expect(result.refundId).toBeDefined();
-      expect(result.amount).toBe(75.00);
+      expect(result.amount).toBe(75.0);
       expect(result.status).toBe('processed');
     });
 
     it('should process partial refunds for multi-class entries', async () => {
       const partialRefundData: RefundData = {
         originalTransactionId: 'txn_multi_123',
-        amount: 50.00, // Partial amount
+        amount: 50.0, // Partial amount
         reason: 'class_cancelled',
         notes: 'Two classes cancelled due to judge unavailability',
         partialRefund: true,
@@ -615,7 +614,7 @@ describe('Phase 3.5: Payment Processing', () => {
       const result = await paymentService.processRefund(partialRefundData);
 
       expect(result.success).toBe(true);
-      expect(result.amount).toBe(50.00);
+      expect(result.amount).toBe(50.0);
       expect(result.status).toBe('processed');
     });
 
@@ -623,7 +622,7 @@ describe('Phase 3.5: Payment Processing', () => {
       // Test invalid refund amount
       const invalidRefund: RefundData = {
         originalTransactionId: 'txn_123',
-        amount: -10.00, // Invalid negative amount
+        amount: -10.0, // Invalid negative amount
         reason: 'error',
       };
 
@@ -684,12 +683,12 @@ describe('Phase 3.5: Payment Processing', () => {
     it('should handle split payments across multiple methods', async () => {
       const splitPayments = [
         {
-          amount: 50.00,
+          amount: 50.0,
           method: 'credit_card' as const,
           entryIds: ['entry_1'],
         },
         {
-          amount: 25.00,
+          amount: 25.0,
           method: 'check' as const,
           entryIds: ['entry_2'],
           reference: 'CHECK-1002',
@@ -709,16 +708,16 @@ describe('Phase 3.5: Payment Processing', () => {
     it('should track multiple payment methods for single registration', async () => {
       const registration = {
         id: 'reg_123',
-        totalAmount: 105.00,
+        totalAmount: 105.0,
         payments: [
-          { method: 'credit_card', amount: 75.00, status: PaymentStatus.PAID_ONLINE },
-          { method: 'check', amount: 30.00, status: PaymentStatus.PAID_BY_CHECK },
+          { method: 'credit_card', amount: 75.0, status: PaymentStatus.PAID_ONLINE },
+          { method: 'check', amount: 30.0, status: PaymentStatus.PAID_BY_CHECK },
         ],
       };
 
       const paymentStatus = calculateRegistrationPaymentStatus(registration);
-      
-      expect(paymentStatus.totalPaid).toBe(105.00);
+
+      expect(paymentStatus.totalPaid).toBe(105.0);
       expect(paymentStatus.remainingBalance).toBe(0);
       expect(paymentStatus.isFullyPaid).toBe(true);
       expect(paymentStatus.paymentMethods).toHaveLength(2);
@@ -738,7 +737,7 @@ describe('Phase 3.5: Payment Processing', () => {
 
     it('should maintain audit trail for all payment actions', async () => {
       const auditTrail = await getPaymentAuditTrail('txn_123');
-      
+
       expect(auditTrail).toBeDefined();
       expect(auditTrail.entries).toHaveLength(3);
       expect(auditTrail.entries[0].action).toBe('payment_initiated');
@@ -770,7 +769,7 @@ describe('Phase 3.5: Payment Processing', () => {
       };
 
       const encrypted = encryptPaymentData(sensitiveData);
-      
+
       expect(encrypted.cardNumber).not.toBe(sensitiveData.cardNumber);
       expect(encrypted.cvv).not.toBe(sensitiveData.cvv);
       expect(encrypted.cardNumber.length).toBeGreaterThan(20); // Encrypted length
@@ -790,16 +789,17 @@ describe('Phase 3.5: Payment Processing', () => {
     });
 
     it('should not store sensitive card data', async () => {
-      const _paymentRecord = {
+      const paymentRecord = {
         transactionId: 'txn_123',
-        amount: 35.00,
+        amount: 35.0,
         last4: '1111',
         brand: 'visa',
         // Should NOT contain: full card number, cvv, expiry
       };
+      expect(paymentRecord).not.toHaveProperty('cardNumber');
 
       const storedData = await getStoredPaymentRecord('txn_123');
-      
+
       expect(storedData.cardNumber).toBeUndefined();
       expect(storedData.cvv).toBeUndefined();
       expect(storedData.last4).toBe('1111');
@@ -810,7 +810,7 @@ describe('Phase 3.5: Payment Processing', () => {
   describe('System Integration', () => {
     it('should integrate payment status with entry management', async () => {
       const entryUpdate = await updateEntryPaymentStatus('entry_123', PaymentStatus.PAID_ONLINE);
-      
+
       expect(entryUpdate.success).toBe(true);
       expect(entryUpdate.entryStatus).toBe(EntryStatus.ACCEPTED);
       expect(entryUpdate.notificationSent).toBe(true);
@@ -818,7 +818,7 @@ describe('Phase 3.5: Payment Processing', () => {
 
     it('should trigger notifications on payment events', async () => {
       const notifications = await getTriggeredNotifications('payment_completed', 'txn_123');
-      
+
       expect(notifications).toHaveLength(2);
       expect(notifications[0].type).toBe('payment_confirmation');
       expect(notifications[1].type).toBe('entry_accepted');
@@ -826,7 +826,7 @@ describe('Phase 3.5: Payment Processing', () => {
 
     it('should update financial reporting data', async () => {
       const reportData = await getFinancialReport('show_123');
-      
+
       expect(reportData.totalRevenue).toBeGreaterThan(0);
       expect(reportData.paymentMethodBreakdown).toBeDefined();
       expect(reportData.refundTotal).toBeDefined();
@@ -841,21 +841,39 @@ async function validateCheckNumber(checkNumber: string): Promise<{ isDuplicate: 
   return { isDuplicate: checkNumber === '1001' };
 }
 
-async function updateCheckStatus(checkNumber: string, status: PaymentStatus): Promise<{ success: boolean; newStatus: PaymentStatus }> {
-  return { success: true, newStatus: status };
+async function updateCheckStatus(
+  checkNumber: string,
+  status: PaymentStatus
+): Promise<{ success: boolean; newStatus: PaymentStatus }> {
+  return { success: checkNumber.length > 0, newStatus: status };
 }
 
-async function validateCashPayment(data: { expectedAmount: number; receivedAmount: number; receiptNumber: string }): Promise<{ isValid: boolean; changeRequired: number; notes?: string }> {
+async function validateCashPayment(data: {
+  expectedAmount: number;
+  receivedAmount: number;
+  receiptNumber: string;
+}): Promise<{ isValid: boolean; changeRequired: number; notes?: string }> {
   const changeRequired = Math.max(0, data.receivedAmount - data.expectedAmount);
   return {
     isValid: data.receivedAmount >= data.expectedAmount,
     changeRequired,
-    notes: changeRequired > 0 ? `Change due: $${changeRequired.toFixed(2)}` : undefined,
+    ...(changeRequired > 0 ? { notes: `Change due: $${changeRequired.toFixed(2)}` } : {}),
   };
 }
 
-function calculateRegistrationPaymentStatus(registration: { totalAmount: number; payments: Array<{ amount: number; method: string }> }): { totalPaid: number; remainingBalance: number; isFullyPaid: boolean; paymentMethods: string[] } {
-  const totalPaid = registration.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0);
+function calculateRegistrationPaymentStatus(registration: {
+  totalAmount: number;
+  payments: Array<{ amount: number; method: string }>;
+}): {
+  totalPaid: number;
+  remainingBalance: number;
+  isFullyPaid: boolean;
+  paymentMethods: string[];
+} {
+  const totalPaid = registration.payments.reduce(
+    (sum: number, p: { amount: number }) => sum + p.amount,
+    0
+  );
   return {
     totalPaid,
     remainingBalance: Math.max(0, registration.totalAmount - totalPaid),
@@ -864,9 +882,12 @@ function calculateRegistrationPaymentStatus(registration: { totalAmount: number;
   };
 }
 
-async function getPaymentAuditTrail(_transactionId: string): Promise<{ transactionId: string; entries: Array<{ action: string; timestamp: Date; user: string }> }> {
+async function getPaymentAuditTrail(transactionId: string): Promise<{
+  transactionId: string;
+  entries: Array<{ action: string; timestamp: Date; user: string }>;
+}> {
   return {
-    transactionId: _transactionId,
+    transactionId,
     entries: [
       { action: 'payment_initiated', timestamp: new Date(), user: 'user_123' },
       { action: 'payment_processed', timestamp: new Date(), user: 'system' },
@@ -888,39 +909,60 @@ function deriveEntryStatusFromPayment(paymentStatus: PaymentStatus): EntryStatus
   }
 }
 
-function encryptPaymentData(data: { cardNumber: string; cvv: string }): { cardNumber: string; cvv: string } {
+function encryptPaymentData(data: { cardNumber: string; cvv: string }): {
+  cardNumber: string;
+  cvv: string;
+} {
   return {
     cardNumber: `enc_${Buffer.from(data.cardNumber).toString('base64')}`,
     cvv: `enc_${Buffer.from(data.cvv).toString('base64')}`,
   };
 }
 
-function validatePCICompliance(config: { encryptionEnabled: boolean; tokenizationEnabled: boolean; auditLoggingEnabled: boolean; accessControlEnabled: boolean; regularSecurityScans: boolean }): { isCompliant: boolean; violations: string[] } {
+function validatePCICompliance(config: {
+  encryptionEnabled: boolean;
+  tokenizationEnabled: boolean;
+  auditLoggingEnabled: boolean;
+  accessControlEnabled: boolean;
+  regularSecurityScans: boolean;
+}): { isCompliant: boolean; violations: string[] } {
   const violations: string[] = [];
-  
+
   if (!config.encryptionEnabled) violations.push('Encryption not enabled');
   if (!config.tokenizationEnabled) violations.push('Tokenization not enabled');
   if (!config.auditLoggingEnabled) violations.push('Audit logging not enabled');
   if (!config.accessControlEnabled) violations.push('Access control not enabled');
   if (!config.regularSecurityScans) violations.push('Regular security scans not performed');
-  
+
   return {
     isCompliant: violations.length === 0,
     violations,
   };
 }
 
-async function getStoredPaymentRecord(_transactionId: string): Promise<{ transactionId: string; amount: number; last4: string; brand: string; timestamp: Date; cardNumber?: undefined; cvv?: undefined }> {
+async function getStoredPaymentRecord(transactionId: string): Promise<{
+  transactionId: string;
+  amount: number;
+  last4: string;
+  brand: string;
+  timestamp: Date;
+  cardNumber?: undefined;
+  cvv?: undefined;
+}> {
   return {
-    transactionId: _transactionId,
-    amount: 35.00,
+    transactionId,
+    amount: 35.0,
     last4: '1111',
     brand: 'visa',
     timestamp: new Date(),
   };
 }
 
-async function updateEntryPaymentStatus(_entryId: string, paymentStatus: PaymentStatus): Promise<{ success: boolean; entryStatus: EntryStatus; notificationSent: boolean }> {
+async function updateEntryPaymentStatus(
+  entryId: string,
+  paymentStatus: PaymentStatus
+): Promise<{ success: boolean; entryStatus: EntryStatus; notificationSent: boolean }> {
+  void entryId;
   return {
     success: true,
     entryStatus: deriveEntryStatusFromPayment(paymentStatus),
@@ -928,23 +970,34 @@ async function updateEntryPaymentStatus(_entryId: string, paymentStatus: Payment
   };
 }
 
-async function getTriggeredNotifications(_event: string, _referenceId: string): Promise<Array<{ type: string; recipient: string; sent: boolean }>> {
+async function getTriggeredNotifications(
+  event: string,
+  referenceId: string
+): Promise<Array<{ type: string; recipient: string; sent: boolean }>> {
+  void event;
+  void referenceId;
   return [
     { type: 'payment_confirmation', recipient: 'user@example.com', sent: true },
     { type: 'entry_accepted', recipient: 'user@example.com', sent: true },
   ];
 }
 
-async function getFinancialReport(showId: string): Promise<{ showId: string; totalRevenue: number; paymentMethodBreakdown: Record<string, number>; refundTotal: number; outstandingPayments: number }> {
+async function getFinancialReport(showId: string): Promise<{
+  showId: string;
+  totalRevenue: number;
+  paymentMethodBreakdown: Record<string, number>;
+  refundTotal: number;
+  outstandingPayments: number;
+}> {
   return {
     showId,
-    totalRevenue: 1250.00,
+    totalRevenue: 1250.0,
     paymentMethodBreakdown: {
-      credit_card: 875.00,
-      check: 250.00,
-      cash: 125.00,
+      credit_card: 875.0,
+      check: 250.0,
+      cash: 125.0,
     },
-    refundTotal: 75.00,
-    outstandingPayments: 125.00,
+    refundTotal: 75.0,
+    outstandingPayments: 125.0,
   };
 }

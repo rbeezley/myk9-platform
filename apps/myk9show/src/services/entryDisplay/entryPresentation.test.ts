@@ -5,7 +5,10 @@ const secretary: EntryViewer = { viewer: 'secretary' };
 const exhibitor: EntryViewer = { viewer: 'exhibitor' };
 
 function present(entryStatus: string | null | undefined, viewer: EntryViewer, extra = {}) {
-  return deriveEntryPresentation({ entryStatus, ...extra }, viewer);
+  return deriveEntryPresentation(
+    { ...(entryStatus !== undefined ? { entryStatus } : {}), ...extra },
+    viewer
+  );
 }
 
 describe('deriveEntryPresentation — context-aware wording', () => {
@@ -46,20 +49,18 @@ describe('deriveEntryPresentation — context-aware wording', () => {
       statusLine: 'Scratch requested',
       actionHint: 'Approve or decline the scratch',
     });
-    expect(present('scratch-requested', exhibitor).actionHint).toBe(
-      'Awaiting secretary approval'
-    );
+    expect(present('scratch-requested', exhibitor).actionHint).toBe('Awaiting secretary approval');
     // Underscore spelling (still permitted by the CHECK constraint) is identical.
-    expect(present('scratch_requested', secretary)).toEqual(present('scratch-requested', secretary));
+    expect(present('scratch_requested', secretary)).toEqual(
+      present('scratch-requested', secretary)
+    );
   });
 
   it('surfaces the move-up approval queue to the secretary', () => {
     const sec = present('move-up-requested', secretary);
     expect(sec.statusLine).toBe('Move-up requested');
     expect(sec.actionHint).toBe('Approve or decline in Move-ups & pulls');
-    expect(present('move-up-requested', exhibitor).actionHint).toBe(
-      'Awaiting secretary approval'
-    );
+    expect(present('move-up-requested', exhibitor).actionHint).toBe('Awaiting secretary approval');
   });
 
   it('asks the exhibitor to finish payment on a waitlist promotion', () => {
@@ -112,9 +113,7 @@ describe('deriveEntryPresentation — kind-level lines', () => {
   });
 
   it('offers the waitlisted exhibitor the notify reassurance as its one hint', () => {
-    expect(present('waitlisted', exhibitor).actionHint).toBe(
-      "You'll be notified if a spot opens"
-    );
+    expect(present('waitlisted', exhibitor).actionHint).toBe("You'll be notified if a spot opens");
     expect(present('waitlisted', secretary).actionHint).toBeNull();
   });
 

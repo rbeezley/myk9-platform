@@ -9,8 +9,10 @@ import { logger } from '@/services/LoggingService';
 
 // Use environment variables for testing
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
+const supabaseAnonKey =
+  import.meta.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseServiceKey =
+  import.meta.env.VITE_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
 
 // Standard test client (respects RLS policies)
 export const testClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
@@ -22,7 +24,7 @@ export const testClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 });
 
 // Admin client for bypassing RLS in tests (if service key available)
-export const adminClient = supabaseServiceKey 
+export const adminClient = supabaseServiceKey
   ? createClient<Database>(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
@@ -55,7 +57,12 @@ export async function createTestUser(email?: string, password?: string) {
       });
 
       if (signInError) {
-        logger.warn('Failed to sign in existing test user:', 'utils', {}, signInError.message as Error);
+        logger.warn(
+          'Failed to sign in existing test user:',
+          'utils',
+          {},
+          new Error(signInError.message)
+        );
         return { user: null, session: null, error: signInError };
       }
 
@@ -67,7 +74,7 @@ export async function createTestUser(email?: string, password?: string) {
     }
 
     if (signUpError) {
-      logger.warn('Failed to create test user:', 'utils', {}, signUpError.message as Error);
+      logger.warn('Failed to create test user:', 'utils', {}, new Error(signUpError.message));
       return { user: null, session: null, error: signUpError };
     }
 
@@ -101,21 +108,28 @@ export async function cleanupTestUser() {
  * Test data insertion helper that respects RLS
  * Uses the admin client if available, otherwise authenticated client
  */
-export async function insertTestData<T>(
-  table: string,
-  data: Partial<T>,
+type TableName = keyof Database['public']['Tables'];
+type TableInsert<K extends TableName> = Database['public']['Tables'][K] extends {
+  Insert: infer Insert;
+}
+  ? Insert
+  : never;
+
+export async function insertTestData<K extends TableName>(
+  table: K,
+  data: TableInsert<K>,
   useAdmin = false
-): Promise<{ data: T | null; error: unknown }> {
+): Promise<{ data: unknown; error: unknown }> {
   const client = useAdmin && adminClient !== testClient ? adminClient : testClient;
-  
+
   try {
     const { data: result, error } = await client
       .from(table)
-      .insert(data)
+      .insert(data as never)
       .select()
       .single();
 
-    return { data: result as T, error };
+    return { data: result, error };
   } catch (error) {
     return { data: null, error: error as unknown };
   }
@@ -125,17 +139,14 @@ export async function insertTestData<T>(
  * Test data cleanup helper
  */
 export async function cleanupTestData(
-  table: string,
+  table: TableName,
   filter: Record<string, unknown>,
   useAdmin = false
 ): Promise<{ success: boolean; error?: unknown }> {
   const client = useAdmin && adminClient !== testClient ? adminClient : testClient;
-  
+
   try {
-    const { error } = await client
-      .from(table)
-      .delete()
-      .match(filter);
+    const { error } = await client.from(table).delete().match(filter);
 
     return { success: !error, error };
   } catch (error) {
@@ -170,7 +181,7 @@ export const validateTestConfig = (): {
   }
 
   return {
-    valid: issues.length === 0 || issues.length === 1 && issues[0].includes('SERVICE_KEY'),
+    valid: issues.length === 0 || (issues.length === 1 && issues[0].includes('SERVICE_KEY')),
     issues,
   };
 };

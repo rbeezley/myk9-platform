@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { submitOfflineLateEntry } from './submitOfflineLateEntry';
+import { PaymentStatus } from '@/types/show-registration-types';
 
 const {
   createEntryMock,
@@ -75,10 +76,7 @@ describe('submitOfflineLateEntry', () => {
         {
           dogId: 'dog-1',
           trialId: 'trial-1',
-          selectedClasses: [
-            { classId: 'class-1', jumpHeight: '16' },
-            { classId: 'class-2' },
-          ],
+          selectedClasses: [{ classId: 'class-1', jumpHeight: '16' }, { classId: 'class-2' }],
         },
       ],
       handlerAssignments: {
@@ -168,7 +166,7 @@ describe('submitOfflineLateEntry', () => {
     await submitOfflineLateEntry({
       showId: 'show-1',
       paymentMethod: 'check',
-      paymentStatus: 'paid_by_check',
+      paymentStatus: PaymentStatus.PAID_BY_CHECK,
       showFeeInfo: {
         preEntryFee: '25',
         dayOfShowFee: '35',
@@ -217,10 +215,11 @@ describe('submitOfflineLateEntry', () => {
     expect(upsertAssignedArmbandMock).toHaveBeenCalledWith(
       expect.objectContaining({ armbandNumber: '250' })
     );
-    expect(createEntryMock).toHaveBeenCalledWith(
-      expect.objectContaining({ armband: '250' }),
-      ['dog-mutation-1', 'registration-mutation-1', 'armband-mutation-1']
-    );
+    expect(createEntryMock).toHaveBeenCalledWith(expect.objectContaining({ armband: '250' }), [
+      'dog-mutation-1',
+      'registration-mutation-1',
+      'armband-mutation-1',
+    ]);
     expect(result.armbandAssignments).toEqual([{ dogId: 'dog-1', armband: '250' }]);
   });
 });

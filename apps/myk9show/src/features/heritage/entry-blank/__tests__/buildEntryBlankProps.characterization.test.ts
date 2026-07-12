@@ -83,7 +83,14 @@ describe('buildEntryBlankProps — §II grid (characterization)', () => {
     for (const registry_id of ['', '   ', null, undefined]) {
       const props = buildEntryBlankProps({
         ...BASE,
-        trials: [{ id: 't1', date: '2026-06-12', display_order: 1, registry_id }],
+        trials: [
+          {
+            id: 't1',
+            date: '2026-06-12',
+            display_order: 1,
+            ...(registry_id !== undefined ? { registry_id } : {}),
+          },
+        ],
       });
       expect(props.licenseLanguage).toBe('An A.K.C. Licensed Trial');
       // Grid still renders the AKC structure (plural labels), proving AKC fallback.
@@ -108,7 +115,9 @@ describe('buildEntryBlankProps — UKC trial', () => {
   it('prefills the HD special row for a UKC Excellent HD entry', () => {
     const props = buildEntryBlankProps({
       ...UKC_BASE,
-      classes: [{ id: 'c1', trial_id: 't1', level: 'Excellent', element: 'Handler Discrimination' }],
+      classes: [
+        { id: 'c1', trial_id: 't1', level: 'Excellent', element: 'Handler Discrimination' },
+      ],
       entry: { trial_id: 't1', class_id: 'c1' },
     });
     const checked = props.levelCells.filter(c => c.checked).map(c => `${c.level} / ${c.element}`);

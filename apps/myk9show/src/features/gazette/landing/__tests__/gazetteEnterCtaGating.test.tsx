@@ -11,6 +11,7 @@ const STICKY_PROPS = {
 
 const FINAL_PROPS = {
   entryWizardUrl: '/shows/show-1/register',
+  classesHref: '/shows/show-1/classes',
   entryCloseDate: null,
   timezone: 'America/Chicago',
 };

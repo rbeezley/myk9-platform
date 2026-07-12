@@ -5,6 +5,18 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useDogStoreCompat } from './useDogStoreCompat';
 import { mockSupabase } from '@/test/mocks/supabase';
 import type { DogInput } from '@/store/dogStore';
+import { fromAny } from '@total-typescript/shoehorn';
+
+type RpcArgs = { p_dog?: { id?: string }; p_registrations?: { registered_name: string }[] };
+const rpcMock = fromAny<
+  {
+    mockImplementation: (
+      implementation: (name: string, args: RpcArgs) => Promise<{ data: string; error: null }>
+    ) => void;
+    mock: { calls: Array<[string, RpcArgs]> };
+  },
+  typeof mockSupabase.rpc
+>(mockSupabase.rpc);
 
 // ---------------------------------------------------------------------------
 // Module-level mocks — use vi.hoisted so factories can reference these vars
@@ -114,9 +126,10 @@ beforeEach(() => {
   mockReplicatedDogsTable.set.mockResolvedValue(undefined);
   mockReplicatedDogsTable.delete.mockResolvedValue(undefined);
   mockMutateAsync.mockResolvedValue(mockDbDogRow);
-  mockSupabase.rpc.mockImplementation((_name: string, args: { p_dog?: { id?: string } }) =>
-    Promise.resolve({ data: args.p_dog?.id ?? 'dog-abc', error: null })
-  );
+  rpcMock.mockImplementation((name: string, args: RpcArgs) => {
+    void name;
+    return Promise.resolve({ data: args.p_dog?.id ?? 'dog-abc', error: null });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -201,8 +214,20 @@ describe('useDogStoreCompat.addDog — atomic RPC path (with registrations)', ()
     const inputWithBlankReg: DogInput = {
       ...minimalDogInput,
       registrations: [
-        { organization: 'AKC', registeredName: '', number: '', status: 'pending' },
-        { organization: 'UKC', registeredName: 'Buddy UKC', number: 'UKC456', status: 'active' },
+        {
+          organization: 'AKC',
+          registeredName: '',
+          number: '',
+          type: 'registration',
+          status: 'pending',
+        },
+        {
+          organization: 'UKC',
+          registeredName: 'Buddy UKC',
+          number: 'UKC456',
+          type: 'registration',
+          status: 'active',
+        },
       ],
     };
 
@@ -212,12 +237,10 @@ describe('useDogStoreCompat.addDog — atomic RPC path (with registrations)', ()
       await result.current.addDog(inputWithBlankReg);
     });
 
-    const rpcCall = mockSupabase.rpc.mock.calls.find(
-      ([name]: [string]) => name === 'create_dog_with_registrations'
-    );
-    const payload = rpcCall?.[1] as { p_registrations: { registered_name: string }[] };
-    expect(payload.p_registrations).toHaveLength(1);
-    expect(payload.p_registrations[0].registered_name).toBe('Buddy UKC');
+    const rpcCall = rpcMock.mock.calls.find(([name]) => name === 'create_dog_with_registrations');
+    const registrations = rpcCall?.[1].p_registrations;
+    expect(registrations).toHaveLength(1);
+    expect(registrations?.[0]?.registered_name).toBe('Buddy UKC');
   });
 });
 
@@ -230,8 +253,8 @@ describe('useDogStoreCompat.addDog — existing path (no registrations)', () => 
     });
 
     expect(mockMutateAsync).toHaveBeenCalled();
-    const rpcCalls = mockSupabase.rpc.mock.calls.filter(
-      ([name]: [string]) => name === 'create_dog_with_registrations'
+    const rpcCalls = rpcMock.mock.calls.filter(
+      ([name]) => name === 'create_dog_with_registrations'
     );
     expect(rpcCalls).toHaveLength(0);
   });

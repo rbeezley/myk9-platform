@@ -209,7 +209,7 @@ describe('useShowDetailsStepActions', () => {
     });
 
     it('calls updateUser when the person has no existing email and one was provided', async () => {
-      mockPeople = [{ id: 'person-1', email: undefined }];
+      mockPeople = [{ id: 'person-1' }];
       mockCreateJudgeQualification.mockResolvedValue({ id: 'qual-1' });
       const { result } = renderHook(() => useShowDetailsStepActions());
 
@@ -239,7 +239,7 @@ describe('useShowDetailsStepActions', () => {
     });
 
     it('does not call updateUser when no email was provided', async () => {
-      mockPeople = [{ id: 'person-1', email: undefined }];
+      mockPeople = [{ id: 'person-1' }];
       mockCreateJudgeQualification.mockResolvedValue({ id: 'qual-1' });
       const { result } = renderHook(() => useShowDetailsStepActions());
 
@@ -282,7 +282,7 @@ describe('useShowDetailsStepActions', () => {
 
       // Simulate the people list changing (e.g. person-1's email cleared) and
       // the hook re-rendering with the fresh store value.
-      mockPeople = [{ id: 'person-1', email: undefined }];
+      mockPeople = [{ id: 'person-1' }];
       rerender();
 
       await result.current.handleSaveJudgeCredentials('person-1', {

@@ -13,7 +13,7 @@ describe('resolveTrialTypeOptions', () => {
     expect(options).toContain(TrialType.OBEDIENCE);
     expect(options).toContain(TrialType.RALLY);
     expect(options).toContain(TrialType.CONFORMATION);
-    expect(options.at(-1)).toBe(TrialType.OTHER);
+    expect(options[options.length - 1]).toBe(TrialType.OTHER);
   });
 
   it('normalizes raw enum-style template values before deduping', () => {

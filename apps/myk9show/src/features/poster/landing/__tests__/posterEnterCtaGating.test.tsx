@@ -19,6 +19,7 @@ const stickyNavProps = {
 
 const finalCtaProps = {
   entryWizardUrl: ENTRY_URL,
+  classesHref: '/shows/show-1/classes',
   entryCloseDate: '2026-06-10',
   timezone: 'America/New_York',
 };

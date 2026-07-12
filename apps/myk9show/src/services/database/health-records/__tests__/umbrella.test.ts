@@ -87,7 +87,8 @@ const buildGeneticScreening = (id: string) => ({
 // per-sub-table reads are mocked so `getDogHealthOverview` (and the real
 // `getDogHealthStatistics` it calls inside the same module) sees test data.
 const mocks = vi.hoisted(() => {
-  const okEmpty = () => Promise.resolve({ data: [], error: null });
+  const okEmpty = (): Promise<{ data: unknown[]; error: unknown }> =>
+    Promise.resolve({ data: [], error: null });
   return {
     getAllVaccinations: vi.fn(okEmpty),
     getUpcomingVaccinations: vi.fn(okEmpty),
@@ -140,7 +141,7 @@ vi.mock('@/utils/sanitizePostgRESTFilter', () => ({
 
 import { getDogHealthOverview } from '../umbrella';
 
-const ok = <T,>(data: T) => Promise.resolve({ data, error: null });
+const ok = <T>(data: T) => Promise.resolve({ data, error: null });
 
 describe('getDogHealthOverview', () => {
   beforeEach(() => {
@@ -188,9 +189,7 @@ describe('getDogHealthOverview', () => {
       ])
     );
     mocks.getAllOFAScreenings.mockImplementation(() => ok([buildOFAScreening('ofa-1')]));
-    mocks.getAllGeneticScreenings.mockImplementation(() =>
-      ok([buildGeneticScreening('g-1')])
-    );
+    mocks.getAllGeneticScreenings.mockImplementation(() => ok([buildGeneticScreening('g-1')]));
 
     const { data, error } = await getDogHealthOverview('dog-1');
 
@@ -214,9 +213,7 @@ describe('getDogHealthOverview', () => {
 
   it('surfaces the first sub-query error', async () => {
     const boom = new Error('vaccinations RLS denied');
-    mocks.getAllVaccinations.mockImplementation(() =>
-      Promise.resolve({ data: [], error: boom })
-    );
+    mocks.getAllVaccinations.mockImplementation(() => Promise.resolve({ data: [], error: boom }));
 
     const { data, error } = await getDogHealthOverview('dog-1');
 

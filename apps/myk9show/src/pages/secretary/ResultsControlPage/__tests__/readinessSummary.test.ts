@@ -30,7 +30,9 @@ function entry(overrides: Partial<SyncableEntryData> = {}): SyncableEntryData {
     armband: '101',
     handler: 'Handler',
     dog: 'Dog',
-    status: 'pending',
+    // Runtime readiness explicitly treats pending as unscored, but EntryData's
+    // result-only status union does not currently include that pre-result state.
+    status: 'pending' as SyncableEntryData['status'],
     score: '',
     time: '',
     placement: '',

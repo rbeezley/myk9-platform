@@ -23,7 +23,7 @@ vi.mock('@/services/replication', () => ({
 
 vi.mock('@/services/AuditService', () => ({
   auditService: {
-    log: (...args: unknown[]) => auditLog(...args),
+    log: () => auditLog(),
   },
 }));
 

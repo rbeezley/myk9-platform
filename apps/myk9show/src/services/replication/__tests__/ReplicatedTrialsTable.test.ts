@@ -913,7 +913,7 @@ describe('ReplicatedTrialsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       await table.sync(TEST_SHOW_ID);
 
@@ -948,7 +948,7 @@ describe('ReplicatedTrialsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       await table.sync(TEST_SHOW_ID);
 
@@ -984,7 +984,7 @@ describe('ReplicatedTrialsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       await table.sync(TEST_SHOW_ID);
 
@@ -1329,7 +1329,7 @@ describe('ReplicatedTrialsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       const beforeSync = Date.now();
       await table.sync(TEST_SHOW_ID);
@@ -1358,7 +1358,7 @@ describe('ReplicatedTrialsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       await table.sync(TEST_SHOW_ID);
 
@@ -1382,7 +1382,7 @@ describe('ReplicatedTrialsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       const result = await table.sync(TEST_SHOW_ID);
 
@@ -1404,7 +1404,7 @@ describe('ReplicatedTrialsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       const result = await table.sync(TEST_SHOW_ID);
 

@@ -252,15 +252,16 @@ describe('RegistrationView filter content routing', () => {
   });
 
   it('does not open automatic decision email review when that lifecycle step is disabled', async () => {
-    mockSupabase.from.mockImplementation((table: string) =>
-      createChainableQuery({
+    mockSupabase.from.mockImplementation((...args: unknown[]) => {
+      const table = args[0] as string;
+      return createChainableQuery({
         data:
           table === 'show_lifecycle_email_steps'
             ? [{ show_id: 'show-1', step_type: 'accepted', is_enabled: false }]
             : [],
         error: null,
-      })
-    );
+      });
+    });
     const onStatusChange = vi.fn().mockResolvedValue(undefined);
     const { user } = renderView('all', 'cards', {
       entries: [reviewedEntry],

@@ -12,7 +12,6 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { EntryLimitChecker, type LimitCheckContext } from '@/services/entries/EntryLimitChecker';
-import { EntryStatus } from '@/types/show-registration-types';
 import type { ShowEntry, ShowEntryInput } from '@/store/entryStore';
 import type { Show, Trial, Class } from '@/types/show-types';
 import type { Dog } from '@/types/dog-types';
@@ -30,19 +29,41 @@ describe('EntryLimitChecker', () => {
     mockShow = {
       id: 'test-show-001',
       name: 'Test Show',
+      organization: 'AKC',
+      startDate: '2026-06-01',
+      endDate: '2026-06-02',
+      location: 'Test Grounds',
+      status: 'Upcoming',
+      events: [],
+      source: 'myK9Show',
+      entryOpenDate: '2026-01-01',
+      entryCloseDate: '2026-05-01',
+      preEntryFee: '25',
+      clubId: 'club-1',
+      clubName: 'Test Club',
+      clubAddress: '123 Test St',
+      clubEmail: 'club@example.test',
+      logoUrl: '',
+      coverImageUrl: '',
+      accentColor: '',
+      assignedJudges: [],
+      stats: [],
       maxTotalEntries: 100,
       maxEntriesPerDog: 5,
       trials: [],
-    } as Show;
+    };
 
     mockTrial = {
       id: 'test-trial-001',
       name: 'Test Trial',
+      date: '2026-06-01',
+      trialNumber: '1',
+      status: 'Upcoming',
       maxTotalEntries: 50,
       maxEntriesPerDog: 3,
       maxEntriesPerHandler: 10,
       classes: [],
-    } as Trial;
+    };
 
     mockClass = {
       id: 'test-class-001',
@@ -203,7 +224,7 @@ describe('EntryLimitChecker', () => {
           showId: mockShow.id,
           classId: mockClass.id,
           dogId: `waitlist-dog-${i}`,
-          status: EntryStatus.WAITLIST,
+          status: 'waitlist',
           registrationData: {
             submittedAt: new Date().toISOString(),
             handler: `Waitlist Handler ${i}`,
@@ -779,7 +800,7 @@ describe('EntryLimitChecker', () => {
           showId: mockShow.id,
           classId: mockClass.id,
           dogId: 'dog-3',
-          status: EntryStatus.WAITLIST,
+          status: 'waitlist',
           registrationData: {
             submittedAt: new Date().toISOString(),
             handler: 'Handler 3',

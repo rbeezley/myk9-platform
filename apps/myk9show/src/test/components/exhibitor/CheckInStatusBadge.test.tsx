@@ -3,7 +3,6 @@
  * Tests rendering, interactive vs read-only states, colors, and accessibility.
  */
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CheckInStatusBadge } from '@/components/exhibitor/CheckInStatusBadge';

@@ -69,7 +69,9 @@ describe('mapConflict', () => {
   });
 
   it('defaults entityType to "unknown" when absent', () => {
-    const result = mapConflict(makeConflict({ entityType: undefined }));
+    const conflict = makeConflict();
+    delete conflict.entityType;
+    const result = mapConflict(conflict);
     expect(result.entityType).toBe('unknown');
   });
 
@@ -117,7 +119,7 @@ describe('mapResolution', () => {
   });
 
   it('returns safe defaults when resolution is absent', () => {
-    const result = mapResolution(makeConflict({ resolution: undefined }));
+    const result = mapResolution(makeConflict());
     expect(result.strategy).toBe('merge_automatic');
     expect(result.resolvedBy).toBe('system');
     expect(result.resolvedEntity).toBeUndefined();

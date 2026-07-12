@@ -74,9 +74,9 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 function makeProps(overrides: Record<string, unknown> = {}) {
   const entries: ScentWorkEntry[] = [];
   const classConfig: ScentWorkClassConfig = {
-    element: 'Detective',
-    level: 'Unknown',
-    timeLimit: '3:00',
+    element: 'Container',
+    level: 'Masters',
+    timeLimit: 180000,
     multiArea: false,
     warningsEnabled: true,
   };
@@ -138,7 +138,17 @@ describe('ClassResultsTable view toggle', () => {
     const entries: ScentWorkEntry[] = [
       {
         id: 'entry-1',
-        status: 'registered',
+        showId: 'show-1',
+        classId: 'class-1',
+        dogId: 'dog-1',
+        status: 'confirmed',
+        registrationData: {
+          submittedAt: new Date('2026-01-01'),
+          handler: 'Kathy Gray',
+          entryFee: 25,
+          paymentStatus: 'paid',
+        },
+        statusHistory: [],
         displayInfo: {
           armband: '107',
           dogName: 'Laila',
@@ -150,11 +160,11 @@ describe('ClassResultsTable view toggle', () => {
         classConfig: {
           element: 'Container',
           level: 'Advanced',
-          timeLimit: '3:00',
+          timeLimit: 180000,
           multiArea: false,
           warningsEnabled: true,
         },
-      } as ScentWorkEntry,
+      },
     ];
     renderTable(makeProps({ classId: 'class-1', entries }));
 

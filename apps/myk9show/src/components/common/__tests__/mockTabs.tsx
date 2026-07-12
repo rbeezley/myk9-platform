@@ -25,7 +25,7 @@ export const Tabs = ({
   value: string;
   onValueChange?: (v: string) => void;
 }) => (
-  <TabsCtx.Provider value={{ value, onValueChange }}>
+  <TabsCtx.Provider value={{ value, ...(onValueChange ? { onValueChange } : {}) }}>
     <div data-testid="tabs-root" data-value={value} className={className}>
       {children}
     </div>

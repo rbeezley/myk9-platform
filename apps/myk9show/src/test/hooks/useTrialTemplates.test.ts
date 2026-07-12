@@ -26,6 +26,7 @@ const makeClassDef = (overrides: Partial<ClassDefinition> = {}): ClassDefinition
 
 const makeTrial = (overrides: Record<string, unknown> = {}) => ({
   id: 'trial-1',
+  showName: 'Test Show',
   name: 'Saturday Trial',
   type: 'Nosework',
   trialDate: '2026-06-15',

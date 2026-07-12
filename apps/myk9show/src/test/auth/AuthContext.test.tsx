@@ -7,7 +7,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { UserRole, PERMISSIONS, MOCK_USERS } from '@/types/auth-types';
+import { UserRole, PERMISSIONS, MOCK_USERS, ScopeType } from '@/types/auth-types';
 import { createChainableQuery, mockSupabase } from '@/test/mocks/supabase';
 
 // Mock the useAuth hook
@@ -379,7 +379,7 @@ describe('AuthContext', () => {
             u.roles.includes(UserRole.SITE_ADMIN)
           );
           if (adminUser) {
-            auth.switchUserRole(adminUser.email);
+            auth.switchUserRole(adminUser.email!);
           }
         }, [auth]);
 
@@ -398,20 +398,17 @@ describe('AuthContext', () => {
 
     it('adds the database person id to a selected dev mock user', async () => {
       localStorage.setItem('dev-current-mock-user', 'test-secretary-user');
-      mockSupabase.from.mockImplementation((table: string) => {
-        if (table === 'people') {
-          return createChainableQuery({
-            data: {
-              id: 'person-test-secretary',
-              first_name: 'Test',
-              last_name: 'Secretary',
-              email: 'testsecretary@example.com',
-              status: 'active',
-            },
-            error: null,
-          });
-        }
-        return createChainableQuery();
+      mockSupabase.from.mockImplementation(() => {
+        return createChainableQuery({
+          data: {
+            id: 'person-test-secretary',
+            first_name: 'Test',
+            last_name: 'Secretary',
+            email: 'testsecretary@example.com',
+            status: 'active',
+          },
+          error: null,
+        });
       });
 
       const TestComponent = () => {
@@ -599,7 +596,7 @@ describe('AuthContext', () => {
     });
 
     it('should handle scoped permissions', async () => {
-      const scope = { type: 'club' as const, id: 'club-123' };
+      const scope = { type: ScopeType.CLUB, id: 'club-123' };
 
       renderWithAuthProvider(
         <ProtectedRoute requiredPermission={PERMISSIONS.SHOW_MANAGE} scope={scope}>

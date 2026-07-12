@@ -26,7 +26,7 @@ function makeShow(overrides: Partial<Show> = {}): Show {
 function makeTrial(overrides: Partial<Trial> = {}): Trial {
   return {
     id: 't1',
-    trialNumber: 1,
+    trialNumber: '1',
     trialDate: '2026-06-12',
     ...overrides,
   } as Trial;
@@ -51,13 +51,7 @@ describe('useFieldGuideLandingData', () => {
     const { result } = renderHook(() => useFieldGuideLandingData(show, null, []));
     const cells = result.current.quickRefCells;
     expect(cells).toHaveLength(5);
-    expect(cells.map(c => c.label)).toEqual([
-      'DATES',
-      'OPENS',
-      'CLOSES',
-      'CONFIRM',
-      'CAP',
-    ]);
+    expect(cells.map(c => c.label)).toEqual(['DATES', 'OPENS', 'CLOSES', 'CONFIRM', 'CAP']);
     // Critically, no DRAW cell — the hook used to fabricate one from
     // entryCloseDate which read as "draw the evening entries close",
     // misleading exhibitors. Surfacing it again requires real data.
@@ -86,9 +80,9 @@ describe('useFieldGuideLandingData', () => {
   it('sorts trials by trial number and dedupes judges by name', () => {
     const show = makeShow();
     const trials: Trial[] = [
-      makeTrial({ id: 't3', trialNumber: 3, judge: 'Marcus Whitfield' }),
-      makeTrial({ id: 't1', trialNumber: 1, judge: 'Catherine Beagles' }),
-      makeTrial({ id: 't2', trialNumber: 2, judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't3', trialNumber: '3', judge: 'Marcus Whitfield' }),
+      makeTrial({ id: 't1', trialNumber: '1', judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't2', trialNumber: '2', judge: 'Catherine Beagles' }),
     ];
     const { result } = renderHook(() => useFieldGuideLandingData(show, null, trials));
 
@@ -102,10 +96,10 @@ describe('useFieldGuideLandingData', () => {
   it('builds the chip "TRIALS NN·NN" label per judge with zero-padded numbers', () => {
     const show = makeShow();
     const trials: Trial[] = [
-      makeTrial({ id: 't1', trialNumber: 1, judge: 'Catherine Beagles' }),
-      makeTrial({ id: 't3', trialNumber: 3, judge: 'Catherine Beagles' }),
-      makeTrial({ id: 't5', trialNumber: 5, judge: 'Catherine Beagles' }),
-      makeTrial({ id: 't2', trialNumber: 2, judge: 'Marcus Whitfield' }),
+      makeTrial({ id: 't1', trialNumber: '1', judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't3', trialNumber: '3', judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't5', trialNumber: '5', judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't2', trialNumber: '2', judge: 'Marcus Whitfield' }),
     ];
     const { result } = renderHook(() => useFieldGuideLandingData(show, null, trials));
     expect(result.current.judges[0]?.trialsLabel).toBe('TRIALS 01·03·05');
@@ -114,9 +108,7 @@ describe('useFieldGuideLandingData', () => {
 
   it('returns null trialsLabel when a judge has no derivable trial numbers', () => {
     const show = makeShow();
-    const trials: Trial[] = [
-      makeTrial({ id: 't1', trialNumber: 'x' as unknown as number, judge: 'Anon Judge' }),
-    ];
+    const trials: Trial[] = [makeTrial({ id: 't1', trialNumber: 'x', judge: 'Anon Judge' })];
     const { result } = renderHook(() => useFieldGuideLandingData(show, null, trials));
     // pad2 returns the raw value when not parseable; trialsLabel will be 'TRIALS x'.
     // Either way, the test pin-points that the hook never crashes on bad numbers.

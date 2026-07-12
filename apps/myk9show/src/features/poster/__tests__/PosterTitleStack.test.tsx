@@ -5,13 +5,7 @@ import { PosterTitleStack } from '../components/PosterTitleStack';
 describe('PosterTitleStack', () => {
   it('renders each word as a span', () => {
     const { container } = render(
-      <PosterTitleStack
-        words={[
-          { text: 'SPRING' },
-          { text: 'SCENT' },
-          { text: 'WORK.' },
-        ]}
-      />
+      <PosterTitleStack words={[{ text: 'SPRING' }, { text: 'SCENT' }, { text: 'WORK.' }]} />
     );
     const spans = container.querySelectorAll('.po-hero-title-word');
     expect(spans.length).toBe(3);
@@ -20,17 +14,13 @@ describe('PosterTitleStack', () => {
   });
 
   it('paints red variant', () => {
-    const { container } = render(
-      <PosterTitleStack words={[{ text: 'SCENT', variant: 'red' }]} />
-    );
+    const { container } = render(<PosterTitleStack words={[{ text: 'SCENT', variant: 'red' }]} />);
     const span = container.querySelector('.po-hero-title-word') as HTMLElement;
     expect(span.style.color).toBe('rgb(200, 59, 26)');
   });
 
   it('paints olive variant', () => {
-    const { container } = render(
-      <PosterTitleStack words={[{ text: 'WORK', variant: 'olive' }]} />
-    );
+    const { container } = render(<PosterTitleStack words={[{ text: 'WORK', variant: 'olive' }]} />);
     const span = container.querySelector('.po-hero-title-word') as HTMLElement;
     expect(span.style.color).toBe('rgb(61, 58, 42)');
   });
@@ -41,7 +31,7 @@ describe('PosterTitleStack', () => {
     );
     const span = container.querySelector('.po-hero-title-word') as HTMLElement;
     expect(span.style.color).toBe('transparent');
-    expect(span.style.WebkitTextStroke).toBeTruthy();
+    expect(span.style.webkitTextStroke).toBeTruthy();
   });
 
   it('renders cream-on-ink variant as an inline-block stamp', () => {
@@ -55,9 +45,7 @@ describe('PosterTitleStack', () => {
   });
 
   it('clamps size to 18px floor', () => {
-    const { container } = render(
-      <PosterTitleStack words={[{ text: 'X' }]} size={10} />
-    );
+    const { container } = render(<PosterTitleStack words={[{ text: 'X' }]} size={10} />);
     const span = container.querySelector('.po-hero-title-word') as HTMLElement;
     expect(span.style.fontSize).toBe('18px');
   });

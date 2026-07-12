@@ -49,12 +49,14 @@ const baseStoreState = {
   reset: vi.fn(),
 };
 
-const buildState = (overrides: Partial<typeof baseStoreState> = {}) => ({
+type MockStoreState = Omit<typeof baseStoreState, 'error'> & { error: string | null };
+
+const buildState = (overrides: Partial<MockStoreState> = {}): MockStoreState => ({
   ...baseStoreState,
   ...overrides,
 });
 
-let mockStoreState = baseStoreState;
+let mockStoreState: MockStoreState = baseStoreState;
 
 vi.mock('@/store/messageStore', () => ({
   useMessageStore: vi.fn((selector: (state: typeof mockStoreState) => unknown) =>

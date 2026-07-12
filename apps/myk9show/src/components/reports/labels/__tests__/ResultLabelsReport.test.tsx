@@ -1,15 +1,16 @@
 import { render, screen } from '@testing-library/react';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { ResultLabelsReport } from '../ResultLabelsReport';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 
-const show = {
+const show = fromPartial<Show>({
   id: 'show-1',
   name: 'Spring Trial',
   clubName: 'Calm Canine Club',
-} as Show;
+});
 
-const trials = [{ id: 'trial-1', trial_number: 1, date: '2026-05-11' }] as DbTrial[];
+const trials = [fromPartial<DbTrial>({ id: 'trial-1', trial_number: '1', date: '2026-05-11' })];
 const classes = [
   {
     id: 'class-1',
@@ -18,7 +19,7 @@ const classes = [
     level: 'Novice',
     section: '',
   },
-] as DbClass[];
+].map(row => fromPartial<DbClass>(row));
 
 // The config panel (label-size radios, skip field, pitch slider) renders off
 // the static template list, so it appears even with no entries to print. That

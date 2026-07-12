@@ -46,7 +46,9 @@ describe('ResultLabelCell', () => {
   });
 
   it('omits the club line when there is no club name', () => {
-    render(<ResultLabelCell item={item({ clubName: undefined })} />);
+    const noClubItem = item();
+    delete noClubItem.clubName;
+    render(<ResultLabelCell item={noClubItem} />);
     expect(screen.queryByText('Twin Cities Dog Club')).not.toBeInTheDocument();
   });
 

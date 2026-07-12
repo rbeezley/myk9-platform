@@ -22,7 +22,9 @@ const people: Item[] = [
 ];
 const judges: Item[] = [{ id: '3', name: 'Carol' }];
 
-function renderPicker(overrides: Partial<Parameters<typeof GroupedSearchablePopover>[0]> = {}) {
+function renderPicker(
+  overrides: Partial<Parameters<typeof GroupedSearchablePopover<Item>>[0]> = {}
+) {
   const onSelect = vi.fn();
   const onOpenChange = vi.fn();
   render(

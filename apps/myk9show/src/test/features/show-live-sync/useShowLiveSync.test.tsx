@@ -57,10 +57,9 @@ const setTrials = (ids: string[]) => {
 
 /** Count only the sync nudges (ignore any unrelated window events). */
 const nudgeCount = () =>
-  dispatchSpy.mock.calls.filter(([e]) => (e as Event).type === SYNC_EVENT).length;
+  dispatchSpy.mock.calls.filter(([e]: [Event]) => e.type === SYNC_EVENT).length;
 
-const classesBindings = () =>
-  lastChannel?.bindings.filter(b => b.opts.table === 'classes') ?? [];
+const classesBindings = () => lastChannel?.bindings.filter(b => b.opts.table === 'classes') ?? [];
 
 const bindingFor = (table: string, filter?: string) =>
   lastChannel?.bindings.find(
@@ -228,9 +227,8 @@ describe('useShowLiveSync', () => {
     bindingFor('entries')!.cb({});
     await waitFor(() => expect(nudgeCount()).toBe(1));
 
-    const evt = dispatchSpy.mock.calls.find(([e]) => (e as Event).type === SYNC_EVENT)?.[0] as
-      | Event
-      | undefined;
+    const evt = dispatchSpy.mock.calls.find(([e]: [Event]) => e.type === SYNC_EVENT)?.[0] as
+      Event | undefined;
     expect(evt).toBeInstanceOf(Event);
     expect((evt as CustomEvent).detail).toBeUndefined();
   });

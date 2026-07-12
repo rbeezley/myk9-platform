@@ -42,7 +42,10 @@ describe('parseShowDate', () => {
   });
 
   it('a show ending today (date-only) is NOT past — the exact root case', () => {
-    const entry = makeEntry({ showDate: parseShowDate('2026-05-31'), showEndDate: parseShowDate('2026-06-02') });
+    const entry = makeEntry({
+      showDate: parseShowDate('2026-05-31')!,
+      showEndDate: parseShowDate('2026-06-02')!,
+    });
     expect(isPastShowEntry(entry, NOW)).toBe(false);
   });
 

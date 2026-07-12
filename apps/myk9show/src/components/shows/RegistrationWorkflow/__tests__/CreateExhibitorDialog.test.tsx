@@ -46,6 +46,9 @@ describe('CreateExhibitorDialog', () => {
   it('persists a mail-in exhibitor as a people row', async () => {
     createUserMock.mockResolvedValue({
       data: {
+        agreed_to_tos_at: null,
+        auth_user_id: null,
+        bio: null,
         id: 'person-mailin-1',
         first_name: 'Molly',
         last_name: 'Mailbox',
@@ -53,7 +56,16 @@ describe('CreateExhibitorDialog', () => {
         phone: '555-1000',
         street_address: '123 Paper Trail',
         city: 'Envelope',
+        country: null,
+        created_at: null,
+        deleted_at: null,
+        deleted_by: null,
+        early_adopter_until: null,
+        license_key: null,
+        profile_image: null,
         state: 'TX',
+        status: 'active',
+        updated_at: null,
         zip_code: '75001',
       },
       error: null,

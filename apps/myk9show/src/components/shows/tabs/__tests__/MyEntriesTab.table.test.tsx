@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { MyEntriesTab } from '../MyEntriesTab';
+import type { EntryStoreState } from '@/store/entry-store-types';
+import { fromPartial } from '@total-typescript/shoehorn';
 
 vi.mock('@/hooks/useShowEntriesForUser', () => ({ useShowEntriesForUser: vi.fn() }));
 vi.mock('@/store/entryStore', () => ({ useEntryStore: vi.fn() }));
@@ -18,8 +20,8 @@ import { useShowEntriesForUser } from '@/hooks/useShowEntriesForUser';
 import { useEntryStore } from '@/store/entryStore';
 
 function setupEntryStore() {
-  vi.mocked(useEntryStore).mockImplementation(
-    (sel: (s: unknown) => unknown) => sel({ loadEntries: vi.fn() })
+  vi.mocked(useEntryStore).mockImplementation((selector: (state: EntryStoreState) => unknown) =>
+    selector(fromPartial<EntryStoreState>({ loadEntries: vi.fn() }))
   );
 }
 

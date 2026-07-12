@@ -73,7 +73,6 @@ export class ProductionMonitoringService {
   private sessions: UserSession[] = [];
   private alerts: Alert[] = [];
   private alertRules: AlertRule[] = [];
-  private isInitialized = false;
 
   private constructor() {
     this.config = { ...DEFAULT_MONITORING_CONFIG };
@@ -110,7 +109,6 @@ export class ProductionMonitoringService {
       // Start monitoring loops
       this.startMonitoringLoops();
 
-      this.isInitialized = true;
       logger.info('Production monitoring initialized successfully', 'monitoring');
     } catch (error) {
       logger.error('Failed to initialize production monitoring', 'monitoring', {}, error as Error);
@@ -240,9 +238,9 @@ export class ProductionMonitoringService {
   /**
    * Start a performance trace
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public startTrace(name: string, tags: Record<string, string> = {}): string {
     const traceId = generateId('trace');
+    void tags;
 
     // In a real implementation, this would start a distributed trace
     logger.debug('Started trace', 'monitoring', { name, traceId });
@@ -545,8 +543,9 @@ export class ProductionMonitoringService {
     return [];
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private addBreadcrumbToSession(sessionId: string, breadcrumb: Breadcrumb): void {
+    void sessionId;
+    void breadcrumb;
     // Implementation for adding breadcrumbs to session storage
   }
 
@@ -558,13 +557,13 @@ export class ProductionMonitoringService {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private checkErrorAlerts(error: ErrorReport): void {
+    void error;
     // Check if error rate exceeds thresholds
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private checkPerformanceAlerts(metric: PerformanceMetric): void {
+    void metric;
     // Check if performance metrics exceed thresholds
   }
 

@@ -102,9 +102,9 @@ describe('Show Queries', () => {
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
-      expect(result.error.message).toBe('Database unavailable');
-      expect(result.error.table).toBe('show');
-      expect(result.error.operation).toBe('select_all_detailed');
+      expect(result.error?.message).toBe('Database unavailable');
+      expect(result.error?.table).toBe('show');
+      expect(result.error?.operation).toBe('select_all_detailed');
     });
 
     it('should return empty array when no shows exist', async () => {
@@ -150,9 +150,9 @@ describe('Show Queries', () => {
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
-      expect(result.error.message).toBe('Database unavailable');
-      expect(result.error.table).toBe('show');
-      expect(result.error.operation).toBe('select_public');
+      expect(result.error?.message).toBe('Database unavailable');
+      expect(result.error?.table).toBe('show');
+      expect(result.error?.operation).toBe('select_public');
     });
   });
 
@@ -304,6 +304,7 @@ describe('Show Queries', () => {
         end_date: '2024-06-03',
         location: 'New Venue',
         club_id: 'club-123',
+        organization: 'AKC',
         description: 'Annual championship show',
       };
 
@@ -338,6 +339,7 @@ describe('Show Queries', () => {
         end_date: '2024-05-30',
         location: 'Venue',
         club_id: 'club-123',
+        organization: 'AKC',
       };
 
       const mockError = {
@@ -352,7 +354,7 @@ describe('Show Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('23514');
+      expect(result.error?.code).toBe('23514');
     });
   });
 
@@ -402,7 +404,7 @@ describe('Show Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('PGRST116');
+      expect(result.error?.code).toBe('PGRST116');
     });
   });
 
@@ -438,7 +440,7 @@ describe('Show Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('23503');
+      expect(result.error?.code).toBe('23503');
     });
   });
 

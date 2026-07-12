@@ -59,11 +59,11 @@ describe('buildAKCTrialChairmanReportValues', () => {
   });
 
   it('omits fields that require missing source data', () => {
+    const props: ReportProps = { ...reportProps, allClasses: [] };
+    delete props.clubName;
+    delete props.trial;
     const values = buildAKCTrialChairmanReportValues({
-      ...reportProps,
-      allClasses: [],
-      clubName: undefined,
-      trial: undefined,
+      ...props,
     });
 
     expect(values.text).not.toHaveProperty(AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.clubName);

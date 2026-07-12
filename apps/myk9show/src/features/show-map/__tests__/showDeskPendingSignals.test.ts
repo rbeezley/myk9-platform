@@ -41,7 +41,10 @@ const completedClass: ShowMapClassInput = {
   status: 'Completed',
 };
 
-function tree(entries: Array<Record<string, unknown>>, classes: ShowMapClassInput[] = [activeClass]) {
+function tree(
+  entries: Array<Record<string, unknown>>,
+  classes: ShowMapClassInput[] = [activeClass]
+) {
   return buildShowMapTree({ show, trials: [trial], classes, entries });
 }
 
@@ -139,7 +142,7 @@ describe('computeShowDeskPendingSignals', () => {
       tree: t,
       entries: [
         { entry_status: 'accepted', check_in_status: null },
-        { entry_status: 'accepted', check_in_status: undefined },
+        { entry_status: 'accepted' },
         { entry_status: 'accepted' }, // missing check-in field entirely
         { entry_status: 'confirmed', check_in_status: 'no-status' },
         { entry_status: 'accepted', check_in_status: 'checked-in' }, // does NOT count

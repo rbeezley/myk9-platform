@@ -17,10 +17,10 @@ function migrationFiles(): string[] {
 }
 
 function latestMigrationContaining(pattern: RegExp): { file: string; sql: string } {
-  const match = migrationFiles()
+  const matches = migrationFiles()
     .map(file => ({ file, sql: readFileSync(file, 'utf8') }))
-    .filter(({ sql }) => pattern.test(sql))
-    .at(-1);
+    .filter(({ sql }) => pattern.test(sql));
+  const match = matches[matches.length - 1];
 
   expect(match, `No migration matched ${pattern}`).toBeDefined();
   return match!;
@@ -87,11 +87,7 @@ describe('DB migration sanity contracts', () => {
 
   it('hardens legacy advisor RLS warnings without closing waitlist signup', () => {
     const { sql } = latestMigrationContaining(/Security advisor follow-up/i);
-    const waitlistPolicy = sliceBetween(
-      sql,
-      'create policy "anon_can_insert_waitlist"',
-      ');'
-    );
+    const waitlistPolicy = sliceBetween(sql, 'create policy "anon_can_insert_waitlist"', ');');
 
     expect(sql).toContain('drop policy if exists "announcements_all"');
     expect(sql).toContain('drop policy if exists "announcement_reads_insert"');
@@ -116,6 +112,8 @@ describe('DB migration sanity contracts', () => {
     const view = sliceBetween(sql, 'VIEW public.view_own_entry_results', 'GRANT SELECT');
 
     expect(view).toContain('security_invoker = true');
-    expect(view).toContain("sh.status IN ('published', 'accepting_entries', 'closed', 'in_progress', 'completed')");
+    expect(view).toContain(
+      "sh.status IN ('published', 'accepting_entries', 'closed', 'in_progress', 'completed')"
+    );
   });
 });

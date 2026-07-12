@@ -1,14 +1,18 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { EntryLimitChecker } from '@/services/entries/EntryLimitChecker';
-import { EntryStatus as RegistrationEntryStatus } from '@/types/show-registration-types';
-import type { ShowEntry, ShowEntryInput } from '@/store/entryStore';
+import type { RegistrationData, ShowEntry, ShowEntryInput } from '@/store/entryStore';
 import type { Class, Show, Trial } from '@/types/show-types';
 import type { Dog } from '@/types/dog-types';
 
 const submittedAt = '2026-06-12T14:00:00.000Z';
 
-function makeEntry(overrides: Partial<ShowEntry> = {}): ShowEntry {
+function makeEntry(
+  overrides: Omit<Partial<ShowEntry>, 'registrationData'> & {
+    registrationData?: Partial<RegistrationData>;
+  } = {}
+): ShowEntry {
   const id = overrides.id ?? `entry-${overrides.dogId ?? 'dog'}`;
+  const { registrationData, ...entryOverrides } = overrides;
 
   return {
     id,
@@ -21,16 +25,20 @@ function makeEntry(overrides: Partial<ShowEntry> = {}): ShowEntry {
       handler: 'Test Handler',
       entryFee: 25,
       paymentStatus: 'paid',
-      ...overrides.registrationData,
+      ...registrationData,
     },
     statusHistory: [],
     createdAt: submittedAt,
     updatedAt: submittedAt,
-    ...overrides,
+    ...entryOverrides,
   };
 }
 
-function makeEntryInput(overrides: Partial<ShowEntryInput> = {}): ShowEntryInput {
+function makeEntryInput(
+  overrides: Omit<Partial<ShowEntryInput>, 'registrationData'> & {
+    registrationData?: Partial<RegistrationData>;
+  } = {}
+): ShowEntryInput {
   return {
     showId: overrides.showId ?? 'waitlist-show-001',
     classId: overrides.classId ?? 'waitlist-class-001',
@@ -75,12 +83,7 @@ function makeShow(overrides: Partial<Show> = {}): Show {
 
 function waitlistedEntriesForClass(classId: string, entries: ShowEntry[]) {
   return entries
-    .filter(
-      entry =>
-        entry.classId === classId &&
-        ((entry.status as string) === 'waitlist' ||
-          entry.status === RegistrationEntryStatus.WAITLIST)
-    )
+    .filter(entry => entry.classId === classId && (entry.status as string) === 'waitlist')
     .sort(
       (a, b) =>
         new Date(a.registrationData.submittedAt).getTime() -
@@ -120,7 +123,7 @@ describe('Phase 3.4: Entry Limits and Waitlists - Converted Service Coverage', (
         existingEntries: entries,
       });
 
-      const status = limitCheck.isWaitlisted ? RegistrationEntryStatus.WAITLIST : 'confirmed';
+      const status = limitCheck.isWaitlisted ? 'waitlist' : 'confirmed';
       entries.push(
         makeEntry({
           id: `capacity-entry-${index + 1}`,
@@ -158,19 +161,19 @@ describe('Phase 3.4: Entry Limits and Waitlists - Converted Service Coverage', (
       makeEntry({
         id: 'waitlist-1',
         dogId: 'waitlist-dog-1',
-        status: RegistrationEntryStatus.WAITLIST,
+        status: 'waitlist',
         registrationData: { submittedAt: '2026-06-12T15:00:00.000Z', paymentStatus: 'pending' },
       }),
       makeEntry({
         id: 'waitlist-2',
         dogId: 'waitlist-dog-2',
-        status: RegistrationEntryStatus.WAITLIST,
+        status: 'waitlist',
         registrationData: { submittedAt: '2026-06-12T15:15:00.000Z', paymentStatus: 'pending' },
       }),
       makeEntry({
         id: 'waitlist-3',
         dogId: 'waitlist-dog-3',
-        status: RegistrationEntryStatus.WAITLIST,
+        status: 'waitlist',
         registrationData: { submittedAt: '2026-06-12T15:30:00.000Z', paymentStatus: 'pending' },
       }),
     ];
@@ -246,7 +249,7 @@ describe('Phase 3.4: Entry Limits and Waitlists - Converted Service Coverage', (
             showId: show.id,
             classId: classData.id,
             dogId,
-            status: result.isWaitlisted ? RegistrationEntryStatus.WAITLIST : 'confirmed',
+            status: result.isWaitlisted ? 'waitlist' : 'confirmed',
             registrationData: entryData.registrationData,
           })
         );

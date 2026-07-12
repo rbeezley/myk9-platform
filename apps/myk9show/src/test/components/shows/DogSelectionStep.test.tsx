@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { DogSelectionStep } from '@/components/shows/RegistrationWorkflow/DogSelectionStep';
@@ -147,10 +148,12 @@ describe('DogSelectionStep', () => {
   });
 
   it('shows loading state while dogs are loading', () => {
-    vi.mocked(useDogStoreCompat).mockReturnValue({
-      dogs: [],
-      isLoading: true,
-    } as ReturnType<typeof useDogStoreCompat>);
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial<ReturnType<typeof useDogStoreCompat>>({
+        dogs: [],
+        isLoading: true,
+      })
+    );
 
     render(<DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />);
 
@@ -158,10 +161,12 @@ describe('DogSelectionStep', () => {
   });
 
   it('shows empty state when no eligible dogs exist', () => {
-    vi.mocked(useDogStoreCompat).mockReturnValue({
-      dogs: [],
-      isLoading: false,
-    } as ReturnType<typeof useDogStoreCompat>);
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial<ReturnType<typeof useDogStoreCompat>>({
+        dogs: [],
+        isLoading: false,
+      })
+    );
 
     render(<DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />);
 

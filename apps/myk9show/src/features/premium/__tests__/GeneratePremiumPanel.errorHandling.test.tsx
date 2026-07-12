@@ -60,8 +60,8 @@ const fakePremium: GeneratedPremium = {
     acceptCash: false,
   },
   club: { name: 'Club', logoUrl: null },
-  secretary: { name: 'S', email: 's@x.com', phone: null },
-  officials: [],
+  secretary: { name: 'S', email: 's@x.com', phone: null, mailingAddress: null },
+  officials: { chairman: null },
   trials: [],
   supplemental: {
     vetClinic: { name: 'V', address: 'A', phone: 'P' },

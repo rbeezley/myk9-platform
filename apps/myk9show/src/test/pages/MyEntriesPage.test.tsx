@@ -9,14 +9,15 @@ import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncConte
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getUserEntries, updateCheckInStatus } from '@/services/database/entries';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import type { UserWithRoles } from '@/types/auth-types';
+import { UserRole, type UserWithRoles } from '@/types/auth-types';
 
 // Mock dependencies
 const mockCheckInMutateAsync = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const mockUseCheckInMutation = vi.hoisted(() =>
-  vi.fn(() => ({
-    mutateAsync: mockCheckInMutateAsync,
-  }))
+  vi.fn((options?: { writer?: string }) => {
+    void options;
+    return { mutateAsync: mockCheckInMutateAsync };
+  })
 );
 
 vi.mock('@/hooks/useAuthContext');
@@ -49,13 +50,18 @@ vi.mock('@/services/database/entries', () => ({
   updateCheckInStatus: vi.fn().mockResolvedValue({ data: null, error: null }),
 }));
 vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
-  useCheckInMutation: (...args: unknown[]) => mockUseCheckInMutation(...args),
+  useCheckInMutation: (options?: { writer?: string }) => mockUseCheckInMutation(options),
 }));
 const mockUseDogsByOwnerQuery = vi.hoisted(() =>
-  vi.fn(() => ({ data: [] as unknown[], isLoading: false }))
+  vi.fn((ownerId?: string, enabled?: boolean) => {
+    void ownerId;
+    void enabled;
+    return { data: [] as unknown[], isLoading: false };
+  })
 );
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
-  useDogsByOwnerQuery: (...args: unknown[]) => mockUseDogsByOwnerQuery(...args),
+  useDogsByOwnerQuery: (ownerId?: string, enabled?: boolean) =>
+    mockUseDogsByOwnerQuery(ownerId, enabled),
 }));
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntryStatisticsQuery: () => ({ data: null }),
@@ -116,10 +122,13 @@ const mockEntries = [
 const mockUser: UserWithRoles = {
   id: 'user-1',
   email: 'test@example.com',
-  firstName: 'Test',
-  lastName: 'User',
-  roles: ['exhibitor'],
+  roles: [UserRole.EXHIBITOR],
   permissions: [],
+  scopes: [],
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  created_at: '2026-01-01T00:00:00Z',
 };
 
 const settledSyncStatus: ReplicationSyncContextValue['status'] = {

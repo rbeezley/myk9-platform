@@ -138,7 +138,7 @@ describe('EntryRowActionMenu', () => {
   it('hides the Refund action when the entry is not stripe-refundable', async () => {
     const { user } = render(
       <EntryRowActionMenu
-        entry={makeEntry({ paymentMethod: 'online', refundedAt: new Date('2026-02-01') })}
+        entry={makeEntry({ paymentMethod: 'online', refundedAt: '2026-02-01T00:00:00Z' })}
         onStatusChange={vi.fn()}
         onOpenRefund={vi.fn()}
       />

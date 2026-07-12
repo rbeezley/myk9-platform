@@ -20,6 +20,7 @@ const mastheadProps = {
   venueCity: 'Springfield',
   timezone: 'America/New_York',
   entryWizardUrl: '/shows/abc/register',
+  classesHref: '/shows/abc/classes',
 };
 
 const finalBandProps = {

@@ -22,8 +22,9 @@ describe('useViewPreference', () => {
 
   it('updates an unsaved mode when the default changes', () => {
     const { result, rerender } = renderHook(
-      ({ defaultMode }) => useViewPreference('dogs', defaultMode),
-      { initialProps: { defaultMode: 'table' as const } }
+      ({ defaultMode }: { defaultMode: 'cards' | 'table' }) =>
+        useViewPreference('dogs', defaultMode),
+      { initialProps: { defaultMode: 'table' as 'cards' | 'table' } }
     );
 
     expect(result.current[0]).toBe('table');
@@ -37,7 +38,8 @@ describe('useViewPreference', () => {
   it('keeps a stored mode when the default changes', () => {
     localStorage.setItem('view-pref-dogs', 'table');
     const { result, rerender } = renderHook(
-      ({ defaultMode }) => useViewPreference('dogs', defaultMode),
+      ({ defaultMode }: { defaultMode: 'cards' | 'table' }) =>
+        useViewPreference('dogs', defaultMode),
       { initialProps: { defaultMode: 'cards' as const } }
     );
 

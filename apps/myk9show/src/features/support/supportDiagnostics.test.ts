@@ -90,10 +90,11 @@ describe('support diagnostics', () => {
     }
 
     const errors = getSupportClientErrors();
+    const lastError = errors[errors.length - 1];
     expect(errors).toHaveLength(10);
     expect(errors[0]?.message).toContain('Failure 2');
-    expect(errors.at(-1)?.message).toContain('access_token=[redacted]');
-    expect(errors.at(-1)?.message).toContain('Bearer [redacted]');
+    expect(lastError?.message).toContain('access_token=[redacted]');
+    expect(lastError?.message).toContain('Bearer [redacted]');
   });
 
   it('redacts bare JWTs and auth token params before storing diagnostics', () => {
@@ -105,7 +106,8 @@ describe('support diagnostics', () => {
       'auth-flow'
     );
 
-    const message = getSupportClientErrors().at(-1)?.message ?? '';
+    const errors = getSupportClientErrors();
+    const message = errors[errors.length - 1]?.message ?? '';
     expect(message).not.toContain(jwt);
     expect(message).not.toContain('plain');
     expect(message).not.toContain('bare-id-token');
@@ -118,12 +120,13 @@ describe('support diagnostics', () => {
 
   it('survives hostile inputs', () => {
     const input = {
-      get userId() {
+      get userId(): string {
         throw new Error('getter exploded');
       },
     };
 
     expect(() => buildDiagnosticBundle(input)).not.toThrow();
-    expect(getSupportClientErrors().at(-1)?.source).toBe('buildDiagnosticBundle');
+    const errors = getSupportClientErrors();
+    expect(errors[errors.length - 1]?.source).toBe('buildDiagnosticBundle');
   });
 });

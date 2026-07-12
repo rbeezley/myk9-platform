@@ -7,7 +7,17 @@ const mockListShowIncidents = vi.hoisted(() => vi.fn());
 const mockCreateShowIncident = vi.hoisted(() => vi.fn());
 const mockToastError = vi.hoisted(() => vi.fn());
 const mockToastSuccess = vi.hoisted(() => vi.fn());
-const mockAuthContext = vi.hoisted(() => ({
+interface MockAuthContext {
+  user: { id: string; email: string };
+  userWithRoles: {
+    id: string;
+    email: string;
+    roles: string[];
+    user_metadata: { full_name: string };
+  } | null;
+}
+
+const mockAuthContext = vi.hoisted((): MockAuthContext => ({
   user: { id: 'auth-user-1', email: 'secretary@example.com' },
   userWithRoles: {
     id: 'auth-user-1',
@@ -84,17 +94,13 @@ describe('IncidentLogCard', () => {
   });
 
   it('saves a linked incident and refreshes the recent log', async () => {
-    const { user } = render(
-      <IncidentLogCard showId="show-1" entries={entries} judges={judges} />
-    );
+    const { user } = render(<IncidentLogCard showId="show-1" entries={entries} judges={judges} />);
 
     // Entry / judge / description live behind the optional "Add details" disclosure.
     await user.click(screen.getByRole('button', { name: /add details/i }));
 
     await user.click(await screen.findByRole('combobox', { name: 'Entry / dog' }));
-    await user.click(
-      await screen.findByRole('option', { name: /#12 Rocket \(Jamie Walker\)/ })
-    );
+    await user.click(await screen.findByRole('option', { name: /#12 Rocket \(Jamie Walker\)/ }));
     await user.click(screen.getByRole('combobox', { name: 'Judge' }));
     await user.click(await screen.findByRole('option', { name: 'Pat Judge' }));
     await user.clear(screen.getByLabelText('Short summary'));
@@ -166,9 +172,7 @@ describe('IncidentLogCard', () => {
   });
 
   it('does not save without a summary', async () => {
-    const { user } = render(
-      <IncidentLogCard showId="show-1" entries={entries} judges={judges} />
-    );
+    const { user } = render(<IncidentLogCard showId="show-1" entries={entries} judges={judges} />);
 
     await user.click(screen.getByRole('button', { name: 'Save incident' }));
 
@@ -178,9 +182,7 @@ describe('IncidentLogCard', () => {
   it('logs and toasts create failures', async () => {
     const error = new Error('RLS denied');
     mockCreateShowIncident.mockRejectedValueOnce(error);
-    const { user } = render(
-      <IncidentLogCard showId="show-1" entries={entries} judges={judges} />
-    );
+    const { user } = render(<IncidentLogCard showId="show-1" entries={entries} judges={judges} />);
 
     await user.type(screen.getByLabelText('Short summary'), 'Dog excused by judge');
     await user.click(screen.getByRole('button', { name: 'Save incident' }));
@@ -194,9 +196,7 @@ describe('IncidentLogCard', () => {
   it('shows an account-loading toast without logging an error', async () => {
     mockAuthContext.user = { id: '', email: 'secretary@example.com' };
     mockAuthContext.userWithRoles = null;
-    const { user } = render(
-      <IncidentLogCard showId="show-1" entries={entries} judges={judges} />
-    );
+    const { user } = render(<IncidentLogCard showId="show-1" entries={entries} judges={judges} />);
 
     await user.type(screen.getByLabelText('Short summary'), 'Dog excused by judge');
     await user.click(screen.getByRole('button', { name: 'Save incident' }));
@@ -228,9 +228,7 @@ describe('IncidentLogCard', () => {
   });
 
   it('reveals the detail fields when "Add details" is clicked', async () => {
-    const { user } = render(
-      <IncidentLogCard showId="show-1" entries={entries} judges={judges} />
-    );
+    const { user } = render(<IncidentLogCard showId="show-1" entries={entries} judges={judges} />);
 
     await user.click(screen.getByRole('button', { name: /add details/i }));
 
@@ -242,9 +240,7 @@ describe('IncidentLogCard', () => {
   });
 
   it('saves with only a summary, sending empty/null for the untouched optional fields', async () => {
-    const { user } = render(
-      <IncidentLogCard showId="show-1" entries={entries} judges={judges} />
-    );
+    const { user } = render(<IncidentLogCard showId="show-1" entries={entries} judges={judges} />);
 
     await user.type(screen.getByLabelText('Short summary'), 'Dog excused for disqualification');
     await user.click(screen.getByRole('button', { name: 'Save incident' }));

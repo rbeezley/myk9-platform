@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import type { FunctionComponent } from 'react';
+import type { ReportProps } from '@/lib/reports/types';
 import { reportRegistry, getReportById, getEnabledReports } from '@/lib/reports/reportRegistry';
 
 describe('reportRegistry', () => {
@@ -102,7 +104,7 @@ describe('reportRegistry', () => {
     it('all phase 2 extended reports have non-placeholder components', () => {
       for (const id of PHASE_2_EXTENDED_IDS) {
         const report = getReportById(id)!;
-        const result = report.component({
+        const result = (report.component as FunctionComponent<ReportProps>)({
           showName: 'Test',
           entries: [],
           sortOrder: '',
@@ -137,7 +139,7 @@ describe('reportRegistry', () => {
         const report = getReportById(id);
         expect(report, `${id} should be registered`).toBeDefined();
         expect(report!.enabled, `${id} should be enabled`).toBe(true);
-        const result = report!.component({
+        const result = (report!.component as FunctionComponent<ReportProps>)({
           showName: 'Test',
           entries: [],
           sortOrder: '',
@@ -171,7 +173,13 @@ describe('reportRegistry', () => {
       for (const id of PHASE_2_IDS) {
         const report = reportRegistry.find(r => r.id === id);
         expect(report?.component, `${id} should have a component`).toBeDefined();
-        const result = report?.component({ showName: 'Test', entries: [], sortOrder: '' });
+        const result = report
+          ? (report.component as FunctionComponent<ReportProps>)({
+              showName: 'Test',
+              entries: [],
+              sortOrder: '',
+            })
+          : undefined;
         expect(result, `${id} component should not return null`).not.toBeNull();
       }
     });

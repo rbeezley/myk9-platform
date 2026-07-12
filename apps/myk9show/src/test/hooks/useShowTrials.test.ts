@@ -45,8 +45,8 @@ describe('useShowTrials', () => {
     expect(mockGetTrialsByShow).toHaveBeenCalledWith('show-1');
   });
 
-  it('returns empty array when data is null', async () => {
-    mockGetTrialsByShow.mockResolvedValue({ data: null, error: null });
+  it('returns empty array when no trials are returned', async () => {
+    mockGetTrialsByShow.mockResolvedValue({ data: [], error: null });
 
     const { result } = renderHook(() => useShowTrials('show-1'), {
       wrapper: createWrapper(),
@@ -59,7 +59,7 @@ describe('useShowTrials', () => {
 
   it('throws on query error', async () => {
     const dbError = { message: 'DB error', code: '500', details: '' };
-    mockGetTrialsByShow.mockResolvedValue({ data: null, error: dbError as never });
+    mockGetTrialsByShow.mockResolvedValue({ data: [], error: dbError as never });
 
     const { result } = renderHook(() => useShowTrials('show-1'), {
       wrapper: createWrapper(),

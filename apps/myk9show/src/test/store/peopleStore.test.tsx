@@ -5,6 +5,7 @@ import { useUserStoreCompat } from '@/hooks/useUserStoreCompat';
 import { resetFactories } from '@/test/utils/factories';
 import type { UserInput } from '@/store/userStore';
 import type { User } from '@/types/dog-types';
+import { UserRole } from '@/types/user-types';
 import React from 'react';
 
 // Mock data for testing
@@ -28,7 +29,7 @@ const mockUsers: User[] = [
       phone: '555-0124',
       relationship: 'Spouse',
     },
-    roles: ['exhibitor'],
+    roles: [UserRole.EXHIBITOR],
     createdAt: new Date('2023-01-01'),
     updatedAt: new Date('2023-01-01'),
   },
@@ -187,7 +188,6 @@ describe('userStore (with database integration)', () => {
           state: 'CA',
           zipCode: '12345',
         },
-        associatedDogs: [],
         dogs: [],
       };
 
@@ -224,8 +224,7 @@ describe('userStore (with database integration)', () => {
           state: 'CA',
           zipCode: '12345',
         },
-        associatedDogs: ['dog-1'],
-        dogs: [],
+        dogs: ['dog-1'],
       };
 
       await act(async () => {
@@ -235,7 +234,7 @@ describe('userStore (with database integration)', () => {
       expect(mockMutateAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           ...personInput,
-          associatedDogs: ['dog-1'],
+          dogs: ['dog-1'],
         })
       );
     });
@@ -270,7 +269,6 @@ describe('userStore (with database integration)', () => {
           state: 'CA',
           zipCode: '12345',
         },
-        associatedDogs: [],
         dogs: [],
         emergencyContact: {
           name: 'Jane Doe',
@@ -319,7 +317,6 @@ describe('userStore (with database integration)', () => {
           state: 'CA',
           zipCode: '12345',
         },
-        associatedDogs: [],
         dogs: [],
       };
 
@@ -372,7 +369,7 @@ describe('userStore (with database integration)', () => {
         wrapper: createWrapper(),
       });
 
-      const updateData = { associatedDogs: ['dog-1', 'dog-2'] };
+      const updateData = { dogs: ['dog-1', 'dog-2'] };
 
       await act(async () => {
         await result.current.updateUser('user-1', updateData);
@@ -571,7 +568,7 @@ describe('userStore (with database integration)', () => {
         streetAddress: '456 Old St',
         associatedDogs: [],
         dogs: [],
-        roles: ['exhibitor'],
+        roles: [UserRole.EXHIBITOR],
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -615,7 +612,7 @@ describe('userStore (with database integration)', () => {
         streetAddress: '789 New St',
         associatedDogs: [],
         dogs: [],
-        roles: ['exhibitor'],
+        roles: [UserRole.EXHIBITOR],
         createdAt: new Date(),
         updatedAt: new Date(),
       };

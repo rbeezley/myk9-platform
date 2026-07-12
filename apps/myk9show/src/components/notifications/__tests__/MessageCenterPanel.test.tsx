@@ -1,14 +1,25 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { screen, fireEvent } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { MessageCenterPanel } from '../MessageCenterPanel';
 import { useNotificationStore } from '@/store/notificationStore';
 import { DEFAULT_PREFERENCES } from '@myk9/notifications';
 import type { NotificationPayload } from '@myk9/notifications';
+import type { ShowAnnouncement } from '@/types/announcement-types';
 
 const navigateMock = vi.fn();
 const { classOptionsHookMock } = vi.hoisted(() => ({
-  classOptionsHookMock: vi.fn(() => ({ data: [] })),
+  classOptionsHookMock: vi.fn<
+    (
+      showId?: string | null,
+      options?: { enabled?: boolean }
+    ) => {
+      data: unknown[] | undefined;
+      isError?: boolean;
+      refetch?: ReturnType<typeof vi.fn>;
+    }
+  >(() => ({ data: [] })),
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -74,7 +85,8 @@ vi.mock('@/features/show-workbench/MessageShowComposer', () => ({
 }));
 
 vi.mock('@/features/messages/hooks/useMessageShowClassOptions', () => ({
-  useMessageShowClassOptions: (...args: unknown[]) => classOptionsHookMock(...args),
+  useMessageShowClassOptions: (showId?: string | null, options?: { enabled?: boolean }) =>
+    classOptionsHookMock(showId, options),
 }));
 
 let authContext: Record<string, unknown> = {
@@ -131,7 +143,7 @@ beforeEach(async () => {
     permissionStatus: 'default' as NotificationPermission,
   });
   const { useAnnouncementStore } = await import('@/store/announcementStore');
-  (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+  useAnnouncementStore.setState({
     announcements: [],
     unreadCount: 0,
     currentShowIds: [],
@@ -187,7 +199,7 @@ describe('MessageCenterPanel', () => {
       hasRole: () => false,
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
-    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    useAnnouncementStore.setState({
       currentShowIds: ['show-1'],
     });
 
@@ -205,7 +217,7 @@ describe('MessageCenterPanel', () => {
       hasRole: () => false,
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
-    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    useAnnouncementStore.setState({
       currentShowIds: ['show-1', 'show-2'],
     });
 
@@ -225,7 +237,7 @@ describe('MessageCenterPanel', () => {
       hasRole: () => false,
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
-    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    useAnnouncementStore.setState({
       currentShowIds: ['show-1', 'show-2'],
     });
 
@@ -245,7 +257,7 @@ describe('MessageCenterPanel', () => {
       hasRole: () => false,
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
-    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    useAnnouncementStore.setState({
       currentShowIds: ['show-1', 'show-2'],
     });
 
@@ -265,15 +277,13 @@ describe('MessageCenterPanel', () => {
       hasRole: () => false,
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
-    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    useAnnouncementStore.setState({
       currentShowIds: ['show-1'],
     });
 
     renderPanel();
 
-    expect(
-      screen.queryByRole('dialog', { name: /compose show message/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /compose show message/i })).not.toBeInTheDocument();
     expect(classOptionsHookMock).toHaveBeenCalledWith(null, { enabled: false });
   });
 
@@ -301,7 +311,7 @@ describe('MessageCenterPanel', () => {
       hasRole: () => false,
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
-    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    useAnnouncementStore.setState({
       currentShowIds: [],
     });
 
@@ -324,7 +334,7 @@ describe('MessageCenterPanel', () => {
       hasRole: () => false,
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
-    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    useAnnouncementStore.setState({
       currentShowIds: ['active-show'],
     });
     const { useShowStore } = await import('@/store/showStore');
@@ -336,7 +346,9 @@ describe('MessageCenterPanel', () => {
     expect(screen.getByRole('button', { name: /compose/i })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /compose/i }));
 
-    expect(screen.getByTestId('message-show-composer')).toHaveTextContent('Composer for active-show');
+    expect(screen.getByTestId('message-show-composer')).toHaveTextContent(
+      'Composer for active-show'
+    );
   });
 
   it('shows a calm load error when compose class options fail', async () => {
@@ -353,7 +365,7 @@ describe('MessageCenterPanel', () => {
       refetch: vi.fn(),
     });
     const { useAnnouncementStore } = await import('@/store/announcementStore');
-    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    useAnnouncementStore.setState({
       currentShowIds: ['show-1'],
     });
 
@@ -374,7 +386,7 @@ describe('MessageCenterPanel', () => {
       hasRole: (role: string) => role === 'judge',
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
-    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    useAnnouncementStore.setState({
       currentShowIds: ['show-1'],
     });
 
@@ -396,7 +408,7 @@ describe('MessageCenterPanel', () => {
       hasRole: (role: string) => role === 'site_admin',
     };
     const { useAnnouncementStore } = await import('@/store/announcementStore');
-    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    useAnnouncementStore.setState({
       currentShowIds: ['show-1'],
     });
 
@@ -474,14 +486,14 @@ describe('MessageCenterPanel', () => {
 
   it('shows existing show-wide posts inside Show messages, not a separate Announcements tab', async () => {
     const { useAnnouncementStore } = await import('@/store/announcementStore');
-    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    useAnnouncementStore.setState({
       announcements: [
-        {
+        fromPartial<ShowAnnouncement>({
           id: 'announcement-1',
           title: 'Ring paused',
           content: 'Please stay nearby.',
           is_read: false,
-        },
+        }),
       ],
       unreadCount: 1,
     });
@@ -512,14 +524,14 @@ describe('MessageCenterPanel', () => {
   it('keeps message retry visible when show-wide posts are present', async () => {
     const subscribe = vi.fn();
     const { useAnnouncementStore } = await import('@/store/announcementStore');
-    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    useAnnouncementStore.setState({
       announcements: [
-        {
+        fromPartial<ShowAnnouncement>({
           id: 'announcement-1',
           title: 'Ring paused',
           content: 'Please stay nearby.',
           is_read: false,
-        },
+        }),
       ],
     });
     const { useMessageStore } = await import('@/store/messageStore');

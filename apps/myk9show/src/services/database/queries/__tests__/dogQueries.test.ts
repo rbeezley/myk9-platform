@@ -13,6 +13,7 @@ import {
 import { mapDogInputToReplicated } from '@/services/mappers/dogMappers';
 import type { DbDogInsert, DbDogUpdate } from '../../../../types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // Force replication tables to throw so PostgREST fallback is exercised
 vi.mock('@/services/replication/ReplicatedDogsTable', () => {
@@ -185,7 +186,8 @@ describe('Dog Queries', () => {
         sex: 'male',
       } as DbDogInsert & { id: string };
       const mockCreatedDog = { ...newDog, owner: null };
-      const chainable = createChainableQuery({ data: mockCreatedDog, error: null });
+      const query = createChainableQuery({ data: mockCreatedDog, error: null });
+      const chainable = fromAny<{ insert: ReturnType<typeof vi.fn> }, typeof query>(query);
       mockSupabase.from.mockReturnValue(chainable);
 
       await createDog(newDog);
@@ -250,7 +252,7 @@ describe('Dog Queries', () => {
     it('should update a dog', async () => {
       const updates: DbDogUpdate = {
         name: 'Max Updated',
-        weight: 75,
+        weight: '75',
       };
 
       const mockUpdatedDog = {
@@ -331,7 +333,11 @@ describe('Dog Queries', () => {
           owner: { id: 'p1', first_name: 'Alice', last_name: 'Smith' },
         },
       ];
-      const chain = createChainableQuery({ data: mockResults, error: null });
+      const query = createChainableQuery({ data: mockResults, error: null });
+      const chain = fromAny<
+        { or: ReturnType<typeof vi.fn>; limit: ReturnType<typeof vi.fn> },
+        typeof query
+      >(query);
       mockSupabase.from.mockReturnValue(chain);
 
       const result = await searchAllDogs('rang');

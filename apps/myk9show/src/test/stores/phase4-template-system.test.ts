@@ -8,7 +8,13 @@ import { useShowTemplateStore } from '@/store/showTemplateStore';
 import { useClassCreationStore } from '@/store/classCreationStore';
 
 // Type imports
-import type { ClassTemplate } from '@/types/template.types';
+import {
+  Organization,
+  TemplateStatus,
+  TemplateType,
+  TrialType,
+  type ClassTemplate,
+} from '@/types/template.types';
 import type { ClassTemplate as ClassTemplateType } from '@/types/class-template-types';
 import type { ShowTemplateDefinition } from '@/types/show-template-types';
 // CreatedClass type removed - not used in tests
@@ -66,20 +72,24 @@ describe('Phase 4 Template System Tests', () => {
 
       const testTemplate: Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'> = {
         templateName: 'Test Template',
-        organization: 'AKC',
-        showType: 'Conformation',
+        organization: Organization.AKC,
+        trialType: TrialType.CONFORMATION,
         description: 'Test template description',
         version: '1.0',
+        type: TemplateType.CUSTOM,
+        status: TemplateStatus.ACTIVE,
         isOfficial: false,
         isCustom: true,
         isActive: true,
         fieldSpecifications: [],
         classDefinitions: [],
+        validationRules: [],
+        defaults: {},
         updatedAt: new Date(),
       };
 
       // Test create
-      const created = store.createTemplate(testTemplate);
+      const created = store.createTemplate(testTemplate, 'test-user');
       expect(created.templateName).toBe('Test Template');
       expect(created.id).toBeDefined();
 
@@ -88,7 +98,11 @@ describe('Phase 4 Template System Tests', () => {
       expect(retrieved).toEqual(created);
 
       // Test update
-      const updated = store.updateTemplate(created.id, { description: 'Updated description' });
+      const updated = store.updateTemplate(
+        created.id,
+        { description: 'Updated description' },
+        'test-user'
+      );
       expect(updated).toBe(true);
 
       const retrievedUpdated = store.getTemplate(created.id);
@@ -99,36 +113,50 @@ describe('Phase 4 Template System Tests', () => {
       const store = useTemplateStore.getState();
 
       // Create test templates
-      const template1 = store.createTemplate({
-        templateName: 'AKC Template',
-        organization: 'AKC',
-        showType: 'Conformation',
-        description: 'AKC test template',
-        version: '1.0',
-        isOfficial: true,
-        isCustom: false,
-        isActive: true,
-        fieldSpecifications: [],
-        classDefinitions: [],
-        updatedAt: new Date(),
-      });
+      const template1 = store.createTemplate(
+        {
+          templateName: 'AKC Template',
+          organization: Organization.AKC,
+          trialType: TrialType.CONFORMATION,
+          description: 'AKC test template',
+          version: '1.0',
+          type: TemplateType.OFFICIAL,
+          status: TemplateStatus.ACTIVE,
+          isOfficial: true,
+          isCustom: false,
+          isActive: true,
+          fieldSpecifications: [],
+          classDefinitions: [],
+          validationRules: [],
+          defaults: {},
+          updatedAt: new Date(),
+        },
+        'test-user'
+      );
 
-      const template2 = store.createTemplate({
-        templateName: 'UKC Template',
-        organization: 'UKC',
-        showType: 'Agility',
-        description: 'UKC test template',
-        version: '1.0',
-        isOfficial: false,
-        isCustom: true,
-        isActive: true,
-        fieldSpecifications: [],
-        classDefinitions: [],
-        updatedAt: new Date(),
-      });
+      const template2 = store.createTemplate(
+        {
+          templateName: 'UKC Template',
+          organization: Organization.UKC,
+          trialType: TrialType.AGILITY,
+          description: 'UKC test template',
+          version: '1.0',
+          type: TemplateType.CUSTOM,
+          status: TemplateStatus.ACTIVE,
+          isOfficial: false,
+          isCustom: true,
+          isActive: true,
+          fieldSpecifications: [],
+          classDefinitions: [],
+          validationRules: [],
+          defaults: {},
+          updatedAt: new Date(),
+        },
+        'test-user'
+      );
 
       // Test organization filtering
-      const akcTemplates = store.getTemplatesByOrganization('AKC');
+      const akcTemplates = store.getTemplatesByOrganization(Organization.AKC);
       expect(akcTemplates.length).toBeGreaterThan(0);
       expect(akcTemplates.some(t => t.id === template1.id)).toBe(true);
 
@@ -148,9 +176,10 @@ describe('Phase 4 Template System Tests', () => {
       const testTemplate: Omit<ClassTemplateType, 'id' | 'createdAt' | 'updatedAt'> = {
         name: 'Test Class Template',
         organization: 'AKC',
-        showType: 'Agility',
+        trialType: 'Agility',
         description: 'Test class template',
         fields: [],
+        classPattern: '{element} {level}',
         maxEntriesDefault: 40,
         requiresJumpHeight: true,
       };
@@ -192,8 +221,9 @@ describe('Phase 4 Template System Tests', () => {
       const testTemplate: Omit<ShowTemplateDefinition, 'id' | 'createdAt' | 'updatedAt'> = {
         name: 'Test Show Template',
         organization: 'AKC',
-        showType: 'Scent Work',
+        trialType: 'Scent Work',
         description: 'Test show template',
+        version: '1.0',
         classNamePattern: '{element} {level}',
         classFields: [],
         defaults: {
@@ -290,26 +320,34 @@ describe('Phase 4 Template System Tests', () => {
       const showTemplateStore = useShowTemplateStore.getState();
 
       // Create templates in different stores
-      const mainTemplate = templateStore.createTemplate({
-        templateName: 'Integration Test Template',
-        organization: 'AKC',
-        showType: 'Agility',
-        description: 'Integration test',
-        version: '1.0',
-        isOfficial: false,
-        isCustom: true,
-        isActive: true,
-        fieldSpecifications: [],
-        classDefinitions: [],
-        updatedAt: new Date(),
-      });
+      const mainTemplate = templateStore.createTemplate(
+        {
+          templateName: 'Integration Test Template',
+          organization: Organization.AKC,
+          trialType: TrialType.AGILITY,
+          description: 'Integration test',
+          version: '1.0',
+          type: TemplateType.CUSTOM,
+          status: TemplateStatus.ACTIVE,
+          isOfficial: false,
+          isCustom: true,
+          isActive: true,
+          fieldSpecifications: [],
+          classDefinitions: [],
+          validationRules: [],
+          defaults: {},
+          updatedAt: new Date(),
+        },
+        'test-user'
+      );
 
       const classTemplate = classTemplateStore.addTemplate({
         name: 'Integration Class Template',
         organization: 'AKC',
-        showType: 'Agility',
+        trialType: 'Agility',
         description: 'Integration class test',
         fields: [],
+        classPattern: '{element} {level}',
         maxEntriesDefault: 40,
         requiresJumpHeight: true,
       });
@@ -317,8 +355,9 @@ describe('Phase 4 Template System Tests', () => {
       const showTemplate = showTemplateStore.addTemplate({
         name: 'Integration Show Template',
         organization: 'AKC',
-        showType: 'Agility',
+        trialType: 'Agility',
         description: 'Integration show test',
+        version: '1.0',
         classNamePattern: '{element} {level}',
         classFields: [],
         defaults: {
@@ -334,7 +373,7 @@ describe('Phase 4 Template System Tests', () => {
       expect(showTemplateStore.getTemplate(showTemplate.id)).toBeDefined();
 
       // Test cross-store queries
-      const akcMainTemplates = templateStore.getTemplatesByOrganization('AKC');
+      const akcMainTemplates = templateStore.getTemplatesByOrganization(Organization.AKC);
       const akcClassTemplates = classTemplateStore.getTemplatesByOrganization('AKC');
       const akcShowTemplates = showTemplateStore.getTemplatesByOrganization('AKC');
 

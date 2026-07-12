@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -10,7 +11,12 @@ import { TasksTab, TASKS_TAB_RESERVED_MIN_HEIGHT_PX } from '../TasksTab';
 import type { SecretaryTask } from '../types';
 
 vi.mock('@/hooks/queries/useSecretaryTasks', () => ({
-  useSecretaryTasks: vi.fn(() => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() })),
+  useSecretaryTasks: vi.fn(() => ({
+    data: [],
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  })),
   useCreateTask: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useUpdateTask: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useDeleteTask: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
@@ -69,14 +75,7 @@ describe('TaskRow', () => {
 
   it('calls onToggleDone when checkbox is clicked', () => {
     const onToggle = vi.fn();
-    render(
-      <TaskRow
-        task={makeTask()}
-        showName=""
-        onToggleDone={onToggle}
-        onDelete={vi.fn()}
-      />
-    );
+    render(<TaskRow task={makeTask()} showName="" onToggleDone={onToggle} onDelete={vi.fn()} />);
     fireEvent.click(screen.getByRole('checkbox'));
     expect(onToggle).toHaveBeenCalledWith('task-1');
   });
@@ -136,14 +135,7 @@ describe('TaskRow', () => {
 describe('TaskAddForm', () => {
   it('hides the show selector and forces lockedShowId=null on submit', () => {
     const onAdd = vi.fn();
-    render(
-      <TaskAddForm
-        clubId="club-1"
-        lockedShowId={null}
-        onAdd={onAdd}
-        onCancel={vi.fn()}
-      />
-    );
+    render(<TaskAddForm clubId="club-1" lockedShowId={null} onAdd={onAdd} onCancel={vi.fn()} />);
     // No select element
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText('Task title…'), {
@@ -157,14 +149,7 @@ describe('TaskAddForm', () => {
 
   it('hides the show selector and forces lockedShowId=<showId> on submit', () => {
     const onAdd = vi.fn();
-    render(
-      <TaskAddForm
-        clubId="club-1"
-        lockedShowId="show-42"
-        onAdd={onAdd}
-        onCancel={vi.fn()}
-      />
-    );
+    render(<TaskAddForm clubId="club-1" lockedShowId="show-42" onAdd={onAdd} onCancel={vi.fn()} />);
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText('Task title…'), {
       target: { value: 'Per-show task' },
@@ -243,8 +228,8 @@ describe('TasksTab — personal-only', () => {
       id: 'done-1',
       title: 'Old task',
       status: 'done',
-      dueDate: undefined,
     });
+    delete doneTask.dueDate;
     vi.mocked(useSecretaryTasks).mockReturnValue({
       data: [doneTask],
       isLoading: false,
@@ -305,10 +290,12 @@ describe('TasksTab — personal-only', () => {
 
   it('passes lockShowEdit + hideShowChip to TaskRows so edits cannot move tasks across scopes', () => {
     const updateMutate = vi.fn();
-    vi.mocked(useUpdateTask).mockReturnValue({
-      mutate: updateMutate,
-      isPending: false,
-    } as ReturnType<typeof useUpdateTask>);
+    vi.mocked(useUpdateTask).mockReturnValue(
+      fromPartial<ReturnType<typeof useUpdateTask>>({
+        mutate: updateMutate,
+        isPending: false,
+      })
+    );
 
     vi.mocked(useSecretaryTasks).mockReturnValue({
       data: [makeTask({ id: 'task-personal', title: 'Personal task', showId: null })],
@@ -336,10 +323,12 @@ describe('TasksTab — personal-only', () => {
 
   it('delete still works on personal task rows', () => {
     const deleteMutate = vi.fn();
-    vi.mocked(useDeleteTask).mockReturnValue({
-      mutate: deleteMutate,
-      isPending: false,
-    } as ReturnType<typeof useDeleteTask>);
+    vi.mocked(useDeleteTask).mockReturnValue(
+      fromPartial<ReturnType<typeof useDeleteTask>>({
+        mutate: deleteMutate,
+        isPending: false,
+      })
+    );
 
     vi.mocked(useSecretaryTasks).mockReturnValue({
       data: [makeTask({ id: 'task-x', title: 'Trash me' })],

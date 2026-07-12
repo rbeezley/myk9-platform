@@ -12,6 +12,13 @@ import {
 } from '@/test/utils/mockData';
 import { Organization } from '@/types/template.types';
 
+function getUsedHeapSize(): number {
+  const performanceWithMemory = performance as Performance & {
+    memory?: { usedJSHeapSize: number };
+  };
+  return performanceWithMemory.memory?.usedJSHeapSize ?? 0;
+}
+
 describe('Template System Performance Benchmarks', () => {
   // Wall-clock budgets are machine-dependent micro-benchmarks: under CI/full-suite
   // load they trip without indicating any real regression. Keep the operation
@@ -60,14 +67,15 @@ describe('Template System Performance Benchmarks', () => {
             `field${i}`,
             createMockField({
               fieldName: `field${i}`,
-              showWhen:
-                i % 3 === 0
-                  ? {
+              ...(i % 3 === 0
+                ? {
+                    showWhen: {
                       dependsOn: `field${Math.max(0, i - 1)}`,
-                      condition: 'equals',
+                      condition: 'equals' as const,
                       value: 'test',
-                    }
-                  : undefined,
+                    },
+                  }
+                : {}),
             }),
           ])
         ),
@@ -161,7 +169,7 @@ describe('Template System Performance Benchmarks', () => {
                 createMockField({
                   fieldName: `field${i}`,
                   fieldSource: i % 3 === 0 ? 'rule-based' : 'admin-set',
-                  ruleValue: i % 3 === 0 ? `value${i}` : undefined,
+                  ...(i % 3 === 0 ? { ruleValue: `value${i}` } : {}),
                   defaultValue: `default${i}`,
                 }),
               ])
@@ -201,7 +209,7 @@ describe('Template System Performance Benchmarks', () => {
         activeTemplate: null,
         searchQuery: '',
         filterOrganization: null,
-        filterShowType: null,
+        filterTrialType: null,
       });
     });
 
@@ -212,7 +220,7 @@ describe('Template System Performance Benchmarks', () => {
       performanceBenchmark(
         'Create 100 templates',
         () => {
-          templates.forEach(template => store.createTemplate(template));
+          templates.forEach(template => store.createTemplate(template, 'performance-test'));
         },
         200
       );
@@ -223,7 +231,7 @@ describe('Template System Performance Benchmarks', () => {
 
       // Setup: Add 100 templates
       const templates = createMockTemplates(100);
-      templates.forEach(t => store.createTemplate(t));
+      templates.forEach(t => store.createTemplate(t, 'performance-test'));
 
       performanceBenchmark(
         'Template filtering performance',
@@ -232,7 +240,7 @@ describe('Template System Performance Benchmarks', () => {
           useTemplateStore.setState({ searchQuery: 'Template 5' });
           // Simulate filtering by searching through templates manually
 
-          const _filtered = store.templates.filter(t => t.templateName.includes('Template 5'));
+          store.templates.filter(t => t.templateName.includes('Template 5'));
         },
         10
       );
@@ -273,7 +281,11 @@ describe('Template System Performance Benchmarks', () => {
       performanceBenchmark(
         'Template update performance',
         () => {
-          store.updateTemplate(templates[250].id, { templateName: 'Updated Template Name' });
+          store.updateTemplate(
+            templates[250].id,
+            { templateName: 'Updated Template Name' },
+            'performance-test'
+          );
         },
         20
       );
@@ -334,7 +346,7 @@ describe('Template System Performance Benchmarks', () => {
 
       // Simulate having 1000 created classes
 
-      const _createdClasses = Array.from({ length: 500 }, (_, i) => ({
+      const createdClasses = Array.from({ length: 500 }, (_, i) => ({
         id: `class-${i}`,
         trialId: `trial-${Math.floor(i / 20)}`,
         runOrder: i % 20,
@@ -359,6 +371,7 @@ describe('Template System Performance Benchmarks', () => {
         createdBy: 'test',
         createdAt: new Date(),
       }));
+      expect(createdClasses).toHaveLength(500);
 
       performanceBenchmark(
         'Get classes by trial from 1000 classes',
@@ -372,7 +385,7 @@ describe('Template System Performance Benchmarks', () => {
 
   describe('Memory Usage Benchmarks', () => {
     test('template store memory usage stays reasonable', () => {
-      const initialMemory = (performance as Record<string, unknown>).memory?.usedJSHeapSize || 0;
+      const initialMemory = getUsedHeapSize();
 
       // Bulk-set 1000 templates via setState to avoid O(n²) from sequential createTemplate calls
       const templates = createMockTemplates(1000).map(t => ({
@@ -383,8 +396,7 @@ describe('Template System Performance Benchmarks', () => {
       }));
       useTemplateStore.setState({ templates, error: null });
 
-      const afterCreationMemory =
-        (performance as Record<string, unknown>).memory?.usedJSHeapSize || 0;
+      const afterCreationMemory = getUsedHeapSize();
       const memoryIncrease = afterCreationMemory - initialMemory;
 
       // Memory increase should be reasonable (less than 50MB for 1000 templates)
@@ -410,14 +422,14 @@ describe('Template System Performance Benchmarks', () => {
         createdBy: 'test',
       };
 
-      const initialMemory = (performance as Record<string, unknown>).memory?.usedJSHeapSize || 0;
+      const initialMemory = getUsedHeapSize();
 
       // Generate classes multiple times to test for memory leaks
       for (let i = 0; i < 10; i++) {
         generateClassesFromTemplate(template, options);
       }
 
-      const finalMemory = (performance as Record<string, unknown>).memory?.usedJSHeapSize || 0;
+      const finalMemory = getUsedHeapSize();
       const memoryIncrease = finalMemory - initialMemory;
 
       console.log(

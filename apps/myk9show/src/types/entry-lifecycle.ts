@@ -25,6 +25,7 @@ export type EntryStatus =
   | 'scratch-requested' // Exhibitor requested scratch; awaiting secretary approval
   | 'move-up-requested' // Exhibitor requested move-up; awaiting secretary approval
   // Waitlist promotion flow
+  | 'waitlist' // Entry is waiting for capacity
   | 'pending-payment' // Promoted from waitlist, awaiting Stripe checkout
   | 'promotion-expired'; // Did not pay within promotion deadline
 

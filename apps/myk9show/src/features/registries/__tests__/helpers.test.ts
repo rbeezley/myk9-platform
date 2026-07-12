@@ -72,7 +72,6 @@ describe('getShowLandingStyle', () => {
 
   it('returns "default" when the column is null, undefined, or missing', () => {
     expect(getShowLandingStyle({ landing_style: null })).toBe('default');
-    expect(getShowLandingStyle({ landing_style: undefined })).toBe('default');
     expect(getShowLandingStyle({})).toBe('default');
     expect(getShowLandingStyle(null)).toBe('default');
     expect(getShowLandingStyle(undefined)).toBe('default');

@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi, Mock } from 'vitest';
 import { RBACService } from '@/services/rbac/RBACService';
 import { supabase } from '@/lib/supabase';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // Mock Supabase client
 vi.mock('@/lib/supabase', () => ({
@@ -19,11 +20,9 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-const mockSupabase = supabase as {
-  rpc: Mock;
-  from: Mock;
-  auth: { getUser: Mock };
-};
+const mockSupabase = fromAny<{ rpc: Mock; from: Mock; auth: { getUser: Mock } }, typeof supabase>(
+  supabase
+);
 
 describe('Privilege Escalation Security Tests', () => {
   let rbacService: RBACService;
@@ -402,6 +401,7 @@ describe('Privilege Escalation Security Tests', () => {
     it('should properly isolate scoped permissions', async () => {
       // Mock user has permission in club A but not club B
       mockSupabase.rpc.mockImplementation((funcName, params) => {
+        void funcName;
         if (params.scope_id === 'club-a') {
           return Promise.resolve({ data: true, error: null });
         }

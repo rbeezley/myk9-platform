@@ -105,14 +105,18 @@ describe('renderResultCardImage', () => {
     } as unknown as HTMLCanvasElement;
     vi.spyOn(document, 'createElement').mockReturnValue(canvas);
 
-    await renderResultCardImage(makeModel({ placement: undefined, placementLabel: undefined }));
+    const model = makeModel();
+    delete model.placement;
+    delete model.placementLabel;
+    await renderResultCardImage(model);
 
     expect(fillText).not.toHaveBeenCalledWith('1st', expect.any(Number), expect.any(Number));
   });
 
   it('fits long labels inside the share image width', async () => {
     const fillText = vi.fn();
-    const longDogName = 'Ditto The Extremely Accomplished Fast Dog With A Very Long Registered Name';
+    const longDogName =
+      'Ditto The Extremely Accomplished Fast Dog With A Very Long Registered Name';
     const longShowName =
       'The Extraordinarily Long Invitational Scent Work Classic Hosted At The Biggest Fairgrounds';
     const canvas = {

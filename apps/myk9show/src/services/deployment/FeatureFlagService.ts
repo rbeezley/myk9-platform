@@ -536,8 +536,8 @@ export class FeatureFlagService {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private calculateStatisticalSignificance(results: ABTestResults): StatisticalSignificance {
+    void results;
     return {
       isSignificant: false,
       confidenceLevel: 0.95,

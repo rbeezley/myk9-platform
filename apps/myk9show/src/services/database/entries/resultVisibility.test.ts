@@ -82,12 +82,7 @@ function makeTrial(overrides: Partial<ReplicatedTrial> = {}): ReplicatedTrial {
   } as ReplicatedTrial;
 }
 
-function mapsFor(
-  entry: ReplicatedEntry,
-  cls: ReplicatedClass,
-  show: ReplicatedShow,
-  trial: ReplicatedTrial
-) {
+function mapsFor(cls: ReplicatedClass, show: ReplicatedShow, trial: ReplicatedTrial) {
   return {
     dogsMap: new Map(),
     classesMap: new Map([[cls.id, cls]]),
@@ -161,10 +156,7 @@ describe('buildReplicatedUserEntryRows result-leak guard', () => {
     const show = makeShow();
     const trial = makeTrial();
 
-    const { data } = await buildReplicatedUserEntryRows(
-      [entry],
-      mapsFor(entry, cls, show, trial)
-    );
+    const { data } = await buildReplicatedUserEntryRows([entry], mapsFor(cls, show, trial));
 
     const row = data[0];
     // Assertion-first: the raw replicated values must NOT leak.
@@ -188,10 +180,7 @@ describe('buildReplicatedUserEntryRows result-leak guard', () => {
     const show = makeShow();
     const trial = makeTrial();
 
-    const { data } = await buildReplicatedUserEntryRows(
-      [entry],
-      mapsFor(entry, cls, show, trial)
-    );
+    const { data } = await buildReplicatedUserEntryRows([entry], mapsFor(cls, show, trial));
 
     const row = data[0];
     expect(row.final_placement).toBeNull();

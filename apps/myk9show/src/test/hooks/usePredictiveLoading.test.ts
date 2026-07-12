@@ -4,7 +4,7 @@ import {
   usePredictiveLoading,
   useRoutePreloading,
   useShowEntryPredictions,
-  useRelationshipPreloading
+  useRelationshipPreloading,
 } from '@/hooks/usePredictiveLoading';
 
 // Use vi.hoisted() so these variables are available when vi.mock() factories run
@@ -23,8 +23,8 @@ const { mockLocation, mockPredictiveLoader } = vi.hoisted(() => ({
         classes: ['Open Dogs'],
         confidence: 0.8,
         reasoning: ['Test reasoning'],
-        estimatedEntryDate: new Date()
-      }
+        estimatedEntryDate: new Date(),
+      },
     ]),
     getShowEntryPredictions: vi.fn().mockReturnValue([
       {
@@ -32,8 +32,8 @@ const { mockLocation, mockPredictiveLoader } = vi.hoisted(() => ({
         showName: 'Test Show',
         dogId: 'dog-1',
         dogName: 'Test Dog',
-        confidence: 0.8
-      }
+        confidence: 0.8,
+      },
     ]),
     getAnalytics: vi.fn().mockReturnValue({
       navigationPatterns: 5,
@@ -44,21 +44,21 @@ const { mockLocation, mockPredictiveLoader } = vi.hoisted(() => ({
         pending: 2,
         loading: 1,
         completed: 6,
-        failed: 1
+        failed: 1,
       },
       successRate: 0.8,
-      avgConfidence: 0.7
+      avgConfidence: 0.7,
     }),
-    resetPredictiveData: vi.fn()
-  }
+    resetPredictiveData: vi.fn(),
+  },
 }));
 
 vi.mock('react-router-dom', () => ({
-  useLocation: () => mockLocation
+  useLocation: () => mockLocation,
 }));
 
 vi.mock('@/services/sync/PredictiveLoader', () => ({
-  predictiveLoader: mockPredictiveLoader
+  predictiveLoader: mockPredictiveLoader,
 }));
 
 describe('usePredictiveLoading', () => {
@@ -83,7 +83,7 @@ describe('usePredictiveLoading', () => {
           enablePreloading: false,
           enableShowPredictions: false,
           trackNavigation: false,
-          trackRelationships: false
+          trackRelationships: false,
         })
       );
 
@@ -97,7 +97,9 @@ describe('usePredictiveLoading', () => {
       // caused by routeStartTime changing on every effect run.
       const originalQueueMicrotask = globalThis.queueMicrotask;
       const pendingMicrotasks: Array<() => void> = [];
-      globalThis.queueMicrotask = (fn: () => void) => { pendingMicrotasks.push(fn); };
+      globalThis.queueMicrotask = (fn: () => void) => {
+        pendingMicrotasks.push(fn);
+      };
 
       try {
         const { rerender } = renderHook(() => usePredictiveLoading());
@@ -123,7 +125,7 @@ describe('usePredictiveLoading', () => {
     it('should not track when navigation disabled', () => {
       renderHook(() =>
         usePredictiveLoading({
-          trackNavigation: false
+          trackNavigation: false,
         })
       );
 
@@ -143,7 +145,7 @@ describe('usePredictiveLoading', () => {
       act(() => {
         result.current.trackEntityAccess('person', 'person-123', [
           { type: 'dog', ids: ['dog-1', 'dog-2'] },
-          { type: 'show', ids: ['show-1'] }
+          { type: 'show', ids: ['show-1'] },
         ]);
       });
 
@@ -159,14 +161,12 @@ describe('usePredictiveLoading', () => {
     it('should not track when relationships disabled', () => {
       const { result } = renderHook(() =>
         usePredictiveLoading({
-          trackRelationships: false
+          trackRelationships: false,
         })
       );
 
       act(() => {
-        result.current.trackEntityAccess('person', 'person-123', [
-          { type: 'dog', ids: ['dog-1'] }
-        ]);
+        result.current.trackEntityAccess('person', 'person-123', [{ type: 'dog', ids: ['dog-1'] }]);
       });
 
       expect(mockPredictiveLoader.trackRelationshipAccess).not.toHaveBeenCalled();
@@ -199,7 +199,7 @@ describe('usePredictiveLoading', () => {
     it('should get predictions for specific dog', () => {
       const { result } = renderHook(() => usePredictiveLoading());
 
-      let predictions: unknown[];
+      let predictions: unknown[] = [];
       act(() => {
         predictions = result.current.getShowPredictions('dog-1');
       });
@@ -211,11 +211,11 @@ describe('usePredictiveLoading', () => {
     it('should filter predictions by threshold', () => {
       const { result } = renderHook(() =>
         usePredictiveLoading({
-          preloadThreshold: 0.9
+          preloadThreshold: 0.9,
         })
       );
 
-      let predictions: unknown[];
+      let predictions: unknown[] = [];
       act(() => {
         predictions = result.current.getShowPredictions('dog-1');
       });
@@ -227,11 +227,11 @@ describe('usePredictiveLoading', () => {
     it('should not generate predictions when disabled', () => {
       const { result } = renderHook(() =>
         usePredictiveLoading({
-          enableShowPredictions: false
+          enableShowPredictions: false,
         })
       );
 
-      let predictions: unknown[];
+      let predictions: unknown[] = [];
       act(() => {
         predictions = result.current.generateShowPredictions();
       });
@@ -243,7 +243,7 @@ describe('usePredictiveLoading', () => {
   describe('Manual Preloading', () => {
     it('should trigger manual preload', () => {
       vi.useFakeTimers();
-      
+
       const { result } = renderHook(() => usePredictiveLoading());
 
       act(() => {
@@ -265,7 +265,7 @@ describe('usePredictiveLoading', () => {
     it('should not trigger when preloading disabled', () => {
       const { result } = renderHook(() =>
         usePredictiveLoading({
-          enablePreloading: false
+          enablePreloading: false,
         })
       );
 
@@ -306,7 +306,7 @@ describe('usePredictiveLoading', () => {
     it('should return null when preloading disabled', () => {
       const { result } = renderHook(() =>
         usePredictiveLoading({
-          enablePreloading: false
+          enablePreloading: false,
         })
       );
 
@@ -363,7 +363,7 @@ describe('usePredictiveLoading', () => {
   describe('Queue Monitoring', () => {
     it('should monitor preload queue size', () => {
       vi.useFakeTimers();
-      
+
       const { result } = renderHook(() => usePredictiveLoading());
 
       // Advance timers to trigger queue monitoring
@@ -379,10 +379,10 @@ describe('usePredictiveLoading', () => {
 
     it('should not monitor when preloading disabled', () => {
       vi.useFakeTimers();
-      
+
       const { result } = renderHook(() =>
         usePredictiveLoading({
-          enablePreloading: false
+          enablePreloading: false,
         })
       );
 
@@ -468,7 +468,7 @@ describe('useShowEntryPredictions', () => {
   it('should filter high confidence predictions', () => {
     const { result } = renderHook(() => useShowEntryPredictions());
 
-    let highConfidence: unknown[];
+    let highConfidence: unknown[] = [];
     act(() => {
       highConfidence = result.current.getHighConfidencePredictions(0.9);
     });

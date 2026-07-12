@@ -100,7 +100,7 @@ describe('Application Smoke Tests', () => {
   });
 
   it('should render the main application without crashing', async () => {
-    render(React.createElement(TestWrapper, {}, React.createElement(App)));
+    render(React.createElement(TestWrapper, { children: React.createElement(App) }));
 
     // Should render some main content
     await waitFor(() => {
@@ -112,7 +112,7 @@ describe('Application Smoke Tests', () => {
   });
 
   it('should handle basic user interactions', async () => {
-    render(React.createElement(TestWrapper, {}, React.createElement(App)));
+    render(React.createElement(TestWrapper, { children: React.createElement(App) }));
 
     await waitFor(() => {
       expect(document.body).toBeInTheDocument();
@@ -140,7 +140,7 @@ describe('Application Smoke Tests', () => {
   });
 
   it('should handle form inputs without errors', async () => {
-    render(React.createElement(TestWrapper, {}, React.createElement(App)));
+    render(React.createElement(TestWrapper, { children: React.createElement(App) }));
 
     await waitFor(() => {
       expect(document.body).toBeInTheDocument();
@@ -176,7 +176,7 @@ describe('Application Smoke Tests', () => {
   });
 
   it('should maintain responsive design elements', async () => {
-    render(React.createElement(TestWrapper, {}, React.createElement(App)));
+    render(React.createElement(TestWrapper, { children: React.createElement(App) }));
 
     await waitFor(() => {
       expect(document.body).toBeInTheDocument();
@@ -212,7 +212,7 @@ describe('Application Smoke Tests', () => {
 
     localStorage.setItem('dogStore', JSON.stringify(testDogData));
 
-    render(React.createElement(TestWrapper, {}, React.createElement(App)));
+    render(React.createElement(TestWrapper, { children: React.createElement(App) }));
 
     await waitFor(() => {
       expect(document.body).toBeInTheDocument();

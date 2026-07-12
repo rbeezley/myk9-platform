@@ -221,7 +221,7 @@ describe('KanbanView', () => {
 
     it('renders without onStatusChange (optional prop)', () => {
       // Should not throw when onStatusChange is not provided
-      expect(() => renderKanban({ onStatusChange: undefined })).not.toThrow();
+      expect(() => renderKanban()).not.toThrow();
     });
   });
 

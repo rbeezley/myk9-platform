@@ -43,6 +43,7 @@ describe('FieldGuide Enter CTA gating', () => {
   describe('FinalCtaSection', () => {
     const baseProps = {
       entryWizardUrl: ENTRY_URL,
+      classesHref: '/shows/show-1/classes',
       entryCloseDate: '2026-06-10',
       timezone: 'America/New_York',
       entryLimit: 360,

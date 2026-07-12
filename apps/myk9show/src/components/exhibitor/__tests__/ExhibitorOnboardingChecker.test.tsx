@@ -104,7 +104,7 @@ describe('ExhibitorOnboardingChecker', () => {
   });
 
   it('does not redirect when user is not authenticated', () => {
-    setupMocks({ user: null, needsOnboarding: false, onboardingCompleted: false });
+    setupMocks({ user: undefined, needsOnboarding: false, onboardingCompleted: false });
     render(
       <ExhibitorOnboardingChecker>
         <div>Public content</div>

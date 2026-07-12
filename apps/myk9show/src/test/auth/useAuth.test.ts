@@ -166,9 +166,7 @@ describe('useAuth', () => {
         });
       });
 
-      const calledTables = fromSpy.mock.calls.map((c: [string]) => c[0]);
-      expect(calledTables).not.toContain('people');
-      expect(calledTables).not.toContain('exhibitor_profiles');
+      expect(fromSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -474,14 +472,15 @@ describe('useAuth', () => {
         }
       );
 
-      let fromCallCount = 0;
-      mockSupabase.from.mockImplementation((table: string) => {
-        if (table === 'people') {
-          fromCallCount++;
-          if (fromCallCount === 1) return selectChain;
-          if (fromCallCount === 2) return insertChain;
-        }
+      let peopleCallCount = 0;
+      mockSupabase.from.mockImplementation((...args: unknown[]) => {
+        const table = args[0] as string;
         if (table === 'exhibitor_profiles') return profileInsertChain;
+        if (table === 'people') {
+          peopleCallCount++;
+          if (peopleCallCount === 1) return selectChain;
+          if (peopleCallCount === 2) return insertChain;
+        }
         return createChainableQuery();
       });
 
@@ -528,10 +527,7 @@ describe('useAuth', () => {
         }
       );
 
-      mockSupabase.from.mockImplementation((table: string) => {
-        if (table === 'people') return selectChain;
-        return createChainableQuery();
-      });
+      mockSupabase.from.mockImplementation(() => selectChain);
 
       renderHook(() => useAuth());
 
@@ -596,12 +592,10 @@ describe('useAuth', () => {
       );
 
       let fromCallCount = 0;
-      mockSupabase.from.mockImplementation((table: string) => {
-        if (table === 'people') {
-          fromCallCount++;
-          if (fromCallCount === 1) return selectChain;
-          if (fromCallCount === 2) return insertChain;
-        }
+      mockSupabase.from.mockImplementation(() => {
+        fromCallCount++;
+        if (fromCallCount === 1) return selectChain;
+        if (fromCallCount === 2) return insertChain;
         return createChainableQuery();
       });
 

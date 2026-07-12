@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PDFDocument } from 'pdf-lib';
-import type { ReportProps } from '@/lib/reports/types';
+import type { ReportEntry, ReportProps } from '@/lib/reports/types';
 import {
   buildAKCScentWorkScoreSheetFilename,
   buildAKCScentWorkScoreSheetPdfBytes,
@@ -11,6 +11,26 @@ import {
 } from '../akcScentWorkScoreSheet';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../..');
+
+function entry(overrides: Partial<ReportEntry>): ReportEntry {
+  return {
+    id: 'entry-1',
+    armband: 101,
+    runOrder: 1,
+    callName: 'Dog',
+    breed: 'Mixed Breed',
+    handler: 'Handler',
+    registrationNumber: null,
+    checkInStatus: null,
+    section: null,
+    isScored: false,
+    resultText: null,
+    searchTimeSeconds: null,
+    totalFaults: null,
+    finalPlacement: null,
+    ...overrides,
+  };
+}
 
 const baseProps = {
   showId: 'show-1',
@@ -20,6 +40,7 @@ const baseProps = {
     eventNumber: '2026123401',
     registryId: 'AKC',
     trialNumber: '1',
+    judgeName: 'Judge Smith',
   },
   classData: {
     element: 'Buried',
@@ -31,30 +52,30 @@ const baseProps = {
     areaCount: 1,
   },
   entries: [
-    {
+    entry({
       id: 'entry-1',
       armband: 102,
       runOrder: 2,
       callName: 'Star',
       breed: 'Golden Retriever',
       handler: 'Sarah Johnson',
-    },
-    {
+    }),
+    entry({
       id: 'entry-2',
       armband: 101,
       runOrder: 1,
       callName: 'Rocket',
       breed: 'Beagle',
       handler: 'Jamie Walker',
-    },
-    {
+    }),
+    entry({
       id: 'entry-3',
       armband: 103,
       runOrder: 3,
       callName: 'Dash',
       breed: 'Border Collie',
       handler: 'Alex Lee',
-    },
+    }),
   ],
   sortOrder: 'run-order',
 } satisfies ReportProps;

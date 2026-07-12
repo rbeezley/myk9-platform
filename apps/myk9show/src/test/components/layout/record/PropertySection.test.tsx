@@ -3,7 +3,6 @@
  * Tests rendering, collapsible behavior, inline editing, custom render, and null handling
  */
 
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -74,7 +73,7 @@ describe('PropertySection', () => {
     });
 
     it('does not render icon container when no icon provided', () => {
-      const section = createSection({ icon: undefined });
+      const section = createSection();
       render(<PropertySection section={section} />);
       expect(screen.queryByTestId('section-icon')).not.toBeInTheDocument();
     });

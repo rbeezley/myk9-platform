@@ -138,7 +138,7 @@ const UserRegistrationForm = ({
 
   const handleFieldBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
-    const error = validateField(field, formData[field]);
+    const error = validateField(field, formData[field as keyof typeof formData]);
     setErrors(prev => ({ ...prev, [field]: error || '' }));
   };
 

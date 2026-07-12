@@ -25,10 +25,10 @@ const defaultConfig: PageTransitionConfig = {
 /**
  * Hook for managing smooth page transitions between routes.
  * Automatically detects route changes and applies transition animations.
- * 
+ *
  * @param config - Configuration options for the transition
  * @returns Object with transition state and styling functions
- * 
+ *
  * @example
  * ```typescript
  * function App() {
@@ -37,7 +37,7 @@ const defaultConfig: PageTransitionConfig = {
  *     direction: 'right',
  *     duration: 400
  *   });
- * 
+ *
  *   return (
  *     <div style={getPageContainerStyles()}>
  *       <Routes>
@@ -81,6 +81,8 @@ export function usePageTransition(config: Partial<PageTransitionConfig> = {}) {
 
       return () => clearTimeout(timer);
     }
+
+    return undefined;
   }, [isTransitioning, location, finalConfig.duration]);
 
   // Get transition styles
@@ -103,7 +105,7 @@ export function usePageTransition(config: Partial<PageTransitionConfig> = {}) {
       case 'slide': {
         const direction = finalConfig.direction || 'right';
         let transform = '';
-        
+
         if (!isVisible) {
           switch (direction) {
             case 'left':
@@ -167,20 +169,20 @@ export function usePageTransition(config: Partial<PageTransitionConfig> = {}) {
 /**
  * Hook for triggering programmatic transitions without route changes.
  * Useful for custom animations or loading states.
- * 
+ *
  * @returns Object with animation state and trigger function
- * 
+ *
  * @example
  * ```typescript
  * function CustomTransition() {
  *   const { isAnimating, animateTransition } = useProgrammaticTransition();
- * 
+ *
  *   const handleCustomAction = async () => {
  *     await animateTransition({ type: 'fade', duration: 500 });
  *     // Perform action after transition
  *     await performAction();
  *   };
- * 
+ *
  *   return (
  *     <div className={isAnimating ? 'opacity-50' : 'opacity-100'}>
  *       <Button onClick={handleCustomAction}>Trigger Transition</Button>
@@ -193,14 +195,12 @@ export function useProgrammaticTransition() {
   const [isAnimating, setIsAnimating] = useState(false);
   const activeAnimationsRef = useRef(0);
 
-  const animateTransition = useCallback(async (
-    config: Partial<PageTransitionConfig> = {}
-  ) => {
+  const animateTransition = useCallback(async (config: Partial<PageTransitionConfig> = {}) => {
     const finalConfig = { ...defaultConfig, ...config };
     activeAnimationsRef.current += 1;
     setIsAnimating(true);
 
-    return new Promise<void>((resolve) => {
+    return new Promise<void>(resolve => {
       setTimeout(() => {
         activeAnimationsRef.current -= 1;
         if (activeAnimationsRef.current === 0) {
@@ -220,22 +220,22 @@ export function useProgrammaticTransition() {
 /**
  * Hook for prefetching routes to improve transition performance.
  * Tracks which routes have been prefetched to avoid duplicate requests.
- * 
+ *
  * @returns Object with prefetching functions and state
- * 
+ *
  * @example
  * ```typescript
  * function NavigationMenu() {
  *   const { prefetchRoute, isPrefetched } = useTransitionPrefetch();
- * 
+ *
  *   const handleHover = (route: string) => {
  *     prefetchRoute(route);
  *   };
- * 
+ *
  *   return (
  *     <nav>
- *       <Link 
- *         to="/dashboard" 
+ *       <Link
+ *         to="/dashboard"
  *         onMouseEnter={() => handleHover('/dashboard')}
  *         className={isPrefetched('/dashboard') ? 'prefetched' : ''}
  *       >
@@ -257,9 +257,12 @@ export function useTransitionPrefetch() {
     });
   }, []);
 
-  const isPrefetched = useCallback((route: string) => {
-    return routes.has(route);
-  }, [routes]);
+  const isPrefetched = useCallback(
+    (route: string) => {
+      return routes.has(route);
+    },
+    [routes]
+  );
 
   return {
     prefetchRoute,

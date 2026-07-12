@@ -39,13 +39,12 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
 
       const testRegistration: Registration = {
         id: 'reg-test-1',
-        dogId: 'dog-test-1',
-        registrationType: 'AKC',
+        organization: 'AKC',
         registrationNumber: 'TEST123',
         registeredName: 'Test Dog',
-        registrationDate: new Date(),
-        expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-        isActive: true,
+        registrationDate: '2024-01-01',
+        breed: 'Mixed Breed',
+        status: 'Active',
       };
 
       // Test add operation
@@ -78,10 +77,10 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
       const testCompetition: Competition = {
         id: 'comp-test-1',
         name: 'Test Competition',
-        date: new Date(),
+        date: '2024-01-01',
         location: 'Test Location',
-        organization: 'Conformation',
-        status: 'upcoming',
+        status: 'Upcoming',
+        dogId: 'dog-test-1',
       };
 
       store.addCompetition(testCompetition);
@@ -100,7 +99,7 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
     it('should persist show registrations to IndexedDB', async () => {
       const store = useShowRegistrationStore.getState();
 
-      store.createRegistration('show-1', 'user-1');
+      store.createRegistration('show-1', 'user-1', 'handler-1');
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -113,11 +112,13 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
     it('should handle registration entry management', async () => {
       const store = useShowRegistrationStore.getState();
 
-      const registration = store.createRegistration('show-2', 'user-2');
+      const registration = store.createRegistration('show-2', 'user-2', 'handler-2');
 
       store.addEntry(registration.id, {
         dogId: 'dog-1',
         dogName: 'Test Dog',
+        trialId: 'trial-1',
+        trialName: 'Trial 1',
         classes: [],
         handlerId: 'handler-1',
         handlerName: 'Test Handler',
@@ -197,13 +198,12 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
       // Create a dog registration
       const dogRegistration: Registration = {
         id: 'reg-cross-test-1',
-        dogId: 'dog-cross-test-1',
-        registrationType: 'AKC',
+        organization: 'AKC',
         registrationNumber: 'CROSS123',
         registeredName: 'Cross Test Dog',
-        registrationDate: new Date(),
-        expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-        isActive: true,
+        registrationDate: '2024-01-01',
+        breed: 'Mixed Breed',
+        status: 'Active',
       };
 
       registrationStore.addRegistration(dogRegistration);
@@ -211,11 +211,14 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
       // Create a show registration for the same dog
       const showRegistration = showRegStore.createRegistration(
         'show-cross-test-1',
-        'user-cross-test-1'
+        'user-cross-test-1',
+        'handler-cross-test-1'
       );
       showRegStore.addEntry(showRegistration.id, {
         dogId: 'dog-cross-test-1',
         dogName: 'Cross Test Dog',
+        trialId: 'trial-cross-test-1',
+        trialName: 'Cross Test Trial',
         classes: [],
         handlerId: 'handler-cross-test-1',
         handlerName: 'Cross Test Handler',
@@ -233,7 +236,9 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
 
       // Verify all stores have the related data
       expect(
-        useRegistrationsStore.getState().registrations.find(r => r.dogId === 'dog-cross-test-1')
+        useRegistrationsStore
+          .getState()
+          .registrations.find(r => r.registrationNumber === 'CROSS123')
       ).toBeDefined();
       expect(showRegStore.getRegistration(showRegistration.id)?.entries[0].dogId).toBe(
         'dog-cross-test-1'

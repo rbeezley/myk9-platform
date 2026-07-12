@@ -24,7 +24,10 @@ const {
     pushEnabled: false,
   };
   const mockUseShowDayData = vi.fn(() => ({ activeShows: [{ showId: 'show-1' }] }));
-  const mockUseQueryResult = vi.fn(() => ({ data: null, isLoading: false }));
+  const mockUseQueryResult = vi.fn<() => { data: unknown; isLoading: boolean }>(() => ({
+    data: null,
+    isLoading: false,
+  }));
   return {
     mockChannel,
     mockRemoveChannel,

@@ -18,7 +18,7 @@ const makeClass = (overrides: Record<string, unknown> = {}) => ({
 
 const makeEntry = (classId: string, status?: string) => ({
   classId,
-  status,
+  ...(status ? { status } : {}),
 });
 
 describe('useTrialStats', () => {

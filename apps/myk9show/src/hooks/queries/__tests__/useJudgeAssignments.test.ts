@@ -33,11 +33,14 @@ vi.mock('@/services/replication', () => ({
 const mockIn = vi.fn();
 const mockEq = vi.fn(() => ({ in: mockIn }));
 const mockSelect = vi.fn(() => ({ eq: mockEq }));
-const mockFrom = vi.fn(() => ({ select: mockSelect }));
+const mockFrom = vi.fn((table: string) => {
+  void table;
+  return { select: mockSelect };
+});
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: (...args: unknown[]) => mockFrom(...args),
+    from: (table: string) => mockFrom(table),
   },
   logQuery: vi.fn(),
   createDatabaseError: (error: unknown) =>

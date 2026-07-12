@@ -32,6 +32,7 @@ const defaultProps = {
   reportType: 'check-in-sheet',
   trialId: 'all',
   classId: 'all',
+  dogId: 'all',
   sortOrder: 'run-order',
   trials: mockTrials,
   classes: mockClasses,

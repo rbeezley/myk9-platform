@@ -188,7 +188,7 @@ describe('ReplicatedClassesTable', () => {
   describe('Sync Operations - Query Building', () => {
     describe('sync - Supabase Query Construction', () => {
       it('should construct correct Supabase query for initial sync', async () => {
-        const mockRows = [createDbRow({ id: 1 })];
+        const mockRows = [createDbRow({ id: '1' })];
         mockSupabaseOrder.mockResolvedValue({ data: mockRows, error: null });
 
         await classesTable.sync('trial-1');
@@ -202,7 +202,7 @@ describe('ReplicatedClassesTable', () => {
       });
 
       it('should filter by trial ID when license key provided', async () => {
-        const mockRows = [createDbRow({ id: 1, trial_id: 'trial-1' })];
+        const mockRows = [createDbRow({ id: '1', trial_id: 'trial-1' })];
         mockSupabaseEq.mockResolvedValue({ data: mockRows, error: null });
 
         await classesTable.sync('trial-1');
@@ -211,7 +211,7 @@ describe('ReplicatedClassesTable', () => {
       });
 
       it('should sync without trial filter when no license key provided', async () => {
-        const mockRows = [createDbRow({ id: 1 })];
+        const mockRows = [createDbRow({ id: '1' })];
         mockSupabaseOrder.mockResolvedValue({ data: mockRows, error: null });
 
         await classesTable.sync('');
@@ -269,7 +269,11 @@ describe('ReplicatedClassesTable', () => {
       });
 
       it('should count affected rows correctly', async () => {
-        const mockRows = [createDbRow({ id: 1 }), createDbRow({ id: 2 }), createDbRow({ id: 3 })];
+        const mockRows = [
+          createDbRow({ id: '1' }),
+          createDbRow({ id: '2' }),
+          createDbRow({ id: '3' }),
+        ];
         // Use sync(''): no .eq() call, order() result is awaited directly
         mockSupabaseOrder.mockResolvedValue({ data: mockRows, error: null });
 
@@ -315,7 +319,7 @@ describe('ReplicatedClassesTable', () => {
 
       it('should handle large batch of classes', async () => {
         // Use sync(''): no .eq() call, order() is the terminal step
-        const mockRows = Array.from({ length: 100 }, (_, i) => createDbRow({ id: i + 1 }));
+        const mockRows = Array.from({ length: 100 }, (_, i) => createDbRow({ id: String(i + 1) }));
         mockSupabaseOrder.mockResolvedValue({ data: mockRows, error: null });
 
         const result = await classesTable.sync('');
@@ -374,7 +378,7 @@ describe('ReplicatedClassesTable', () => {
   describe('Data Transformation', () => {
     it('should transform snake_case database fields to camelCase', () => {
       const dbRow = createDbRow({
-        id: 1,
+        id: '1',
         trial_id: 'trial-1',
         entry_fee: 30.0,
         max_entries: 50,
@@ -389,7 +393,7 @@ describe('ReplicatedClassesTable', () => {
 
     it('should handle null database fields', () => {
       const dbRow = createDbRow({
-        id: 1,
+        id: '1',
         description: null,
         entry_fee: null,
         jump_heights: null,
@@ -402,19 +406,19 @@ describe('ReplicatedClassesTable', () => {
 
     it('should preserve required fields', () => {
       const dbRow = createDbRow({
-        id: 1,
+        id: '1',
         trial_id: 'trial-1',
         name: 'Test Class',
       });
 
-      expect(dbRow.id).toBe(1);
+      expect(dbRow.id).toBe('1');
       expect(dbRow.trial_id).toBe('trial-1');
       expect(dbRow.name).toBe('Test Class');
     });
 
     it('should handle scent work specific fields', () => {
       const dbRow = {
-        ...createDbRow({ id: 1 }),
+        ...createDbRow({ id: '1' }),
         area_count: 3,
         time_limit_seconds: 180,
         element: 'Interior',
@@ -513,9 +517,8 @@ describe('ReplicatedClassesTable', () => {
     });
 
     it('should handle numeric ID conversion to string', () => {
-      const dbRow = createDbRow({ id: 123 });
-      expect(dbRow.id).toBe(123);
-      // The sync method converts this to string '123'
+      const dbRow = createDbRow({ id: '123' });
+      expect(dbRow.id).toBe('123');
     });
   });
 
@@ -586,8 +589,8 @@ describe('ReplicatedClassesTable', () => {
 
     it('should support filtering classes by trial in query', async () => {
       const mockRows = [
-        createDbRow({ id: 1, trial_id: 'trial-1' }),
-        createDbRow({ id: 2, trial_id: 'trial-1' }),
+        createDbRow({ id: '1', trial_id: 'trial-1' }),
+        createDbRow({ id: '2', trial_id: 'trial-1' }),
       ];
       mockSupabaseEq.mockResolvedValue({ data: mockRows, error: null });
 
@@ -597,8 +600,8 @@ describe('ReplicatedClassesTable', () => {
     });
 
     it('should handle multiple trials syncing separately', async () => {
-      const trial1Rows = [createDbRow({ id: 1, trial_id: 'trial-1' })];
-      const trial2Rows = [createDbRow({ id: 2, trial_id: 'trial-2' })];
+      const trial1Rows = [createDbRow({ id: '1', trial_id: 'trial-1' })];
+      const trial2Rows = [createDbRow({ id: '2', trial_id: 'trial-2' })];
 
       mockSupabaseEq.mockResolvedValueOnce({ data: trial1Rows, error: null });
       await classesTable.sync('trial-1');
@@ -623,7 +626,7 @@ describe('ReplicatedClassesTable', () => {
     });
 
     it('should track performance metrics in sync result', async () => {
-      const mockRows = [createDbRow({ id: 1 })];
+      const mockRows = [createDbRow({ id: '1' })];
       mockSupabaseOrder.mockResolvedValue({ data: mockRows, error: null });
 
       const result = await classesTable.sync('trial-1');
@@ -635,7 +638,7 @@ describe('ReplicatedClassesTable', () => {
 
     it('should batch process large datasets', async () => {
       // Use sync(''): no .eq() call, order() is awaited directly
-      const mockRows = Array.from({ length: 500 }, (_, i) => createDbRow({ id: i + 1 }));
+      const mockRows = Array.from({ length: 500 }, (_, i) => createDbRow({ id: String(i + 1) }));
       mockSupabaseOrder.mockResolvedValue({ data: mockRows, error: null });
 
       const result = await classesTable.sync('');
@@ -683,7 +686,7 @@ describe('ReplicatedClassesTable', () => {
     });
 
     it('should track conflicts resolved', async () => {
-      const mockRows = [createDbRow({ id: 1 })];
+      const mockRows = [createDbRow({ id: '1' })];
       mockSupabaseOrder.mockResolvedValue({ data: mockRows, error: null });
 
       const result = await classesTable.sync('trial-1');

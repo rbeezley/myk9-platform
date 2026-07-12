@@ -33,7 +33,6 @@ const baseProps: ReportProps = {
       classId: 'c1',
       classElement: 'Container',
       classLevel: 'Novice',
-      classSection: null,
     },
     {
       id: 'e2',
@@ -60,7 +59,6 @@ const baseProps: ReportProps = {
       classId: 'c1',
       classElement: 'Container',
       classLevel: 'Novice',
-      classSection: null,
     },
     {
       id: 'e3',
@@ -87,7 +85,6 @@ const baseProps: ReportProps = {
       classId: 'c1',
       classElement: 'Container',
       classLevel: 'Novice',
-      classSection: null,
     },
   ],
 };

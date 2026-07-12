@@ -1403,7 +1403,7 @@ describe('ReplicatedEntriesTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       await table.sync(TEST_LICENSE_KEY);
 
@@ -1447,7 +1447,7 @@ describe('ReplicatedEntriesTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       await table.sync(TEST_LICENSE_KEY);
 
@@ -1490,7 +1490,7 @@ describe('ReplicatedEntriesTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-      });
+      } as never);
 
       await table.sync(TEST_LICENSE_KEY);
 

@@ -20,7 +20,11 @@ function makeParams(
       },
     ],
     handlerAssignments: {
-      'dog-1|class-1': { handlerId: 'handler-1', handlerName: 'Pat Handler' },
+      'dog-1|class-1': {
+        handlerId: 'handler-1',
+        handlerName: 'Pat Handler',
+        isOwner: false,
+      },
     },
     classes: [{ id: 'class-1', entryFee: 20 }],
     showFeeInfo: {
@@ -35,7 +39,15 @@ function makeParams(
         dbRegistrationId: 'db-reg-1',
       }),
       createShowRegistration: vi.fn().mockResolvedValue({
-        data: { id: 'db-reg-2', confirmationNumber: 'MK9-000002' },
+        data: {
+          id: 'db-reg-2',
+          confirmationNumber: 'MK9-000002',
+          showId: 'show-1',
+          handlerId: 'owner-1',
+          paymentStatus: 'pending',
+          createdAt: new Date('2026-07-07T00:00:00Z'),
+          updatedAt: new Date('2026-07-07T00:00:00Z'),
+        },
         error: null,
       }),
       submitShowEntries: vi.fn().mockResolvedValue({
@@ -192,7 +204,15 @@ describe('submitShowRegistration', () => {
     });
     vi.mocked(params.deps.createShowRegistration!)
       .mockResolvedValueOnce({
-        data: { id: 'db-reg-2', confirmationNumber: 'MK9-000002' },
+        data: {
+          id: 'db-reg-2',
+          confirmationNumber: 'MK9-000002',
+          showId: 'show-1',
+          handlerId: 'owner-1',
+          paymentStatus: 'pending',
+          createdAt: new Date('2026-07-07T00:00:00Z'),
+          updatedAt: new Date('2026-07-07T00:00:00Z'),
+        },
         error: null,
       })
       .mockResolvedValueOnce({

@@ -7,6 +7,7 @@ describe('formatSyncFailureToast', () => {
       count: 1,
       mutations: [
         {
+          id: 'mutation-1',
           tableName: 'shows',
           operation: 'INSERT',
           error: "new row violates row-level security policy for table 'shows'",
@@ -22,7 +23,7 @@ describe('formatSyncFailureToast', () => {
   it('pluralizes "changes" when more than one mutation failed', () => {
     const msg = formatSyncFailureToast({
       count: 3,
-      mutations: [{ tableName: 'trials', operation: 'UPDATE' }],
+      mutations: [{ id: 'mutation-1', tableName: 'trials', operation: 'UPDATE' }],
       message: '',
     });
 
@@ -42,7 +43,7 @@ describe('formatSyncFailureToast', () => {
   it('uses the object label when a mutation has no error string', () => {
     const msg = formatSyncFailureToast({
       count: 1,
-      mutations: [{ tableName: 'dogs', operation: 'DELETE' }],
+      mutations: [{ id: 'mutation-1', tableName: 'dogs', operation: 'DELETE' }],
       message: '',
     });
 
@@ -54,6 +55,7 @@ describe('formatSyncFailureToast', () => {
       count: 1,
       mutations: [
         {
+          id: 'mutation-1',
           tableName: 'entries',
           operation: 'UPDATE',
           error: 'Supabase query failed: ringside_update_entry timed out after retry 3',

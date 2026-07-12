@@ -41,17 +41,9 @@ interface DatabaseTestResults {
 }
 
 class DatabaseLoadTester {
-  private supabase: SupabaseClient;
   private dataGenerator = LoadTestDataGenerator.getInstance();
   private performanceMonitor = new PerformanceMonitor();
   private connections: SupabaseClient[] = [];
-
-  constructor() {
-    this.supabase = createClient(
-      process.env.VITE_SUPABASE_URL || 'http://localhost:54321',
-      process.env.VITE_SUPABASE_ANON_KEY || 'test-key'
-    );
-  }
 
   async initializeConnections(count: number): Promise<void> {
     logger.debug(`🔌 Creating ${count} database connections...`, 'app', {});
@@ -649,4 +641,4 @@ describe('Database Load Tests', () => {
   });
 });
 
-export { DatabaseLoadTester, DATABASE_TEST_CONFIGS };
+export { DatabaseLoadTester };

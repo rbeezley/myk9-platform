@@ -4,7 +4,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ClassResultsTable } from '../index';
 import type { ClassResultsTableProps, ScoringRow } from '../types';
-import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
+import type { ScentWorkEntry } from '@/types/scent-work-types';
 import type { UserPermissions } from '@/types/user-permissions';
 
 // --- Mocks ---
@@ -80,7 +80,7 @@ const mockRows: ScoringRow[] = [
     dogName: 'Buddy',
     dogBreed: 'Golden',
     handlerName: 'Bob Jones',
-    qualification: 'Q',
+    qualification: 'Qualified',
     qualificationReason: '',
     searchTime: '01:30',
     faults: '0',
@@ -174,7 +174,12 @@ function makeEntry(
       dogId: `dog-${id}`,
       handlerId: `handler-${id}`,
     },
-    classConfig: {} as ScentWorkClassConfig,
+    classConfig: {
+      element: 'Container',
+      level: 'Novice',
+      timeLimit: 120000,
+      warningsEnabled: true,
+    },
     checkInStatus: 'no-status',
   } as ScentWorkEntry;
 }
@@ -188,7 +193,12 @@ const defaultEntries: ScentWorkEntry[] = [
 const defaultProps: ClassResultsTableProps = {
   entries: defaultEntries,
   rawEntries: [],
-  classConfig: { scoringType: 'standard' } as ScentWorkClassConfig,
+  classConfig: {
+    element: 'Container',
+    level: 'Novice',
+    timeLimit: 120000,
+    warningsEnabled: true,
+  },
   userPermissions: {
     canEditEntries: true,
     canViewResults: true,

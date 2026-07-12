@@ -177,24 +177,23 @@ describe('peopleRoster', () => {
   });
 
   it('marks missing armbands and inactive rows without check-in eligibility', () => {
-    const roster = buildPeopleRoster({
-      entries: [
-        entry({
-          armbandNumber: undefined,
-          entryNumber: '',
-          entryStatus: EntryStatus.WAITLIST,
-          classes: [
-            {
-              id: 'class-1',
-              name: 'Container Novice A',
-              number: '1',
-              fee: 25,
-              status: 'entered',
-              checkInStatus: 'no-status',
-            },
-          ],
-        }),
+    const missingArmbandEntry = entry({
+      entryNumber: '',
+      entryStatus: EntryStatus.WAITLIST,
+      classes: [
+        {
+          id: 'class-1',
+          name: 'Container Novice A',
+          number: '1',
+          fee: 25,
+          status: 'entered',
+          checkInStatus: 'no-status',
+        },
       ],
+    });
+    delete missingArmbandEntry.armbandNumber;
+    const roster = buildPeopleRoster({
+      entries: [missingArmbandEntry],
       presence: [],
     });
 

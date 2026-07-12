@@ -1,15 +1,15 @@
 // Quick validation tests for Club Store Integration
 import { describe, it, expect } from 'vitest';
-import { 
-  mapClubInputToInsert, 
-  mapClubInputToUpdate, 
+import {
+  mapClubInputToInsert,
+  mapClubInputToUpdate,
   mapDatabaseToClub,
   mapDatabaseClubsArray,
   mapClubToClubInput,
   validateClubData,
   createDefaultClubInput,
   formatClubDisplayName,
-  formatClubAddress
+  formatClubAddress,
 } from '@/services/mappers/clubMappers';
 import type { ClubInput } from '@/types/club-types';
 import type { DbClub } from '@/types/database-mappings';
@@ -30,7 +30,7 @@ const mockClubInput: ClubInput = {
   country: 'US',
   founded: new Date('2010-01-15'),
   clubType: 'regional',
-  memberIds: ['user1', 'user2', 'user3']
+  memberIds: ['user1', 'user2', 'user3'],
 };
 
 const mockDbClub: DbClub = {
@@ -42,11 +42,22 @@ const mockDbClub: DbClub = {
   description: 'A premier dog club serving the Golden State region',
   logo_url: 'https://example.com/logo.png',
   address: '123 Dog Park Lane, Sacramento, CA 95814, US',
+  accent_color: null,
+  city: 'Sacramento',
+  club_number: null,
+  cover_image_url: null,
   created_at: '2024-01-01T00:00:00.000Z',
+  default_withdrawal_cutoff_date: null,
+  default_withdrawal_policy_notes: null,
+  default_withdrawal_retention_type: null,
+  default_withdrawal_retention_value: null,
   updated_at: '2024-01-02T00:00:00.000Z',
-  created_by: null,
-  updated_by: null,
-  deleted_at: null
+  deleted_at: null,
+  deleted_by: null,
+  license_key: null,
+  state: 'CA',
+  version: 1,
+  zip_code: '95814',
 };
 
 const mockDbClubWithShows = {
@@ -56,15 +67,15 @@ const mockDbClubWithShows = {
       id: 'show_1',
       name: 'Spring Agility Trial',
       start_date: '2030-04-15', // Far future date
-      location: 'Sacramento Dog Park'
+      location: 'Sacramento Dog Park',
     },
     {
       id: 'show_2',
       name: 'Fall Championship',
       start_date: '2020-09-20', // Past date
-      location: 'Golden Gate Park'
-    }
-  ]
+      location: 'Golden Gate Park',
+    },
+  ],
 };
 
 describe('Club Mappers', () => {
@@ -92,7 +103,7 @@ describe('Club Mappers', () => {
         city: 'Anytown',
         state: 'CA',
         zipCode: '90210',
-        country: 'US'
+        country: 'US',
       };
 
       const result = mapClubInputToInsert(minimalInput);
@@ -108,7 +119,7 @@ describe('Club Mappers', () => {
       const updates: Partial<ClubInput> = {
         name: 'Updated Club Name',
         email: 'newemail@gsdc.org',
-        phone: '555-999-8888'
+        phone: '555-999-8888',
       };
 
       const result = mapClubInputToUpdate(updates);
@@ -125,7 +136,7 @@ describe('Club Mappers', () => {
         street: '456 New Street',
         city: 'New City',
         state: 'NY',
-        zipCode: '10001'
+        zipCode: '10001',
       };
 
       const result = mapClubInputToUpdate(updates);
@@ -147,17 +158,17 @@ describe('Club Mappers', () => {
       expect(result.description).toBe('A premier dog club serving the Golden State region');
       expect(result.logo).toBe('https://example.com/logo.png');
       expect(result.clubType).toBeUndefined(); // No club_type in basic schema
-      
+
       // Check address parsing
       expect(result.address.street).toBe('123 Dog Park Lane');
       expect(result.address.city).toBe('Sacramento');
       expect(result.address.state).toBe('CA');
       expect(result.address.zipCode).toBe('95814');
       expect(result.address.country).toBe('US');
-      
+
       // Check date parsing - no founded in basic schema
       expect(result.founded).toBeUndefined();
-      
+
       // Check sync metadata
       expect(result._version).toBe(1);
       expect(result._syncStatus).toBe('synced');
@@ -170,7 +181,7 @@ describe('Club Mappers', () => {
       expect(result.pastShows).toHaveLength(1);
       expect(result.pastShows[0].name).toBe('Fall Championship');
       expect(result.pastShows[0].date).toBe('2020-09-20');
-      
+
       expect(result.upcomingShows).toHaveLength(1);
       expect(result.upcomingShows[0].name).toBe('Spring Agility Trial');
       expect(result.upcomingShows[0].date).toBe('2030-04-15');
@@ -229,7 +240,7 @@ describe('Club Mappers', () => {
         city: '',
         state: '',
         zipCode: '',
-        country: ''
+        country: '',
       };
 
       const errors = validateClubData(invalidClub);

@@ -38,11 +38,10 @@ describe('buildAKCJudgeReportValues', () => {
   });
 
   it('omits fields that require missing source data', () => {
-    const values = buildAKCJudgeReportValues({
-      ...reportProps,
-      clubName: undefined,
-      trial: undefined,
-    });
+    const props: ReportProps = { ...reportProps };
+    delete props.clubName;
+    delete props.trial;
+    const values = buildAKCJudgeReportValues(props);
 
     expect(values.text).not.toHaveProperty(AKC_JUDGE_REPORT_FIELDS.clubName);
     expect(values.text).not.toHaveProperty(AKC_JUDGE_REPORT_FIELDS.eventNumbers);

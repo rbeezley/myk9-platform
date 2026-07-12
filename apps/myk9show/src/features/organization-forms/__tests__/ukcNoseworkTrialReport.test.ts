@@ -102,12 +102,10 @@ describe('buildUKCNoseworkTrialReportValues', () => {
   });
 
   it('omits fields that require missing source data while preserving zero totals', () => {
-    const values = buildUKCNoseworkTrialReportValues({
-      ...reportProps,
-      clubName: undefined,
-      entries: [],
-      trial: undefined,
-    });
+    const props: ReportProps = { ...reportProps, entries: [] };
+    delete props.clubName;
+    delete props.trial;
+    const values = buildUKCNoseworkTrialReportValues(props);
 
     expect(values.text).not.toHaveProperty(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.clubName);
     expect(values.text).not.toHaveProperty(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.eventDate);

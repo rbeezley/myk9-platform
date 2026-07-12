@@ -13,10 +13,10 @@ function migrationFiles(): string[] {
 }
 
 function latestMigrationContaining(pattern: RegExp): { file: string; sql: string } {
-  const match = migrationFiles()
+  const matches = migrationFiles()
     .map(file => ({ file, sql: readFileSync(file, 'utf8') }))
-    .filter(({ sql }) => pattern.test(sql))
-    .at(-1);
+    .filter(({ sql }) => pattern.test(sql));
+  const match = matches[matches.length - 1];
 
   expect(match, `No migration matched ${pattern}`).toBeDefined();
   return match!;

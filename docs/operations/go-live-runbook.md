@@ -395,11 +395,10 @@ repository remediation adds two independent paths: a pure-SQL
 the 07:00–08:00 `cron-health-check` snapshot window is empty, and Sentry Cron check-ins emitted by
 the Edge runner. Do not treat either as live until its approval-gated steps below are evidenced.
 
-- [ ] **Database path:** review `supabase db push --dry-run`, obtain shared-system approval, push
-      `20260711200000_daily_health_snapshot_watchdog.sql`, and verify both jobs in `cron.job`:
-      `daily-health-check` at `0 7 * * *` and `daily-health-snapshot-watchdog` at `0 8 * * *`.
-      Record the watchdog row's `username`; the write-path proof below must execute as that exact
-      cron owner, not as `service_role`.
+- [x] **Database path:** **DEPLOYED 2026-07-12.** Dry run proposed only
+      `20260711200000_daily_health_snapshot_watchdog.sql`; migration applied and the post-push dry
+      run reports parity. `daily-health-check` is active at `0 7 * * *` and
+      `daily-health-snapshot-watchdog` (jobid 12) is active at `0 8 * * *`; both run as `postgres`.
 - [x] **Re-check dispatch delivery:** **RECOVERED 2026-07-12.** The unchanged Vault credential
       delivered the scheduled 07:00 UTC request and a fresh `cron-health-check` snapshot landed at
       07:00:02 with `overall_status=ok`; the archived response was HTTP 200. This disproved the
@@ -418,11 +417,11 @@ the Edge runner. Do not treat either as live until its approval-gated steps belo
       `0 7 * * *`, timezone UTC, 15-minute check-in margin, and 10-minute max runtime. Route missed,
       error, and recovery notifications to a named human. Keep monitor configuration in Sentry;
       the function must not upsert it.
-- [ ] **Deploy check-ins:** with approval, set the Supabase-side `SENTRY_DSN` and matching
-      `SENTRY_ENVIRONMENT` secrets, then deploy with
+- [~] **Deploy check-ins:** `cron-health-check` v5 was deployed 2026-07-12 and an authenticated
+      Vault-backed manual dispatch returned HTTP 200 and committed a fresh snapshot. The project
+      does not yet have `SENTRY_DSN` or `SENTRY_ENVIRONMENT`, so external check-ins remain inactive.
+      Configure those secrets after the Sentry monitor and named-human route exist, then redeploy with
       `supabase functions deploy cron-health-check --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt --workdir apps/myk9show`.
-      Confirm the CLI output says `Deployed Functions on project sojmvhhwsjxmfistvzbe` before
-      treating the deployment as evidence.
       Manually dispatch once and record correlated `in_progress` → `ok` evidence. A failed probe
       that persists a `fail` snapshot is still an `ok` delivery check-in; the snapshot owns health
       status.

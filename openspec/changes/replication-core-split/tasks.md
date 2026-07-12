@@ -7,10 +7,10 @@
 
 ## 2. Extract Pure Mutation Modules
 
-- [ ] 2.1 Move `executeMutation`, duplicate-primary-key classification, and `MutationExecutionResult` verbatim into internal `mutation-execute.ts`, parameterizing only the Supabase client and logger dependencies.
-- [ ] 2.2 Move replicated-row synchronization and identifier-remap helpers verbatim into internal `mutation-row-sync.ts`, passing the database explicitly and preserving transaction boundaries and comments.
-- [ ] 2.3 Delegate from `MutationManager` without changing any public signature, package export, event contract, or existing test.
-- [ ] 2.4 Run the complete five-command phase gate, obtain root-agent diff acceptance against the frozen contracts, and commit the green Phase 1 checkpoint.
+- [x] 2.1 Move `executeMutation`, duplicate-primary-key classification, and `MutationExecutionResult` verbatim into internal `mutation-execute.ts`, parameterizing only the Supabase client and logger dependencies.
+- [x] 2.2 Move replicated-row synchronization and identifier-remap helpers verbatim into internal `mutation-row-sync.ts`, passing the database explicitly and preserving transaction boundaries and comments.
+- [x] 2.3 Delegate from `MutationManager` without changing any public signature, package export, event contract, or existing test.
+- [x] 2.4 Run the complete five-command phase gate, obtain root-agent diff acceptance against the frozen contracts, and commit the green Phase 1 checkpoint. Used the user-approved 17-file focused myK9Show replication-consumer substitute (453 tests) for the known hanging full-app suite.
 
 ## 3. Extract Mutation Queue Persistence
 

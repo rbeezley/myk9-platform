@@ -19,16 +19,10 @@ import type { Logger } from './dependencies';
 import { noopLogger } from './dependencies';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import { markPerf, measurePerf } from './perf';
-import { withTimeout, TIMEOUT_PRESETS, calculateBackoffDelay } from './mutation-utils';
+import { calculateBackoffDelay } from './mutation-utils';
 import { withQuotaEviction } from './quota-eviction';
 import { classifyMutationFailure } from './mutation-retry';
-import {
-  classifyEmptyUpdateResult,
-  getConflictServerVersion,
-  getReturnedServerVersion,
-  isVersionConflictError,
-  OccRejectionError,
-} from './mutation-occ';
+import { OccRejectionError } from './mutation-occ';
 import { sortMutationsByDependencies } from './mutation-ordering';
 import { getMutationQueueCapacity, QUEUE_MAX_SIZE } from './mutation-queue-capacity';
 import {
@@ -36,35 +30,13 @@ import {
   parseMutationBackup,
   writeMutationBackup,
 } from './mutation-backup';
+import { executeMutation, type MutationExecutionResult } from './mutation-execute';
+import {
+  advanceReplicatedRowServerVersion,
+  markReplicatedRowSynced,
+  remapUploadedRpcInsertRowId,
+} from './mutation-row-sync';
 import { type PendingMutation, type ReplicatedRow, type SyncResult } from './types';
-
-// ============================================
-// CONSTANTS
-// ============================================
-
-const POSTGRES_UNIQUE_VIOLATION = '23505';
-
-interface MutationExecutionResult {
-  newServerVersion?: number;
-  remappedRowId?: string;
-}
-
-function isPrimaryKeyDuplicateError(error: unknown, tableName: string, rowId: string): boolean {
-  const candidate = error as { code?: unknown; message?: unknown; details?: unknown } | null;
-  if (candidate?.code !== POSTGRES_UNIQUE_VIOLATION) return false;
-
-  const haystack = [candidate.message, candidate.details]
-    .filter((part): part is string => typeof part === 'string')
-    .join(' ')
-    .toLowerCase();
-  const tablePrimaryKey = `${tableName.toLowerCase()}_pkey`;
-  const normalizedRowId = rowId.toLowerCase();
-
-  return (
-    haystack.includes(tablePrimaryKey) ||
-    (haystack.includes('key (id)=') && haystack.includes(`(${normalizedRowId})`))
-  );
-}
 
 // ============================================
 // TYPES
@@ -1051,174 +1023,8 @@ export class MutationManager {
     }
   }
 
-  /**
-   * Execute a single mutation on the server with timeout protection.
-   *
-   * Uses `select()` after upsert/delete to get the returned rows,
-   * which lets us detect RLS silent rejections (0 rows affected = RLS blocked).
-   */
   private async executeMutation(mutation: PendingMutation): Promise<MutationExecutionResult> {
-    const { tableName, operation, data } = mutation;
-
-    switch (operation) {
-      case 'INSERT': {
-        if (mutation.rpc) {
-          const { data: returned, error } = await withTimeout(
-            this.supabase.rpc(mutation.rpc.name, mutation.rpc.args ?? data),
-            TIMEOUT_PRESETS.standard,
-            `${tableName} rpc ${mutation.rpc.name}`
-          );
-          if (error) throw error;
-          if (mutation.rpc.expectRowId && typeof returned === 'string') {
-            if (returned !== mutation.rowId) {
-              return { remappedRowId: returned };
-            }
-          }
-          return {};
-        }
-
-        const { data: rows, error } = await withTimeout(
-          this.supabase.from(tableName).insert(data).select('id'),
-          TIMEOUT_PRESETS.standard,
-          `${tableName} insert`
-        );
-        if (isPrimaryKeyDuplicateError(error, tableName, mutation.rowId)) {
-          // Row already exists — retry hit a duplicate-key on a client-generated UUID.
-          // The INSERT succeeded on a prior attempt; treat this as success.
-          // INVARIANT: all offline-INSERT entities use client-generated UUIDs (verified Plan 006).
-          this.logger.log(
-            `[MutationManager] 23505 on INSERT ${tableName}/${mutation.rowId} — prior attempt committed, treating as success`
-          );
-          return {};
-        }
-        if (error) throw error;
-        if (!rows || rows.length === 0) {
-          throw new Error(
-            `RLS policy blocked INSERT on ${tableName} for row ${mutation.rowId}. ` +
-              `Check that the authenticated user has the required role.`
-          );
-        }
-        return {};
-      }
-
-      case 'UPDATE': {
-        // RPC-routed UPDATE: apply through a SECURITY DEFINER function instead of
-        // a direct table UPDATE. Used when the caller's role is denied by the
-        // table's UPDATE RLS policy but admitted by the function's own per-row
-        // authorization (e.g. at-show ringside writes by an assigned judge). The
-        // function returns the authoritative post-trigger version.
-        if (mutation.rpc) {
-          const { data: returned, error } = await withTimeout(
-            this.supabase.rpc(
-              mutation.rpc.name,
-              mutation.rpc.args ?? {
-                p_entry_id: data.id as string,
-                p_fields: mutation.rpc.fields ?? {},
-                p_expected_version: mutation.serverVersion ?? null,
-              }
-            ),
-            TIMEOUT_PRESETS.standard,
-            `${tableName} rpc ${mutation.rpc.name}`
-          );
-          if (error) {
-            // A version-conflict raise (`40001`) would otherwise dead-letter,
-            // leaving the local OCC token stale so the app regenerates the same
-            // conflicting write forever (CPU storm). The RPC surfaces the current
-            // server version in the error DETAIL (error.details) — read it from
-            // there rather than a direct entries re-read, which the ringside
-            // caller's role (assigned judge / steward / passcode) may be denied.
-            // Re-throw as an OccRejectionError so the conflict handler advances
-            // the token and backs off.
-            if (isVersionConflictError(error)) {
-              const fresh = getConflictServerVersion(error);
-              throw new OccRejectionError(
-                tableName,
-                mutation.rowId,
-                mutation.serverVersion ?? fresh ?? 0,
-                fresh
-              );
-            }
-            throw error;
-          }
-          // The RPC returns the new integer version (or null if the function
-          // signals a no-op). Surface it so the local row's OCC token stays fresh.
-          const newServerVersion = typeof returned === 'number' ? returned : undefined;
-          return { newServerVersion };
-        }
-
-        // Build the query: add OCC precondition when serverVersion is set so a
-        // concurrent server write (trigger bumped version) causes 0-row rejection
-        // rather than silently overwriting with last-write-wins.
-        let updateQuery = this.supabase
-          .from(tableName)
-          .update(data)
-          .eq('id', data.id as string);
-        if (mutation.serverVersion !== undefined) {
-          updateQuery = updateQuery.eq('version', mutation.serverVersion);
-        }
-        const { data: rows, error } = await withTimeout(
-          updateQuery.select('id, version'),
-          TIMEOUT_PRESETS.standard,
-          `${tableName} update`
-        );
-        if (error) throw error;
-        if (!rows || rows.length === 0) {
-          let serverCheck: { version?: number } | null | undefined;
-          let serverCheckError: unknown;
-          if (mutation.serverVersion !== undefined) {
-            // Disambiguate: OCC rejection (version advanced) vs RLS denial (version unchanged)
-            // vs row deleted. One bounded re-check avoids silent permanent queue stall.
-            const { data: check, error: checkError } = await withTimeout(
-              this.supabase
-                .from(tableName)
-                .select('version')
-                .eq('id', data.id as string)
-                .maybeSingle(),
-              TIMEOUT_PRESETS.standard,
-              `${tableName} occ-check`
-            );
-            serverCheck = check as { version?: number } | null | undefined;
-            serverCheckError = checkError;
-          }
-          throw classifyEmptyUpdateResult({
-            tableName,
-            rowId: mutation.rowId,
-            serverVersion: mutation.serverVersion,
-            serverCheck,
-            serverCheckError,
-          });
-        }
-        const newServerVersion = getReturnedServerVersion(rows as Array<{ version?: number }>);
-        return { newServerVersion };
-      }
-
-      case 'DELETE': {
-        const { data: rows, error } = await withTimeout(
-          this.supabase
-            .from(tableName)
-            .delete()
-            .eq('id', data.id as string)
-            .select('id'),
-          TIMEOUT_PRESETS.standard,
-          `${tableName} delete`
-        );
-        if (error) throw error;
-        // 0 rows affected means either the row was already deleted (OK,
-        // idempotent) or RLS silently rejected the DELETE. We can't
-        // distinguish the two, so we log a warning and let the next sync
-        // determine whether the row still exists.
-        if (!rows || rows.length === 0) {
-          this.logger.warn(
-            `[MutationManager] DELETE on ${tableName} for row ${mutation.rowId} affected 0 rows. ` +
-              `Row may have already been deleted, or RLS policy blocked the operation.`
-          );
-        }
-        return {};
-      }
-
-      default:
-        throw new Error(`Unknown operation: ${operation}`);
-    }
+    return executeMutation(this.supabase, this.logger, mutation);
   }
 
   private async markReplicatedRowSynced(
@@ -1226,48 +1032,7 @@ export class MutationManager {
     mutation: PendingMutation,
     newServerVersion?: number
   ): Promise<void> {
-    if (mutation.operation === 'DELETE') return;
-
-    const key = [mutation.tableName, String(mutation.rowId)];
-    const existingRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
-      ReplicatedRow<unknown> | undefined;
-
-    if (!existingRow?.isDirty) return;
-
-    await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
-      ...existingRow,
-      isDirty: false,
-      syncStatus: 'synced',
-      lastSyncedAt: Date.now(),
-      // Refresh OCC precondition so subsequent queued mutations use the post-write
-      // version (trigger incremented it on the server). Without this, a second
-      // offline edit to the same row would carry a stale version and spuriously reject.
-      ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
-    });
-  }
-
-  private remapDogIdReferences<T extends Record<string, unknown>>(
-    data: T,
-    oldDogId: string,
-    newDogId: string,
-    options: { replacePrimaryId?: boolean } = {}
-  ): { data: T; changed: boolean } {
-    let changed = false;
-    const next: Record<string, unknown> = { ...data };
-
-    if (options.replacePrimaryId && next.id === oldDogId) {
-      next.id = newDogId;
-      changed = true;
-    }
-
-    for (const field of ['dog_id', 'dogId']) {
-      if (next[field] === oldDogId) {
-        next[field] = newDogId;
-        changed = true;
-      }
-    }
-
-    return { data: next as T, changed };
+    return markReplicatedRowSynced(db, mutation, newServerVersion);
   }
 
   private async remapUploadedRpcInsertRowId(
@@ -1275,101 +1040,16 @@ export class MutationManager {
     mutation: PendingMutation,
     serverRowId: string
   ): Promise<PendingMutation> {
-    const oldRowId = String(mutation.rowId);
-    const newRowId = String(serverRowId);
-    if (oldRowId === newRowId) return mutation;
-
-    if (mutation.tableName !== 'dogs') {
-      throw new Error(
-        `${mutation.rpc?.name ?? 'RPC'} returned row ${newRowId} for ${mutation.tableName}/${oldRowId}`
-      );
-    }
-
-    const replicatedRows = (await db.getAll(REPLICATION_STORES.REPLICATED_TABLES)) as ReplicatedRow<
-      Record<string, unknown>
-    >[];
-    const existingCanonicalDog = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
-      'dogs',
-      newRowId,
-    ])) as ReplicatedRow<Record<string, unknown>> | undefined;
-
-    for (const row of replicatedRows) {
-      if (row.tableName === 'dogs' && row.id === oldRowId) {
-        if (!existingCanonicalDog) {
-          const remapped = this.remapDogIdReferences(row.data, oldRowId, newRowId, {
-            replacePrimaryId: true,
-          });
-          await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
-            ...row,
-            id: newRowId,
-            data: remapped.data,
-          });
-        }
-        await db.delete(REPLICATION_STORES.REPLICATED_TABLES, [row.tableName, oldRowId]);
-        continue;
-      }
-
-      const remapped = this.remapDogIdReferences(row.data, oldRowId, newRowId);
-      if (remapped.changed) {
-        await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
-          ...row,
-          data: remapped.data,
-        });
-      }
-    }
-
-    const pendingMutations = (await db.getAll(
-      REPLICATION_STORES.PENDING_MUTATIONS
-    )) as PendingMutation[];
-    for (const pendingMutation of pendingMutations) {
-      if (pendingMutation.id === mutation.id) continue;
-      const remapped = this.remapDogIdReferences(pendingMutation.data, oldRowId, newRowId);
-      if (remapped.changed) {
-        await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
-          ...pendingMutation,
-          data: remapped.data,
-        });
-      }
-    }
-
-    this.logger.log(
-      `[MutationManager] Remapped offline dog ${oldRowId} to existing server dog ${newRowId}`
-    );
-
-    const remappedMutationData = this.remapDogIdReferences(mutation.data, oldRowId, newRowId, {
-      replacePrimaryId: true,
-    });
-    return {
-      ...mutation,
-      rowId: newRowId,
-      data: remappedMutationData.data,
-    };
+    return remapUploadedRpcInsertRowId(db, this.logger, mutation, serverRowId);
   }
 
-  /**
-   * Advance a replicated row's OCC token to the authoritative server version
-   * after a conflict, WITHOUT clearing its dirty/conflict state. New mutations
-   * stamp `serverVersion` from this row (see ReplicatedTable.queueMutation), so
-   * advancing it stops the app from regenerating writes that carry the stale
-   * version — the engine behind the ringside conflict storm. The unsynced
-   * optimistic edit is preserved for the user to reconcile.
-   */
   private async advanceReplicatedRowServerVersion(
     db: Awaited<ReturnType<typeof databaseManager.getDatabase>>,
     tableName: string,
     rowId: string,
     serverVersion: number
   ): Promise<void> {
-    const key = [tableName, String(rowId)];
-    const existingRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
-      ReplicatedRow<unknown> | undefined;
-    if (!existingRow) return;
-    if (existingRow.serverVersion === serverVersion) return;
-
-    await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
-      ...existingRow,
-      serverVersion,
-    });
+    return advanceReplicatedRowServerVersion(db, tableName, rowId, serverVersion);
   }
 
   // ========================================

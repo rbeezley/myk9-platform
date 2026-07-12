@@ -273,19 +273,41 @@ describe('sendResendEmailWithRetry', () => {
     expect(sleep).toHaveBeenCalledWith(2000);
   });
 
-  it.each(['Sunday, 06-Nov-94 08:49:37 GMT', 'Sun Nov  6 08:49:37 1994'])(
-    'parses the legacy HTTP-date Retry-After format %s',
-    async retryAfter => {
-      const now = Date.UTC(1994, 10, 6, 8, 49, 35);
+  it('parses the RFC 850 Retry-After date format', async () => {
+    const now = Date.UTC(1994, 10, 6, 8, 49, 35);
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('rate limited', {
+          status: 429,
+          headers: { 'Retry-After': 'Sunday, 06-Nov-94 08:49:37 GMT' },
+        })
+      )
+      .mockResolvedValueOnce(Response.json({ id: 'email-after-rfc850-date' }));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+
+    await sendResendEmailWithRetry(
+      { method: 'POST', body: JSON.stringify({ to: 'recipient@example.com' }) },
+      { fetchImpl, sleep, now: () => now, random: () => 0, onRetry: vi.fn() }
+    );
+
+    expect(sleep).toHaveBeenCalledWith(2000);
+  });
+
+  it('parses asctime Retry-After dates as UTC instead of host-local time', async () => {
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = 'America/Chicago';
+    try {
+      const now = Date.UTC(1994, 10, 6, 8, 49, 36);
       const fetchImpl = vi
         .fn()
         .mockResolvedValueOnce(
           new Response('rate limited', {
             status: 429,
-            headers: { 'Retry-After': retryAfter },
+            headers: { 'Retry-After': 'Sun Nov  6 08:49:37 1994' },
           })
         )
-        .mockResolvedValueOnce(Response.json({ id: 'email-after-legacy-date' }));
+        .mockResolvedValueOnce(Response.json({ id: 'email-after-asctime-date' }));
       const sleep = vi.fn().mockResolvedValue(undefined);
 
       await sendResendEmailWithRetry(
@@ -293,11 +315,14 @@ describe('sendResendEmailWithRetry', () => {
         { fetchImpl, sleep, now: () => now, random: () => 0, onRetry: vi.fn() }
       );
 
-      expect(sleep).toHaveBeenCalledWith(2000);
+      expect(sleep).toHaveBeenCalledWith(1000);
+    } finally {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
     }
-  );
+  });
 
-  it('applies the HTTP 50-year rollover rule to RFC 850 dates', async () => {
+  it('keeps an RFC 850 year in the current century when it is within 50 years', async () => {
     const now = Date.UTC(2040, 0, 1, 0, 0, 0);
     const fetchImpl = vi
       .fn()
@@ -316,6 +341,27 @@ describe('sendResendEmailWithRetry', () => {
     );
 
     expect(sleep).toHaveBeenCalledWith(2000);
+  });
+
+  it('rolls an RFC 850 year back when it is more than 50 years in the future', async () => {
+    const now = Date.UTC(2020, 0, 1, 0, 0, 0);
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('rate limited', {
+          status: 429,
+          headers: { 'Retry-After': 'Thursday, 06-Nov-75 08:49:37 GMT' },
+        })
+      )
+      .mockResolvedValueOnce(Response.json({ id: 'email-after-rfc850-roll-back' }));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+
+    await sendResendEmailWithRetry(
+      { method: 'POST', body: JSON.stringify({ to: 'recipient@example.com' }) },
+      { fetchImpl, sleep, now: () => now, random: () => 0, onRetry: vi.fn() }
+    );
+
+    expect(sleep).toHaveBeenCalledWith(0);
   });
 
   it('emits PII-free structured retry telemetry by default', async () => {

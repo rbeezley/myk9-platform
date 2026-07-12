@@ -4,10 +4,15 @@
 
 Every repository-owned public table that enables Row Level Security SHALL eventually enable FORCE ROW LEVEL SECURITY. The repository SHALL provide a migration-state checker that derives the final state from migration source without relying on a static table allowlist, and deployment verification SHALL query `pg_class` for `relrowsecurity = true AND relforcerowsecurity = false`. Intentional exceptions MUST be named and justified.
 
-#### Scenario: Existing five-table drift is remediated
+#### Scenario: Existing four-table live drift is remediated
 
 - **WHEN** the remediation migration is applied
-- **THEN** `secretary_tasks`, `club_premium_templates`, `premium_generations`, `unified_ringside_overrides`, and `login_attempts` have FORCE RLS enabled
+- **THEN** `secretary_tasks`, `club_premium_templates`, `premium_generations`, and `login_attempts` have FORCE RLS enabled
+
+#### Scenario: Dropped historical table is not altered
+
+- **WHEN** ordered migration replay and the live catalog show `unified_ringside_overrides` was dropped by `20260623120000`
+- **THEN** the remediation records the audit correction and does not issue an `ALTER TABLE` against the nonexistent object
 
 #### Scenario: A future migration drifts
 

@@ -44,7 +44,7 @@ Alternative rejected: renaming and pushing the old file, which could replace the
 
 ### Enforce security invariants mechanically
 
-A migration forces RLS on the five named tables. A repository-wide checker derives final RLS/FORCE-RLS state from migrations and fails when a public table is RLS-enabled without being forced, without a static list of table names. A companion live-catalog query verifies deployed state after approval.
+Source replay and a live `pg_class` query correct the audit's five-table list: `unified_ringside_overrides` was dropped by applied migration `20260623120000_remove_unified_ringside_flag` and does not exist remotely. A migration forces RLS on the four extant tables. A repository-wide checker derives final RLS/FORCE-RLS state from migrations and fails when a public table is RLS-enabled without being forced, without a static list of table names. A companion live-catalog query verifies deployed state after approval.
 
 Advisor exports are machine-readable and keyed by advisor code plus schema and object signature. Function privilege changes account for `PUBLIC`, `anon`, overloads, intentional anonymous paths, and extension ownership. Results-view exceptions require access-matrix tests and a documented comparison with a narrower invoker-view/definer-function boundary before acceptance.
 

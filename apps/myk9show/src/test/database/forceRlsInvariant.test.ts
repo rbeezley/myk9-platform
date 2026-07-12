@@ -16,7 +16,7 @@ const repoRoot = resolve(__dirname, '../../../../..');
 const migrationsDir = resolve(repoRoot, 'supabase/migrations');
 const remediationMigration = resolve(
   migrationsDir,
-  '20260711150000_force_rls_go_live_gap.sql'
+  '20260711170000_force_rls_go_live_gap.sql'
 );
 const liveVerifier = resolve(repoRoot, 'scripts/qa/db-security/force-rls-live.sql');
 

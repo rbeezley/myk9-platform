@@ -20,6 +20,15 @@ function expectHttpError(error: unknown, status: number, message: string) {
 }
 
 describe('requirePushWebhookSecret', () => {
+  it('accepts the exact dedicated push secret', () => {
+    expect(() =>
+      requirePushWebhookSecret(
+        request('Bearer push-secret'),
+        env({ PUSH_WEBHOOK_SECRET: 'push-secret' })
+      )
+    ).not.toThrow();
+  });
+
   it('rejects missing auth headers before webhook handling', () => {
     try {
       requirePushWebhookSecret(request(), env({ PUSH_WEBHOOK_SECRET: 'push-secret' }));
@@ -44,6 +53,27 @@ describe('requirePushWebhookSecret', () => {
       throw new Error('Expected requirePushWebhookSecret to throw');
     } catch (error) {
       expectHttpError(error, 503, 'Push trigger is not configured');
+    }
+  });
+
+  it('rejects a same-length wrong bearer value', () => {
+    try {
+      requirePushWebhookSecret(
+        request('Bearer push-secreu'),
+        env({ PUSH_WEBHOOK_SECRET: 'push-secret' })
+      );
+      throw new Error('Expected requirePushWebhookSecret to throw');
+    } catch (error) {
+      expectHttpError(error, 401, 'Unauthorized');
+    }
+  });
+
+  it('rejects a wrong-length bearer value without throwing a comparison error', () => {
+    try {
+      requirePushWebhookSecret(request('Bearer push'), env({ PUSH_WEBHOOK_SECRET: 'push-secret' }));
+      throw new Error('Expected requirePushWebhookSecret to throw');
+    } catch (error) {
+      expectHttpError(error, 401, 'Unauthorized');
     }
   });
 });

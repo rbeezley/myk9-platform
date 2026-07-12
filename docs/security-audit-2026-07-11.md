@@ -99,6 +99,18 @@ Auto-fixable: 4 of 7 findings
 **Fix:** Wrap the localStorage branch in `if (import.meta.env.DEV)`.
 **Auto-fixable:** Yes
 
+## Remediation Progress — 2026-07-12
+
+- **SA-021:** repository migration, invariant, database push, and live zero-row FORCE-RLS verifier
+  are complete; the original five-table count was corrected to four extant tables because
+  `unified_ringside_overrides` had already been dropped.
+- **SA-023 / SA-028 / SA-030:** repository remediation is code-complete with red-first focused
+  tests, full typecheck, and lint evidence in the active OpenSpec change. `resend-webhook` now uses
+  the shared Standard-Webhooks verifier; push bearer auth shares its constant-time equality
+  primitive; and production ignores `dev-current-mock-user` storage. These rows are not recorded as
+  deployed until the implementation PR merges and the applicable hosted/Edge revisions are live.
+- **SA-024 / SA-025 / SA-029:** remain open in the active remediation change.
+
 ## Categories Checked
 
 | Category                    | Files Examined                     | Findings | Skipped |

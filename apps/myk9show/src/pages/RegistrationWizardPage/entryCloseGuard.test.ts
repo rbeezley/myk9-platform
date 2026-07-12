@@ -1,13 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getEntryCloseAvailability,
   getEntryCloseSubmitBlocker,
+  getEntryWindowTimezone,
   getEntryOpenSubmitBlocker,
   getEntrySubmitBlocker,
 } from './entryCloseGuard';
 
 const OPEN_MESSAGE =
   'Entries have not opened yet for this show. Check back on the entry open date.';
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('getEntryCloseSubmitBlocker', () => {
   it('blocks exhibitor submit after entries have closed', () => {
@@ -139,6 +144,22 @@ describe('getEntryOpenSubmitBlocker', () => {
       })
     ).toBeNull();
   });
+
+  it('uses the show timezone, not the browser day, before entries open', () => {
+    vi.useFakeTimers();
+    // 2026-07-10 00:30 in New York, but still 2026-07-09 21:30 in Los Angeles.
+    vi.setSystemTime(new Date('2026-07-10T04:30:00.000Z'));
+
+    expect(
+      getEntryOpenSubmitBlocker({
+        entryOpenDate: '2026-07-10',
+        entryCloseDate: '2026-07-20',
+        entryWindowTimezone: 'America/Los_Angeles',
+        isLateEntryMode: false,
+        workflowMode: 'exhibitor',
+      })
+    ).toBe(OPEN_MESSAGE);
+  });
 });
 
 describe('getEntrySubmitBlocker', () => {
@@ -170,5 +191,37 @@ describe('getEntrySubmitBlocker', () => {
       reason: OPEN_MESSAGE,
       recoveryHref: '/messages/show-1',
     });
+  });
+
+  it('keeps close day open in the show timezone even after midnight elsewhere', () => {
+    vi.useFakeTimers();
+    // 2026-07-21 00:30 in New York, but still 2026-07-20 21:30 in Los Angeles.
+    vi.setSystemTime(new Date('2026-07-21T04:30:00.000Z'));
+
+    expect(
+      getEntrySubmitBlocker({
+        entryOpenDate: '2026-07-01',
+        entryCloseDate: '2026-07-20',
+        entryWindowTimezone: 'America/Los_Angeles',
+        isLateEntryMode: false,
+        workflowMode: 'exhibitor',
+      })
+    ).toBeNull();
+  });
+});
+
+describe('getEntryWindowTimezone', () => {
+  it('uses the earliest dated trial timezone, matching the server primary-trial rule', () => {
+    expect(
+      getEntryWindowTimezone([
+        { id: 'trial-b', date: null, timezone: 'America/New_York' },
+        { id: 'trial-c', date: '2026-07-11', timezone: 'America/Chicago' },
+        { id: 'trial-a', date: '2026-07-10', timezone: 'America/Los_Angeles' },
+      ])
+    ).toBe('America/Los_Angeles');
+  });
+
+  it('falls back to America/New_York when no trial timezone is available', () => {
+    expect(getEntryWindowTimezone([])).toBe('America/New_York');
   });
 });

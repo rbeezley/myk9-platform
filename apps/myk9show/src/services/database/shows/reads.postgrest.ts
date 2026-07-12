@@ -34,6 +34,7 @@ export async function postgrestGetAllShows() {
         name,
         date,
         trial_number,
+        timezone,
         status,
         trial_type,
         max_entries_per_dog,
@@ -109,6 +110,7 @@ export async function postgrestGetUpcomingShows(limit: number) {
         name,
         date,
         trial_number,
+        timezone,
         status
       )
     `
@@ -140,6 +142,7 @@ export async function postgrestGetShowsByDateRange(startDate: string, endDate: s
         name,
         date,
         trial_number,
+        timezone,
         status
       )
     `
@@ -171,6 +174,7 @@ export async function postgrestGetShowsByClub(clubId: string) {
         name,
         date,
         trial_number,
+        timezone,
         status
       )
     `
@@ -286,6 +290,7 @@ export async function postgrestGetShowById(id: string) {
         name,
         date,
         trial_number,
+        timezone,
         status,
         trial_type,
         max_entries_per_dog,

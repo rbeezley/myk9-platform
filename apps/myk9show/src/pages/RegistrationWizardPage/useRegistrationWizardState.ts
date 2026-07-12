@@ -49,7 +49,7 @@ import { isShowDeskLateEntryMode, resolveRegistrationExit } from '../Registratio
 import { proceedBlockedReason } from './proceedGating';
 import { buildDraftFormData } from './buildDraftFormData';
 import { autoAssignHandlers } from './autoAssignHandlers';
-import { getEntryCloseAvailability } from './entryCloseGuard';
+import { getEntryCloseAvailability, getEntryWindowTimezone } from './entryCloseGuard';
 
 // Exhibitor self-service defaults to online card payment; on-behalf modes
 // (secretary/admin/club) can't use card checkout, so they start unset and must
@@ -326,6 +326,7 @@ export function useRegistrationWizardState() {
         startDate: currentShow?.startDate,
         entryOpenDate: currentShow?.entryOpenDate,
         entryCloseDate: currentShow?.entryCloseDate,
+        entryWindowTimezone: getEntryWindowTimezone(currentShow?.trials),
         isLateEntryMode,
         workflowMode: currentWorkflowMode,
       }),
@@ -334,6 +335,7 @@ export function useRegistrationWizardState() {
       currentShow?.startDate,
       currentShow?.entryOpenDate,
       currentShow?.entryCloseDate,
+      currentShow?.trials,
       isLateEntryMode,
       currentWorkflowMode,
     ]

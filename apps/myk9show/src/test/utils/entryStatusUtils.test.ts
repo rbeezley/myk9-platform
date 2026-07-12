@@ -102,6 +102,30 @@ describe('entryStatusUtils', () => {
         expect(result.description).toContain('1 day');
         expect(result.description).not.toContain('1 days');
       });
+
+      it('uses the show timezone for not-yet-open CTA state', () => {
+        vi.setSystemTime(new Date('2026-07-10T04:30:00.000Z'));
+
+        const show = createMockShow({
+          entryOpenDate: '2026-07-10',
+          entryCloseDate: '2026-07-20',
+          trials: [
+            {
+              id: 'trial-1',
+              name: 'Trial 1',
+              date: '2026-07-15',
+              trialNumber: '1',
+              status: 'upcoming',
+              timezone: 'America/Los_Angeles',
+            },
+          ],
+        });
+        const result = getEntryStatus(show, false);
+
+        expect(result.status).toBe('not_yet_open');
+        expect(result.canEnter).toBe(false);
+        expect(result.daysUntilOpen).toBe(1);
+      });
     });
 
     describe('when entries are closed', () => {
@@ -117,6 +141,30 @@ describe('entryStatusUtils', () => {
         expect(result.status).toBe('closed');
         expect(result.label).toBe('Entries Closed');
         expect(result.canEnter).toBe(false);
+      });
+
+      it('keeps close day enterable in the show timezone', () => {
+        vi.setSystemTime(new Date('2026-07-21T04:30:00.000Z'));
+
+        const show = createMockShow({
+          entryOpenDate: '2026-07-01',
+          entryCloseDate: '2026-07-20',
+          trials: [
+            {
+              id: 'trial-1',
+              name: 'Trial 1',
+              date: '2026-07-15',
+              trialNumber: '1',
+              status: 'upcoming',
+              timezone: 'America/Los_Angeles',
+            },
+          ],
+        });
+        const result = getEntryStatus(show, false, { hasEntryClassInventory: true });
+
+        expect(result.status).toBe('closing_soon');
+        expect(result.label).toBe('Closes Today!');
+        expect(result.canEnter).toBe(true);
       });
     });
 
@@ -221,7 +269,14 @@ describe('entryStatusUtils', () => {
         entryOpenDate: '2024-01-01',
         entryCloseDate: '2024-02-01',
         trials: [
-          { id: 'trial-1', name: 'Trial 1', date: '2024-02-15', trialNumber: '1', status: 'upcoming', classes: [] },
+          {
+            id: 'trial-1',
+            name: 'Trial 1',
+            date: '2024-02-15',
+            trialNumber: '1',
+            status: 'upcoming',
+            classes: [],
+          },
         ],
       });
       const result = getEntryStatus(show, false);
@@ -240,7 +295,14 @@ describe('entryStatusUtils', () => {
         entryOpenDate: '2024-01-01',
         entryCloseDate: '2024-02-01',
         trials: [
-          { id: 'trial-1', name: 'Trial 1', date: '2024-02-15', trialNumber: '1', status: 'upcoming', classes: [] },
+          {
+            id: 'trial-1',
+            name: 'Trial 1',
+            date: '2024-02-15',
+            trialNumber: '1',
+            status: 'upcoming',
+            classes: [],
+          },
         ],
       });
       const result = getEntryStatus(show, true);

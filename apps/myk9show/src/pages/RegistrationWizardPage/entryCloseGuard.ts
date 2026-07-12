@@ -1,11 +1,15 @@
 import type { WorkflowMode } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
-import { formatDateLocal, parseLocalDateString } from '@/utils/dateLocal';
+import { currentEntryWindowDate } from '@/utils/entryWindowDate';
+import { parseLocalDateString } from '@/utils/dateLocal';
+
+export { getEntryWindowTimezone, type EntryWindowTrial } from '@/utils/entryWindowDate';
 
 export interface EntryCloseSubmitGuardContext {
   startDate?: string | null | undefined;
   entryOpenDate?: string | null | undefined;
   entryCloseDate?: string | null | undefined;
   today?: string | undefined;
+  entryWindowTimezone?: string | undefined;
   isLateEntryMode: boolean;
   workflowMode: WorkflowMode;
 }
@@ -26,6 +30,7 @@ function parseCalendarDate(value?: string | null): Date | undefined {
 export function getEntryCloseSubmitBlocker({
   entryCloseDate,
   today,
+  entryWindowTimezone,
   isLateEntryMode,
 }: EntryCloseSubmitGuardContext): string | null {
   if (isLateEntryMode) return null;
@@ -33,7 +38,7 @@ export function getEntryCloseSubmitBlocker({
   const closeDate = parseCalendarDate(entryCloseDate);
   if (!closeDate) return null;
 
-  const currentDate = parseCalendarDate(today ?? formatDateLocal(new Date()));
+  const currentDate = currentEntryWindowDate(today, entryWindowTimezone);
   if (!currentDate) return null;
 
   if (currentDate.getTime() > closeDate.getTime()) {
@@ -53,6 +58,7 @@ export function getEntryCloseSubmitBlocker({
 export function getEntryOpenSubmitBlocker({
   entryOpenDate,
   today,
+  entryWindowTimezone,
   workflowMode,
 }: EntryCloseSubmitGuardContext): string | null {
   // Only RBAC-derived organizer workflows are exempt. `isLateEntryMode` is
@@ -64,7 +70,7 @@ export function getEntryOpenSubmitBlocker({
   const openDate = parseCalendarDate(entryOpenDate);
   if (!openDate) return null;
 
-  const currentDate = parseCalendarDate(today ?? formatDateLocal(new Date()));
+  const currentDate = currentEntryWindowDate(today, entryWindowTimezone);
   if (!currentDate) return null;
 
   if (currentDate.getTime() < openDate.getTime()) {

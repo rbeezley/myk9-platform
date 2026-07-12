@@ -1,4 +1,5 @@
 import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
+import { getClassAttention } from './attention';
 import { getShowMapReportHref, getShowMapTrialScheduleHref } from './showMapRoutes';
 import {
   ArrowUpCircle,
@@ -622,6 +623,15 @@ function isEntryReviewAttentionNode(node: ShowMapNode): boolean {
   return node.type === 'dog-entry' && node.status?.value === 'submitted';
 }
 
+// A class reopened by a late expected entry after closeout is a class-level
+// attention reason — no single entry node can represent it, which is exactly
+// why the tree's baked `node.attentionCount` (entry-only, see the
+// getAttentionCountsByNodeId comment below) can't carry this signal and it
+// must be surfaced through this dynamic aggregation instead.
+function isReopenedClassAttentionNode(node: ShowMapNode): boolean {
+  return node.type === 'class' && getClassAttention(node) !== null;
+}
+
 function getDirectAttentionNodeIdsBySource(
   tree: ShowMapTree,
   state: Omit<ShowMapActionState, 'tree'>
@@ -640,6 +650,9 @@ function getDirectAttentionNodeIdsBySource(
 
   for (const node of Object.values(tree.nodesById)) {
     if (isEntryReviewAttentionNode(node)) {
+      addDirectNodeId(node.id);
+    }
+    if (isReopenedClassAttentionNode(node)) {
       addDirectNodeId(node.id);
     }
   }

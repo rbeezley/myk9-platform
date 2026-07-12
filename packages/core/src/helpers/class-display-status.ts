@@ -50,22 +50,33 @@ export function getClassDisplayStatus(input: ClassDisplayStatusInput): ClassDisp
   // 'setup'); normalize once so both hit the checks below.
   const status = input.status ? normalizeClassStatus(input.status) : undefined;
 
-  // Priority 1: Finalized flag
+  // Priority 1: Finalized flag. The server sets `is_scoring_finalized`
+  // authoritatively when `refresh_class_scoring_state()` writes 'completed'
+  // (expected/accounted-for predicate that excludes scratched/withdrawn/
+  // pulled entries — see openspec/changes/class-status-auto-derivation
+  // design.md Decision 2/5). Deferring to it here means a client whose local
+  // entry snapshot is mid-sync — e.g. still shows scored_count < entry_count
+  // because a scratch or scoring row hasn't synced yet — never renders
+  // "in progress" for a class the server already completed.
   if (input.is_scoring_finalized === true) {
     return 'completed';
   }
 
-  // Priority 2: Canonical status
+  // Priority 2: Canonical server status.
   if (status === CLASS_STATUS.COMPLETED) {
     return 'completed';
   }
 
-  // Priority 3: All entries scored
-  if (input.scored_count === input.entry_count && input.entry_count > 0) {
-    return 'completed';
-  }
+  // Intentionally NOT deriving "completed" from
+  // `scored_count === entry_count`: this input shape carries only
+  // pre-aggregated counts, no per-entry scratch/withdrawn/pulled state, so
+  // raw-count equality can't apply the server's expected/accounted-for
+  // exclusion. A scratched-but-unscored entry would hold scored_count below
+  // entry_count forever and wrongly render "in progress" for a class the
+  // server already marked completed. Rely on is_scoring_finalized / status
+  // above for the completed verdict instead (Decision 5).
 
-  // Priority 4: In Progress status or active scoring
+  // Priority 3: In Progress status or active scoring
   if (status === CLASS_STATUS.IN_PROGRESS) {
     return 'in-progress';
   }

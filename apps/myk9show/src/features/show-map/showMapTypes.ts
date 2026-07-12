@@ -2,14 +2,7 @@ import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 
 export type ShowMapNodeType =
-  | 'show'
-  | 'all-exhibitors'
-  | 'trial'
-  | 'class'
-  | 'dog'
-  | 'entry'
-  | 'dog-entry'
-  | 'more';
+  'show' | 'all-exhibitors' | 'trial' | 'class' | 'dog' | 'entry' | 'dog-entry' | 'more';
 
 export type ShowMapStatusKind = 'neutral' | 'active' | 'complete' | 'muted' | 'attention';
 
@@ -73,6 +66,9 @@ export interface ShowMapNode {
   parentId?: string | undefined;
   childrenCount: number;
   isSynthetic?: boolean | undefined;
+  /** Class-only: non-null when a late expected entry reopened this class
+   * after closeout. Drives class-level attention (see showMapActions.ts). */
+  reopenedAfterCloseoutAt?: string | null | undefined;
 }
 
 export interface ShowMapEntryDisplay {
@@ -121,6 +117,9 @@ export interface ShowMapClassInput {
   trialDate?: string | undefined;
   trialNumber?: string | undefined;
   trialName?: string | undefined;
+  /** Non-null when a late expected entry reopened this class after closeout;
+   * surfaced as class-level attention (see showMapActions.ts). */
+  reopenedAfterCloseoutAt?: string | null | undefined;
 }
 
 export type ShowMapEntryInput = Record<string, unknown>;

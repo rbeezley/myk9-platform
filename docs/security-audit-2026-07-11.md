@@ -104,12 +104,13 @@ Auto-fixable: 4 of 7 findings
 - **SA-021:** repository migration, invariant, database push, and live zero-row FORCE-RLS verifier
   are complete; the original five-table count was corrected to four extant tables because
   `unified_ringside_overrides` had already been dropped.
-- **SA-023 / SA-028 / SA-030:** repository remediation is code-complete with red-first focused
-  tests, full typecheck, and lint evidence in the active OpenSpec change. `resend-webhook` now uses
-  the shared Standard-Webhooks verifier; push bearer auth shares its constant-time equality
-  primitive; and production ignores `dev-current-mock-user` storage. These rows are not recorded as
-  deployed until the implementation PR merges and the applicable hosted/Edge revisions are live.
-- **SA-024 / SA-025 / SA-029:** remain open in the active remediation change.
+- **SA-023 / SA-028 / SA-030:** repository remediation merged in PR #1285 with red-first focused
+  tests, full typecheck, lint, and independent-review evidence. These rows are not recorded as
+  deployed until the applicable hosted/Edge revisions are live.
+- **SA-024:** repository remediation is code-complete with a Deno-free fail-closed gate, 11 focused
+  tests, full typecheck, and lint evidence. It remains open until review/merge, deployment of
+  `validate-passcode`, and controlled healthy/429/503 runtime evidence.
+- **SA-025 / SA-029:** remain open in the active remediation change.
 
 ## Categories Checked
 

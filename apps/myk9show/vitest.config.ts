@@ -27,6 +27,7 @@ export default defineConfig({
       '../../supabase/functions/send-results/authz.test.ts',
       '../../supabase/functions/send-email/authz.test.ts',
       '../../supabase/functions/send-email/recipientResolution.test.ts',
+      '../../supabase/functions/validate-passcode/*.test.ts',
     ],
     exclude: [
       '**/node_modules/**',

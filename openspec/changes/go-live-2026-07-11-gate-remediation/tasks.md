@@ -49,8 +49,8 @@
 
 ## 6. Batch B — Passcode Limiter Failure (SA-024)
 
-- [ ] 6.1 Add a Deno-free rate-limit orchestration seam and failing tests proving limiter RPC errors return 503, persist a deduplicated `validate-passcode` operator alert without passcode material, and never call passcode validation; preserve the exact healthy 429 contract, integrate the seam, and make tests GREEN.
-- [ ] 6.2 Verify alert-insert failure still returns 503, blocked-attempt handling remains correct, CORS/response contracts stay stable, and no log/title/detail/dedupe field contains the submitted passcode.
+- [x] 6.1 Add a Deno-free rate-limit orchestration seam and failing tests proving limiter RPC errors return 503, persist a deduplicated `validate-passcode` operator alert without passcode material, and never call passcode validation; preserve the exact healthy 429 contract, integrate the seam, and make tests GREEN.
+- [x] 6.2 Verify alert-insert failure still returns 503, blocked-attempt handling remains correct, CORS/response contracts stay stable, and no log/title/detail/dedupe field contains the submitted passcode.
 
 ## 7. Batch B — Premium Generation Throttle (SA-025)
 

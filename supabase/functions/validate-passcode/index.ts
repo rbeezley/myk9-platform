@@ -27,17 +27,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from './cors.ts';
+import { enforcePasscodeRateLimit, type RateLimitResult } from './rateLimitGate.ts';
 
 interface ValidateRequest {
   passcode: string;
-}
-
-interface RateLimitResult {
-  allowed: boolean;
-  attempts_count: number;
-  remaining_attempts: number;
-  blocked_until: string | null;
-  message: string;
 }
 
 type Role = 'admin' | 'judge' | 'steward' | 'exhibitor';
@@ -119,42 +112,33 @@ serve(async req => {
     const userAgent = req.headers.get('user-agent') || 'unknown';
     const passcodePrefix = passcode.charAt(0).toLowerCase();
 
-    console.log(`[Auth] Login attempt from IP: ${clientIP}, prefix: ${passcodePrefix}`);
+    console.log(`[Auth] Login attempt from IP: ${clientIP}`);
 
-    // Check rate limit
-    const { data: rateLimitData, error: rateLimitError } = await supabaseClient.rpc(
-      'check_login_rate_limit',
-      { p_ip_address: clientIP }
-    );
+    const rateLimitGate = await enforcePasscodeRateLimit({
+      clientIP,
+      checkRateLimit: () =>
+        supabaseClient.rpc('check_login_rate_limit', { p_ip_address: clientIP }),
+      recordBlockedAttempt: async () => {
+        const { error } = await supabaseClient.rpc('record_login_attempt', {
+          p_ip_address: clientIP,
+          p_success: false,
+          p_passcode_prefix: passcodePrefix,
+          p_user_agent: userAgent,
+        });
+        if (error) throw error;
+      },
+      persistAlert: async alert => {
+        const { error } = await supabaseClient.from('operator_alerts').insert(alert);
+        if (error && error.code !== '23505') throw error;
+      },
+      logError: (message, error) => console.error(`[Auth] ${message}`, error),
+    });
 
-    if (rateLimitError) {
-      console.error('[Auth] Rate limit check error:', rateLimitError);
-      // Continue without rate limiting if function fails (fail open for availability)
-    }
-
-    const rateLimit = rateLimitData?.[0] as RateLimitResult | undefined;
-
-    // If rate limited, return 429
-    if (rateLimit && !rateLimit.allowed) {
-      console.log(`[Auth] IP ${clientIP} is rate limited: ${rateLimit.message}`);
-
-      // Record blocked attempt
-      await supabaseClient.rpc('record_login_attempt', {
-        p_ip_address: clientIP,
-        p_success: false,
-        p_passcode_prefix: passcodePrefix,
-        p_user_agent: userAgent,
+    if (rateLimitGate.kind === 'response') {
+      return new Response(JSON.stringify(rateLimitGate.body), {
+        status: rateLimitGate.status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-
-      return new Response(
-        JSON.stringify({
-          error: 'rate_limited',
-          message: rateLimit.message,
-          blocked_until: rateLimit.blocked_until,
-          remaining_attempts: 0,
-        }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
     // Validate via HMAC-pepper RPC. Returns {show_id, role} on match (with

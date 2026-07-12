@@ -12,5 +12,9 @@
     "src/**/*.spec.tsx",
     "src/test/**/*"
   ],
-  "exclude": ["src/test/e2e/**/*"]
+  "exclude": [
+    "src/test/e2e/**/*",
+    "src/test/load/playwright-load-tests.spec.ts",
+    "src/test/performance/performance.spec.ts"
+  ]
 }

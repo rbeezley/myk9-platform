@@ -11,7 +11,7 @@
 The measurement gate fired: the full original config reported 1,350 errors across 374 files. A single cleanup would be unsafe, so the gate now has two explicit modes:
 
 - `tsconfig.test.json` is the blocking allowlist. It currently covers 14 low-coupling test files across config, constants, source-contract probes, branding, template validation, and styles. The app's normal `typecheck` script runs this gate, so root `pnpm typecheck` and the existing CI Quality job enforce it.
-- `tsconfig.test.all.json` is the non-blocking backlog inventory invoked with `pnpm typecheck:tests:all`. It includes the app's ambient declarations and excludes `src/test/e2e/**`, which belongs to the Playwright toolchain. The post-separation baseline is 1,053 errors across 296 files.
+- `tsconfig.test.all.json` is the non-blocking backlog inventory invoked with `pnpm typecheck:tests:all`. It includes the app's ambient declarations and excludes every Playwright suite found under `src/`: `src/test/e2e/**` plus the legacy load/performance specs outside that directory. The post-separation baseline is 1,034 errors across 294 files.
 
 Stage 1 corrected test-only drift in sync-scope key iteration, missing template-type imports, and shared template fixtures. It deliberately did not change runtime source. `src/test/lib/classGeneration.test.ts` remains outside the blocking allowlist because it exposed a real source-contract mismatch: `mergeFieldValues` stores the object-valued `defaults.entryFees`, while `CreatedClass.fieldValues` only permits primitive/date/array values. Resolve that contract before admitting the file.
 

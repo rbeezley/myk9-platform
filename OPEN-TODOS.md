@@ -68,9 +68,10 @@ High-judgment work to prioritize while strong-model access is available. These a
   lineage #1280, FORCE-RLS #1283, health #1284, mechanical fixes #1285, passcode #1286, premium
   throttle #1287, dedicated push secret #1289, and advisor sweep #1292/#1293. Live evidence covers
   passcode healthy/429/503 with alert recovery; premium catalog/concurrency/429/503 without Claude;
-  and five Vault-authenticated inert push smokes plus service-role rejection. Remaining work is
-  operator-owned (SMTP, legal, production data, Stripe live mode, mailbox/AKC, browser/device,
-  Sentry routing, DNS/Vercel) plus a paid premium success smoke if approved. Migration parity is
+  and five Vault-authenticated inert push smokes plus service-role rejection. Custom SMTP was
+  configured 2026-07-12 with a 100/hour Auth limit and a branded password-reset delivery to Gmail.
+  Remaining work is operator-owned (legal, production data, Stripe live mode, mailbox/AKC,
+  browser/device, Sentry routing, DNS/Vercel) plus a paid premium success smoke if approved. Migration parity is
   clean after #1294 merged remote versions `20260712180000`/`190000`; the post-merge
   `supabase db push --dry-run` reports the remote database is up to date.
 

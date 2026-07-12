@@ -1,10 +1,15 @@
 # Supabase Auth Email — Resend, Rate Limits & Manual Confirmation
 
-**Status:** operational runbook · **Last updated:** 2026-07-03
+**Status:** operational runbook · **Last updated:** 2026-07-12
 
 How account/auth emails work in myK9Show, why the email rate limit sits at a tiny
 default, how to raise it **safely**, and how to manually confirm a user when you
 can't wait for (or didn't receive) the email.
+
+> **Production state (2026-07-12):** Custom SMTP points to Resend at
+> `smtp.resend.com:465`, `rate_limit_email_sent` is `100`, and the Send Email Hook remains
+> enabled. Management API read-back plus a real delivered, visually confirmed branded Gmail
+> password-reset message closed the SMTP launch blocker.
 
 > Scope: this is about **GoTrue auth emails** — signup confirmation, magic link,
 > password reset, email-change. It does **not** cover the _entry/registration_
@@ -61,7 +66,7 @@ for sending emails" is **disabled**.
 Root cause: Supabase decides which email rate limit applies by asking **"is
 Custom SMTP configured?"** — **not** "is a hook sending the mail?"
 
-- With the Custom SMTP slot **empty** (our case — only the hook is set), the
+- With the Custom SMTP slot **empty** (the pre-2026-07-12 state — only the hook was set), the
   project is treated as using the **built-in** email service, which is hard-capped
   at a tiny rate (~2/hour). The hook does the actual sending, but GoTrue still
   counts and throttles the **send action** _before_ the hook runs.

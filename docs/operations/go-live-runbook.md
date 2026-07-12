@@ -163,15 +163,15 @@ auto-deploy still ON before turning it off.
 
 ### 1.2 Auth email cutover (Resend hook + Custom SMTP rate limit)
 
-Full detail: [`supabase-auth-email.md`](supabase-auth-email.md). Without Custom SMTP, GoTrue
-caps auth emails at ~2/hour — a launch-day signup wall.
+Full detail: [`supabase-auth-email.md`](supabase-auth-email.md). Custom SMTP was configured
+2026-07-12; the former built-in-service rate cap is no longer the launch-day signup wall.
 
 - [x] **a.** DONE 2026-07-04. Deploy-coupled hook secret: `SEND_EMAIL_HOOK_SECRET`
       matches the dashboard Send Email Hook secret, `send-auth-email` is deployed as v45,
       and one real password-reset email verified the branded template path (`send-auth-email`
       200 signature-verified + `resend-webhook` 200).
       _Rollback:_ redeploy prior function version + restore prior hook secret in the same window.
-- [ ] **b.** Raise the rate limit via Management API PATCH (NOT `supabase config push`): back up
+- [x] **b.** DONE 2026-07-12. Raised the rate limit via Management API PATCH (NOT `supabase config push`): backed up
       `GET /v1/projects/$REF/config/auth` first, then patch `smtp_*` (Resend:
       `smtp.resend.com:465`, user `resend`, pass = the Resend API key,
       `smtp_admin_email: notifications@myk9show.com`) + `rate_limit_email_sent: 100`.
@@ -183,6 +183,11 @@ caps auth emails at ~2/hour — a launch-day signup wall.
       _Audit 2026-07-06:_ `pnpm qa:go-live:phase1` verifies the runbook still documents the
       Management API PATCH path with Resend SMTP fields and `rate_limit_email_sent: 100`;
       no Management API write has been run in this batch.
+      _Completion evidence 2026-07-12:_ post-PATCH Management API read-back returned
+      `smtp.resend.com:465`, sender `myK9Show <notifications@myk9show.com>`, limit `100`,
+      Send Email Hook enabled, and unchanged `site_url=https://myk9show.com`. A real password-reset
+      request to Gmail was accepted by the deployed app, reported `delivered` by Resend, and visually
+      confirmed as the branded myK9Show template. The temporary Management API token was revoked.
 
 ### 1.3 Kill-switch posture check
 

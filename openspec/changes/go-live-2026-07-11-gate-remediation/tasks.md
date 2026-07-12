@@ -61,8 +61,8 @@
 
 ## 8. Batch B — Dedicated Push Secret (SA-029)
 
-- [ ] 8.1 Compare redacted SHA-256 digests for Vault `push_webhook_secret` and project `PUSH_WEBHOOK_SECRET`, inventory all five push-trigger deployments/callers, and prepare a rotation, deploy, smoke, and rollback manifest.
-- [ ] 8.2 Add failing shared and source-contract tests, remove every inbound `SUPABASE_SERVICE_ROLE_KEY` fallback, route announcement/chat/support triggers through `requirePushWebhookSecret`, preserve the legitimate downstream support bearer, and prove dedicated-secret success plus service-role-only rejection.
+- [x] 8.1 Compare redacted SHA-256 digests for Vault `push_webhook_secret` and project `PUSH_WEBHOOK_SECRET`, inventory all five push-trigger deployments/callers, and prepare a rotation, deploy, smoke, and rollback manifest.
+- [x] 8.2 Add failing shared and source-contract tests, remove every inbound `SUPABASE_SERVICE_ROLE_KEY` fallback, route announcement/chat/support triggers through `requirePushWebhookSecret`, preserve the legitimate downstream support bearer, and prove dedicated-secret success plus service-role-only rejection.
 - [ ] 8.3 [SHARED-SYSTEM GATE] After approval, align/rotate the dedicated secret, deploy all five push-trigger functions, smoke them with the Vault bearer, and record that a service-role bearer is rejected.
 
 ## 9. Batch B — Supabase Advisor Disposition

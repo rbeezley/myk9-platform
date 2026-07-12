@@ -3,6 +3,7 @@ import webpush from 'npm:web-push@3';
 
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 
 const CHUNK_SIZE = 100;
 
@@ -22,17 +23,7 @@ interface WebhookPayload {
 }
 
 handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }) => {
-  // Webhook auth uses the dedicated PUSH_WEBHOOK_SECRET shared secret (seeded into
-  // Vault as `push_webhook_secret`, sent by notify_chat_message). Decoupled from
-  // SUPABASE_SERVICE_ROLE_KEY: after the project migrated to new JWT Signing Keys,
-  // the function's injected service-role token no longer matches what a DB trigger
-  // can send. Falls back to the service-role key when the dedicated secret is unset.
-  const webhookSecret =
-    Deno.env.get('PUSH_WEBHOOK_SECRET') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const authHeader = req.headers.get('Authorization');
-  if (!webhookSecret || !authHeader || authHeader !== `Bearer ${webhookSecret}`) {
-    throw new HttpError(401, 'Unauthorized');
-  }
+  requirePushWebhookSecret(req);
 
   const { record } = payload;
   const { id, show_id, thread_id, sender_id, body } = record ?? ({} as ChatMessageRecord);

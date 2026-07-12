@@ -114,7 +114,11 @@ Auto-fixable: 4 of 7 findings
   Deno-free paid-model gate, 15 direct red-first tests, full typecheck, and lint evidence. It
   remains open until review/merge, the approved migration push and `generate-premium` deployment,
   and controlled live catalog/concurrency/429/503 evidence.
-- **SA-029:** remains open in the active remediation change.
+- **SA-029:** repository remediation is prepared with matching redacted Vault/Edge secret digests,
+  a complete five-function caller/deployment manifest, shared constant-time dedicated-secret-only
+  authentication, and 17 red-first focused tests. It remains open until review/merge, deployment
+  of all five push-trigger functions, and controlled dedicated-secret/service-role rejection
+  runtime evidence.
 
 ## Categories Checked
 

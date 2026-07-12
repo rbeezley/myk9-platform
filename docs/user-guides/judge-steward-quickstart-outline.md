@@ -1,6 +1,6 @@
 # Judge and Steward Ringside Quickstart Outline
 
-**Status:** `qa-draft` — **drafted 2026-06-24.** The guide now exists at [`judge-steward-quickstart.md`](judge-steward-quickstart.md); this outline is the source it was written from. Remaining to reach `verified`: capture J-01…J-06 + the `at-show-access-paths` diagram against staging post-redeploy, then run the author walkthrough. (Updated 2026-06-23: the `unified_ringside_enabled` flag was removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md). The at-show surface now renders for every show, gated only by `AtShowAccessGate`.)
+**Status:** `qa-draft` — **drafted 2026-06-24.** The guide now exists at [`judge-steward-quickstart.md`](judge-steward-quickstart.md); this outline is the source it was written from. Remaining to reach `verified`: capture J-01…J-06 + the `at-show-access-paths` diagram against staging post-redeploy, then run the author walkthrough. (Updated 2026-06-23: the `unified_ringside_enabled` flag was removed — see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md). The at-show surface now renders for every show, gated only by `AtShowAccessGate`.)
 
 **Audience:** Judges and gate stewards. Role intent: "Invisible technology." Minimal words. Written for people whose eyes are on the dog, not the screen.
 
@@ -22,7 +22,7 @@
 | Combined A/B section view works | Yes (golden path § 6.9) |
 | Results persist to secretary view | Yes (golden path § 6.7) |
 
-**No longer flag-blocked.** (Updated 2026-06-23: flag removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md).) Publish once the at-show screenshots are captured against staging post-redeploy.
+**No longer flag-blocked.** (Updated 2026-06-23: flag removed — see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md).) Publish once the at-show screenshots are captured against staging post-redeploy.
 
 ---
 
@@ -151,7 +151,7 @@ Show Desk → Tools panel → **Show Access Codes** → share the QR code or the
 
 | Finding | Section | Backlog action |
 |---|---|---|
-| ~~`unified_ringside_enabled` is DEV-only~~ | All | Resolved 2026-06-23 — flag removed; surface open to all shows (see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md)) |
+| ~~`unified_ringside_enabled` is DEV-only~~ | All | Resolved 2026-06-23 — flag removed; surface open to all shows (see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md)) |
 | No nav link to `/at-show/:showId` — entry is only via ShowTodayBanner or direct link | § 1 | Describe passcode/QR path as the primary access for non-staff |
 | Timer reset behavior is unclear — scores are only saved on explicit Save, not on timer stop | § 4 | Confirm save behavior during live walk; add to quickstart explicitly |
 | Combined A/B section URL shape (`/:classIdA/:classIdB`) needs confirmation | § 3 | Verify routing during live walk before publishing |

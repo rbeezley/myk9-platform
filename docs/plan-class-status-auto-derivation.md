@@ -3,7 +3,8 @@
 **Date:** 2026-05-22
 **Status:** **Stub.** Not yet drafted in detail. Pre-work required (PO interview on edge-case rules) before full plan can be written.
 **Status note (2026-07-02):** the *presentation* side landed via the UX walk remediation plan's task 2.B — `@myk9/core` now exports the canonical lifecycle label triple (`CLASS_DISPLAY_STATUS_LABELS`: "Not started" / "In Progress" / "Completed", via `getClassDisplayStatusLabel` over the existing `getClassDisplayStatus`), the trial composite line (`deriveTrialCompositeStatus`), and the draft-show chip gate (`shouldShowClassLifecycleChips`). Auto-*derivation* of the stored status from scoring events (this plan's actual subject) remains open; when drafted, it should treat `getClassDisplayStatus` as the derivation to formalize server-side.
-**Companion plan:** [`plan-show-map-workbench-collapse.md`](archive/plan-show-map-workbench-collapse.md) (Option B). Phase B2b includes a future-proofing note for this work.
+**Companion plan:** [`plan-show-map-workbench-collapse.md`](archive/plan-show-map-workbench-collapse.md) (Option B — archived; link verified 2026-07-12). Phase B2b includes a future-proofing note for this work.
+**Status note (2026-07-12):** confirmed still the day-of cluster's only genuinely open design decision (day-of consolidation pass, `docs/improve-audit-2026-07-11/008-secretary-dayof-plan-consolidation.md`). Remaining scope is **server-side derivation only** — the presentation half shipped 2026-07-02 (above). Unblocking needs the PO interview tracked in `OPEN-TODOS.md` → "Class-Status PO decision aid (#3)".
 
 ## The idea
 

@@ -28,7 +28,7 @@ Choose one of two approaches:
 
 ### At-show availability [UPDATED 2026-06-23]
 
-Part 6 (At-Show / Ringside) is available for **every** show — no feature flag or SQL flip is needed. The `unified_ringside_enabled` flag was removed (see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md)); access is now gated solely by `AtShowAccessGate` (RBAC staff role or a valid show-scoped passcode grant).
+Part 6 (At-Show / Ringside) is available for **every** show — no feature flag or SQL flip is needed. The `unified_ringside_enabled` flag was removed (see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md)); access is now gated solely by `AtShowAccessGate` (RBAC staff role or a valid show-scoped passcode grant).
 
 To reach the at-show surface, just open `/at-show/:showId` for the test show as a user who clears `AtShowAccessGate`.
 
@@ -400,7 +400,7 @@ To reach the at-show surface, just open `/at-show/:showId` for the test show as 
 
 ## Part 6 — At-Show / Ringside (NEW)
 
-> The `/at-show/:showId` routes are a full-screen ringside experience for judges and scorers. The surface is available for every show; access is gated solely by `AtShowAccessGate`, which admits either RBAC staff or a valid show-scoped passcode grant. (Updated 2026-06-23: the `unified_ringside_enabled` feature flag was removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md).)
+> The `/at-show/:showId` routes are a full-screen ringside experience for judges and scorers. The surface is available for every show; access is gated solely by `AtShowAccessGate`, which admits either RBAC staff or a valid show-scoped passcode grant. (Updated 2026-06-23: the `unified_ringside_enabled` feature flag was removed — see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md).)
 
 ### 6.1 — Confirm At-Show Surface is Reachable [UPDATED]
 
@@ -541,7 +541,7 @@ Use this section to list every issue found during the walk. Bring this back to C
 
 | Step | Item | Reason |
 | ---- | ---- | ------ |
-| 6.1  | At-show access | The at-show surface is available for every show — no feature flag. Access is gated only by `AtShowAccessGate`; without a qualifying RBAC role or passcode grant the access gate (not a feature-flag notice) is expected. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md).) |
+| 6.1  | At-show access | The at-show surface is available for every show — no feature flag. Access is gated only by `AtShowAccessGate`; without a qualifying RBAC role or passcode grant the access gate (not a feature-flag notice) is expected. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md).) |
 | 4.9  | Ring number display | Ring numbers are not yet persisted. `Ring 0` or absent ring labels are expected behavior until the ring-number contract is implemented. |
 
 ---

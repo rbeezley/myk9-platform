@@ -55,7 +55,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-architecture-deepening.md](plan-architecture-deepening.md)                           | Active    | Architecture Deepening Plan                                                  |
 | [plan-asca-level-c-classes.md](plan-asca-level-c-classes.md)                               | Active    | ASCA Level C — seed continuation classes into the wizard template            |
 | [plan-askq-revival.md](plan-askq-revival.md)                                               | Active    | AskQ Revival & Simplification (select-then-bundle)                           |
-| [plan-atshow-ringside-writes.md](plan-atshow-ringside-writes.md)                           | Active    | At-Show Ringside — wire deferred writes + judge/steward write authz          |
 | [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md)               | Active    | Plan — Class Status Auto-Derivation (Stub)                                   |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                       | Active    | Data Access Module Drift Plan                                                |
 | [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md)                     | Complete  | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit)        |
@@ -72,15 +71,10 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                         | Active    | Plan: Phase 4 seam render-only read strategy                                 |
 | [plan-pull-management-split.md](plan-pull-management-split.md)                             | Active    | Pull Management — separate show-day pull state from refund accounting        |
 | [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                 | Active    | Plan: Server-side gate for public/anon scored results                        |
-| [plan-remove-unified-ringside-flag.md](plan-remove-unified-ringside-flag.md)               | Active    | Remove the `unified_ringside_enabled` feature flag (unblocks docs)           |
 | [plan-replication-occ-watermark-findings.md](plan-replication-occ-watermark-findings.md)   | Complete  | Replication OCC / Watermark Findings + S1/S2 Re-check                        |
 | [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)           | Active    | Replication INSERT retry idempotency — investigation verdict (B)             |
 | [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                                  |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                       | Active    | Plan: Result Reveal + Share Card                                             |
-| [plan-ringside-entries-read-authz.md](plan-ringside-entries-read-authz.md)                 | Active    | Ringside entry-read authz — judge/steward/passcode see entries (RLS)         |
-| [plan-ringside-occ-conflict-storm.md](plan-ringside-occ-conflict-storm.md)                 | Active    | Ringside OCC conflict storm — high-CPU remediation (token advance + backoff) |
-| [plan-ringside-navigation.md](plan-ringside-navigation.md)                                 | Active    | Ringside navigation — permanent sidebar entry + smart /at-show landing       |
-| [plan-show-day-sequencing.md](plan-show-day-sequencing.md)                                 | Active    | Plan — Show-Day Workflow Sequencing                                          |
 | [plan-site-admin-mcp-v1.md](plan-site-admin-mcp-v1.md)                                     | Active    | Site Admin MCP V1 Implementation Plan                                        |
 | [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                           | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                          |
 | [security-audit-2026-07/README.md](security-audit-2026-07/README.md)                       | Active    | Security Audit Remediation — July 2026 (17 findings; 0 P0/P1; 6 plans)       |

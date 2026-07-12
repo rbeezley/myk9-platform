@@ -1,6 +1,6 @@
 # Plan: At-Show Ringside — wire deferred writes + judge/steward write authorization
 
-> **Status:** Active
+> **Status:** Complete — archived 2026-07-12 (Phases 0–4 shipped; migration `20260621171500_ringside_update_entry` applied; client auto-routes entry writes through `ringside_update_entry` via `mutation.rpc.name` in `MutationManager.ts`). Residual manual browser round-trip walk → `OPEN-TODOS.md`.
 
 > **Progress (2026-06-21):** Phases 0–4 implemented + verified locally (typecheck 25/25, lint clean, ratchet at baseline, 539 at-show/replication app tests + 58 MutationManager tests green incl. new RPC-branch + routing tests). Print (3d) was **removed from /at-show, not wired** — reports live only on the secretary Reports page (user decision; `context.hidePrintOptions`).
 >

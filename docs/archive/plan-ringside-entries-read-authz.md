@@ -1,6 +1,6 @@
 # Plan: Passcode Ringside Identity — judge/steward/timer read + score without an account
 
-> **Status:** Active
+> **Status:** Complete — residuals moved to `OPEN-TODOS.md`. Archived 2026-07-12 (Phases A–E shipped; migrations `20260625000000`/`20260625000100` applied; security review `docs/security-review-2026-06-24-ringside-passcode-phase-c.md` clean, 0 crit/high/med). Residual LOWs (anon hard-delete/TTL sweep; CAPTCHA/rate-limit on `validate-passcode` — largely covered by SA-011 done + SA-024 in-flight) → `OPEN-TODOS.md`.
 
 **Created:** 2026-06-24. **Goal (user, 2026-06-24):** a judge or steward (the "timer" signs in with
 the **steward** passcode — there is no separate `timer` role; passcode roles are

@@ -244,7 +244,7 @@ Run the post-reseed checks from [`staging-reseed.md`](staging-reseed.md):
 ### 2.3 Passcode ringside identity — live verification (G5)
 
 Code complete (#951–#954); this is **verify, not build**. Full checklist:
-[`docs/plan-ringside-entries-read-authz.md`](../plan-ringside-entries-read-authz.md) Phase E.
+[`docs/plan-ringside-entries-read-authz.md`](../archive/plan-ringside-entries-read-authz.md) Phase E.
 
 - [ ] **a.** Supabase Dashboard → Auth → Providers → **Allow anonymous sign-ins** is ON
       (staging AND prod). Owner: Operator.
@@ -496,4 +496,4 @@ delayed launch always beats a corrupted first impression.
 | Edge-function drift method             | [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md)                   |
 | Admin support actions                  | [`admin-support-runbook.md`](admin-support-runbook.md)                                                   |
 | Staging seed verification              | [`staging-reseed.md`](staging-reseed.md)                                                                 |
-| Passcode ringside Phase E              | [`docs/plan-ringside-entries-read-authz.md`](../plan-ringside-entries-read-authz.md)                     |
+| Passcode ringside Phase E              | [`docs/plan-ringside-entries-read-authz.md`](../archive/plan-ringside-entries-read-authz.md)                     |

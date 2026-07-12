@@ -1,6 +1,6 @@
 # Ringside navigation — permanent sidebar entry + smart `/at-show` landing
 
-> **Status:** Active
+> **Status:** Complete — archived 2026-07-12 (permanent at-show sidebar item for every role — "Ringside" for staff, "Show day" for exhibitors — in `unifiedSidebarConfig.ts`; bare `/at-show` smart landing in `RingsideEntryPage`: anon→`SmartSignInPage`, signed-in one live show→auto-jump, else→`RingsideHome`; PR #947).
 
 ## Why
 

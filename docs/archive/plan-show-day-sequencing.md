@@ -1,7 +1,7 @@
 # Plan — Show-Day Workflow Sequencing
 
 **Date:** 2026-05-16
-**Status:** Active sequencing roadmap. Phase E complete for current AKC Scent Work / UKC Nosework scope.
+**Status:** Complete — archived 2026-07-12 (all phases A–E shipped, PRs #217–#275; verified `/secretary/shows/:showId` workbench route present + PR #275 MERGED). Granular follow-ups live in `OPEN-TODOS.md`.
 **Scope:** Defines the order in which remaining items from the 2026-05-16 show-day brainstorm are picked up. This doc is the source of truth for _what's next_ when a PR lands; granular item tracking continues to live in `OPEN-TODOS.md`. Implementation details per phase land in their own dedicated plan docs as each phase begins.
 
 ## How to use this doc

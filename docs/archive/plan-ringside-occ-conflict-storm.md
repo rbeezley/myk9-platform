@@ -1,6 +1,6 @@
 # Ringside OCC Conflict Storm — High-CPU Remediation
 
-> **Status:** Active
+> **Status:** Complete — residuals moved to `OPEN-TODOS.md`. Archived 2026-07-12 (self-correcting OCC token-advance + capped `occRetries` backoff live in `MutationManager.ts`, PR #961; 2026-06-25 incident cleared; E2E isolation shipped via #449). Remediation #3 (cut redundant Realtime WAL load) tracked under the realtime-publication audit (#584).
 
 ## Incident
 

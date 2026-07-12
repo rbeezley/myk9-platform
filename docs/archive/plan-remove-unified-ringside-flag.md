@@ -1,6 +1,6 @@
 # Remove the `unified_ringside_enabled` feature flag
 
-> **Status:** Active
+> **Status:** Complete — archived 2026-07-12 (flag removed pre-launch, PR #947; migration `20260623120000_remove_unified_ringside_flag` applied; `atShowFeatureFlag.ts` gone; only `AtShowAccessGate` remains — remaining `unified_ringside_enabled` hits in src are historical comments).
 
 ## Why
 

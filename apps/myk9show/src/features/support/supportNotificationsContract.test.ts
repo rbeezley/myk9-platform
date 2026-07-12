@@ -40,7 +40,9 @@ describe('support notifications contract', () => {
   });
 
   it('routes owner messages to site admins and operator messages to the owner', () => {
-    expect(pushFunction).toContain("Deno.env.get('PUSH_WEBHOOK_SECRET')");
+    expect(pushFunction).toContain("from '../_shared/pushWebhookAuth.ts'");
+    expect(pushFunction).toContain('beforeBody: requirePushWebhookSecret');
+    expect(pushFunction.match(/SUPABASE_SERVICE_ROLE_KEY/g)).toHaveLength(1);
     expect(pushFunction).toContain('is_from_operator');
     expect(pushFunction).toContain('await getOwnerRecipient(supabase, ticket.owner_id)');
     expect(pushFunction).toContain('await getSiteAdminRecipients(supabase)');

@@ -148,7 +148,9 @@ describe('AskQPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Rules' }));
     await user.selectOptions(screen.getByLabelText('Organization'), 'AKC');
     await user.selectOptions(screen.getByLabelText('Sport'), 'akc-scent-work');
-    await user.type(screen.getByPlaceholderText('Ask about the selected rulebook...'), 'Max time?');
+    const input = screen.getByPlaceholderText('Ask about the selected rulebook...');
+    fireEvent.change(input, { target: { value: 'Max time?' } });
+    expect(input).toHaveValue('Max time?');
     await user.click(screen.getByRole('button', { name: 'Send query' }));
 
     await waitFor(() => {

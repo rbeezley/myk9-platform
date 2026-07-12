@@ -18,6 +18,9 @@ const authedUser = { id: 'user-1', roles: [], permissions: [] } as unknown as Us
 
 function makeShow(overrides: Partial<Show>): Show {
   return {
+    // entry_open_date is a NOT-NULL DATE column; default it well in the past so
+    // cases that don't exercise the open guard behave as "already open".
+    entryOpenDate: '2026-05-01',
     startDate: '2026-05-15',
     entryCloseDate: '2026-05-15',
     status: 'Upcoming',
@@ -77,5 +80,30 @@ describe('canRegisterForShow — DATE-column timezone boundary', () => {
   it('blocks anonymous (null) users', () => {
     vi.setSystemTime(new Date('2026-05-14T22:00:00-04:00'));
     expect(canRegisterForShow(null, makeShow({}))).toBe(false);
+  });
+
+  it('blocks registration the day before entries open', () => {
+    // 10pm the evening before entries open. entryOpenDate is a bare DATE column,
+    // so toLocalDate reads it as local midnight of the open day — the whole
+    // evening before must stay blocked, mirroring entryStatusUtils' not_yet_open.
+    vi.setSystemTime(new Date('2026-05-09T22:00:00-04:00'));
+    const show = makeShow({
+      entryOpenDate: '2026-05-10',
+      startDate: '2026-05-20',
+      entryCloseDate: '2026-05-19',
+    });
+    expect(canRegisterForShow(authedUser, show)).toBe(false);
+  });
+
+  it('allows registration from the morning entries open', () => {
+    // Same show, now the morning of the open date — the open guard must not
+    // over-block once local midnight of the open day has passed.
+    vi.setSystemTime(new Date('2026-05-10T09:00:00-04:00'));
+    const show = makeShow({
+      entryOpenDate: '2026-05-10',
+      startDate: '2026-05-20',
+      entryCloseDate: '2026-05-19',
+    });
+    expect(canRegisterForShow(authedUser, show)).toBe(true);
   });
 });

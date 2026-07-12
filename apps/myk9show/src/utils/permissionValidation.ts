@@ -108,9 +108,15 @@ export function canRegisterForShow(user: UserWithRoles | null, show: Show): bool
   // local midnight — raw `new Date(...)` reads them as UTC midnight (the evening
   // before in US timezones), blocking registration a day early. Entry close is
   // inclusive through the whole close day, mirroring entryStatusUtils.
+  const entryOpen = toLocalDate(show.entryOpenDate);
   const showStart = toLocalDate(show.startDate);
   const entryCloseEndOfDay = toLocalDate(show.entryCloseDate);
   entryCloseEndOfDay.setHours(23, 59, 59, 999);
+
+  // Entries must have opened. entryOpenDate is local midnight of the open day,
+  // so the whole open day onward is allowed — mirrors entryStatusUtils'
+  // not_yet_open (canEnter: false) branch for `now < openDate`.
+  if (now < entryOpen) return false;
 
   // Show must not have started, and entries must still be open
   if (showStart <= now || entryCloseEndOfDay < now) return false;

@@ -142,6 +142,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
             preEntryFee: currentShow.preEntryFee || '0',
             dayOfShowFee: currentShow.dayOfShowFee,
             startDate: currentShow.startDate,
+            entryOpenDate: currentShow.entryOpenDate,
             entryCloseDate: currentShow.entryCloseDate,
           },
           currentStep,

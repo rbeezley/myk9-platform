@@ -1,11 +1,19 @@
 import type { WorkflowMode } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
+import { getTrialTimezone } from '@/features/registries';
 import { formatDateLocal, parseLocalDateString } from '@/utils/dateLocal';
+
+export interface EntryWindowTrial {
+  id?: string | null | undefined;
+  date?: string | null | undefined;
+  timezone?: string | null | undefined;
+}
 
 export interface EntryCloseSubmitGuardContext {
   startDate?: string | null | undefined;
   entryOpenDate?: string | null | undefined;
   entryCloseDate?: string | null | undefined;
   today?: string | undefined;
+  entryWindowTimezone?: string | undefined;
   isLateEntryMode: boolean;
   workflowMode: WorkflowMode;
 }
@@ -23,9 +31,48 @@ function parseCalendarDate(value?: string | null): Date | undefined {
   return parseLocalDateString(value.split('T')[0] ?? value);
 }
 
+function compareTrialOrder(a: EntryWindowTrial, b: EntryWindowTrial): number {
+  const aDate = a.date ?? null;
+  const bDate = b.date ?? null;
+  if (aDate && bDate && aDate !== bDate) return aDate.localeCompare(bDate);
+  if (aDate && !bDate) return -1;
+  if (!aDate && bDate) return 1;
+  return (a.id ?? '').localeCompare(b.id ?? '');
+}
+
+export function getEntryWindowTimezone(trials?: readonly EntryWindowTrial[] | null): string {
+  if (!trials || trials.length === 0) return getTrialTimezone(undefined);
+  const primaryTrial = [...trials].sort(compareTrialOrder)[0];
+  return getTrialTimezone(primaryTrial);
+}
+
+function formatDateInTimeZone(now: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find(part => part.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+function currentEntryWindowDate(
+  today: string | undefined,
+  timeZone: string | undefined
+): Date | undefined {
+  if (today) return parseCalendarDate(today);
+  const dateOnly = timeZone
+    ? formatDateInTimeZone(new Date(), timeZone)
+    : formatDateLocal(new Date());
+  return parseCalendarDate(dateOnly);
+}
+
 export function getEntryCloseSubmitBlocker({
   entryCloseDate,
   today,
+  entryWindowTimezone,
   isLateEntryMode,
 }: EntryCloseSubmitGuardContext): string | null {
   if (isLateEntryMode) return null;
@@ -33,7 +80,7 @@ export function getEntryCloseSubmitBlocker({
   const closeDate = parseCalendarDate(entryCloseDate);
   if (!closeDate) return null;
 
-  const currentDate = parseCalendarDate(today ?? formatDateLocal(new Date()));
+  const currentDate = currentEntryWindowDate(today, entryWindowTimezone);
   if (!currentDate) return null;
 
   if (currentDate.getTime() > closeDate.getTime()) {
@@ -53,6 +100,7 @@ export function getEntryCloseSubmitBlocker({
 export function getEntryOpenSubmitBlocker({
   entryOpenDate,
   today,
+  entryWindowTimezone,
   workflowMode,
 }: EntryCloseSubmitGuardContext): string | null {
   // Only RBAC-derived organizer workflows are exempt. `isLateEntryMode` is
@@ -64,7 +112,7 @@ export function getEntryOpenSubmitBlocker({
   const openDate = parseCalendarDate(entryOpenDate);
   if (!openDate) return null;
 
-  const currentDate = parseCalendarDate(today ?? formatDateLocal(new Date()));
+  const currentDate = currentEntryWindowDate(today, entryWindowTimezone);
   if (!currentDate) return null;
 
   if (currentDate.getTime() < openDate.getTime()) {

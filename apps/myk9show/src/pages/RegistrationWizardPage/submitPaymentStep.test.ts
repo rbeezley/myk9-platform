@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { submitPaymentStep, type SubmitPaymentStepContext } from './submitPaymentStep';
 import { PaymentStatus } from '@/types/show-registration-types';
 
@@ -108,6 +108,10 @@ describe('submitPaymentStep', () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('clears non-card cart lines after submit success and before sync', async () => {
     const { ctx, order } = makeContextAndOrder();
 
@@ -151,6 +155,29 @@ describe('submitPaymentStep', () => {
     expect(ctx.cart.clearCart).not.toHaveBeenCalled();
     expect(notificationErrorMock).toHaveBeenCalledWith(
       'Entries are closed for this show. Contact the trial secretary for late-entry help.'
+    );
+  });
+
+  it('blocks before open using the show timezone, not the browser day', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-10T04:30:00.000Z'));
+    const { ctx } = makeContextAndOrder({
+      showFeeInfo: {
+        preEntryFee: '25',
+        startDate: '2026-08-01',
+        entryOpenDate: '2026-07-10',
+        entryCloseDate: '2026-07-20',
+        entryWindowTimezone: 'America/Los_Angeles',
+      },
+    });
+
+    await submitPaymentStep(ctx);
+
+    expect(submitRegistrationCartCheckoutMock).not.toHaveBeenCalled();
+    expect(submitShowRegistrationMock).not.toHaveBeenCalled();
+    expect(ctx.cart.clearCart).not.toHaveBeenCalled();
+    expect(notificationErrorMock).toHaveBeenCalledWith(
+      'Entries have not opened yet for this show. Check back on the entry open date.'
     );
   });
 

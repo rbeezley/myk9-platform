@@ -50,6 +50,7 @@ export interface PaymentStepShowFeeInfo {
   startDate: string;
   entryOpenDate?: string | undefined;
   entryCloseDate?: string | undefined;
+  entryWindowTimezone?: string | undefined;
 }
 
 export interface SubmitPaymentStepContext {
@@ -110,6 +111,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       startDate: ctx.showFeeInfo.startDate,
       entryOpenDate: ctx.showFeeInfo.entryOpenDate,
       entryCloseDate: ctx.showFeeInfo.entryCloseDate,
+      entryWindowTimezone: ctx.showFeeInfo.entryWindowTimezone,
       isLateEntryMode: ctx.isLateEntryMode,
       workflowMode: ctx.currentWorkflowMode,
     });

@@ -27,6 +27,7 @@ export interface ShowTrial {
   date: string;
   trialNumber: string;
   status: string;
+  timezone?: string | null | undefined;
   trialType?: string | undefined;
   classes?: Class[] | undefined;
   // Entry limits

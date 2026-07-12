@@ -9,7 +9,11 @@ beforeAll(() => {
   process.env.TZ = 'America/Chicago';
 });
 afterAll(() => {
-  process.env.TZ = ORIGINAL_TZ;
+  // Restore exactly — assigning an undefined ORIGINAL_TZ would coerce to the
+  // string "undefined" (an invalid zone Node treats as UTC) and leak into other
+  // test files sharing this vitest worker.
+  if (ORIGINAL_TZ === undefined) delete process.env.TZ;
+  else process.env.TZ = ORIGINAL_TZ;
 });
 
 describe('toLocalDateOnly', () => {

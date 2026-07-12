@@ -1,7 +1,7 @@
 # Plan — Class Status Auto-Derivation (Stub)
 
 **Date:** 2026-05-22
-**Status:** **Stub.** Not yet drafted in detail. Pre-work required (PO interview on edge-case rules) before full plan can be written.
+**Status:** **Ready to draft.** PO interview complete (2026-07-12) — all six edge-case rules locked (recommendations accepted as-is), override-marker design point and candidate (A) trigger confirmed. The remaining "When to draft" gates are met; full plan can now be written.
 **Status note (2026-07-02):** the *presentation* side landed via the UX walk remediation plan's task 2.B — `@myk9/core` now exports the canonical lifecycle label triple (`CLASS_DISPLAY_STATUS_LABELS`: "Not started" / "In Progress" / "Completed", via `getClassDisplayStatusLabel` over the existing `getClassDisplayStatus`), the trial composite line (`deriveTrialCompositeStatus`), and the draft-show chip gate (`shouldShowClassLifecycleChips`). Auto-*derivation* of the stored status from scoring events (this plan's actual subject) remains open; when drafted, it should treat `getClassDisplayStatus` as the derivation to formalize server-side.
 **Companion plan:** [`plan-show-map-workbench-collapse.md`](archive/plan-show-map-workbench-collapse.md) (Option B — archived; link verified 2026-07-12). Phase B2b includes a future-proofing note for this work.
 **Status note (2026-07-12):** confirmed still the day-of cluster's only genuinely open design decision (day-of consolidation pass, `docs/improve-audit-2026-07-11/008-secretary-dayof-plan-consolidation.md`). Remaining scope is **server-side derivation only** — the presentation half shipped 2026-07-02 (above). Unblocking needs the PO interview tracked in `OPEN-TODOS.md` → "Class-Status PO decision aid (#3)".
@@ -95,21 +95,21 @@ Drafted so the interview becomes a 5-minute confirm/override pass instead of a d
 > **The override marker.** If status is *derived* (recomputed from scoring data), a manual "Mark Complete" would be silently flipped back by the next recompute. So manual actions must set an explicit override marker (e.g. `classes.status_override` or a `status_source: 'manual' | 'derived'` column) that derivation respects. "Manual override remains available" is only true if this exists — it is the one schema addition the full plan must include.
 
 1. **What counts as "expected to score"?** — **Recommend:** expected = every entry not scratched/withdrawn. An entry is *accounted for* when it has a terminal outcome: `is_scored`, or `result_status` in the absent/excused/DQ family. Check-in states (`at-gate`, `come-to-gate`) are transient and never exclude an entry — an absent dog is a scoring outcome to record, not a dog to stop waiting for. Complete = all expected entries accounted for.
-   - [ ] Accept  [ ] Override: ________
+   - [x] Accept  [ ] Override: ________
 2. **Does briefing trigger `active`?** — **Recommend: no.** First scoring event (first `is_scored`/`scoring_started_at` write) triggers `active`. Briefing time stays informational metadata. Tradeoff: a class in briefing shows "Not started" for a few extra minutes; in exchange, derivation watches ONE write path and never flaps when briefing times are pre-entered during setup. Manual "Mark Started" (with override marker) covers a judge who wants the board to show active during a long briefing.
-   - [ ] Accept  [ ] Override: ________
+   - [x] Accept  [ ] Override: ________
 3. **Re-judge / score deletion flip-back?** — **Recommend: yes** (the stub's own default). Status is a pure recompute from current data: delete a score from a complete class → back to `active`; new score lands → `complete` again. No special-case event logic; the recompute IS the rule.
-   - [ ] Accept  [ ] Override: ________
+   - [x] Accept  [ ] Override: ________
 4. **Empty class (0 entries)?** — **Recommend:** stays `neutral` (never auto-starts, never auto-completes). Formal closeout of empty classes is the manual "Mark Complete" override — which now sticks, thanks to the override marker. Optionally revisit auto-closing empty classes as part of trial wrap-up later; not in v1.
-   - [ ] Accept  [ ] Override: ________
+   - [x] Accept  [ ] Override: ________
 5. **Weather cancellation / early closeout?** — **Recommend:** manual "Mark Complete" with the override marker; derivation stops recomputing that class. Unscored entries keep whatever terminal state the secretary assigns (or none — the closeout report shows them as unscored).
-   - [ ] Accept  [ ] Override: ________
+   - [x] Accept  [ ] Override: ________
 6. **Late entry added to a `complete` class?** — **Recommend:** reactive flip-back to `active` — and this **clears a manual override** if one was set, plus raises an attention flag on the class (the secretary who force-closed it needs to know new work appeared). A late entry silently hiding under a closed class is the worse failure.
-   - [ ] Accept  [ ] Override: ________
+   - [x] Accept  [ ] Override: ________
 
 **Implementation candidate — recommend (A) Supabase trigger, with two 2026-07 corrections to the table above:** candidate (B) "myK9Q application logic" is void — `apps/myk9q` was deleted; scoring now flows through `/at-show` → `ringside_update_entry` RPC → `entries` writes, which strengthens (A): a trigger on `entries` catches every scoring path (RPC, direct manager UPDATE, future paths) with no app coupling. The trigger should formalize the existing client-side `getClassDisplayStatus` derivation (per the 2026-07-02 status note) so client and server agree by construction. Note the scoring-completion trigger precedent (`20260525170000`, placement recalc) — same fire conditions; consider extending it rather than adding a second trigger on the same columns (trigger-ordering hazard).
 
-When the boxes are checked, the full plan can be drafted per the "When to draft" gates — prerequisite 2 (workbench stability) is long met; only the interview remains.
+All six boxes are checked (PO interview 2026-07-12, recommendations accepted). The "When to draft" gates are now satisfied: prerequisite 1 (edge-case rules locked) done here, prerequisite 2 (workbench stability) long met, prerequisite 3 (candidate chosen) = (A) Supabase trigger. The full plan can be drafted next.
 
 ## Decision log
 
@@ -117,3 +117,4 @@ When the boxes are checked, the full plan can be drafted per the "When to draft"
 |---|---|---|
 | 2026-05-22 | Stub created during Option B review session. PO observed that class status transitions are derivable from scoring events; full plan deferred until PO interview locks edge-case rules. | This session |
 | 2026-07-11 | Proposed answers drafted for all six questions + override-marker design point + candidate (B) voided (myK9Q deleted). Awaiting owner check-boxes. | Fable audit session |
+| 2026-07-12 | **PO interview complete.** Owner accepted all six recommendations as-is (no overrides): Q1 expected=not-scratched/withdrawn + terminal-outcome accounting; Q2 no briefing-trigger (first score → active); Q3 flip-back on delete/re-judge; Q4 empty class stays neutral; Q5 weather/early closeout via manual override marker; Q6 late entry flips back to active, clears override, raises attention flag. Override-marker column (`status_source`/`status_override`) confirmed required. Implementation candidate locked = **(A) Supabase trigger** on `entries` writes, extending precedent `20260525170000`. Stub status → Ready to draft. | todo-next PO confirm pass |

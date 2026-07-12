@@ -1,0 +1,15 @@
+-- Advisor disposition sweep (plan docs/improve-audit-2026-07-11/009) — keep-list correction.
+--
+-- The Verdict-2 revoke (20260712140000) derived its anon keep-list from function references in
+-- anon/public POLICY quals. That missed one path: the SECURITY DEFINER view
+-- view_public_entry_results (the anon public-results read) calls resolve_class_result_visibility()
+-- in its SELECT expressions. EXECUTE privilege is always checked against the CALLING role (anon) —
+-- SECURITY DEFINER changes the runtime role inside the body, not who may invoke it — so anon needs
+-- EXECUTE on that helper. Cold-session verification caught this: anon reads of
+-- view_public_entry_results returned "42501: permission denied for function
+-- resolve_class_result_visibility" post-revoke.
+--
+-- Verified live 2026-07-12: only the PUBLIC view calls this helper for anon; can_manage_show and
+-- ringside_claim_generation_current are referenced solely by view_authenticated_entry_results
+-- (staff-only, never read by the anon role), so they stay anon-revoked.
+GRANT EXECUTE ON FUNCTION public.resolve_class_result_visibility(uuid) TO anon;

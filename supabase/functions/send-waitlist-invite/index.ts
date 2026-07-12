@@ -16,6 +16,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { assertWaitlistInviteSecret, resolveWaitlistInviteDecision } from './auth.ts';
 
 const SITE_URL = Deno.env.get('SITE_URL') || 'https://myk9-platform-myk9show.vercel.app';
@@ -131,7 +132,7 @@ handle<InvitePayload>(
     const firstName = (row.name ?? '').trim().split(/\s+/)[0] ?? '';
     const html = buildInviteHtml(firstName, linkData.properties.action_link);
 
-    const resendRes = await fetch('https://api.resend.com/emails', {
+    const resendRes = await sendResendEmailWithRetry({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

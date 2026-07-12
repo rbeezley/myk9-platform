@@ -5,6 +5,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import {
   assertSendResultsAuthorization,
   deriveResultsAddresses,
@@ -84,7 +85,7 @@ handle<SendResultsPayload>(
     // authenticated caller's own email — never the request body.
     const { secretaryEmail } = deriveResultsAddresses(show, callerEmail);
 
-    const resendRes = await fetch('https://api.resend.com/emails', {
+    const resendRes = await sendResendEmailWithRetry({
       method: 'POST',
       headers: {
         Authorization: `Bearer ${resendApiKey}`,

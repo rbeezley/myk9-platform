@@ -14,6 +14,8 @@ The existing `/admin/health` page, `operator_alerts` table, go-live runbook, and
 - Prevent FORCE-RLS and database privilege posture from drifting silently.
 - Account for every advisor entry by exact object identity.
 - Keep operator and shared-system gates honest and evidence-backed.
+- Prevent short Resend throttles or outages from dropping launch-critical transactional email on the first attempt.
+- Give simultaneous show openings headroom for up to 1,000 Supabase Auth emails/hour after the Resend paid-plan prerequisite is evidenced.
 
 **Non-Goals:**
 
@@ -21,6 +23,7 @@ The existing `/admin/health` page, `operator_alerts` table, go-live runbook, and
 - No changes to Stripe architecture, offline replication, show-day scoring, or payments semantics.
 - No blanket function revocation, permissive placeholder RLS policy, or extension-owned object mutation.
 - No production database push, function deployment, secret rotation, dashboard edit, live-money action, data deletion, DNS change, or PR merge without the required confirmation.
+- No durable email outbox, new queueing service, new email UI, bulk-marketing workflow, or silent retry of permanent Resend 4xx errors in this slice.
 
 ## Decisions
 
@@ -58,6 +61,20 @@ Alternative rejected: a blanket revoke sweep, which would break intentional anon
 
 Shared push authentication rejects missing, malformed, wrong-length, and wrong-value credentials with a constant-time comparison. All shared and inline `SUPABASE_SERVICE_ROLE_KEY` fallbacks are removed only after read-only evidence proves the Vault and function secret match and an approved rotate/deploy sequence is ready. A request signed only with the service-role key must fail.
 
+### Use bounded in-request Resend retries with content-safe idempotency
+
+All ten production call sites that post directly to `https://api.resend.com/emails` use a shared `sendResendEmailWithRetry` contract. The helper accepts only a JSON string body so the exact bytes sent can be hashed before the first attempt. It makes at most three total attempts. It retries non-abort network exceptions, HTTP 408, HTTP 429, and HTTP 5xx responses; an `AbortError` or already-aborted caller signal stops immediately, and all other 4xx responses return immediately to the existing caller-specific failure path. It honors `Retry-After` delta-seconds or HTTP-date values, capped at 2,000 ms per wait so the Auth Send Email Hook and synchronous Edge callers do not exceed their practical request windows. Without a valid header it uses exponential fallback waits of 250 ms and 500 ms plus bounded jitter. Fetch, sleep, clock, randomness, and a structured retry observer are injectable so lifecycle-email's existing seam remains intact and unit tests never use real time or network traffic. Production retry telemetry contains only attempt number, response status or `network_error`, and bounded delay; it never contains message or credential data.
+
+Every attempt for one logical send reuses the same `Idempotency-Key`. Existing business keys remain authoritative. When a caller has no key, the helper derives `myk9-<sha256>` from the exact request body, so the key contains no raw recipient, token, subject, or message data and an uncertain network response cannot produce a duplicate on retry. Intermediate response bodies are discarded without logging secrets. After exhaustion the final `Response` or final network error is returned/thrown exactly once so each caller preserves its existing status, database log, durable alert, or best-effort behavior.
+
+The repository has two independently deployed Supabase roots. The root implementation lives at `supabase/functions/_shared/resendEmail.ts`; the myK9Show deployment root carries an identical mirror at `apps/myk9show/supabase/functions/_shared/resendEmail.ts`. A byte-parity/source-contract test prevents drift and forbids raw Resend email fetches outside those two helpers. This controlled mirror is preferred to an import that escapes `--workdir apps/myk9show`, which would make production bundling depend on files outside that deployment root.
+
+Alternative deferred: a durable database outbox and worker would survive invocation termination and long provider outages, but it changes synchronous delivery semantics and requires migrations, scheduling, reconciliation, and operator UI. Alternative rejected: ten local retry loops, which would duplicate security-sensitive timing and idempotency behavior.
+
+### Set Auth email capacity from launch demand, after provider capacity
+
+The target production `rate_limit_email_sent` is 1,000/hour, shared across Supabase Auth email endpoints. The operator first upgrades Resend Transactional from Free and records the paid monthly quota, no-daily-limit status, and team request rate. Only then may an approved Management API PATCH change the Auth limit from 100 to 1,000, followed by a read-back that proves SMTP, Send Email Hook, production `site_url`, and sender configuration are unchanged. Entry confirmations and other direct Edge emails do not consume the Supabase Auth 1,000/hour pool, but they do share the same Resend team quota and request-rate pool.
+
 ## Risks / Trade-offs
 
 - **Health root cause differs from the source hypothesis** → preserve diagnosis evidence and patch only the proven layer; keep the watchdog because silent delivery failure remains possible.
@@ -67,6 +84,13 @@ Shared push authentication rejects missing, malformed, wrong-length, and wrong-v
 - **Results-view rewrite changes visibility or query plans** → retain current definitions as rollback material and prefer a time-bounded documented exception if a narrower design is not proven safe.
 - **Uncommitted July 11 reports are not present on the feature branch** → do not overwrite them; stage tracking updates only after their source commits are integrated or record the exact pending patch.
 - **External gates remain incomplete** → keep them owner-action/blocked with owner, evidence needed, and deadline; source-only work never closes them.
+- **Retries duplicate a message after an ambiguous network failure** → reuse an explicit or content-derived hashed Resend idempotency key on every attempt.
+- **Retry sleeps exceed the Auth-hook window** → cap each `Retry-After` wait at 2 seconds and stop after three total attempts.
+- **Permanent provider errors waste capacity** → never retry 400, 401, 403, 409, 422, or other non-408 4xx responses.
+- **The two deploy roots drift** → keep the portable helper byte-identical and enforce parity plus a repository-wide no-raw-fetch contract.
+- **Auth capacity exceeds provider capacity** → keep the 1,000/hour PATCH blocked until the paid Resend plan and live quota/rate evidence exist.
+- **An invocation is cancelled while retrying** → treat `AbortError` and an aborted signal as terminal and never sleep or issue another request.
+- **Retry behavior is invisible during a launch spike** → emit structured attempt/status/delay telemetry without recipient, content, token, authorization, or idempotency data.
 
 ## Migration Plan
 
@@ -75,13 +99,16 @@ Shared push authentication rejects missing, malformed, wrong-length, and wrong-v
 3. Land mechanical security fixes, FORCE-RLS invariant, throttling, and push-auth changes in reviewable slices with focused tests and rollback notes.
 4. Export and classify advisors, then land only evidence-backed grants/search-path/storage/view changes. Preserve a restoration migration or exact rollback SQL.
 5. Run full local validation, second-opinion security review, OpenSpec verification, PR checks, and CI.
-6. After explicit approval, apply database/function/secret/dashboard changes in dependency order, run live catalog and smoke checks, and record redacted evidence.
-7. Update the July 11 reports, backlog, runbook, scorecard, and docs index; archive only after every implementation PR merges and all remaining gates are explicitly recorded.
+6. Land the bounded Resend retry helper and migrate all ten call sites with focused tests and bundle/source-contract verification; deploy no function without approval.
+7. After explicit approval, apply database/function/secret/dashboard changes in dependency order, run live catalog and smoke checks, and record redacted evidence.
+8. After the operator upgrades Resend, PATCH the Auth ceiling to 1,000/hour with backup/read-back evidence and no unrelated Auth-config changes.
+9. Update the July 11 reports, backlog, runbook, scorecard, and docs index; archive only after every implementation PR merges and all remaining gates are explicitly recorded.
 
-Rollback uses forward migrations or the exact SQL recorded per slice; prior view definitions and grant matrices are retained. A failed health repair leaves the board red and the independent alert active. Database push stops on unexpected migration history.
+Rollback uses forward migrations or the exact SQL recorded per slice; prior view definitions and grant matrices are retained. Resend retry rollback redeploys the exact previous version of each affected function, then re-runs ordinary auth, registration, and operator-alert smokes; it never disables provider idempotency or changes the Auth rate. A failed health repair leaves the board red and the independent alert active. Database push stops on unexpected migration history.
 
 ## Open Questions
 
 - Which external cron-monitor provider and named human route will the operator approve? The repository will prepare Sentry as the default because it is already integrated.
 - Will the two results views remain documented exceptions or be narrowed? The access matrix and query-plan comparison decide this before any migration.
 - Which production-data strategy will the operator choose: scrub in place, fresh project, or another documented target state?
+- Which paid Resend Transactional tier will the operator select before the 1,000/hour Auth ceiling is applied? The minimum acceptable evidence is no daily quota, sufficient monthly volume for simultaneous show openings, and the current team request rate.

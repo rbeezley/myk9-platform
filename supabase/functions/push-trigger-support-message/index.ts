@@ -4,6 +4,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 
 interface SupportMessageRecord {
   id: string;
@@ -192,7 +193,7 @@ async function sendSupportEmails(args: {
   const url = `${siteUrl}${args.actionUrl}`;
   let sent = 0;
   for (const recipient of args.recipients.filter(r => r.email)) {
-    const response = await fetch('https://api.resend.com/emails', {
+    const response = await sendResendEmailWithRetry({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

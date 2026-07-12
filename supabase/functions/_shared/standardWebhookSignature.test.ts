@@ -138,6 +138,24 @@ describe('Standard-Webhooks signature verification', () => {
     expect(result).toEqual({ ok: true, status: 200 });
   });
 
+  it('rejects a correct HMAC without the required v1 version prefix', async () => {
+    const body = '{"type":"signup"}';
+    const signature = await sign(body, 'msg_1', '1000');
+
+    const result = await verifyStandardWebhookSignature({
+      headers: new Headers({
+        'webhook-id': 'msg_1',
+        'webhook-timestamp': '1000',
+        'webhook-signature': signature.replace(/^v1,/, ''),
+      }),
+      body,
+      secret,
+      nowMs: 1_000_000,
+    });
+
+    expect(result).toEqual({ ok: false, status: 401, message: 'Invalid signature' });
+  });
+
   it('accepts hook secrets copied from the Supabase dashboard with a v1 prefix', async () => {
     const body = '{"type":"signup"}';
     const signature = await sign(body, 'msg_1', '1000');

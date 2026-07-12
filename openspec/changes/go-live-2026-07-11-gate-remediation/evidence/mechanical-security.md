@@ -17,8 +17,8 @@ behavior/contract failures:
 ## GREEN
 
 - `verifyStandardWebhookSignature` now rejects non-decimal or unsafe-integer timestamps, retains
-  the five-minute skew window, evaluates every supplied signature, and compares through the shared
-  `timingSafeEqual` primitive.
+  the five-minute skew window, ignores non-`v1`/unversioned signature candidates, evaluates every
+  valid versioned signature, and compares through the shared `timingSafeEqual` primitive.
 - `requirePushWebhookSecret` uses the same primitive for complete bearer comparison. The existing
   service-role fallback is intentionally unchanged in this slice; SA-029 remains task 8 and is
   gated on dedicated-secret alignment and coordinated deployment.
@@ -29,7 +29,7 @@ behavior/contract failures:
 
 Verification:
 
-- focused Edge tests: 16 passed;
+- focused Edge tests: 17 passed;
 - focused client tests: 2 passed;
 - full myK9Show unit suite: passed;
 - `pnpm typecheck`: 26/26 tasks passed; and

@@ -33,8 +33,8 @@ function parseSignatureHeader(header: string): string[] {
   return header
     .split(' ')
     .map(part => part.trim())
-    .filter(Boolean)
-    .map(part => part.replace(/^v1,/, ''));
+    .filter(part => part.startsWith('v1,'))
+    .map(part => part.slice('v1,'.length));
 }
 
 export async function verifyStandardWebhookSignature({

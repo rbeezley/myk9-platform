@@ -183,15 +183,8 @@ describe('sendResendEmailWithRetry', () => {
 
     await vi.waitFor(() => expect(cancel).toHaveBeenCalledTimes(1));
     controller.abort();
-    const outcome = await Promise.race([
-      pending.then(
-        () => 'resolved',
-        error => error as unknown
-      ),
-      new Promise<'timeout'>(resolve => setTimeout(() => resolve('timeout'), 50)),
-    ]);
 
-    expect(outcome).toMatchObject({ name: 'AbortError' });
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
@@ -259,6 +252,50 @@ describe('sendResendEmailWithRetry', () => {
 
     expect(sleep).toHaveBeenCalledWith(250);
   });
+
+  it('clamps an overflowing delta-seconds Retry-After value to 2000 ms', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('rate limited', {
+          status: 429,
+          headers: { 'Retry-After': '9'.repeat(400) },
+        })
+      )
+      .mockResolvedValueOnce(Response.json({ id: 'email-after-overflowing-header' }));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+
+    await sendResendEmailWithRetry(
+      { method: 'POST', body: JSON.stringify({ to: 'recipient@example.com' }) },
+      { fetchImpl, sleep, random: () => 0, onRetry: vi.fn() }
+    );
+
+    expect(sleep).toHaveBeenCalledWith(2000);
+  });
+
+  it.each(['Sunday, 06-Nov-94 08:49:37 GMT', 'Sun Nov  6 08:49:37 1994'])(
+    'parses the legacy HTTP-date Retry-After format %s',
+    async retryAfter => {
+      const now = Date.UTC(1994, 10, 6, 8, 49, 35);
+      const fetchImpl = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response('rate limited', {
+            status: 429,
+            headers: { 'Retry-After': retryAfter },
+          })
+        )
+        .mockResolvedValueOnce(Response.json({ id: 'email-after-legacy-date' }));
+      const sleep = vi.fn().mockResolvedValue(undefined);
+
+      await sendResendEmailWithRetry(
+        { method: 'POST', body: JSON.stringify({ to: 'recipient@example.com' }) },
+        { fetchImpl, sleep, now: () => now, random: () => 0, onRetry: vi.fn() }
+      );
+
+      expect(sleep).toHaveBeenCalledWith(2000);
+    }
+  );
 
   it('emits PII-free structured retry telemetry by default', async () => {
     const fetchImpl = vi

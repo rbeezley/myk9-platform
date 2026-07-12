@@ -28,6 +28,20 @@ function fallbackDelayMs(attempt: number, random: () => number): number {
   return baseMs + jitterMs;
 }
 
+function isHttpDate(value: string): boolean {
+  return (
+    /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(
+      value
+    ) ||
+    /^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), \d{2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2} \d{2}:\d{2}:\d{2} GMT$/.test(
+      value
+    ) ||
+    /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (?: [1-9]|[12]\d|3[01]) \d{2}:\d{2}:\d{2} \d{4}$/.test(
+      value
+    )
+  );
+}
+
 function retryAfterDelayMs(
   response: Response,
   attempt: number,
@@ -36,15 +50,13 @@ function retryAfterDelayMs(
 ): number {
   const value = response.headers.get('Retry-After');
   if (value) {
-    const seconds = /^\d+$/.test(value) ? Number(value) : Number.NaN;
-    if (Number.isFinite(seconds)) {
-      return Math.min(MAX_RETRY_DELAY_MS, seconds * 1000);
+    if (/^\d+$/.test(value)) {
+      const seconds = Number(value);
+      return Number.isFinite(seconds)
+        ? Math.min(MAX_RETRY_DELAY_MS, seconds * 1000)
+        : MAX_RETRY_DELAY_MS;
     }
-    if (
-      /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(
-        value
-      )
-    ) {
+    if (isHttpDate(value)) {
       const retryAt = Date.parse(value);
       if (Number.isFinite(retryAt)) {
         return Math.min(MAX_RETRY_DELAY_MS, Math.max(0, retryAt - now()));

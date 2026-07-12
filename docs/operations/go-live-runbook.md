@@ -389,7 +389,9 @@ the Edge runner. Do not treat either as live until its approval-gated steps belo
       the function must not upsert it.
 - [ ] **Deploy check-ins:** with approval, set the Supabase-side `SENTRY_DSN` and matching
       `SENTRY_ENVIRONMENT` secrets, then deploy with
-      `supabase functions deploy cron-health-check --no-verify-jwt --workdir apps/myk9show`.
+      `supabase functions deploy cron-health-check --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt --workdir apps/myk9show`.
+      Confirm the CLI output says `Deployed Functions on project sojmvhhwsjxmfistvzbe` before
+      treating the deployment as evidence.
       Manually dispatch once and record correlated `in_progress` → `ok` evidence. A failed probe
       that persists a `fail` snapshot is still an `ok` delivery check-in; the snapshot owns health
       status.

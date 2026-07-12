@@ -104,21 +104,24 @@ Auto-fixable: 4 of 7 findings
 - **SA-021:** repository migration, invariant, database push, and live zero-row FORCE-RLS verifier
   are complete; the original five-table count was corrected to four extant tables because
   `unified_ringside_overrides` had already been dropped.
-- **SA-023 / SA-028 / SA-030:** repository remediation merged in PR #1285 with red-first focused
-  tests, full typecheck, lint, and independent-review evidence. These rows are not recorded as
-  deployed until the applicable hosted/Edge revisions are live.
-- **SA-024:** repository remediation merged in PR #1286 with a Deno-free fail-closed gate, 11
-  focused tests, full typecheck, lint, and independent-review evidence. It remains open until
-  deployment of `validate-passcode` and controlled healthy/429/503 runtime evidence.
-- **SA-025:** repository remediation is code-complete with an atomic service-only migration,
-  Deno-free paid-model gate, 15 direct red-first tests, full typecheck, and lint evidence. It
-  remains open until review/merge, the approved migration push and `generate-premium` deployment,
-  and controlled live catalog/concurrency/429/503 evidence.
-- **SA-029:** repository remediation is prepared with matching redacted Vault/Edge secret digests,
-  a complete five-function caller/deployment manifest, shared constant-time dedicated-secret-only
-  authentication, and 17 red-first focused tests. It remains open until review/merge, deployment
-  of all five push-trigger functions, and controlled dedicated-secret/service-role rejection
-  runtime evidence.
+- **SA-023 / SA-028 / SA-030:** remediated in PR #1285. `resend-webhook` is deployed and rejects
+  missing signatures and malformed timestamps with 401; all five push-trigger functions bundle
+  the shared constant-time helper; the DEV-only mock-user guard is merged on `main` and requires
+  no Edge deployment.
+- **SA-024:** remediated in PR #1286 and deployed 2026-07-12. Live proof covered the healthy
+  limiter path (invalid passcode 401), exhaustion (429), and a controlled limiter failure (503)
+  before validation. The failure created a durable operator alert, the alert was resolved after
+  recovery, the RPC grant was restored, and no tagged smoke rows remain.
+- **SA-025:** remediated in PR #1287 and deployed 2026-07-12. The limiter migration is live with
+  FORCE RLS, enforcement/retention/show indexes, service-only RPC execution, and the active 04:15
+  UTC prune job. `generate-premium` returned the expected exhausted 429 and controlled-failure
+  503 without reaching Claude. A live fifth/sixth race produced exactly one allowed fifth attempt
+  and one denied sixth attempt; test rows were removed. A paid successful generation remains an
+  operator-approved money/cost smoke, not an open security defect.
+- **SA-029:** remediated in PR #1289 and deployed 2026-07-12. Matching redacted Vault/Edge digests
+  meant no rotation was required. All five push-trigger functions accepted inert Vault-backed
+  requests, rejected service-role/wrong-length/missing bearers with 401, and produced no
+  notification.
 
 ## Categories Checked
 

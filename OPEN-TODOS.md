@@ -64,15 +64,15 @@ High-judgment work to prioritize while strong-model access is available. These a
 ## Go-Live Gate Remediation — 2026-07-11
 
 - [~] **Close the July 11 go-live and security-audit findings** — Tracked in OpenSpec change
-  `go-live-2026-07-11-gate-remediation`. Migration lineage (#1280), FORCE-RLS invariant/deployment
-  (#1283), health observability (#1284), and SA-023/028/030 mechanical fixes (#1285) are merged;
-  SA-021 is live-verified. SA-024 merged in #1286 and awaits `validate-passcode` deployment/runtime
-  evidence. SA-025 premium-generation throttling merged in #1287 and awaits its migration push,
-  `generate-premium` deployment, and controlled runtime evidence. SA-029 dedicated push-secret
-  remediation is repository-prepared with aligned redacted digests, a five-function rollout
-  manifest, and red-first tests; review/merge and all five Edge deployments remain open. The
-  remaining agent slice is advisor disposition. Operator/shared-system gates remain open in the
-  runbook.
+  `go-live-2026-07-11-gate-remediation`. All repository/security slices are merged and deployed:
+  lineage #1280, FORCE-RLS #1283, health #1284, mechanical fixes #1285, passcode #1286, premium
+  throttle #1287, dedicated push secret #1289, and advisor sweep #1292/#1293. Live evidence covers
+  passcode healthy/429/503 with alert recovery; premium catalog/concurrency/429/503 without Claude;
+  and five Vault-authenticated inert push smokes plus service-role rejection. Remaining work is
+  operator-owned (SMTP, legal, production data, Stripe live mode, mailbox/AKC, browser/device,
+  Sentry routing, DNS/Vercel) plus a paid premium success smoke if approved. Migration dry-run
+  parity is temporarily integration-blocked because remote `20260712180000`/`190000` are not yet on
+  `main`; do not repair history—rerun after their source branch merges.
 
 ---
 

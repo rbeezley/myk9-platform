@@ -10,7 +10,7 @@ Grounding facts established during exploration:
 - An existing attention system (`apps/myk9show/src/features/show-map/attention.ts`, `getAttentionCountsByNodeId`) renders a class/entry attention count, but the tree's baked `node.attentionCount` is entry-only (`showMapActions.ts:680`); a class-level "reopened" reason is new signal, existing rendering.
 - Client derivation exists in **two** places that must not diverge from the server: `@myk9/core` `getClassDisplayStatus` (`packages/core/src/helpers/class-display-status.ts`) and `@myk9/ringside` `classStatus.ts`.
 
-PO edge-case rules locked 2026-07-12 in `docs/plan-class-status-auto-derivation.md` (that doc is the design/decision record; this change is tracked there via a backlink).
+PO edge-case rules locked 2026-07-12 in `docs/archive/plan-class-status-auto-derivation.md` (that doc is the design/decision record; this change is tracked there via a backlink).
 
 ## Goals / Non-Goals
 

@@ -210,6 +210,10 @@ describe('AskQPanel', () => {
     const { user } = render(<AskQPanel />, { initialRoute: '/at-show/show-1' });
 
     await user.click(screen.getByRole('button', { name: 'This show' }));
+    // Barrier: prove the mode selection has committed before sending. Send reads the
+    // committed `mode` via a captured closure; without this the click can fire against a
+    // stale render where mode is still null and `questionMode: 'show-data'` is dropped.
+    await screen.findByRole('button', { name: 'This show', pressed: true });
     await user.type(
       screen.getByPlaceholderText('Ask about rules, your results, or the app...'),
       'Schedule?'

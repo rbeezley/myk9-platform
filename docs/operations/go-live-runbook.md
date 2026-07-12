@@ -57,13 +57,18 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       SA-018–023, SA-026, and SA-027 as remediated.
 - [ ] **0.1c Complete the 2026-07-11 go-live security remediation** — Migration lineage (#1280),
       FORCE-RLS remediation (#1283), and health observability (#1284) are merged; SA-021 is pushed
-      and live-verified. SA-023/028/030 are repository-complete with focused red-first tests,
-      typecheck, and lint evidence, but remain open until review/merge and applicable hosted/Edge
-      deployment evidence. SA-024/025/029 and advisor disposition remain separate review slices.
+      and live-verified. SA-023/028/030 merged in #1285 and remain applicable-runtime-evidence
+      pending. SA-024 is repository-complete with focused red-first tests, typecheck, and lint, but
+      remains open until review/merge and an approved `validate-passcode` deploy plus controlled
+      allowed/429/503 smoke evidence. SA-025/029 and advisor disposition remain separate slices.
       Owner: Agent for repository work; shared-system/operator steps require approval.
       _Verify:_ [`security-audit-2026-07-11.md`](../security-audit-2026-07-11.md),
       [`launch/go-live-2026-07-11.md`](../launch/go-live-2026-07-11.md), and OpenSpec change
       `go-live-2026-07-11-gate-remediation` agree on every open and deployed row.
+      _SA-024 deploy:_ `supabase functions deploy validate-passcode --project-ref
+      sojmvhhwsjxmfistvzbe --no-verify-jwt`; verify a limiter failure returns 503 before passcode
+      validation and creates one unresolved `validate-passcode` alert, then restore the limiter and
+      verify allowed and blocked 429 behavior. Rollback by redeploying the last-good revision.
 - [x] **0.2 Deploy the `ask-myk9show` fix** — DONE 2026-07-04. The AskQ
       cross-tenant scope-leak fix (#1089) is deployed live. Owner: Agent.
       _Do:_ `supabase functions deploy ask-myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`

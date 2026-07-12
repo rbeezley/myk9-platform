@@ -49,10 +49,11 @@ High-judgment work to prioritize while strong-model access is available. These a
 
 - [~] **Close the July 11 go-live and security-audit findings** — Tracked in OpenSpec change
   `go-live-2026-07-11-gate-remediation`. Migration lineage (#1280), FORCE-RLS invariant/deployment
-  (#1283), and health observability (#1284) are merged; SA-021 is live-verified. SA-023/028/030 are
-  repository-complete with red-first tests and await review/merge plus applicable runtime evidence.
-  Remaining agent slices: passcode limiter failure, premium-generation throttle, dedicated push
-  secret, and advisor disposition. Operator/shared-system gates remain open in the runbook.
+  (#1283), health observability (#1284), and SA-023/028/030 mechanical fixes (#1285) are merged;
+  SA-021 is live-verified. SA-024 passcode-limiter failure handling is repository-complete and
+  awaits review/merge plus `validate-passcode` deployment/runtime evidence. Remaining agent slices:
+  premium-generation throttle, dedicated push secret, and advisor disposition. Operator/shared-
+  system gates remain open in the runbook.
 
 ---
 

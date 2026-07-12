@@ -19,6 +19,26 @@ export function getEntryAttention(entry: EntryLike): AttentionReason | null {
   return null;
 }
 
+// Class-level attention reasons are tracked separately from entry-level
+// AttentionReason: AttentionCounts (consumed by the secretary dashboard
+// strip) is keyed strictly on entry reasons, so widening AttentionReason
+// here would break that indexed lookup for a signal the dashboard doesn't
+// render.
+export type ClassAttentionReason = 'reopened_after_closeout';
+
+export interface ClassLike {
+  reopenedAfterCloseoutAt?: string | null | undefined;
+}
+
+// A class that reopened after being marked complete/closed still needs a
+// secretary's eyes even though no individual entry is itself pending review
+// (the new expected entry may already be scored). This is a class-level
+// attention reason, distinct from getEntryAttention's entry-level reasons.
+export function getClassAttention(cls: ClassLike): ClassAttentionReason | null {
+  if (cls.reopenedAfterCloseoutAt) return 'reopened_after_closeout';
+  return null;
+}
+
 export interface AttentionCounts {
   pending_review: number;
   total: number;

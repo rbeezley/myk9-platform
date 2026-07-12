@@ -558,6 +558,7 @@ describe('ShowMapTab', () => {
     await waitFor(() =>
       expect(mockUpdateClass).toHaveBeenCalledWith('class-1', {
         classStatus: 'In Progress',
+        statusSource: 'manual',
         actual_start_time: expect.any(String),
         isCompleted: false,
       })
@@ -596,6 +597,8 @@ describe('ShowMapTab', () => {
     await waitFor(() =>
       expect(mockUpdateClass).toHaveBeenCalledWith('class-1', {
         classStatus: 'Completed',
+        statusSource: 'manual',
+        reopenedAfterCloseoutAt: null,
         actual_end_time: expect.any(String),
         isCompleted: true,
       })

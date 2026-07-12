@@ -39,6 +39,9 @@ export interface TrialClass {
   status: ClassStatusValue;
   entries: number;
   completedEntries?: number;
+  /** Server-stamped timestamp set when a class is reopened after secretary closeout.
+   *  Drives the show-map class-level attention signal (getClassAttention). */
+  reopenedAfterCloseoutAt?: string | null;
   // Pipeline workflow flags (secretary review/publish flow)
   isScoringFinalized?: boolean | undefined;
   isResultsReviewed?: boolean | undefined;

@@ -41,6 +41,7 @@ export function replicatedToTrialClass(replicated: ReplicatedClass): SyncableTri
     isScoringFinalized: replicated.isScoringFinalized ?? false,
     isResultsReviewed: replicated.isResultsReviewed ?? false,
     displayOrder: replicated.displayOrder,
+    reopenedAfterCloseoutAt: replicated.reopenedAfterCloseoutAt ?? null,
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),
     _lastModifiedBy: replicated._lastModifiedBy || '',

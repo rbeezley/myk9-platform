@@ -55,38 +55,24 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       _Verify:_ the migration is applied, all three functions are ACTIVE at the deployed
       revision, and [`security-audit-2026-07-10.md`](../security-audit-2026-07-10.md) records
       SA-018–023, SA-026, and SA-027 as remediated.
-- [ ] **0.1c Complete the 2026-07-11 go-live security remediation** — Migration lineage (#1280),
-      FORCE-RLS remediation (#1283), and health observability (#1284) are merged; SA-021 is pushed
-      and live-verified. SA-023/028/030 merged in #1285 and remain applicable-runtime-evidence
-      pending. SA-024 merged in #1286 but remains open until an approved `validate-passcode` deploy
-      plus controlled allowed/429/503 smoke evidence. SA-025 merged in #1287 with focused red-first
-      tests, an atomic limiter migration, FORCE RLS, typecheck, and lint, but remains open until an
-      approved migration push and `generate-premium` deploy plus controlled catalog/concurrency/
-      429/503 evidence. SA-029 is repository-prepared with matching redacted
-      Vault/Edge digests, dedicated-secret-only shared authentication, 33 focused tests, and an
-      exact five-function rollout/smoke/rollback manifest; it remains open until review/merge and
-      approval-gated deployment/runtime proof. Advisor disposition remains a separate slice.
+- [x] **0.1c Complete the 2026-07-11 go-live security remediation** — DONE 2026-07-12. PRs
+      #1280/#1283–#1287/#1289/#1292/#1293 are merged. SA-021 is live-verified; `resend-webhook`,
+      `validate-passcode`, `generate-premium`, and all five push-trigger functions are deployed.
+      Runtime evidence covers passcode healthy/429/503 plus alert recovery, premium catalog and
+      concurrent fifth/sixth plus 429/503 without Claude traffic, and five inert Vault-bearer push
+      successes plus service-role rejection. Advisor findings are fixed or documented exceptions.
       Owner: Agent for repository work; shared-system/operator steps require approval.
-      _Verify:_ [`security-audit-2026-07-11.md`](../security-audit-2026-07-11.md),
-      [`launch/go-live-2026-07-11.md`](../launch/go-live-2026-07-11.md), and OpenSpec change
-      `go-live-2026-07-11-gate-remediation` agree on every open and deployed row.
-      _SA-024 deploy:_ `supabase functions deploy validate-passcode --project-ref
-      sojmvhhwsjxmfistvzbe --no-verify-jwt`; verify a limiter failure returns 503 before passcode
-      validation and creates one unresolved `validate-passcode` alert, then restore the limiter and
-      verify allowed and blocked 429 behavior. Rollback by redeploying the last-good revision.
-      _SA-025 deploy:_ first review the dry run, which currently includes both the pending
-      `20260711200000_daily_health_snapshot_watchdog.sql` and
-      `20260712120000_premium_generation_throttle.sql`; after approval, push both, deploy
-      `generate-premium --no-verify-jwt`, verify grants/index/cron plus rolled-back concurrent
-      fifth/sixth attempts, and smoke exhausted 429 and controlled limiter-failure 503 without
-      Claude traffic. A valid Edge generation requires separate paid-traffic approval. Rollback by
-      redeploying the last-good Edge revision before running the migration's forward rollback SQL.
-      _SA-029 deploy:_ recheck the matching redacted Vault/Edge digests, deploy announcement,
-      chat-message, support-message, class-status, and scoring push triggers with `--no-verify-jwt`,
-      run inert dedicated-secret success and service-role rejection smokes for all five, then run
-      one controlled Vault-backed database-trigger proof. Follow the rotation and rollback manifest
-      in OpenSpec evidence `push-webhook-dedicated-secret.md`; never restore the service-role
-      fallback.
+      _Verify:_ [`security-audit-2026-07-11.md`](../security-audit-2026-07-11.md) and
+      [`launch/go-live-2026-07-11.md`](../launch/go-live-2026-07-11.md) agree on every open and
+      deployed row. Synchronize the OpenSpec task ledger during final closeout/archive after the
+      remaining operator gates are evidenced or accepted.
+      _Remaining cost gate:_ a successful `generate-premium` Edge call reaches Claude and still
+      requires explicit paid-traffic approval. The limiter's allowed path is already proven by the
+      live concurrent fifth-attempt result; this cost smoke is not an open security defect.
+      _Migration parity:_ #1294 merged remote migrations
+      `20260712180000_class_status_auto_derivation` and
+      `20260712190000_class_status_reopen_guard_fix` onto `main`; the post-merge dry run reports
+      `Remote database is up to date.` No migration-history repair was needed.
 - [x] **0.2 Deploy the `ask-myk9show` fix** — DONE 2026-07-04. The AskQ
       cross-tenant scope-leak fix (#1089) is deployed live. Owner: Agent.
       _Do:_ `supabase functions deploy ask-myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`
@@ -177,15 +163,15 @@ auto-deploy still ON before turning it off.
 
 ### 1.2 Auth email cutover (Resend hook + Custom SMTP rate limit)
 
-Full detail: [`supabase-auth-email.md`](supabase-auth-email.md). Without Custom SMTP, GoTrue
-caps auth emails at ~2/hour — a launch-day signup wall.
+Full detail: [`supabase-auth-email.md`](supabase-auth-email.md). Custom SMTP was configured
+2026-07-12; the former built-in-service rate cap is no longer the launch-day signup wall.
 
 - [x] **a.** DONE 2026-07-04. Deploy-coupled hook secret: `SEND_EMAIL_HOOK_SECRET`
       matches the dashboard Send Email Hook secret, `send-auth-email` is deployed as v45,
       and one real password-reset email verified the branded template path (`send-auth-email`
       200 signature-verified + `resend-webhook` 200).
       _Rollback:_ redeploy prior function version + restore prior hook secret in the same window.
-- [ ] **b.** Raise the rate limit via Management API PATCH (NOT `supabase config push`): back up
+- [x] **b.** DONE 2026-07-12. Raised the rate limit via Management API PATCH (NOT `supabase config push`): backed up
       `GET /v1/projects/$REF/config/auth` first, then patch `smtp_*` (Resend:
       `smtp.resend.com:465`, user `resend`, pass = the Resend API key,
       `smtp_admin_email: notifications@myk9show.com`) + `rate_limit_email_sent: 100`.
@@ -197,6 +183,11 @@ caps auth emails at ~2/hour — a launch-day signup wall.
       _Audit 2026-07-06:_ `pnpm qa:go-live:phase1` verifies the runbook still documents the
       Management API PATCH path with Resend SMTP fields and `rate_limit_email_sent: 100`;
       no Management API write has been run in this batch.
+      _Completion evidence 2026-07-12:_ post-PATCH Management API read-back returned
+      `smtp.resend.com:465`, sender `myK9Show <notifications@myk9show.com>`, limit `100`,
+      Send Email Hook enabled, and unchanged `site_url=https://myk9show.com`. A real password-reset
+      request to Gmail was accepted by the deployed app, reported `delivered` by Resend, and visually
+      confirmed as the branded myK9Show template. The temporary Management API token was revoked.
 
 ### 1.3 Kill-switch posture check
 

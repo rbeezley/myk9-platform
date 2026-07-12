@@ -17,7 +17,7 @@ The plan docs live on `main` under [`docs/improve-audit-2026-07-11/`](docs/impro
 - [x] ~~**006 — INTENT.md §6 + debt registers**~~ — **DONE + MERGED 2026-07-11** ([#1275](https://github.com/rbeezley/myk9-platform/pull/1275)). §6 rewritten to the unified `/at-show` reality; debt registers corrected to the measured over-500-line count of **175** (was stale "0 open"). Two archived plans `git mv`'d + index rows pruned.
 - [ ] **007 — Split `MutationManager.ts` / extract `ReplicatedTable` query ops** — revised risk assessment (decomposition ~60% done, characterization tests mostly already exist, only ~10 pinning tests needed); frozen contracts, invariants, and phase gates fully specified. Plan: [`007-replication-core-split.md`](docs/improve-audit-2026-07-11/007-replication-core-split.md).
 - [x] ~~**Class-status PO decision aid (#3)**~~ — **DONE 2026-07-12.** PO confirm pass complete: owner accepted all six recommended edge-case answers as-is (no overrides), confirmed the required override-marker column (`status_source`/`status_override`), and locked implementation candidate **(A) Supabase trigger** on `entries` writes (extending precedent `20260525170000`). Decisions recorded in [`docs/plan-class-status-auto-derivation.md`](docs/plan-class-status-auto-derivation.md) decision log; stub status flipped Stub → **Ready to draft**. Follow-up below.
-- [ ] **Draft + implement class-status auto-derivation full plan** — now unblocked (PO interview done 2026-07-12). Draft the full plan from the [`plan-class-status-auto-derivation.md`](docs/plan-class-status-auto-derivation.md) stub per its locked decisions: candidate (A) Supabase trigger on `entries` formalizing the client-side `getClassDisplayStatus` derivation server-side, plus the `status_source`/`status_override` marker column so manual "Mark Complete"/"Mark Started" survive recompute. Extend the placement-recalc trigger `20260525170000` rather than adding a second trigger on the same columns (trigger-ordering hazard). Include the six locked behaviors (esp. Q6: late-entry flip-back clears override + raises attention flag). M–L, cross-layer (migration + `@myk9/core` derivation + `/at-show` write path).
+- [~] **Implement class-status auto-derivation** — **Plan DRAFTED 2026-07-12 as OpenSpec change `class-status-auto-derivation`** (`openspec/changes/class-status-auto-derivation/`; `openspec validate --strict` clean, apply-ready). Exploration corrected the stub's premise: the server-side derivation already shipped (migration `20260525170000`, live body `20260615160000`), so the change *refines* it in three ways — (1) fix the completeness math so a scratched/no-show dog stops blocking auto-complete (live latent bug), (2) add the `status_source` override marker so manual Mark Complete/Started survive recompute, (3) broaden the trigger to INSERT for the Q6 late-entry reopen + attention flag — plus dual-path client reconciliation (`@myk9/core` + `@myk9/ringside`). Execute with `/opsx:ship class-status-auto-derivation` (or `/opsx:apply` for implement-only). Design/decision record: [`plan-class-status-auto-derivation.md`](docs/plan-class-status-auto-derivation.md). M–L, cross-layer (migration + replication mapper + client derivation + show-map attention).
 
 ### Backlog conversions (from README triage, 2026-07-12)
 
@@ -64,15 +64,16 @@ High-judgment work to prioritize while strong-model access is available. These a
 ## Go-Live Gate Remediation — 2026-07-11
 
 - [~] **Close the July 11 go-live and security-audit findings** — Tracked in OpenSpec change
-  `go-live-2026-07-11-gate-remediation`. Migration lineage (#1280), FORCE-RLS invariant/deployment
-  (#1283), health observability (#1284), and SA-023/028/030 mechanical fixes (#1285) are merged;
-  SA-021 is live-verified. SA-024 merged in #1286 and awaits `validate-passcode` deployment/runtime
-  evidence. SA-025 premium-generation throttling merged in #1287 and awaits its migration push,
-  `generate-premium` deployment, and controlled runtime evidence. SA-029 dedicated push-secret
-  remediation is repository-prepared with aligned redacted digests, a five-function rollout
-  manifest, and red-first tests; review/merge and all five Edge deployments remain open. The
-  remaining agent slice is advisor disposition. Operator/shared-system gates remain open in the
-  runbook.
+  `go-live-2026-07-11-gate-remediation`. All repository/security slices are merged and deployed:
+  lineage #1280, FORCE-RLS #1283, health #1284, mechanical fixes #1285, passcode #1286, premium
+  throttle #1287, dedicated push secret #1289, and advisor sweep #1292/#1293. Live evidence covers
+  passcode healthy/429/503 with alert recovery; premium catalog/concurrency/429/503 without Claude;
+  and five Vault-authenticated inert push smokes plus service-role rejection. Custom SMTP was
+  configured 2026-07-12 with a 100/hour Auth limit and a branded password-reset delivery to Gmail.
+  Remaining work is operator-owned (legal, production data, Stripe live mode, mailbox/AKC,
+  browser/device, Sentry routing, DNS/Vercel) plus a paid premium success smoke if approved. Migration parity is
+  clean after #1294 merged remote versions `20260712180000`/`190000`; the post-merge
+  `supabase db push --dry-run` reports the remote database is up to date.
 
 ---
 

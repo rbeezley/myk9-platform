@@ -65,7 +65,11 @@ vi.mock('@/services/database/supabaseClient', () => {
 // Don't mock @myk9/replication - use the real implementation
 
 // Import after mocks are set up
-import { ReplicatedClassesTable, type ReplicatedClass } from '../ReplicatedClassesTable';
+import {
+  ReplicatedClassesTable,
+  rowToClass,
+  type ReplicatedClass,
+} from '../ReplicatedClassesTable';
 
 describe('ReplicatedClassesTable', () => {
   let classesTable: ReplicatedClassesTable;
@@ -683,6 +687,160 @@ describe('ReplicatedClassesTable', () => {
           results_released_by: 'user-123',
         })
       );
+    });
+
+    it('should queue status_source on update so a manual override marker syncs', async () => {
+      const queueMutation = vi.spyOn(
+        classesTable as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await classesTable.set('class-1', createMockClass({ id: 'class-1' }));
+      await classesTable.updateClass('class-1', {
+        classStatus: 'completed',
+        statusSource: 'manual',
+      });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'class-1',
+        expect.objectContaining({
+          status: 'completed',
+          status_source: 'manual',
+        })
+      );
+    });
+
+    it('strips every server-owned key on an unrelated edit so it cannot clobber server-derived state', async () => {
+      const queueMutation = vi.spyOn(
+        classesTable as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      // A class locally pinned by a prior manual Mark Complete + a server reopen
+      // stamp. An unrelated displayOrder reorder must NOT re-upload any of these.
+      await classesTable.set(
+        'class-2',
+        createMockClass({
+          id: 'class-2',
+          classStatus: 'completed',
+          statusSource: 'manual',
+          isScoringFinalized: true,
+          reopenedAfterCloseoutAt: '2026-07-12T15:00:00.000Z',
+        })
+      );
+      await classesTable.updateClass('class-2', { displayOrder: 3 });
+
+      const payload = queueMutation.mock.calls[0]?.[2] as Record<string, unknown>;
+      // The reorder rides through, but no server-owned column does.
+      expect(payload).toHaveProperty('display_order', 3);
+      expect(payload).not.toHaveProperty('status');
+      expect(payload).not.toHaveProperty('status_source');
+      expect(payload).not.toHaveProperty('is_scoring_finalized');
+      expect(payload).not.toHaveProperty('reopened_after_closeout_at');
+    });
+
+    it('queues reopened_after_closeout_at: null when a mutation explicitly clears it', async () => {
+      const queueMutation = vi.spyOn(
+        classesTable as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await classesTable.set(
+        'class-3',
+        createMockClass({ id: 'class-3', reopenedAfterCloseoutAt: '2026-07-12T15:00:00.000Z' })
+      );
+      await classesTable.updateClass('class-3', {
+        classStatus: 'completed',
+        statusSource: 'manual',
+        reopenedAfterCloseoutAt: null,
+      });
+
+      const payload = queueMutation.mock.calls[0]?.[2] as Record<string, unknown>;
+      expect(payload).toHaveProperty('reopened_after_closeout_at', null);
+      expect(payload).toHaveProperty('status', 'completed');
+      expect(payload).toHaveProperty('status_source', 'manual');
+    });
+
+    it('rebuildUpdatePayload (OCC resend) never re-asserts server-owned columns', () => {
+      // The resend path rebuilds a full row from local data and cannot know the
+      // original mutation's `updates`, so it must strip all server-owned keys —
+      // the server value wins on resend.
+      const payload = (
+        classesTable as unknown as {
+          rebuildUpdatePayload: (cls: ReplicatedClass) => Record<string, unknown>;
+        }
+      ).rebuildUpdatePayload(
+        createMockClass({
+          classStatus: 'completed',
+          statusSource: 'manual',
+          isScoringFinalized: true,
+          reopenedAfterCloseoutAt: '2026-07-12T15:00:00.000Z',
+          displayOrder: 4,
+        })
+      );
+
+      expect(payload).not.toHaveProperty('status');
+      expect(payload).not.toHaveProperty('status_source');
+      expect(payload).not.toHaveProperty('is_scoring_finalized');
+      expect(payload).not.toHaveProperty('reopened_after_closeout_at');
+      // Non-server-owned fields still rebuild so the resend preserves them.
+      expect(payload).toHaveProperty('display_order', 4);
+    });
+
+    it('reads status_source and reopened_after_closeout_at from the DB row (DB→domain)', () => {
+      const reopenedAt = '2026-07-12T15:00:00.000Z';
+      const domain = rowToClass({
+        ...createDbRow({ id: 1 }),
+        status: 'completed',
+        status_source: 'manual',
+        reopened_after_closeout_at: reopenedAt,
+      } as unknown as Database['public']['Tables']['classes']['Row']);
+
+      expect(domain.statusSource).toBe('manual');
+      expect(domain.reopenedAfterCloseoutAt).toBe(reopenedAt);
+    });
+
+    it('round-trips status_source write→DB→domain', () => {
+      const dbRow = (
+        classesTable as unknown as {
+          toSupabaseRow: (cls: ReplicatedClass) => Record<string, unknown>;
+        }
+      ).toSupabaseRow(createMockClass({ classStatus: 'completed', statusSource: 'manual' }));
+
+      expect(dbRow.status_source).toBe('manual');
+
+      const domain = rowToClass({
+        ...createDbRow({ id: 1 }),
+        status: dbRow.status as string,
+        status_source: dbRow.status_source as string,
+      } as unknown as Database['public']['Tables']['classes']['Row']);
+
+      expect(domain.statusSource).toBe('manual');
+    });
+
+    it('defaults reopened_after_closeout_at to null when the DB row omits it', () => {
+      const domain = rowToClass(createDbRow({ id: 1 }));
+      expect(domain.reopenedAfterCloseoutAt).toBeNull();
+      expect(domain.statusSource).toBeUndefined();
     });
 
     it('should track conflicts resolved', async () => {

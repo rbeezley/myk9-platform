@@ -37,10 +37,19 @@ describe('deriveTrialCompositeStatus', () => {
     expect(result.needsWrapUp).toBe(false);
   });
 
-  it('counts a fully-scored class as complete even without the canonical status', () => {
-    const scoredOut = cls({ entry_count: 5, scored_count: 5 });
-    const result = deriveTrialCompositeStatus([scoredOut, notStarted()]);
+  it('counts a finalized class as complete (defers to is_scoring_finalized, not raw counts)', () => {
+    // A server-completed class carries is_scoring_finalized=true. The client no
+    // longer infers completion from scored_count === entry_count alone, so it
+    // cannot contradict the server (Decision 5 of class-status-auto-derivation).
+    const finalized = cls({ entry_count: 5, scored_count: 5, is_scoring_finalized: true });
+    const result = deriveTrialCompositeStatus([finalized, notStarted()]);
     expect(result.label).toBe('In progress — 1 of 2 classes complete');
+  });
+
+  it('does not count a fully-scored class complete without a finalized/completed signal', () => {
+    const scoredNotFinalized = cls({ entry_count: 5, scored_count: 5 });
+    const result = deriveTrialCompositeStatus([scoredNotFinalized, notStarted()]);
+    expect(result.completedCount).toBe(0);
   });
 
   it('treats any scoring activity as in progress', () => {

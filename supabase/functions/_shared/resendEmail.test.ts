@@ -163,6 +163,38 @@ describe('sendResendEmailWithRetry', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+  it('stops immediately when the caller signal aborts during response cleanup', async () => {
+    const controller = new AbortController();
+    const cancel = vi.fn(() => new Promise<void>(() => undefined));
+    const fetchImpl = vi.fn().mockResolvedValue({
+      status: 503,
+      headers: new Headers(),
+      body: { cancel },
+    } as unknown as Response);
+    const sleep = vi.fn(() => new Promise<void>(() => undefined));
+    const pending = sendResendEmailWithRetry(
+      {
+        method: 'POST',
+        body: JSON.stringify({ to: 'recipient@example.com' }),
+        signal: controller.signal,
+      },
+      { fetchImpl, sleep, random: () => 0, onRetry: vi.fn() }
+    );
+
+    await vi.waitFor(() => expect(cancel).toHaveBeenCalledTimes(1));
+    controller.abort();
+    const outcome = await Promise.race([
+      pending.then(
+        () => 'resolved',
+        error => error as unknown
+      ),
+      new Promise<'timeout'>(resolve => setTimeout(() => resolve('timeout'), 50)),
+    ]);
+
+    expect(outcome).toMatchObject({ name: 'AbortError' });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects a non-string body before the first network attempt', async () => {
     const fetchImpl = vi.fn();
 
@@ -209,6 +241,23 @@ describe('sendResendEmailWithRetry', () => {
     );
 
     expect(sleep).toHaveBeenCalledWith(2000);
+  });
+
+  it('uses fallback backoff for a malformed Retry-After delta value', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('rate limited', { status: 429, headers: { 'Retry-After': '0.5' } })
+      )
+      .mockResolvedValueOnce(Response.json({ id: 'email-after-malformed-header' }));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+
+    await sendResendEmailWithRetry(
+      { method: 'POST', body: JSON.stringify({ to: 'recipient@example.com' }) },
+      { fetchImpl, sleep, random: () => 0, onRetry: vi.fn() }
+    );
+
+    expect(sleep).toHaveBeenCalledWith(250);
   });
 
   it('emits PII-free structured retry telemetry by default', async () => {

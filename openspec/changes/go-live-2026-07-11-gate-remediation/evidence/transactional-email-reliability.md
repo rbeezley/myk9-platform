@@ -13,7 +13,7 @@ Date: 2026-07-12
 ## Red/green evidence
 
 - The cancellation-during-backoff test timed out at 10 seconds before abort-aware waiting was implemented.
-- Focused retry, source-contract, lifecycle, confirmation-auth, results-authz, email-authz, recipient-resolution, and alert tests: **82 passed**.
+- Focused retry, source-contract, lifecycle, confirmation-auth, results-authz, email-authz, recipient-resolution, and alert tests: **85 passed**.
 - Repository typecheck: **passed** (26/26 Turbo tasks).
 - Repository lint: **passed**.
 - Portable helper TypeScript check with `ES2022`, `DOM`, and `DOM.Iterable`: **passed** for both mirrors.

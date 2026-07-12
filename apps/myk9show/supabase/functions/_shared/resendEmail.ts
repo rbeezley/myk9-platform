@@ -36,13 +36,19 @@ function retryAfterDelayMs(
 ): number {
   const value = response.headers.get('Retry-After');
   if (value) {
-    const seconds = Number(value);
-    if (Number.isFinite(seconds) && seconds >= 0) {
+    const seconds = /^\d+$/.test(value) ? Number(value) : Number.NaN;
+    if (Number.isFinite(seconds)) {
       return Math.min(MAX_RETRY_DELAY_MS, seconds * 1000);
     }
-    const retryAt = Date.parse(value);
-    if (Number.isFinite(retryAt)) {
-      return Math.min(MAX_RETRY_DELAY_MS, Math.max(0, retryAt - now()));
+    if (
+      /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(
+        value
+      )
+    ) {
+      const retryAt = Date.parse(value);
+      if (Number.isFinite(retryAt)) {
+        return Math.min(MAX_RETRY_DELAY_MS, Math.max(0, retryAt - now()));
+      }
     }
   }
   return fallbackDelayMs(attempt, random);
@@ -148,11 +154,8 @@ export async function sendResendEmailWithRetry(
 
     const delayMs = retryAfterDelayMs(response, attempt, random, now);
     onRetry({ attempt, status: response.status, delayMs });
-    try {
-      await response.body?.cancel();
-    } catch {
-      // Best-effort cleanup must not prevent a retry.
-    }
+    const cancellation = response.body?.cancel();
+    if (cancellation) void cancellation.catch(() => undefined);
     await waitForRetry(delayMs, sleep, requestInit.signal);
   }
 

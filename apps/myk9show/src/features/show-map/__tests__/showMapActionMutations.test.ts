@@ -286,6 +286,8 @@ describe('showMapActionMutations', () => {
       expect.objectContaining({
         classStatus: 'Completed',
         statusSource: 'manual',
+        // Manual completion resolves any server reopen → clear the stamp.
+        reopenedAfterCloseoutAt: null,
         isCompleted: true,
       })
     );
@@ -305,6 +307,9 @@ describe('showMapActionMutations', () => {
         isCompleted: false,
       })
     );
+    // Starting a class must NOT clear a reopen stamp — only a manual completion does.
+    const startedPayload = mockUpdateClass.mock.calls[0][1] as Record<string, unknown>;
+    expect(startedPayload).not.toHaveProperty('reopenedAfterCloseoutAt');
     expect(mockUpdateClass).toHaveBeenCalledTimes(1);
     expect(mockFrom).not.toHaveBeenCalled();
   });

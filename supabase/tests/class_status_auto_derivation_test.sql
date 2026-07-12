@@ -25,6 +25,8 @@ DECLARE
   v_c4 uuid := gen_random_uuid();  -- 3.4 empty -> upcoming -> in_progress -> absent completes
   v_c5 uuid := gen_random_uuid();  -- 3.5 backfill fixes stuck in_progress
   v_c6 uuid := gen_random_uuid();  -- 3.5 backfill skips manual
+  v_c7 uuid := gen_random_uuid();  -- 3.6 manually-STARTED class not reopened by late entry
+  v_c8 uuid := gen_random_uuid();  -- 3.7 DELETE of unscored entry completes class
   v_e uuid;
   v_status text;
   v_source text;
@@ -43,7 +45,9 @@ BEGIN
            (v_c3, v_trial, 'C3', 'upcoming'),
            (v_c4, v_trial, 'C4', 'upcoming'),
            (v_c5, v_trial, 'C5', 'upcoming'),
-           (v_c6, v_trial, 'C6', 'upcoming');
+           (v_c6, v_trial, 'C6', 'upcoming'),
+           (v_c7, v_trial, 'C7', 'upcoming'),
+           (v_c8, v_trial, 'C8', 'upcoming');
 
   -- =====================================================================
   -- 3.1 Scratched dog does not block completion.
@@ -202,6 +206,64 @@ BEGIN
     RAISE EXCEPTION '3.5 FAIL: backfill did not preserve manual class, status=%, source=%', v_status, v_source;
   END IF;
   RAISE NOTICE '3.5b PASS: backfill skips manual class (status=%, source=%)', v_status, v_source;
+
+  -- =====================================================================
+  -- 3.6 A manually-STARTED class (in_progress + status_source='manual') is
+  --     NOT reopened by a routine late expected-entry INSERT. The reopen
+  --     guard keys on closeout ('completed') only, so the manual marker and
+  --     reopened_after_closeout_at must survive. (Review finding 3 regression.)
+  -- =====================================================================
+  -- Seed one expected, unscored entry while derived (class stays upcoming).
+  INSERT INTO public.entries (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+    VALUES (v_c7, v_show, v_trial, 'checked-in', 'checked-in', false, 'pending');
+
+  -- Secretary manually marks the class started (Mark Started).
+  UPDATE public.classes
+    SET status = 'in_progress', status_source = 'manual'
+    WHERE id = v_c7;
+
+  -- A late expected entry arrives (routine late registration / move-up target).
+  INSERT INTO public.entries (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+    VALUES (v_c7, v_show, v_trial, 'checked-in', 'checked-in', false, 'pending');
+
+  SELECT status, status_source, reopened_after_closeout_at
+    INTO v_status, v_source, v_reopened
+    FROM public.classes WHERE id = v_c7;
+  IF v_status IS DISTINCT FROM 'in_progress' THEN
+    RAISE EXCEPTION '3.6 FAIL: manually-started class status changed, got %', v_status;
+  END IF;
+  IF v_source IS DISTINCT FROM 'manual' THEN
+    RAISE EXCEPTION '3.6 FAIL: manual marker cleared by late entry, status_source=%', v_source;
+  END IF;
+  IF v_reopened IS NOT NULL THEN
+    RAISE EXCEPTION '3.6 FAIL: false reopened_after_closeout_at stamp on non-closed class';
+  END IF;
+  RAISE NOTICE '3.6 PASS: manually-started class not reopened by late entry (status=%, source=%, reopened NULL)', v_status, v_source;
+
+  -- =====================================================================
+  -- 3.7 DELETE path: a class with 1 scored + 1 unscored expected entry is
+  --     in_progress; deleting the unscored entry accounts-for all remaining
+  --     expected, so the DELETE trigger derives the class to 'completed'.
+  -- =====================================================================
+  INSERT INTO public.entries (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+    VALUES (v_c8, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified');
+  INSERT INTO public.entries (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+    VALUES (v_c8, v_show, v_trial, 'checked-in', 'checked-in', false, 'pending')
+    RETURNING id INTO v_e;
+
+  SELECT status INTO v_status FROM public.classes WHERE id = v_c8;
+  IF v_status IS DISTINCT FROM 'in_progress' THEN
+    RAISE EXCEPTION '3.7 SETUP FAIL: expected in_progress before delete, got %', v_status;
+  END IF;
+
+  -- Remove the unscored expected entry -> all remaining expected accounted-for.
+  DELETE FROM public.entries WHERE id = v_e;
+
+  SELECT status INTO v_status FROM public.classes WHERE id = v_c8;
+  IF v_status IS DISTINCT FROM 'completed' THEN
+    RAISE EXCEPTION '3.7 FAIL: DELETE did not re-derive class to completed, got %', v_status;
+  END IF;
+  RAISE NOTICE '3.7 PASS: DELETE of unscored entry completes class (status=%)', v_status;
 
   RAISE NOTICE 'ALL class-status-auto-derivation assertions passed.';
 END $$;

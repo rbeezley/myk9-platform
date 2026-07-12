@@ -26,14 +26,14 @@ The server-side class-status derivation SHALL treat an entry as *expected to sco
 - **THEN** the class derives to `in_progress`
 
 ### Requirement: Manual status override survives recompute
-A class SHALL carry a `status_source` marker of `derived` or `manual` (default `derived`). When `status_source = 'manual'`, the server-side derivation SHALL NOT overwrite the class `status`, while still refreshing display counts such as `scored_count`. The manual "Mark Complete" and "Mark Started" actions SHALL set `status_source = 'manual'` atomically with the status they write, through the same offline-first replicated write path, so a manual decision is preserved offline and on reconnect.
+A class SHALL carry a `status_source` marker of `derived` or `manual` (default `derived`). When `status_source = 'manual'`, the server-side derivation SHALL NOT overwrite the class `status`, while still refreshing display counts such as `scored_count`. The manual "Mark Complete" and "Mark Started" actions SHALL set `status_source = 'manual'` atomically with the status they write through the same offline-first replicated write path. This v1 guarantee covers the normal queued-mutation sync path; preserving explicit status intent when a pending payload is rebuilt after token advancement is tracked separately.
 
 #### Scenario: Manual Mark Complete is not flipped back by later scoring
 - **WHEN** a secretary marks a partially-scored class `completed` (setting `status_source = 'manual'`) and a further entry is then scored
 - **THEN** the class stays `completed` and the derivation leaves its status untouched, though `scored_count` still updates
 
-#### Scenario: Manual override set offline is honored after sync
-- **WHEN** a secretary marks a class complete while offline and the device later syncs alongside queued scoring writes
+#### Scenario: Manual override set offline is honored by normal queued sync
+- **WHEN** a secretary marks a class complete while offline and the queued mutation later syncs without token-advance payload rebuilding
 - **THEN** the synced class retains `status_source = 'manual'` and the server derivation does not overwrite its status
 
 #### Scenario: Derived classes are unaffected

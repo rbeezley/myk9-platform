@@ -2,7 +2,7 @@
 
 > **Status:** Active
 
-Run this before each **launch milestone** (early-adopter cutover, public launch, major release). It consolidates the static **code-quality audit** and the **Dynamic QA** gates ([`plan-dynamic-qa-infrastructure.md`](plan-dynamic-qa-infrastructure.md), Phases 1–6) into one milestone-level sweep.
+Run this before each **launch milestone** (early-adopter cutover, public launch, major release). It consolidates the static **code-quality audit** and the **Dynamic QA** gates ([`plan-dynamic-qa-infrastructure.md`](archive/plan-dynamic-qa-infrastructure.md), Phases 1–6) into one milestone-level sweep.
 
 Most gates also run in CI on every PR (marked **[CI]**). Re-running them together on a clean `main` at milestone time catches two things per-PR checks miss: **drift accumulated on `main`** between PRs, and **cross-cutting interactions** no single PR exercised.
 

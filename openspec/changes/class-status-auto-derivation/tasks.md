@@ -42,7 +42,7 @@
 
 ## 7. Verify, review, merge, archive
 
-- [ ] 7.1 `pnpm typecheck` (clear the app tsbuildinfo cache — new DB columns + types), `pnpm lint`, and the affected app/package vitest suites; report evidence.
+- [x] 7.1 **DONE** — `pnpm typecheck` 26/26; app tests 144 (5 changed files); `@myk9/core` 19 + `@myk9/ringside` 8; ESLint `--max-warnings 0` on all 11 changed source files exit 0.
 - [ ] 7.2 `db-push` the migration to staging (shared-system mutation — confirm before push); verify live via a rolled-back psql behavioral proof of the three headline behaviors.
 - [ ] 7.3 Open PR; run `/review` and (high-stakes: migration + trigger + money-adjacent show-day path) a `/codex:review` second opinion; address findings.
 - [ ] 7.4 Merge; sync `main`; run branch/worktree hygiene.

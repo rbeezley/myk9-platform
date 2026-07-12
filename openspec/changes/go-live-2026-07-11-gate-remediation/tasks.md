@@ -54,9 +54,9 @@
 
 ## 7. Batch B — Premium Generation Throttle (SA-025)
 
-- [ ] 7.1 Add a failing migration-source contract, then create the dedicated `premium_generation_attempts` table, composite enforcement/retention indexes, FORCE RLS and narrow grants, atomic advisory-lock limiter RPC, service-only 24-hour prune function, and prune schedule; document rollback SQL.
-- [ ] 7.2 Add failing handler-seam tests for allowed, sixth-attempt 429, independent-show windows, limiter 503, and no-Claude-call behavior; integrate the limiter after authorization but before Claude while preserving Claude-only fallback copy, then make tests GREEN.
-- [ ] 7.3 Verify the 15-minute lookup uses the composite index, concurrent attempts cannot exceed five, the 24-hour prune is bounded, and all RPC/table privileges exclude `PUBLIC`, `anon`, and `authenticated` unless explicitly required by the service path.
+- [x] 7.1 Add a failing migration-source contract, then create the dedicated `premium_generation_attempts` table, composite enforcement/retention indexes, FORCE RLS and narrow grants, atomic advisory-lock limiter RPC, service-only 24-hour prune function, and prune schedule; document rollback SQL.
+- [x] 7.2 Add failing handler-seam tests for allowed, sixth-attempt 429, independent-show windows, limiter 503, and no-Claude-call behavior; integrate the limiter after authorization but before Claude while preserving Claude-only fallback copy, then make tests GREEN.
+- [x] 7.3 Verify the 15-minute lookup uses the composite index, concurrent attempts cannot exceed five, the 24-hour prune is bounded, and all RPC/table privileges exclude `PUBLIC`, `anon`, and `authenticated` unless explicitly required by the service path. (Repository source-contract evidence is complete; live planner/catalog and rolled-back concurrency proofs remain part of deployment gate 7.4.)
 - [ ] 7.4 [SHARED-SYSTEM GATE] After approval, push the limiter migration, deploy `generate-premium`, and smoke valid, exhausted, and limiter-failure paths without incurring unapproved paid traffic.
 
 ## 8. Batch B — Dedicated Push Secret (SA-029)

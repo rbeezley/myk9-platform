@@ -4,6 +4,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { runPremiumGenerationAttempt } from './premiumRateLimit.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -15,7 +16,7 @@ interface GeneratePremiumPayload {
 
 handle<GeneratePremiumPayload>(
   { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
-  async ({ req, body, user }) => {
+  async ({ req, body, user, supabase }) => {
     if (!user) {
       throw new HttpError(401, 'Unauthorized');
     }
@@ -170,8 +171,20 @@ handle<GeneratePremiumPayload>(
     let narrativeGenerationError: string | null = null;
 
     try {
-      narratives = await generateNarratives(showSummary, anthropicKey);
+      narratives = await runPremiumGenerationAttempt({
+        authUserId: user.id,
+        showId: show_id,
+        checkRateLimit: ({ authUserId, showId }) =>
+          supabase.rpc('check_and_record_premium_generation_attempt', {
+            p_auth_user_id: authUserId,
+            p_show_id: showId,
+          }),
+        generate: () => generateNarratives(showSummary, anthropicKey),
+      });
     } catch (err) {
+      if (err instanceof HttpError) {
+        throw err;
+      }
       console.error('Claude narrative generation failed:', err);
       narrativeGenerationError = describeNarrativeGenerationFailure(err);
       narratives = {
@@ -305,7 +318,7 @@ handle<GeneratePremiumPayload>(
     };
 
     return result;
-  },
+  }
 );
 
 // ---------------------------------------------------------------------------

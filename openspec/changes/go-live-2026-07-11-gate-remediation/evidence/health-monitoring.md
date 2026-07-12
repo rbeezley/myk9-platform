@@ -40,7 +40,9 @@ The watchdog:
 A read-only live `EXPLAIN (FORMAT JSON, COSTS OFF)` selected
 `system_health_snapshots_created_at_desc_idx` via a `Bitmap Index Scan` for the same bounded
 timestamp predicate. The migration itself and a rolled-back write-path transaction were not run;
-those remain behind the shared-system gate.
+those remain behind the shared-system gate. The write proof must use the exact owner recorded in
+`cron.job.username`, not `service_role`, and the first scheduled run must be checked in
+`cron.job_run_details` so FORCE RLS or execution-role failures cannot remain hidden.
 
 ## External Sentry Cron path
 

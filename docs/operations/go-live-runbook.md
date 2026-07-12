@@ -375,14 +375,19 @@ the Edge runner. Do not treat either as live until its approval-gated steps belo
 - [ ] **Database path:** review `supabase db push --dry-run`, obtain shared-system approval, push
       `20260711200000_daily_health_snapshot_watchdog.sql`, and verify both jobs in `cron.job`:
       `daily-health-check` at `0 7 * * *` and `daily-health-snapshot-watchdog` at `0 8 * * *`.
+      Record the watchdog row's `username`; the write-path proof below must execute as that exact
+      cron owner, not as `service_role`.
 - [ ] **Repair the dispatch credential:** compare redacted SHA-256 digests, then reconcile Vault
       `service_role_key` to the current Edge runtime service-role key. Never paste either value into
       evidence. Manually dispatch `cron-health-check` and prove a fresh `cron-health-check` snapshot
       lands before relying on the schedule.
 - [ ] **Prove the durable miss:** in a disposable database or an explicitly approved rolled-back
-      transaction, simulate an empty expected snapshot window, run the watchdog body, and capture
-      its `daily-health-snapshot-watchdog` / `daily-health-check:YYYY-MM-DD` unresolved alert. Re-run
-      to prove deduplication; resolve it and re-run to prove a genuine recurrence can alert again.
+      transaction using `SET LOCAL ROLE` for the recorded cron owner, simulate an empty expected
+      snapshot window, run the watchdog body, and capture its `daily-health-snapshot-watchdog` /
+      `daily-health-check:YYYY-MM-DD` unresolved alert. Re-run to prove deduplication; resolve it
+      and re-run to prove a genuine recurrence can alert again. After the first scheduled 08:00 UTC
+      run, verify `cron.job_run_details.status = 'succeeded'` and inspect `return_message` for the
+      watchdog job before calling the database path live.
 - [ ] **External path:** create the Sentry Cron Monitor with slug `daily-health-check`, schedule
       `0 7 * * *`, timezone UTC, 15-minute check-in margin, and 10-minute max runtime. Route missed,
       error, and recovery notifications to a named human. Keep monitor configuration in Sentry;

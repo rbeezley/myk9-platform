@@ -22,7 +22,7 @@ describe('dedicated push webhook secret integration', () => {
 
     expect(source).toContain("from '../_shared/pushWebhookAuth.ts'");
     const handler = source.indexOf('handle<WebhookPayload>');
-    const auth = source.indexOf('requirePushWebhookSecret(req);');
+    const auth = source.indexOf('beforeBody: requirePushWebhookSecret');
     const firstPayloadRead = Math.min(
       ...['payload.record', 'body.record', 'body.old_record'].map(needle => {
         const index = source.indexOf(needle);

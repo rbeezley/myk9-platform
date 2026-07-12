@@ -15,6 +15,7 @@ vi.mock('npm:@supabase/supabase-js@2.49.1', () => ({
 import { processRequest } from '../handler';
 import { HttpError } from '../responses';
 import { MYK9SHOW_ORIGINS } from '../cors';
+import { requirePushWebhookSecret } from '../../pushWebhookAuth';
 
 type StubAuthResult = { data: { user: unknown } | null; error: { message: string } | null };
 
@@ -205,6 +206,80 @@ describe('processRequest', () => {
       const ctx = handler.mock.calls[0][0];
       expect(ctx.user).toBeUndefined();
       expect(deps.supabase.auth.getUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('pre-body authentication', () => {
+    const pushAuth = (vars: Record<string, string | undefined>) => (req: Request) =>
+      requirePushWebhookSecret(req, name => vars[name]);
+
+    it('rejects a missing bearer before parsing malformed JSON', async () => {
+      const deps = makeDeps();
+      const handler = vi.fn(async () => ({ ok: true }));
+      const res = await processRequest(
+        postRequest('not-json'),
+        { auth: 'none', beforeBody: pushAuth({ PUSH_WEBHOOK_SECRET: 'push-secret' }) },
+        handler,
+        deps
+      );
+
+      expect(res.status).toBe(401);
+      expect(await res.json()).toEqual({ error: 'Unauthorized' });
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('rejects a service-role bearer before parsing malformed JSON', async () => {
+      const deps = makeDeps();
+      const handler = vi.fn(async () => ({ ok: true }));
+      const res = await processRequest(
+        postRequest('not-json', { Authorization: 'Bearer service-role-key' }),
+        {
+          auth: 'none',
+          beforeBody: pushAuth({
+            PUSH_WEBHOOK_SECRET: 'push-secret',
+            SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+          }),
+        },
+        handler,
+        deps
+      );
+
+      expect(res.status).toBe(401);
+      expect(await res.json()).toEqual({ error: 'Unauthorized' });
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('fails closed before parsing when only the service-role key is configured', async () => {
+      const deps = makeDeps();
+      const handler = vi.fn(async () => ({ ok: true }));
+      const res = await processRequest(
+        postRequest('not-json', { Authorization: 'Bearer service-role-key' }),
+        {
+          auth: 'none',
+          beforeBody: pushAuth({ SUPABASE_SERVICE_ROLE_KEY: 'service-role-key' }),
+        },
+        handler,
+        deps
+      );
+
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({ error: 'Push trigger is not configured' });
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('parses the body only after the dedicated bearer is accepted', async () => {
+      const deps = makeDeps();
+      const handler = vi.fn(async () => ({ ok: true }));
+      const res = await processRequest(
+        postRequest('not-json', { Authorization: 'Bearer push-secret' }),
+        { auth: 'none', beforeBody: pushAuth({ PUSH_WEBHOOK_SECRET: 'push-secret' }) },
+        handler,
+        deps
+      );
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Invalid JSON body' });
+      expect(handler).not.toHaveBeenCalled();
     });
   });
 

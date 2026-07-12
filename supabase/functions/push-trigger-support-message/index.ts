@@ -33,9 +33,7 @@ interface RecipientRow {
   last_name?: string | null;
 }
 
-handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }) => {
-  requirePushWebhookSecret(req);
-
+handle<WebhookPayload>({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ body: payload, supabase }) => {
   const { record } = payload;
   const { id, ticket_id, sender_id, body, is_from_operator } =
     record ?? ({} as SupportMessageRecord);

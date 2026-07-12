@@ -59,11 +59,11 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       FORCE-RLS remediation (#1283), and health observability (#1284) are merged; SA-021 is pushed
       and live-verified. SA-023/028/030 merged in #1285 and remain applicable-runtime-evidence
       pending. SA-024 merged in #1286 but remains open until an approved `validate-passcode` deploy
-      plus controlled allowed/429/503 smoke evidence. SA-025 is repository-complete with focused
-      red-first tests, an atomic limiter migration, FORCE RLS, typecheck, and lint, but remains open
-      until review/merge, an approved migration push and `generate-premium` deploy, and controlled
-      catalog/concurrency/429/503 evidence. SA-029 is repository-prepared with matching redacted
-      Vault/Edge digests, dedicated-secret-only shared authentication, 17 focused tests, and an
+      plus controlled allowed/429/503 smoke evidence. SA-025 merged in #1287 with focused red-first
+      tests, an atomic limiter migration, FORCE RLS, typecheck, and lint, but remains open until an
+      approved migration push and `generate-premium` deploy plus controlled catalog/concurrency/
+      429/503 evidence. SA-029 is repository-prepared with matching redacted
+      Vault/Edge digests, dedicated-secret-only shared authentication, 33 focused tests, and an
       exact five-function rollout/smoke/rollback manifest; it remains open until review/merge and
       approval-gated deployment/runtime proof. Advisor disposition remains a separate slice.
       Owner: Agent for repository work; shared-system/operator steps require approval.

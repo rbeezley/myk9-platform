@@ -18,9 +18,7 @@ interface WebhookPayload {
   };
 }
 
-handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }) => {
-  requirePushWebhookSecret(req);
-
+handle<WebhookPayload>({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ body: payload, supabase }) => {
   // Only fire when status transitions to 'in_progress'
   if (payload.record.status !== 'in_progress' || payload.old_record.status === 'in_progress') {
     return { status: 'no_action' };

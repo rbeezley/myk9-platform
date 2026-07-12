@@ -22,9 +22,7 @@ interface WebhookPayload {
   record: ChatMessageRecord;
 }
 
-handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }) => {
-  requirePushWebhookSecret(req);
-
+handle<WebhookPayload>({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ body: payload, supabase }) => {
   const { record } = payload;
   const { id, show_id, thread_id, sender_id, body } = record ?? ({} as ChatMessageRecord);
 

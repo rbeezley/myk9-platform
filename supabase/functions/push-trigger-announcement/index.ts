@@ -35,9 +35,7 @@ function truncate(text: string, maxLength: number): string {
   return text.slice(0, maxLength - 1) + '…';
 }
 
-handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }) => {
-  requirePushWebhookSecret(req);
-
+handle<WebhookPayload>({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ body: payload, supabase }) => {
   const announcement = payload.record;
 
   if (

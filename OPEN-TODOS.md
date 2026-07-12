@@ -70,9 +70,9 @@ High-judgment work to prioritize while strong-model access is available. These a
   passcode healthy/429/503 with alert recovery; premium catalog/concurrency/429/503 without Claude;
   and five Vault-authenticated inert push smokes plus service-role rejection. Remaining work is
   operator-owned (SMTP, legal, production data, Stripe live mode, mailbox/AKC, browser/device,
-  Sentry routing, DNS/Vercel) plus a paid premium success smoke if approved. Migration dry-run
-  parity is temporarily integration-blocked because remote `20260712180000`/`190000` are not yet on
-  `main`; do not repair history—rerun after their source branch merges.
+  Sentry routing, DNS/Vercel) plus a paid premium success smoke if approved. Migration parity is
+  clean after #1294 merged remote versions `20260712180000`/`190000`; the post-merge
+  `supabase db push --dry-run` reports the remote database is up to date.
 
 ---
 

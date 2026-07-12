@@ -69,10 +69,10 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       _Remaining cost gate:_ a successful `generate-premium` Edge call reaches Claude and still
       requires explicit paid-traffic approval. The limiter's allowed path is already proven by the
       live concurrent fifth-attempt result; this cost smoke is not an open security defect.
-      _Migration integration hold:_ a current dry run stops because remote migrations
+      _Migration parity:_ #1294 merged remote migrations
       `20260712180000_class_status_auto_derivation` and
-      `20260712190000_class_status_reopen_guard_fix` are not on `main`. Do not repair history;
-      rerun after their source branch merges.
+      `20260712190000_class_status_reopen_guard_fix` onto `main`; the post-merge dry run reports
+      `Remote database is up to date.` No migration-history repair was needed.
 - [x] **0.2 Deploy the `ask-myk9show` fix** — DONE 2026-07-04. The AskQ
       cross-tenant scope-leak fix (#1089) is deployed live. Owner: Agent.
       _Do:_ `supabase functions deploy ask-myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`

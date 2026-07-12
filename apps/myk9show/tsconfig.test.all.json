@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.test.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "node_modules/.cache/tsc/test-all.tsbuildinfo"
+  },
+  "include": [
+    "src/vite-env.d.ts",
+    "src/types/**/*.d.ts",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx",
+    "src/test/**/*"
+  ],
+  "exclude": ["src/test/e2e/**/*"]
+}

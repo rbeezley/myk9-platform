@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { generateClassesFromTemplate, validateClassGeneration } from '@/lib/classGeneration';
+import type { ClassTemplate } from '@/types/template.types';
 import {
   createMockTemplate,
   createMockClassDefinition,

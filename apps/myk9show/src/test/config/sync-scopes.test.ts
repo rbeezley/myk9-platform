@@ -10,7 +10,7 @@ import {
 describe('Sync Configuration Tests', () => {
   describe('SYNC_SCOPES Configuration', () => {
     it('should have all required user roles defined', () => {
-      const requiredRoles = ['NEW_USER', 'EXHIBITOR', 'JUDGE', 'SECRETARY'];
+      const requiredRoles = ['NEW_USER', 'EXHIBITOR', 'JUDGE', 'SECRETARY'] as const;
 
       requiredRoles.forEach(role => {
         expect(SYNC_SCOPES).toHaveProperty(role);
@@ -29,7 +29,7 @@ describe('Sync Configuration Tests', () => {
       });
 
       // Verify each role has configuration for common entities
-      const commonEntities = ['people', 'dogs', 'shows'];
+      const commonEntities = ['people', 'dogs', 'shows'] as const;
       Object.entries(SYNC_SCOPES).forEach(([, scope]) => {
         commonEntities.forEach(entity => {
           if (scope[entity]) {
@@ -59,7 +59,7 @@ describe('Sync Configuration Tests', () => {
     });
 
     it('should scale appropriately from minimal to full access', () => {
-      const roles = ['NEW_USER', 'EXHIBITOR', 'JUDGE', 'SECRETARY'];
+      const roles = ['NEW_USER', 'EXHIBITOR', 'JUDGE', 'SECRETARY'] as const;
       const previousLimits: Record<string, number> = {};
 
       roles.forEach(role => {
@@ -78,7 +78,7 @@ describe('Sync Configuration Tests', () => {
 
   describe('ENTITY_SIZE_ESTIMATES Configuration', () => {
     it('should have size estimates for all entity types', () => {
-      const requiredEntities = ['person', 'dog', 'show', 'entry', 'club'];
+      const requiredEntities = ['person', 'dog', 'show', 'entry', 'club'] as const;
 
       requiredEntities.forEach(entity => {
         expect(ENTITY_SIZE_ESTIMATES).toHaveProperty(entity);
@@ -115,7 +115,7 @@ describe('Sync Configuration Tests', () => {
         'CRITICAL_THRESHOLD',
         'MIN_FREE_SPACE_MB',
         'CACHE_TTL_DAYS',
-      ];
+      ] as const;
 
       requiredProperties.forEach(prop => {
         expect(STORAGE_LIMITS).toHaveProperty(prop);
@@ -149,7 +149,7 @@ describe('Sync Configuration Tests', () => {
 
   describe('SyncPriority Configuration', () => {
     it('should have all priority levels defined', () => {
-      const requiredPriorities = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW', 'ARCHIVE'];
+      const requiredPriorities = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW', 'ARCHIVE'] as const;
 
       requiredPriorities.forEach(priority => {
         expect(SyncPriority).toHaveProperty(priority);

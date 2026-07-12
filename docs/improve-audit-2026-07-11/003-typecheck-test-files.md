@@ -1,12 +1,27 @@
 # 003 — Bring test files under a typecheck gate
 
+> **Status:** Active
+>
+> Stage 1 implemented 2026-07-12; staged rollout remains in progress.
+
 > Written against commit `15897d862` (2026-07-11). This plan intentionally starts with a measurement step — if the error backlog exceeds ~150 files, STOP after step 2 and report the count instead of fixing everything.
+
+## Stage 1 rollout — 2026-07-12
+
+The measurement gate fired: the full original config reported 1,350 errors across 374 files. A single cleanup would be unsafe, so the gate now has two explicit modes:
+
+- `tsconfig.test.json` is the blocking allowlist. It currently covers 14 low-coupling test files across config, constants, source-contract probes, branding, template validation, and styles. The app's normal `typecheck` script runs this gate, so root `pnpm typecheck` and the existing CI Quality job enforce it.
+- `tsconfig.test.all.json` is the non-blocking backlog inventory invoked with `pnpm typecheck:tests:all`. It includes the app's ambient declarations and excludes `src/test/e2e/**`, which belongs to the Playwright toolchain. The post-separation baseline is 1,053 errors across 296 files.
+
+Stage 1 corrected test-only drift in sync-scope key iteration, missing template-type imports, and shared template fixtures. It deliberately did not change runtime source. `src/test/lib/classGeneration.test.ts` remains outside the blocking allowlist because it exposed a real source-contract mismatch: `mergeFieldValues` stores the object-valued `defaults.entryFees`, while `CreatedClass.fieldValues` only permits primitive/date/array values. Resolve that contract before admitting the file.
+
+Next slices should add one cohesive directory or explicit file group at a time, run the staged gate red, correct test-side drift against the real interfaces, and only then extend the blocking allowlist. Prefer low-dependency leaf tests before broad component/service suites.
 
 ## Why this matters
 
 `apps/myk9show/tsconfig.app.json:38` excludes `src/test/**/*` from typecheck, and colocated `*.test.ts(x)` files across `src/` are likewise outside the `pnpm typecheck` gate (~1,369 test/spec files found under `apps/myk9show/src`). Type errors in tests — wrong mock shapes, stale fixture types after a schema change — surface only when that test file actually executes in a vitest shard, or never. In a consolidation phase with frequent shared-type refactors, this is the largest cheap DX blind spot. (Known project memory: "src/test/** excluded from tsconfig.app.json" — this plan is the fix, not a rediscovery.)
 
-## Current state
+## Original state
 
 - `pnpm typecheck` → turbo → per-package `tsc -p` against `tsconfig.app.json` (app) which excludes tests.
 - Vitest runs tests with esbuild-style transpilation — no type checking at all.
@@ -29,8 +44,10 @@
 
 - `cd apps/myk9show && npx tsc -p tsconfig.test.json --noEmit` exits 0.
 - `pnpm typecheck` (root) runs the new gate and exits 0; `pnpm lint` green; `cd apps/myk9show && pnpm test` still green (no runtime edits).
-- Sanity: introduce a deliberate type error in any test file → root `pnpm typecheck` fails; revert it.
+- Stage 1 sanity: introduce a deliberate type error in any admitted test file → root `pnpm typecheck` fails; revert it.
+- Final rollout only: every non-E2E test/spec is admitted to the blocking config and `pnpm typecheck:tests:all` exits 0.
+- Final rollout sanity: introduce a deliberate type error in any non-E2E test file → root `pnpm typecheck` fails; revert it.
 
 ## Maintenance note
 
-New test files are now type-gated; schema/type refactors will fail fast here — that's the point. Keep `tsconfig.test.json`'s includes in sync if test layout conventions change.
+Only files matching the staged allowlist are type-gated today. Expand that allowlist whenever a test area is made green; do not silently broaden it past known errors. New tests in an already-green directory must match a directory glob in the allowlist; avoid one-file patterns unless neighboring files are explicitly documented as blocked. Keep the full-inventory config in sync if test layout conventions change.

@@ -110,7 +110,9 @@ describe('DB migration sanity contracts', () => {
   });
 
   it('keeps own-entry results visible for every non-draft, non-cancelled show state', () => {
-    const { sql } = latestMigrationContaining(/view_own_entry_results/i);
+    // Match the DDL marker, not any prose mention — later migrations may reference the view name
+    // in comments (e.g. function-grant sweeps) without redefining it.
+    const { sql } = latestMigrationContaining(/VIEW public\.view_own_entry_results/i);
     const view = sliceBetween(sql, 'VIEW public.view_own_entry_results', 'GRANT SELECT');
 
     expect(view).toContain('security_invoker = true');

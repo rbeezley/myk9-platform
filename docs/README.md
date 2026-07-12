@@ -56,7 +56,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-architecture-deepening.md](plan-architecture-deepening.md)                           | Active    | Architecture Deepening Plan                                                  |
 | [plan-asca-level-c-classes.md](plan-asca-level-c-classes.md)                               | Active    | ASCA Level C — seed continuation classes into the wizard template            |
 | [plan-askq-revival.md](plan-askq-revival.md)                                               | Active    | AskQ Revival & Simplification (select-then-bundle)                           |
-| [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md)               | Active    | Plan — Class Status Auto-Derivation (Stub)                                   |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                       | Active    | Data Access Module Drift Plan                                                |
 | [plan-entries-read-consolidation.md](plan-entries-read-consolidation.md)                   | Active    | Entry-Read Module Consolidation (findings from Plan 004 spike)               |
 | [plan-show-details-step-extraction/README.md](plan-show-details-step-extraction/README.md) | Active    | Show Details Step Extraction (ShowDetailsStep.tsx hotspot follow-up)         |

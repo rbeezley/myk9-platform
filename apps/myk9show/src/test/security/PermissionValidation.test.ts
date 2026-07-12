@@ -30,7 +30,11 @@ describe('Permission Validation Security Tests', () => {
     status: 'Upcoming',
     events: ['Agility'],
     source: 'myK9Show',
-    entryOpenDate: new Date().toISOString(),
+    // Two days ago so entries read as already-open regardless of the runner's
+    // timezone — entryOpenDate is a DATE column and canRegister parses it as
+    // local midnight, so `new Date().toISOString()` would flip to "tomorrow"
+    // (and block) once the run crosses UTC midnight.
+    entryOpenDate: new Date(Date.now() - 2 * 86400000).toISOString(),
     entryCloseDate: new Date(Date.now() + 43200000).toISOString(), // 12 hours from now
     preEntryFee: '$25',
     dayOfShowFee: '$35',
@@ -386,7 +390,11 @@ describe('Permission Validation Security Tests', () => {
       // close day (inclusive end-of-day, mirroring entryStatusUtils). "After
       // close" therefore means a fully-past day, not merely an hour ago.
       const closedShow = createMockShow({
-        entryCloseDate: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+        // Two full days ago so the inclusive end-of-close-day is unambiguously
+        // past regardless of the runner's timezone. `- 86400000` (yesterday) is
+        // flaky: after UTC midnight its ISO date-part reads as the local *today*,
+        // leaving the close day still open.
+        entryCloseDate: new Date(Date.now() - 2 * 86400000).toISOString(),
       });
 
       const user = createMockUser('exhibitor');

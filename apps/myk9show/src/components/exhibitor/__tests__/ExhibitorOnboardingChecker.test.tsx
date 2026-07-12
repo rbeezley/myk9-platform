@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ExhibitorOnboardingChecker } from '../ExhibitorOnboardingChecker';
+import { fromPartial } from '@total-typescript/shoehorn';
 
 // Mock hooks
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -29,14 +30,28 @@ import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 const mockUseAuthContext = useAuthContext as ReturnType<typeof vi.fn>;
 const mockUseExhibitorProfile = useExhibitorProfile as ReturnType<typeof vi.fn>;
 
+interface SetupMocksOptions {
+  user?: ReturnType<typeof useAuthContext>['user'];
+  authLoading?: boolean;
+  profileLoading?: boolean;
+  needsOnboarding?: boolean;
+  onboardingCompleted?: boolean;
+  isSecretary?: boolean;
+}
+
+const authenticatedUser = fromPartial<NonNullable<SetupMocksOptions['user']>>({
+  id: 'u1',
+  email: 'a@b.com',
+});
+
 function setupMocks({
-  user = { id: 'u1', email: 'a@b.com' },
+  user = authenticatedUser,
   authLoading = false,
   profileLoading = false,
   needsOnboarding = false,
   onboardingCompleted = true,
   isSecretary = false,
-} = {}) {
+}: SetupMocksOptions = {}) {
   mockUseAuthContext.mockReturnValue({
     user,
     loading: authLoading,
@@ -104,7 +119,7 @@ describe('ExhibitorOnboardingChecker', () => {
   });
 
   it('does not redirect when user is not authenticated', () => {
-    setupMocks({ user: undefined, needsOnboarding: false, onboardingCompleted: false });
+    setupMocks({ user: null, needsOnboarding: false, onboardingCompleted: false });
     render(
       <ExhibitorOnboardingChecker>
         <div>Public content</div>

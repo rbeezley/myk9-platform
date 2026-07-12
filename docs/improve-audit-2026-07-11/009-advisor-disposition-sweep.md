@@ -108,3 +108,41 @@ Gates per push: `supabase migration list` first (remote has a known version coll
 - Advisor re-run shows: search_path WARNs 16→0; bucket WARNs 2→0; anon-executable WARNs 112→keep-list size (documented); remaining lints each covered by an in-schema COMMENT or this doc.
 - The Verdict 3 enumeration table exists in the PR description with a per-table disposition.
 - All three cold-session flows verified post-revoke. Go-live item #7 flipped to done in [../launch/go-live-2026-07-11.md](../launch/go-live-2026-07-11.md).
+
+---
+
+## Execution results — DONE 2026-07-12
+
+Migrations (applied + live-verified on `sojmvhhwsjxmfistvzbe`):
+- `20260712130000_advisor_sweep_mechanical.sql` — 16 search_path pins (11 → `''`, 5 → `public, pg_temp`), dropped 2 bucket listing policies, COMMENTed 2 views + 3 policy-less tables. (SA-021 FORCE RLS was already live via `20260711170000`, so no FORCE-RLS statements were needed.)
+- `20260712140000_revoke_anon_function_execute.sql` — `ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE FROM PUBLIC` + per-function REVOKE the implicit PUBLIC grant on the 112 over-granted SECURITY DEFINER functions, GRANT back `authenticated`+`service_role`, anon only for the 8-name RLS-helper keep-list.
+- `20260712150000_keep_anon_execute_public_results_helper.sql` — keep-list correction: cold-session verification caught that the anon-facing SECURITY DEFINER view `view_public_entry_results` calls `resolve_class_result_visibility()` (EXECUTE checked against the caller, anon), which the policy-only keep-list derivation missed. Granted anon EXECUTE back on that one helper.
+
+**Advisor before → after (365 → 210 lints):**
+
+| Lint | Level | Before | After | Disposition |
+| --- | --- | ---: | ---: | --- |
+| `function_search_path_mutable` | WARN | 16 | 0 | fixed |
+| `public_bucket_allows_listing` | WARN | 2 | 0 | fixed |
+| `anon_security_definer_function_executable` | WARN | 112 | 10 | RLS-helper keep-list (9 sigs of 8 names) + `resolve_class_result_visibility`; all required for anon RLS reads / the public-results view |
+| `authenticated_security_definer_function_executable` | WARN | 120 | 84 | dropped 36 = 33 trigger fns + 3 test fns; remaining accepted (internal gates are the authz layer) |
+| `security_definer_view` | ERROR | 2 | 2 | accepted, `COMMENT ON VIEW` added |
+| `rls_enabled_no_policy` | INFO | 3 | 4 | deny-all by design, `COMMENT ON TABLE` added; the +1 (`premium_generation_attempts`) belongs to SA-025's `20260712120000` |
+| `auth_allow_anonymous_sign_ins` | WARN | 110 | 110 | mechanism accepted; blast radius enumerated below |
+
+**Cold-session anon verification (direct PostgREST, anon key):** `shows`/`classes`/`trials` → 200; `view_public_entry_results` → 200 (after the `150000` fix). Authenticated flows (ringside RPCs, `submit_show_entries`) retain `authenticated` EXECUTE — verified via `has_function_privilege`.
+
+### Verdict 3 — anonymous-sign-in blast-radius enumeration (report deliverable)
+
+Every `authenticated` SELECT/ALL policy whose `qual` doesn't filter `is_anonymous`; a claimless anonymous session can only reach those reducing to `qual = true`:
+
+| Table | Disposition |
+| --- | --- |
+| `roles`, `permissions`, `role_permissions` | Accept — RBAC reference catalogs, authenticated-only deny-anon by SA-006 design |
+| `judge_qualifications`, `organization_agreements` | Accept — reference data (judge numbers, legal text) |
+| `offline_scoring`, `performance_metrics` | Accept (low) — operational/telemetry, eventually-public scoring buffer |
+| `sync_conflicts` | **Follow-up** — may hold cross-user row payloads; add `is_anonymous IS NOT TRUE` |
+| `platform_settings` | **Follow-up** — config readable by any anon session; add `is_anonymous IS NOT TRUE` |
+| `volunteer_class_assignments`, `volunteer_general_assignments`, `volunteer_roles`, `volunteers` | Accept (low) — mild PII (names); operational, shown to show managers |
+
+Recommended follow-up (own reviewed migration, not this sweep): add `(SELECT (auth.jwt()->>'is_anonymous')::boolean) IS NOT TRUE` to `platform_settings` and `sync_conflicts`. All other rows are gated (`is_site_admin`, ownership, `can_manage_show`) and correctly exclude claimless anon.

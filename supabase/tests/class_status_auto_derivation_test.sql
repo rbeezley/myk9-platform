@@ -1,5 +1,5 @@
 -- Behavioral test for the class-status-auto-derivation migration
--- (20260712130000_class_status_auto_derivation.sql).
+-- (20260712180000_class_status_auto_derivation.sql).
 --
 -- Runs as ONE transaction that seeds minimal fixtures, exercises each behavior,
 -- RAISEs EXCEPTION on any failed assertion, and ROLLBACKs so nothing persists.

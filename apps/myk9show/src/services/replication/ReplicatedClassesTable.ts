@@ -90,7 +90,7 @@ export interface ReplicatedClass {
   isCompleted?: boolean | undefined;
 
   /**
-   * Class-status override marker (migration 20260712130000). `'derived'` = the
+   * Class-status override marker (migration 20260712180000). `'derived'` = the
    * server derivation owns `status`; `'manual'` = a secretary Mark Complete/Started
    * pinned it, and the server derivation must not overwrite it. Written in the same
    * offline-first replicated payload as the manual status change.

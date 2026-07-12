@@ -93,9 +93,15 @@ describe('CloseOutShowAction', () => {
     expect(updateTrialMock).toHaveBeenCalledWith('trial-open', { status: 'completed' });
     expect(updateClassMock).toHaveBeenCalledTimes(1);
     expect(updateClassMock).toHaveBeenCalledWith('class-open', { classStatus: 'completed' });
+    expect(updateTrialMock.mock.invocationCallOrder[0]).toBeLessThan(
+      updateShowMock.mock.invocationCallOrder[0]
+    );
+    expect(updateClassMock.mock.invocationCallOrder[0]).toBeLessThan(
+      updateShowMock.mock.invocationCallOrder[0]
+    );
   });
 
-  it('reports a failed cascade without presenting success', async () => {
+  it('reports a failed child cascade without closing the parent show', async () => {
     const { toast } = await import('sonner');
     updateClassMock.mockRejectedValueOnce(new Error('offline queue unavailable'));
     const { user } = render(<CloseOutShowAction {...baseProps} />);
@@ -108,6 +114,26 @@ describe('CloseOutShowAction', () => {
         'Closeout did not finish. Try again after checking your connection and sync status.'
       )
     ).toBeInTheDocument();
+    expect(updateShowMock).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith('Closeout did not finish. Please try again.');
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed parent closeout after child updates queue', async () => {
+    const { toast } = await import('sonner');
+    updateShowMock.mockRejectedValueOnce(new Error('offline queue unavailable'));
+    const { user } = render(<CloseOutShowAction {...baseProps} />);
+
+    await user.click(screen.getByRole('button', { name: 'Close Out Show' }));
+    await user.click(await screen.findByRole('button', { name: 'Close out show' }));
+
+    expect(
+      await screen.findByText(
+        'Closeout did not finish. Try again after checking your connection and sync status.'
+      )
+    ).toBeInTheDocument();
+    expect(updateTrialMock).toHaveBeenCalledWith('trial-open', { status: 'completed' });
+    expect(updateClassMock).toHaveBeenCalledWith('class-open', { classStatus: 'completed' });
     expect(toast.error).toHaveBeenCalledWith('Closeout did not finish. Please try again.');
     expect(toast.success).not.toHaveBeenCalled();
   });

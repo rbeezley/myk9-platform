@@ -101,11 +101,19 @@ function maskSqlNonCode(sql: string): string {
         const isAnonymousDoBlock = /^do(?:\s+language\s+(?:"[^"]+"|[a-z_][a-z0-9_$]*))?$/i.test(
           statementPrefix
         );
+        const body = sql.slice(bodyStart, bodyEnd);
+
+        if (
+          isAnonymousDoBlock &&
+          /\b(?:enable|disable|force|no\s+force)\s+row\s+level\s+security\b/i.test(body)
+        ) {
+          throw new Error(
+            'RLS operations inside anonymous DO blocks are not supported; use top-level ALTER TABLE statements'
+          );
+        }
 
         masked += ' '.repeat(delimiter.length);
-        masked += isAnonymousDoBlock
-          ? maskSqlNonCode(sql.slice(bodyStart, bodyEnd))
-          : [...sql.slice(bodyStart, bodyEnd)].map(maskCharacter).join('');
+        masked += [...body].map(maskCharacter).join('');
 
         if (closingIndex !== -1) {
           masked += ' '.repeat(delimiter.length);
@@ -319,7 +327,7 @@ describe('FORCE RLS migration invariant', () => {
     expect(unforcedRlsTables(sources)).toEqual(['real_table']);
   });
 
-  it('detects RLS operations inside executable anonymous DO blocks', () => {
+  it('rejects RLS operations inside executable anonymous DO blocks', () => {
     const sources = [
       {
         name: '001_do_block.sql',
@@ -334,7 +342,53 @@ describe('FORCE RLS migration invariant', () => {
       },
     ];
 
-    expect(unforcedRlsTables(sources)).toEqual(['do_block_table']);
+    expect(() => unforcedRlsTables(sources)).toThrow(
+      'RLS operations inside anonymous DO blocks are not supported'
+    );
+  });
+
+  it('rejects unreachable RLS operations inside conditional DO branches', () => {
+    const sources = [
+      {
+        name: '001_conditional_do_block.sql',
+        sql: `
+          CREATE TABLE public.conditional_do_table (id uuid);
+          ALTER TABLE public.conditional_do_table ENABLE ROW LEVEL SECURITY;
+          DO $$
+          BEGIN
+            IF false THEN
+              ALTER TABLE public.conditional_do_table FORCE ROW LEVEL SECURITY;
+            END IF;
+          END;
+          $$;
+        `,
+      },
+    ];
+
+    expect(() => unforcedRlsTables(sources)).toThrow(
+      'RLS operations inside anonymous DO blocks are not supported'
+    );
+  });
+
+  it('rejects dynamically executed RLS operations inside DO blocks', () => {
+    const sources = [
+      {
+        name: '001_dynamic_do_block.sql',
+        sql: `
+          CREATE TABLE public.dynamic_do_table (id uuid);
+          ALTER TABLE public.dynamic_do_table ENABLE ROW LEVEL SECURITY;
+          DO $$
+          BEGIN
+            EXECUTE 'ALTER TABLE public.dynamic_do_table FORCE ROW LEVEL SECURITY';
+          END;
+          $$;
+        `,
+      },
+    ];
+
+    expect(() => unforcedRlsTables(sources)).toThrow(
+      'RLS operations inside anonymous DO blocks are not supported'
+    );
   });
 
   it('detects RLS operations in compound ALTER TABLE statements', () => {

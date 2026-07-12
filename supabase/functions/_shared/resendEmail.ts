@@ -28,18 +28,66 @@ function fallbackDelayMs(attempt: number, random: () => number): number {
   return baseMs + jitterMs;
 }
 
-function isHttpDate(value: string): boolean {
-  return (
-    /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(
-      value
-    ) ||
-    /^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), \d{2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2} \d{2}:\d{2}:\d{2} GMT$/.test(
-      value
-    ) ||
-    /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (?: [1-9]|[12]\d|3[01]) \d{2}:\d{2}:\d{2} \d{4}$/.test(
-      value
-    )
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function utcDateMs(
+  year: number,
+  monthName: string,
+  day: string,
+  hour: string,
+  minute: string,
+  second: string
+): number | null {
+  const month = MONTHS.indexOf(monthName);
+  if (month < 0) return null;
+  const values = [day, hour, minute, second].map(Number);
+  const timestamp = Date.UTC(year, month, values[0], values[1], values[2], values[3]);
+  const parsed = new Date(timestamp);
+  return parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month &&
+    parsed.getUTCDate() === values[0] &&
+    parsed.getUTCHours() === values[1] &&
+    parsed.getUTCMinutes() === values[2] &&
+    parsed.getUTCSeconds() === values[3]
+    ? timestamp
+    : null;
+}
+
+function parseHttpDate(value: string, nowMs: number): number | null {
+  const imf = value.match(
+    /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), (\d{2}) (\w{3}) (\d{4}) (\d{2}):(\d{2}):(\d{2}) GMT$/
   );
+  if (imf) return utcDateMs(Number(imf[3]), imf[2], imf[1], imf[4], imf[5], imf[6]);
+
+  const rfc850 = value.match(
+    /^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), (\d{2})-(\w{3})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) GMT$/
+  );
+  if (rfc850) {
+    const currentYear = new Date(nowMs).getUTCFullYear();
+    let year = Math.floor(currentYear / 100) * 100 + Number(rfc850[3]);
+    let timestamp = utcDateMs(year, rfc850[2], rfc850[1], rfc850[4], rfc850[5], rfc850[6]);
+    const futureLimit = new Date(nowMs);
+    futureLimit.setUTCFullYear(currentYear + 50);
+    if (timestamp !== null && timestamp > futureLimit.getTime()) {
+      year -= 100;
+      timestamp = utcDateMs(year, rfc850[2], rfc850[1], rfc850[4], rfc850[5], rfc850[6]);
+    }
+    return timestamp;
+  }
+
+  const asctime = value.match(
+    /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (\w{3}) (?: (\d)|(\d{2})) (\d{2}):(\d{2}):(\d{2}) (\d{4})$/
+  );
+  return asctime
+    ? utcDateMs(
+        Number(asctime[7]),
+        asctime[1],
+        asctime[2] ?? asctime[3],
+        asctime[4],
+        asctime[5],
+        asctime[6]
+      )
+    : null;
 }
 
 function retryAfterDelayMs(
@@ -56,11 +104,10 @@ function retryAfterDelayMs(
         ? Math.min(MAX_RETRY_DELAY_MS, seconds * 1000)
         : MAX_RETRY_DELAY_MS;
     }
-    if (isHttpDate(value)) {
-      const retryAt = Date.parse(value);
-      if (Number.isFinite(retryAt)) {
-        return Math.min(MAX_RETRY_DELAY_MS, Math.max(0, retryAt - now()));
-      }
+    const nowMs = now();
+    const retryAt = parseHttpDate(value, nowMs);
+    if (retryAt !== null) {
+      return Math.min(MAX_RETRY_DELAY_MS, Math.max(0, retryAt - nowMs));
     }
   }
   return fallbackDelayMs(attempt, random);

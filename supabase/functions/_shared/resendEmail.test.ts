@@ -297,6 +297,27 @@ describe('sendResendEmailWithRetry', () => {
     }
   );
 
+  it('applies the HTTP 50-year rollover rule to RFC 850 dates', async () => {
+    const now = Date.UTC(2040, 0, 1, 0, 0, 0);
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('rate limited', {
+          status: 429,
+          headers: { 'Retry-After': 'Wednesday, 06-Nov-75 08:49:37 GMT' },
+        })
+      )
+      .mockResolvedValueOnce(Response.json({ id: 'email-after-rfc850-rollover' }));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+
+    await sendResendEmailWithRetry(
+      { method: 'POST', body: JSON.stringify({ to: 'recipient@example.com' }) },
+      { fetchImpl, sleep, now: () => now, random: () => 0, onRetry: vi.fn() }
+    );
+
+    expect(sleep).toHaveBeenCalledWith(2000);
+  });
+
   it('emits PII-free structured retry telemetry by default', async () => {
     const fetchImpl = vi
       .fn()

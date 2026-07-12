@@ -63,7 +63,7 @@ Shared push authentication rejects missing, malformed, wrong-length, and wrong-v
 
 ### Use bounded in-request Resend retries with content-safe idempotency
 
-All ten production call sites that post directly to `https://api.resend.com/emails` use a shared `sendResendEmailWithRetry` contract. The helper makes at most three total attempts. It retries only network exceptions, HTTP 408, HTTP 429, and HTTP 5xx responses; all other 4xx responses return immediately to the existing caller-specific failure path. It honors `Retry-After` delta-seconds or HTTP-date values, capped at 2,000 ms per wait so the Auth Send Email Hook and synchronous Edge callers do not exceed their practical request windows. Without a valid header it uses exponential fallback waits of 250 ms and 500 ms plus bounded jitter. Fetch, sleep, clock, and randomness are injectable so lifecycle-email's existing seam remains intact and unit tests never use real time or network traffic.
+All ten production call sites that post directly to `https://api.resend.com/emails` use a shared `sendResendEmailWithRetry` contract. The helper accepts only a JSON string body so the exact bytes sent can be hashed before the first attempt. It makes at most three total attempts. It retries non-abort network exceptions, HTTP 408, HTTP 429, and HTTP 5xx responses; an `AbortError` or already-aborted caller signal stops immediately, and all other 4xx responses return immediately to the existing caller-specific failure path. It honors `Retry-After` delta-seconds or HTTP-date values, capped at 2,000 ms per wait so the Auth Send Email Hook and synchronous Edge callers do not exceed their practical request windows. Without a valid header it uses exponential fallback waits of 250 ms and 500 ms plus bounded jitter. Fetch, sleep, clock, randomness, and a structured retry observer are injectable so lifecycle-email's existing seam remains intact and unit tests never use real time or network traffic. Production retry telemetry contains only attempt number, response status or `network_error`, and bounded delay; it never contains message or credential data.
 
 Every attempt for one logical send reuses the same `Idempotency-Key`. Existing business keys remain authoritative. When a caller has no key, the helper derives `myk9-<sha256>` from the exact request body, so the key contains no raw recipient, token, subject, or message data and an uncertain network response cannot produce a duplicate on retry. Intermediate response bodies are discarded without logging secrets. After exhaustion the final `Response` or final network error is returned/thrown exactly once so each caller preserves its existing status, database log, durable alert, or best-effort behavior.
 
@@ -89,6 +89,8 @@ The target production `rate_limit_email_sent` is 1,000/hour, shared across Supab
 - **Permanent provider errors waste capacity** → never retry 400, 401, 403, 409, 422, or other non-408 4xx responses.
 - **The two deploy roots drift** → keep the portable helper byte-identical and enforce parity plus a repository-wide no-raw-fetch contract.
 - **Auth capacity exceeds provider capacity** → keep the 1,000/hour PATCH blocked until the paid Resend plan and live quota/rate evidence exist.
+- **An invocation is cancelled while retrying** → treat `AbortError` and an aborted signal as terminal and never sleep or issue another request.
+- **Retry behavior is invisible during a launch spike** → emit structured attempt/status/delay telemetry without recipient, content, token, authorization, or idempotency data.
 
 ## Migration Plan
 
@@ -102,7 +104,7 @@ The target production `rate_limit_email_sent` is 1,000/hour, shared across Supab
 8. After the operator upgrades Resend, PATCH the Auth ceiling to 1,000/hour with backup/read-back evidence and no unrelated Auth-config changes.
 9. Update the July 11 reports, backlog, runbook, scorecard, and docs index; archive only after every implementation PR merges and all remaining gates are explicitly recorded.
 
-Rollback uses forward migrations or the exact SQL recorded per slice; prior view definitions and grant matrices are retained. A failed health repair leaves the board red and the independent alert active. Database push stops on unexpected migration history.
+Rollback uses forward migrations or the exact SQL recorded per slice; prior view definitions and grant matrices are retained. Resend retry rollback redeploys the exact previous version of each affected function, then re-runs ordinary auth, registration, and operator-alert smokes; it never disables provider idempotency or changes the Auth rate. A failed health repair leaves the board red and the independent alert active. Database push stops on unexpected migration history.
 
 ## Open Questions
 

@@ -204,6 +204,38 @@ describe('send-lifecycle-email handler', () => {
     );
   });
 
+  it('retries a transient provider response without duplicating the business action', async () => {
+    const { supabase, calls } = makeSupabase(baseTables());
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('unavailable', { status: 503, headers: { 'Retry-After': '0' } })
+      )
+      .mockResolvedValueOnce(Response.json({ id: 'resend-after-retry' }));
+    const handler = createSendLifecycleEmailHandler({
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      resendApiKey: 'resend-key',
+    });
+
+    const result = await handler({
+      body: { action: 'send', show_id: 'show-1', job_ids: ['job-1'] },
+      user: { id: 'secretary-1' },
+      supabase,
+    });
+
+    expect(result).toMatchObject({ attempted: 1, sent: 1, failed: 0 });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    for (const [, init] of fetch.mock.calls) {
+      expect(new Headers(init.headers).get('Idempotency-Key')).toBe('idem-job-1');
+    }
+    expect(calls.filter(call => call.table === 'email_log' && call.action === 'insert')).toHaveLength(
+      1
+    );
+    expect(
+      calls.filter(call => call.table === 'show_lifecycle_email_jobs' && call.action === 'update')
+    ).toHaveLength(1);
+  });
+
   it('previews jobs through the same show authorization path', async () => {
     const { supabase } = makeSupabase(baseTables());
     const fetch = vi.fn();

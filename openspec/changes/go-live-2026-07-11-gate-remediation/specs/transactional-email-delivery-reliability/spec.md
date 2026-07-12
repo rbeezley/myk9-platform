@@ -2,7 +2,7 @@
 
 ### Requirement: Direct Resend sends tolerate bounded transient failure
 
-Every production call site that posts directly to the Resend emails endpoint SHALL use the shared retry contract. One logical send SHALL make no more than three total attempts. Network exceptions, HTTP 408, HTTP 429, and HTTP 5xx responses SHALL be retryable; every other HTTP 4xx response SHALL return immediately without retry.
+Every production call site that posts directly to the Resend emails endpoint SHALL use the shared retry contract. The helper SHALL require an exact JSON string request body. One logical send SHALL make no more than three total attempts. Non-abort network exceptions, HTTP 408, HTTP 429, and HTTP 5xx responses SHALL be retryable; `AbortError`, an already-aborted caller signal, and every other HTTP 4xx response SHALL return or throw immediately without retry.
 
 #### Scenario: Rate limit clears within the request window
 
@@ -14,6 +14,16 @@ Every production call site that posts directly to the Resend emails endpoint SHA
 - **WHEN** Resend returns 400, 401, 403, 409, 422, or another non-408 4xx response
 - **THEN** the helper returns that first response immediately and performs no sleep or additional request
 
+#### Scenario: Caller cancels delivery
+
+- **WHEN** the caller signal is aborted or fetch throws `AbortError`
+- **THEN** the helper stops immediately without sleeping or issuing another request
+
+#### Scenario: Request body is not stable JSON text
+
+- **WHEN** a caller omits the body or supplies a non-string body
+- **THEN** the helper rejects the call before the first network attempt because it cannot derive a stable content key
+
 #### Scenario: Transient failure exhausts the budget
 
 - **WHEN** all three attempts fail with retryable responses or network exceptions
@@ -21,7 +31,7 @@ Every production call site that posts directly to the Resend emails endpoint SHA
 
 ### Requirement: Retry timing is provider-aware and invocation-bounded
 
-The retry contract SHALL parse both delta-seconds and HTTP-date `Retry-After` values. Each instructed wait SHALL be clamped to 2,000 ms. Without a valid header, the two retry waits SHALL use exponential 250 ms and 500 ms bases with bounded jitter. Fetch, sleep, clock, and randomness SHALL be injectable for deterministic tests and to preserve existing caller seams.
+The retry contract SHALL parse both delta-seconds and HTTP-date `Retry-After` values. Each instructed wait SHALL be clamped to 2,000 ms. Without a valid header, the two retry waits SHALL use exponential 250 ms and 500 ms bases with bounded jitter. Fetch, sleep, clock, randomness, and retry observation SHALL be injectable for deterministic tests and to preserve existing caller seams. Production observation SHALL emit only attempt number, response status or `network_error`, and bounded delay.
 
 #### Scenario: Provider requests a long delay
 
@@ -32,6 +42,11 @@ The retry contract SHALL parse both delta-seconds and HTTP-date `Retry-After` va
 
 - **WHEN** a retryable response has no valid `Retry-After`
 - **THEN** the helper uses the bounded exponential fallback and never waits indefinitely
+
+#### Scenario: Retry telemetry is emitted
+
+- **WHEN** a retryable attempt schedules another attempt
+- **THEN** telemetry contains only attempt, status or `network_error`, and delay and contains no recipient, subject, body, token, authorization header, API key, or idempotency key
 
 ### Requirement: Retries are idempotent without exposing message data
 

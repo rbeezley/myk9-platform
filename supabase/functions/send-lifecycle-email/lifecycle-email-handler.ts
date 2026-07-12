@@ -1,4 +1,5 @@
 import { HttpError } from '../_shared/http/responses.ts';
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 
 export interface SendLifecycleEmailPayload {
   action?: 'preview' | 'save_ready' | 'send';
@@ -390,20 +391,23 @@ async function sendOneJob(args: {
     return { jobId: args.job.id, status: 'failed', error: 'Missing recipient email' };
   }
 
-  const response = await args.deps.fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${args.deps.resendApiKey}`,
-      'Idempotency-Key': args.job.idempotency_key,
+  const response = await sendResendEmailWithRetry(
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${args.deps.resendApiKey}`,
+        'Idempotency-Key': args.job.idempotency_key,
+      },
+      body: JSON.stringify({
+        from: args.deps.fromEmail ?? 'myK9Show <notifications@myk9show.com>',
+        to: args.job.recipient_email,
+        subject,
+        html: renderHtmlEmail(subject, body, secretaryNote),
+      }),
     },
-    body: JSON.stringify({
-      from: args.deps.fromEmail ?? 'myK9Show <notifications@myk9show.com>',
-      to: args.job.recipient_email,
-      subject,
-      html: renderHtmlEmail(subject, body, secretaryNote),
-    }),
-  });
+    { fetchImpl: args.deps.fetch }
+  );
 
   if (!response.ok) {
     const error = await response.text();

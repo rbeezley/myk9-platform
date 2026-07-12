@@ -19,6 +19,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { buildAlertRow, runAlertAdmin, type InsertResultLike } from './alertAdminCore.ts';
+import { sendResendEmailWithRetry } from './resendEmail.ts';
 
 export type AlertSeverity = 'info' | 'warn' | 'error';
 
@@ -73,7 +74,7 @@ async function sendAlertEmail(subject: string, html: string): Promise<void> {
     console.log(`Alert email skipped (no RESEND_API_KEY): ${subject}`);
     return;
   }
-  const res = await fetch('https://api.resend.com/emails', {
+  const res = await sendResendEmailWithRetry({
     method: 'POST',
     headers: {
       Authorization: `Bearer ${resendApiKey}`,

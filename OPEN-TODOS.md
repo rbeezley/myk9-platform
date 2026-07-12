@@ -26,7 +26,6 @@ The [audit README](docs/improve-audit-2026-07-11/README.md) "Backlog (found, vet
 - [ ] **Shared read-builder for the `reads.ts` trio** — `services/database/entries/reads.ts` (862 L) + `judges/reads.ts` (771 L) + `dogs/reads.ts` (763 L) = **2396 L** of repeated query shape; extract a shared read-builder. Investigate-first: confirm the shapes genuinely converge before abstracting. M–L, architecture.
 - [ ] **Consolidate the refund dialog pair** — `components/entries/management/RefundEntryDialog.tsx` vs `EnrollmentRefundDialog.tsx` may be parallel surfaces for one workflow. **Investigate-first** — confirm they aren't distinct lifecycle stages before consolidating. M, money path.
 - [ ] **Window the enrollment card view** — `RegistrationView.tsx:264` maps all `enrollmentGroups` unwindowed while the table view paginates at 25. Add pagination/windowing to card mode. M.
-- [ ] **Reconcile + archive-sweep `docs/README.md` status column** — 60 rows marked `Active`, **2 marked `Complete` but not archived**: [`plan-dynamic-qa-infrastructure.md`](docs/plan-dynamic-qa-infrastructure.md) and [`plan-replication-occ-watermark-findings.md`](docs/plan-replication-occ-watermark-findings.md) — `git mv` both to `docs/archive/` and drop their index rows per CLAUDE.md. Then spot-check the 60 Active rows for other shipped-but-unarchived plans. (The audit's two original examples — `plan-lane-2-2-entry-multiselect`, `plan-block-person-delete-owns-dogs` — were already archived since 2026-07-11.) M, docs-integrity.
 
 ---
 

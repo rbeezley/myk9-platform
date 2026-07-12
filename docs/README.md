@@ -27,6 +27,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 > Reduced docs/ from 563 markdown files to 86 living docs (85 indexed below + this index); 484 retired to `archive/`.
 > Second-pass triage 2026-06-14 archived 30 shipped/superseded plans (see [`plan-active-docs-triage-2026-06-14.md`](plan-active-docs-triage-2026-06-14.md)).
 > (2026-06-14 follow-up: archived 4 more myK9Q-era reference docs — `SCHEMA-ANALYSIS`, `DATABASE-AUDIT`, `ONLINE-ENTRY-SYSTEM`, and the `2026-05-17-unify-myk9show-myk9q` plan — after the myK9Q app was removed.)
+> (2026-07-12 status-column sweep: archived 4 shipped-but-unarchived plans whose bodies already read `Status: Complete` — `plan-dynamic-qa-infrastructure`, `plan-replication-occ-watermark-findings`, `plan-entry-management-layout`, `plan-motion-consistency` — and dropped their index rows.)
 
 ---
 
@@ -57,21 +58,17 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-askq-revival.md](plan-askq-revival.md)                                               | Active    | AskQ Revival & Simplification (select-then-bundle)                           |
 | [plan-class-status-auto-derivation.md](plan-class-status-auto-derivation.md)               | Active    | Plan — Class Status Auto-Derivation (Stub)                                   |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                       | Active    | Data Access Module Drift Plan                                                |
-| [plan-dynamic-qa-infrastructure.md](plan-dynamic-qa-infrastructure.md)                     | Complete  | Plan: Dynamic QA Infrastructure (follow-on to the Code-Quality Audit)        |
 | [plan-entries-read-consolidation.md](plan-entries-read-consolidation.md)                   | Active    | Entry-Read Module Consolidation (findings from Plan 004 spike)               |
 | [plan-show-details-step-extraction/README.md](plan-show-details-step-extraction/README.md) | Active    | Show Details Step Extraction (ShowDetailsStep.tsx hotspot follow-up)         |
-| [plan-entry-management-layout.md](plan-entry-management-layout.md)                         | Active    | Entry Management Layout Plan                                                 |
 | [plan-entry-draw-lottery.md](plan-entry-draw-lottery.md)                                   | Active    | Entry Draw / Lottery — random-draw intake (depends on payment plan)          |
 | [plan-entry-payment-request.md](plan-entry-payment-request.md)                             | Active    | Entry Payment, Waitlist & Capacity (links, pay-to-claim, judge-day)          |
 | [plan-exhibitor-early-checkin.md](plan-exhibitor-early-checkin.md)                         | Active    | Exhibitor early check-in — toggle gate (P1 done) + /at-show fix (P2)         |
 | [plan-landing-hero-lcp-prerender.md](plan-landing-hero-lcp-prerender.md)                   | Active    | Landing-page mobile LCP — prerender + hydrate the hero                       |
 | [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                           | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                        |
-| [plan-motion-consistency.md](plan-motion-consistency.md)                                   | Active    | Motion Consistency — one motion language across myK9Show + ringside          |
 | [plan-operator-docs-portal.md](plan-operator-docs-portal.md)                               | Deferred  | Gated Operator Docs Portal — searchable runbooks (deferred 2026-06-27)       |
 | [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                         | Active    | Plan: Phase 4 seam render-only read strategy                                 |
 | [plan-pull-management-split.md](plan-pull-management-split.md)                             | Active    | Pull Management — separate show-day pull state from refund accounting        |
 | [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                 | Active    | Plan: Server-side gate for public/anon scored results                        |
-| [plan-replication-occ-watermark-findings.md](plan-replication-occ-watermark-findings.md)   | Complete  | Replication OCC / Watermark Findings + S1/S2 Re-check                        |
 | [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)           | Active    | Replication INSERT retry idempotency — investigation verdict (B)             |
 | [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                                  |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                       | Active    | Plan: Result Reveal + Share Card                                             |

@@ -9,6 +9,8 @@ The July 11 go-live review found launch monitoring that can fail silently, a loc
 - Enforce FORCE RLS continuously, harden resend and push webhook authentication, fail closed on passcode-limiter failure, and rate-limit premium generation.
 - Inventory and disposition every July 11 Supabase advisor result by exact object identity, then apply only evidence-backed privilege, search-path, storage-policy, or documented-exception changes.
 - Remove the service-role-key push-webhook fallback after the dedicated secret is proven and rotated through an approved deployment.
+- Make all direct Resend transactional-email sends resilient to short provider/network failures with one bounded retry contract, stable idempotency, and unchanged caller-visible exhaustion behavior.
+- Raise the production Supabase Auth email ceiling to 1,000/hour only after the operator upgrades the Resend transactional plan and verifies the paid quota.
 - Update the existing go-live report, security audit, runbook, scorecard, and backlog with source, CI, deployment, and operator evidence.
 - Keep all dashboard, live-money, secret, DNS, production-data, legal, browser, device, and real-user actions confirmation- or operator-gated.
 
@@ -20,6 +22,7 @@ The July 11 go-live review found launch monitoring that can fail silently, a loc
 - `premium-generation-throttle`: Atomic per-user/per-show request accounting, fail-closed enforcement, and bounded retention before paid AI generation.
 - `push-webhook-authentication`: Dedicated-secret-only constant-time authentication for all database-triggered push webhooks.
 - `resend-webhook-verification`: Shared timing-safe Standard-Webhooks verification for Resend delivery events.
+- `transactional-email-delivery-reliability`: Bounded retry, backoff, idempotency, and deployment evidence for every direct Resend sender.
 
 ### Modified Capabilities
 
@@ -30,7 +33,7 @@ The July 11 go-live review found launch monitoring that can fail silently, a loc
 
 ## Impact
 
-Affected areas include Supabase migrations and catalog grants, `cron-health-check`, `validate-passcode`, `generate-premium`, `resend-webhook`, shared push-webhook authentication, myK9Show auth helpers, database/security verification scripts, and launch tracking documents. Database pushes, Edge Function deployments, secret rotation, external alert configuration, live Stripe work, production-data changes, DNS/Vercel changes, and operator evidence remain shared-system gates requiring confirmation.
+Affected areas include Supabase migrations and catalog grants, `cron-health-check`, `validate-passcode`, `generate-premium`, `resend-webhook`, all ten direct Resend senders across the root and myK9Show Supabase deployment roots, shared push-webhook authentication, myK9Show auth helpers, database/security verification scripts, and launch tracking documents. Database pushes, Edge Function deployments, secret rotation, Auth configuration changes, external alert configuration, live Stripe work, production-data changes, DNS/Vercel changes, and operator evidence remain shared-system gates requiring confirmation.
 
 This change adds no page, dialog, or parallel checklist. It reuses `/admin/health`, `operator_alerts`, the go-live runbook, and the existing launch scorecard; a link is not needed because no new surface is introduced.
 

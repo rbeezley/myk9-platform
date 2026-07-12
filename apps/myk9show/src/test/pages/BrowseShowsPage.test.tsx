@@ -37,6 +37,15 @@ vi.mock('@/services/AuditService', () => ({
   auditService: { log: vi.fn(), logAction: vi.fn() },
 }));
 vi.mock('@/services/LoggingService', () => ({
+  LoggingService: {
+    getInstance: () => ({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      logUserAction: vi.fn(),
+    }),
+  },
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -630,7 +639,6 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       });
     });
   });
-
 
   describe('Loading and Error States', () => {
     it('should show loading skeleton while data is loading', async () => {

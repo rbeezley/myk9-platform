@@ -63,10 +63,19 @@ describe('runPremiumGenerationAttempt', () => {
   });
 
   it('passes the show identity so one user has independent show windows', async () => {
-    const checkRateLimit = vi.fn(async ({ showId }: { showId: string }) => ({
-      data: [{ ...allowedRow, attempts_count: showId === 'show-1' ? 5 : 1 }],
-      error: null,
-    }));
+    const checkRateLimit = vi.fn(async ({ showId }: { showId: string }) => {
+      const attemptsCount = showId === 'show-1' ? 5 : 1;
+      return {
+        data: [
+          {
+            ...allowedRow,
+            attempts_count: attemptsCount,
+            remaining_attempts: 5 - attemptsCount,
+          },
+        ],
+        error: null,
+      };
+    });
     const generate = vi.fn().mockResolvedValue('generated');
 
     await runPremiumGenerationAttempt({
@@ -126,6 +135,45 @@ describe('runPremiumGenerationAttempt', () => {
 
   it('fails closed with 503 on unusable limiter data', async () => {
     const deps = dependencies({ data: [{ allowed: 'yes' }], error: null });
+
+    const promise = runPremiumGenerationAttempt({
+      authUserId: 'user-1',
+      showId: 'show-1',
+      ...deps,
+    });
+
+    await expect(promise).rejects.toMatchObject<HttpError>({ status: 503 });
+    expect(deps.generate).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when an allowed row has contradictory counters', async () => {
+    const deps = dependencies({
+      data: [{ ...allowedRow, attempts_count: 5, remaining_attempts: 4 }],
+      error: null,
+    });
+
+    const promise = runPremiumGenerationAttempt({
+      authUserId: 'user-1',
+      showId: 'show-1',
+      ...deps,
+    });
+
+    await expect(promise).rejects.toMatchObject<HttpError>({ status: 503 });
+    expect(deps.generate).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when a denied row has no retry window', async () => {
+    const deps = dependencies({
+      data: [
+        {
+          allowed: false,
+          attempts_count: 5,
+          remaining_attempts: 0,
+          retry_after_seconds: 0,
+        },
+      ],
+      error: null,
+    });
 
     const promise = runPremiumGenerationAttempt({
       authUserId: 'user-1',

@@ -54,9 +54,11 @@ describe('premium generation throttle migration', () => {
     );
 
     const lock = sql.indexOf('pg_advisory_xact_lock');
+    const clock = sql.indexOf('clock_timestamp()');
     const count = sql.indexOf('SELECT count(*)');
     const insert = sql.indexOf('INSERT INTO public.premium_generation_attempts');
     expect(lock).toBeGreaterThan(-1);
+    expect(clock).toBeGreaterThan(lock);
     expect(count).toBeGreaterThan(lock);
     expect(insert).toBeGreaterThan(count);
   });

@@ -1,5 +1,7 @@
 import { HttpError } from '../_shared/http/responses.ts';
 
+const MAX_PREMIUM_ATTEMPTS = 5;
+
 export interface PremiumRateLimitRow {
   allowed: boolean;
   attempts_count: number;
@@ -64,14 +66,34 @@ function isPremiumRateLimitRow(value: unknown): value is PremiumRateLimitRow {
   if (!value || typeof value !== 'object') return false;
 
   const row = value as Partial<PremiumRateLimitRow>;
-  return (
+  const hasValidFields =
     typeof row.allowed === 'boolean' &&
     Number.isInteger(row.attempts_count) &&
     Number.isInteger(row.remaining_attempts) &&
     Number.isInteger(row.retry_after_seconds) &&
     (row.attempts_count ?? -1) >= 0 &&
     (row.remaining_attempts ?? -1) >= 0 &&
-    (row.retry_after_seconds ?? -1) >= 0
+    (row.retry_after_seconds ?? -1) >= 0;
+
+  if (!hasValidFields) return false;
+
+  const attemptsCount = row.attempts_count as number;
+  const remainingAttempts = row.remaining_attempts as number;
+  const retryAfterSeconds = row.retry_after_seconds as number;
+
+  if (row.allowed) {
+    return (
+      attemptsCount >= 1 &&
+      attemptsCount <= MAX_PREMIUM_ATTEMPTS &&
+      remainingAttempts === MAX_PREMIUM_ATTEMPTS - attemptsCount &&
+      retryAfterSeconds === 0
+    );
+  }
+
+  return (
+    attemptsCount >= MAX_PREMIUM_ATTEMPTS &&
+    remainingAttempts === 0 &&
+    retryAfterSeconds >= 1
   );
 }
 

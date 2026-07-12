@@ -28,11 +28,14 @@ The pure `runPremiumGenerationAttempt` seam accepts the authenticated user and a
 fails closed with typed 429/503 `HttpError` responses, and never invokes its paid-model callback on
 denied, errored, rejected, or malformed limiter results. `generate-premium` calls the seam after its
 RLS-backed show authorization and rethrows limiter errors before the existing Claude-only fallback.
+Independent review additionally hardened the boundary: the RPC captures its rolling-window clock
+only after acquiring the advisory lock, and the Edge seam rejects internally contradictory limiter
+counters instead of trusting a structurally valid response.
 
 Verification:
 
-- 15 direct migration, source-integration, and handler-seam tests passed;
-- 33 focused tests passed including the existing premium style contract, repository FORCE-RLS
+- 17 direct migration, source-integration, and handler-seam tests passed;
+- 35 focused tests passed including the existing premium style contract, repository FORCE-RLS
   invariant, and migration-version uniqueness guard;
 - `pnpm typecheck`: 26/26 tasks passed;
 - `pnpm lint`: 14/14 tasks passed;

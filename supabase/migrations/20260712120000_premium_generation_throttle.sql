@@ -50,8 +50,8 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_now timestamptz := clock_timestamp();
-  v_window_start timestamptz := v_now - interval '15 minutes';
+  v_now timestamptz;
+  v_window_start timestamptz;
   v_max_attempts constant integer := 5;
   v_attempt_count integer;
   v_oldest_attempt timestamptz;
@@ -70,6 +70,9 @@ BEGIN
       0
     )
   );
+
+  v_now := clock_timestamp();
+  v_window_start := v_now - interval '15 minutes';
 
   SELECT count(*), min(attempted_at)
     INTO v_attempt_count, v_oldest_attempt

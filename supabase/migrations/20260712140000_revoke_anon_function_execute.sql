@@ -36,8 +36,13 @@ DECLARE
   r record;
   sig text;
   keep_anon text[] := ARRAY[
+    -- RLS predicate helpers referenced by anon/public policy quals:
     'get_my_person_id','has_role','is_club_admin','is_platform_admin',
-    'is_show_official','is_show_secretary','is_site_admin','is_trial_secretary'
+    'is_show_official','is_show_secretary','is_site_admin','is_trial_secretary',
+    -- Helper called by the anon-facing SECURITY DEFINER views view_public_entry_results /
+    -- view_own_entry_results (EXECUTE is checked against the anon caller). Kept here so a
+    -- standalone re-run of this sweep stays self-contained and cannot re-break anon reads.
+    'resolve_class_result_visibility'
   ];
 BEGIN
   FOR r IN

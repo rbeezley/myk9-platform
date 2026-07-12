@@ -9,7 +9,10 @@
 -- view_public_entry_results returned "42501: permission denied for function
 -- resolve_class_result_visibility" post-revoke.
 --
--- Verified live 2026-07-12: only the PUBLIC view calls this helper for anon; can_manage_show and
+-- Verified live 2026-07-12: two anon-SELECTable views call this helper (view_public_entry_results
+-- and view_own_entry_results) — a single anon EXECUTE grant covers both. can_manage_show and
 -- ringside_claim_generation_current are referenced solely by view_authenticated_entry_results
--- (staff-only, never read by the anon role), so they stay anon-revoked.
+-- (staff-only, not anon-SELECTable), so they stay anon-revoked.
+-- (As of 20260712140000 this helper is also in that migration's keep_anon list, so this GRANT is
+-- now belt-and-suspenders for forward applies; it remains as the historical fix of record.)
 GRANT EXECUTE ON FUNCTION public.resolve_class_result_visibility(uuid) TO anon;

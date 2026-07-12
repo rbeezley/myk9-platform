@@ -107,10 +107,14 @@ Auto-fixable: 4 of 7 findings
 - **SA-023 / SA-028 / SA-030:** repository remediation merged in PR #1285 with red-first focused
   tests, full typecheck, lint, and independent-review evidence. These rows are not recorded as
   deployed until the applicable hosted/Edge revisions are live.
-- **SA-024:** repository remediation is code-complete with a Deno-free fail-closed gate, 11 focused
-  tests, full typecheck, and lint evidence. It remains open until review/merge, deployment of
-  `validate-passcode`, and controlled healthy/429/503 runtime evidence.
-- **SA-025 / SA-029:** remain open in the active remediation change.
+- **SA-024:** repository remediation merged in PR #1286 with a Deno-free fail-closed gate, 11
+  focused tests, full typecheck, lint, and independent-review evidence. It remains open until
+  deployment of `validate-passcode` and controlled healthy/429/503 runtime evidence.
+- **SA-025:** repository remediation is code-complete with an atomic service-only migration,
+  Deno-free paid-model gate, 15 direct red-first tests, full typecheck, and lint evidence. It
+  remains open until review/merge, the approved migration push and `generate-premium` deployment,
+  and controlled live catalog/concurrency/429/503 evidence.
+- **SA-029:** remains open in the active remediation change.
 
 ## Categories Checked
 

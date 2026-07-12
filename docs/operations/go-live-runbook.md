@@ -58,9 +58,11 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
 - [ ] **0.1c Complete the 2026-07-11 go-live security remediation** — Migration lineage (#1280),
       FORCE-RLS remediation (#1283), and health observability (#1284) are merged; SA-021 is pushed
       and live-verified. SA-023/028/030 merged in #1285 and remain applicable-runtime-evidence
-      pending. SA-024 is repository-complete with focused red-first tests, typecheck, and lint, but
-      remains open until review/merge and an approved `validate-passcode` deploy plus controlled
-      allowed/429/503 smoke evidence. SA-025/029 and advisor disposition remain separate slices.
+      pending. SA-024 merged in #1286 but remains open until an approved `validate-passcode` deploy
+      plus controlled allowed/429/503 smoke evidence. SA-025 is repository-complete with focused
+      red-first tests, an atomic limiter migration, FORCE RLS, typecheck, and lint, but remains open
+      until review/merge, an approved migration push and `generate-premium` deploy, and controlled
+      catalog/concurrency/429/503 evidence. SA-029 and advisor disposition remain separate slices.
       Owner: Agent for repository work; shared-system/operator steps require approval.
       _Verify:_ [`security-audit-2026-07-11.md`](../security-audit-2026-07-11.md),
       [`launch/go-live-2026-07-11.md`](../launch/go-live-2026-07-11.md), and OpenSpec change
@@ -69,6 +71,13 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       sojmvhhwsjxmfistvzbe --no-verify-jwt`; verify a limiter failure returns 503 before passcode
       validation and creates one unresolved `validate-passcode` alert, then restore the limiter and
       verify allowed and blocked 429 behavior. Rollback by redeploying the last-good revision.
+      _SA-025 deploy:_ first review the dry run, which currently includes both the pending
+      `20260711200000_daily_health_snapshot_watchdog.sql` and
+      `20260712120000_premium_generation_throttle.sql`; after approval, push both, deploy
+      `generate-premium --no-verify-jwt`, verify grants/index/cron plus rolled-back concurrent
+      fifth/sixth attempts, and smoke exhausted 429 and controlled limiter-failure 503 without
+      Claude traffic. A valid Edge generation requires separate paid-traffic approval. Rollback by
+      redeploying the last-good Edge revision before running the migration's forward rollback SQL.
 - [x] **0.2 Deploy the `ask-myk9show` fix** — DONE 2026-07-04. The AskQ
       cross-tenant scope-leak fix (#1089) is deployed live. Owner: Agent.
       _Do:_ `supabase functions deploy ask-myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`

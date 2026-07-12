@@ -45,6 +45,10 @@ export function showDateRangeStatus(
 export function toLocalDateOnly(isoStr: string): string {
   if (!isoStr) return isoStr;
   if (!isoStr.includes('T')) return isoStr;
+  // A DATE column can round-trip as UTC midnight ("2026-05-15T00:00:00+00:00").
+  // The intended date is the one in the string; local getters would misread it
+  // as the prior day west of UTC. Preserve the calendar date directly.
+  if (/T00:00:00(\.0+)?(Z|\+00:?00)$/.test(isoStr)) return isoStr.split('T')[0];
   const d = new Date(isoStr);
   if (isNaN(d.getTime())) return isoStr;
   const yyyy = d.getFullYear();

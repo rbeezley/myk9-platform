@@ -4,6 +4,8 @@ import {
   FieldSpecification,
   CreatedClass,
   Organization,
+  TemplateStatus,
+  TemplateType,
   TrialType,
 } from '@/types/template.types';
 
@@ -49,6 +51,8 @@ export const createMockTemplate = (overrides: Partial<ClassTemplate> = {}): Clas
   createdBy: 'test-user',
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
+  status: TemplateStatus.ACTIVE,
+  type: TemplateType.CUSTOM,
   isActive: true,
   isOfficial: false,
   isCustom: false,
@@ -88,7 +92,7 @@ export const createMockCreatedClass = (overrides: Partial<CreatedClass> = {}): C
   element: 'Container',
   level: 'Novice',
   section: 'A',
-  status: 'Pending',
+  status: 'Scheduled',
   runOrder: 1,
   plannedStartTime: new Date('2024-06-01T09:00:00'),
   fieldValues: {
@@ -129,6 +133,8 @@ export const createAKCScentWorkTemplate = (): ClassTemplate => ({
   createdBy: 'system',
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
+  status: TemplateStatus.ACTIVE,
+  type: TemplateType.OFFICIAL,
   isActive: true,
   isOfficial: true,
   isCustom: false,

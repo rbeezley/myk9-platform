@@ -43,7 +43,7 @@
 ## 7. Verify, review, merge, archive
 
 - [x] 7.1 **DONE** — `pnpm typecheck` 26/26; app tests 144 (5 changed files); `@myk9/core` 19 + `@myk9/ringside` 8; ESLint `--max-warnings 0` on all 11 changed source files exit 0.
-- [ ] 7.2 `db-push` the migration to staging (shared-system mutation — confirm before push); verify live via a rolled-back psql behavioral proof of the three headline behaviors.
+- [x] 7.2 **DONE** — migration renumbered 130000→180000 (collision with remote `advisor_sweep_mechanical`), merged `origin/main`, pushed `20260712180000` to staging. Rolled-back psql behavioral proof green on live staging: all of 3.1–3.5 PASS (scratch-doesn't-block, manual-override-survives, late-entry-reopens+clears, empty/first-score/absent, backfill fixes-stuck+skips-manual), ROLLBACK.
 - [ ] 7.3 Open PR; run `/review` and (high-stakes: migration + trigger + money-adjacent show-day path) a `/codex:review` second opinion; address findings.
 - [ ] 7.4 Merge; sync `main`; run branch/worktree hygiene.
 - [ ] 7.5 Update tracking docs: mark the OPEN-TODOS "Draft + implement class-status auto-derivation full plan" item done; flip `docs/plan-class-status-auto-derivation.md` status to Complete and `git mv` it to `docs/archive/` per the docs convention; add `> Tracked in openspec change: class-status-auto-derivation` was already the linkage — ensure the archived stub notes shipment.

@@ -32,8 +32,8 @@ DECLARE
   v_scored integer;
 BEGIN
   -- Shared parent rows (minimal NOT NULL columns only).
-  INSERT INTO public.shows (id, name, type, start_date, end_date, is_nationals)
-    VALUES (v_show, 'Test Show', 'All-Breed', current_date, current_date, false);
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals)
+    VALUES (v_show, 'Test Show', 'Test Org', current_date, current_date, false);
   INSERT INTO public.trials (id, show_id, name, date)
     VALUES (v_trial, v_show, 'Trial 1', current_date);
 

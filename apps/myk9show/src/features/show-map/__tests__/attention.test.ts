@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   countAttention,
   emptyAttentionCounts,
+  getClassAttention,
   getEntryAttention,
   type EntryLike,
 } from '../attention';
@@ -17,9 +18,7 @@ describe('getEntryAttention', () => {
 
   it('matches Entry Management by putting blank statuses in the pending bucket', () => {
     expect(getEntryAttention({})).toBe('pending_review');
-    expect(getEntryAttention({ entry_status: null, check_in_status: null })).toBe(
-      'pending_review'
-    );
+    expect(getEntryAttention({ entry_status: null, check_in_status: null })).toBe('pending_review');
   });
 
   it("returns 'pending_review' for the Entry Management pending bucket", () => {
@@ -29,15 +28,13 @@ describe('getEntryAttention', () => {
   });
 
   it("does not flag check_in_status='conflict' as secretary attention (myK9Q owns that signal)", () => {
-    expect(getEntryAttention({ entry_status: 'accepted', check_in_status: 'conflict' })).toBe(
-      null
-    );
+    expect(getEntryAttention({ entry_status: 'accepted', check_in_status: 'conflict' })).toBe(null);
   });
 
-  it("still flags pending_review when submitted entry also has a check-in conflict", () => {
-    expect(
-      getEntryAttention({ entry_status: 'submitted', check_in_status: 'conflict' })
-    ).toBe('pending_review');
+  it('still flags pending_review when submitted entry also has a check-in conflict', () => {
+    expect(getEntryAttention({ entry_status: 'submitted', check_in_status: 'conflict' })).toBe(
+      'pending_review'
+    );
   });
 
   it('matches Entry Management by putting unknown statuses in the pending bucket', () => {
@@ -80,5 +77,18 @@ describe('emptyAttentionCounts', () => {
     const b = emptyAttentionCounts();
     a.pending_review = 99;
     expect(b.pending_review).toBe(0);
+  });
+});
+
+describe('getClassAttention', () => {
+  it('returns null when reopenedAfterCloseoutAt is null or absent', () => {
+    expect(getClassAttention({ reopenedAfterCloseoutAt: null })).toBe(null);
+    expect(getClassAttention({})).toBe(null);
+  });
+
+  it("returns 'reopened_after_closeout' when a late entry reopened the class", () => {
+    expect(getClassAttention({ reopenedAfterCloseoutAt: '2026-07-12T18:00:00Z' })).toBe(
+      'reopened_after_closeout'
+    );
   });
 });

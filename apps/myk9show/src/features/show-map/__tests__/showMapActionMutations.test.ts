@@ -3,6 +3,8 @@ import {
   getShowMapHandlerMessageTarget,
   approveShowMapEntry,
   bulkApproveShowMapEntries,
+  markShowMapClassComplete,
+  markShowMapClassStarted,
   markShowMapEntryCheckedIn,
   moveUpShowMapEntry,
   scratchShowMapEntry,
@@ -10,6 +12,9 @@ import {
   undoShowMapMoveUp,
   undoShowMapScratch,
 } from '../showMapActionMutations';
+import { replicatedClassesTable } from '@/services/replication';
+
+const mockUpdateClass = replicatedClassesTable.updateClass as unknown as ReturnType<typeof vi.fn>;
 
 const mockFrom = vi.fn();
 const mockUpdateReplicatedCheckInStatus = vi.fn();
@@ -271,6 +276,37 @@ describe('showMapActionMutations', () => {
       expect(mockFrom).not.toHaveBeenCalled();
       expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
     });
+  });
+
+  it('marks a class complete with a manual override marker in the same replicated payload', async () => {
+    await markShowMapClassComplete('class-1');
+
+    expect(mockUpdateClass).toHaveBeenCalledWith(
+      'class-1',
+      expect.objectContaining({
+        classStatus: 'Completed',
+        statusSource: 'manual',
+        isCompleted: true,
+      })
+    );
+    // Single replicated write — no second mutation for the marker.
+    expect(mockUpdateClass).toHaveBeenCalledTimes(1);
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('marks a class started with a manual override marker in the same replicated payload', async () => {
+    await markShowMapClassStarted('class-1');
+
+    expect(mockUpdateClass).toHaveBeenCalledWith(
+      'class-1',
+      expect.objectContaining({
+        classStatus: 'In Progress',
+        statusSource: 'manual',
+        isCompleted: false,
+      })
+    );
+    expect(mockUpdateClass).toHaveBeenCalledTimes(1);
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it('resolves a handler messaging target from the entry handler account', async () => {

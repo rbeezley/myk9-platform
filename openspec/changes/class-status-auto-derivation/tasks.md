@@ -23,9 +23,9 @@
 
 ## 4. Replication + manual-override client wiring
 
-- [ ] 4.1 `ReplicatedClassesTable`: carry `status_source` (and `reopened_after_closeout_at` read) through `mapClassStatusToDb`/`toSupabaseRow` and the read mapper (update BOTH the replication mapper and any PostgREST fallback `.select` — dual-path).
-- [ ] 4.2 `showMapActionMutations.ts` `markShowMapClassStarted`/`markShowMapClassComplete`: include `status_source: 'manual'` in the same `updateClass` payload.
-- [ ] 4.3 Unit tests: mapper round-trips `status_source`; manual mutations set `status_source='manual'` (assertion-first `toHaveBeenCalledWith` on the payload).
+- [x] 4.1 `ReplicatedClassesTable`: carry `status_source` (and `reopened_after_closeout_at` read) through `mapClassStatusToDb`/`toSupabaseRow` and the read mapper (update BOTH the replication mapper and any PostgREST fallback `.select` — dual-path).
+- [x] 4.2 `showMapActionMutations.ts` `markShowMapClassStarted`/`markShowMapClassComplete`: include `status_source: 'manual'` in the same `updateClass` payload.
+- [x] 4.3 Unit tests: mapper round-trips `status_source`; manual mutations set `status_source='manual'` (assertion-first `toHaveBeenCalledWith` on the payload).
 
 ## 5. Dual-path client derivation reconciliation
 

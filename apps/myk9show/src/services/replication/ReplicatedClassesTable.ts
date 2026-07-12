@@ -89,6 +89,20 @@ export interface ReplicatedClass {
   displayOrder?: number | undefined;
   isCompleted?: boolean | undefined;
 
+  /**
+   * Class-status override marker (migration 20260712130000). `'derived'` = the
+   * server derivation owns `status`; `'manual'` = a secretary Mark Complete/Started
+   * pinned it, and the server derivation must not overwrite it. Written in the same
+   * offline-first replicated payload as the manual status change.
+   */
+  statusSource?: string | undefined;
+  /**
+   * Server-stamped when a late expected entry reopens a closed class. Read-only on
+   * the client (never written back via toSupabaseRow); drives the show-map
+   * class-level attention reason. Cleared server-side on legitimate completion.
+   */
+  reopenedAfterCloseoutAt?: string | null | undefined;
+
   // Pipeline workflow flags (secretary review/publish flow)
   isScoringFinalized?: boolean | undefined;
   isResultsReviewed?: boolean | undefined;
@@ -123,9 +137,10 @@ export interface ReplicatedClass {
 }
 
 /**
- * Convert database row to app Class type
+ * Convert database row to app Class type.
+ * Exported for unit tests of the DB→domain field mapping.
  */
-function rowToClass(row: ClassRow): ReplicatedClass {
+export function rowToClass(row: ClassRow): ReplicatedClass {
   // Cast to Record for accessing fields not in the Supabase schema type
   const dbRow = row as ClassRow & Record<string, unknown>;
   return {
@@ -185,6 +200,9 @@ function rowToClass(row: ClassRow): ReplicatedClass {
       return ja[0]?.people.last_name ?? undefined;
     })(),
     classStatus: (dbRow.class_status as string | undefined) ?? row.status ?? undefined,
+    statusSource: (dbRow.status_source as string | undefined) ?? undefined,
+    reopenedAfterCloseoutAt:
+      (dbRow.reopened_after_closeout_at as string | null | undefined) ?? null,
     totalEntriesCount: (dbRow.total_entries_count as number | undefined) ?? undefined,
     checkedInCount: (dbRow.checked_in_count as number | undefined) ?? undefined,
     scoredCount: (dbRow.scored_count as number | undefined) ?? undefined,
@@ -290,6 +308,10 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       status: this.mapClassStatusToDb(cls.classStatus),
       // Only write these when explicitly set — omitting avoids stale local state
       // silently reverting a finalized class during an unrelated mutation
+      // status_source rides the same payload as the manual Mark Complete/Started
+      // status change so the override marker syncs offline-first. Never write
+      // reopened_after_closeout_at — it is server-stamped and read-only here.
+      ...(cls.statusSource !== undefined && { status_source: cls.statusSource }),
       ...(cls.isScoringFinalized !== undefined && { is_scoring_finalized: cls.isScoringFinalized }),
       ...(cls.isResultsReviewed !== undefined && { is_results_reviewed: cls.isResultsReviewed }),
       ...(cls.resultsReleasedAt !== undefined && { results_released_at: cls.resultsReleasedAt }),

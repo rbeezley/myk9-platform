@@ -391,10 +391,13 @@ the Edge runner. Do not treat either as live until its approval-gated steps belo
       `daily-health-check` at `0 7 * * *` and `daily-health-snapshot-watchdog` at `0 8 * * *`.
       Record the watchdog row's `username`; the write-path proof below must execute as that exact
       cron owner, not as `service_role`.
-- [ ] **Repair the dispatch credential:** compare redacted SHA-256 digests, then reconcile Vault
-      `service_role_key` to the current Edge runtime service-role key. Never paste either value into
-      evidence. Manually dispatch `cron-health-check` and prove a fresh `cron-health-check` snapshot
-      lands before relying on the schedule.
+- [x] **Re-check dispatch delivery:** **RECOVERED 2026-07-12.** The unchanged Vault credential
+      delivered the scheduled 07:00 UTC request and a fresh `cron-health-check` snapshot landed at
+      07:00:02 with `overall_status=ok`; the archived response was HTTP 200. This disproved the
+      July 11 stale-key hypothesis. The earlier transient failure is not reconstructable because the
+      cron discarded the `pg_net` request ID and its response row expired. Do not rotate a working
+      credential solely on that disproved hypothesis. The independent watchdog and Sentry proof
+      below remain required because pg_cron success alone still proves only queueing.
 - [ ] **Prove the durable miss:** in a disposable database or an explicitly approved rolled-back
       transaction using `SET LOCAL ROLE` for the recorded cron owner, simulate an empty expected
       snapshot window, run the watchdog body, and capture its `daily-health-snapshot-watchdog` /

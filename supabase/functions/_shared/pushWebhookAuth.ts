@@ -1,4 +1,5 @@
 import { HttpError } from './http/responses.ts';
+import { timingSafeEqual } from './timingSafeEqual.ts';
 
 export function requirePushWebhookSecret(
   req: Request,
@@ -10,7 +11,7 @@ export function requirePushWebhookSecret(
   }
 
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader || authHeader !== `Bearer ${webhookSecret}`) {
+  if (!authHeader || !timingSafeEqual(authHeader, `Bearer ${webhookSecret}`)) {
     throw new HttpError(401, 'Unauthorized');
   }
 }

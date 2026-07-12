@@ -23,7 +23,9 @@ export function getCurrentUserId(): string {
   try {
     // In a React component context, this would use useContext
     // For store usage, we need a different approach
-    const storedUser = localStorage.getItem('dev-current-mock-user');
+    const storedUser = import.meta.env.DEV
+      ? localStorage.getItem('dev-current-mock-user')
+      : null;
     if (storedUser) {
       return storedUser;
     }

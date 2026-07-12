@@ -45,6 +45,17 @@ High-judgment work to prioritize while strong-model access is available. These a
 
 ---
 
+## Go-Live Gate Remediation — 2026-07-11
+
+- [~] **Close the July 11 go-live and security-audit findings** — Tracked in OpenSpec change
+  `go-live-2026-07-11-gate-remediation`. Migration lineage (#1280), FORCE-RLS invariant/deployment
+  (#1283), and health observability (#1284) are merged; SA-021 is live-verified. SA-023/028/030 are
+  repository-complete with red-first tests and await review/merge plus applicable runtime evidence.
+  Remaining agent slices: passcode limiter failure, premium-generation throttle, dedicated push
+  secret, and advisor disposition. Operator/shared-system gates remain open in the runbook.
+
+---
+
 ## Security Remediation — OpenSpec Tracking — 2026-07-03
 
 The 5 design-level plans from the 2026-07-03 security audit that weren't covered by the mechanical batch ([#1099](https://github.com/rbeezley/myk9-platform/pull/1099)). Each now has an apply-ready OpenSpec change (`openspec validate` clean) seeded from its source plan doc. Execute with `/opsx:apply` or the `openspec-apply-change` skill; check `pnpm exec openspec status --change <name>` for live per-task progress. Full context in TO-DOS.md § "Security Remediation — OpenSpec Changes".

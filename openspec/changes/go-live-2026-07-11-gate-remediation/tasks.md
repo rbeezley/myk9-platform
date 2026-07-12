@@ -44,8 +44,8 @@
 
 ## 5. Batch B — Mechanical Security Fixes (SA-023, SA-028, SA-030)
 
-- [ ] 5.1 Expand shared webhook-verifier tests for missing secret/headers, malformed and skewed timestamps, multiple signatures, valid signature, and invalid signature; extract one constant-time equality helper, route `resend-webhook` through `verifyStandardWebhookSignature`, route push auth through the same primitive, remove obsolete resend-specific signature code, and keep all focused tests GREEN.
-- [ ] 5.2 Add production/development tests for attacker-controlled `dev-current-mock-user`, observe RED, gate the localStorage read in `authHelpers.ts` behind `import.meta.env.DEV`, and make the focused tests GREEN.
+- [x] 5.1 Expand shared webhook-verifier tests for missing secret/headers, malformed and skewed timestamps, multiple signatures, valid signature, and invalid signature; extract one constant-time equality helper, route `resend-webhook` through `verifyStandardWebhookSignature`, route push auth through the same primitive, remove obsolete resend-specific signature code, and keep all focused tests GREEN.
+- [x] 5.2 Add production/development tests for attacker-controlled `dev-current-mock-user`, observe RED, gate the localStorage read in `authHelpers.ts` behind `import.meta.env.DEV`, and make the focused tests GREEN.
 
 ## 6. Batch B — Passcode Limiter Failure (SA-024)
 

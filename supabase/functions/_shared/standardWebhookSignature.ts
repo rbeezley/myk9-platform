@@ -1,3 +1,5 @@
+import { timingSafeEqual } from './timingSafeEqual.ts';
+
 export interface StandardWebhookSignatureResult {
   ok: boolean;
   status: number;
@@ -27,21 +29,12 @@ function decodeWebhookSecret(secret: string): Uint8Array | null {
   }
 }
 
-function timingSafeEqual(a: string, b: string): boolean {
-  const max = Math.max(a.length, b.length);
-  let mismatch = a.length === b.length ? 0 : 1;
-  for (let i = 0; i < max; i += 1) {
-    mismatch |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
-  }
-  return mismatch === 0;
-}
-
 function parseSignatureHeader(header: string): string[] {
   return header
     .split(' ')
     .map(part => part.trim())
-    .filter(Boolean)
-    .map(part => part.replace(/^v1,/, ''));
+    .filter(part => part.startsWith('v1,'))
+    .map(part => part.slice('v1,'.length));
 }
 
 export async function verifyStandardWebhookSignature({
@@ -62,8 +55,11 @@ export async function verifyStandardWebhookSignature({
     return { ok: false, status: 401, message: 'Missing signature headers' };
   }
 
-  const timestampSeconds = Number.parseInt(webhookTimestamp, 10);
-  if (!Number.isFinite(timestampSeconds)) {
+  if (!/^\d+$/.test(webhookTimestamp)) {
+    return { ok: false, status: 401, message: 'Invalid signature timestamp' };
+  }
+  const timestampSeconds = Number(webhookTimestamp);
+  if (!Number.isSafeInteger(timestampSeconds)) {
     return { ok: false, status: 401, message: 'Invalid signature timestamp' };
   }
 
@@ -89,7 +85,14 @@ export async function verifyStandardWebhookSignature({
   const expected = btoa(String.fromCharCode(...new Uint8Array(signature)));
   const provided = parseSignatureHeader(webhookSignature);
 
-  if (!provided.some(value => timingSafeEqual(value, expected))) {
+  let matched = false;
+  for (const value of provided) {
+    if (timingSafeEqual(value, expected)) {
+      matched = true;
+    }
+  }
+
+  if (!matched) {
     return { ok: false, status: 401, message: 'Invalid signature' };
   }
 

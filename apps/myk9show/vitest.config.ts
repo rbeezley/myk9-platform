@@ -21,8 +21,9 @@ export default defineConfig({
       // `_shared/http` modules use Deno-only `npm:` imports vitest can't load.
       '../../supabase/functions/_shared/askq/*.test.ts',
       '../../supabase/functions/_shared/pushWebhookAuth.test.ts',
+      '../../supabase/functions/_shared/standardWebhookSignature.test.ts',
+      '../../supabase/functions/_shared/webhookAuth.source.test.ts',
       '../../supabase/functions/send-confirmation-email/auth.test.ts',
-      '../../supabase/functions/resend-webhook/signature.test.ts',
       '../../supabase/functions/send-results/authz.test.ts',
       '../../supabase/functions/send-email/authz.test.ts',
       '../../supabase/functions/send-email/recipientResolution.test.ts',

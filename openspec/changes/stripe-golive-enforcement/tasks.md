@@ -84,6 +84,11 @@ stripe-golive-enforcement`, and stop for confirmation before PR creation, migrat
       after Vitest started; treat its result as inconclusive and require CI confirmation before merge.
 - [x] 4.8 Commit Phase B, prepare its PR body, and stop for confirmation before PR creation,
       function deployment, Stripe test-mode smoke writes, or merge.
+- [x] 4.9 Remove the card-only `payment_method_types` override from the shared payment-link
+      Checkout builder so Stripe can select configured dynamic methods; add a regression test.
+      2026-07-13: assertion-first test failed against `['card']`, then passed after the minimal
+      removal. Focused 20-test suite, typecheck, lint, and `git diff --check` pass. The fix is
+      locally committed pending PR/merge and an explicitly approved function redeployment.
 
 ## 5. Integrated Verification
 

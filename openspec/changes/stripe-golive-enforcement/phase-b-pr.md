@@ -42,6 +42,9 @@ Do not run live-mode money, migration, or function writes without separate confi
   entry became confirmed/paid/online, the link paid, the offer accepted, and the entry order
   succeeded. A separate controlled `cs_test_` offer was declined: its link expired, entry stayed
   pending without a payment intent, offer became declined, and no order was created.
+- Follow-up pending review/deploy: remove the shared builder's card-only payment-method override
+  so Stripe Checkout can use Dashboard-configured dynamic payment methods. The assertion-first
+  regression test, focused suite, typecheck, lint, and whitespace check pass locally.
 
 ## Rollback
 

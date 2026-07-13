@@ -39,5 +39,6 @@ export interface WaitListEntry {
   status: 'waiting' | 'offered' | 'accepted' | 'declined' | 'expired';
   offeredAt: string | null;
   offerExpiresAt: string | null;
+  promotedEntryId: string | null;
   createdAt: string;
 }

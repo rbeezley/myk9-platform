@@ -25,16 +25,13 @@ import type {
 import type { Logger, GetTableTTL, ReplicatedTableDependencies } from '../dependencies';
 import { noopLogger, defaultGetTableTTL } from '../dependencies';
 import type { MutationManager } from '../MutationManager';
-import {
-  QUERY_TIMEOUT_MS,
-  SLOW_QUERY_THRESHOLD_MS,
-  MAX_OPTIMISTIC_UPDATE_RETRIES,
-  GET_ALL_TIMEOUT_MS,
-} from '../constants';
+import { MAX_OPTIMISTIC_UPDATE_RETRIES } from '../constants';
 
 import { databaseManager, REPLICATION_STORES, trackTransaction } from './DatabaseManager';
 import { ReplicatedTableCacheManager } from './ReplicatedTableCache';
 import { ReplicatedTableBatchManager } from './ReplicatedTableBatch';
+import { ReplicatedTableQueryManager } from './ReplicatedTableQuery';
+import { RowLockRegistry } from './RowLockRegistry';
 import {
   applyConflictSnapshot,
   buildRemoteReplacementRow,
@@ -45,7 +42,6 @@ import {
   buildReconciledDirtyRow,
   buildReplicatedRowForSet,
   buildSyncedReplicatedRow,
-  collectFreshLocalIds,
   selectStaleCleanRows,
 } from './ReplicatedTableRowState';
 import { mergeNonConflictingServerFields } from '../conflict/detectDirtyRowConflict';
@@ -80,8 +76,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   /** Extracted batch manager */
   private batchManager: ReplicatedTableBatchManager<T>;
 
-  /** Per-row mutex to prevent concurrent update livelocks */
-  private rowLocks: Map<string, Promise<void>> = new Map();
+  /** Extracted row lock registry */
+  private rowLocks: RowLockRegistry;
+
+  /** Extracted query manager */
+  private queryManager: ReplicatedTableQueryManager<T>;
 
   constructor(
     protected tableName: string,
@@ -111,6 +110,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       () => this.notifyListeners(),
       () => this.relieveQuota()
     );
+
+    this.queryManager = new ReplicatedTableQueryManager<T>(
+      tableName,
+      this.logger,
+      () => this.init(),
+      row => this.isExpired(row),
+      licenseKey => this.getAll(licenseKey)
+    );
+
+    this.rowLocks = new RowLockRegistry();
   }
 
   // ========================================
@@ -696,97 +705,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     fieldName: 'class_id' | 'trial_id' | 'show_id' | 'armband_number',
     value: string
   ): Promise<T[]> {
-    const startTime = performance.now();
-    const db = await this.init();
-    const indexName = `tableName_data.${fieldName}`;
-
-    try {
-      let txAborted = false;
-      let tx: { abort: () => void } | null = null;
-
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          txAborted = true;
-          if (tx) {
-            try {
-              tx.abort();
-              this.logger.warn(
-                `[${this.tableName}] Aborted transaction for query ${fieldName}=${value} due to timeout`
-              );
-            } catch {
-              // Transaction may have already completed
-            }
-          }
-          reject(new Error(`Query timeout: ${fieldName}=${value} exceeded ${QUERY_TIMEOUT_MS}ms`));
-        }, QUERY_TIMEOUT_MS);
-      });
-
-      const queryPromise = (async () => {
-        const transaction = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
-        tx = transaction;
-        const index = transaction.store.index(indexName);
-
-        if (txAborted) {
-          throw new Error('Transaction aborted due to timeout');
-        }
-
-        const rows = (await index.getAll([this.tableName, value])) as ReplicatedRow<T>[];
-
-        if (txAborted) {
-          throw new Error('Transaction aborted due to timeout');
-        }
-
-        const freshRows = rows.filter(row => !this.cacheManager.isExpired(row));
-        return freshRows.map(row => row.data);
-      })();
-
-      const results = await Promise.race([queryPromise, timeoutPromise]);
-
-      const duration = performance.now() - startTime;
-      if (duration > SLOW_QUERY_THRESHOLD_MS) {
-        this.logger.warn(
-          `[${this.tableName}] SLOW query detected: ${fieldName}=${value} took ${duration.toFixed(2)}ms`
-        );
-      } else {
-        this.logger.log(
-          `[${this.tableName}] Indexed query ${fieldName}=${value}: ${results.length} rows in ${duration.toFixed(2)}ms`
-        );
-      }
-
-      return results;
-    } catch (error) {
-      const duration = performance.now() - startTime;
-
-      if (error instanceof Error && error.message.includes('Query timeout')) {
-        this.logger.error(
-          `[${this.tableName}] Query TIMEOUT: ${fieldName}=${value} exceeded ${QUERY_TIMEOUT_MS}ms`
-        );
-        throw error;
-      }
-
-      // Fallback to table scan if index doesn't exist
-      this.logger.warn(
-        `[${this.tableName}] Index ${indexName} not found, falling back to table scan (took ${duration.toFixed(2)}ms)`
-      );
-      const allRows = await this.getAll();
-      return allRows.filter(row => (row as Record<string, unknown>)[fieldName] === value);
-    }
+    return this.queryManager.queryByField(fieldName, value);
   }
 
   /**
    * Query rows by index (alias for queryByField)
    */
   async queryIndex(indexName: keyof T, value: string | number): Promise<T[]> {
-    const fieldName = indexName as string;
-    if (['class_id', 'trial_id', 'show_id', 'armband_number'].includes(fieldName)) {
-      return this.queryByField(
-        fieldName as 'class_id' | 'trial_id' | 'show_id' | 'armband_number',
-        String(value)
-      );
-    }
-
-    const allRows = await this.getAll();
-    return allRows.filter(row => row[indexName] === value);
+    return this.queryManager.queryIndex(indexName, value);
   }
 
   /**
@@ -847,64 +773,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * Get all rows for this table
    */
   async getAll(licenseKey?: string): Promise<T[]> {
-    const getAllPromise = (async () => {
-      const db = await this.init();
-      const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
-      const index = tx.store.index('tableName');
-
-      const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
-      const freshRows = rows.filter(row => !this.cacheManager.isExpired(row));
-
-      if (licenseKey) {
-        return freshRows
-          .filter(row => (row.data as Record<string, unknown>).license_key === licenseKey)
-          .map(row => row.data);
-      }
-
-      return freshRows.map(row => row.data);
-    })();
-
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error(`[${this.tableName}] getAll() timed out after ${GET_ALL_TIMEOUT_MS}ms`));
-      }, GET_ALL_TIMEOUT_MS);
-    });
-
-    try {
-      const result = await Promise.race([getAllPromise, timeoutPromise]);
-      databaseManager.resetFailures();
-      return result;
-    } catch (error) {
-      this.logger.error(`[${this.tableName}] getAll() failed:`, error);
-      databaseManager.recordFailure();
-      return [];
-    }
-  }
-
-  // ========================================
-  // ROW LOCKING (Optimistic Update Support)
-  // ========================================
-
-  private async acquireRowLock(id: string): Promise<void> {
-    while (this.rowLocks.has(id)) {
-      await this.rowLocks.get(id);
-    }
-
-    let releaseLock: () => void;
-    const lockPromise = new Promise<void>(resolve => {
-      releaseLock = resolve;
-    });
-
-    this.rowLocks.set(id, lockPromise);
-    (this.rowLocks.get(id) as unknown as Record<string, unknown>)._release = releaseLock!;
-  }
-
-  private releaseRowLock(id: string): void {
-    const lock = this.rowLocks.get(id);
-    if (lock && (lock as unknown as Record<string, unknown>)._release) {
-      ((lock as unknown as Record<string, unknown>)._release as () => void)();
-      this.rowLocks.delete(id);
-    }
+    return this.queryManager.getAll(licenseKey);
   }
 
   /**
@@ -915,9 +784,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     updateFn: (current: T) => T | Promise<T>,
     _maxRetries = MAX_OPTIMISTIC_UPDATE_RETRIES
   ): Promise<T> {
-    await this.acquireRowLock(id);
-
-    try {
+    return this.rowLocks.withRowLock(id, async () => {
       const db = await this.init();
       const existingRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
         this.tableName,
@@ -936,9 +803,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
       this.logger.log(`[${this.tableName}] Optimistic update succeeded for ${id}`);
       return updatedData;
-    } finally {
-      this.releaseRowLock(id);
-    }
+    });
   }
 
   // ========================================
@@ -1047,12 +912,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   // ========================================
 
   async getAllLocalIds(): Promise<Set<string>> {
-    const db = await this.init();
-    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
-    const index = tx.store.index('tableName');
-    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
-
-    return collectFreshLocalIds(rows, row => this.cacheManager.isExpired(row));
+    return this.queryManager.getAllLocalIds();
   }
 
   async removeStaleEntries(serverIds: Set<string>): Promise<number> {

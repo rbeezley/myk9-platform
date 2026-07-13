@@ -28,10 +28,10 @@
 
 ## 5. Extract ReplicatedTable Query and Row-Lock Seams
 
-- [ ] 5.1 Create internal `ReplicatedTableQueryManager<T>` using the established constructor-injection pattern and move `queryByField`, `queryIndex`, `getAll`, and `getAllLocalIds` with timeout, failure-recording, and fallback behavior unchanged.
-- [ ] 5.2 Create internal `RowLockRegistry` owning the row-lock map and expose `withRowLock(id, fn)`; update `optimisticUpdate` to use it without changing lock semantics.
-- [ ] 5.3 Keep CRUD, conflict lifecycle, mutation glue, protected hooks, and app-side `Replicated*Table` subclasses unchanged.
-- [ ] 5.4 Run the complete five-command phase gate, obtain root-agent diff acceptance against the frozen contracts, and commit the green Phase 4 checkpoint.
+- [x] 5.1 Create internal `ReplicatedTableQueryManager<T>` using the established constructor-injection pattern and move `queryByField`, `queryIndex`, `getAll`, and `getAllLocalIds` with timeout, failure-recording, and fallback behavior unchanged.
+- [x] 5.2 Create internal `RowLockRegistry` owning the row-lock map and expose `withRowLock(id, fn)`; update `optimisticUpdate` to use it without changing lock semantics.
+- [x] 5.3 Keep CRUD, conflict lifecycle, mutation glue, protected hooks, and app-side `Replicated*Table` subclasses unchanged.
+- [x] 5.4 Run the complete five-command phase gate, obtain root-agent diff acceptance against the frozen contracts, and commit the green Phase 4 checkpoint. Used the user-approved 17-file focused myK9Show replication-consumer substitute (453 tests) for the known hanging full-app suite.
 
 ## 6. Verify the Decomposition
 

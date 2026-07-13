@@ -66,9 +66,14 @@ describe('shared entry capacity enforcement', () => {
   it('authorizes the registration before returning an idempotent result', () => {
     const ownershipGuard = migrationSql.indexOf('registration % does not belong to the caller');
     const idempotentReturn = migrationSql.indexOf('-- Idempotent retry after authorization');
+    const closeGuard = migrationSql.indexOf('entry period has closed for show %');
 
     expect(ownershipGuard).toBeGreaterThan(-1);
     expect(idempotentReturn).toBeGreaterThan(ownershipGuard);
+    expect(closeGuard).toBeGreaterThan(idempotentReturn);
+    expect(compactSql).toContain(
+      "pg_advisory_xact_lock(hashtext('entrysubmission:' || p_submission_id::text))"
+    );
     expect(compactSql).toContain(
       "IF v_result->>'registration_id' IS DISTINCT FROM p_registration_id::text THEN"
     );

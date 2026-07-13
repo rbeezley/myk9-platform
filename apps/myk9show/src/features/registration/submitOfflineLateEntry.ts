@@ -20,6 +20,7 @@ import { PaymentStatus as PaymentStatusEnum } from '@/types/show-registration-ty
 import { makeHandlerKey } from '@/types/show-registration-types';
 import { generateUUID } from '@/utils/idUtils';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
+import { loadOfflineCapacityOverrides } from './offlineCapacityOverride';
 
 interface ClassLike {
   id: string;
@@ -91,9 +92,13 @@ export async function submitOfflineLateEntry({
   }
 
   const classesById = new Map(classes.map(cls => [cls.id, cls]));
-  const [cachedShow, showArmbands] = await Promise.all([
+  const selectedClassIds = classSelections.flatMap(selection =>
+    selection.selectedClasses.map(selectedClass => selectedClass.classId)
+  );
+  const [cachedShow, showArmbands, capacityOverrides] = await Promise.all([
     replicatedShowsTable.getShowById(showId),
     replicatedArmbandsTable.getByShow(showId),
+    loadOfflineCapacityOverrides(showId, selectedClassIds),
   ]);
   const startingArmbandNumber = cachedShow?.startingArmbandNumber ?? 100;
   let nextArmband = resolveStartNumber(maxArmbandNumber(showArmbands), startingArmbandNumber);
@@ -139,7 +144,7 @@ export async function submitOfflineLateEntry({
       const handler = handlerAssignments[makeHandlerKey(selection.dogId, selectedClass.classId)];
       const classData = classesById.get(selectedClass.classId);
       const entryFee = paymentMethod === 'waived' ? 0 : getShowEntryFee(showFeeInfo, classData?.entryFee);
-      const capacityOverride = selectedClass.capacityOverride === true;
+      const capacityOverride = capacityOverrides[selectedClass.classId] === true;
       const submittedAt = new Date().toISOString();
       const entry: ReplicatedEntry = {
         id: generateUUID(),

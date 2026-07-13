@@ -190,6 +190,14 @@ BEGIN
     RAISE EXCEPTION 'mixed submit outcomes failed: %', result;
   END IF;
 
+  PERFORM set_config('test.is_official', 'false', true);
+  PERFORM set_config(
+    'request.jwt.claim.sub',
+    '00000000-0000-0000-0000-000000000011',
+    true
+  );
+  UPDATE public.shows SET entry_close_date = '2020-01-01'::timestamptz;
+
   retry_result := public.submit_show_entries(
     '00000000-0000-0000-0000-000000000001',
     '00000000-0000-0000-0000-000000000040',
@@ -201,7 +209,6 @@ BEGIN
     RAISE EXCEPTION 'submission idempotency failed';
   END IF;
 
-  PERFORM set_config('test.is_official', 'false', true);
   PERFORM set_config(
     'request.jwt.claim.sub',
     '00000000-0000-0000-0000-000000000021',

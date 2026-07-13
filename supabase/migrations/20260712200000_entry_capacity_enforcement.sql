@@ -427,25 +427,6 @@ BEGIN
     OR public.is_club_admin(v_show_club_id)
   );
 
-  IF NOT v_is_official
-     AND v_show_open IS NOT NULL
-     AND (now() AT TIME ZONE v_show_tz)::date < (v_show_open AT TIME ZONE 'UTC')::date THEN
-    RAISE EXCEPTION 'entry period has not opened for show %', p_show_id
-      USING ERRCODE = '42501';
-  END IF;
-
-  IF NOT v_is_official
-     AND v_show_close IS NOT NULL
-     AND (now() AT TIME ZONE v_show_tz)::date > (v_show_close AT TIME ZONE 'UTC')::date THEN
-    RAISE EXCEPTION 'entry period has closed for show %', p_show_id
-      USING ERRCODE = '42501';
-  END IF;
-
-  IF p_payment_method IN ('waived', 'secretary_paid', 'group_payment') AND NOT v_is_official THEN
-    RAISE EXCEPTION 'unauthorized payment method: % requires secretary or admin role', p_payment_method
-      USING ERRCODE = '42501';
-  END IF;
-
   SELECT p.id INTO v_caller_person_id
   FROM public.people p
   WHERE p.auth_user_id = auth.uid();
@@ -467,8 +448,12 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  -- Idempotent retry after authorization. A submission UUID is bound to its
-  -- original registration so it cannot expose another exhibitor's result.
+  -- Idempotent retry after authorization. Serialize equal submission IDs so a
+  -- concurrent retry cannot duplicate entries before entry_submissions wins.
+  PERFORM pg_advisory_xact_lock(hashtext('entrysubmission:' || p_submission_id::text));
+
+  -- A submission UUID is bound to its original registration so it cannot
+  -- expose another exhibitor's result.
   SELECT es.result INTO v_result
   FROM public.entry_submissions es
   WHERE es.id = p_submission_id;
@@ -479,6 +464,27 @@ BEGIN
         USING ERRCODE = '42501';
     END IF;
     RETURN v_result;
+  END IF;
+
+  -- Mutable entry-window and payment-method guards apply only to the first
+  -- attempt. A safely authorized retry returns its durable original result.
+  IF NOT v_is_official
+     AND v_show_open IS NOT NULL
+     AND (now() AT TIME ZONE v_show_tz)::date < (v_show_open AT TIME ZONE 'UTC')::date THEN
+    RAISE EXCEPTION 'entry period has not opened for show %', p_show_id
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF NOT v_is_official
+     AND v_show_close IS NOT NULL
+     AND (now() AT TIME ZONE v_show_tz)::date > (v_show_close AT TIME ZONE 'UTC')::date THEN
+    RAISE EXCEPTION 'entry period has closed for show %', p_show_id
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF p_payment_method IN ('waived', 'secretary_paid', 'group_payment') AND NOT v_is_official THEN
+    RAISE EXCEPTION 'unauthorized payment method: % requires secretary or admin role', p_payment_method
+      USING ERRCODE = '42501';
   END IF;
 
   -- 2. Per-entry validation, capacity decision, and insert/outcome.

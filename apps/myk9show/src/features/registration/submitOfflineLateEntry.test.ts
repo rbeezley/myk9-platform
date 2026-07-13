@@ -9,6 +9,10 @@ const {
   getArmbandsByShowMock,
   upsertAssignedArmbandMock,
   getPendingArmbandMutationIdsForRowMock,
+  getEntriesByShowMock,
+  getAllClassesMock,
+  getTrialsByShowMock,
+  getJudgeAssignmentsByShowMock,
 } = vi.hoisted(() => ({
   createEntryMock: vi.fn(),
   getPendingMutationIdsForRowMock: vi.fn(),
@@ -17,11 +21,16 @@ const {
   getArmbandsByShowMock: vi.fn(),
   upsertAssignedArmbandMock: vi.fn(),
   getPendingArmbandMutationIdsForRowMock: vi.fn(),
+  getEntriesByShowMock: vi.fn(),
+  getAllClassesMock: vi.fn(),
+  getTrialsByShowMock: vi.fn(),
+  getJudgeAssignmentsByShowMock: vi.fn(),
 }));
 
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     createEntry: createEntryMock,
+    getEntriesByShow: getEntriesByShowMock,
   },
   replicatedDogsTable: {
     getPendingMutationIdsForRow: getPendingMutationIdsForRowMock,
@@ -31,6 +40,15 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedShowsTable: {
     getShowById: getShowByIdMock,
+  },
+  replicatedClassesTable: {
+    getAll: getAllClassesMock,
+  },
+  replicatedTrialsTable: {
+    getTrialsByShow: getTrialsByShowMock,
+  },
+  replicatedJudgeAssignmentsTable: {
+    getByShowId: getJudgeAssignmentsByShowMock,
   },
   replicatedArmbandsTable: {
     getByShow: getArmbandsByShowMock,
@@ -44,7 +62,18 @@ describe('submitOfflineLateEntry', () => {
     vi.clearAllMocks();
     getPendingMutationIdsForRowMock.mockResolvedValue(['dog-mutation-1']);
     getPendingRegistrationMutationIdsForDogMock.mockResolvedValue(['registration-mutation-1']);
-    getShowByIdMock.mockResolvedValue({ id: 'show-1', startingArmbandNumber: 100 });
+    getShowByIdMock.mockResolvedValue({
+      id: 'show-1',
+      startingArmbandNumber: 100,
+      defaultJudgeDayCapacity: 125,
+    });
+    getEntriesByShowMock.mockResolvedValue([]);
+    getAllClassesMock.mockResolvedValue([
+      { id: 'class-1', trialId: 'trial-1', maxEntries: 10 },
+      { id: 'class-2', trialId: 'trial-1', maxEntries: 10 },
+    ]);
+    getTrialsByShowMock.mockResolvedValue([{ id: 'trial-1', date: '2026-07-13' }]);
+    getJudgeAssignmentsByShowMock.mockResolvedValue([]);
     getArmbandsByShowMock.mockResolvedValue([{ id: 'existing-armband', armbandNumber: '12' }]);
     upsertAssignedArmbandMock.mockResolvedValue('armband-mutation-1');
     getPendingArmbandMutationIdsForRowMock.mockResolvedValue([]);
@@ -58,6 +87,14 @@ describe('submitOfflineLateEntry', () => {
   });
 
   it('creates confirmed replicated day-of entries with payment and dog dependency metadata', async () => {
+    getAllClassesMock.mockResolvedValue([
+      { id: 'class-1', trialId: 'trial-1', maxEntries: 1 },
+      { id: 'class-2', trialId: 'trial-1', maxEntries: 10 },
+    ]);
+    getEntriesByShowMock.mockResolvedValue([
+      { classId: 'class-1', entryStatus: 'submitted' },
+    ]);
+
     const result = await submitOfflineLateEntry({
       showId: 'show-1',
       paymentMethod: 'cash',
@@ -76,7 +113,7 @@ describe('submitOfflineLateEntry', () => {
           dogId: 'dog-1',
           trialId: 'trial-1',
           selectedClasses: [
-            { classId: 'class-1', jumpHeight: '16', capacityOverride: true },
+            { classId: 'class-1', jumpHeight: '16' },
             { classId: 'class-2' },
           ],
         },

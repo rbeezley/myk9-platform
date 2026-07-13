@@ -11,6 +11,5 @@ REVOKE ALL ON FUNCTION public.evaluate_entry_capacity(
   uuid, uuid, uuid, uuid, text, boolean
 ) FROM PUBLIC, anon, authenticated, service_role;
 DROP FUNCTION public.evaluate_entry_capacity(uuid, uuid, uuid, uuid, text, boolean);
-ALTER TABLE public.entries DROP COLUMN IF EXISTS capacity_override;
 
 COMMIT;

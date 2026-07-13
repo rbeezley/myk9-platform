@@ -1,8 +1,8 @@
 # Edge Function Drift Audit — 2026-07-12
 
 > **Status:** Source-recovery decision merged in [#1313](https://github.com/rbeezley/myk9-platform/pull/1313);
-> `stripe-upgrade-subscription` remains
-> deployment-blocked pending an explicit approval and post-deploy bundle comparison.
+> `stripe-upgrade-subscription` deployed and source-verified 2026-07-13. The four-function
+> HTTP-helper catch-up batch remains approval-gated.
 
 ## Scope and method
 
@@ -18,8 +18,8 @@ No function, secret, database, or configuration was changed.
 | Classification | Count | Functions | Disposition |
 | --- | ---: | --- | --- |
 | Exact bundle match | 26 | All remaining repository-backed functions | No action. |
-| Repo-ahead shared HTTP helper | 4 | `admin-delete-user`, `admin-generate-reset-link`, `send-push-notification`, `send-targeted-message` | Reviewed source is ahead; prepare a small, approval-gated deploy batch after the two blockers below are resolved. |
-| Deployed-ahead source | 1 | `stripe-upgrade-subscription` | Source decision is merged; deploy only after separate approval and post-deploy bundle comparison. |
+| Repo-ahead shared HTTP helper | 4 | `admin-delete-user`, `admin-generate-reset-link`, `send-push-notification`, `send-targeted-message` | Reviewed source is ahead; prepare a small, approval-gated deploy batch after the remaining blocker is resolved. |
+| Deployed-ahead source | 1 | `stripe-upgrade-subscription` | **Resolved 2026-07-13:** deployed after approval; downloaded `premiumPrices.ts` and `index.ts` exactly match repository source. |
 | Retired deployed-only legacy function | 1 | `send-notification` | **Retired 2026-07-12.** Dashboard Logs showed no events in the prior 30 days; removed from Supabase after approval and confirmed absent from the inventory. |
 
 The live inventory now has 31 repository-name matches, zero deployed-only functions, and zero
@@ -49,7 +49,7 @@ Then run only fail-closed/no-write smokes: unauthenticated calls must return 401
 non-owner push request must return 403; no user deletion, reset-link generation, or message send is
 part of this batch's smoke.
 
-## Blocker 1 — `stripe-upgrade-subscription` is deployed ahead
+## Resolved blocker 1 — `stripe-upgrade-subscription` was deployed ahead
 
 The live `apps/myk9show/supabase/functions/_shared/premiumPrices.ts` has SHA-256
 `34a1496ee5ade91c44766595e401b0c513eca03725549463f6c71f77d9c2b88e` and matches no repository
@@ -79,11 +79,14 @@ apps/myk9show/supabase/functions/_shared/premiumPrices.test.ts` (5 tests).
 
 Tracked in OpenSpec change: `recover-stripe-price-source-drift` (PR #1313, merged 2026-07-13).
 
-Do not redeploy `stripe-upgrade-subscription` without a separate deployment approval. The approved
-deployment review must then download the deployed function
-into an isolated directory and compare its `premiumPrices.ts` with repository fallback-extension
-source. If that comparison fails, stop and use the recorded repository revision for an
-approval-gated rollback; never restore the unknown live-only helper.
+With separate approval, `stripe-upgrade-subscription` was deployed on 2026-07-13 using
+`--workdir apps/myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt --use-api`.
+The post-deploy review downloaded the function into an isolated directory and confirmed exact
+matches to repository source: `premiumPrices.ts` SHA-256
+`68c1f3e5fbc31d3cf653cd2f7e2591301308ab4325360fa5ce3e519b7106c6bf` and `index.ts` SHA-256
+`b2a1fe3639508af999c46a80a46e707d16808b118c6dc597e040514cd026a585`. The function is ACTIVE.
+If a future comparison fails, stop and use the recorded repository revision for an approval-gated
+rollback; never restore the unknown live-only helper.
 
 ## Retired legacy function — `send-notification`
 
@@ -102,6 +105,6 @@ deployed-only functions, and zero repo-only functions.
 
 Runbook 0.4 remains open until:
 
-1. `stripe-upgrade-subscription` is separately approved, deployed, and its downloaded
-   `premiumPrices.ts` matches repository fallback-extension source;
+1. [x] `stripe-upgrade-subscription` was separately approved and deployed, and its downloaded
+   `premiumPrices.ts` matches repository fallback-extension source (2026-07-13);
 2. the four-function helper catch-up batch is approved, deployed, and smoke-verified.

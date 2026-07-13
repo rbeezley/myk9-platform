@@ -279,6 +279,11 @@ redeployed** (`--workdir apps/myk9show`). Full detail:
 [`stripe-platform-setup.md`](stripe-platform-setup.md) Task 6.3. Owner: Operator except where
 noted. Do this only when ready to take real money — there is no half-live state.
 
+_Agent-owned prerequisite complete 2026-07-13:_ `stripe-golive-enforcement` shipped shared
+capacity enforcement, durable waitlist notifications, owner-authorized offer payment/decline, and
+sandbox reconciliation evidence. Its archive is an implementation record only; it does not check
+off any live-mode operator steps below.
+
 _Audit 2026-07-06:_ PR #1174 merged the Phase 3 Stripe cutover preflight tooling. After PR #1170
 merged, `pnpm qa:go-live:phase3 --allow-blocked` passes all source preflight checks, including
 `mp04_mode_scoping_source_gate`. Keep every Phase 3 item unchecked until the MP-04 migration is

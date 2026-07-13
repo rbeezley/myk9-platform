@@ -24,7 +24,7 @@ const assignments = [
 describe('calculateOfflineCapacityOverrides', () => {
   it('marks a class full using every authoritative capacity-consuming status', () => {
     const overrides = calculateOfflineCapacityOverrides({
-      selectedClassIds: ['class-1'],
+      selections: [{ key: 'dog-1|class-1', classId: 'class-1' }],
       classes: [{ ...classes[0], maxEntries: 1 }],
       trials,
       assignments: [],
@@ -32,12 +32,12 @@ describe('calculateOfflineCapacityOverrides', () => {
       defaultJudgeDayCapacity: 125,
     });
 
-    expect(overrides['class-1']).toBe(true);
+    expect(overrides['dog-1|class-1']).toBe(true);
   });
 
   it('marks a class with room overridden when its shared judge-day is full', () => {
     const overrides = calculateOfflineCapacityOverrides({
-      selectedClassIds: ['class-1'],
+      selections: [{ key: 'dog-1|class-1', classId: 'class-1' }],
       classes,
       trials,
       assignments,
@@ -48,12 +48,12 @@ describe('calculateOfflineCapacityOverrides', () => {
       defaultJudgeDayCapacity: 125,
     });
 
-    expect(overrides['class-1']).toBe(true);
+    expect(overrides['dog-1|class-1']).toBe(true);
   });
 
   it('does not mark an available class or count inactive entries', () => {
     const overrides = calculateOfflineCapacityOverrides({
-      selectedClassIds: ['class-1'],
+      selections: [{ key: 'dog-1|class-1', classId: 'class-1' }],
       classes,
       trials,
       assignments,
@@ -61,6 +61,68 @@ describe('calculateOfflineCapacityOverrides', () => {
       defaultJudgeDayCapacity: 2,
     });
 
-    expect(overrides['class-1']).toBe(false);
+    expect(overrides['dog-1|class-1']).toBe(false);
+  });
+
+  it('marks only the later selection when a batch consumes the final class spot', () => {
+    const overrides = calculateOfflineCapacityOverrides({
+      selections: [
+        { key: 'dog-1|class-1', classId: 'class-1' },
+        { key: 'dog-2|class-1', classId: 'class-1' },
+      ],
+      classes: [{ ...classes[0], maxEntries: 1 }],
+      trials,
+      assignments: [],
+      entries: [],
+      defaultJudgeDayCapacity: 125,
+    });
+
+    expect(overrides).toEqual({
+      'dog-1|class-1': false,
+      'dog-2|class-1': true,
+    });
+  });
+
+  it('marks only the later selection when a batch consumes the final judge-day spot', () => {
+    const overrides = calculateOfflineCapacityOverrides({
+      selections: [
+        { key: 'dog-1|class-1', classId: 'class-1' },
+        { key: 'dog-2|class-2', classId: 'class-2' },
+      ],
+      classes,
+      trials,
+      assignments: assignments.map(assignment => ({
+        ...assignment,
+        dayCapacityOverride: 1,
+      })),
+      entries: [],
+      defaultJudgeDayCapacity: 125,
+    });
+
+    expect(overrides).toEqual({
+      'dog-1|class-1': false,
+      'dog-2|class-2': true,
+    });
+  });
+
+  it('ignores capacity overrides on unconfirmed judge assignments', () => {
+    const overrides = calculateOfflineCapacityOverrides({
+      selections: [{ key: 'dog-1|class-1', classId: 'class-1' }],
+      classes,
+      trials,
+      assignments: [
+        ...assignments.map(assignment => ({ ...assignment, dayCapacityOverride: null })),
+        {
+          classId: 'class-1',
+          personId: 'judge-1',
+          status: 'pending',
+          dayCapacityOverride: 1,
+        },
+      ],
+      entries: [{ classId: 'class-2', entryStatus: 'confirmed' }],
+      defaultJudgeDayCapacity: 2,
+    });
+
+    expect(overrides['dog-1|class-1']).toBe(false);
   });
 });

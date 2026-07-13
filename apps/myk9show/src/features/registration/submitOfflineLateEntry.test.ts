@@ -214,6 +214,47 @@ describe('submitOfflineLateEntry', () => {
     );
   });
 
+  it('records an override only after an earlier dog in the batch consumes the final spot', async () => {
+    getAllClassesMock.mockResolvedValue([
+      { id: 'class-1', trialId: 'trial-1', maxEntries: 1 },
+    ]);
+
+    await submitOfflineLateEntry({
+      showId: 'show-1',
+      paymentMethod: 'cash',
+      showFeeInfo: {
+        preEntryFee: '25',
+        dayOfShowFee: '35',
+        startDate: '2026-07-01',
+      },
+      classes: [{ id: 'class-1', entryFee: 30 }],
+      classSelections: [
+        {
+          dogId: 'dog-1',
+          trialId: 'trial-1',
+          selectedClasses: [{ classId: 'class-1' }],
+        },
+        {
+          dogId: 'dog-2',
+          trialId: 'trial-1',
+          selectedClasses: [{ classId: 'class-1' }],
+        },
+      ],
+      handlerAssignments: {},
+    });
+
+    expect(createEntryMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ dogId: 'dog-1', capacityOverride: false }),
+      expect.any(Array)
+    );
+    expect(createEntryMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ dogId: 'dog-2', capacityOverride: true }),
+      expect.any(Array)
+    );
+  });
+
   it.each([
     ['waived', 'waived'],
     ['secretary_paid', 'paid'],

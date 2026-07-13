@@ -43,8 +43,13 @@ interface CapacityEntry {
   deleted_at?: string | null | undefined;
 }
 
+export interface OfflineCapacitySelection {
+  key: string;
+  classId: string;
+}
+
 interface OfflineCapacityInput {
-  selectedClassIds: string[];
+  selections: OfflineCapacitySelection[];
   classes: CapacityClass[];
   trials: CapacityTrial[];
   assignments: CapacityAssignment[];
@@ -58,7 +63,7 @@ function consumesCapacity(entry: CapacityEntry): boolean {
 }
 
 export function calculateOfflineCapacityOverrides({
-  selectedClassIds,
+  selections,
   classes,
   trials,
   assignments,
@@ -69,6 +74,14 @@ export function calculateOfflineCapacityOverrides({
   const trialDates = new Map(trials.map(trial => [trial.id, trial.date]));
   const consumingEntries = entries.filter(consumesCapacity);
   const assignmentsByClass = new Map<string, CapacityAssignment[]>();
+  const classCounts = new Map<string, number>();
+  const judgeDayCounts = new Map<string, number>();
+  const judgeDayCapacities = new Map<string, number>();
+
+  for (const entry of consumingEntries) {
+    if (!entry.classId) continue;
+    classCounts.set(entry.classId, (classCounts.get(entry.classId) ?? 0) + 1);
+  }
 
   for (const assignment of assignments) {
     if (assignment.status !== 'confirmed' || !assignment.classId) continue;
@@ -77,63 +90,58 @@ export function calculateOfflineCapacityOverrides({
     assignmentsByClass.set(assignment.classId, current);
   }
 
-  return Object.fromEntries(
-    selectedClassIds.map(classId => {
-      const entryClass = classesById.get(classId);
-      const classCount = consumingEntries.filter(entry => entry.classId === classId).length;
-      const classFull =
-        (entryClass?.maxEntries ?? 0) > 0 && classCount >= (entryClass?.maxEntries ?? 0);
-      const classAssignments = assignmentsByClass.get(classId) ?? [];
-      const trialDate = entryClass?.trialId ? trialDates.get(entryClass.trialId) : undefined;
+  for (const [classId, classAssignments] of assignmentsByClass) {
+    const entryClass = classesById.get(classId);
+    const trialDate = entryClass?.trialId ? trialDates.get(entryClass.trialId) : undefined;
+    if (!trialDate) continue;
 
-      const judgeDayFull = classAssignments.some(assignment => {
-        if (!trialDate) return false;
-        const judgeClassIds = new Set(
-          assignments
-            .filter(candidate => {
-              if (candidate.status !== 'confirmed' || candidate.personId !== assignment.personId) {
-                return false;
-              }
-              const candidateClass = candidate.classId
-                ? classesById.get(candidate.classId)
-                : undefined;
-              return candidateClass?.trialId
-                ? trialDates.get(candidateClass.trialId) === trialDate
-                : false;
-            })
-            .flatMap(candidate => (candidate.classId ? [candidate.classId] : []))
+    for (const assignment of classAssignments) {
+      const judgeDayKey = `${assignment.personId}|${trialDate}`;
+      const override = assignment.dayCapacityOverride;
+      if (override != null) {
+        judgeDayCapacities.set(
+          judgeDayKey,
+          Math.max(judgeDayCapacities.get(judgeDayKey) ?? override, override)
         );
-        const judgeDayCount = consumingEntries.filter(entry =>
-          entry.classId ? judgeClassIds.has(entry.classId) : false
-        ).length;
-        const configuredOverrides = assignments
-          .filter(candidate => {
-            if (candidate.status !== 'confirmed' || candidate.personId !== assignment.personId) {
-              return false;
-            }
-            const candidateClass = candidate.classId
-              ? classesById.get(candidate.classId)
-              : undefined;
-            return candidateClass?.trialId
-              ? trialDates.get(candidateClass.trialId) === trialDate
-              : false;
-          })
-          .flatMap(candidate =>
-            candidate.dayCapacityOverride == null ? [] : [candidate.dayCapacityOverride]
-          );
-        const judgeDayCapacity =
-          configuredOverrides.length > 0 ? Math.max(...configuredOverrides) : defaultJudgeDayCapacity;
-        return judgeDayCount >= judgeDayCapacity;
-      });
+      }
+      judgeDayCounts.set(
+        judgeDayKey,
+        (judgeDayCounts.get(judgeDayKey) ?? 0) + (classCounts.get(classId) ?? 0)
+      );
+    }
+  }
 
-      return [classId, classFull || judgeDayFull];
-    })
-  );
+  const overrides: Record<string, boolean> = {};
+  for (const selection of selections) {
+    const entryClass = classesById.get(selection.classId);
+    const classCount = classCounts.get(selection.classId) ?? 0;
+    const classFull =
+      (entryClass?.maxEntries ?? 0) > 0 && classCount >= (entryClass?.maxEntries ?? 0);
+    const trialDate = entryClass?.trialId ? trialDates.get(entryClass.trialId) : undefined;
+    const judgeDayKeys = trialDate
+      ? (assignmentsByClass.get(selection.classId) ?? []).map(
+          assignment => `${assignment.personId}|${trialDate}`
+        )
+      : [];
+    const judgeDayFull = judgeDayKeys.some(
+      key =>
+        (judgeDayCounts.get(key) ?? 0) >=
+        (judgeDayCapacities.get(key) ?? defaultJudgeDayCapacity)
+    );
+
+    overrides[selection.key] = classFull || judgeDayFull;
+    classCounts.set(selection.classId, classCount + 1);
+    for (const key of judgeDayKeys) {
+      judgeDayCounts.set(key, (judgeDayCounts.get(key) ?? 0) + 1);
+    }
+  }
+
+  return overrides;
 }
 
 export async function loadOfflineCapacityOverrides(
   showId: string,
-  selectedClassIds: string[]
+  selections: OfflineCapacitySelection[]
 ): Promise<Record<string, boolean>> {
   const [show, classes, trials, assignments, entries] = await Promise.all([
     replicatedShowsTable.getShowById(showId),
@@ -144,7 +152,7 @@ export async function loadOfflineCapacityOverrides(
   ]);
 
   return calculateOfflineCapacityOverrides({
-    selectedClassIds,
+    selections,
     classes,
     trials,
     assignments,

@@ -3,10 +3,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const root = resolve(__dirname, '../../../../..');
-const migrationSql = readFileSync(
-  resolve(root, 'supabase/migrations/20260712200000_entry_capacity_enforcement.sql'),
-  'utf8'
-);
+const migrationSql = [
+  '20260712200000_entry_capacity_enforcement.sql',
+  '20260712200100_entry_capacity_write_boundaries.sql',
+]
+  .map(filename => readFileSync(resolve(root, 'supabase/migrations', filename), 'utf8'))
+  .join('\n');
 const compactSql = migrationSql.replace(/\s+/g, ' ');
 const rollbackSqlPath = resolve(root, 'scripts/qa/rollback-entry-capacity-enforcement.sql');
 
@@ -33,6 +35,9 @@ describe('shared entry capacity enforcement', () => {
     expect(migrationSql).toContain('available_spots');
     expect(migrationSql).toContain("submission_source = 'show_desk'");
     expect(migrationSql).toContain('capacity_override');
+    expect(compactSql).toContain(
+      "t.date = p_date AND ja.status = 'confirmed' AND ja.day_capacity_override IS NOT NULL"
+    );
   });
 
   it('returns mixed outcomes without adding non-created rows to legacy entries', () => {

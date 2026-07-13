@@ -52,7 +52,8 @@ time”: one obvious place, plain states, 44px targets, no card details inside m
   endpoints, and are invoked from Vault-backed `pg_net` triggers. The new dispatcher will reuse
   that pattern rather than the older announcement migration variants.
 - The latest migration at inventory time is `20260712190000`; Phase A reserves
-  `20260712200000` only after a collision re-check immediately before file creation.
+  `20260712200000` and `20260712200100` only after a collision re-check immediately before file
+  creation.
 
 Offline impact: normal remote submission and card checkout are online operations. The existing
 secretary show-desk late-entry path remains replication-backed and local-first. This change does

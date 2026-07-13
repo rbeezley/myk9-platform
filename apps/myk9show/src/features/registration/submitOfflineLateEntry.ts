@@ -92,13 +92,16 @@ export async function submitOfflineLateEntry({
   }
 
   const classesById = new Map(classes.map(cls => [cls.id, cls]));
-  const selectedClassIds = classSelections.flatMap(selection =>
-    selection.selectedClasses.map(selectedClass => selectedClass.classId)
+  const capacitySelections = classSelections.flatMap(selection =>
+    selection.selectedClasses.map(selectedClass => ({
+      key: makeHandlerKey(selection.dogId, selectedClass.classId),
+      classId: selectedClass.classId,
+    }))
   );
   const [cachedShow, showArmbands, capacityOverrides] = await Promise.all([
     replicatedShowsTable.getShowById(showId),
     replicatedArmbandsTable.getByShow(showId),
-    loadOfflineCapacityOverrides(showId, selectedClassIds),
+    loadOfflineCapacityOverrides(showId, capacitySelections),
   ]);
   const startingArmbandNumber = cachedShow?.startingArmbandNumber ?? 100;
   let nextArmband = resolveStartNumber(maxArmbandNumber(showArmbands), startingArmbandNumber);
@@ -144,7 +147,8 @@ export async function submitOfflineLateEntry({
       const handler = handlerAssignments[makeHandlerKey(selection.dogId, selectedClass.classId)];
       const classData = classesById.get(selectedClass.classId);
       const entryFee = paymentMethod === 'waived' ? 0 : getShowEntryFee(showFeeInfo, classData?.entryFee);
-      const capacityOverride = capacityOverrides[selectedClass.classId] === true;
+      const capacityOverride =
+        capacityOverrides[makeHandlerKey(selection.dogId, selectedClass.classId)] === true;
       const submittedAt = new Date().toISOString();
       const entry: ReplicatedEntry = {
         id: generateUUID(),

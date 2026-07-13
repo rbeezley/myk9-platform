@@ -22,7 +22,7 @@ this document is the sequence, the gates, and the verification commands.
 
 | #   | Gate                                                                                         | Blocks                   | Status check                                                                                                    |
 | --- | -------------------------------------------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| G1  | Security remediation deployed (including 2026-07-10 SA-018…023/026/027)                       | Phase 1                  | `security-audit-remediation` merged, migration/function deployment recorded, and `OPEN-TODOS.md` updated         |
+| G1  | Security remediation deployed (including 2026-07-10 SA-018…023/026/027)                      | Phase 1                  | `security-audit-remediation` merged, migration/function deployment recorded, and `OPEN-TODOS.md` updated        |
 | G2  | Pending deploys/migrations reconciled (`ask-myk9show`, withdrawal migrations, edge-fn drift) | Phase 1                  | Phase 0 verification commands below                                                                             |
 | G3  | Money-path hardening Phases 1–3 merged + deployed (MP-01…MP-04)                              | Phase 3 (Stripe cutover) | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md) phase table; PRs merged + fns redeployed |
 | G4  | CI-gated production deploys active                                                           | Phase 4                  | Deploy Production workflow green on `main`; Git auto-deploy off                                                 |
@@ -88,17 +88,16 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       batches with smoke checks; `send-auth-email` is highest-care (see Phase 1.2). If any
       function is **deployed-ahead** (matches no commit), STOP — recover it to source first,
       do not clobber. Owner: Agent (confirmation-gated).
-      _Audit 2026-07-05:_ name inventory is not clean:
-      `pnpm qa:db-drift:functions` reports deployed-only `send-notification` and repo-only
-      `push-trigger-support-message`; byte-level download/diff still needs a fresh pass.
-      _Audit 2026-07-06:_ fresh inventory still reports 29 matched, deployed-only
-      `send-notification`, and repo-only `push-trigger-support-message`. Byte-level runtime diff
-      downloaded to `/private/tmp/myk9-edge-functions-20260706` shows repo-ahead runtime changes for
-      `ask-myk9show` and `send-email`, plus expected repo-ahead changes for MP-04 functions in the
-      B0 branch (`stripe-checkout`, `stripe-connect-onboard`, `stripe-customer-portal`,
-      `stripe-webhook`, `cron-process-payouts`). Keep 0.4 open until `send-notification` is
-      recovered or explicitly retired and required repo-ahead deploys are approved, executed, and
-      smoke-checked.
+      _Audit 2026-07-12:_ strict per-function bundle comparison found 26 exact matches, four
+      repo-ahead HTTP-helper functions (`admin-delete-user`, `admin-generate-reset-link`,
+      `send-push-notification`, `send-targeted-message`), one deployed-ahead
+      `stripe-upgrade-subscription` helper that matches no Git commit, and deployed-only legacy
+      `send-notification`. **No function was deployed in the audit.** The legacy function had no
+      events in the prior 30 days and was retired after approval; the live inventory is now 31
+      matched / zero deployed-only / zero repo-only. Do not overwrite the Stripe function; recover
+      its live price-list behavior and decide its source of truth first.
+      Full evidence and the approval-gated four-function command are in
+      [`edge-function-drift-audit-2026-07-12.md`](edge-function-drift-audit-2026-07-12.md).
 - [ ] **0.5 Money-path hardening Phases 1–3** — MP-01/02 (amount integrity), MP-03
       (payment-link duplicate delivery), MP-04 (mode-scoped Stripe IDs). One PR per phase per
       [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md). **Phase 3 is the
@@ -233,7 +232,7 @@ Importer tooling shipped (#833); the CSV is still header-only.
       _Verify:_ `select count(*) from judge_qualifications;` > 0; spot-check a known judge by name
       in the show-wizard judge picker.
       _Audit 2026-07-06:_ `pnpm qa:go-live:phase2 --allow-blocked` reports `0 judge data
-    rows after header`; importer tooling is present, but no preload migration should be
+  rows after header`; importer tooling is present, but no preload migration should be
       generated or pushed until real AKC/UKC exports are added.
 
 ### 2.2 Seed / fixture verification (staging, and prod if demo data is wanted)
@@ -416,25 +415,30 @@ the Edge runner. Do not treat either as live until its approval-gated steps belo
       cron discarded the `pg_net` request ID and its response row expired. Do not rotate a working
       credential solely on that disproved hypothesis. The independent watchdog and Sentry proof
       below remain required because pg_cron success alone still proves only queueing.
-- [ ] **Prove the durable miss:** in a disposable database or an explicitly approved rolled-back
-      transaction using `SET LOCAL ROLE` for the recorded cron owner, simulate an empty expected
-      snapshot window, run the watchdog body, and capture its `daily-health-snapshot-watchdog` /
-      `daily-health-check:YYYY-MM-DD` unresolved alert. Re-run to prove deduplication; resolve it
-      and re-run to prove a genuine recurrence can alert again. After the first scheduled 08:00 UTC
-      run, verify `cron.job_run_details.status = 'succeeded'` and inspect `return_message` for the
-      watchdog job before calling the database path live.
+- [~] **Prove the durable miss:** **WRITE-PROOF COMPLETE 2026-07-13 02:22 UTC** (approved gate 2.4
+  run, executed as `postgres` — the recorded `cron.job.username` — via the session pooler). The
+  watchdog body was run with its window fixed to the genuinely snapshot-less 2026-07-11 07:00–08:00
+  UTC day: (1) insert produced unresolved alert `aa1b43cd-66dd-4cca-a4fd-004f66b70f01` with
+  `dedupe_key = daily-health-check:2026-07-11`; (2) an identical re-run returned `INSERT 0 0`,
+  proving deduplication via the partial unique index; (3) after `resolved_at` was set, a further
+  insert created new row `c7e056d5-596d-4935-9335-833bf4a9a641`, proving recurrence after
+  resolution. Both rows are resolved with resolution notes appended to `detail` and retained as
+  durable evidence. Still open before calling the database path live: after the first scheduled
+  08:00 UTC run (2026-07-13), verify `cron.job_run_details.status = 'succeeded'` and inspect
+  `return_message` for the watchdog job (jobid 12 had zero `job_run_details` rows as of this
+  proof because it was scheduled after 08:00 UTC on 2026-07-12).
 - [ ] **External path:** create the Sentry Cron Monitor with slug `daily-health-check`, schedule
       `0 7 * * *`, timezone UTC, 15-minute check-in margin, and 10-minute max runtime. Route missed,
       error, and recovery notifications to a named human. Keep monitor configuration in Sentry;
       the function must not upsert it.
 - [~] **Deploy check-ins:** `cron-health-check` v5 was deployed 2026-07-12 and an authenticated
-      Vault-backed manual dispatch returned HTTP 200 and committed a fresh snapshot. The project
-      does not yet have `SENTRY_DSN` or `SENTRY_ENVIRONMENT`, so external check-ins remain inactive.
-      Configure those secrets after the Sentry monitor and named-human route exist, then redeploy with
-      `supabase functions deploy cron-health-check --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt --workdir apps/myk9show`.
-      Manually dispatch once and record correlated `in_progress` → `ok` evidence. A failed probe
-      that persists a `fail` snapshot is still an `ok` delivery check-in; the snapshot owns health
-      status.
+  Vault-backed manual dispatch returned HTTP 200 and committed a fresh snapshot. The project
+  does not yet have `SENTRY_DSN` or `SENTRY_ENVIRONMENT`, so external check-ins remain inactive.
+  Configure those secrets after the Sentry monitor and named-human route exist, then redeploy with
+  `supabase functions deploy cron-health-check --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt --workdir apps/myk9show`.
+  Manually dispatch once and record correlated `in_progress` → `ok` evidence. A failed probe
+  that persists a `fail` snapshot is still an `ok` delivery check-in; the snapshot owns health
+  status.
 - [ ] **Prove independence:** use Sentry's notification test or an approved missed interval to
       capture the named-human missed and recovery notifications without disabling the database
       watchdog. Separately prove that a failed Sentry flush does not suppress a committed snapshot.
@@ -506,4 +510,4 @@ delayed launch always beats a corrupted first impression.
 | Edge-function drift method             | [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md)                   |
 | Admin support actions                  | [`admin-support-runbook.md`](admin-support-runbook.md)                                                   |
 | Staging seed verification              | [`staging-reseed.md`](staging-reseed.md)                                                                 |
-| Passcode ringside Phase E              | [`docs/plan-ringside-entries-read-authz.md`](../archive/plan-ringside-entries-read-authz.md)                     |
+| Passcode ringside Phase E              | [`docs/plan-ringside-entries-read-authz.md`](../archive/plan-ringside-entries-read-authz.md)             |

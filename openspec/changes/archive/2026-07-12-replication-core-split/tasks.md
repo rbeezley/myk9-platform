@@ -44,5 +44,5 @@
 
 - [x] 7.1 Update `OPEN-TODOS.md`, Plan 007 status, and `docs/improve-audit-2026-07-11/README.md` only after implementation verification proves the work complete.
 - [x] 7.2 Review the complete diff for spec compliance, scope, offline durability, file size, TypeScript correctness, and unchanged consumer contracts; resolve all critical/high findings and straightforward medium findings. Independent spec and standards reviews found no behavior or contract defect; corrected the Plan status, and recorded the Plan-approved exception for the pre-existing oversized template base class.
-- [ ] 7.3 Commit remaining verified tracking changes, push the feature branch, and open a PR containing `Tracked in openspec change: replication-core-split` plus the full test evidence.
-- [ ] 7.4 Require CI success and completed review before merge; merge only with user approval, then archive the OpenSpec change and perform branch/worktree cleanup.
+- [x] 7.3 Commit remaining verified tracking changes, push the feature branch, and open a PR containing `Tracked in openspec change: replication-core-split` plus the full test evidence. Completed in PR #1301.
+- [x] 7.4 Require CI success and completed review before merge; merge only with user approval, then archive the OpenSpec change and perform branch/worktree cleanup. PR #1301 merged to `main` on 2026-07-12; archive closeout followed.

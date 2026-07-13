@@ -34,3 +34,4 @@ to think about) is defined in [`../roles/admin.md`](../roles/admin.md).
 | Record | What happened |
 | --- | --- |
 | [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md) | 2026-06-23 edge-function deploy-drift incident write-up. A dated record, kept for reference — not a procedure to follow. |
+| [`edge-function-drift-audit-2026-07-12.md`](edge-function-drift-audit-2026-07-12.md) | Current live bundle audit: one deployed-ahead Stripe helper and one deployed-only legacy sender block the remaining drift batch. |

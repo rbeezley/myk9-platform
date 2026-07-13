@@ -137,7 +137,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
   }
 
   private toSupabaseRow(assignment: ReplicatedJudgeAssignment): Record<string, unknown> {
-    return {
+    const row: Record<string, unknown> = {
       id: assignment.id,
       person_id: assignment.personId,
       show_id: assignment.showId ?? null,
@@ -148,9 +148,19 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
       confirmed_at: assignment.confirmedAt ?? null,
       fee: assignment.fee ?? null,
       notes: assignment.notes ?? null,
-      day_capacity_override: assignment.dayCapacityOverride ?? null,
       updated_at: new Date().toISOString(),
     };
+
+    // Rows cached in IndexedDB before this field existed have
+    // dayCapacityOverride === undefined ("no value"). Omit the key in that
+    // case so an unrelated update doesn't silently clear a server-side
+    // override; a deliberate clear sets the field to explicit null, which
+    // IS sent through.
+    if (assignment.dayCapacityOverride !== undefined) {
+      row.day_capacity_override = assignment.dayCapacityOverride;
+    }
+
+    return row;
   }
 
   protected override rebuildUpdatePayload(

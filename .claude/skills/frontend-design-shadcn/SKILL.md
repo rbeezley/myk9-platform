@@ -1,5 +1,5 @@
 ---
-name: frontend-design
+name: frontend-design-shadcn
 description: Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when the user asks to build web components, pages, or applications. Generates creative, polished code that avoids generic AI aesthetics.
 license: Complete terms in LICENSE.txt
 ---
@@ -27,14 +27,15 @@ Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
 
 ## shadcn/ui Project Setup
 
+> **This project standardizes on Base UI, NOT Radix** (Radix stagnated after the WorkOS acquisition — see CLAUDE.md § Architecture Decisions). When scaffolding or adding components, always pick the Base UI variant. Never scaffold Radix into myK9Show.
+
 When creating new projects with shadcn/ui, use `npx shadcn create` to scaffold with full configuration:
-- Component library: Radix or Base UI
+- Component library: **Base UI** (this project's standard — do not choose Radix)
 - Visual styles: Vega, Nova, Maia, Lyra, Mira
 - Icon sets: Lucide, Tabler, or HugeIcons
 - Theme colors, fonts, and border radius
 
-Ask the user for their preferences before scaffolding. Example preset URL format:
-`https://ui.shadcn.com/init?base=radix&style=lyra&baseColor=zinc&theme=green&iconLibrary=hugeicons&font=geist-sans&radius=default&menuAccent=subtle&menuColor=default&template=next`
+Ask the user for their preferences before scaffolding, then set the `base` parameter of the preset URL to the Base UI option (confirm the current value against the shadcn init UI — do not copy a `base=radix` preset). Remaining preset params follow the same `https://ui.shadcn.com/init?...` format (`style`, `baseColor`, `theme`, `iconLibrary`, `font`, `radius`, `menuAccent`, `menuColor`, `template`).
 
 Valid baseColor values: neutral, stone, zinc, gray (not slate).
 

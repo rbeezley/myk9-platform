@@ -1,6 +1,6 @@
 # Edge Function Drift Audit — 2026-07-12
 
-> **Status:** Blocked on deployed-source recovery and legacy-function disposition.
+> **Status:** Blocked on deployed-source recovery for `stripe-upgrade-subscription`.
 
 ## Scope and method
 
@@ -18,7 +18,7 @@ No function, secret, database, or configuration was changed.
 | Exact bundle match | 26 | All remaining repository-backed functions | No action. |
 | Repo-ahead shared HTTP helper | 4 | `admin-delete-user`, `admin-generate-reset-link`, `send-push-notification`, `send-targeted-message` | Reviewed source is ahead; prepare a small, approval-gated deploy batch after the two blockers below are resolved. |
 | Deployed-ahead source | 1 | `stripe-upgrade-subscription` | **Stop.** Do not overwrite until the live variant is recovered and its intended price-list semantics are decided. |
-| Deployed-only legacy function | 1 | `send-notification` | **Stop.** Establish liveness, then explicitly retire or recover and harden it. |
+| Retired deployed-only legacy function | 1 | `send-notification` | **Retired 2026-07-12.** Dashboard Logs showed no events in the prior 30 days; removed from Supabase after approval and confirmed absent from the inventory. |
 
 The live inventory now has 31 repository-name matches and one deployed-only function. The prior
 repo-only `push-trigger-support-message` is deployed and matches current source.
@@ -69,7 +69,7 @@ recover this live variant in a reviewed source-history decision and explicitly c
 current fallback-extension hardening supersedes it. Do not redeploy `stripe-upgrade-subscription`
 until that decision is recorded.
 
-## Blocker 2 — deployed-only `send-notification`
+## Retired legacy function — `send-notification`
 
 `send-notification` is active but has no repository directory or application invocation. The
 downloaded source accepts any valid JWT, accepts an arbitrary `to` recipient, sends directly to
@@ -77,16 +77,14 @@ Resend without the shared retry/idempotency contract, and logs raw provider erro
 the supported email functions and is not acceptable to retain without an explicit owner and access
 decision.
 
-Before deletion or recovery, the operator must inspect Supabase Dashboard → Edge Functions →
-`send-notification` → Logs for recent use and identify any external caller. If unused, approve its
-retirement. If used, recover it into a reviewed source change, restrict recipients/roles, route it
-through the shared Resend helper, and deploy the replacement before retiring the live legacy
-function.
+The operator checked Supabase Dashboard → Edge Functions → `send-notification` → Logs for the
+prior 30 days and found no events. With approval, the active v33 function was deleted from project
+`sojmvhhwsjxmfistvzbe`. Post-retirement inventory reported 31 matched functions, zero
+deployed-only functions, and zero repo-only functions.
 
 ## Closure criteria
 
 Runbook 0.4 remains open until:
 
 1. the deployed-ahead premium-price behavior is recovered and a source-of-truth decision is merged;
-2. `send-notification` is retired or recovered and hardened with an identified owner; and
-3. the four-function helper catch-up batch is approved, deployed, and smoke-verified.
+2. the four-function helper catch-up batch is approved, deployed, and smoke-verified.

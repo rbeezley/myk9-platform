@@ -92,9 +92,10 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       repo-ahead HTTP-helper functions (`admin-delete-user`, `admin-generate-reset-link`,
       `send-push-notification`, `send-targeted-message`), one deployed-ahead
       `stripe-upgrade-subscription` helper that matches no Git commit, and deployed-only legacy
-      `send-notification`. **No function was deployed.** Do not overwrite the Stripe function;
-      recover its live price-list behavior and decide its source of truth first. Inspect legacy
-      `send-notification` logs and explicitly retire or recover/harden it before a batch deploy.
+      `send-notification`. **No function was deployed in the audit.** The legacy function had no
+      events in the prior 30 days and was retired after approval; the live inventory is now 31
+      matched / zero deployed-only / zero repo-only. Do not overwrite the Stripe function; recover
+      its live price-list behavior and decide its source of truth first.
       Full evidence and the approval-gated four-function command are in
       [`edge-function-drift-audit-2026-07-12.md`](edge-function-drift-audit-2026-07-12.md).
 - [ ] **0.5 Money-path hardening Phases 1–3** — MP-01/02 (amount integrity), MP-03

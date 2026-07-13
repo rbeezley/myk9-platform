@@ -79,9 +79,9 @@ High-judgment work to prioritize while strong-model access is available. These a
   PII-free telemetry); the operator visually confirmed the alert email in Gmail. Retry runtime
   acceptance is complete.
   Remaining work includes Phase 0.4 Edge-function drift recovery: the 2026-07-12 strict bundle
-  audit found a deployed-ahead `stripe-upgrade-subscription` price helper and deployed-only legacy
-  `send-notification`; both require an explicit recovery/retirement decision before the small
-  repo-ahead helper batch can deploy. See
+  audit found a deployed-ahead `stripe-upgrade-subscription` price helper; the deployed-only
+  legacy `send-notification` had no 30-day log events and was retired after approval. Recover the
+  Stripe helper's source-of-truth decision before the small repo-ahead helper batch can deploy. See
   [`edge-function-drift-audit-2026-07-12.md`](docs/operations/edge-function-drift-audit-2026-07-12.md).
   Other remaining work is operator-owned (legal, production data, Stripe live mode, mailbox/AKC,
   browser/device, Sentry routing, DNS/Vercel) plus a paid premium success smoke if approved. Migration parity is

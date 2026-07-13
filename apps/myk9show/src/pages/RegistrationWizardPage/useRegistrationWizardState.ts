@@ -37,6 +37,7 @@ import type {
   StepId,
 } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
 import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
+import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import {
   WORKFLOW_CONFIGS,
   ALL_STEP_DEFINITIONS,
@@ -208,6 +209,7 @@ export function useRegistrationWizardState() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PENDING);
   const [entryStatus, setEntryStatus] = useState<EntryStatus>(EntryStatus.PENDING);
   const [armbandAssignments, setArmbandAssignments] = useState<ArmbandAssignment[]>([]);
+  const [entryOutcomes, setEntryOutcomes] = useState<EntrySubmissionOutcome[]>([]);
   const paymentDetailsRef = useRef<PaymentDetails>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [agreedToEntryAgreement, setAgreedToEntryAgreement] = useState(false);
@@ -449,6 +451,8 @@ export function useRegistrationWizardState() {
     setEntryStatus,
     armbandAssignments,
     setArmbandAssignments,
+    entryOutcomes,
+    setEntryOutcomes,
     paymentDetailsRef,
     isSubmitting,
     setIsSubmitting,

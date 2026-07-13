@@ -48,7 +48,9 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
   useDogStoreCompat: () => ({ dogs: [] }),
 }));
 vi.mock('@/store/showStore', () => ({
-  useShowStore: () => ({ shows: [{ id: 'show-1', name: 'Spring Trial', startDate: '2026-05-01' }] }),
+  useShowStore: () => ({
+    shows: [{ id: 'show-1', name: 'Spring Trial', startDate: '2026-05-01' }],
+  }),
 }));
 vi.mock('@/store/trialStore', () => ({
   useTrialStore: () => ({ trials: [] }),
@@ -189,5 +191,74 @@ describe('ConfirmationStep — email confirmation', () => {
       'Receipt copied to clipboard',
       expect.any(Object)
     );
+  });
+});
+
+describe('ConfirmationStep — capacity outcomes', () => {
+  it('explains created, waitlisted, and denied selections without implying payment is due', () => {
+    render(
+      <ConfirmationStep
+        {...baseProps}
+        entryOutcomes={[
+          {
+            dogId: 'dog-1',
+            classId: 'class-1',
+            outcome: 'created',
+            entryId: 'entry-1',
+            waitlistEntryId: null,
+            feeCents: 2500,
+            capacityOverride: false,
+          },
+          {
+            dogId: 'dog-2',
+            classId: 'class-2',
+            outcome: 'waitlisted',
+            entryId: null,
+            waitlistEntryId: 'wait-2',
+            waitlistPosition: 3,
+            feeCents: 0,
+            capacityOverride: false,
+          },
+          {
+            dogId: 'dog-3',
+            classId: 'class-3',
+            outcome: 'denied',
+            entryId: null,
+            waitlistEntryId: null,
+            feeCents: 0,
+            capacityOverride: false,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText(/1 entry submitted/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 selection joined the wait list/i)).toBeInTheDocument();
+    expect(screen.getByText(/payment is not due unless a spot is offered/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/1 selection could not be entered because it is full/i)
+    ).toBeInTheDocument();
+  });
+
+  it('does not claim registration success when every selection was denied', () => {
+    render(
+      <ConfirmationStep
+        {...baseProps}
+        entryOutcomes={[
+          {
+            dogId: 'dog-1',
+            classId: 'class-1',
+            outcome: 'denied',
+            entryId: null,
+            waitlistEntryId: null,
+            feeCents: 0,
+            capacityOverride: false,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByRole('heading', { name: 'No entries were added' })).toBeInTheDocument();
+    expect(screen.queryByText('Registration Submitted')).not.toBeInTheDocument();
   });
 });

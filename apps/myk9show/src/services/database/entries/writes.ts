@@ -323,7 +323,40 @@ export const uncompEntry = async (entryId: string) => {
   }
 };
 
-// Submit show entries via the server-side RPC (enforces ownership, fees, and payment auth)
+export type EntrySubmissionSource = 'self_service' | 'organizer' | 'show_desk';
+
+export type EntrySubmissionOutcomeKind = 'created' | 'waitlisted' | 'denied';
+
+export interface EntrySubmissionOutcome {
+  dogId: string;
+  classId: string;
+  outcome: EntrySubmissionOutcomeKind;
+  entryId: string | null;
+  waitlistEntryId: string | null;
+  waitlistPosition?: number | null;
+  feeCents: number;
+  capacityOverride: boolean;
+}
+
+export interface SubmitShowEntriesResult {
+  entries: Array<{ entryId: string; dogId: string }>;
+  outcomes: EntrySubmissionOutcome[];
+  registrationId: string;
+  submissionId: string;
+}
+
+interface RpcEntrySubmissionOutcome {
+  dog_id: string;
+  class_id: string;
+  outcome: EntrySubmissionOutcomeKind;
+  entry_id: string | null;
+  waitlist_entry_id: string | null;
+  waitlist_position?: number | null;
+  fee_cents: number;
+  capacity_override: boolean;
+}
+
+// Submit show entries via the server-side RPC (enforces ownership, fees, payment auth, and capacity)
 export async function submitShowEntries(params: {
   showId: string;
   registrationId: string;
@@ -337,12 +370,9 @@ export async function submitShowEntries(params: {
   }>;
   submissionId: string;
   paymentMethod: string;
-}): Promise<{
-  entries: Array<{ entryId: string; dogId: string }>;
-  registrationId: string;
-  submissionId: string;
-}> {
-  const { showId, registrationId, entries, submissionId, paymentMethod } = params;
+  submissionSource: EntrySubmissionSource;
+}): Promise<SubmitShowEntriesResult> {
+  const { showId, registrationId, entries, submissionId, paymentMethod, submissionSource } = params;
 
   const rpcEntries = entries.map(e => ({
     dog_id: e.dogId,
@@ -351,6 +381,7 @@ export async function submitShowEntries(params: {
     handler_name: e.handlerName,
     payment_method: e.paymentMethod,
     client_fee_cents: e.clientFeeCents,
+    submission_source: submissionSource,
   }));
 
   const { data, error } = await supabase.rpc(
@@ -370,11 +401,36 @@ export async function submitShowEntries(params: {
 
   const result = data as unknown as {
     entries: Array<{ entry_id: string; dog_id: string }>;
+    outcomes?: RpcEntrySubmissionOutcome[];
     registration_id: string;
     submission_id: string;
   };
+  const mappedEntries = result.entries.map(e => ({ entryId: e.entry_id, dogId: e.dog_id }));
+  const outcomes = Array.isArray(result.outcomes)
+    ? result.outcomes.map(outcome => ({
+        dogId: outcome.dog_id,
+        classId: outcome.class_id,
+        outcome: outcome.outcome,
+        entryId: outcome.entry_id,
+        waitlistEntryId: outcome.waitlist_entry_id,
+        waitlistPosition: outcome.waitlist_position ?? null,
+        feeCents: outcome.fee_cents,
+        capacityOverride: outcome.capacity_override,
+      }))
+    : mappedEntries.map((entry, index) => ({
+        dogId: entry.dogId,
+        classId: entries[index]?.classId ?? '',
+        outcome: 'created' as const,
+        entryId: entry.entryId,
+        waitlistEntryId: null,
+        waitlistPosition: null,
+        feeCents: entries[index]?.clientFeeCents ?? 0,
+        capacityOverride: false,
+      }));
+
   return {
-    entries: result.entries.map(e => ({ entryId: e.entry_id, dogId: e.dog_id })),
+    entries: mappedEntries,
+    outcomes,
     registrationId: result.registration_id,
     submissionId: result.submission_id,
   };

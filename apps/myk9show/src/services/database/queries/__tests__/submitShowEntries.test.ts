@@ -45,6 +45,7 @@ const baseParams = {
   ],
   submissionId: 'sub-uuid-1',
   paymentMethod: 'credit_card',
+  submissionSource: 'self_service' as const,
 };
 
 const rpcSuccess = {
@@ -80,6 +81,7 @@ describe('submitShowEntries', () => {
           handler_name: 'Jane Doe',
           payment_method: 'credit_card',
           client_fee_cents: 2500,
+          submission_source: 'self_service',
         },
         {
           dog_id: 'dog-uuid-2',
@@ -88,6 +90,7 @@ describe('submitShowEntries', () => {
           handler_name: 'John Doe',
           payment_method: 'credit_card',
           client_fee_cents: 2500,
+          submission_source: 'self_service',
         },
       ],
       p_submission_id: 'sub-uuid-1',
@@ -101,6 +104,28 @@ describe('submitShowEntries', () => {
       ],
       registrationId: 'enrollment-uuid-1',
       submissionId: 'sub-uuid-1',
+      outcomes: [
+        {
+          dogId: 'dog-uuid-1',
+          classId: 'class-uuid-1',
+          outcome: 'created',
+          entryId: 'e1',
+          waitlistEntryId: null,
+          waitlistPosition: null,
+          feeCents: 2500,
+          capacityOverride: false,
+        },
+        {
+          dogId: 'dog-uuid-2',
+          classId: 'class-uuid-2',
+          outcome: 'created',
+          entryId: 'e2',
+          waitlistEntryId: null,
+          waitlistPosition: null,
+          feeCents: 2500,
+          capacityOverride: false,
+        },
+      ],
     });
   });
 
@@ -126,6 +151,87 @@ describe('submitShowEntries', () => {
     });
 
     await expect(submitShowEntries(baseParams)).rejects.toThrow('fee mismatch');
+  });
+
+  it('sends the verified source and maps mixed capacity outcomes', async () => {
+    mockRpc.mockResolvedValue({
+      data: {
+        entries: [{ entry_id: 'e1', dog_id: 'dog-uuid-1' }],
+        outcomes: [
+          {
+            dog_id: 'dog-uuid-1',
+            class_id: 'class-uuid-1',
+            outcome: 'created',
+            entry_id: 'e1',
+            waitlist_entry_id: null,
+            fee_cents: 2500,
+            capacity_override: false,
+          },
+          {
+            dog_id: 'dog-uuid-2',
+            class_id: 'class-uuid-2',
+            outcome: 'waitlisted',
+            entry_id: null,
+            waitlist_entry_id: 'wait-2',
+            fee_cents: 0,
+            capacity_override: false,
+          },
+        ],
+        registration_id: 'enrollment-uuid-1',
+        submission_id: 'sub-uuid-1',
+      },
+      error: null,
+    });
+
+    const result = await submitShowEntries({
+      ...baseParams,
+      submissionSource: 'organizer',
+    } as Parameters<typeof submitShowEntries>[0]);
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      'submit_show_entries',
+      expect.objectContaining({
+        p_entries: expect.arrayContaining([
+          expect.objectContaining({ submission_source: 'organizer' }),
+        ]),
+      })
+    );
+    expect(result.outcomes).toEqual([
+      {
+        dogId: 'dog-uuid-1',
+        classId: 'class-uuid-1',
+        outcome: 'created',
+        entryId: 'e1',
+        waitlistEntryId: null,
+        waitlistPosition: null,
+        feeCents: 2500,
+        capacityOverride: false,
+      },
+      {
+        dogId: 'dog-uuid-2',
+        classId: 'class-uuid-2',
+        outcome: 'waitlisted',
+        entryId: null,
+        waitlistEntryId: 'wait-2',
+        waitlistPosition: null,
+        feeCents: 0,
+        capacityOverride: false,
+      },
+    ]);
+  });
+
+  it('synthesizes created outcomes for a legacy server response', async () => {
+    mockRpc.mockResolvedValue(rpcSuccess);
+
+    const result = await submitShowEntries({
+      ...baseParams,
+      submissionSource: 'self_service',
+    } as Parameters<typeof submitShowEntries>[0]);
+
+    expect(result.outcomes).toEqual([
+      expect.objectContaining({ dogId: 'dog-uuid-1', outcome: 'created', entryId: 'e1' }),
+      expect.objectContaining({ dogId: 'dog-uuid-2', outcome: 'created', entryId: 'e2' }),
+    ]);
   });
 
   it('updates handler corrections through the entry-management RPC with handler_id', async () => {

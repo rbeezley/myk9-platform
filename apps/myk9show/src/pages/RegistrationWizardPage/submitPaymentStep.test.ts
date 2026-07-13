@@ -68,6 +68,7 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
     setIsSubmitting: vi.fn(),
     setRegistrationNumber: vi.fn(),
     setArmbandAssignments: vi.fn(),
+    setEntryOutcomes: vi.fn(),
     markStepComplete: vi.fn(),
     setCurrentStep: vi.fn(),
     updateShowRegistration: vi.fn(),

@@ -31,6 +31,7 @@ import type {
   PaymentStatus,
   ShowRegistration,
 } from '@/types/show-registration-types';
+import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import type { CartWithDetails, NewCartItem } from '@/store/cartStore';
 import { getEntrySubmitBlocker } from './entryCloseGuard';
 
@@ -84,6 +85,7 @@ export interface SubmitPaymentStepContext {
   setIsSubmitting: (value: boolean) => void;
   setRegistrationNumber: (value: string | undefined) => void;
   setArmbandAssignments: (value: ArmbandAssignment[]) => void;
+  setEntryOutcomes: (value: EntrySubmissionOutcome[]) => void;
   markStepComplete: (stepIndex: number) => void;
   setCurrentStep: (updater: (prev: number) => number) => void;
   updateShowRegistration: (
@@ -192,6 +194,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       classes: ctx.classes,
       canAssignArmbands: ctx.canAssignArmbands,
       showFeeInfo: ctx.showFeeInfo,
+      submissionSource: ctx.currentWorkflowMode === 'exhibitor' ? 'self_service' : 'organizer',
       isActive: () => ctx.isMounted(),
       deps: {
         submitRegistration: ctx.submitRegistration,
@@ -200,6 +203,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     });
     if (submissionResult.aborted) return;
     ctx.setRegistrationNumber(submissionResult.registrationNumber);
+    ctx.setEntryOutcomes(submissionResult.entryOutcomes ?? []);
     if (submissionResult.armbandAssignments.length > 0) {
       ctx.setArmbandAssignments(submissionResult.armbandAssignments);
     }

@@ -47,6 +47,7 @@ import { RegistrationManagementPanel } from './RegistrationManagementPanel';
 import { sendRegistrationConfirmationEmail } from './sendRegistrationConfirmationEmail';
 import { formatRingLabel } from '@/utils/ringLabel';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
+import { EntrySubmissionOutcomeAlert } from './EntrySubmissionOutcomeAlert';
 
 export type { ConfirmationStepProps } from './ConfirmationStep.types';
 
@@ -66,6 +67,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   handlers = [],
   waitlistEntries,
   confirmedEntryCount,
+  entryOutcomes,
   onDownloadReceipt,
   onSendEmail,
   onStatusChange,
@@ -305,9 +307,36 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
     0
   );
   const heroCopy = getConfirmationHeroCopy(entryStatus, paymentStatus);
-  const heroTitle = workflowMode === 'exhibitor' ? heroCopy.title : 'Mail-in entry submitted';
-  const isRecorded = isRegistrationRecorded(entryStatus, paymentStatus);
-  const HeroIcon = isRecorded ? CheckCircle : Clock4;
+  const createdOutcomeCount = entryOutcomes?.filter(
+    outcome => outcome.outcome === 'created'
+  ).length;
+  const waitlistedOutcomeCount = entryOutcomes?.filter(
+    outcome => outcome.outcome === 'waitlisted'
+  ).length;
+  const everyOutcomeDenied =
+    entryOutcomes !== undefined &&
+    entryOutcomes.length > 0 &&
+    entryOutcomes.every(outcome => outcome.outcome === 'denied');
+  const onlyWaitlisted =
+    entryOutcomes !== undefined &&
+    entryOutcomes.length > 0 &&
+    createdOutcomeCount === 0 &&
+    waitlistedOutcomeCount === entryOutcomes.length;
+  const heroTitle = everyOutcomeDenied
+    ? 'No entries were added'
+    : onlyWaitlisted
+      ? 'Added to the wait list'
+      : workflowMode === 'exhibitor'
+        ? heroCopy.title
+        : 'Mail-in entry submitted';
+  const heroDescription = everyOutcomeDenied
+    ? 'The selected classes were full and did not have an available wait-list place.'
+    : onlyWaitlisted
+      ? 'No payment is due unless a spot is offered.'
+      : heroCopy.description;
+  const isRecorded =
+    !everyOutcomeDenied && (onlyWaitlisted || isRegistrationRecorded(entryStatus, paymentStatus));
+  const HeroIcon = everyOutcomeDenied ? AlertCircle : isRecorded ? CheckCircle : Clock4;
   const heroIconClassName = isRecorded
     ? 'h-16 w-16 text-success mx-auto mb-4'
     : 'h-16 w-16 text-muted-foreground mx-auto mb-4';
@@ -318,11 +347,13 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       <div className="text-center py-6">
         <HeroIcon className={heroIconClassName} />
         <h2 className="text-2xl font-bold mb-2">{heroTitle}</h2>
-        <p className="text-muted-foreground">{heroCopy.description}</p>
+        <p className="text-muted-foreground">{heroDescription}</p>
         <Badge variant="default" className="mt-3 text-lg py-1 px-4">
           {formatConfirmationNumberLabel(registrationNumber)}
         </Badge>
       </div>
+
+      <EntrySubmissionOutcomeAlert outcomes={entryOutcomes} />
 
       {/* Waitlist Summary */}
       {waitlistEntries && waitlistEntries.length > 0 && (

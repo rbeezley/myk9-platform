@@ -28,6 +28,8 @@ import { Info } from 'lucide-react';
 import type { WorkflowConfig } from './RegistrationWorkflow.types';
 import type { WorkflowMode } from './RegistrationWorkflow.types';
 import type { ArmbandAssignment } from './ConfirmationStep.types';
+import type { EntrySubmissionOutcome } from '@/services/database/entries';
+import { EntrySubmissionOutcomeAlert } from './EntrySubmissionOutcomeAlert';
 
 interface OptimisticRegistrationState {
   formData: RegistrationFormData;
@@ -49,6 +51,7 @@ interface WorkflowStepContentProps {
   currentRegistrationTotalFees: number;
   /** Armband assignments from the RPC call */
   armbandAssignments?: ArmbandAssignment[];
+  entryOutcomes?: EntrySubmissionOutcome[] | undefined;
   onDogSelectionChange: (dogs: string[]) => void | Promise<void>;
   onClassSelectionChange: (selections: ClassSelectionData[]) => void | Promise<void>;
   onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => void | Promise<void>;
@@ -83,6 +86,7 @@ export function WorkflowStepContent({
   registrationNumber,
   currentRegistrationTotalFees,
   armbandAssignments,
+  entryOutcomes,
   onDogSelectionChange,
   onClassSelectionChange,
   onHandlerAssignmentChange,
@@ -99,6 +103,8 @@ export function WorkflowStepContent({
 }: WorkflowStepContentProps) {
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
   const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');
+  const hasCreatedCapacityOutcome =
+    entryOutcomes === undefined || entryOutcomes.some(outcome => outcome.outcome === 'created');
 
   // Styled receipt branch — hooks must be top-level (Rules of Hooks);
   // expensive .find() lookups are memoized and only compute during confirmation step.
@@ -299,10 +305,13 @@ export function WorkflowStepContent({
       )}
 
       {currentStepId === 'confirmation' &&
-        (styledReceipt && styledReceiptProps ? (
-          STYLED_RECEIPT_BY_STYLE[styledReceipt.style](styledReceiptProps, {
-            brandColor: styledReceipt.brandColor,
-          })
+        (styledReceipt && styledReceiptProps && hasCreatedCapacityOutcome ? (
+          <div className="space-y-6">
+            <EntrySubmissionOutcomeAlert outcomes={entryOutcomes} />
+            {STYLED_RECEIPT_BY_STYLE[styledReceipt.style](styledReceiptProps, {
+              brandColor: styledReceipt.brandColor,
+            })}
+          </div>
         ) : (
           <ConfirmationStep
             registrationNumber={registrationNumber}
@@ -317,6 +326,7 @@ export function WorkflowStepContent({
             totalFees={currentRegistrationTotalFees}
             showId={showId}
             armbandAssignments={armbandAssignments}
+            entryOutcomes={entryOutcomes}
             onDownloadReceipt={undefined}
             onSendEmail={undefined}
             onStatusChange={async (_dogId: string, status: EntryStatus) => {

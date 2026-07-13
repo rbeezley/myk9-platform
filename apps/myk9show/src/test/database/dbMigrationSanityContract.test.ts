@@ -87,11 +87,7 @@ describe('DB migration sanity contracts', () => {
 
   it('hardens legacy advisor RLS warnings without closing waitlist signup', () => {
     const { sql } = latestMigrationContaining(/Security advisor follow-up/i);
-    const waitlistPolicy = sliceBetween(
-      sql,
-      'create policy "anon_can_insert_waitlist"',
-      ');'
-    );
+    const waitlistPolicy = sliceBetween(sql, 'create policy "anon_can_insert_waitlist"', ');');
 
     expect(sql).toContain('drop policy if exists "announcements_all"');
     expect(sql).toContain('drop policy if exists "announcement_reads_insert"');
@@ -116,6 +112,50 @@ describe('DB migration sanity contracts', () => {
     const view = sliceBetween(sql, 'VIEW public.view_own_entry_results', 'GRANT SELECT');
 
     expect(view).toContain('security_invoker = true');
-    expect(view).toContain("sh.status IN ('published', 'accepting_entries', 'closed', 'in_progress', 'completed')");
+    expect(view).toContain(
+      "sh.status IN ('published', 'accepting_entries', 'closed', 'in_progress', 'completed')"
+    );
+  });
+
+  it('derives class status from non-deleted entries only', () => {
+    const { sql } = latestMigrationContaining(
+      /deleted_at[\s\S]*entries_refresh_class_scoring_state/i
+    );
+    const refreshFunction = sliceBetween(
+      sql,
+      'CREATE OR REPLACE FUNCTION public.refresh_class_scoring_state',
+      'COMMENT ON FUNCTION public.refresh_class_scoring_state'
+    );
+    const trigger = sliceBetween(
+      sql,
+      'CREATE TRIGGER entries_refresh_class_scoring_state',
+      'ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_status_push'
+    );
+
+    expect(refreshFunction).toContain('FROM public.entries');
+    expect(refreshFunction).toContain('AND deleted_at IS NULL');
+    expect(refreshFunction).toContain('COUNT(*) FILTER (WHERE is_scored = true)::integer');
+    expect(refreshFunction).toContain('WHERE class_id = p_class_id\n      AND deleted_at IS NULL');
+    expect(sql).toContain('NEW.deleted_at IS NULL');
+    expect(trigger).toContain('deleted_at');
+    expect(sql).toContain(
+      'ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_status_push'
+    );
+    expect(sql).toContain('PERFORM public.refresh_class_scoring_state(r.id);');
+    expect(sql).toContain('ALTER TABLE public.classes ENABLE TRIGGER trg_notify_class_status_push');
+  });
+
+  it('only reopens a class after a completed closeout', () => {
+    const { sql } = latestMigrationContaining(
+      /CREATE OR REPLACE FUNCTION public\.handle_entry_scoring_state_change/i
+    );
+    const handler = sliceBetween(
+      sql,
+      'CREATE OR REPLACE FUNCTION public.handle_entry_scoring_state_change',
+      'DROP TRIGGER IF EXISTS entries_refresh_class_scoring_state'
+    );
+
+    expect(handler).toContain("IF v_class_status = 'completed' THEN");
+    expect(handler).not.toContain("OR v_status_source = 'manual'");
   });
 });

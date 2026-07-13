@@ -203,16 +203,61 @@ describe('sendResendEmailWithRetry', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('adds a content-derived SHA-256 idempotency key when the caller omits one', async () => {
+  it('adds a generated idempotency key when the caller omits one', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(Response.json({ id: 'email-5' }));
     const body = '{"to":"recipient@example.com"}';
+    const createIdempotencyKey = vi.fn().mockReturnValue('myk9-generated-1');
 
-    await sendResendEmailWithRetry({ method: 'POST', body }, { fetchImpl });
+    await sendResendEmailWithRetry({ method: 'POST', body }, { fetchImpl, createIdempotencyKey });
 
     const sentInit = fetchImpl.mock.calls[0]?.[1] as RequestInit;
-    expect(new Headers(sentInit.headers).get('Idempotency-Key')).toBe(
-      'myk9-76cdbed9f5d713310f6aa1cede2b3c032d5f12f5f513c53bcb9eaf5ab2ad246c'
+    expect(new Headers(sentInit.headers).get('Idempotency-Key')).toBe('myk9-generated-1');
+    expect(createIdempotencyKey).toHaveBeenCalledTimes(1);
+  });
+
+  it('reuses the generated idempotency key across retries in one invocation', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('unavailable', { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ id: 'email-retry-idempotency' }));
+    const createIdempotencyKey = vi.fn().mockReturnValue('myk9-retry-1');
+
+    await sendResendEmailWithRetry(
+      { method: 'POST', body: '{"to":"recipient@example.com"}' },
+      {
+        fetchImpl,
+        sleep: vi.fn().mockResolvedValue(undefined),
+        random: () => 0,
+        onRetry: vi.fn(),
+        createIdempotencyKey,
+      }
     );
+
+    expect(createIdempotencyKey).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(
+      fetchImpl.mock.calls.map(call =>
+        new Headers((call[1] as RequestInit).headers).get('Idempotency-Key')
+      )
+    ).toEqual(['myk9-retry-1', 'myk9-retry-1']);
+  });
+
+  it('generates distinct fallback keys for separate invocations with the same body', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(Response.json({ id: 'email-repeat-body' }));
+    const createIdempotencyKey = vi
+      .fn()
+      .mockReturnValueOnce('myk9-generated-1')
+      .mockReturnValueOnce('myk9-generated-2');
+    const body = '{"to":"recipient@example.com"}';
+
+    await sendResendEmailWithRetry({ method: 'POST', body }, { fetchImpl, createIdempotencyKey });
+    await sendResendEmailWithRetry({ method: 'POST', body }, { fetchImpl, createIdempotencyKey });
+
+    expect(
+      fetchImpl.mock.calls.map(call =>
+        new Headers((call[1] as RequestInit).headers).get('Idempotency-Key')
+      )
+    ).toEqual(['myk9-generated-1', 'myk9-generated-2']);
   });
 
   it('parses an HTTP-date Retry-After value and clamps the wait to 2000 ms', async () => {

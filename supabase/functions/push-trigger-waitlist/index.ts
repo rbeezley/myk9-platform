@@ -138,7 +138,7 @@ handle<WebhookPayload>(
             deliverEmail({
               eventId: payload.event_id,
               claimToken: claimed.claim_token,
-              recipient: context.exhibitor.person?.email || '',
+              recipient: context.exhibitor.person?.email ?? null,
               content,
               supabase,
             }),
@@ -225,10 +225,6 @@ async function loadContext(supabase: SupabaseClient, waitlistEntryId: string) {
     throw new Error('notification_audience_resolution_failed');
   }
   const exhibitor = exhibitorResult.data as unknown as ExhibitorProfile;
-  if (!exhibitor.person?.email) {
-    throw new Error('notification_recipient_missing');
-  }
-
   return {
     waitlist: typedWaitlist,
     entryClass: classResult.data as unknown as ClassContext,
@@ -240,11 +236,18 @@ async function loadContext(supabase: SupabaseClient, waitlistEntryId: string) {
 async function deliverEmail(input: {
   eventId: string;
   claimToken: string;
-  recipient: string;
+  recipient: string | null;
   content: ReturnType<typeof buildWaitlistNotificationContent>;
   supabase: SupabaseClient;
 }): Promise<void> {
   await requireCurrentClaim(input.supabase, input.eventId, input.claimToken);
+  if (!input.recipient) {
+    await updateEvent(input.supabase, input.eventId, input.claimToken, {
+      email_sent_at: new Date().toISOString(),
+    });
+    return;
+  }
+
   const resendApiKey = Deno.env.get('RESEND_API_KEY');
   if (!resendApiKey) throw new Error('email_not_configured');
 

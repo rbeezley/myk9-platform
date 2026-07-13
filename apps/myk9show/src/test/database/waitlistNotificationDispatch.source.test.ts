@@ -77,6 +77,8 @@ describe('waitlist notification dispatch contracts', () => {
     expect(dispatcher).not.toContain(
       '!exhibitor.person?.email || !exhibitor.person.auth_user_id'
     );
+    expect(dispatcher).not.toContain("throw new Error('notification_recipient_missing')");
+    expect(dispatcher).toContain('if (!input.recipient) {');
     expect(content).toContain('/exhibitor/entries?waitlistOffer=');
     expect(dispatcher).toContain("event_type: 'offered' | 'reminder' | 'expired'");
     expect(dispatcher).toContain('shouldDeliverWaitlistEvent');

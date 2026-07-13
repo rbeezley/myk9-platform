@@ -616,7 +616,7 @@ Internal dispatcher for durable waitlist offer, halfway-reminder, and expiry not
 
 Notifications link to the existing filtered My Entries surface and format deadlines in the trial timezone. Mail-in waitlist rows do not create notification events. A recipient without an authenticated account still receives email; Web Push is skipped because no subscription owner can exist.
 
-**Deployment order:** deploy `push-trigger-waitlist` first, then apply the notification-event migration, then deploy the updated cron. This prevents the trigger or cron from targeting a missing dispatcher and avoids removing the legacy cron delivery before the durable path exists.
+**Deployment gate:** merge this code without deploying it until Phase B adds and verifies the My Entries waitlist payment action. Deploying the updated cron earlier would remove the legacy Stripe payment-link email before exhibitors can pay from the new deep link. After Phase B is ready, deploy `push-trigger-waitlist` first, apply the notification-event migration second, and deploy the updated cron with the Phase B functions last.
 
 **Environment Variables Required:** `PUSH_WEBHOOK_SECRET`, `RESEND_API_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 

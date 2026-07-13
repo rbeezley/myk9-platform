@@ -26,12 +26,20 @@ My Shows / My Entries waitlist surface with the matching offer selected.
 
 ## Required deployment order
 
+**Merge only; do not deploy Phase C in isolation.** The current My Entries waitlist section does not
+yet expose the Phase B payment action or handle the `waitlistOffer` focus parameter. Deploying this
+cron now would remove the legacy Stripe payment-link email before the replacement payment action is
+reachable.
+
+After Phase B is merged and its My Entries payment path is verified:
+
 1. Deploy `push-trigger-waitlist` with `--no-verify-jwt`.
 2. Apply migration `20260713010000_waitlist_notification_events.sql`.
-3. Deploy the updated `cron-waitlist-expiration`.
+3. Deploy the updated `cron-waitlist-expiration` with the Phase B functions.
 
 Each shared-system step requires explicit approval. The order prevents the trigger or cron from
-targeting a missing dispatcher and preserves the legacy delivery path until the durable path exists.
+targeting a missing dispatcher and preserves the legacy payment path until its in-app replacement
+exists.
 
 ## Rollback
 

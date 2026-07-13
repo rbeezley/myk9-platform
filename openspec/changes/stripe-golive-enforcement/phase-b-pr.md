@@ -32,6 +32,17 @@ After merge and explicit approval for shared-system writes:
 
 Do not run live-mode money, migration, or function writes without separate confirmation.
 
+## Completed staging evidence
+
+- 2026-07-13: migration `20260713110000_waitlist_offer_payment_guard.sql` applied; the follow-up
+  dry run reported the remote database up to date.
+- `stripe-payment-link` is ACTIVE v12 and `decline-waitlist-offer` is ACTIVE v1. Both return 401
+  to unauthenticated no-op requests.
+- A controlled E2E exhibitor completed a `cs_test_` Checkout payment for 3,210¢: the promoted
+  entry became confirmed/paid/online, the link paid, the offer accepted, and the entry order
+  succeeded. A separate controlled `cs_test_` offer was declined: its link expired, entry stayed
+  pending without a payment intent, offer became declined, and no order was created.
+
 ## Rollback
 
 Redeploy the previous `stripe-payment-link` version, remove the My Entries offer actions with a follow-up

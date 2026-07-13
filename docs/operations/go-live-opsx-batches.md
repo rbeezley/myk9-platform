@@ -83,16 +83,19 @@ src/test/database/stripeLivemodeScoping.source.test.ts` — 38 passed.
 - Strict per-function bundle comparison: 26 exact matches, four approval-gated HTTP-helper
   catch-up functions, and deployed-ahead `stripe-upgrade-subscription`. See
   [`edge-function-drift-audit-2026-07-12.md`](edge-function-drift-audit-2026-07-12.md).
+- Staging payment verification (2026-07-13): a controlled sandbox payment-link charge settled;
+  manual resend of the same `checkout.session.completed` event left the link and entry `paid` with
+  no refund. The authenticated E2E cart-checkout handler resolved a `livemode=false` customer and
+  rejected its empty cart before Checkout-session creation; the probe cart was abandoned.
 
 Morning approval checklist:
 
-- Record staging payment verification for MP-03/MP-04 after the function deploys.
 - The fallback-extension source decision for deployed-ahead `stripe-upgrade-subscription` merged in
   [#1313](https://github.com/rbeezley/myk9-platform/pull/1313), and the function was deployed and
   bundle-verified on 2026-07-13.
 - The four-function HTTP-helper catch-up batch was approved, deployed, and smoke-verified on
   2026-07-13. Go Live Runbook 0.4 is complete.
-- Keep Go Live Runbook 0.5/0.7 unchecked until remaining staging evidence is recorded.
+- Keep Go Live Runbook 0.7 unchecked until its remaining staging evidence is recorded.
 
 ### B1 - Phase 1 Platform And Deploy Pipeline
 

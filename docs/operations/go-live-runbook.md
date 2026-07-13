@@ -101,7 +101,7 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       ACTIVE, unauthenticated POSTs returned 401, and a non-owner push request returned 403.
       Full evidence and the deployed four-function command are in
       [`edge-function-drift-audit-2026-07-12.md`](edge-function-drift-audit-2026-07-12.md).
-- [ ] **0.5 Money-path hardening Phases 1–3** — MP-01/02 (amount integrity), MP-03
+- [x] **0.5 Money-path hardening Phases 1–3** — MP-01/02 (amount integrity), MP-03
       (payment-link duplicate delivery), MP-04 (mode-scoped Stripe IDs). One PR per phase per
       [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md). **Phase 3 is the
       hard gate for Phase 3 of this runbook** (live cutover); Phases 4–7 may land later. Owner: Agent.
@@ -112,8 +112,12 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       tests, typecheck, lint, OpenSpec validation, and the MP-04 verifier passed. Real DB push
       applied `20260706013906_stripe_livemode_scoped_ids.sql`, and the affected Stripe functions
       (`stripe-checkout`, `stripe-connect-onboard`, `stripe-customer-portal`, `stripe-webhook`,
-      `cron-process-payouts`) redeployed as `ACTIVE` at `2026-07-06 14:21:03 UTC`. Keep this item
-      open until staging payment verification is recorded.
+      `cron-process-payouts`) redeployed as `ACTIVE` at `2026-07-06 14:21:03 UTC`.
+      _Staging verification 2026-07-13:_ a controlled Stripe sandbox payment-link charge was paid
+      and its same `checkout.session.completed` event manually resent; link and entry remained
+      `paid`, with no refund. The authenticated E2E cart-checkout handler resolved only its
+      `livemode=false` customer and rejected an empty cart before creating a Checkout session or
+      charge; the empty probe cart was then abandoned.
 - [x] **0.6 Class-mgmt mutation-error surfacing (plan 003)** — DONE 2026-07-04.
       OpenSpec change `class-mgmt-mutation-error-surfacing` is archived under
       `openspec/changes/archive/2026-07-04-class-mgmt-mutation-error-surfacing/`. Owner: Agent.

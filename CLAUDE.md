@@ -15,6 +15,7 @@ When I correct you or you catch yourself making a mistake, before continuing, ad
 ## LESSONS
 
 - `supabase functions deploy --workdir apps/myk9show` follows that dir's stale `.temp/project-ref` (myK9Show-Working, defunct) — ALWAYS pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly and confirm the "Deployed Functions on project ..." line names the right ref.
+- `git branch -D <branch>` fails while any worktree (including the current one) is checked out on it, including as the silent local-delete half of `gh pr merge --delete-branch` — always remove the worktree first, then delete the branch.
 
 ## Intent & Emotional Design
 
@@ -139,9 +140,10 @@ Full mechanics: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.m
 
 1. **Work in a worktree, never the primary checkout,** whenever concurrent agents may be active — `.githooks/pre-commit` enforces this. Bypass once with `MYK9_ALLOW_PRIMARY_COMMIT=1 git commit ...` only for the docs-only-direct-to-`main` flow.
 2. **Never run `gh pr merge` from inside a feature worktree** — run it from the main repo directory.
-3. **After a merge, verify the local branch survived** (`git branch --list <branch>`) before assuming `--delete-branch` cleaned it up — delete with `git branch -D <branch>` (not `-d`, squash rewrites SHAs) if it didn't.
-4. **Worktree removal is always the final cleanup step**, after branch deletion, never before.
-5. **Before a destructive history rewrite** (`reset --hard`, rebase drops, force-push), check for uncommitted edits in the working tree first — they get wiped, not carried.
+3. **After a merge, verify the local branch survived** (`git branch --list <branch>`) before assuming `--delete-branch` cleaned it up.
+4. **If the branch has a worktree, remove the worktree before deleting the branch** — git refuses `branch -D` on a branch any worktree still has checked out. Delete with `git branch -D <branch>` (not `-d`, squash rewrites SHAs).
+5. **Worktree removal is always the final command of the cleanup sequence**, run from a path that still exists.
+6. **Before a destructive history rewrite** (`reset --hard`, rebase drops, force-push), check for uncommitted edits in the working tree first — they get wiped, not carried.
 
 ## Database Migrations
 

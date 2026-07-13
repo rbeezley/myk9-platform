@@ -120,7 +120,6 @@ AS $$
 DECLARE
   v_is_expected boolean;
   v_class_status text;
-  v_status_source text;
 BEGIN
   IF TG_OP = 'DELETE' THEN
     PERFORM public.refresh_class_scoring_state(OLD.class_id);
@@ -136,12 +135,12 @@ BEGIN
       );
 
       IF v_is_expected THEN
-        SELECT status, status_source
-        INTO v_class_status, v_status_source
+        SELECT status
+        INTO v_class_status
         FROM public.classes
         WHERE id = NEW.class_id;
 
-        IF v_class_status = 'completed' OR v_status_source = 'manual' THEN
+        IF v_class_status = 'completed' THEN
           UPDATE public.classes
           SET
             status_source = 'derived',

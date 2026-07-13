@@ -144,4 +144,18 @@ describe('DB migration sanity contracts', () => {
     expect(sql).toContain('PERFORM public.refresh_class_scoring_state(r.id);');
     expect(sql).toContain('ALTER TABLE public.classes ENABLE TRIGGER trg_notify_class_status_push');
   });
+
+  it('only reopens a class after a completed closeout', () => {
+    const { sql } = latestMigrationContaining(
+      /CREATE OR REPLACE FUNCTION public\.handle_entry_scoring_state_change/i
+    );
+    const handler = sliceBetween(
+      sql,
+      'CREATE OR REPLACE FUNCTION public.handle_entry_scoring_state_change',
+      'DROP TRIGGER IF EXISTS entries_refresh_class_scoring_state'
+    );
+
+    expect(handler).toContain("IF v_class_status = 'completed' THEN");
+    expect(handler).not.toContain("OR v_status_source = 'manual'");
+  });
 });

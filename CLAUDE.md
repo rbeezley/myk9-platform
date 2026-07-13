@@ -138,45 +138,23 @@ When test runners hang or appear stuck for more than 30 seconds, stop and report
 
 Use the custom render from `src/test/utils/testUtils.tsx` instead of raw `render` — it wraps with QueryClient, Auth, and Router providers.
 
-**Assertion-first for value-sensitive bugs.** When a bug involves a specific value going to a specific place (enum string to a DB column, key in a response object, header in an HTTP call), write the `expect(...).toHaveBeenCalledWith(...)` line first and run it red before touching the implementation. A failing test proves the current wrong value; the fix then flips it green. This catches silent overwrites that visual inspection and typechecking miss.
+For bug-fixing methodology (assertion-first testing, seed-data/RBAC survey-first debugging, systematic-debugging vs. incident-triage) see [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 3.
 
 ## Workflow
 
 Update plan/tracking documents (`OPEN-TODOS.md`, sprint docs, debt register) after completing each task or sprint item. Keep them in sync with actual progress.
 
-### Which review when
+**Which review to use, and the Codex second-opinion policy: see [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 4.**
 
-| Situation | Use |
-| --- | --- |
-| Uncommitted working diff, pre-commit | `/code-review` (cleanup order: `/simplify` → `/harden` → commit) |
-| Open GitHub PR | `/review` |
-| Commits already on `main` / a finished phase, no PR | `phase-review` skill |
-| High-stakes or user-visible behavior change | Add `/codex:review` (non-Claude second opinion — see below) |
-| Whole-branch, multi-agent deep review | `/code-review ultra` (user-triggered, billed) |
-| PR touches package.json / auth / RLS / migrations / list views | Also load `code-review-extensions` checklists |
+## Worktree & Merge Workflow — hard rules
 
-### Codex second opinion (optional)
+Full mechanics: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.md). The non-negotiable rules:
 
-For high-stakes diffs — RLS, migrations, payment flows, auth, RBAC seed data — run `/codex:review` alongside the standard `/review` to get a non-Claude model's read. The value is independent failure modes: Codex (GPT-5) often catches issues both Claude reviewers miss for the same reason, and vice versa. Skip on docs and trivial fixes. The review gate is intentionally OFF — opt in per PR, don't gate every stop.
-
-## Debugging seed-data / config bugs
-
-Before writing a migration or code fix for a "why doesn't this data flow" bug, **inventory every related table up front** with a single query pass: the role table(s), the permission/config table(s), and the join/link table(s). Writing one migration, pushing it, then discovering a second missing row in a different table is a sign you didn't survey first. For RBAC specifically: check `roles`, `permissions`, and `role_permissions` in the same query batch before writing any `INSERT`. This also means `systematic-debugging`'s full four-phase ceremony can be collapsed when the data path is obvious — go straight to Phase 1 Step 4 (gather evidence across all layers at once).
-
-## Worktree & Merge Workflow
-
-- **Work in a worktree, never the primary checkout, whenever concurrent agents may be active.** This is enforced: `.githooks/pre-commit` blocks a commit from the primary working tree while any linked worktree exists (the classic `git add -A` sweep that clobbers a co-resident agent's WIP). `scripts/bootstrap-worktree.sh` activates the hook by pointing `core.hooksPath` at `.githooks` (it handles this repo's `extensions.worktreeConfig`, where a per-worktree override would otherwise shadow a plain `core.hooksPath` set — see `.githooks/README.md`). The hook is invisible to compliant worktree commits and to solo work with no worktrees. Bypass once for the docs-only-direct-to-`main` flow with `MYK9_ALLOW_PRIMARY_COMMIT=1 git commit ...`.
-- ALWAYS run `gh pr merge` from the main repo directory, NEVER from inside a feature worktree (causes stale worktree + cwd lockup).
-- Before reporting a branch as having unpushed work, run `gh pr list --state merged --head <branch>` AND grep merged PR titles for the branch's commit messages. Only flag as truly unpushed if both checks return empty.
-- After a PR merge, immediately do the branch hygiene for that PR while the branch name is still known:
-  1. Switch to the main repo directory and sync `main` with `git checkout main && git pull --ff-only`.
-  2. Run `git fetch --prune` to drop remote-tracking refs for auto-deleted PR branches.
-  3. Verify whether the local feature branch survived: `git branch --list <branch>`. On recent `gh` versions, `gh pr merge --delete-branch` deletes BOTH the remote and the local branch — observed 2026-05-24. If the local branch still exists (older gh, manual merge, or branch was created independently of the PR flow), confirm the squash-merge via `gh pr list --state merged --head <branch>` and delete with `git branch -D <branch>` (not `-d` — squash rewrites SHAs, so `-d` may refuse).
-  4. If the branch had a worktree, remove the worktree after branch cleanup. Do worktree removal as the final cleanup command if the current shell is inside that worktree.
-- Branches named `pr-###`, scratch branches, or temporary review branches should be deleted immediately after the corresponding PR/review work is merged or abandoned. Do not leave them for weekly cleanup unless they are explicitly marked as active.
-- Defer worktree removal to the FINAL step of cleanup, after all other commands have run, to avoid orphaning the shell cwd.
-- **Bash matcher caveat:** Permission rules like `Bash(git branch:*)` gate on the literal start of the command. A compound `cd "..." && git branch -D ...` does NOT match — the rule sees `cd`, not `git branch`. The harness already persists working directory between bash calls, so drop the `cd` prefix entirely and invoke `git branch -D ...` directly. Observed 2026-05-24 during stale-branch cleanup — three denials in a row before the pattern surfaced.
-- **Before directing destructive history rewrites** (`git reset --hard`, interactive rebase drops, force-push that rewrites branch tip), check whether the agent has uncommitted edits in the working tree. Those edits travel across `git checkout` and get wiped by `reset --hard`. Commit or stash them first.
+1. **Work in a worktree, never the primary checkout,** whenever concurrent agents may be active — `.githooks/pre-commit` enforces this. Bypass once with `MYK9_ALLOW_PRIMARY_COMMIT=1 git commit ...` only for the docs-only-direct-to-`main` flow.
+2. **Never run `gh pr merge` from inside a feature worktree** — run it from the main repo directory.
+3. **After a merge, verify the local branch survived** (`git branch --list <branch>`) before assuming `--delete-branch` cleaned it up — delete with `git branch -D <branch>` (not `-d`, squash rewrites SHAs) if it didn't.
+4. **Worktree removal is always the final cleanup step**, after branch deletion, never before.
+5. **Before a destructive history rewrite** (`reset --hard`, rebase drops, force-push), check for uncommitted edits in the working tree first — they get wiped, not carried.
 
 ## Database Migrations
 
@@ -201,18 +179,4 @@ When Auto Mode is active, the "execute immediately" guidance does NOT extend to 
 
 Adding rows to a shared DB is not "destructive" but is still shared-system mutation. One up-front confirmation covers a sequence of related pushes in the same session; re-confirm when switching to a new system or operation type.
 
-**Exception — docs-only changes may go direct to `main`.** When a commit touches _only_ documentation files, skip the PR ceremony: commit on `main` (or fast-forward a feature commit into `main`) and push directly. No confirmation needed beyond the user's request to commit/push. As of 2026-06-14 the `main` rulesets grant the admin role (the owner token) `bypass_mode: always`, so this direct push genuinely succeeds — the PR and required-checks gates are bypassed for that identity. The bypass is actor-based, not path-scoped, so the docs-only restriction below is enforced by convention, not by GitHub. **In scope:**
-
-- `docs/**/*.md` (including `docs/plans/`, `docs/superpowers/`, `docs/ux-audits/`, etc.)
-- `apps/*/docs/**/*.md`
-- Top-level tracking/reference docs: `OPEN-TODOS.md`, `TO-DOS.md`, `README.md`, `CONTEXT.md`, `DESIGN.md`, `PRODUCT.md`, `TECHNICAL_DEBT.md`, `DEFERRED-WORK.md`, `INTENT.md` (additions/clarifications only — substantive intent changes still PR)
-- `packages/*/README.md`, `supabase/functions/*/README.md` (reference docs, not deployment configs)
-
-**Out of scope — still requires a PR:**
-
-- `CLAUDE.md`, `AGENTS.md` (load-bearing project instructions)
-- `.claude/**`, `.github/**` (settings, hooks, workflows)
-- Any commit that _also_ touches non-doc files — mixed commits go through PR
-- Deletions or rewrites of plans authored by others, even if the file is in scope
-
-Verify the commit's filelist matches the scope before pushing. If anything outside the in-scope list is staged, open a PR instead.
+**Exception — docs-only changes may go direct to `main`.** When a commit touches _only_ documentation files, skip the PR ceremony: commit on `main` (or fast-forward a feature commit into `main`) and push directly. No confirmation needed beyond the user's request to commit/push. `CLAUDE.md` and `.claude/**`/`.github/**` are always out of scope for this exception — they need a PR regardless of how small the change. Full in-scope/out-of-scope file list and the bypass mechanism: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.md) § "Docs-only direct-to-`main`." Verify the commit's filelist matches the scope before pushing.

@@ -16,6 +16,7 @@ import {
   type ReplicatedEntry,
 } from '../ReplicatedEntriesTable';
 import { logger } from '@myk9/core';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -1434,9 +1435,11 @@ describe('ReplicatedEntriesTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(
+        fromAny({
+          select: mockSelect,
+        })
+      );
 
       await table.sync(TEST_LICENSE_KEY);
 
@@ -1478,9 +1481,11 @@ describe('ReplicatedEntriesTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(
+        fromAny({
+          select: mockSelect,
+        })
+      );
 
       await table.sync(TEST_LICENSE_KEY);
 
@@ -1521,9 +1526,11 @@ describe('ReplicatedEntriesTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(
+        fromAny({
+          select: mockSelect,
+        })
+      );
 
       await table.sync(TEST_LICENSE_KEY);
 

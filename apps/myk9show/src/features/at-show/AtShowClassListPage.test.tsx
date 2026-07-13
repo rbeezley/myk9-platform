@@ -29,7 +29,7 @@ vi.mock('@/services/replication', () => ({
 // can prove a scoped club admin gets the shortcut while a cross-club admin does
 // not (and is routed back to ringside rather than ejected to the public page).
 const mockAuthState = vi.hoisted(() => ({
-  hasRole: (_role: unknown) => false,
+  hasRole: (_role: unknown): boolean => false,
   userWithRoles: null as UserWithRoles | null,
 }));
 

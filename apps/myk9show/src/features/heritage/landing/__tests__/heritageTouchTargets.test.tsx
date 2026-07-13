@@ -24,6 +24,7 @@ const HERO_PROPS = {
   venueCity: 'Austin',
   timezone: 'America/Chicago',
   entryWizardUrl: WIZARD_URL,
+  classesHref: null,
 };
 
 describe('Heritage landing touch targets (>=44px)', () => {

@@ -13,6 +13,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedClubsTable, type ReplicatedClub } from '../ReplicatedClubsTable';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -984,9 +985,11 @@ describe('ReplicatedClubsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(
+        fromAny({
+          select: mockSelect,
+        })
+      );
 
       await table.sync();
 
@@ -1034,9 +1037,11 @@ describe('ReplicatedClubsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(
+        fromAny({
+          select: mockSelect,
+        })
+      );
 
       await table.sync();
 
@@ -1076,9 +1081,11 @@ describe('ReplicatedClubsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(
+        fromAny({
+          select: mockSelect,
+        })
+      );
 
       await table.sync();
 
@@ -1423,9 +1430,11 @@ describe('ReplicatedClubsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(
+        fromAny({
+          select: mockSelect,
+        })
+      );
 
       const result = await table.sync();
 

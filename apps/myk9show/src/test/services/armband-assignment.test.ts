@@ -7,6 +7,7 @@ import {
 } from '@/services/mappers/showMappers';
 import type { ShowInput, Show } from '@/types/show-types';
 import type { DbShow } from '@/types/database-mappings';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // ---------- Fixtures ----------
 
@@ -29,7 +30,7 @@ const baseShowInput: ShowInput = {
   clubEmail: 'club@test.com',
 };
 
-const baseDbShow: DbShow = {
+const baseDbShow = fromAny<DbShow, unknown>({
   id: 'show-1',
   name: 'Test Show',
   organization: 'AKC',
@@ -63,7 +64,7 @@ const baseDbShow: DbShow = {
   updated_at: null,
   venue_name: null,
   zip_code: null,
-};
+});
 
 // ---------- Mapper Tests ----------
 

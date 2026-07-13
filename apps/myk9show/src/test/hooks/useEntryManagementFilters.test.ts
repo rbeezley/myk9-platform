@@ -4,7 +4,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { createElement, useEffect, type ReactNode } from 'react';
 import { useEntryManagementFilters } from '@/hooks/useEntryManagementFilters';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import { PaymentStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 
 const emptyTabCounts = { all: 0, pending: 0, accepted: 0, waitlist: 0, issues: 0 };
 
@@ -35,6 +35,7 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
     registrationId: 'reg-1',
     entryNumber: 'E001',
     showId: 'show-1',
+    dogId: 'dog-1',
     dogName: 'Rex',
     ownerName: 'John Doe',
     ownerEmail: 'john@example.com',
@@ -42,8 +43,8 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
     classes: [],
     totalFee: 50,
     paidAmount: 50,
-    entryStatus: 'accepted',
-    paymentStatus: 'paid',
+    entryStatus: EntryStatus.ACCEPTED,
+    paymentStatus: PaymentStatus.PAID_ONLINE,
     submittedAt: new Date(),
     lastUpdated: new Date(),
     ...overrides,
@@ -53,8 +54,8 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
 describe('useEntryManagementFilters — trial/class filters', () => {
   it('initializes selectedTab from entryTab=pending and filters to pending entries', () => {
     const entries = [
-      makeEntry({ id: 'pending-entry', entryStatus: 'pending' }),
-      makeEntry({ id: 'accepted-entry', entryStatus: 'accepted' }),
+      makeEntry({ id: 'pending-entry', entryStatus: EntryStatus.PENDING }),
+      makeEntry({ id: 'accepted-entry', entryStatus: EntryStatus.ACCEPTED }),
     ] as EntryManagementEntry[];
     const tabCounts = { all: 2, pending: 1, accepted: 1, waitlist: 0, issues: 0 };
 
@@ -68,8 +69,8 @@ describe('useEntryManagementFilters — trial/class filters', () => {
 
   it('falls back to all when entryTab is unsupported', () => {
     const entries = [
-      makeEntry({ id: 'pending-entry', entryStatus: 'pending' }),
-      makeEntry({ id: 'accepted-entry', entryStatus: 'accepted' }),
+      makeEntry({ id: 'pending-entry', entryStatus: EntryStatus.PENDING }),
+      makeEntry({ id: 'accepted-entry', entryStatus: EntryStatus.ACCEPTED }),
     ] as EntryManagementEntry[];
     const tabCounts = { all: 2, pending: 1, accepted: 1, waitlist: 0, issues: 0 };
 
@@ -352,9 +353,21 @@ describe('useEntryManagementFilters — trial/class filters', () => {
 
   it('tab status filter and payment filter stack together when trial filter is active', () => {
     const entries = [
-      makeEntry({ id: '1', entryStatus: 'accepted', paymentStatus: 'paid' }),
-      makeEntry({ id: '2', entryStatus: 'pending', paymentStatus: 'unpaid' }),
-      makeEntry({ id: '3', entryStatus: 'accepted', paymentStatus: 'unpaid' }),
+      makeEntry({
+        id: '1',
+        entryStatus: EntryStatus.ACCEPTED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+      }),
+      makeEntry({
+        id: '2',
+        entryStatus: EntryStatus.PENDING,
+        paymentStatus: PaymentStatus.PENDING,
+      }),
+      makeEntry({
+        id: '3',
+        entryStatus: EntryStatus.ACCEPTED,
+        paymentStatus: PaymentStatus.PENDING,
+      }),
     ] as EntryManagementEntry[];
 
     const tabCounts = { all: 3, pending: 1, accepted: 2, waitlist: 0, issues: 0 };
@@ -416,13 +429,13 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     const entries = [
       makeEntry({
         id: 'paid-enrollment-entry',
-        entryStatus: 'accepted',
+        entryStatus: EntryStatus.ACCEPTED,
         paymentStatus: PaymentStatus.PENDING,
         enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
       }),
       makeEntry({
         id: 'unpaid-entry',
-        entryStatus: 'accepted',
+        entryStatus: EntryStatus.ACCEPTED,
         paymentStatus: PaymentStatus.PENDING,
       }),
     ] as EntryManagementEntry[];
@@ -487,8 +500,8 @@ describe('useEntryManagementFilters — trial/class filters', () => {
 
   it('preserves existing hook functionality (search, status, payment filters)', () => {
     const entries = [
-      makeEntry({ id: '1', dogName: 'Rex', entryStatus: 'accepted' }),
-      makeEntry({ id: '2', dogName: 'Buddy', entryStatus: 'pending' }),
+      makeEntry({ id: '1', dogName: 'Rex', entryStatus: EntryStatus.ACCEPTED }),
+      makeEntry({ id: '2', dogName: 'Buddy', entryStatus: EntryStatus.PENDING }),
     ] as EntryManagementEntry[];
 
     const tabCounts = { all: 2, pending: 1, accepted: 1, waitlist: 0, issues: 0 };

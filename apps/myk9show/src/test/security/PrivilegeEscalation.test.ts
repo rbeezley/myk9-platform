@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi, Mock } from 'vitest';
 import { RBACService } from '@/services/rbac/RBACService';
 import { supabase } from '@/lib/supabase';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // Mock Supabase client
 vi.mock('@/lib/supabase', () => ({
@@ -19,11 +20,14 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-const mockSupabase = supabase as {
-  rpc: Mock;
-  from: Mock;
-  auth: { getUser: Mock };
-};
+const mockSupabase = fromAny<
+  {
+    rpc: Mock;
+    from: Mock;
+    auth: { getUser: Mock };
+  },
+  unknown
+>(supabase);
 
 describe('Privilege Escalation Security Tests', () => {
   let rbacService: RBACService;

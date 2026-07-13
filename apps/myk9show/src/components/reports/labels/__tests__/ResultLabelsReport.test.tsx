@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { ResultLabelsReport } from '../ResultLabelsReport';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
+import { fromAny } from '@total-typescript/shoehorn';
 
 const show = {
   id: 'show-1',
@@ -9,7 +10,9 @@ const show = {
   clubName: 'Calm Canine Club',
 } as Show;
 
-const trials = [{ id: 'trial-1', trial_number: 1, date: '2026-05-11' }] as DbTrial[];
+const trials = fromAny<DbTrial[], unknown>([
+  { id: 'trial-1', trial_number: 1, date: '2026-05-11' },
+]);
 const classes = [
   {
     id: 'class-1',

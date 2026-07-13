@@ -275,7 +275,7 @@ describe('useExhibitorProfile', () => {
               },
             });
           }
-          return Promise.resolve({ data: makeProfile(undefined), error: null });
+          return Promise.resolve({ data: makeProfile(null), error: null });
         }
       );
 

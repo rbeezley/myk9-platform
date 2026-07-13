@@ -29,14 +29,17 @@ async function setEntries(count: number) {
   });
 }
 
-function makeTrial(overrides: Partial<Trial>): Trial {
+type TrialOverrides = Omit<Partial<Trial>, 'trialNumber'> & { trialNumber?: string | number };
+
+function makeTrial(overrides: TrialOverrides): Trial {
+  const { trialNumber = '1', ...rest } = overrides;
   return {
     id: 'trial-default',
-    trialNumber: 1,
+    trialNumber: String(trialNumber),
     trialDate: '2026-06-12',
     judge: undefined,
     maxTotalEntries: null,
-    ...overrides,
+    ...rest,
   } as unknown as Trial;
 }
 
@@ -141,7 +144,7 @@ describe('usePosterLandingData', () => {
   });
 
   it('emits a fees row for pre-entry and additional fees with mocked sub-lines', () => {
-    const show = makeShow({ preEntryFee: '25', dayOfShowFee: '22' } as Partial<Show>);
+    const show = makeShow({ preEntryFee: '25', dayOfShowFee: '22' });
     const { result } = renderHook(() => usePosterLandingData(show, null, []));
     expect(result.current.fees).toEqual([
       { label: 'First entry', amount: '$25.00', sub: 'per dog, per trial' },
@@ -150,7 +153,10 @@ describe('usePosterLandingData', () => {
   });
 
   it('omits the fees rows when fee values are missing', () => {
-    const show = makeShow({ preEntryFee: undefined, dayOfShowFee: undefined } as Partial<Show>);
+    const show = makeShow({
+      preEntryFee: undefined,
+      dayOfShowFee: undefined,
+    } as unknown as Partial<Show>);
     const { result } = renderHook(() => usePosterLandingData(show, null, []));
     expect(result.current.fees).toEqual([]);
   });

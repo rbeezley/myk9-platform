@@ -5,6 +5,7 @@ import { useUserStoreCompat } from '@/hooks/useUserStoreCompat';
 import { resetFactories } from '@/test/utils/factories';
 import type { UserInput } from '@/store/userStore';
 import type { User } from '@/types/dog-types';
+import { UserRole } from '@/types/auth-types';
 import React from 'react';
 
 // Mock data for testing
@@ -21,14 +22,13 @@ const mockUsers: User[] = [
     state: 'CA',
     zipCode: '12345',
     streetAddress: '123 Main St',
-    associatedDogs: [],
     dogs: [],
     emergencyContact: {
       name: 'Jane Doe',
       phone: '555-0124',
       relationship: 'Spouse',
     },
-    roles: ['exhibitor'],
+    roles: [UserRole.EXHIBITOR],
     createdAt: new Date('2023-01-01'),
     updatedAt: new Date('2023-01-01'),
   },
@@ -187,7 +187,6 @@ describe('userStore (with database integration)', () => {
           state: 'CA',
           zipCode: '12345',
         },
-        associatedDogs: [],
         dogs: [],
       };
 
@@ -224,7 +223,6 @@ describe('userStore (with database integration)', () => {
           state: 'CA',
           zipCode: '12345',
         },
-        associatedDogs: ['dog-1'],
         dogs: [],
       };
 
@@ -270,7 +268,6 @@ describe('userStore (with database integration)', () => {
           state: 'CA',
           zipCode: '12345',
         },
-        associatedDogs: [],
         dogs: [],
         emergencyContact: {
           name: 'Jane Doe',
@@ -319,7 +316,6 @@ describe('userStore (with database integration)', () => {
           state: 'CA',
           zipCode: '12345',
         },
-        associatedDogs: [],
         dogs: [],
       };
 
@@ -372,7 +368,7 @@ describe('userStore (with database integration)', () => {
         wrapper: createWrapper(),
       });
 
-      const updateData = { associatedDogs: ['dog-1', 'dog-2'] };
+      const updateData = { dogs: ['dog-1', 'dog-2'] };
 
       await act(async () => {
         await result.current.updateUser('user-1', updateData);
@@ -569,9 +565,8 @@ describe('userStore (with database integration)', () => {
         state: 'NY',
         zipCode: '54321',
         streetAddress: '456 Old St',
-        associatedDogs: [],
         dogs: [],
-        roles: ['exhibitor'],
+        roles: [UserRole.EXHIBITOR],
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -613,9 +608,8 @@ describe('userStore (with database integration)', () => {
         state: 'TX',
         zipCode: '98765',
         streetAddress: '789 New St',
-        associatedDogs: [],
         dogs: [],
-        roles: ['exhibitor'],
+        roles: [UserRole.EXHIBITOR],
         createdAt: new Date(),
         updatedAt: new Date(),
       };

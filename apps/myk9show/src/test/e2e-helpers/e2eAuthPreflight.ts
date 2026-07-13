@@ -47,7 +47,7 @@ export function resolveAuthPreflightConfig(
     !anonKey ? 'VITE_SUPABASE_ANON_KEY' : null,
   ].filter(Boolean);
 
-  if (missingBase.length > 0) {
+  if (!supabaseUrl || !anonKey) {
     throw new Error(`Missing E2E auth preflight secret(s): ${missingBase.join(', ')}`);
   }
 
@@ -64,7 +64,7 @@ export function resolveAuthPreflightConfig(
       !password ? envNames.password : null,
     ].filter(Boolean);
 
-    if (missingRoleSecrets.length > 0) {
+    if (!email || !password) {
       throw new Error(
         `Missing E2E auth preflight secret(s) for ${role}: ${missingRoleSecrets.join(', ')}`
       );

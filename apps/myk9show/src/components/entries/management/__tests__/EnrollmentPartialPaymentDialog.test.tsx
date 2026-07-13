@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
@@ -20,20 +19,14 @@ const baseProps = {
 describe('EnrollmentPartialPaymentDialog', () => {
   it('shows the "covers full balance" hint when the amount meets the total', () => {
     render(
-      <EnrollmentPartialPaymentDialog
-        {...baseProps}
-        state={makeState({ amountPaid: '50' })}
-      />
+      <EnrollmentPartialPaymentDialog {...baseProps} state={makeState({ amountPaid: '50' })} />
     );
     expect(screen.getByText('✓ Covers full balance — will mark as paid')).toBeTruthy();
   });
 
   it('shows the remaining balance when the amount is below the total', () => {
     render(
-      <EnrollmentPartialPaymentDialog
-        {...baseProps}
-        state={makeState({ amountPaid: '20' })}
-      />
+      <EnrollmentPartialPaymentDialog {...baseProps} state={makeState({ amountPaid: '20' })} />
     );
     expect(screen.getByText('Remaining after payment: $30.00')).toBeTruthy();
   });

@@ -1,11 +1,10 @@
-import React from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { InlineEditableField } from '@/components/common/InlineEditableField';
 
 describe('InlineEditableField', () => {
-  let onSave: ReturnType<typeof vi.fn>;
+  let onSave: Mock<(value: string) => Promise<void>>;
 
   beforeEach(() => {
     onSave = vi.fn<(value: string) => Promise<void>>().mockResolvedValue(undefined);

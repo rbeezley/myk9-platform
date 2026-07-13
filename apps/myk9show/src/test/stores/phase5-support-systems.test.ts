@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import 'fake-indexeddb/auto';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // Store imports
 import { useDraftStore } from '@/store/draftStore';
@@ -126,7 +127,7 @@ describe('Phase 5 Support Systems Tests', () => {
       expect(updateSuccess).toBe(true);
 
       const updatedDraft = store.loadDraft(draftId);
-      expect(updatedDraft?.data.formField3).toBe('new field');
+      expect((updatedDraft?.data as Record<string, unknown>).formField3).toBe('new field');
 
       // Test delete
       const deleteSuccess = store.deleteDraft(draftId);
@@ -174,7 +175,7 @@ describe('Phase 5 Support Systems Tests', () => {
         },
       ];
 
-      const savedIds = store.saveBulkDrafts(draftsToSave);
+      const savedIds = store.saveBulkDrafts(fromAny(draftsToSave));
       expect(savedIds).toHaveLength(2);
       expect(useDraftStore.getState().drafts).toHaveLength(2);
 

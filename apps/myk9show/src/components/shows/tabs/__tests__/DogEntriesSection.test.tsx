@@ -24,6 +24,8 @@ const group: DogEntriesGroup = {
       startTime: '8:00 AM',
       judgeName: 'Richard Beezley',
       dogsAhead: 2,
+      entryStatus: 'confirmed',
+      paymentStatus: 'paid',
       hasResult: false,
     },
   ],

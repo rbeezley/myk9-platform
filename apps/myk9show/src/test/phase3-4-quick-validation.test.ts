@@ -7,6 +7,10 @@
 import { describe, it, expect } from 'vitest';
 import { EntryLimitChecker } from '@/services/entries/EntryLimitChecker';
 import { validatePhase34Implementation } from './e2e/registration/phase3-4-validation-report';
+import type { ShowEntry } from '@/store/entryStore';
+import type { Class } from '@/types/show-types';
+import type { LimitCheckContext } from '@/services/entries/EntryLimitChecker';
+import { fromAny } from '@total-typescript/shoehorn';
 
 describe('Phase 3.4: Quick Validation', () => {
   it('should have all required entry limit checking functionality', () => {
@@ -49,8 +53,8 @@ describe('Phase 3.4: Quick Validation', () => {
 
     const stats = EntryLimitChecker.getClassEntryStats(
       'test-class-001',
-      mockEntries,
-      mockClass as unknown
+      fromAny<ShowEntry[], unknown>(mockEntries),
+      fromAny<Class, unknown>(mockClass)
     );
 
     expect(stats.confirmed).toBe(2); // confirmed + paid
@@ -84,8 +88,8 @@ describe('Phase 3.4: Quick Validation', () => {
 
     const promotionCheck = EntryLimitChecker.checkWaitlistPromotion(
       'test-class-001',
-      mockEntries,
-      mockClass as unknown
+      fromAny<ShowEntry[], unknown>(mockEntries),
+      fromAny<Class, unknown>(mockClass)
     );
 
     expect(promotionCheck.canPromote).toBe(true);
@@ -148,7 +152,10 @@ describe('Phase 3.4: Quick Validation', () => {
     } as unknown;
 
     // Class is full but allowWaitlist=true, so it should be allowed with a warning (not an error)
-    const result = EntryLimitChecker.checkEntryLimits(mockEntryData, mockContext);
+    const result = EntryLimitChecker.checkEntryLimits(
+      mockEntryData,
+      fromAny<LimitCheckContext, unknown>(mockContext)
+    );
 
     // With allowWaitlist=true, class full produces a warning, not an error, so isAllowed=true
     expect(result.isAllowed).toBe(true);

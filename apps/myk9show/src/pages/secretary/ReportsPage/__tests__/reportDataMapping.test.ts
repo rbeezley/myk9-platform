@@ -11,6 +11,7 @@ import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { rowToEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
+import { fromAny } from '@total-typescript/shoehorn';
 
 const show = {
   id: 'show-1',
@@ -19,13 +20,13 @@ const show = {
   organization: 'AKC',
 } as Show;
 
-const trial = {
+const trial = fromAny<DbTrial, unknown>({
   id: 'trial-1',
   date: '2026-04-12',
   event_number: '2026123401',
   registry_id: 'UKC',
   trial_number: 2026123401,
-} as DbTrial;
+});
 
 const classData = {
   id: 'class-1',
@@ -254,8 +255,8 @@ describe('buildClassReportProps', () => {
 });
 
 describe('mapScopedReportEntries', () => {
-  const trial1 = { id: 'trial-1', date: '2026-04-12', trial_number: 1 } as DbTrial;
-  const trial2 = { id: 'trial-2', date: '2026-04-13', trial_number: 2 } as DbTrial;
+  const trial1 = fromAny<DbTrial, unknown>({ id: 'trial-1', date: '2026-04-12', trial_number: 1 });
+  const trial2 = fromAny<DbTrial, unknown>({ id: 'trial-2', date: '2026-04-13', trial_number: 2 });
   const class1 = {
     id: 'class-1',
     trial_id: 'trial-1',

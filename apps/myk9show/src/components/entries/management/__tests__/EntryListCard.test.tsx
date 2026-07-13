@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -37,6 +36,7 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
     registrationId: 'reg-1',
     entryNumber: '#1',
     showId: 'show-1',
+    dogId: 'dog-1',
     dogName: 'Fido',
     ownerName: 'Jane Smith',
     ownerEmail: 'jane@test.com',

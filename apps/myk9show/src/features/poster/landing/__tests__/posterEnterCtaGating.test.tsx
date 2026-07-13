@@ -15,10 +15,12 @@ const stickyNavProps = {
   entryCount: 3,
   entryLimit: 50,
   entryWizardUrl: ENTRY_URL,
+  classesHref: null,
 };
 
 const finalCtaProps = {
   entryWizardUrl: ENTRY_URL,
+  classesHref: null,
   entryCloseDate: '2026-06-10',
   timezone: 'America/New_York',
 };

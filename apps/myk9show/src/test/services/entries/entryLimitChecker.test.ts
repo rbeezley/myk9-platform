@@ -16,6 +16,7 @@ import { EntryStatus } from '@/types/show-registration-types';
 import type { ShowEntry, ShowEntryInput } from '@/store/entryStore';
 import type { Show, Trial, Class } from '@/types/show-types';
 import type { Dog } from '@/types/dog-types';
+import { fromAny } from '@total-typescript/shoehorn';
 
 describe('EntryLimitChecker', () => {
   let mockShow: Show;
@@ -27,22 +28,22 @@ describe('EntryLimitChecker', () => {
 
   beforeEach(() => {
     // Reset test data before each test
-    mockShow = {
+    mockShow = fromAny<Show, unknown>({
       id: 'test-show-001',
       name: 'Test Show',
       maxTotalEntries: 100,
       maxEntriesPerDog: 5,
       trials: [],
-    } as Show;
+    });
 
-    mockTrial = {
+    mockTrial = fromAny<Trial, unknown>({
       id: 'test-trial-001',
       name: 'Test Trial',
       maxTotalEntries: 50,
       maxEntriesPerDog: 3,
       maxEntriesPerHandler: 10,
       classes: [],
-    } as Trial;
+    });
 
     mockClass = {
       id: 'test-class-001',
@@ -198,22 +199,24 @@ describe('EntryLimitChecker', () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         })) as ShowEntry[]),
-        ...(Array.from({ length: 3 }, (_, i) => ({
-          id: `waitlist-${i}`,
-          showId: mockShow.id,
-          classId: mockClass.id,
-          dogId: `waitlist-dog-${i}`,
-          status: EntryStatus.WAITLIST,
-          registrationData: {
-            submittedAt: new Date().toISOString(),
-            handler: `Waitlist Handler ${i}`,
-            entryFee: 25.0,
-            paymentStatus: 'pending',
-          },
-          statusHistory: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        })) as ShowEntry[]),
+        ...fromAny<ShowEntry[], unknown>(
+          Array.from({ length: 3 }, (_, i) => ({
+            id: `waitlist-${i}`,
+            showId: mockShow.id,
+            classId: mockClass.id,
+            dogId: `waitlist-dog-${i}`,
+            status: EntryStatus.WAITLIST,
+            registrationData: {
+              submittedAt: new Date().toISOString(),
+              handler: `Waitlist Handler ${i}`,
+              entryFee: 25.0,
+              paymentStatus: 'pending',
+            },
+            statusHistory: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }))
+        ),
       ];
 
       testContext.existingEntries = mockEntries;

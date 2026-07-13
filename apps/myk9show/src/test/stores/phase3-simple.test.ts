@@ -60,13 +60,12 @@ describe('Phase 3 Store Configuration Tests', () => {
     it('should handle registration operations', () => {
       const testRegistration: Registration = {
         id: 'test-reg-1',
-        dogId: 'test-dog-1',
-        registrationType: 'AKC',
+        organization: 'AKC',
         registrationNumber: 'TEST123',
         registeredName: 'Test Dog',
-        registrationDate: new Date(),
-        expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-        isActive: true,
+        registrationDate: new Date().toISOString(),
+        breed: 'Labrador Retriever',
+        status: 'Active',
       };
 
       // Test add
@@ -96,10 +95,10 @@ describe('Phase 3 Store Configuration Tests', () => {
       const testCompetition: Competition = {
         id: 'test-comp-1',
         name: 'Test Competition',
-        date: new Date(),
+        date: new Date().toISOString(),
         location: 'Test Location',
-        organization: 'Conformation',
-        status: 'upcoming',
+        dogId: 'test-dog-1',
+        status: 'Upcoming',
       };
 
       useCompetitionStore.getState().addCompetition(testCompetition);
@@ -110,7 +109,7 @@ describe('Phase 3 Store Configuration Tests', () => {
     it('should handle show registration operations', () => {
       const store = useShowRegistrationStore.getState();
 
-      const registration = store.createRegistration('test-show-1', 'test-user-1');
+      const registration = store.createRegistration('test-show-1', 'test-user-1', 'test-user-1');
       expect(registration.showId).toBe('test-show-1');
       expect(registration.userId).toBe('test-user-1');
 

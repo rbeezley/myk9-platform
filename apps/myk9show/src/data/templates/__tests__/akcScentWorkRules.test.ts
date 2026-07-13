@@ -20,9 +20,7 @@ describe('generateAKCScentWorkClasses (ClassDefinition)', () => {
       'Container Master',
       'Interior Novice A',
     ]);
-    expect(classes.map(c => c.displayOrder)).toEqual(
-      Array.from({ length: 26 }, (_, i) => i + 1)
-    );
+    expect(classes.map(c => c.displayOrder)).toEqual(Array.from({ length: 26 }, (_, i) => i + 1));
   });
 
   it('uses canonical labels — no "Masters", no "(HD)" in any element', () => {
@@ -46,7 +44,7 @@ describe('generateAKCScentWorkClasses (ClassDefinition)', () => {
 
   it('preserves multi-area overrides for Interior Master', () => {
     const c = byName('Interior Master');
-    expect(c?.fieldOverrides.searchAreas).toEqual({ ruleValue: 3 });
+    expect(c?.fieldOverrides?.searchAreas).toEqual({ ruleValue: 3 });
     expect(c?.fieldOverrides).toHaveProperty('timeLimit2');
     expect(c?.fieldOverrides).toHaveProperty('timeLimit3');
   });
@@ -54,7 +52,7 @@ describe('generateAKCScentWorkClasses (ClassDefinition)', () => {
   it('marks Handler Discrimination classes hcdExclude with the canonical element label', () => {
     const hd = byName('Handler Discrimination Novice A');
     expect(hd).toMatchObject({ element: 'Handler Discrimination', level: 'Novice', section: 'A' });
-    expect(hd?.fieldOverrides.hcdExclude).toEqual({ defaultValue: true });
+    expect(hd?.fieldOverrides?.hcdExclude).toEqual({ defaultValue: true });
   });
 
   it('keeps Detective standalone with its fee + entry-limit overrides', () => {

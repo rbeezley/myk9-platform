@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import { buildShowMapTree } from '../showMapTree';
 import {
   getAttentionActions,
@@ -1333,11 +1334,11 @@ describe('showMapActions', () => {
       const tree = buildShowMapTree({
         show,
         trials: [
-          {
+          fromAny<SyncableTrial, unknown>({
             ...trial,
             status: 'Complete',
             resultSubmittedAt: null,
-          } as SyncableTrial,
+          }),
         ],
         classes: [
           {

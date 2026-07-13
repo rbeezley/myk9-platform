@@ -14,7 +14,6 @@ function item(id: string, classId: string, allowWaitlist = true): CartItemWithDe
     jump_height: null,
     special_requests: null,
     created_at: '2026-06-28T00:00:00.000Z',
-    updated_at: '2026-06-28T00:00:00.000Z',
     class: {
       id: classId,
       name: classId,

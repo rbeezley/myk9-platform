@@ -7,6 +7,7 @@ import type { ShowMapAction } from '../showMapActions';
 import type { ShowMapClassInput, ShowMapTree } from '../showMapTypes';
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
+import { fromAny } from '@total-typescript/shoehorn';
 
 const show = {
   id: 'show-1',
@@ -15,7 +16,7 @@ const show = {
   organization: 'AKC',
 } as Show;
 
-const trial = {
+const trial = fromAny<SyncableTrial, unknown>({
   id: 'trial-1',
   showId: 'show-1',
   showName: 'Heritage',
@@ -26,7 +27,7 @@ const trial = {
   _lastModified: new Date(),
   _lastModifiedBy: 'test',
   _syncStatus: 'synced',
-} as SyncableTrial;
+});
 
 const classes: ShowMapClassInput[] = [
   { id: 'class-a', trialId: 'trial-1', name: 'Container Novice', status: 'Not Started' },
@@ -100,9 +101,7 @@ describe('groupActionsByEntity', () => {
 
   it('returns a size-1 group for a single action', () => {
     const tree = makeBravoTree();
-    const actions = getRankedActions('root', { tree }).filter(
-      a => a.nodeId === 'entry:entry-ace'
-    );
+    const actions = getRankedActions('root', { tree }).filter(a => a.nodeId === 'entry:entry-ace');
     expect(actions.length).toBeGreaterThan(0);
     const groups = groupActionsByEntity(actions.slice(0, 1), tree);
     expect(groups).toHaveLength(1);
@@ -112,9 +111,7 @@ describe('groupActionsByEntity', () => {
 
   it('collapses same-dog same-action entries into one group with class disambiguator per item', () => {
     const tree = makeBravoTree();
-    const reviewActions = getRankedActions('root', { tree }).filter(
-      a => a.id === 'review-entry'
-    );
+    const reviewActions = getRankedActions('root', { tree }).filter(a => a.id === 'review-entry');
     expect(reviewActions.length).toBe(4);
 
     const groups = groupActionsByEntity(reviewActions, tree);
@@ -178,9 +175,7 @@ describe('groupActionsByEntity', () => {
     expect(tree.nodesById['entry:entry-bravo-a']).toBeUndefined();
     expect(tree.nodesById['entry:entry-bravo-b']).toBeUndefined();
 
-    const reviewActions = getRankedActions('root', { tree }).filter(
-      a => a.id === 'review-entry'
-    );
+    const reviewActions = getRankedActions('root', { tree }).filter(a => a.id === 'review-entry');
     expect(reviewActions.map(action => action.nodeId).sort()).toEqual([
       'dog-entry:entry-bravo-a',
       'dog-entry:entry-bravo-b',

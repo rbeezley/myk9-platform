@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ScoreValidatorService } from './ScoreValidatorService';
 import type { BaseScore, ValidationRule } from '@/types/scoring-types';
 
-function baseScore(overrides: Partial<BaseScore> & Record<string, unknown> = {}): BaseScore {
+function baseScore(overrides: Record<string, unknown> = {}): BaseScore {
   const now = new Date();
 
   return {
@@ -42,7 +42,7 @@ describe('ScoreValidatorService', () => {
 
   it('rejects scent work search times outside the configured range', async () => {
     const service = new ScoreValidatorService();
-    const result = await service.validateScore(baseScore({ searchTime: 600_001 } as BaseScore));
+    const result = await service.validateScore(baseScore({ searchTime: 600_001 }));
 
     expect(result.isValid).toBe(false);
     expect(result.errors).toContainEqual(
@@ -56,9 +56,7 @@ describe('ScoreValidatorService', () => {
 
   it('rejects unsupported scoring formats before applying format rules', async () => {
     const service = new ScoreValidatorService();
-    const result = await service.validateScore(
-      baseScore({ format: 'unknown_format' } as BaseScore)
-    );
+    const result = await service.validateScore(baseScore({ format: 'unknown_format' }));
 
     expect(result.isValid).toBe(false);
     expect(result.errors).toEqual([

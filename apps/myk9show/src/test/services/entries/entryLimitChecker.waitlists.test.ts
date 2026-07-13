@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import { EntryLimitChecker } from '@/services/entries/EntryLimitChecker';
 import { EntryStatus as RegistrationEntryStatus } from '@/types/show-registration-types';
 import type { ShowEntry, ShowEntryInput } from '@/store/entryStore';
@@ -7,10 +8,15 @@ import type { Dog } from '@/types/dog-types';
 
 const submittedAt = '2026-06-12T14:00:00.000Z';
 
-function makeEntry(overrides: Partial<ShowEntry> = {}): ShowEntry {
+type EntryOverrides = Omit<Partial<ShowEntry>, 'status' | 'registrationData'> & {
+  status?: ShowEntry['status'] | RegistrationEntryStatus;
+  registrationData?: Partial<ShowEntry['registrationData']>;
+};
+
+function makeEntry(overrides: EntryOverrides = {}): ShowEntry {
   const id = overrides.id ?? `entry-${overrides.dogId ?? 'dog'}`;
 
-  return {
+  return fromAny({
     id,
     showId: overrides.showId ?? 'waitlist-show-001',
     classId: overrides.classId ?? 'waitlist-class-001',
@@ -27,10 +33,14 @@ function makeEntry(overrides: Partial<ShowEntry> = {}): ShowEntry {
     createdAt: submittedAt,
     updatedAt: submittedAt,
     ...overrides,
-  };
+  });
 }
 
-function makeEntryInput(overrides: Partial<ShowEntryInput> = {}): ShowEntryInput {
+type EntryInputOverrides = Omit<Partial<ShowEntryInput>, 'registrationData'> & {
+  registrationData?: Partial<ShowEntryInput['registrationData']>;
+};
+
+function makeEntryInput(overrides: EntryInputOverrides = {}): ShowEntryInput {
   return {
     showId: overrides.showId ?? 'waitlist-show-001',
     classId: overrides.classId ?? 'waitlist-class-001',
@@ -75,12 +85,7 @@ function makeShow(overrides: Partial<Show> = {}): Show {
 
 function waitlistedEntriesForClass(classId: string, entries: ShowEntry[]) {
   return entries
-    .filter(
-      entry =>
-        entry.classId === classId &&
-        ((entry.status as string) === 'waitlist' ||
-          entry.status === RegistrationEntryStatus.WAITLIST)
-    )
+    .filter(entry => entry.classId === classId && (entry.status as string) === 'waitlist')
     .sort(
       (a, b) =>
         new Date(a.registrationData.submittedAt).getTime() -

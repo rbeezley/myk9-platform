@@ -33,7 +33,7 @@ const baseStoreState = {
   unreadCount: 2,
   isLoading: false,
   currentUserId: 'secretary-1',
-  error: null,
+  error: null as string | null,
   currentShowIds: ['show-1', 'show-2'],
   channels: [],
   subscribe: vi.fn(),

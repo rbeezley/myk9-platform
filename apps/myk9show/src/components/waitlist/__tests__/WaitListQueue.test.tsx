@@ -8,6 +8,7 @@ const base: WaitListEntry = {
   id: 'w1',
   classId: 'c1',
   className: 'Novice A',
+  showName: 'Spring Trial',
   exhibitorId: 'e1',
   exhibitorName: 'Jane Smith',
   dogId: 'd1',

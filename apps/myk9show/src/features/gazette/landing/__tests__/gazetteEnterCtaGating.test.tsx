@@ -6,11 +6,13 @@ import { FinalCtaSection } from '../sections/FinalCtaSection';
 const STICKY_PROPS = {
   clubName: 'Gazette Kennel Club',
   entryWizardUrl: '/shows/show-1/register',
+  classesHref: null,
   editionLabel: 'VOL. LXXIX · NO 47',
 };
 
 const FINAL_PROPS = {
   entryWizardUrl: '/shows/show-1/register',
+  classesHref: null,
   entryCloseDate: null,
   timezone: 'America/Chicago',
 };

@@ -62,7 +62,6 @@ beforeEach(() => {
       topic: `realtime:${name}`,
       // Channels track only once joined; mirror that so the engine's joined-guard
       // is exercised rather than bypassed.
-      state: 'joined',
       on: vi.fn(),
       subscribe: vi.fn((cb?: (status: string) => void) => {
         cb?.('SUBSCRIBED');

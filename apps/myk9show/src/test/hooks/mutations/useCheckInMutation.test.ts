@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import type { CheckInStatus } from '@myk9/core';
 import type { ShowDayClass } from '@/types/show-day-types';
+import { fromPartial } from '@total-typescript/shoehorn';
 
 // Mock supabase
 const mockRpc = vi.fn().mockResolvedValue({ error: null });
@@ -42,7 +43,7 @@ vi.mock('@/lib/queryClient', () => ({
 const { useCheckInMutation } = await import('@/hooks/mutations/useCheckInMutation');
 
 function createMockClass(overrides: Partial<ShowDayClass> = {}): ShowDayClass {
-  return {
+  return fromPartial<ShowDayClass>({
     classId: 'class-1',
     className: 'Novice A',
     element: null,
@@ -64,7 +65,7 @@ function createMockClass(overrides: Partial<ShowDayClass> = {}): ShowDayClass {
     showName: 'Test Show',
     trialDate: '2026-03-09',
     ...overrides,
-  };
+  });
 }
 
 describe('useCheckInMutation', () => {

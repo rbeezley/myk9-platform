@@ -22,6 +22,7 @@ const NULL_ENRICHMENT = {
   classStatus: null,
   classStartTime: null,
   classScoredCount: null,
+  classCheckedInCount: null,
   classTotalEntries: null,
   trialDate: null,
   trialTimezone: null,
@@ -149,6 +150,7 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
         confirmedAt: null,
         fee: null,
         notes: null,
+        ...NULL_ENRICHMENT,
       });
       await table.set('ja-2', {
         id: 'ja-2',
@@ -161,6 +163,7 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
         confirmedAt: null,
         fee: null,
         notes: null,
+        ...NULL_ENRICHMENT,
       });
       await table.set('ja-3', {
         id: 'ja-3',
@@ -173,6 +176,7 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
         confirmedAt: null,
         fee: null,
         notes: null,
+        ...NULL_ENRICHMENT,
       });
     });
 

@@ -6,6 +6,7 @@ import { ClassResultsTable } from '../index';
 import type { ClassResultsTableProps, ScoringRow } from '../types';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import type { UserPermissions } from '@/types/user-permissions';
+import { fromPartial } from '@total-typescript/shoehorn';
 
 // --- Mocks ---
 
@@ -80,7 +81,7 @@ const mockRows: ScoringRow[] = [
     dogName: 'Buddy',
     dogBreed: 'Golden',
     handlerName: 'Bob Jones',
-    qualification: 'Q',
+    qualification: 'Qualified',
     qualificationReason: '',
     searchTime: '01:30',
     faults: '0',
@@ -188,7 +189,7 @@ const defaultEntries: ScentWorkEntry[] = [
 const defaultProps: ClassResultsTableProps = {
   entries: defaultEntries,
   rawEntries: [],
-  classConfig: { scoringType: 'standard' } as ScentWorkClassConfig,
+  classConfig: fromPartial<ScentWorkClassConfig>({}),
   userPermissions: {
     canEditEntries: true,
     canViewResults: true,

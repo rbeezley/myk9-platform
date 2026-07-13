@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useMyAtShowEntryDetails } from './useMyAtShowEntryDetails';
 import { replicatedEntriesTable } from '@/services/replication';
 import type { AtShowClassSummary } from './myAtShowEntryDetails.helpers';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
@@ -28,7 +29,7 @@ describe('useMyAtShowEntryDetails — reconciles via table subscription, not a s
   }
 
   it('subscribes to replicatedEntriesTable and refetches when the table changes — regardless of which surface wrote it', async () => {
-    let subscribedCallback: (() => void) | undefined;
+    let subscribedCallback: ((data: ReplicatedEntry[]) => void) | undefined;
     vi.mocked(replicatedEntriesTable.subscribe).mockImplementation(cb => {
       subscribedCallback = cb;
       return vi.fn();
@@ -47,7 +48,7 @@ describe('useMyAtShowEntryDetails — reconciles via table subscription, not a s
     // Simulate ANY write reaching the table (ringside entry-list page,
     // ClassResultsTable, replication sync of a self-checkin RPC — the
     // subscription doesn't care which).
-    subscribedCallback?.();
+    subscribedCallback?.([]);
 
     await waitFor(() => {
       expect(replicatedEntriesTable.getEntriesByShow).toHaveBeenCalledTimes(2);

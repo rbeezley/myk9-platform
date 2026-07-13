@@ -1,5 +1,18 @@
 import { describe, it, expect } from 'vitest';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { reportRegistry, getReportById, getEnabledReports } from '@/lib/reports/reportRegistry';
+import type { ReportDefinition, ReportProps } from '@/lib/reports/types';
+
+const TEST_PROPS = {
+  showName: 'Test',
+  entries: [],
+  sortOrder: '',
+} satisfies ReportProps;
+
+function renderReport(report: ReportDefinition) {
+  return renderToStaticMarkup(createElement(report.component, TEST_PROPS));
+}
 
 describe('reportRegistry', () => {
   it('has 35 total entries', () => {
@@ -102,12 +115,7 @@ describe('reportRegistry', () => {
     it('all phase 2 extended reports have non-placeholder components', () => {
       for (const id of PHASE_2_EXTENDED_IDS) {
         const report = getReportById(id)!;
-        const result = report.component({
-          showName: 'Test',
-          entries: [],
-          sortOrder: '',
-        } satisfies ReportProps);
-        expect(result, `${id} component should not return null`).not.toBeNull();
+        expect(renderReport(report), `${id} component should render content`).not.toBe('');
       }
     });
 
@@ -137,15 +145,10 @@ describe('reportRegistry', () => {
         const report = getReportById(id);
         expect(report, `${id} should be registered`).toBeDefined();
         expect(report!.enabled, `${id} should be enabled`).toBe(true);
-        const result = report!.component({
-          showName: 'Test',
-          entries: [],
-          sortOrder: '',
-        } satisfies ReportProps);
-        expect(
-          result,
-          `${id} renders directly, so its registry component is a placeholder`
-        ).toBeNull();
+        const result = renderReport(report!);
+        expect(result, `${id} renders directly, so its registry component is a placeholder`).toBe(
+          ''
+        );
       }
     });
   });
@@ -171,8 +174,7 @@ describe('reportRegistry', () => {
       for (const id of PHASE_2_IDS) {
         const report = reportRegistry.find(r => r.id === id);
         expect(report?.component, `${id} should have a component`).toBeDefined();
-        const result = report?.component({ showName: 'Test', entries: [], sortOrder: '' });
-        expect(result, `${id} component should not return null`).not.toBeNull();
+        expect(renderReport(report!), `${id} component should render content`).not.toBe('');
       }
     });
   });

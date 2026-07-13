@@ -649,4 +649,4 @@ describe('Database Load Tests', () => {
   });
 });
 
-export { DatabaseLoadTester, DATABASE_TEST_CONFIGS };
+export { DatabaseLoadTester };

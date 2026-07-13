@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { CheckInSheet } from '../CheckInSheet';
 import type { ReportEntry, ReportProps } from '@/lib/reports/types';

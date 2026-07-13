@@ -20,11 +20,13 @@ const mastheadProps = {
   venueCity: 'Springfield',
   timezone: 'America/New_York',
   entryWizardUrl: '/shows/abc/register',
+  classesHref: null,
 };
 
 const finalBandProps = {
   brandColors,
   entryWizardUrl: '/shows/abc/register',
+  classesHref: null,
   entryCloseDate: '2026-06-20',
   timezone: 'America/New_York',
 };

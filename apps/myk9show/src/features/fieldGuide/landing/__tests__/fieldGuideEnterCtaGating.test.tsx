@@ -11,6 +11,7 @@ describe('FieldGuide Enter CTA gating', () => {
       showCode: 'AKC-2026',
       licenseLanguage: 'AKC Licensed Trial',
       entryWizardUrl: ENTRY_URL,
+      classesHref: null,
       entryLimit: 360,
     };
 
@@ -43,6 +44,7 @@ describe('FieldGuide Enter CTA gating', () => {
   describe('FinalCtaSection', () => {
     const baseProps = {
       entryWizardUrl: ENTRY_URL,
+      classesHref: null,
       entryCloseDate: '2026-06-10',
       timezone: 'America/New_York',
       entryLimit: 360,

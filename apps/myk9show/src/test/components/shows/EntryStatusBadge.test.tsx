@@ -3,7 +3,6 @@
  * Tests rendering, icon display, size variants, and status-based styling
  */
 
-import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
@@ -146,10 +145,7 @@ describe('EntryStatusBadge', () => {
   describe('custom className', () => {
     it('should apply custom className to badge', () => {
       render(
-        <EntryStatusBadge
-          show={createMockShow()}
-          className="my-custom-class another-class"
-        />
+        <EntryStatusBadge show={createMockShow()} className="my-custom-class another-class" />
       );
 
       const badge = screen.getByText('Accepting Entries').closest('div, span');

@@ -15,7 +15,7 @@ const handlers: { entries: ChangeHandler[]; classes: ChangeHandler[] } = {
   classes: [],
 };
 // Mirrors the real client: removing the channel detaches its handlers.
-const removeChannel = vi.fn(() => {
+const removeChannel = vi.fn((_channel?: unknown) => {
   handlers.entries = [];
   handlers.classes = [];
 });
@@ -23,12 +23,12 @@ const removeChannel = vi.fn(() => {
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     channel: vi.fn(() => {
-      const channel = {
-        on: (
-          _event: string,
-          config: { table: string },
-          handler: ChangeHandler
-        ): typeof channel => {
+      interface FakeChannel {
+        on: (_event: string, config: { table: string }, handler: ChangeHandler) => FakeChannel;
+        subscribe: () => FakeChannel;
+      }
+      const channel: FakeChannel = {
+        on: (_event: string, config: { table: string }, handler: ChangeHandler): typeof channel => {
           if (config.table === 'entries') handlers.entries.push(handler);
           if (config.table === 'classes') handlers.classes.push(handler);
           return channel;
@@ -37,7 +37,7 @@ vi.mock('@/lib/supabase', () => ({
       };
       return channel;
     }),
-    removeChannel: (...args: unknown[]) => removeChannel(...args),
+    removeChannel: (channel: unknown) => removeChannel(channel),
   },
 }));
 

@@ -7,7 +7,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { UserRole, PERMISSIONS, MOCK_USERS } from '@/types/auth-types';
+import { UserRole, ScopeType, PERMISSIONS, MOCK_USERS } from '@/types/auth-types';
 import { createChainableQuery, mockSupabase } from '@/test/mocks/supabase';
 
 // Mock the useAuth hook
@@ -379,7 +379,7 @@ describe('AuthContext', () => {
             u.roles.includes(UserRole.SITE_ADMIN)
           );
           if (adminUser) {
-            auth.switchUserRole(adminUser.email);
+            auth.switchUserRole(adminUser.email!);
           }
         }, [auth]);
 
@@ -599,7 +599,7 @@ describe('AuthContext', () => {
     });
 
     it('should handle scoped permissions', async () => {
-      const scope = { type: 'club' as const, id: 'club-123' };
+      const scope = { type: ScopeType.CLUB, id: 'club-123' };
 
       renderWithAuthProvider(
         <ProtectedRoute requiredPermission={PERMISSIONS.SHOW_MANAGE} scope={scope}>

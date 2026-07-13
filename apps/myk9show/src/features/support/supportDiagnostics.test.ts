@@ -118,7 +118,7 @@ describe('support diagnostics', () => {
 
   it('survives hostile inputs', () => {
     const input = {
-      get userId() {
+      get userId(): string {
         throw new Error('getter exploded');
       },
     };

@@ -59,7 +59,7 @@ describe('useMessageShowClassOptions', () => {
 
   it('loads entry counts with one aggregate RPC', async () => {
     vi.mocked(supabase.from).mockImplementation(table => {
-      if (table === 'classes') {
+      if ((table as string) === 'classes') {
         return mockClassesQuery([
           { id: 'class-1', name: 'Novice Containers', element: null, level: null, section: null },
           { id: 'class-2', name: 'Advanced Interior', element: null, level: null, section: null },
@@ -93,7 +93,7 @@ describe('useMessageShowClassOptions', () => {
   it('surfaces class query errors instead of treating classes as empty', async () => {
     const classError = new Error('permission denied');
     vi.mocked(supabase.from).mockImplementation(table => {
-      if (table === 'classes') return mockClassesQuery(null, classError) as never;
+      if ((table as string) === 'classes') return mockClassesQuery(null, classError) as never;
       throw new Error(`Unexpected table: ${table}`);
     });
 
@@ -108,7 +108,7 @@ describe('useMessageShowClassOptions', () => {
   it('surfaces entry count RPC errors instead of treating counts as zero', async () => {
     const entryError = new Error('network down');
     vi.mocked(supabase.from).mockImplementation(table => {
-      if (table === 'classes') {
+      if ((table as string) === 'classes') {
         return mockClassesQuery([
           { id: 'class-1', name: 'Novice Containers', element: null, level: null, section: null },
         ]) as never;

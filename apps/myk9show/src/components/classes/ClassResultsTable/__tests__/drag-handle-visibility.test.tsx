@@ -6,6 +6,7 @@ import { ClassResultsTable } from '../index';
 import type { ClassResultsTableProps, ScoringRow } from '../types';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import type { UserPermissions } from '@/types/user-permissions';
+import { fromPartial } from '@total-typescript/shoehorn';
 
 // --- Mocks ---
 
@@ -80,7 +81,7 @@ const mockRows: ScoringRow[] = [
     dogName: 'Buddy',
     dogBreed: 'Golden',
     handlerName: 'Bob Jones',
-    qualification: 'Q',
+    qualification: 'Qualified',
     qualificationReason: '',
     searchTime: '01:30',
     faults: '0',
@@ -130,7 +131,9 @@ let mockAuthContext = {
   isAdmin: false,
   user: { id: 'u1' },
 };
-const mockUseCheckInMutation = vi.hoisted(() => vi.fn(() => ({ mutate: vi.fn() })));
+const mockUseCheckInMutation = vi.hoisted(() =>
+  vi.fn((_options?: unknown) => ({ mutate: vi.fn() }))
+);
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuthContext,
@@ -177,7 +180,7 @@ function makeEntry(
       dogId: `dog-${id}`,
       handlerId: `handler-${id}`,
     },
-    classConfig: {} as ScentWorkClassConfig,
+    classConfig: fromPartial<ScentWorkClassConfig>({}),
     checkInStatus: 'no-status',
   } as ScentWorkEntry;
 }
@@ -191,7 +194,7 @@ const defaultEntries: ScentWorkEntry[] = [
 const defaultProps: ClassResultsTableProps = {
   entries: defaultEntries,
   rawEntries: [],
-  classConfig: { scoringType: 'standard' } as ScentWorkClassConfig,
+  classConfig: fromPartial<ScentWorkClassConfig>({}),
   userPermissions: {
     canEditEntries: true,
     canViewResults: true,

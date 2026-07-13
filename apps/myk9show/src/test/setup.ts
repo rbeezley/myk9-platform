@@ -5,14 +5,16 @@ import { testCleanup } from './config/testOptimization';
 import { mockSupabase, resetMockSupabase } from './mocks/supabase';
 import { resetAllStores } from './mocks/zustandReset';
 import 'fake-indexeddb/auto';
-import FDBFactory from 'fake-indexeddb/lib/FDBFactory';
-import FDBDatabase from 'fake-indexeddb/lib/FDBDatabase';
-import FDBObjectStore from 'fake-indexeddb/lib/FDBObjectStore';
-import FDBIndex from 'fake-indexeddb/lib/FDBIndex';
-import FDBCursor from 'fake-indexeddb/lib/FDBCursor';
-import FDBKeyRange from 'fake-indexeddb/lib/FDBKeyRange';
-import FDBRequest from 'fake-indexeddb/lib/FDBRequest';
-import FDBTransaction from 'fake-indexeddb/lib/FDBTransaction';
+import {
+  IDBFactory as FDBFactory,
+  IDBDatabase as FDBDatabase,
+  IDBObjectStore as FDBObjectStore,
+  IDBIndex as FDBIndex,
+  IDBCursor as FDBCursor,
+  IDBKeyRange as FDBKeyRange,
+  IDBRequest as FDBRequest,
+  IDBTransaction as FDBTransaction,
+} from 'fake-indexeddb';
 
 // Global Supabase mock — prevents any test from hitting the real API.
 // Tests that need custom return data can import { mockSupabase, createChainableQuery }

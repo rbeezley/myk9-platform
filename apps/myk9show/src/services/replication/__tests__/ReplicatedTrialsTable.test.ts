@@ -14,6 +14,7 @@
  * - Data transformation (snake_case to camelCase)
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import { ReplicatedTrialsTable, type ReplicatedTrial } from '../ReplicatedTrialsTable';
 
 // Mock dependencies
@@ -536,9 +537,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
-      vi.mocked(supabaseMock.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabaseMock.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       const result = await table.sync(TEST_SHOW_ID);
 
@@ -575,9 +574,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
-      vi.mocked(supabaseMock.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabaseMock.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       const result = await table.sync(TEST_SHOW_ID);
 
@@ -626,9 +623,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
-      vi.mocked(supabaseMock.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabaseMock.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       const result = await table.sync(TEST_SHOW_ID);
 
@@ -653,9 +648,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
-      vi.mocked(supabaseMock.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabaseMock.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       const result = await table.sync(TEST_SHOW_ID);
 
@@ -674,9 +667,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
-      vi.mocked(supabaseMock.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabaseMock.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       await table.sync(TEST_SHOW_ID);
 
@@ -697,9 +688,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
-      vi.mocked(supabaseMock.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabaseMock.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       const beforeSync = Date.now();
       await table.sync(TEST_SHOW_ID);
@@ -730,9 +719,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
-      vi.mocked(supabaseMock.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabaseMock.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       await table.sync(TEST_SHOW_ID);
 
@@ -780,9 +767,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
-      vi.mocked(supabaseMock.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabaseMock.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       const result = await table.sync(TEST_SHOW_ID);
 
@@ -809,9 +794,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
-      vi.mocked(supabaseMock.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabaseMock.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       await table.sync('');
 
@@ -911,9 +894,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       await table.sync(TEST_SHOW_ID);
 
@@ -946,9 +927,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       await table.sync(TEST_SHOW_ID);
 
@@ -982,9 +961,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       await table.sync(TEST_SHOW_ID);
 
@@ -1327,9 +1304,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       const beforeSync = Date.now();
       await table.sync(TEST_SHOW_ID);
@@ -1356,9 +1331,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       await table.sync(TEST_SHOW_ID);
 
@@ -1380,9 +1353,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       const result = await table.sync(TEST_SHOW_ID);
 
@@ -1402,9 +1373,7 @@ describe('ReplicatedTrialsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: mockSelect }));
 
       const result = await table.sync(TEST_SHOW_ID);
 

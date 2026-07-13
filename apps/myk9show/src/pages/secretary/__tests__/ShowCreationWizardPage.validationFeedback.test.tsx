@@ -30,13 +30,13 @@ vi.mock('react-router-dom', async () => ({
 }));
 
 describe('ShowCreationWizardPage — Step 1 Next-button feedback', () => {
-  let scrollIntoView: ReturnType<typeof vi.fn>;
+  let scrollIntoView: typeof Element.prototype.scrollIntoView;
 
   beforeEach(() => {
     mockNavigate.mockReset();
     // jsdom does not implement scrollIntoView; spy on it so we can assert the
     // banner is scrolled into view without it throwing.
-    scrollIntoView = vi.fn();
+    scrollIntoView = vi.fn<typeof Element.prototype.scrollIntoView>();
     Element.prototype.scrollIntoView = scrollIntoView;
   });
 

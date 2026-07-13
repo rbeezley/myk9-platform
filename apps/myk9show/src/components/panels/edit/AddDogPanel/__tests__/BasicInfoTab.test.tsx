@@ -1,4 +1,3 @@
-import React from 'react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { screen, waitFor } from '@testing-library/react';

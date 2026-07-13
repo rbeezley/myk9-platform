@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
@@ -29,6 +28,7 @@ import { supabase } from '@/services/database/supabaseClient';
 
 const defaultFormData: DogFormData = {
   callName: 'Rex',
+  breed: 'Labrador Retriever',
   registeredName: 'Rex the Dog',
   gender: 'male',
   dateOfBirth: '2020-01-01',

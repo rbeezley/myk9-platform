@@ -100,6 +100,8 @@ describe('DeletedEntitySection', () => {
     const config = createMockConfig();
     const { container } = render(
       <DeletedEntitySection
+        lastActionType={null}
+        actionVersion={0}
         config={config}
         count={0}
         isActionLoading={false}
@@ -114,6 +116,8 @@ describe('DeletedEntitySection', () => {
     const config = createMockConfig();
     render(
       <DeletedEntitySection
+        lastActionType={null}
+        actionVersion={0}
         config={config}
         count={3}
         isActionLoading={false}
@@ -130,6 +134,8 @@ describe('DeletedEntitySection', () => {
     const config = createMockConfig();
     render(
       <DeletedEntitySection
+        lastActionType={null}
+        actionVersion={0}
         config={config}
         count={2}
         isActionLoading={false}
@@ -150,6 +156,8 @@ describe('DeletedEntitySection', () => {
     const config = createMockConfig();
     render(
       <DeletedEntitySection
+        lastActionType={null}
+        actionVersion={0}
         config={config}
         count={2}
         isActionLoading={false}
@@ -171,6 +179,8 @@ describe('DeletedEntitySection', () => {
     const config = createMockConfig();
     render(
       <DeletedEntitySection
+        lastActionType={null}
+        actionVersion={0}
         config={config}
         count={2}
         isActionLoading={false}
@@ -191,6 +201,8 @@ describe('DeletedEntitySection', () => {
     const config = createMockConfig();
     render(
       <DeletedEntitySection
+        lastActionType={null}
+        actionVersion={0}
         config={config}
         count={2}
         isActionLoading={false}
@@ -212,6 +224,8 @@ describe('DeletedEntitySection', () => {
     const onRestore = vi.fn();
     render(
       <DeletedEntitySection
+        lastActionType={null}
+        actionVersion={0}
         config={config}
         count={2}
         isActionLoading={false}
@@ -238,6 +252,8 @@ describe('DeletedEntitySection', () => {
     const onDelete = vi.fn();
     render(
       <DeletedEntitySection
+        lastActionType={null}
+        actionVersion={0}
         config={config}
         count={2}
         isActionLoading={false}
@@ -263,6 +279,8 @@ describe('DeletedEntitySection', () => {
     const config = createMockConfig();
     render(
       <DeletedEntitySection
+        lastActionType={null}
+        actionVersion={0}
         config={config}
         count={2}
         isActionLoading={true}

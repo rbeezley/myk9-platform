@@ -2,7 +2,7 @@
 // Phase 2.2: User Store Integration - Basic validation
 
 import { describe, it, expect, vi } from 'vitest';
-import type { UserInput } from '@/types/user-types';
+import type { UserInput } from '@/store/userStore';
 
 // Mock Supabase client to avoid env var validation errors
 vi.mock('@/services/database/supabaseClient', () => ({

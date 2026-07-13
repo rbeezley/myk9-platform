@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { submitOfflineLateEntry } from './submitOfflineLateEntry';
+import { PaymentStatus } from '@/types/show-registration-types';
 
 const {
   createEntryMock,
@@ -91,9 +92,7 @@ describe('submitOfflineLateEntry', () => {
       { id: 'class-1', trialId: 'trial-1', maxEntries: 1 },
       { id: 'class-2', trialId: 'trial-1', maxEntries: 10 },
     ]);
-    getEntriesByShowMock.mockResolvedValue([
-      { classId: 'class-1', entryStatus: 'submitted' },
-    ]);
+    getEntriesByShowMock.mockResolvedValue([{ classId: 'class-1', entryStatus: 'submitted' }]);
 
     const result = await submitOfflineLateEntry({
       showId: 'show-1',
@@ -112,10 +111,7 @@ describe('submitOfflineLateEntry', () => {
         {
           dogId: 'dog-1',
           trialId: 'trial-1',
-          selectedClasses: [
-            { classId: 'class-1', jumpHeight: '16' },
-            { classId: 'class-2' },
-          ],
+          selectedClasses: [{ classId: 'class-1', jumpHeight: '16' }, { classId: 'class-2' }],
         },
       ],
       handlerAssignments: {
@@ -215,9 +211,7 @@ describe('submitOfflineLateEntry', () => {
   });
 
   it('records an override only after an earlier dog in the batch consumes the final spot', async () => {
-    getAllClassesMock.mockResolvedValue([
-      { id: 'class-1', trialId: 'trial-1', maxEntries: 1 },
-    ]);
+    getAllClassesMock.mockResolvedValue([{ id: 'class-1', trialId: 'trial-1', maxEntries: 1 }]);
 
     await submitOfflineLateEntry({
       showId: 'show-1',
@@ -291,7 +285,7 @@ describe('submitOfflineLateEntry', () => {
     await submitOfflineLateEntry({
       showId: 'show-1',
       paymentMethod: 'check',
-      paymentStatus: 'paid_by_check',
+      paymentStatus: PaymentStatus.PAID_BY_CHECK,
       showFeeInfo: {
         preEntryFee: '25',
         dayOfShowFee: '35',
@@ -340,10 +334,11 @@ describe('submitOfflineLateEntry', () => {
     expect(upsertAssignedArmbandMock).toHaveBeenCalledWith(
       expect.objectContaining({ armbandNumber: '250' })
     );
-    expect(createEntryMock).toHaveBeenCalledWith(
-      expect.objectContaining({ armband: '250' }),
-      ['dog-mutation-1', 'registration-mutation-1', 'armband-mutation-1']
-    );
+    expect(createEntryMock).toHaveBeenCalledWith(expect.objectContaining({ armband: '250' }), [
+      'dog-mutation-1',
+      'registration-mutation-1',
+      'armband-mutation-1',
+    ]);
     expect(result.armbandAssignments).toEqual([{ dogId: 'dog-1', armband: '250' }]);
   });
 });

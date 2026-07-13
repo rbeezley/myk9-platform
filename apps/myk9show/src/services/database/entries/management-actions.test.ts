@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
@@ -6,6 +7,7 @@ import {
   executeBulkStatusChange,
   executeRemoveEntry,
 } from './management-actions';
+import type { BulkStatusChangeAdapters, RemoveEntryAdapters } from './management-actions';
 
 function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
   return {
@@ -87,7 +89,7 @@ describe('executeStatusChange', () => {
       armbandPatch: { armband: '007', dogId: 'dog-1', showId: 'show-1' },
     });
     const entry = makeEntry();
-    const sibling = makeEntry({ id: 'entry-2', armbandNumber: undefined });
+    const sibling = makeEntry({ id: 'entry-2' });
     const other = makeEntry({ id: 'entry-3', dogId: 'dog-2' });
 
     await executeStatusChange(
@@ -110,10 +112,10 @@ describe('executeStatusChange', () => {
 // ─── executeBulkStatusChange ──────────────────────────────────────────────
 
 describe('executeBulkStatusChange', () => {
-  let bulkUpdateStatus: ReturnType<typeof vi.fn>;
-  let reloadEntries: ReturnType<typeof vi.fn>;
-  let patchEntries: ReturnType<typeof vi.fn>;
-  let setError: ReturnType<typeof vi.fn>;
+  let bulkUpdateStatus: ReturnType<typeof vi.fn<BulkStatusChangeAdapters['bulkUpdateStatus']>>;
+  let reloadEntries: ReturnType<typeof vi.fn<BulkStatusChangeAdapters['reloadEntries']>>;
+  let patchEntries: ReturnType<typeof vi.fn<BulkStatusChangeAdapters['patchEntries']>>;
+  let setError: ReturnType<typeof vi.fn<BulkStatusChangeAdapters['setError']>>;
 
   beforeEach(() => {
     bulkUpdateStatus = vi.fn().mockResolvedValue({ error: null });
@@ -185,9 +187,9 @@ describe('executeBulkStatusChange', () => {
 // ─── executeRemoveEntry ──────────────────────────────────────────────────
 
 describe('executeRemoveEntry', () => {
-  let deleteEntry: ReturnType<typeof vi.fn>;
-  let patchEntries: ReturnType<typeof vi.fn>;
-  let setError: ReturnType<typeof vi.fn>;
+  let deleteEntry: ReturnType<typeof vi.fn<RemoveEntryAdapters['deleteEntry']>>;
+  let patchEntries: ReturnType<typeof vi.fn<RemoveEntryAdapters['patchEntries']>>;
+  let setError: ReturnType<typeof vi.fn<RemoveEntryAdapters['setError']>>;
 
   beforeEach(() => {
     deleteEntry = vi.fn().mockResolvedValue({ error: null });
@@ -205,7 +207,9 @@ describe('executeRemoveEntry', () => {
 
     const optimisticUpdater = patchEntries.mock.calls[0]?.[0];
     expect(typeof optimisticUpdater).toBe('function');
-    expect(optimisticUpdater([entry])).toEqual([]);
+    expect(
+      fromAny<(entries: (typeof entry)[]) => (typeof entry)[], unknown>(optimisticUpdater)([entry])
+    ).toEqual([]);
   });
 
   it('rolls back to the snapshot when the DB call fails', async () => {

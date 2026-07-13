@@ -33,7 +33,7 @@ const entries: ReplicatedEntry[] = [
   {
     id: 'entry-3',
     showId: 'show-1',
-    classId: null,
+    classId: undefined,
     dogCallName: 'Duke',
     armband: undefined,
     checkInStatus: 'no-status',

@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import { ShowStatsSubTab } from '../ShowStatsSubTab';
 import type { StatsEntry } from '../analytics-utils';
+import { fromPartial } from '@total-typescript/shoehorn';
 
 global.ResizeObserver = class ResizeObserver {
   observe() {}
@@ -51,10 +52,12 @@ describe('ShowStatsSubTab', () => {
   });
 
   it('shows empty state when no scored entries', () => {
-    mockUseShowStats.mockReturnValue({
-      data: [],
-      isLoading: false,
-    } as ReturnType<typeof useShowStats>);
+    mockUseShowStats.mockReturnValue(
+      fromPartial({
+        data: [],
+        isLoading: false,
+      })
+    );
 
     render(<ShowStatsSubTab showId="show-1" />);
 

@@ -4,6 +4,7 @@ import { UserRole } from '@/types/auth-types';
 import type { Dog } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
 import { useCanDeleteDog, useCurrentUserPersonId, useRoleBasedDogs } from './useRoleBasedData';
+import { fromAny, fromPartial } from '@total-typescript/shoehorn';
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn(),
@@ -40,16 +41,18 @@ const people: User[] = [
 ];
 
 function setMocks() {
-  vi.mocked(useAuthContext).mockReturnValue({
-    userWithRoles: {
-      id: 'auth-user',
-      databaseUserId: 'person-1',
-      roles: [UserRole.EXHIBITOR],
-      permissions: [],
-      scopes: [],
-    },
-    hasRole: (role: UserRole) => role === UserRole.EXHIBITOR,
-  } as ReturnType<typeof useAuthContext>);
+  vi.mocked(useAuthContext).mockReturnValue(
+    fromPartial({
+      userWithRoles: {
+        id: 'auth-user',
+        databaseUserId: 'person-1',
+        roles: [UserRole.EXHIBITOR],
+        permissions: [],
+        scopes: [],
+      },
+      hasRole: (role: UserRole) => role === UserRole.EXHIBITOR,
+    })
+  );
 
   vi.mocked(useDogStoreCompat).mockReturnValue({
     dogs: [
@@ -61,8 +64,8 @@ function setMocks() {
     error: null,
   } as ReturnType<typeof useDogStoreCompat>);
 
-  vi.mocked(useUserStore).mockImplementation((selector: (state: { people: User[] }) => unknown) =>
-    selector({ people })
+  vi.mocked(useUserStore).mockImplementation(
+    fromAny((selector: (state: { people: User[] }) => unknown) => selector({ people }))
   );
 }
 
@@ -93,16 +96,18 @@ describe('useCanDeleteDog (mirrors the soft_delete_dog RPC gate)', () => {
 
   // Helper: re-mock the auth context with a specific role predicate.
   const withRole = (predicate: (role: UserRole) => boolean) => {
-    vi.mocked(useAuthContext).mockReturnValue({
-      userWithRoles: {
-        id: 'auth-user',
-        databaseUserId: 'person-1',
-        roles: [],
-        permissions: [],
-        scopes: [],
-      },
-      hasRole: predicate,
-    } as ReturnType<typeof useAuthContext>);
+    vi.mocked(useAuthContext).mockReturnValue(
+      fromPartial({
+        userWithRoles: {
+          id: 'auth-user',
+          databaseUserId: 'person-1',
+          roles: [],
+          permissions: [],
+          scopes: [],
+        },
+        hasRole: predicate,
+      })
+    );
   };
 
   it('lets an owner delete their own dog', () => {

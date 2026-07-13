@@ -17,8 +17,8 @@ const mockDogs: Dog[] = [
     birthDate: '2020-01-01',
     sex: 'male',
     color: 'Golden',
-    weight: 70,
-    height: 24,
+    weight: '70',
+    height: '24',
     ownerId: 'owner-1',
     ownerName: 'John Doe',
     microchipNumber: '123456789',
@@ -28,10 +28,7 @@ const mockDogs: Dog[] = [
       vaccinations: [],
       medications: [],
       allergies: [],
-      vetVisits: [],
     },
-    createdAt: new Date('2023-01-01'),
-    updatedAt: new Date('2023-01-01'),
   },
 ];
 

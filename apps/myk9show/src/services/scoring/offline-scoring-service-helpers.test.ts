@@ -27,7 +27,7 @@ function score(overrides: Partial<BaseScore> = {}): BaseScore {
     classId: 'class-1',
     judgeId: 'judge-1',
     format: 'scent_work',
-    qualification: 'qualified',
+    qualification: 'Qualified',
     timestamp: now,
     recordedBy: 'judge-1',
     recordedAt: now,
@@ -143,15 +143,15 @@ describe('offline scoring service helpers', () => {
   it('detects multi-judge qualification conflicts', () => {
     expect(
       detectQualificationConflict([
-        score({ judgeId: 'judge-a', qualification: 'qualified' }),
-        score({ judgeId: 'judge-b', qualification: 'nq' }),
+        score({ judgeId: 'judge-a', qualification: 'Qualified' }),
+        score({ judgeId: 'judge-b', qualification: 'Not Qualified' }),
       ])
     ).toBe(true);
 
     expect(
       detectQualificationConflict([
-        score({ judgeId: 'judge-a', qualification: 'qualified' }),
-        score({ judgeId: 'judge-b', qualification: 'qualified' }),
+        score({ judgeId: 'judge-a', qualification: 'Qualified' }),
+        score({ judgeId: 'judge-b', qualification: 'Qualified' }),
       ])
     ).toBe(false);
 

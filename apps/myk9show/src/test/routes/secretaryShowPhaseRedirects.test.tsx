@@ -7,6 +7,7 @@ import { SecretaryRoutes } from '@/routes/secretaryRoutes';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import type { Show } from '@/types/show-types';
+import { fromAny } from '@total-typescript/shoehorn';
 
 const mockUseAuth = vi.hoisted(() => vi.fn());
 
@@ -107,13 +108,13 @@ describe('secretary show phase redirects', () => {
     });
     useTrialStore.setState({
       trials: [
-        {
+        fromAny({
           id: 'trial-1',
           showId: 'show-1',
           name: 'Saturday Trial',
           trialDate: '2026-03-22',
-          status: 'scheduled',
-        },
+          status: 'Scheduled',
+        }),
       ],
       isLoading: false,
       loadTrials: originalLoadTrials,
@@ -234,13 +235,13 @@ describe('secretary show phase redirects', () => {
           resolveLoadTrials = () => {
             useTrialStore.setState({
               trials: [
-                {
+                fromAny({
                   id: 'trial-1',
                   showId: 'show-1',
                   name: 'Saturday Trial',
                   trialDate: '2026-03-22',
-                  status: 'scheduled',
-                },
+                  status: 'Scheduled',
+                }),
               ],
               isLoading: false,
             });

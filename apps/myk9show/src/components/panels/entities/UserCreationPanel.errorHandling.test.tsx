@@ -73,6 +73,7 @@ describe('UserCreationPanel error handling', () => {
       <UserCreationPanel
         panelId="person-error-test"
         context={{ entityType: 'person', mode: 'create', preFilledData: { role: 'exhibitor' } }}
+        onClose={vi.fn()}
         onResult={vi.fn()}
       />
     );

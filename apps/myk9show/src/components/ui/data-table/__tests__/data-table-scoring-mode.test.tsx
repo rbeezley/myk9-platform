@@ -262,7 +262,7 @@ describe('useScoringMode — undo stack', () => {
       result.current.pushUndo('r1', 'time', '4532');
       result.current.pushUndo('r1', 'result', '');
     });
-    let undone: ReturnType<typeof result.current.undo>;
+    let undone: ReturnType<typeof result.current.undo> = null;
     act(() => {
       undone = result.current.undo();
     });
@@ -275,7 +275,7 @@ describe('useScoringMode — undo stack', () => {
 
   it('undo returns null when stack is empty', () => {
     const { result } = makeHook();
-    let undone: ReturnType<typeof result.current.undo>;
+    let undone: ReturnType<typeof result.current.undo> = null;
     act(() => {
       undone = result.current.undo();
     });

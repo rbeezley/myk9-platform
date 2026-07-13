@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
+import { ClassesTab, type ClassInfo } from '@/components/shows/tabs/ClassesTab';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
@@ -55,7 +55,7 @@ vi.mock('@/components/shows/tabs/ClassCard', () => ({
   ),
 }));
 
-const mockClasses = [
+const mockClasses: ClassInfo[] = [
   {
     id: 'c1',
     name: 'Novice Containers',
@@ -66,7 +66,7 @@ const mockClasses = [
     trialId: 't1',
     time: '9:00 AM',
     ring: 1,
-    status: 'in_progress',
+    status: 'In Progress',
     entryCount: 28,
     userHasEntry: true,
   },
@@ -80,7 +80,7 @@ const mockClasses = [
     trialId: 't1',
     time: '10:30 AM',
     ring: 1,
-    status: 'pending',
+    status: 'Scheduled',
     entryCount: 22,
     userHasEntry: true,
   },
@@ -94,7 +94,7 @@ const mockClasses = [
     trialId: 't1',
     time: '1:00 PM',
     ring: 2,
-    status: 'pending',
+    status: 'Scheduled',
     entryCount: 15,
     userHasEntry: false,
   },

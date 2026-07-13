@@ -46,6 +46,9 @@ type CapacityClass = {
   trial_id: string;
   accepted_count: number;
   available_spots: number;
+  element: string | null;
+  level: string | null;
+  section: string | null;
 };
 
 function makeCapacityClass(overrides: Partial<CapacityClass> = {}): CapacityClass {
@@ -57,6 +60,9 @@ function makeCapacityClass(overrides: Partial<CapacityClass> = {}): CapacityClas
     trial_id: 'trial-1',
     accepted_count: 10,
     available_spots: 15,
+    element: null,
+    level: null,
+    section: null,
     ...overrides,
   };
 }

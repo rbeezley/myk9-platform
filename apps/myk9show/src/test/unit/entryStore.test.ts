@@ -1,6 +1,32 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useEntryStore, type ShowEntryInput } from '@/store/entryStore';
 import { replicatedEntriesTable } from '@/services/replication';
+import { fromAny } from '@total-typescript/shoehorn';
+
+type EntryStore = ReturnType<typeof useEntryStore.getState>;
+
+function createEntry(data: Parameters<EntryStore['createEntry']>[0], userId = 'test-user') {
+  return useEntryStore.getState().createEntry(data, userId);
+}
+
+function createMultipleEntries(
+  entries: Parameters<EntryStore['createMultipleEntries']>[0],
+  userId = 'test-user'
+) {
+  return useEntryStore.getState().createMultipleEntries(entries, userId);
+}
+
+function updateRegistration(entryId: string, updates: unknown, userId = 'test-user') {
+  return useEntryStore.getState().updateRegistration(entryId, fromAny(updates), userId);
+}
+
+function updateResult(
+  entryId: string,
+  updates: Parameters<EntryStore['updateResult']>[1],
+  userId = 'test-user'
+) {
+  return useEntryStore.getState().updateResult(entryId, updates, userId);
+}
 
 // Mock the sync service
 vi.mock('@/services/sync/syncService', () => ({
@@ -23,8 +49,6 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
 
   describe('Entry Creation', () => {
     it('should create a single entry with correct initial state', async () => {
-      const entryStore = useEntryStore.getState();
-
       const entryData: ShowEntryInput = {
         showId: 'test-show-123',
         classId: 'novice-standard',
@@ -38,7 +62,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         },
       };
 
-      const entry = await entryStore.createEntry(entryData);
+      const entry = await createEntry(entryData);
 
       // Verify entry creation
       expect(entry).toBeDefined();
@@ -55,8 +79,6 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
     });
 
     it('should add entry to store state', async () => {
-      const entryStore = useEntryStore.getState();
-
       const entryData: ShowEntryInput = {
         showId: 'test-show-123',
         classId: 'novice-standard',
@@ -69,7 +91,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         },
       };
 
-      await entryStore.createEntry(entryData);
+      await createEntry(entryData);
 
       // Get fresh state to verify entry is in store
       const freshState = useEntryStore.getState();
@@ -85,8 +107,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
     let entryId: string;
 
     beforeEach(async () => {
-      const entryStore = useEntryStore.getState();
-      const entry = await entryStore.createEntry({
+      const entry = await createEntry({
         showId: 'test-show-123',
         classId: 'novice-standard',
         dogId: 'test-dog-1',
@@ -166,11 +187,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         .mockResolvedValue('mutation-1');
       const updateEntry = vi.spyOn(replicatedEntriesTable, 'updateEntry');
 
-      const updated = await entryStore.updateCheckInStatus(
-        entryId,
-        'checked-in',
-        'gate-user'
-      );
+      const updated = await entryStore.updateCheckInStatus(entryId, 'checked-in', 'gate-user');
 
       expect(updateCheckInStatus).toHaveBeenCalledWith(entryId, 'checked-in');
       expect(updateEntry).not.toHaveBeenCalled();
@@ -185,8 +202,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
     let entryId: string;
 
     beforeEach(async () => {
-      const entryStore = useEntryStore.getState();
-      const entry = await entryStore.createEntry({
+      const entry = await createEntry({
         showId: 'test-show-123',
         classId: 'novice-standard',
         dogId: 'test-dog-1',
@@ -201,33 +217,29 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
     });
 
     it('should update payment status to paid', async () => {
-      const entryStore = useEntryStore.getState();
-
-      const updatedEntry = await entryStore.updateRegistration(entryId, {
+      const updatedEntry = await updateRegistration(entryId, {
         paymentStatus: 'paid',
         paymentReference: 'cc-12345',
       });
 
       expect(updatedEntry).toBeDefined();
       expect(updatedEntry!.registrationData.paymentStatus).toBe('paid');
-      expect(updatedEntry!.registrationData.paymentReference).toBe('cc-12345');
+      expect(updatedEntry!.registrationData).toHaveProperty('paymentReference', 'cc-12345');
     });
 
     it('should handle different payment methods', async () => {
-      const entryStore = useEntryStore.getState();
-
       // Test credit card payment
-      const ccEntry = await entryStore.updateRegistration(entryId, {
+      const ccEntry = await updateRegistration(entryId, {
         paymentStatus: 'paid',
         paymentMethod: 'credit_card',
         paymentReference: 'cc-12345',
       });
 
       expect(ccEntry!.registrationData.paymentStatus).toBe('paid');
-      expect(ccEntry!.registrationData.paymentMethod).toBe('credit_card');
+      expect(ccEntry!.registrationData).toHaveProperty('paymentMethod', 'credit_card');
 
       // Create another entry for check payment
-      const checkEntry = await entryStore.createEntry({
+      const checkEntry = await createEntry({
         showId: 'test-show-123',
         classId: 'open-standard',
         dogId: 'test-dog-2',
@@ -239,22 +251,22 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         },
       });
 
-      const checkPaid = await entryStore.updateRegistration(checkEntry.id, {
+      const checkPaid = await updateRegistration(checkEntry.id, {
         paymentStatus: 'paid',
         paymentMethod: 'check',
         checkNumber: '1234',
       });
 
       expect(checkPaid!.registrationData.paymentStatus).toBe('paid');
-      expect(checkPaid!.registrationData.paymentMethod).toBe('check');
-      expect(checkPaid!.registrationData.checkNumber).toBe('1234');
+      expect(checkPaid!.registrationData).toHaveProperty('paymentMethod', 'check');
+      expect(checkPaid!.registrationData).toHaveProperty('checkNumber', '1234');
     });
 
     it('should calculate total fees correctly', async () => {
       const entryStore = useEntryStore.getState();
 
       // Create multiple entries for the same show
-      await entryStore.createEntry({
+      await createEntry({
         showId: 'test-show-123',
         classId: 'open-standard',
         dogId: 'test-dog-2',
@@ -266,7 +278,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         },
       });
 
-      await entryStore.updateRegistration(entryId, { paymentStatus: 'paid' });
+      await updateRegistration(entryId, { paymentStatus: 'paid' });
 
       const stats = entryStore.getStatsForShow('test-show-123');
 
@@ -280,7 +292,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
       const entryStore = useEntryStore.getState();
 
       // Create test entries with different statuses
-      const entry1 = await entryStore.createEntry({
+      const entry1 = await createEntry({
         showId: 'test-show-123',
         classId: 'novice-standard',
         dogId: 'dog-1',
@@ -292,7 +304,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         },
       });
 
-      const entry2 = await entryStore.createEntry({
+      const entry2 = await createEntry({
         showId: 'test-show-123',
         classId: 'open-standard',
         dogId: 'dog-2',
@@ -352,8 +364,6 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
 
   describe('Bulk Operations', () => {
     it('should create multiple entries', async () => {
-      const entryStore = useEntryStore.getState();
-
       const entriesData: ShowEntryInput[] = [
         {
           showId: 'test-show-123',
@@ -379,7 +389,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         },
       ];
 
-      const entries = await entryStore.createMultipleEntries(entriesData);
+      const entries = await createMultipleEntries(entriesData);
 
       expect(entries).toHaveLength(2);
       expect(entries[0].showId).toBe('test-show-123');
@@ -392,7 +402,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
       const entryStore = useEntryStore.getState();
 
       // Create entries
-      const entries = await entryStore.createMultipleEntries([
+      const entries = await createMultipleEntries([
         {
           showId: 'test-show-123',
           classId: 'novice-standard',
@@ -433,7 +443,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
 
     beforeEach(async () => {
       const entryStore = useEntryStore.getState();
-      const entry = await entryStore.createEntry({
+      const entry = await createEntry({
         showId: 'test-show-123',
         classId: 'novice-standard',
         dogId: 'test-dog-1',
@@ -463,6 +473,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         qualified: true,
         qualification: 'Qualified',
         recordedBy: 'judge-1',
+        recordedAt: new Date().toISOString(),
       };
 
       const completedEntry = await entryStore.recordResult(entryId, result);
@@ -485,10 +496,11 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
         placement: '1st',
         qualified: true,
         recordedBy: 'judge-1',
+        recordedAt: new Date().toISOString(),
       });
 
       // Update result
-      const updatedEntry = await entryStore.updateResult(entryId, {
+      const updatedEntry = await updateResult(entryId, {
         score: '198',
         placement: '1st',
         judgeNotes: 'Excellent performance',
@@ -519,7 +531,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
     it('should maintain entry relationships', async () => {
       const entryStore = useEntryStore.getState();
 
-      const entry = await entryStore.createEntry({
+      const entry = await createEntry({
         showId: 'test-show-123',
         classId: 'novice-standard',
         dogId: 'test-dog-1',
@@ -548,7 +560,7 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
       const entryStore = useEntryStore.getState();
 
       // Pass userId as second arg so _lastModifiedBy is set correctly
-      const entry = await entryStore.createEntry(
+      const entry = await createEntry(
         {
           showId: 'test-show-123',
           classId: 'novice-standard',

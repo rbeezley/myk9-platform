@@ -137,10 +137,7 @@ describe('Application Smoke Tests', () => {
     // Test NetworkClient from our production polish implementation
     const { NetworkClient } = await import('../../lib/networkUtils');
 
-    const client = new NetworkClient({
-      timeout: 1000,
-      retryConfig: { maxRetries: 1 },
-    });
+    const client = new NetworkClient({ maxRetries: 1 });
 
     expect(client).toBeDefined();
     expect(typeof client.fetch).toBe('function');

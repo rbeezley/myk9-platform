@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import { useClassCreationStore } from '@/store/classCreationStore';
 import { useTemplateStore } from '@/store/templateStore';
 import { createMockTemplate, createAKCScentWorkTemplate } from '@/test/utils/mockData';
@@ -32,7 +33,6 @@ describe('Class Creation Store', () => {
       activeTemplate: null,
       searchQuery: '',
       filterOrganization: null,
-      filterShowType: null,
     });
 
     vi.clearAllMocks();
@@ -74,7 +74,7 @@ describe('Class Creation Store', () => {
       const classToSelect = creationStore.selectedTemplate!.classDefinitions[0];
 
       // Select class
-      creationStore.toggleClass(classToSelect);
+      creationStore.toggleClass(fromAny(classToSelect));
       const selectedState = useClassCreationStore.getState();
       const selectedItem = selectedState.selectedClasses.find(
         item => item.classDefinition.className === classToSelect.className
@@ -82,7 +82,7 @@ describe('Class Creation Store', () => {
       expect(selectedItem?.selected).toBe(true);
 
       // Deselect class
-      creationStore.toggleClass(classToSelect);
+      creationStore.toggleClass(fromAny(classToSelect));
       const deselectedState = useClassCreationStore.getState();
       const deselectedItem = deselectedState.selectedClasses.find(
         item => item.classDefinition.className === classToSelect.className
@@ -206,7 +206,7 @@ describe('Class Creation Store', () => {
         c => c.element === 'Container'
       );
       containerClasses.forEach(classDef => {
-        creationStore.toggleClass(classDef);
+        creationStore.toggleClass(fromAny(classDef));
       });
     });
 
@@ -262,7 +262,7 @@ describe('Class Creation Store', () => {
         c => c.element === 'Container'
       );
       containerClasses.forEach(classDef => {
-        freshStore.toggleClass(classDef);
+        freshStore.toggleClass(fromAny(classDef));
       });
 
       freshStore.updateFieldOverrides({
@@ -288,7 +288,7 @@ describe('Class Creation Store', () => {
         c => c.element === 'Container'
       );
       containerClasses.forEach(classDef => {
-        freshStore.toggleClass(classDef);
+        freshStore.toggleClass(fromAny(classDef));
       });
 
       const result = freshStore.createClasses('trial-123', 'test-user');
@@ -368,7 +368,7 @@ describe('Class Creation Store', () => {
 
       // Set up some state
       creationStore.setTemplateData(template);
-      creationStore.toggleClass(template.classDefinitions[0]);
+      creationStore.toggleClass(fromAny(template.classDefinitions[0]));
       creationStore.updateFieldOverride('maxEntries', 25);
       creationStore.setStep(3);
 

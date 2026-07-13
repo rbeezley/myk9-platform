@@ -27,7 +27,7 @@ const generatedPremium: GeneratedPremium = {
   },
   club: { name: 'Test Club', logoUrl: null },
   secretary: { name: null, email: null, phone: null, mailingAddress: null },
-  officials: { chairman: null, steward: null },
+  officials: { chairman: null },
   trials: [],
   supplemental: {
     vetClinic: null,
@@ -147,9 +147,7 @@ describe('publishGateError', () => {
 
   it('blocks newly publishing without a payout-enabled account', () => {
     expect(publishGateError('draft', 'published', 'club-1', null)).toMatch(/payment account/i);
-    expect(publishGateError('draft', 'published', 'club-1', disabled)).toMatch(
-      /payment account/i
-    );
+    expect(publishGateError('draft', 'published', 'club-1', disabled)).toMatch(/payment account/i);
   });
 
   it('fails closed when no club is assigned', () => {

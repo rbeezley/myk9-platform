@@ -96,9 +96,9 @@ describe('User Queries', () => {
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
-      expect(result.error.message).toBe('Connection timeout');
-      expect(result.error.table).toBe('user');
-      expect(result.error.operation).toBe('select_all');
+      expect(result.error!.message).toBe('Connection timeout');
+      expect(result.error!.table).toBe('user');
+      expect(result.error!.operation).toBe('select_all');
     });
 
     it('should sort users by last name and first name', async () => {
@@ -164,7 +164,7 @@ describe('User Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('PGRST116');
+      expect(result.error!.code).toBe('PGRST116');
     });
 
     it('should validate response time for detailed user fetch', async () => {
@@ -235,8 +235,8 @@ describe('User Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('23505');
-      expect(result.error.details).toBe('Email already exists');
+      expect(result.error!.code).toBe('23505');
+      expect(result.error!.details).toBe('Email already exists');
     });
 
     it('should handle required field validation', async () => {
@@ -258,7 +258,7 @@ describe('User Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('23514');
+      expect(result.error!.code).toBe('23514');
     });
   });
 
@@ -303,7 +303,7 @@ describe('User Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('PGRST116');
+      expect(result.error!.code).toBe('PGRST116');
     });
   });
 
@@ -342,7 +342,7 @@ describe('User Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('MK001');
+      expect(result.error!.code).toBe('MK001');
     });
   });
 
@@ -402,7 +402,7 @@ describe('User Queries', () => {
       const result = await searchUsers(searchTerm);
 
       expect(result.data).toEqual(mockData);
-      expect(result.data[0].dog).toHaveLength(1);
+      expect(result.data[0]).toHaveProperty('dog', mockData[0].dog);
     });
   });
 

@@ -17,6 +17,7 @@
 // below is a sanity guard against hung-render regressions, not a perf bar.
 
 import React from 'react';
+import { fromAny } from '@total-typescript/shoehorn';
 import { describe, it, expect } from 'vitest';
 import { STYLE_TOKENS } from '../pdf/pdfStyles';
 import type { PremiumStyle, GeneratedPremium } from '../../../types/premium-types';
@@ -88,12 +89,12 @@ describe.skip('renderTimeBenchmark — manual perf check', () => {
       const element = React.createElement(AKCPremiumTemplate, { premium });
 
       // Cold render (warm-up — discarded).
-      await pdf(element).toBlob();
+      await pdf(fromAny(element)).toBlob();
 
       const samples: number[] = [];
       for (let i = 0; i < 2; i++) {
         const start = performance.now();
-        await pdf(React.createElement(AKCPremiumTemplate, { premium })).toBlob();
+        await pdf(fromAny(React.createElement(AKCPremiumTemplate, { premium }))).toBlob();
         samples.push(performance.now() - start);
       }
       const avgMs = samples.reduce((a, b) => a + b, 0) / samples.length;

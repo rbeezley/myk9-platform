@@ -44,7 +44,7 @@ describe('TimeInput', () => {
     await user.click(input);
     await user.type(input, 'a1b2c3');
     // Only digits should have been passed to onChange
-    const calls = onChange.mock.calls.map(([v]: [string]) => v);
+    const calls = onChange.mock.calls.map(call => call[0] as string);
     calls.forEach(v => expect(v).toMatch(/^\d*$/));
   });
 

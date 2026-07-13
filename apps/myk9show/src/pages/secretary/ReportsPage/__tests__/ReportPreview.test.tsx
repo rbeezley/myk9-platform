@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { ReportPreview } from '../ReportPreview';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
+import { fromAny } from '@total-typescript/shoehorn';
 
 const show = {
   id: 'show-1',
@@ -14,14 +15,14 @@ const show = {
   endDate: '2026-05-11',
 } as Show;
 
-const trials = [
+const trials = fromAny<DbTrial[], unknown>([
   {
     id: 'trial-1',
     trial_number: 1,
     date: '2026-05-11',
     registry_id: 'AKC',
   },
-] as DbTrial[];
+]);
 
 const classes = [
   {

@@ -127,7 +127,7 @@ const UserRegistrationForm = ({
     }
   };
 
-  const handleFieldChange = (field: string, value: string) => {
+  const handleFieldChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
 
     // Clear error when user starts typing
@@ -136,7 +136,7 @@ const UserRegistrationForm = ({
     }
   };
 
-  const handleFieldBlur = (field: string) => {
+  const handleFieldBlur = (field: keyof typeof formData) => {
     setTouched(prev => ({ ...prev, [field]: true }));
     const error = validateField(field, formData[field]);
     setErrors(prev => ({ ...prev, [field]: error || '' }));

@@ -6,13 +6,13 @@ import { useShowStoreCompat } from '@/hooks/useShowStoreCompat';
 import { resetFactories } from '@/test/utils/factories';
 import type { ShowInput, Show } from '@/types/show-types';
 import React from 'react';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // Mock data for testing — matches the actual Show type from @/types/show-types
-const mockShows: Show[] = [
+const mockShows = fromAny<Show[], unknown>([
   {
     id: 'show-1',
     name: 'Test Dog Show',
-    type: 'conformation',
     startDate: '2024-06-15',
     endDate: '2024-06-15',
     location: 'Test Venue',
@@ -34,7 +34,7 @@ const mockShows: Show[] = [
     trials: [],
     stats: [],
   },
-];
+]);
 
 // Mock the database hooks
 const mockUseShowsQuery = vi.fn();
@@ -188,6 +188,7 @@ describe('showStore (with database integration)', () => {
 
       const showInput: ShowInput = {
         name: 'Test Dog Show',
+        organization: 'AKC',
         type: 'conformation',
         startDate: '2024-06-15',
         endDate: '2024-06-15',

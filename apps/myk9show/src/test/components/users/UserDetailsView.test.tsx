@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
 import type { User } from '@/types/dog-types';
+import { UserRole } from '@/types/auth-types';
 
 // Mock hooks
 vi.mock('@/hooks/useRBAC', () => ({
@@ -85,7 +86,7 @@ const createMockUser = (overrides: Partial<User> = {}): User => ({
   city: 'Springfield',
   state: 'IL',
   zipCode: '62701',
-  roles: ['exhibitor'],
+  roles: [UserRole.EXHIBITOR],
   dogs: [],
   ...overrides,
 });
@@ -203,7 +204,7 @@ describe('UserDetailsView', () => {
   describe('Judge Qualifications Card', () => {
     it('should show Judge Qualifications card for users with judge role', () => {
       const user = createMockUser({
-        roles: ['judge'],
+        roles: [UserRole.JUDGE],
       });
 
       renderWithRouter(<UserDetailsView person={user} />);
@@ -213,7 +214,7 @@ describe('UserDetailsView', () => {
 
     it('should hide Judge Qualifications card for non-judge users even with qualifications data', () => {
       const user = createMockUser({
-        roles: ['exhibitor'],
+        roles: [UserRole.EXHIBITOR],
         judgeQualifications: [
           {
             organization: 'AKC',
@@ -237,7 +238,7 @@ describe('UserDetailsView', () => {
 
     it('should hide Judge Qualifications card for non-judge users without qualifications', () => {
       const user = createMockUser({
-        roles: ['exhibitor'],
+        roles: [UserRole.EXHIBITOR],
         judgeQualifications: [],
       });
 

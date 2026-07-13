@@ -13,6 +13,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedShowsTable, type ReplicatedShow } from '../ReplicatedShowsTable';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -155,6 +156,8 @@ describe('ReplicatedShowsTable', () => {
           experiencePublishedAt: '2026-05-09T14:00:00.000Z',
           experiencePublishedStyle: 'poster',
           experiencePublishedContent: {
+            style: 'poster',
+            generatedAt: '2026-05-09T14:00:00.000Z',
             narratives: {
               showHours: 'Doors open at 7:00 AM.',
               trialInformation: 'Running order will be posted before judging.',
@@ -165,6 +168,7 @@ describe('ReplicatedShowsTable', () => {
               hospitalityNotes: null,
               awardsDescription: null,
               additionalNotes: null,
+              coverImageUrl: null,
             },
             outputs: { premiumUrl: 'https://example.com/premium.pdf' },
           },
@@ -1255,9 +1259,11 @@ describe('ReplicatedShowsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(
+        fromAny({
+          select: mockSelect,
+        })
+      );
 
       await table.sync(TEST_CLUB_ID);
 
@@ -1306,9 +1312,11 @@ describe('ReplicatedShowsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(
+        fromAny({
+          select: mockSelect,
+        })
+      );
 
       await table.sync(TEST_CLUB_ID);
 
@@ -1725,9 +1733,11 @@ describe('ReplicatedShowsTable', () => {
       const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-      });
+      vi.mocked(supabase.from).mockReturnValue(
+        fromAny({
+          select: mockSelect,
+        })
+      );
 
       const result = await table.sync(TEST_CLUB_ID);
 

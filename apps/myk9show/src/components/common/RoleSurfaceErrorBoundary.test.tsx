@@ -4,7 +4,7 @@ import { Route, Routes } from 'react-router-dom';
 import { render, screen } from '@/test/utils/testUtils';
 import { RoleSurfaceErrorBoundary } from './RoleSurfaceErrorBoundary';
 
-function BrokenSurface() {
+function BrokenSurface(): React.ReactNode {
   throw new Error('boom');
 }
 

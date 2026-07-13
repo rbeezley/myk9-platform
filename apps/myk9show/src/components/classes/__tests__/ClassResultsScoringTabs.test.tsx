@@ -13,6 +13,7 @@ import { ClassResultsTable } from '../ClassResultsTable';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { createUserPermissions } from '@/types/user-permissions';
+import { fromAny } from '@total-typescript/shoehorn';
 
 vi.mock('@/components/ui/tabs', () => import('../../common/__tests__/mockTabs'));
 
@@ -102,9 +103,9 @@ function makeEntry(
   dogName: string,
   options: { scored?: boolean } = {}
 ): ScentWorkEntry {
-  return {
+  return fromAny<ScentWorkEntry, unknown>({
     id,
-    status: 'registered',
+    status: 'confirmed',
     displayInfo: {
       armband: id.replace('entry-', ''),
       dogName,
@@ -130,7 +131,7 @@ function makeEntry(
           },
         }
       : {}),
-  } as ScentWorkEntry;
+  });
 }
 
 function makeProps(

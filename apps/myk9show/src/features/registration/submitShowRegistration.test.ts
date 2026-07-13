@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { submitShowRegistration } from './submitShowRegistration';
 import type { SubmitShowRegistrationParams } from './submitShowRegistration';
+import { fromAny } from '@total-typescript/shoehorn';
 
 function makeParams(
   overrides: Partial<SubmitShowRegistrationParams> = {}
@@ -20,7 +21,7 @@ function makeParams(
       },
     ],
     handlerAssignments: {
-      'dog-1|class-1': { handlerId: 'handler-1', handlerName: 'Pat Handler' },
+      'dog-1|class-1': { handlerId: 'handler-1', handlerName: 'Pat Handler', isOwner: false },
     },
     classes: [{ id: 'class-1', entryFee: 20 }],
     showFeeInfo: {
@@ -211,8 +212,8 @@ describe('submitShowRegistration', () => {
         },
       ],
       handlerAssignments: {
-        'dog-1|class-1': { handlerId: 'handler-1', handlerName: 'Pat Handler' },
-        'dog-2|class-2': { handlerId: 'handler-2', handlerName: 'Lee Handler' },
+        'dog-1|class-1': { handlerId: 'handler-1', handlerName: 'Pat Handler', isOwner: false },
+        'dog-2|class-2': { handlerId: 'handler-2', handlerName: 'Lee Handler', isOwner: false },
       },
       classes: [
         { id: 'class-1', entryFee: 20 },
@@ -278,10 +279,12 @@ describe('submitShowRegistration', () => {
       },
     });
     vi.mocked(params.deps.createShowRegistration!)
-      .mockResolvedValueOnce({
-        data: { id: 'db-reg-2', confirmationNumber: 'MK9-000002' },
-        error: null,
-      })
+      .mockResolvedValueOnce(
+        fromAny({
+          data: { id: 'db-reg-2', confirmationNumber: 'MK9-000002' },
+          error: null,
+        })
+      )
       .mockResolvedValueOnce({
         data: null,
         error: new Error('payment update failed'),

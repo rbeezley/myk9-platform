@@ -4,6 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useShowTrials } from '@/hooks/queries/useShowTrials';
 import { createTestQueryClient } from '@/test/utils/testUtils';
+import { fromAny } from '@total-typescript/shoehorn';
 
 vi.mock('@/services/database/trials', () => ({
   getTrialsByShow: vi.fn(),
@@ -46,7 +47,7 @@ describe('useShowTrials', () => {
   });
 
   it('returns empty array when data is null', async () => {
-    mockGetTrialsByShow.mockResolvedValue({ data: null, error: null });
+    mockGetTrialsByShow.mockResolvedValue(fromAny({ data: null, error: null }));
 
     const { result } = renderHook(() => useShowTrials('show-1'), {
       wrapper: createWrapper(),
@@ -59,7 +60,7 @@ describe('useShowTrials', () => {
 
   it('throws on query error', async () => {
     const dbError = { message: 'DB error', code: '500', details: '' };
-    mockGetTrialsByShow.mockResolvedValue({ data: null, error: dbError as never });
+    mockGetTrialsByShow.mockResolvedValue(fromAny({ data: null, error: dbError }));
 
     const { result } = renderHook(() => useShowTrials('show-1'), {
       wrapper: createWrapper(),

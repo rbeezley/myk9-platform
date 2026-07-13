@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
-import React from 'react';
 import { render } from '@/test/utils/testUtils';
 import { WaitListSettingsCard } from '../WaitListSettingsCard';
 
@@ -16,7 +15,7 @@ const { mockFrom, mockSingle, mockUpdate, mockUpdateEq } = vi.hoisted(() => {
   const mockUpdateEq = vi.fn();
   const mockUpdate = vi.fn(() => ({ eq: mockUpdateEq }));
 
-  const mockFrom = vi.fn(() => ({ select: mockSelect, update: mockUpdate }));
+  const mockFrom = vi.fn((_table?: string) => ({ select: mockSelect, update: mockUpdate }));
 
   return { mockFrom, mockSingle, mockUpdate, mockUpdateEq };
 });

@@ -17,7 +17,9 @@ vi.mock('@myk9/notifications', async () => {
 
 import { testSound, speakWithConfig } from '@myk9/notifications';
 
-const mockSubscribe = vi.fn(() => Promise.resolve({ ok: true as const }));
+const mockSubscribe = vi.fn<
+  () => Promise<{ ok: true } | { ok: false; reason: 'permission-denied' }>
+>(() => Promise.resolve({ ok: true }));
 const mockUnsubscribe = vi.fn(() => Promise.resolve({ ok: true as const }));
 
 vi.mock('@/hooks/usePushSubscription', () => ({

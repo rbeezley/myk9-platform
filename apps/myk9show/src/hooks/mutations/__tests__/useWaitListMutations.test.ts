@@ -9,6 +9,7 @@ import {
   removeFromWaitlist,
 } from '@/services/database/waitlists';
 import { useWaitListMutations } from '../useWaitListMutations';
+import { fromAny } from '@total-typescript/shoehorn';
 
 vi.mock('@/services/database/judges', () => ({
   reassignClassJudge: vi.fn(),
@@ -40,7 +41,7 @@ describe('useWaitListMutations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(promoteWaitlistEntry).mockResolvedValue('new-entry-uuid');
-    vi.mocked(removeFromWaitlist).mockResolvedValue({ data: null, error: null });
+    vi.mocked(removeFromWaitlist).mockResolvedValue(fromAny({ data: null, error: null }));
     vi.mocked(closeWaitlistForClasses).mockResolvedValue(undefined);
     vi.mocked(reassignClassJudge).mockResolvedValue(undefined);
   });

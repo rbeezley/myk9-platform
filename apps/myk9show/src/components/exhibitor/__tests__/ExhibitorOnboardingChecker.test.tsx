@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ExhibitorOnboardingChecker } from '../ExhibitorOnboardingChecker';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // Mock hooks
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -104,7 +105,7 @@ describe('ExhibitorOnboardingChecker', () => {
   });
 
   it('does not redirect when user is not authenticated', () => {
-    setupMocks({ user: null, needsOnboarding: false, onboardingCompleted: false });
+    setupMocks(fromAny({ user: null, needsOnboarding: false, onboardingCompleted: false }));
     render(
       <ExhibitorOnboardingChecker>
         <div>Public content</div>

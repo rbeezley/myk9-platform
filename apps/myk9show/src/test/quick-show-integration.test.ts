@@ -2,6 +2,7 @@
 // Phase 2.3: Show Store Integration - Basic validation
 
 import { describe, it, expect } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import type { ShowInput } from '@/types/show-types';
 
 // Test imports to ensure no compilation errors
@@ -187,7 +188,7 @@ describe('Show Integration - Type Mapping Validation', () => {
       club: null,
     };
 
-    const result = mapDatabaseToShow(dbShow);
+    const result = mapDatabaseToShow(fromAny(dbShow));
 
     expect(result.id).toBe('test-show-id');
     expect(result.name).toBe('Test Show');

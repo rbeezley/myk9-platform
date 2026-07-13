@@ -275,7 +275,7 @@ describe('useExhibitorProfile', () => {
               },
             });
           }
-          return Promise.resolve({ data: makeProfile(undefined), error: null });
+          return Promise.resolve({ data: makeProfile(null), error: null });
         }
       );
 
@@ -292,7 +292,7 @@ describe('useExhibitorProfile', () => {
       expect(result.current.profile?.id).toBe('profile-123');
       expect(result.current.hasProfile).toBe(true);
       // Safe default: no early_adopter_until → not an early adopter.
-      expect(result.current.profile?.person?.early_adopter_until).toBeUndefined();
+      expect(result.current.profile?.person?.early_adopter_until).toBeNull();
       // The bug: an erroring profile fetch would false-trigger onboarding.
       expect(result.current.needsOnboarding).toBe(false);
 

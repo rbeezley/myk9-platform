@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SyncableClassData, SyncableEntryData } from '@/store/classStore';
 import { buildResultsReadinessSummary } from '../readinessSummary';
+import { fromAny } from '@total-typescript/shoehorn';
 
 const synced = {
   _version: 1,
@@ -25,7 +26,7 @@ function cls(overrides: Partial<SyncableClassData> = {}): SyncableClassData {
 }
 
 function entry(overrides: Partial<SyncableEntryData> = {}): SyncableEntryData {
-  return {
+  return fromAny<SyncableEntryData, unknown>({
     id: 'entry-1',
     armband: '101',
     handler: 'Handler',
@@ -37,7 +38,7 @@ function entry(overrides: Partial<SyncableEntryData> = {}): SyncableEntryData {
     classId: 'class-1',
     ...synced,
     ...overrides,
-  };
+  });
 }
 
 describe('buildResultsReadinessSummary', () => {

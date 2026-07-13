@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PDFDocument } from 'pdf-lib';
+import { fromPartial } from '@total-typescript/shoehorn';
 import type { ReportProps } from '@/lib/reports/types';
 import {
   buildAKCScentWorkScoreSheetFilename,
@@ -12,7 +13,7 @@ import {
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../..');
 
-const baseProps = {
+const baseProps: ReportProps = fromPartial({
   showId: 'show-1',
   showName: 'Spring Scent Trial',
   trial: {
@@ -20,6 +21,7 @@ const baseProps = {
     eventNumber: '2026123401',
     registryId: 'AKC',
     trialNumber: '1',
+    judgeName: 'Test Judge',
   },
   classData: {
     element: 'Buried',
@@ -57,7 +59,7 @@ const baseProps = {
     },
   ],
   sortOrder: 'run-order',
-} satisfies ReportProps;
+});
 
 async function readScoreSheetTemplate(): Promise<Uint8Array> {
   const buffer = await readFile(resolve(repoRoot, 'docs/AKC-forms/SW-Scoresheet.pdf'));

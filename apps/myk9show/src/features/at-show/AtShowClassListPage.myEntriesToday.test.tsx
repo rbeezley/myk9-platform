@@ -34,7 +34,7 @@ vi.mock('@/services/replication', () => ({
 }));
 
 const mockAuthState = vi.hoisted(() => ({
-  hasRole: (_role: unknown) => false,
+  hasRole: (_role: unknown): boolean => false,
   userWithRoles: null as unknown,
   user: null as { id: string } | null,
 }));

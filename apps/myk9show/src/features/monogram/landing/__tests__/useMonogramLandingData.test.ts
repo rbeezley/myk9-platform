@@ -23,12 +23,15 @@ function makeShow(overrides: Partial<Show> = {}): Show {
   } as Show;
 }
 
-function makeTrial(overrides: Partial<Trial> = {}): Trial {
+type TrialOverrides = Omit<Partial<Trial>, 'trialNumber'> & { trialNumber?: string | number };
+
+function makeTrial(overrides: TrialOverrides = {}): Trial {
+  const { trialNumber = '1', ...rest } = overrides;
   return {
     id: 't1',
-    trialNumber: 1,
+    trialNumber: String(trialNumber),
     trialDate: '2026-06-12',
-    ...overrides,
+    ...rest,
   } as Trial;
 }
 
@@ -40,7 +43,10 @@ describe('useMonogramLandingData', () => {
   });
 
   it('falls back to the show name when no club name is set', () => {
-    const show = makeShow({ organization: undefined as unknown as string, name: 'Lone Pine Trial' });
+    const show = makeShow({
+      organization: undefined as unknown as string,
+      name: 'Lone Pine Trial',
+    });
     const { result } = renderHook(() => useMonogramLandingData(show, null, []));
     expect(result.current.monogramLetters).toBe('LPT');
   });

@@ -65,6 +65,7 @@ describe('ShowEditPremiumTab', () => {
         showOrg="AKC"
         isActive
         handleSelectChange={handleSelectChange}
+        handleCheckboxChange={vi.fn(() => vi.fn())}
         handleValueChange={vi.fn(() => vi.fn())}
       />
     );
@@ -83,6 +84,7 @@ describe('ShowEditPremiumTab', () => {
         showOrg="AKC"
         isActive
         handleSelectChange={vi.fn(() => vi.fn())}
+        handleCheckboxChange={vi.fn(() => vi.fn())}
         handleValueChange={vi.fn(() => vi.fn())}
       />
     );

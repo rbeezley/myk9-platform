@@ -262,9 +262,9 @@ describe('armbandQueries (replication)', () => {
   describe('autoAssignArmbands', () => {
     it('assigns accepted and confirmed replicated entries without direct armband or entry writes', async () => {
       mockEntriesTable.getEntriesByShow.mockResolvedValue([
-        makeEntry({ id: 'entry-1', dogId: 'dog-1', entryStatus: 'accepted', armband: null }),
+        makeEntry({ id: 'entry-1', dogId: 'dog-1', entryStatus: 'accepted', armband: undefined }),
         makeEntry({ id: 'entry-2', dogId: 'dog-2', entryStatus: 'confirmed', armband: undefined }),
-        makeEntry({ id: 'entry-3', dogId: 'dog-3', entryStatus: 'submitted', armband: null }),
+        makeEntry({ id: 'entry-3', dogId: 'dog-3', entryStatus: 'submitted', armband: undefined }),
         makeEntry({ id: 'entry-4', dogId: 'dog-4', entryStatus: 'accepted', armband: '099' }),
       ]);
       mockArmbandsTable.getByShow.mockResolvedValue([]);
@@ -308,8 +308,8 @@ describe('armbandQueries (replication)', () => {
 
     it('does not overwrite dogs already assigned in the replicated armband table', async () => {
       mockEntriesTable.getEntriesByShow.mockResolvedValue([
-        makeEntry({ id: 'entry-1', dogId: 'dog-1', entryStatus: 'accepted', armband: null }),
-        makeEntry({ id: 'entry-2', dogId: 'dog-2', entryStatus: 'confirmed', armband: null }),
+        makeEntry({ id: 'entry-1', dogId: 'dog-1', entryStatus: 'accepted', armband: undefined }),
+        makeEntry({ id: 'entry-2', dogId: 'dog-2', entryStatus: 'confirmed', armband: undefined }),
       ]);
       mockArmbandsTable.getByShow.mockResolvedValue([
         makeArmband({ id: 'a1', dogId: 'dog-1', armbandNumber: '212', isAvailable: false }),
@@ -399,7 +399,7 @@ describe('armbandQueries (replication)', () => {
   describe('getEntryArmbandById', () => {
     it('falls back to the replicated armband row when the entry armband is not denormalized yet', async () => {
       mockEntriesTable.getEntryById.mockResolvedValue(
-        makeEntry({ id: 'entry-1', showId: 'show-1', dogId: 'dog-1', armband: null })
+        makeEntry({ id: 'entry-1', showId: 'show-1', dogId: 'dog-1', armband: undefined })
       );
       mockArmbandsTable.getByShow.mockResolvedValue([
         makeArmband({ id: 'armband-1', showId: 'show-1', dogId: 'dog-1', armbandNumber: '212' }),

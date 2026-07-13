@@ -9,7 +9,7 @@ const { mockFrom, mockSingle, mockUpdate, mockUpdateEq } = vi.hoisted(() => {
   const mockSelect = vi.fn(() => ({ eq: mockEq }));
   const mockUpdateEq = vi.fn();
   const mockUpdate = vi.fn(() => ({ eq: mockUpdateEq }));
-  const mockFrom = vi.fn(() => ({ select: mockSelect, update: mockUpdate }));
+  const mockFrom = vi.fn((_table?: string) => ({ select: mockSelect, update: mockUpdate }));
   return { mockFrom, mockSingle, mockUpdate, mockUpdateEq };
 });
 

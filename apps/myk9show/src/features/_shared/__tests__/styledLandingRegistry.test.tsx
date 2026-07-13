@@ -3,6 +3,7 @@ import { render } from '@/test/utils/testUtils';
 import { STYLED_LANDING_BY_STYLE } from '../styledLandingRegistry';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // Landing pages read entry counts from this hook — mock it to keep the
 // renders synchronous and offline.
@@ -33,11 +34,11 @@ const MOCK_SHOW: Show = {
   dayOfShowFee: '22',
 } as Show;
 
-const MOCK_TRIAL: Trial = {
+const MOCK_TRIAL = fromAny<Trial, unknown>({
   id: 't1',
   trialNumber: 1,
   trialDate: '2026-06-12',
-} as Trial;
+});
 
 const ALL_TRIALS = [MOCK_TRIAL];
 

@@ -23,7 +23,7 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 // Test wrapper component
-function TestWrapper({ children }: { children: React.ReactNode }) {
+function TestWrapper({ children }: { children?: React.ReactNode }) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },

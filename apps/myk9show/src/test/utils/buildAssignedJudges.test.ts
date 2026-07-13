@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildAssignedJudges, getJudgeNameById } from '@/utils/buildAssignedJudges';
 import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
+import { fromAny } from '@total-typescript/shoehorn';
 
 const makePerson = (id: string, first: string, last: string) => ({
   id,
@@ -10,26 +11,27 @@ const makePerson = (id: string, first: string, last: string) => ({
 
 const makeAssignment = (
   overrides: Partial<ReplicatedJudgeAssignment> & { id: string; personId: string }
-): ReplicatedJudgeAssignment => ({
-  showId: null,
-  trialId: null,
-  classId: null,
-  status: 'confirmed',
-  invitedAt: null,
-  confirmedAt: null,
-  fee: null,
-  notes: null,
-  className: null,
-  classElement: null,
-  classLevel: null,
-  classStatus: null,
-  classStartTime: null,
-  classScoredCount: null,
-  classTotalEntries: null,
-  trialDate: null,
-  trialTimezone: null,
-  ...overrides,
-});
+): ReplicatedJudgeAssignment =>
+  fromAny<ReplicatedJudgeAssignment, unknown>({
+    showId: null,
+    trialId: null,
+    classId: null,
+    status: 'confirmed',
+    invitedAt: null,
+    confirmedAt: null,
+    fee: null,
+    notes: null,
+    className: null,
+    classElement: null,
+    classLevel: null,
+    classStatus: null,
+    classStartTime: null,
+    classScoredCount: null,
+    classTotalEntries: null,
+    trialDate: null,
+    trialTimezone: null,
+    ...overrides,
+  });
 
 describe('buildAssignedJudges', () => {
   const people = [makePerson('p-1', 'Richard', 'Beezley'), makePerson('p-2', 'Jane', 'Smith')];

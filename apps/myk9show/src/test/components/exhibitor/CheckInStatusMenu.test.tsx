@@ -3,7 +3,6 @@
  * Tests dropdown rendering, status selection, disabled state, and accessibility.
  */
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { CheckInStatusMenu } from '@/components/exhibitor/CheckInStatusMenu';

@@ -91,7 +91,7 @@ class TestableEntriesTable extends ReplicatedEntriesTable {
 }
 
 describe('toSupabaseRow — detailed scoring columns are conditional', () => {
-  const table = new TestableEntriesTable('entries');
+  const table = new TestableEntriesTable();
 
   it('OMITS detail columns a stale cached row does not have (no null-clobber)', () => {
     // A replica cached before these fields were mapped lacks the properties.

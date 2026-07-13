@@ -5,6 +5,7 @@ describe('summarizeSchedule', () => {
   it('groups classes by date and discipline', () => {
     const rows: ScheduleClassRow[] = [
       {
+        trialNumber: '1',
         trialDate: '2026-06-13',
         discipline: 'Scent Work',
         element: 'Buried',
@@ -12,6 +13,7 @@ describe('summarizeSchedule', () => {
         name: 'Novice Buried',
       },
       {
+        trialNumber: '1',
         trialDate: '2026-06-13',
         discipline: 'Scent Work',
         element: 'Buried',
@@ -19,6 +21,7 @@ describe('summarizeSchedule', () => {
         name: 'Open Buried',
       },
       {
+        trialNumber: '1',
         trialDate: '2026-06-13',
         discipline: 'Scent Work',
         element: 'Container',
@@ -26,6 +29,7 @@ describe('summarizeSchedule', () => {
         name: 'Novice Container',
       },
       {
+        trialNumber: '1',
         trialDate: '2026-06-14',
         discipline: 'Obedience',
         element: null,
@@ -33,6 +37,7 @@ describe('summarizeSchedule', () => {
         name: 'Novice Obedience',
       },
       {
+        trialNumber: '1',
         trialDate: '2026-06-14',
         discipline: 'Obedience',
         element: null,
@@ -59,6 +64,7 @@ describe('summarizeSchedule', () => {
   it('handles multi-discipline days', () => {
     const rows: ScheduleClassRow[] = [
       {
+        trialNumber: '1',
         trialDate: '2026-06-14',
         discipline: 'Scent Work',
         element: 'Interior',
@@ -66,6 +72,7 @@ describe('summarizeSchedule', () => {
         name: 'Master Interior',
       },
       {
+        trialNumber: '1',
         trialDate: '2026-06-14',
         discipline: 'Obedience',
         element: null,
@@ -73,6 +80,7 @@ describe('summarizeSchedule', () => {
         name: 'Utility Obedience',
       },
       {
+        trialNumber: '1',
         trialDate: '2026-06-14',
         discipline: 'Rally',
         element: null,
@@ -80,6 +88,7 @@ describe('summarizeSchedule', () => {
         name: 'Novice Rally',
       },
       {
+        trialNumber: '1',
         trialDate: '2026-06-14',
         discipline: 'Rally',
         element: null,
@@ -97,6 +106,7 @@ describe('summarizeSchedule', () => {
   it('puts classes with null discipline into "Other" group', () => {
     const rows: ScheduleClassRow[] = [
       {
+        trialNumber: '1',
         trialDate: '2026-06-13',
         discipline: null,
         element: null,
@@ -104,6 +114,7 @@ describe('summarizeSchedule', () => {
         name: 'Special Exhibition',
       },
       {
+        trialNumber: '1',
         trialDate: '2026-06-13',
         discipline: null,
         element: null,
@@ -129,6 +140,7 @@ describe('summarizeSchedule', () => {
   it('deduplicates elements and levels', () => {
     const rows: ScheduleClassRow[] = [
       {
+        trialNumber: '1',
         trialDate: '2026-06-13',
         discipline: 'Scent Work',
         element: 'Buried',
@@ -136,6 +148,7 @@ describe('summarizeSchedule', () => {
         name: 'A',
       },
       {
+        trialNumber: '1',
         trialDate: '2026-06-13',
         discipline: 'Scent Work',
         element: 'Buried',
@@ -151,9 +164,24 @@ describe('summarizeSchedule', () => {
 
   it('sorts dates chronologically', () => {
     const rows: ScheduleClassRow[] = [
-      { trialDate: '2026-06-15', discipline: 'Rally', element: null, level: 'Novice', name: 'A' },
-      { trialDate: '2026-06-13', discipline: 'Obedience', element: null, level: 'Open', name: 'B' },
       {
+        trialNumber: '1',
+        trialDate: '2026-06-15',
+        discipline: 'Rally',
+        element: null,
+        level: 'Novice',
+        name: 'A',
+      },
+      {
+        trialNumber: '1',
+        trialDate: '2026-06-13',
+        discipline: 'Obedience',
+        element: null,
+        level: 'Open',
+        name: 'B',
+      },
+      {
+        trialNumber: '1',
         trialDate: '2026-06-14',
         discipline: 'Scent Work',
         element: 'Interior',
@@ -169,6 +197,7 @@ describe('summarizeSchedule', () => {
   it('handles single-class days', () => {
     const rows: ScheduleClassRow[] = [
       {
+        trialNumber: '1',
         trialDate: '2026-06-13',
         discipline: 'Scent Work',
         element: 'Detective',
@@ -186,6 +215,7 @@ describe('summarizeSchedule', () => {
   it('sorts levels by progression order, not alphabetically', () => {
     const rows: ScheduleClassRow[] = [
       {
+        trialNumber: '1',
         trialDate: '2026-06-13',
         discipline: 'Obedience',
         element: null,
@@ -193,14 +223,23 @@ describe('summarizeSchedule', () => {
         name: 'A',
       },
       {
+        trialNumber: '1',
         trialDate: '2026-06-13',
         discipline: 'Obedience',
         element: null,
         level: 'Novice',
         name: 'B',
       },
-      { trialDate: '2026-06-13', discipline: 'Obedience', element: null, level: 'Open', name: 'C' },
       {
+        trialNumber: '1',
+        trialDate: '2026-06-13',
+        discipline: 'Obedience',
+        element: null,
+        level: 'Open',
+        name: 'C',
+      },
+      {
+        trialNumber: '1',
         trialDate: '2026-06-13',
         discipline: 'Obedience',
         element: null,
@@ -216,6 +255,7 @@ describe('summarizeSchedule', () => {
   it('skips null elements but keeps null levels', () => {
     const rows: ScheduleClassRow[] = [
       {
+        trialNumber: '1',
         trialDate: '2026-06-13',
         discipline: 'Obedience',
         element: null,
@@ -223,6 +263,7 @@ describe('summarizeSchedule', () => {
         name: 'Novice Obedience',
       },
       {
+        trialNumber: '1',
         trialDate: '2026-06-13',
         discipline: 'Obedience',
         element: null,

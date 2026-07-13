@@ -77,7 +77,7 @@ const mockRows: ScoringRow[] = [
     dogName: 'Buddy',
     dogBreed: 'Golden',
     handlerName: 'Bob Jones',
-    qualification: 'Q',
+    qualification: 'Qualified',
     qualificationReason: '',
     searchTime: '01:30',
     faults: '0',
@@ -184,9 +184,7 @@ describe('ClassResultsTable released-results tab default', () => {
   });
 
   it('flips to All when results are released while the page is already open', () => {
-    const { rerender } = render(
-      <ClassResultsTable {...readOnlyProps} resultsReleasedAt={null} />
-    );
+    const { rerender } = render(<ClassResultsTable {...readOnlyProps} resultsReleasedAt={null} />);
     // Initially Pending — scored entry hidden.
     expect(screen.queryByText('Buddy')).not.toBeInTheDocument();
 

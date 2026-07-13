@@ -57,7 +57,7 @@ function makeEntry(overrides: Partial<SyncableShowEntry> = {}): SyncableShowEntr
     showId: 'show-1',
     classId: 'class-1',
     dogId: 'dog-1',
-    status: 'accepted',
+    status: 'confirmed',
     registrationData: {
       handler: 'Current Owner',
       handlerId: 'person-1',

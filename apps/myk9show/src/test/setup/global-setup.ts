@@ -1,5 +1,6 @@
 import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { fromAny } from '@total-typescript/shoehorn';
 import { logger } from '@/services/LoggingService';
 
 // Global test setup for unit and integration tests
@@ -7,7 +8,7 @@ import { logger } from '@/services/LoggingService';
 // Setup before all tests
 beforeAll(() => {
   logger.debug('🧪 Starting test suite...', 'app', {});
-  
+
   // Mock console methods to reduce noise during tests
   if (process.env.NODE_ENV === 'test') {
     const originalConsoleError = console.error;
@@ -16,15 +17,15 @@ beforeAll(() => {
       if (
         typeof message === 'string' &&
         (message.includes('Warning: ReactDOM.render is deprecated') ||
-         message.includes('Warning: React.createFactory() is deprecated') ||
-         message.includes('Warning: componentWillReceiveProps has been renamed'))
+          message.includes('Warning: React.createFactory() is deprecated') ||
+          message.includes('Warning: componentWillReceiveProps has been renamed'))
       ) {
         return;
       }
       originalConsoleError(message, ...args);
     };
   }
-  
+
   // Setup global test environment
   setupGlobalMocks();
   setupTestHelpers();
@@ -33,7 +34,7 @@ beforeAll(() => {
 // Cleanup after all tests
 afterAll(() => {
   logger.debug('✅ Test suite completed', 'app', {});
-  
+
   // Restore original implementations
   restoreGlobalMocks();
 });
@@ -42,15 +43,15 @@ afterAll(() => {
 beforeEach(() => {
   // Reset all mocks to ensure test isolation
   vi.clearAllMocks();
-  
+
   // Clear any localStorage/sessionStorage
   localStorage.clear();
   sessionStorage.clear();
-  
+
   // Reset DOM state
   document.body.innerHTML = '';
   document.head.innerHTML = '';
-  
+
   // Reset performance timing
   if (typeof performance !== 'undefined' && performance.clearMarks) {
     performance.clearMarks();
@@ -62,10 +63,10 @@ beforeEach(() => {
 afterEach(() => {
   // Cleanup React Testing Library
   cleanup();
-  
+
   // Clear any timers
   vi.clearAllTimers();
-  
+
   // Reset fetch mocks
   if (global.fetch && (global.fetch as unknown as { mockClear?: () => void }).mockClear) {
     (global.fetch as unknown as { mockClear: () => void }).mockClear();
@@ -107,11 +108,13 @@ function setupGlobalMocks() {
   }));
 
   // Mock PerformanceObserver
-  global.PerformanceObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    disconnect: vi.fn(),
-    takeRecords: vi.fn().mockReturnValue([]),
-  }));
+  global.PerformanceObserver = fromAny(
+    vi.fn().mockImplementation(() => ({
+      observe: vi.fn(),
+      disconnect: vi.fn(),
+      takeRecords: vi.fn().mockReturnValue([]),
+    }))
+  );
 
   // Mock performance API
   if (typeof performance === 'undefined') {
@@ -158,7 +161,7 @@ function setupGlobalMocks() {
   // Mock geolocation
   Object.defineProperty(navigator, 'geolocation', {
     value: {
-      getCurrentPosition: vi.fn().mockImplementation((success) =>
+      getCurrentPosition: vi.fn().mockImplementation(success =>
         success({
           coords: {
             latitude: 39.7392,
@@ -174,8 +177,8 @@ function setupGlobalMocks() {
   });
 
   // Mock fetch
-  global.fetch = vi.fn().mockImplementation(() => {
-    return Promise.resolve({
+  const createMockResponse = (): Response =>
+    fromAny<Response, unknown>({
       ok: true,
       status: 200,
       statusText: 'OK',
@@ -184,8 +187,11 @@ function setupGlobalMocks() {
       text: () => Promise.resolve(''),
       blob: () => Promise.resolve(new Blob()),
       arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-      clone: () => ({ ...this }),
-    } as Response);
+      clone: () => createMockResponse(),
+    });
+
+  global.fetch = vi.fn().mockImplementation(() => {
+    return Promise.resolve(createMockResponse());
   });
 
   // Mock URL.createObjectURL
@@ -193,17 +199,19 @@ function setupGlobalMocks() {
   global.URL.revokeObjectURL = vi.fn();
 
   // Mock WebSocket
-  global.WebSocket = vi.fn().mockImplementation(() => ({
-    send: vi.fn(),
-    close: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    readyState: 1, // OPEN
-    CONNECTING: 0,
-    OPEN: 1,
-    CLOSING: 2,
-    CLOSED: 3,
-  }));
+  global.WebSocket = fromAny(
+    vi.fn().mockImplementation(() => ({
+      send: vi.fn(),
+      close: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      readyState: 1, // OPEN
+      CONNECTING: 0,
+      OPEN: 1,
+      CLOSING: 2,
+      CLOSED: 3,
+    }))
+  );
 
   // Mock IndexedDB
   const mockIDBRequest = {
@@ -230,7 +238,7 @@ function setupGlobalMocks() {
     close: vi.fn(),
   };
 
-  global.indexedDB = {
+  global.indexedDB = fromAny({
     open: vi.fn().mockReturnValue({
       ...mockIDBRequest,
       result: mockIDBDatabase,
@@ -238,12 +246,15 @@ function setupGlobalMocks() {
     }),
     deleteDatabase: vi.fn().mockReturnValue(mockIDBRequest),
     databases: vi.fn().mockResolvedValue([]),
-  } as typeof indexedDB;
+  });
 
   // Mock File and FileReader
   global.File = vi.fn().mockImplementation((parts, name, options) => ({
     name,
-    size: parts.reduce((acc: number, part: unknown) => acc + ((part as { length?: number }).length || 0), 0),
+    size: parts.reduce(
+      (acc: number, part: unknown) => acc + ((part as { length?: number }).length || 0),
+      0
+    ),
     type: options?.type || '',
     lastModified: Date.now(),
     slice: vi.fn(),
@@ -252,17 +263,19 @@ function setupGlobalMocks() {
     arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
   }));
 
-  global.FileReader = vi.fn().mockImplementation(() => ({
-    readAsText: vi.fn(),
-    readAsDataURL: vi.fn(),
-    readAsArrayBuffer: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    result: null,
-    error: null,
-    onload: null,
-    onerror: null,
-  }));
+  global.FileReader = fromAny(
+    vi.fn().mockImplementation(() => ({
+      readAsText: vi.fn(),
+      readAsDataURL: vi.fn(),
+      readAsArrayBuffer: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      result: null,
+      error: null,
+      onload: null,
+      onerror: null,
+    }))
+  );
 }
 
 function setupTestHelpers() {
@@ -273,12 +286,16 @@ function setupTestHelpers() {
       if (await callback()) {
         return;
       }
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
     throw new Error(`Timeout waiting for condition after ${timeout}ms`);
   };
 
-  (global as Record<string, unknown>).createMockFile = (name: string, content: string, type = 'text/plain') => {
+  (global as Record<string, unknown>).createMockFile = (
+    name: string,
+    content: string,
+    type = 'text/plain'
+  ) => {
     return new File([content], name, { type });
   };
 
@@ -351,7 +368,7 @@ export const testUtils = {
   // Storage helpers
   mockLocalStorage: (initialData: Record<string, unknown> = {}) => {
     const storage: Record<string, string> = {};
-    
+
     Object.keys(initialData).forEach(key => {
       storage[key] = JSON.stringify(initialData[key]);
     });

@@ -85,7 +85,7 @@ describe('Database Queries Integration Tests', () => {
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
-      expect(result.error.message).toBe('Connection failed');
+      expect(result.error!.message).toBe('Connection failed');
     });
 
     it('should search dogs efficiently', async () => {
@@ -189,7 +189,7 @@ describe('Database Queries Integration Tests', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('23505');
+      expect(result.error!.code).toBe('23505');
     });
   });
 
@@ -218,6 +218,7 @@ describe('Database Queries Integration Tests', () => {
     it('should create a new show successfully', async () => {
       const showData: DbShowInsert = {
         name: 'New Championship',
+        organization: 'AKC',
         start_date: '2024-06-01',
         end_date: '2024-06-03',
         location: 'New Venue',
@@ -295,7 +296,7 @@ describe('Database Queries Integration Tests', () => {
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
-      expect(result.error.message).toBe('Network timeout');
+      expect(result.error!.message).toBe('Network timeout');
     });
 
     it('should handle validation errors consistently', async () => {
@@ -317,8 +318,8 @@ describe('Database Queries Integration Tests', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('23514');
-      expect(result.error.details).toBe('Name cannot be empty');
+      expect(result.error!.code).toBe('23514');
+      expect(result.error!.details).toBe('Name cannot be empty');
     });
   });
 });

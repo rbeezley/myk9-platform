@@ -142,7 +142,7 @@ vi.mock('@/components/shows/RegistrationWorkflow/WorkflowStepContent', () => ({
           },
         ]);
         props.onHandlerAssignmentChange({
-          'dog-1|class-1': { handlerId: 'owner-1', handlerName: 'Pat Owner' },
+          'dog-1|class-1': { handlerId: 'owner-1', handlerName: 'Pat Owner', isOwner: false },
         });
       }
       if (props.currentStepId === 'payment') {

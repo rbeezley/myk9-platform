@@ -5,13 +5,13 @@ import { type ReactNode } from 'react';
 
 const mockUpdate = vi.fn();
 const mockIn = vi.fn(() => ({ data: null, error: null }));
-const mockFrom = vi.fn(() => ({ update: mockUpdate }));
+const mockFrom = vi.fn((_table?: string) => ({ update: mockUpdate }));
 const mockUpdateClass = vi.fn();
 mockUpdate.mockReturnValue({ in: mockIn });
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: (...args: unknown[]) => mockFrom(...args),
+    from: (table: string) => mockFrom(table),
   },
 }));
 

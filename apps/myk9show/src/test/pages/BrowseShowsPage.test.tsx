@@ -137,6 +137,9 @@ const mockShows: Show[] = [
     status: 'Upcoming',
     events: ['Agility'],
     source: 'myK9Show',
+    logoUrl: '',
+    coverImageUrl: '',
+    accentColor: '',
     entryOpenDate: new Date().toISOString(),
     entryCloseDate: new Date(Date.now() + 43200000).toISOString(),
     preEntryFee: '$25',
@@ -159,6 +162,9 @@ const mockShows: Show[] = [
     status: 'Completed',
     events: ['Obedience'],
     source: 'myK9Show',
+    logoUrl: '',
+    coverImageUrl: '',
+    accentColor: '',
     entryOpenDate: new Date(Date.now() - 604800000).toISOString(),
     entryCloseDate: new Date(Date.now() - 259200000).toISOString(),
     preEntryFee: '$30',
@@ -208,8 +214,8 @@ const defaultFilters: ShowFilters = {
   discipline: 'all',
   entryStatus: 'all',
   dateRange: 'upcoming',
-  location: 'all',
   organization: 'all',
+  club: 'all',
 };
 
 /** Set up the mock hooks for a specific user scenario */
@@ -502,8 +508,8 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         assignedJudges: [
           {
             judgeId: 'judge-1',
+            judgeName: 'Test Judge',
             assignedDate: new Date().toISOString(),
-            breed: 'All Breeds',
           },
         ],
       };

@@ -8,7 +8,9 @@ Guiding principle (same as the app itself): **consolidate, don't duplicate.** De
 
 ---
 
-## Phase 1 — The Playbook doc (highest value, do first)
+## Phase 1 — The Playbook doc (highest value, do first) — DONE 2026-07-13
+
+Shipped as [`docs/PLAYBOOK.md`](PLAYBOOK.md).
 
 Create `docs/PLAYBOOK.md`: a single decision-tree document that answers "I want to do X — what's the exact sequence?" One page per scenario, each a short numbered recipe naming the skills/commands in order. Scenarios to cover:
 

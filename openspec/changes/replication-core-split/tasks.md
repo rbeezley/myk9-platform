@@ -14,10 +14,10 @@
 
 ## 3. Extract Mutation Queue Persistence
 
-- [ ] 3.1 Create internal `MutationQueueStore` with the sequence counter/seed state and the frozen queue persistence, lookup, retry/discard, reconciliation, clear, and clean-cache-eviction methods.
-- [ ] 3.2 Preserve facade orchestration order exactly: capacity check, persist, synchronous backup attempt with swallowed auxiliary errors, queued-event dispatch, and conditional upload scheduling.
-- [ ] 3.3 Delegate the existing public queue-store methods from `MutationManager` with byte-identical signatures and unchanged behavior comments.
-- [ ] 3.4 Run the complete five-command phase gate, obtain root-agent diff acceptance against the frozen contracts, and commit the green Phase 2 checkpoint.
+- [x] 3.1 Create internal `MutationQueueStore` with the sequence counter/seed state and the frozen queue persistence, lookup, retry/discard, reconciliation, clear, and clean-cache-eviction methods.
+- [x] 3.2 Preserve facade orchestration order exactly: capacity check, persist, synchronous backup attempt with swallowed auxiliary errors, queued-event dispatch, and conditional upload scheduling.
+- [x] 3.3 Delegate the existing public queue-store methods from `MutationManager` with byte-identical signatures and unchanged behavior comments.
+- [x] 3.4 Run the complete five-command phase gate, obtain root-agent diff acceptance against the frozen contracts, and commit the green Phase 2 checkpoint. Used the user-approved 17-file focused myK9Show replication-consumer substitute (453 tests) for the known hanging full-app suite.
 
 ## 4. Extract Mutation Upload Orchestration
 

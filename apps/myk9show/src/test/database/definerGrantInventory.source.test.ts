@@ -40,7 +40,8 @@ const inventory: Inventory = JSON.parse(
 const migrationSql = readFileSync(
   resolve(
     repoRoot,
-    'supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql'
+    // Draft lives OUTSIDE supabase/migrations/ so `db push` cannot apply it before sign-off.
+    'docs/audits/2026-07-go-live-advisors/draft-definer-grant-hardening.sql'
   ),
   'utf8'
 );

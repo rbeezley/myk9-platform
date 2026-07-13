@@ -88,17 +88,15 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       batches with smoke checks; `send-auth-email` is highest-care (see Phase 1.2). If any
       function is **deployed-ahead** (matches no commit), STOP — recover it to source first,
       do not clobber. Owner: Agent (confirmation-gated).
-      _Audit 2026-07-05:_ name inventory is not clean:
-      `pnpm qa:db-drift:functions` reports deployed-only `send-notification` and repo-only
-      `push-trigger-support-message`; byte-level download/diff still needs a fresh pass.
-      _Audit 2026-07-06:_ fresh inventory still reports 29 matched, deployed-only
-      `send-notification`, and repo-only `push-trigger-support-message`. Byte-level runtime diff
-      downloaded to `/private/tmp/myk9-edge-functions-20260706` shows repo-ahead runtime changes for
-      `ask-myk9show` and `send-email`, plus expected repo-ahead changes for MP-04 functions in the
-      B0 branch (`stripe-checkout`, `stripe-connect-onboard`, `stripe-customer-portal`,
-      `stripe-webhook`, `cron-process-payouts`). Keep 0.4 open until `send-notification` is
-      recovered or explicitly retired and required repo-ahead deploys are approved, executed, and
-      smoke-checked.
+      _Audit 2026-07-12:_ strict per-function bundle comparison found 26 exact matches, four
+      repo-ahead HTTP-helper functions (`admin-delete-user`, `admin-generate-reset-link`,
+      `send-push-notification`, `send-targeted-message`), one deployed-ahead
+      `stripe-upgrade-subscription` helper that matches no Git commit, and deployed-only legacy
+      `send-notification`. **No function was deployed.** Do not overwrite the Stripe function;
+      recover its live price-list behavior and decide its source of truth first. Inspect legacy
+      `send-notification` logs and explicitly retire or recover/harden it before a batch deploy.
+      Full evidence and the approval-gated four-function command are in
+      [`edge-function-drift-audit-2026-07-12.md`](edge-function-drift-audit-2026-07-12.md).
 - [ ] **0.5 Money-path hardening Phases 1–3** — MP-01/02 (amount integrity), MP-03
       (payment-link duplicate delivery), MP-04 (mode-scoped Stripe IDs). One PR per phase per
       [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md). **Phase 3 is the

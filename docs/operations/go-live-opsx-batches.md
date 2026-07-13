@@ -77,20 +77,19 @@ src/test/database/stripeLivemodeScoping.source.test.ts` — 38 passed.
 - Migration push: `20260706013906_stripe_livemode_scoped_ids.sql` applied to
   `sojmvhhwsjxmfistvzbe`; follow-up `supabase db push --dry-run` reported the remote database
   is up to date.
-- Edge-function inventory: 29 matched, deployed-only `send-notification`, repo-only
-  `push-trigger-support-message`.
-- Stripe function deploy: `stripe-checkout`, `stripe-connect-onboard`, `stripe-customer-portal`,
-  `stripe-webhook`, and `cron-process-payouts` redeployed as `ACTIVE` at
-  `2026-07-06 14:21:03 UTC`.
-- Byte-level runtime diff downloaded to `/private/tmp/myk9-edge-functions-20260706`:
-  repo-ahead root functions `ask-myk9show` and `send-email` remain separate decisions.
+- Edge-function inventory re-audit (2026-07-12): 31 name matches and deployed-only
+  `send-notification`; repo-only `push-trigger-support-message` is now deployed.
+- Strict per-function bundle comparison: 26 exact matches; four approval-gated HTTP-helper
+  catch-up functions; deployed-ahead `stripe-upgrade-subscription`; and deployed-only
+  `send-notification`. See [`edge-function-drift-audit-2026-07-12.md`](edge-function-drift-audit-2026-07-12.md).
 
 Morning approval checklist:
 
 - Record staging payment verification for MP-03/MP-04 after the function deploys.
-- Decide recovery/retirement for deployed-only `send-notification` before any blind function batch.
-- Decide deploy/smoke timing for repo-only `push-trigger-support-message` and repo-ahead root
-  functions `ask-myk9show` and `send-email`.
+- Recover and decide the deployed-ahead `stripe-upgrade-subscription` premium-price helper before
+  any overwrite.
+- Inspect deployed-only `send-notification` logs, then explicitly retire it or recover/harden it.
+- After both decisions, approve/deploy/smoke the four-function HTTP-helper catch-up batch.
 - Keep Go Live Runbook 0.4/0.5/0.7 unchecked until remaining drift/staging evidence is recorded.
 
 ### B1 - Phase 1 Platform And Deploy Pipeline

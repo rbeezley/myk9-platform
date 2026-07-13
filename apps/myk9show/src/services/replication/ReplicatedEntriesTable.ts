@@ -71,6 +71,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       payment_status: entry.paymentStatus ?? null,
       payment_method: entry.paymentMethod ?? null,
       entry_source: entry.entrySource ?? 'myk9',
+      capacity_override: entry.capacityOverride ?? entry.capacity_override ?? false,
       is_day_of_show: entry.isDayOfShow ?? null,
       run_order: entry.runOrder ?? null,
       move_up_requested: entry.moveUpRequested ?? entry.move_up_requested ?? null,

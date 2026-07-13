@@ -239,7 +239,7 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
   };
 
   const handleClassToggle = useCallback(
-    (dogId: string, trialId: string, classId: string) => {
+    (dogId: string, trialId: string, classId: string, capacityOverride: boolean) => {
       const updatedSelections = [...classSelections];
       let dogSelection = updatedSelections.find(s => s.dogId === dogId);
 
@@ -255,7 +255,10 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
         dogSelection.selectedClasses.splice(classIndex, 1);
       } else {
         // Add class
-        dogSelection.selectedClasses.push({ classId });
+        dogSelection.selectedClasses.push({
+          classId,
+          ...(capacityOverride ? { capacityOverride: true } : {}),
+        });
         dogSelection.trialId = trialId; // Update trial ID
       }
 
@@ -376,7 +379,7 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
         )}
         onClick={() => {
           if (eligibility.eligible || stats.isFull) {
-            handleClassToggle(dogId, trial.id, classData.id);
+            handleClassToggle(dogId, trial.id, classData.id, stats.isFull);
           }
         }}
       >

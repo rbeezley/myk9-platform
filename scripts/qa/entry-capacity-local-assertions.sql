@@ -200,6 +200,26 @@ BEGIN
   IF retry_result IS DISTINCT FROM result THEN
     RAISE EXCEPTION 'submission idempotency failed';
   END IF;
+
+  PERFORM set_config('test.is_official', 'false', true);
+  PERFORM set_config(
+    'request.jwt.claim.sub',
+    '00000000-0000-0000-0000-000000000021',
+    true
+  );
+  BEGIN
+    PERFORM public.submit_show_entries(
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000041',
+      '[]'::jsonb,
+      '00000000-0000-0000-0000-000000000050',
+      'check'
+    );
+    RAISE EXCEPTION 'cross-registration idempotency result was exposed';
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      NULL;
+  END;
 END;
 $$;
 

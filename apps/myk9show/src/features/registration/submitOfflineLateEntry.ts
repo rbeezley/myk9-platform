@@ -139,6 +139,7 @@ export async function submitOfflineLateEntry({
       const handler = handlerAssignments[makeHandlerKey(selection.dogId, selectedClass.classId)];
       const classData = classesById.get(selectedClass.classId);
       const entryFee = paymentMethod === 'waived' ? 0 : getShowEntryFee(showFeeInfo, classData?.entryFee);
+      const capacityOverride = selectedClass.capacityOverride === true;
       const submittedAt = new Date().toISOString();
       const entry: ReplicatedEntry = {
         id: generateUUID(),
@@ -150,7 +151,8 @@ export async function submitOfflineLateEntry({
         handler: handler?.handlerName || '',
         handlerId: handler?.handlerId,
         isDayOfShow: true,
-        entrySource: 'show_desk_capacity_override',
+        entrySource: 'myk9',
+        capacityOverride,
         paymentMethod,
         paymentStatus: paymentStatusFor(paymentMethod, paymentStatus),
         entryStatus: 'confirmed',
@@ -176,7 +178,7 @@ export async function submitOfflineLateEntry({
         waitlistEntryId: null,
         waitlistPosition: null,
         feeCents: Math.round(entryFee * 100),
-        capacityOverride: true,
+        capacityOverride,
       });
     }
   }

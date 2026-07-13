@@ -209,6 +209,8 @@ export interface ClassSelectionData {
     classId: string;
     jumpHeight?: string | undefined;
     moveUpRequested?: boolean | undefined;
+    /** Explicit show-desk acknowledgement captured when an offline class is already full. */
+    capacityOverride?: boolean | undefined;
   }[];
 }
 

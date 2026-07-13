@@ -76,7 +76,7 @@ describe('submitOfflineLateEntry', () => {
           dogId: 'dog-1',
           trialId: 'trial-1',
           selectedClasses: [
-            { classId: 'class-1', jumpHeight: '16' },
+            { classId: 'class-1', jumpHeight: '16', capacityOverride: true },
             { classId: 'class-2' },
           ],
         },
@@ -102,7 +102,8 @@ describe('submitOfflineLateEntry', () => {
         handler: 'Jamie Walker',
         handlerId: 'handler-1',
         isDayOfShow: true,
-        entrySource: 'show_desk_capacity_override',
+        entrySource: 'myk9',
+        capacityOverride: true,
         paymentMethod: 'cash',
         paymentStatus: 'pending',
         entryStatus: 'confirmed',
@@ -142,9 +143,38 @@ describe('submitOfflineLateEntry', () => {
         dogId: 'dog-1',
         classId: 'class-2',
         outcome: 'created',
-        capacityOverride: true,
+        capacityOverride: false,
       }),
     ]);
+  });
+
+  it('records ordinary show-desk provenance without a false capacity override', async () => {
+    await submitOfflineLateEntry({
+      showId: 'show-1',
+      paymentMethod: 'cash',
+      showFeeInfo: {
+        preEntryFee: '25',
+        dayOfShowFee: '35',
+        startDate: '2026-07-01',
+      },
+      classes: [{ id: 'class-1', entryFee: 30 }],
+      classSelections: [
+        {
+          dogId: 'dog-1',
+          trialId: 'trial-1',
+          selectedClasses: [{ classId: 'class-1' }],
+        },
+      ],
+      handlerAssignments: {},
+    });
+
+    expect(createEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entrySource: 'myk9',
+        capacityOverride: false,
+      }),
+      expect.any(Array)
+    );
   });
 
   it.each([

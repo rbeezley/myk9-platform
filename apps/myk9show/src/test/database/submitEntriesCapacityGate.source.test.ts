@@ -63,6 +63,17 @@ describe('shared entry capacity enforcement', () => {
     );
   });
 
+  it('authorizes the registration before returning an idempotent result', () => {
+    const ownershipGuard = migrationSql.indexOf('registration % does not belong to the caller');
+    const idempotentReturn = migrationSql.indexOf('-- Idempotent retry after authorization');
+
+    expect(ownershipGuard).toBeGreaterThan(-1);
+    expect(idempotentReturn).toBeGreaterThan(ownershipGuard);
+    expect(compactSql).toContain(
+      "IF v_result->>'registration_id' IS DISTINCT FROM p_registration_id::text THEN"
+    );
+  });
+
   it('ships an executable rollback that restores both replaced RPCs before dropping the helper', () => {
     const rollbackSql = readFileSync(rollbackSqlPath, 'utf8');
 

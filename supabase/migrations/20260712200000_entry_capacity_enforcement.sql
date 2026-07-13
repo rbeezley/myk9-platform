@@ -19,6 +19,12 @@
 -- public.evaluate_entry_capacity(uuid,uuid,uuid,uuid,text,boolean). The client
 -- accepts the legacy response, so rollback does not require a client rollback.
 
+ALTER TABLE public.entries
+  ADD COLUMN IF NOT EXISTS capacity_override boolean NOT NULL DEFAULT false;
+
+COMMENT ON COLUMN public.entries.capacity_override IS
+  'True only when an authorized show-desk user explicitly entered a selection already at capacity.';
+
 CREATE OR REPLACE FUNCTION public.evaluate_entry_capacity(
   p_class_id uuid,
   p_dog_id uuid,
@@ -393,16 +399,7 @@ DECLARE
 
   v_result        jsonb;
 BEGIN
-  -- 1. Idempotency check
-  SELECT es.result INTO v_result
-  FROM public.entry_submissions es
-  WHERE es.id = p_submission_id;
-
-  IF FOUND THEN
-    RETURN v_result;
-  END IF;
-
-  -- 2. Show fees, ownership scope, and entry-window timezone.
+  -- 1. Show fees, ownership scope, and entry-window timezone.
   SELECT s.pre_entry_fee, s.day_of_show_fee, s.start_date, s.club_id,
          s.entry_open_date, s.entry_close_date,
          COALESCE(
@@ -470,7 +467,21 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  -- 4. Per-entry validation, capacity decision, and insert/outcome.
+  -- Idempotent retry after authorization. A submission UUID is bound to its
+  -- original registration so it cannot expose another exhibitor's result.
+  SELECT es.result INTO v_result
+  FROM public.entry_submissions es
+  WHERE es.id = p_submission_id;
+
+  IF FOUND THEN
+    IF v_result->>'registration_id' IS DISTINCT FROM p_registration_id::text THEN
+      RAISE EXCEPTION 'submission % belongs to another registration', p_submission_id
+        USING ERRCODE = '42501';
+    END IF;
+    RETURN v_result;
+  END IF;
+
+  -- 2. Per-entry validation, capacity decision, and insert/outcome.
   FOR v_entry IN SELECT * FROM jsonb_array_elements(p_entries)
   LOOP
     v_dog_id       := (v_entry->>'dog_id')::uuid;
@@ -602,7 +613,8 @@ BEGIN
       payment_status,
       payment_method,
       submitted_at,
-      registration_id
+      registration_id,
+      capacity_override
     )
     VALUES (
       p_show_id,
@@ -620,7 +632,8 @@ BEGIN
       END,
       p_payment_method,
       now(),
-      p_registration_id
+      p_registration_id,
+      COALESCE(v_capacity.capacity_override, false)
     )
     RETURNING id INTO v_entry_id;
 

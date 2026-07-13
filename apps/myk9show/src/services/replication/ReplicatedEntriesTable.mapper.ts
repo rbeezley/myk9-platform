@@ -30,6 +30,8 @@ export interface ReplicatedEntry {
   paymentStatus?: string | undefined;
   paymentMethod?: string | undefined;
   entrySource?: string | undefined;
+  capacityOverride?: boolean | undefined;
+  capacity_override?: boolean | undefined;
   isDayOfShow?: boolean | undefined;
   isInRing?: boolean | undefined;
   is_in_ring?: boolean | undefined;
@@ -166,6 +168,8 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     compedReason: row.comped_reason ?? undefined,
     comped_reason: row.comped_reason ?? undefined,
     entrySource: (dbRow.entry_source as string | undefined) ?? undefined,
+    capacityOverride: (dbRow.capacity_override as boolean | undefined) ?? false,
+    capacity_override: (dbRow.capacity_override as boolean | undefined) ?? false,
     isDayOfShow: row.is_day_of_show ?? undefined,
     isInRing: row.is_in_ring ?? undefined,
     is_in_ring: row.is_in_ring ?? undefined,

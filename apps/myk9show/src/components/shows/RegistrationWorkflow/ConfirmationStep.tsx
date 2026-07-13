@@ -51,6 +51,7 @@ import { EntrySubmissionOutcomeAlert } from './EntrySubmissionOutcomeAlert';
 import {
   filterClassSelectionsToCreatedOutcomes,
   getCreatedOutcomeTotalFees,
+  hasCreatedEntryOutcome,
   summarizeEntrySubmissionOutcomes,
 } from './entrySubmissionOutcomes';
 
@@ -323,6 +324,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   const heroCopy = getConfirmationHeroCopy(entryStatus, paymentStatus);
   const { createdCount: createdOutcomeCount, waitlistedCount: waitlistedOutcomeCount } =
     summarizeEntrySubmissionOutcomes(entryOutcomes);
+  const hasCreatedOutcome = hasCreatedEntryOutcome(entryOutcomes);
   const everyOutcomeDenied =
     entryOutcomes !== undefined &&
     entryOutcomes.length > 0 &&
@@ -566,6 +568,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             </div>
             {(paymentStatus === PaymentStatus.PENDING ||
               paymentStatus === PaymentStatus.REFUNDED) &&
+              hasCreatedOutcome &&
               (paymentMethod === 'check' || paymentMethod === 'cash') && (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
@@ -625,6 +628,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             <li>Please arrive at least 30 minutes before your first class</li>
             <li>Bring your dog&apos;s vaccination records and registration papers</li>
             {paymentStatus === PaymentStatus.PENDING &&
+              hasCreatedOutcome &&
               (paymentMethod === 'check' || paymentMethod === 'cash') && (
                 <li>
                   Remember to bring your {paymentMethod === 'check' ? 'check' : 'exact cash'} as

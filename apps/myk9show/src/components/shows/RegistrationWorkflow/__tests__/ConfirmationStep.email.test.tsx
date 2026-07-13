@@ -334,4 +334,35 @@ describe('ConfirmationStep — capacity outcomes', () => {
     expect(screen.getByRole('heading', { name: 'No entries were added' })).toBeInTheDocument();
     expect(screen.queryByText('Registration Submitted')).not.toBeInTheDocument();
   });
+
+  it('does not request payment when every selection is waitlisted', () => {
+    render(
+      <ConfirmationStep
+        {...baseProps}
+        selectedDogs={['dog-2']}
+        classSelections={[
+          {
+            dogId: 'dog-2',
+            trialId: 'trial-1',
+            selectedClasses: [{ classId: 'class-2' }],
+          },
+        ]}
+        entryOutcomes={[
+          {
+            dogId: 'dog-2',
+            classId: 'class-2',
+            outcome: 'waitlisted',
+            entryId: null,
+            waitlistEntryId: 'wait-2',
+            feeCents: 0,
+            capacityOverride: false,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByRole('heading', { name: 'Added to the wait list' })).toBeInTheDocument();
+    expect(screen.queryByText(/payment is due at the show/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/remember to bring your check/i)).not.toBeInTheDocument();
+  });
 });

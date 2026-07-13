@@ -1673,6 +1673,7 @@ export type Database = {
           area4_time_seconds: number | null
           armband: string | null
           bonus_points: number | null
+          capacity_override: boolean
           check_in_status: string | null
           class_id: string | null
           comped: boolean | null
@@ -1759,6 +1760,7 @@ export type Database = {
           area4_time_seconds?: number | null
           armband?: string | null
           bonus_points?: number | null
+          capacity_override?: boolean
           check_in_status?: string | null
           class_id?: string | null
           comped?: boolean | null
@@ -1845,6 +1847,7 @@ export type Database = {
           area4_time_seconds?: number | null
           armband?: string | null
           bonus_points?: number | null
+          capacity_override?: boolean
           check_in_status?: string | null
           class_id?: string | null
           comped?: boolean | null

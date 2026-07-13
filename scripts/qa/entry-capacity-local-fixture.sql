@@ -93,7 +93,8 @@ CREATE TABLE public.entries (
   deleted_at timestamptz,
   jump_height text,
   special_requests text,
-  stripe_payment_intent_id text
+  stripe_payment_intent_id text,
+  capacity_override boolean NOT NULL DEFAULT false
 );
 
 CREATE TABLE public.waitlist_entries (
@@ -253,7 +254,7 @@ VALUES (
 INSERT INTO public.people (id, auth_user_id)
 VALUES
   ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000011'),
-  ('00000000-0000-0000-0000-000000000020', NULL);
+  ('00000000-0000-0000-0000-000000000020', '00000000-0000-0000-0000-000000000021');
 
 INSERT INTO public.exhibitor_profiles (id, person_id, auth_user_id)
 VALUES

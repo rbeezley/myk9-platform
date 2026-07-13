@@ -109,7 +109,7 @@ describe('usePosterLandingData', () => {
     const { result } = renderHook(() => usePosterLandingData(makeShow(), null, trials));
     expect(result.current.trials[0]).toMatchObject({
       id: 't1',
-      trialNumber: 1,
+      trialNumber: '1',
       date: '2026-06-12',
       judgeName: 'C. Beagles',
     });

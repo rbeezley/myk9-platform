@@ -93,10 +93,10 @@ stripe-golive-enforcement`, and stop for confirmation before PR creation, migrat
 
 ## 5. Integrated Verification
 
-- [ ] 5.1 Run `pnpm openspec validate --change stripe-golive-enforcement`, implementation
+- [x] 5.1 Run `pnpm openspec validate --change stripe-golive-enforcement`, implementation
       verification, duplicate-surface search, migration version/rollback/grant checks, and generated
       Supabase type verification.
-- [ ] 5.2 Run the relevant E2E/phase-4 seam flow for promote → notify → pay and promote → decline/
+- [x] 5.2 Run the relevant E2E/phase-4 seam flow for promote → notify → pay and promote → decline/
       expire → cascade, plus mobile My Entries replay; stop any runner that hangs beyond 60 seconds and
       record the limitation.
 - [x] 5.3 After explicit approval, dry-run/push migrations, deploy changed/new Edge Functions with
@@ -120,17 +120,17 @@ stripe-golive-enforcement`, and stop for confirmation before PR creation, migrat
 
 ## 6. Tracking And Delivery
 
-- [ ] 6.1 Update `OPEN-TODOS.md`, `docs/plan-stripe-golive-enforcement.md`, the go-live runbook,
+- [x] 6.1 Update `OPEN-TODOS.md`, `docs/plan-stripe-golive-enforcement.md`, the go-live runbook,
       launch scorecard, and any affected API/operations docs with actual implementation and evidence;
       remove or correct the stale standalone AcroForm todo only if verified in the same diff.
-- [ ] 6.2 Run `git diff --check`, focused checks, full validation required by the high-risk profile,
+- [x] 6.2 Run `git diff --check`, focused checks, full validation required by the high-risk profile,
       and `openspec-verify-change`; fix CRITICAL and straightforward WARNING findings.
-- [ ] 6.3 After explicit approval, create the required PR(s), wait for CI/review, address failures,
+- [x] 6.3 After explicit approval, create the required PR(s), wait for CI/review, address failures,
       and merge each phase; do not treat an open PR as completion.
 
 ## 7. Sync, Archive, And Cleanup
 
-- [ ] 7.1 After every required PR is proven merged and approved staging evidence is recorded, sync
+- [x] 7.1 After every required PR is proven merged and approved staging evidence is recorded, sync
       the four delta specs to `openspec/specs/` and archive `stripe-golive-enforcement` with PR evidence.
-- [ ] 7.2 Confirm before any archive commit/push to `main`, then sync `main`, prune refs, delete the
-      feature branch, and remove this worktree as the final cleanup command.
+- [ ] 7.2 After the archive PR merges, sync `main`, prune refs, delete the feature branch, and
+      remove this worktree as the final cleanup command.

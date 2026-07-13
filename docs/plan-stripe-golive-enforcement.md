@@ -1,6 +1,6 @@
 # Stripe Go-Live Enforcement — capacity gate + waitlist Phases 7/8
 
-> **Status:** Active
+> **Status:** Complete — implementation archived in OpenSpec on 2026-07-13. Stripe live-mode cutover remains separately operator-owned in the go-live runbook.
 
 Closes the three functional gaps that stand between the shipped capacity/waitlist machinery and a launch-ready paid-entry pipeline. Grounded in a 2026-07-11 code survey; file references verified against `main` on that date.
 

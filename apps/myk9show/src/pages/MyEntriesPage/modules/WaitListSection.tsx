@@ -68,6 +68,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
   onOfferDeadlineElapsed,
 }) => {
   const [now, setNow] = React.useState(() => new Date());
+  const focusedOfferIdScrolledRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
@@ -75,11 +76,12 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
   }, []);
 
   React.useEffect(() => {
-    if (!focusedOfferId) return;
+    if (!focusedOfferId || focusedOfferIdScrolledRef.current === focusedOfferId) return;
     const target = document.getElementById(`waitlist-offer-${focusedOfferId}`);
     if (!target) return;
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     target.focus({ preventScroll: true });
+    focusedOfferIdScrolledRef.current = focusedOfferId;
   }, [entries, focusedOfferId]);
 
   React.useEffect(() => {

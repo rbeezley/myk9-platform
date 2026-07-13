@@ -136,4 +136,17 @@ describe('WaitListSection offered payment recovery', () => {
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
     expect(screen.getByRole('region', { name: /waitlist offer for scout/i })).toHaveFocus();
   });
+
+  it('does not re-scroll the deep-linked offer after a waitlist refetch', () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+
+    const { props, rerender } = renderSection({ focusedOfferId: 'offer-1' });
+    rerender(<WaitListSection {...props} entries={[{ ...ACTIVE_OFFER }]} />);
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
 });

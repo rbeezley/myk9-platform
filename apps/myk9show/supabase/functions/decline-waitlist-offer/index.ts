@@ -41,16 +41,6 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   };
 }
 
-let corsHeaders = getCorsHeaders(null);
-
-function response(body: object | null, status = 200): Response {
-  if (status === 204) return new Response(null, { status, headers: corsHeaders });
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-}
-
 interface DeclineWaitlistOfferRequest {
   waitlist_entry_id: string;
 }
@@ -62,7 +52,14 @@ interface OwnedWaitlistOffer extends ExpiredWaitlistOffer {
 }
 
 Deno.serve(async request => {
-  corsHeaders = getCorsHeaders(request.headers.get('origin'));
+  const corsHeaders = getCorsHeaders(request.headers.get('origin'));
+  const response = (body: object | null, status = 200): Response => {
+    if (status === 204) return new Response(null, { status, headers: corsHeaders });
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  };
 
   try {
     if (request.method === 'OPTIONS') return response({}, 204);

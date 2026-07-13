@@ -1,7 +1,9 @@
 -- Prevent a late Stripe-link persistence from reviving a waitlist offer that
 -- declined or expired while checkout was being prepared. This applies only to
 -- entries that are linked from a waitlist promotion; normal unpaid entries
--- retain the existing secretary/admin payment-link behavior.
+-- retain the existing secretary/admin payment-link behavior. A batched link
+-- fails atomically when it includes any stale promoted offer, so a checkout
+-- cannot combine an active claim with one that is no longer payable.
 
 CREATE OR REPLACE FUNCTION public.assert_active_waitlist_offer_payment_link()
 RETURNS trigger

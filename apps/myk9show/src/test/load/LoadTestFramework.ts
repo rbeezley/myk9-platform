@@ -9,6 +9,7 @@
  */
 
 import { faker } from '@faker-js/faker';
+import { fromAny } from '@total-typescript/shoehorn';
 import { UserRole } from '@/types/auth-types';
 import type { Show } from '@/types/show-types';
 import type { Dog } from '@/types/dog-types';
@@ -172,7 +173,7 @@ export class LoadTestDataGenerator {
       'Poodle',
     ];
 
-    return {
+    return fromAny<Dog, unknown>({
       id: faker.string.uuid(),
       name: faker.person.firstName(),
       breed: faker.helpers.arrayElement(breeds),
@@ -218,7 +219,7 @@ export class LoadTestDataGenerator {
       ownerId: faker.string.uuid(),
       createdAt: faker.date.past().toISOString(),
       updatedAt: new Date().toISOString(),
-    };
+    });
   }
 
   generateShow(): Show {
@@ -228,7 +229,7 @@ export class LoadTestDataGenerator {
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + faker.number.int({ min: 1, max: 3 }));
 
-    return {
+    return fromAny<Show, unknown>({
       id: faker.string.uuid(),
       name: `${faker.helpers.arrayElement(types)} Championship ${faker.date.recent().getFullYear()}`,
       type: faker.helpers.arrayElement(types),
@@ -258,7 +259,7 @@ export class LoadTestDataGenerator {
       ],
       stats: [],
       trials: [],
-    };
+    });
   }
 
   generateBulkData(counts: { users: number; dogs: number; shows: number }) {

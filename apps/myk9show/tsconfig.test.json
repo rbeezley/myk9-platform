@@ -26,7 +26,7 @@
   "exclude": [
     "src/test/e2e/**/*",
     "src/test/config/test-config.ts",
-    "src/test/load/**/*",
+    "src/test/load/playwright-load-tests.spec.ts",
     "src/test/performance/measure-loading-performance.ts",
     "src/test/performance/performance.spec.ts"
   ]

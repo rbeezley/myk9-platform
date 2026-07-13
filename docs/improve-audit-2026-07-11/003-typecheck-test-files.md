@@ -6,7 +6,7 @@
 
 ## Final rollout — 2026-07-12
 
-The blocking `tsconfig.test.json` now covers every non-E2E Vitest test/spec plus its test helpers. Playwright/E2E, the standalone Playwright performance script, and legacy load harnesses remain explicitly excluded from this gate because they require their own runtime and declarations. `tsconfig.test.all.json` now mirrors the blocking inventory, so `typecheck:tests` and `typecheck:tests:all` must both exit cleanly.
+The blocking `tsconfig.test.json` now covers every non-E2E Vitest test/spec plus its test helpers, including the database load suite. Playwright/E2E, the standalone Playwright performance script, and the Playwright load harness remain explicitly excluded from this gate because they require their own runtime and declarations. `tsconfig.test.all.json` now mirrors the blocking inventory, so `typecheck:tests` and `typecheck:tests:all` must both exit cleanly.
 
 The final pass corrected 1,039 diagnostics across 294 files without changing production behavior. Most fixes aligned stale mocks and fixtures with current schemas, replaced unsafe partial assertions with `@total-typescript/shoehorn`, and updated a small number of stale expectations to the current domain contract. Root `pnpm typecheck` was also verified to fail after a deliberate type error was temporarily added to a non-E2E test, then pass after the error was removed.
 

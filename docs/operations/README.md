@@ -1,37 +1,41 @@
 # Operations runbooks — index
 
+> **Something's wrong right now?** Go to [`START-HERE.md`](START-HERE.md) — the symptom-first
+> router ("payments failing", "user can't sign in", "scores not saving", rollback). This page
+> below is the per-domain runbook catalog it routes into.
+
 The single front door for running myK9Show in production. Each runbook below owns one
 domain; this page is just the map. (Convention mirrors [`docs/README.md`](../README.md) — a
 thin index over focused docs, not one merged wall.)
 
 > **These are internal operator docs.** They contain secrets handling, service-role SQL, and
 > DB connection details — they live in the repo on purpose and must **not** be published to
-> the public help site (help.myk9show.com). Customer- and admin-*user*-facing how-tos belong
+> the public help site (help.myk9show.com). Customer- and admin-_user_-facing how-tos belong
 > in `docs/user-guides/` instead.
 
 ## Operator runbooks (site admin)
 
-| Runbook | Reach for it when… |
-| --- | --- |
+| Runbook                                                | Reach for it when…                                                                                                                                                                                                                               |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [`stripe-platform-setup.md`](stripe-platform-setup.md) | Anything payments/payouts: Connect setup, the four secrets, the money-flow model, go-live steps, **the nightly payout cron** (diagnose/fix/trigger), refund reconciliation, granting founding members, why the payout schedule must stay Manual. |
-| [`admin-support-runbook.md`](admin-support-runbook.md) | A user reports "I can't access X": diagnosing access without impersonation, reproducing a user's view, manual SQL data repair, the escalation boundary. |
-| [`supabase-auth-email.md`](supabase-auth-email.md) | A signup/confirmation email didn't arrive: how auth email is sent via Resend, the ~2/hour rate-limit gotcha, raising the limit, manual confirmation. |
-| [`staging-reseed.md`](staging-reseed.md) | Resetting the staging demo to clean seed data + the required post-reseed verification. |
-| [`ci-vercel-deploys.md`](ci-vercel-deploys.md) | Turning on (or troubleshooting) CI-gated production deploys. |
-| [`vercel-preview-quota.md`](vercel-preview-quota.md) | Preventing Vercel Hobby preview quota exhaustion: monorepo skip-unaffected settings, non-required previews, and push discipline. |
+| [`admin-support-runbook.md`](admin-support-runbook.md) | A user reports "I can't access X": diagnosing access without impersonation, reproducing a user's view, manual SQL data repair, the escalation boundary.                                                                                          |
+| [`supabase-auth-email.md`](supabase-auth-email.md)     | A signup/confirmation email didn't arrive: how auth email is sent via Resend, the ~2/hour rate-limit gotcha, raising the limit, manual confirmation.                                                                                             |
+| [`staging-reseed.md`](staging-reseed.md)               | Resetting the staging demo to clean seed data + the required post-reseed verification.                                                                                                                                                           |
+| [`ci-vercel-deploys.md`](ci-vercel-deploys.md)         | Turning on (or troubleshooting) CI-gated production deploys.                                                                                                                                                                                     |
+| [`vercel-preview-quota.md`](vercel-preview-quota.md)   | Preventing Vercel Hobby preview quota exhaustion: monorepo skip-unaffected settings, non-required previews, and push discipline.                                                                                                                 |
 
-The site-admin *role* (scope, what you must accomplish for fall, what you should never have
+The site-admin _role_ (scope, what you must accomplish for fall, what you should never have
 to think about) is defined in [`../roles/admin.md`](../roles/admin.md).
 
 ## Club-facing reference (not an operator runbook)
 
-| Doc | Audience |
-| --- | --- |
+| Doc                                                      | Audience                                                                                                                              |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | [`stripe-treasurer-guide.md`](stripe-treasurer-guide.md) | **Club treasurers** — the printable Stripe Express onboarding walkthrough. You hand this to clubs; it is not your operator reference. |
 
 ## Incident records (historical, not living runbooks)
 
-| Record | What happened |
-| --- | --- |
-| [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md) | 2026-06-23 edge-function deploy-drift incident write-up. A dated record, kept for reference — not a procedure to follow. |
-| [`edge-function-drift-audit-2026-07-12.md`](edge-function-drift-audit-2026-07-12.md) | Current live bundle audit: one deployed-ahead Stripe helper and one deployed-only legacy sender block the remaining drift batch. |
+| Record                                                                                 | What happened                                                                                                                    |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md) | 2026-06-23 edge-function deploy-drift incident write-up. A dated record, kept for reference — not a procedure to follow.         |
+| [`edge-function-drift-audit-2026-07-12.md`](edge-function-drift-audit-2026-07-12.md)   | Current live bundle audit: one deployed-ahead Stripe helper and one deployed-only legacy sender block the remaining drift batch. |

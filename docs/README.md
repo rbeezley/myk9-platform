@@ -35,54 +35,54 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 ### Root — plans & playbooks
 
-| Doc                                                                                        | Status    | Title                                                                        |
-| ------------------------------------------------------------------------------------------ | --------- | ---------------------------------------------------------------------------- |
-| [DEFERRED-WORK.md](DEFERRED-WORK.md)                                                       | Reference | Deferred Work Items                                                          |
-| [INTENT.md](INTENT.md)                                                                     | Reference | myK9 Platform Intent Document                                                |
-| [admin-mcp-local-setup.md](admin-mcp-local-setup.md)                                       | Reference | Site-Admin MCP — local setup (read-only diagnostics)                         |
-| [ai-ux-adaptation.md](ai-ux-adaptation.md)                                                 | Reference | myK9 Adaptation Notes — "4 AI UX Prompts" Guide                              |
-| [codex-review-playbook.md](codex-review-playbook.md)                                       | Reference | Codex review playbook                                                        |
-| [feature-audit-2026.md](feature-audit-2026.md)                                             | Reference | Feature Audit — Fall 2026                                                    |
-| [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                   | Active    | IA Review: Entry-Status Surfaces (cross-role)                                |
-| [ia-review-secretary-entry-management.md](ia-review-secretary-entry-management.md)         | Active    | IA Review: Secretary Entry Management (cognitive-load track)                 |
-| [improve-audit-2026-06/README.md](improve-audit-2026-06/README.md)                         | Active    | Improve Audit — June 2026 (remaining plans 003–006)                          |
-| [improve-audit-2026-07/README.md](improve-audit-2026-07/README.md)                         | Active    | Production-Readiness Bug Audit — July 2026 (5 plans; reconciled vs UX walk)  |
-| [improve-audit-2026-07-11/README.md](improve-audit-2026-07-11/README.md)                   | Active    | Codebase Health Audit — 2026-07-11 (6 executor plans + backlog)              |
-| [improve-audit-2026-07-11/007-replication-core-split.md](improve-audit-2026-07-11/007-replication-core-split.md) | Active | Plan 007 — Replication Core Split (tracked by OpenSpec) |
-| [launch-milestone-qa-checklist.md](launch-milestone-qa-checklist.md)                       | Reference | Launch-Milestone QA Checklist                                                |
-| [launch/go-live-2026-07-11.md](launch/go-live-2026-07-11.md)                               | Active    | Go-Live Gate Review — 2026-07-11                                             |
-| [plan-stripe-golive-enforcement.md](plan-stripe-golive-enforcement.md)                     | Active    | Stripe Go-Live Enforcement — capacity gate + waitlist Phases 7/8             |
-| [navigation-ia.md](navigation-ia.md)                                                       | Reference | Navigation & IA Sketch — Fall 2026                                           |
-| [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)             | Active    | Active-Docs Triage — 2026-06-14                                              |
-| [plan-architecture-deepening.md](plan-architecture-deepening.md)                           | Active    | Architecture Deepening Plan                                                  |
-| [plan-asca-level-c-classes.md](plan-asca-level-c-classes.md)                               | Active    | ASCA Level C — seed continuation classes into the wizard template            |
-| [plan-askq-revival.md](plan-askq-revival.md)                                               | Active    | AskQ Revival & Simplification (select-then-bundle)                           |
-| [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                       | Active    | Data Access Module Drift Plan                                                |
-| [plan-entries-read-consolidation.md](plan-entries-read-consolidation.md)                   | Active    | Entry-Read Module Consolidation (findings from Plan 004 spike)               |
-| [plan-show-details-step-extraction/README.md](plan-show-details-step-extraction/README.md) | Active    | Show Details Step Extraction (ShowDetailsStep.tsx hotspot follow-up)         |
-| [plan-entry-draw-lottery.md](plan-entry-draw-lottery.md)                                   | Active    | Entry Draw / Lottery — random-draw intake (depends on payment plan)          |
-| [plan-entry-payment-request.md](plan-entry-payment-request.md)                             | Active    | Entry Payment, Waitlist & Capacity (links, pay-to-claim, judge-day)          |
-| [plan-exhibitor-early-checkin.md](plan-exhibitor-early-checkin.md)                         | Active    | Exhibitor early check-in — toggle gate (P1 done) + /at-show fix (P2)         |
-| [plan-landing-hero-lcp-prerender.md](plan-landing-hero-lcp-prerender.md)                   | Active    | Landing-page mobile LCP — prerender + hydrate the hero                       |
-| [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                           | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                        |
-| [plan-operator-docs-portal.md](plan-operator-docs-portal.md)                               | Deferred  | Gated Operator Docs Portal — searchable runbooks (deferred 2026-06-27)       |
-| [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                         | Active    | Plan: Phase 4 seam render-only read strategy                                 |
-| [plan-pull-management-split.md](plan-pull-management-split.md)                             | Active    | Pull Management — separate show-day pull state from refund accounting        |
-| [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                 | Active    | Plan: Server-side gate for public/anon scored results                        |
-| [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)           | Active    | Replication INSERT retry idempotency — investigation verdict (B)             |
-| [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                           | Active    | Plan: Fix the Deleted Entities (restore) UI                                  |
-| [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                       | Active    | Plan: Result Reveal + Share Card                                             |
-| [plan-site-admin-mcp-v1.md](plan-site-admin-mcp-v1.md)                                     | Active    | Site Admin MCP V1 Implementation Plan                                        |
-| [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                           | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                          |
-| [security-audit-2026-07/README.md](security-audit-2026-07/README.md)                       | Active    | Security Audit Remediation — July 2026 (17 findings; 0 P0/P1; 6 plans)       |
-| [plan-ux-journey-audit.md](plan-ux-journey-audit.md)                                       | Active    | Plan: UX Journey Audit — Exhibitor & Secretary                               |
-| [plan-ux-journey-phase6.md](plan-ux-journey-phase6.md)                                     | Active    | Plan: UX Journey Audit — Phase 6 (Remediation Verification)                  |
-| [plan-wave1-exhibitor-entry-payment-trust.md](plan-wave1-exhibitor-entry-payment-trust.md) | Active    | Wave 1 Exhibitor Entry And Payment Trust Implementation Plan                 |
-| [plan-workflow-process-consolidation.md](plan-workflow-process-consolidation.md)           | Active    | Workflow & process consolidation — PLAYBOOK.md, CLAUDE.md slim, skills audit |
-| [plan-wave3a-at-show-phone-polish.md](plan-wave3a-at-show-phone-polish.md)                 | Active    | Wave 3A At-Show Phone Polish Plan                                            |
-| [plan-wave3b-results-my-shows-clarity.md](plan-wave3b-results-my-shows-clarity.md)         | Active    | Wave 3B Results and My Shows Clarity Plan                                    |
-| [playbook-impeccable-page-improvements.md](playbook-impeccable-page-improvements.md)       | Reference | Impeccable Page-Improvement Playbook                                         |
-| [rulebooks/README.md](rulebooks/README.md)                                                 | Reference | Sport & Registry Rulebooks — source reference library                        |
+| Doc                                                                                                              | Status    | Title                                                                        |
+| ---------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------- |
+| [DEFERRED-WORK.md](DEFERRED-WORK.md)                                                                             | Reference | Deferred Work Items                                                          |
+| [INTENT.md](INTENT.md)                                                                                           | Reference | myK9 Platform Intent Document                                                |
+| [admin-mcp-local-setup.md](admin-mcp-local-setup.md)                                                             | Reference | Site-Admin MCP — local setup (read-only diagnostics)                         |
+| [ai-ux-adaptation.md](ai-ux-adaptation.md)                                                                       | Reference | myK9 Adaptation Notes — "4 AI UX Prompts" Guide                              |
+| [codex-review-playbook.md](codex-review-playbook.md)                                                             | Reference | Codex review playbook                                                        |
+| [feature-audit-2026.md](feature-audit-2026.md)                                                                   | Reference | Feature Audit — Fall 2026                                                    |
+| [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                                         | Active    | IA Review: Entry-Status Surfaces (cross-role)                                |
+| [ia-review-secretary-entry-management.md](ia-review-secretary-entry-management.md)                               | Active    | IA Review: Secretary Entry Management (cognitive-load track)                 |
+| [improve-audit-2026-06/README.md](improve-audit-2026-06/README.md)                                               | Active    | Improve Audit — June 2026 (remaining plans 003–006)                          |
+| [improve-audit-2026-07/README.md](improve-audit-2026-07/README.md)                                               | Active    | Production-Readiness Bug Audit — July 2026 (5 plans; reconciled vs UX walk)  |
+| [improve-audit-2026-07-11/README.md](improve-audit-2026-07-11/README.md)                                         | Active    | Codebase Health Audit — 2026-07-11 (6 executor plans + backlog)              |
+| [improve-audit-2026-07-11/007-replication-core-split.md](improve-audit-2026-07-11/007-replication-core-split.md) | Active    | Plan 007 — Replication Core Split (tracked by OpenSpec)                      |
+| [launch-milestone-qa-checklist.md](launch-milestone-qa-checklist.md)                                             | Reference | Launch-Milestone QA Checklist                                                |
+| [launch/go-live-2026-07-11.md](launch/go-live-2026-07-11.md)                                                     | Active    | Go-Live Gate Review — 2026-07-11                                             |
+| [plan-stripe-golive-enforcement.md](plan-stripe-golive-enforcement.md)                                           | Active    | Stripe Go-Live Enforcement — capacity gate + waitlist Phases 7/8             |
+| [navigation-ia.md](navigation-ia.md)                                                                             | Reference | Navigation & IA Sketch — Fall 2026                                           |
+| [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)                                   | Active    | Active-Docs Triage — 2026-06-14                                              |
+| [plan-architecture-deepening.md](plan-architecture-deepening.md)                                                 | Active    | Architecture Deepening Plan                                                  |
+| [plan-asca-level-c-classes.md](plan-asca-level-c-classes.md)                                                     | Active    | ASCA Level C — seed continuation classes into the wizard template            |
+| [plan-askq-revival.md](plan-askq-revival.md)                                                                     | Active    | AskQ Revival & Simplification (select-then-bundle)                           |
+| [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                                             | Active    | Data Access Module Drift Plan                                                |
+| [plan-entries-read-consolidation.md](plan-entries-read-consolidation.md)                                         | Active    | Entry-Read Module Consolidation (findings from Plan 004 spike)               |
+| [plan-show-details-step-extraction/README.md](plan-show-details-step-extraction/README.md)                       | Active    | Show Details Step Extraction (ShowDetailsStep.tsx hotspot follow-up)         |
+| [plan-entry-draw-lottery.md](plan-entry-draw-lottery.md)                                                         | Active    | Entry Draw / Lottery — random-draw intake (depends on payment plan)          |
+| [plan-entry-payment-request.md](plan-entry-payment-request.md)                                                   | Active    | Entry Payment, Waitlist & Capacity (links, pay-to-claim, judge-day)          |
+| [plan-exhibitor-early-checkin.md](plan-exhibitor-early-checkin.md)                                               | Active    | Exhibitor early check-in — toggle gate (P1 done) + /at-show fix (P2)         |
+| [plan-landing-hero-lcp-prerender.md](plan-landing-hero-lcp-prerender.md)                                         | Active    | Landing-page mobile LCP — prerender + hydrate the hero                       |
+| [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                                                 | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                        |
+| [plan-operator-docs-portal.md](plan-operator-docs-portal.md)                                                     | Deferred  | Gated Operator Docs Portal — searchable runbooks (deferred 2026-06-27)       |
+| [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                                               | Active    | Plan: Phase 4 seam render-only read strategy                                 |
+| [plan-pull-management-split.md](plan-pull-management-split.md)                                                   | Active    | Pull Management — separate show-day pull state from refund accounting        |
+| [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                                       | Active    | Plan: Server-side gate for public/anon scored results                        |
+| [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)                                 | Active    | Replication INSERT retry idempotency — investigation verdict (B)             |
+| [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                                                 | Active    | Plan: Fix the Deleted Entities (restore) UI                                  |
+| [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                                             | Active    | Plan: Result Reveal + Share Card                                             |
+| [plan-site-admin-mcp-v1.md](plan-site-admin-mcp-v1.md)                                                           | Active    | Site Admin MCP V1 Implementation Plan                                        |
+| [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                                                 | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                          |
+| [security-audit-2026-07/README.md](security-audit-2026-07/README.md)                                             | Active    | Security Audit Remediation — July 2026 (17 findings; 0 P0/P1; 6 plans)       |
+| [plan-ux-journey-audit.md](plan-ux-journey-audit.md)                                                             | Active    | Plan: UX Journey Audit — Exhibitor & Secretary                               |
+| [plan-ux-journey-phase6.md](plan-ux-journey-phase6.md)                                                           | Active    | Plan: UX Journey Audit — Phase 6 (Remediation Verification)                  |
+| [plan-wave1-exhibitor-entry-payment-trust.md](plan-wave1-exhibitor-entry-payment-trust.md)                       | Active    | Wave 1 Exhibitor Entry And Payment Trust Implementation Plan                 |
+| [plan-workflow-process-consolidation.md](plan-workflow-process-consolidation.md)                                 | Active    | Workflow & process consolidation — PLAYBOOK.md, CLAUDE.md slim, skills audit |
+| [plan-wave3a-at-show-phone-polish.md](plan-wave3a-at-show-phone-polish.md)                                       | Active    | Wave 3A At-Show Phone Polish Plan                                            |
+| [plan-wave3b-results-my-shows-clarity.md](plan-wave3b-results-my-shows-clarity.md)                               | Active    | Wave 3B Results and My Shows Clarity Plan                                    |
+| [playbook-impeccable-page-improvements.md](playbook-impeccable-page-improvements.md)                             | Reference | Impeccable Page-Improvement Playbook                                         |
+| [rulebooks/README.md](rulebooks/README.md)                                                                       | Reference | Sport & Registry Rulebooks — source reference library                        |
 
 ### plans/ — feature & phase plans
 
@@ -219,13 +219,14 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 ### operations/ — runbooks
 
-| Doc                                                                          | Status    | Title                                                                   |
-| ---------------------------------------------------------------------------- | --------- | ----------------------------------------------------------------------- |
-| [operations/go-live-runbook.md](operations/go-live-runbook.md)               | Active    | Go-Live Runbook — the single ordered, gated launch-day document         |
-| [operations/edge-function-drift-audit-2026-07-12.md](operations/edge-function-drift-audit-2026-07-12.md) | Active | Edge Function Drift Audit — deployed-source recovery and legacy-sender disposition |
-| [operations/stripe-platform-setup.md](operations/stripe-platform-setup.md)   | Reference | Stripe Platform Setup — Operator Runbook (Richard)                      |
-| [operations/stripe-treasurer-guide.md](operations/stripe-treasurer-guide.md) | Reference | Stripe Treasurer Guide — Club payout onboarding (share with treasurers) |
-| [operations/supabase-auth-email.md](operations/supabase-auth-email.md)       | Reference | Supabase Auth Email — Resend, Rate Limits & Manual Confirmation         |
+| Doc                                                                                                      | Status    | Title                                                                              |
+| -------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------- |
+| [operations/START-HERE.md](operations/START-HERE.md)                                                     | Reference | START HERE — symptom-first router for operating + troubleshooting issues           |
+| [operations/go-live-runbook.md](operations/go-live-runbook.md)                                           | Active    | Go-Live Runbook — the single ordered, gated launch-day document                    |
+| [operations/edge-function-drift-audit-2026-07-12.md](operations/edge-function-drift-audit-2026-07-12.md) | Active    | Edge Function Drift Audit — deployed-source recovery and legacy-sender disposition |
+| [operations/stripe-platform-setup.md](operations/stripe-platform-setup.md)                               | Reference | Stripe Platform Setup — Operator Runbook (Richard)                                 |
+| [operations/stripe-treasurer-guide.md](operations/stripe-treasurer-guide.md)                             | Reference | Stripe Treasurer Guide — Club payout onboarding (share with treasurers)            |
+| [operations/supabase-auth-email.md](operations/supabase-auth-email.md)                                   | Reference | Supabase Auth Email — Resend, Rate Limits & Manual Confirmation                    |
 
 ### future/ — parked backlog
 

@@ -87,9 +87,9 @@ src/test/database/stripeLivemodeScoping.source.test.ts` — 38 passed.
 Morning approval checklist:
 
 - Record staging payment verification for MP-03/MP-04 after the function deploys.
-- The fallback-extension source decision for deployed-ahead `stripe-upgrade-subscription` is
-  prepared in OpenSpec change `recover-stripe-price-source-drift`; merge it before any overwrite.
-- After the source decision is merged, separately approve/deploy/smoke
+- The fallback-extension source decision for deployed-ahead `stripe-upgrade-subscription` merged in
+  [#1313](https://github.com/rbeezley/myk9-platform/pull/1313).
+- Next, separately approve/deploy/smoke
   `stripe-upgrade-subscription`, then separately approve/deploy/smoke the four-function HTTP-helper
   catch-up batch.
 - Keep Go Live Runbook 0.4/0.5/0.7 unchecked until remaining drift/staging evidence is recorded.

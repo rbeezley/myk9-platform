@@ -80,9 +80,8 @@ High-judgment work to prioritize while strong-model access is available. These a
   Remaining work includes Phase 0.4 Edge-function drift recovery: the 2026-07-12 strict bundle
   audit found a deployed-ahead `stripe-upgrade-subscription` price helper; the deployed-only
   legacy `send-notification` had no 30-day log events and was retired after approval. The safer
-  fallback-extension source decision is prepared in OpenSpec change
-  `recover-stripe-price-source-drift`; merge it before any Stripe overwrite, then separately
-  approve `stripe-upgrade-subscription` and the small repo-ahead helper batch. See
+  fallback-extension source decision merged in [#1313](https://github.com/rbeezley/myk9-platform/pull/1313);
+  separately approve `stripe-upgrade-subscription` and the small repo-ahead helper batch. See
   [`edge-function-drift-audit-2026-07-12.md`](docs/operations/edge-function-drift-audit-2026-07-12.md).
   Other remaining work is operator-owned (legal, production data, Stripe live mode, mailbox/AKC,
   browser/device, Sentry routing, DNS/Vercel) plus a paid premium success smoke if approved. Migration parity is

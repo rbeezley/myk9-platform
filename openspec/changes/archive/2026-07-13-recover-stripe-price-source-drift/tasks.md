@@ -22,6 +22,6 @@
       recover-stripe-price-source-drift --type change --strict`, and `git diff --check`.
 - [x] 3.2 Run implementation verification against the OpenSpec artifacts; fix critical or
       straightforward warning findings and rerun affected checks.
-- [ ] 3.3 Commit the recovery slice, create a reviewed PR only after explicit confirmation, and
+- [x] 3.3 Commit the recovery slice, create a reviewed PR only after explicit confirmation, and
       wait for CI/review before merge. Do not deploy any Edge Function from this change without a
       separate explicit approval.

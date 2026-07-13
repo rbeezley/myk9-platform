@@ -10,6 +10,7 @@ const pushTriggerNames = [
   'push-trigger-support-message',
   'push-trigger-class-status',
   'push-trigger-scoring',
+  'push-trigger-waitlist',
 ] as const;
 
 function sourceFor(name: (typeof pushTriggerNames)[number]): string {
@@ -17,29 +18,33 @@ function sourceFor(name: (typeof pushTriggerNames)[number]): string {
 }
 
 describe('dedicated push webhook secret integration', () => {
-  it.each(pushTriggerNames)('%s authenticates through the shared helper before handling payloads', name => {
-    const source = sourceFor(name);
+  it.each(pushTriggerNames)(
+    '%s authenticates through the shared helper before handling payloads',
+    name => {
+      const source = sourceFor(name);
 
-    expect(source).toContain("from '../_shared/pushWebhookAuth.ts'");
-    const handler = source.indexOf('handle<WebhookPayload>');
-    const auth = source.indexOf('beforeBody: requirePushWebhookSecret');
-    const firstPayloadRead = Math.min(
-      ...['payload.record', 'body.record', 'body.old_record'].map(needle => {
-        const index = source.indexOf(needle);
-        return index === -1 ? Number.POSITIVE_INFINITY : index;
-      })
-    );
+      expect(source).toContain("from '../_shared/pushWebhookAuth.ts'");
+      const handler = source.indexOf('handle<WebhookPayload>');
+      const auth = source.indexOf('beforeBody: requirePushWebhookSecret');
+      const firstPayloadRead = Math.min(
+        ...['payload.record', 'body.record', 'body.old_record'].map(needle => {
+          const index = source.indexOf(needle);
+          return index === -1 ? Number.POSITIVE_INFINITY : index;
+        })
+      );
 
-    expect(auth).toBeGreaterThan(handler);
-    expect(firstPayloadRead).toBeGreaterThan(auth);
-    expect(source).not.toContain("Deno.env.get('PUSH_WEBHOOK_SECRET')");
-  });
+      expect(auth).toBeGreaterThan(handler);
+      expect(firstPayloadRead).toBeGreaterThan(auth);
+      expect(source).not.toContain("Deno.env.get('PUSH_WEBHOOK_SECRET')");
+    }
+  );
 
   it.each([
     'push-trigger-announcement',
     'push-trigger-chat-message',
     'push-trigger-class-status',
     'push-trigger-scoring',
+    'push-trigger-waitlist',
   ] as const)('%s never reads the service-role key', name => {
     expect(sourceFor(name)).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
   });

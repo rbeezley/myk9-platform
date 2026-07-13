@@ -105,6 +105,39 @@ describe('shared entry capacity enforcement', () => {
     );
   });
 
+  it('drops and recreates the helper atomically since denial_reason changes the return type', () => {
+    const fixSql = readFileSync(
+      resolve(
+        root,
+        'supabase/migrations',
+        '20260712210000_entry_capacity_exhibitor_aware_waitlist_reuse.sql'
+      ),
+      'utf8'
+    );
+    const compactFixSql = fixSql.replace(/\s+/g, ' ');
+
+    // CREATE OR REPLACE cannot change a function's return type, so the
+    // migration must DROP first — inside one transaction so runtime
+    // callers never observe the function missing.
+    expect(compactFixSql).toContain(
+      'DROP FUNCTION IF EXISTS public.evaluate_entry_capacity( uuid, uuid, uuid, uuid, text, boolean );'
+    );
+    expect(compactFixSql.indexOf('BEGIN;')).toBeGreaterThan(-1);
+    expect(compactFixSql.indexOf('BEGIN;')).toBeLessThan(
+      compactFixSql.indexOf('DROP FUNCTION IF EXISTS public.evaluate_entry_capacity')
+    );
+    expect(fixSql.trimEnd().endsWith('COMMIT;')).toBe(true);
+
+    // Drop+recreate resets ACLs — the original grants from
+    // 20260712200000 must be restored verbatim.
+    expect(compactFixSql).toContain(
+      'REVOKE ALL ON FUNCTION public.evaluate_entry_capacity( uuid, uuid, uuid, uuid, text, boolean ) FROM PUBLIC, anon, authenticated;'
+    );
+    expect(compactFixSql).toContain(
+      'GRANT EXECUTE ON FUNCTION public.evaluate_entry_capacity( uuid, uuid, uuid, uuid, text, boolean ) TO service_role;'
+    );
+  });
+
   it('adds denial_reason as an additive output column (source-compatible with existing callers)', () => {
     expect(migrationSql).toContain('denial_reason text');
     // Existing write-boundary callers read the result into a `record`

@@ -26,14 +26,28 @@
 -- into a plain `record` variable and never enumerate columns
 -- positionally, so they remain source-compatible without changes.
 --
--- Rollback (run in order):
---   supabase/migrations/20260712200000_entry_capacity_enforcement.sql
---     contains the prior CREATE OR REPLACE FUNCTION
---     public.evaluate_entry_capacity(...) body — re-run that CREATE OR
---     REPLACE block to restore the pre-fix version, OR:
+-- Rollback (run in a single transaction):
+--   BEGIN;
 --   DROP FUNCTION IF EXISTS public.evaluate_entry_capacity(uuid, uuid, uuid, uuid, text, boolean);
---   -- then re-apply 20260712200000_entry_capacity_enforcement.sql's
---   -- CREATE OR REPLACE FUNCTION public.evaluate_entry_capacity block.
+--   -- re-apply 20260712200000_entry_capacity_enforcement.sql's
+--   -- CREATE OR REPLACE FUNCTION public.evaluate_entry_capacity block
+--   -- (the pre-fix body without denial_reason), then its
+--   -- REVOKE ALL ... FROM PUBLIC, anon, authenticated; and
+--   -- GRANT EXECUTE ... TO service_role; statements.
+--   COMMIT;
+
+-- Adding the denial_reason OUT column changes the function's return type,
+-- so CREATE OR REPLACE alone would fail ("cannot change return type of
+-- existing function"). Drop + recreate inside one transaction so callers
+-- (create_online_paid_entry / submit_show_entries, which resolve the
+-- function at runtime) never observe it missing. No non-plpgsql objects
+-- depend on it (verified: only the two write-boundary RPCs reference it
+-- across supabase/migrations), so a plain DROP is safe.
+BEGIN;
+
+DROP FUNCTION IF EXISTS public.evaluate_entry_capacity(
+  uuid, uuid, uuid, uuid, text, boolean
+);
 
 CREATE OR REPLACE FUNCTION public.evaluate_entry_capacity(
   p_class_id uuid,
@@ -265,11 +279,21 @@ BEGIN
 END;
 $$;
 
+-- Drop + recreate resets ACLs; restore exactly the grants issued by
+-- 20260712200000_entry_capacity_enforcement.sql (service_role only —
+-- the helper is never client-callable).
 REVOKE ALL ON FUNCTION public.evaluate_entry_capacity(
   uuid, uuid, uuid, uuid, text, boolean
 ) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.evaluate_entry_capacity(
+  uuid, uuid, uuid, uuid, text, boolean
+) TO service_role;
 
-COMMENT ON FUNCTION public.evaluate_entry_capacity IS
-  'Shared capacity/waitlist decision for entry write boundaries. Not exposed to clients directly. '
-  'Waitlist reuse is exhibitor-aware: an active class+dog wait-list row owned by a different '
-  'exhibitor is denied, not silently reused (fixed 20260712210000).';
+COMMENT ON FUNCTION public.evaluate_entry_capacity(uuid, uuid, uuid, uuid, text, boolean) IS
+  'Shared post-lock class/judge-day capacity decision for paid-cart and submit_show_entries. '
+  'Self-service preserves mail-in reserve; organizer uses physical capacity; authorized show_desk '
+  'may record an explicit override. Not client-callable. Waitlist reuse is exhibitor-aware: an '
+  'active class+dog wait-list row owned by a different exhibitor is denied with denial_reason, '
+  'not silently reused (fixed 20260712210000).';
+
+COMMIT;

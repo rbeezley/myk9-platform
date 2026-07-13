@@ -8,10 +8,11 @@ Keep responses concise, short, and to the point. Lead with the answer or action.
 
 This is a TypeScript monorepo. Always use TypeScript (not JavaScript). When fixing types, verify property names match the actual schema/interface definitions — do not guess.
 
-##Self Learning
-When I correct you or you catch yourself making a mistake, before continuing, add the lesson as a one-line rule under #LESSONS so it never happens again.
+## Self Learning
 
-##LESSONS
+When I correct you or you catch yourself making a mistake, before continuing, add the lesson as a one-line rule under LESSONS so it never happens again.
+
+## LESSONS
 
 - `supabase functions deploy --workdir apps/myk9show` follows that dir's stale `.temp/project-ref` (myK9Show-Working, defunct) — ALWAYS pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly and confirm the "Deployed Functions on project ..." line names the right ref.
 
@@ -39,7 +40,7 @@ The mental model: the user's experience is a single coherent workflow, not a men
 2. **Follow DRY principles** — Don't Repeat Yourself. Create reusable components if possible
 3. **Follow SLC** — Simple, Lovable, Complete. Avoid feature bloat (Simple). Prioritize UX polish, error states, and "delight" (Lovable). Deliver end-to-end functionality with zero placeholders or TODOs (Complete)
 4. **Keep files under 500 lines** — Extract types, helpers, and constants into sibling modules
-5. **Protect intent** — When code looks "wrong" but has an `// INTENT:` comment, it's deliberate. When making UX changes, check if they preserve the role's target feeling (see `docs/INTENT.md`)
+5. **Protect intent** — When code looks "wrong" but has an `// INTENT:` comment, it's deliberate (see "Intent & Emotional Design" above)
 
 ## Worktrees
 
@@ -51,17 +52,9 @@ bash scripts/bootstrap-worktree.sh   # installs deps, copies .env, builds packag
 
 ## Planning
 
-When creating implementation or remediation plans, always save them to a markdown file (e.g., `PLAN.md` or `docs/plan-<topic>.md`) rather than only outputting to chat. Follow existing plans when they exist — do not start from scratch. **Every plan must include a testing phase** — unit tests for new components, hooks, and utilities. Do not consider a phase complete until its tests are written and passing.
+Save plans to `docs/plan-<topic>.md`, never chat-only. Follow existing plans when they exist. **Every plan must include a testing phase** — a phase isn't complete until its tests pass. Directly under the `# Title`, add `> **Status:** Active` (`Active` / `Complete` / `Abandoned`) and register one row in [`docs/README.md`](docs/README.md); on merge, flip to `Complete`, `git mv` into `docs/archive/`, drop the index row. Full lifecycle rules: [`docs/README.md`](docs/README.md).
 
-**Every plan is born tagged.** Directly under the plan's `# Title`, add a status line:
-
-```markdown
-> **Status:** Active
-```
-
-Use `Active` while work is in progress or not yet started, `Complete` once the work has shipped, `Abandoned` if superseded or dropped. Then register the plan with one row in [`docs/README.md`](docs/README.md) (the living docs index). When a plan's work merges, flip its status to `Complete` and `git mv` the file into `docs/archive/` (mirror its path), then remove its row from the index. This convention is what keeps `docs/` from re-accumulating undated, indistinguishable plans — see [`docs/README.md`](docs/README.md) for the full "how docs are organized" rules. A plan without a status line is incomplete.
-
-**OpenSpec carve-out.** When a single unit of buildable work will be implemented through the opsx skills, the OpenSpec change (`openspec/changes/<id>/` — proposal, design, specs, tasks) _is_ the plan and satisfies this requirement. Do not also author a `docs/plan-*.md` for the same work; the change's `tasks.md` is the sole execution tracker, and archiving the change closes it out. Investigate first with `opsx:explore`, then `opsx:propose` — the change artifacts still need a testing phase (the config's task rules enforce this). `docs/` plans remain the right home for: multi-change roadmaps, audits whose findings are the deliverable, and living reference material (token tables, specs) — extract reference material to its own doc or promote it to `openspec/specs/` via `opsx:sync` rather than leaving it inside an archived change. If a `docs/` plan already exists when the change is created, add `> Tracked in openspec change: <id>` under its status line so the two never track independently.
+**OpenSpec carve-out.** When a single unit of buildable work goes through the opsx skills, the OpenSpec change (`openspec/changes/<id>/`) _is_ the plan — do not also author a `docs/plan-*.md` for the same work. When each format applies, and how to cross-link if both exist: [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 1.
 
 ## Commands
 
@@ -78,9 +71,9 @@ cd apps/myk9show && pnpm test     # myK9Show unit tests (vitest)
 cd apps/myk9show && pnpm test:e2e # myK9Show E2E tests (playwright)
 
 # Run a single test file
-cd apps/myk9show && npx vitest run src/path/to/file.test.ts
+cd apps/myk9show && pnpm vitest run src/path/to/file.test.ts
 # Run tests matching a name pattern
-cd apps/myk9show && npx vitest run -t "pattern"
+cd apps/myk9show && pnpm vitest run -t "pattern"
 ```
 
 ## Architecture Decisions
@@ -96,13 +89,7 @@ cd apps/myk9show && npx vitest run -t "pattern"
 - **Edge Functions:** Deploy with `--no-verify-jwt` (functions handle auth internally)
 - **Migrations:** `supabase/migrations/` — numbered `NNN_description.sql`
 
-### Heritage / registry columns (migrations 192–193)
-
-- `shows.landing_style` — `'default' | 'heritage'`. Read via `getShowLandingStyle(show)` from `@/features/registries`.
-- `trials.registry_id` — sanctioning body (default `'AKC'`). Read via `getTrialRegistry(trial)`.
-- `trials.confirmation_date` — when the Heritage confirmation email is sent. NULL = no formal step.
-- `trials.timezone` — IANA name (default `'America/New_York'`). Read via `getTrialTimezone(trial)`.
-- `entries.confirmation_email_sent_at / message_id / status` — idempotent send tracking (`'pending' | 'sent' | 'bounced' | 'failed'`).
+- **Heritage / registry columns** (migrations 192–193): schema notes in [`docs/reference/heritage-registry-columns.md`](docs/reference/heritage-registry-columns.md) — always read via the `@/features/registries` helpers (`getShowLandingStyle`, `getTrialRegistry`, `getTrialTimezone`), never raw column access.
 
 ## Deployment
 

@@ -32,30 +32,30 @@
       plus representative multi-entry query-plan/timing evidence, when a local or approved remote
       database is available; otherwise record the exact blocked command and source-only evidence
       without marking this task complete.
-- [ ] 2.7 Run focused Phase A tests, `pnpm typecheck`, `pnpm lint`, and the app suite; complete the
+- [x] 2.7 Run focused Phase A tests, `pnpm typecheck`, `pnpm lint`, and the app suite; complete the
       required database/security second-opinion review and fix findings.
 - [x] 2.8 Commit Phase A, prepare its PR body with `Tracked in openspec change:
 stripe-golive-enforcement`, and stop for confirmation before PR creation, migration push, or merge.
 
 ## 3. Phase C — Waitlist Notification Dispatch
 
-- [ ] 3.1 Add assertion-first failing tests for offer-source parity, dedicated-secret fail-closed
+- [x] 3.1 Add assertion-first failing tests for offer-source parity, dedicated-secret fail-closed
       behavior, payload validation, deep-link destination, push recipient scoping, and per-event
       idempotency.
-- [ ] 3.2 Add the durable offer-cycle notification event ledger with unique key, retry state,
+- [x] 3.2 Add the durable offer-cycle notification event ledger with unique key, retry state,
       attempts/redacted failure metadata, indexes, comments, narrow grants, trigger wiring, and rollback
       SQL.
-- [ ] 3.3 Implement the secret-authenticated waitlist notification dispatcher using existing
+- [x] 3.3 Implement the secret-authenticated waitlist notification dispatcher using existing
       email and Web Push patterns, My Entries deep links, chunked subscription reads, expired
       subscription cleanup, and no service-role-secret fallback.
-- [ ] 3.4 Make every committed `offered` transition invoke the dispatcher; remove cron's direct
+- [x] 3.4 Make every committed `offered` transition invoke the dispatcher; remove cron's direct
       offer-email duplication only after the trigger path exists.
-- [ ] 3.5 Extend the waitlist cron to claim/send exactly one halfway reminder and expiry notice,
+- [x] 3.5 Extend the waitlist cron to claim/send exactly one halfway reminder and expiry notice,
       skip paid/reconciling/mail-in rows correctly, and retain non-blocking delivery failure evidence.
-- [ ] 3.6 Add focused Edge/shared-helper/migration tests and make the assertion-first tests green.
-- [ ] 3.7 Run focused Phase C tests, `pnpm typecheck`, `pnpm lint`, and the app suite; complete the
+- [x] 3.6 Add focused Edge/shared-helper/migration tests and make the assertion-first tests green.
+- [x] 3.7 Run focused Phase C tests, `pnpm typecheck`, `pnpm lint`, and the app suite; complete the
       required security/database second-opinion review and fix findings.
-- [ ] 3.8 Commit Phase C, prepare its PR body, and stop for confirmation before PR creation,
+- [x] 3.8 Commit Phase C, prepare its PR body, and stop for confirmation before PR creation,
       migration push, function deployment, secret mutation, smoke writes, or merge.
 
 ## 4. Phase B — In-Place Offer Payment And Decline

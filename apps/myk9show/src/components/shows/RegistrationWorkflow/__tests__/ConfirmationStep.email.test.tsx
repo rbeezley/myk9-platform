@@ -238,6 +238,7 @@ describe('ConfirmationStep — capacity outcomes', () => {
             waitlistEntryId: null,
             feeCents: 0,
             capacityOverride: false,
+            denialReason: 'dog already on this class wait list for a different exhibitor',
           },
         ]}
       />
@@ -246,8 +247,9 @@ describe('ConfirmationStep — capacity outcomes', () => {
     expect(screen.getByText(/1 entry submitted/i)).toBeInTheDocument();
     expect(screen.getByText(/1 selection joined the wait list/i)).toBeInTheDocument();
     expect(screen.getByText(/payment is not due unless a spot is offered/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 selection could not be entered\./i)).toBeInTheDocument();
     expect(
-      screen.getByText(/1 selection could not be entered because it is full/i)
+      screen.getByText(/Luna.*already has an active wait-list spot for another exhibitor/i)
     ).toBeInTheDocument();
   });
 

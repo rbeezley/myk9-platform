@@ -16,6 +16,7 @@ export interface ResendRetryDependencies {
   sleep?: (delayMs: number) => Promise<void>;
   now?: () => number;
   random?: () => number;
+  createIdempotencyKey?: () => string | Promise<string>;
   onRetry?: (event: ResendRetryEvent) => void;
 }
 
@@ -160,11 +161,14 @@ async function waitForRetry(
   });
 }
 
-async function contentIdempotencyKey(body: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body));
-  const hex = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join(
-    ''
-  );
+function randomIdempotencyKey(): string {
+  if (typeof crypto.randomUUID === 'function') {
+    return `myk9-${crypto.randomUUID()}`;
+  }
+
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
   return `myk9-${hex}`;
 }
 
@@ -175,6 +179,7 @@ export async function sendResendEmailWithRetry(
   if (typeof init.body !== 'string') {
     throw new TypeError('Resend email body must be a JSON string');
   }
+  const createIdempotencyKey = dependencies.createIdempotencyKey ?? randomIdempotencyKey;
   const existingHeaders = new Headers(init.headers);
   const requestInit = existingHeaders.has('Idempotency-Key')
     ? init
@@ -182,7 +187,7 @@ export async function sendResendEmailWithRetry(
         ...init,
         headers: {
           ...Object.fromEntries(existingHeaders.entries()),
-          'Idempotency-Key': await contentIdempotencyKey(init.body),
+          'Idempotency-Key': await createIdempotencyKey(),
         },
       };
   const fetchImpl = dependencies.fetchImpl ?? fetch;

@@ -7,24 +7,15 @@ const cronSource = readFileSync(
   'utf8'
 );
 
-// Canonical send-email lives at the repo root (the deployed slug), not apps/myk9show.
-// The apps/myk9show fork was deleted; this asserts the payment-link CTA on the live copy.
-const emailSource = readFileSync(
-  resolve(__dirname, '../../../../../supabase/functions/send-email/index.ts'),
-  'utf8'
-);
-
 const promotionMigration = readFileSync(
   resolve(__dirname, '../../../../../supabase/migrations/20260622000222_link_waitlist_promotions.sql'),
   'utf8'
 );
 
-describe('waitlist expiration cron payment-link offer wiring', () => {
-  it('requests a Stripe payment link for the promoted pending-payment entry', () => {
-    expect(cronSource).toContain('createWaitlistPaymentLink(entry.promoted_entry_id, showId)');
-    expect(cronSource).toContain('/functions/v1/stripe-payment-link');
-    expect(cronSource).toContain("'x-function-secret': cronSecret");
-    expect(cronSource).toContain('entry_ids: [entryId]');
+describe('waitlist expiration cron offer wiring', () => {
+  it('promotes the pending-payment entry through the authoritative database RPC', () => {
+    expect(cronSource).toContain("'promote_waitlist_entry_from_cron'");
+    expect(cronSource).toContain('p_waitlist_entry_id: entry.id');
   });
 
   it('does not use the online expiry/payment-link path for mail-in waitlist rows', () => {
@@ -32,18 +23,14 @@ describe('waitlist expiration cron payment-link offer wiring', () => {
     expect(cronSource).toContain("nextInLine.joined_via === 'mail_in'");
     expect(cronSource).toContain('leaving it for secretary handling');
     expect(cronSource).toContain('skippedMailInOffers');
-    expect(cronSource).toContain("entry.joined_via !== 'mail_in'");
+    expect(cronSource).toContain("offer.joined_via === 'mail_in'");
   });
 
-  it('uses public show redirects for waitlist payment links', () => {
-    expect(cronSource).toContain('https://myk9show.com/shows/${showId}?payment=success');
-    expect(cronSource).toContain('https://myk9show.com/shows/${showId}?payment=cancelled');
-  });
-
-  it('passes the generated payment URL into the waitlist offer email', () => {
-    expect(cronSource).toContain('paymentUrl,');
-    expect(emailSource).toContain('paymentUrl?: string | null');
-    expect(emailSource).toContain('Pay to Claim This Spot');
+  it('does not create a payment link or send an offer email from the cron', () => {
+    expect(cronSource).not.toContain('createWaitlistPaymentLink');
+    expect(cronSource).not.toContain('/functions/v1/stripe-payment-link');
+    expect(cronSource).not.toContain('sendOfferNotification');
+    expect(cronSource).not.toContain("type: 'waitlist_offer'");
   });
 
   it('loads the cron secret from Vault instead of migration text', () => {

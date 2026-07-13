@@ -114,6 +114,7 @@ describe('submitShowEntries', () => {
           waitlistPosition: null,
           feeCents: 2500,
           capacityOverride: false,
+          denialReason: null,
         },
         {
           dogId: 'dog-uuid-2',
@@ -124,6 +125,7 @@ describe('submitShowEntries', () => {
           waitlistPosition: null,
           feeCents: 2500,
           capacityOverride: false,
+          denialReason: null,
         },
       ],
     });
@@ -166,6 +168,7 @@ describe('submitShowEntries', () => {
             waitlist_entry_id: null,
             fee_cents: 2500,
             capacity_override: false,
+            denial_reason: null,
           },
           {
             dog_id: 'dog-uuid-2',
@@ -175,6 +178,17 @@ describe('submitShowEntries', () => {
             waitlist_entry_id: 'wait-2',
             fee_cents: 0,
             capacity_override: false,
+            denial_reason: null,
+          },
+          {
+            dog_id: 'dog-uuid-2',
+            class_id: 'class-uuid-1',
+            outcome: 'denied',
+            entry_id: null,
+            waitlist_entry_id: null,
+            fee_cents: 0,
+            capacity_override: false,
+            denial_reason: 'dog already on this class wait list for a different exhibitor',
           },
         ],
         registration_id: 'enrollment-uuid-1',
@@ -206,6 +220,7 @@ describe('submitShowEntries', () => {
         waitlistPosition: null,
         feeCents: 2500,
         capacityOverride: false,
+        denialReason: null,
       },
       {
         dogId: 'dog-uuid-2',
@@ -216,6 +231,18 @@ describe('submitShowEntries', () => {
         waitlistPosition: null,
         feeCents: 0,
         capacityOverride: false,
+        denialReason: null,
+      },
+      {
+        dogId: 'dog-uuid-2',
+        classId: 'class-uuid-1',
+        outcome: 'denied',
+        entryId: null,
+        waitlistEntryId: null,
+        waitlistPosition: null,
+        feeCents: 0,
+        capacityOverride: false,
+        denialReason: 'dog already on this class wait list for a different exhibitor',
       },
     ]);
   });

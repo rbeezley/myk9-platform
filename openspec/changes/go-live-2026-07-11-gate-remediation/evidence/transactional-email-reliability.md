@@ -65,10 +65,38 @@ required because the handlers perform their own authentication.
 - One password-reset request for the operator-approved Gmail address returned 200 through
   Supabase Auth. The resulting live `email_log` row recorded `password_reset`, `delivered`, and a
   Resend message ID at `2026-07-13T00:18:42Z`. This was one message, not a bulk-mail test.
-- Live 429/503 fault injection was not attempted because it would require provider disruption or
-  artificial production traffic. The deterministic post-deploy fault-injection suite exercised
-  429, 503, and network recovery and verified that retry telemetry contains only `attempt`,
-  `status`, and `delayMs`; it passed 21/21.
+- Direct live 503/network fault injection was not attempted because it would require provider
+  disruption. The deterministic post-deploy fault-injection suite exercised 429, 503, and network
+  recovery and verified that retry telemetry contains only `attempt`, `status`, and `delayMs`; it
+  passed 21/21. The provider-safe real-429 acceptance is documented below.
+
+## Valid-path and provider-safe runtime acceptance — 2026-07-12
+
+- **Registration:** read-only inventory selected an existing enrollment for the operator-approved
+  Gmail recipient with no prior registration email log and no secretary CC. An authenticated
+  site-admin invocation of `send-registration-email` returned 200/`success:true`; the resulting
+  `registration_confirmation` log (`eb9219b1…`) has a Resend message ID and status `delivered`.
+  The operator visually confirmed the styled `Registration Confirmed — MK9-000055` Gmail message.
+- **Operator alert:** a short-lived smoke function imported the deployed app-root `alertAdmin`,
+  `alertAdminCore`, and `resendEmail` modules. Its SHA-256 credential guard rejected an
+  unauthenticated invocation with 403; the authenticated invocation returned 200 and created one
+  deduplicated `info` row (`696f66e3…`) with source `go-live-email-smoke`, detail only
+  `{ "smoke": true, "task": "10.0f" }`, and no payment identifiers. The row was resolved after
+  verification and retained as audit evidence. The operator visually confirmed the received Gmail
+  message from myK9Show with subject `[myK9Show payments] Go-live transactional email smoke` and the
+  expected controlled-test body at 20:04 CDT.
+- **Real transient response:** Resend documents provider-safe labeled `@resend.dev` recipients and
+  rate-limit responses with `429` plus `Retry-After`. An initial eight-message safe burst completed
+  without retry. A single measured 16-message follow-up observed the live team limit of 10 requests
+  per second: six first attempts returned 429, all six emitted exactly
+  `{ attempt: 1, status: 429, delayMs: 1000 }`, and all 16 logical sends finished with HTTP 200.
+  No telemetry contained a recipient, subject, body, credential, or idempotency key. These 24
+  messages went only to Resend's designated delivered-test addresses, not production recipients.
+- **Cleanup:** `go-live-email-smoke` was deleted immediately after the checks; a remote function
+  inventory returned zero matches, and its temporary local source was removed without commit.
+
+Provider references: [safe test addresses](https://resend.com/docs/knowledge-base/what-email-addresses-to-use-for-testing)
+and [rate-limit headers/behavior](https://resend.com/docs/api-reference/rate-limit).
 
 ## Exact rollback procedure
 
@@ -99,7 +127,6 @@ substitute for those valid-path smokes.
 
 - Resend must be upgraded from Free before production.
 - The Supabase Auth limit remains 100/hour until the paid-plan evidence exists and a separate approved Management API PATCH raises only `rate_limit_email_sent` to 1,000/hour.
-- Task 10.0f remains open for a controlled/provider-supported transient-failure check and valid-path
-  registration-email and operator-alert smokes. Live fault injection was not improvised because it
-  could create provider disruption, production records, or unintended mail; use approved fixtures
-  and recipients for that final matrix.
+- Task 10.0f is complete: valid auth and registration delivery, durable operator-alert persistence
+  and mailbox delivery, real 429 recovery, PII-free telemetry, and temporary-function cleanup are
+  all evidenced.

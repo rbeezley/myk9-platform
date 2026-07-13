@@ -86,11 +86,11 @@ approval-gated rollback; never restore the unknown live-only helper.
 
 ## Retired legacy function — `send-notification`
 
-`send-notification` is active but has no repository directory or application invocation. The
-downloaded source accepts any valid JWT, accepts an arbitrary `to` recipient, sends directly to
-Resend without the shared retry/idempotency contract, and logs raw provider error text. It overlaps
-the supported email functions and is not acceptable to retain without an explicit owner and access
-decision.
+Before retirement, `send-notification` had no repository directory or application invocation. Its
+downloaded source accepted any valid JWT, accepted an arbitrary `to` recipient, sent directly to
+Resend without the shared retry/idempotency contract, and logged raw provider error text. It
+overlapped the supported email functions and was not acceptable to retain without an explicit owner
+and access decision.
 
 The operator checked Supabase Dashboard → Edge Functions → `send-notification` → Logs for the
 prior 30 days and found no events. With approval, the active v33 function was deleted from project

@@ -60,26 +60,29 @@ stripe-golive-enforcement`, and stop for confirmation before PR creation, migrat
 
 ## 4. Phase B — In-Place Offer Payment And Decline
 
-- [ ] 4.1 Add assertion-first failing tests for offer-owner payment authorization, mixed/non-owner
+- [x] 4.1 Add assertion-first failing tests for offer-owner payment authorization, mixed/non-owner
       rejection, ordinary-unpaid-entry rejection, expired offer handling, and preserved organizer/
       internal authorization.
-- [ ] 4.2 Extend `stripe-payment-link` with the narrow offer-owner path while preserving
+- [x] 4.2 Extend `stripe-payment-link` with the narrow offer-owner path while preserving
       authoritative pricing, Connect readiness, redirect allowlisting, open-link replacement,
       persisted-link failure handling, and webhook reconciliation.
-- [ ] 4.3 Implement `decline-waitlist-offer` with authenticated ownership checks, shared expiry/
+- [x] 4.3 Implement `decline-waitlist-offer` with authenticated ownership checks, shared expiry/
       Stripe-session coordination, paid-session conflict handling, idempotent terminal behavior, and
       existing cascade compatibility.
-- [ ] 4.4 Extend the existing My Entries waitlist query/model with promoted entry and offer timing
+- [x] 4.4 Extend the existing My Entries waitlist query/model with promoted entry and offer timing
       needed for actions; keep reads scoped to the authenticated exhibitor.
-- [ ] 4.5 Add Complete payment, Decline, countdown, expired/reconciled, retry, and deep-link focus
+- [x] 4.5 Add Complete payment, Decline, countdown, expired/reconciled, retry, and deep-link focus
       behavior to `WaitListSection` using plain language and minimum 44px controls; do not add a route
       or payment page.
-- [ ] 4.6 Add focused component/hook/function/shared-helper tests covering desktop/mobile content,
+- [x] 4.6 Add focused component/hook/function/shared-helper tests covering desktop/mobile content,
       keyboard/touch targets, transient failure recovery, link refresh, decline, and payment races;
       make assertion-first tests green.
-- [ ] 4.7 Run focused Phase B tests, `pnpm typecheck`, `pnpm lint`, and the app suite; complete the
+- [x] 4.7 Run focused Phase B tests, `pnpm typecheck`, `pnpm lint`, and the app suite; complete the
       required payment/security second-opinion review and fix findings.
-- [ ] 4.8 Commit Phase B, prepare its PR body, and stop for confirmation before PR creation,
+      Focused suite (31 tests), typecheck, lint, and two clean independent reviews completed. The
+      full app-suite command was attempted twice but the local runner stopped reporting immediately
+      after Vitest started; treat its result as inconclusive and require CI confirmation before merge.
+- [x] 4.8 Commit Phase B, prepare its PR body, and stop for confirmation before PR creation,
       function deployment, Stripe test-mode smoke writes, or merge.
 
 ## 5. Integrated Verification

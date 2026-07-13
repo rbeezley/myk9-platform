@@ -143,6 +143,47 @@ describe('shouldAbortPaymentLinkExpiration', () => {
 });
 
 describe('expireWaitlistOffer', () => {
+  it('fails closed before changing an offer when an open Checkout Session cannot be verified', async () => {
+    const { supabase, calls } = createSupabaseMock([
+      { data: null, error: { message: 'database unavailable' } },
+    ]);
+    const stripe = createStripeMock({ status: 'open', payment_status: 'unpaid' });
+
+    const result = await expireWaitlistOffer({
+      supabase,
+      stripe,
+      offer: { id: 'wl-1', promoted_entry_id: 'entry-1' },
+      nowIso: '2026-06-21T12:00:00.000Z',
+    });
+
+    expect(result).toBe('error');
+    expect(calls).toHaveLength(1);
+    expect(stripe.checkout.sessions.expire).not.toHaveBeenCalled();
+  });
+
+  it('can preserve a user-declined terminal state while using the shared Stripe expiry sequence', async () => {
+    const { supabase, calls } = createSupabaseMock([
+      { data: [], error: null },
+      { data: [{ id: 'entry-1' }], error: null },
+      { data: null, error: null },
+    ]);
+    const stripe = createStripeMock({ status: 'open', payment_status: 'unpaid' });
+
+    const result = await expireWaitlistOffer({
+      supabase,
+      stripe,
+      offer: { id: 'wl-1', promoted_entry_id: 'entry-1' },
+      nowIso: '2026-06-21T12:00:00.000Z',
+      terminalStatus: 'declined',
+    });
+
+    expect(result).toBe('expired');
+    expect(calls.at(-1)).toMatchObject({
+      table: 'waitlist_entries',
+      update: { status: 'declined', updated_at: '2026-06-21T12:00:00.000Z' },
+    });
+  });
+
   it('expires the Stripe link, promoted entry, and waitlist offer in order', async () => {
     const { supabase, calls } = createSupabaseMock([
       { data: [{ id: 'link-1', stripe_checkout_session_id: 'cs_1' }], error: null },

@@ -18,6 +18,7 @@ const base: WaitListEntry = {
   status: 'waiting',
   offeredAt: null,
   offerExpiresAt: null,
+  promotedEntryId: null,
   createdAt: '2026-05-01T10:00:00Z',
 };
 

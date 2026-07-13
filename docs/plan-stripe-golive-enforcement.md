@@ -39,12 +39,14 @@ Closes the three functional gaps that stand between the shipped capacity/waitlis
 
 ## Phase B — waitlist Phase 7: in-app promotion payment
 
-1. Route `/entries/:entryId/complete-payment` (exhibitor-authenticated, `publicRoutes.tsx` ProtectedRoute-wrapped) → `WaitListPaymentPage`: class/show/dog/fee summary, countdown to `offer_expires_at`, **Complete Payment** and **Decline**.
-2. Complete Payment: call `stripe-payment-link` with the entry id (it already validates unpaid+active, expires overlapping open links, records `entry_payment_links`) and redirect to the returned URL. Do NOT mint a parallel checkout path — the webhook reconcile-by-link flow (MP-07 guarded) already marks entries paid.
-3. Decline: new narrow RPC `decline_waitlist_promotion(p_entry_id)` — owner-only authz, sets entry `withdrawn`, waitlist row `expired` (or `declined` if adding a status: prefer reusing `expired` to avoid constraint churn), expires open payment links (reuse `expireOpenPaymentLinksForEntry` logic server-side or Stripe-expire in the RPC's edge caller), then triggers next-in-line auto-offer (call `promote_waitlist_entry_from_cron` for the class, or leave to the 15-min cron sweep — decide; the cron-sweep option is simpler and the latency is acceptable).
-4. Offer email deep-link: point the cron email's CTA at `/entries/:id/complete-payment` instead of (or alongside) the raw Stripe URL, so the in-app page becomes the canonical surface and the countdown/decline affordances are reachable.
-5. Halfway reminder (original Task 14b): extend `cron-waitlist-expiration` — for `offered` rows past 50% of their window without an open reminder marker, send reminder email + (after Phase C) push. Add `reminder_sent_at` column to `waitlist_entries` for idempotency.
-6. My Entries: `WaitListSection.tsx` shows a "Complete payment" CTA + countdown for `pending-payment` entries linked to an active offer.
+**Implementation status (2026-07-13):** complete locally on `codex/stripe-waitlist-payment-decline`; awaiting PR approval, CI, migration/function deployment approval, and staging evidence.
+
+1. Reuse the existing My Entries `WaitListSection` — no new route, payment page, or card form. An offer deep-link focuses the owned row and preserves the active My Entries workflow.
+2. Complete payment invokes the existing `stripe-payment-link` for the promoted entry and returns to the same owned offer. The narrow exhibitor path verifies every requested entry belongs to an active, unexpired offer; existing organizer/internal authorization, pricing, Connect readiness, redirect checks, link replacement, and webhook reconciliation remain authoritative.
+3. Decline uses the authenticated `decline-waitlist-offer` Edge Function. It verifies ownership, shares the Stripe-session expiry flow, fails closed on paid or uncertain payment state, and is idempotent for terminal offers; the existing expiry/cascade system continues to own next-offer progression.
+4. A database trigger blocks payment-link creation for promoted entries unless the corresponding offer is active, unexpired, and awaiting payment.
+5. The existing waitlist section shows countdown, Complete payment, Decline, calm retry states, reconciled/terminal explanations, and 44px controls. Once a device clock reaches an offer deadline, it hides actions and revalidates server state instead of claiming expiry locally.
+6. Phase C owns halfway reminders and notification delivery; Phase B consumes its offer deep links without adding another surface.
 
 ## Phase C — waitlist Phase 8: push notifications
 

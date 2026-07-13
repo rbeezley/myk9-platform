@@ -132,5 +132,5 @@ stripe-golive-enforcement`, and stop for confirmation before PR creation, migrat
 
 - [x] 7.1 After every required PR is proven merged and approved staging evidence is recorded, sync
       the four delta specs to `openspec/specs/` and archive `stripe-golive-enforcement` with PR evidence.
-- [x] 7.2 Confirm before any archive commit/push to `main`, then sync `main`, prune refs, delete the
-      feature branch, and remove this worktree as the final cleanup command.
+- [ ] 7.2 After the archive PR merges, sync `main`, prune refs, delete the feature branch, and
+      remove this worktree as the final cleanup command.

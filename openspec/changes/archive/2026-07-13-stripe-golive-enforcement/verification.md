@@ -2,7 +2,8 @@
 
 ## Completeness
 
-- All 37 OpenSpec tasks are complete.
+- All 36 implementation and archival tasks that precede merging are complete. Post-merge branch
+  cleanup remains pending until this archive PR merges.
 - Implementation PRs merged: #1298, #1305, #1310, #1314, and #1317.
 - Generated Supabase declarations were refreshed and validated in #1319.
 

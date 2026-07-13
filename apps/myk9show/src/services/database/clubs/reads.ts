@@ -415,7 +415,7 @@ export const checkClubNameExists = async (name: string, excludeId?: string) => {
   try {
     const { data, error } = await supabase.rpc('find_live_club_by_normalized_name', {
       p_name: name,
-      p_exclude_id: excludeId ?? null,
+      ...(excludeId === undefined ? {} : { p_exclude_id: excludeId }),
     });
 
     const duration = Date.now() - startTime;

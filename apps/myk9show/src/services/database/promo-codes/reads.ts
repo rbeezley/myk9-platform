@@ -69,7 +69,7 @@ export const validatePromoCode = async (
   trialId: string,
   code: string
 ): Promise<PromoCodeValidationResult> => {
-  return validateViaRpc(code, trialId, null);
+  return validateViaRpc(code, trialId, undefined);
 };
 
 /**
@@ -87,17 +87,18 @@ export const validatePromoCodeForEntry = async (
 
 const validateViaRpc = async (
   code: string,
-  trialId: string | null,
-  showId: string | null
+  trialId: string | undefined,
+  showId: string | undefined
 ): Promise<PromoCodeValidationResult> => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase.rpc('validate_promo_code', {
+    const rpcArgs = {
       p_code: code,
-      p_trial_id: trialId,
-      p_show_id: showId,
-    });
+      ...(trialId === undefined ? {} : { p_trial_id: trialId }),
+      ...(showId === undefined ? {} : { p_show_id: showId }),
+    };
+    const { data, error } = await supabase.rpc('validate_promo_code', rpcArgs);
 
     const duration = Date.now() - startTime;
     logQuery('promo_code', 'validate_rpc', duration, error?.message);

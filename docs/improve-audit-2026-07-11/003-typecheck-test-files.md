@@ -1,6 +1,6 @@
 # 003 — Bring test files under a typecheck gate
 
-> **Status:** Active
+> **Status:** Complete — merged [#1309](https://github.com/rbeezley/myk9-platform/pull/1309) on 2026-07-13
 >
 > Stage 1 and the full rollout completed 2026-07-12.
 

@@ -21,7 +21,7 @@ Rules of the road for executors: work in a worktree, never the primary checkout;
 | --- | --- | --- | --- | --- | --- |
 | [001](001-show-date-utc-classification.md) | Shows classified past/active up to a day early (raw `new Date()` on DATE columns, 5 modules) | HIGH / correctness | M | MED | TODO |
 | [002](002-date-util-and-enum-map-hardening.md) | Harden `toLocalDateOnly` + unguarded status/eventType map lookups | MED / correctness | S | LOW | TODO |
-| [003](003-typecheck-test-files.md) | 1,369 test files invisible to typecheck — add a test-tsconfig gate | MED / DX | M | LOW | IMPLEMENTED — awaiting PR |
+| [003](003-typecheck-test-files.md) | 1,369 test files invisible to typecheck — add a test-tsconfig gate | MED / DX | M | LOW | DONE — merged [#1309](https://github.com/rbeezley/myk9-platform/pull/1309) |
 | [004](004-ws-override-security-bump.md) | `pnpm.overrides` pins `ws` below its DoS patch (sole prod-audit advisory) | LOW / deps | S | LOW | TODO |
 | [005](005-publish-judge-steward-guide.md) | Judge/steward guide is written but unpublished; docs site missing the role | MED / docs | S | LOW | TODO |
 | [006](006-intent-and-debt-register-reconcile.md) | INTENT.md §6 documents the deleted myK9Q as live; debt registers claim "0 open" | MED / docs-integrity | S | LOW | TODO |

@@ -173,6 +173,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       if (offlineResult.armbandAssignments.length > 0) {
         ctx.setArmbandAssignments(offlineResult.armbandAssignments);
       }
+      ctx.setEntryOutcomes(offlineResult.entryOutcomes);
       ctx.setRegistrationNumber(buildOfflineLateEntryRegistrationNumber(offlineResult.entryIds));
       await ctx.cart.clearCart();
       ctx.triggerSync();

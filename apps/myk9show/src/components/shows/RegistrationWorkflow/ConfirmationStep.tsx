@@ -48,13 +48,17 @@ import { sendRegistrationConfirmationEmail } from './sendRegistrationConfirmatio
 import { formatRingLabel } from '@/utils/ringLabel';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import { EntrySubmissionOutcomeAlert } from './EntrySubmissionOutcomeAlert';
+import {
+  filterClassSelectionsToCreatedOutcomes,
+  getCreatedOutcomeTotalFees,
+  summarizeEntrySubmissionOutcomes,
+} from './entrySubmissionOutcomes';
 
 export type { ConfirmationStepProps } from './ConfirmationStep.types';
 
 export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   registrationNumber = 'REG-123456',
   registrationId,
-  selectedDogs,
   classSelections,
   documents,
   paymentMethod,
@@ -79,6 +83,12 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   const { classes = [] } = useClassStoreCompat();
 
   const show = shows.find(s => s.id === showId);
+  const receiptClassSelections = filterClassSelectionsToCreatedOutcomes(
+    classSelections,
+    entryOutcomes
+  );
+  const receiptSelectedDogs = receiptClassSelections.map(selection => selection.dogId);
+  const receiptTotalFees = getCreatedOutcomeTotalFees(entryOutcomes, totalFees);
 
   // Idempotency guards for the "Email Confirmation" action. `sendInFlightRef`
   // blocks a second send while the first request is still pending (the React
@@ -100,10 +110,12 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           ? formatDateMMDDYYYY(show.startDate)
           : 'TBD';
 
-    const receiptDogs = selectedDogs
+    const receiptDogs = receiptSelectedDogs
       .map(dogId => {
         const dog = dogs.find(d => d.id === dogId);
-        const selection = classSelections.find((s: ClassSelectionData) => s.dogId === dogId);
+        const selection = receiptClassSelections.find(
+          (s: ClassSelectionData) => s.dogId === dogId
+        );
         if (!dog || !selection) return null;
 
         const trial = trials.find(t => t.id === selection.trialId);
@@ -135,7 +147,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       showDate,
       showLocation: show?.location || 'TBD',
       dogs: receiptDogs,
-      totalFees,
+      totalFees: receiptTotalFees,
       paymentMethod,
       paymentStatus,
       entryStatus,
@@ -143,13 +155,13 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
     };
   }, [
     registrationNumber,
-    selectedDogs,
-    classSelections,
+    receiptSelectedDogs,
+    receiptClassSelections,
     dogs,
     classes,
     trials,
     show,
-    totalFees,
+    receiptTotalFees,
     paymentMethod,
     paymentStatus,
     entryStatus,
@@ -278,7 +290,9 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
 
   const getDogDetails = (dogId: string) => {
     const dog = dogs.find(d => d.id === dogId);
-    const selection = classSelections.find((s: ClassSelectionData) => s.dogId === dogId);
+    const selection = receiptClassSelections.find(
+      (s: ClassSelectionData) => s.dogId === dogId
+    );
 
     if (!dog || !selection) return null;
 
@@ -302,17 +316,13 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
     };
   };
 
-  const classSelectionsCount = classSelections.reduce(
+  const classSelectionsCount = receiptClassSelections.reduce(
     (total, s) => total + s.selectedClasses.length,
     0
   );
   const heroCopy = getConfirmationHeroCopy(entryStatus, paymentStatus);
-  const createdOutcomeCount = entryOutcomes?.filter(
-    outcome => outcome.outcome === 'created'
-  ).length;
-  const waitlistedOutcomeCount = entryOutcomes?.filter(
-    outcome => outcome.outcome === 'waitlisted'
-  ).length;
+  const { createdCount: createdOutcomeCount, waitlistedCount: waitlistedOutcomeCount } =
+    summarizeEntrySubmissionOutcomes(entryOutcomes);
   const everyOutcomeDenied =
     entryOutcomes !== undefined &&
     entryOutcomes.length > 0 &&
@@ -422,7 +432,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {selectedDogs.map(dogId => {
+            {receiptSelectedDogs.map(dogId => {
               const details = getDogDetails(dogId);
               const armband = getArmbandForDog(dogId);
               const armbandRingLabel = formatRingLabel(armband?.ring);
@@ -539,7 +549,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Total Fees:</span>
-              <span className="font-semibold">${totalFees.toFixed(2)}</span>
+              <span className="font-semibold">${receiptTotalFees.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span>Payment Method:</span>
@@ -572,9 +582,9 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       {/* Secretary Management Tools */}
       <RegistrationManagementPanel
         registrationNumber={registrationNumber}
-        selectedDogs={selectedDogs}
+        selectedDogs={receiptSelectedDogs}
         classSelectionsCount={classSelectionsCount}
-        totalFees={totalFees}
+        totalFees={receiptTotalFees}
         entryStatus={entryStatus}
         paymentStatus={paymentStatus}
         paymentMethod={paymentMethod}

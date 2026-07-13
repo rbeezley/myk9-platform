@@ -43,9 +43,14 @@ vi.mock('@/services/LoggingService', async importOriginal => {
   return { ...actual, logger: loggerMock };
 });
 
-// Empty stores keep the heavy receipt cards inert; we only exercise the action.
 vi.mock('@/hooks/useDogStoreCompat', () => ({
-  useDogStoreCompat: () => ({ dogs: [] }),
+  useDogStoreCompat: () => ({
+    dogs: [
+      { id: 'dog-1', name: 'Comet', callName: 'Comet', gender: 'M', registrations: [] },
+      { id: 'dog-2', name: 'Nova', callName: 'Nova', gender: 'F', registrations: [] },
+      { id: 'dog-3', name: 'Luna', callName: 'Luna', gender: 'F', registrations: [] },
+    ],
+  }),
 }));
 vi.mock('@/store/showStore', () => ({
   useShowStore: () => ({
@@ -56,7 +61,13 @@ vi.mock('@/store/trialStore', () => ({
   useTrialStore: () => ({ trials: [] }),
 }));
 vi.mock('@/hooks/useClassStoreCompat', () => ({
-  useClassStoreCompat: () => ({ classes: [] }),
+  useClassStoreCompat: () => ({
+    classes: [
+      { id: 'class-1', className: 'Novice Containers', classNumber: '1' },
+      { id: 'class-2', className: 'Advanced Interiors', classNumber: '2' },
+      { id: 'class-3', className: 'Excellent Exteriors', classNumber: '3' },
+    ],
+  }),
 }));
 
 // Stub the heavy child panel — it isn't under test here.
@@ -238,6 +249,68 @@ describe('ConfirmationStep — capacity outcomes', () => {
     expect(
       screen.getByText(/1 selection could not be entered because it is full/i)
     ).toBeInTheDocument();
+  });
+
+  it('shows only created classes and created fees in a mixed-outcome receipt', () => {
+    render(
+      <ConfirmationStep
+        {...baseProps}
+        selectedDogs={['dog-1', 'dog-2', 'dog-3']}
+        classSelections={[
+          {
+            dogId: 'dog-1',
+            trialId: 'trial-1',
+            selectedClasses: [{ classId: 'class-1' }],
+          },
+          {
+            dogId: 'dog-2',
+            trialId: 'trial-1',
+            selectedClasses: [{ classId: 'class-2' }],
+          },
+          {
+            dogId: 'dog-3',
+            trialId: 'trial-1',
+            selectedClasses: [{ classId: 'class-3' }],
+          },
+        ]}
+        entryOutcomes={[
+          {
+            dogId: 'dog-1',
+            classId: 'class-1',
+            outcome: 'created',
+            entryId: 'entry-1',
+            waitlistEntryId: null,
+            feeCents: 2500,
+            capacityOverride: false,
+          },
+          {
+            dogId: 'dog-2',
+            classId: 'class-2',
+            outcome: 'waitlisted',
+            entryId: null,
+            waitlistEntryId: 'wait-2',
+            feeCents: 0,
+            capacityOverride: false,
+          },
+          {
+            dogId: 'dog-3',
+            classId: 'class-3',
+            outcome: 'denied',
+            entryId: null,
+            waitlistEntryId: null,
+            feeCents: 0,
+            capacityOverride: false,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText('$25.00')).toBeInTheDocument();
+    expect(screen.getByText(/Novice Containers/)).toBeInTheDocument();
+    expect(screen.getByText(/Advanced Interiors.*wait list/i)).toBeInTheDocument();
+    expect(screen.getByText(/Excellent Exteriors.*could not be entered/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Advanced Interiors \(#2\)/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Excellent Exteriors \(#3\)/)).not.toBeInTheDocument();
   });
 
   it('does not claim registration success when every selection was denied', () => {

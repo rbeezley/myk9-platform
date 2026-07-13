@@ -102,6 +102,7 @@ describe('submitOfflineLateEntry', () => {
         handler: 'Jamie Walker',
         handlerId: 'handler-1',
         isDayOfShow: true,
+        entrySource: 'show_desk_capacity_override',
         paymentMethod: 'cash',
         paymentStatus: 'pending',
         entryStatus: 'confirmed',
@@ -130,6 +131,20 @@ describe('submitOfflineLateEntry', () => {
     });
     expect(result.armbandAssignments).toEqual([{ dogId: 'dog-1', armband: '100' }]);
     expect(result.entryIds).toHaveLength(2);
+    expect(result.entryOutcomes).toEqual([
+      expect.objectContaining({
+        dogId: 'dog-1',
+        classId: 'class-1',
+        outcome: 'created',
+        capacityOverride: true,
+      }),
+      expect.objectContaining({
+        dogId: 'dog-1',
+        classId: 'class-2',
+        outcome: 'created',
+        capacityOverride: true,
+      }),
+    ]);
   });
 
   it.each([

@@ -19,6 +19,7 @@ import type {
 import { PaymentStatus as PaymentStatusEnum } from '@/types/show-registration-types';
 import { makeHandlerKey } from '@/types/show-registration-types';
 import { generateUUID } from '@/utils/idUtils';
+import type { EntrySubmissionOutcome } from '@/services/database/entries';
 
 interface ClassLike {
   id: string;
@@ -39,6 +40,7 @@ export interface SubmitOfflineLateEntryParams {
 export interface SubmitOfflineLateEntryResult {
   armbandAssignments: ArmbandAssignment[];
   entryIds: string[];
+  entryOutcomes: EntrySubmissionOutcome[];
 }
 
 interface DogReservation {
@@ -98,6 +100,7 @@ export async function submitOfflineLateEntry({
   const dogReservations = new Map<string, DogReservation>();
   const armbandAssignments: ArmbandAssignment[] = [];
   const entryIds: string[] = [];
+  const entryOutcomes: EntrySubmissionOutcome[] = [];
 
   for (const selection of classSelections) {
     const dogDependencyIds = [
@@ -147,6 +150,7 @@ export async function submitOfflineLateEntry({
         handler: handler?.handlerName || '',
         handlerId: handler?.handlerId,
         isDayOfShow: true,
+        entrySource: 'show_desk_capacity_override',
         paymentMethod,
         paymentStatus: paymentStatusFor(paymentMethod, paymentStatus),
         entryStatus: 'confirmed',
@@ -164,8 +168,18 @@ export async function submitOfflineLateEntry({
 
       const createdEntry = await replicatedEntriesTable.createEntry(entry, dependencyIds);
       entryIds.push(createdEntry.id);
+      entryOutcomes.push({
+        dogId: selection.dogId,
+        classId: selectedClass.classId,
+        outcome: 'created',
+        entryId: createdEntry.id,
+        waitlistEntryId: null,
+        waitlistPosition: null,
+        feeCents: Math.round(entryFee * 100),
+        capacityOverride: true,
+      });
     }
   }
 
-  return { armbandAssignments, entryIds };
+  return { armbandAssignments, entryIds, entryOutcomes };
 }

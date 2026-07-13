@@ -462,7 +462,13 @@ BEGIN
   JOIN public.exhibitor_profiles ep ON ep.person_id = en.handler_id
   WHERE en.id = p_registration_id
     AND en.show_id = p_show_id
+    AND (v_is_official OR en.handler_id = v_caller_person_id)
   LIMIT 1;
+
+  IF NOT v_is_official AND v_exhibitor_profile_id IS NULL THEN
+    RAISE EXCEPTION 'registration % does not belong to the caller', p_registration_id
+      USING ERRCODE = '42501';
+  END IF;
 
   -- 4. Per-entry validation, capacity decision, and insert/outcome.
   FOR v_entry IN SELECT * FROM jsonb_array_elements(p_entries)

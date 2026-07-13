@@ -130,6 +130,27 @@ BEGIN
     WHEN insufficient_privilege THEN
       NULL;
   END;
+
+  BEGIN
+    PERFORM public.submit_show_entries(
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000041',
+      jsonb_build_array(jsonb_build_object(
+        'dog_id', '00000000-0000-0000-0000-000000000030',
+        'class_id', '00000000-0000-0000-0000-000000000003',
+        'handler_id', '00000000-0000-0000-0000-000000000010',
+        'handler_name', 'Owner One',
+        'client_fee_cents', 2500,
+        'submission_source', 'self_service'
+      )),
+      '00000000-0000-0000-0000-000000000052',
+      'check'
+    );
+    RAISE EXCEPTION 'cross-enrollment self-service submission was accepted';
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      NULL;
+  END;
   PERFORM set_config('test.is_official', 'true', true);
 
   DELETE FROM public.entries;

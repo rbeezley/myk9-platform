@@ -18,6 +18,7 @@ import { calculateShowPayoutCents } from '../_shared/payoutCalc.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
 import { alertAdmin as sharedAlertAdmin } from '../_shared/alertAdmin.ts';
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -59,7 +60,7 @@ async function sendEmail(to: string, subject: string, html: string) {
     return;
   }
   try {
-    const res = await fetch('https://api.resend.com/emails', {
+    const res = await sendResendEmailWithRetry({
       method: 'POST',
       headers: {
         Authorization: `Bearer ${resendApiKey}`,

@@ -1,6 +1,8 @@
 // supabase/functions/send-registration-email/index.ts
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
@@ -263,7 +265,7 @@ handle<SendRegistrationEmailPayload>(
       emailPayload.cc = secretaryCc;
     }
 
-    const response = await fetch('https://api.resend.com/emails', {
+    const response = await sendResendEmailWithRetry({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

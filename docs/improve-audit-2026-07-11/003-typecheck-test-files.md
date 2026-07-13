@@ -12,6 +12,8 @@ The final pass corrected 1,039 diagnostics across 294 files without changing pro
 
 The test project deliberately disables `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`, and `exactOptionalPropertyTypes`. Tests import runtime modules that are outside the app project's root file graph; inheriting those four checks surfaces unrelated pre-existing runtime diagnostics, which this test-only rollout is not authorized to change. The normal app typecheck and lint gates remain responsible for runtime source.
 
+The full myK9Show Vitest suite was attempted but exceeded the repository's 60-second limit and was stopped rather than retried. The three fixture-sensitive failures surfaced before the stop were corrected and passed in a 75-test focused rerun. After merging current `main`, the affected test/typecheck areas and the merged upstream tests passed together: 10 files, 124 tests. Root typecheck, the explicit full test-type inventory, and app lint are green.
+
 > Written against commit `15897d862` (2026-07-11). This plan intentionally starts with a measurement step — if the error backlog exceeds ~150 files, STOP after step 2 and report the count instead of fixing everything.
 
 ## Stage 1 rollout — 2026-07-12

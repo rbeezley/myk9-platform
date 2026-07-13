@@ -15,17 +15,24 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import {
-  DEFAULT_WAITLIST_PAYMENT_DEADLINE_HOURS,
   expireWaitlistOffer,
   type ExpiredWaitlistOffer,
   type WaitlistExpirationStripe,
   type WaitlistExpirationSupabase,
 } from '../_shared/waitlistExpiration.ts';
+import {
+  dispatchQueuedWaitlistEvents,
+  enqueueWaitlistEvent,
+  processHalfwayReminders,
+  retryWaitlistNotificationEvents,
+  type QueuedWaitlistEvent,
+} from '../_shared/waitlistNotificationDispatch.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const cronSecret = Deno.env.get('CRON_SECRET');
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
+const pushWebhookSecret = Deno.env.get('PUSH_WEBHOOK_SECRET');
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const stripe = stripeSecret
@@ -85,29 +92,6 @@ interface WaitlistEntry {
   offer_expires_at: string | null;
 }
 
-interface ClassInfo {
-  id: string;
-  name: string;
-  trial: {
-    id: string;
-    name: string;
-    show: {
-      id: string;
-      name: string;
-    };
-  };
-}
-
-interface ExhibitorInfo {
-  id: string;
-  person: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-  };
-}
-
 Deno.serve(async req => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
@@ -143,9 +127,13 @@ Deno.serve(async req => {
       newOffers: 0,
       skippedPaidOffers: 0,
       skippedMailInOffers: 0,
+      remindersSent: 0,
+      expiryNoticesSent: 0,
+      retriedNotifications: 0,
       errors: [] as string[],
     };
     const classesExpiredThisRun = new Set<string>();
+    const queuedExpiryNotices: QueuedWaitlistEvent[] = [];
 
     // Step 1: Find and expire offers past their deadline
     const { data: expiredOffers, error: expiredError } = await supabase
@@ -185,6 +173,13 @@ Deno.serve(async req => {
 
         results.expiredOffers++;
         classesExpiredThisRun.add(offer.class_id);
+        const notice = await enqueueWaitlistEvent({
+          supabase,
+          waitlistEntryId: offer.id,
+          eventType: 'expired',
+        });
+        if (notice) queuedExpiryNotices.push(notice);
+        else results.errors.push(`Expiry notice ${offer.id}: enqueue failed`);
         console.log(`Expired offer ${offer.id} for class ${offer.class_id}`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -195,6 +190,34 @@ Deno.serve(async req => {
     // Also check for any classes with available spots but no current offers
     // This handles cases where spots opened up (cancellations) but no one was auto-offered
     await processClassesWithOpenSpots(results, classesExpiredThisRun);
+
+    // Delivery is intentionally after expiry/cascade state work. Provider latency must never
+    // prevent an overdue offer from expiring or the next exhibitor from being promoted.
+    const expiryDelivery = await dispatchQueuedWaitlistEvents({
+      events: queuedExpiryNotices,
+      supabaseUrl,
+      pushWebhookSecret,
+    });
+    results.expiryNoticesSent = expiryDelivery.dispatched;
+    results.errors.push(...expiryDelivery.errors);
+
+    const reminderResult = await processHalfwayReminders({
+      supabase,
+      supabaseUrl,
+      pushWebhookSecret,
+      now: new Date(),
+    });
+    results.remindersSent = reminderResult.sent;
+    results.skippedMailInOffers += reminderResult.skippedMailIn;
+    results.errors.push(...reminderResult.errors);
+
+    const retryResult = await retryWaitlistNotificationEvents({
+      supabase,
+      supabaseUrl,
+      pushWebhookSecret,
+    });
+    results.retriedNotifications = retryResult.dispatched;
+    results.errors.push(...retryResult.errors);
 
     console.log(
       `[${new Date().toISOString()}] Cron complete: ${results.expiredOffers} expired, ${results.newOffers} new offers`
@@ -236,145 +259,8 @@ async function offerSpot(entry: WaitlistEntry): Promise<boolean> {
     return false;
   }
 
-  const { data: offeredEntry, error: fetchError } = await supabase
-    .from('waitlist_entries')
-    .select('*')
-    .eq('id', entry.id)
-    .single();
-
-  if (fetchError) {
-    console.error(`Promoted waitlist spot ${entry.id}, but could not reload it:`, fetchError);
-  }
-
   console.log(`Offered spot to ${entry.exhibitor_id} for class ${entry.class_id}`);
-
-  // Try to send notification email
-  try {
-    await sendOfferNotification((offeredEntry as WaitlistEntry | null) ?? entry);
-  } catch (err) {
-    console.error('Failed to send notification (non-blocking):', err);
-  }
-
   return true;
-}
-
-/**
- * Send notification email about waitlist offer
- */
-async function sendOfferNotification(entry: WaitlistEntry): Promise<void> {
-  // Get class info
-  const { data: classInfo } = (await supabase
-    .from('classes')
-    .select(
-      `
-      id,
-      name,
-      trial:trial_id (
-        id,
-        name,
-        show:show_id (
-          id,
-          name
-        )
-      )
-    `
-    )
-    .eq('id', entry.class_id)
-    .single()) as { data: ClassInfo | null };
-
-  // Get exhibitor info
-  const { data: exhibitorInfo } = (await supabase
-    .from('exhibitor_profiles')
-    .select(
-      `
-      id,
-      person:person_id (
-        id,
-        first_name,
-        last_name,
-        email
-      )
-    `
-    )
-    .eq('id', entry.exhibitor_id)
-    .single()) as { data: ExhibitorInfo | null };
-
-  if (!classInfo || !exhibitorInfo?.person?.email) {
-    console.log('Missing info for notification, skipping email');
-    return;
-  }
-
-  // Get dog name
-  const { data: dog } = await supabase
-    .from('dogs')
-    .select('name, call_name')
-    .eq('id', entry.dog_id)
-    .single();
-
-  const dogName = dog?.call_name || dog?.name || 'your dog';
-  const showName = classInfo.trial?.show?.name || 'the show';
-  const showId = classInfo.trial?.show?.id || '';
-  const className = classInfo.name || 'the class';
-  const expiresAt = entry.offer_expires_at
-    ? new Date(entry.offer_expires_at)
-    : new Date(new Date().getTime() + DEFAULT_WAITLIST_PAYMENT_DEADLINE_HOURS * 60 * 60 * 1000);
-  const paymentUrl =
-    entry.joined_via !== 'mail_in' && entry.promoted_entry_id && showId
-      ? await createWaitlistPaymentLink(entry.promoted_entry_id, showId)
-      : null;
-
-  // Call send-email function
-  const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-    },
-    body: JSON.stringify({
-      type: 'waitlist_offer',
-      to: exhibitorInfo.person.email,
-      name: exhibitorInfo.person.first_name,
-      showName,
-      className,
-      dogName,
-      expiresAt: expiresAt.toLocaleString(),
-      paymentUrl,
-    }),
-  });
-
-  if (!emailResponse.ok) {
-    console.error('Email send failed:', await emailResponse.text());
-  }
-}
-
-async function createWaitlistPaymentLink(entryId: string, showId: string): Promise<string | null> {
-  if (!cronSecret) {
-    console.error('CRON_SECRET is missing; cannot create waitlist payment link');
-    return null;
-  }
-
-  const body = {
-    entry_ids: [entryId],
-    success_url: `https://myk9show.com/shows/${showId}?payment=success`,
-    cancel_url: `https://myk9show.com/shows/${showId}?payment=cancelled`,
-  };
-
-  const response = await fetch(`${supabaseUrl}/functions/v1/stripe-payment-link`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-function-secret': cronSecret,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    console.error('Waitlist payment link creation failed:', await response.text());
-    return null;
-  }
-
-  const data = await response.json();
-  return typeof data?.url === 'string' ? data.url : null;
 }
 
 /**

@@ -1,7 +1,10 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import { REPLICATION_STORES } from '../core/DatabaseManager';
 
-export async function createMutationManagerTestDb(dbName: string): Promise<IDBPDatabase> {
+export async function createMutationManagerTestDb(
+  dbName: string,
+  options: { includeSyncMetadata?: boolean } = {}
+): Promise<IDBPDatabase> {
   return openDB(dbName, 1, {
     upgrade(db) {
       if (!db.objectStoreNames.contains(REPLICATION_STORES.REPLICATED_TABLES)) {
@@ -13,6 +16,15 @@ export async function createMutationManagerTestDb(dbName: string): Promise<IDBPD
           unique: false,
         });
         store.createIndex('isDirty', 'isDirty', { unique: false });
+      }
+
+      if (
+        options.includeSyncMetadata &&
+        !db.objectStoreNames.contains(REPLICATION_STORES.SYNC_METADATA)
+      ) {
+        db.createObjectStore(REPLICATION_STORES.SYNC_METADATA, {
+          keyPath: 'tableName',
+        });
       }
 
       if (!db.objectStoreNames.contains(REPLICATION_STORES.PENDING_MUTATIONS)) {

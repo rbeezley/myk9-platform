@@ -25,7 +25,7 @@ Rules of the road for executors: work in a worktree, never the primary checkout;
 | [004](004-ws-override-security-bump.md) | `pnpm.overrides` pins `ws` below its DoS patch (sole prod-audit advisory) | LOW / deps | S | LOW | TODO |
 | [005](005-publish-judge-steward-guide.md) | Judge/steward guide is written but unpublished; docs site missing the role | MED / docs | S | LOW | TODO |
 | [006](006-intent-and-debt-register-reconcile.md) | INTENT.md §6 documents the deleted myK9Q as live; debt registers claim "0 open" | MED / docs-integrity | S | LOW | TODO |
-| [007](007-replication-core-split.md) | Finish decomposing MutationManager (1480 L) + ReplicatedTable (1099 L) — pinning tests + verbatim extraction, design pre-done | MED / architecture | L | MED | TODO |
+| [007](007-replication-core-split.md) | Finish decomposing MutationManager + ReplicatedTable — verified implementation complete; PR pending | MED / architecture | L | MED | REVIEW |
 | [008](008-secretary-dayof-plan-consolidation.md) | Day-of plan cluster: 8 Active plans → 2; per-plan archive verdicts pre-decided with verify steps | MED / docs-integrity | S | LOW | TODO |
 | [009](009-advisor-disposition-sweep.md) | Supabase advisor disposition: 364 lints → per-class verdicts; anon EXECUTE default-deny + allowlist queries; go-live item #7 | HIGH / security-hygiene | M | MED (live DB) | TODO |
 

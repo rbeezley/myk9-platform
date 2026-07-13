@@ -48,6 +48,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [improve-audit-2026-06/README.md](improve-audit-2026-06/README.md)                         | Active    | Improve Audit — June 2026 (remaining plans 003–006)                          |
 | [improve-audit-2026-07/README.md](improve-audit-2026-07/README.md)                         | Active    | Production-Readiness Bug Audit — July 2026 (5 plans; reconciled vs UX walk)  |
 | [improve-audit-2026-07-11/README.md](improve-audit-2026-07-11/README.md)                   | Active    | Codebase Health Audit — 2026-07-11 (6 executor plans + backlog)              |
+| [improve-audit-2026-07-11/007-replication-core-split.md](improve-audit-2026-07-11/007-replication-core-split.md) | Active | Plan 007 — Replication Core Split (tracked by OpenSpec) |
 | [launch-milestone-qa-checklist.md](launch-milestone-qa-checklist.md)                       | Reference | Launch-Milestone QA Checklist                                                |
 | [launch/go-live-2026-07-11.md](launch/go-live-2026-07-11.md)                               | Active    | Go-Live Gate Review — 2026-07-11                                             |
 | [plan-stripe-golive-enforcement.md](plan-stripe-golive-enforcement.md)                     | Active    | Stripe Go-Live Enforcement — capacity gate + waitlist Phases 7/8             |

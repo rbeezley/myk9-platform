@@ -15,7 +15,8 @@ import {
 // Server-side map: organization:sportType → submission email
 // Client cannot override this — prevents email redirection abuse.
 const SUBMISSION_EMAILS: Record<string, string> = {
-  'AKC:scent_work': 'results@akc.org', // ⚠ confirm actual address before launch
+  // AKC electronic scent work results submission address, confirmed 2026-07-13.
+  'AKC:scent_work': 'eresults@akc.org',
 };
 
 const FROM_EMAIL = 'myK9Show <results@myk9show.com>';

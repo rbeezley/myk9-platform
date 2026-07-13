@@ -6,6 +6,7 @@ import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { formatUsShowDateRange } from './dateFormat.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
@@ -232,7 +233,7 @@ handle<SendRegistrationEmailPayload>(
       confirmationNumber:
         registration.confirmation_number || registrationId.slice(0, 8).toUpperCase(),
       showName: show?.name || 'Dog Show',
-      showDates: `${show?.start_date || ''} — ${show?.end_date || ''}`,
+      showDates: formatUsShowDateRange(show?.start_date, show?.end_date),
       showLocation: show?.location || '',
       showVenue: show?.venue_name,
       confirmationMessage: show?.confirmation_message,
@@ -308,5 +309,5 @@ handle<SendRegistrationEmailPayload>(
       success: sendStatus === 'sent',
       emailLogId: logRow?.id,
     };
-  },
+  }
 );

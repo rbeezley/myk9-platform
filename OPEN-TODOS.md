@@ -78,7 +78,12 @@ High-judgment work to prioritize while strong-model access is available. These a
   operator alert, and a provider-safe real-429 proof (six retries at 1,000 ms; all 16 final 200;
   PII-free telemetry); the operator visually confirmed the alert email in Gmail. Retry runtime
   acceptance is complete.
-  Remaining work is operator-owned (legal, production data, Stripe live mode, mailbox/AKC,
+  Remaining work includes Phase 0.4 Edge-function drift recovery: the 2026-07-12 strict bundle
+  audit found a deployed-ahead `stripe-upgrade-subscription` price helper; the deployed-only
+  legacy `send-notification` had no 30-day log events and was retired after approval. Recover the
+  Stripe helper's source-of-truth decision before the small repo-ahead helper batch can deploy. See
+  [`edge-function-drift-audit-2026-07-12.md`](docs/operations/edge-function-drift-audit-2026-07-12.md).
+  Other remaining work is operator-owned (legal, production data, Stripe live mode, mailbox/AKC,
   browser/device, Sentry routing, DNS/Vercel) plus a paid premium success smoke if approved. Migration parity is
   clean after #1294 merged remote versions `20260712180000`/`190000`; the post-merge
   `supabase db push --dry-run` reports the remote database is up to date.

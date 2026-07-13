@@ -21,10 +21,10 @@
 
 ## 4. Extract Mutation Upload Orchestration
 
-- [ ] 4.1 Create internal `MutationUploadRunner` with upload/backoff timers, upload serialization state, scheduling, Web Locks wrapper, upload pass, retry backoff, and sync-failure notification.
-- [ ] 4.2 Inject the Supabase client, logger, retry settings, queue store, and facade-owned backup callback; do not introduce a collaborator-to-facade import cycle.
-- [ ] 4.3 Delegate upload methods and timer cleanup from `MutationManager`, preserving OCC re-read-before-put, retry behavior, event names/details, and all incident-history comments.
-- [ ] 4.4 Run the complete five-command phase gate, obtain root-agent diff acceptance against the frozen contracts, and commit the green Phase 3 checkpoint.
+- [x] 4.1 Create internal `MutationUploadRunner` with upload/backoff timers, upload serialization state, scheduling, Web Locks wrapper, upload pass, and retry backoff; extract unchanged queue-overflow, upload-complete, and sync-failure event construction/dispatch plus adjacent upload-result summary logging into internal `mutation-upload-events.ts` so every new module remains below 500 lines.
+- [x] 4.2 Inject the Supabase client, logger, retry settings, queue store, and facade-owned backup callback; do not introduce a collaborator-to-facade import cycle.
+- [x] 4.3 Delegate upload methods and timer cleanup from `MutationManager`, preserving OCC re-read-before-put, retry behavior, event names/details, and all incident-history comments.
+- [x] 4.4 Run the complete five-command phase gate, obtain root-agent diff acceptance against the frozen contracts, and commit the green Phase 3 checkpoint. Used the user-approved 17-file focused myK9Show replication-consumer substitute (453 tests) for the known hanging full-app suite.
 
 ## 5. Extract ReplicatedTable Query and Row-Lock Seams
 

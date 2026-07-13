@@ -40,7 +40,11 @@ Alternative considered: extract stateful upload code first. Rejected because it 
 
 `MutationQueueStore` owns the sequence counter and seed promise. `MutationUploadRunner` owns upload/backoff timers and upload-in-progress state. Dependencies are constructor-injected rather than reached through the facade. Queue orchestration order remains on the facade: capacity check, persistence, synchronous backup attempt, queued event, and optional schedule.
 
+`mutation-upload-events.ts` owns only the existing queue-overflow, upload-complete, and sync-failure event construction/dispatch plus the adjacent upload-result summary filtering/logging. This approved internal boundary keeps `MutationUploadRunner` below the repository's 500-line ceiling without moving timer state, changing event contracts, or introducing another stateful collaborator.
+
 Alternative considered: a shared mutable context object. Rejected because it obscures ownership and makes lifecycle cleanup less explicit.
+
+Alternative considered: allow a 518-line corrected runner or split scheduling into another stateful collaborator. Both were rejected: exceeding the file ceiling violates repository policy, while a scheduler collaborator would fragment timer ownership. Keeping all upload-event dispatch and its adjacent result summary in one stateless helper is the smallest behavior-preserving boundary.
 
 ### Keep `ReplicatedTable` as the template-method base class
 
@@ -67,7 +71,7 @@ Alternative considered: one mechanical extraction commit. Rejected because the d
 1. Add or confirm the ten pinning cases against the unchanged implementation.
 2. Extract pure mutation modules and pass the full gate.
 3. Extract `MutationQueueStore` and pass the full gate.
-4. Extract `MutationUploadRunner` and pass the full gate.
+4. Extract `MutationUploadRunner` plus the approved internal upload-event helper and pass the full gate.
 5. Extract `ReplicatedTableQueryManager` and `RowLockRegistry` and pass the full gate.
 6. Verify source sizes, unchanged exports/signatures/events, moved comments, and all tests.
 7. Merge through the normal PR and CI path; no runtime data migration or deployment action is required.

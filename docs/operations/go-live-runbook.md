@@ -94,8 +94,10 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       `stripe-upgrade-subscription` helper that matches no Git commit, and deployed-only legacy
       `send-notification`. **No function was deployed in the audit.** The legacy function had no
       events in the prior 30 days and was retired after approval; the live inventory is now 31
-      matched / zero deployed-only / zero repo-only. Do not overwrite the Stripe function; recover
-      its live price-list behavior and decide its source of truth first.
+      matched / zero deployed-only / zero repo-only. The fallback-extension source decision is
+      prepared under OpenSpec change `recover-stripe-price-source-drift`; do not overwrite the
+      Stripe function until that change is reviewed/merged and a separate deployment approval is
+      given.
       Full evidence and the approval-gated four-function command are in
       [`edge-function-drift-audit-2026-07-12.md`](edge-function-drift-audit-2026-07-12.md).
 - [ ] **0.5 Money-path hardening Phases 1–3** — MP-01/02 (amount integrity), MP-03

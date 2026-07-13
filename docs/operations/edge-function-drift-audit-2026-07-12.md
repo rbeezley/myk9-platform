@@ -1,6 +1,7 @@
 # Edge Function Drift Audit — 2026-07-12
 
-> **Status:** Blocked on deployed-source recovery for `stripe-upgrade-subscription`.
+> **Status:** Source-recovery decision prepared for review; `stripe-upgrade-subscription` remains
+> deployment-blocked pending an explicit approval and post-deploy bundle comparison.
 
 ## Scope and method
 
@@ -64,10 +65,24 @@ export function parsePremiumPriceIds(envValue: string | undefined, fallback: str
 ```
 
 Current source deliberately extends the fallback with configured IDs instead. That protects an
-existing live subscriber when `PREMIUM_PRICE_IDS` contains only sandbox IDs. Before any deploy,
-recover this live variant in a reviewed source-history decision and explicitly choose whether the
-current fallback-extension hardening supersedes it. Do not redeploy `stripe-upgrade-subscription`
-until that decision is recorded.
+existing live subscriber when `PREMIUM_PRICE_IDS` contains only sandbox IDs.
+
+### Proposed source-of-truth decision — pending review
+
+The repository fallback-extension helper is the selected source of truth; it supersedes the
+deployed replacement helper. The live variant has no recoverable Git provenance, while repository
+source is imported by `stripe-upgrade-subscription`, `stripe-checkout`, and `stripe-webhook` and
+is protected by `apps/myk9show/supabase/functions/_shared/premiumPrices.test.ts`. The focused
+contract passed locally on 2026-07-12: `pnpm exec vitest run
+apps/myk9show/supabase/functions/_shared/premiumPrices.test.ts` (5 tests).
+
+Tracked in OpenSpec change: `recover-stripe-price-source-drift`.
+
+Do not redeploy `stripe-upgrade-subscription` until this source decision is merged and deployment
+is separately approved. The approved deployment review must then download the deployed function
+into an isolated directory and compare its `premiumPrices.ts` with repository fallback-extension
+source. If that comparison fails, stop and use the recorded repository revision for an
+approval-gated rollback; never restore the unknown live-only helper.
 
 ## Retired legacy function — `send-notification`
 
@@ -86,5 +101,6 @@ deployed-only functions, and zero repo-only functions.
 
 Runbook 0.4 remains open until:
 
-1. the deployed-ahead premium-price behavior is recovered and a source-of-truth decision is merged;
+1. the deployed-ahead premium-price behavior is recovered and the fallback-extension
+   source-of-truth decision is merged;
 2. the four-function helper catch-up batch is approved, deployed, and smoke-verified.

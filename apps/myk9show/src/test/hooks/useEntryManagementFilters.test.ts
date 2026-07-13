@@ -382,7 +382,7 @@ describe('useEntryManagementFilters — trial/class filters', () => {
 
     // Payment filter stacks on top of the tab filter.
     act(() => {
-      result.current.setPaymentFilter('unpaid');
+      result.current.setPaymentFilter(PaymentStatus.PENDING);
     });
 
     expect(result.current.filteredEntries.length).toBe(1);

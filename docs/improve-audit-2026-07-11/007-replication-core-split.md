@@ -1,8 +1,8 @@
 # 007 — Finish decomposing MutationManager and ReplicatedTable
 
-> **Status:** Active
+> **Status:** Complete — merged in [PR #1301](https://github.com/rbeezley/myk9-platform/pull/1301) on 2026-07-12
 >
-> Implementation verified 2026-07-12; PR pending.
+> Implementation verified, main contract spec synced, and OpenSpec change archived 2026-07-12.
 >
 > Tracked in openspec change: `replication-core-split`
 

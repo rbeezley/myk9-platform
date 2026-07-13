@@ -113,7 +113,7 @@ Copy this block for each new finding.
 
 ### QA-ACCESSIBILITY-GAP-036
 
-- **Status:** open
+- **Status:** resolved (2026-07-13 — verified already shipped in #1264)
 - **Severity:** medium
 - **Role:** exhibitor
 - **Surface:** `apps/myk9show/src/components/shows/RegistrationWorkflow/PaymentStep/RegistrationSummary.tsx` and `apps/myk9show/src/components/cart/CartSummary.tsx`.
@@ -126,6 +126,7 @@ Copy this block for each new finding.
 - **Fix owner:** registration payment summary and shared cart action sizing.
 - **Proof required:** Add component-level assertions for a 44px minimum touch target and manually replay the payment/cart at 390px without horizontal clipping.
 - **Notes:** This is a control-sizing repair inside existing components, not new UI.
+- **Resolution:** Both controls already carry the 44px floor and are test-pinned — `RegistrationSummary.tsx` remove button is `min-h-11 min-w-11`; `CartSummary.tsx` "Continue Shopping" is `min-h-11 w-full`. Assertions: `PaymentStep.removeLine.test.tsx` ("keeps the remove control at the 44px touch-target floor") and `CartSummary.test.tsx` ("keeps Continue Shopping at the 44px touch-target floor") — 7 tests green 2026-07-13. Both landed in #1264. No horizontal clipping at 390px by construction: the remove button sits in a `justify-between` row whose label column is `min-w-0 break-words` and Continue Shopping is `w-full`.
 
 ### QA-TEST-FLAKE-032
 

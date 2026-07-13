@@ -189,13 +189,15 @@ Full detail: [`supabase-auth-email.md`](supabase-auth-email.md). Custom SMTP was
       Send Email Hook enabled, and unchanged `site_url=https://myk9show.com`. A real password-reset
       request to Gmail was accepted by the deployed app, reported `delivered` by Resend, and visually
       confirmed as the branded myK9Show template. The temporary Management API token was revoked.
-- [ ] **c.** Bounded Resend retry runtime acceptance. PR #1296 is deployed to all 12 affected
+- [x] **c.** DONE 2026-07-12. Bounded Resend retry runtime acceptance. PR #1296 is deployed to all 12 affected
       functions across both Supabase roots; version read-back, exact prior-source rollback commands,
       a 9×401/2×403/1×400 fail-closed matrix, and one delivered post-deploy password reset are in
       [`transactional-email-reliability.md`](../../openspec/changes/go-live-2026-07-11-gate-remediation/evidence/transactional-email-reliability.md).
-      _Still required:_ one controlled/provider-supported transient-failure check plus valid-path
-      registration-email and operator-alert smokes with approved fixtures/recipients. Guard failures
-      prove startup/authentication, not successful delivery behavior.
+      A valid registration confirmation is `delivered` and visually confirmed; a live operator alert was persisted,
+      verified, and resolved; and a provider-safe 16-message burst recovered six real Resend 429s
+      after 1,000 ms with all logical sends ending 200 and PII-free telemetry. The temporary guarded
+      harness was deleted and remote inventory is zero. The operator visually confirmed the tagged
+      alert email in Gmail with the expected subject and controlled-test body.
 
 ### 1.3 Kill-switch posture check
 

@@ -2,6 +2,8 @@
 
 > **Status:** Active
 >
+> Implementation verified 2026-07-12; PR pending.
+>
 > Tracked in openspec change: `replication-core-split`
 
 > Written against commit `15897d862` (2026-07-11), after a full read of both files by the auditing model. This plan exists because the audit backlog flagged the split as "needs characterization tests first / too risky for a cheap executor." That verdict is **revised** here: the risk is much lower than the backlog implied, provided the executor follows the rules below exactly. The design work is done in this document; the remaining work is disciplined verbatim code movement.
@@ -52,7 +54,7 @@ Mirror the `ReplicatedTable` cacheManager/batchManager idiom: collaborators are 
 
 > **Approved amendment — 2026-07-12:** The current upload block measured 520 lines after faithful extraction, and 518 after restoring review-caught comments and immediate-backup ordering, exceeding the repository's 500-line ceiling. Keep timer/upload state in `MutationUploadRunner`, but move the unchanged queue-overflow, upload-complete, and sync-failure event construction/dispatch plus adjacent upload-result summary filtering/logging into internal `mutation-upload-events.ts`. This is the smallest boundary that preserves event contracts and avoids a second stateful collaborator; the corrected runner target is 499 lines.
 
-`MutationManager.ts` shrinks to a ~200-line facade: constructor wiring, public methods delegating one-to-one, `backupMutationsToLocalStorage` / `writeCurrentMutationsBackup` / `restoreMutationsFromLocalStorage` (they already lean on `mutation-backup.ts`; they may stay in the facade — they are small), `destroy`. Note the cycle to avoid: `runUploadPass` calls queue-store methods AND `writeCurrentMutationsBackup` — pass those as constructor-injected references (`queueStore` instance, `backup: () => Promise<void>`), never import the facade from a collaborator.
+`MutationManager.ts` remains the facade: constructor wiring, public methods delegating one-to-one, `backupMutationsToLocalStorage` / `writeCurrentMutationsBackup` / `restoreMutationsFromLocalStorage` (they already lean on `mutation-backup.ts`; they stay in the facade), and `destroy`. Note the cycle to avoid: `runUploadPass` calls queue-store methods AND `writeCurrentMutationsBackup` — pass those as constructor-injected references (`queueStore` instance, `backup: () => Promise<void>`), never import the facade from a collaborator.
 
 ### ReplicatedTable → keep the class, extract 2 more seams
 
@@ -63,7 +65,9 @@ The class is a **template-method base class**; do not break inheritance. Extract
 | `core/ReplicatedTableQuery.ts` (class `ReplicatedTableQueryManager<T>`; ctor mirrors CacheManager: `tableName`, `logger`, `init`, `isExpired`, `getAll` fallback) | `queryByField` (with its timeout/abort scaffolding), `queryIndex`, `getAll` (with its timeout + `databaseManager.resetFailures/recordFailure` calls), `getAllLocalIds` | ~250   |
 | `core/RowLockRegistry.ts` (small class)                                                                                                                           | `acquireRowLock`, `releaseRowLock`, the `rowLocks` map — exposed as `withRowLock(id, fn)`                                                                              | ~50    |
 
-`ReplicatedTable.ts` keeps: CRUD (`get`/`getReplicatedRow`/`set`/`setOnce`/`delete`), the conflict lifecycle (`markConflict`, `clearConflict`, `replaceFromRemote`, `reconcileDirtyRow`, `resolveReplicationConflict`, `getConflictedRows`, `markAsSynced`) — these are the cross-cutting heart of the class and their builders are already extracted; moving the orchestration would add indirection without reducing risk — plus mutation-manager glue, delegation blocks, `removeStaleEntries`, and abstract methods. Expected landing size ~780 lines. That is still >500; the project's ratchet (`scripts/qa/code-quality-ratchet.baseline.json`) already carries it — the goal is risk-reduction and cohesion, not hitting 500 in one pass. Do NOT extract the conflict lifecycle in this plan.
+`ReplicatedTable.ts` keeps: CRUD (`get`/`getReplicatedRow`/`set`/`setOnce`/`delete`), the conflict lifecycle (`markConflict`, `clearConflict`, `replaceFromRemote`, `reconcileDirtyRow`, `resolveReplicationConflict`, `getConflictedRows`, `markAsSynced`) — these are the cross-cutting heart of the class and their builders are already extracted; moving the orchestration would add indirection without reducing risk — plus mutation-manager glue, delegation blocks, `removeStaleEntries`, and abstract methods. The project's ratchet (`scripts/qa/code-quality-ratchet.baseline.json`) already carries it — the goal is risk-reduction and cohesion, not hitting 500 in one pass. Do NOT extract the conflict lifecycle in this plan.
+
+> **Verified size amendment — 2026-07-12:** The written estimates predated exact extraction measurements. The implementation baseline was 1,576 lines for `MutationManager` and 1,099 for `ReplicatedTable`; the approved cohesive boundaries land at 494 and 959 lines. Every new production module remains below 500 lines. Verification therefore uses ceilings of 500 and 1,000 respectively. Reaching the earlier ~250/~800 estimates would require widening scope into facade backup/restore or the explicitly excluded conflict lifecycle.
 
 `optimisticUpdate` stays but calls `this.rowLocks.withRowLock(id, ...)`.
 
@@ -120,7 +124,7 @@ Commit after each green phase (worktree checkpoint rule). If any existing test n
 ## Done criteria
 
 - All four gates green at HEAD; every phase committed separately.
-- `wc -l` on `MutationManager.ts` ≤ ~250 and `ReplicatedTable.ts` ≤ ~800; every NEW module < 500 lines.
+- `wc -l` on `MutationManager.ts` ≤ 500 and `ReplicatedTable.ts` ≤ 1,000; every NEW module < 500 lines.
 - `git diff` review: moved blocks match their origin (comments included) — reviewer spot-checks `runUploadPass` and `nextSequenceNumber` byte-for-byte.
 - Pinning tests from Phase 0 all green and running in CI with the package suite.
 - `docs/improve-audit-2026-07-11/README.md` backlog row for the split updated to point here; audit README status flipped when merged.

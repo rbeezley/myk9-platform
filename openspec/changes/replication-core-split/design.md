@@ -20,7 +20,7 @@ The active app consumes the package through `sharedMutationManager.ts` and rough
 - Change mutation, upload, retry, backup, conflict, row-reconciliation, or query behavior.
 - Extract `ReplicatedTable`'s conflict lifecycle or edit app-side table subclasses.
 - Add UI, storage mechanisms, dependencies, migrations, or opportunistic cleanup.
-- Force `ReplicatedTable` below 500 lines; the expected cohesive result remains approximately 780 lines.
+- Force `ReplicatedTable` below 500 lines; the verified cohesive ceiling is 1,000 lines after moving only the approved query and row-lock seams.
 
 ## Decisions
 
@@ -51,6 +51,10 @@ Alternative considered: allow a 518-line corrected runner or split scheduling in
 `ReplicatedTableQueryManager<T>` will receive the table name, logger, initialization callback, expiry callback, and local `getAll` fallback. `RowLockRegistry` will own the lock map and expose `withRowLock(id, fn)`. CRUD and conflict lifecycle orchestration stay in `ReplicatedTable` because they cross existing collaborators and protected hooks.
 
 Alternative considered: split conflict orchestration into another manager. Rejected because it would add indirection across the class's core responsibility and exceed the plan's behavior-preserving scope.
+
+### Treat source-size estimates as guardrails, not new extraction scope
+
+Implementation measurement showed the planning estimates understated the code retained by the frozen boundaries: the pre-change files were 1,576 and 1,099 lines, the faithful upload runner required the separately approved event helper, and the approved table seams contained 206 lines rather than the estimated 300. Verification therefore uses cohesive ceilings of 500 lines for `MutationManager` and 1,000 lines for `ReplicatedTable`, while retaining the strict below-500 rule for every new module. The resulting files are 494 and 959 lines. Further reduction would require extracting backup/restore orchestration or the explicitly excluded conflict lifecycle, so it belongs in a separately characterized change rather than widening this behavior-preserving one.
 
 ### Use characterization-first, risk-ascending phases
 

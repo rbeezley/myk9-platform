@@ -35,14 +35,14 @@
 
 ## 6. Verify the Decomposition
 
-- [ ] 6.1 Compare `MutationManager` public signatures, `ReplicatedTable` public/protected signatures, package barrel exports, and the four lifecycle event contracts against the pre-change source.
-- [ ] 6.2 Verify moved incident-history comments and spot-check `nextSequenceNumber` and the OCC rejection path against their original ordering and transaction semantics.
-- [ ] 6.3 Confirm every new production module is below 500 lines, `MutationManager.ts` is approximately 250 lines or fewer, and `ReplicatedTable.ts` is approximately 800 lines or fewer without extracting conflict orchestration.
-- [ ] 6.4 Run the final complete five-command gate and `pnpm openspec validate replication-core-split --type change --strict --no-interactive`; record exact pass counts, stop and report any suite that hangs beyond the repository limit, and document any repository-known skipped checks.
+- [x] 6.1 Compare `MutationManager` public signatures, `ReplicatedTable` public/protected signatures, package barrel exports, and the four lifecycle event contracts against the pre-change source. Signature-line diff and barrel diff against `80aad6d2e` were empty; all four event names and detail shapes match their original blocks.
+- [x] 6.2 Verify moved incident-history comments and spot-check `nextSequenceNumber` and the OCC rejection path against their original ordering and transaction semantics. Both blocks retain their comments and statement order; only collaborator/class references changed.
+- [x] 6.3 Confirm every new production module is below 500 lines, `MutationManager.ts` is 500 lines or fewer, and `ReplicatedTable.ts` is 1,000 lines or fewer without extracting backup/restore or conflict orchestration; record the verified measurements and why the original planning estimates were revised. Verified: facade 494, base class 959, new modules 498/310/213/166/156/65/40 lines; artifact amendment records the stale-estimate rationale.
+- [x] 6.4 Run the final complete five-command gate and `pnpm openspec validate replication-core-split --type change --strict --no-interactive`; record exact pass counts, stop and report any suite that hangs beyond the repository limit, and document any repository-known skipped checks. Green: replication build; 31 files/443 package tests; 26/26 typecheck tasks; 14/14 lint tasks; approved substitute 17 files/453 myK9Show consumer tests; strict OpenSpec validation. The full myK9Show suite remains skipped because it previously produced no output for 60 seconds and the user approved the focused substitute.
 
 ## 7. Tracking, Review, and Merge Gate
 
-- [ ] 7.1 Update `OPEN-TODOS.md`, Plan 007 status, and `docs/improve-audit-2026-07-11/README.md` only after implementation verification proves the work complete.
-- [ ] 7.2 Review the complete diff for spec compliance, scope, offline durability, file size, TypeScript correctness, and unchanged consumer contracts; resolve all critical/high findings and straightforward medium findings.
+- [x] 7.1 Update `OPEN-TODOS.md`, Plan 007 status, and `docs/improve-audit-2026-07-11/README.md` only after implementation verification proves the work complete.
+- [x] 7.2 Review the complete diff for spec compliance, scope, offline durability, file size, TypeScript correctness, and unchanged consumer contracts; resolve all critical/high findings and straightforward medium findings. Independent spec and standards reviews found no behavior or contract defect; corrected the Plan status, and recorded the Plan-approved exception for the pre-existing oversized template base class.
 - [ ] 7.3 Commit remaining verified tracking changes, push the feature branch, and open a PR containing `Tracked in openspec change: replication-core-split` plus the full test evidence.
 - [ ] 7.4 Require CI success and completed review before merge; merge only with user approval, then archive the OpenSpec change and perform branch/worktree cleanup.

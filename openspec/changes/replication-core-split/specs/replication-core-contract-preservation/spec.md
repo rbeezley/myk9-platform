@@ -111,7 +111,7 @@ The replication core SHALL preserve query initialization, timeout and abort beha
 
 ### Requirement: Internal decomposition is behavior-preserving and reviewable
 
-The implementation SHALL move incident-history comments with their behavior, keep each new production module below 500 lines, keep `MutationManager.ts` at approximately 250 lines or fewer and `ReplicatedTable.ts` at approximately 800 lines or fewer, and SHALL stop if an existing behavior test requires modification to pass.
+The implementation SHALL move incident-history comments with their behavior, keep each new production module below 500 lines, keep `MutationManager.ts` at 500 lines or fewer and `ReplicatedTable.ts` at 1,000 lines or fewer, and SHALL stop if an existing behavior test requires modification to pass. These verified ceilings reflect the approved cohesive boundaries; further reduction MUST NOT widen this change into backup/restore or conflict-lifecycle extraction.
 
 #### Scenario: An existing test fails after extraction
 

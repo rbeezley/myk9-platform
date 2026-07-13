@@ -167,7 +167,8 @@ Full detail: [`supabase-auth-email.md`](supabase-auth-email.md). Custom SMTP was
 2026-07-12; the former built-in-service rate cap is no longer the launch-day signup wall.
 
 - [x] **a.** DONE 2026-07-04. Deploy-coupled hook secret: `SEND_EMAIL_HOOK_SECRET`
-      matches the dashboard Send Email Hook secret, `send-auth-email` is deployed as v45,
+      matches the dashboard Send Email Hook secret. The initial verified hook release was v45;
+      the bounded-retry release is now deployed as `send-auth-email` v47,
       and one real password-reset email verified the branded template path (`send-auth-email`
       200 signature-verified + `resend-webhook` 200).
       _Rollback:_ redeploy prior function version + restore prior hook secret in the same window.
@@ -188,6 +189,13 @@ Full detail: [`supabase-auth-email.md`](supabase-auth-email.md). Custom SMTP was
       Send Email Hook enabled, and unchanged `site_url=https://myk9show.com`. A real password-reset
       request to Gmail was accepted by the deployed app, reported `delivered` by Resend, and visually
       confirmed as the branded myK9Show template. The temporary Management API token was revoked.
+- [ ] **c.** Bounded Resend retry runtime acceptance. PR #1296 is deployed to all 12 affected
+      functions across both Supabase roots; version read-back, exact prior-source rollback commands,
+      a 9×401/2×403/1×400 fail-closed matrix, and one delivered post-deploy password reset are in
+      [`transactional-email-reliability.md`](../../openspec/changes/go-live-2026-07-11-gate-remediation/evidence/transactional-email-reliability.md).
+      _Still required:_ one controlled/provider-supported transient-failure check plus valid-path
+      registration-email and operator-alert smokes with approved fixtures/recipients. Guard failures
+      prove startup/authentication, not successful delivery behavior.
 
 ### 1.3 Kill-switch posture check
 

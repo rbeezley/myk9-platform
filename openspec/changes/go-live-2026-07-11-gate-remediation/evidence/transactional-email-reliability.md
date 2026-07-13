@@ -70,10 +70,36 @@ required because the handlers perform their own authentication.
   429, 503, and network recovery and verified that retry telemetry contains only `attempt`,
   `status`, and `delayMs`; it passed 21/21.
 
-If a regression is found, roll each function back to the recorded previous version in Supabase,
-then repeat the fail-closed matrix and single auth-email smoke before restoring traffic.
+## Exact rollback procedure
+
+The retry implementation's parent commit is `4fa04090f`. The version numbers above are audit
+anchors; rollback redeploys that exact prior source so it does not depend on a mutable local tree:
+
+```bash
+git worktree add --detach /private/tmp/myk9-email-retry-rollback 4fa04090f
+cd /private/tmp/myk9-email-retry-rollback
+supabase functions deploy send-auth-email send-registration-email send-email \
+  send-confirmation-email send-waitlist-invite send-results \
+  push-trigger-support-message send-lifecycle-email \
+  --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt --use-api
+supabase functions deploy stripe-webhook stripe-refund-entry stripe-refund-show \
+  cron-process-payouts --workdir apps/myk9show \
+  --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt --use-api
+# After the smoke matrix succeeds:
+cd -
+git worktree remove /private/tmp/myk9-email-retry-rollback
+```
+
+After rollback, run the complete ordinary auth, registration, and operator-alert smoke matrix before
+restoring traffic, confirm the expected deliveries and durable alert, then remove the detached
+worktree. The credential-free guard matrix is useful startup/authentication evidence but is not a
+substitute for those valid-path smokes.
 
 ## Remaining gates
 
 - Resend must be upgraded from Free before production.
 - The Supabase Auth limit remains 100/hour until the paid-plan evidence exists and a separate approved Management API PATCH raises only `rate_limit_email_sent` to 1,000/hour.
+- Task 10.0f remains open for a controlled/provider-supported transient-failure check and valid-path
+  registration-email and operator-alert smokes. Live fault injection was not improvised because it
+  could create provider disruption, production records, or unintended mail; use approved fixtures
+  and recipients for that final matrix.

@@ -74,7 +74,9 @@ High-judgment work to prioritize while strong-model access is available. These a
   Transactional-email retry handling merged in #1296 and is deployed to all 12 affected Edge
   Functions; post-deploy fail-closed smokes passed, a single password reset was recorded delivered,
   and deterministic 429/503/network plus PII-free telemetry checks passed 33/33. The Resend paid-plan
-  upgrade remains the prerequisite for the separately approved 1,000/hour Auth-limit change.
+  upgrade remains the prerequisite for the separately approved 1,000/hour Auth-limit change. Final
+  retry runtime acceptance still needs a controlled/provider-supported transient check and valid-path
+  registration-email/operator-alert smokes using approved fixtures and recipients.
   Remaining work is operator-owned (legal, production data, Stripe live mode, mailbox/AKC,
   browser/device, Sentry routing, DNS/Vercel) plus a paid premium success smoke if approved. Migration parity is
   clean after #1294 merged remote versions `20260712180000`/`190000`; the post-merge

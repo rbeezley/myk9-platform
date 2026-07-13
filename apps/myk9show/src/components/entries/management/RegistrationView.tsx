@@ -36,6 +36,7 @@ import type { CheckInStatus } from '@myk9/core';
 
 /** Stable identity so useBulkSelection's memoized selectors don't churn each render. */
 const getEntryId = (entry: EntryManagementEntry) => entry.id;
+const ENROLLMENT_CARD_PAGE_SIZE = 25;
 
 interface RegistrationViewProps {
   /** Entry stats for the stats cards */
@@ -167,11 +168,13 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       selection.toggleAll,
     ]
   );
+  const [enrollmentPageIndex, setEnrollmentPageIndex] = useState(0);
 
   // Clear selection on attention-filter change (avoids carrying a selection into a different
   // status bucket). Done in the handler, not an effect, per the no-setState-in-effect rule.
   const handleAttentionFilterChange = (filter: EntryAttentionFilter) => {
     selection.clearSelection();
+    setEnrollmentPageIndex(0);
     setAttentionFilter(filter);
   };
 
@@ -187,6 +190,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     }
 
     selection.clearSelection();
+    setEnrollmentPageIndex(0);
     setWorkMode(mode);
   };
 
@@ -258,39 +262,88 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       )}
     </div>
   );
+  const enrollmentPageCount = Math.max(
+    1,
+    Math.ceil(enrollmentGroups.length / ENROLLMENT_CARD_PAGE_SIZE)
+  );
+  const currentEnrollmentPageIndex = Math.min(enrollmentPageIndex, enrollmentPageCount - 1);
+  const enrollmentPageStart = currentEnrollmentPageIndex * ENROLLMENT_CARD_PAGE_SIZE;
+  const visibleEnrollmentGroups = enrollmentGroups.slice(
+    enrollmentPageStart,
+    enrollmentPageStart + ENROLLMENT_CARD_PAGE_SIZE
+  );
   const enrollmentCardList = (
     <div className="space-y-3">
       {enrollmentGroups.length > 0 ? (
-        enrollmentGroups.map(group => (
-          <EnrollmentCard
-            key={group.groupKey}
-            group={group}
-            onStatusChange={handleStatusChangeWithDecisionPrompt}
-            onEntryRefunded={onRefresh}
-            onCheckInStatusChange={onCheckInStatusChange}
-            onOpenEditEntry={onOpenEditEntry}
-            onOpenArmbandDialog={onOpenArmbandDialog}
-            onCompEntry={(entryId: string) => {
-              const entry = group.entries.find(e => e.id === entryId);
-              if (entry) onOpenCompDialog(entry);
-            }}
-            onUncompEntry={onUncompEntry}
-            onRemoveEntry={onRemoveEntry}
-            onBulkStatusChange={onBulkStatusChange}
-            onBulkCheckIn={onBulkCheckIn}
-            onPaymentStatusChange={onPaymentStatusChange}
-            emailStatusMap={emailStatusMap}
-            onResendEmail={handleResendEmail}
-            isResendDisabled={isResendDisabled}
-            onSendDecisionEmail={onSendDecisionEmail}
-            lastDecisionEmailedAt={
-              group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined
-            }
-            lifecycleDecisionEmailStatusMap={lifecycleEmails.statusMap}
-            onReviewLifecycleEmail={lifecycleEmails.reviewReadyEmail}
-            onPrepareCorrectionEmail={lifecycleEmails.prepareCorrectionEmail}
-          />
-        ))
+        <>
+          {visibleEnrollmentGroups.map(group => (
+            <EnrollmentCard
+              key={group.groupKey}
+              group={group}
+              onStatusChange={handleStatusChangeWithDecisionPrompt}
+              onEntryRefunded={onRefresh}
+              onCheckInStatusChange={onCheckInStatusChange}
+              onOpenEditEntry={onOpenEditEntry}
+              onOpenArmbandDialog={onOpenArmbandDialog}
+              onCompEntry={(entryId: string) => {
+                const entry = group.entries.find(e => e.id === entryId);
+                if (entry) onOpenCompDialog(entry);
+              }}
+              onUncompEntry={onUncompEntry}
+              onRemoveEntry={onRemoveEntry}
+              onBulkStatusChange={onBulkStatusChange}
+              onBulkCheckIn={onBulkCheckIn}
+              onPaymentStatusChange={onPaymentStatusChange}
+              emailStatusMap={emailStatusMap}
+              onResendEmail={handleResendEmail}
+              isResendDisabled={isResendDisabled}
+              onSendDecisionEmail={onSendDecisionEmail}
+              lastDecisionEmailedAt={
+                group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined
+              }
+              lifecycleDecisionEmailStatusMap={lifecycleEmails.statusMap}
+              onReviewLifecycleEmail={lifecycleEmails.reviewReadyEmail}
+              onPrepareCorrectionEmail={lifecycleEmails.prepareCorrectionEmail}
+            />
+          ))}
+          {enrollmentPageCount > 1 && (
+            <nav
+              className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              aria-label="Enrollment card pagination"
+            >
+              <p className="text-sm text-muted-foreground">
+                Showing {enrollmentPageStart + 1}–
+                {Math.min(enrollmentPageStart + ENROLLMENT_CARD_PAGE_SIZE, enrollmentGroups.length)}{' '}
+                of {enrollmentGroups.length} enrollments
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 flex-1 sm:flex-none"
+                  onClick={() => setEnrollmentPageIndex(currentEnrollmentPageIndex - 1)}
+                  disabled={currentEnrollmentPageIndex === 0}
+                  aria-label="Go to previous enrollment page"
+                >
+                  Previous
+                </Button>
+                <span className="whitespace-nowrap text-sm text-muted-foreground">
+                  Page {currentEnrollmentPageIndex + 1} of {enrollmentPageCount}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 flex-1 sm:flex-none"
+                  onClick={() => setEnrollmentPageIndex(currentEnrollmentPageIndex + 1)}
+                  disabled={currentEnrollmentPageIndex === enrollmentPageCount - 1}
+                  aria-label="Go to next enrollment page"
+                >
+                  Next
+                </Button>
+              </div>
+            </nav>
+          )}
+        </>
       ) : (
         <div className="rounded-lg border border-dashed border-border/70 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
           {emptyStateContent}
@@ -309,7 +362,10 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       {/* Search, filters, and view mode */}
       <ListControls
         search={searchTerm}
-        onSearchChange={setSearchTerm}
+        onSearchChange={value => {
+          setEnrollmentPageIndex(0);
+          setSearchTerm(value);
+        }}
         searchPlaceholder="Search entries..."
         filters={ENTRY_MANAGEMENT_FILTERS}
         filterValues={{
@@ -321,12 +377,14 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             handleAttentionFilterChange((value || 'all') as EntryAttentionFilter);
           }
           if (key === 'payment') {
+            setEnrollmentPageIndex(0);
             setPaymentFilter(value || 'all');
           }
         }}
         viewMode={entryViewMode}
         onViewModeChange={mode => {
           selection.clearSelection();
+          setEnrollmentPageIndex(0);
           setEntryViewMode(mode as EntryManagementViewMode);
         }}
         viewModes={ENTRY_VIEW_MODES}

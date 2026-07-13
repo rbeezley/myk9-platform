@@ -24,7 +24,7 @@ vi.mock('../EnrollmentCard', () => ({
     group: EnrollmentGroup;
     onStatusChange: (entryId: string, status: EntryStatus) => void;
   }) => (
-    <div data-testid="enrollment-card">
+    <div data-testid="enrollment-card" data-group-key={group.groupKey}>
       {group.entries[0] ? (
         <>
           <button
@@ -197,6 +197,27 @@ describe('RegistrationView filter content routing', () => {
   it('shows enrollment cards in card view', () => {
     renderView('all', 'cards');
     expect(screen.getByTestId('enrollment-card')).toBeInTheDocument();
+  });
+
+  it('paginates enrollment cards at 25 groups per page', async () => {
+    const groups = Array.from({ length: 26 }, (_, index) => ({
+      groupKey: `group-${index + 1}`,
+      enrollmentId: `enrollment-${index + 1}`,
+      entries: [],
+    })) as unknown as EnrollmentGroup[];
+    const { user } = renderView('all', 'cards', { enrollmentGroups: groups });
+
+    expect(screen.getAllByTestId('enrollment-card')).toHaveLength(25);
+    expect(screen.getByText('Showing 1–25 of 26 enrollments')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Go to next enrollment page' }));
+
+    const secondPageCards = screen.getAllByTestId('enrollment-card');
+    expect(secondPageCards).toHaveLength(1);
+    expect(secondPageCards[0]).toHaveAttribute('data-group-key', 'group-26');
+    expect(screen.getByText('Showing 26–26 of 26 enrollments')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Go to previous enrollment page' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Go to next enrollment page' })).toBeDisabled();
   });
 
   it('links truly empty Entry Management to the existing mail-in entry flow', () => {

@@ -90,22 +90,24 @@ function mockViewport(matches: boolean) {
   });
 }
 
+type RegistrationViewOverrides = Partial<{
+  workMode: EntryWorkMode;
+  setWorkMode: (mode: EntryWorkMode) => void;
+  enrollmentGroups: EnrollmentGroup[];
+  entries: EntryManagementEntry[];
+  filteredEntries: EntryManagementEntry[];
+  showId: string;
+  showName: string;
+  onStatusChange: (
+    entryId: string,
+    status: EntryStatus
+  ) => boolean | void | Promise<boolean | void>;
+}>;
+
 function renderView(
   attentionFilter: 'all' | 'pending' | 'accepted' | 'waitlist' | 'issues',
   entryViewMode: 'table' | 'cards' = 'table',
-  overrides: Partial<{
-    workMode: EntryWorkMode;
-    setWorkMode: (mode: EntryWorkMode) => void;
-    enrollmentGroups: EnrollmentGroup[];
-    entries: EntryManagementEntry[];
-    filteredEntries: EntryManagementEntry[];
-    showId: string;
-    showName: string;
-    onStatusChange: (
-      entryId: string,
-      status: EntryStatus
-    ) => boolean | void | Promise<boolean | void>;
-  }> = {}
+  overrides: RegistrationViewOverrides = {}
 ) {
   const props = {
     stats: {} as EntryStats,
@@ -135,7 +137,12 @@ function renderView(
     onSendDecisionEmail: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
-  return render(<RegistrationView {...props} />);
+  const result = render(<RegistrationView {...props} />);
+  return {
+    ...result,
+    rerenderView: (nextOverrides: RegistrationViewOverrides) =>
+      result.rerender(<RegistrationView {...props} {...nextOverrides} />),
+  };
 }
 
 describe('RegistrationView filter content routing', () => {
@@ -218,6 +225,33 @@ describe('RegistrationView filter content routing', () => {
     expect(screen.getByText('Showing 26–26 of 26 enrollments')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Go to previous enrollment page' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Go to next enrollment page' })).toBeDisabled();
+  });
+
+  it('returns to the first page when parent filters replace the enrollment groups', async () => {
+    const groups = Array.from({ length: 75 }, (_, index) => ({
+      groupKey: `group-${index + 1}`,
+      enrollmentId: `enrollment-${index + 1}`,
+      entries: [],
+    })) as unknown as EnrollmentGroup[];
+    const { user, rerenderView } = renderView('all', 'cards', {
+      enrollmentGroups: groups,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Go to next enrollment page' }));
+    await user.click(screen.getByRole('button', { name: 'Go to next enrollment page' }));
+    expect(screen.getAllByTestId('enrollment-card')[0]).toHaveAttribute(
+      'data-group-key',
+      'group-51'
+    );
+
+    rerenderView({ enrollmentGroups: groups.slice(25, 55) });
+
+    expect(screen.getAllByTestId('enrollment-card')).toHaveLength(25);
+    expect(screen.getAllByTestId('enrollment-card')[0]).toHaveAttribute(
+      'data-group-key',
+      'group-26'
+    );
+    expect(screen.getByText('Showing 1–25 of 30 enrollments')).toBeInTheDocument();
   });
 
   it('links truly empty Entry Management to the existing mail-in entry flow', () => {

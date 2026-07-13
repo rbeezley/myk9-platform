@@ -168,13 +168,22 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       selection.toggleAll,
     ]
   );
-  const [enrollmentPageIndex, setEnrollmentPageIndex] = useState(0);
+  const enrollmentGroupKeys = useMemo(
+    () => enrollmentGroups.map(group => group.groupKey),
+    [enrollmentGroups]
+  );
+  const [enrollmentPage, setEnrollmentPage] = useState(() => ({
+    groupKeys: enrollmentGroupKeys,
+    pageIndex: 0,
+  }));
+  const resetEnrollmentPage = () =>
+    setEnrollmentPage({ groupKeys: enrollmentGroupKeys, pageIndex: 0 });
 
   // Clear selection on attention-filter change (avoids carrying a selection into a different
   // status bucket). Done in the handler, not an effect, per the no-setState-in-effect rule.
   const handleAttentionFilterChange = (filter: EntryAttentionFilter) => {
     selection.clearSelection();
-    setEnrollmentPageIndex(0);
+    resetEnrollmentPage();
     setAttentionFilter(filter);
   };
 
@@ -190,7 +199,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     }
 
     selection.clearSelection();
-    setEnrollmentPageIndex(0);
+    resetEnrollmentPage();
     setWorkMode(mode);
   };
 
@@ -266,7 +275,12 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     1,
     Math.ceil(enrollmentGroups.length / ENROLLMENT_CARD_PAGE_SIZE)
   );
-  const currentEnrollmentPageIndex = Math.min(enrollmentPageIndex, enrollmentPageCount - 1);
+  const isSameEnrollmentGroupSet =
+    enrollmentPage.groupKeys.length === enrollmentGroupKeys.length &&
+    enrollmentPage.groupKeys.every((groupKey, index) => groupKey === enrollmentGroupKeys[index]);
+  const currentEnrollmentPageIndex = isSameEnrollmentGroupSet
+    ? Math.min(enrollmentPage.pageIndex, enrollmentPageCount - 1)
+    : 0;
   const enrollmentPageStart = currentEnrollmentPageIndex * ENROLLMENT_CARD_PAGE_SIZE;
   const visibleEnrollmentGroups = enrollmentGroups.slice(
     enrollmentPageStart,
@@ -321,7 +335,12 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                   type="button"
                   variant="outline"
                   className="min-h-11 flex-1 sm:flex-none"
-                  onClick={() => setEnrollmentPageIndex(currentEnrollmentPageIndex - 1)}
+                  onClick={() =>
+                    setEnrollmentPage({
+                      groupKeys: enrollmentGroupKeys,
+                      pageIndex: currentEnrollmentPageIndex - 1,
+                    })
+                  }
                   disabled={currentEnrollmentPageIndex === 0}
                   aria-label="Go to previous enrollment page"
                 >
@@ -334,7 +353,12 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                   type="button"
                   variant="outline"
                   className="min-h-11 flex-1 sm:flex-none"
-                  onClick={() => setEnrollmentPageIndex(currentEnrollmentPageIndex + 1)}
+                  onClick={() =>
+                    setEnrollmentPage({
+                      groupKeys: enrollmentGroupKeys,
+                      pageIndex: currentEnrollmentPageIndex + 1,
+                    })
+                  }
                   disabled={currentEnrollmentPageIndex === enrollmentPageCount - 1}
                   aria-label="Go to next enrollment page"
                 >
@@ -363,7 +387,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       <ListControls
         search={searchTerm}
         onSearchChange={value => {
-          setEnrollmentPageIndex(0);
+          resetEnrollmentPage();
           setSearchTerm(value);
         }}
         searchPlaceholder="Search entries..."
@@ -377,14 +401,14 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             handleAttentionFilterChange((value || 'all') as EntryAttentionFilter);
           }
           if (key === 'payment') {
-            setEnrollmentPageIndex(0);
+            resetEnrollmentPage();
             setPaymentFilter(value || 'all');
           }
         }}
         viewMode={entryViewMode}
         onViewModeChange={mode => {
           selection.clearSelection();
-          setEnrollmentPageIndex(0);
+          resetEnrollmentPage();
           setEntryViewMode(mode as EntryManagementViewMode);
         }}
         viewModes={ENTRY_VIEW_MODES}

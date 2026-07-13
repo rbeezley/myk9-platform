@@ -114,10 +114,7 @@ export function WorkflowStepContent({
     entryOutcomes
   );
   const receiptSelectedDogs = receiptClassSelections.map(selection => selection.dogId);
-  const receiptTotalFees = getCreatedOutcomeTotalFees(
-    entryOutcomes,
-    currentRegistrationTotalFees
-  );
+  const receiptTotalFees = getCreatedOutcomeTotalFees(entryOutcomes, currentRegistrationTotalFees);
 
   // Styled receipt branch — hooks must be top-level (Rules of Hooks);
   // expensive .find() lookups are memoized and only compute during confirmation step.
@@ -267,8 +264,8 @@ export function WorkflowStepContent({
           )
         ) : (
           <ClassSelectionStep
-            selectedDogs={receiptSelectedDogs}
-            classSelections={receiptClassSelections}
+            selectedDogs={optimisticState.classSelections.map(selection => selection.dogId)}
+            classSelections={optimisticState.classSelections}
             onSelectionChange={onClassSelectionChange}
             showId={showId}
             {...(!hasHandlerStep && {

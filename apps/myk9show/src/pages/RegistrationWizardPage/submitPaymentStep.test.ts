@@ -68,6 +68,7 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
     setIsSubmitting: vi.fn(),
     setRegistrationNumber: vi.fn(),
     setArmbandAssignments: vi.fn(),
+    setEntryOutcomes: vi.fn(),
     markStepComplete: vi.fn(),
     setCurrentStep: vi.fn(),
     updateShowRegistration: vi.fn(),
@@ -105,6 +106,17 @@ describe('submitPaymentStep', () => {
     submitOfflineLateEntryMock.mockResolvedValue({
       armbandAssignments: [{ dogId: 'dog-1', armband: '13' }],
       entryIds: ['entry-1'],
+      entryOutcomes: [
+        {
+          dogId: 'dog-1',
+          classId: 'class-1',
+          outcome: 'created',
+          entryId: 'entry-1',
+          waitlistEntryId: null,
+          feeCents: 2500,
+          capacityOverride: true,
+        },
+      ],
     });
   });
 
@@ -229,6 +241,9 @@ describe('submitPaymentStep', () => {
     expect(submitShowRegistrationMock).not.toHaveBeenCalled();
     expect(ctx.setRegistrationNumber).toHaveBeenCalledWith('LOCAL-ENTRY1');
     expect(ctx.setArmbandAssignments).toHaveBeenCalledWith([{ dogId: 'dog-1', armband: '13' }]);
+    expect(ctx.setEntryOutcomes).toHaveBeenCalledWith([
+      expect.objectContaining({ capacityOverride: true, outcome: 'created' }),
+    ]);
     expect(order).toEqual(['clearCart', 'triggerSync']);
     expect(ctx.markStepComplete).toHaveBeenCalledWith(ctx.currentStep);
   });

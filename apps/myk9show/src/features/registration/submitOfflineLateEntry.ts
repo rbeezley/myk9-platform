@@ -19,6 +19,8 @@ import type {
 import { PaymentStatus as PaymentStatusEnum } from '@/types/show-registration-types';
 import { makeHandlerKey } from '@/types/show-registration-types';
 import { generateUUID } from '@/utils/idUtils';
+import type { EntrySubmissionOutcome } from '@/services/database/entries';
+import { loadOfflineCapacityOverrides } from './offlineCapacityOverride';
 
 interface ClassLike {
   id: string;
@@ -39,6 +41,7 @@ export interface SubmitOfflineLateEntryParams {
 export interface SubmitOfflineLateEntryResult {
   armbandAssignments: ArmbandAssignment[];
   entryIds: string[];
+  entryOutcomes: EntrySubmissionOutcome[];
 }
 
 interface DogReservation {
@@ -89,15 +92,23 @@ export async function submitOfflineLateEntry({
   }
 
   const classesById = new Map(classes.map(cls => [cls.id, cls]));
-  const [cachedShow, showArmbands] = await Promise.all([
+  const capacitySelections = classSelections.flatMap(selection =>
+    selection.selectedClasses.map(selectedClass => ({
+      key: makeHandlerKey(selection.dogId, selectedClass.classId),
+      classId: selectedClass.classId,
+    }))
+  );
+  const [cachedShow, showArmbands, capacityOverrides] = await Promise.all([
     replicatedShowsTable.getShowById(showId),
     replicatedArmbandsTable.getByShow(showId),
+    loadOfflineCapacityOverrides(showId, capacitySelections),
   ]);
   const startingArmbandNumber = cachedShow?.startingArmbandNumber ?? 100;
   let nextArmband = resolveStartNumber(maxArmbandNumber(showArmbands), startingArmbandNumber);
   const dogReservations = new Map<string, DogReservation>();
   const armbandAssignments: ArmbandAssignment[] = [];
   const entryIds: string[] = [];
+  const entryOutcomes: EntrySubmissionOutcome[] = [];
 
   for (const selection of classSelections) {
     const dogDependencyIds = [
@@ -136,6 +147,8 @@ export async function submitOfflineLateEntry({
       const handler = handlerAssignments[makeHandlerKey(selection.dogId, selectedClass.classId)];
       const classData = classesById.get(selectedClass.classId);
       const entryFee = paymentMethod === 'waived' ? 0 : getShowEntryFee(showFeeInfo, classData?.entryFee);
+      const capacityOverride =
+        capacityOverrides[makeHandlerKey(selection.dogId, selectedClass.classId)] === true;
       const submittedAt = new Date().toISOString();
       const entry: ReplicatedEntry = {
         id: generateUUID(),
@@ -147,6 +160,8 @@ export async function submitOfflineLateEntry({
         handler: handler?.handlerName || '',
         handlerId: handler?.handlerId,
         isDayOfShow: true,
+        entrySource: 'myk9',
+        capacityOverride,
         paymentMethod,
         paymentStatus: paymentStatusFor(paymentMethod, paymentStatus),
         entryStatus: 'confirmed',
@@ -164,8 +179,18 @@ export async function submitOfflineLateEntry({
 
       const createdEntry = await replicatedEntriesTable.createEntry(entry, dependencyIds);
       entryIds.push(createdEntry.id);
+      entryOutcomes.push({
+        dogId: selection.dogId,
+        classId: selectedClass.classId,
+        outcome: 'created',
+        entryId: createdEntry.id,
+        waitlistEntryId: null,
+        waitlistPosition: null,
+        feeCents: Math.round(entryFee * 100),
+        capacityOverride,
+      });
     }
   }
 
-  return { armbandAssignments, entryIds };
+  return { armbandAssignments, entryIds, entryOutcomes };
 }

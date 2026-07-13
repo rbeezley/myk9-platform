@@ -1,7 +1,11 @@
 import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
 import type { ShowFeeInfo } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import { claimNextArmband } from '@/services/database/armbands';
-import { submitShowEntries } from '@/services/database/entries';
+import {
+  submitShowEntries,
+  type EntrySubmissionOutcome,
+  type EntrySubmissionSource,
+} from '@/services/database/entries';
 import { createShowRegistration } from '@/services/database/show-registrations';
 import type {
   ClassSelectionData,
@@ -33,6 +37,8 @@ export interface ShowRegistrationSubmissionResult {
    * these to the user — a silently missing armband means no ring number on show day.
    */
   armbandFailures: ArmbandAssignmentFailure[];
+  /** Present when capacity changed at least one requested selection's normal created outcome. */
+  entryOutcomes?: EntrySubmissionOutcome[] | undefined;
 }
 
 export interface AbortedShowRegistrationSubmissionResult {
@@ -66,6 +72,7 @@ export interface SubmitShowRegistrationParams {
   handlerAssignments: Record<string, HandlerInfo>;
   classes: ClassLike[];
   showFeeInfo: ShowFeeInfo;
+  submissionSource: EntrySubmissionSource;
   /**
    * Whether the submitting user may assign armbands. Armband assignment is a
    * staff-only action (the `assign_armband` RPC rejects everyone else with
@@ -101,6 +108,7 @@ export async function submitShowRegistration({
   handlerAssignments,
   classes,
   showFeeInfo,
+  submissionSource,
   canAssignArmbands = true,
   isActive,
   deps,
@@ -125,10 +133,6 @@ export async function submitShowRegistration({
     classes,
     showFeeInfo
   );
-  const totalAmountCents = entryInputs.reduce(
-    (sum, entry) => sum + Math.round((entry.registrationData.entryFee ?? 0) * 100),
-    0
-  );
   const enrollment = await ensureEnrollment({
     showId,
     ownerResolution,
@@ -138,6 +142,7 @@ export async function submitShowRegistration({
 
   let armbandAssignments: ArmbandAssignment[] = [];
   let armbandFailures: ArmbandAssignmentFailure[] = [];
+  let submissionOutcomes: EntrySubmissionOutcome[] | undefined;
 
   if (entryInputs.length > 0 && enrollment.dbRegistrationId) {
     const rpcResult = await resolvedDeps.submitShowEntries({
@@ -153,18 +158,25 @@ export async function submitShowRegistration({
       })),
       submissionId: resolvedDeps.createSubmissionId(),
       paymentMethod,
+      submissionSource,
     });
     if (!isStillActive(isActive)) return { aborted: true };
 
-    await recordEnrollmentPayment({
-      showId,
-      ownerResolution,
-      paymentMethod,
-      paymentDetails,
-      totalAmountCents,
-      deps: resolvedDeps,
-    });
-    if (!isStillActive(isActive)) return { aborted: true };
+    const createdOutcomes = rpcResult.outcomes.filter(outcome => outcome.outcome === 'created');
+    submissionOutcomes = rpcResult.outcomes;
+    const createdAmountCents = createdOutcomes.reduce((sum, outcome) => sum + outcome.feeCents, 0);
+
+    if (createdOutcomes.length > 0) {
+      await recordEnrollmentPayment({
+        showId,
+        ownerResolution,
+        paymentMethod,
+        paymentDetails,
+        totalAmountCents: createdAmountCents,
+        deps: resolvedDeps,
+      });
+      if (!isStillActive(isActive)) return { aborted: true };
+    }
 
     // Only staff may claim armbands; exhibitor self-entries skip this so the
     // staff-only assign_armband RPC isn't called (and rejected) on every submit.
@@ -172,7 +184,7 @@ export async function submitShowRegistration({
       ({ assignments: armbandAssignments, failures: armbandFailures } =
         await assignArmbandsForEntries({
           showId,
-          dogIds: entryInputs.map(entry => entry.dogId),
+          dogIds: rpcResult.entries.map(entry => entry.dogId),
           submittedEntries: rpcResult.entries,
           deps: resolvedDeps,
         }));
@@ -180,12 +192,19 @@ export async function submitShowRegistration({
     }
   }
 
+  const surfacedOutcomes = submissionOutcomes?.some(
+    outcome => outcome.outcome !== 'created' || outcome.capacityOverride
+  )
+    ? submissionOutcomes
+    : undefined;
+
   return {
     aborted: false,
     registrationNumber: enrollment.registrationNumber,
     dbRegistrationId: enrollment.dbRegistrationId,
     armbandAssignments,
     armbandFailures,
+    ...(surfacedOutcomes ? { entryOutcomes: surfacedOutcomes } : {}),
   };
 }
 

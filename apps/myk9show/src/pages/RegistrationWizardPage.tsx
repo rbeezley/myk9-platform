@@ -61,6 +61,7 @@ function RegistrationWizardContent() {
     registrationNumber,
     liveTotalFees,
     armbandAssignments,
+    entryOutcomes,
     ownerResolution,
     dogsLoading,
     agreedToEntryAgreement,
@@ -230,6 +231,7 @@ function RegistrationWizardContent() {
                     registrationNumber={registrationNumber}
                     currentRegistrationTotalFees={liveTotalFees}
                     armbandAssignments={armbandAssignments}
+                    entryOutcomes={entryOutcomes}
                     onDogSelectionChange={handleDogSelectionChange}
                     onClassSelectionChange={handleClassSelectionChange}
                     onHandlerAssignmentChange={handleHandlerAssignmentChange}

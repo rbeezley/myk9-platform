@@ -53,6 +53,7 @@ export interface ReplicatedJudgeAssignment extends JudgeAssignmentEnrichment {
   confirmedAt: string | null;
   fee: number | null;
   notes: string | null;
+  dayCapacityOverride?: number | null | undefined;
   // Sync metadata
   _version?: number | undefined;
   _lastModified?: Date | undefined;
@@ -110,6 +111,7 @@ export function rowToJudgeAssignment(row: JudgeAssignmentJoinedRow): ReplicatedJ
     confirmedAt: row.confirmed_at ?? null,
     fee: row.fee ?? null,
     notes: row.notes ?? null,
+    dayCapacityOverride: row.day_capacity_override ?? null,
     className: cls?.name ?? null,
     classElement: cls?.element ?? null,
     classLevel: cls?.level ?? null,
@@ -146,6 +148,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
       confirmed_at: assignment.confirmedAt ?? null,
       fee: assignment.fee ?? null,
       notes: assignment.notes ?? null,
+      day_capacity_override: assignment.dayCapacityOverride ?? null,
       updated_at: new Date().toISOString(),
     };
   }

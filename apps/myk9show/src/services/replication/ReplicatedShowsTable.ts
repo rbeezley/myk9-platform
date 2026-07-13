@@ -49,6 +49,7 @@ export interface ReplicatedShow {
   clubId?: string | undefined;
   maxEntriesPerDog?: number | undefined;
   maxTotalEntries?: number | undefined;
+  defaultJudgeDayCapacity?: number | undefined;
   allowsNonOwnerHandlers?: boolean | undefined;
   isNationals?: boolean | undefined;
   acceptCheckPayments?: boolean | undefined;
@@ -94,6 +95,7 @@ function rowToShow(row: ShowRow): ReplicatedShow {
     clubId: row.club_id ?? undefined,
     maxEntriesPerDog: row.max_entries_per_dog ?? undefined,
     maxTotalEntries: row.max_total_entries ?? undefined,
+    defaultJudgeDayCapacity: row.default_judge_day_capacity ?? 125,
     allowsNonOwnerHandlers: row.allow_non_owner_handlers ?? undefined,
     isNationals: row.is_nationals ?? undefined,
     acceptCheckPayments: row.accept_check_payments ?? undefined,

@@ -202,6 +202,39 @@ describe('ReplicatedEntriesTable', () => {
         );
       });
 
+      it('serializes the dedicated show-desk capacity override flag', async () => {
+        const queueMutation = vi.spyOn(
+          table as unknown as {
+            queueMutation: (
+              operation: string,
+              rowId: string,
+              payload: Record<string, unknown>,
+              dependencies?: string[]
+            ) => Promise<string | null>;
+          },
+          'queueMutation'
+        );
+
+        await table.createEntry({
+          id: 'entry-override',
+          classId: 'class-1',
+          showId: 'show-1',
+          dogId: 'dog-1',
+          entrySource: 'myk9',
+          capacityOverride: true,
+        });
+
+        expect(queueMutation).toHaveBeenCalledWith(
+          'INSERT',
+          'entry-override',
+          expect.objectContaining({
+            entry_source: 'myk9',
+            capacity_override: true,
+          }),
+          undefined
+        );
+      });
+
       it('should update existing entry', async () => {
         const entry: ReplicatedEntry = {
           id: 'entry-1',

@@ -28,6 +28,7 @@ function makeParams(
       dayOfShowFee: '30',
       startDate: '2026-05-01',
     },
+    submissionSource: 'organizer',
     deps: {
       submitRegistration: vi.fn().mockResolvedValue(undefined),
       confirmRegistration: vi.fn().mockResolvedValue({
@@ -40,6 +41,18 @@ function makeParams(
       }),
       submitShowEntries: vi.fn().mockResolvedValue({
         entries: [{ entryId: 'entry-1', dogId: 'dog-1' }],
+        outcomes: [
+          {
+            dogId: 'dog-1',
+            classId: 'class-1',
+            outcome: 'created',
+            entryId: 'entry-1',
+            waitlistEntryId: null,
+            waitlistPosition: null,
+            feeCents: 3000,
+            capacityOverride: false,
+          },
+        ],
         registrationId: 'db-reg-1',
         submissionId: 'submission-1',
       }),
@@ -180,6 +193,80 @@ describe('submitShowRegistration', () => {
 
     expect(params.deps.createShowRegistration).toHaveBeenCalledTimes(1);
     expect(params.deps.createShowRegistration).toHaveBeenCalledWith('show-1', 'owner-1');
+  });
+
+  it('records payment and claims armbands only for created capacity outcomes', async () => {
+    const params = makeParams({
+      paymentMethod: 'secretary_paid',
+      classSelections: [
+        {
+          dogId: 'dog-1',
+          trialId: 'trial-1',
+          selectedClasses: [{ classId: 'class-1', jumpHeight: '16' }],
+        },
+        {
+          dogId: 'dog-2',
+          trialId: 'trial-1',
+          selectedClasses: [{ classId: 'class-2', jumpHeight: '16' }],
+        },
+      ],
+      handlerAssignments: {
+        'dog-1|class-1': { handlerId: 'handler-1', handlerName: 'Pat Handler' },
+        'dog-2|class-2': { handlerId: 'handler-2', handlerName: 'Lee Handler' },
+      },
+      classes: [
+        { id: 'class-1', entryFee: 20 },
+        { id: 'class-2', entryFee: 20 },
+      ],
+    });
+    vi.mocked(params.deps.submitShowEntries!).mockResolvedValue({
+      entries: [{ entryId: 'entry-1', dogId: 'dog-1' }],
+      outcomes: [
+        {
+          dogId: 'dog-1',
+          classId: 'class-1',
+          outcome: 'created',
+          entryId: 'entry-1',
+          waitlistEntryId: null,
+          feeCents: 3000,
+          capacityOverride: false,
+        },
+        {
+          dogId: 'dog-2',
+          classId: 'class-2',
+          outcome: 'waitlisted',
+          entryId: null,
+          waitlistEntryId: 'wait-2',
+          feeCents: 0,
+          capacityOverride: false,
+        },
+      ],
+      registrationId: 'db-reg-1',
+      submissionId: 'submission-1',
+    } as Awaited<ReturnType<NonNullable<typeof params.deps.submitShowEntries>>>);
+
+    const result = await submitShowRegistration(params);
+
+    expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(
+      2,
+      'show-1',
+      'owner-1',
+      'check-1',
+      { paymentReference: 'check-1' },
+      'secretary_paid',
+      3000
+    );
+    expect(params.deps.claimNextArmband).toHaveBeenCalledTimes(1);
+    expect(params.deps.claimNextArmband).toHaveBeenCalledWith('show-1', 'dog-1', {
+      entryIds: ['entry-1'],
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        entryOutcomes: expect.arrayContaining([
+          expect.objectContaining({ dogId: 'dog-2', outcome: 'waitlisted' }),
+        ]),
+      })
+    );
   });
 
   it('reports enrollment payment persistence failures after entries submit', async () => {

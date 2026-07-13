@@ -30,6 +30,8 @@ export interface ReplicatedEntry {
   paymentStatus?: string | undefined;
   paymentMethod?: string | undefined;
   entrySource?: string | undefined;
+  capacityOverride?: boolean | undefined;
+  capacity_override?: boolean | undefined;
   isDayOfShow?: boolean | undefined;
   isInRing?: boolean | undefined;
   is_in_ring?: boolean | undefined;
@@ -134,6 +136,105 @@ export interface ReplicatedEntry {
 }
 
 /**
+ * Convert an app-level entry to a Supabase row, omitting app-only fields.
+ */
+export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unknown> {
+  // Coerce empty strings to null for UUID FK columns (Postgres rejects '' as invalid UUID)
+  const fk = (v: string | undefined): string | null => v || null;
+
+  return {
+    id: entry.id,
+    class_id: fk(entry.classId),
+    show_id: fk(entry.showId),
+    dog_id: fk(entry.dogId),
+    handler_id: fk(entry.handlerId),
+    armband: entry.armband ?? null,
+    handler: entry.handler ?? null,
+    entry_status: entry.entryStatus ?? null,
+    check_in_status: entry.checkInStatus ?? entry.check_in_status ?? 'no-status',
+    jump_height: entry.jumpHeight ?? null,
+    entry_fee: entry.entryFee ?? null,
+    payment_status: entry.paymentStatus ?? null,
+    payment_method: entry.paymentMethod ?? null,
+    entry_source: entry.entrySource ?? 'myk9',
+    capacity_override: entry.capacityOverride ?? entry.capacity_override ?? false,
+    is_day_of_show: entry.isDayOfShow ?? null,
+    run_order: entry.runOrder ?? null,
+    move_up_requested: entry.moveUpRequested ?? entry.move_up_requested ?? null,
+    preferred_judge: entry.preferredJudge ?? null,
+    special_requests:
+      entry.specialRequests !== undefined
+        ? entry.specialRequests
+        : entry.special_requests !== undefined
+          ? entry.special_requests
+          : null,
+    withdrawal_reason:
+      entry.withdrawalReason !== undefined
+        ? entry.withdrawalReason
+        : entry.withdrawal_reason !== undefined
+          ? entry.withdrawal_reason
+          : null,
+    submitted_at: entry.submittedAt ?? null,
+    registration_id: fk(entry.registrationId),
+    trial_id: fk(entry.trialId ?? entry.trial_id),
+    is_scored: entry.isScored ?? entry.is_scored ?? null,
+    result_status: entry.resultStatus ?? entry.result_status ?? null,
+    disqualification_reason: entry.disqualification_reason ?? null,
+    search_time_seconds: entry.searchTimeSeconds ?? entry.search_time_seconds ?? null,
+    total_score:
+      entry.totalScore ?? entry.total_score ?? entry.totalPoints ?? entry.total_points ?? null,
+    total_faults: entry.totalFaults ?? entry.total_faults ?? null,
+    judge_notes: entry.judgeNotes ?? entry.judge_notes ?? null,
+    scoring_completed_at: entry.scoringCompletedAt ?? entry.scoring_completed_at ?? null,
+    // Detailed scent-work scoring (ringside-RPC whitelisted). Include a column
+    // ONLY when the local row actually has it (`!== undefined`), NOT `?? null`.
+    // An entry replica cached before these fields were mapped lacks them; a
+    // full-row direct UPDATE (e.g. a manager editing a non-ringside column)
+    // would otherwise serialize them as null and wipe already-saved area
+    // times/counts/points on the server. Omitting an unset column leaves the
+    // server value untouched; an explicit null (a real clear) is still written.
+    ...(entry.area1_time_seconds !== undefined && {
+      area1_time_seconds: entry.area1_time_seconds,
+    }),
+    ...(entry.area2_time_seconds !== undefined && {
+      area2_time_seconds: entry.area2_time_seconds,
+    }),
+    ...(entry.area3_time_seconds !== undefined && {
+      area3_time_seconds: entry.area3_time_seconds,
+    }),
+    ...(entry.area4_time_seconds !== undefined && {
+      area4_time_seconds: entry.area4_time_seconds,
+    }),
+    ...(entry.total_correct_finds !== undefined && {
+      total_correct_finds: entry.total_correct_finds,
+    }),
+    ...(entry.total_incorrect_finds !== undefined && {
+      total_incorrect_finds: entry.total_incorrect_finds,
+    }),
+    ...(entry.no_finish_count !== undefined && { no_finish_count: entry.no_finish_count }),
+    ...(entry.points_earned !== undefined && { points_earned: entry.points_earned }),
+    // Only write placement if result is qualified — NQ/absent/etc. should never have a placement
+    final_placement:
+      entry.resultStatus && entry.resultStatus !== 'qualified'
+        ? null
+        : entry.finalPlacement != null
+          ? Number(entry.finalPlacement)
+          : entry.final_placement != null
+            ? Number(entry.final_placement)
+            : null,
+    ring_entry_time: entry.ring_entry_time ?? null,
+    ring_exit_time: entry.ring_exit_time ?? null,
+    deleted_at:
+      entry.deletedAt !== undefined
+        ? entry.deletedAt
+        : entry.deleted_at !== undefined
+          ? entry.deleted_at
+          : null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+/**
  * Convert database row to app Entry type.
  *
  * Exported for unit testing the field mapping (notably the embedded
@@ -166,6 +267,8 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     compedReason: row.comped_reason ?? undefined,
     comped_reason: row.comped_reason ?? undefined,
     entrySource: (dbRow.entry_source as string | undefined) ?? undefined,
+    capacityOverride: (dbRow.capacity_override as boolean | undefined) ?? false,
+    capacity_override: (dbRow.capacity_override as boolean | undefined) ?? false,
     isDayOfShow: row.is_day_of_show ?? undefined,
     isInRing: row.is_in_ring ?? undefined,
     is_in_ring: row.is_in_ring ?? undefined,

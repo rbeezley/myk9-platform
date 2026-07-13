@@ -37,6 +37,7 @@ const IDENTITY = { userId: 'u1', name: 'Mariana', role: 'exhibitor' };
 
 interface FakeChannel {
   topic: string;
+  state: string;
   on: ReturnType<typeof vi.fn>;
   subscribe: ReturnType<typeof vi.fn>;
   track: ReturnType<typeof vi.fn>;
@@ -62,6 +63,7 @@ beforeEach(() => {
       topic: `realtime:${name}`,
       // Channels track only once joined; mirror that so the engine's joined-guard
       // is exercised rather than bypassed.
+      state: 'joined',
       on: vi.fn(),
       subscribe: vi.fn((cb?: (status: string) => void) => {
         cb?.('SUBSCRIBED');

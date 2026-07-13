@@ -197,10 +197,10 @@ describe('userStore (with database integration)', () => {
       expect(mockMutateAsync).toHaveBeenCalledWith(expect.objectContaining(personInput));
     });
 
-    it('should add person with associated dogs', async () => {
+    it('should add person with dogs', async () => {
       const mockMutateAsync = vi.fn().mockResolvedValue({
         ...mockUsers[0],
-        associatedDogs: ['dog-1'],
+        dogs: ['dog-1'],
       });
       mockUseCreateUserMutation.mockReturnValue({
         mutateAsync: mockMutateAsync,
@@ -223,7 +223,7 @@ describe('userStore (with database integration)', () => {
           state: 'CA',
           zipCode: '12345',
         },
-        dogs: [],
+        dogs: ['dog-1'],
       };
 
       await act(async () => {
@@ -231,10 +231,7 @@ describe('userStore (with database integration)', () => {
       });
 
       expect(mockMutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          ...personInput,
-          associatedDogs: ['dog-1'],
-        })
+        expect.objectContaining(personInput)
       );
     });
 

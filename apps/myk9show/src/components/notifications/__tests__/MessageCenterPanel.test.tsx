@@ -10,7 +10,8 @@ const navigateMock = vi.fn();
 const { classOptionsHookMock } = vi.hoisted(() => ({
   classOptionsHookMock: vi.fn(
     (
-      _showId?: string
+      _showId?: string | null,
+      _options?: { enabled?: boolean }
     ): { data: unknown[] | undefined; isError?: boolean; refetch?: () => void } => ({
       data: [],
     })
@@ -81,7 +82,7 @@ vi.mock('@/features/show-workbench/MessageShowComposer', () => ({
 
 vi.mock('@/features/messages/hooks/useMessageShowClassOptions', () => ({
   useMessageShowClassOptions: (...args: unknown[]) =>
-    classOptionsHookMock(args[0] as string | undefined),
+    classOptionsHookMock(args[0] as string | null | undefined, args[1] as { enabled?: boolean }),
 }));
 
 let authContext: Record<string, unknown> = {

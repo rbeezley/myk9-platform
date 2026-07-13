@@ -1,6 +1,7 @@
 # Edge Function Drift Audit — 2026-07-12
 
-> **Status:** Source-recovery decision prepared for review; `stripe-upgrade-subscription` remains
+> **Status:** Source-recovery decision merged in [#1313](https://github.com/rbeezley/myk9-platform/pull/1313);
+> `stripe-upgrade-subscription` remains
 > deployment-blocked pending an explicit approval and post-deploy bundle comparison.
 
 ## Scope and method
@@ -18,7 +19,7 @@ No function, secret, database, or configuration was changed.
 | --- | ---: | --- | --- |
 | Exact bundle match | 26 | All remaining repository-backed functions | No action. |
 | Repo-ahead shared HTTP helper | 4 | `admin-delete-user`, `admin-generate-reset-link`, `send-push-notification`, `send-targeted-message` | Reviewed source is ahead; prepare a small, approval-gated deploy batch after the two blockers below are resolved. |
-| Deployed-ahead source | 1 | `stripe-upgrade-subscription` | **Stop.** Do not overwrite until the live variant is recovered and its intended price-list semantics are decided. |
+| Deployed-ahead source | 1 | `stripe-upgrade-subscription` | Source decision is merged; deploy only after separate approval and post-deploy bundle comparison. |
 | Retired deployed-only legacy function | 1 | `send-notification` | **Retired 2026-07-12.** Dashboard Logs showed no events in the prior 30 days; removed from Supabase after approval and confirmed absent from the inventory. |
 
 The live inventory now has 31 repository-name matches, zero deployed-only functions, and zero
@@ -67,7 +68,7 @@ export function parsePremiumPriceIds(envValue: string | undefined, fallback: str
 Current source deliberately extends the fallback with configured IDs instead. That protects an
 existing live subscriber when `PREMIUM_PRICE_IDS` contains only sandbox IDs.
 
-### Proposed source-of-truth decision — pending review
+### Source-of-truth decision — merged
 
 The repository fallback-extension helper is the selected source of truth; it supersedes the
 deployed replacement helper. The live variant has no recoverable Git provenance, while repository
@@ -76,10 +77,10 @@ is protected by `apps/myk9show/supabase/functions/_shared/premiumPrices.test.ts`
 contract passed locally on 2026-07-12: `pnpm exec vitest run
 apps/myk9show/supabase/functions/_shared/premiumPrices.test.ts` (5 tests).
 
-Tracked in OpenSpec change: `recover-stripe-price-source-drift`.
+Tracked in OpenSpec change: `recover-stripe-price-source-drift` (PR #1313, merged 2026-07-13).
 
-Do not redeploy `stripe-upgrade-subscription` until this source decision is merged and deployment
-is separately approved. The approved deployment review must then download the deployed function
+Do not redeploy `stripe-upgrade-subscription` without a separate deployment approval. The approved
+deployment review must then download the deployed function
 into an isolated directory and compare its `premiumPrices.ts` with repository fallback-extension
 source. If that comparison fails, stop and use the recorded repository revision for an
 approval-gated rollback; never restore the unknown live-only helper.
@@ -101,6 +102,6 @@ deployed-only functions, and zero repo-only functions.
 
 Runbook 0.4 remains open until:
 
-1. the deployed-ahead premium-price behavior is recovered and the fallback-extension
-   source-of-truth decision is merged;
+1. `stripe-upgrade-subscription` is separately approved, deployed, and its downloaded
+   `premiumPrices.ts` matches repository fallback-extension source;
 2. the four-function helper catch-up batch is approved, deployed, and smoke-verified.

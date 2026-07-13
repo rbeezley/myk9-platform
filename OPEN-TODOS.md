@@ -88,6 +88,15 @@ High-judgment work to prioritize while strong-model access is available. These a
   clean after #1294 merged remote versions `20260712180000`/`190000`; the post-merge
   `supabase db push --dry-run` reports the remote database is up to date.
 
+- [ ] **Run the morning evidence sweep (gates 2.4 + 2.5)** — After 08:15 UTC (3:15 AM CDT), three
+      read-only checks: (1) `cron.job_run_details` for the `daily-health-snapshot-watchdog` job shows
+      `status='succeeded'` on its first 08:00 UTC run → closes gate 2.4; (2) Sentry Cron Monitor
+      `daily-health-check` received correlated `in_progress → ok` check-ins from the 07:00 UTC run and a
+      fresh `system_health_snapshots` row landed; (3) operator confirms the monitor's missed/error/recovery
+      routing goes to a named human, plus one missed-notification test → closes gate 2.5. Cheap-model work.
+      Then Sections 9.3–9.7 and human review of the draft grant migration (esp. `get_license_key()`, live
+      grant + zero call sites). Full context in TO-DOS.md § "Go-Live Morning Evidence Sweep".
+
 ---
 
 ## Security Remediation — OpenSpec Tracking — 2026-07-03

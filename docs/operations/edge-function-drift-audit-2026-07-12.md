@@ -21,8 +21,8 @@ No function, secret, database, or configuration was changed.
 | Deployed-ahead source | 1 | `stripe-upgrade-subscription` | **Stop.** Do not overwrite until the live variant is recovered and its intended price-list semantics are decided. |
 | Retired deployed-only legacy function | 1 | `send-notification` | **Retired 2026-07-12.** Dashboard Logs showed no events in the prior 30 days; removed from Supabase after approval and confirmed absent from the inventory. |
 
-The live inventory now has 31 repository-name matches and one deployed-only function. The prior
-repo-only `push-trigger-support-message` is deployed and matches current source.
+The live inventory now has 31 repository-name matches, zero deployed-only functions, and zero
+repo-only functions; `push-trigger-support-message` is deployed and matches current source.
 
 ## Repo-ahead batch, not yet deployed
 

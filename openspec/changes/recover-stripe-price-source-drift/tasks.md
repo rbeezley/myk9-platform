@@ -18,8 +18,8 @@
 
 ## 3. Verification And Review Gate
 
-- [x] 3.1 Run the focused `premiumPrices` Vitest contract, `pnpm openspec validate --change
-      recover-stripe-price-source-drift`, and `git diff --check`.
+- [x] 3.1 Run the focused `premiumPrices` Vitest contract, `pnpm openspec validate
+      recover-stripe-price-source-drift --type change --strict`, and `git diff --check`.
 - [x] 3.2 Run implementation verification against the OpenSpec artifacts; fix critical or
       straightforward warning findings and rerun affected checks.
 - [ ] 3.3 Commit the recovery slice, create a reviewed PR only after explicit confirmation, and

@@ -39,7 +39,7 @@ Closes the three functional gaps that stand between the shipped capacity/waitlis
 
 ## Phase B — waitlist Phase 7: in-app promotion payment
 
-**Implementation status (2026-07-13):** complete locally on `codex/stripe-waitlist-payment-decline`; awaiting PR approval, CI, migration/function deployment approval, and staging evidence.
+**Implementation status (2026-07-13):** merged in [#1314](https://github.com/rbeezley/myk9-platform/pull/1314), migration deployed, and both functions live. `20260713110000_waitlist_offer_payment_guard.sql` is applied; `stripe-payment-link` is ACTIVE v12 and `decline-waitlist-offer` ACTIVE v1 (15:12 UTC). Both reject unauthenticated no-op POSTs with 401. The remaining Phase B gate is a separately approved Stripe test-mode promotion payment and decline/expiry smoke.
 
 1. Reuse the existing My Entries `WaitListSection` — no new route, payment page, or card form. An offer deep-link focuses the owned row and preserves the active My Entries workflow.
 2. Complete payment invokes the existing `stripe-payment-link` for the promoted entry and returns to the same owned offer. The narrow exhibitor path verifies every requested entry belongs to an active, unexpired offer; existing organizer/internal authorization, pricing, Connect readiness, redirect checks, link replacement, and webhook reconciliation remain authoritative.

@@ -84,6 +84,11 @@ stripe-golive-enforcement`, and stop for confirmation before PR creation, migrat
       after Vitest started; treat its result as inconclusive and require CI confirmation before merge.
 - [x] 4.8 Commit Phase B, prepare its PR body, and stop for confirmation before PR creation,
       function deployment, Stripe test-mode smoke writes, or merge.
+- [x] 4.9 Remove the card-only `payment_method_types` override from the shared payment-link
+      Checkout builder so Stripe can select configured dynamic methods; add a regression test.
+      2026-07-13: assertion-first test failed against `['card']`, then passed after the minimal
+      removal. Focused 20-test suite, typecheck, lint, and `git diff --check` pass. The fix is
+      locally committed pending PR/merge and an explicitly approved function redeployment.
 
 ## 5. Integrated Verification
 
@@ -93,10 +98,19 @@ stripe-golive-enforcement`, and stop for confirmation before PR creation, migrat
 - [ ] 5.2 Run the relevant E2E/phase-4 seam flow for promote → notify → pay and promote → decline/
       expire → cascade, plus mobile My Entries replay; stop any runner that hangs beyond 60 seconds and
       record the limitation.
-- [ ] 5.3 After explicit approval, dry-run/push migrations, deploy changed/new Edge Functions with
+- [x] 5.3 After explicit approval, dry-run/push migrations, deploy changed/new Edge Functions with
       required flags, and capture redacted staging auth/failure-path evidence without live-mode money.
-- [ ] 5.4 After explicit approval, run a Stripe test-mode low-value promotion payment and decline/
+      2026-07-13: dry run identified only `20260713110000_waitlist_offer_payment_guard.sql`; it
+      was applied and a follow-up dry run reported the remote database up to date. `stripe-payment-link`
+      deployed ACTIVE v12 at 15:12:02 UTC and `decline-waitlist-offer` ACTIVE v1 at 15:12:16 UTC.
+      Both endpoints returned 401 to an unauthenticated no-op POST, with no Stripe or waitlist write.
+- [x] 5.4 After explicit approval, run a Stripe test-mode low-value promotion payment and decline/
       expiry smoke; confirm entry, waitlist, link, webhook, refund-safety, and capacity states.
+      2026-07-13 controlled E2E-exhibitor smoke: a `cs_test_` $32.10 Checkout payment reconciled
+      one $30.00 promoted entry to `confirmed`/`paid`/`online`, its link to `paid`, offer to
+      `accepted`, and one succeeded entry order. A second controlled `cs_test_` offer was declined:
+      its link is `expired`, offer `declined`, entry `promotion-expired`/pending with no payment
+      intent, and zero orders. Judge-day availability changed 121→120 only for the paid entry.
 
 ## 6. Tracking And Delivery
 

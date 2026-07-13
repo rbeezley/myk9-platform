@@ -82,7 +82,7 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       `20260625200000` and `20260626000000` are already applied remotely. Owner: Agent.
       _Verify:_ `supabase db push --dry-run` reported the remote database is up to date;
       `supabase migration list` shows both migrations applied locally and remotely.
-- [ ] **0.4 Edge-function drift audit + repo-ahead batch deploy** — re-run the drift check from
+- [x] **0.4 Edge-function drift audit + repo-ahead batch deploy** — DONE 2026-07-13. Re-ran the drift check from
       [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md)
       (download deployed bundles, diff vs repo). Deploy remaining repo-ahead functions in small
       batches with smoke checks; `send-auth-email` is highest-care (see Phase 1.2). If any
@@ -97,8 +97,9 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       The fallback-extension source decision merged in [#1313](https://github.com/rbeezley/myk9-platform/pull/1313);
       `stripe-upgrade-subscription` was deployed after separate approval on 2026-07-13 and its
       downloaded `premiumPrices.ts` and `index.ts` exactly match the reviewed repository source.
-      The four HTTP-helper functions remain separately approval-gated.
-      Full evidence and the approval-gated four-function command are in
+      The four HTTP-helper functions were separately approved and deployed on 2026-07-13; all are
+      ACTIVE, unauthenticated POSTs returned 401, and a non-owner push request returned 403.
+      Full evidence and the deployed four-function command are in
       [`edge-function-drift-audit-2026-07-12.md`](edge-function-drift-audit-2026-07-12.md).
 - [ ] **0.5 Money-path hardening Phases 1–3** — MP-01/02 (amount integrity), MP-03
       (payment-link duplicate delivery), MP-04 (mode-scoped Stripe IDs). One PR per phase per

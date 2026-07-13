@@ -77,12 +77,12 @@ High-judgment work to prioritize while strong-model access is available. These a
   operator alert, and a provider-safe real-429 proof (six retries at 1,000 ms; all 16 final 200;
   PII-free telemetry); the operator visually confirmed the alert email in Gmail. Retry runtime
   acceptance is complete.
-  Remaining work includes Phase 0.4 Edge-function drift recovery: the 2026-07-12 strict bundle
-  audit found a deployed-ahead `stripe-upgrade-subscription` price helper; the deployed-only
+  Phase 0.4 Edge-function drift recovery is complete: the 2026-07-12 strict bundle audit found a
+  deployed-ahead `stripe-upgrade-subscription` price helper; the deployed-only
   legacy `send-notification` had no 30-day log events and was retired after approval. The safer
   fallback-extension source decision merged in [#1313](https://github.com/rbeezley/myk9-platform/pull/1313);
-  `stripe-upgrade-subscription` was deployed and bundle-verified on 2026-07-13. Separately approve
-  the small repo-ahead helper batch. See
+  `stripe-upgrade-subscription` was deployed and bundle-verified on 2026-07-13, and the small
+  repo-ahead helper batch is deployed and smoke-verified. See
   [`edge-function-drift-audit-2026-07-12.md`](docs/operations/edge-function-drift-audit-2026-07-12.md).
   Other remaining work is operator-owned (legal, production data, Stripe live mode, mailbox/AKC,
   browser/device, Sentry routing, DNS/Vercel) plus a paid premium success smoke if approved. Migration parity is

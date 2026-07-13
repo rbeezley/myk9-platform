@@ -90,8 +90,9 @@ Morning approval checklist:
 - The fallback-extension source decision for deployed-ahead `stripe-upgrade-subscription` merged in
   [#1313](https://github.com/rbeezley/myk9-platform/pull/1313), and the function was deployed and
   bundle-verified on 2026-07-13.
-- Next, separately approve/deploy/smoke the four-function HTTP-helper catch-up batch.
-- Keep Go Live Runbook 0.4/0.5/0.7 unchecked until remaining drift/staging evidence is recorded.
+- The four-function HTTP-helper catch-up batch was approved, deployed, and smoke-verified on
+  2026-07-13. Go Live Runbook 0.4 is complete.
+- Keep Go Live Runbook 0.5/0.7 unchecked until remaining staging evidence is recorded.
 
 ### B1 - Phase 1 Platform And Deploy Pipeline
 

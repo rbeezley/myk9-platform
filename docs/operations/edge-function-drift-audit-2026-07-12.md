@@ -2,7 +2,7 @@
 
 > **Status:** Source-recovery decision merged in [#1313](https://github.com/rbeezley/myk9-platform/pull/1313);
 > `stripe-upgrade-subscription` deployed and source-verified 2026-07-13. The four-function
-> HTTP-helper catch-up batch remains approval-gated.
+> HTTP-helper catch-up batch deployed and passed no-write authorization smokes 2026-07-13.
 
 ## Scope and method
 
@@ -11,21 +11,22 @@ This re-audit compared the live Supabase project `sojmvhhwsjxmfistvzbe` with cur
 isolated temporary workdir with `supabase functions download <name> --use-api` and compared every
 downloaded source file with the matching repository deployment root.
 
-No function, secret, database, or configuration was changed.
+No function, secret, database, or configuration was changed during the audit. The approved
+post-audit deployments are recorded below.
 
 ## Result
 
 | Classification | Count | Functions | Disposition |
 | --- | ---: | --- | --- |
 | Exact bundle match | 26 | All remaining repository-backed functions | No action. |
-| Repo-ahead shared HTTP helper | 4 | `admin-delete-user`, `admin-generate-reset-link`, `send-push-notification`, `send-targeted-message` | Reviewed source is ahead; prepare a small, approval-gated deploy batch after the remaining blocker is resolved. |
+| Repo-ahead shared HTTP helper | 4 | `admin-delete-user`, `admin-generate-reset-link`, `send-push-notification`, `send-targeted-message` | **Resolved 2026-07-13:** deployed after approval; all ACTIVE; no-auth smokes returned 401 and a non-owner push smoke returned 403. |
 | Deployed-ahead source | 1 | `stripe-upgrade-subscription` | **Resolved 2026-07-13:** deployed after approval; downloaded `premiumPrices.ts` and `index.ts` exactly match repository source. |
 | Retired deployed-only legacy function | 1 | `send-notification` | **Retired 2026-07-12.** Dashboard Logs showed no events in the prior 30 days; removed from Supabase after approval and confirmed absent from the inventory. |
 
 The live inventory now has 31 repository-name matches, zero deployed-only functions, and zero
 repo-only functions; `push-trigger-support-message` is deployed and matches current source.
 
-## Repo-ahead batch, not yet deployed
+## Resolved repo-ahead batch
 
 The four candidate functions are behind current shared HTTP helpers only:
 
@@ -36,8 +37,8 @@ The four candidate functions are behind current shared HTTP helpers only:
 
 Their current callers are present in the app and use the existing envelope response shape. The
 current helper adds pre-body authentication support and an optional machine-readable `HttpError`
-code; it does not change their success envelope. If the blockers are resolved and a deploy is
-approved, use one root deployment batch:
+code; it does not change their success envelope. With approval, all four deployed from the root
+on 2026-07-13:
 
 ```bash
 supabase functions deploy admin-delete-user admin-generate-reset-link \
@@ -45,9 +46,10 @@ supabase functions deploy admin-delete-user admin-generate-reset-link \
   --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt --use-api
 ```
 
-Then run only fail-closed/no-write smokes: unauthenticated calls must return 401; an authenticated
-non-owner push request must return 403; no user deletion, reset-link generation, or message send is
-part of this batch's smoke.
+The required fail-closed/no-write smokes passed: all four unauthenticated POSTs returned 401, and
+an authenticated non-owner call to `send-push-notification` with a deliberately different,
+nonexistent target user ID returned 403. No user deletion, reset-link generation, message send, or
+push delivery was part of the smoke. The deployed inventory reports all four functions ACTIVE.
 
 ## Resolved blocker 1 — `stripe-upgrade-subscription` was deployed ahead
 
@@ -103,8 +105,9 @@ deployed-only functions, and zero repo-only functions.
 
 ## Closure criteria
 
-Runbook 0.4 remains open until:
+Runbook 0.4 is complete:
 
 1. [x] `stripe-upgrade-subscription` was separately approved and deployed, and its downloaded
    `premiumPrices.ts` matches repository fallback-extension source (2026-07-13);
-2. the four-function helper catch-up batch is approved, deployed, and smoke-verified.
+2. [x] the four-function helper catch-up batch was approved, deployed, and smoke-verified
+   (2026-07-13).

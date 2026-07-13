@@ -65,10 +65,10 @@ required because the handlers perform their own authentication.
 - One password-reset request for the operator-approved Gmail address returned 200 through
   Supabase Auth. The resulting live `email_log` row recorded `password_reset`, `delivered`, and a
   Resend message ID at `2026-07-13T00:18:42Z`. This was one message, not a bulk-mail test.
-- Live 429/503 fault injection was not attempted because it would require provider disruption or
-  artificial production traffic. The deterministic post-deploy fault-injection suite exercised
-  429, 503, and network recovery and verified that retry telemetry contains only `attempt`,
-  `status`, and `delayMs`; it passed 21/21.
+- Direct live 503/network fault injection was not attempted because it would require provider
+  disruption. The deterministic post-deploy fault-injection suite exercised 429, 503, and network
+  recovery and verified that retry telemetry contains only `attempt`, `status`, and `delayMs`; it
+  passed 21/21. The provider-safe real-429 acceptance is documented below.
 
 ## Valid-path and provider-safe runtime acceptance — 2026-07-12
 

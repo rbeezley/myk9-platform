@@ -336,6 +336,7 @@ export interface EntrySubmissionOutcome {
   waitlistPosition?: number | null;
   feeCents: number;
   capacityOverride: boolean;
+  denialReason?: string | null;
 }
 
 export interface SubmitShowEntriesResult {
@@ -354,6 +355,7 @@ interface RpcEntrySubmissionOutcome {
   waitlist_position?: number | null;
   fee_cents: number;
   capacity_override: boolean;
+  denial_reason?: string | null;
 }
 
 // Submit show entries via the server-side RPC (enforces ownership, fees, payment auth, and capacity)
@@ -416,6 +418,7 @@ export async function submitShowEntries(params: {
         waitlistPosition: outcome.waitlist_position ?? null,
         feeCents: outcome.fee_cents,
         capacityOverride: outcome.capacity_override,
+        denialReason: outcome.denial_reason ?? null,
       }))
     : mappedEntries.map((entry, index) => ({
         dogId: entry.dogId,
@@ -426,6 +429,7 @@ export async function submitShowEntries(params: {
         waitlistPosition: null,
         feeCents: entries[index]?.clientFeeCents ?? 0,
         capacityOverride: false,
+        denialReason: null,
       }));
 
   return {

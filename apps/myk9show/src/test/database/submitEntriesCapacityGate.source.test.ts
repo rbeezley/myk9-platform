@@ -7,6 +7,7 @@ const migrationSql = [
   '20260712200000_entry_capacity_enforcement.sql',
   '20260712200100_entry_capacity_write_boundaries.sql',
   '20260712210000_entry_capacity_exhibitor_aware_waitlist_reuse.sql',
+  '20260713102000_submit_show_entries_denial_reason_outcomes.sql',
 ]
   .map(filename => readFileSync(resolve(root, 'supabase/migrations', filename), 'utf8'))
   .join('\n');
@@ -16,7 +17,9 @@ const rollbackSqlPath = resolve(root, 'scripts/qa/rollback-entry-capacity-enforc
 describe('shared entry capacity enforcement', () => {
   it('routes both entry write boundaries through one class-and-judge decision', () => {
     expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.evaluate_entry_capacity');
-    expect(migrationSql.match(/FROM public\.evaluate_entry_capacity/g)).toHaveLength(2);
+    expect(
+      migrationSql.match(/FROM public\.evaluate_entry_capacity/g)?.length ?? 0
+    ).toBeGreaterThanOrEqual(2);
     expect(migrationSql).toContain('max_entries');
     expect(migrationSql).toContain('hashtext(p_class_id::text)');
     expect(compactSql).toContain(
@@ -144,6 +147,24 @@ describe('shared entry capacity enforcement', () => {
     // variable rather than naming every column, so an appended output
     // column does not require changes there.
     expect(migrationSql).toContain('v_capacity record;');
+  });
+
+  it('preserves capacity denial reasons in submit_show_entries outcomes', () => {
+    const fixSql = readFileSync(
+      resolve(
+        root,
+        'supabase/migrations',
+        '20260713102000_submit_show_entries_denial_reason_outcomes.sql'
+      ),
+      'utf8'
+    );
+    const compactFixSql = fixSql.replace(/\s+/g, ' ');
+
+    expect(fixSql).toContain('CREATE OR REPLACE FUNCTION public.submit_show_entries');
+    expect(compactFixSql).toContain("'outcome', 'denied'");
+    expect(compactFixSql).toContain("'denial_reason', v_capacity.denial_reason");
+    expect(compactFixSql).toContain("'outcome', 'waitlisted'");
+    expect(compactFixSql).toContain("'denial_reason', NULL");
   });
 
   it('ships an executable rollback that restores both replaced RPCs before dropping the helper', () => {

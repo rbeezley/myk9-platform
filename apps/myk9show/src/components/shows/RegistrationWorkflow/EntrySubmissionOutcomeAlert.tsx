@@ -9,6 +9,17 @@ interface EntrySubmissionOutcomeAlertProps {
   outcomes?: EntrySubmissionOutcome[] | undefined;
 }
 
+const CROSS_EXHIBITOR_WAITLIST_REASON =
+  'dog already on this class wait list for a different exhibitor';
+
+function getEntrySubmissionDenialMessage(outcome: EntrySubmissionOutcome): string {
+  if (outcome.denialReason === CROSS_EXHIBITOR_WAITLIST_REASON) {
+    return 'already has an active wait-list spot for another exhibitor.';
+  }
+
+  return 'could not be entered because the class is full.';
+}
+
 export function EntrySubmissionOutcomeAlert({ outcomes }: EntrySubmissionOutcomeAlertProps) {
   const { dogs } = useDogStoreCompat();
   const { classes } = useClassStoreCompat();
@@ -43,7 +54,7 @@ export function EntrySubmissionOutcomeAlert({ outcomes }: EntrySubmissionOutcome
           </p>
         )}
         {deniedCount > 0 && (
-          <p>{`${deniedCount} ${deniedCount === 1 ? 'selection could' : 'selections could'} not be entered because it is full.`}</p>
+          <p>{`${deniedCount} ${deniedCount === 1 ? 'selection could' : 'selections could'} not be entered.`}</p>
         )}
         {waitlisted.map(outcome => (
           <p key={`${outcome.dogId}:${outcome.classId}:waitlisted`}>
@@ -52,7 +63,7 @@ export function EntrySubmissionOutcomeAlert({ outcomes }: EntrySubmissionOutcome
         ))}
         {denied.map(outcome => (
           <p key={`${outcome.dogId}:${outcome.classId}:denied`}>
-            {`${selectionLabel(outcome)}: could not be entered because the class is full.`}
+            {`${selectionLabel(outcome)}: ${getEntrySubmissionDenialMessage(outcome)}`}
           </p>
         ))}
         {overrideCount > 0 && (

@@ -48,6 +48,34 @@ Known overlap candidates to evaluate:
 
 For each merge/delete, grep docs and skills for references before removing (per `feedback_grep_docs_before_deletion`).
 
+### Phase 3a — Inventory & overlap detection: DONE 2026-07-13 (decisions pending)
+
+29 project skills in `.claude/skills/` + 6 project commands in `.claude/commands/` were inventoried against the full available-skills list (project + plugin + built-in). Note: `.agents/skills/` and `.agents/agents/` are Codex's separate skill set — out of scope per `[[project_skills_dir_layout]]` ("don't symlink-dedupe").
+
+**Confirmed duplicates / name collisions (need an owner decision — keep/merge/delete/rename):**
+
+| Finding | Evidence | Recommendation |
+| --- | --- | --- |
+| `frontend-design-shadcn` (project) vs `frontend-design:frontend-design` (plugin) | Project skill's own frontmatter `name:` field is literally `frontend-design` (not `frontend-design-shadcn`), and its description is verbatim identical to the plugin's. It's the plugin skill with one added section ("shadcn/ui Project Setup"). **That added section defaults to `Radix` as a suggested component library** — directly contradicting CLAUDE.md § Architecture Decisions ("Base UI via shadcn/ui — NOT Radix, Radix stagnated after WorkOS acquisition"). | Fix the Radix contradiction regardless of the merge decision (correctness bug, independent of consolidation). Then either delete the project copy and rely on the plugin (losing the shadcn section) or keep the project copy as the canonical one and accept the plugin as permanent shadow duplicate — can't remove a plugin's skill from here. |
+| `writing-concisely` (project) vs `anthropic-skills:writing-clearly-and-concisely` (plugin) | Project skill's own H1 is literally "Writing Clearly and Concisely" — same title as the plugin skill, same "Strunk's rules + AI-writing-patterns-to-avoid" structure. | Almost certainly the same source skill vendored twice. Same constraint as above — plugin can't be deleted from this repo; decide whether the project copy still earns its keep (e.g., if it's been customized) or should be deleted so only the plugin version triggers. |
+| `skill-creator:skill-creator` vs `anthropic-skills:skill-creator` | Both are plugin-namespaced (not project-owned) — two different plugins register a skill with the identical local name `skill-creator`. Not fixable by editing this repo. | Environment-level note only, not a repo action — flag to disable one of the two plugins if the duplication causes ambiguous triggering. |
+| `handoff` (project `.claude/commands/handoff.md`) vs built-in `handoff` skill | Two skills register the literal same name `handoff` with different descriptions: project's is "Generate a handoff document with resume prompt for continuing work in a fresh session" (confirmed by reading the file's frontmatter); a second, unnamespaced `handoff` skill in the available-skills list reads "Compact the current conversation into a handoff document for another agent to pick up" — a built-in, not plugin-namespaced. | The project version has 132 lines of real myK9-specific logic (explicit "don't duplicate CLAUDE.md/memory context" instruction, structured output template) — not a lazy copy. Keep it, but the identical bare name is a discoverability risk (`/handoff` is ambiguous about which fires). Consider renaming the project command's invocation, or documenting in PLAYBOOK which one wins. |
+
+**Checked and found NOT to be problematic overlap (no action needed):**
+
+| Pair | Why it's fine |
+| --- | --- |
+| `deploy` vs `db-push` | Not duplicated — `deploy`'s "Pushing migrations" section explicitly says "Invoke the `db-push` skill — it owns the password/linking procedure" and only adds the umbrella concerns (edge functions, Vault secret parity, post-deploy verification) that `db-push` doesn't cover. Correct composition, not overlap. |
+| `role-journey-ux-audit` vs `UX-Audit` vs `IA-Review` vs `qa-feature` vs `audit-pages` | Already disambiguated with a one-line-each table in `docs/PLAYBOOK.md` § 6 (Phase 1). Genuinely different scopes (persona/viewport-driven vs single-page 6-pass vs structural-IA vs live-bug-fixing-walk vs console/network sweep). |
+| `opsx-orchestrate` vs `opsx:ship` | Self-documented as an intentional wrapper ("Wraps opsx:ship — do not use for non-OpenSpec plans"), not accidental duplication. |
+| `debugging-patterns` vs `superpowers:systematic-debugging` | Explicitly designed to be used alongside each other (pattern lookup table feeds Phase 1/2 of the debugging skill), already cross-referenced in PLAYBOOK § 3. |
+| `verify` vs `verify-plan` | Similar names but different purposes — `verify` exercises runtime behavior of a code change; `verify-plan` checks an implementation *plan's* completeness before code is written. Naming is close enough to risk a wrong pick, but not a content duplicate — no merge needed, just watch for it. |
+| `ship-it` vs `ship-pr` | Different entry points — `ship-it` starts from a plan file with zero human input until final merge; `ship-pr` ships an already-existing branch/PR (handles review-comment triage too). Tail end overlaps (both review, merge, cleanup) but the divergent starting conditions justify keeping both. |
+
+**Not evaluated (out of scope for this pass):** `codebase-health` vs `engineering:tech-debt` (plugin) — flagged in the original candidate list but not read in detail; worth a follow-up pass since both could plausibly trigger on "audit tech debt."
+
+**Next step:** owner (or Fable) reviews the two real duplicate/collision findings above and the deferred `codebase-health` check, and makes the keep/merge/delete/rename call. Nothing has been deleted or merged in this pass — inventory only.
+
 ## Phase 4 — Memory hygiene
 
 Run `anthropic-skills:consolidate-memory`: merge duplicate/stale entries, delete memories now superseded by PLAYBOOK.md (once a lesson is codified in the repo, the memory should become a one-line pointer or be removed). Target: index short enough to scan in one screen per section.

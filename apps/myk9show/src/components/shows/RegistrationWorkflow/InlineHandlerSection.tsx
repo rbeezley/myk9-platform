@@ -58,6 +58,7 @@ export const InlineHandlerSection: React.FC<InlineHandlerSectionProps> = ({
 
   const allAssigned = entries.length > 0 && entries.every(e => e.hasHandler);
   const assignedCount = entries.filter(e => e.hasHandler).length;
+  const [isHandlersOpen, setIsHandlersOpen] = useState(!allAssigned);
 
   // Handler dialog save — apply to single entry
   const handleDialogSave = (assignments: Record<string, HandlerInfo>) => {
@@ -78,7 +79,7 @@ export const InlineHandlerSection: React.FC<InlineHandlerSectionProps> = ({
 
   return (
     <div className="mt-4 border rounded-lg">
-      <Collapsible defaultOpen={!allAssigned}>
+      <Collapsible open={isHandlersOpen} onOpenChange={setIsHandlersOpen}>
         <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors rounded-lg">
           <div className="flex items-center gap-2">
             {allAssigned ? (

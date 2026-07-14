@@ -125,6 +125,46 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(loaded).toBeNull();
   });
 
+  it('updates the loaded draft instead of creating another autosave draft', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const { result } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+
+    let draftId: string | null = null;
+    act(() => {
+      draftId = result.current.saveDraft('Saved draft');
+    });
+    expect(draftId).not.toBeNull();
+
+    act(() => {
+      result.current.loadDraft(draftId!);
+      result.current.autoSave();
+    });
+
+    expect(result.current.availableDrafts).toHaveLength(1);
+    expect(result.current.availableDrafts[0]?.id).toBe(draftId);
+  });
+
+  it('does not recreate a draft from unchanged form state after clearing all drafts', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const { result, rerender } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
+    );
+
+    act(() => {
+      result.current.autoSave();
+    });
+    expect(result.current.availableDrafts).toHaveLength(1);
+
+    seedDraftData({ selectedDogs: ['dog-2'] });
+    rerender();
+    act(() => {
+      result.current.clearAllDrafts();
+      result.current.autoSave();
+    });
+
+    expect(result.current.availableDrafts).toHaveLength(0);
+  });
+
   it('discardDraftsWithoutFinalSave clears drafts and skips the unmount auto-save', () => {
     seedDraftData({ selectedDogs: ['dog-1'] });
     const metadataKey = `registration-draft-metadata-${SHOW_ID}-${USER_A}`;

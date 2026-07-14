@@ -14,10 +14,10 @@
 
 - [x] 3.1 Add focused regression tests for active submitted, terminal history, cart-only, cold-store, loading, and error states.
 - [x] 3.2 Run focused Vitest coverage and root `pnpm typecheck`.
-- [ ] 3.3 Replay Browse Shows → Show Detail → Classes → registration payment review with the authenticated Heartland test account at 390×844 and 1440×900; require consistent state, no overflow, and zero browser console errors.
+- [x] 3.3 Replay Browse Shows → Show Detail → Classes → registration payment review with the authenticated Heartland test account at 390×844 and 1440×900; require consistent state, no overflow, and zero browser console errors. Completed 2026-07-14: both viewports replayed Browse Shows → Heartland Show Detail → Select Dogs → Classes → Payment review without submitting; `scrollWidth === innerWidth` and console errors remained zero.
 
 ## 4. Tracking and Shipping
 
 - [x] 4.1 Record this scoped change and its remaining browser evidence gate in OpenSpec.
-- [ ] 4.2 Update the go-live tracker to close `QA-STALE-DERIVED-STATE-035` only after task 3.3 passes.
+- [x] 4.2 Update the go-live tracker to close `QA-STALE-DERIVED-STATE-035` only after task 3.3 passes.
 - [ ] 4.3 Open a PR, obtain review and green CI, merge, then archive this change.

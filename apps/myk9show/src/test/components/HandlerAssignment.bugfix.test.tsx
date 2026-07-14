@@ -33,6 +33,19 @@ describe('Handler Assignment Bug Fixes', () => {
       expect(content).toContain('hasHandler: !!handler?.handlerName');
       expect(content).not.toContain('hasHandler: !!handler?.handlerId');
     });
+
+    it('controls the collapsible state after handler assignments change', () => {
+      const filePath = path.join(
+        __dirname,
+        '../../components/shows/RegistrationWorkflow/InlineHandlerSection.tsx'
+      );
+      const content = fs.readFileSync(filePath, 'utf8');
+
+      expect(content).toContain(
+        '<Collapsible open={isHandlersOpen} onOpenChange={setIsHandlersOpen}>'
+      );
+      expect(content).not.toContain('<Collapsible defaultOpen={!allAssigned}>');
+    });
   });
 
   describe('RegistrationWizardPage proceed gating', () => {

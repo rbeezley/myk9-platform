@@ -264,7 +264,7 @@ export function WorkflowStepContent({
           )
         ) : (
           <ClassSelectionStep
-            selectedDogs={optimisticState.classSelections.map(selection => selection.dogId)}
+            selectedDogs={registrationData.selectedDogs}
             classSelections={optimisticState.classSelections}
             onSelectionChange={onClassSelectionChange}
             showId={showId}

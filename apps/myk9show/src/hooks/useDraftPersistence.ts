@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useShowRegistrationStore } from '../store/showRegistrationStore';
 import { RegistrationFormData } from '../types/show-registration-types';
 import { logger } from '@/services/LoggingService';
@@ -53,8 +53,10 @@ export function useDraftPersistence(
   const { draftData } = useShowRegistrationStore();
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedDataRef = useRef<string>('');
+  const activeDraftMetadataRef = useRef<DraftMetadata | null>(null);
   const skipFinalSaveRef = useRef(false);
   const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
+  const [, setDraftsVersion] = useState(0);
 
   const log = useCallback(
     (message: string, ...args: unknown[]) => {
@@ -174,6 +176,8 @@ export function useDraftPersistence(
         }
 
         saveDraftMetadata(allMetadata);
+        activeDraftMetadataRef.current = draftMetadata;
+        setDraftsVersion(version => version + 1);
         log('Saved draft:', draftMetadata.id, 'with', Object.keys(data).length, 'fields');
 
         return draftMetadata.id;
@@ -215,6 +219,7 @@ export function useDraftPersistence(
         }
 
         log('Loaded draft:', draftId, 'with', Object.keys(savedDraft.data).length, 'fields');
+        activeDraftMetadataRef.current = savedDraft.metadata;
 
         return savedDraft;
       } catch (error) {
@@ -234,6 +239,10 @@ export function useDraftPersistence(
         // Update metadata
         const allMetadata = getDraftMetadata().filter(m => m.id !== draftId);
         saveDraftMetadata(allMetadata);
+        if (activeDraftMetadataRef.current?.id === draftId) {
+          activeDraftMetadataRef.current = null;
+        }
+        setDraftsVersion(version => version + 1);
 
         log('Deleted draft:', draftId);
       } catch (error) {
@@ -256,7 +265,7 @@ export function useDraftPersistence(
       return;
     }
 
-    const draftId = saveDraft(draftData);
+    const draftId = saveDraft(draftData, activeDraftMetadataRef.current ?? undefined);
     if (draftId) {
       lastSavedDataRef.current = currentDataString;
       setLastAutoSaveTime(new Date());
@@ -286,8 +295,11 @@ export function useDraftPersistence(
       localStorage.removeItem(getDraftKey(meta.id));
     });
     localStorage.removeItem(getMetadataKey());
+    activeDraftMetadataRef.current = null;
+    lastSavedDataRef.current = JSON.stringify(draftData ?? {});
+    setDraftsVersion(version => version + 1);
     log('Cleared all drafts for show:', showId);
-  }, [getDraftMetadata, getDraftKey, getMetadataKey, showId, log]);
+  }, [draftData, getDraftMetadata, getDraftKey, getMetadataKey, showId, log]);
 
   const discardDraftsWithoutFinalSave = useCallback(() => {
     skipFinalSaveRef.current = true;
@@ -334,7 +346,9 @@ export function useDraftPersistence(
 
   // Available drafts for the current (show, user) pair. Storage keys already
   // scope by userId, so no read-side filter is needed.
-  const availableDrafts = useMemo(() => getDraftMetadata(), [getDraftMetadata]);
+  // Reading the small metadata list on render keeps localStorage as the source
+  // of truth. draftsVersion forces a render after in-hook storage mutations.
+  const availableDrafts = getDraftMetadata();
 
   return {
     // Draft operations

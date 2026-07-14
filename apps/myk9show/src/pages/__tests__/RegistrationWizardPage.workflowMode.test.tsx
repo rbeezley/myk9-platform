@@ -182,6 +182,12 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
     await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
 
     expect(capturedWorkflowConfig?.features.advancedSearch).toBe(false);
+    expect(capturedWorkflowConfig?.steps).toEqual([
+      'dog-selection',
+      'class-selection',
+      'payment',
+      'confirmation',
+    ]);
   });
 
   it('blocks a direct closed-show wizard URL before step content renders', async () => {

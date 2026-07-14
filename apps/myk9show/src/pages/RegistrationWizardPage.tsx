@@ -90,13 +90,10 @@ function RegistrationWizardContent() {
         className={isInsideSidebar ? 'bg-background' : 'min-h-screen bg-background'}
       >
         {/* Sticky header stack — breadcrumb + title + step indicator as ONE
-            sticky unit. Keeping them together means the stepper can never slide
-            under the breadcrumb: the previous separate top-28 offset was
-            inherited from the vertical sidebar and didn't clear this header's own
-            height. One sticky element has no offset to mis-tune. */}
-        <div
-          className={`border-b bg-card/95 backdrop-blur-xl sticky ${isInsideSidebar ? 'top-0' : 'top-16'} z-40`}
-        >
+            sticky unit. Registration always scrolls inside its page pane, so it
+            pins to that pane's top; adding a global-header offset creates an
+            unnecessary blank band above the breadcrumb in the sidebar layout. */}
+        <div className="border-b bg-card/95 backdrop-blur-xl sticky top-0 z-40">
           <div className="container mx-auto px-4 py-3 max-w-7xl sm:px-6">
             <div className="flex items-center gap-3 sm:gap-4">
               <Button
@@ -148,7 +145,7 @@ function RegistrationWizardContent() {
           </div>
         </div>
 
-        <div className="container mx-auto px-4 sm:px-6 pt-6 pb-8 max-w-7xl">
+        <div className="container mx-auto mt-6 px-4 pb-8 sm:mt-8 sm:px-6 max-w-7xl">
           {/* Main Content */}
           <div className="bg-card border border-border rounded-2xl shadow-sm min-h-[600px] flex flex-col">
             <div className="flex-1 p-4 sm:p-8">

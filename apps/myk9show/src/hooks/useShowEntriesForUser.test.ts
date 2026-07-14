@@ -183,8 +183,10 @@ describe('useShowEntriesForUser', () => {
   });
 
   it('clears a stale local pulled check-in status when the canonical row has none', () => {
-    const stored = fromPartial<SyncableShowEntry>(makeEntry({ checkInStatus: 'pulled' }));
-    const canonical = fromPartial<SyncableShowEntry>(makeEntry());
+    const stored = fromAny<SyncableShowEntry, ReturnType<typeof makeEntry>>(
+      makeEntry({ checkInStatus: 'pulled' })
+    );
+    const canonical = fromAny<SyncableShowEntry, ReturnType<typeof makeEntry>>(makeEntry());
     delete canonical.checkInStatus;
 
     expect(mergeCanonicalEntry(canonical, stored).checkInStatus).toBe('no-status');

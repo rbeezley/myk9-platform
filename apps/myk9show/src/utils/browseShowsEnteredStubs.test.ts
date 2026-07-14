@@ -67,4 +67,12 @@ describe('mergeAccountEnteredShowStubs', () => {
       true
     );
   });
+
+  it('retains a history-only show relationship without presenting it as actively submitted', () => {
+    const merged = mergeAccountEnteredShowStubs([], ['history-show'], USER, []);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0].showId).toBe('history-show');
+    expect(merged[0].status).toBe('completed');
+  });
 });

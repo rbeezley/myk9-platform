@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
-import { EntryStatus } from '@/types/show-registration-types';
+import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 
 interface ExistingEntry {
   dogId: string;
@@ -19,16 +19,14 @@ interface ExistingEntryRow {
   class_id: string | null;
   registration_id: string | null;
   entry_status: string | null;
+  check_in_status: string | null;
   payment_status: string | null;
 }
 
-const NON_BLOCKING_ENTRY_STATUSES = new Set<string>([
-  EntryStatus.CANCELLED,
-  EntryStatus.SCRATCHED,
-]);
-
-const blocksClassReEntry = (entryStatus: string | null | undefined) =>
-  !entryStatus || !NON_BLOCKING_ENTRY_STATUSES.has(entryStatus);
+const blocksClassReEntry = (
+  entryStatus: string | null | undefined,
+  checkInStatus?: string | null | undefined
+) => isActiveSubmittedEntryStatus(entryStatus ?? 'submitted', checkInStatus);
 
 export function useExistingEntries(showId: string) {
   const allRegistrations = useShowRegistrationStore(state => state.registrations);
@@ -45,7 +43,7 @@ export function useExistingEntries(showId: string) {
 
       const { data, error } = await supabase
         .from('entries')
-        .select('id, dog_id, class_id, registration_id, entry_status, payment_status')
+        .select('id, dog_id, class_id, registration_id, entry_status, check_in_status, payment_status')
         .eq('show_id', showId)
         .is('deleted_at', null);
 
@@ -65,7 +63,7 @@ export function useExistingEntries(showId: string) {
       setServerEntries(
         ((data || []) as ExistingEntryRow[])
           .filter(entry => entry.dog_id && entry.class_id)
-          .filter(entry => blocksClassReEntry(entry.entry_status))
+          .filter(entry => blocksClassReEntry(entry.entry_status, entry.check_in_status))
           .map(entry => ({
             dogId: entry.dog_id!,
             classId: entry.class_id!,
@@ -90,7 +88,7 @@ export function useExistingEntries(showId: string) {
 
     registrations.forEach(registration => {
       if (registration.status === 'cancelled') return;
-      if (!blocksClassReEntry(registration.entryStatus)) return;
+      if (!blocksClassReEntry(registration.entryStatus ?? registration.status)) return;
 
       registration.entries?.forEach(entry => {
         entry.classes?.forEach(classEntry => {

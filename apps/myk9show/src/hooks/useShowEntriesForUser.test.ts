@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { fromAny, fromPartial } from '@total-typescript/shoehorn';
-import { useShowEntriesForUser } from './useShowEntriesForUser';
+import { mergeCanonicalEntry, useShowEntriesForUser } from './useShowEntriesForUser';
 
 // ---------------------------------------------------------------------------
 // Module mocks
@@ -34,6 +34,7 @@ import { useShowStoreCompat } from '@/hooks/useShowStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { ScopeType, UserRole, type RoleScope } from '@/types/auth-types';
 import type { Show } from '@/types/show-types';
+import type { SyncableShowEntry } from '@/store/entry-store-types';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -151,6 +152,44 @@ describe('useShowEntriesForUser', () => {
     setMocks({ dogs: [] });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
     expect(result.current.allEntries).toHaveLength(0);
+  });
+
+  it('renders the canonical show-entry row when the independent entry store is empty', () => {
+    setMocks({ entries: [], classes: [], dogs: [] });
+    const { result } = renderHook(() =>
+      useShowEntriesForUser(SHOW_ID, {
+        state: 'ready',
+        rows: [
+          {
+            id: 'canonical-entry',
+            show_id: SHOW_ID,
+            class_id: CLASS_ID,
+            dog_id: DOG_ID,
+            entry_status: 'confirmed',
+            payment_status: 'paid',
+            armband: '101',
+            run_order: 3,
+            class: { name: 'Container Novice A' },
+          },
+        ],
+      })
+    );
+
+    expect(result.current.allEntries.map(entry => entry.entryId)).toEqual(['canonical-entry']);
+    expect(result.current.allEntries[0].entryStatus).toBe('confirmed');
+    expect(result.current.allEntries[0].classTitle).toBe('Container Novice A');
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isError).toBe(false);
+  });
+
+  it('clears a stale local pulled check-in status when the canonical row has none', () => {
+    const stored = fromAny<SyncableShowEntry, ReturnType<typeof makeEntry>>(
+      makeEntry({ checkInStatus: 'pulled' })
+    );
+    const canonical = fromAny<SyncableShowEntry, ReturnType<typeof makeEntry>>(makeEntry());
+    delete canonical.checkInStatus;
+
+    expect(mergeCanonicalEntry(canonical, stored).checkInStatus).toBe('no-status');
   });
 
   it('excludes entries from other shows', () => {

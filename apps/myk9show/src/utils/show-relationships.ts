@@ -2,6 +2,7 @@ import { Show } from '@/types/show-types';
 import { SyncableShowEntry } from '@/store/entryStore';
 import { UserWithRoles, RoleScope, ScopeType } from '@/types/auth-types';
 import { showDateRangeStatus, toLocalDate } from './date-format';
+import { userHasEntriesForShow } from './entryStatusUtils';
 
 /**
  * Show relationship utilities for the unified shows interface
@@ -22,9 +23,9 @@ export function getUserEntries(
   const userEntryShowIds = entries
     .filter(entry => {
       // Entries store people.id in handlerId; handler is kept as a legacy fallback.
-      return (
-        entry.registrationData.handler === userId || entry.registrationData.handlerId === userId
-      );
+      const belongsToUser =
+        entry.registrationData.handler === userId || entry.registrationData.handlerId === userId;
+      return belongsToUser && userHasEntriesForShow(entry.showId, [entry]);
     })
     .map(entry => entry.showId);
 

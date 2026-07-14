@@ -4,6 +4,7 @@
 
 import type { Show } from '@/types/show-types';
 import { toLocalDate } from './date-format';
+import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import { currentEntryWindowDate, getEntryWindowTimezone } from './entryWindowDate';
 
 export type EntryStatus =
@@ -173,7 +174,23 @@ export function getEntryStatusBadgeStyle(status: EntryStatus): {
  */
 export function userHasEntriesForShow(
   showId: string,
-  userEntries: Array<{ showId?: string; show_id?: string }> = []
+  userEntries: Array<{
+    showId?: string | undefined;
+    show_id?: string | undefined;
+    status?: string | null | undefined;
+    entry_status?: string | null | undefined;
+    checkInStatus?: string | null | undefined;
+    check_in_status?: string | null | undefined;
+    deletedAt?: string | null | undefined;
+    deleted_at?: string | null | undefined;
+  }> = []
 ): boolean {
-  return userEntries.some(entry => entry.showId === showId || entry.show_id === showId);
+  return userEntries.some(entry => {
+    if (entry.showId !== showId && entry.show_id !== showId) return false;
+    if (entry.deletedAt || entry.deleted_at) return false;
+    const status = entry.status ?? entry.entry_status;
+    const checkInStatus = entry.checkInStatus ?? entry.check_in_status;
+    if (status === undefined && checkInStatus === undefined) return true;
+    return isActiveSubmittedEntryStatus(status, checkInStatus);
+  });
 }

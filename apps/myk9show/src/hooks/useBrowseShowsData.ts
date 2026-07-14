@@ -120,9 +120,28 @@ export function useBrowseShowsData({
   const accountEnteredShowIds = useAccountEnteredShowIds(personId);
   const derivedUserId = user?.databaseUserId ?? user?.id;
   const entries = useMemo(
-    () => mergeAccountEnteredShowStubs(storeEntries, accountEnteredShowIds, derivedUserId),
+    () =>
+      mergeAccountEnteredShowStubs(
+        storeEntries,
+        accountEnteredShowIds.all,
+        derivedUserId,
+        accountEnteredShowIds.active
+      ),
     [storeEntries, accountEnteredShowIds, derivedUserId]
   );
+  const activeEnteredShowIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!derivedUserId) return ids;
+    for (const entry of entries) {
+      const belongsToUser =
+        entry.registrationData.handler === derivedUserId ||
+        entry.registrationData.handlerId === derivedUserId;
+      if (belongsToUser && userHasEntriesForShow(entry.showId, [entry])) {
+        ids.add(entry.showId);
+      }
+    }
+    return ids;
+  }, [derivedUserId, entries]);
 
   // The auth-gated initial sync only fires once authLoading flips to false
   // and a session is available, so for signed-in users there's a window where
@@ -138,9 +157,10 @@ export function useBrowseShowsData({
     authLoading ||
     showsLoading ||
     entriesLoading ||
+    accountEnteredShowIds.isLoading ||
     (shows.length === 0 && showsSyncPending) ||
     publicShowsLoading;
-  const hasError = !!(showsError || entriesError);
+  const hasError = !!(showsError || entriesError || accountEnteredShowIds.isError);
 
   // Get user show context for filtering with caching
   const userContext = useMemo(() => {
@@ -240,13 +260,14 @@ export function useBrowseShowsData({
 
       return {
         ...baseRelationship,
+        userHasEntries: activeEnteredShowIds.has(show.id),
         enhancedContext,
         userCanEdit: enhancedContext?.canEdit || false,
         userCanDelete: enhancedContext?.canDelete || false,
         userCanViewPrivateData: enhancedContext?.canViewPrivateData || false,
       };
     });
-  }, [filteredShows, userContext, user, entries]);
+  }, [filteredShows, userContext, user, entries, activeEnteredShowIds]);
 
   // Get tab quick actions
   const tabQuickActions = useMemo(() => {
@@ -278,13 +299,13 @@ export function useBrowseShowsData({
       }
 
       // User has entries
-      if (userHasEntriesForShow(show.id, entries)) {
+      if (activeEnteredShowIds.has(show.id)) {
         userEntries++;
       }
     });
 
     return { upcoming, closingSoon, userEntries };
-  }, [shows, entries]);
+  }, [shows, activeEnteredShowIds]);
 
   // Error handling with retry capability and relationship sync
   const handleRetry = useCallback(async () => {

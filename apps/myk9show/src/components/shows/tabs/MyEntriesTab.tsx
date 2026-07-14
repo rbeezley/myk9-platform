@@ -7,16 +7,29 @@ import { useEntryStore } from '@/store/entryStore';
 import { useShowEntriesForUser } from '@/hooks/useShowEntriesForUser';
 import { WhereToBe } from './WhereToBe';
 import { DogEntriesSection } from './DogEntriesSection';
+import type {
+  SubmittedEntryDbRow,
+  SubmittedEntryReadState,
+} from '@/features/exhibitor-entry/submittedEntryProjection';
 
 interface MyEntriesTabProps {
   showId: string;
+  canonicalEntries?: readonly SubmittedEntryDbRow[] | undefined;
+  entryDataState?: SubmittedEntryReadState;
 }
 
-export function MyEntriesTab({ showId }: MyEntriesTabProps) {
+export function MyEntriesTab({
+  showId,
+  canonicalEntries,
+  entryDataState = 'ready',
+}: MyEntriesTabProps) {
   const navigate = useNavigate();
   const loadEntries = useEntryStore(s => s.loadEntries);
   const { dogGroups, allEntries, scheduleEntries, totalClasses, scheduleDogCount, isLoading, isError } =
-    useShowEntriesForUser(showId);
+    useShowEntriesForUser(
+      showId,
+      canonicalEntries ? { rows: canonicalEntries, state: entryDataState } : undefined
+    );
 
   if (isLoading) {
     return <LoadingSkeleton variant="cards" count={3} />;

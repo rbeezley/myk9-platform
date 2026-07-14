@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getUserEntries } from '@/services/database/entries';
+import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 
 /**
  * exhibitor-count-integrity (Shows page "Entered as exhibitor" tab).
@@ -17,22 +18,56 @@ import { getUserEntries } from '@/services/database/entries';
  * existing membership filters (which key on `registrationData.handlerId`)
  * match regardless of which user-identity notion the page uses.
  */
-export function useAccountEnteredShowIds(personId: string | null | undefined): string[] {
-  const { data } = useQuery({
+export interface AccountEnteredShowIds {
+  all: string[];
+  active: string[];
+  isLoading: boolean;
+  isError: boolean;
+}
+
+const EMPTY_ACCOUNT_ENTERED_SHOW_IDS: AccountEnteredShowIds = {
+  all: [],
+  active: [],
+  isLoading: false,
+  isError: false,
+};
+
+export function useAccountEnteredShowIds(
+  personId: string | null | undefined
+): AccountEnteredShowIds {
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['browse-shows', 'account-entered-show-ids', personId],
     queryFn: async () => {
-      if (!personId) return [];
+      if (!personId) return EMPTY_ACCOUNT_ENTERED_SHOW_IDS;
       const { data: rows } = await getUserEntries(personId);
-      const ids = new Set<string>();
+      const all = new Set<string>();
+      const active = new Set<string>();
       for (const row of rows ?? []) {
-        const showId = (row as { show_id?: string }).show_id;
-        if (showId) ids.add(showId);
+        const entry = row as {
+          show_id?: string;
+          entry_status?: string | null;
+          check_in_status?: string | null;
+          deleted_at?: string | null;
+        };
+        const showId = entry.show_id;
+        if (!showId || entry.deleted_at) continue;
+        all.add(showId);
+        if (isActiveSubmittedEntryStatus(entry.entry_status, entry.check_in_status)) {
+          active.add(showId);
+        }
       }
-      return [...ids];
+      return { all: [...all], active: [...active] };
     },
     enabled: !!personId,
     staleTime: 60_000,
   });
 
-  return data ?? [];
+  return {
+    ...(data ?? EMPTY_ACCOUNT_ENTERED_SHOW_IDS),
+    // A disabled query for an anonymous visitor must not keep Browse Shows in
+    // a loading state. Authenticated exhibitors wait for this authoritative
+    // account-level read instead of seeing a false zero-entry state.
+    isLoading: !!personId && isLoading,
+    isError: !!personId && isError,
+  };
 }

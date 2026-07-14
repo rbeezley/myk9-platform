@@ -123,4 +123,11 @@ describe('browse show count scope', () => {
 
     expect(getUserEntries('auth-user', [show], [entry])).toEqual([]);
   });
+
+  it('does not list a terminal-only entry in Entered as exhibitor', () => {
+    const show = makeShow();
+    const entry = makeEntry({ status: 'withdrawn' });
+
+    expect(getUserEntries('person-1', [show], [entry])).toEqual([]);
+  });
 });

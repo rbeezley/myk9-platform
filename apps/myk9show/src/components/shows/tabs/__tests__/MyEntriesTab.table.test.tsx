@@ -60,4 +60,32 @@ describe('MyEntriesTab copy variants', () => {
     render(<MyEntriesTab showId="s1" />);
     expect(screen.getByText(/4 classes across 2 dogs/)).toBeInTheDocument();
   });
+
+  it('passes the route canonical entry source through to the tab hook', () => {
+    vi.mocked(useShowEntriesForUser).mockReturnValue({
+      dogGroups: [],
+      allEntries: [],
+      scheduleEntries: [],
+      totalClasses: 0,
+      scheduleDogCount: 0,
+      isLoading: true,
+      isError: false,
+    });
+    const canonicalEntries = [
+      { id: 'entry-1', show_id: 'show-1', dog_id: 'dog-1', class_id: 'class-1' },
+    ];
+
+    render(
+      <MyEntriesTab
+        showId="show-1"
+        canonicalEntries={canonicalEntries}
+        entryDataState="loading"
+      />
+    );
+
+    expect(useShowEntriesForUser).toHaveBeenCalledWith('show-1', {
+      rows: canonicalEntries,
+      state: 'loading',
+    });
+  });
 });

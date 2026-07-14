@@ -125,14 +125,18 @@ export function getBrowseShowsCountUserId(
  * placeholders. Stamped with the caller's own user id so the existing filters
  * (`handlerId === userId`) match. See `useAccountEnteredShowIds`.
  */
-function buildAccountEnteredShowStub(showId: string, userId: string): SyncableShowEntry {
+function buildAccountEnteredShowStub(
+  showId: string,
+  userId: string,
+  isActive: boolean
+): SyncableShowEntry {
   const nowIso = new Date().toISOString();
   return {
     id: `account-entered:${showId}`,
     showId,
     classId: '',
     dogId: '',
-    status: 'submitted',
+    status: isActive ? 'submitted' : 'completed',
     registrationData: {
       submittedAt: nowIso,
       handler: userId,
@@ -162,7 +166,8 @@ function buildAccountEnteredShowStub(showId: string, userId: string): SyncableSh
 export function mergeAccountEnteredShowStubs(
   entries: SyncableShowEntry[],
   accountEnteredShowIds: string[],
-  userId: string | undefined
+  userId: string | undefined,
+  activeEnteredShowIds: readonly string[] = accountEnteredShowIds
 ): SyncableShowEntry[] {
   if (!userId || accountEnteredShowIds.length === 0) return entries;
 
@@ -175,9 +180,10 @@ export function mergeAccountEnteredShowStubs(
       .map(e => e.showId)
   );
 
+  const activeShowIds = new Set(activeEnteredShowIds);
   const stubs = accountEnteredShowIds
     .filter(showId => !alreadyEntered.has(showId))
-    .map(showId => buildAccountEnteredShowStub(showId, userId));
+    .map(showId => buildAccountEnteredShowStub(showId, userId, activeShowIds.has(showId)));
 
   return stubs.length > 0 ? [...entries, ...stubs] : entries;
 }

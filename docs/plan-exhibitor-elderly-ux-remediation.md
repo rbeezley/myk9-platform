@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-06  
 **Owner:** Codex  
-**Source audit:** `docs/audits/2026-07-06-exhibitor-elderly-browser-ux-audit.md`  
+**Source audits:** `docs/audits/2026-07-06-exhibitor-elderly-browser-ux-audit.md`; `docs/ux-audits/exhibitor-entry-journey-elderly-ux-audit-2026-07-10.md`
 **Persona:** Retired elderly exhibitor with no computer skills  
 **Intent frame:** Exhibitor experience should feel like "This respects my time."
 
@@ -222,6 +222,46 @@ Result: passed.
 - After completing onboarding, reload does not surprise the user with an earlier step.
 - If more setup is required, the page explains what is missing and what was saved.
 
+## Phase 8 - Reconcile Entry State And Touch Targets
+
+**Problem:** The reopened Heartland staging walk showed `Entry Submitted` on Browse Shows, `My Entries 0` plus a no-entry empty state on Show Detail, and `My entry` classes plus already-entered dogs in the registration wizard. The same journey also exposes a 32px payment-summary remove control and a 40px Cart `Continue Shopping` action.
+
+**Entry-input inventory (2026-07-10):**
+
+| Surface | Previous input | Canonical rule after remediation |
+| --- | --- | --- |
+| Browse Shows | Per-account entered-show stubs plus the local entry store | The relationship may retain entry history, but `Entry Submitted` and active-entry counts use the shared lifecycle classifier and exclude terminal, pulled, deleted, or completed rows. |
+| Show Detail badge/default tab | Replication-backed `useEntriesByShowQuery` plus a second `useMyEntries` store snapshot | One owned-dog projection over the replication-backed per-show query. Active rows drive the badge/default tab. |
+| Show Detail `My Entries` count/body | Independent entry-store hooks | Owned visible history from the same route projection; the canonical rows are passed into the existing tab so a cold secondary store cannot render a false zero. |
+| Classes `My entry` | Locally derived active class IDs | The projection's active-class `Set`; terminal and pulled rows do not decorate a class. |
+| Registration | Existing-entry hook plus `entry_carts`/local selections | Submitted rows remain `Already entered`; selected cart-only classes are explicitly `In cart` and never enter the submitted-entry projection. |
+
+The duplication question is resolved in favor of consolidation: no page, dashboard, dialog, or entry workflow was added. Existing surfaces now consume one route projection or the shared active-status classifier.
+
+**Remediation:**
+
+- Derive the exhibitor's owned entry history and active submitted entries once from the route's replication-backed show-entry result and owned-dog identity, using the existing lifecycle classifier for terminal states.
+- Use owned history for the Show Detail `My Entries` count/content, and use the active subset for the default tab plus Classes-tab `My entry` labels and present-tense submitted badges.
+- Keep cart-only selections separate: registration may label them `In cart`, but they must not increment submitted-entry counts or produce `Entry Submitted` outside the cart/wizard.
+- Do not render the no-entry empty state while the canonical entry read is loading or failed; preserve the existing retry state.
+- Raise the payment-summary remove action and Cart `Continue Shopping` action to a minimum 44×44px target without adding new controls.
+
+**Acceptance criteria:**
+
+- Browse Shows, Show Detail, Classes, and registration agree on whether submitted entries exist.
+- `My Entries` counts equal the owned history rows rendered in `My Entries`, including clearly labelled terminal history.
+- Present-tense submitted badges and Classes `My entry` labels use active submitted rows only.
+- Cart-only selections are clearly labelled and never presented as submitted entries.
+- Loading or failed entry reads never collapse into `My Entries 0` or a false no-entry message.
+- Both audited controls meet the 44×44px touch floor at 390px without clipping or overflow.
+
+**Automated browser evidence (2026-07-10):**
+
+- At 390×844, Browse Shows rendered Heartland as `Entry Submitted`; Show Detail rendered `My Entries 11` with 11 visible history rows and 8 active schedule rows; Classes rendered four active `My entry` markers; registration rendered the existing submitted rows as `Already entered`; all checked pages had `scrollWidth === clientWidth` (390px).
+- A cold-store regression found during the replay was fixed: Show Detail now also derives owned dog IDs from the canonical entry row's joined owner, so a temporarily cold dog store cannot collapse owned entries to zero. Focused coverage pins this path.
+- The 1440×900 replay reached zero local HMR errors, but the staging Supabase pool then returned repeated `PGRST003`/HTTP 504 timeouts across entries, people, RBAC, trials, dogs, and other unrelated reads. Desktop state assertions and registration payment-review interaction remain pending a healthy staging replay.
+- No cart item was added during verification because that would mutate the shared staging database without a separate approval. Cart-only `In cart` behavior and both 44px targets are covered by focused component tests.
+
 ## Testing Phase
 
 Run focused tests as each implementation phase lands, then one full browser audit pass.
@@ -235,6 +275,8 @@ Required automated coverage:
 - Component tests for exhibitor show-day empty/running-order-not-posted states.
 - Hook tests for any onboarding completion state changes.
 - Regression tests for dog measurement parsing/display.
+- Pure-selector and component tests for submitted-entry, cart-only, loading, and error states across Show Detail tabs/classes.
+- Component tests pinning the payment-summary remove and Cart `Continue Shopping` actions to the 44px minimum.
 
 Required E2E/browser coverage:
 
@@ -268,14 +310,16 @@ If the known test-suite hang appears for more than 60 seconds without useful out
 
 ## Rollout Order
 
-1. Finish Phase 1 and Phase 2 together because both prevent impossible or unexplained entry changes.
-2. Ship Phase 3 before show season testing so payment confidence can be validated with realistic balances.
-3. Ship Phase 4 and Phase 5 together because both affect day-of-show trust.
-4. Ship Phase 6 and Phase 7 as polish/hardening once the critical contradictions are gone.
-5. Re-run the full elderly exhibitor browser audit after seed data includes at least one currently open show.
+1. Ship Phase 8 first because the current staging journey gives contradictory answers to the basic question "Am I entered?"
+2. Finish Phase 1 and Phase 2 together because both prevent impossible or unexplained entry changes.
+3. Ship Phase 3 before show season testing so payment confidence can be validated with realistic balances.
+4. Ship Phase 4 and Phase 5 together because both affect day-of-show trust.
+5. Ship Phase 6 and Phase 7 as polish/hardening once the critical contradictions are gone.
+6. Re-run the full elderly exhibitor browser audit with the reopened Heartland test show before closing Phase 8.
 
 ## Risks And Notes
 
 - Seed data currently limits verification: all available exhibitor shows were closed on 2026-07-06.
+- The Heartland test show is now open through 2026-07-31 for Phase 8 verification; do not rely on changing production show dates.
 - Do not add a new exhibitor dashboard to solve these issues. The problem is contradictory state across existing pages, not absence of another page.
 - Favor links/deep-links to existing pages over duplicating payment, entry editing, messaging, or show-day tools.

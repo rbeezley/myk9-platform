@@ -50,19 +50,9 @@ vi.mock('@/hooks/useFastShowDetails', () => ({
   }),
 }));
 
-// Mock entries for "mine" detection
-let mockUserEntries: Array<{ id: string; showId: string }> = [];
-let mockUserEntriesLoading = false;
-vi.mock('@/hooks/useMyEntries', () => ({
-  useMyEntries: () => ({
-    entries: mockUserEntries,
-    entriesByClass: [],
-    isLoading: mockUserEntriesLoading,
-    isError: false,
-  }),
-}));
-
 let mockShowEntriesLoading = false;
+let mockShowEntriesError = false;
+const refetchShowEntriesMock = vi.hoisted(() => vi.fn());
 let mockShowEntries: Array<{
   id: string;
   show_id?: string;
@@ -70,9 +60,15 @@ let mockShowEntries: Array<{
   class_id?: string;
   entry_status?: string;
   check_in_status?: string;
+  dog?: { owner?: { id?: string } | null } | null;
 }> = [];
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
-  useEntriesByShowQuery: () => ({ data: mockShowEntries, isLoading: mockShowEntriesLoading }),
+  useEntriesByShowQuery: () => ({
+    data: mockShowEntries,
+    isLoading: mockShowEntriesLoading,
+    isError: mockShowEntriesError,
+    refetch: refetchShowEntriesMock,
+  }),
 }));
 
 vi.mock('@/services/database/entries', async () => {
@@ -255,6 +251,22 @@ function renderPage(showId = 'show-1', subPath = '', query = '') {
   );
 }
 
+function seedOwnedEntry(
+  overrides: Partial<(typeof mockShowEntries)[number]> = {}
+): void {
+  mockDogs = [{ id: 'dog-1', ownerId: 'person-1' }];
+  mockShowEntries = [
+    {
+      id: 'entry-1',
+      show_id: 'show-1',
+      dog_id: 'dog-1',
+      class_id: 'class-1',
+      entry_status: 'confirmed',
+      ...overrides,
+    },
+  ];
+}
+
 function makeGeneratedPremium(style: 'heritage' = 'heritage') {
   return {
     org: 'AKC',
@@ -315,10 +327,10 @@ describe('ShowDetailsPage', () => {
       entryCloseDate: '2027-12-31',
     };
     mockLoading = false;
-    mockUserEntries = [];
-    mockUserEntriesLoading = false;
     mockShowEntries = [];
     mockShowEntriesLoading = false;
+    mockShowEntriesError = false;
+    refetchShowEntriesMock.mockReset();
     getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
     mockDogs = [];
     mockTrials = [];
@@ -342,13 +354,13 @@ describe('ShowDetailsPage', () => {
   });
 
   it('renders DetailHero with show name', () => {
-    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
+    seedOwnedEntry();
     renderPage();
     expect(screen.getByText('Bluegrass Classic')).toBeInTheDocument();
   });
 
   it('renders exhibitor tabs: Overview, Trials, My Entries, Classes, Results', () => {
-    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
+    seedOwnedEntry();
     renderPage();
     expect(screen.getByRole('tab', { name: /Overview/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Trials/ })).toBeInTheDocument();
@@ -361,18 +373,26 @@ describe('ShowDetailsPage', () => {
   });
 
   it('defaults to My Entries tab when user has entries', () => {
-    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
+    seedOwnedEntry();
     renderPage();
     const tab = screen.getByRole('tab', { name: /My Entries/ });
     expect(tab.closest('[data-state="active"], [aria-selected="true"]')).toBeTruthy();
   });
 
   it('holds the exhibitor tabs while entry defaulting is loading', () => {
-    mockUserEntriesLoading = true;
     mockShowEntriesLoading = true;
     renderPage();
     expect(screen.queryByRole('tab', { name: /Overview/ })).toBeNull();
     expect(document.querySelector('[class*="animate-pulse"]')).toBeInTheDocument();
+  });
+
+  it('shows the retry error instead of a false zero-entry landing when entry reads fail', () => {
+    mockShowEntriesError = true;
+    renderPage();
+
+    expect(screen.getByText("We couldn't load your entries. Please try again.")).toBeInTheDocument();
+    expect(screen.queryByTestId('monogram-landing')).toBeNull();
+    expect(screen.queryByText('My Entries 0')).toBeNull();
   });
 
   it('renders the default Monogram landing when user has no entries', () => {
@@ -383,12 +403,39 @@ describe('ShowDetailsPage', () => {
 
   it('shows Add or Change Entries when an owned dog has an active entry', () => {
     mockDogs = [{ id: 'dog-1', ownerId: 'person-1' }];
-    mockShowEntries = [{ id: 'entry-1', show_id: 'show-1', dog_id: 'dog-1', class_id: 'class-1' }];
+    mockShowEntries = [
+      {
+        id: 'entry-1',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        class_id: 'class-1',
+        entry_status: 'confirmed',
+      },
+    ];
     renderPage();
     expect(screen.getByRole('button', { name: 'Add or Change Entries' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /My Entries/ })).toHaveTextContent('1');
   });
 
-  it('renders the public landing when owned dog entries are all pulled or scratched', () => {
+  it('uses the canonical entry owner when the independent dog store is cold', () => {
+    mockShowEntries = [
+      {
+        id: 'entry-1',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        class_id: 'class-1',
+        entry_status: 'confirmed',
+        dog: { owner: { id: 'person-1' } },
+      },
+    ];
+
+    renderPage();
+
+    expect(screen.getByRole('tab', { name: /My Entries/ })).toHaveTextContent('1');
+    expect(screen.queryByTestId('monogram-landing')).toBeNull();
+  });
+
+  it('keeps pulled or scratched owned entries visible as history without an active-entry CTA', () => {
     mockDogs = [{ id: 'dog-1', ownerId: 'person-1' }];
     mockShowEntries = [
       {
@@ -407,7 +454,8 @@ describe('ShowDetailsPage', () => {
       },
     ];
     renderPage();
-    expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /My Entries/ })).toHaveTextContent('2');
+    expect(screen.queryByRole('button', { name: 'Add or Change Entries' })).toBeNull();
   });
 
   it('renders the default public landing for unauthenticated users', () => {
@@ -457,7 +505,7 @@ describe('ShowDetailsPage', () => {
   });
 
   it('surfaces a "See classes" deep-link in the hero when the show has classes (UX-P2-04)', () => {
-    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
+    seedOwnedEntry();
     mockTrials = [
       {
         id: 'trial-1',
@@ -480,7 +528,7 @@ describe('ShowDetailsPage', () => {
   });
 
   it('omits the "See classes" link when the show has no classes assigned', () => {
-    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
+    seedOwnedEntry();
     mockTrials = [
       {
         id: 'trial-1',
@@ -498,7 +546,7 @@ describe('ShowDetailsPage', () => {
   });
 
   it('shows "Add or Change Entries" button when user has entries and entries are open', () => {
-    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
+    seedOwnedEntry();
     renderPage();
     expect(screen.getByRole('button', { name: 'Add or Change Entries' })).toBeInTheDocument();
   });
@@ -509,7 +557,7 @@ describe('ShowDetailsPage', () => {
       entryOpenDate: '2020-01-01',
       entryCloseDate: '2020-12-31',
     };
-    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
+    seedOwnedEntry();
     renderPage();
     expect(screen.getByRole('button', { name: 'View Entry' })).toBeInTheDocument();
   });
@@ -601,7 +649,7 @@ describe('ShowDetailsPage', () => {
   });
 
   it('hides canonical management nav from exhibitors with entries', () => {
-    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
+    seedOwnedEntry();
     renderPage();
 
     expect(screen.queryByTestId('canonical-show-management-nav')).not.toBeInTheDocument();
@@ -798,7 +846,7 @@ describe('ShowDetailsPage', () => {
       ...mockShow,
       style: 'headline',
     };
-    mockUserEntries = [{ id: 'entry-1', showId: 'show-1' }];
+    seedOwnedEntry();
 
     renderPage();
 
@@ -812,7 +860,7 @@ describe('ShowDetailsPage', () => {
       style: null,
       landing_style: null,
     };
-    mockUserEntries = [{ id: 'entry-1', showId: 'show-1' }];
+    seedOwnedEntry();
 
     renderPage();
 

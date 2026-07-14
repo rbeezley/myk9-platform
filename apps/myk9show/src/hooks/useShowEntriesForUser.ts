@@ -20,6 +20,11 @@ import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import type { EntryPaymentStatus } from '@/components/shows/tabs/entryResultDisplay';
+import type {
+  SubmittedEntryDbRow,
+  SubmittedEntryReadState,
+} from '@/features/exhibitor-entry/submittedEntryProjection';
+import { isCheckInStatus, type CheckInStatus } from '@myk9/core';
 
 export interface EnrichedShowEntry {
   entryId: string;
@@ -71,6 +76,122 @@ export interface UseShowEntriesForUserResult {
   isError: boolean;
 }
 
+export interface CanonicalShowEntrySource {
+  /** Rows already filtered by the route's owned-entry projection. */
+  rows: readonly SubmittedEntryDbRow[];
+  state: SubmittedEntryReadState;
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function numberValue(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function relatedString(
+  row: SubmittedEntryDbRow | undefined,
+  relation: 'class' | 'dog',
+  field: string
+): string | undefined {
+  const related = row?.[relation];
+  if (!related || typeof related !== 'object') return undefined;
+  return stringValue((related as Record<string, unknown>)[field]);
+}
+
+function canonicalEntryStatus(value: unknown): EntryStatus {
+  switch (value) {
+    case 'accepted':
+      return 'confirmed';
+    case 'pending':
+      return 'submitted';
+    case 'rejected':
+      return 'not_accepted';
+    case 'cancelled':
+      return 'withdrawn';
+    case 'scratch_requested':
+      return 'scratch-requested';
+    case 'move_up_requested':
+      return 'move-up-requested';
+    default:
+      return (stringValue(value) ?? 'no-status') as EntryStatus;
+  }
+}
+
+function canonicalCheckInStatus(value: unknown): CheckInStatus | undefined {
+  return typeof value === 'string' && isCheckInStatus(value) ? value : undefined;
+}
+
+function canonicalPaymentStatus(
+  value: unknown
+): SyncableShowEntry['registrationData']['paymentStatus'] {
+  return value === 'paid' || value === 'refunded' ? value : 'pending';
+}
+
+function normalizeCanonicalEntry(row: SubmittedEntryDbRow): SyncableShowEntry | null {
+  const id = stringValue(row.id);
+  const showId = stringValue(row.show_id);
+  const classId = stringValue(row.class_id);
+  const dogId = stringValue(row.dog_id);
+  if (!id || !showId || !classId || !dogId) return null;
+
+  const submittedAt = stringValue(row.submitted_at) ?? stringValue(row.created_at) ?? '';
+  const updatedAt = stringValue(row.updated_at) ?? submittedAt;
+  const checkInStatus = canonicalCheckInStatus(row.check_in_status);
+  const specialRequests = stringValue(row.special_requests);
+  const armband = stringValue(row.armband);
+  const handlerId = stringValue(row.handler_id);
+  const registrationId = stringValue(row.registration_id);
+  const runOrder = numberValue(row.run_order);
+
+  return {
+    id,
+    showId,
+    classId,
+    dogId,
+    status: canonicalEntryStatus(row.entry_status),
+    ...(checkInStatus ? { checkInStatus } : {}),
+    registrationData: {
+      submittedAt,
+      handler: stringValue(row.handler) ?? '',
+      ...(handlerId ? { handlerId } : {}),
+      entryFee: numberValue(row.entry_fee) ?? 0,
+      paymentStatus: canonicalPaymentStatus(row.payment_status),
+      ...(specialRequests ? { specialRequests } : {}),
+      ...(armband ? { armband } : {}),
+      ...(runOrder !== undefined ? { runOrder } : {}),
+    },
+    statusHistory: [],
+    ...(registrationId ? { registrationId } : {}),
+    createdAt: submittedAt,
+    updatedAt,
+    _version: numberValue(row.version) ?? 0,
+    _lastModified: new Date(updatedAt || 0),
+    _lastModifiedBy: 'canonical-show-entry-read',
+    _syncStatus: 'synced',
+  };
+}
+
+export function mergeCanonicalEntry(
+  canonical: SyncableShowEntry,
+  stored: SyncableShowEntry | undefined
+): SyncableShowEntry {
+  if (!stored) return canonical;
+  return {
+    ...stored,
+    status: canonical.status,
+    // The canonical per-show read is authoritative. A null status explicitly
+    // clears a stale local status such as `pulled`.
+    checkInStatus: canonical.checkInStatus ?? 'no-status',
+    registrationData: {
+      ...stored.registrationData,
+      ...canonical.registrationData,
+    },
+    updatedAt: canonical.updatedAt,
+  };
+}
+
 function formatDayLabel(isoDate: string): string {
   const dateOnly = isoDate.split('T')[0];
   if (!dateOnly) return '';
@@ -99,7 +220,10 @@ function classDisplayName(cls: ClassNameFields): string {
   });
 }
 
-export function useShowEntriesForUser(showId: string | undefined): UseShowEntriesForUserResult {
+export function useShowEntriesForUser(
+  showId: string | undefined,
+  canonicalSource?: CanonicalShowEntrySource
+): UseShowEntriesForUserResult {
   const { userWithRoles, isAdmin, isSecretary, hasRole } = useAuthContext();
   const {
     entries: storeEntries,
@@ -125,26 +249,46 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
   const canSeeAll = isAdmin || secretaryCanSeeShow || clubAdminCanSeeShow;
 
   return useMemo(() => {
+    const sourceIsLoading = canonicalSource ? canonicalSource.state === 'loading' : isLoading;
+    const sourceIsError = canonicalSource ? canonicalSource.state === 'error' : !!error;
     const empty = {
       dogGroups: [],
       allEntries: [],
       scheduleEntries: [],
       totalClasses: 0,
       scheduleDogCount: 0,
-      isLoading,
-      isError: !!error,
+      isLoading: sourceIsLoading,
+      isError: sourceIsError,
     };
 
     if (!showId) return empty;
 
-    const allShowEntries = storeEntries.filter(e => e.showId === showId);
+    const storeEntryById = new Map(storeEntries.map(entry => [entry.id, entry]));
+    const canonicalRowById = new Map(
+      (canonicalSource?.rows ?? []).flatMap(row => {
+        const id = stringValue(row.id);
+        return id ? [[id, row] as const] : [];
+      })
+    );
+    const allShowEntries = canonicalSource
+      ? canonicalSource.rows.flatMap(row => {
+          const canonical = normalizeCanonicalEntry(row);
+          return canonical ? [mergeCanonicalEntry(canonical, storeEntryById.get(canonical.id))] : [];
+        })
+      : storeEntries.filter(e => e.showId === showId);
     let myEntries = allShowEntries;
     let visibleDogIds = new Set(allShowEntries.map(e => e.dogId));
     if (!canSeeAll) {
-      if (!databaseUserId) return empty;
-      visibleDogIds = selectOwnedDogIds(dogs, databaseUserId);
-      if (visibleDogIds.size === 0) return empty;
-      myEntries = allShowEntries.filter(e => visibleDogIds.has(e.dogId));
+      if (canonicalSource) {
+        // The route projection already applied owned-dog filtering. Keep these
+        // rows renderable while the independent dog store is still cold.
+        visibleDogIds = new Set(allShowEntries.map(entry => entry.dogId));
+      } else {
+        if (!databaseUserId) return empty;
+        visibleDogIds = selectOwnedDogIds(dogs, databaseUserId);
+        if (visibleDogIds.size === 0) return empty;
+        myEntries = allShowEntries.filter(e => visibleDogIds.has(e.dogId));
+      }
     }
     if (myEntries.length === 0) return empty;
 
@@ -185,7 +329,13 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
     for (const entry of myEntries) {
       if (suppressedEntryIds.has(entry.id)) continue;
       const cls = classMap.get(entry.classId);
-      if (!cls) continue;
+      const canonicalRow = canonicalRowById.get(entry.id);
+      if (!cls && !canonicalRow) continue;
+      const fallbackClassTitle = relatedString(canonicalRow, 'class', 'name') ?? 'Class details pending';
+      const fallbackDogName =
+        relatedString(canonicalRow, 'dog', 'call_name') ??
+        relatedString(canonicalRow, 'dog', 'name') ??
+        'Unknown Dog';
 
       const runOrder = entry.registrationData.runOrder ?? 0;
       const dogsAhead =
@@ -202,10 +352,10 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
       const movedUpFromClass = movedUpFromClassId ? classMap.get(movedUpFromClassId) : undefined;
       const movedUpFrom = movedUpFromClass ? classDisplayName(movedUpFromClass) : undefined;
 
-      const trialDate = (cls.trialDate ?? '').split('T')[0];
-      const element = cls.element ?? '';
-      const level = cls.level ?? '';
-      const section = cls.section ?? '';
+      const trialDate = (cls?.trialDate ?? '').split('T')[0];
+      const element = cls?.element ?? fallbackClassTitle;
+      const level = cls?.level ?? '';
+      const section = cls?.section ?? '';
 
       const compData = entry.competitionData;
       const hasResult = !!compData;
@@ -213,20 +363,22 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
       enriched.push({
         entryId: entry.id,
         classId: entry.classId,
-        trialId: cls.trialId,
+        trialId: cls?.trialId ?? stringValue(canonicalRow?.trial_id) ?? '',
         dogId: entry.dogId,
-        dogName: dogNameMap.get(entry.dogId) ?? 'Unknown Dog',
+        dogName: dogNameMap.get(entry.dogId) ?? fallbackDogName,
         armband: entry.registrationData.armband ?? '',
         runOrder,
         element,
         level,
         section,
-        classTitle: classDisplayName(cls) || 'Unnamed Class',
+        classTitle: cls ? classDisplayName(cls) || fallbackClassTitle : fallbackClassTitle,
         trialDate,
         dayLabel: trialDate ? formatDayLabel(trialDate) : '',
-        trialName: cls.trial ?? '',
-        startTime: cls.startTime ?? '',
-        judgeName: resolveClassJudgeName(cls, currentShow?.assignedJudges ?? []),
+        trialName: cls?.trial ?? '',
+        startTime: cls?.startTime ?? '',
+        judgeName: cls
+          ? resolveClassJudgeName(cls, currentShow?.assignedJudges ?? [])
+          : '',
         dogsAhead,
         entryStatus: entry.status,
         paymentStatus: entry.registrationData.paymentStatus,
@@ -270,8 +422,8 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
       scheduleEntries,
       totalClasses: scheduleEntries.length,
       scheduleDogCount,
-      isLoading,
-      isError: !!error,
+      isLoading: sourceIsLoading,
+      isError: sourceIsError,
     };
   }, [
     showId,
@@ -283,5 +435,6 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
     currentShow?.assignedJudges,
     isLoading,
     error,
+    canonicalSource,
   ]);
 }

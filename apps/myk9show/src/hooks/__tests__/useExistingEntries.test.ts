@@ -6,7 +6,7 @@ import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import { EntryStatus, type ShowRegistration } from '@/types/show-registration-types';
 
 describe('useExistingEntries', () => {
-  it('does not block class re-entry for withdrawn or scratched server entries', async () => {
+  it('does not block class re-entry for terminal server entries', async () => {
     mockSupabase.from.mockReturnValue(
       createChainableQuery({
         data: [
@@ -34,6 +34,23 @@ describe('useExistingEntries', () => {
             entry_status: EntryStatus.ACCEPTED,
             payment_status: 'paid_online',
           },
+          {
+            id: 'completed-entry',
+            dog_id: 'dog-1',
+            class_id: 'class-completed',
+            registration_id: 'registration-completed',
+            entry_status: EntryStatus.COMPLETED,
+            payment_status: 'paid_online',
+          },
+          {
+            id: 'pulled-entry',
+            dog_id: 'dog-1',
+            class_id: 'class-pulled',
+            registration_id: 'registration-pulled',
+            entry_status: EntryStatus.ACCEPTED,
+            check_in_status: 'pulled',
+            payment_status: 'paid_online',
+          },
         ],
         error: null,
       })
@@ -50,6 +67,8 @@ describe('useExistingEntries', () => {
 
     expect(result.current.checkIfDogEnteredInClass('dog-1', 'class-withdrawn')).toBe(false);
     expect(result.current.checkIfDogEnteredInClass('dog-1', 'class-scratched')).toBe(false);
+    expect(result.current.checkIfDogEnteredInClass('dog-1', 'class-completed')).toBe(false);
+    expect(result.current.checkIfDogEnteredInClass('dog-1', 'class-pulled')).toBe(false);
     expect(result.current.getExistingEntry('dog-1', 'class-withdrawn')).toBeUndefined();
     expect(result.current.getExistingEntry('dog-1', 'class-scratched')).toBeUndefined();
     expect(result.current.getEntriesForDog('dog-1')).toHaveLength(1);

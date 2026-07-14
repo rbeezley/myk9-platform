@@ -71,26 +71,6 @@ If completion is partial, onboarding should present "Finish setting up" with sav
 
 Alternative considered: suppress onboarding after any save. Rejected because it could hide required setup.
 
-### Decision: Show detail uses one submitted-entry projection
-
-The show-detail route will derive one typed exhibitor projection from its replication-backed show-entry result plus the signed-in person's owned-dog IDs. That projection will expose owned entry history, the active submitted-entry subset, active class IDs, history count, loading state, and error state. `My Entries` count/content will use owned history so terminal rows remain visible with their existing labels; the default tab, present-tense submitted badges, and Classes `My entry` labels will use the active subset. Child surfaces will consume that projection instead of independently interpreting a second entry-store snapshot.
-
-The projection SHALL filter by the signed-in person's owned-dog IDs before exposing any row to exhibitor children. It SHALL scan the route rows once and build lookup sets/maps in linear time so the consolidation does not add per-class or per-entry query loops.
-
-Cart lines remain a separate state owned by the existing cart/registration workflow. A cart-only class may render `In cart` inside registration, but it will not increment a submitted-entry count or produce `Entry Submitted` on browse/show-detail surfaces.
-
-Alternative considered: adjust the `My Entries 0` copy while leaving the independent reads in place. Rejected because the surfaces could drift again as soon as either cache resolves at a different time.
-
-### Decision: Loading and failure are not empty entry states
-
-The show-detail entry projection will preserve `loading`, `ready`, and `error` explicitly. `My Entries 0` and the no-entry empty state may render only when the canonical read is ready and contains zero owned history rows. A failed read keeps the existing retry behavior; it must not reassure the exhibitor that no entry exists.
-
-Alternative considered: show zero optimistically while loading. Rejected because the audited contradiction is more damaging than a short skeleton.
-
-### Decision: Repair touch targets in place
-
-The payment-summary remove button and Cart `Continue Shopping` button will retain their existing action, label, and visual hierarchy while receiving a minimum 44×44px hit area. No replacement toolbar, confirmation step, or new cart action is introduced.
-
 ## Risks / Trade-offs
 
 - [Risk] Entry availability logic may not have one existing source of truth. -> Mitigation: inventory current close-date/submission guards before adding the shared helper and write helper tests first.
@@ -98,20 +78,15 @@ The payment-summary remove button and Cart `Continue Shopping` button will retai
 - [Risk] Show-day data may be empty because running order is unpublished, not because the dog is unentered. -> Mitigation: base exhibitor "Your dogs today" on owned entries first, then layer class/running-order data when available.
 - [Risk] Plain check-in labels can lose staff audit precision. -> Mitigation: map labels to existing internal statuses and leave staff views unchanged.
 - [Risk] Onboarding state may depend on seed data instead of app code. -> Mitigation: trace profile completion from save through redirect/reload before changing behavior.
-- [Risk] Browse/show detail and registration currently observe different entry snapshots. -> Mitigation: make one route-level submitted-entry projection authoritative for show-detail consumers and test delayed/loading/error resolution.
-- [Risk] Treating cart lines as submitted entries could encourage duplicate-entry confusion. -> Mitigation: keep cart-only state explicitly labelled and outside submitted-entry counts.
-- [Risk] Passing route entry rows into child tabs could expose another exhibitor's entry when a broader manager read is present. -> Mitigation: construct the exhibitor projection only from owned-dog IDs and pass no unowned rows to exhibitor children.
-- [Risk] Re-deriving entry membership for every class could regress large-show rendering. -> Mitigation: scan entry rows once and expose an active-class `Set` for constant-time class decoration.
 
 ## Migration Plan
 
-1. Reconcile submitted-entry state and touch targets against the reopened Heartland test show.
-2. Finish closed-entry and post-close edit guidance together, including direct wizard guards and recovery links.
-3. Add My Payments amount-due visibility and My Shows links using existing data sources.
-4. Reframe exhibitor show-day routing and check-in language while preserving staff views.
-5. Polish dog profile editing and onboarding state.
-6. Run focused unit/component tests after each slice and an elderly exhibitor browser pass after seed data includes at least one currently open show.
-7. Roll back by reverting UI/helpers for the affected slice; no data migrations or shared-system writes are planned.
+1. Finish closed-entry and post-close edit guidance together, including direct wizard guards and recovery links.
+2. Add My Payments amount-due visibility and My Shows links using existing data sources.
+3. Reframe exhibitor show-day routing and check-in language while preserving staff views.
+4. Polish dog profile editing and onboarding state.
+5. Run focused unit/component tests after each slice and an elderly exhibitor browser pass after seed data includes at least one currently open show.
+6. Roll back by reverting UI/helpers for the affected slice; no data migrations or shared-system writes are planned.
 
 ## Open Questions
 

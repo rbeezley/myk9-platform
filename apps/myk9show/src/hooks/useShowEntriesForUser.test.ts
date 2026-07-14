@@ -34,6 +34,7 @@ import { useShowStoreCompat } from '@/hooks/useShowStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { ScopeType, UserRole, type RoleScope } from '@/types/auth-types';
 import type { Show } from '@/types/show-types';
+import type { SyncableShowEntry } from '@/store/entry-store-types';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -182,8 +183,8 @@ describe('useShowEntriesForUser', () => {
   });
 
   it('clears a stale local pulled check-in status when the canonical row has none', () => {
-    const stored = fromAny(makeEntry({ checkInStatus: 'pulled' }));
-    const canonical = fromAny(makeEntry());
+    const stored = fromPartial<SyncableShowEntry>(makeEntry({ checkInStatus: 'pulled' }));
+    const canonical = fromPartial<SyncableShowEntry>(makeEntry());
     delete canonical.checkInStatus;
 
     expect(mergeCanonicalEntry(canonical, stored).checkInStatus).toBe('no-status');

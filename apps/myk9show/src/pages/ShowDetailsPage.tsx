@@ -40,6 +40,7 @@ import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 import { useSubmittedEntryProjection } from '@/features/exhibitor-entry/useSubmittedEntryProjection';
+import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
 
 /**
  * Thin audience router for `/shows/:id`. Loads the show + entries once, derives
@@ -254,7 +255,13 @@ const ShowDetailsPage: React.FC = () => {
   // When the store has trials we keep the store-derived `showClasses` verbatim
   // (warm session, no behavior change); only a cold guest swaps in the public
   // PostgREST reshape from useShowLandingData.
-  const effectiveShowClasses = showClasses.length > 0 ? showClasses : publicShowClasses;
+  const effectiveShowClasses = useMemo(
+    () =>
+      showClasses.length > 0
+        ? showClasses
+        : markCurrentUserEntryClasses(publicShowClasses, userEntryClassIds),
+    [showClasses, publicShowClasses, userEntryClassIds]
+  );
 
   const effectiveJudges = useMemo((): ShowJudgeAssignment[] => {
     return resolveOverviewJudgesWithRoster(

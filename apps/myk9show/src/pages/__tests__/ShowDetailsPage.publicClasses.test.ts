@@ -4,6 +4,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import {
   buildPublicShowClasses,
   buildPublicTrialStats,
+  markCurrentUserEntryClasses,
   type TrialClassRows,
 } from '../ShowDetailsPage.publicClasses';
 
@@ -97,6 +98,20 @@ describe('buildPublicShowClasses', () => {
     const result = buildPublicShowClasses(trials, [], []);
 
     expect(result).toEqual([]);
+  });
+});
+
+describe('markCurrentUserEntryClasses', () => {
+  it('preserves the active My entry marker when public classes are the cold-store fallback', () => {
+    const publicClasses = buildPublicShowClasses(
+      [makeTrial()],
+      [{ trialId: 'trial-1', rows: [makeClassRow()] }],
+      []
+    );
+
+    expect(markCurrentUserEntryClasses(publicClasses, new Set(['class-1']))[0].userHasEntry).toBe(
+      true
+    );
   });
 });
 

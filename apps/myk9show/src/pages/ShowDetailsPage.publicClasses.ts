@@ -83,6 +83,17 @@ export function buildPublicShowClasses(
   return result;
 }
 
+/** Apply the authenticated exhibitor's active-entry projection to cold public rows. */
+export function markCurrentUserEntryClasses(
+  classes: ClassInfo[],
+  userEntryClassIds: ReadonlySet<string>
+): ClassInfo[] {
+  return classes.map(classInfo => ({
+    ...classInfo,
+    userHasEntry: userEntryClassIds.has(classInfo.id),
+  }));
+}
+
 /**
  * Build the per-trial stat cards (class count, entry count, completed count)
  * from the same anon-safe class rows.

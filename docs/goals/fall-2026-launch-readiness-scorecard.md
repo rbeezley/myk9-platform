@@ -265,10 +265,11 @@ The scorecard statuses above remain evidence-based, not forecasts. The launch ga
 six Primary dimensions are Yellow, and the June close-out predated current launch remediation.
 
 Before human testing, complete or explicitly accept the remaining agent-owned work tracked in
-`OPEN-TODOS.md`: exhibitor entry-state and touch-target fixes, the remaining
-`exhibitor-elderly-ux-remediation` tasks, `ux-contrast-token-system`, and the code/CI close-out
-of the current exhibitor and secretary UX changes. Also merge and deploy
-`security-audit-remediation` (SA-018–023, SA-026, SA-027).
+`OPEN-TODOS.md`: exhibitor entry-state and touch-target fixes, the remaining focused
+`exhibitor-elderly-ux-remediation` verification, `ux-contrast-token-system`, and the code/CI
+close-out of the current exhibitor and secretary UX changes. The 2026-07-10
+`security-audit-remediation` work (SA-018–023, SA-026, SA-027) is merged, deployed, and no
+longer an open pre-human-testing gate.
 
 The final evidence pass must additionally reconcile cross-app data correctness and operational
 readiness; the earlier Phase 4 checklist did not explicitly cover those two Yellow rows. The

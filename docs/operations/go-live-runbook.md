@@ -46,15 +46,12 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       (SA-011). Owner: Agent.
       _Verify:_ archive dirs exist under `openspec/changes/archive/2026-07-04-*`;
       OPEN-TODOS § Security Remediation marks all three done/deployed/verified.
-- [ ] **0.1b Deploy the 2026-07-10 security remediation** — The new full audit found no
-      CRITICAL/HIGH issues, but its three branded-email recipient/authorization findings are
-      MEDIUM and must not ship unresolved. `security-audit-remediation` has code and focused
-      tests complete; merge it, then apply its lifecycle hardening migration and deploy
-      `send-email`, `send-results`, and `resend-webhook` after the required shared-system
-      approval. Owner: Agent (merge/deploy confirmation-gated).
-      _Verify:_ the migration is applied, all three functions are ACTIVE at the deployed
-      revision, and [`security-audit-2026-07-10.md`](../security-audit-2026-07-10.md) records
-      SA-018–023, SA-026, and SA-027 as remediated.
+- [x] **0.1b Deploy the 2026-07-10 security remediation** — DONE 2026-07-13. The
+      `security-audit-remediation` change is merged and archived; the lifecycle-hardening
+      migration is applied; and `send-email`, `send-results`, and `resend-webhook` are ACTIVE
+      at the reviewed revisions. [`security-audit-2026-07-10.md`](../security-audit-2026-07-10.md)
+      records SA-018–023, SA-026, and SA-027 as remediated. This row was stale after the later
+      security closeout and is reconciled here; no additional deployment is required.
 - [x] **0.1c Complete the 2026-07-11 go-live security remediation** — DONE 2026-07-12. PRs
       #1280/#1283–#1287/#1289/#1292/#1293 are merged. SA-021 is live-verified; `resend-webhook`,
       `validate-passcode`, `generate-premium`, and all five push-trigger functions are deployed.
@@ -123,13 +120,13 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       `openspec/changes/archive/2026-07-04-class-mgmt-mutation-error-surfacing/`. Owner: Agent.
 - [ ] **0.7 Finish remaining agent-owned launch remediation before human testing** — Do not
       schedule Phase 4 real-user sessions until these active product changes are merged or
-      explicitly accepted as P2: (a) resolve the contradictory exhibitor entry state and two
-      sub-44px entry/cart controls in `OPEN-TODOS.md`; (b) complete the remaining
-      `exhibitor-elderly-ux-remediation` show-day, check-in-language, and dog-profile tasks;
-      (c) merge, pass CI, and archive `ux-contrast-token-system` (implementation is locally
-      verified: token matrix, typecheck, five public axe routes, and three authenticated role
-      landings); and (d) close the code/CI side of
-      `improve-exhibitor-entries-scan` and `secretary-show-details-ux-remediation`.
+      explicitly accepted as P2: (a) resolve the contradictory exhibitor entry state and raise
+      the payment-remove and Cart “Continue Shopping” controls to the 44px floor; (b) run the
+      remaining focused exhibitor Playwright/low-tech verification and final dog-profile
+      re-walk; (c) merge, pass CI, and archive `ux-contrast-token-system`; (d) complete the
+      authenticated visual evidence plus PR/CI closeout for `improve-exhibitor-entries-scan`;
+      and (e) complete the mobile/tablet/desktop Setup + Show Desk re-walk for
+      `secretary-show-details-ux-remediation`.
       _Already complete:_ motion consistency and the original July UX remediation plan. The
       remaining evidence-only gates are the scorecard's show-day re-walk, offline→reconnect
       rehearsal, data reconciliation, venue print test, real-user testing, and deployment/

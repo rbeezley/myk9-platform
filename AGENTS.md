@@ -173,6 +173,39 @@ When asked to review a PR, run focused verification by default when practical:
 
 Update plan/tracking documents (`OPEN-TODOS.md`, sprint docs, debt register) after completing each task or sprint item. Keep them in sync with actual progress.
 
+## Linear Issue and PR Workflow
+
+Use the linked Linear issue as the execution contract. Keep Linear for active, PR-sized work; retain OpenSpec and repository plans as the detailed source of truth.
+
+### Before editing
+
+- Read the Linear issue, linked spec/plan, and relevant existing files; identify acceptance criteria and non-goals.
+- Inspect the current implementation patterns, `git status`, and the mandatory worktree state before changing files. Preserve unrelated work.
+- For UX-facing work, read `docs/INTENT.md`. For show-day, persistent-data, or authorization work, verify the established replication and RBAC paths before adding a new one.
+
+### While editing
+
+- Implement only the stated acceptance criteria. Do not change unrelated files, refactor opportunistically, or alter existing behavior unless the issue requires it.
+- A small refactor is allowed only when necessary to meet acceptance criteria; keep it minimal and explain it in the PR.
+- Follow existing architecture, naming, code style, and UI conventions. Preserve offline-first behavior and established mutation flows.
+- Add or update tests for changes to logic, data flow, permissions, integrations, or user-visible behavior. For value-sensitive bugs, use assertion-first red-to-green coverage.
+
+### Before opening a PR
+
+- Run the narrowest useful verification for the touched files, review the diff for unrelated changes, and report any known unrelated broad-check failure plainly alongside targeted passing checks.
+- Ensure the PR description follows the repository pull-request template when one exists and includes: what and why, Linear issue, checked acceptance criteria, relevant visual evidence, risk, how to test, intentional non-goals, material agent involvement, and follow-up issues.
+- Do not mark the Linear issue Done until its stated evidence gate is complete. Browser re-walks, OpenSpec verification, and operator/shared-system gates need recorded evidence or an explicit, owned acceptance.
+
+### PR review standard
+
+Review against the linked Linear issue and its acceptance criteria. Check for scope gaps, defects, data-flow regressions, unnecessary expansion, security concerns, poor abstractions, missing loading/error states, and code that will be hard to maintain. Do not suggest unrelated improvements unless they are severe.
+
+Return findings in three groups:
+
+1. Must fix before merge
+2. Should fix soon
+3. No blocking findings / safe to merge
+
 ## Small Maintenance Changes
 
 **Docs-only tracking edits go direct to `main` by default.** For `OPEN-TODOS.md`, `TO-DOS.md`, and other files in the `CLAUDE.md` docs-only-direct-to-`main` scope (`docs/**/*.md`, top-level tracking/reference docs, package/function READMEs):

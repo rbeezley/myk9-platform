@@ -10,7 +10,7 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-function makeEntry(overrides: Partial<EntryCardEntry> = {}) {
+function makeEntry(overrides: Partial<EntryCardEntry> = {}): EntryCardEntry {
   return {
     entryId: 'entry-1',
     armband: '107',

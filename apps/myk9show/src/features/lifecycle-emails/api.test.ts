@@ -10,13 +10,14 @@ import {
   type LifecycleEmailFunctionsClient,
   type LifecycleEmailSupabaseClient,
 } from './api';
+import { fromAny } from '@total-typescript/shoehorn';
 
 function createClient(tables: Record<string, unknown[]>): {
   client: LifecycleEmailSupabaseClient;
   calls: Array<{ table: string; action: string; values?: Record<string, unknown> }>;
 } {
   const calls: Array<{ table: string; action: string; values?: Record<string, unknown> }> = [];
-  const client: LifecycleEmailSupabaseClient = {
+  const client = fromAny<LifecycleEmailSupabaseClient, unknown>({
     from(table: string) {
       let rows = [...(tables[table] ?? [])];
       const builder = {
@@ -42,7 +43,7 @@ function createClient(tables: Record<string, unknown[]>): {
       };
       return builder;
     },
-  };
+  });
   return { client, calls };
 }
 

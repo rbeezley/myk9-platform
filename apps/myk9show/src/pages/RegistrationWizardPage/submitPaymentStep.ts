@@ -31,8 +31,9 @@ import type {
   PaymentStatus,
   ShowRegistration,
 } from '@/types/show-registration-types';
+import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import type { CartWithDetails, NewCartItem } from '@/store/cartStore';
-import { getEntryCloseSubmitBlocker } from './entryCloseGuard';
+import { getEntrySubmitBlocker } from './entryCloseGuard';
 
 /** Subset of the cart store actions the checkout handoff needs. */
 export interface PaymentStepCartDeps {
@@ -48,7 +49,9 @@ export interface PaymentStepShowFeeInfo {
   preEntryFee: string;
   dayOfShowFee?: string | undefined;
   startDate: string;
+  entryOpenDate?: string | undefined;
   entryCloseDate?: string | undefined;
+  entryWindowTimezone?: string | undefined;
 }
 
 export interface SubmitPaymentStepContext {
@@ -82,6 +85,7 @@ export interface SubmitPaymentStepContext {
   setIsSubmitting: (value: boolean) => void;
   setRegistrationNumber: (value: string | undefined) => void;
   setArmbandAssignments: (value: ArmbandAssignment[]) => void;
+  setEntryOutcomes: (value: EntrySubmissionOutcome[]) => void;
   markStepComplete: (stepIndex: number) => void;
   setCurrentStep: (updater: (prev: number) => number) => void;
   updateShowRegistration: (
@@ -95,21 +99,26 @@ export interface SubmitPaymentStepContext {
 }
 
 function buildOfflineLateEntryRegistrationNumber(entryIds: string[]): string {
-  const token = entryIds[0]?.replace(/[^a-z0-9]/gi, '').slice(0, 8).toUpperCase();
+  const token = entryIds[0]
+    ?.replace(/[^a-z0-9]/gi, '')
+    .slice(0, 8)
+    .toUpperCase();
   return token ? `LOCAL-${token}` : 'LOCAL-PENDING';
 }
 
 export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<void> {
   ctx.setIsSubmitting(true);
   try {
-    const entryCloseBlocker = getEntryCloseSubmitBlocker({
+    const entryWindowBlocker = getEntrySubmitBlocker({
       startDate: ctx.showFeeInfo.startDate,
+      entryOpenDate: ctx.showFeeInfo.entryOpenDate,
       entryCloseDate: ctx.showFeeInfo.entryCloseDate,
+      entryWindowTimezone: ctx.showFeeInfo.entryWindowTimezone,
       isLateEntryMode: ctx.isLateEntryMode,
       workflowMode: ctx.currentWorkflowMode,
     });
-    if (entryCloseBlocker) {
-      throw new Error(entryCloseBlocker);
+    if (entryWindowBlocker) {
+      throw new Error(entryWindowBlocker);
     }
 
     if (ctx.paymentMethod === 'credit_card') {
@@ -164,6 +173,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       if (offlineResult.armbandAssignments.length > 0) {
         ctx.setArmbandAssignments(offlineResult.armbandAssignments);
       }
+      ctx.setEntryOutcomes(offlineResult.entryOutcomes);
       ctx.setRegistrationNumber(buildOfflineLateEntryRegistrationNumber(offlineResult.entryIds));
       await ctx.cart.clearCart();
       ctx.triggerSync();
@@ -185,6 +195,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       classes: ctx.classes,
       canAssignArmbands: ctx.canAssignArmbands,
       showFeeInfo: ctx.showFeeInfo,
+      submissionSource: ctx.currentWorkflowMode === 'exhibitor' ? 'self_service' : 'organizer',
       isActive: () => ctx.isMounted(),
       deps: {
         submitRegistration: ctx.submitRegistration,
@@ -193,6 +204,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     });
     if (submissionResult.aborted) return;
     ctx.setRegistrationNumber(submissionResult.registrationNumber);
+    ctx.setEntryOutcomes(submissionResult.entryOutcomes ?? []);
     if (submissionResult.armbandAssignments.length > 0) {
       ctx.setArmbandAssignments(submissionResult.armbandAssignments);
     }

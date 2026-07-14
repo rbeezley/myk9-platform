@@ -32,12 +32,14 @@ vi.mock('@/store/wizardStore', () => ({
 }));
 
 vi.mock('@/store/clubStore', () => {
-  const useClubStore = vi.fn(() => ({
-    clubs: [],
-    loadClubs: vi.fn().mockResolvedValue(undefined),
-    syncClubs: vi.fn(),
-  }));
-  useClubStore.getState = () => ({ clubs: [] });
+  const useClubStore = Object.assign(
+    vi.fn(() => ({
+      clubs: [],
+      loadClubs: vi.fn().mockResolvedValue(undefined),
+      syncClubs: vi.fn(),
+    })),
+    { getState: () => ({ clubs: [] }) }
+  );
   return { useClubStore };
 });
 

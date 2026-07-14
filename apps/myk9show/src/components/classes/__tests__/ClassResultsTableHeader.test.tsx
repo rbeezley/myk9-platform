@@ -11,6 +11,7 @@ import { render } from '@/test/utils/testUtils';
 import { ClassResultsTable } from '../ClassResultsTable';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import { createUserPermissions } from '@/types/user-permissions';
+import { fromPartial } from '@total-typescript/shoehorn';
 
 vi.mock('@dnd-kit/core', () => ({
   DndContext: ({ children }: { children: React.ReactNode }) => (
@@ -74,9 +75,9 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 function makeProps(overrides: Record<string, unknown> = {}) {
   const entries: ScentWorkEntry[] = [];
   const classConfig: ScentWorkClassConfig = {
-    element: 'Detective',
-    level: 'Unknown',
-    timeLimit: '3:00',
+    element: 'Container',
+    level: 'Novice',
+    timeLimit: 180000,
     multiArea: false,
     warningsEnabled: true,
   };
@@ -136,9 +137,9 @@ describe('ClassResultsTable view toggle', () => {
 
   it('switches to card view when cards toggle is clicked', async () => {
     const entries: ScentWorkEntry[] = [
-      {
+      fromPartial<ScentWorkEntry>({
         id: 'entry-1',
-        status: 'registered',
+        status: 'confirmed',
         displayInfo: {
           armband: '107',
           dogName: 'Laila',
@@ -150,11 +151,11 @@ describe('ClassResultsTable view toggle', () => {
         classConfig: {
           element: 'Container',
           level: 'Advanced',
-          timeLimit: '3:00',
+          timeLimit: 180000,
           multiArea: false,
           warningsEnabled: true,
         },
-      } as ScentWorkEntry,
+      }),
     ];
     renderTable(makeProps({ classId: 'class-1', entries }));
 

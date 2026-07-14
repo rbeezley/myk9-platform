@@ -1,7 +1,8 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+
+type MockPerson = { id: string; firstName: string; lastName: string; profileImage: null };
 
 // Mock profile form hook
 const mockFormReturn = {
@@ -27,7 +28,7 @@ const mockFormReturn = {
     firstName: 'Jane',
     lastName: 'Doe',
     profileImage: null,
-  },
+  } as MockPerson | null,
   personId: 'person-1',
   email: 'jane@example.com',
 };

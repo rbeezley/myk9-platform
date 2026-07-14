@@ -14,7 +14,7 @@ const sections = headings.filter(h => h.depth === 2);
 const allGuides = (await getCollection('guides')).sort((a, b) => a.data.order - b.data.order);
 const activeKey = guide.id.split('-')[0];
 const glyph: Record<string, string> = {
-  'exhibitor-guide': '◆', 'secretary-guide': '▲', 'club-admin-guide': '●',
+  'exhibitor-guide': '◆', 'secretary-guide': '▲', 'club-admin-guide': '●', 'judge-steward-guide': '■',
 };
 const short = (t: string) => t.replace(/^Section\s+\d+\s*[—–-]\s*/i, '');
 ---

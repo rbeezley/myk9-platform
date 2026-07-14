@@ -21,11 +21,19 @@ export default defineConfig({
       // `_shared/http` modules use Deno-only `npm:` imports vitest can't load.
       '../../supabase/functions/_shared/askq/*.test.ts',
       '../../supabase/functions/_shared/pushWebhookAuth.test.ts',
+      '../../supabase/functions/push-trigger-waitlist/waitlistNotification.test.ts',
+      '../../supabase/functions/_shared/http/__tests__/handler.test.ts',
+      '../../supabase/functions/_shared/standardWebhookSignature.test.ts',
+      '../../supabase/functions/_shared/resendEmail.test.ts',
+      '../../supabase/functions/_shared/webhookAuth.source.test.ts',
       '../../supabase/functions/send-confirmation-email/auth.test.ts',
-      '../../supabase/functions/resend-webhook/signature.test.ts',
+      '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.test.ts',
       '../../supabase/functions/send-results/authz.test.ts',
       '../../supabase/functions/send-email/authz.test.ts',
       '../../supabase/functions/send-email/recipientResolution.test.ts',
+      '../../supabase/functions/send-registration-email/dateFormat.test.ts',
+      '../../supabase/functions/validate-passcode/*.test.ts',
+      '../../supabase/functions/generate-premium/*.test.ts',
     ],
     exclude: [
       '**/node_modules/**',
@@ -53,6 +61,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      'npm:@supabase/supabase-js@2.49.1': path.resolve(
+        __dirname,
+        'node_modules/@supabase/supabase-js/dist/index.mjs'
+      ),
       // Stub packages that are not installed but imported by source files under test.
       // Tests that need real behavior mock these via vi.mock() in the test file.
       pako: path.resolve(__dirname, 'src/test/mocks/pako.ts'),

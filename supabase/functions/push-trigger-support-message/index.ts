@@ -3,6 +3,8 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 
 interface SupportMessageRecord {
   id: string;
@@ -32,14 +34,7 @@ interface RecipientRow {
   last_name?: string | null;
 }
 
-handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }) => {
-  const webhookSecret =
-    Deno.env.get('PUSH_WEBHOOK_SECRET') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const authHeader = req.headers.get('Authorization');
-  if (!webhookSecret || !authHeader || authHeader !== `Bearer ${webhookSecret}`) {
-    throw new HttpError(401, 'Unauthorized');
-  }
-
+handle<WebhookPayload>({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ body: payload, supabase }) => {
   const { record } = payload;
   const { id, ticket_id, sender_id, body, is_from_operator } =
     record ?? ({} as SupportMessageRecord);
@@ -198,7 +193,7 @@ async function sendSupportEmails(args: {
   const url = `${siteUrl}${args.actionUrl}`;
   let sent = 0;
   for (const recipient of args.recipients.filter(r => r.email)) {
-    const response = await fetch('https://api.resend.com/emails', {
+    const response = await sendResendEmailWithRetry({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

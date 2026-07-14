@@ -1,6 +1,7 @@
 import { UserWithRoles, Permission, PERMISSIONS, UserRole } from '@/types/auth-types';
 import { Show } from '@/types/show-types';
 import { ShowWithRelationship } from '@/types/unified-shows-types';
+import { toLocalDate } from '@/utils/date-format';
 
 /**
  * Permission validation utilities for the unified shows interface
@@ -103,11 +104,22 @@ export function canRegisterForShow(user: UserWithRoles | null, show: Show): bool
   if (!user) return false;
 
   const now = new Date();
-  const showStart = new Date(show.startDate);
-  const entryClose = new Date(show.entryCloseDate);
+  // startDate / entryCloseDate are DATE columns ("YYYY-MM-DD"). Parse them as
+  // local midnight — raw `new Date(...)` reads them as UTC midnight (the evening
+  // before in US timezones), blocking registration a day early. Entry close is
+  // inclusive through the whole close day, mirroring entryStatusUtils.
+  const entryOpen = toLocalDate(show.entryOpenDate);
+  const showStart = toLocalDate(show.startDate);
+  const entryCloseEndOfDay = toLocalDate(show.entryCloseDate);
+  entryCloseEndOfDay.setHours(23, 59, 59, 999);
 
-  // Show must be upcoming and entries must be open
-  if (showStart <= now || entryClose <= now) return false;
+  // Entries must have opened. entryOpenDate is local midnight of the open day,
+  // so the whole open day onward is allowed — mirrors entryStatusUtils'
+  // not_yet_open (canEnter: false) branch for `now < openDate`.
+  if (now < entryOpen) return false;
+
+  // Show must not have started, and entries must still be open
+  if (showStart <= now || entryCloseEndOfDay < now) return false;
 
   // Show must be in 'Upcoming' status
   if (show.status !== 'Upcoming') return false;

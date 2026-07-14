@@ -67,11 +67,13 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ open, onOpenChange }) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader className="items-center text-center">
-          <div className="mx-auto mb-2 w-[72px] h-[72px] rounded-2xl bg-muted p-2 shadow-md border-2 border-border">
+          <div className="mx-auto mb-2 h-20 w-20 p-1">
             <img
-              src="/pwa-192x192.png"
-              alt="myK9Show Logo"
-              className="w-full h-full object-contain"
+              src="/brand-mark-64.png"
+              alt="myK9Show logo"
+              width="64"
+              height="64"
+              className="h-full w-full object-contain"
             />
           </div>
           <DialogTitle className="text-2xl font-bold text-center">myK9Show</DialogTitle>

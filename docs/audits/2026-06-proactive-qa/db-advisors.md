@@ -1,6 +1,6 @@
 # Database Drift Checks — 2026-06-12
 
-Phase 3 of `docs/plan-dynamic-qa-infrastructure.md`.
+Phase 3 of `docs/archive/plan-dynamic-qa-infrastructure.md`.
 
 Scope was read-only: no migrations, no Supabase pushes, no function deploys, and no external-system writes.
 

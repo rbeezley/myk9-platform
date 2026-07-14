@@ -1,0 +1,33 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    // Tests import runtime modules outside the app project's root file graph. These
+    // overrides keep this gate scoped to test fixture/API drift instead of surfacing
+    // unrelated pre-existing runtime diagnostics that belong to the app gate.
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": false,
+    "exactOptionalPropertyTypes": false,
+    "tsBuildInfoFile": "node_modules/.cache/tsc/test.tsbuildinfo",
+    "types": ["vitest/globals", "node"]
+  },
+  "include": [
+    "src/vite-env.d.ts",
+    "src/types/**/*.d.ts",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx",
+    "src/test/**/*"
+  ],
+  "exclude": [
+    "src/test/e2e/**/*",
+    "src/test/config/test-config.ts",
+    "src/test/load/playwright-load-tests.spec.ts",
+    "src/test/performance/measure-loading-performance.ts",
+    "src/test/performance/performance.spec.ts"
+  ]
+}

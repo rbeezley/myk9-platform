@@ -31,6 +31,7 @@ const mockShow = vi.hoisted(() => ({
     name: 'Test Show',
     organization: null,
     startDate: '2026-06-01',
+    entryOpenDate: undefined as string | undefined,
     entryCloseDate: undefined as string | undefined,
     preEntryFee: '0',
   },
@@ -170,6 +171,7 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
     mockPermissions.isClubAdmin = false;
     mockPermissions.isSiteAdmin = false;
     mockIsSecretaryRoute.current = false;
+    mockShow.current.entryOpenDate = undefined;
     mockShow.current.entryCloseDate = undefined;
   });
 
@@ -196,6 +198,20 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
       'href',
       '/messages/show-1'
     );
+    expect(screen.queryByTestId('step-content')).not.toBeInTheDocument();
+  });
+
+  it('shows a not-yet-open panel (not the closed panel) before entries open', async () => {
+    mockShow.current.entryOpenDate = '2099-01-01';
+
+    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+
+    expect(
+      await screen.findByRole('heading', {
+        name: /this show is not accepting online entries yet/i,
+      })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /no longer accepting/i })).not.toBeInTheDocument();
     expect(screen.queryByTestId('step-content')).not.toBeInTheDocument();
     expect(screen.queryByTestId('nav')).not.toBeInTheDocument();
   });

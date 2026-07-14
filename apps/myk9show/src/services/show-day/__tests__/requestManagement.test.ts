@@ -4,7 +4,7 @@ const moveUpShowMapEntry = vi.fn();
 const updateReplicatedDayOfScratch = vi.fn();
 const updateEntry = vi.fn();
 const getEntryById = vi.fn();
-const auditLog = vi.fn<() => Promise<void>>(() => Promise.resolve());
+const auditLog = vi.fn((..._args: unknown[]) => Promise.resolve());
 
 vi.mock('@/features/show-map/showMapActionMutations', () => ({
   moveUpShowMapEntry: (...args: unknown[]) => moveUpShowMapEntry(...args),

@@ -40,7 +40,7 @@ interface AccountMenuContentProps {
 }
 
 function AccountMenuSeparator() {
-  return <DropdownMenuSeparator className="bg-border" />;
+  return <DropdownMenuSeparator className="bg-muted-foreground/40" />;
 }
 
 /** The account dropdown's menu body. Extracted from AppHeader so that file

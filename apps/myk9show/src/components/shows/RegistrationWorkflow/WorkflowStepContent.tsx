@@ -28,6 +28,13 @@ import { Info } from 'lucide-react';
 import type { WorkflowConfig } from './RegistrationWorkflow.types';
 import type { WorkflowMode } from './RegistrationWorkflow.types';
 import type { ArmbandAssignment } from './ConfirmationStep.types';
+import type { EntrySubmissionOutcome } from '@/services/database/entries';
+import { EntrySubmissionOutcomeAlert } from './EntrySubmissionOutcomeAlert';
+import {
+  filterClassSelectionsToCreatedOutcomes,
+  getCreatedOutcomeTotalFees,
+  hasCreatedEntryOutcome,
+} from './entrySubmissionOutcomes';
 
 interface OptimisticRegistrationState {
   formData: RegistrationFormData;
@@ -49,6 +56,7 @@ interface WorkflowStepContentProps {
   currentRegistrationTotalFees: number;
   /** Armband assignments from the RPC call */
   armbandAssignments?: ArmbandAssignment[];
+  entryOutcomes?: EntrySubmissionOutcome[] | undefined;
   onDogSelectionChange: (dogs: string[]) => void | Promise<void>;
   onClassSelectionChange: (selections: ClassSelectionData[]) => void | Promise<void>;
   onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => void | Promise<void>;
@@ -83,6 +91,7 @@ export function WorkflowStepContent({
   registrationNumber,
   currentRegistrationTotalFees,
   armbandAssignments,
+  entryOutcomes,
   onDogSelectionChange,
   onClassSelectionChange,
   onHandlerAssignmentChange,
@@ -99,6 +108,13 @@ export function WorkflowStepContent({
 }: WorkflowStepContentProps) {
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
   const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');
+  const hasCreatedCapacityOutcome = hasCreatedEntryOutcome(entryOutcomes);
+  const receiptClassSelections = filterClassSelectionsToCreatedOutcomes(
+    optimisticState.classSelections,
+    entryOutcomes
+  );
+  const receiptSelectedDogs = receiptClassSelections.map(selection => selection.dogId);
+  const receiptTotalFees = getCreatedOutcomeTotalFees(entryOutcomes, currentRegistrationTotalFees);
 
   // Styled receipt branch — hooks must be top-level (Rules of Hooks);
   // expensive .find() lookups are memoized and only compute during confirmation step.
@@ -119,9 +135,9 @@ export function WorkflowStepContent({
     const style = getShowStyle(currentShow);
 
     const firstTrial = allTrials.find(t => t.showId === showId);
-    const firstDogId = optimisticState.formData.selectedDogs[0];
+    const firstDogId = receiptSelectedDogs[0];
     const firstDog = dogs.find(d => d.id === firstDogId);
-    const firstClassSelection = optimisticState.classSelections.find(s => s.dogId === firstDogId);
+    const firstClassSelection = receiptClassSelections.find(s => s.dogId === firstDogId);
     const classSummary =
       firstClassSelection?.selectedClasses
         .map(sc => {
@@ -166,7 +182,16 @@ export function WorkflowStepContent({
           )
         : null,
     } as const;
-  }, [currentStepId, showId, shows, allTrials, dogs, classes, optimisticState]);
+  }, [
+    currentStepId,
+    showId,
+    shows,
+    allTrials,
+    dogs,
+    classes,
+    receiptSelectedDogs,
+    receiptClassSelections,
+  ]);
 
   const printEntryBlankUnavailable = () =>
     notifications.info('Entry blank', {
@@ -183,7 +208,7 @@ export function WorkflowStepContent({
           dogRegisteredName: styledReceipt.dogRegisteredName,
           dogCallName: styledReceipt.dogCallName,
           classSummary: styledReceipt.classSummary,
-          totalFeesFormatted: `$${currentRegistrationTotalFees.toFixed(2)}`,
+          totalFeesFormatted: `$${receiptTotalFees.toFixed(2)}`,
           registrationNumber: registrationNumber ?? null,
           confirmationDateLabel: styledReceipt.confirmationDateLabel,
           // INTENT: The entry blank is printed after the draw, not at entry time.
@@ -239,7 +264,7 @@ export function WorkflowStepContent({
           )
         ) : (
           <ClassSelectionStep
-            selectedDogs={optimisticState.formData.selectedDogs}
+            selectedDogs={optimisticState.classSelections.map(selection => selection.dogId)}
             classSelections={optimisticState.classSelections}
             onSelectionChange={onClassSelectionChange}
             showId={showId}
@@ -299,10 +324,13 @@ export function WorkflowStepContent({
       )}
 
       {currentStepId === 'confirmation' &&
-        (styledReceipt && styledReceiptProps ? (
-          STYLED_RECEIPT_BY_STYLE[styledReceipt.style](styledReceiptProps, {
-            brandColor: styledReceipt.brandColor,
-          })
+        (styledReceipt && styledReceiptProps && hasCreatedCapacityOutcome ? (
+          <div className="space-y-6">
+            <EntrySubmissionOutcomeAlert outcomes={entryOutcomes} />
+            {STYLED_RECEIPT_BY_STYLE[styledReceipt.style](styledReceiptProps, {
+              brandColor: styledReceipt.brandColor,
+            })}
+          </div>
         ) : (
           <ConfirmationStep
             registrationNumber={registrationNumber}
@@ -314,9 +342,10 @@ export function WorkflowStepContent({
             paymentStatus={optimisticState.paymentStatus}
             entryStatus={optimisticState.entryStatus}
             workflowMode={currentWorkflowMode}
-            totalFees={currentRegistrationTotalFees}
+            totalFees={receiptTotalFees}
             showId={showId}
             armbandAssignments={armbandAssignments}
+            entryOutcomes={entryOutcomes}
             onDownloadReceipt={undefined}
             onSendEmail={undefined}
             onStatusChange={async (_dogId: string, status: EntryStatus) => {

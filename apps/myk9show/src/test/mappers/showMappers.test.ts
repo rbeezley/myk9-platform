@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { mapDatabaseToShow, mapReplicatedShowToDbRow } from '@/services/mappers/showMappers';
 import type { DbShow } from '@/types/database-mappings';
+import { fromAny } from '@total-typescript/shoehorn';
 
 /**
  * Minimal valid DbShow fixture — only the fields required by the type.
  * Optional nullable fields are omitted so tests stay focused.
  */
-const baseDbShow: DbShow = {
+const baseDbShow = fromAny<DbShow, unknown>({
   id: 'show-1',
   name: 'Test Show',
   organization: 'AKC',
@@ -41,7 +42,7 @@ const baseDbShow: DbShow = {
   updated_at: null,
   venue_name: null,
   zip_code: null,
-};
+});
 
 describe('mapDatabaseToShow — branding fallback', () => {
   it('maps show-level judge assignment names from the people join shape', () => {
@@ -259,6 +260,7 @@ describe('mapDatabaseToShow — branding fallback', () => {
           hospitalityNotes: 'Coffee in the morning.',
           awardsDescription: null,
           additionalNotes: null,
+          coverImageUrl: null,
         },
         outputs: { premiumUrl: 'https://example.com/premium.pdf' },
       },
@@ -281,6 +283,8 @@ describe('mapDatabaseToShow — branding fallback', () => {
       experiencePublishedAt: '2026-05-09T14:00:00.000Z',
       experiencePublishedStyle: 'poster',
       experiencePublishedContent: {
+        style: 'poster',
+        generatedAt: '2026-05-09T14:00:00.000Z',
         narratives: {
           showHours: 'Doors open at 7:00 AM.',
           trialInformation: 'Running order will be posted before judging.',
@@ -291,6 +295,7 @@ describe('mapDatabaseToShow — branding fallback', () => {
           hospitalityNotes: null,
           awardsDescription: null,
           additionalNotes: null,
+          coverImageUrl: null,
         },
         outputs: { premiumUrl: 'https://example.com/premium.pdf' },
       },

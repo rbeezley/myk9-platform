@@ -9,6 +9,7 @@ import {
   type SupportNotificationData,
 } from './supportNotificationEmail.ts';
 import { resolveDerivedRecipient } from './recipientResolution.ts';
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 
 // Email sender configuration
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -197,7 +198,7 @@ handle<EmailData>(
     };
 
     // Send email via Resend
-    const response = await fetch('https://api.resend.com/emails', {
+    const response = await sendResendEmailWithRetry({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -79,6 +79,22 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### QA-INFRA-OCC-STORM-037
+
+- **Status:** open
+- **Severity:** blocker
+- **Role:** all
+- **Surface:** `ringside_update_entry` RPC / `@myk9/replication` OCC upload path / staging Supabase
+- **Suite category:** manual-debug
+- **Pattern:** silent-no-op
+- **Detected by:** manual (Supabase >80% CPU email, 2026-07-11; live incident triage via pg_stat_activity + postgres logs)
+- **Evidence:** postgres log flood `Version conflict updating entry 7358aadd-… (expected 7)` at ~70/sec for 12+ hours; 15–18 of 20 PostgREST connections active on `ringside_update_entry` stacked on `LWLock:LockManager`; platform-wide 503s; 1,841 accumulated auth sessions for `e2e-secretary@test.myk9.com`; caller UA `Windows NT 10.0 … Chrome/149` = Playwright `Desktop Chrome` device profile under the (since archived) persistent Codex nightly heartbeat, whose child browser survived UI closes and held a wedged IndexedDB outbox re-authing with stored credentials. Second occurrence of the 2026-06-25 storm signature (post-#961/#963): the client-side self-heal cannot protect against stale bundles, so the guarantee must be server-side.
+- **User impact:** staging fully degraded (RBAC loads, entry syncs, table syncs all timing out with "connection pool" errors); during a live show this would take down scoring, check-in, and results for everyone.
+- **Intent check:** destroys show-day reliability for every role; ringside trust depends on writes never being able to take the platform down.
+- **Fix owner:** `supabase/migrations/20260711150000_ringside_occ_conflict_containment.sql` + `packages/replication/src/MutationManager.ts` + `apps/myk9show/supabase/functions/_shared/systemHealthChecks.ts` (openspec change `ringside-occ-conflict-circuit-breaker`)
+- **Proof required:** migration pushed + `cron-health-check` redeployed; rolled-back psql proof that a stale `expected_version` raises `40001`+DETAIL without executing auth lookups and that `ringside_conflict_seq` advances despite the abort; `authenticated` EXECUTE restored / `anon` revoked; `ringside_conflicts` check present in the next health snapshot.
+- **Notes:** Emergency mitigations 2026-07-11: `e2e-secretary` banned 30 min + 1,841 sessions purged (insufficient — pre-issued JWTs kept working), then `REVOKE EXECUTE ... FROM authenticated` on the RPC (effective; storm dropped 17→0 active instantly). The migration above re-grants EXECUTE behind the structural fix. Ops-side remediation completed same day: Codex nightly converted from persistent heartbeat to standalone job (25-min work cutoff / 30-min mandatory shutdown killing browsers, runners, dev servers, child processes; Playwright 1 worker, 0 retries; shared-Supabase and ringside writes prohibited; old persistent QA task archived).
+
 ### QA-STALE-DERIVED-STATE-035
 
 - **Status:** open
@@ -97,7 +113,7 @@ Copy this block for each new finding.
 
 ### QA-ACCESSIBILITY-GAP-036
 
-- **Status:** open
+- **Status:** resolved (2026-07-13 — verified already shipped in #1264)
 - **Severity:** medium
 - **Role:** exhibitor
 - **Surface:** `apps/myk9show/src/components/shows/RegistrationWorkflow/PaymentStep/RegistrationSummary.tsx` and `apps/myk9show/src/components/cart/CartSummary.tsx`.
@@ -110,6 +126,7 @@ Copy this block for each new finding.
 - **Fix owner:** registration payment summary and shared cart action sizing.
 - **Proof required:** Add component-level assertions for a 44px minimum touch target and manually replay the payment/cart at 390px without horizontal clipping.
 - **Notes:** This is a control-sizing repair inside existing components, not new UI.
+- **Resolution:** Both controls already carry the 44px floor and are test-pinned — `RegistrationSummary.tsx` remove button is `min-h-11 min-w-11`; `CartSummary.tsx` "Continue Shopping" is `min-h-11 w-full`. Assertions: `PaymentStep.removeLine.test.tsx` ("keeps the remove control at the 44px touch-target floor") and `CartSummary.test.tsx` ("keeps Continue Shopping at the 44px touch-target floor") — 7 tests green 2026-07-13. Both landed in #1264. No horizontal clipping at 390px by construction: the remove button sits in a `justify-between` row whose label column is `min-w-0 break-words` and Continue Shopping is `w-full`.
 
 ### QA-TEST-FLAKE-032
 

@@ -4,19 +4,21 @@ import {
   mapDbToRegistrationArray,
 } from '@/services/mappers/registrationMappers';
 import type { DbRegistration } from '@/types/registration-types';
+import { fromAny } from '@total-typescript/shoehorn';
 
-const makeDbRow = (overrides: Partial<DbRegistration> = {}): DbRegistration => ({
-  id: 'reg-001',
-  confirmation_number: 'MK9-000001',
-  show_id: 'show-abc',
-  handler_id: 'handler-xyz',
-  payment_status: 'pending',
-  payment_reference: null,
-  notes: null,
-  created_at: '2026-03-09T10:00:00Z',
-  updated_at: '2026-03-09T10:00:00Z',
-  ...overrides,
-});
+const makeDbRow = (overrides: Partial<DbRegistration> = {}): DbRegistration =>
+  fromAny<DbRegistration, unknown>({
+    id: 'reg-001',
+    confirmation_number: 'MK9-000001',
+    show_id: 'show-abc',
+    handler_id: 'handler-xyz',
+    payment_status: 'pending',
+    payment_reference: null,
+    notes: null,
+    created_at: '2026-03-09T10:00:00Z',
+    updated_at: '2026-03-09T10:00:00Z',
+    ...overrides,
+  });
 
 describe('registrationMappers', () => {
   describe('mapDbToRegistration', () => {

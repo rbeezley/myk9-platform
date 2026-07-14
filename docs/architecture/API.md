@@ -36,7 +36,7 @@ Only the key functions are documented in full below. The complete current invent
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Ringside / AI      | `validate-passcode` (ringside passcode auth for `/at-show`), `ask-myk9show` (show-app AI assistant)                                                                      |
 | Email senders      | `send-email`, `send-auth-email`, `send-confirmation-email`, `send-registration-email`, `send-targeted-message`, `send-results`, `send-waitlist-invite`, `resend-webhook` |
-| Push notifications | `send-push-notification`, `push-trigger-announcement`, `push-trigger-chat-message`, `push-trigger-class-status`, `push-trigger-scoring`                                  |
+| Push notifications | `send-push-notification`, `push-trigger-announcement`, `push-trigger-chat-message`, `push-trigger-class-status`, `push-trigger-scoring`, `push-trigger-waitlist`                 |
 | Premium / admin    | `generate-premium`, `admin-delete-user`, `admin-generate-reset-link`                                                                                                     |
 
 **`apps/myk9show/supabase/functions/` (app-scoped)**
@@ -575,6 +575,9 @@ Scheduled job that expires overdue waitlist offers and auto-offers spots to the 
   "results": {
     "expiredOffers": 2,
     "newOffers": 1,
+    "remindersSent": 1,
+    "expiryNoticesSent": 2,
+    "retriedNotifications": 1,
     "errors": []
   }
 }
@@ -590,14 +593,32 @@ Scheduled job that expires overdue waitlist offers and auto-offers spots to the 
 
 **Behavior:**
 
-1. Finds all `waitlist_entries` with `status = 'offered'` where `offer_expires_at` is in the past.
-2. Marks them as `expired`.
-3. For each expired offer, finds the next `waiting` entry for that class (ordered by `position`) and offers it.
-4. Additionally scans for classes with available spots (via the `check_class_availability` RPC) and waiting entries but no current offers, and auto-offers to the next in line.
-5. New offers expire after 24 hours.
-6. Sends `waitlist_offer` emails via the `send-email` function.
+1. Enqueues one halfway reminder for each eligible online offer that remains unpaid.
+2. Finds all `waitlist_entries` with `status = 'offered'` where `offer_expires_at` is in the past.
+3. Marks them as `expired` and enqueues an expiry notice.
+4. For each expired offer, finds the next `waiting` entry for that class (ordered by `position`) and offers it.
+5. Additionally scans for classes with available spots (via the `check_class_availability` RPC) and waiting entries but no current offers, and auto-offers to the next in line.
+6. New offers expire after 24 hours. Offer notifications are enqueued by the database transition trigger, so both cron- and secretary-initiated promotions follow the same durable delivery path.
 
-**Environment Variables Required:** `CRON_SECRET` (optional but recommended), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+**Environment Variables Required:** `CRON_SECRET` (optional but recommended), `PUSH_WEBHOOK_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+
+---
+
+### push-trigger-waitlist
+
+Internal dispatcher for durable waitlist offer, halfway-reminder, and expiry notifications. It claims a `waitlist_notification_events` row with a renewable lease, revalidates the current unpaid offer cycle, then delivers email and Web Push independently. The cron retries bounded pending, failed, and stale-processing events; per-channel state and hashed successful push endpoints prevent normal retries from duplicating completed delivery.
+
+| Detail     | Value                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------- |
+| **Source** | `supabase/functions/push-trigger-waitlist/index.ts`                                   |
+| **Method** | `POST`                                                                                |
+| **Auth**   | Bearer token must match the dedicated `PUSH_WEBHOOK_SECRET`; fail-closed if unset     |
+
+Notifications link to the existing filtered My Entries surface and format deadlines in the trial timezone. Mail-in waitlist rows do not create notification events. A recipient without an authenticated account still receives email; Web Push is skipped because no subscription owner can exist.
+
+**Deployment gate:** merge this code without deploying it until Phase B adds and verifies the My Entries waitlist payment action. Deploying the updated cron earlier would remove the legacy Stripe payment-link email before exhibitors can pay from the new deep link. After Phase B is ready, deploy `push-trigger-waitlist` first, apply the notification-event migration second, and deploy the updated cron with the Phase B functions last.
+
+**Environment Variables Required:** `PUSH_WEBHOOK_SECRET`, `RESEND_API_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 
 ---
 
@@ -697,6 +718,7 @@ Custom secrets used across functions:
 | `STRIPE_WEBHOOK_SECRET` | stripe-webhook                                                                       | Stripe webhook signing secret                     |
 | `RESEND_API_KEY`        | send-email                                                                           | Resend email service API key                      |
 | `CRON_SECRET`           | cron-waitlist-expiration                                                             | Shared secret for cron authentication             |
+| `PUSH_WEBHOOK_SECRET`   | push-trigger-waitlist, cron-waitlist-expiration                                      | Dedicated waitlist notification dispatch secret   |
 | `ANTHROPIC_API_KEY`     | ask-myk9show                                                                         | Anthropic API key for Claude                      |
 | `TRIGGER_SECRET`        | send-push-notification                                                               | Shared secret for database trigger authentication |
 | `VITE_VAPID_PUBLIC_KEY` | send-push-notification                                                               | Web Push VAPID public key                         |

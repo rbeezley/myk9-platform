@@ -15,7 +15,7 @@ const userId = 'multi-class-test-user';
 const submittedAt = '2026-06-12T14:00:00.000Z';
 
 function entryInput(
-  overrides: Partial<ShowEntryInput> & {
+  overrides: Omit<Partial<ShowEntryInput>, 'registrationData'> & {
     registrationData?: Partial<ShowEntryInput['registrationData']>;
   }
 ): ShowEntryInput {

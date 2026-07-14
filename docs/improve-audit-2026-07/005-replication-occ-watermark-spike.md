@@ -115,7 +115,7 @@ and whether ringside passcode sessions can expire mid-show. Verdict + evidence.
 ## Scope
 
 **In scope** (create ONE file):
-- `docs/plan-replication-occ-watermark-findings.md` — the findings doc, with a
+- `docs/archive/plan-replication-occ-watermark-findings.md` — the findings doc, with a
   verdict table (Lead A–E: CONFIRMED / NOT A BUG / NEEDS-TEST), `file:line`
   evidence for each, and for every CONFIRMED/NEEDS-TEST lead a short "fix scope"
   paragraph (what a follow-up plan would change, and what test proves it).
@@ -128,7 +128,7 @@ and whether ringside passcode sessions can expire mid-show. Verdict + evidence.
 
 ## Done criteria (ALL)
 
-- [ ] `docs/plan-replication-occ-watermark-findings.md` exists with a verdict for
+- [ ] `docs/archive/plan-replication-occ-watermark-findings.md` exists with a verdict for
       each of Lead A–E, each backed by `file:line` evidence the executor read.
 - [ ] Every CONFIRMED or NEEDS-TEST lead has a "fix scope" + "proof test" note.
 - [ ] The doc has a `Status: Active` line and a row in `docs/README.md`.

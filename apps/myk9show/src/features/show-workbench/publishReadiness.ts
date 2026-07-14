@@ -1,6 +1,6 @@
 import type { Show } from '@/types/show-types';
 import { SETUP_PUBLISH_ANCHOR } from './setupReadinessSignals';
-import { classifyPremiumPublishState } from './premiumPublishState';
+import { classifyPremiumPublishState, type PremiumPublishStateInput } from './premiumPublishState';
 
 export const SHOW_STATUS_CONTROL_ANCHOR = 'show-status-control';
 
@@ -22,9 +22,12 @@ function isShowListingLive(status: string | null | undefined): boolean {
   );
 }
 
-export function buildPublishReadinessItems(show: Show): PublishReadinessItem[] {
+export function buildPublishReadinessItems(
+  show: Show,
+  premiumInfo?: PremiumPublishStateInput
+): PublishReadinessItem[] {
   const showListingLive = isShowListingLive(show.status);
-  const premiumState = classifyPremiumPublishState(show);
+  const premiumState = classifyPremiumPublishState(premiumInfo ?? show);
   const premiumPublished = premiumState !== 'unpublished';
   const premiumCurrent = premiumState === 'published-current';
   const landingPublished = Boolean(show.experienceIsPublished);

@@ -115,6 +115,10 @@ interface EntryRow {
   } | null;
 }
 
+interface OfferedWaitlistRow {
+  promoted_entry_id: string | null;
+}
+
 Deno.serve(async req => {
   _corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
@@ -204,7 +208,45 @@ Deno.serve(async req => {
       const authorized =
         secretaryRes.data === true || clubAdminRes.data === true || siteAdminRes.data === true;
       if (!authorized) {
-        return corsResponse({ error: 'Not authorized to request payment for this show' }, 403);
+        // An exhibitor may claim only their own active promotion. This is a
+        // deliberately narrow fallback, not generic entry-owner checkout:
+        // every requested entry must match an unexpired offered row owned by
+        // the caller's exhibitor profile.
+        const { data: exhibitorProfile, error: exhibitorError } = await supabase
+          .from('exhibitor_profiles')
+          .select('id')
+          .eq('auth_user_id', userId)
+          .maybeSingle();
+        if (exhibitorError) {
+          console.error('Could not load exhibitor profile for waitlist payment:', exhibitorError);
+          return corsResponse({ error: 'Could not verify this waitlist offer' }, 500);
+        }
+        if (!exhibitorProfile) {
+          return corsResponse({ error: 'Not authorized to request payment for this show' }, 403);
+        }
+
+        const { data: activeOffers, error: offersError } = await supabase
+          .from('waitlist_entries')
+          .select('promoted_entry_id')
+          .in('promoted_entry_id', entry_ids)
+          .eq('exhibitor_id', exhibitorProfile.id)
+          .eq('status', 'offered')
+          .gt('offer_expires_at', new Date().toISOString());
+        if (offersError) {
+          console.error('Could not load active waitlist offers:', offersError);
+          return corsResponse({ error: 'Could not verify this waitlist offer' }, 500);
+        }
+
+        const activeOfferEntryIds = new Set(
+          ((activeOffers ?? []) as OfferedWaitlistRow[])
+            .map(offer => offer.promoted_entry_id)
+            .filter((entryId): entryId is string => Boolean(entryId))
+        );
+        if (activeOfferEntryIds.size !== entry_ids.length) {
+          return corsResponse({
+            error: 'Not authorized to request payment for these waitlist offers',
+          }, 403);
+        }
       }
     }
 
@@ -277,11 +319,18 @@ Deno.serve(async req => {
 
     // Re-request safety: expire any prior OPEN links covering these entries so
     // two live links can't both be paid (full handling in Task 3.5 Step 2).
-    const { data: priorLinks } = await supabase
+    const { data: priorLinks, error: priorLinksError } = await supabase
       .from('entry_payment_links')
       .select('id, stripe_checkout_session_id')
       .eq('status', 'open')
       .overlaps('entry_ids', entry_ids);
+    if (priorLinksError) {
+      console.error('Could not load existing payment links:', priorLinksError);
+      return corsResponse(
+        { error: 'Could not check an existing payment link. Please try again.' },
+        503
+      );
+    }
     for (const prior of priorLinks ?? []) {
       // A prior link that was JUST paid (webhook not yet processed) still reads
       // 'open'. Inspect first: only payment_status='paid' blocks re-request.
@@ -297,6 +346,10 @@ Deno.serve(async req => {
         priorPaymentStatus = priorSession.payment_status ?? null;
       } catch (err) {
         console.log(`Could not inspect prior session ${prior.stripe_checkout_session_id}:`, err);
+        return corsResponse(
+          { error: 'Could not verify an existing payment link. Please try again.' },
+          503
+        );
       }
       const justCompleted =
         'A payment for one of these entries just completed — refresh to see it before requesting again.';
@@ -309,6 +362,12 @@ Deno.serve(async req => {
           .update({ status: 'expired', updated_at: nowIso })
           .eq('id', prior.id);
         continue;
+      }
+      if (priorStatus !== 'open') {
+        return corsResponse(
+          { error: 'Could not verify an existing payment link. Please try again.' },
+          503
+        );
       }
       try {
         await stripe.checkout.sessions.expire(prior.stripe_checkout_session_id);
@@ -323,8 +382,15 @@ Deno.serve(async req => {
           const recheck = await stripe.checkout.sessions.retrieve(prior.stripe_checkout_session_id);
           recheckStatus = recheck.status ?? null;
           recheckPaymentStatus = recheck.payment_status ?? null;
-        } catch {
-          // ignore — fall through to leaving the row 'open'
+        } catch (recheckError) {
+          console.log(
+            `Could not recheck prior session ${prior.stripe_checkout_session_id}:`,
+            recheckError
+          );
+          return corsResponse(
+            { error: 'Could not safely replace an existing payment link. Please try again.' },
+            503
+          );
         }
         if (recheckPaymentStatus === 'paid') {
           return corsResponse({ error: justCompleted }, 409);
@@ -337,10 +403,13 @@ Deno.serve(async req => {
           continue;
         }
         console.log(
-          `Could not expire prior session ${prior.stripe_checkout_session_id} — leaving link open:`,
+          `Could not expire prior session ${prior.stripe_checkout_session_id} — refusing replacement:`,
           err
         );
-        continue;
+        return corsResponse(
+          { error: 'Could not safely replace an existing payment link. Please try again.' },
+          503
+        );
       }
       // Only NOW that Stripe has confirmed the session is expired is it safe to
       // mark the link expired — the webhook will never see a paid-but-expired row.

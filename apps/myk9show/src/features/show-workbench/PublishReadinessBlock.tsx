@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Show } from '@/types/show-types';
+import { usePublishInfo } from '@/features/premium/usePublishInfo';
 import { buildPublishReadinessItems } from './publishReadiness';
 
 interface PublishReadinessBlockProps {
@@ -10,7 +11,21 @@ interface PublishReadinessBlockProps {
 }
 
 export function PublishReadinessBlock({ show }: PublishReadinessBlockProps) {
-  const items = buildPublishReadinessItems(show);
+  // `show` usually comes from the offline-replicated table, which doesn't
+  // carry published_premium_url/at (see PremiumDownloadCard). Fetch those
+  // two columns directly so this block's Premium PDF state matches the
+  // premium card instead of always reading "not published yet".
+  const { data: publishInfo } = usePublishInfo(show.id);
+  const items = buildPublishReadinessItems(
+    show,
+    publishInfo
+      ? {
+          publishedPremiumUrl: publishInfo.publishedUrl,
+          publishedPremiumAt: publishInfo.publishedAt,
+          updatedAt: publishInfo.updatedAt,
+        }
+      : undefined
+  );
 
   return (
     <section aria-labelledby="publish-readiness-heading" className="space-y-3">

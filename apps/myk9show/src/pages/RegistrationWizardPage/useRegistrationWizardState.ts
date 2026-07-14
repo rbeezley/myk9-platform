@@ -37,6 +37,7 @@ import type {
   StepId,
 } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
 import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
+import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import {
   WORKFLOW_CONFIGS,
   ALL_STEP_DEFINITIONS,
@@ -49,7 +50,7 @@ import { isShowDeskLateEntryMode, resolveRegistrationExit } from '../Registratio
 import { proceedBlockedReason } from './proceedGating';
 import { buildDraftFormData } from './buildDraftFormData';
 import { autoAssignHandlers } from './autoAssignHandlers';
-import { getEntryCloseAvailability } from './entryCloseGuard';
+import { getEntryCloseAvailability, getEntryWindowTimezone } from './entryCloseGuard';
 
 // Exhibitor self-service defaults to online card payment; on-behalf modes
 // (secretary/admin/club) can't use card checkout, so they start unset and must
@@ -208,6 +209,7 @@ export function useRegistrationWizardState() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PENDING);
   const [entryStatus, setEntryStatus] = useState<EntryStatus>(EntryStatus.PENDING);
   const [armbandAssignments, setArmbandAssignments] = useState<ArmbandAssignment[]>([]);
+  const [entryOutcomes, setEntryOutcomes] = useState<EntrySubmissionOutcome[]>([]);
   const paymentDetailsRef = useRef<PaymentDetails>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [agreedToEntryAgreement, setAgreedToEntryAgreement] = useState(false);
@@ -324,14 +326,18 @@ export function useRegistrationWizardState() {
       getEntryCloseAvailability({
         showId,
         startDate: currentShow?.startDate,
+        entryOpenDate: currentShow?.entryOpenDate,
         entryCloseDate: currentShow?.entryCloseDate,
+        entryWindowTimezone: getEntryWindowTimezone(currentShow?.trials),
         isLateEntryMode,
         workflowMode: currentWorkflowMode,
       }),
     [
       showId,
       currentShow?.startDate,
+      currentShow?.entryOpenDate,
       currentShow?.entryCloseDate,
+      currentShow?.trials,
       isLateEntryMode,
       currentWorkflowMode,
     ]
@@ -445,6 +451,8 @@ export function useRegistrationWizardState() {
     setEntryStatus,
     armbandAssignments,
     setArmbandAssignments,
+    entryOutcomes,
+    setEntryOutcomes,
     paymentDetailsRef,
     isSubmitting,
     setIsSubmitting,

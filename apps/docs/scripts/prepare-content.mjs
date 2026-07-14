@@ -10,10 +10,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, '../../..');
 const srcGuides = join(repoRoot, 'docs/user-guides');
 const srcShots = join(repoRoot, 'docs/screenshots');
+const srcDiagrams = join(repoRoot, 'docs/diagrams');
 const outGuides = resolve(__dirname, '../src/content/guides');
 const outShots = resolve(__dirname, '../public/screenshots');
+const outDiagrams = resolve(__dirname, '../public/diagrams');
 
 // Per-guide presentation metadata (landing cards + ordering + sidebar icon).
+// `source` overrides the source filename when it differs from the published
+// slug (the judge/steward source keeps its printable-quickstart name and is
+// also referenced elsewhere, e.g. AskQ document assets).
 const META = {
   'exhibitor-guide': {
     title: 'Exhibitor guide',
@@ -36,6 +41,14 @@ const META = {
     icon: 'building',
     order: 3,
   },
+  'judge-steward-guide': {
+    source: 'judge-steward-quickstart.md',
+    title: 'Judge & steward quickstart',
+    role: 'For judges & stewards',
+    blurb: 'Get ringside access, score on the tablet, and post results.',
+    icon: 'gavel',
+    order: 4,
+  },
 };
 
 function transform(md) {
@@ -48,24 +61,31 @@ function transform(md) {
   // Remove the internal metadata block + qa-draft note blockquote.
   out = out.replace(/^\*\*(Status|Audience|Last verified|Verified by):\*\*.*\n/gim, '');
   out = out.replace(/^>\s*\*\*Note:\*\*[\s\S]*?\n\n/m, '');
-  // Point images at the public screenshots dir.
+  // Point images at the public screenshots / diagrams dirs.
   out = out.replace(/\.\.\/screenshots\//g, '/screenshots/');
+  out = out.replace(/\.\.\/diagrams\//g, '/diagrams/');
   return out.replace(/^\s+/, '');
 }
 
 async function run() {
   await rm(outGuides, { recursive: true, force: true });
   await rm(outShots, { recursive: true, force: true });
+  await rm(outDiagrams, { recursive: true, force: true });
   await mkdir(outGuides, { recursive: true });
   await mkdir(outShots, { recursive: true });
+  await mkdir(outDiagrams, { recursive: true });
 
-  const files = (await readdir(srcGuides)).filter(f => /-guide\.md$/.test(f));
+  // Only publish the curated guides in META; source filename defaults to the
+  // published slug but can be overridden per entry.
   let count = 0;
-  for (const file of files) {
-    const slug = file.replace(/\.md$/, '');
-    const meta = META[slug];
-    if (!meta) continue; // only publish the curated guides
-    const raw = await readFile(join(srcGuides, file), 'utf8');
+  for (const [slug, meta] of Object.entries(META)) {
+    const sourceFile = meta.source ?? `${slug}.md`;
+    const sourcePath = join(srcGuides, sourceFile);
+    if (!existsSync(sourcePath)) {
+      console.warn(`[prepare-content] source missing for ${slug}: ${sourceFile}`);
+      continue;
+    }
+    const raw = await readFile(sourcePath, 'utf8');
     // Carry the source's publish status into frontmatter (don't silently drop
     // it) so the site can honestly badge drafts and gate indexing.
     const status = raw.match(/^\*\*Status:\*\*\s*`?([\w-]+)`?/im)?.[1] ?? 'qa-draft';
@@ -90,7 +110,12 @@ async function run() {
       await copyFile(join(srcShots, shot), join(outShots, shot));
     }
   }
-  console.log(`[prepare-content] ${count} guides + screenshots staged.`);
+  if (existsSync(srcDiagrams)) {
+    for (const diagram of (await readdir(srcDiagrams)).filter(f => /\.(svg|png)$/i.test(f))) {
+      await copyFile(join(srcDiagrams, diagram), join(outDiagrams, diagram));
+    }
+  }
+  console.log(`[prepare-content] ${count} guides + screenshots + diagrams staged.`);
 }
 
 run().catch(err => {

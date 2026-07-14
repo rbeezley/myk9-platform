@@ -6,6 +6,8 @@
 
 > **Decided:** 2026-06-25 (brainstorm with owner).
 
+> **Related (Stripe-gated):** [`plan-stripe-golive-enforcement.md`](plan-stripe-golive-enforcement.md) — the two Stripe-gated plans should surface together when Stripe go-live work starts. Cross-linked 2026-07-12 (day-of consolidation pass, `improve-audit-2026-07-11/008-secretary-dayof-plan-consolidation.md`).
+
 ---
 
 ## Problem

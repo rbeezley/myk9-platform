@@ -59,6 +59,7 @@ function makeAuthContext(isAdmin: boolean) {
     loading: false,
     signIn: vi.fn(),
     signUp: vi.fn(),
+    resendConfirmationEmail: vi.fn(),
     signOut: vi.fn(),
     signInWithGoogle: vi.fn(),
     resetPassword: vi.fn(),
@@ -78,6 +79,8 @@ function makeAuthContext(isAdmin: boolean) {
     rbacLoading: false,
     rbacError: null,
     refreshPermissions: vi.fn().mockResolvedValue(undefined),
+    firstName: null,
+    lastName: null,
   };
 }
 
@@ -223,9 +226,7 @@ describe('UserDetailsDialog — Security tab', () => {
       fireEvent.click(screen.getByTestId('generate-reset-link-btn'));
 
       await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith(
-          "You don't have permission to make that change."
-        );
+        expect(toast.error).toHaveBeenCalledWith("You don't have permission to make that change.");
       });
 
       // No link input should be shown
@@ -244,7 +245,9 @@ describe('UserDetailsDialog — Security tab', () => {
       fireEvent.click(screen.getByTestId('generate-reset-link-btn'));
 
       await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith('Failed to generate reset link. Please try again.');
+        expect(toast.error).toHaveBeenCalledWith(
+          'Failed to generate reset link. Please try again.'
+        );
       });
     });
 

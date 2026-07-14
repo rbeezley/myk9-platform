@@ -146,7 +146,7 @@ Slides 5–6 content overlaps with Overview slides 14–15 but frames the inform
 **Length:** ~8 slides, 10 minutes.
 **Context:** Use at a pre-show judge/steward briefing; the printable `judge-steward-quickstart.md` is the one-page leave-behind for ringside (planned; ready to capture once staging redeploys).
 
-**Screenshots are no longer flag-blocked** — they can be captured against staging once the removal PR redeploys. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md). The at-show surface now renders for every show.) Use numbered steps as slide content until the shots land.
+**Screenshots are no longer flag-blocked** — they can be captured against staging once the removal PR redeploys. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md). The at-show surface now renders for every show.) Use numbered steps as slide content until the shots land.
 
 ### Slides
 
@@ -176,7 +176,7 @@ Slides 2 and 7 content derives from Overview slides 12 and 13 but is simplified 
 
 ### Capture Reminder
 
-No longer flag-blocked — the final Judge/Steward Deck can be produced once the at-show screenshots are captured against staging post-redeploy. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md).) The quickstart outline (`judge-steward-quickstart-outline.md`) carries the same updated notice.
+No longer flag-blocked — the final Judge/Steward Deck can be produced once the at-show screenshots are captured against staging post-redeploy. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md).) The quickstart outline (`judge-steward-quickstart-outline.md`) carries the same updated notice.
 
 ---
 

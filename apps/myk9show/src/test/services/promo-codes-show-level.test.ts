@@ -149,6 +149,31 @@ describe('promo-codes', () => {
   // (SECURITY DEFINER) instead of a direct catalog SELECT. The RPC returns a
   // single row: { valid, promo_code_id, discount_type, discount_value, reason }.
   describe('validatePromoCodeForEntry', () => {
+    it('omits the optional show scope for trial-only validation', async () => {
+      mockSupabase.rpc.mockReturnValue(
+        createChainableQuery({
+          data: [
+            {
+              valid: false,
+              promo_code_id: null,
+              discount_type: null,
+              discount_value: null,
+              reason: 'Invalid',
+            },
+          ],
+          error: null,
+        })
+      );
+
+      const { validatePromoCode } = await import('@/services/database/promo-codes');
+      await validatePromoCode('trial-1', 'TRIALONLY');
+
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('validate_promo_code', {
+        p_code: 'TRIALONLY',
+        p_trial_id: 'trial-1',
+      });
+    });
+
     it('returns valid for a code the RPC accepts', async () => {
       mockSupabase.rpc.mockReturnValue(
         createChainableQuery({

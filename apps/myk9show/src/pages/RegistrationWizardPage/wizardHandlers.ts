@@ -24,6 +24,7 @@ import type { StepId } from '@/components/shows/RegistrationWorkflow/Registratio
 import { selectedDogsOwner } from '@/features/registration/selectedDogsOwner';
 import { resolveRegistrationCompletionPath } from '../RegistrationWizardPage.routes';
 import { submitPaymentStep } from './submitPaymentStep';
+import { getEntryWindowTimezone } from './entryCloseGuard';
 import type { RegistrationWizardState } from './useRegistrationWizardState';
 import type { SavedDraft } from '@/hooks/useDraftPersistence';
 
@@ -70,6 +71,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setPaymentStatus,
     setEntryStatus,
     setArmbandAssignments,
+    setEntryOutcomes,
     paymentDetailsRef,
     setIsSubmitting,
     setAgreedToEntryAgreement,
@@ -142,7 +144,9 @@ export function createWizardHandlers(state: RegistrationWizardState) {
             preEntryFee: currentShow.preEntryFee || '0',
             dayOfShowFee: currentShow.dayOfShowFee,
             startDate: currentShow.startDate,
+            entryOpenDate: currentShow.entryOpenDate,
             entryCloseDate: currentShow.entryCloseDate,
+            entryWindowTimezone: getEntryWindowTimezone(currentShow.trials),
           },
           currentStep,
           cart: { loadCart, clearCart, createCart, addItem, abandonCart },
@@ -152,6 +156,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           setIsSubmitting,
           setRegistrationNumber,
           setArmbandAssignments,
+          setEntryOutcomes,
           markStepComplete,
           setCurrentStep,
           updateShowRegistration: (id, updates) => updateShowRegistration(id, updates),

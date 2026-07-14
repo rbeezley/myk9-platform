@@ -6,12 +6,14 @@ const updateEntry = vi.fn<(id: string, updates: Record<string, unknown>) => Prom
 const updateCheckInStatus = vi.fn<(id: string, status: string) => Promise<string | null>>(() =>
   Promise.resolve('mutation-1')
 );
-const auditLog = vi.fn<() => Promise<void>>(() => Promise.resolve());
-const rpc = vi.fn<() => Promise<{ error: Error | null }>>(() => Promise.resolve({ error: null }));
+const auditLog = vi.fn((..._args: unknown[]) => Promise.resolve());
+const rpc = vi.fn((_name: string, _args?: Record<string, unknown>) =>
+  Promise.resolve({ error: null as Error | null })
+);
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    rpc: (...args: unknown[]) => rpc(...args),
+    rpc: (name: string, args?: Record<string, unknown>) => rpc(name, args),
   },
   createDatabaseError: (err: unknown) => {
     if (err instanceof Error) return err;
@@ -89,9 +91,7 @@ describe('updateReplicatedCheckInStatus', () => {
   });
 
   it('queues day-of scratch through replicated entry status and check-in status fields', async () => {
-    await expect(updateReplicatedDayOfScratch('entry-1', 'Dog absent')).resolves.toBe(
-      'mutation-1'
-    );
+    await expect(updateReplicatedDayOfScratch('entry-1', 'Dog absent')).resolves.toBe('mutation-1');
 
     expect(updateEntry).toHaveBeenCalledWith('entry-1', {
       entryStatus: 'scratched',

@@ -242,6 +242,7 @@ const ShowDetailsPage: React.FC = () => {
         status: cls.status || CLASS_STATUS.SCHEDULED,
         entryCount: entryCountByClassId.get(cls.id) ?? 0,
         scoredCount: cls.completedEntries ?? 0,
+        reopenedAfterCloseoutAt: cls.reopenedAfterCloseoutAt ?? null,
         userHasEntry: userEntryClassIds.has(cls.id),
         trialDate: trial.trialDate || '',
         trialNumber: trial.trialNumber || '',

@@ -180,11 +180,13 @@ This document is referenced in `CLAUDE.md` so that AI tools building on this cod
 
 ---
 
-## 6. App Boundary: myK9Show vs myK9Q
+## 6. App Boundary: one platform, ringside at `/at-show`
 
-**Decision (2026-03-14): myK9Show is the complete platform. myK9Q is the ringside scoring tool.**
+**Decision (2026-03-14, re-anchored 2026-07): myK9Show is the complete platform. Ringside scoring lives inside it at `/at-show`.**
 
-myK9Show is the end-to-end system for every role and every moment — before, during, and after the show. Everything a user needs should be available in myK9Show. myK9Q exists specifically for ringside use: judges scoring dogs and gate stewards managing ring flow, where offline capability and tablet-optimized touch targets are critical.
+> **(2026-07: myK9Q absorbed into `/at-show`; section re-anchored.)** The monorepo `apps/myk9q` app has been **deleted** — its ringside scoring role was absorbed into myK9Show's `/at-show` surface and the shared `@myk9/*` ringside packages. Do not rebuild `apps/myk9q` or wire links to it. (The separate legacy production app at myk9q.com lives in its own repo and is untouched by this monorepo; it is not the `/at-show` experience described here.) The intent below is preserved verbatim in spirit — every ringside quality now attaches to `/at-show`.
+
+myK9Show is the end-to-end system for every role and every moment — before, during, and after the show. Everything a user needs is available in myK9Show. The `/at-show` surface within it is purpose-built for ringside use: judges scoring dogs and gate stewards managing ring flow, where offline capability and tablet-optimized touch targets are critical.
 
 ### myK9Show — "The complete platform"
 
@@ -199,47 +201,47 @@ The full end-to-end system for all users across all phases of a show.
 - Spectator features: TV display, announcements, public results
 - Admin oversight and analytics
 
-### myK9Q — "Ringside scoring"
+### `/at-show` — "Ringside scoring"
 
-The lightweight, offline-capable tool purpose-built for in-ring use on tablets.
+The lightweight, offline-capable ringside experience inside myK9Show, purpose-built for in-ring use on tablets.
 
-- Judge scoring interface (large touch targets, muscle-memory fast)
+- Judge scoring interface (large touch targets, muscle-memory fast, "invisible" to the judge)
 - Gate steward run management
 - Full offline support via IndexedDB replication (critical for venues with poor connectivity)
 - Optimized for tablet in landscape orientation at ringside
 
 ### Relationship
 
-myK9Q may eventually be retired if myK9Show's offline and tablet capabilities mature enough to handle ringside scoring. Until then, the two apps coexist:
+Ringside is not a separate app — it is a mode of myK9Show reached at `/at-show`, gated to judges and stewards with active ringside access:
 
-- Both read from the same Supabase tables and share Supabase auth — no re-login required
-- myK9Show is the primary app for all users; myK9Q is only needed by judges and stewards at ringside
-- Exhibitors, secretaries, spectators, and admins should never need to open myK9Q
+- One codebase, one Supabase project, one auth session — no re-login, no cross-app hop
+- myK9Show is the primary experience for all users; `/at-show` is the focused ringside surface judges and stewards drop into at the ring
+- Exhibitors, secretaries, spectators, and admins do their work in the main app; they never need the ringside surface
 
 **Guidelines for new features:**
 
-- Build it in myK9Show by default — myK9Show is the complete platform
-- Only build in myK9Q if it's ringside scoring/gate steward functionality that requires offline support and tablet-optimized touch targets
-- Do NOT send non-ringside users to myK9Q — if an exhibitor needs show-day info, build it in myK9Show
+- Build it in myK9Show — it is the complete platform
+- Ringside scoring / gate-steward functionality that requires offline support and tablet-optimized touch targets belongs in the `/at-show` surface, not a new app
+- Do NOT fragment ringside back into a standalone app — if an exhibitor needs show-day info, build it in the main myK9Show surfaces
 
-### Cross-App Navigation
+### In-App Navigation
 
-**From myK9Q → myK9Show:**
+**Into ringside (`/at-show`):**
+
+- Judge assignment → "Open Ringside Scoring" (only for judges/stewards with active ringside access)
+- Bare `/at-show` → smart landing (anonymous → sign-in / passcode; authed → auto-jump or ringside home)
+
+**Out of ringside, back to the main surfaces:**
 
 - Show details → "Enter this show" (registration wizard)
-- Settings/profile → "My Dashboard" (exhibitor dashboard)
-- Results → "Full results history" (career results)
-- Dog view → "Manage my dogs" (dog profiles)
-
-**From myK9Show → myK9Q:**
-
-- Judge assignment → "Open Ringside Scoring" (only for judges with active assignments)
+- Profile → exhibitor dashboard
+- Results → career results history
+- Dog view → dog profiles
 
 **Implementation rules:**
 
-- Cross-app links open in a new tab (user stays in context in the originating app)
-- Use a subtle external-link icon or distinct style to signal "this goes to the other app"
-- Both apps share Supabase auth — no re-login required
+- Navigation stays in-app (same origin, same session) — no external-app tab hop
+- Ringside access has two gates: the `shows.unified_ringside_enabled` flag and access (passcode overrides RBAC)
 - URLs are environment-aware (staging vs production) via shared config
 
 ---

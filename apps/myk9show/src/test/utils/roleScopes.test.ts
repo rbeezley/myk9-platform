@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import { ScopeType, UserRole, type UserWithRoles, type RoleScope } from '@/types/auth-types';
+import { fromAny } from '@total-typescript/shoehorn';
 
 function makeScope(overrides: Partial<RoleScope>): RoleScope {
   return {
@@ -14,13 +15,13 @@ function makeScope(overrides: Partial<RoleScope>): RoleScope {
 }
 
 function makeUser(scopes: RoleScope[]): UserWithRoles {
-  return {
+  return fromAny<UserWithRoles, unknown>({
     id: 'user-1',
     email: 'admin@example.com',
     roles: [UserRole.CLUB_ADMIN],
     permissions: [],
     scopes,
-  } as UserWithRoles;
+  });
 }
 
 describe('hasScopedClubRole', () => {

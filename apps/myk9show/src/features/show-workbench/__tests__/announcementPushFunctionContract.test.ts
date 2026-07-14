@@ -37,14 +37,12 @@ describe('push-trigger-announcement function contract', () => {
   it('authenticates the webhook against the dedicated PUSH_WEBHOOK_SECRET bearer', () => {
     const source = readFileSync(functionPath, 'utf8');
 
-    // Decoupled from SUPABASE_SERVICE_ROLE_KEY (which a DB trigger can't match
-    // after the JWT signing-key migration) — validates a dedicated shared secret.
-    expect(source).toContain("Deno.env.get('PUSH_WEBHOOK_SECRET')");
-    expect(source).toContain("req.headers.get('Authorization')");
-    expect(source).toContain('Bearer ${webhookSecret}');
-    expect(source).toContain("throw new HttpError(401, 'Unauthorized')");
+    // The shared helper reads only PUSH_WEBHOOK_SECRET and runs before body parsing.
+    expect(source).toContain("from '../_shared/pushWebhookAuth.ts'");
+    expect(source).toContain('beforeBody: requirePushWebhookSecret');
+    expect(source).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
     expect(source).toContain(".eq('is_active', true)");
-    expect(source.indexOf("req.headers.get('Authorization')")).toBeLessThan(
+    expect(source.indexOf('beforeBody: requirePushWebhookSecret')).toBeLessThan(
       source.indexOf('webpush.sendNotification')
     );
   });

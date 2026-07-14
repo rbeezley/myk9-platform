@@ -6,6 +6,7 @@ import { UserRole } from '@/types/auth-types';
 import ExhibitorOnboardingPage from '../ExhibitorOnboardingPage';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
+import { fromPartial } from '@total-typescript/shoehorn';
 
 const navigateMock = vi.fn();
 
@@ -40,22 +41,24 @@ const mockUseAuthContext = vi.mocked(useAuthContext);
 const mockUseExhibitorProfile = vi.mocked(useExhibitorProfile);
 
 function setupAuth(roles: UserRole[]) {
-  mockUseAuthContext.mockReturnValue({
-    user: {
-      id: 'auth-user-id',
-      email: 'secretary@myk9t.com',
-      user_metadata: { first_name: 'Test', last_name: 'Secretary' },
-    },
-    userWithRoles: {
-      id: 'auth-user-id',
-      email: 'secretary@myk9t.com',
-      roles,
-      permissions: [],
-      scopes: [],
-    },
-    loading: false,
-    rbacLoading: false,
-  } as ReturnType<typeof useAuthContext>);
+  mockUseAuthContext.mockReturnValue(
+    fromPartial({
+      user: {
+        id: 'auth-user-id',
+        email: 'secretary@myk9t.com',
+        user_metadata: { first_name: 'Test', last_name: 'Secretary' },
+      },
+      userWithRoles: {
+        id: 'auth-user-id',
+        email: 'secretary@myk9t.com',
+        roles,
+        permissions: [],
+        scopes: [],
+      },
+      loading: false,
+      rbacLoading: false,
+    })
+  );
 }
 
 function setupUnauthenticated() {

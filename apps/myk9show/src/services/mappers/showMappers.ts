@@ -109,6 +109,7 @@ export const mapDatabaseToShow = (
       date: (trialObj.date || '') as string,
       trialNumber: (trialObj.trial_number || '') as string,
       status: (trialObj.status || 'planned') as string,
+      timezone: (trialObj.timezone ?? null) as string | null,
       classes: ((trialObj.class as unknown[]) || []).map((cls: unknown) => {
         const classObj = cls as Record<string, unknown>;
         return {
@@ -137,7 +138,7 @@ export const mapDatabaseToShow = (
                   min: classObj.age_min as number | undefined,
                   max: classObj.age_max as number | undefined,
                 }
-            : undefined,
+              : undefined,
           heightRestrictions: classObj.height_restrictions
             ? {
                 min: (classObj.height_restrictions as Record<string, unknown>).min as number,
@@ -148,7 +149,7 @@ export const mapDatabaseToShow = (
                   min: classObj.height_min as number | undefined,
                   max: classObj.height_max as number | undefined,
                 }
-            : undefined,
+              : undefined,
           handlerAgeRestrictions: classObj.handler_age_restrictions
             ? {
                 min: (classObj.handler_age_restrictions as Record<string, unknown>).min as number,
@@ -159,7 +160,7 @@ export const mapDatabaseToShow = (
                   min: classObj.handler_age_min as number | undefined,
                   max: classObj.handler_age_max as number | undefined,
                 }
-            : undefined,
+              : undefined,
           startTime: classObj.start_time as string | undefined,
           estimatedDuration: classObj.estimated_duration as number | undefined,
         };
@@ -225,8 +226,7 @@ export const mapDatabaseToShow = (
     dayOfShowFee: dbShow.day_of_show_fee?.toString() || undefined,
     entryDeadline: (dbShow as Record<string, unknown>).entry_deadline as string | undefined,
     lateEntryDeadline: (dbShow as Record<string, unknown>).late_entry_deadline as
-      | string
-      | undefined,
+      string | undefined,
     clubId: dbShow.club_id || '',
     clubName:
       ((dbShow as Record<string, unknown>).club_name as string) ||
@@ -514,6 +514,7 @@ export const mapReplicatedTrialToRow = (
     date: 'date',
     trial_number: 'trialNumber',
     status: 'status',
+    timezone: 'timezone',
     trial_type: 'trialType',
     max_entries_per_dog: 'maxEntriesPerDog',
     max_total_entries: 'maxTotalEntries',

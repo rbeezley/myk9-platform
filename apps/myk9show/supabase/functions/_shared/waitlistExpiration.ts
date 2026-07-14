@@ -67,8 +67,9 @@ export async function expireWaitlistOffer(input: {
   stripe: WaitlistExpirationStripe | null;
   offer: ExpiredWaitlistOffer;
   nowIso: string;
+  terminalStatus?: 'expired' | 'declined';
 }): Promise<'expired' | 'paid' | 'error'> {
-  const { supabase, stripe, offer, nowIso } = input;
+  const { supabase, stripe, offer, nowIso, terminalStatus = 'expired' } = input;
 
   if (offer.promoted_entry_id) {
     const linkResult = await expireOpenPaymentLinksForEntry({
@@ -77,7 +78,7 @@ export async function expireWaitlistOffer(input: {
       entryId: offer.promoted_entry_id,
       nowIso,
     });
-    if (linkResult === 'paid') return 'paid';
+    if (linkResult !== 'expired') return linkResult;
 
     const entryResult = await expirePromotedEntry(supabase, offer.promoted_entry_id);
     if (entryResult !== 'expired') return entryResult;
@@ -86,7 +87,7 @@ export async function expireWaitlistOffer(input: {
   const { error } = await supabase
     .from('waitlist_entries')
     .update({
-      status: 'expired',
+      status: terminalStatus,
       updated_at: nowIso,
     })
     .eq('id', offer.id)
@@ -145,7 +146,7 @@ async function expireOpenPaymentLinksForEntry(input: {
   stripe: WaitlistExpirationStripe | null;
   entryId: string;
   nowIso: string;
-}): Promise<'expired' | 'paid'> {
+}): Promise<'expired' | 'paid' | 'error'> {
   const { supabase, stripe, entryId, nowIso } = input;
   const { data: rawLinks, error } = await supabase
     .from('entry_payment_links')
@@ -155,14 +156,14 @@ async function expireOpenPaymentLinksForEntry(input: {
 
   if (error) {
     console.error(`Could not fetch open payment links for promoted entry ${entryId}:`, error);
-    return 'expired';
+    return 'error';
   }
 
   const links = (rawLinks ?? []) as PaymentLinkRow[];
   for (const link of links) {
     if (!stripe) {
-      console.error('STRIPE_SECRET_KEY is missing; leaving payment link open');
-      continue;
+      console.error('STRIPE_SECRET_KEY is missing; cannot safely expire payment link');
+      return 'error';
     }
 
     let sessionStatus: string | null = null;
@@ -177,6 +178,7 @@ async function expireOpenPaymentLinksForEntry(input: {
         `Could not inspect waitlist payment session ${link.stripe_checkout_session_id}:`,
         err
       );
+      return 'error';
     }
 
     if (shouldAbortPaymentLinkExpiration({ status: sessionStatus, paymentStatus })) {
@@ -187,6 +189,7 @@ async function expireOpenPaymentLinksForEntry(input: {
       await expireAppPaymentLink(supabase, link.id, nowIso);
       continue;
     }
+    if (sessionStatus !== 'open') return 'error';
 
     try {
       await stripe.checkout.sessions.expire(link.stripe_checkout_session_id);
@@ -197,8 +200,12 @@ async function expireOpenPaymentLinksForEntry(input: {
         const recheck = await stripe.checkout.sessions.retrieve(link.stripe_checkout_session_id);
         recheckStatus = recheck.status ?? null;
         recheckPaymentStatus = recheck.payment_status ?? null;
-      } catch {
-        // Leave the app-side row open; webhook/autorefund remains the backstop.
+      } catch (recheckError) {
+        console.log(
+          `Could not recheck waitlist payment session ${link.stripe_checkout_session_id}:`,
+          recheckError
+        );
+        return 'error';
       }
       if (
         shouldAbortPaymentLinkExpiration({
@@ -213,10 +220,10 @@ async function expireOpenPaymentLinksForEntry(input: {
         continue;
       }
       console.log(
-        `Could not expire waitlist payment session ${link.stripe_checkout_session_id}; leaving link open:`,
+        `Could not expire waitlist payment session ${link.stripe_checkout_session_id}; refusing to close offer:`,
         err
       );
-      continue;
+      return 'error';
     }
 
     await expireAppPaymentLink(supabase, link.id, nowIso);

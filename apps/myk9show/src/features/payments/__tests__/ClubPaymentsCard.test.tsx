@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -118,7 +117,9 @@ describe('ClubPaymentsCard', () => {
     render(<ClubPaymentsCard clubId="club-1" />);
 
     expect(screen.getByRole('button', { name: /finish setting up/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /connect payment account/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /connect payment account/i })
+    ).not.toBeInTheDocument();
   });
 
   it('onboarded but payouts pending: under-review state still offers a resume path', () => {
@@ -153,7 +154,9 @@ describe('ClubPaymentsCard', () => {
     render(<ClubPaymentsCard clubId="club-1" />);
 
     expect(screen.getByText(/payouts enabled/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /connect payment account/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /connect payment account/i })
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /finish setting up/i })).not.toBeInTheDocument();
   });
 
@@ -309,7 +312,9 @@ describe('ClubPaymentsCard', () => {
 
     expect(screen.getByText(/couldn't load your payout history/i)).toBeInTheDocument();
     // The enabled "all set" empty copy must not also render during an error.
-    expect(screen.queryByText(/payouts appear here after your first show closes/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/payouts appear here after your first show closes/i)
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /try again/i }));
     expect(refetch).toHaveBeenCalled();

@@ -171,11 +171,19 @@ const MyEntriesPage: React.FC = () => {
 
   // Waitlist
   const { profile: exhibitorProfile } = useExhibitorProfile();
+  const focusedWaitlistOfferId = searchParams.get('waitlistOffer');
   const {
     entries: waitlistEntries,
     isLoading: waitlistLoading,
     withdraw,
-  } = useMyWaitlistEntries(exhibitorProfile?.id);
+    startPayment,
+    decline,
+    refetchWaitlistOffers,
+  } = useMyWaitlistEntries(exhibitorProfile?.id, focusedWaitlistOfferId);
+
+  const handleWaitlistOfferDeadlineElapsed = useCallback(() => {
+    void refetchWaitlistOffers();
+  }, [refetchWaitlistOffers]);
 
   // Handlers — stable identities so the memoized MyEntryCard list doesn't
   // re-render every card when an unrelated dialog opens or a tab changes.
@@ -407,6 +415,26 @@ const MyEntriesPage: React.FC = () => {
           isLoading={waitlistLoading}
           onWithdraw={id => withdraw.mutate(id)}
           isWithdrawing={withdraw.isPending}
+          onStartPayment={(entryId, waitlistEntryId) => {
+            const next = new URLSearchParams(searchParams);
+            next.set('waitlistOffer', waitlistEntryId);
+            setSearchParams(next, { replace: true });
+            startPayment.mutate({ entryId, waitlistEntryId });
+          }}
+          onDecline={id => {
+            const next = new URLSearchParams(searchParams);
+            next.set('waitlistOffer', id);
+            setSearchParams(next, { replace: true });
+            decline.mutate(id);
+          }}
+          payingEntryId={startPayment.isPending ? (startPayment.variables?.entryId ?? null) : null}
+          decliningOfferId={decline.isPending ? (decline.variables ?? null) : null}
+          paymentError={startPayment.error?.message ?? null}
+          paymentErrorOfferId={startPayment.isError ? (startPayment.variables?.waitlistEntryId ?? null) : null}
+          declineError={decline.error?.message ?? null}
+          declineErrorOfferId={decline.isError ? (decline.variables ?? null) : null}
+          focusedOfferId={focusedWaitlistOfferId}
+          onOfferDeadlineElapsed={handleWaitlistOfferDeadlineElapsed}
         />
       )}
 

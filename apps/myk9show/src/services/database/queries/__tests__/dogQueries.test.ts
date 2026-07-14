@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import {
   getAllDogs,
   getDogById,
@@ -190,7 +191,9 @@ describe('Dog Queries', () => {
 
       await createDog(newDog);
 
-      const insertCall = chainable.insert.mock.calls[0][0];
+      const insertCall = fromAny<unknown[][], unknown>(chainable.insert.mock.calls)[0][0] as Array<
+        Record<string, unknown>
+      >;
       expect(insertCall[0]).toHaveProperty('id', 'client-uuid-abc');
     });
   });
@@ -250,7 +253,7 @@ describe('Dog Queries', () => {
     it('should update a dog', async () => {
       const updates: DbDogUpdate = {
         name: 'Max Updated',
-        weight: 75,
+        weight: '75',
       };
 
       const mockUpdatedDog = {

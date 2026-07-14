@@ -23,12 +23,15 @@ function makeShow(overrides: Partial<Show> = {}): Show {
   } as Show;
 }
 
-function makeTrial(overrides: Partial<Trial> = {}): Trial {
+type TrialOverrides = Omit<Partial<Trial>, 'trialNumber'> & { trialNumber?: string | number };
+
+function makeTrial(overrides: TrialOverrides = {}): Trial {
+  const { trialNumber = '1', ...rest } = overrides;
   return {
     id: 't1',
-    trialNumber: 1,
+    trialNumber: String(trialNumber),
     trialDate: '2026-06-12',
-    ...overrides,
+    ...rest,
   } as Trial;
 }
 
@@ -51,13 +54,7 @@ describe('useFieldGuideLandingData', () => {
     const { result } = renderHook(() => useFieldGuideLandingData(show, null, []));
     const cells = result.current.quickRefCells;
     expect(cells).toHaveLength(5);
-    expect(cells.map(c => c.label)).toEqual([
-      'DATES',
-      'OPENS',
-      'CLOSES',
-      'CONFIRM',
-      'CAP',
-    ]);
+    expect(cells.map(c => c.label)).toEqual(['DATES', 'OPENS', 'CLOSES', 'CONFIRM', 'CAP']);
     // Critically, no DRAW cell — the hook used to fabricate one from
     // entryCloseDate which read as "draw the evening entries close",
     // misleading exhibitors. Surfacing it again requires real data.

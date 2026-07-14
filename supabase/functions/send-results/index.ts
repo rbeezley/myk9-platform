@@ -5,6 +5,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import {
   assertSendResultsAuthorization,
   deriveResultsAddresses,
@@ -14,7 +15,8 @@ import {
 // Server-side map: organization:sportType → submission email
 // Client cannot override this — prevents email redirection abuse.
 const SUBMISSION_EMAILS: Record<string, string> = {
-  'AKC:scent_work': 'results@akc.org', // ⚠ confirm actual address before launch
+  // AKC electronic scent work results submission address, confirmed 2026-07-13.
+  'AKC:scent_work': 'eresults@akc.org',
 };
 
 const FROM_EMAIL = 'myK9Show <results@myk9show.com>';
@@ -84,7 +86,7 @@ handle<SendResultsPayload>(
     // authenticated caller's own email — never the request body.
     const { secretaryEmail } = deriveResultsAddresses(show, callerEmail);
 
-    const resendRes = await fetch('https://api.resend.com/emails', {
+    const resendRes = await sendResendEmailWithRetry({
       method: 'POST',
       headers: {
         Authorization: `Bearer ${resendApiKey}`,

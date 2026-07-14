@@ -3,6 +3,21 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import ChatPage from '../ChatPage';
 
+const mockMessages = [
+  {
+    id: 'msg-1',
+    show_id: 'show-1',
+    thread_id: 'thread-1',
+    sender_id: 'user-2',
+    body: 'Your paperwork is missing',
+    group_label: null,
+    read_at: null,
+    created_at: '2026-04-01T10:00:00Z',
+    sender_name: 'Jane Secretary',
+    sender_role: 'Secretary',
+  },
+];
+
 const mockStoreState = {
   threads: [
     {
@@ -13,22 +28,7 @@ const mockStoreState = {
       created_at: '2026-04-01T09:00:00Z',
     },
   ],
-  messagesByThread: {
-    'thread-1': [
-      {
-        id: 'msg-1',
-        show_id: 'show-1',
-        thread_id: 'thread-1',
-        sender_id: 'user-2',
-        body: 'Your paperwork is missing',
-        group_label: null,
-        read_at: null,
-        created_at: '2026-04-01T10:00:00Z',
-        sender_name: 'Jane Secretary',
-        sender_role: 'Secretary',
-      },
-    ],
-  },
+  messagesByThread: { 'thread-1': mockMessages } as Record<string, typeof mockMessages>,
   unreadCount: 1,
   isLoading: false,
   currentUserId: 'user-1',
@@ -106,7 +106,7 @@ describe('ChatPage', () => {
     expect(screen.getByPlaceholderText(/message/i)).toBeInTheDocument();
   });
 
-  it('cold-load: fetches this show\'s threads on mount and shows loading (not the empty state) until hydrated', async () => {
+  it("cold-load: fetches this show's threads on mount and shows loading (not the empty state) until hydrated", async () => {
     // Simulate a cold push-tap deep-link: the store has no threads yet, and the
     // hydration fetch populates them (which then re-renders via the page's flag).
     mockStoreState.threads = [];

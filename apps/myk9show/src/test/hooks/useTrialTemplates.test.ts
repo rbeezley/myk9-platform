@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { useTrialTemplates } from '@/hooks/useTrialTemplates';
 import type { ClassDefinition, ClassTemplate } from '@/types/template.types';
 
@@ -24,17 +25,20 @@ const makeClassDef = (overrides: Partial<ClassDefinition> = {}): ClassDefinition
     ...overrides,
   }) as ClassDefinition;
 
-const makeTrial = (overrides: Record<string, unknown> = {}) => ({
-  id: 'trial-1',
-  name: 'Saturday Trial',
-  type: 'Nosework',
-  trialDate: '2026-06-15',
-  trialNumber: 'T-001',
-  showId: 'show-1',
-  status: 'Upcoming',
-  classes: [],
-  ...overrides,
-});
+type CurrentTrial = NonNullable<Parameters<typeof useTrialTemplates>[0]['currentTrial']>;
+
+const makeTrial = (overrides: Partial<CurrentTrial> = {}): CurrentTrial =>
+  fromPartial({
+    id: 'trial-1',
+    name: 'Saturday Trial',
+    type: 'Nosework',
+    trialDate: '2026-06-15',
+    trialNumber: 'T-001',
+    showId: 'show-1',
+    status: 'Upcoming',
+    classes: [],
+    ...overrides,
+  });
 
 describe('useTrialTemplates', () => {
   const mockUpdateTrial = vi.fn();
@@ -71,7 +75,7 @@ describe('useTrialTemplates', () => {
 
     const { result } = renderHook(() =>
       useTrialTemplates({
-        currentTrial: trial as Parameters<typeof useTrialTemplates>[0]['currentTrial'],
+        currentTrial: trial,
         updateTrial: mockUpdateTrial,
         addClass: mockAddClass,
         userId: 'user-1',
@@ -111,7 +115,7 @@ describe('useTrialTemplates', () => {
 
     const { result } = renderHook(() =>
       useTrialTemplates({
-        currentTrial: trial as Parameters<typeof useTrialTemplates>[0]['currentTrial'],
+        currentTrial: trial,
         updateTrial: mockUpdateTrial,
         addClass: mockAddClass,
         userId: 'user-1',
@@ -138,7 +142,7 @@ describe('useTrialTemplates', () => {
 
     const { result } = renderHook(() =>
       useTrialTemplates({
-        currentTrial: trial as Parameters<typeof useTrialTemplates>[0]['currentTrial'],
+        currentTrial: trial,
         updateTrial: mockUpdateTrial,
         addClass: mockAddClass,
         userId: 'user-1',
@@ -160,7 +164,7 @@ describe('useTrialTemplates', () => {
 
     const { result } = renderHook(() =>
       useTrialTemplates({
-        currentTrial: trial as Parameters<typeof useTrialTemplates>[0]['currentTrial'],
+        currentTrial: trial,
         updateTrial: mockUpdateTrial,
         addClass: mockAddClass,
         userId: 'user-1',
@@ -193,7 +197,7 @@ describe('useTrialTemplates', () => {
 
     const { result } = renderHook(() =>
       useTrialTemplates({
-        currentTrial: trial as Parameters<typeof useTrialTemplates>[0]['currentTrial'],
+        currentTrial: trial,
         updateTrial: mockUpdateTrial,
         addClass: mockAddClass,
         userId: 'user-1',
@@ -214,7 +218,7 @@ describe('useTrialTemplates', () => {
 
     const { result } = renderHook(() =>
       useTrialTemplates({
-        currentTrial: trial as Parameters<typeof useTrialTemplates>[0]['currentTrial'],
+        currentTrial: trial,
         updateTrial: mockUpdateTrial,
         addClass: mockAddClass,
         userId: 'my-user-id',

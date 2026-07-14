@@ -6,11 +6,26 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../../types/supabase';
 import { logger } from '@/services/LoggingService';
+import { fromAny } from '@total-typescript/shoehorn';
+
+interface DynamicQuery {
+  insert(data: unknown): DynamicQuery;
+  select(): DynamicQuery;
+  single(): Promise<{ data: unknown; error: unknown }>;
+  delete(): DynamicQuery;
+  match(filter: Record<string, unknown>): Promise<{ error: unknown }>;
+}
+
+interface DynamicClient {
+  from(table: string): DynamicQuery;
+}
 
 // Use environment variables for testing
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
+const supabaseAnonKey =
+  import.meta.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseServiceKey =
+  import.meta.env.VITE_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
 
 // Standard test client (respects RLS policies)
 export const testClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
@@ -22,7 +37,7 @@ export const testClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 });
 
 // Admin client for bypassing RLS in tests (if service key available)
-export const adminClient = supabaseServiceKey 
+export const adminClient = supabaseServiceKey
   ? createClient<Database>(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
@@ -55,7 +70,7 @@ export async function createTestUser(email?: string, password?: string) {
       });
 
       if (signInError) {
-        logger.warn('Failed to sign in existing test user:', 'utils', {}, signInError.message as Error);
+        logger.warn('Failed to sign in existing test user:', 'utils', {}, signInError);
         return { user: null, session: null, error: signInError };
       }
 
@@ -67,7 +82,7 @@ export async function createTestUser(email?: string, password?: string) {
     }
 
     if (signUpError) {
-      logger.warn('Failed to create test user:', 'utils', {}, signUpError.message as Error);
+      logger.warn('Failed to create test user:', 'utils', {}, signUpError);
       return { user: null, session: null, error: signUpError };
     }
 
@@ -107,13 +122,10 @@ export async function insertTestData<T>(
   useAdmin = false
 ): Promise<{ data: T | null; error: unknown }> {
   const client = useAdmin && adminClient !== testClient ? adminClient : testClient;
-  
+  const dynamicClient: DynamicClient = fromAny(client);
+
   try {
-    const { data: result, error } = await client
-      .from(table)
-      .insert(data)
-      .select()
-      .single();
+    const { data: result, error } = await dynamicClient.from(table).insert(data).select().single();
 
     return { data: result as T, error };
   } catch (error) {
@@ -130,12 +142,10 @@ export async function cleanupTestData(
   useAdmin = false
 ): Promise<{ success: boolean; error?: unknown }> {
   const client = useAdmin && adminClient !== testClient ? adminClient : testClient;
-  
+  const dynamicClient: DynamicClient = fromAny(client);
+
   try {
-    const { error } = await client
-      .from(table)
-      .delete()
-      .match(filter);
+    const { error } = await dynamicClient.from(table).delete().match(filter);
 
     return { success: !error, error };
   } catch (error) {
@@ -170,7 +180,7 @@ export const validateTestConfig = (): {
   }
 
   return {
-    valid: issues.length === 0 || issues.length === 1 && issues[0].includes('SERVICE_KEY'),
+    valid: issues.length === 0 || (issues.length === 1 && issues[0].includes('SERVICE_KEY')),
     issues,
   };
 };

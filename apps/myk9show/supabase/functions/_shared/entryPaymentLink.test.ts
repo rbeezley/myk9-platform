@@ -72,9 +72,9 @@ describe('buildEntryPaymentLinkSession', () => {
     expect(s.line_items).toHaveLength(2);
   });
 
-  it('restricts payment links to synchronous card payments', () => {
+  it('leaves payment-method selection to Stripe dynamic payment methods', () => {
     const s = buildEntryPaymentLinkSession(base);
-    expect(s.payment_method_types).toEqual(['card']);
+    expect(s).not.toHaveProperty('payment_method_types');
   });
 
   it('carries NO connected-account params — charges land in the platform account (hold-and-transfer)', () => {

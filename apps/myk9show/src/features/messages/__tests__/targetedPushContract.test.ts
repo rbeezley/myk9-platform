@@ -74,9 +74,9 @@ describe('chat push Vault + webhook-secret parity', () => {
   it('chat function authenticates against the dedicated PUSH_WEBHOOK_SECRET', () => {
     const source = readFileSync(chatPushHandlerPath, 'utf8');
 
-    expect(source).toContain("Deno.env.get('PUSH_WEBHOOK_SECRET')");
-    expect(source).toContain('Bearer ${webhookSecret}');
-    expect(source).not.toContain('Bearer ${serviceRoleKey}');
+    expect(source).toContain("from '../_shared/pushWebhookAuth.ts'");
+    expect(source).toContain('beforeBody: requirePushWebhookSecret');
+    expect(source).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
   });
 
   it('notify_chat_message reads Vault config + webhook secret, not GUCs or the service key', () => {

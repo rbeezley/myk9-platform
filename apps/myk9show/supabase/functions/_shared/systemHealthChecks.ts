@@ -27,6 +27,10 @@ export interface SnapshotCheck {
   status: HealthStatus;
   detail: string;
   checked_at: string | null;
+  /** Raw machine-readable value carried between runs (e.g. the ringside
+   * conflict counter, so the NEXT run can diff against it). The board's
+   * tolerant parser ignores unknown keys. */
+  counter_value?: number;
 }
 
 /** The row the runner inserts into `public.system_health_snapshots`. */
@@ -56,6 +60,7 @@ export interface RawProbeFacts {
   latest_migration?: unknown;
   migration_count?: unknown;
   cron_jobs?: unknown;
+  ringside_conflict_counter?: unknown;
 }
 
 export interface BuildSnapshotOptions {
@@ -67,6 +72,10 @@ export interface BuildSnapshotOptions {
   runDurationMs?: number | null;
   /** Overrides the staleness threshold (mostly for tests). */
   staleAfterMs?: number;
+  /** The previous snapshot's ringside_conflicts counter_value, or null when no
+   * baseline exists (first run, prior snapshot without the check, fetch
+   * failure). The runner supplies it; the delta logic lives here. */
+  previousConflictCounter?: number | null;
 }
 
 // Match the board's STALE_AFTER_MS (systemHealthSelectors.ts) so a run the board
@@ -74,6 +83,13 @@ export interface BuildSnapshotOptions {
 export const STALE_AFTER_MS = 26 * 60 * 60 * 1000; // ~26 hours
 export const PAYOUT_CRON_JOB = 'nightly-show-payouts';
 export const DEFAULT_SOURCE = 'cron-health-check';
+
+// Ringside OCC conflict-storm thresholds (delta between daily snapshots).
+// Legitimate double-scoring conflicts are a handful per show day; the
+// 2026-07-11 storm ran ~250k/hour — either threshold catches a real storm
+// while staying orders of magnitude above honest traffic.
+export const RINGSIDE_CONFLICTS_WARN_DELTA = 1_000;
+export const RINGSIDE_CONFLICTS_FAIL_DELTA = 10_000;
 
 const RANK: Record<HealthStatus, number> = { ok: 0, warn: 1, fail: 2 };
 
@@ -271,6 +287,71 @@ function migrationsCheck(facts: RawProbeFacts, probedAt: string): SnapshotCheck 
   };
 }
 
+/** Pull the ringside_conflicts counter_value out of a previous snapshot's raw
+ * `checks` JSONB. Tolerant like the board's parser: any malformed shape yields
+ * null (= no baseline), never a throw. */
+export function extractConflictCounter(checks: unknown): number | null {
+  if (!Array.isArray(checks)) return null;
+  for (const raw of checks) {
+    if (!raw || typeof raw !== 'object') continue;
+    const entry = raw as { key?: unknown; counter_value?: unknown };
+    if (entry.key === 'ringside_conflicts' && typeof entry.counter_value === 'number') {
+      return entry.counter_value;
+    }
+  }
+  return null;
+}
+
+/** Ringside OCC conflict volume since the previous snapshot (2026-07-11 storm).
+ * The probe reports a monotonic counter (`ringside_conflict_seq`); status comes
+ * from the delta vs the previous snapshot's stored `counter_value`. Missing
+ * baseline or a counter regression (sequence reset/restore) reads `ok` with an
+ * explanatory note — never a false failure. */
+function ringsideConflictsCheck(
+  facts: RawProbeFacts,
+  previousCounter: number | null | undefined,
+  probedAt: string
+): SnapshotCheck {
+  const base = { key: 'ringside_conflicts', label: 'Ringside conflicts', checked_at: probedAt };
+  const counter =
+    typeof facts.ringside_conflict_counter === 'number' ? facts.ringside_conflict_counter : null;
+
+  if (counter === null) {
+    // Probe predates the counter (edge fn deployed ahead of the migration) or
+    // returned garbage — visible misconfiguration, not a storm verdict.
+    return { ...base, status: 'warn', detail: 'probe did not report ringside_conflict_counter' };
+  }
+  if (previousCounter === null || previousCounter === undefined) {
+    return {
+      ...base,
+      status: 'ok',
+      detail: `baseline recorded (counter ${counter}); delta available from next run`,
+      counter_value: counter,
+    };
+  }
+  const delta = counter - previousCounter;
+  if (delta < 0) {
+    return {
+      ...base,
+      status: 'ok',
+      detail: `counter regressed (${previousCounter} -> ${counter}), baseline reset`,
+      counter_value: counter,
+    };
+  }
+  const status: HealthStatus =
+    delta >= RINGSIDE_CONFLICTS_FAIL_DELTA
+      ? 'fail'
+      : delta >= RINGSIDE_CONFLICTS_WARN_DELTA
+        ? 'warn'
+        : 'ok';
+  return {
+    ...base,
+    status,
+    detail: `${delta} conflicts since previous snapshot (counter ${counter})`,
+    counter_value: counter,
+  };
+}
+
 /**
  * Build the snapshot row from raw probe facts. Never throws: a non-object facts
  * payload (probe errored or returned nothing) becomes a single `fail` check.
@@ -305,6 +386,7 @@ export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): Healt
     payoutCronCheck(jobs, opts.now, staleAfterMs, probedAt),
     backgroundJobsCheck(jobs, opts.now, staleAfterMs, probedAt),
     migrationsCheck(f, probedAt),
+    ringsideConflictsCheck(f, opts.previousConflictCounter, probedAt),
   ];
 
   return {

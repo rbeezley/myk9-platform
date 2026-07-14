@@ -77,21 +77,25 @@ src/test/database/stripeLivemodeScoping.source.test.ts` — 38 passed.
 - Migration push: `20260706013906_stripe_livemode_scoped_ids.sql` applied to
   `sojmvhhwsjxmfistvzbe`; follow-up `supabase db push --dry-run` reported the remote database
   is up to date.
-- Edge-function inventory: 29 matched, deployed-only `send-notification`, repo-only
-  `push-trigger-support-message`.
-- Stripe function deploy: `stripe-checkout`, `stripe-connect-onboard`, `stripe-customer-portal`,
-  `stripe-webhook`, and `cron-process-payouts` redeployed as `ACTIVE` at
-  `2026-07-06 14:21:03 UTC`.
-- Byte-level runtime diff downloaded to `/private/tmp/myk9-edge-functions-20260706`:
-  repo-ahead root functions `ask-myk9show` and `send-email` remain separate decisions.
+- Edge-function inventory re-audit (2026-07-12): 31 name matches, zero deployed-only, and zero
+  repo-only functions. `send-notification` was retired after its 30-day dashboard log check showed
+  no events; `push-trigger-support-message` is deployed.
+- Strict per-function bundle comparison: 26 exact matches, four approval-gated HTTP-helper
+  catch-up functions, and deployed-ahead `stripe-upgrade-subscription`. See
+  [`edge-function-drift-audit-2026-07-12.md`](edge-function-drift-audit-2026-07-12.md).
+- Staging payment verification (2026-07-13): a controlled sandbox payment-link charge settled;
+  manual resend of the same `checkout.session.completed` event left the link and entry `paid` with
+  no refund. The authenticated E2E cart-checkout handler resolved a `livemode=false` customer and
+  rejected its empty cart before Checkout-session creation; the probe cart was abandoned.
 
 Morning approval checklist:
 
-- Record staging payment verification for MP-03/MP-04 after the function deploys.
-- Decide recovery/retirement for deployed-only `send-notification` before any blind function batch.
-- Decide deploy/smoke timing for repo-only `push-trigger-support-message` and repo-ahead root
-  functions `ask-myk9show` and `send-email`.
-- Keep Go Live Runbook 0.4/0.5/0.7 unchecked until remaining drift/staging evidence is recorded.
+- The fallback-extension source decision for deployed-ahead `stripe-upgrade-subscription` merged in
+  [#1313](https://github.com/rbeezley/myk9-platform/pull/1313), and the function was deployed and
+  bundle-verified on 2026-07-13.
+- The four-function HTTP-helper catch-up batch was approved, deployed, and smoke-verified on
+  2026-07-13. Go Live Runbook 0.4 is complete.
+- Keep Go Live Runbook 0.7 unchecked until its remaining staging evidence is recorded.
 
 ### B1 - Phase 1 Platform And Deploy Pipeline
 

@@ -453,6 +453,13 @@ export type Database = {
             foreignKeyName: "armbands_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armbands_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "view_entry_with_results"
             referencedColumns: ["id"]
           },
@@ -468,6 +475,20 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armbands_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_own_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armbands_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_public_entry_results"
             referencedColumns: ["id"]
           },
           {
@@ -778,12 +799,14 @@ export type Database = {
           num_areas: number | null
           num_hides: number | null
           qualifying_threshold: number | null
+          reopened_after_closeout_at: string | null
           results_released_at: string | null
           results_released_by: string | null
           scored_count: number | null
           section: string | null
           start_time: string | null
           status: string | null
+          status_source: string
           time_limit_area2_seconds: number | null
           time_limit_area3_seconds: number | null
           time_limit_seconds: number | null
@@ -832,12 +855,14 @@ export type Database = {
           num_areas?: number | null
           num_hides?: number | null
           qualifying_threshold?: number | null
+          reopened_after_closeout_at?: string | null
           results_released_at?: string | null
           results_released_by?: string | null
           scored_count?: number | null
           section?: string | null
           start_time?: string | null
           status?: string | null
+          status_source?: string
           time_limit_area2_seconds?: number | null
           time_limit_area3_seconds?: number | null
           time_limit_seconds?: number | null
@@ -886,12 +911,14 @@ export type Database = {
           num_areas?: number | null
           num_hides?: number | null
           qualifying_threshold?: number | null
+          reopened_after_closeout_at?: string | null
           results_released_at?: string | null
           results_released_by?: string | null
           scored_count?: number | null
           section?: string | null
           start_time?: string | null
           status?: string | null
+          status_source?: string
           time_limit_area2_seconds?: number | null
           time_limit_area3_seconds?: number | null
           time_limit_seconds?: number | null
@@ -1201,6 +1228,7 @@ export type Database = {
           club_id: string
           created_at: string
           id: string
+          livemode: boolean
           onboarding_complete: boolean
           payouts_enabled: boolean
           stripe_account_id: string
@@ -1210,6 +1238,7 @@ export type Database = {
           club_id: string
           created_at?: string
           id?: string
+          livemode?: boolean
           onboarding_complete?: boolean
           payouts_enabled?: boolean
           stripe_account_id: string
@@ -1219,6 +1248,7 @@ export type Database = {
           club_id?: string
           created_at?: string
           id?: string
+          livemode?: boolean
           onboarding_complete?: boolean
           payouts_enabled?: boolean
           stripe_account_id?: string
@@ -1228,7 +1258,7 @@ export type Database = {
           {
             foreignKeyName: "club_stripe_accounts_club_id_fkey"
             columns: ["club_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "clubs"
             referencedColumns: ["id"]
           },
@@ -1321,6 +1351,7 @@ export type Database = {
           breed: string | null
           certificate: string | null
           created_at: string | null
+          dog_deleted_at: string | null
           dog_id: string
           id: string
           organization: string
@@ -1338,6 +1369,7 @@ export type Database = {
           breed?: string | null
           certificate?: string | null
           created_at?: string | null
+          dog_deleted_at?: string | null
           dog_id: string
           id?: string
           organization: string
@@ -1355,6 +1387,7 @@ export type Database = {
           breed?: string | null
           certificate?: string | null
           created_at?: string | null
+          dog_deleted_at?: string | null
           dog_id?: string
           id?: string
           organization?: string
@@ -1656,8 +1689,6 @@ export type Database = {
       }
       entries: {
         Row: {
-          withdrawal_policy_snapshot: Json | null
-          withdrawn_at: string | null
           area1_correct: number | null
           area1_faults: number | null
           area1_incorrect: number | null
@@ -1673,6 +1704,7 @@ export type Database = {
           area4_time_seconds: number | null
           armband: string | null
           bonus_points: number | null
+          capacity_override: boolean
           check_in_status: string | null
           class_id: string | null
           comped: boolean | null
@@ -1739,11 +1771,11 @@ export type Database = {
           updated_at: string | null
           version: number
           video_review_notes: string | null
+          withdrawal_policy_snapshot: Json | null
           withdrawal_reason: string | null
+          withdrawn_at: string | null
         }
         Insert: {
-          withdrawal_policy_snapshot?: Json | null
-          withdrawn_at?: string | null
           area1_correct?: number | null
           area1_faults?: number | null
           area1_incorrect?: number | null
@@ -1759,6 +1791,7 @@ export type Database = {
           area4_time_seconds?: number | null
           armband?: string | null
           bonus_points?: number | null
+          capacity_override?: boolean
           check_in_status?: string | null
           class_id?: string | null
           comped?: boolean | null
@@ -1825,11 +1858,11 @@ export type Database = {
           updated_at?: string | null
           version?: number
           video_review_notes?: string | null
+          withdrawal_policy_snapshot?: Json | null
           withdrawal_reason?: string | null
+          withdrawn_at?: string | null
         }
         Update: {
-          withdrawal_policy_snapshot?: Json | null
-          withdrawn_at?: string | null
           area1_correct?: number | null
           area1_faults?: number | null
           area1_incorrect?: number | null
@@ -1845,6 +1878,7 @@ export type Database = {
           area4_time_seconds?: number | null
           armband?: string | null
           bonus_points?: number | null
+          capacity_override?: boolean
           check_in_status?: string | null
           class_id?: string | null
           comped?: boolean | null
@@ -1911,7 +1945,9 @@ export type Database = {
           updated_at?: string | null
           version?: number
           video_review_notes?: string | null
+          withdrawal_policy_snapshot?: Json | null
           withdrawal_reason?: string | null
+          withdrawn_at?: string | null
         }
         Relationships: [
           {
@@ -2269,6 +2305,92 @@ export type Database = {
           },
         ]
       }
+      entry_payment_links: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          created_by: string | null
+          entry_ids: string[]
+          id: string
+          show_id: string
+          status: string
+          stripe_checkout_session_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          created_by?: string | null
+          entry_ids: string[]
+          id?: string
+          show_id: string
+          status?: string
+          stripe_checkout_session_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          created_by?: string | null
+          entry_ids?: string[]
+          id?: string
+          show_id?: string
+          status?: string
+          stripe_checkout_session_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entry_payment_links_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_payment_links_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entry_payment_links_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entry_payment_links_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entry_payment_links_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entry_payment_links_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entry_payment_links_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+        ]
+      }
       entry_status_history: {
         Row: {
           changed_at: string | null
@@ -2316,6 +2438,13 @@ export type Database = {
             foreignKeyName: "entry_status_history_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_status_history_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "view_entry_with_results"
             referencedColumns: ["id"]
           },
@@ -2331,6 +2460,20 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_status_history_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_own_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_status_history_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_public_entry_results"
             referencedColumns: ["id"]
           },
           {
@@ -2957,6 +3100,36 @@ export type Database = {
           },
         ]
       }
+      login_attempts: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: string
+          license_key: string | null
+          passcode_prefix: string | null
+          success: boolean
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address: string
+          license_key?: string | null
+          passcode_prefix?: string | null
+          success: boolean
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: string
+          license_key?: string | null
+          passcode_prefix?: string | null
+          success?: boolean
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       manual_results: {
         Row: {
           created_at: string
@@ -3137,6 +3310,13 @@ export type Database = {
             foreignKeyName: "nationals_advancement_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nationals_advancement_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "view_entry_with_results"
             referencedColumns: ["id"]
           },
@@ -3152,6 +3332,20 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nationals_advancement_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_own_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nationals_advancement_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_public_entry_results"
             referencedColumns: ["id"]
           },
           {
@@ -3218,6 +3412,13 @@ export type Database = {
             foreignKeyName: "nationals_rankings_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: true
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nationals_rankings_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
             referencedRelation: "view_entry_with_results"
             referencedColumns: ["id"]
           },
@@ -3233,6 +3434,20 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: true
             referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nationals_rankings_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "view_own_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nationals_rankings_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "view_public_entry_results"
             referencedColumns: ["id"]
           },
           {
@@ -3308,6 +3523,13 @@ export type Database = {
             foreignKeyName: "nationals_scores_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nationals_scores_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "view_entry_with_results"
             referencedColumns: ["id"]
           },
@@ -3323,6 +3545,20 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nationals_scores_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_own_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nationals_scores_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_public_entry_results"
             referencedColumns: ["id"]
           },
           {
@@ -3575,6 +3811,13 @@ export type Database = {
             foreignKeyName: "offline_scoring_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offline_scoring_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "view_entry_with_results"
             referencedColumns: ["id"]
           },
@@ -3590,6 +3833,20 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offline_scoring_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_own_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offline_scoring_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_public_entry_results"
             referencedColumns: ["id"]
           },
           {
@@ -4048,6 +4305,77 @@ export type Database = {
           user_agent?: string | null
         }
         Relationships: []
+      }
+      premium_generation_attempts: {
+        Row: {
+          attempted_at: string
+          auth_user_id: string
+          id: string
+          show_id: string
+        }
+        Insert: {
+          attempted_at?: string
+          auth_user_id: string
+          id?: string
+          show_id: string
+        }
+        Update: {
+          attempted_at?: string
+          auth_user_id?: string
+          id?: string
+          show_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_generation_attempts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premium_generation_attempts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generation_attempts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generation_attempts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generation_attempts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generation_attempts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generation_attempts_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+        ]
       }
       premium_generations: {
         Row: {
@@ -5387,6 +5715,13 @@ export type Database = {
             foreignKeyName: "show_incidents_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_incidents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
             referencedRelation: "view_entry_with_results"
             referencedColumns: ["id"]
           },
@@ -5402,6 +5737,20 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_incidents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_own_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_incidents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_public_entry_results"
             referencedColumns: ["id"]
           },
           {
@@ -5522,6 +5871,374 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "view_stats_summary"
             referencedColumns: ["trial_id"]
+          },
+        ]
+      }
+      show_lifecycle_email_attempts: {
+        Row: {
+          attempted_at: string
+          attempted_by: string | null
+          email_log_id: string | null
+          error_message: string | null
+          id: string
+          job_id: string
+          resend_message_id: string | null
+          status: string
+        }
+        Insert: {
+          attempted_at?: string
+          attempted_by?: string | null
+          email_log_id?: string | null
+          error_message?: string | null
+          id?: string
+          job_id: string
+          resend_message_id?: string | null
+          status: string
+        }
+        Update: {
+          attempted_at?: string
+          attempted_by?: string | null
+          email_log_id?: string | null
+          error_message?: string | null
+          id?: string
+          job_id?: string
+          resend_message_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_lifecycle_email_attempts_email_log_id_fkey"
+            columns: ["email_log_id"]
+            isOneToOne: false
+            referencedRelation: "email_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_attempts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "show_lifecycle_email_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      show_lifecycle_email_jobs: {
+        Row: {
+          batch_key: string | null
+          body: string | null
+          correction_for_job_id: string | null
+          created_at: string
+          created_by: string | null
+          dismissed_at: string | null
+          due_at: string
+          email_log_id: string | null
+          enrollment_id: string | null
+          entry_id: string | null
+          id: string
+          idempotency_key: string
+          prepared_at: string
+          preview_warnings: Json
+          recipient_email: string | null
+          recipient_name: string | null
+          recipient_person_id: string | null
+          recipient_scope: string
+          rendered_body: string | null
+          rendered_secretary_note: string | null
+          rendered_subject: string | null
+          secretary_note: string | null
+          sent_at: string | null
+          show_id: string
+          skipped_at: string | null
+          status: string
+          step_id: string
+          step_type: string
+          subject: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          batch_key?: string | null
+          body?: string | null
+          correction_for_job_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          dismissed_at?: string | null
+          due_at?: string
+          email_log_id?: string | null
+          enrollment_id?: string | null
+          entry_id?: string | null
+          id?: string
+          idempotency_key: string
+          prepared_at?: string
+          preview_warnings?: Json
+          recipient_email?: string | null
+          recipient_name?: string | null
+          recipient_person_id?: string | null
+          recipient_scope: string
+          rendered_body?: string | null
+          rendered_secretary_note?: string | null
+          rendered_subject?: string | null
+          secretary_note?: string | null
+          sent_at?: string | null
+          show_id: string
+          skipped_at?: string | null
+          status?: string
+          step_id: string
+          step_type: string
+          subject?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          batch_key?: string | null
+          body?: string | null
+          correction_for_job_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          dismissed_at?: string | null
+          due_at?: string
+          email_log_id?: string | null
+          enrollment_id?: string | null
+          entry_id?: string | null
+          id?: string
+          idempotency_key?: string
+          prepared_at?: string
+          preview_warnings?: Json
+          recipient_email?: string | null
+          recipient_name?: string | null
+          recipient_person_id?: string | null
+          recipient_scope?: string
+          rendered_body?: string | null
+          rendered_secretary_note?: string | null
+          rendered_subject?: string | null
+          secretary_note?: string | null
+          sent_at?: string | null
+          show_id?: string
+          skipped_at?: string | null
+          status?: string
+          step_id?: string
+          step_type?: string
+          subject?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_correction_for_job_id_fkey"
+            columns: ["correction_for_job_id"]
+            isOneToOne: false
+            referencedRelation: "show_lifecycle_email_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_email_log_id_fkey"
+            columns: ["email_log_id"]
+            isOneToOne: false
+            referencedRelation: "email_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_entry_with_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_own_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_public_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_recipient_person_id_fkey"
+            columns: ["recipient_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_jobs_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "show_lifecycle_email_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      show_lifecycle_email_steps: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          show_id: string
+          step_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          show_id: string
+          step_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          show_id?: string
+          step_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_lifecycle_email_steps_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_steps_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_steps_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_steps_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_steps_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_steps_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_lifecycle_email_steps_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
           },
         ]
       }
@@ -5689,6 +6406,83 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "show_message_threads"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      show_money_locks: {
+        Row: {
+          created_at: string
+          expires_at: string
+          holder: string
+          lock_id: string
+          show_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          holder: string
+          lock_id: string
+          show_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          holder?: string
+          lock_id?: string
+          show_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_money_locks_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_money_locks_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_money_locks_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_money_locks_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_money_locks_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_money_locks_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_money_locks_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
           },
         ]
       }
@@ -6022,10 +6816,6 @@ export type Database = {
           accent_color: string | null
           accept_cash_payments: boolean
           accept_check_payments: boolean
-          withdrawal_cutoff_date: string | null
-          withdrawal_policy_notes: string | null
-          withdrawal_retention_type: string | null
-          withdrawal_retention_value: number | null
           address: string | null
           allow_non_owner_handlers: boolean | null
           brand_color: string
@@ -6078,16 +6868,16 @@ export type Database = {
           venue_wifi_password: string | null
           version: number
           waitlist_payment_deadline_hours: number
+          withdrawal_cutoff_date: string | null
+          withdrawal_policy_notes: string | null
+          withdrawal_retention_type: string | null
+          withdrawal_retention_value: number | null
           zip_code: string | null
         }
         Insert: {
           accent_color?: string | null
           accept_cash_payments?: boolean
           accept_check_payments?: boolean
-          withdrawal_cutoff_date?: string | null
-          withdrawal_policy_notes?: string | null
-          withdrawal_retention_type?: string | null
-          withdrawal_retention_value?: number | null
           address?: string | null
           allow_non_owner_handlers?: boolean | null
           brand_color?: string
@@ -6140,16 +6930,16 @@ export type Database = {
           venue_wifi_password?: string | null
           version?: number
           waitlist_payment_deadline_hours?: number
+          withdrawal_cutoff_date?: string | null
+          withdrawal_policy_notes?: string | null
+          withdrawal_retention_type?: string | null
+          withdrawal_retention_value?: number | null
           zip_code?: string | null
         }
         Update: {
           accent_color?: string | null
           accept_cash_payments?: boolean
           accept_check_payments?: boolean
-          withdrawal_cutoff_date?: string | null
-          withdrawal_policy_notes?: string | null
-          withdrawal_retention_type?: string | null
-          withdrawal_retention_value?: number | null
           address?: string | null
           allow_non_owner_handlers?: boolean | null
           brand_color?: string
@@ -6202,6 +6992,10 @@ export type Database = {
           venue_wifi_password?: string | null
           version?: number
           waitlist_payment_deadline_hours?: number
+          withdrawal_cutoff_date?: string | null
+          withdrawal_policy_notes?: string | null
+          withdrawal_retention_type?: string | null
+          withdrawal_retention_value?: number | null
           zip_code?: string | null
         }
         Relationships: [
@@ -6434,6 +7228,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           id: string
+          livemode: boolean
           person_id: string
           stripe_customer_id: string
           updated_at: string | null
@@ -6442,6 +7237,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          livemode?: boolean
           person_id: string
           stripe_customer_id: string
           updated_at?: string | null
@@ -6450,6 +7246,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          livemode?: boolean
           person_id?: string
           stripe_customer_id?: string
           updated_at?: string | null
@@ -6458,7 +7255,7 @@ export type Database = {
           {
             foreignKeyName: "stripe_customers_person_id_fkey"
             columns: ["person_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
           },
@@ -6632,6 +7429,130 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stripe_customers"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_ticket_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_from_operator: boolean
+          read_at: string | null
+          sender_id: string
+          ticket_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          is_from_operator?: boolean
+          read_at?: string | null
+          sender_id: string
+          ticket_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_from_operator?: boolean
+          read_at?: string | null
+          sender_id?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          created_at: string
+          diagnostics: Json
+          id: string
+          is_show_day_priority: boolean
+          owner_id: string
+          show_id: string | null
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          diagnostics?: Json
+          id?: string
+          is_show_day_priority?: boolean
+          owner_id: string
+          show_id?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          diagnostics?: Json
+          id?: string
+          is_show_day_priority?: boolean
+          owner_id?: string
+          show_id?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "support_tickets_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "support_tickets_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "support_tickets_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "support_tickets_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "support_tickets_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
           },
         ]
       }
@@ -8009,7 +8930,7 @@ export type Database = {
           exhibitor_id: string
           handler_id: string | null
           id: string
-          joined_via: string | null
+          joined_via: string
           offer_expires_at: string | null
           offered_at: string | null
           position: number
@@ -8025,7 +8946,7 @@ export type Database = {
           exhibitor_id: string
           handler_id?: string | null
           id?: string
-          joined_via?: string | null
+          joined_via?: string
           offer_expires_at?: string | null
           offered_at?: string | null
           position: number
@@ -8041,7 +8962,7 @@ export type Database = {
           exhibitor_id?: string
           handler_id?: string | null
           id?: string
-          joined_via?: string | null
+          joined_via?: string
           offer_expires_at?: string | null
           offered_at?: string | null
           position?: number
@@ -8105,6 +9026,127 @@ export type Database = {
             columns: ["handler_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_promoted_entry_id_fkey"
+            columns: ["promoted_entry_id"]
+            isOneToOne: false
+            referencedRelation: "entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_promoted_entry_id_fkey"
+            columns: ["promoted_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_promoted_entry_id_fkey"
+            columns: ["promoted_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_entry_with_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_promoted_entry_id_fkey"
+            columns: ["promoted_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_promoted_entry_id_fkey"
+            columns: ["promoted_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_promoted_entry_id_fkey"
+            columns: ["promoted_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_own_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_promoted_entry_id_fkey"
+            columns: ["promoted_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_public_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_promoted_entry_id_fkey"
+            columns: ["promoted_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["entry_id"]
+          },
+        ]
+      }
+      waitlist_notification_events: {
+        Row: {
+          attempt_count: number
+          claim_token: string | null
+          created_at: string
+          email_sent_at: string | null
+          event_type: string
+          id: string
+          last_attempt_at: string | null
+          last_error: string | null
+          offer_cycle_at: string
+          processing_started_at: string | null
+          push_delivered_endpoint_hashes: string[]
+          push_sent_at: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+          waitlist_entry_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          claim_token?: string | null
+          created_at?: string
+          email_sent_at?: string | null
+          event_type: string
+          id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          offer_cycle_at: string
+          processing_started_at?: string | null
+          push_delivered_endpoint_hashes?: string[]
+          push_sent_at?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          waitlist_entry_id: string
+        }
+        Update: {
+          attempt_count?: number
+          claim_token?: string | null
+          created_at?: string
+          email_sent_at?: string | null
+          event_type?: string
+          id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          offer_cycle_at?: string
+          processing_started_at?: string | null
+          push_delivered_endpoint_hashes?: string[]
+          push_sent_at?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          waitlist_entry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waitlist_notification_events_waitlist_entry_id_fkey"
+            columns: ["waitlist_entry_id"]
+            isOneToOne: false
+            referencedRelation: "waitlist_entries"
             referencedColumns: ["id"]
           },
         ]
@@ -8180,42 +9222,6 @@ export type Database = {
             referencedColumns: ["show_id"]
           },
         ]
-      }
-      view_breed_stats: {
-        Row: {
-          absent_count: number | null
-          avg_time: number | null
-          class_id: string | null
-          dog_breed: string | null
-          excused_count: number | null
-          fastest_time: number | null
-          license_key: string | null
-          nq_count: number | null
-          qualification_rate: number | null
-          qualified_count: number | null
-          qualified_times_array: number[] | null
-          show_id: string | null
-          total_entries: number | null
-          trial_id: string | null
-          withdrawn_count: number | null
-        }
-        Relationships: []
-      }
-      view_clean_sweep_dogs: {
-        Row: {
-          armband_number: number | null
-          dog_breed: string | null
-          dog_call_name: string | null
-          elements_entered: number | null
-          elements_list: string[] | null
-          elements_qualified: number | null
-          handler_name: string | null
-          is_clean_sweep: boolean | null
-          license_key: string | null
-          show_id: string | null
-          trial_id: string | null
-        }
-        Relationships: []
       }
       view_authenticated_entry_results: {
         Row: {
@@ -8315,37 +9321,195 @@ export type Database = {
           video_review_notes: string | null
           withdrawal_reason: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "entries_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_handler_id_fkey"
+            columns: ["handler_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "trials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["trial_id"]
+          },
+        ]
+      }
+      view_breed_stats: {
+        Row: {
+          absent_count: number | null
+          avg_time: number | null
+          class_id: string | null
+          dog_breed: string | null
+          excused_count: number | null
+          fastest_time: number | null
+          license_key: string | null
+          nq_count: number | null
+          qualification_rate: number | null
+          qualified_count: number | null
+          qualified_times_array: number[] | null
+          show_id: string | null
+          total_entries: number | null
+          trial_id: string | null
+          withdrawn_count: number | null
+        }
         Relationships: []
       }
-      view_public_entry_results: {
+      view_clean_sweep_dogs: {
         Row: {
-          armband: string | null
-          check_in_status: string | null
-          class_element: string | null
-          class_id: string | null
-          class_level: string | null
-          class_name: string | null
-          class_results_released_at: string | null
-          created_at: string | null
+          armband_number: number | null
           dog_breed: string | null
           dog_call_name: string | null
-          dog_id: string | null
-          dog_image_url: string | null
-          dog_name: string | null
-          entry_status: string | null
-          final_placement: number | null
-          handler: string | null
-          id: string | null
-          is_in_ring: boolean | null
-          is_scored: boolean | null
-          result_status: string | null
-          result_text: string | null
-          run_order: number | null
-          scoring_completed_at: string | null
-          search_time_seconds: number | null
+          elements_entered: number | null
+          elements_list: string[] | null
+          elements_qualified: number | null
+          handler_name: string | null
+          is_clean_sweep: boolean | null
+          license_key: string | null
           show_id: string | null
-          total_faults: number | null
-          total_score: number | null
           trial_id: string | null
         }
         Relationships: []
@@ -8670,6 +9834,370 @@ export type Database = {
         }
         Relationships: []
       }
+      view_own_entry_results: {
+        Row: {
+          armband: string | null
+          check_in_status: string | null
+          class_id: string | null
+          class_results_released_at: string | null
+          created_at: string | null
+          dog_id: string | null
+          dog_image_url: string | null
+          entry_fee: number | null
+          entry_status: string | null
+          final_placement: number | null
+          handler: string | null
+          handler_id: string | null
+          id: string | null
+          is_in_ring: boolean | null
+          is_scored: boolean | null
+          jump_height: string | null
+          payment_status: string | null
+          registration_id: string | null
+          result_status: string | null
+          result_text: string | null
+          run_order: number | null
+          scoring_completed_at: string | null
+          search_time_seconds: number | null
+          show_id: string | null
+          special_requests: string | null
+          submitted_at: string | null
+          total_faults: number | null
+          total_score: number | null
+          trial_id: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "entries_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_handler_id_fkey"
+            columns: ["handler_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "trials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "entries_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["trial_id"]
+          },
+        ]
+      }
+      view_public_entry_results: {
+        Row: {
+          armband: string | null
+          check_in_status: string | null
+          class_element: string | null
+          class_id: string | null
+          class_level: string | null
+          class_name: string | null
+          class_results_released_at: string | null
+          created_at: string | null
+          dog_breed: string | null
+          dog_call_name: string | null
+          dog_id: string | null
+          dog_image_url: string | null
+          dog_name: string | null
+          entry_status: string | null
+          final_placement: number | null
+          handler: string | null
+          id: string | null
+          is_in_ring: boolean | null
+          is_scored: boolean | null
+          result_status: string | null
+          result_text: string | null
+          run_order: number | null
+          scoring_completed_at: string | null
+          search_time_seconds: number | null
+          show_id: string | null
+          total_faults: number | null
+          total_score: number | null
+          trial_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classes_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "trials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classes_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "classes_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "classes_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "classes_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "classes_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "classes_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "entries_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "entries_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entries_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+        ]
+      }
       view_stats_summary: {
         Row: {
           armband_number: number | null
@@ -8719,6 +10247,14 @@ export type Database = {
       }
       _hash_passcode: { Args: { p_code: string }; Returns: string }
       _random_role_code: { Args: { p_role: string }; Returns: string }
+      _result_timing_visible: {
+        Args: { p_state: string; p_timing: string }
+        Returns: boolean
+      }
+      _result_visibility_preset: {
+        Args: { p_field: string; p_preset: string }
+        Returns: string
+      }
       add_to_waitlist: {
         Args: {
           p_class_id: string
@@ -8734,7 +10270,7 @@ export type Database = {
           exhibitor_id: string
           handler_id: string | null
           id: string
-          joined_via: string | null
+          joined_via: string
           offer_expires_at: string | null
           offered_at: string | null
           position: number
@@ -8763,8 +10299,19 @@ export type Database = {
         Args: { p_dog_id: string; p_show_id: string }
         Returns: number
       }
+      audit_cron_vault_secrets: {
+        Args: never
+        Returns: {
+          jobname: string
+          missing_secret: string
+        }[]
+      }
       can_manage_show: { Args: { check_show_id: string }; Returns: boolean }
       can_manage_show_dog: { Args: { check_dog_id: string }; Returns: boolean }
+      can_manage_show_lifecycle_email: {
+        Args: { p_show_id: string }
+        Returns: boolean
+      }
       can_manage_show_person: {
         Args: { check_person_id: string }
         Returns: boolean
@@ -8774,6 +10321,15 @@ export type Database = {
         Returns: boolean
       }
       can_manage_trial: { Args: { check_trial_id: string }; Returns: boolean }
+      check_and_record_premium_generation_attempt: {
+        Args: { p_auth_user_id: string; p_show_id: string }
+        Returns: {
+          allowed: boolean
+          attempts_count: number
+          remaining_attempts: number
+          retry_after_seconds: number
+        }[]
+      }
       check_class_availability: {
         Args: { p_class_id: string }
         Returns: {
@@ -8784,6 +10340,37 @@ export type Database = {
           waitlist_position: number
         }[]
       }
+      check_login_rate_limit: {
+        Args: { p_ip_address: string }
+        Returns: {
+          allowed: boolean
+          attempts_count: number
+          blocked_until: string
+          message: string
+          remaining_attempts: number
+        }[]
+      }
+      claim_waitlist_notification_event: {
+        Args: { p_event_id: string }
+        Returns: {
+          claim_token: string
+          email_sent_at: string
+          event_id: string
+          event_type: string
+          offer_cycle_at: string
+          push_delivered_endpoint_hashes: string[]
+          push_sent_at: string
+          waitlist_entry_id: string
+        }[]
+      }
+      cleanup_stale_ringside_anon_users: {
+        Args: {
+          p_claimless_ttl?: string
+          p_ended_grace?: string
+          p_max_age?: string
+        }
+        Returns: number
+      }
       clear_ringside_session_presence: {
         Args: { p_show_id: string; p_subscription_endpoint: string }
         Returns: undefined
@@ -8792,13 +10379,60 @@ export type Database = {
         Args: { p_dog: Json; p_registrations: Json }
         Returns: string
       }
+      create_online_paid_entry: {
+        Args: {
+          p_class_id: string
+          p_dog_id: string
+          p_entry_fee: number
+          p_exhibitor_id: string
+          p_handler_id: string
+          p_jump_height: string
+          p_payment_intent_id: string
+          p_show_id: string
+          p_special_requests: string
+          p_submitted_at: string
+          p_trial_id: string
+        }
+        Returns: {
+          entry_id: string
+          outcome: string
+          waitlist_entry_id: string
+        }[]
+      }
       create_or_reuse_club: {
         Args: { p_club: Json }
-        Returns: Database["public"]["Tables"]["clubs"]["Row"]
-      }
-      find_live_club_by_normalized_name: {
-        Args: { p_exclude_id?: string | null; p_name: string }
-        Returns: Database["public"]["Tables"]["clubs"]["Row"]
+        Returns: {
+          accent_color: string | null
+          address: string | null
+          city: string | null
+          club_number: string | null
+          cover_image_url: string | null
+          created_at: string | null
+          default_withdrawal_cutoff_date: string | null
+          default_withdrawal_policy_notes: string | null
+          default_withdrawal_retention_type: string | null
+          default_withdrawal_retention_value: number | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          email: string | null
+          id: string
+          license_key: string | null
+          logo_url: string | null
+          name: string
+          phone: string | null
+          state: string | null
+          updated_at: string | null
+          version: number
+          website: string | null
+          zip_code: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "clubs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       create_show_managed_dog: {
         Args: {
@@ -8842,6 +10476,76 @@ export type Database = {
         Args: { p_request_id: string; p_reviewer_note?: string }
         Returns: undefined
       }
+      enqueue_due_waitlist_reminder_events: {
+        Args: { p_limit?: number; p_now?: string }
+        Returns: {
+          event_id: string
+          event_type: string
+          waitlist_entry_id: string
+        }[]
+      }
+      enqueue_waitlist_notification_event: {
+        Args: { p_event_type: string; p_waitlist_entry_id: string }
+        Returns: string
+      }
+      ensure_show_lifecycle_email_steps: {
+        Args: { p_show_id: string }
+        Returns: undefined
+      }
+      evaluate_entry_capacity: {
+        Args: {
+          p_allow_override?: boolean
+          p_class_id: string
+          p_dog_id: string
+          p_exhibitor_id: string
+          p_handler_id: string
+          p_submission_source: string
+        }
+        Returns: {
+          capacity_override: boolean
+          denial_reason: string
+          outcome: string
+          resolved_show_id: string
+          resolved_trial_id: string
+          waitlist_entry_id: string
+          waitlist_position: number
+        }[]
+      }
+      find_live_club_by_normalized_name: {
+        Args: { p_exclude_id?: string; p_name: string }
+        Returns: {
+          accent_color: string | null
+          address: string | null
+          city: string | null
+          club_number: string | null
+          cover_image_url: string | null
+          created_at: string | null
+          default_withdrawal_cutoff_date: string | null
+          default_withdrawal_policy_notes: string | null
+          default_withdrawal_retention_type: string | null
+          default_withdrawal_retention_value: number | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          email: string | null
+          id: string
+          license_key: string | null
+          logo_url: string | null
+          name: string
+          phone: string | null
+          state: string | null
+          updated_at: string | null
+          version: number
+          website: string | null
+          zip_code: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "clubs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_account_today_entries: {
         Args: never
         Returns: {
@@ -8871,6 +10575,219 @@ export type Database = {
           status: string
           updated_at: string
         }[]
+      }
+      get_club_show_manager_ids: {
+        Args: { p_club_id: string }
+        Returns: {
+          user_id: string
+        }[]
+      }
+      get_deleted_classes: {
+        Args: never
+        Returns: {
+          actual_end_time: string | null
+          actual_start_time: string | null
+          age_max: number | null
+          age_min: number | null
+          allow_waitlist: boolean | null
+          breed_restrictions: string[] | null
+          checked_in_count: number | null
+          class_number: string | null
+          competition_type: string | null
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          display_order: number | null
+          distraction_count: number | null
+          dogs_ahead_notification_count: number | null
+          element: string | null
+          entry_fee: number | null
+          estimated_duration: number | null
+          handler_age_max: number | null
+          handler_age_min: number | null
+          has_blank: boolean | null
+          height_max: number | null
+          height_min: number | null
+          hides_known: boolean | null
+          id: string
+          is_results_reviewed: boolean | null
+          is_scoring_finalized: boolean | null
+          judge_name: string | null
+          jump_heights: string[] | null
+          level: string | null
+          max_dogs_per_handler: number | null
+          max_entries: number | null
+          max_faults: number | null
+          name: string
+          num_areas: number | null
+          num_hides: number | null
+          qualifying_threshold: number | null
+          reopened_after_closeout_at: string | null
+          results_released_at: string | null
+          results_released_by: string | null
+          scored_count: number | null
+          section: string | null
+          start_time: string | null
+          status: string | null
+          status_source: string
+          time_limit_area2_seconds: number | null
+          time_limit_area3_seconds: number | null
+          time_limit_seconds: number | null
+          timer_mode: string | null
+          total_entries_count: number | null
+          trial_id: string
+          updated_at: string | null
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "classes"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_deleted_dogs: {
+        Args: never
+        Returns: {
+          akc_number: string | null
+          breed: string
+          breeder_id: string | null
+          call_name: string | null
+          co_owner_id: string | null
+          color: string | null
+          created_at: string | null
+          date_of_birth: string | null
+          deceased: boolean | null
+          deceased_date: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          height: string | null
+          id: string
+          image_url: string | null
+          license_key: string | null
+          microchip_number: string | null
+          name: string
+          other_registry: string | null
+          other_registry_number: string | null
+          owner_id: string | null
+          sex: string | null
+          spayed_neutered: boolean | null
+          status: string | null
+          ukc_number: string | null
+          updated_at: string | null
+          version: number
+          weight: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "dogs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_deleted_people: {
+        Args: never
+        Returns: {
+          agreed_to_tos_at: string | null
+          auth_user_id: string | null
+          bio: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          early_adopter_until: string | null
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          license_key: string | null
+          phone: string | null
+          profile_image: string | null
+          state: string | null
+          status: string
+          street_address: string | null
+          updated_at: string | null
+          zip_code: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "people"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_deleted_shows: {
+        Args: never
+        Returns: {
+          accent_color: string | null
+          accept_cash_payments: boolean
+          accept_check_payments: boolean
+          address: string | null
+          allow_non_owner_handlers: boolean | null
+          brand_color: string
+          cc_secretary_on_exhibitor_emails: boolean
+          city: string | null
+          club_id: string | null
+          confirmation_message: string | null
+          cover_image_url: string | null
+          created_at: string | null
+          day_of_show_fee: number | null
+          default_judge_day_capacity: number
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          end_date: string
+          entry_close_date: string | null
+          entry_open_date: string | null
+          experience_is_published: boolean
+          experience_published_at: string | null
+          experience_published_content: Json
+          experience_published_style: string | null
+          id: string
+          is_nationals: boolean
+          license_key: string | null
+          location: string | null
+          logo_url: string | null
+          mail_in_auto_release: boolean
+          mail_in_deadline: string | null
+          mail_in_release_date: string | null
+          mail_in_strategy: string | null
+          mail_in_value: number | null
+          max_entries_per_dog: number | null
+          max_total_entries: number | null
+          name: string
+          organization: string
+          pre_entry_fee: number | null
+          published_premium_at: string | null
+          published_premium_url: string | null
+          results_released_at: string | null
+          results_visible_to_all: boolean | null
+          secretary_email: string | null
+          start_date: string
+          starting_armband_number: number
+          state: string | null
+          status: string | null
+          style: string
+          updated_at: string | null
+          venue_name: string | null
+          venue_wifi_network: string | null
+          venue_wifi_password: string | null
+          version: number
+          waitlist_payment_deadline_hours: number
+          withdrawal_cutoff_date: string | null
+          withdrawal_policy_notes: string | null
+          withdrawal_retention_type: string | null
+          withdrawal_retention_value: number | null
+          zip_code: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "shows"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_effective_permissions: {
         Args: {
@@ -8926,6 +10843,19 @@ export type Database = {
           waitlist_count: number
         }[]
       }
+      get_judge_day_capacity_live: {
+        Args: { p_date: string; p_judge_id: string; p_show_id: string }
+        Returns: {
+          available_spots: number
+          capacity: number
+          class_ids: string[]
+          confirmed_count: number
+          judge_id: string
+          mail_in_reserved: number
+          show_date: string
+          waitlist_count: number
+        }[]
+      }
       get_license_key: { Args: never; Returns: string }
       get_message_class_entry_counts: {
         Args: { p_class_ids: string[] }
@@ -8934,15 +10864,18 @@ export type Database = {
           entry_count: number
         }[]
       }
-      get_deleted_dogs: { Args: never; Returns: Database['public']['Tables']['dogs']['Row'][] }
-      get_deleted_shows: { Args: never; Returns: Database['public']['Tables']['shows']['Row'][] }
-      get_deleted_classes: {
-        Args: never
-        Returns: Database['public']['Tables']['classes']['Row'][]
-      }
-      get_deleted_people: { Args: never; Returns: Database['public']['Tables']['people']['Row'][] }
       get_my_handled_dog_ids: { Args: never; Returns: string[] }
       get_my_person_id: { Args: never; Returns: string }
+      get_show_officials: {
+        Args: { p_show_id: string }
+        Returns: {
+          email: string
+          first_name: string
+          last_name: string
+          role: string
+          user_id: string
+        }[]
+      }
       get_user_permissions: {
         Args: {
           filter_scope_id?: string
@@ -8977,20 +10910,6 @@ export type Database = {
           user_role_id: string
         }[]
       }
-      get_show_officials: {
-        Args: { p_show_id: string }
-        Returns: {
-          user_id: string
-          first_name: string | null
-          last_name: string | null
-          email: string | null
-          role: string
-        }[]
-      }
-      get_club_show_manager_ids: {
-        Args: { p_club_id: string }
-        Returns: { user_id: string }[]
-      }
       grant_club_secretary: {
         Args: { p_club_id: string; p_person_id: string }
         Returns: string
@@ -9005,16 +10924,6 @@ export type Database = {
         Returns: boolean
       }
       increment_promo_usage: { Args: { promo_id: string }; Returns: undefined }
-      validate_promo_code: {
-        Args: { p_code: string; p_trial_id?: string | null; p_show_id?: string | null }
-        Returns: {
-          valid: boolean
-          promo_code_id: string | null
-          discount_type: string | null
-          discount_value: number | null
-          reason: string | null
-        }[]
-      }
       insert_club_access_request_from_signup: {
         Args: { p_auth_user_id: string; p_metadata: Json; p_person_id: string }
         Returns: undefined
@@ -9045,14 +10954,66 @@ export type Database = {
         | { Args: { check_show_id: string }; Returns: boolean }
       is_site_admin: { Args: never; Returns: boolean }
       is_trial_secretary: { Args: { check_club_id?: string }; Returns: boolean }
+      list_cron_vault_secret_refs: {
+        Args: never
+        Returns: {
+          jobname: string
+          secret_exists: boolean
+          secret_name: string
+        }[]
+      }
+      list_retryable_waitlist_notification_events: {
+        Args: { p_limit?: number }
+        Returns: {
+          event_id: string
+          event_type: string
+          waitlist_entry_id: string
+        }[]
+      }
+      normalize_club_name: { Args: { value: string }; Returns: string }
+      normalize_dog_registration_number: {
+        Args: { value: string }
+        Returns: string
+      }
+      normalize_dog_registration_organization: {
+        Args: { value: string }
+        Returns: string
+      }
       promote_waitlist_entry: {
         Args: { p_deadline_hours?: number; p_waitlist_entry_id: string }
         Returns: string
       }
+      promote_waitlist_entry_from_cron: {
+        Args: { p_waitlist_entry_id: string }
+        Returns: string
+      }
+      promote_waitlist_entry_internal: {
+        Args: { p_deadline_hours?: number; p_waitlist_entry_id: string }
+        Returns: string
+      }
+      prune_premium_generation_attempts: { Args: never; Returns: number }
       prune_stale_ringside_sessions: { Args: never; Returns: number }
       recalculate_class_placements: {
         Args: { p_class_ids: string[]; p_is_nationals?: boolean }
         Returns: undefined
+      }
+      record_login_attempt: {
+        Args: {
+          p_ip_address: string
+          p_license_key?: string
+          p_passcode_prefix?: string
+          p_success: boolean
+          p_user_agent?: string
+        }
+        Returns: undefined
+      }
+      record_waitlist_push_delivery: {
+        Args: {
+          p_claim_token: string
+          p_endpoint_hash: string
+          p_event_id: string
+        }
+        Returns: boolean
       }
       refresh_class_scoring_state: {
         Args: { p_class_id: string }
@@ -9071,14 +11032,246 @@ export type Database = {
           steward: string
         }[]
       }
+      renew_waitlist_notification_claim: {
+        Args: { p_claim_token: string; p_event_id: string }
+        Returns: boolean
+      }
+      resolve_class_result_visibility: {
+        Args: { p_class_id: string }
+        Returns: {
+          faults_visible: boolean
+          placement_visible: boolean
+          qualification_visible: boolean
+          time_visible: boolean
+        }[]
+      }
       resolve_operator_alert: {
         Args: { p_alert_id: string }
-        Returns: Database["public"]["Tables"]["operator_alerts"]["Row"]
+        Returns: {
+          created_at: string
+          dedupe_key: string | null
+          detail: Json | null
+          id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          source: string
+          title: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "operator_alerts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      restore_class: { Args: { p_class_id: string }; Returns: Database['public']['Tables']['classes']['Row'][] }
-      restore_dog: { Args: { p_dog_id: string }; Returns: Database['public']['Tables']['dogs']['Row'][] }
-      restore_person: { Args: { p_person_id: string }; Returns: Database['public']['Tables']['people']['Row'][] }
-      restore_show: { Args: { p_show_id: string }; Returns: Database['public']['Tables']['shows']['Row'][] }
+      restore_class: {
+        Args: { p_class_id: string }
+        Returns: {
+          actual_end_time: string | null
+          actual_start_time: string | null
+          age_max: number | null
+          age_min: number | null
+          allow_waitlist: boolean | null
+          breed_restrictions: string[] | null
+          checked_in_count: number | null
+          class_number: string | null
+          competition_type: string | null
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          display_order: number | null
+          distraction_count: number | null
+          dogs_ahead_notification_count: number | null
+          element: string | null
+          entry_fee: number | null
+          estimated_duration: number | null
+          handler_age_max: number | null
+          handler_age_min: number | null
+          has_blank: boolean | null
+          height_max: number | null
+          height_min: number | null
+          hides_known: boolean | null
+          id: string
+          is_results_reviewed: boolean | null
+          is_scoring_finalized: boolean | null
+          judge_name: string | null
+          jump_heights: string[] | null
+          level: string | null
+          max_dogs_per_handler: number | null
+          max_entries: number | null
+          max_faults: number | null
+          name: string
+          num_areas: number | null
+          num_hides: number | null
+          qualifying_threshold: number | null
+          reopened_after_closeout_at: string | null
+          results_released_at: string | null
+          results_released_by: string | null
+          scored_count: number | null
+          section: string | null
+          start_time: string | null
+          status: string | null
+          status_source: string
+          time_limit_area2_seconds: number | null
+          time_limit_area3_seconds: number | null
+          time_limit_seconds: number | null
+          timer_mode: string | null
+          total_entries_count: number | null
+          trial_id: string
+          updated_at: string | null
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "classes"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      restore_dog: {
+        Args: { p_dog_id: string }
+        Returns: {
+          akc_number: string | null
+          breed: string
+          breeder_id: string | null
+          call_name: string | null
+          co_owner_id: string | null
+          color: string | null
+          created_at: string | null
+          date_of_birth: string | null
+          deceased: boolean | null
+          deceased_date: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          height: string | null
+          id: string
+          image_url: string | null
+          license_key: string | null
+          microchip_number: string | null
+          name: string
+          other_registry: string | null
+          other_registry_number: string | null
+          owner_id: string | null
+          sex: string | null
+          spayed_neutered: boolean | null
+          status: string | null
+          ukc_number: string | null
+          updated_at: string | null
+          version: number
+          weight: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "dogs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      restore_person: {
+        Args: { p_person_id: string }
+        Returns: {
+          agreed_to_tos_at: string | null
+          auth_user_id: string | null
+          bio: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          early_adopter_until: string | null
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          license_key: string | null
+          phone: string | null
+          profile_image: string | null
+          state: string | null
+          status: string
+          street_address: string | null
+          updated_at: string | null
+          zip_code: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "people"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      restore_show: {
+        Args: { p_show_id: string }
+        Returns: {
+          accent_color: string | null
+          accept_cash_payments: boolean
+          accept_check_payments: boolean
+          address: string | null
+          allow_non_owner_handlers: boolean | null
+          brand_color: string
+          cc_secretary_on_exhibitor_emails: boolean
+          city: string | null
+          club_id: string | null
+          confirmation_message: string | null
+          cover_image_url: string | null
+          created_at: string | null
+          day_of_show_fee: number | null
+          default_judge_day_capacity: number
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          end_date: string
+          entry_close_date: string | null
+          entry_open_date: string | null
+          experience_is_published: boolean
+          experience_published_at: string | null
+          experience_published_content: Json
+          experience_published_style: string | null
+          id: string
+          is_nationals: boolean
+          license_key: string | null
+          location: string | null
+          logo_url: string | null
+          mail_in_auto_release: boolean
+          mail_in_deadline: string | null
+          mail_in_release_date: string | null
+          mail_in_strategy: string | null
+          mail_in_value: number | null
+          max_entries_per_dog: number | null
+          max_total_entries: number | null
+          name: string
+          organization: string
+          pre_entry_fee: number | null
+          published_premium_at: string | null
+          published_premium_url: string | null
+          results_released_at: string | null
+          results_visible_to_all: boolean | null
+          secretary_email: string | null
+          start_date: string
+          starting_armband_number: number
+          state: string | null
+          status: string | null
+          style: string
+          updated_at: string | null
+          venue_name: string | null
+          venue_wifi_network: string | null
+          venue_wifi_password: string | null
+          version: number
+          waitlist_payment_deadline_hours: number
+          withdrawal_cutoff_date: string | null
+          withdrawal_policy_notes: string | null
+          withdrawal_retention_type: string | null
+          withdrawal_retention_value: number | null
+          zip_code: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "shows"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       review_club_access_request: {
         Args: {
           p_club_name?: string
@@ -9093,6 +11286,11 @@ export type Database = {
         Args: { p_club_id: string; p_person_id: string }
         Returns: undefined
       }
+      ringside_claim_generation_current: { Args: never; Returns: boolean }
+      ringside_update_entry: {
+        Args: { p_entry_id: string; p_expected_version: number; p_fields: Json }
+        Returns: number
+      }
       self_checkin_entry: {
         Args: { p_entry_id: string; p_new_status: string }
         Returns: undefined
@@ -9101,9 +11299,41 @@ export type Database = {
       soft_delete_dog: { Args: { p_dog_id: string }; Returns: undefined }
       soft_delete_person: {
         Args: { p_person_id: string }
-        Returns: Database['public']['Tables']['people']['Row'][]
+        Returns: {
+          agreed_to_tos_at: string | null
+          auth_user_id: string | null
+          bio: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          early_adopter_until: string | null
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          license_key: string | null
+          phone: string | null
+          profile_image: string | null
+          state: string | null
+          status: string
+          street_address: string | null
+          updated_at: string | null
+          zip_code: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "people"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       soft_delete_show: { Args: { p_show_id: string }; Returns: undefined }
+      stamp_show_refund_entries: {
+        Args: { p_entry_ids: string[]; p_notes: string }
+        Returns: number
+      }
       submit_club_access_request: {
         Args: {
           p_request_note?: string
@@ -9132,11 +11362,21 @@ export type Database = {
         }
         Returns: Json
       }
+      system_health_probe: { Args: never; Returns: Json }
       test_as_anon: { Args: never; Returns: undefined }
       test_as_user: { Args: { user_id: string }; Returns: undefined }
       test_reset: { Args: never; Returns: undefined }
       update_entry_handler: {
         Args: { p_entry_id: string; p_handler: string }
+        Returns: undefined
+      }
+      update_entry_handler_for_entry_management: {
+        Args: {
+          p_clear_handler_id?: boolean
+          p_entry_id: string
+          p_handler: string
+          p_handler_id?: string
+        }
         Returns: undefined
       }
       upsert_ringside_session: {
@@ -9160,13 +11400,22 @@ export type Database = {
         }
         Returns: boolean
       }
-      ringside_claim_generation_current: { Args: never; Returns: boolean }
       validate_passcode: {
         Args: { p_code: string }
         Returns: {
+          passcode_generation: string
           role: string
           show_id: string
-          passcode_generation: string
+        }[]
+      }
+      validate_promo_code: {
+        Args: { p_code: string; p_show_id?: string; p_trial_id?: string }
+        Returns: {
+          discount_type: string
+          discount_value: number
+          promo_code_id: string
+          reason: string
+          valid: boolean
         }[]
       }
       volunteer_show_id: { Args: { vol_id: string }; Returns: string }

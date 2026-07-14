@@ -13,6 +13,12 @@ import {
   createMockField,
   createAKCScentWorkTemplate
 } from '@/test/utils/mockData';
+import type {
+  FieldDataType,
+  FieldSource,
+  Organization,
+  TrialType
+} from '@/types/template.types';
 
 describe('Template Validation', () => {
   describe('validateTemplate', () => {
@@ -140,8 +146,7 @@ describe('Template Validation', () => {
 
     test('fails validation when rule-based field has no rule value', () => {
       const field = createMockField({
-        fieldSource: 'rule-based',
-        ruleValue: undefined
+        fieldSource: 'rule-based'
       });
       
       const result = validateField(field);
@@ -152,8 +157,7 @@ describe('Template Validation', () => {
 
     test('warns about judge-set fields without ranges', () => {
       const field = createMockField({
-        fieldSource: 'judge-set',
-        allowedRange: undefined
+        fieldSource: 'judge-set'
       });
       
       const result = validateField(field);

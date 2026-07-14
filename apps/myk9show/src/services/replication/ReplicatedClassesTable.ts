@@ -89,6 +89,22 @@ export interface ReplicatedClass {
   displayOrder?: number | undefined;
   isCompleted?: boolean | undefined;
 
+  /**
+   * Class-status override marker (migration 20260712180000). `'derived'` = the
+   * server derivation owns `status`; `'manual'` = a secretary Mark Complete/Started
+   * pinned it, and the server derivation must not overwrite it. Written in the same
+   * offline-first replicated payload as the manual status change.
+   */
+  statusSource?: string | undefined;
+  /**
+   * Server-stamped when a late expected entry reopens a closed class. Drives the
+   * show-map class-level attention reason. Written back via toSupabaseRow ONLY when
+   * a mutation explicitly sets it — a secretary Mark Complete clears it (null); it
+   * is otherwise stripped so unrelated edits never echo the stale server value (see
+   * SERVER_OWNED_CLASS_COLUMNS). Also cleared server-side on legitimate completion.
+   */
+  reopenedAfterCloseoutAt?: string | null | undefined;
+
   // Pipeline workflow flags (secretary review/publish flow)
   isScoringFinalized?: boolean | undefined;
   isResultsReviewed?: boolean | undefined;
@@ -123,9 +139,10 @@ export interface ReplicatedClass {
 }
 
 /**
- * Convert database row to app Class type
+ * Convert database row to app Class type.
+ * Exported for unit tests of the DB→domain field mapping.
  */
-function rowToClass(row: ClassRow): ReplicatedClass {
+export function rowToClass(row: ClassRow): ReplicatedClass {
   // Cast to Record for accessing fields not in the Supabase schema type
   const dbRow = row as ClassRow & Record<string, unknown>;
   return {
@@ -185,6 +202,9 @@ function rowToClass(row: ClassRow): ReplicatedClass {
       return ja[0]?.people.last_name ?? undefined;
     })(),
     classStatus: (dbRow.class_status as string | undefined) ?? row.status ?? undefined,
+    statusSource: (dbRow.status_source as string | undefined) ?? undefined,
+    reopenedAfterCloseoutAt:
+      (dbRow.reopened_after_closeout_at as string | null | undefined) ?? null,
     totalEntriesCount: (dbRow.total_entries_count as number | undefined) ?? undefined,
     checkedInCount: (dbRow.checked_in_count as number | undefined) ?? undefined,
     scoredCount: (dbRow.scored_count as number | undefined) ?? undefined,
@@ -217,6 +237,45 @@ function rowToClass(row: ClassRow): ReplicatedClass {
     actual_end_time: (dbRow.actual_end_time as string | undefined) ?? undefined,
     deletedAt: row.deleted_at ?? undefined,
   };
+}
+
+/**
+ * DB columns whose values are server-owned/derived, paired with the camelCase
+ * `ReplicatedClass` key a caller sets to change them. The server derivation owns
+ * `status`; a secretary Mark Complete/Started sets `status_source='manual'`; the
+ * pipeline owns `is_scoring_finalized`; the server stamps
+ * `reopened_after_closeout_at`. `rowToClass` reads all four back as always-defined
+ * (NOT NULL / `?? false` / `?? null`), so a full merged row re-emits stale local
+ * values on every unrelated `updateClass`, clobbering server-derived state until
+ * the next inbound sync heals it. Each is written ONLY when the caller explicitly
+ * included its source key in the update (see stripUnsetServerOwnedKeys).
+ */
+const SERVER_OWNED_CLASS_COLUMNS: ReadonlyArray<readonly [string, keyof ReplicatedClass]> = [
+  ['status', 'classStatus'],
+  ['status_source', 'statusSource'],
+  ['is_scoring_finalized', 'isScoringFinalized'],
+  ['reopened_after_closeout_at', 'reopenedAfterCloseoutAt'],
+];
+
+/**
+ * Remove server-owned DB keys from a queued UPDATE payload unless the mutation's
+ * caller explicitly set the corresponding source key. `toSupabaseRow` emits
+ * `status` unconditionally (INSERT paths need it) and the others whenever the
+ * merged row has a defined value — stripping the unset ones is what makes the
+ * write intent-aware, so an unrelated edit never re-asserts server-derived state.
+ */
+export function stripUnsetServerOwnedKeys(
+  payload: Record<string, unknown>,
+  updates: Partial<ReplicatedClass>
+): Record<string, unknown> {
+  const provided = Object.keys(updates);
+  const next = { ...payload };
+  for (const [dbKey, sourceKey] of SERVER_OWNED_CLASS_COLUMNS) {
+    if (!provided.includes(sourceKey)) {
+      delete next[dbKey];
+    }
+  }
+  return next;
 }
 
 export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
@@ -287,9 +346,21 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       timer_mode: cls.timerMode ?? null,
       hides_known: cls.hidesKnown ?? null,
       distraction_count: cls.distractionCount ?? null,
+      // `status` is emitted unconditionally so INSERT paths always seed a value.
+      // For UPDATEs, updateClass strips it (and the other server-owned keys) via
+      // stripUnsetServerOwnedKeys unless the mutation explicitly set classStatus.
       status: this.mapClassStatusToDb(cls.classStatus),
       // Only write these when explicitly set — omitting avoids stale local state
-      // silently reverting a finalized class during an unrelated mutation
+      // silently reverting a finalized class during an unrelated mutation.
+      // status_source rides the same payload as the manual Mark Complete/Started
+      // status change so the override marker syncs offline-first.
+      // reopened_after_closeout_at is server-stamped; it is emitted here only so a
+      // manual Mark Complete can CLEAR it (set null), and stripped on any UPDATE
+      // that didn't explicitly set it (see SERVER_OWNED_CLASS_COLUMNS).
+      ...(cls.statusSource !== undefined && { status_source: cls.statusSource }),
+      ...(cls.reopenedAfterCloseoutAt !== undefined && {
+        reopened_after_closeout_at: cls.reopenedAfterCloseoutAt,
+      }),
       ...(cls.isScoringFinalized !== undefined && { is_scoring_finalized: cls.isScoringFinalized }),
       ...(cls.isResultsReviewed !== undefined && { is_results_reviewed: cls.isResultsReviewed }),
       ...(cls.resultsReleasedAt !== undefined && { results_released_at: cls.resultsReleasedAt }),
@@ -308,7 +379,20 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   }
 
   protected override rebuildUpdatePayload(cls: ReplicatedClass): Record<string, unknown> {
-    return this.toSupabaseRow(cls);
+    // Resend path after an OCC token advance (reconcileDirtyRow / clearConflict):
+    // rebuilds a full row from the local `data`, which cannot know the original
+    // mutation's `updates`. Server-owned/derived columns must never be re-asserted
+    // on a resend — the server value wins — so strip all four unconditionally.
+    // Trade-off: a manual status change still queued (unsent) when an unrelated
+    // server field bumps and triggers reconcile is dropped from the resent payload,
+    // so the manual Mark Complete/Started must be re-issued. Acceptable — reconcile
+    // only fires on a same-row server change with NO same-field conflict, and manual
+    // overrides are rare relative to the silent clobber this prevents.
+    const payload = this.toSupabaseRow(cls);
+    for (const [dbKey] of SERVER_OWNED_CLASS_COLUMNS) {
+      delete payload[dbKey];
+    }
+    return payload;
   }
 
   async sync(syncScopeId: string): Promise<SyncResult> {
@@ -370,7 +454,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         selfCheckinEnabled: remote._selfCheckinEnabled,
         visibilityPreset: remote._visibilityPreset,
       }),
-      rebuildUpdatePayload: cls => this.toSupabaseRow(cls),
+      rebuildUpdatePayload: cls => this.rebuildUpdatePayload(cls),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.trialId === scope.value) : rows,
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
@@ -438,10 +522,14 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     };
 
     await this.set(classId, updatedClass, true);
+    // Intent-aware: the merged row always carries defined server-owned values, so
+    // strip the ones this mutation didn't explicitly set before queueing — see
+    // stripUnsetServerOwnedKeys. Prevents an unrelated edit from re-uploading a
+    // stale local status / status_source and clobbering server-derived state.
     const mutationId = await this.queueMutation(
       'UPDATE',
       classId,
-      this.toSupabaseRow(updatedClass)
+      stripUnsetServerOwnedKeys(this.toSupabaseRow(updatedClass), updates)
     );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated class ${classId}`);

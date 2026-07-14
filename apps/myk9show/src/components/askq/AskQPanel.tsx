@@ -354,6 +354,7 @@ export function AskQPanel() {
               key={option}
               type="button"
               onClick={() => handleModeChange(option)}
+              aria-pressed={mode === option}
               disabled={option === 'show-data' && !showId}
               className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
                 activeMode === option

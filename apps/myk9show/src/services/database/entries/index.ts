@@ -19,6 +19,12 @@ export {
   updateEntryStatus as updateEntryStatusWithAudit,
   withdrawEntry,
 } from './writes';
+export type {
+  EntrySubmissionOutcome,
+  EntrySubmissionOutcomeKind,
+  EntrySubmissionSource,
+  SubmitShowEntriesResult,
+} from './writes';
 export * from './lifecycle';
 export * from './moveUpNote';
 export * from './search';
@@ -26,7 +32,11 @@ export * from './secretary';
 export { hardDeleteEntry, restoreEntry, getDeletedEntries } from './admin';
 export { entryInvalidationKeys } from './invalidation';
 export type { EntryChange } from './invalidation';
-export { executeStatusChange, executeBulkStatusChange, executeRemoveEntry } from './management-actions';
+export {
+  executeStatusChange,
+  executeBulkStatusChange,
+  executeRemoveEntry,
+} from './management-actions';
 export type {
   StatusChangeAdapters,
   BulkStatusChangeAdapters,

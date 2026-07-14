@@ -36,7 +36,7 @@ describe('ringsidePasscodeRevocation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSessionMock.mockResolvedValue({ data: { session: null } });
-    useRingsideGrantStore.setState({ activeGrant: null });
+    useRingsideGrantStore.setState({ activeGrant: null, suppressRehydration: false });
   });
 
   describe('isPasscodeRegeneratedError', () => {
@@ -86,6 +86,35 @@ describe('ringsidePasscodeRevocation', () => {
       expect(toastErrorMock).toHaveBeenCalledWith(PASSCODE_REVOKED_TOAST_MESSAGE);
       expect(useRingsideGrantStore.getState().activeGrant).toBeNull();
       await vi.waitFor(() => expect(signOutMock).toHaveBeenCalledTimes(1));
+    });
+
+    // Closes the race where useRehydrateRingsideGrant could see "no grant,
+    // but a still-claim-shaped session" in the gap between clearGrant() and
+    // signOut() resolving, and re-admit the just-revoked user.
+    it('suppresses rehydration synchronously, clearing it only after the anon signOut resolves', async () => {
+      getSessionMock.mockResolvedValue({ data: { session: { user: { is_anonymous: true } } } });
+
+      revokeRingsidePasscodeAccess();
+
+      // Suppressed the instant clearGrant() fires — before any await.
+      expect(useRingsideGrantStore.getState().suppressRehydration).toBe(true);
+
+      await vi.waitFor(() => expect(signOutMock).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() =>
+        expect(useRingsideGrantStore.getState().suppressRehydration).toBe(false)
+      );
+    });
+
+    it('clears suppression immediately for a signed-in account (no anon session to sign out)', async () => {
+      getSessionMock.mockResolvedValue({ data: { session: { user: { is_anonymous: false } } } });
+
+      revokeRingsidePasscodeAccess();
+
+      expect(useRingsideGrantStore.getState().suppressRehydration).toBe(true);
+      await vi.waitFor(() =>
+        expect(useRingsideGrantStore.getState().suppressRehydration).toBe(false)
+      );
+      expect(signOutMock).not.toHaveBeenCalled();
     });
   });
 

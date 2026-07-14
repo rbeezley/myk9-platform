@@ -5,6 +5,7 @@ import { render } from '@/test/utils/testUtils';
 import ShowDeskPanel from '../ShowDeskPanel';
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
+import { fromAny } from '@total-typescript/shoehorn';
 
 const mockMessageStore = vi.hoisted(() => ({
   getOrCreateThread: vi.fn(),
@@ -52,7 +53,7 @@ const show = {
   endDate: '2026-06-14',
 } as Show;
 
-const futureTrial = {
+const futureTrial = fromAny<SyncableTrial, unknown>({
   id: 'trial-1',
   showId: 'show-1',
   showName: 'Spring Trial',
@@ -64,7 +65,7 @@ const futureTrial = {
   _lastModified: new Date(),
   _lastModifiedBy: 'test',
   _syncStatus: 'synced',
-} as SyncableTrial;
+});
 
 function LocationProbe() {
   const location = useLocation();

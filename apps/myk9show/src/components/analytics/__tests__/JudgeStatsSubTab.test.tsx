@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import { JudgeStatsSubTab } from '../JudgeStatsSubTab';
 import type { StatsEntry } from '../analytics-utils';
+import { fromPartial } from '@total-typescript/shoehorn';
 
 global.ResizeObserver = class ResizeObserver {
   observe() {}
@@ -46,10 +47,12 @@ function makeEntry(overrides: Partial<StatsEntry> = {}): StatsEntry {
 
 describe('JudgeStatsSubTab', () => {
   it('shows empty state when no judges', () => {
-    mockUseShowJudges.mockReturnValue({
-      data: [],
-      isLoading: false,
-    } as ReturnType<typeof useShowJudges>);
+    mockUseShowJudges.mockReturnValue(
+      fromPartial({
+        data: [],
+        isLoading: false,
+      })
+    );
     mockUseJudgeShowStats.mockReturnValue({
       data: undefined,
       isLoading: false,

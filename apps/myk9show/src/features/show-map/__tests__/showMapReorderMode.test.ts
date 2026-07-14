@@ -22,10 +22,10 @@ function entry(overrides: Partial<ReplicatedEntry>): ReplicatedEntry {
   } as ReplicatedEntry;
 }
 
-function node(overrides: Partial<ShowMapNode> & { id: string; type: ShowMapNode['type'] }): ShowMapNode {
+function node(
+  overrides: Partial<ShowMapNode> & { id: string; type: ShowMapNode['type'] }
+): ShowMapNode {
   return {
-    id: overrides.id,
-    type: overrides.type,
     label: overrides.label ?? overrides.id,
     childrenCount: overrides.childrenCount ?? 0,
     ...overrides,
@@ -34,18 +34,12 @@ function node(overrides: Partial<ShowMapNode> & { id: string; type: ShowMapNode[
 
 describe('computeShowMapReorderAssignments', () => {
   it('returns [] when overId is null (drag dropped outside)', () => {
-    const entries = [
-      entry({ id: 'a', runOrder: 1 }),
-      entry({ id: 'b', runOrder: 2 }),
-    ];
+    const entries = [entry({ id: 'a', runOrder: 1 }), entry({ id: 'b', runOrder: 2 })];
     expect(computeShowMapReorderAssignments(entries, 'a', null)).toEqual([]);
   });
 
   it('returns [] when active and over are the same (no move)', () => {
-    const entries = [
-      entry({ id: 'a', runOrder: 1 }),
-      entry({ id: 'b', runOrder: 2 }),
-    ];
+    const entries = [entry({ id: 'a', runOrder: 1 }), entry({ id: 'b', runOrder: 2 })];
     expect(computeShowMapReorderAssignments(entries, 'a', 'a')).toEqual([]);
   });
 

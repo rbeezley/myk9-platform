@@ -22,7 +22,7 @@ this document is the sequence, the gates, and the verification commands.
 
 | #   | Gate                                                                                         | Blocks                   | Status check                                                                                                    |
 | --- | -------------------------------------------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| G1  | Security remediation deployed (including 2026-07-10 SA-018…023/026/027)                       | Phase 1                  | `security-audit-remediation` merged, migration/function deployment recorded, and `OPEN-TODOS.md` updated         |
+| G1  | Security remediation deployed (including 2026-07-10 SA-018…023/026/027)                      | Phase 1                  | `security-audit-remediation` merged, migration/function deployment recorded, and `OPEN-TODOS.md` updated        |
 | G2  | Pending deploys/migrations reconciled (`ask-myk9show`, withdrawal migrations, edge-fn drift) | Phase 1                  | Phase 0 verification commands below                                                                             |
 | G3  | Money-path hardening Phases 1–3 merged + deployed (MP-01…MP-04)                              | Phase 3 (Stripe cutover) | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md) phase table; PRs merged + fns redeployed |
 | G4  | CI-gated production deploys active                                                           | Phase 4                  | Deploy Production workflow green on `main`; Git auto-deploy off                                                 |
@@ -46,15 +46,30 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       (SA-011). Owner: Agent.
       _Verify:_ archive dirs exist under `openspec/changes/archive/2026-07-04-*`;
       OPEN-TODOS § Security Remediation marks all three done/deployed/verified.
-- [ ] **0.1b Deploy the 2026-07-10 security remediation** — The new full audit found no
-      CRITICAL/HIGH issues, but its three branded-email recipient/authorization findings are
-      MEDIUM and must not ship unresolved. `security-audit-remediation` has code and focused
-      tests complete; merge it, then apply its lifecycle hardening migration and deploy
-      `send-email`, `send-results`, and `resend-webhook` after the required shared-system
-      approval. Owner: Agent (merge/deploy confirmation-gated).
-      _Verify:_ the migration is applied, all three functions are ACTIVE at the deployed
-      revision, and [`security-audit-2026-07-10.md`](../security-audit-2026-07-10.md) records
-      SA-018–023, SA-026, and SA-027 as remediated.
+- [x] **0.1b Deploy the 2026-07-10 security remediation** — DONE 2026-07-13. The
+      `security-audit-remediation` change is merged and archived; the lifecycle-hardening
+      migration is applied; and `send-email`, `send-results`, and `resend-webhook` are ACTIVE
+      at the reviewed revisions. [`security-audit-2026-07-10.md`](../security-audit-2026-07-10.md)
+      records SA-018–023, SA-026, and SA-027 as remediated. This row was stale after the later
+      security closeout and is reconciled here; no additional deployment is required.
+- [x] **0.1c Complete the 2026-07-11 go-live security remediation** — DONE 2026-07-12. PRs
+      #1280/#1283–#1287/#1289/#1292/#1293 are merged. SA-021 is live-verified; `resend-webhook`,
+      `validate-passcode`, `generate-premium`, and all five push-trigger functions are deployed.
+      Runtime evidence covers passcode healthy/429/503 plus alert recovery, premium catalog and
+      concurrent fifth/sixth plus 429/503 without Claude traffic, and five inert Vault-bearer push
+      successes plus service-role rejection. Advisor findings are fixed or documented exceptions.
+      Owner: Agent for repository work; shared-system/operator steps require approval.
+      _Verify:_ [`security-audit-2026-07-11.md`](../security-audit-2026-07-11.md) and
+      [`launch/go-live-2026-07-11.md`](../launch/go-live-2026-07-11.md) agree on every open and
+      deployed row. Synchronize the OpenSpec task ledger during final closeout/archive after the
+      remaining operator gates are evidenced or accepted.
+      _Remaining cost gate:_ a successful `generate-premium` Edge call reaches Claude and still
+      requires explicit paid-traffic approval. The limiter's allowed path is already proven by the
+      live concurrent fifth-attempt result; this cost smoke is not an open security defect.
+      _Migration parity:_ #1294 merged remote migrations
+      `20260712180000_class_status_auto_derivation` and
+      `20260712190000_class_status_reopen_guard_fix` onto `main`; the post-merge dry run reports
+      `Remote database is up to date.` No migration-history repair was needed.
 - [x] **0.2 Deploy the `ask-myk9show` fix** — DONE 2026-07-04. The AskQ
       cross-tenant scope-leak fix (#1089) is deployed live. Owner: Agent.
       _Do:_ `supabase functions deploy ask-myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`
@@ -64,24 +79,26 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       `20260625200000` and `20260626000000` are already applied remotely. Owner: Agent.
       _Verify:_ `supabase db push --dry-run` reported the remote database is up to date;
       `supabase migration list` shows both migrations applied locally and remotely.
-- [ ] **0.4 Edge-function drift audit + repo-ahead batch deploy** — re-run the drift check from
+- [x] **0.4 Edge-function drift audit + repo-ahead batch deploy** — DONE 2026-07-13. Re-ran the drift check from
       [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md)
       (download deployed bundles, diff vs repo). Deploy remaining repo-ahead functions in small
       batches with smoke checks; `send-auth-email` is highest-care (see Phase 1.2). If any
       function is **deployed-ahead** (matches no commit), STOP — recover it to source first,
       do not clobber. Owner: Agent (confirmation-gated).
-      _Audit 2026-07-05:_ name inventory is not clean:
-      `pnpm qa:db-drift:functions` reports deployed-only `send-notification` and repo-only
-      `push-trigger-support-message`; byte-level download/diff still needs a fresh pass.
-      _Audit 2026-07-06:_ fresh inventory still reports 29 matched, deployed-only
-      `send-notification`, and repo-only `push-trigger-support-message`. Byte-level runtime diff
-      downloaded to `/private/tmp/myk9-edge-functions-20260706` shows repo-ahead runtime changes for
-      `ask-myk9show` and `send-email`, plus expected repo-ahead changes for MP-04 functions in the
-      B0 branch (`stripe-checkout`, `stripe-connect-onboard`, `stripe-customer-portal`,
-      `stripe-webhook`, `cron-process-payouts`). Keep 0.4 open until `send-notification` is
-      recovered or explicitly retired and required repo-ahead deploys are approved, executed, and
-      smoke-checked.
-- [ ] **0.5 Money-path hardening Phases 1–3** — MP-01/02 (amount integrity), MP-03
+      _Audit 2026-07-12:_ strict per-function bundle comparison found 26 exact matches, four
+      repo-ahead HTTP-helper functions (`admin-delete-user`, `admin-generate-reset-link`,
+      `send-push-notification`, `send-targeted-message`), one deployed-ahead
+      `stripe-upgrade-subscription` helper that matches no Git commit, and deployed-only legacy
+      `send-notification`. The legacy function had no events in the prior 30 days and was retired
+      after approval; the live inventory is now 31 matched / zero deployed-only / zero repo-only.
+      The fallback-extension source decision merged in [#1313](https://github.com/rbeezley/myk9-platform/pull/1313);
+      `stripe-upgrade-subscription` was deployed after separate approval on 2026-07-13 and its
+      downloaded `premiumPrices.ts` and `index.ts` exactly match the reviewed repository source.
+      The four HTTP-helper functions were separately approved and deployed on 2026-07-13; all are
+      ACTIVE, unauthenticated POSTs returned 401, and a non-owner push request returned 403.
+      Full evidence and the deployed four-function command are in
+      [`edge-function-drift-audit-2026-07-12.md`](edge-function-drift-audit-2026-07-12.md).
+- [x] **0.5 Money-path hardening Phases 1–3** — MP-01/02 (amount integrity), MP-03
       (payment-link duplicate delivery), MP-04 (mode-scoped Stripe IDs). One PR per phase per
       [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md). **Phase 3 is the
       hard gate for Phase 3 of this runbook** (live cutover); Phases 4–7 may land later. Owner: Agent.
@@ -92,18 +109,24 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       tests, typecheck, lint, OpenSpec validation, and the MP-04 verifier passed. Real DB push
       applied `20260706013906_stripe_livemode_scoped_ids.sql`, and the affected Stripe functions
       (`stripe-checkout`, `stripe-connect-onboard`, `stripe-customer-portal`, `stripe-webhook`,
-      `cron-process-payouts`) redeployed as `ACTIVE` at `2026-07-06 14:21:03 UTC`. Keep this item
-      open until staging payment verification is recorded.
+      `cron-process-payouts`) redeployed as `ACTIVE` at `2026-07-06 14:21:03 UTC`.
+      _Staging verification 2026-07-13:_ a controlled Stripe sandbox payment-link charge was paid
+      and its same `checkout.session.completed` event manually resent; link and entry remained
+      `paid`, with no refund. The authenticated E2E cart-checkout handler resolved only its
+      `livemode=false` customer and rejected an empty cart before creating a Checkout session or
+      charge; the empty probe cart was then abandoned.
 - [x] **0.6 Class-mgmt mutation-error surfacing (plan 003)** — DONE 2026-07-04.
       OpenSpec change `class-mgmt-mutation-error-surfacing` is archived under
       `openspec/changes/archive/2026-07-04-class-mgmt-mutation-error-surfacing/`. Owner: Agent.
 - [ ] **0.7 Finish remaining agent-owned launch remediation before human testing** — Do not
       schedule Phase 4 real-user sessions until these active product changes are merged or
-      explicitly accepted as P2: (a) resolve the contradictory exhibitor entry state and two
-      sub-44px entry/cart controls in `OPEN-TODOS.md`; (b) complete the remaining
-      `exhibitor-elderly-ux-remediation` show-day, check-in-language, and dog-profile tasks;
-      (c) complete `ux-contrast-token-system`; and (d) close the code/CI side of
-      `improve-exhibitor-entries-scan` and `secretary-show-details-ux-remediation`.
+      explicitly accepted as P2: (a) resolve the contradictory exhibitor entry state and raise
+      the payment-remove and Cart “Continue Shopping” controls to the 44px floor; (b) run the
+      remaining focused exhibitor Playwright/low-tech verification and final dog-profile
+      re-walk; (c) merge, pass CI, and archive `ux-contrast-token-system`; (d) complete the
+      authenticated visual evidence plus PR/CI closeout for `improve-exhibitor-entries-scan`;
+      and (e) complete the mobile/tablet/desktop Setup + Show Desk re-walk for
+      `secretary-show-details-ux-remediation`.
       _Already complete:_ motion consistency and the original July UX remediation plan. The
       remaining evidence-only gates are the scorecard's show-day re-walk, offline→reconnect
       rehearsal, data reconciliation, venue print test, real-user testing, and deployment/
@@ -143,15 +166,16 @@ auto-deploy still ON before turning it off.
 
 ### 1.2 Auth email cutover (Resend hook + Custom SMTP rate limit)
 
-Full detail: [`supabase-auth-email.md`](supabase-auth-email.md). Without Custom SMTP, GoTrue
-caps auth emails at ~2/hour — a launch-day signup wall.
+Full detail: [`supabase-auth-email.md`](supabase-auth-email.md). Custom SMTP was configured
+2026-07-12; the former built-in-service rate cap is no longer the launch-day signup wall.
 
 - [x] **a.** DONE 2026-07-04. Deploy-coupled hook secret: `SEND_EMAIL_HOOK_SECRET`
-      matches the dashboard Send Email Hook secret, `send-auth-email` is deployed as v45,
+      matches the dashboard Send Email Hook secret. The initial verified hook release was v45;
+      the bounded-retry release is now deployed as `send-auth-email` v47,
       and one real password-reset email verified the branded template path (`send-auth-email`
       200 signature-verified + `resend-webhook` 200).
       _Rollback:_ redeploy prior function version + restore prior hook secret in the same window.
-- [ ] **b.** Raise the rate limit via Management API PATCH (NOT `supabase config push`): back up
+- [x] **b.** DONE 2026-07-12. Raised the rate limit via Management API PATCH (NOT `supabase config push`): backed up
       `GET /v1/projects/$REF/config/auth` first, then patch `smtp_*` (Resend:
       `smtp.resend.com:465`, user `resend`, pass = the Resend API key,
       `smtp_admin_email: notifications@myk9show.com`) + `rate_limit_email_sent: 100`.
@@ -163,6 +187,20 @@ caps auth emails at ~2/hour — a launch-day signup wall.
       _Audit 2026-07-06:_ `pnpm qa:go-live:phase1` verifies the runbook still documents the
       Management API PATCH path with Resend SMTP fields and `rate_limit_email_sent: 100`;
       no Management API write has been run in this batch.
+      _Completion evidence 2026-07-12:_ post-PATCH Management API read-back returned
+      `smtp.resend.com:465`, sender `myK9Show <notifications@myk9show.com>`, limit `100`,
+      Send Email Hook enabled, and unchanged `site_url=https://myk9show.com`. A real password-reset
+      request to Gmail was accepted by the deployed app, reported `delivered` by Resend, and visually
+      confirmed as the branded myK9Show template. The temporary Management API token was revoked.
+- [x] **c.** DONE 2026-07-12. Bounded Resend retry runtime acceptance. PR #1296 is deployed to all 12 affected
+      functions across both Supabase roots; version read-back, exact prior-source rollback commands,
+      a 9×401/2×403/1×400 fail-closed matrix, and one delivered post-deploy password reset are in
+      [`transactional-email-reliability.md`](../../openspec/changes/go-live-2026-07-11-gate-remediation/evidence/transactional-email-reliability.md).
+      A valid registration confirmation is `delivered` and visually confirmed; a live operator alert was persisted,
+      verified, and resolved; and a provider-safe 16-message burst recovered six real Resend 429s
+      after 1,000 ms with all logical sends ending 200 and PII-free telemetry. The temporary guarded
+      harness was deleted and remote inventory is zero. The operator visually confirmed the tagged
+      alert email in Gmail with the expected subject and controlled-test body.
 
 ### 1.3 Kill-switch posture check
 
@@ -198,7 +236,7 @@ Importer tooling shipped (#833); the CSV is still header-only.
       _Verify:_ `select count(*) from judge_qualifications;` > 0; spot-check a known judge by name
       in the show-wizard judge picker.
       _Audit 2026-07-06:_ `pnpm qa:go-live:phase2 --allow-blocked` reports `0 judge data
-    rows after header`; importer tooling is present, but no preload migration should be
+  rows after header`; importer tooling is present, but no preload migration should be
       generated or pushed until real AKC/UKC exports are added.
 
 ### 2.2 Seed / fixture verification (staging, and prod if demo data is wanted)
@@ -219,7 +257,7 @@ Run the post-reseed checks from [`staging-reseed.md`](staging-reseed.md):
 ### 2.3 Passcode ringside identity — live verification (G5)
 
 Code complete (#951–#954); this is **verify, not build**. Full checklist:
-[`docs/plan-ringside-entries-read-authz.md`](../plan-ringside-entries-read-authz.md) Phase E.
+[`docs/plan-ringside-entries-read-authz.md`](../archive/plan-ringside-entries-read-authz.md) Phase E.
 
 - [ ] **a.** Supabase Dashboard → Auth → Providers → **Allow anonymous sign-ins** is ON
       (staging AND prod). Owner: Operator.
@@ -242,6 +280,11 @@ Code complete (#951–#954); this is **verify, not build**. Full checklist:
 redeployed** (`--workdir apps/myk9show`). Full detail:
 [`stripe-platform-setup.md`](stripe-platform-setup.md) Task 6.3. Owner: Operator except where
 noted. Do this only when ready to take real money — there is no half-live state.
+
+_Agent-owned prerequisite complete 2026-07-13:_ `stripe-golive-enforcement` shipped shared
+capacity enforcement, durable waitlist notifications, owner-authorized offer payment/decline, and
+sandbox reconciliation evidence. Its archive is an implementation record only; it does not check
+off any live-mode operator steps below.
 
 _Audit 2026-07-06:_ PR #1174 merged the Phase 3 Stripe cutover preflight tooling. After PR #1170
 merged, `pnpm qa:go-live:phase3 --allow-blocked` passes all source preflight checks, including
@@ -362,6 +405,57 @@ close-out; keep those items unchecked until evidence is recorded.
 > Vault + `HEALTH_CRON_SECRET` on the function); until then, and for the still-manual items, treat the
 > checklist below as authoritative.
 
+### Daily-health delivery activation and proof
+
+The July 11 gate review proved that a successful `pg_cron` dispatch is not delivery evidence. The
+repository remediation adds two independent paths: a pure-SQL
+`daily-health-snapshot-watchdog` at 08:00 UTC that writes a deduplicated `operator_alerts` row when
+the 07:00–08:00 `cron-health-check` snapshot window is empty, and Sentry Cron check-ins emitted by
+the Edge runner. Do not treat either as live until its approval-gated steps below are evidenced.
+
+- [x] **Database path:** **DEPLOYED 2026-07-12.** Dry run proposed only
+      `20260711200000_daily_health_snapshot_watchdog.sql`; migration applied and the post-push dry
+      run reports parity. `daily-health-check` is active at `0 7 * * *` and
+      `daily-health-snapshot-watchdog` (jobid 12) is active at `0 8 * * *`; both run as `postgres`.
+- [x] **Re-check dispatch delivery:** **RECOVERED 2026-07-12.** The unchanged Vault credential
+      delivered the scheduled 07:00 UTC request and a fresh `cron-health-check` snapshot landed at
+      07:00:02 with `overall_status=ok`; the archived response was HTTP 200. This disproved the
+      July 11 stale-key hypothesis. The earlier transient failure is not reconstructable because the
+      cron discarded the `pg_net` request ID and its response row expired. Do not rotate a working
+      credential solely on that disproved hypothesis. The independent watchdog and Sentry proof
+      below remain required because pg_cron success alone still proves only queueing.
+- [~] **Prove the durable miss:** **WRITE-PROOF COMPLETE 2026-07-13 02:22 UTC** (approved gate 2.4
+  run, executed as `postgres` — the recorded `cron.job.username` — via the session pooler). The
+  watchdog body was run with its window fixed to the genuinely snapshot-less 2026-07-11 07:00–08:00
+  UTC day: (1) insert produced unresolved alert `aa1b43cd-66dd-4cca-a4fd-004f66b70f01` with
+  `dedupe_key = daily-health-check:2026-07-11`; (2) an identical re-run returned `INSERT 0 0`,
+  proving deduplication via the partial unique index; (3) after `resolved_at` was set, a further
+  insert created new row `c7e056d5-596d-4935-9335-833bf4a9a641`, proving recurrence after
+  resolution. Both rows are resolved with resolution notes appended to `detail` and retained as
+  durable evidence. Still open before calling the database path live: after the first scheduled
+  08:00 UTC run (2026-07-13), verify `cron.job_run_details.status = 'succeeded'` and inspect
+  `return_message` for the watchdog job (jobid 12 had zero `job_run_details` rows as of this
+  proof because it was scheduled after 08:00 UTC on 2026-07-12).
+- [ ] **External path:** create the Sentry Cron Monitor with slug `daily-health-check`, schedule
+      `0 7 * * *`, timezone UTC, 15-minute check-in margin, and 10-minute max runtime. Route missed,
+      error, and recovery notifications to a named human. Keep monitor configuration in Sentry;
+      the function must not upsert it.
+- [~] **Deploy check-ins:** `cron-health-check` v5 was deployed 2026-07-12 and an authenticated
+  Vault-backed manual dispatch returned HTTP 200 and committed a fresh snapshot. The project
+  does not yet have `SENTRY_DSN` or `SENTRY_ENVIRONMENT`, so external check-ins remain inactive.
+  Configure those secrets after the Sentry monitor and named-human route exist, then redeploy with
+  `supabase functions deploy cron-health-check --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt --workdir apps/myk9show`.
+  Manually dispatch once and record correlated `in_progress` → `ok` evidence. A failed probe
+  that persists a `fail` snapshot is still an `ok` delivery check-in; the snapshot owns health
+  status.
+- [ ] **Prove independence:** use Sentry's notification test or an approved missed interval to
+      capture the named-human missed and recovery notifications without disabling the database
+      watchdog. Separately prove that a failed Sentry flush does not suppress a committed snapshot.
+
+Rollback: redeploy the last-good `cron-health-check`, remove/restore the Sentry secrets as
+appropriate, disable the Sentry monitor, and unschedule `daily-health-snapshot-watchdog` in a new
+migration. Do not edit an applied migration in place.
+
 - [ ] **5.1** `main` is green; Deploy Production workflow succeeded on the launch build; the
       production URL serves it.
 - [ ] **5.2** Migration parity: `supabase migration list` — local and remote agree;
@@ -425,4 +519,4 @@ delayed launch always beats a corrupted first impression.
 | Edge-function drift method             | [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md)                   |
 | Admin support actions                  | [`admin-support-runbook.md`](admin-support-runbook.md)                                                   |
 | Staging seed verification              | [`staging-reseed.md`](staging-reseed.md)                                                                 |
-| Passcode ringside Phase E              | [`docs/plan-ringside-entries-read-authz.md`](../plan-ringside-entries-read-authz.md)                     |
+| Passcode ringside Phase E              | [`docs/plan-ringside-entries-read-authz.md`](../archive/plan-ringside-entries-read-authz.md)             |

@@ -5,6 +5,7 @@
 import type { Show } from '@/types/show-types';
 import { toLocalDate } from './date-format';
 import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDisplaySelectors';
+import { currentEntryWindowDate, getEntryWindowTimezone } from './entryWindowDate';
 
 export type EntryStatus =
   | 'not_yet_open' // Before entry open date
@@ -42,18 +43,22 @@ export function getEntryStatus(
   userHasEntries: boolean = false,
   options: EntryStatusOptions = {}
 ): EntryStatusInfo {
-  const now = new Date();
   const openDate = toLocalDate(show.entryOpenDate);
   const closeDate = toLocalDate(show.entryCloseDate);
-  // Inclusive: "Closes Today!" stays on the banner the whole closing day.
-  const closeEndOfDay = new Date(closeDate);
-  closeEndOfDay.setHours(23, 59, 59, 999);
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = currentEntryWindowDate(undefined, getEntryWindowTimezone(show.trials));
+  if (!today) {
+    return {
+      status: 'not_yet_open',
+      label: `Opens ${openDate.toLocaleDateString()}`,
+      description: 'Entry window is not available yet',
+      canEnter: false,
+    };
+  }
   const dayDiff = (target: Date): number =>
-    Math.round((target.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24));
+    Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
   // Before entry open date
-  if (now < openDate) {
+  if (today < openDate) {
     const daysUntilOpen = dayDiff(openDate);
     return {
       status: 'not_yet_open',
@@ -65,7 +70,7 @@ export function getEntryStatus(
   }
 
   // After entry close date
-  if (now > closeEndOfDay) {
+  if (today > closeDate) {
     return {
       status: 'closed',
       label: 'Entries Closed',
@@ -137,8 +142,7 @@ export function getEntryStatusBadgeStyle(status: EntryStatus): {
       };
     case 'closing_soon':
       return {
-        className:
-          'bg-warning/10 text-warning border-warning/20 border animate-pulse',
+        className: 'bg-warning/10 text-warning border-warning/20 border animate-pulse',
         variant: 'default',
       };
     case 'closed':

@@ -187,7 +187,7 @@
 - Class list → entry list in run order → tap to open scoresheet → timer → Q/NQ → Save
 - Scores go to the secretary's results view when signal returns
 
-🖼️ **Screenshots needed:** J-01 through J-06 — no longer flag-blocked; capturable against staging once the removal PR redeploys. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md).) Use diagram `at-show-access-paths.drawio` as placeholder until shots land.
+🖼️ **Screenshots needed:** J-01 through J-06 — no longer flag-blocked; capturable against staging once the removal PR redeploys. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md).) Use diagram `at-show-access-paths.drawio` as placeholder until shots land.
 
 *Reused in:* Judge/Steward Deck (slides 2–5)
 

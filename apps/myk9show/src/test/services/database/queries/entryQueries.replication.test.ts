@@ -553,7 +553,7 @@ describe('entryQueries (replication)', () => {
     it('returns empty when no entries match status', async () => {
       setupListMocks([makeEntry({ entryStatus: 'confirmed' })]);
 
-      const result = await getEntriesByStatus('cancelled');
+      const result = await getEntriesByStatus('withdrawn');
 
       expect(result.data).toEqual([]);
     });
@@ -662,10 +662,10 @@ describe('entryQueries (replication)', () => {
           handlerId: 'user-1',
           isScored: true,
           resultStatus: 'qualified',
-          finalPlacement: 1,
+          finalPlacement: '1',
           searchTimeSeconds: 33.7,
           totalFaults: 0,
-        } as Partial<ReplicatedEntry>),
+        }),
       ];
       setupListMocks(entries);
       // Simulate the view being unreachable (offline / RLS) so we exercise the
@@ -696,8 +696,8 @@ describe('entryQueries (replication)', () => {
           id: 'scored-1',
           handlerId: 'user-1',
           isScored: true,
-          finalPlacement: 1,
-        } as Partial<ReplicatedEntry>),
+          finalPlacement: '1',
+        }),
       ];
       setupListMocks(entries);
       // The view applies the cascade. For a RELEASED class it returns the real
@@ -741,12 +741,18 @@ describe('entryQueries (replication)', () => {
           id: 'own-1',
           handlerId: 'user-1',
           isScored: true,
-          finalPlacement: 1,
-        } as Partial<ReplicatedEntry>),
+          finalPlacement: '1',
+        }),
       ];
       setupListMocks(entries);
       mockViewRows.current = [
-        { id: 'own-1', final_placement: 1, result_status: 'qualified', is_scored: true, is_own_entry: true },
+        {
+          id: 'own-1',
+          final_placement: 1,
+          result_status: 'qualified',
+          is_scored: true,
+          is_own_entry: true,
+        },
         // Manageable-but-not-own row the view returns for a show manager — the
         // .eq('is_own_entry', true) filter must exclude it from My Entries.
         {

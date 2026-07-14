@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { generateClassesFromTemplate, validateClassGeneration } from '@/lib/classGeneration';
+import type { ClassTemplate } from '@/types/template.types';
 import {
   createMockTemplate,
   createMockClassDefinition,
@@ -80,8 +81,12 @@ describe('Class Generation', () => {
 
       expect(result.success).toBe(true);
       const createdClass = result.classes[0];
-      expect(createdClass.fieldValues.entryFees?.preEntry).toBe(20);
-      expect(createdClass.fieldValues.entryFees?.dayOfShow).toBe(30);
+      const entryFees = createdClass.fieldValues.entryFees as unknown as {
+        preEntry: number;
+        dayOfShow: number;
+      };
+      expect(entryFees.preEntry).toBe(20);
+      expect(entryFees.dayOfShow).toBe(30);
     });
 
     test('generates sequential run orders', () => {

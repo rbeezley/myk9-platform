@@ -80,6 +80,16 @@ describe('myK9Show brand assets', () => {
     expect(header).toContain('src="/brand-mark-64.png"');
   });
 
+  it('uses the transparent approved mark in the About dialog', () => {
+    const aboutDialog = readFileSync(
+      join(appRoot, 'src/components/common/AboutDialog.tsx'),
+      'utf8'
+    );
+
+    expect(aboutDialog).toContain('src="/brand-mark-64.png"');
+    expect(aboutDialog).not.toContain('src="/pwa-192x192.png"');
+  });
+
   it('uses the dedicated monochrome notification badge everywhere', () => {
     const websocket = readFileSync(join(appRoot, 'src/context/WebSocketContext.tsx'), 'utf8');
     const serviceWorker = readFileSync(join(appRoot, 'src/sw-custom.ts'), 'utf8');

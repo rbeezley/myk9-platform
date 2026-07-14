@@ -8,6 +8,7 @@ const mockResults: ClassResult[] = [
     level: 'Novice A',
     section: null,
     trialId: 't1',
+    resultsReleasedAt: null,
     placements: [
       { placement: 1, handlerName: 'Alice', dogName: 'Rex', breed: 'Lab', armband: '101' },
       { placement: 2, handlerName: 'Bob', dogName: 'Max', breed: 'GSD', armband: '102' },
@@ -20,6 +21,7 @@ const mockResults: ClassResult[] = [
     level: 'Advanced',
     section: null,
     trialId: 't1',
+    resultsReleasedAt: null,
     placements: [
       { placement: 1, handlerName: 'Carol', dogName: 'Bella', breed: 'Beagle', armband: '103' },
     ],
@@ -31,6 +33,7 @@ const mockResults: ClassResult[] = [
     level: 'Advanced',
     section: null,
     trialId: 't2',
+    resultsReleasedAt: null,
     placements: [],
   },
 ];

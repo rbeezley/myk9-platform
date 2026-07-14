@@ -13,7 +13,11 @@ import { Label } from '@/components/ui/label';
 import { FormField } from '@/components/common/FormField';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckInStatus, CHECK_IN_STATUS_CONFIG } from '@/types/check-in-types';
+import {
+  CheckInStatus,
+  CHECK_IN_STATUS_CONFIG,
+  EXHIBITOR_STATUS_LABELS,
+} from '@/types/check-in-types';
 import { CheckInStatusIndicator } from './CheckInStatusIndicator';
 import { CheckCircle2, XCircle, Clock, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -49,13 +53,6 @@ const EXHIBITOR_STATUS_DESCRIPTIONS: Partial<Record<CheckInStatus, string>> = {
   conflict: "I'll let the secretary know about this conflict",
   pulled: "The secretary will see that this dog won't run in this class",
   'at-gate': "I'm at the gate and ready",
-};
-
-const EXHIBITOR_STATUS_LABELS: Partial<Record<CheckInStatus, string>> = {
-  'no-status': 'I am not there yet',
-  'checked-in': 'I am here',
-  conflict: 'I have a conflict — tell the secretary',
-  pulled: 'I need to withdraw from this class',
 };
 
 // The owner-scoped self_checkin_entry RPC permits exhibitors to report their

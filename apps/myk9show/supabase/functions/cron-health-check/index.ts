@@ -14,8 +14,18 @@
 //   an outage surfaces on the board instead of aging quietly into staleness.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import * as Sentry from 'npm:@sentry/deno@10.62.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { buildSnapshot, DEFAULT_SOURCE } from '../_shared/systemHealthChecks.ts';
+import {
+  DAILY_HEALTH_MONITOR_SLUG,
+  runWithBestEffortCronCheckIn,
+  type CronCheckInClient,
+} from '../_shared/sentryCronCheckIn.ts';
+import {
+  buildSnapshot,
+  DEFAULT_SOURCE,
+  extractConflictCounter,
+} from '../_shared/systemHealthChecks.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -26,6 +36,33 @@ if (!supabaseUrl || !supabaseServiceKey || !cronSecret) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+function createSentryCronClient(): CronCheckInClient | null {
+  const dsn = Deno.env.get('SENTRY_DSN');
+  if (!dsn) return null;
+
+  try {
+    Sentry.init({
+      dsn,
+      environment: Deno.env.get('SENTRY_ENVIRONMENT') || undefined,
+      defaultIntegrations: false,
+      sendDefaultPii: false,
+    });
+
+    return {
+      captureCheckIn: checkIn => Sentry.captureCheckIn(checkIn),
+      flush: timeoutMs => Sentry.flush(timeoutMs),
+    };
+  } catch (error) {
+    console.warn(
+      'Sentry Cron initialization failed:',
+      error instanceof Error ? error.message : String(error)
+    );
+    return null;
+  }
+}
+
+const sentryCronClient = createSentryCronClient();
 
 // Constant-time secret check: hash both sides so the comparison cost is
 // independent of how many leading bytes match (SA-002, same as the payout cron).
@@ -43,6 +80,24 @@ async function secretMatches(provided: string | null): Promise<boolean> {
   return diff === 0;
 }
 
+/** Previous snapshot's ringside conflict counter, for the delta check. Any
+ * failure (no rows, query error, malformed checks) yields null = no baseline;
+ * the check then records a fresh baseline instead of failing. */
+async function fetchPreviousConflictCounter(): Promise<number | null> {
+  try {
+    const { data, error } = await supabase
+      .from('system_health_snapshots')
+      .select('checks')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    return extractConflictCounter((data as { checks?: unknown }).checks);
+  } catch {
+    return null;
+  }
+}
+
 async function insertSnapshot(row: ReturnType<typeof buildSnapshot>) {
   const { error } = await supabase.from('system_health_snapshots').insert({
     source: row.source,
@@ -53,6 +108,54 @@ async function insertSnapshot(row: ReturnType<typeof buildSnapshot>) {
   if (error) throw new Error(`snapshot insert failed: ${error.message}`);
 }
 
+async function runHealthSnapshot(): Promise<Response> {
+  const startedAt = Date.now();
+  const { data: facts, error: probeError } = await supabase.rpc('system_health_probe');
+
+  if (probeError || facts == null) {
+    // Probe failed — still write a visible fail snapshot rather than nothing.
+    const snapshot = buildSnapshot(null, {
+      now: Date.now(),
+      runDurationMs: Date.now() - startedAt,
+    });
+    // Replace the generic detail with the actual probe error for triage.
+    if (probeError) {
+      snapshot.checks[0].detail = `system_health_probe failed: ${probeError.message}`;
+    }
+    await insertSnapshot(snapshot);
+    console.error('Health probe failed:', probeError?.message ?? 'no facts returned');
+    return Response.json(
+      { source: snapshot.source, overall_status: snapshot.overall_status, probe_error: true },
+      { status: 200 }
+    );
+  }
+
+  const previousConflictCounter = await fetchPreviousConflictCounter();
+
+  const snapshot = buildSnapshot(facts, {
+    now: Date.now(),
+    source: DEFAULT_SOURCE,
+    runDurationMs: Date.now() - startedAt,
+    previousConflictCounter,
+  });
+  await insertSnapshot(snapshot);
+
+  console.log(
+    'Health check run:',
+    JSON.stringify({
+      overall_status: snapshot.overall_status,
+      checks: snapshot.checks.map(c => ({ key: c.key, status: c.status })),
+      run_duration_ms: snapshot.run_duration_ms,
+    })
+  );
+
+  return Response.json({
+    overall_status: snapshot.overall_status,
+    checks: snapshot.checks.length,
+    run_duration_ms: snapshot.run_duration_ms,
+  });
+}
+
 Deno.serve(async req => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
@@ -61,50 +164,12 @@ Deno.serve(async req => {
     return new Response('Forbidden', { status: 403 });
   }
 
-  const startedAt = Date.now();
-
   try {
-    const { data: facts, error: probeError } = await supabase.rpc('system_health_probe');
-
-    if (probeError || facts == null) {
-      // Probe failed — still write a visible fail snapshot rather than nothing.
-      const snapshot = buildSnapshot(null, {
-        now: Date.now(),
-        runDurationMs: Date.now() - startedAt,
-      });
-      // Replace the generic detail with the actual probe error for triage.
-      if (probeError) {
-        snapshot.checks[0].detail = `system_health_probe failed: ${probeError.message}`;
-      }
-      await insertSnapshot(snapshot);
-      console.error('Health probe failed:', probeError?.message ?? 'no facts returned');
-      return Response.json(
-        { source: snapshot.source, overall_status: snapshot.overall_status, probe_error: true },
-        { status: 200 }
-      );
-    }
-
-    const snapshot = buildSnapshot(facts, {
-      now: Date.now(),
-      source: DEFAULT_SOURCE,
-      runDurationMs: Date.now() - startedAt,
-    });
-    await insertSnapshot(snapshot);
-
-    console.log(
-      'Health check run:',
-      JSON.stringify({
-        overall_status: snapshot.overall_status,
-        checks: snapshot.checks.map(c => ({ key: c.key, status: c.status })),
-        run_duration_ms: snapshot.run_duration_ms,
-      })
+    return await runWithBestEffortCronCheckIn(
+      sentryCronClient,
+      DAILY_HEALTH_MONITOR_SLUG,
+      runHealthSnapshot
     );
-
-    return Response.json({
-      overall_status: snapshot.overall_status,
-      checks: snapshot.checks.length,
-      run_duration_ms: snapshot.run_duration_ms,
-    });
   } catch (err) {
     // Last-resort: even the insert failed. Log loudly; the board's staleness
     // rule will surface the missing run within ~26h.

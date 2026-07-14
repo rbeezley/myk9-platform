@@ -180,15 +180,13 @@ describe('usePageTransition', () => {
         });
 
         // Check specific transforms
-        if (direction === 'left') {
-          expect(styles.transform).toBe('translateX(-100%)');
-        } else if (direction === 'right') {
-          expect(styles.transform).toBe('translateX(100%)');
-        } else if (direction === 'up') {
-          expect(styles.transform).toBe('translateY(-100%)');
-        } else if (direction === 'down') {
-          expect(styles.transform).toBe('translateY(100%)');
-        }
+        const expectedTransform = {
+          left: 'translateX(-100%)',
+          right: 'translateX(100%)',
+          up: 'translateY(-100%)',
+          down: 'translateY(100%)',
+        }[direction];
+        expect(styles).toHaveProperty('transform', expectedTransform);
       }
     });
 
@@ -245,7 +243,7 @@ describe('usePageTransition', () => {
 
       const styles = result.current.getTransitionStyles();
 
-      expect(styles.transform).toBe('translateX(100%)');
+      expect(styles).toHaveProperty('transform', 'translateX(100%)');
     });
   });
 

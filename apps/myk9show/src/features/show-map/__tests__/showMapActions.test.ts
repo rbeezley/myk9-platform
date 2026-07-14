@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import { buildShowMapTree } from '../showMapTree';
 import {
   getAttentionActions,
@@ -207,6 +208,57 @@ describe('showMapActions', () => {
     expect(counts.get('all-exhibitors:show-1')).toBe(1);
     expect(counts.get('dog:dog-1')).toBe(1);
     expect(counts.get('dog-entry:entry-1')).toBe(1);
+  });
+
+  it('surfaces a reopened-after-closeout class as class-level attention that rolls up to ancestors', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          ...classes[0]!,
+          status: 'Completed',
+          reopenedAfterCloseoutAt: '2026-07-12T18:00:00Z',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          entry_status: 'accepted',
+        },
+      ],
+    });
+
+    const attentionNodeIds = getAttentionNodeIds(tree);
+    expect(attentionNodeIds.has('class:class-active')).toBe(true);
+    expect(attentionNodeIds.has('trial:trial-1')).toBe(true);
+    expect(attentionNodeIds.has('show:show-1')).toBe(true);
+
+    const counts = getAttentionCountsByNodeId(tree);
+    expect(counts.get('class:class-active')).toBe(1);
+    expect(counts.get('trial:trial-1')).toBe(1);
+    expect(counts.get('show:show-1')).toBe(1);
+  });
+
+  it('does not flag a class as attention-needing when reopenedAfterCloseoutAt is null', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[0]!],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          entry_status: 'accepted',
+        },
+      ],
+    });
+
+    const counts = getAttentionCountsByNodeId(tree);
+    expect(counts.get('class:class-active')).toBeUndefined();
   });
 
   it('does not generate row actions for synthetic All Exhibitors or dog branch nodes', () => {
@@ -1282,11 +1334,11 @@ describe('showMapActions', () => {
       const tree = buildShowMapTree({
         show,
         trials: [
-          {
+          fromAny<SyncableTrial, unknown>({
             ...trial,
             status: 'Complete',
             resultSubmittedAt: null,
-          } as SyncableTrial,
+          }),
         ],
         classes: [
           {

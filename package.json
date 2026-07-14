@@ -20,6 +20,7 @@
     "qa:discovery:crud:full": "pnpm --dir apps/myk9show test:e2e:clean src/test/e2e/entities/dogCRUD.spec.ts src/test/e2e/entities/clubCRUD.spec.ts src/test/e2e/entities/peopleCRUD.spec.ts src/test/e2e/entities/classCRUD.spec.ts src/test/e2e/entities/trialCRUD.spec.ts src/test/e2e/entities/showCRUD.spec.ts --project=chromium --workers=1 --timeout=90000 --retries=0",
     "qa:db-drift:enum": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/db-drift/enum-check-drift.ts",
     "qa:db-drift:functions": "SUPABASE_PROJECT_REF=sojmvhhwsjxmfistvzbe node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/db-drift/function-inventory.ts",
+    "qa:advisor-inventory": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/db-drift/advisor-inventory.ts",
     "qa:db-drift:test": "vitest run scripts/qa/db-drift/*.test.ts",
     "qa:code-quality-ratchet": "tsx scripts/qa/code-quality-ratchet.ts",
     "qa:code-quality-ratchet:update": "pnpm qa:code-quality-ratchet -- --update-baseline",
@@ -75,7 +76,7 @@
       "@vercel/static-config>ajv": "8.20.0",
       "serialize-javascript": "7.0.5",
       "workbox-build": "7.4.1",
-      "ws": "8.20.1",
+      "ws": "8.21.0",
       "yaml": "2.8.3"
     }
   }

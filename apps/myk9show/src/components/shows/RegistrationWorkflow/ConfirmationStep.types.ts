@@ -5,6 +5,7 @@ import type {
 } from '@/types/show-registration-types';
 import type { WorkflowMode } from './RegistrationWorkflow.types';
 import type { WaitlistEntryResult } from '@/store/cartStore';
+import type { EntrySubmissionOutcome } from '@/services/database/entries';
 
 export interface ConfirmationStepProps {
   registrationNumber?: string | undefined;
@@ -29,6 +30,8 @@ export interface ConfirmationStepProps {
   waitlistEntries?: WaitlistEntryResult[] | undefined;
   /** Count of confirmed entries (non-waitlisted) */
   confirmedEntryCount?: number | undefined;
+  /** Capacity outcomes returned by non-card server submission. */
+  entryOutcomes?: EntrySubmissionOutcome[] | undefined;
   onDownloadReceipt?: (() => void) | undefined;
   onSendEmail?: (() => void) | undefined;
   onStatusChange?: ((dogId: string, status: EntryStatus) => void) | undefined;

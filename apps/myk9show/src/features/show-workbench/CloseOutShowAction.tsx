@@ -65,8 +65,7 @@ export function CloseOutShowAction({
     setIsClosing(true);
     setError(null);
 
-    const updates = [
-      replicatedShowsTable.updateShow(targets.showId, { status: 'completed' }),
+    const childUpdates = [
       ...targets.trialIds.map(trialId =>
         replicatedTrialsTable.updateTrial(trialId, { status: 'completed' })
       ),
@@ -75,11 +74,11 @@ export function CloseOutShowAction({
       ),
     ];
 
-    const results = await Promise.allSettled(updates);
-    const failedCount = results.filter(result => result.status === 'rejected').length;
-    setIsClosing(false);
+    const childResults = await Promise.allSettled(childUpdates);
+    const failedChildCount = childResults.filter(result => result.status === 'rejected').length;
 
-    if (failedCount > 0) {
+    if (failedChildCount > 0) {
+      setIsClosing(false);
       setError(
         'Closeout did not finish. Try again after checking your connection and sync status.'
       );
@@ -87,6 +86,18 @@ export function CloseOutShowAction({
       return;
     }
 
+    try {
+      await replicatedShowsTable.updateShow(targets.showId, { status: 'completed' });
+    } catch {
+      setIsClosing(false);
+      setError(
+        'Closeout did not finish. Try again after checking your connection and sync status.'
+      );
+      toast.error('Closeout did not finish. Please try again.');
+      return;
+    }
+
+    setIsClosing(false);
     setIsConfirmOpen(false);
     toast.success('Show closeout recorded. Changes will sync with the show data.');
   }

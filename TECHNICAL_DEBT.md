@@ -1,10 +1,22 @@
 # Technical Debt Register
 
 **Project:** myK9 Platform Monorepo
-**Last Updated:** 2026-02-06 (Sprint 29)
+**Last Updated:** 2026-07-11 (standing-state re-baseline)
 **Maintained By:** Development Team
 
-## Summary
+## Current standing debt (2026-07-11)
+
+The historical DEBT-001..030 sweep below closed out in Feb 2026. It is **not** a live picture of debt — it is a point-in-time record. Do not read "0 open" as "no debt."
+
+**Live sources of truth for current debt:**
+
+- **Static code-quality debt** is measured by the ratchet, not this file: `pnpm qa:code-quality-ratchet` against `scripts/qa/code-quality-ratchet.baseline.json`. As of 2026-07-11 the ratchet counts **175 source files exceeding the 500-line rule** (recorded baseline: 176 oversized files, plus tracked `as any` casts, TODO markers, and direct-Supabase core bypasses). The ratchet only prevents regressions — it does not mean the tracked debt is resolved.
+- **Active remediation backlog and audit findings:** see [`docs/improve-audit-2026-07-11/README.md`](docs/improve-audit-2026-07-11/README.md) for the current audit and its executor plans.
+- **Live deferred/open work items:** `OPEN-TODOS.md` (and the audit backlog above).
+
+The Feb-2026 summary and item history below are retained for provenance.
+
+## Summary (2026-02-06 sweep — historical, closed out)
 
 - **Total Debt Items:** 30 (28 resolved/closed, 2 downgraded, 0 open)
 - **Critical:** 0

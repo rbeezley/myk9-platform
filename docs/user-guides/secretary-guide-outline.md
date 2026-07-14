@@ -25,7 +25,7 @@
 | Results & Check-In  | `/shows/:showId/results-control`  | yes               | stable        | Golden path § 5.3–5.4                                                                                                                                                                                           |
 | Submit to AKC       | `/shows/:showId/submit-results`   | yes               | stable        | Golden path § 5.6                                                                                                                                                                                               |
 | Closeout            | Show Desk → Closeout section      | yes               | **partial**   | Close Out Show action not yet built                                                                                                                                                                             |
-| At-Show / Ringside  | `/at-show/:showId`                | yes               | stable        | Open to all shows; access gated by `AtShowAccessGate`. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md)) |
+| At-Show / Ringside  | `/at-show/:showId`                | yes               | stable        | Open to all shows; access gated by `AtShowAccessGate`. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md)) |
 
 ---
 

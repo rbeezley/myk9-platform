@@ -1,0 +1,36 @@
+# Tasks: ringside-occ-conflict-circuit-breaker
+
+## 1. Server migration (Layer A)
+
+- [x] 1.1 Write migration `NNN_ringside_occ_conflict_containment.sql`: `CREATE SEQUENCE public.ringside_conflict_seq` (no client grants); re-emit `ringside_update_entry` verbatim from `20260710160000` §3 with two additions — early version precheck (after the step-1 entry fetch, before caller/auth resolution: count + `RAISE 40001` with DETAIL) and `PERFORM nextval('public.ringside_conflict_seq')` before both conflict raises; keep the late 0-row conflict path unchanged; end with the standard REVOKE public/anon + GRANT authenticated block; comment documents the version-disclosure trade-off (D1).
+- [x] 1.2 Extend `system_health_probe()` in the same migration (re-emit, per `20260704130000`) to include `ringside_conflict_counter` = the sequence's current value.
+- [x] 1.3 Diff the re-emitted function against `20260710160000` §3 to prove the only deltas are the precheck + counter lines; run the `migration-auditor` agent on the migration.
+
+## 2. Health check (Layer C)
+
+- [x] 2.1 Add the `ringside_conflicts` check to `apps/myk9show/supabase/functions/_shared/systemHealthChecks.ts`: detail stores the raw counter; status from delta vs the previous snapshot's stored value (ok <1,000 / warn ≥1,000 / fail ≥10,000); missing baseline or counter regression → ok with note. Thread the previous snapshot's counter into the builder where `cron-health-check` already reads prior state (or fetch the latest snapshot row if it does not).
+- [x] 2.2 Unit tests in `systemHealthChecks.test.ts`: ok/warn/fail threshold boundaries, first-run no-baseline → ok+note, counter regression → ok+note.
+
+## 3. Client bounded retry + parking (Layer B)
+
+- [x] 3.1 Locate the ringside OCC upload/retry path (post-#963 rebase logic in `@myk9/replication` / the scoring upload adapter) and add: per-sync-cycle cap of 5 conflict retries with exponential backoff + jitter (1s→30s), and a persisted `attemptsTotal` field on the queued IndexedDB mutation incremented on every conflict attempt.
+- [x] 3.2 Park at `attemptsTotal >= 50`: mutation excluded from automatic replay, payload retained, parked state persisted on the record.
+- [x] 3.3 Surface parked mutations in the ringside UI as needs-review with retry (reset replay eligibility) and confirm-gated discard actions.
+- [x] 3.4 Unit tests: rebase-then-succeed leaves no visible state; 5-conflict cycle stops with backoff growth; `attemptsTotal` persists across simulated reload; parking at 50 excludes from replay and preserves payload; retry/discard actions behave per spec. Rebuild `@myk9/replication` (`pnpm --filter @myk9/replication build`) before app-level test runs if the package changes.
+
+## 4. Verification and merge gate
+
+- [x] 4.1 Run focused vitest suites for every touched area from `apps/myk9show` (and package suites for `@myk9/replication`); all green.
+- [x] 4.2 Run `pnpm typecheck` and `pnpm lint`; fix fallout.
+- [x] 4.3 PR [#1271](https://github.com/rbeezley/myk9-platform/pull/1271) opened, CI green, Codex second opinion (5 rounds → clean; converged on RPC-only OCC cap scoping), merged squash `3dc0dd319`. Follow-up sequence-grant REVOKE PR [#1272](https://github.com/rbeezley/myk9-platform/pull/1272) merged `ef1782ba` after an independent migration-auditor review (Codex rate-limited).
+
+## 5. Deploy and live verification (operator-gated)
+
+- [x] 5.1 Migration applied to remote 2026-07-11 (the normal `db push` was blocked by a pre-existing out-of-order timestamp collision — `20260710160000_self_service_soft_delete_person.sql`, not ours — so the migration DDL was applied via psql and recorded in `supabase_migrations.schema_migrations`; `authenticated` EXECUTE restored, unwinding the emergency REVOKE). Follow-up migration `20260711160000_ringside_conflict_seq_revoke_client_grants.sql` added: Supabase default privileges auto-granted `anon`/`authenticated` USAGE on the new sequence; revoked live + recorded.
+- [x] 5.2 `cron-health-check` redeployed — "Deployed Functions on project sojmvhhwsjxmfistvzbe".
+- [x] 5.3 Live proof: stale `expected_version` → `40001` + DETAIL=authoritative raised at the precheck (line 67, before auth); conflict counter advanced 0→1→2 despite the aborts; `authenticated` EXECUTE present, `anon` absent; sequence USAGE revoked from clients; fired the health cron → snapshot written with `ringside_conflicts | ok | "baseline recorded (counter 2)"`.
+
+## 6. Tracking
+
+- [x] 6.1 Log the 2026-07-11 incident (root cause, mitigations, fix) in `docs/qa/findings.md` — including the ops-side remediation completed 2026-07-11: the Codex nightly converted from persistent heartbeat to a standalone job (25-min work cutoff / 30-min mandatory shutdown killing browsers, runners, dev servers, and child processes; Playwright 1 worker, 0 retries; shared-Supabase and ringside writes prohibited; old persistent QA task archived).
+- [x] 6.2 `OPEN-TODOS.md` pointer flipped to DONE+DEPLOYED; change archived via `opsx:archive` after merge + live deploy evidence.

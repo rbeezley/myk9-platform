@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import { EntryValidator } from '@/services/entries/EntryValidator';
 import { EntryLimitChecker } from '@/services/entries/EntryLimitChecker';
 import { EntryStatus } from '@/types/show-registration-types';
@@ -165,7 +166,7 @@ describe('Entry Validation System', () => {
         },
       ];
 
-      const stats = EntryLimitChecker.getClassEntryStats('class-1', entries, mockClass);
+      const stats = EntryLimitChecker.getClassEntryStats('class-1', fromAny(entries), mockClass);
 
       expect(stats.confirmed).toBe(2); // confirmed + paid
       expect(stats.waitlisted).toBe(1);

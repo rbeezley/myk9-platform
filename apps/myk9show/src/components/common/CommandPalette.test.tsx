@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
@@ -22,12 +21,19 @@ vi.mock('@/store/dogStore', () => ({
 }));
 
 vi.mock('@/store/userStore', () => ({
-  useUserStore: (selector: (state: { people: Array<{ id: string; firstName: string; lastName: string }> }) => unknown) =>
-    selector({ people: [{ id: 'person-1', firstName: 'Alice', lastName: 'Handler' }] }),
+  useUserStore: (
+    selector: (state: {
+      people: Array<{ id: string; firstName: string; lastName: string }>;
+    }) => unknown
+  ) => selector({ people: [{ id: 'person-1', firstName: 'Alice', lastName: 'Handler' }] }),
 }));
 
 vi.mock('@/store/showStore', () => ({
-  useShowStore: (selector: (state: { shows: Array<{ id: string; name: string; location: string; organization: string }> }) => unknown) =>
+  useShowStore: (
+    selector: (state: {
+      shows: Array<{ id: string; name: string; location: string; organization: string }>;
+    }) => unknown
+  ) =>
     selector({
       shows: [
         {

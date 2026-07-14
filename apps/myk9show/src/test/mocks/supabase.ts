@@ -1,4 +1,7 @@
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
+
+type ChainableMethod = Mock<(...args: unknown[]) => ChainableQuery>;
+export type ChainableQuery = PromiseLike<Record<string, unknown>> & Record<string, ChainableMethod>;
 
 /**
  * Default resolved value for any Supabase query chain.
@@ -11,7 +14,9 @@ const DEFAULT_RESPONSE = { data: [], error: null, count: null, status: 200, stat
  * Any property access returns a vi.fn() that returns another chainable proxy.
  * When awaited (.then), resolves to `resolvedValue`.
  */
-export function createChainableQuery(resolvedValue: Record<string, unknown> = DEFAULT_RESPONSE) {
+export function createChainableQuery(
+  resolvedValue: Record<string, unknown> = DEFAULT_RESPONSE
+): ChainableQuery {
   const fns = new Map<string | symbol, ReturnType<typeof vi.fn>>();
 
   const handler: ProxyHandler<object> = {
@@ -31,7 +36,7 @@ export function createChainableQuery(resolvedValue: Record<string, unknown> = DE
     },
   };
 
-  return new Proxy({}, handler);
+  return new Proxy({}, handler) as ChainableQuery;
 }
 
 /**
@@ -40,7 +45,7 @@ export function createChainableQuery(resolvedValue: Record<string, unknown> = DE
  * .auth, .channel, .removeChannel are stubbed.
  */
 export function createMockSupabase() {
-  const mockFrom = vi.fn(() => createChainableQuery());
+  const mockFrom = vi.fn<(table: string) => unknown>(() => createChainableQuery());
 
   const mockAuth = {
     getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
@@ -77,7 +82,9 @@ export function createMockSupabase() {
     auth: mockAuth,
     channel: mockChannel,
     removeChannel: vi.fn(),
-    rpc: vi.fn(() => createChainableQuery()),
+    rpc: vi.fn<(name: string, args?: Record<string, unknown>) => unknown>(() =>
+      createChainableQuery()
+    ),
     functions: {
       invoke: vi.fn().mockResolvedValue({ data: null, error: null }),
     },

@@ -2,9 +2,10 @@
 dist/
 .astro/
 
-# generated build artifacts — source of truth is docs/user-guides + docs/screenshots
+# generated build artifacts — source of truth is docs/user-guides + docs/screenshots + docs/diagrams
 src/content/guides/
 public/screenshots/
+public/diagrams/
 
 node_modules/
 .DS_Store

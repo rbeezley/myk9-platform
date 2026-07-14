@@ -3,6 +3,7 @@ import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable
 import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // ---------------------------------------------------------------------------
 // Mock the replication singletons using vi.hoisted so the variables are
@@ -128,7 +129,7 @@ function makeTrial(overrides: Partial<ReplicatedTrial> = {}): ReplicatedTrial {
 function makeJudgeAssignment(
   overrides: Partial<ReplicatedJudgeAssignment> = {}
 ): ReplicatedJudgeAssignment {
-  return {
+  return fromAny<ReplicatedJudgeAssignment, unknown>({
     id: 'ja-1',
     personId: 'person-1',
     showId: 'show-1',
@@ -149,7 +150,7 @@ function makeJudgeAssignment(
     trialDate: null,
     trialTimezone: null,
     ...overrides,
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------

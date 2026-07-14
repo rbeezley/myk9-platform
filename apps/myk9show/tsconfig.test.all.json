@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.test.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "node_modules/.cache/tsc/test-all.tsbuildinfo"
+  }
+}

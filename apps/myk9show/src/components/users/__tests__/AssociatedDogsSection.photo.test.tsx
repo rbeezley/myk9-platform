@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AssociatedDogsSection from '../AssociatedDogsSection';
@@ -8,9 +7,7 @@ import type { Dog } from '@/types/dog-types';
 // the test can open the dialog without fighting a UI portal.
 vi.mock('../DogCard', () => ({
   default: (props: { dog: Dog; onEditDogPhoto: (id: string) => void }) => (
-    <button onClick={() => props.onEditDogPhoto(props.dog.id)}>
-      Edit Photo {props.dog.id}
-    </button>
+    <button onClick={() => props.onEditDogPhoto(props.dog.id)}>Edit Photo {props.dog.id}</button>
   ),
 }));
 

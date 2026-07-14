@@ -37,7 +37,7 @@ describe('PosterHeading', () => {
     const { container } = render(<PosterHeading variant="outline">Outline</PosterHeading>);
     const h = container.querySelector('h2') as HTMLElement;
     expect(h.style.color).toBe('transparent');
-    expect(h.style.WebkitTextStroke).toContain(posterColors.ink);
+    expect(h.style.webkitTextStroke).toContain(posterColors.ink);
   });
 
   it('renders cream variant for use over dark contexts', () => {

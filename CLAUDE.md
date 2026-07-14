@@ -8,12 +8,14 @@ Keep responses concise, short, and to the point. Lead with the answer or action.
 
 This is a TypeScript monorepo. Always use TypeScript (not JavaScript). When fixing types, verify property names match the actual schema/interface definitions — do not guess.
 
-##Self Learning
-When I correct you or you catch yourself making a mistake, before continuing, add the lesson as a one-line rule under #LESSONS so it never happens again.
+## Self Learning
 
-##LESSONS
+When I correct you or you catch yourself making a mistake, before continuing, add the lesson as a one-line rule under LESSONS so it never happens again.
+
+## LESSONS
 
 - `supabase functions deploy --workdir apps/myk9show` follows that dir's stale `.temp/project-ref` (myK9Show-Working, defunct) — ALWAYS pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly and confirm the "Deployed Functions on project ..." line names the right ref.
+- `git branch -D <branch>` fails while any worktree (including the current one) is checked out on it, including as the silent local-delete half of `gh pr merge --delete-branch` — always remove the worktree first, then delete the branch.
 
 ## Intent & Emotional Design
 
@@ -39,7 +41,7 @@ The mental model: the user's experience is a single coherent workflow, not a men
 2. **Follow DRY principles** — Don't Repeat Yourself. Create reusable components if possible
 3. **Follow SLC** — Simple, Lovable, Complete. Avoid feature bloat (Simple). Prioritize UX polish, error states, and "delight" (Lovable). Deliver end-to-end functionality with zero placeholders or TODOs (Complete)
 4. **Keep files under 500 lines** — Extract types, helpers, and constants into sibling modules
-5. **Protect intent** — When code looks "wrong" but has an `// INTENT:` comment, it's deliberate. When making UX changes, check if they preserve the role's target feeling (see `docs/INTENT.md`)
+5. **Protect intent** — When code looks "wrong" but has an `// INTENT:` comment, it's deliberate (see "Intent & Emotional Design" above)
 
 ## Worktrees
 
@@ -51,17 +53,9 @@ bash scripts/bootstrap-worktree.sh   # installs deps, copies .env, builds packag
 
 ## Planning
 
-When creating implementation or remediation plans, always save them to a markdown file (e.g., `PLAN.md` or `docs/plan-<topic>.md`) rather than only outputting to chat. Follow existing plans when they exist — do not start from scratch. **Every plan must include a testing phase** — unit tests for new components, hooks, and utilities. Do not consider a phase complete until its tests are written and passing.
+Save plans to `docs/plan-<topic>.md`, never chat-only. Follow existing plans when they exist. **Every plan must include a testing phase** — a phase isn't complete until its tests pass. Directly under the `# Title`, add `> **Status:** Active` (`Active` / `Complete` / `Abandoned`) and register one row in [`docs/README.md`](docs/README.md); on merge, flip to `Complete`, `git mv` into `docs/archive/`, drop the index row. Full lifecycle rules: [`docs/README.md`](docs/README.md).
 
-**Every plan is born tagged.** Directly under the plan's `# Title`, add a status line:
-
-```markdown
-> **Status:** Active
-```
-
-Use `Active` while work is in progress or not yet started, `Complete` once the work has shipped, `Abandoned` if superseded or dropped. Then register the plan with one row in [`docs/README.md`](docs/README.md) (the living docs index). When a plan's work merges, flip its status to `Complete` and `git mv` the file into `docs/archive/` (mirror its path), then remove its row from the index. This convention is what keeps `docs/` from re-accumulating undated, indistinguishable plans — see [`docs/README.md`](docs/README.md) for the full "how docs are organized" rules. A plan without a status line is incomplete.
-
-**OpenSpec carve-out.** When a single unit of buildable work will be implemented through the opsx skills, the OpenSpec change (`openspec/changes/<id>/` — proposal, design, specs, tasks) _is_ the plan and satisfies this requirement. Do not also author a `docs/plan-*.md` for the same work; the change's `tasks.md` is the sole execution tracker, and archiving the change closes it out. Investigate first with `opsx:explore`, then `opsx:propose` — the change artifacts still need a testing phase (the config's task rules enforce this). `docs/` plans remain the right home for: multi-change roadmaps, audits whose findings are the deliverable, and living reference material (token tables, specs) — extract reference material to its own doc or promote it to `openspec/specs/` via `opsx:sync` rather than leaving it inside an archived change. If a `docs/` plan already exists when the change is created, add `> Tracked in openspec change: <id>` under its status line so the two never track independently.
+**OpenSpec carve-out.** When a single unit of buildable work goes through the opsx skills, the OpenSpec change (`openspec/changes/<id>/`) _is_ the plan — do not also author a `docs/plan-*.md` for the same work. When each format applies, and how to cross-link if both exist: [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 1.
 
 ## Commands
 
@@ -78,9 +72,9 @@ cd apps/myk9show && pnpm test     # myK9Show unit tests (vitest)
 cd apps/myk9show && pnpm test:e2e # myK9Show E2E tests (playwright)
 
 # Run a single test file
-cd apps/myk9show && npx vitest run src/path/to/file.test.ts
+cd apps/myk9show && pnpm vitest run src/path/to/file.test.ts
 # Run tests matching a name pattern
-cd apps/myk9show && npx vitest run -t "pattern"
+cd apps/myk9show && pnpm vitest run -t "pattern"
 ```
 
 ## Architecture Decisions
@@ -96,13 +90,7 @@ cd apps/myk9show && npx vitest run -t "pattern"
 - **Edge Functions:** Deploy with `--no-verify-jwt` (functions handle auth internally)
 - **Migrations:** `supabase/migrations/` — numbered `NNN_description.sql`
 
-### Heritage / registry columns (migrations 192–193)
-
-- `shows.landing_style` — `'default' | 'heritage'`. Read via `getShowLandingStyle(show)` from `@/features/registries`.
-- `trials.registry_id` — sanctioning body (default `'AKC'`). Read via `getTrialRegistry(trial)`.
-- `trials.confirmation_date` — when the Heritage confirmation email is sent. NULL = no formal step.
-- `trials.timezone` — IANA name (default `'America/New_York'`). Read via `getTrialTimezone(trial)`.
-- `entries.confirmation_email_sent_at / message_id / status` — idempotent send tracking (`'pending' | 'sent' | 'bounced' | 'failed'`).
+- **Heritage / registry columns** (migrations 192–193): schema notes in [`docs/reference/heritage-registry-columns.md`](docs/reference/heritage-registry-columns.md) — always read via the `@/features/registries` helpers (`getShowLandingStyle`, `getTrialRegistry`, `getTrialTimezone`), never raw column access.
 
 ## Deployment
 
@@ -138,45 +126,24 @@ When test runners hang or appear stuck for more than 30 seconds, stop and report
 
 Use the custom render from `src/test/utils/testUtils.tsx` instead of raw `render` — it wraps with QueryClient, Auth, and Router providers.
 
-**Assertion-first for value-sensitive bugs.** When a bug involves a specific value going to a specific place (enum string to a DB column, key in a response object, header in an HTTP call), write the `expect(...).toHaveBeenCalledWith(...)` line first and run it red before touching the implementation. A failing test proves the current wrong value; the fix then flips it green. This catches silent overwrites that visual inspection and typechecking miss.
+For bug-fixing methodology (assertion-first testing, seed-data/RBAC survey-first debugging, systematic-debugging vs. incident-triage) see [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 3.
 
 ## Workflow
 
 Update plan/tracking documents (`OPEN-TODOS.md`, sprint docs, debt register) after completing each task or sprint item. Keep them in sync with actual progress.
 
-### Which review when
+**Which review to use, and the Codex second-opinion policy: see [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 4.**
 
-| Situation | Use |
-| --- | --- |
-| Uncommitted working diff, pre-commit | `/code-review` (cleanup order: `/simplify` → `/harden` → commit) |
-| Open GitHub PR | `/review` |
-| Commits already on `main` / a finished phase, no PR | `phase-review` skill |
-| High-stakes or user-visible behavior change | Add `/codex:review` (non-Claude second opinion — see below) |
-| Whole-branch, multi-agent deep review | `/code-review ultra` (user-triggered, billed) |
-| PR touches package.json / auth / RLS / migrations / list views | Also load `code-review-extensions` checklists |
+## Worktree & Merge Workflow — hard rules
 
-### Codex second opinion (optional)
+Full mechanics: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.md). The non-negotiable rules:
 
-For high-stakes diffs — RLS, migrations, payment flows, auth, RBAC seed data — run `/codex:review` alongside the standard `/review` to get a non-Claude model's read. The value is independent failure modes: Codex (GPT-5) often catches issues both Claude reviewers miss for the same reason, and vice versa. Skip on docs and trivial fixes. The review gate is intentionally OFF — opt in per PR, don't gate every stop.
-
-## Debugging seed-data / config bugs
-
-Before writing a migration or code fix for a "why doesn't this data flow" bug, **inventory every related table up front** with a single query pass: the role table(s), the permission/config table(s), and the join/link table(s). Writing one migration, pushing it, then discovering a second missing row in a different table is a sign you didn't survey first. For RBAC specifically: check `roles`, `permissions`, and `role_permissions` in the same query batch before writing any `INSERT`. This also means `systematic-debugging`'s full four-phase ceremony can be collapsed when the data path is obvious — go straight to Phase 1 Step 4 (gather evidence across all layers at once).
-
-## Worktree & Merge Workflow
-
-- **Work in a worktree, never the primary checkout, whenever concurrent agents may be active.** This is enforced: `.githooks/pre-commit` blocks a commit from the primary working tree while any linked worktree exists (the classic `git add -A` sweep that clobbers a co-resident agent's WIP). `scripts/bootstrap-worktree.sh` activates the hook by pointing `core.hooksPath` at `.githooks` (it handles this repo's `extensions.worktreeConfig`, where a per-worktree override would otherwise shadow a plain `core.hooksPath` set — see `.githooks/README.md`). The hook is invisible to compliant worktree commits and to solo work with no worktrees. Bypass once for the docs-only-direct-to-`main` flow with `MYK9_ALLOW_PRIMARY_COMMIT=1 git commit ...`.
-- ALWAYS run `gh pr merge` from the main repo directory, NEVER from inside a feature worktree (causes stale worktree + cwd lockup).
-- Before reporting a branch as having unpushed work, run `gh pr list --state merged --head <branch>` AND grep merged PR titles for the branch's commit messages. Only flag as truly unpushed if both checks return empty.
-- After a PR merge, immediately do the branch hygiene for that PR while the branch name is still known:
-  1. Switch to the main repo directory and sync `main` with `git checkout main && git pull --ff-only`.
-  2. Run `git fetch --prune` to drop remote-tracking refs for auto-deleted PR branches.
-  3. Verify whether the local feature branch survived: `git branch --list <branch>`. On recent `gh` versions, `gh pr merge --delete-branch` deletes BOTH the remote and the local branch — observed 2026-05-24. If the local branch still exists (older gh, manual merge, or branch was created independently of the PR flow), confirm the squash-merge via `gh pr list --state merged --head <branch>` and delete with `git branch -D <branch>` (not `-d` — squash rewrites SHAs, so `-d` may refuse).
-  4. If the branch had a worktree, remove the worktree after branch cleanup. Do worktree removal as the final cleanup command if the current shell is inside that worktree.
-- Branches named `pr-###`, scratch branches, or temporary review branches should be deleted immediately after the corresponding PR/review work is merged or abandoned. Do not leave them for weekly cleanup unless they are explicitly marked as active.
-- Defer worktree removal to the FINAL step of cleanup, after all other commands have run, to avoid orphaning the shell cwd.
-- **Bash matcher caveat:** Permission rules like `Bash(git branch:*)` gate on the literal start of the command. A compound `cd "..." && git branch -D ...` does NOT match — the rule sees `cd`, not `git branch`. The harness already persists working directory between bash calls, so drop the `cd` prefix entirely and invoke `git branch -D ...` directly. Observed 2026-05-24 during stale-branch cleanup — three denials in a row before the pattern surfaced.
-- **Before directing destructive history rewrites** (`git reset --hard`, interactive rebase drops, force-push that rewrites branch tip), check whether the agent has uncommitted edits in the working tree. Those edits travel across `git checkout` and get wiped by `reset --hard`. Commit or stash them first.
+1. **Work in a worktree, never the primary checkout,** whenever concurrent agents may be active — `.githooks/pre-commit` enforces this. Bypass once with `MYK9_ALLOW_PRIMARY_COMMIT=1 git commit ...` only for the docs-only-direct-to-`main` flow.
+2. **Never run `gh pr merge` from inside a feature worktree** — run it from the main repo directory.
+3. **After a merge, verify the local branch survived** (`git branch --list <branch>`) before assuming `--delete-branch` cleaned it up.
+4. **If the branch has a worktree, remove the worktree before deleting the branch** — git refuses `branch -D` on a branch any worktree still has checked out. Delete with `git branch -D <branch>` (not `-d`, squash rewrites SHAs).
+5. **Worktree removal is always the final command of the cleanup sequence**, run from a path that still exists.
+6. **Before a destructive history rewrite** (`reset --hard`, rebase drops, force-push), check for uncommitted edits in the working tree first — they get wiped, not carried.
 
 ## Database Migrations
 
@@ -201,18 +168,4 @@ When Auto Mode is active, the "execute immediately" guidance does NOT extend to 
 
 Adding rows to a shared DB is not "destructive" but is still shared-system mutation. One up-front confirmation covers a sequence of related pushes in the same session; re-confirm when switching to a new system or operation type.
 
-**Exception — docs-only changes may go direct to `main`.** When a commit touches _only_ documentation files, skip the PR ceremony: commit on `main` (or fast-forward a feature commit into `main`) and push directly. No confirmation needed beyond the user's request to commit/push. As of 2026-06-14 the `main` rulesets grant the admin role (the owner token) `bypass_mode: always`, so this direct push genuinely succeeds — the PR and required-checks gates are bypassed for that identity. The bypass is actor-based, not path-scoped, so the docs-only restriction below is enforced by convention, not by GitHub. **In scope:**
-
-- `docs/**/*.md` (including `docs/plans/`, `docs/superpowers/`, `docs/ux-audits/`, etc.)
-- `apps/*/docs/**/*.md`
-- Top-level tracking/reference docs: `OPEN-TODOS.md`, `TO-DOS.md`, `README.md`, `CONTEXT.md`, `DESIGN.md`, `PRODUCT.md`, `TECHNICAL_DEBT.md`, `DEFERRED-WORK.md`, `INTENT.md` (additions/clarifications only — substantive intent changes still PR)
-- `packages/*/README.md`, `supabase/functions/*/README.md` (reference docs, not deployment configs)
-
-**Out of scope — still requires a PR:**
-
-- `CLAUDE.md`, `AGENTS.md` (load-bearing project instructions)
-- `.claude/**`, `.github/**` (settings, hooks, workflows)
-- Any commit that _also_ touches non-doc files — mixed commits go through PR
-- Deletions or rewrites of plans authored by others, even if the file is in scope
-
-Verify the commit's filelist matches the scope before pushing. If anything outside the in-scope list is staged, open a PR instead.
+**Exception — docs-only changes may go direct to `main`.** When a commit touches _only_ documentation files, skip the PR ceremony: commit on `main` (or fast-forward a feature commit into `main`) and push directly. No confirmation needed beyond the user's request to commit/push. `CLAUDE.md` and `.claude/**`/`.github/**` are always out of scope for this exception — they need a PR regardless of how small the change. Full in-scope/out-of-scope file list and the bypass mechanism: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.md) § "Docs-only direct-to-`main`." Verify the commit's filelist matches the scope before pushing.

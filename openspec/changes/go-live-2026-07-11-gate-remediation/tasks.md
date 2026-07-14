@@ -1,0 +1,110 @@
+## Validation Profile
+
+- Risk: high
+- Validation: full
+- Rationale: This change touches RLS, migrations, database privileges, webhook authentication, paid API throttling, monitoring, secrets, and launch-critical shared systems.
+
+## Global Constraints
+
+- Do not add a page, dashboard, dialog, or parallel checklist; reuse `/admin/health`, `operator_alerts`, `docs/operations/go-live-runbook.md`, and the launch-readiness scorecard.
+- Do not run a production database push, function deployment, secret rotation, dashboard mutation, live-money action, data deletion, DNS/Vercel mutation, PR creation, or merge without the required confirmation.
+- Source-only evidence never closes a deployment, dashboard, browser, device, legal, live-money, or real-user gate.
+- Follow TDD for behavior changes: record the focused RED command/output before production edits, then the GREEN command/output.
+- Preserve offline-first and replication paths; the new monitoring and limiter records are online-only operational data.
+- Keep migration versions unique. Never rename and apply the obsolete soft-delete migration if `20260710170000` is authoritative.
+- The premium limit is five attempts per authenticated user and show in a rolling 15-minute window, with 24-hour retention and fail-closed 503 behavior.
+- Push webhooks accept only `PUSH_WEBHOOK_SECRET`; never use `SUPABASE_SERVICE_ROLE_KEY` as an inbound fallback. Preserve the support function's legitimate downstream service-role bearer.
+- Advisor changes operate on schema plus identity-argument signature, account for `PUBLIC`, preserve proven anonymous flows, and never mutate extension-owned objects.
+- Preserve the user's July 11 report history. Append remediation evidence only after those source documents are present on this branch; do not recreate or overwrite uncommitted copies blindly.
+- Resend sends use at most three total attempts; retry only network exceptions, 408, 429, and 5xx; honor `Retry-After` with a 2,000 ms per-wait cap; never retry other 4xx responses.
+- Every retried logical send reuses one explicit or SHA-256 content-derived idempotency key containing no raw recipient, token, subject, or body data.
+- Keep the root and myK9Show retry helpers byte-identical because their Supabase deployment roots bundle independently.
+- Do not raise Supabase Auth above 100/hour until the operator upgrades Resend Transactional and records paid-plan quota/rate evidence; the approved target after that prerequisite is 1,000/hour.
+
+## 1. OpenSpec and Evidence Baseline
+
+- [x] 1.1 Validate all proposal, design, delta-spec, and task artifacts with `pnpm openspec validate go-live-2026-07-11-gate-remediation --type change --strict`; run `verify-plan` against the July 11 go-live report and security audit, patch every gap, and record the final coverage score (100/100 on 2026-07-11).
+- [ ] 1.2 Record a redacted read-only evidence baseline covering cron job/run state, latest health snapshot, deployed `cron-health-check` version, relevant Vault/function-secret digests, remote migration lineage/live `soft_delete_person` definition, and all 364 before-remediation Supabase advisor entries (2 ERROR, 3 INFO, 359 WARN). (Migration, health, secret-digest, deployed-version, and live `soft_delete_person` portions are complete; the machine-readable advisor baseline remains open.)
+- [x] 1.3 [ADDED] [INTEGRATION GATE] The July 11 go-live report, security audit, and docs-index registration are present on the implementation branch and have been reconciled against current deployment evidence. No source documents were overwritten.
+
+## 2. Batch A — Daily Health Monitoring
+
+- [x] 2.1 Add a migration-source contract test first, then add a SQL-only missed-snapshot watchdog scheduled after `daily-health-check`; it must query the indexed `cron-health-check` snapshot window, insert one unresolved `operator_alerts` row per missed UTC run with a stable dedupe key, and contain no `pg_net`, Vault, Edge Function, or secret dependency.
+- [~] 2.2 Verify watchdog schedule ordering, exact alert fields, query plan/index use, deduplication, recurrence after resolution, and rollback SQL with focused source tests plus a rolled-back database transaction when available. (Source checks, live write proof as the `cron.job.username` owner, deduplication/recurrence, and rollback evidence are complete; the first scheduled run still needs a `cron.job_run_details` read-back.)
+- [x] 2.3 [ADDED] Add focused tests first, then instrument `cron-health-check` with provider-supported in-progress/success/error check-ins for the `daily-health-check` Sentry Cron Monitor; a failed/missing Sentry call must not suppress the snapshot insert, and a successful snapshot with a failed check-in must remain externally visible as a missed heartbeat.
+- [x] 2.4 [SHARED-SYSTEM GATE] After approval, manually dispatched `cron-health-check`, proved a fresh snapshot lands, and recorded durable missed-snapshot alert evidence. The stale-key hypothesis was disproved; no Vault rotation was necessary.
+- [ ] 2.5 [OPERATOR/SHARED-SYSTEM GATE] Configure the independent Sentry Cron Monitor schedule and named-human route, deploy the check-in instrumentation, and record missed-check-in and recovery notification evidence without sharing the database watchdog's delivery path.
+
+## 3. Batch A — Migration Lineage
+
+- [x] 3.1 Update `softDeletePerson.source.test.ts` first to require self-service authorization and role deactivation from `20260710170000`, observe RED, delete `20260710160000_self_service_soft_delete_person.sql`, and make the focused contract test GREEN.
+- [x] 3.2 Run the duplicate-version scan, `supabase migration list`, and `supabase db push --dry-run`; stop on any unexpected apply/revert/repair proposal and record that no real database push is required for deletion of the obsolete unapplied file.
+
+## 4. Batch B — FORCE RLS and Drift Prevention (SA-021)
+
+- [x] 4.1 [CORRECTED] Add a failing source contract, record that `unified_ringside_overrides` was dropped by applied migration `20260623120000` and is absent from the live catalog, then create a migration that applies `FORCE ROW LEVEL SECURITY` to the four extant tables: `secretary_tasks`, `club_premium_templates`, `premium_generations`, and `login_attempts`, with exact rollback SQL documented.
+- [x] 4.2 Add a repository-wide migration-state invariant that derives final public-table RLS/FORCE-RLS state without a static table allowlist and fails for any unforced RLS table; include self-tests proving a future drift fixture fails.
+- [x] 4.3 [SHARED-SYSTEM GATE] After approval and dry-run review, push the RLS migration and run the live `pg_class` verifier for `relrowsecurity = true AND relforcerowsecurity = false`, recording any named exception. (Applied 2026-07-12; verifier returned zero rows and the post-push dry run reported the remote up to date.)
+
+## 5. Batch B — Mechanical Security Fixes (SA-023, SA-028, SA-030)
+
+- [x] 5.1 Expand shared webhook-verifier tests for missing secret/headers, malformed and skewed timestamps, multiple signatures, valid signature, and invalid signature; extract one constant-time equality helper, route `resend-webhook` through `verifyStandardWebhookSignature`, route push auth through the same primitive, remove obsolete resend-specific signature code, and keep all focused tests GREEN.
+- [x] 5.2 Add production/development tests for attacker-controlled `dev-current-mock-user`, observe RED, gate the localStorage read in `authHelpers.ts` behind `import.meta.env.DEV`, and make the focused tests GREEN.
+
+## 6. Batch B — Passcode Limiter Failure (SA-024)
+
+- [x] 6.1 Add a Deno-free rate-limit orchestration seam and failing tests proving limiter RPC errors return 503, persist a deduplicated `validate-passcode` operator alert without passcode material, and never call passcode validation; preserve the exact healthy 429 contract, integrate the seam, and make tests GREEN.
+- [x] 6.2 Verify alert-insert failure still returns 503, blocked-attempt handling remains correct, CORS/response contracts stay stable, and no log/title/detail/dedupe field contains the submitted passcode.
+
+## 7. Batch B — Premium Generation Throttle (SA-025)
+
+- [x] 7.1 Add a failing migration-source contract, then create the dedicated `premium_generation_attempts` table, composite enforcement/retention indexes, FORCE RLS and narrow grants, atomic advisory-lock limiter RPC, service-only 24-hour prune function, and prune schedule; document rollback SQL.
+- [x] 7.2 Add failing handler-seam tests for allowed, sixth-attempt 429, independent-show windows, limiter 503, and no-Claude-call behavior; integrate the limiter after authorization but before Claude while preserving Claude-only fallback copy, then make tests GREEN.
+- [x] 7.3 Verify the 15-minute lookup uses the composite index, concurrent attempts cannot exceed five, the 24-hour prune is bounded, and all RPC/table privileges exclude `PUBLIC`, `anon`, and `authenticated` unless explicitly required by the service path. Live planner/catalog and rolled-back concurrency evidence is recorded with the deployment proof.
+- [x] 7.4 [SHARED-SYSTEM GATE] After approval, pushed the limiter migration, deployed `generate-premium`, and recorded valid, exhausted, and limiter-failure paths without paid Claude traffic. A successful paid generation remains an optional cost smoke, not a security gate.
+
+## 8. Batch B — Dedicated Push Secret (SA-029)
+
+- [x] 8.1 Compare redacted SHA-256 digests for Vault `push_webhook_secret` and project `PUSH_WEBHOOK_SECRET`, inventory all five push-trigger deployments/callers, and prepare a rotation, deploy, smoke, and rollback manifest.
+- [x] 8.2 Add failing shared and source-contract tests, remove every inbound `SUPABASE_SERVICE_ROLE_KEY` fallback, route announcement/chat/support triggers through `requirePushWebhookSecret`, preserve the legitimate downstream support bearer, and prove dedicated-secret success plus service-role-only rejection.
+- [x] 8.3 [SHARED-SYSTEM GATE] Dedicated-secret enforcement is live: all five push-trigger functions were deployed, Vault-bearer smokes succeeded, and service-role bearer smokes were rejected. Rotation was not required because the reviewed dedicated secret already matched.
+
+## 9. Batch B — Supabase Advisor Disposition
+
+- [x] 9.1 [EXPANDED] Create `scripts/qa/db-drift/advisor-inventory.ts` with focused parser/generator tests and package scripts, save machine-readable before/post JSON under `docs/audits/2026-07-go-live-advisors/`, normalize by advisor code, level, schema, object name, and identity-argument signature, and fail on any unclassified repository-owned entry.
+- [x] 9.2 [EXPANDED] Inventory the 119 unique repository-owned SECURITY DEFINER functions behind 231 role warnings, including exact callers, trigger dependencies, inherited `PUBLIC` grants, direct role grants, and desired roles; generate signature-specific `REVOKE EXECUTE FROM PUBLIC, anon` plus narrow restore grants, preserve proven anonymous flows, and add source/call-site contract tests before any migration.
+- [x] 9.3 Build and run the advisor access matrix for the public/authenticated result views and record the preserved anonymous, passcode, owner/co-owner, official, release-state, stale-passcode, and scored-column behavior. The documented definer-view design remains intentional.
+- [x] 9.4 Disposition `login_attempts`, `show_money_locks`, and `show_passcodes` as deny-all RLS tables with no API-role privileges or client query paths; rationale comments are live.
+- [x] 9.5 Pin the reviewed repository-owned SECURITY DEFINER functions to `search_path = ''` with qualified bodies and source/rollback evidence.
+- [x] 9.6 Remove the two unused broad storage-listing policies while preserving public object retrieval; repository grep and live verification are recorded.
+- [x] 9.7 [ADDED] Documented the project-level exception for the 110 `auth_allow_anonymous_sign_ins` warnings, tied to the required ringside anonymous-session flow and cold-session gate.
+- [x] 9.8 [SHARED-SYSTEM GATE] Accepted advisor migrations were dry-run, pushed, and live-verified; the after export and privilege/view/storage evidence map each before entry to a fix, exclusion, or documented exception.
+
+## 10. Batch C — Operator-Owned Go-Live Rows
+
+- [x] 10.0a [EXPANDED] Add failing focused tests for the portable Resend helper covering first-attempt success, 429 plus `Retry-After`, 503 exponential fallback, network exception recovery, terminal `AbortError`/aborted signal, immediate non-408 4xx return, three-attempt exhaustion, HTTP-date parsing, 2,000 ms clamping, required JSON string body, hashed fallback idempotency, explicit-key preservation, and PII-free structured retry telemetry; record RED before implementation.
+- [x] 10.0b Implement byte-identical `resendEmail.ts` helpers in both Supabase deployment roots and make the focused helper tests GREEN without logging request bodies, authorization headers, recipient addresses, Auth token hashes, or generated idempotency material.
+- [x] 10.0c Replace all ten raw production Resend email fetches in `send-auth-email`, `send-confirmation-email`, `send-email`, `send-lifecycle-email`, `send-registration-email`, `send-results`, `send-waitlist-invite`, `push-trigger-support-message`, `cron-process-payouts`, and `_shared/alertAdmin`; preserve each caller's success/failure contract and existing business idempotency keys.
+- [x] 10.0d Add a repository source-contract test that proves the helper mirrors are byte-identical, every direct sender imports a helper, and no production file outside the two helpers contains a raw `fetch` to the Resend emails endpoint. Add or update focused caller tests for final-failure logging/status and no duplicate business action after retry.
+- [x] 10.0e Run focused Vitest suites, app and repository typecheck/lint, both Supabase-root bundle checks, OpenSpec strict validation, and a second-opinion Edge/security review; stop a hanging runner after 60 seconds and record any limitation. Completed 2026-07-12: 90 focused tests, repository typecheck/lint, portable checks, strict validation, CI, and five clean review rounds passed. Docker blocked the local bundle attempt; successful Supabase API bundling/deployment of both roots closed that limitation. See `evidence/transactional-email-reliability.md`.
+- [x] 10.0f [EXPANDED] [SHARED-SYSTEM GATE] After PR review/merge and explicit approval, record the current version of every affected Edge Function, deploy each with `--no-verify-jwt`, then run one controlled transient-failure smoke or provider-supported test plus ordinary auth/registration/alert smokes without sending bulk production mail. Verify retry telemetry contains only attempt/status/delay. Roll back by redeploying the recorded previous versions and repeating ordinary smokes if any function regresses. Completed 2026-07-12: all 12 affected functions are ACTIVE; fail-closed startup/auth smokes passed; password-reset and registration-confirmation logs are `delivered` and visually confirmed; a deduplicated live operator alert was created, delivered to the approved Gmail mailbox, and resolved; and a provider-safe burst recovered six real 429s after 1,000 ms with all 16 logical sends returning 200 and telemetry limited to attempt/status/delay. The temporary guarded smoke function was deleted and remote inventory is zero. Exact evidence and prior-source rollback commands are recorded in the evidence file.
+- [x] 10.1 [OPERATOR] Configure Custom SMTP and prove branded auth-email capacity above the built-in cap. Completed 2026-07-12: Management API backup/PATCH/read-back showed Resend SMTP, Send Email Hook enabled, unchanged production `site_url`, and 100/hour; a real Gmail password-reset was delivered and visually confirmed branded, and the temporary PAT was revoked.
+- [ ] 10.1a [OPERATOR] Upgrade Resend Transactional before production and record the selected paid tier, monthly quota/overage posture, no-daily-limit status, and current team request rate; Free's 100/day quota is not launch-safe.
+- [ ] 10.1b [OPERATOR/SHARED-SYSTEM GATE] After 10.1a and explicit approval, back up Auth config, PATCH only `rate_limit_email_sent` from 100 to 1,000, read it back, and prove SMTP, Send Email Hook, sender, redirects, OAuth, and production `site_url` remain unchanged; revoke the temporary Management API credential.
+- [ ] 10.2 [OPERATOR] Start/complete TOS and privacy attorney review and record named sign-off or accepted-risk authority/deadline.
+- [ ] 10.3 [OPERATOR] Choose and execute a production-data strategy for the 16 test people and five demo shows using a backup/export and approved target-state manifest; then review Heritage and premium assignments.
+- [ ] 10.4 [OPERATOR] Complete Stripe live keys, webhook registration, Connect onboarding, Manual payout schedule, low-value live payment, and capped refund verification with redacted identifiers.
+- [ ] 10.5 [OPERATOR] Verify the confirmation-email flow in a real mailbox and prove the AKC recipient gate.
+- [ ] 10.6 [OPERATOR] Run the cold-incognito anonymous-surface walk and record screenshots/results.
+- [ ] 10.7 [OPERATOR] Run the offline ringside airplane-mode round trip and record device/reconciliation evidence.
+- [ ] 10.8 [OPERATOR] Configure and prove general Sentry alert routing to a named human, including the health cron route in task 2.5.
+- [ ] 10.9 [OPERATOR] Complete production domain/DNS and Vercel cutover evidence with rollback steps.
+- [ ] 10.10 [OPERATOR] Complete remaining admin-surface, show-day, print, and real-user evidence gates; review data-driven feature assignments and remove the stale removed-flag check from the runbook.
+
+## 11. Full Verification, Tracking, Review, and Merge
+
+- [ ] 11.1 Run focused Edge/client tests, migration/source contract tests, database/security QA, duplicate-version scan, app typecheck/lint, repository typecheck/lint/build, and the full test suite once; stop any hanging runner after 60 seconds and record limitations rather than looping.
+- [ ] 11.2 Run OpenSpec implementation verification and a second-opinion security/database review; fix all CRITICAL and straightforward WARNING findings, then re-run the affected focused checks.
+- [ ] 11.3 After each completed slice, append evidence to the July 11 go-live report and security audit and synchronize `OPEN-TODOS.md`, the go-live runbook, launch-readiness scorecard, and `docs/README.md` without rewriting original findings; every accepted risk must name its risk, owner, deadline, and launch decision authority.
+- [x] 11.4 [EXPANDED] Separate PR boundaries were preserved for health monitoring, migration lineage, RLS, throttling, push-secret enforcement, and advisor disposition. Each implementation PR carried the OpenSpec link, CI/test evidence, rollback notes, and approval-gate status.
+- [ ] 11.5 [SHARED-SYSTEM GATE] Merge only after required review and CI are green; archive the OpenSpec change only after every required PR is merged and every remaining operator/shared-system row is evidenced or explicitly accepted with owner and deadline.

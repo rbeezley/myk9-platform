@@ -295,6 +295,7 @@ export function buildShowMapTree({
         startTime: cls.time || undefined,
         parentId: trialNode.id,
         childrenCount: classEntries.length,
+        reopenedAfterCloseoutAt: cls.reopenedAfterCloseoutAt ?? null,
       };
       addNode(tree, classNode);
 

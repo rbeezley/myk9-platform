@@ -85,4 +85,14 @@ describe('Club Queries', () => {
     expect(result.exists).toBe(true);
     expect(result.data).toEqual({ id: 'club-1', name: 'Heartland Scent Work Club' });
   });
+
+  it('omits the optional exclusion id when none is supplied', async () => {
+    mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: null, error: null }));
+
+    await checkClubNameExists('Heartland Scent Work Club');
+
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('find_live_club_by_normalized_name', {
+      p_name: 'Heartland Scent Work Club',
+    });
+  });
 });

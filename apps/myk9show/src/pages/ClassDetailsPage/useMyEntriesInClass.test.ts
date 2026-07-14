@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useMyEntriesInClass } from './useMyEntriesInClass';
+import { fromAny, fromPartial } from '@total-typescript/shoehorn';
 
 vi.mock('@/store/entryStore', () => ({ useEntryStore: vi.fn() }));
 vi.mock('@/hooks/useDogStoreCompat', () => ({ useDogStoreCompat: vi.fn() }));
@@ -21,7 +22,14 @@ function makeEntry(overrides = {}) {
     dogId: DOG_ID,
     showId: 'show-1',
     status: 'confirmed',
-    registrationData: { armband: '101', runOrder: 2, handler: 'Sarah', submittedAt: '', entryFee: 0, paymentStatus: 'paid' },
+    registrationData: {
+      armband: '101',
+      runOrder: 2,
+      handler: 'Sarah',
+      submittedAt: '',
+      entryFee: 0,
+      paymentStatus: 'paid',
+    },
     competitionData: undefined,
     checkInStatus: 'no-status',
     ...overrides,
@@ -33,12 +41,14 @@ function makeDog(overrides = {}) {
 }
 
 function setMocks({ entries = [makeEntry()], dogs = [makeDog()], userId = USER_ID } = {}) {
-  vi.mocked(useAuthContext).mockReturnValue({
-    userWithRoles: { databaseUserId: userId },
-  } as ReturnType<typeof useAuthContext>);
+  vi.mocked(useAuthContext).mockReturnValue(
+    fromPartial({
+      userWithRoles: { databaseUserId: userId },
+    })
+  );
 
-  vi.mocked(useEntryStore).mockImplementation((selector: (s: unknown) => unknown) =>
-    selector({ entries })
+  vi.mocked(useEntryStore).mockImplementation(
+    fromAny((selector: (s: unknown) => unknown) => selector({ entries }))
   );
 
   vi.mocked(useDogStoreCompat).mockReturnValue({ dogs } as ReturnType<typeof useDogStoreCompat>);
@@ -93,7 +103,13 @@ describe('useMyEntriesInClass', () => {
   });
 
   it('isAfterClass is true when competitionData present', () => {
-    const compData = { qualified: true, time: '00:38.2', placement: '1', recordedBy: 'j', recordedAt: '' };
+    const compData = {
+      qualified: true,
+      time: '00:38.2',
+      placement: '1',
+      recordedBy: 'j',
+      recordedAt: '',
+    };
     setMocks({ entries: [makeEntry({ competitionData: compData, status: 'completed' })] });
     const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));
     expect(result.current.isAfterClass).toBe(true);
@@ -104,25 +120,85 @@ describe('useMyEntriesInClass', () => {
   });
 
   it('computes dogsAhead from unscored entries with lower runOrder', () => {
-    const otherEntry1 = makeEntry({ id: 'oe1', dogId: 'dog-x', registrationData: { armband: '99', runOrder: 1, handler: 'x', submittedAt: '', entryFee: 0, paymentStatus: 'paid' } });
-    const otherEntry2 = makeEntry({ id: 'oe2', dogId: 'dog-x', registrationData: { armband: '100', runOrder: 3, handler: 'x', submittedAt: '', entryFee: 0, paymentStatus: 'paid' } });
+    const otherEntry1 = makeEntry({
+      id: 'oe1',
+      dogId: 'dog-x',
+      registrationData: {
+        armband: '99',
+        runOrder: 1,
+        handler: 'x',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'paid',
+      },
+    });
+    const otherEntry2 = makeEntry({
+      id: 'oe2',
+      dogId: 'dog-x',
+      registrationData: {
+        armband: '100',
+        runOrder: 3,
+        handler: 'x',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'paid',
+      },
+    });
     // My dog has runOrder 2; entry oe1 (runOrder 1) is ahead; oe2 is behind
-    const myEntry = makeEntry({ registrationData: { armband: '101', runOrder: 2, handler: 'Sarah', submittedAt: '', entryFee: 0, paymentStatus: 'paid' } });
+    const myEntry = makeEntry({
+      registrationData: {
+        armband: '101',
+        runOrder: 2,
+        handler: 'Sarah',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'paid',
+      },
+    });
     setMocks({ entries: [myEntry, otherEntry1, otherEntry2] });
     const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));
     expect(result.current.myEntries[0].dogsAhead).toBe(1);
   });
 
   it('dogsAhead is 0 when no unscored entries ahead', () => {
-    const myEntry = makeEntry({ registrationData: { armband: '101', runOrder: 1, handler: 'Sarah', submittedAt: '', entryFee: 0, paymentStatus: 'paid' } });
+    const myEntry = makeEntry({
+      registrationData: {
+        armband: '101',
+        runOrder: 1,
+        handler: 'Sarah',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'paid',
+      },
+    });
     setMocks({ entries: [myEntry] });
     const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));
     expect(result.current.myEntries[0].dogsAhead).toBe(0);
   });
 
   it('position is 1-based index in sorted run order', () => {
-    const otherEntry = makeEntry({ id: 'oe1', dogId: 'dog-x', registrationData: { armband: '99', runOrder: 1, handler: 'x', submittedAt: '', entryFee: 0, paymentStatus: 'paid' } });
-    const myEntry = makeEntry({ registrationData: { armband: '101', runOrder: 2, handler: 'Sarah', submittedAt: '', entryFee: 0, paymentStatus: 'paid' } });
+    const otherEntry = makeEntry({
+      id: 'oe1',
+      dogId: 'dog-x',
+      registrationData: {
+        armband: '99',
+        runOrder: 1,
+        handler: 'x',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'paid',
+      },
+    });
+    const myEntry = makeEntry({
+      registrationData: {
+        armband: '101',
+        runOrder: 2,
+        handler: 'Sarah',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'paid',
+      },
+    });
     setMocks({ entries: [myEntry, otherEntry] });
     const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));
     // My dog is at run order 2 → 2nd position (1-based)
@@ -168,7 +244,14 @@ describe('useMyEntriesInClass', () => {
         total_faults: 0,
         final_placement: 1,
         armband: '101',
-        dog: { id: DOG_ID, name: 'Magnolia', call_name: 'Maggie', breed: null, registrations: null, owner: null },
+        dog: {
+          id: DOG_ID,
+          name: 'Magnolia',
+          call_name: 'Maggie',
+          breed: null,
+          registrations: null,
+          owner: null,
+        },
       } as unknown as import('@/hooks/queries/useClassEntriesRaw').RawEntryRow,
     ];
     const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID, releasedRows));
@@ -192,7 +275,14 @@ describe('useMyEntriesInClass', () => {
         total_faults: 0,
         final_placement: 2,
         armband: '102',
-        dog: { id: 'someone-elses-dog', name: 'Rex', call_name: 'Rex', breed: null, registrations: null, owner: null },
+        dog: {
+          id: 'someone-elses-dog',
+          name: 'Rex',
+          call_name: 'Rex',
+          breed: null,
+          registrations: null,
+          owner: null,
+        },
       } as unknown as import('@/hooks/queries/useClassEntriesRaw').RawEntryRow,
     ];
     const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID, releasedRows));
@@ -212,7 +302,14 @@ describe('useMyEntriesInClass', () => {
         total_faults: 0,
         final_placement: 1,
         armband: '101',
-        dog: { id: DOG_ID, name: 'Magnolia', call_name: 'Maggie', breed: null, registrations: null, owner: null },
+        dog: {
+          id: DOG_ID,
+          name: 'Magnolia',
+          call_name: 'Maggie',
+          breed: null,
+          registrations: null,
+          owner: null,
+        },
       } as unknown as import('@/hooks/queries/useClassEntriesRaw').RawEntryRow,
     ];
     const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID, releasedRows));

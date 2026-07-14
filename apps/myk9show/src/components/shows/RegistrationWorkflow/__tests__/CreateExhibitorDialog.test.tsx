@@ -5,6 +5,7 @@ import { UserRole } from '@/types/auth-types';
 import { createUser } from '@/services/database/users';
 import { useUserStore } from '@/store/userStore';
 import { CreateExhibitorDialog } from '../CreateExhibitorDialog';
+import { fromAny } from '@total-typescript/shoehorn';
 
 const { mockCreatePerson, mockGetPendingPersonMutationIdsForRow } = vi.hoisted(() => ({
   mockCreatePerson: vi.fn(),
@@ -44,20 +45,22 @@ describe('CreateExhibitorDialog', () => {
   });
 
   it('persists a mail-in exhibitor as a people row', async () => {
-    createUserMock.mockResolvedValue({
-      data: {
-        id: 'person-mailin-1',
-        first_name: 'Molly',
-        last_name: 'Mailbox',
-        email: 'molly.mailbox@example.com',
-        phone: '555-1000',
-        street_address: '123 Paper Trail',
-        city: 'Envelope',
-        state: 'TX',
-        zip_code: '75001',
-      },
-      error: null,
-    });
+    createUserMock.mockResolvedValue(
+      fromAny({
+        data: {
+          id: 'person-mailin-1',
+          first_name: 'Molly',
+          last_name: 'Mailbox',
+          email: 'molly.mailbox@example.com',
+          phone: '555-1000',
+          street_address: '123 Paper Trail',
+          city: 'Envelope',
+          state: 'TX',
+          zip_code: '75001',
+        },
+        error: null,
+      })
+    );
 
     const onExhibitorCreated = vi.fn();
     const user = userEvent.setup();

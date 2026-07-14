@@ -9,17 +9,17 @@
 import { vi } from 'vitest';
 import type * as ZustandTypes from 'zustand';
 import { registerStoreReset } from './zustandReset';
+import { fromAny } from '@total-typescript/shoehorn';
 
 const actual = await vi.importActual<typeof ZustandTypes>('zustand');
 const actualCreate = actual.create;
 const actualCreateStore = actual.createStore;
 
-function trackStore<S extends { getInitialState: () => unknown; setState: (s: unknown, replace: true) => void }>(
-  store: S
-): S {
-  const initialState = store.getInitialState();
+function trackStore<S>(store: S): S {
+  const typedStore = fromAny<ZustandTypes.StoreApi<unknown>, unknown>(store);
+  const initialState = typedStore.getInitialState();
   registerStoreReset(() => {
-    store.setState(initialState, true);
+    typedStore.setState(initialState, true);
   });
   return store;
 }

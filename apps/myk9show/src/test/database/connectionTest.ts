@@ -56,7 +56,7 @@ export const runDatabaseTests = async () => {
     logger.debug(`✅ Retrieved ${dogs.length} dogs`, 'app', {});
 
     if (dogs.length > 0) {
-      const { data: dog, error: dogError } = await getDogById(dogs[0].id);
+      const { data: dog, error: dogError } = await getDogById(String(dogs[0]!.id));
       if (dogError) {
         logger.debug(`❌ Failed to get dog by ID: ${dogError.message}`, 'app', {});
         return false;

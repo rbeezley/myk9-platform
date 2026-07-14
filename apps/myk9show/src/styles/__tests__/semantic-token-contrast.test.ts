@@ -1,88 +1,162 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import {
+  block,
+  composite,
+  contrastRatio,
+  discoverAccentNames,
+  parseColor,
+  parseHex,
+  parseRgbTriplet,
+  resolveColorValue,
+  type RgbColor,
+  varValue,
+} from './contrast-test-utils';
 
 const appRoot = process.cwd();
 const AA_SMALL_TEXT = 4.5;
+const AA_UI_COMPONENT = 3;
 
 function read(relPath: string): string {
   return readFileSync(join(appRoot, relPath), 'utf8');
 }
 
-function parseRgbTriplet(value: string): [number, number, number] {
-  const parts = value.trim().split(/\s+/).map(Number);
-  if (parts.length !== 3 || parts.some(part => !Number.isFinite(part))) {
-    throw new Error(`Expected RGB triplet, got "${value}"`);
-  }
-  return [parts[0], parts[1], parts[2]];
-}
-
-function parseHex(value: string): [number, number, number] {
-  const hex = value.trim().replace('#', '');
-  if (!/^[0-9a-f]{6}$/i.test(hex)) {
-    throw new Error(`Expected hex color, got "${value}"`);
-  }
-  return [0, 2, 4].map(index => Number.parseInt(hex.slice(index, index + 2), 16)) as [
-    number,
-    number,
-    number,
-  ];
-}
-
-function parseColor(value: string): [number, number, number] {
-  return value.trim().startsWith('#') ? parseHex(value) : parseRgbTriplet(value);
-}
-
-function luminance(color: [number, number, number]): number {
-  const [r, g, b] = color.map(channel => {
-    const value = channel / 255;
-    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function contrastRatio(
-  first: [number, number, number],
-  second: [number, number, number]
-): number {
-  const lighter = Math.max(luminance(first), luminance(second));
-  const darker = Math.min(luminance(first), luminance(second));
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
-function mixWithWhite(color: [number, number, number], alpha: number): [number, number, number] {
-  return color.map(channel => Math.round(channel * alpha + 255 * (1 - alpha))) as [
-    number,
-    number,
-    number,
-  ];
-}
-
-function varValue(css: string, name: string): string {
-  const match = css.match(new RegExp(`${name}:\\s*([^;]+);`));
-  if (!match) throw new Error(`Missing ${name}`);
-  return match[1].trim();
-}
-
-function block(css: string, selector: string): string {
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = css.match(new RegExp(`[^{}]*${escaped}[^{}]*\\{([\\s\\S]*?)\\n\\}`));
-  if (!match) throw new Error(`Missing block for ${selector}`);
-  return match[1];
-}
-
 describe('semantic token contrast', () => {
   const indexCss = read('src/index.css');
   const redesignTokens = read('src/styles/redesign-tokens.css');
+  const paletteTokens = read('src/pages/scoring/styles/design-tokens.css');
   const darkBlock = indexCss.slice(indexCss.indexOf('.dark {'));
   const chipLightBlock = block(redesignTokens, ':root');
   const chipDarkBlock = block(redesignTokens, '.dark');
+
+  function expectContrast(label: string, foreground: RgbColor, background: RgbColor, minimum = 4.5) {
+    expect(contrastRatio(foreground, background), label).toBeGreaterThanOrEqual(minimum);
+  }
+
+  function recordContrastFailure(
+    failures: string[],
+    label: string,
+    foreground: RgbColor,
+    background: RgbColor,
+    minimum = 4.5
+  ) {
+    const ratio = contrastRatio(foreground, background);
+    if (ratio < minimum) failures.push(`${label}: ${ratio.toFixed(2)}:1 (needs ${minimum}:1)`);
+  }
+
+  const semanticPairs = [
+    ['--foreground', '--background'],
+    ['--card-foreground', '--card'],
+    ['--popover-foreground', '--popover'],
+    ['--sidebar-foreground', '--sidebar'],
+    ['--card-secondary-foreground', '--card-secondary'],
+    ['--secondary-foreground', '--secondary'],
+    ['--muted-foreground', '--muted'],
+  ] as const;
+
+  it.each([
+    { theme: 'light', themeCss: indexCss },
+    { theme: 'dark', themeCss: darkBlock },
+  ])('keeps every core semantic pair readable in $theme mode', ({ theme, themeCss }) => {
+    for (const [foregroundToken, backgroundToken] of semanticPairs) {
+      const foreground = resolveColorValue(foregroundToken, themeCss, indexCss, paletteTokens);
+      const background = resolveColorValue(backgroundToken, themeCss, indexCss, paletteTokens);
+      expectContrast(`${theme} ${foregroundToken} on ${backgroundToken}`, foreground, background);
+    }
+  });
+
+  const statusPairs = [
+    ['success', '--success', '--success', '--success-foreground'],
+    ['warning', '--warning', '--warning', '--warning-foreground'],
+    ['info', '--info-strong', '--info', '--info-foreground'],
+    ['destructive', '--destructive', '--destructive', '--destructive-foreground'],
+  ] as const;
+
+  it.each([
+    { theme: 'light', themeCss: indexCss },
+    { theme: 'dark', themeCss: darkBlock },
+  ])('keeps semantic status fills and 10% tints readable in $theme mode', ({ theme, themeCss }) => {
+    const failures: string[] = [];
+    const surfaces = ['--background', '--card'] as const;
+    for (const [label, tintTextToken, fillToken, fillForegroundToken] of statusPairs) {
+      const fill = resolveColorValue(fillToken, themeCss, indexCss, paletteTokens);
+      const fillForeground = resolveColorValue(
+        fillForegroundToken,
+        themeCss,
+        indexCss,
+        paletteTokens
+      );
+      recordContrastFailure(failures, `${theme} solid ${label}`, fillForeground, fill);
+
+      const tintText = resolveColorValue(tintTextToken, themeCss, indexCss, paletteTokens);
+      for (const surfaceToken of surfaces) {
+        const surface = resolveColorValue(surfaceToken, themeCss, indexCss, paletteTokens);
+        recordContrastFailure(
+          failures,
+          `${theme} ${label} 10% tint on ${surfaceToken}`,
+          tintText,
+          composite(fill, 0.1, surface)
+        );
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
+  it('discovers and verifies every accent in light and dark mode', () => {
+    const accentNames = discoverAccentNames(indexCss);
+    expect(accentNames.length).toBeGreaterThan(0);
+    const failures: string[] = [];
+
+    for (const accent of accentNames) {
+      const lightAccent = block(indexCss, `html[data-accent='${accent}']`);
+      const darkAccent = block(indexCss, `html[data-accent='${accent}'].dark`);
+
+      for (const [theme, accentCss, themeCss] of [
+        ['light', lightAccent, indexCss],
+        ['dark', darkAccent, darkBlock],
+      ] as const) {
+        const contexts = [accentCss, themeCss, indexCss, paletteTokens];
+        const primary = resolveColorValue('--primary', ...contexts);
+        const primaryHover = resolveColorValue('--primary-hover', ...contexts);
+        const primaryForeground = resolveColorValue('--primary-foreground', ...contexts);
+        const background = resolveColorValue('--background', ...contexts);
+        const accentFill = resolveColorValue('--accent', ...contexts);
+        const accentForeground = resolveColorValue('--accent-foreground', ...contexts);
+        const ring = resolveColorValue('--ring', ...contexts);
+
+        recordContrastFailure(failures, `${theme} ${accent} primary fill`, primaryForeground, primary);
+        recordContrastFailure(
+          failures,
+          `${theme} ${accent} primary hover fill`,
+          primaryForeground,
+          primaryHover
+        );
+        recordContrastFailure(failures, `${theme} ${accent} primary text`, primary, background);
+        recordContrastFailure(failures, `${theme} ${accent} accent pair`, accentForeground, accentFill);
+        recordContrastFailure(
+          failures,
+          `${theme} ${accent} focus ring`,
+          ring,
+          background,
+          AA_UI_COMPONENT
+        );
+
+        if (theme === 'light') {
+          const tint = resolveColorValue('--primary-tint', ...contexts);
+          const tintInk = resolveColorValue('--primary-tint-ink', ...contexts);
+          recordContrastFailure(failures, `${theme} ${accent} tint pair`, tintInk, tint);
+        }
+      }
+    }
+    expect(failures).toEqual([]);
+  });
 
   it.each(['--success', '--warning', '--info'])(
     'keeps light %s tint text at AA contrast',
     token => {
       const color = parseRgbTriplet(varValue(indexCss, token));
-      const tintedSurface = mixWithWhite(color, 0.1);
+      const tintedSurface = composite(color, 0.1, [255, 255, 255]);
       expect(contrastRatio(color, tintedSurface)).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
     }
   );

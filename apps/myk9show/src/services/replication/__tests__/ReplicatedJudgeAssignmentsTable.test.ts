@@ -22,6 +22,7 @@ const NULL_ENRICHMENT = {
   classStatus: null,
   classStartTime: null,
   classScoredCount: null,
+  classCheckedInCount: null,
   classTotalEntries: null,
   trialDate: null,
   trialTimezone: null,
@@ -67,6 +68,58 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
   afterEach(async () => {
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
+  });
+
+  describe('rebuildUpdatePayload day_capacity_override', () => {
+    const baseAssignment: ReplicatedJudgeAssignment = {
+      id: 'ja-1',
+      personId: 'person-1',
+      showId: 'show-1',
+      trialId: null,
+      classId: null,
+      status: 'confirmed',
+      invitedAt: '2026-03-01T00:00:00Z',
+      confirmedAt: '2026-03-02T00:00:00Z',
+      fee: 150.0,
+      notes: 'Scent work specialist',
+      ...NULL_ENRICHMENT,
+    };
+
+    function rebuild(assignment: ReplicatedJudgeAssignment): Record<string, unknown> {
+      return (
+        table as unknown as {
+          rebuildUpdatePayload: (a: ReplicatedJudgeAssignment) => Record<string, unknown>;
+        }
+      ).rebuildUpdatePayload(assignment);
+    }
+
+    it('omits day_capacity_override when the field is undefined (pre-migration cached row)', () => {
+      const assignment = { ...baseAssignment };
+      delete (assignment as { dayCapacityOverride?: number | null }).dayCapacityOverride;
+
+      const payload = rebuild(assignment);
+
+      expect(payload).not.toHaveProperty('day_capacity_override');
+    });
+
+    it('sends explicit null when the caller deliberately clears the override', () => {
+      const assignment: ReplicatedJudgeAssignment = {
+        ...baseAssignment,
+        dayCapacityOverride: null,
+      };
+
+      const payload = rebuild(assignment);
+
+      expect(payload).toHaveProperty('day_capacity_override', null);
+    });
+
+    it('sends the numeric override when set', () => {
+      const assignment: ReplicatedJudgeAssignment = { ...baseAssignment, dayCapacityOverride: 3 };
+
+      const payload = rebuild(assignment);
+
+      expect(payload).toHaveProperty('day_capacity_override', 3);
+    });
   });
 
   describe('Constructor', () => {
@@ -149,6 +202,7 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
         confirmedAt: null,
         fee: null,
         notes: null,
+        ...NULL_ENRICHMENT,
       });
       await table.set('ja-2', {
         id: 'ja-2',
@@ -161,6 +215,7 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
         confirmedAt: null,
         fee: null,
         notes: null,
+        ...NULL_ENRICHMENT,
       });
       await table.set('ja-3', {
         id: 'ja-3',
@@ -173,6 +228,7 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
         confirmedAt: null,
         fee: null,
         notes: null,
+        ...NULL_ENRICHMENT,
       });
     });
 

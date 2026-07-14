@@ -60,7 +60,7 @@ describe('semantic status token foundation', () => {
       // red-700 (185 28 28): AA everywhere — 5.1:1 on the bg-destructive/10 page-tinted
       // surface, 6.5:1 white-on-solid. red-600 (220 38 38) passed solid text but the
       // common bg-destructive/10 + text-destructive tint was only ~3.9:1; red-500 worse.
-      // Asserted against lightCss so the dark-mode --destructive (220 38 38) can't satisfy it.
+      // Asserted against lightCss so the dark-mode value cannot satisfy it.
       expect(lightCss).toContain('--destructive: 185 28 28');
       expect(lightCss).not.toContain('--destructive: 220 38 38');
       expect(lightCss).not.toContain('--destructive: 239 68 68');
@@ -85,8 +85,10 @@ describe('semantic status token foundation', () => {
       expect(darkCss).toContain('--info-foreground: 23 37 84');
       expect(darkCss).not.toContain('--info-foreground: 255 255 255');
     });
-    it('defines dark --destructive as an RGB triplet (not hex), scoped to .dark', () => {
-      expect(darkCss).toContain('--destructive: 220 38 38');
+    it('defines a readable dark destructive tint and solid-fill foreground', () => {
+      expect(darkCss).toContain('--destructive: 248 113 113');
+      expect(darkCss).toContain('--destructive-foreground: 69 10 10');
+      expect(darkCss).not.toContain('--destructive: 220 38 38');
       expect(darkCss).not.toContain('--destructive: 185 28 28');
       expect(darkCss).not.toContain('--destructive: #dc2626');
     });

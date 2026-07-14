@@ -10,6 +10,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { verifyStandardWebhookSignature } from '../_shared/standardWebhookSignature.ts';
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 
 const siteUrl = Deno.env.get('SITE_URL') || 'http://localhost:5173';
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -161,7 +162,7 @@ Deno.serve(async (req: Request) => {
       errorMessage = 'RESEND_API_KEY not configured';
     } else {
       try {
-        const response = await fetch('https://api.resend.com/emails', {
+        const response = await sendResendEmailWithRetry({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

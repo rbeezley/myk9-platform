@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { submitPaymentStep, type SubmitPaymentStepContext } from './submitPaymentStep';
 import { PaymentStatus } from '@/types/show-registration-types';
 
@@ -68,6 +68,7 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
     setIsSubmitting: vi.fn(),
     setRegistrationNumber: vi.fn(),
     setArmbandAssignments: vi.fn(),
+    setEntryOutcomes: vi.fn(),
     markStepComplete: vi.fn(),
     setCurrentStep: vi.fn(),
     updateShowRegistration: vi.fn(),
@@ -105,7 +106,22 @@ describe('submitPaymentStep', () => {
     submitOfflineLateEntryMock.mockResolvedValue({
       armbandAssignments: [{ dogId: 'dog-1', armband: '13' }],
       entryIds: ['entry-1'],
+      entryOutcomes: [
+        {
+          dogId: 'dog-1',
+          classId: 'class-1',
+          outcome: 'created',
+          entryId: 'entry-1',
+          waitlistEntryId: null,
+          feeCents: 2500,
+          capacityOverride: true,
+        },
+      ],
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('clears non-card cart lines after submit success and before sync', async () => {
@@ -151,6 +167,29 @@ describe('submitPaymentStep', () => {
     expect(ctx.cart.clearCart).not.toHaveBeenCalled();
     expect(notificationErrorMock).toHaveBeenCalledWith(
       'Entries are closed for this show. Contact the trial secretary for late-entry help.'
+    );
+  });
+
+  it('blocks before open using the show timezone, not the browser day', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-10T04:30:00.000Z'));
+    const { ctx } = makeContextAndOrder({
+      showFeeInfo: {
+        preEntryFee: '25',
+        startDate: '2026-08-01',
+        entryOpenDate: '2026-07-10',
+        entryCloseDate: '2026-07-20',
+        entryWindowTimezone: 'America/Los_Angeles',
+      },
+    });
+
+    await submitPaymentStep(ctx);
+
+    expect(submitRegistrationCartCheckoutMock).not.toHaveBeenCalled();
+    expect(submitShowRegistrationMock).not.toHaveBeenCalled();
+    expect(ctx.cart.clearCart).not.toHaveBeenCalled();
+    expect(notificationErrorMock).toHaveBeenCalledWith(
+      'Entries have not opened yet for this show. Check back on the entry open date.'
     );
   });
 
@@ -202,6 +241,9 @@ describe('submitPaymentStep', () => {
     expect(submitShowRegistrationMock).not.toHaveBeenCalled();
     expect(ctx.setRegistrationNumber).toHaveBeenCalledWith('LOCAL-ENTRY1');
     expect(ctx.setArmbandAssignments).toHaveBeenCalledWith([{ dogId: 'dog-1', armband: '13' }]);
+    expect(ctx.setEntryOutcomes).toHaveBeenCalledWith([
+      expect.objectContaining({ capacityOverride: true, outcome: 'created' }),
+    ]);
     expect(order).toEqual(['clearCart', 'triggerSync']);
     expect(ctx.markStepComplete).toHaveBeenCalledWith(ctx.currentStep);
   });

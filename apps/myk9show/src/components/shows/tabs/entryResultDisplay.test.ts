@@ -36,7 +36,7 @@ describe('getRemovedStateLabel', () => {
   });
 
   it('returns null for live, non-terminal entries so the caller falls through', () => {
-    expect(getRemovedStateLabel(entry('accepted', 'paid'))).toBeNull();
+    expect(getRemovedStateLabel(entry('confirmed', 'paid'))).toBeNull();
     expect(getRemovedStateLabel(entry('confirmed', 'pending'))).toBeNull();
     expect(getRemovedStateLabel(entry('checked-in', 'paid'))).toBeNull();
   });
@@ -55,7 +55,9 @@ describe('getPendingResultLabel', () => {
   const past = '2000-01-01';
 
   it('returns null once a result exists', () => {
-    expect(getPendingResultLabel({ hasResult: true, result: { qualified: true }, trialDate: past })).toBeNull();
+    expect(
+      getPendingResultLabel({ hasResult: true, result: { qualified: true }, trialDate: past })
+    ).toBeNull();
   });
 
   it('says "Upcoming" before the trial date', () => {

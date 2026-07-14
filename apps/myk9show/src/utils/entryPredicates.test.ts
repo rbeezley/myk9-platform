@@ -13,7 +13,7 @@ describe('isPendingEntry', () => {
   });
 
   it('returns true for pending entry status even when paid', () => {
-    expect(isPendingEntry(make(EntryStatus.PENDING, PaymentStatus.PAID))).toBe(true);
+    expect(isPendingEntry(make(EntryStatus.PENDING, PaymentStatus.PAID_ONLINE))).toBe(true);
   });
 
   it('returns false for accepted entry regardless of payment status', () => {
@@ -22,7 +22,7 @@ describe('isPendingEntry', () => {
   });
 
   it('returns false for accepted and paid entry', () => {
-    expect(isPendingEntry(make(EntryStatus.ACCEPTED, PaymentStatus.PAID))).toBe(false);
+    expect(isPendingEntry(make(EntryStatus.ACCEPTED, PaymentStatus.PAID_ONLINE))).toBe(false);
   });
 
   it('returns false for waitlisted entry', () => {
@@ -33,8 +33,8 @@ describe('isPendingEntry', () => {
 describe('isAcceptedEntry', () => {
   it('returns true only when entryStatus is ACCEPTED', () => {
     expect(isAcceptedEntry(make(EntryStatus.ACCEPTED, PaymentStatus.PENDING))).toBe(true);
-    expect(isAcceptedEntry(make(EntryStatus.ACCEPTED, PaymentStatus.PAID))).toBe(true);
-    expect(isAcceptedEntry(make(EntryStatus.PENDING, PaymentStatus.PAID))).toBe(false);
+    expect(isAcceptedEntry(make(EntryStatus.ACCEPTED, PaymentStatus.PAID_ONLINE))).toBe(true);
+    expect(isAcceptedEntry(make(EntryStatus.PENDING, PaymentStatus.PAID_ONLINE))).toBe(false);
   });
 });
 
@@ -44,7 +44,7 @@ describe('isIssueEntry', () => {
   });
 
   it('returns false for accepted and paid entry', () => {
-    expect(isIssueEntry(make(EntryStatus.ACCEPTED, PaymentStatus.PAID))).toBe(false);
+    expect(isIssueEntry(make(EntryStatus.ACCEPTED, PaymentStatus.PAID_ONLINE))).toBe(false);
   });
 
   it('returns false for pending entry (not yet accepted)', () => {

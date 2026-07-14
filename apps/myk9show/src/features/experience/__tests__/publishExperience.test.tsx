@@ -40,7 +40,7 @@ describe('publishExperience', () => {
         },
         club: { name: 'Bluegrass KC', logoUrl: null },
         secretary: { name: null, email: null, phone: null, mailingAddress: null },
-        officials: { chairman: null, steward: null },
+        officials: { chairman: null },
         trials: [],
         supplemental: {
           vetClinic: null,

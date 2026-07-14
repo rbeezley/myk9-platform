@@ -7,6 +7,7 @@ import { setEntryArmband } from '@/services/database/armbands';
 import { bulkCheckIn, deleteEntry, updateCheckInStatus } from '@/services/database/entries';
 import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
+import { fromAny } from '@total-typescript/shoehorn';
 
 const mocks = vi.hoisted(() => ({
   setEntryArmband: vi.fn(),
@@ -198,7 +199,12 @@ describe('useEntryManagementActions', () => {
 
   it('marks matching enrollment entries paid locally when the enrollment payment changes', async () => {
     vi.mocked(updateEnrollmentPaymentStatus).mockResolvedValue({
-      data: { id: 'registration-1', payment_status: 'paid_by_check' },
+      data: {
+        id: 'registration-1',
+        payment_status: 'paid_by_check',
+        payment_reference: null,
+        paid_amount: 35,
+      },
       error: null,
     });
     const entry = { ...makeEntry(), totalFee: 35 };
@@ -259,7 +265,12 @@ describe('useEntryManagementActions', () => {
 
   it('threads checkNumber through to updateEnrollmentPaymentStatus for check payments', async () => {
     vi.mocked(updateEnrollmentPaymentStatus).mockResolvedValue({
-      data: { id: 'registration-1', payment_status: 'paid_by_check' },
+      data: {
+        id: 'registration-1',
+        payment_status: 'paid_by_check',
+        payment_reference: null,
+        paid_amount: 35,
+      },
       error: null,
     });
     const entry = { ...makeEntry(), totalFee: 35 };
@@ -303,7 +314,12 @@ describe('useEntryManagementActions', () => {
 
   it('keeps entry-level refunds when an enrollment payment changes later', async () => {
     vi.mocked(updateEnrollmentPaymentStatus).mockResolvedValue({
-      data: { id: 'registration-1', payment_status: 'paid_by_check' },
+      data: {
+        id: 'registration-1',
+        payment_status: 'paid_by_check',
+        payment_reference: null,
+        paid_amount: 35,
+      },
       error: null,
     });
     const refundedEntry = {
@@ -348,7 +364,7 @@ describe('useEntryManagementActions', () => {
   });
 
   it('updates inline class check-in through the replicated check-in writer', async () => {
-    vi.mocked(updateCheckInStatus).mockResolvedValue({ data: null, error: null });
+    vi.mocked(updateCheckInStatus).mockResolvedValue(fromAny({ data: null, error: null }));
     const cls = {
       id: 'class-1',
       name: 'Novice A',

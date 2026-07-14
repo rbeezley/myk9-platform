@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GroupedSearchablePopover } from '@/components/ui/grouped-searchable-popover';
+import { fromAny } from '@total-typescript/shoehorn';
 
 // Mock Popover to render inline (avoids Portal/floating-ui issues in jsdom)
 vi.mock('@/components/ui/popover', () => ({
@@ -25,23 +26,22 @@ const judges: Item[] = [{ id: '3', name: 'Carol' }];
 function renderPicker(overrides: Partial<Parameters<typeof GroupedSearchablePopover>[0]> = {}) {
   const onSelect = vi.fn();
   const onOpenChange = vi.fn();
-  render(
-    <GroupedSearchablePopover<Item>
-      open={true}
-      onOpenChange={onOpenChange}
-      triggerLabel="Select person"
-      searchPlaceholder="Search..."
-      searchTerm=""
-      onSearchChange={vi.fn()}
-      groups={[
-        { groupKey: 'suggested', label: 'Suggested', items: judges },
-        { groupKey: 'all', label: 'All People', items: people },
-      ]}
-      renderItem={item => <span>{item.name}</span>}
-      onSelect={onSelect}
-      {...overrides}
-    />
-  );
+  const props = {
+    open: true,
+    onOpenChange,
+    triggerLabel: 'Select person',
+    searchPlaceholder: 'Search...',
+    searchTerm: '',
+    onSearchChange: vi.fn(),
+    groups: [
+      { groupKey: 'suggested', label: 'Suggested', items: judges },
+      { groupKey: 'all', label: 'All People', items: people },
+    ],
+    renderItem: (item: Item) => <span>{item.name}</span>,
+    onSelect,
+    ...overrides,
+  };
+  render(<GroupedSearchablePopover<Item> {...fromAny(props)} />);
   return { onSelect, onOpenChange };
 }
 

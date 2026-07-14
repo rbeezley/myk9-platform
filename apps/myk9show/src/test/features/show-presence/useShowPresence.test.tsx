@@ -37,6 +37,7 @@ const IDENTITY = { userId: 'u1', name: 'Mariana', role: 'exhibitor' };
 
 interface FakeChannel {
   topic: string;
+  state: string;
   on: ReturnType<typeof vi.fn>;
   subscribe: ReturnType<typeof vi.fn>;
   track: ReturnType<typeof vi.fn>;

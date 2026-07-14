@@ -55,18 +55,17 @@ vi.mock('@/config/features', () => ({
 }));
 
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
+import { fromPartial } from '@total-typescript/shoehorn';
 
-const mockDog: Dog = {
+const mockDog = fromPartial<Dog>({
   id: 'dog-1',
   name: 'Buddy',
-  call_name: 'Buddy',
+  callName: 'Buddy',
   breed: 'Border Collie',
-  date_of_birth: '2020-01-01',
-  sex: 'Male',
-  owner_id: 'user-1',
-  created_at: '2023-01-01T00:00:00Z',
-  updated_at: '2023-01-01T00:00:00Z',
-} as Dog;
+  dateOfBirth: '2020-01-01',
+  sex: 'male',
+  ownerId: 'user-1',
+});
 
 describe('DogDetailsTabs', () => {
   beforeEach(() => {
@@ -80,6 +79,7 @@ describe('DogDetailsTabs', () => {
         tier: 'free',
         isExpired: false,
         isInTrial: false,
+        isEarlyAdopter: false,
         isLoading: false,
       });
     });
@@ -92,14 +92,14 @@ describe('DogDetailsTabs', () => {
           { id: 'r2', organization: 'UKC', registrationNumber: 'U98765' },
         ],
       } as Dog;
-      render(<DogDetailsTabs dog={dogWithRegs} />);
+      render(<DogDetailsTabs dog={dogWithRegs} autoOpenAddRegistration={false} />);
       // PrimaryTabs renders count as a Badge with the numeric value
       expect(screen.getByText('2')).toBeInTheDocument();
     });
 
     it('shows 0 count when dog has no registrations', () => {
       const dogNoRegs = { ...mockDog, registrations: [] } as Dog;
-      render(<DogDetailsTabs dog={dogNoRegs} />);
+      render(<DogDetailsTabs dog={dogNoRegs} autoOpenAddRegistration={false} />);
       expect(screen.getByText('0')).toBeInTheDocument();
     });
   });
@@ -111,6 +111,7 @@ describe('DogDetailsTabs', () => {
         tier: 'free',
         isExpired: false,
         isInTrial: false,
+        isEarlyAdopter: false,
         isLoading: false,
       });
     });
@@ -125,7 +126,7 @@ describe('DogDetailsTabs', () => {
       ['Training Journal', "Document training sessions and track your dog's progress."],
       ['Pedigree', "Explore your dog's lineage and ancestry with detailed pedigree tracking."],
     ])('shows BlurGate overlay on %s tab', async (title, description) => {
-      const { user } = render(<DogDetailsTabs dog={mockDog} />);
+      const { user } = render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />);
 
       // Click the tab to activate it
       await user.click(screen.getByRole('tab', { name: new RegExp(title, 'i') }));
@@ -137,7 +138,7 @@ describe('DogDetailsTabs', () => {
     });
 
     it('does not show BlurGate on free tabs', async () => {
-      render(<DogDetailsTabs dog={mockDog} />);
+      render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />);
       // Registrations tab is default — no overlay
       expect(screen.queryByText('Premium Feature')).not.toBeInTheDocument();
     });
@@ -150,12 +151,13 @@ describe('DogDetailsTabs', () => {
         tier: 'premium',
         isExpired: false,
         isInTrial: false,
+        isEarlyAdopter: false,
         isLoading: false,
       });
     });
 
     it('does not show BlurGate overlay on Title Progress tab', async () => {
-      const { user } = render(<DogDetailsTabs dog={mockDog} />);
+      const { user } = render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />);
       await user.click(screen.getByRole('tab', { name: /title progress/i }));
       // The section is lazy()-loaded. When this test runs first under shuffle
       // its import() hasn't resolved yet, so await it via findByText rather

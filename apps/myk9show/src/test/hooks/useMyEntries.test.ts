@@ -12,7 +12,14 @@ let mockIsLoading = false;
 let mockError: string | null = null;
 
 // Auth mock state
-let mockAuthState = {
+let mockAuthState: {
+  userWithRoles: Record<string, unknown>;
+  isAdmin: boolean;
+  isSecretary: boolean;
+  loading: boolean;
+  rbacLoading: boolean;
+  hasRole: (role: string) => boolean;
+} = {
   userWithRoles: {
     databaseUserId: 'person-1',
     roles: [{ name: 'exhibitor' }],

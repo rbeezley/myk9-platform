@@ -89,6 +89,7 @@ describe('Gazette + Field Guide style matrix', () => {
           hospitalityNotes: null,
           awardsDescription: null,
           additionalNotes: null,
+          coverImageUrl: null,
         },
       };
       expect(() => renderTemplate(org, premium)).not.toThrow();

@@ -34,7 +34,9 @@ function renderBar(selectedCount: number, options?: { hasManualReleaseClasses?: 
           allClassIds={['class-1', 'class-2', 'class-3']}
           onSelectAll={vi.fn()}
           onClearSelection={clearSelection}
+          onDeselectClasses={vi.fn()}
           hasManualReleaseClasses={options?.hasManualReleaseClasses ?? false}
+          hasReleasedClasses={false}
         />
       </QueryClientProvider>
     ),

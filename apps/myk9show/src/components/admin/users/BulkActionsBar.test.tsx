@@ -103,6 +103,7 @@ describe('BulkActionsBar', () => {
       loading: false,
       signIn: vi.fn(),
       signUp: vi.fn(),
+      resendConfirmationEmail: vi.fn(),
       signOut: vi.fn(),
       signInWithGoogle: vi.fn(),
       resetPassword: vi.fn(),
@@ -122,6 +123,8 @@ describe('BulkActionsBar', () => {
       rbacLoading: false,
       rbacError: null,
       refreshPermissions: vi.fn().mockResolvedValue(undefined),
+      firstName: null,
+      lastName: null,
     });
 
     // Setup permanent delete mutation mock
@@ -401,6 +404,7 @@ describe('BulkActionsBar', () => {
         loading: false,
         signIn: vi.fn(),
         signUp: vi.fn(),
+        resendConfirmationEmail: vi.fn(),
         signOut: vi.fn(),
         signInWithGoogle: vi.fn(),
         resetPassword: vi.fn(),
@@ -420,6 +424,8 @@ describe('BulkActionsBar', () => {
         rbacLoading: false,
         rbacError: null,
         refreshPermissions: vi.fn().mockResolvedValue(undefined),
+        firstName: null,
+        lastName: null,
       });
     });
 

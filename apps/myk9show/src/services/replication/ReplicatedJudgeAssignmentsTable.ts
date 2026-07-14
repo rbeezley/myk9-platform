@@ -53,6 +53,7 @@ export interface ReplicatedJudgeAssignment extends JudgeAssignmentEnrichment {
   confirmedAt: string | null;
   fee: number | null;
   notes: string | null;
+  dayCapacityOverride?: number | null | undefined;
   // Sync metadata
   _version?: number | undefined;
   _lastModified?: Date | undefined;
@@ -110,6 +111,7 @@ export function rowToJudgeAssignment(row: JudgeAssignmentJoinedRow): ReplicatedJ
     confirmedAt: row.confirmed_at ?? null,
     fee: row.fee ?? null,
     notes: row.notes ?? null,
+    dayCapacityOverride: row.day_capacity_override ?? null,
     className: cls?.name ?? null,
     classElement: cls?.element ?? null,
     classLevel: cls?.level ?? null,
@@ -135,7 +137,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
   }
 
   private toSupabaseRow(assignment: ReplicatedJudgeAssignment): Record<string, unknown> {
-    return {
+    const row: Record<string, unknown> = {
       id: assignment.id,
       person_id: assignment.personId,
       show_id: assignment.showId ?? null,
@@ -148,6 +150,17 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
       notes: assignment.notes ?? null,
       updated_at: new Date().toISOString(),
     };
+
+    // Rows cached in IndexedDB before this field existed have
+    // dayCapacityOverride === undefined ("no value"). Omit the key in that
+    // case so an unrelated update doesn't silently clear a server-side
+    // override; a deliberate clear sets the field to explicit null, which
+    // IS sent through.
+    if (assignment.dayCapacityOverride !== undefined) {
+      row.day_capacity_override = assignment.dayCapacityOverride;
+    }
+
+    return row;
   }
 
   protected override rebuildUpdatePayload(

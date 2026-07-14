@@ -63,8 +63,6 @@ describe('Form Validation Tests', () => {
           data: validDogData,
         }),
       });
-
-      let validationModule;
       try {
         throw new Error('dogValidation module does not exist'); // Skip module import
       } catch {
@@ -93,12 +91,6 @@ describe('Form Validation Tests', () => {
 
         expect(validateDog(validDogData)).toBe(true);
       }
-
-      if (validationModule && validationModule.validateDogData) {
-        const result = validationModule.validateDogData(validDogData);
-        expect(result.success).toBe(true);
-        expect(result.data).toEqual(validDogData);
-      }
     });
 
     it('should reject invalid dog data', async () => {
@@ -123,8 +115,6 @@ describe('Form Validation Tests', () => {
           },
         }),
       });
-
-      let validationModule;
       try {
         throw new Error('dogValidation module does not exist'); // Skip module import
       } catch {
@@ -150,12 +140,6 @@ describe('Form Validation Tests', () => {
         const errors = validateDog(invalidDogData);
         expect(errors.length).toBeGreaterThan(0);
         expect(errors).toContain('Name is required');
-      }
-
-      if (validationModule && validationModule.validateDogData) {
-        const result = validationModule.validateDogData(invalidDogData);
-        expect(result.success).toBe(false);
-        expect(result.error.issues.length).toBeGreaterThan(0);
       }
     });
 
@@ -205,8 +189,6 @@ describe('Form Validation Tests', () => {
           data: validUserData,
         }),
       });
-
-      let validationModule;
       try {
         throw new Error('userValidation module does not exist'); // Skip module import
       } catch {
@@ -239,11 +221,6 @@ describe('Form Validation Tests', () => {
 
         const errors = validateUser(validUserData);
         expect(errors.length).toBe(0);
-      }
-
-      if (validationModule && validationModule.validateUserRegistration) {
-        const result = validationModule.validateUserRegistration(validUserData);
-        expect(result.success).toBe(true);
       }
     });
 
@@ -305,8 +282,6 @@ describe('Form Validation Tests', () => {
         showType: 'conformation',
         classes: ['puppy-dog', 'open-dog', 'puppy-bitch', 'open-bitch'],
       };
-
-      let validationModule;
       try {
         throw new Error('showValidation module does not exist'); // Skip module import
       } catch {
@@ -343,11 +318,6 @@ describe('Form Validation Tests', () => {
 
         const errors = validateShow(validShowData);
         expect(errors.length).toBe(0);
-      }
-
-      if (validationModule && validationModule.validateShowData) {
-        const result = validationModule.validateShowData(validShowData);
-        expect(result.success).toBe(true);
       }
     });
 
@@ -405,8 +375,6 @@ describe('Form Validation Tests', () => {
           total: 75.0,
         },
       };
-
-      let validationModule;
       try {
         throw new Error('entryValidation module does not exist'); // Skip module import
       } catch {
@@ -434,11 +402,6 @@ describe('Form Validation Tests', () => {
 
         const errors = validateEntry(validEntryData);
         expect(errors.length).toBe(0);
-      }
-
-      if (validationModule && validationModule.validateEntryData) {
-        const result = validationModule.validateEntryData(validEntryData);
-        expect(result.success).toBe(true);
       }
     });
 

@@ -133,10 +133,15 @@ import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 
 function buildDraft(selectedDogs: string[]): SavedDraft {
   return {
-    showId: 'show-1',
-    userId: 'user-1',
-    currentStep: 'class-selection',
-    savedAt: new Date().toISOString(),
+    metadata: {
+      id: 'draft-1',
+      showId: 'show-1',
+      userId: 'user-1',
+      timestamp: Date.now(),
+      stepCompleted: 'class-selection',
+      title: 'Draft registration',
+      preview: 'Draft registration',
+    },
     data: {
       selectedDogs,
       entries: [],

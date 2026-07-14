@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
+import { fromAny, fromPartial } from '@total-typescript/shoehorn';
 import { useShowEntriesForUser } from './useShowEntriesForUser';
 
 // ---------------------------------------------------------------------------
@@ -31,7 +32,8 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStoreCompat } from '@/hooks/useShowStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { ScopeType, UserRole } from '@/types/auth-types';
+import { ScopeType, UserRole, type RoleScope } from '@/types/auth-types';
+import type { Show } from '@/types/show-types';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -70,11 +72,32 @@ function makeEntry(overrides = {}) {
     classId: CLASS_ID,
     dogId: DOG_ID,
     status: 'accepted',
-    registrationData: { armband: '101', runOrder: 3, handler: 'Sarah', submittedAt: '', entryFee: 0, paymentStatus: 'paid' },
+    registrationData: {
+      armband: '101',
+      runOrder: 3,
+      handler: 'Sarah',
+      submittedAt: '',
+      entryFee: 0,
+      paymentStatus: 'paid',
+    },
     competitionData: undefined,
     checkInStatus: 'no-status',
     ...overrides,
   };
+}
+
+interface SetMocksOptions {
+  entries?: Array<ReturnType<typeof makeEntry>>;
+  classes?: Array<ReturnType<typeof makeClass>>;
+  dogs?: Array<ReturnType<typeof makeDog>>;
+  shows?: Array<{ id: string; clubId: string; assignedJudges?: Show['assignedJudges'] }>;
+  userId?: string;
+  isAdmin?: boolean;
+  isSecretary?: boolean;
+  scopes?: Array<Pick<RoleScope, 'scopeType' | 'scopeId' | 'roleId'>>;
+  hasRole?: (role: UserRole) => boolean;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
 function setMocks({
@@ -89,22 +112,23 @@ function setMocks({
   hasRole = vi.fn(() => false),
   isLoading = false,
   error = null,
-} = {}) {
-  vi.mocked(useAuthContext).mockReturnValue({
-    userWithRoles: { databaseUserId: userId, scopes },
-    isAdmin,
-    isSecretary,
-    hasRole,
-  } as ReturnType<typeof useAuthContext>);
+}: SetMocksOptions = {}) {
+  vi.mocked(useAuthContext).mockReturnValue(
+    fromPartial({
+      userWithRoles: { databaseUserId: userId, scopes },
+      isAdmin,
+      isSecretary,
+      hasRole,
+    })
+  );
 
-  vi.mocked(useEntryStore).mockImplementation((selector: (s: unknown) => unknown) => {
-    const state = { entries, isLoading, error };
-    return selector(state);
+  vi.mocked(useEntryStore).mockImplementation(selector => {
+    return selector(fromPartial({ entries: fromAny(entries), isLoading, error }));
   });
 
-  vi.mocked(useClassStoreCompat).mockReturnValue({ classes } as ReturnType<typeof useClassStoreCompat>);
-  vi.mocked(useDogStoreCompat).mockReturnValue({ dogs } as ReturnType<typeof useDogStoreCompat>);
-  vi.mocked(useShowStoreCompat).mockReturnValue({ shows } as ReturnType<typeof useShowStoreCompat>);
+  vi.mocked(useClassStoreCompat).mockReturnValue(fromPartial({ classes }));
+  vi.mocked(useDogStoreCompat).mockReturnValue(fromPartial({ dogs }));
+  vi.mocked(useShowStoreCompat).mockReturnValue(fromPartial({ shows }));
 }
 
 // ---------------------------------------------------------------------------
@@ -305,7 +329,11 @@ describe('useShowEntriesForUser', () => {
     const dog2 = makeDog({ id: 'dog-2', callName: 'Daisy' });
     const class2 = makeClass({ id: 'class-2' });
     const entry2 = makeEntry({ id: 'entry-2', dogId: 'dog-2', classId: 'class-2' });
-    setMocks({ dogs: [makeDog(), dog2], classes: [makeClass(), class2], entries: [makeEntry(), entry2] });
+    setMocks({
+      dogs: [makeDog(), dog2],
+      classes: [makeClass(), class2],
+      entries: [makeEntry(), entry2],
+    });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
     expect(result.current.dogGroups).toHaveLength(2);
     expect(result.current.totalClasses).toBe(2);
@@ -330,12 +358,28 @@ describe('useShowEntriesForUser', () => {
   it('computes dogsAhead correctly', () => {
     // entry has runOrder 3; two other unscored entries in same class with orders 1 and 2
     const otherEntry1 = makeEntry({
-      id: 'oe1', dogId: 'dog-x',
-      registrationData: { armband: '100', runOrder: 1, handler: 'x', submittedAt: '', entryFee: 0, paymentStatus: 'paid' },
+      id: 'oe1',
+      dogId: 'dog-x',
+      registrationData: {
+        armband: '100',
+        runOrder: 1,
+        handler: 'x',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'paid',
+      },
     });
     const otherEntry2 = makeEntry({
-      id: 'oe2', dogId: 'dog-x',
-      registrationData: { armband: '102', runOrder: 2, handler: 'x', submittedAt: '', entryFee: 0, paymentStatus: 'paid' },
+      id: 'oe2',
+      dogId: 'dog-x',
+      registrationData: {
+        armband: '102',
+        runOrder: 2,
+        handler: 'x',
+        submittedAt: '',
+        entryFee: 0,
+        paymentStatus: 'paid',
+      },
     });
     setMocks({ entries: [makeEntry(), otherEntry1, otherEntry2] });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));

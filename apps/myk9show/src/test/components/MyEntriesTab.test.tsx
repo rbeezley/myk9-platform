@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
+import { fromAny } from '@total-typescript/shoehorn';
 
 vi.mock('@/hooks/useShowEntriesForUser', () => ({ useShowEntriesForUser: vi.fn() }));
 vi.mock('@/store/entryStore', () => ({ useEntryStore: vi.fn() }));
@@ -27,7 +28,7 @@ import { useEntryStore } from '@/store/entryStore';
 
 function setupEntryStore() {
   vi.mocked(useEntryStore).mockImplementation(
-    (sel: (s: unknown) => unknown) => sel({ loadEntries: vi.fn() })
+    fromAny((sel: (s: unknown) => unknown) => sel({ loadEntries: vi.fn() }))
   );
 }
 
@@ -73,13 +74,15 @@ describe('MyEntriesTab', () => {
   });
 
   it('renders WhereToBe and one DogEntriesSection per dog', () => {
-    vi.mocked(useShowEntriesForUser).mockReturnValue(makeHookResult({
-      dogGroups: [makeGroup('Maggie'), makeGroup('Daisy')],
-      allEntries: [{}] as never,
-      scheduleEntries: [{}, {}] as never,
-      totalClasses: 3,
-      scheduleDogCount: 2,
-    }));
+    vi.mocked(useShowEntriesForUser).mockReturnValue(
+      makeHookResult({
+        dogGroups: [makeGroup('Maggie'), makeGroup('Daisy')],
+        allEntries: [{}] as never,
+        scheduleEntries: [{}, {}] as never,
+        totalClasses: 3,
+        scheduleDogCount: 2,
+      })
+    );
     render(<MyEntriesTab showId="s1" />);
     expect(screen.getByTestId('where-to-be')).toBeInTheDocument();
     expect(screen.getByText('2 entries')).toBeInTheDocument();
@@ -88,12 +91,14 @@ describe('MyEntriesTab', () => {
   });
 
   it('shows summary count line', () => {
-    vi.mocked(useShowEntriesForUser).mockReturnValue(makeHookResult({
-      dogGroups: [makeGroup('Maggie'), makeGroup('Daisy')],
-      allEntries: [{}] as never,
-      totalClasses: 3,
-      scheduleDogCount: 2,
-    }));
+    vi.mocked(useShowEntriesForUser).mockReturnValue(
+      makeHookResult({
+        dogGroups: [makeGroup('Maggie'), makeGroup('Daisy')],
+        allEntries: [{}] as never,
+        totalClasses: 3,
+        scheduleDogCount: 2,
+      })
+    );
     render(<MyEntriesTab showId="s1" />);
     expect(screen.getByText(/3 classes across 2 dogs/i)).toBeInTheDocument();
   });

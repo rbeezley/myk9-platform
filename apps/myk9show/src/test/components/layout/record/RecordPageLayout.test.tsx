@@ -3,7 +3,6 @@
  * Tests breadcrumb, stats, three-panel layout, children, and optional props
  */
 
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { RecordPageLayout } from '@/components/layout/record/RecordPageLayout';

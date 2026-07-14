@@ -23,7 +23,7 @@ function makeEntry(overrides: Partial<EnrichedShowEntry> = {}): EnrichedShowEntr
     startTime: '9:00 AM',
     judgeName: 'Smith',
     dogsAhead: 0,
-    entryStatus: 'accepted',
+    entryStatus: 'confirmed',
     paymentStatus: 'paid',
     hasResult: false,
     ...overrides,
@@ -51,7 +51,13 @@ describe('WhereToBe', () => {
   it('renders one row per entry', () => {
     const entries = [
       makeEntry({ entryId: 'e1', dogName: 'Maggie', classTitle: 'Container Novice A' }),
-      makeEntry({ entryId: 'e2', dogName: 'Daisy', classTitle: 'Interior Advanced', classId: 'c2', trialId: 't1' }),
+      makeEntry({
+        entryId: 'e2',
+        dogName: 'Daisy',
+        classTitle: 'Interior Advanced',
+        classId: 'c2',
+        trialId: 't1',
+      }),
     ];
     render(<WhereToBe entries={entries} showId={SHOW_ID} />);
     expect(screen.getAllByRole('link')).toHaveLength(2);
@@ -60,7 +66,12 @@ describe('WhereToBe', () => {
   it('groups entries into separate day sections', () => {
     const entries = [
       makeEntry({ entryId: 'e1', trialDate: '2026-05-10', dayLabel: 'Sunday, May 10' }),
-      makeEntry({ entryId: 'e2', trialDate: '2026-05-11', dayLabel: 'Monday, May 11', classId: 'c2' }),
+      makeEntry({
+        entryId: 'e2',
+        trialDate: '2026-05-11',
+        dayLabel: 'Monday, May 11',
+        classId: 'c2',
+      }),
     ];
     render(<WhereToBe entries={entries} showId={SHOW_ID} />);
     expect(screen.getByText('Sunday, May 10')).toBeInTheDocument();
@@ -143,7 +154,7 @@ describe('WhereToBe', () => {
 
   it('excludes withdrawn, moved source, and scratched rows from the runnable schedule', () => {
     const entries = [
-      makeEntry({ entryId: 'live', dogName: 'Maggie', entryStatus: 'accepted' }),
+      makeEntry({ entryId: 'live', dogName: 'Maggie', entryStatus: 'confirmed' }),
       makeEntry({ entryId: 'withdrawn', dogName: 'Ranger', entryStatus: 'withdrawn' }),
       makeEntry({ entryId: 'moved', dogName: 'Daisy', entryStatus: 'moved' }),
       makeEntry({ entryId: 'scratched', dogName: 'Scout', entryStatus: 'scratched' }),

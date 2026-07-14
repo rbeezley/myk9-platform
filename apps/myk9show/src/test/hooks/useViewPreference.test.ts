@@ -22,8 +22,9 @@ describe('useViewPreference', () => {
 
   it('updates an unsaved mode when the default changes', () => {
     const { result, rerender } = renderHook(
-      ({ defaultMode }) => useViewPreference('dogs', defaultMode),
-      { initialProps: { defaultMode: 'table' as const } }
+      ({ defaultMode }: { defaultMode: 'cards' | 'table' }) =>
+        useViewPreference('dogs', defaultMode),
+      { initialProps: { defaultMode: 'table' } as { defaultMode: 'cards' | 'table' } }
     );
 
     expect(result.current[0]).toBe('table');

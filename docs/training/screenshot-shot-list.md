@@ -7,7 +7,7 @@ Every screenshot and diagram in final documentation and training materials must 
 **Status values:**
 
 - `ready` — UI is stable; this shot can be taken now
-- `blocked: flag` — _(retired 2026-06-23)_ formerly gated on `unified_ringside_enabled`; that flag was removed, so these shots are now `ready`. See [`docs/plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md).
+- `blocked: flag` — _(retired 2026-06-23)_ formerly gated on `unified_ringside_enabled`; that flag was removed, so these shots are now `ready`. See [`docs/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md).
 - `blocked: stripe` — needs a fresh sandbox Stripe onboarding walkthrough
 - `blocked: seed` — needs a specific seed fixture not yet in staging
 - `blocked: not-built` — the feature is not yet built
@@ -95,7 +95,7 @@ Every screenshot and diagram in final documentation and training materials must 
 
 ## Part 3 — Judge and Steward Quickstart Screenshots
 
-**Unblocked 2026-06-23:** the `unified_ringside_enabled` flag was removed (see [`docs/plan-remove-unified-ringside-flag.md`](../plan-remove-unified-ringside-flag.md)) — the at-show surface renders for every show, gated only by `AtShowAccessGate` (role / passcode). Capture these against staging once the removal PR merges + redeploys (no DB push required for capture). Note: the seed accounts below (`judge@myk9t.com`) are stale — staging named accounts have no `auth.users`; use the `e2e-*@test.myk9.com` accounts or a passcode grant.
+**Unblocked 2026-06-23:** the `unified_ringside_enabled` flag was removed (see [`docs/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md)) — the at-show surface renders for every show, gated only by `AtShowAccessGate` (role / passcode). Capture these against staging once the removal PR merges + redeploys (no DB push required for capture). Note: the seed accounts below (`judge@myk9t.com`) are stale — staging named accounts have no `auth.users`; use the `e2e-*@test.myk9.com` accounts or a passcode grant.
 
 | Shot ID | Description                            | Route                                             | Account                   | Viewport | Expected state                                                            | Quickstart section | Status                                                          |
 | ------- | -------------------------------------- | ------------------------------------------------- | ------------------------- | -------- | ------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------- |

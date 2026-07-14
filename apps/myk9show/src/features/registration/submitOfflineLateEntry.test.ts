@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { submitOfflineLateEntry } from './submitOfflineLateEntry';
+import { PaymentStatus } from '@/types/show-registration-types';
 
 const {
   createEntryMock,
@@ -9,6 +10,10 @@ const {
   getArmbandsByShowMock,
   upsertAssignedArmbandMock,
   getPendingArmbandMutationIdsForRowMock,
+  getEntriesByShowMock,
+  getAllClassesMock,
+  getTrialsByShowMock,
+  getJudgeAssignmentsByShowMock,
 } = vi.hoisted(() => ({
   createEntryMock: vi.fn(),
   getPendingMutationIdsForRowMock: vi.fn(),
@@ -17,11 +22,16 @@ const {
   getArmbandsByShowMock: vi.fn(),
   upsertAssignedArmbandMock: vi.fn(),
   getPendingArmbandMutationIdsForRowMock: vi.fn(),
+  getEntriesByShowMock: vi.fn(),
+  getAllClassesMock: vi.fn(),
+  getTrialsByShowMock: vi.fn(),
+  getJudgeAssignmentsByShowMock: vi.fn(),
 }));
 
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     createEntry: createEntryMock,
+    getEntriesByShow: getEntriesByShowMock,
   },
   replicatedDogsTable: {
     getPendingMutationIdsForRow: getPendingMutationIdsForRowMock,
@@ -31,6 +41,15 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedShowsTable: {
     getShowById: getShowByIdMock,
+  },
+  replicatedClassesTable: {
+    getAll: getAllClassesMock,
+  },
+  replicatedTrialsTable: {
+    getTrialsByShow: getTrialsByShowMock,
+  },
+  replicatedJudgeAssignmentsTable: {
+    getByShowId: getJudgeAssignmentsByShowMock,
   },
   replicatedArmbandsTable: {
     getByShow: getArmbandsByShowMock,
@@ -44,7 +63,18 @@ describe('submitOfflineLateEntry', () => {
     vi.clearAllMocks();
     getPendingMutationIdsForRowMock.mockResolvedValue(['dog-mutation-1']);
     getPendingRegistrationMutationIdsForDogMock.mockResolvedValue(['registration-mutation-1']);
-    getShowByIdMock.mockResolvedValue({ id: 'show-1', startingArmbandNumber: 100 });
+    getShowByIdMock.mockResolvedValue({
+      id: 'show-1',
+      startingArmbandNumber: 100,
+      defaultJudgeDayCapacity: 125,
+    });
+    getEntriesByShowMock.mockResolvedValue([]);
+    getAllClassesMock.mockResolvedValue([
+      { id: 'class-1', trialId: 'trial-1', maxEntries: 10 },
+      { id: 'class-2', trialId: 'trial-1', maxEntries: 10 },
+    ]);
+    getTrialsByShowMock.mockResolvedValue([{ id: 'trial-1', date: '2026-07-13' }]);
+    getJudgeAssignmentsByShowMock.mockResolvedValue([]);
     getArmbandsByShowMock.mockResolvedValue([{ id: 'existing-armband', armbandNumber: '12' }]);
     upsertAssignedArmbandMock.mockResolvedValue('armband-mutation-1');
     getPendingArmbandMutationIdsForRowMock.mockResolvedValue([]);
@@ -58,6 +88,12 @@ describe('submitOfflineLateEntry', () => {
   });
 
   it('creates confirmed replicated day-of entries with payment and dog dependency metadata', async () => {
+    getAllClassesMock.mockResolvedValue([
+      { id: 'class-1', trialId: 'trial-1', maxEntries: 1 },
+      { id: 'class-2', trialId: 'trial-1', maxEntries: 10 },
+    ]);
+    getEntriesByShowMock.mockResolvedValue([{ classId: 'class-1', entryStatus: 'submitted' }]);
+
     const result = await submitOfflineLateEntry({
       showId: 'show-1',
       paymentMethod: 'cash',
@@ -75,10 +111,7 @@ describe('submitOfflineLateEntry', () => {
         {
           dogId: 'dog-1',
           trialId: 'trial-1',
-          selectedClasses: [
-            { classId: 'class-1', jumpHeight: '16' },
-            { classId: 'class-2' },
-          ],
+          selectedClasses: [{ classId: 'class-1', jumpHeight: '16' }, { classId: 'class-2' }],
         },
       ],
       handlerAssignments: {
@@ -102,6 +135,8 @@ describe('submitOfflineLateEntry', () => {
         handler: 'Jamie Walker',
         handlerId: 'handler-1',
         isDayOfShow: true,
+        entrySource: 'myk9',
+        capacityOverride: true,
         paymentMethod: 'cash',
         paymentStatus: 'pending',
         entryStatus: 'confirmed',
@@ -130,6 +165,88 @@ describe('submitOfflineLateEntry', () => {
     });
     expect(result.armbandAssignments).toEqual([{ dogId: 'dog-1', armband: '100' }]);
     expect(result.entryIds).toHaveLength(2);
+    expect(result.entryOutcomes).toEqual([
+      expect.objectContaining({
+        dogId: 'dog-1',
+        classId: 'class-1',
+        outcome: 'created',
+        capacityOverride: true,
+      }),
+      expect.objectContaining({
+        dogId: 'dog-1',
+        classId: 'class-2',
+        outcome: 'created',
+        capacityOverride: false,
+      }),
+    ]);
+  });
+
+  it('records ordinary show-desk provenance without a false capacity override', async () => {
+    await submitOfflineLateEntry({
+      showId: 'show-1',
+      paymentMethod: 'cash',
+      showFeeInfo: {
+        preEntryFee: '25',
+        dayOfShowFee: '35',
+        startDate: '2026-07-01',
+      },
+      classes: [{ id: 'class-1', entryFee: 30 }],
+      classSelections: [
+        {
+          dogId: 'dog-1',
+          trialId: 'trial-1',
+          selectedClasses: [{ classId: 'class-1' }],
+        },
+      ],
+      handlerAssignments: {},
+    });
+
+    expect(createEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entrySource: 'myk9',
+        capacityOverride: false,
+      }),
+      expect.any(Array)
+    );
+  });
+
+  it('records an override only after an earlier dog in the batch consumes the final spot', async () => {
+    getAllClassesMock.mockResolvedValue([{ id: 'class-1', trialId: 'trial-1', maxEntries: 1 }]);
+
+    await submitOfflineLateEntry({
+      showId: 'show-1',
+      paymentMethod: 'cash',
+      showFeeInfo: {
+        preEntryFee: '25',
+        dayOfShowFee: '35',
+        startDate: '2026-07-01',
+      },
+      classes: [{ id: 'class-1', entryFee: 30 }],
+      classSelections: [
+        {
+          dogId: 'dog-1',
+          trialId: 'trial-1',
+          selectedClasses: [{ classId: 'class-1' }],
+        },
+        {
+          dogId: 'dog-2',
+          trialId: 'trial-1',
+          selectedClasses: [{ classId: 'class-1' }],
+        },
+      ],
+      handlerAssignments: {},
+    });
+
+    expect(createEntryMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ dogId: 'dog-1', capacityOverride: false }),
+      expect.any(Array)
+    );
+    expect(createEntryMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ dogId: 'dog-2', capacityOverride: true }),
+      expect.any(Array)
+    );
   });
 
   it.each([
@@ -168,7 +285,7 @@ describe('submitOfflineLateEntry', () => {
     await submitOfflineLateEntry({
       showId: 'show-1',
       paymentMethod: 'check',
-      paymentStatus: 'paid_by_check',
+      paymentStatus: PaymentStatus.PAID_BY_CHECK,
       showFeeInfo: {
         preEntryFee: '25',
         dayOfShowFee: '35',
@@ -217,10 +334,11 @@ describe('submitOfflineLateEntry', () => {
     expect(upsertAssignedArmbandMock).toHaveBeenCalledWith(
       expect.objectContaining({ armbandNumber: '250' })
     );
-    expect(createEntryMock).toHaveBeenCalledWith(
-      expect.objectContaining({ armband: '250' }),
-      ['dog-mutation-1', 'registration-mutation-1', 'armband-mutation-1']
-    );
+    expect(createEntryMock).toHaveBeenCalledWith(expect.objectContaining({ armband: '250' }), [
+      'dog-mutation-1',
+      'registration-mutation-1',
+      'armband-mutation-1',
+    ]);
     expect(result.armbandAssignments).toEqual([{ dogId: 'dog-1', armband: '250' }]);
   });
 });

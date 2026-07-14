@@ -127,9 +127,7 @@ describe('useDraftPersistence — cross-user scoping', () => {
 
   it('updates the loaded draft instead of creating another autosave draft', () => {
     seedDraftData({ selectedDogs: ['dog-1'] });
-    const { result, rerender } = renderHook(() =>
-      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
-    );
+    const { result } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
 
     let draftId: string | null = null;
     act(() => {

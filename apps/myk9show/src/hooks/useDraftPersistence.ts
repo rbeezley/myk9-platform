@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useShowRegistrationStore } from '../store/showRegistrationStore';
 import { RegistrationFormData } from '../types/show-registration-types';
 import { logger } from '@/services/LoggingService';
@@ -56,7 +56,7 @@ export function useDraftPersistence(
   const activeDraftMetadataRef = useRef<DraftMetadata | null>(null);
   const skipFinalSaveRef = useRef(false);
   const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
-  const [draftsVersion, setDraftsVersion] = useState(0);
+  const [, setDraftsVersion] = useState(0);
 
   const log = useCallback(
     (message: string, ...args: unknown[]) => {
@@ -346,10 +346,9 @@ export function useDraftPersistence(
 
   // Available drafts for the current (show, user) pair. Storage keys already
   // scope by userId, so no read-side filter is needed.
-  const availableDrafts = useMemo(
-    () => getDraftMetadata(),
-    [getDraftMetadata, draftsVersion]
-  );
+  // Reading the small metadata list on render keeps localStorage as the source
+  // of truth. draftsVersion forces a render after in-hook storage mutations.
+  const availableDrafts = getDraftMetadata();
 
   return {
     // Draft operations

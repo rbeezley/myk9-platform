@@ -781,10 +781,10 @@ describe('ReplicatedClassesTable', () => {
       expect(payload).toHaveProperty('status_source', 'manual');
     });
 
-    it('rebuildUpdatePayload (OCC resend) never re-asserts server-owned columns', () => {
+    it('rebuildUpdatePayload leaves server-owned intent restoration to the mutation queue', () => {
       // The resend path rebuilds a full row from local data and cannot know the
-      // original mutation's `updates`, so it must strip all server-owned keys —
-      // the server value wins on resend.
+      // original mutation's `updates`, so it strips all server-owned keys. The
+      // mutation queue restores only keys captured from the original payload.
       const payload = (
         classesTable as unknown as {
           rebuildUpdatePayload: (cls: ReplicatedClass) => Record<string, unknown>;

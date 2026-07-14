@@ -130,6 +130,7 @@ export class MutationQueueStore {
       operation,
       rowId,
       data,
+      explicitDataKeys: Object.keys(data),
       timestamp: Date.now(),
       sequenceNumber,
       retries: 0,
@@ -274,10 +275,26 @@ export class MutationQueueStore {
           ? newServerVersion
           : mutation.serverVersion;
 
+      const explicitDataKeys = mutation.explicitDataKeys ?? Object.keys(mutation.data);
+      const reconciledData =
+        !isRpc && rebuiltData !== undefined ? { ...rebuiltData } : mutation.data;
+
+      if (!isRpc && rebuiltData !== undefined) {
+        for (const key of explicitDataKeys) {
+          if (
+            !(key in reconciledData) &&
+            Object.prototype.hasOwnProperty.call(mutation.data, key)
+          ) {
+            reconciledData[key] = mutation.data[key];
+          }
+        }
+      }
+
       const next: PendingMutation = {
         ...mutation,
         serverVersion: nextServerVersion,
-        ...(!isRpc && rebuiltData !== undefined ? { data: rebuiltData } : {}),
+        explicitDataKeys,
+        ...(!isRpc && rebuiltData !== undefined ? { data: reconciledData } : {}),
       };
       await tx.store.put(next);
       changed++;

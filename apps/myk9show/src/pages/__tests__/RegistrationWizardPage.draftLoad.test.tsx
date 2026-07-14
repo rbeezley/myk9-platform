@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import type { SavedDraft } from '@/hooks/useDraftPersistence';
 
@@ -97,8 +97,17 @@ vi.mock('@/context/RegistrationContext', () => ({
 }));
 
 // ─── Child component mocks ────────────────────────────────────────────────────
+let capturedSelectedDogs: string[] = [];
+let capturedOnDogSelectionChange: ((dogIds: string[]) => void) | null = null;
 vi.mock('@/components/shows/RegistrationWorkflow/WorkflowStepContent', () => ({
-  WorkflowStepContent: () => <div data-testid="step-content" />,
+  WorkflowStepContent: (props: {
+    registrationData: { selectedDogs: string[] };
+    onDogSelectionChange: (dogIds: string[]) => void;
+  }) => {
+    capturedSelectedDogs = props.registrationData.selectedDogs;
+    capturedOnDogSelectionChange = props.onDogSelectionChange;
+    return <div data-testid="step-content" />;
+  },
 }));
 
 vi.mock('@/components/shows/wizard/components/HorizontalProgressIndicator', () => ({
@@ -163,6 +172,8 @@ function buildDraft(selectedDogs: string[]): SavedDraft {
 describe('RegistrationWizardPage — handleDraftLoaded', () => {
   beforeEach(() => {
     capturedOnDraftLoaded = null;
+    capturedSelectedDogs = [];
+    capturedOnDogSelectionChange = null;
     mockCreateRegistration.mockClear();
     mockCreateRegistration.mockReturnValue({ id: 'reg-1' });
     // Default: one dog available (auto-select will fire for exhibitor mode)
@@ -170,34 +181,25 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     mockDogStoreState.isLoading = false;
   });
 
-  it('calls createRegistration when draft has dogs', async () => {
-    // Auto-select fires once for exhibitor mode with one dog in the store.
-    // We let it run, clear the mock, then load a draft that re-references the
-    // same dog. handleDraftLoaded re-creates the registration only when there
-    // is no current registrationId — but the auto-select path set one, so the
-    // explicit assertion here is that draft-load resolves the owner correctly
-    // (third arg = the dog's ownerId = 'user-1').
+  it('replaces an in-progress dog selection with the loaded draft selection', async () => {
+    mockDogStoreState.dogs = [
+      { id: 'dog-1', ownerId: 'user-1', ownerName: 'Owner' },
+      { id: 'dog-2', ownerId: 'user-1', ownerName: 'Owner' },
+    ];
     render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
 
     await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
+    await waitFor(() => expect(capturedOnDogSelectionChange).not.toBeNull());
 
-    // Auto-select may have fired during render — wait for the call to land,
-    // then clear before the draft-load assertion.
-    await waitFor(() => {
-      expect(mockCreateRegistration).toHaveBeenCalledWith('show-1', 'user-1', 'user-1');
+    act(() => {
+      capturedOnDogSelectionChange!(['dog-1', 'dog-2']);
     });
-    mockCreateRegistration.mockClear();
+    await waitFor(() => expect(capturedSelectedDogs).toEqual(['dog-1', 'dog-2']));
 
-    // Reset the wizard's local registrationId by reloading the page so
-    // handleDraftLoaded's `if (!registrationId && ...)` branch can fire.
-    capturedOnDraftLoaded!(buildDraft(['dog-1']));
-
-    // The draft-load path itself is gated on `!registrationId`, which the
-    // auto-select path already set. So the assertion is the negative: no
-    // additional call. The first auto-select call (cleared above) already
-    // proved the owner-resolution call shape is correct.
-    await new Promise(r => setTimeout(r, 50));
-    expect(mockCreateRegistration).not.toHaveBeenCalled();
+    act(() => {
+      capturedOnDraftLoaded!(buildDraft(['dog-1']));
+    });
+    await waitFor(() => expect(capturedSelectedDogs).toEqual(['dog-1']));
   });
 
   it('does NOT call createRegistration when draft has no dogs', async () => {

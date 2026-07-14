@@ -128,11 +128,15 @@ vi.mock('@/context/RegistrationContext', () => ({
 vi.mock('@/components/shows/RegistrationWorkflow/WorkflowStepContent', () => ({
   WorkflowStepContent: (props: {
     currentStepId: StepId;
+    onDogSelectionChange: (dogIds: string[]) => void;
     onClassSelectionChange: (selections: ClassSelectionData[]) => void;
     onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => void;
     onPaymentMethodChange: (method: PaymentMethod) => void;
   }) => {
     React.useEffect(() => {
+      if (props.currentStepId === 'dog-selection') {
+        props.onDogSelectionChange(['dog-1']);
+      }
       if (props.currentStepId === 'class-selection') {
         props.onClassSelectionChange([
           {
@@ -200,6 +204,10 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
       initialRoute: '/shows/show-1/register',
     });
 
+    await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('dog-selection'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+
     await waitFor(() =>
       expect(screen.getByTestId('step-content')).toHaveTextContent('class-selection')
     );
@@ -221,6 +229,10 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
     const { user } = render(<RegistrationWizardPage />, {
       initialRoute: '/shows/show-1/register',
     });
+
+    await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('dog-selection'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    await user.click(screen.getByRole('button', { name: 'Next' }));
 
     await waitFor(() =>
       expect(screen.getByTestId('step-content')).toHaveTextContent('class-selection')

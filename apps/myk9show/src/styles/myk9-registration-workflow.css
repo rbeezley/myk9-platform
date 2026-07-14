@@ -30,7 +30,7 @@
 .myk9-dog-card.selected {
   border-color: var(--primary) !important;
   background: color-mix(in srgb, var(--primary) 5%, transparent) !important;
-  box-shadow: 0 8px 25px color-mix(in srgb, var(--primary) 15%, transparent) !important;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 10%, transparent) !important;
 }
 
 .myk9-dog-card::before {
@@ -151,5 +151,5 @@
 
 .dark .myk9-dog-card.selected,
 .dark .myk9-class-card.selected {
-  box-shadow: 0 8px 25px color-mix(in srgb, var(--primary) 25%, transparent) !important;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 15%, transparent) !important;
 }

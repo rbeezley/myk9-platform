@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Save, FolderOpen, Trash2, Clock, FileText, CheckCircle, Archive } from 'lucide-react';
 import { SavedDraft, DraftMetadata } from '../../../hooks/useDraftPersistence';
 import { formatDistanceToNow } from 'date-fns';
-import { useShowRegistrationStore } from '../../../store/showRegistrationStore';
 
 interface DraftManagerProps {
   saveDraft: (title: string) => string | null;
@@ -37,8 +36,6 @@ export function DraftManager({
   const [saveTitle, setSaveTitle] = useState('');
   const [selectedDraft, setSelectedDraft] = useState<DraftMetadata | null>(null);
 
-  const { setDraftData } = useShowRegistrationStore();
-
   const handleSaveDraft = async () => {
     if (!saveTitle.trim()) {
       return;
@@ -55,7 +52,6 @@ export function DraftManager({
   const handleLoadDraft = (draftId: string) => {
     const draft = loadDraft(draftId);
     if (draft) {
-      setDraftData(draft.data);
       onDraftLoaded?.(draft);
       setIsLoadDialogOpen(false);
       setSelectedDraft(null);

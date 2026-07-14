@@ -46,7 +46,11 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
   };
 
   return (
-    <nav className={cn('w-full', className)} role="navigation" aria-label="Wizard progress">
+    <nav
+      className={cn('w-full pb-6 sm:pb-8', className)}
+      role="navigation"
+      aria-label="Wizard progress"
+    >
       <ol className="flex items-start">
         {steps.map((step, index) => {
           const isCompleted = isStepCompleted(step.id);
@@ -56,10 +60,11 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
 
           return (
             <li key={step.id} className="relative flex flex-1 flex-col items-center">
-              {/* Connecting line to the next step — spans from this circle's
-                  center (left-1/2) one full item-width to the next center. */}
+              {/* Connecting line bridges the outer edges of adjacent circles.
+                  Starting at the edge keeps it out of translucent inactive
+                  circles, where a center-to-center line would show through. */}
               {!isLast && (
-                <div className="absolute left-1/2 top-3.5 h-0.5 w-full -translate-y-1/2">
+                <div className="absolute left-[calc(50%+0.875rem)] top-3.5 h-0.5 w-[calc(100%-1.75rem)] -translate-y-1/2">
                   <div className="absolute inset-0 rounded-full bg-border/40" />
                   <div
                     className={cn(

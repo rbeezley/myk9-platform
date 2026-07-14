@@ -67,7 +67,7 @@ export function DetailHero({
         className={cn(
           'gap-4 sm:gap-6 p-6',
           cover
-            ? 'flex flex-row flex-wrap sm:flex-nowrap items-start'
+            ? 'flex flex-col sm:flex-row sm:flex-wrap lg:flex-nowrap items-start'
             : 'flex flex-col sm:flex-row sm:items-start sm:justify-between'
         )}
       >
@@ -82,7 +82,7 @@ export function DetailHero({
           <div
             className={cn(
               'flex min-w-0 flex-wrap items-center gap-3',
-              headerActions && 'sm:pr-44'
+              headerActions && 'lg:pr-44'
             )}
           >
             <h2 className="text-2xl font-bold tracking-tight break-words">{name}</h2>
@@ -110,7 +110,7 @@ export function DetailHero({
             </div>
           )}
           {headerActions && (
-            <div className="mt-2 flex flex-wrap items-center gap-2 sm:absolute sm:right-6 sm:top-6 sm:z-10 sm:mt-0 sm:justify-end">
+            <div className="mt-2 flex flex-wrap items-center gap-2 lg:absolute lg:right-6 lg:top-6 lg:z-10 lg:mt-0 lg:justify-end">
               {headerActions}
             </div>
           )}

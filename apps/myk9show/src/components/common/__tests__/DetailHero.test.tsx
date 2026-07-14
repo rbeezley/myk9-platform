@@ -79,6 +79,23 @@ describe('DetailHero', () => {
     expect(container.querySelector('[class*="sm:w-auto"]')).toBeNull();
   });
 
+  it('keeps header actions in document flow through tablet widths', () => {
+    const { container } = render(
+      <DetailHero
+        cover={<div>Aug 1</div>}
+        name="Heartland Scent Work Classic"
+        headerActions={<button type="button">Published show</button>}
+      />
+    );
+
+    const actionContainer = screen.getByRole('button', { name: /published show/i }).parentElement;
+
+    expect(actionContainer?.className).toContain('lg:absolute');
+    expect(actionContainer?.className).not.toContain('sm:absolute');
+    expect(container.querySelector('[class*="lg:pr-44"]')).toBeTruthy();
+    expect(container.querySelector('[class*="flex-col"][class*="sm:flex-row"]')).toBeTruthy();
+  });
+
   it('renders footer content', () => {
     render(<DetailHero name="Test Show" footer={<div data-testid="footer-content">footer</div>} />);
     expect(screen.getByTestId('footer-content')).toBeInTheDocument();

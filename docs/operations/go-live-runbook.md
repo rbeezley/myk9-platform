@@ -123,12 +123,15 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       explicitly accepted as P2: (a) resolve the contradictory exhibitor entry state; (b) run the
       remaining focused exhibitor Playwright/low-tech verification and final dog-profile
       re-walk; (c) merge, pass CI, and archive `ux-contrast-token-system`; (d) complete the
-      authenticated visual evidence plus PR/CI closeout for `improve-exhibitor-entries-scan`;
-      and (e) complete the mobile/tablet/desktop Setup + Show Desk re-walk for
-      `secretary-show-details-ux-remediation`.
+      authenticated visual evidence plus PR/CI closeout for `improve-exhibitor-entries-scan`.
       _Completed control remediation 2026-07-14:_ PR #1264 raised the registration payment-remove
       control from 32px to `min-h-11 min-w-11` and Cart “Continue Shopping” from 40px to
       `min-h-11`; focused regression tests passed (2 files, 7 tests).
+      _Completed secretary re-walk 2026-07-14:_ authenticated Setup and Show Desk checks at
+      desktop, 768px tablet, and 390px mobile found and repaired a tablet header overlap. The
+      shared `DetailHero` now keeps header actions in normal flow through tablet widths and uses
+      absolute positioning only at desktop; focused regression tests (2 files, 17 tests) and the
+      myK9Show typecheck passed.
       _Already complete:_ motion consistency and the original July UX remediation plan. The
       remaining evidence-only gates are the scorecard's show-day re-walk, offline→reconnect
       rehearsal, data reconciliation, venue print test, real-user testing, and deployment/

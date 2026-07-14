@@ -82,6 +82,14 @@ describe('ElementCard — wait list badge', () => {
     expect(screen.getByText('Already entered')).toBeInTheDocument();
   });
 
+  it('labels a selected class as in the cart without calling it submitted', () => {
+    const levels: LevelInfo[] = [{ ...baseLevel, isSelected: true }];
+    render(<ElementCard {...defaultProps} levels={levels} />);
+
+    expect(screen.getByText('In cart')).toBeInTheDocument();
+    expect(screen.queryByText('Already entered')).toBeNull();
+  });
+
   it('still allows toggling (checkbox enabled) for a full-but-selectable class', async () => {
     const onToggle = vi.fn();
     const levels: LevelInfo[] = [{ ...baseLevel, isJudgeDayFull: true, waitlistCount: 1 }];
@@ -145,6 +153,21 @@ describe('ElementCard (single-class) — wait list badge', () => {
       />
     );
     expect(screen.getByText('Already entered')).toBeInTheDocument();
+  });
+
+  it('labels a selected single class as in the cart', () => {
+    const levels: LevelInfo[] = [{ ...singleClassLevel, isSelected: true }];
+    render(
+      <ElementCard
+        element="Detective"
+        levels={levels}
+        fee={10}
+        isSingleClass={true}
+        onToggle={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('In cart')).toBeInTheDocument();
   });
 });
 

@@ -61,11 +61,11 @@
 
 ## 8. Submitted Entry Consistency And Touch Targets
 
-- [ ] 8.1 Inventory the entry inputs used by Browse Shows, Show Detail `My Entries`, Classes `My entry`, and registration cart/entered badges; document which rows are submitted entries versus cart-only selections.
-- [ ] 8.2 Add a typed, pure submitted-entry projection over the route's replication-backed show-entry result and owned-dog IDs, exposing owned history, active entries, active class IDs, history count, and `loading`/`ready`/`error` states through the existing lifecycle classifier.
-- [ ] 8.3 Make the Show Detail default tab, `My Entries` count/content, and Classes `My entry` labels consume that projection instead of independently interpreting another store snapshot.
-- [ ] 8.4 Keep cart-only selections labelled `In cart` inside the existing registration/cart workflow and exclude them from submitted-entry badges and counts.
-- [ ] 8.5 Raise the registration payment-summary remove and Cart `Continue Shopping` actions to a minimum 44×44px hit area.
-- [ ] 8.6 Add assertion-first unit/component coverage for active submitted, terminal history, cart-only, loading, error, zero-entry, and 44px-target states.
+- [x] 8.1 Inventory the entry inputs used by Browse Shows, Show Detail `My Entries`, Classes `My entry`, and registration cart/entered badges; document which rows are submitted entries versus cart-only selections.
+- [x] 8.2 Add a typed, pure submitted-entry projection over the route's replication-backed show-entry result and owned-dog IDs, exposing owned history, active entries, active class IDs, history count, and `loading`/`ready`/`error` states through the existing lifecycle classifier.
+- [x] 8.3 Make the Show Detail default tab, `My Entries` count/content, and Classes `My entry` labels consume that projection instead of independently interpreting another store snapshot.
+- [x] 8.4 Keep cart-only selections labelled `In cart` inside the existing registration/cart workflow and exclude them from submitted-entry badges and counts.
+- [x] 8.5 Raise the registration payment-summary remove and Cart `Continue Shopping` actions to a minimum 44×44px hit area.
+- [x] 8.6 Add assertion-first unit/component coverage for active submitted, terminal history, cart-only, loading, error, zero-entry, and 44px-target states.
 - [ ] 8.7 Replay Browse Shows → Show Detail → Classes → registration payment review at 390×844 and 1440×900 using the reopened Heartland test show; require consistent entry state, no clipping/overflow, and zero console warnings/errors.
 - [ ] 8.8 Close `QA-STALE-DERIVED-STATE-035` and `QA-ACCESSIBILITY-GAP-036` only after the focused tests and browser replay pass.

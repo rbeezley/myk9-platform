@@ -119,6 +119,22 @@ export function isRunnableScheduleStatus(raw: string | null | undefined): boolea
   return !NON_RUNNABLE_SCHEDULE_KINDS.has(getEntryStatusKind(raw));
 }
 
+const ACTIVE_SUBMITTED_KINDS: ReadonlySet<EntryStatusKind> = new Set([
+  'pending',
+  'accepted',
+  'waitlist',
+  'in_ring',
+  'move_up_requested',
+]);
+
+/** Present-tense submitted state used by Browse Shows and Show Detail. */
+export function isActiveSubmittedEntryStatus(
+  entryStatus: string | null | undefined,
+  checkInStatus?: string | null | undefined
+): boolean {
+  return checkInStatus !== 'pulled' && ACTIVE_SUBMITTED_KINDS.has(getEntryStatusKind(entryStatus));
+}
+
 /** Removal label for a removed kind; `null` for live entries (caller falls through). */
 export function getRemovedStatusLabel(kind: EntryStatusKind): string | null {
   switch (kind) {

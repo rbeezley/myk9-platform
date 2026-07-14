@@ -17,6 +17,10 @@ import type {
   ShowMapClassInput,
   ShowMapEntryInput,
 } from '@/features/show-map/showMapTypes';
+import type {
+  SubmittedEntryDbRow,
+  SubmittedEntryReadState,
+} from '@/features/exhibitor-entry/submittedEntryProjection';
 
 const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 
@@ -43,6 +47,8 @@ export interface ShowDetailTabsProps {
   mapEntries: ShowMapEntryInput[];
   entryDataState?: 'ready' | 'loading' | 'error';
   onRetryEntryData?: (() => void) | undefined;
+  exhibitorEntryRows?: readonly SubmittedEntryDbRow[];
+  exhibitorEntryDataState?: SubmittedEntryReadState;
 }
 
 function EntryDataUnavailablePanel({
@@ -94,6 +100,8 @@ export function ShowDetailTabs({
   mapEntries,
   entryDataState = 'ready',
   onRetryEntryData,
+  exhibitorEntryRows,
+  exhibitorEntryDataState = 'ready',
 }: ShowDetailTabsProps) {
   const managerEntryDataUnavailable = canManageShow && entryDataState !== 'ready';
 
@@ -137,7 +145,15 @@ export function ShowDetailTabs({
 
       {isAuthenticated && (
         <TabsContent value="my-entries">
-          {canManageShow ? <EntriesTab showId={show.id} /> : <MyEntriesTab showId={show.id} />}
+          {canManageShow ? (
+            <EntriesTab showId={show.id} />
+          ) : (
+            <MyEntriesTab
+              showId={show.id}
+              canonicalEntries={exhibitorEntryRows}
+              entryDataState={exhibitorEntryDataState}
+            />
+          )}
         </TabsContent>
       )}
 

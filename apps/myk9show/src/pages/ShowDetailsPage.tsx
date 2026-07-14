@@ -15,7 +15,6 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS } from '@myk9/core';
-import { useMyEntries } from '@/hooks/useMyEntries';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { getEntriesForShow } from '@/services/database/entries';
 import { queryKeys } from '@/lib/queryClient';
@@ -40,20 +39,7 @@ import { countCatalogEntries } from '@/features/show-map/entryCounts';
 import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
-import { selectOwnedDogIds } from '@/utils/dogOwnership';
-
-function isActiveEntryForMineFilter(entry: Record<string, unknown>): boolean {
-  const entryStatus = typeof entry.entry_status === 'string' ? entry.entry_status : '';
-  const checkInStatus = typeof entry.check_in_status === 'string' ? entry.check_in_status : '';
-  const deletedAt = entry.deleted_at;
-
-  return (
-    !deletedAt &&
-    entryStatus !== 'scratched' &&
-    entryStatus !== 'withdrawn' &&
-    checkInStatus !== 'pulled'
-  );
-}
+import { useSubmittedEntryProjection } from '@/features/exhibitor-entry/useSubmittedEntryProjection';
 
 /**
  * Thin audience router for `/shows/:id`. Loads the show + entries once, derives
@@ -72,10 +58,12 @@ const ShowDetailsPage: React.FC = () => {
   const trialClasses = useTrialStore(s => s.trialClasses);
   const loadTrials = useTrialStore(s => s.loadTrials);
   const loadTrialClasses = useTrialStore(s => s.loadTrialClasses);
-  const { data: showEntries = [], isLoading: showEntriesLoading } = useEntriesByShowQuery(
-    id || '',
-    !!id
-  );
+  const {
+    data: showEntries = [],
+    isLoading: showEntriesLoading,
+    isError: showEntriesIsError,
+    refetch: refetchShowEntries,
+  } = useEntriesByShowQuery(id || '', !!id);
   const { dogs } = useDogStoreCompat();
 
   // Use fast show details loading with cache optimization
@@ -181,34 +169,27 @@ const ShowDetailsPage: React.FC = () => {
   // public rows when the store is cold. (Lane 3.7)
   const effectiveTrials = landingTrials;
 
-  // Check if user has entries in this show (determines default tab)
-  // Only enable polling when the My Entries tab is active (fix #3)
-  const { entries: userEntries, isLoading: userEntriesLoading } = useMyEntries(showId_);
-  const userDogIds = useMemo(() => {
-    const databaseUserId = userWithRoles?.databaseUserId;
-    return selectOwnedDogIds(dogs, databaseUserId);
-  }, [dogs, userWithRoles?.databaseUserId]);
-
-  const userEntryClassIds = useMemo(() => {
-    const classIds = new Set<string>();
-    for (const entry of showEntries) {
-      if (!isActiveEntryForMineFilter(entry)) continue;
-      const dogId = typeof entry.dog_id === 'string' ? entry.dog_id : undefined;
-      const classId = typeof entry.class_id === 'string' ? entry.class_id : undefined;
-      if (dogId && classId && userDogIds.has(dogId)) {
-        classIds.add(classId);
-      }
-    }
-    return classIds;
-  }, [showEntries, userDogIds]);
-  const hasUserEntries = userEntryClassIds.size > 0 || userEntries.length > 0;
+  const {
+    projection: submittedEntryProjection,
+    ownedEntryRows: exhibitorEntryRows,
+    state: exhibitorEntryDataState,
+  } = useSubmittedEntryProjection({
+    entries: showEntries,
+    dogs,
+    databaseUserId: userWithRoles?.databaseUserId,
+    isLoading: showEntriesLoading,
+    isError: showEntriesIsError,
+  });
+  const userEntryClassIds = submittedEntryProjection.activeClassIds;
+  const hasUserEntries = submittedEntryProjection.hasActiveEntries;
+  const hasOwnedEntryHistory = submittedEntryProjection.historyCount > 0;
   const isAuthenticated = !!user;
   const requestedTab = searchParams.get('tab');
   const isWaitingForExhibitorEntryDefault =
     isAuthenticated &&
     !canManageShow &&
     !requestedTab &&
-    (showEntriesLoading || userEntriesLoading);
+    exhibitorEntryDataState === 'loading';
 
   // Tab state — URL-synced with dynamic allowed tabs
   const canShowMap = features.showMap && canManageShow;
@@ -341,7 +322,9 @@ const ShowDetailsPage: React.FC = () => {
               id: 'my-entries',
               label: 'My Entries',
               icon: ClipboardList,
-              count: userEntries.length,
+              ...(submittedEntryProjection.isReady
+                ? { count: submittedEntryProjection.historyCount }
+                : {}),
             },
           ]
         : []),
@@ -366,7 +349,8 @@ const ShowDetailsPage: React.FC = () => {
       effectiveShowClasses.length,
       catalogEntryCount,
       managerEntryDataUnavailable,
-      userEntries.length,
+      submittedEntryProjection.historyCount,
+      submittedEntryProjection.isReady,
     ]
   );
 
@@ -397,6 +381,17 @@ const ShowDetailsPage: React.FC = () => {
     );
   }
 
+  if (isAuthenticated && !canManageShow && showEntriesIsError) {
+    return (
+      <PageShell>
+        <ErrorState
+          message="We couldn't load your entries. Please try again."
+          onRetry={() => void refetchShowEntries()}
+        />
+      </PageShell>
+    );
+  }
+
   // Decide which surface this visitor sees. Staff (secretary / admin / club_admin)
   // and management-section URLs reach the tabbed/management UI; non-staff visitors
   // with no entries get the styled marketing landing; an authenticated visitor whose
@@ -408,8 +403,8 @@ const ShowDetailsPage: React.FC = () => {
     isAdmin,
     isClubAdmin: hasRole('club_admin'),
     isAuthenticated,
-    userEntriesLoading,
-    hasUserEntries,
+    userEntriesLoading: exhibitorEntryDataState === 'loading',
+    hasUserEntries: hasOwnedEntryHistory,
   });
 
   if (audience === 'pending') {
@@ -453,6 +448,8 @@ const ShowDetailsPage: React.FC = () => {
     mapEntries: effectiveShowMapEntries,
     entryDataState,
     onRetryEntryData: () => void refetchSecretaryEntries(),
+    exhibitorEntryRows,
+    exhibitorEntryDataState,
   };
 
   // ShowPresenceProvider wraps only the authed surfaces (matching the prior

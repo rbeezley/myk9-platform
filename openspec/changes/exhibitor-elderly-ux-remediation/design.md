@@ -75,6 +75,8 @@ Alternative considered: suppress onboarding after any save. Rejected because it 
 
 The show-detail route will derive one typed exhibitor projection from its replication-backed show-entry result plus the signed-in person's owned-dog IDs. That projection will expose owned entry history, the active submitted-entry subset, active class IDs, history count, loading state, and error state. `My Entries` count/content will use owned history so terminal rows remain visible with their existing labels; the default tab, present-tense submitted badges, and Classes `My entry` labels will use the active subset. Child surfaces will consume that projection instead of independently interpreting a second entry-store snapshot.
 
+The projection SHALL filter by the signed-in person's owned-dog IDs before exposing any row to exhibitor children. It SHALL scan the route rows once and build lookup sets/maps in linear time so the consolidation does not add per-class or per-entry query loops.
+
 Cart lines remain a separate state owned by the existing cart/registration workflow. A cart-only class may render `In cart` inside registration, but it will not increment a submitted-entry count or produce `Entry Submitted` on browse/show-detail surfaces.
 
 Alternative considered: adjust the `My Entries 0` copy while leaving the independent reads in place. Rejected because the surfaces could drift again as soon as either cache resolves at a different time.
@@ -98,6 +100,8 @@ The payment-summary remove button and Cart `Continue Shopping` button will retai
 - [Risk] Onboarding state may depend on seed data instead of app code. -> Mitigation: trace profile completion from save through redirect/reload before changing behavior.
 - [Risk] Browse/show detail and registration currently observe different entry snapshots. -> Mitigation: make one route-level submitted-entry projection authoritative for show-detail consumers and test delayed/loading/error resolution.
 - [Risk] Treating cart lines as submitted entries could encourage duplicate-entry confusion. -> Mitigation: keep cart-only state explicitly labelled and outside submitted-entry counts.
+- [Risk] Passing route entry rows into child tabs could expose another exhibitor's entry when a broader manager read is present. -> Mitigation: construct the exhibitor projection only from owned-dog IDs and pass no unowned rows to exhibitor children.
+- [Risk] Re-deriving entry membership for every class could regress large-show rendering. -> Mitigation: scan entry rows once and expose an active-class `Set` for constant-time class decoration.
 
 ## Migration Plan
 

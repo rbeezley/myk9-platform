@@ -226,6 +226,18 @@ Result: passed.
 
 **Problem:** The reopened Heartland staging walk showed `Entry Submitted` on Browse Shows, `My Entries 0` plus a no-entry empty state on Show Detail, and `My entry` classes plus already-entered dogs in the registration wizard. The same journey also exposes a 32px payment-summary remove control and a 40px Cart `Continue Shopping` action.
 
+**Entry-input inventory (2026-07-10):**
+
+| Surface | Previous input | Canonical rule after remediation |
+| --- | --- | --- |
+| Browse Shows | Per-account entered-show stubs plus the local entry store | The relationship may retain entry history, but `Entry Submitted` and active-entry counts use the shared lifecycle classifier and exclude terminal, pulled, deleted, or completed rows. |
+| Show Detail badge/default tab | Replication-backed `useEntriesByShowQuery` plus a second `useMyEntries` store snapshot | One owned-dog projection over the replication-backed per-show query. Active rows drive the badge/default tab. |
+| Show Detail `My Entries` count/body | Independent entry-store hooks | Owned visible history from the same route projection; the canonical rows are passed into the existing tab so a cold secondary store cannot render a false zero. |
+| Classes `My entry` | Locally derived active class IDs | The projection's active-class `Set`; terminal and pulled rows do not decorate a class. |
+| Registration | Existing-entry hook plus `entry_carts`/local selections | Submitted rows remain `Already entered`; selected cart-only classes are explicitly `In cart` and never enter the submitted-entry projection. |
+
+The duplication question is resolved in favor of consolidation: no page, dashboard, dialog, or entry workflow was added. Existing surfaces now consume one route projection or the shared active-status classifier.
+
 **Remediation:**
 
 - Derive the exhibitor's owned entry history and active submitted entries once from the route's replication-backed show-entry result and owned-dog identity, using the existing lifecycle classifier for terminal states.
@@ -242,6 +254,13 @@ Result: passed.
 - Cart-only selections are clearly labelled and never presented as submitted entries.
 - Loading or failed entry reads never collapse into `My Entries 0` or a false no-entry message.
 - Both audited controls meet the 44×44px touch floor at 390px without clipping or overflow.
+
+**Automated browser evidence (2026-07-10):**
+
+- At 390×844, Browse Shows rendered Heartland as `Entry Submitted`; Show Detail rendered `My Entries 11` with 11 visible history rows and 8 active schedule rows; Classes rendered four active `My entry` markers; registration rendered the existing submitted rows as `Already entered`; all checked pages had `scrollWidth === clientWidth` (390px).
+- A cold-store regression found during the replay was fixed: Show Detail now also derives owned dog IDs from the canonical entry row's joined owner, so a temporarily cold dog store cannot collapse owned entries to zero. Focused coverage pins this path.
+- The 1440×900 replay reached zero local HMR errors, but the staging Supabase pool then returned repeated `PGRST003`/HTTP 504 timeouts across entries, people, RBAC, trials, dogs, and other unrelated reads. Desktop state assertions and registration payment-review interaction remain pending a healthy staging replay.
+- No cart item was added during verification because that would mutate the shared staging database without a separate approval. Cart-only `In cart` behavior and both 44px targets are covered by focused component tests.
 
 ## Testing Phase
 

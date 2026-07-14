@@ -175,6 +175,11 @@ export const ElementCard: React.FC<ElementCardProps> = ({
                 Already entered
               </Badge>
             )}
+            {cls.isSelected && !cls.isAlreadyEntered && (
+              <Badge variant="outline" className="h-5 text-xs text-foreground">
+                In cart
+              </Badge>
+            )}
             {cls.isJudgeDayFull && !cls.isAlreadyEntered && (
               <WaitlistBadge waitlistCount={cls.waitlistCount} />
             )}
@@ -274,6 +279,11 @@ const LevelChip: React.FC<LevelChipProps> = ({
         <Badge variant="secondary" className="h-5 gap-1 text-xs text-success">
           <CheckCircle2 className="h-3 w-3" />
           Already entered
+        </Badge>
+      )}
+      {isSelected && !isAlreadyEntered && (
+        <Badge variant="outline" className="h-5 text-xs text-foreground">
+          In cart
         </Badge>
       )}
     </div>

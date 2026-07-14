@@ -129,6 +129,34 @@ describe('useShowEntriesForUser', () => {
     expect(result.current.allEntries).toHaveLength(0);
   });
 
+  it('renders the canonical show-entry row when the independent entry store is empty', () => {
+    setMocks({ entries: [], classes: [], dogs: [] });
+    const { result } = renderHook(() =>
+      useShowEntriesForUser(SHOW_ID, {
+        state: 'ready',
+        rows: [
+          {
+            id: 'canonical-entry',
+            show_id: SHOW_ID,
+            class_id: CLASS_ID,
+            dog_id: DOG_ID,
+            entry_status: 'confirmed',
+            payment_status: 'paid',
+            armband: '101',
+            run_order: 3,
+            class: { name: 'Container Novice A' },
+          },
+        ],
+      })
+    );
+
+    expect(result.current.allEntries.map(entry => entry.entryId)).toEqual(['canonical-entry']);
+    expect(result.current.allEntries[0].entryStatus).toBe('confirmed');
+    expect(result.current.allEntries[0].classTitle).toBe('Container Novice A');
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isError).toBe(false);
+  });
+
   it('excludes entries from other shows', () => {
     setMocks({ entries: [makeEntry({ showId: 'other-show' })] });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));

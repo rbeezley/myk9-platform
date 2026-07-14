@@ -353,5 +353,26 @@ describe('entryStatusUtils', () => {
 
       expect(result).toBe(true);
     });
+
+    it.each(['withdrawn', 'scratched', 'not_accepted', 'completed'])(
+      'does not present a %s history row as an active submitted entry',
+      entry_status => {
+        expect(userHasEntriesForShow('show-123', [{ show_id: 'show-123', entry_status }])).toBe(
+          false
+        );
+      }
+    );
+
+    it('does not present a pulled row as an active submitted entry', () => {
+      expect(
+        userHasEntriesForShow('show-123', [
+          {
+            show_id: 'show-123',
+            entry_status: 'confirmed',
+            check_in_status: 'pulled',
+          },
+        ])
+      ).toBe(false);
+    });
   });
 });

@@ -16,10 +16,16 @@ import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { mapDatabaseDogsArray } from '@/services/mappers/dogMappers';
 import { deleteUser } from '@/services/database/users/reads';
+import { revokeSelfAuthIdentity } from '@/services/auth/revokeSelfAuthIdentity';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import type { Dog as DogType } from '@/types/dog-types';
 
 const DELETE_CONFIRMATION_TEXT = 'DELETE';
+const PENDING_SELF_DELETE_REVOCATION_KEY_PREFIX = 'myk9:pending-self-delete-auth-revocation';
+
+function getPendingSelfDeleteRevocationKey(authUserId: string) {
+  return `${PENDING_SELF_DELETE_REVOCATION_KEY_PREFIX}:${authUserId}`;
+}
 
 export function ProfileSection() {
   const form = useProfileForm();
@@ -233,11 +239,17 @@ export function DogsSection() {
 }
 
 export function DeleteSection() {
-  const { signOut } = useAuthContext();
+  const { signOut, user } = useAuthContext();
   const form = useProfileForm();
   const [confirm, setConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [personDeleted, setPersonDeleted] = useState(() => {
+    const authUserId = user?.id;
+    return (
+      !!authUserId && localStorage.getItem(getPendingSelfDeleteRevocationKey(authUserId)) === 'true'
+    );
+  });
   const [error, setError] = useState<string | null>(null);
 
   const canDelete = confirmText === DELETE_CONFIRMATION_TEXT;
@@ -253,26 +265,50 @@ export function DeleteSection() {
 
   const handleDelete = async () => {
     if (inFlight.current || !canDelete) return;
-    if (!form.person?.id) {
-      setError('No profile found for this account.');
-      return;
-    }
     inFlight.current = true;
     setIsDeleting(true);
     setError(null);
 
-    // Pass the DatabaseError object itself to getUserFriendlyError so its
-    // `code` survives — MK001 (owns live dogs) must map to the "delete your
-    // dogs first" message.
-    const { error: deleteError } = await deleteUser(form.person.id);
+    if (!personDeleted) {
+      const personId = form.person?.id;
+      if (!personId) {
+        setError('No profile found for this account.');
+        inFlight.current = false;
+        setIsDeleting(false);
+        return;
+      }
 
-    if (deleteError) {
-      setError(getUserFriendlyError(deleteError));
+      // Pass the DatabaseError object itself to getUserFriendlyError so its
+      // `code` survives — MK001 (owns live dogs) must map to the "delete your
+      // dogs first" message.
+      const { error: deleteError } = await deleteUser(personId);
+
+      if (deleteError) {
+        setError(getUserFriendlyError(deleteError));
+        inFlight.current = false;
+        setIsDeleting(false);
+        return;
+      }
+
+      if (user?.id) {
+        localStorage.setItem(getPendingSelfDeleteRevocationKey(user.id), 'true');
+      }
+      setPersonDeleted(true);
+    }
+
+    const { error: revokeError } = await revokeSelfAuthIdentity();
+    if (revokeError) {
+      setError(
+        "Your profile was deleted, but we couldn't disable sign-in. Please try again or contact support."
+      );
       inFlight.current = false;
       setIsDeleting(false);
       return;
     }
 
+    if (user?.id) {
+      localStorage.removeItem(getPendingSelfDeleteRevocationKey(user.id));
+    }
     toast.success('Your account has been deleted.');
     try {
       // Await so a sign-out failure (network/auth outage) surfaces here
@@ -331,7 +367,13 @@ export function DeleteSection() {
                 onClick={() => void handleDelete()}
                 disabled={!canDelete || isDeleting}
               >
-                {isDeleting ? 'Deleting…' : 'Yes, delete account'}
+                {isDeleting
+                  ? personDeleted
+                    ? 'Disabling sign-in…'
+                    : 'Deleting…'
+                  : personDeleted
+                    ? 'Retry disabling sign-in'
+                    : 'Yes, delete account'}
               </Button>
               <Button variant="ghost" size="sm" onClick={handleCancel} disabled={isDeleting}>
                 Cancel

@@ -12,6 +12,8 @@ interface TestEntity {
 }
 
 class TestReplicatedTable extends ReplicatedTable<TestEntity> {
+  private legacyOmittedKeysServerWins: readonly string[] | undefined;
+
   async sync(_licenseKey: string, _options?: Partial<SyncOptions>): Promise<SyncResult> {
     return {
       tableName: this.tableName,
@@ -24,6 +26,14 @@ class TestReplicatedTable extends ReplicatedTable<TestEntity> {
 
   protected resolveConflict(_local: TestEntity, remote: TestEntity): TestEntity {
     return remote;
+  }
+
+  setLegacyOmittedKeysServerWins(keys: readonly string[]): void {
+    this.legacyOmittedKeysServerWins = keys;
+  }
+
+  protected override getLegacyOmittedKeysServerWins(): readonly string[] | undefined {
+    return this.legacyOmittedKeysServerWins;
   }
 }
 
@@ -359,6 +369,7 @@ describe('ReplicatedTable', () => {
       table.setMutationManager({
         reconcilePendingMutationsForRow: reconcileQueue,
       } as unknown as import('../MutationManager').MutationManager);
+      table.setLegacyOmittedKeysServerWins(['status']);
 
       await table.set('1', { id: '1', name: 'Rex', status: 'ready', finalPlacement: null });
       await table.set(
@@ -401,7 +412,7 @@ describe('ReplicatedTable', () => {
         id: '1',
         status: 'checked-in',
         final_placement: 2,
-      });
+      }, ['status']);
     });
 
     it('resolveReplicationConflict take-remote replaces local data and marks synced', async () => {

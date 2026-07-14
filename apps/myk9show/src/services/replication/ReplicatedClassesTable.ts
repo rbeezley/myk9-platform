@@ -257,6 +257,10 @@ const SERVER_OWNED_CLASS_COLUMNS: ReadonlyArray<readonly [string, keyof Replicat
   ['reopened_after_closeout_at', 'reopenedAfterCloseoutAt'],
 ];
 
+const LEGACY_OMITTED_CLASS_KEYS_SERVER_WINS: readonly string[] = SERVER_OWNED_CLASS_COLUMNS.map(
+  ([dbKey]) => dbKey
+);
+
 /**
  * Remove server-owned DB keys from a queued UPDATE payload unless the mutation's
  * caller explicitly set the corresponding source key. `toSupabaseRow` emits
@@ -390,6 +394,10 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       delete payload[dbKey];
     }
     return payload;
+  }
+
+  protected override getLegacyOmittedKeysServerWins(): readonly string[] {
+    return LEGACY_OMITTED_CLASS_KEYS_SERVER_WINS;
   }
 
   async sync(syncScopeId: string): Promise<SyncResult> {

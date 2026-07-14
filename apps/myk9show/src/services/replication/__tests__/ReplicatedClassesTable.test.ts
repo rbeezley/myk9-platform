@@ -807,6 +807,21 @@ describe('ReplicatedClassesTable', () => {
       expect(payload).toHaveProperty('display_order', 4);
     });
 
+    it('marks only server-owned columns as server-wins for legacy queue rebuilds', () => {
+      const keys = (
+        classesTable as unknown as {
+          getLegacyOmittedKeysServerWins: () => readonly string[];
+        }
+      ).getLegacyOmittedKeysServerWins();
+
+      expect(keys).toEqual([
+        'status',
+        'status_source',
+        'is_scoring_finalized',
+        'reopened_after_closeout_at',
+      ]);
+    });
+
     it('reads status_source and reopened_after_closeout_at from the DB row (DB→domain)', () => {
       const reopenedAt = '2026-07-12T15:00:00.000Z';
       const domain = rowToClass({

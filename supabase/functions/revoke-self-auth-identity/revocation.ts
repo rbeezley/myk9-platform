@@ -18,9 +18,17 @@ interface RevokeAuthIdentityArgs {
 export async function revokeAuthIdentity(
   args: RevokeAuthIdentityArgs
 ): Promise<{ revoked: boolean }> {
-  const { error } = await args.updateUserById(args.authUserId, {
-    ban_duration: '876000h',
-  });
+  let error: { message?: string } | null;
+
+  try {
+    ({ error } = await args.updateUserById(args.authUserId, {
+      ban_duration: '876000h',
+    }));
+  } catch (caught) {
+    error = {
+      message: caught instanceof Error ? caught.message : 'Unknown auth administration error',
+    };
+  }
 
   if (!error) {
     return { revoked: true };

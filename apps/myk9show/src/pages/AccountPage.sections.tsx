@@ -21,6 +21,11 @@ import { getUserFriendlyError } from '@/utils/errorMessages';
 import type { Dog as DogType } from '@/types/dog-types';
 
 const DELETE_CONFIRMATION_TEXT = 'DELETE';
+const PENDING_SELF_DELETE_REVOCATION_KEY_PREFIX = 'myk9:pending-self-delete-auth-revocation';
+
+function getPendingSelfDeleteRevocationKey(authUserId: string) {
+  return `${PENDING_SELF_DELETE_REVOCATION_KEY_PREFIX}:${authUserId}`;
+}
 
 export function ProfileSection() {
   const form = useProfileForm();
@@ -234,12 +239,17 @@ export function DogsSection() {
 }
 
 export function DeleteSection() {
-  const { signOut } = useAuthContext();
+  const { signOut, user } = useAuthContext();
   const form = useProfileForm();
   const [confirm, setConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  const [personDeleted, setPersonDeleted] = useState(false);
+  const [personDeleted, setPersonDeleted] = useState(() => {
+    const authUserId = user?.id;
+    return (
+      !!authUserId && localStorage.getItem(getPendingSelfDeleteRevocationKey(authUserId)) === 'true'
+    );
+  });
   const [error, setError] = useState<string | null>(null);
 
   const canDelete = confirmText === DELETE_CONFIRMATION_TEXT;
@@ -255,19 +265,23 @@ export function DeleteSection() {
 
   const handleDelete = async () => {
     if (inFlight.current || !canDelete) return;
-    if (!form.person?.id) {
-      setError('No profile found for this account.');
-      return;
-    }
     inFlight.current = true;
     setIsDeleting(true);
     setError(null);
 
     if (!personDeleted) {
+      const personId = form.person?.id;
+      if (!personId) {
+        setError('No profile found for this account.');
+        inFlight.current = false;
+        setIsDeleting(false);
+        return;
+      }
+
       // Pass the DatabaseError object itself to getUserFriendlyError so its
       // `code` survives — MK001 (owns live dogs) must map to the "delete your
       // dogs first" message.
-      const { error: deleteError } = await deleteUser(form.person.id);
+      const { error: deleteError } = await deleteUser(personId);
 
       if (deleteError) {
         setError(getUserFriendlyError(deleteError));
@@ -276,6 +290,9 @@ export function DeleteSection() {
         return;
       }
 
+      if (user?.id) {
+        localStorage.setItem(getPendingSelfDeleteRevocationKey(user.id), 'true');
+      }
       setPersonDeleted(true);
     }
 
@@ -289,6 +306,9 @@ export function DeleteSection() {
       return;
     }
 
+    if (user?.id) {
+      localStorage.removeItem(getPendingSelfDeleteRevocationKey(user.id));
+    }
     toast.success('Your account has been deleted.');
     try {
       // Await so a sign-out failure (network/auth outage) surfaces here

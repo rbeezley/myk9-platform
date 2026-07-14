@@ -39,8 +39,9 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
 }));
 
 const mockSignOut = vi.fn().mockResolvedValue(undefined);
+let mockAuthUserId = 'u-1';
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ signOut: mockSignOut }),
+  useAuthContext: () => ({ signOut: mockSignOut, user: { id: mockAuthUserId } }),
 }));
 
 const mockDeleteUser = vi.fn();
@@ -96,8 +97,10 @@ vi.mock('@/components/preferences/InstallAppSettings', () => ({
 describe('AccountPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockDogs = [];
     mockDogsLoading = false;
+    mockAuthUserId = 'u-1';
     mockForm.isDirty = false;
     mockForm.saving = false;
   });
@@ -332,6 +335,38 @@ describe('AccountPage', () => {
     await waitFor(() => expect(mockRevokeSelfAuthIdentity).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(mockSignOut).toHaveBeenCalledOnce());
     expect(mockDeleteUser).toHaveBeenCalledOnce();
+  });
+
+  it('DeleteSection retries a pending revocation after the page reloads without re-deleting', async () => {
+    localStorage.setItem('myk9:pending-self-delete-auth-revocation:u-1', 'true');
+    render();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));
+    fireEvent.click(screen.getByRole('button', { name: /delete my account/i }));
+    fireEvent.change(screen.getByLabelText(/type.*delete.*to confirm/i), {
+      target: { value: 'DELETE' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /retry disabling sign-in/i }));
+
+    await waitFor(() => expect(mockRevokeSelfAuthIdentity).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mockSignOut).toHaveBeenCalledOnce());
+    expect(mockDeleteUser).not.toHaveBeenCalled();
+    expect(localStorage.getItem('myk9:pending-self-delete-auth-revocation:u-1')).toBeNull();
+  });
+
+  it('DeleteSection does not retry a pending revocation created by another account', async () => {
+    localStorage.setItem('myk9:pending-self-delete-auth-revocation:u-1', 'true');
+    mockAuthUserId = 'u-2';
+    mockDeleteUser.mockResolvedValueOnce({ data: { id: 'p-1' }, error: null });
+    render();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));
+    fireEvent.click(screen.getByRole('button', { name: /delete my account/i }));
+    fireEvent.change(screen.getByLabelText(/type.*delete.*to confirm/i), {
+      target: { value: 'DELETE' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /yes, delete account/i }));
+
+    await waitFor(() => expect(mockDeleteUser).toHaveBeenCalledWith('p-1'));
+    expect(localStorage.getItem('myk9:pending-self-delete-auth-revocation:u-1')).toBe('true');
   });
 
   it('DeleteSection confirms success with a toast before signing out', async () => {

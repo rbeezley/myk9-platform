@@ -48,6 +48,11 @@ vi.mock('@/services/database/users/reads', () => ({
   deleteUser: (...args: unknown[]) => mockDeleteUser(...args),
 }));
 
+const mockRevokeSelfAuthIdentity = vi.fn().mockResolvedValue({ revoked: true, error: null });
+vi.mock('@/services/auth/revokeSelfAuthIdentity', () => ({
+  revokeSelfAuthIdentity: () => mockRevokeSelfAuthIdentity(),
+}));
+
 vi.mock('@/hooks/useAuthUser', () => ({
   useAuthUser: () => ({ id: 'u-1', email: 'jane@example.com' }),
 }));
@@ -256,7 +261,7 @@ describe('AccountPage', () => {
     expect(mockDeleteUser).not.toHaveBeenCalled();
   });
 
-  it('DeleteSection calls deleteUser with the current person id when confirmation text matches, then signs out', async () => {
+  it('DeleteSection revokes the auth identity after deleting the person and before signing out', async () => {
     mockDeleteUser.mockResolvedValueOnce({ data: { id: 'p-1' }, error: null });
     render();
     fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));
@@ -267,7 +272,15 @@ describe('AccountPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /yes, delete account/i }));
 
     await waitFor(() => expect(mockDeleteUser).toHaveBeenCalledWith('p-1'));
+    await waitFor(() => expect(mockRevokeSelfAuthIdentity).toHaveBeenCalledOnce());
     await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
+
+    expect(mockDeleteUser.mock.invocationCallOrder[0]).toBeLessThan(
+      mockRevokeSelfAuthIdentity.mock.invocationCallOrder[0]
+    );
+    expect(mockRevokeSelfAuthIdentity.mock.invocationCallOrder[0]).toBeLessThan(
+      mockSignOut.mock.invocationCallOrder[0]
+    );
   });
 
   it('DeleteSection surfaces the owns-live-dogs server rejection reason', async () => {
@@ -291,6 +304,34 @@ describe('AccountPage', () => {
     );
     expect(mockSignOut).not.toHaveBeenCalled();
     vi.unstubAllEnvs();
+  });
+
+  it('DeleteSection retries only identity revocation after a transport failure', async () => {
+    mockDeleteUser.mockResolvedValueOnce({ data: { id: 'p-1' }, error: null });
+    mockRevokeSelfAuthIdentity
+      .mockResolvedValueOnce({ revoked: false, error: new Error('network unavailable') })
+      .mockResolvedValueOnce({ revoked: true, error: null });
+    render();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));
+    fireEvent.click(screen.getByRole('button', { name: /delete my account/i }));
+    fireEvent.change(screen.getByLabelText(/type.*delete.*to confirm/i), {
+      target: { value: 'DELETE' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /yes, delete account/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/profile was deleted, but we couldn't disable sign-in.*try again/i)
+      ).toBeInTheDocument()
+    );
+    expect(mockDeleteUser).toHaveBeenCalledOnce();
+    expect(mockSignOut).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /retry disabling sign-in/i }));
+
+    await waitFor(() => expect(mockRevokeSelfAuthIdentity).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockSignOut).toHaveBeenCalledOnce());
+    expect(mockDeleteUser).toHaveBeenCalledOnce();
   });
 
   it('DeleteSection confirms success with a toast before signing out', async () => {

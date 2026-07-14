@@ -16,6 +16,7 @@ import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { mapDatabaseDogsArray } from '@/services/mappers/dogMappers';
 import { deleteUser } from '@/services/database/users/reads';
+import { revokeSelfAuthIdentity } from '@/services/auth/revokeSelfAuthIdentity';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import type { Dog as DogType } from '@/types/dog-types';
 
@@ -238,6 +239,7 @@ export function DeleteSection() {
   const [confirm, setConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [personDeleted, setPersonDeleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canDelete = confirmText === DELETE_CONFIRMATION_TEXT;
@@ -261,13 +263,27 @@ export function DeleteSection() {
     setIsDeleting(true);
     setError(null);
 
-    // Pass the DatabaseError object itself to getUserFriendlyError so its
-    // `code` survives — MK001 (owns live dogs) must map to the "delete your
-    // dogs first" message.
-    const { error: deleteError } = await deleteUser(form.person.id);
+    if (!personDeleted) {
+      // Pass the DatabaseError object itself to getUserFriendlyError so its
+      // `code` survives — MK001 (owns live dogs) must map to the "delete your
+      // dogs first" message.
+      const { error: deleteError } = await deleteUser(form.person.id);
 
-    if (deleteError) {
-      setError(getUserFriendlyError(deleteError));
+      if (deleteError) {
+        setError(getUserFriendlyError(deleteError));
+        inFlight.current = false;
+        setIsDeleting(false);
+        return;
+      }
+
+      setPersonDeleted(true);
+    }
+
+    const { error: revokeError } = await revokeSelfAuthIdentity();
+    if (revokeError) {
+      setError(
+        "Your profile was deleted, but we couldn't disable sign-in. Please try again or contact support."
+      );
       inFlight.current = false;
       setIsDeleting(false);
       return;
@@ -331,7 +347,13 @@ export function DeleteSection() {
                 onClick={() => void handleDelete()}
                 disabled={!canDelete || isDeleting}
               >
-                {isDeleting ? 'Deleting…' : 'Yes, delete account'}
+                {isDeleting
+                  ? personDeleted
+                    ? 'Disabling sign-in…'
+                    : 'Deleting…'
+                  : personDeleted
+                    ? 'Retry disabling sign-in'
+                    : 'Yes, delete account'}
               </Button>
               <Button variant="ghost" size="sm" onClick={handleCancel} disabled={isDeleting}>
                 Cancel

@@ -2047,6 +2047,64 @@ describe('MutationManager', () => {
   });
 
   describe('reconcilePendingMutationsForRow', () => {
+    it('preserves explicitly queued class-status fields when rebuilt data omits them', async () => {
+      const mutationId = await manager.queueMutation(
+        'classes',
+        'UPDATE',
+        'class-1',
+        {
+          id: 'class-1',
+          display_order: 2,
+          status: 'completed',
+          status_source: 'manual',
+        },
+        undefined,
+        3,
+        undefined,
+        false
+      );
+
+      await manager.reconcilePendingMutationsForRow('classes', 'class-1', 8, {
+        id: 'class-1',
+        display_order: 4,
+      });
+
+      const stored = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, mutationId);
+      expect(stored?.explicitDataKeys).toEqual([
+        'id',
+        'display_order',
+        'status',
+        'status_source',
+      ]);
+      expect(stored?.data).toEqual({
+        id: 'class-1',
+        display_order: 4,
+        status: 'completed',
+        status_source: 'manual',
+      });
+    });
+
+    it('does not add class-status fields that were absent from the queued mutation', async () => {
+      const mutationId = await manager.queueMutation(
+        'classes',
+        'UPDATE',
+        'class-1',
+        { id: 'class-1', display_order: 2 },
+        undefined,
+        3,
+        undefined,
+        false
+      );
+
+      await manager.reconcilePendingMutationsForRow('classes', 'class-1', 8, {
+        id: 'class-1',
+        display_order: 4,
+      });
+
+      const stored = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, mutationId);
+      expect(stored?.data).toEqual({ id: 'class-1', display_order: 4 });
+    });
+
     it('advances the OCC token on a queued RPC mutation (delta payload, no clobber risk)', async () => {
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,

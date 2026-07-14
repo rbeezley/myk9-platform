@@ -293,8 +293,11 @@ export class MutationManager {
    *    `mutation.data`, so advancing the token without refreshing the payload would
    *    regress server-changed untouched fields (silent clobber). Only advance — and
    *    replace `data` with `rebuiltData` — when the caller supplied a rebuilt
-   *    payload (from the reconciled row). With no rebuild available the mutation is
-   *    LEFT UNTOUCHED (stays throttled by the #961 backoff) rather than clobber.
+   *    payload (from the reconciled row). Keys deliberately present in the original
+   *    mutation but omitted by the rebuild are retained; adapters use that omission
+   *    to distinguish explicit intent from server-owned values. With no rebuild
+   *    available the mutation is LEFT UNTOUCHED (stays throttled by the #961
+   *    backoff) rather than clobber.
    *
    * INSERT/DELETE carry no OCC token and are ignored.
    */

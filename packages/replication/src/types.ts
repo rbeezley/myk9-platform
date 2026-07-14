@@ -111,6 +111,10 @@ export interface PendingMutation {
   operation: MutationOperation;
   rowId: string; // ID of affected row
   data: Record<string, unknown>; // Mutation data (generic object)
+  /** Exact DB payload keys present when this mutation was first queued. Rebuilds
+   *  use this to preserve deliberately supplied fields that an adapter normally
+   *  omits from full-row resends. Optional for legacy persisted mutations. */
+  explicitDataKeys?: string[];
   timestamp: number; // When mutation was queued
   retries: number; // Retry attempts
   status: MutationStatus;

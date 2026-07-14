@@ -380,14 +380,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
 
   protected override rebuildUpdatePayload(cls: ReplicatedClass): Record<string, unknown> {
     // Resend path after an OCC token advance (reconcileDirtyRow / clearConflict):
-    // rebuilds a full row from the local `data`, which cannot know the original
-    // mutation's `updates`. Server-owned/derived columns must never be re-asserted
-    // on a resend — the server value wins — so strip all four unconditionally.
-    // Trade-off: a manual status change still queued (unsent) when an unrelated
-    // server field bumps and triggers reconcile is dropped from the resent payload,
-    // so the manual Mark Complete/Started must be re-issued. Acceptable — reconcile
-    // only fires on a same-row server change with NO same-field conflict, and manual
-    // overrides are rare relative to the silent clobber this prevents.
+    // rebuilds a full row from local `data`, which cannot know the original
+    // mutation's `updates`. Strip all server-owned columns here; the mutation queue
+    // restores only keys that were deliberately present in the original payload.
+    // Therefore a queued manual Mark Complete/Started retains status intent, while
+    // an unrelated edit continues to accept the reconciled server values.
     const payload = this.toSupabaseRow(cls);
     for (const [dbKey] of SERVER_OWNED_CLASS_COLUMNS) {
       delete payload[dbKey];

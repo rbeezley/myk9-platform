@@ -120,13 +120,15 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       `openspec/changes/archive/2026-07-04-class-mgmt-mutation-error-surfacing/`. Owner: Agent.
 - [ ] **0.7 Finish remaining agent-owned launch remediation before human testing** — Do not
       schedule Phase 4 real-user sessions until these active product changes are merged or
-      explicitly accepted as P2: (a) resolve the contradictory exhibitor entry state and raise
-      the payment-remove and Cart “Continue Shopping” controls to the 44px floor; (b) run the
+      explicitly accepted as P2: (a) resolve the contradictory exhibitor entry state; (b) run the
       remaining focused exhibitor Playwright/low-tech verification and final dog-profile
       re-walk; (c) merge, pass CI, and archive `ux-contrast-token-system`; (d) complete the
       authenticated visual evidence plus PR/CI closeout for `improve-exhibitor-entries-scan`;
       and (e) complete the mobile/tablet/desktop Setup + Show Desk re-walk for
       `secretary-show-details-ux-remediation`.
+      _Completed control remediation 2026-07-14:_ PR #1264 raised the registration payment-remove
+      control from 32px to `min-h-11 min-w-11` and Cart “Continue Shopping” from 40px to
+      `min-h-11`; focused regression tests passed (2 files, 7 tests).
       _Already complete:_ motion consistency and the original July UX remediation plan. The
       remaining evidence-only gates are the scorecard's show-day re-walk, offline→reconnect
       rehearsal, data reconciliation, venue print test, real-user testing, and deployment/

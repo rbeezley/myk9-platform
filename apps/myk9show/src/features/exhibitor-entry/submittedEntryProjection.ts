@@ -13,6 +13,7 @@ export interface SubmittedEntryProjectionRow {
   checkInStatus: string | null;
   deletedAt: string | null;
   specialRequests: string | null;
+  handlerId: string | null;
 }
 
 export interface SubmittedEntryDbRow extends Record<string, unknown> {
@@ -23,6 +24,7 @@ export interface SubmittedEntryDbRow extends Record<string, unknown> {
   check_in_status?: unknown;
   deleted_at?: unknown;
   special_requests?: unknown;
+  handler_id?: unknown;
 }
 
 export interface SubmittedEntryProjection {
@@ -55,6 +57,7 @@ export function toSubmittedEntryProjectionRow(
     checkInStatus: nullableString(row.check_in_status),
     deletedAt: nullableString(row.deleted_at),
     specialRequests: nullableString(row.special_requests),
+    handlerId: nullableString(row.handler_id),
   };
 }
 
@@ -65,17 +68,21 @@ function isActiveSubmittedEntry(row: SubmittedEntryProjectionRow): boolean {
 export function buildSubmittedEntryProjection({
   rows,
   ownedDogIds,
+  personId,
   state,
 }: {
   rows: readonly SubmittedEntryProjectionRow[];
   ownedDogIds: ReadonlySet<string>;
+  personId?: string | null;
   state: SubmittedEntryReadState;
 }): SubmittedEntryProjection {
   const eligibleRows: SubmittedEntryProjectionRow[] = [];
   const dogsWithSurvivingRows = new Set<string>();
 
   for (const row of rows) {
-    if (row.deletedAt || !ownedDogIds.has(row.dogId)) continue;
+    const isOwnedDog = ownedDogIds.has(row.dogId);
+    const isAssignedHandler = personId != null && row.handlerId === personId;
+    if (row.deletedAt || (!isOwnedDog && !isAssignedHandler)) continue;
     eligibleRows.push(row);
     if (getEntryStatusKind(row.status) !== 'moved') {
       dogsWithSurvivingRows.add(row.dogId);

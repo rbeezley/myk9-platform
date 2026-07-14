@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { fromAny, fromPartial } from '@total-typescript/shoehorn';
-import { useShowEntriesForUser } from './useShowEntriesForUser';
+import { mergeCanonicalEntry, useShowEntriesForUser } from './useShowEntriesForUser';
 
 // ---------------------------------------------------------------------------
 // Module mocks
@@ -179,6 +179,14 @@ describe('useShowEntriesForUser', () => {
     expect(result.current.allEntries[0].classTitle).toBe('Container Novice A');
     expect(result.current.isLoading).toBe(false);
     expect(result.current.isError).toBe(false);
+  });
+
+  it('clears a stale local pulled check-in status when the canonical row has none', () => {
+    const stored = fromAny(makeEntry({ checkInStatus: 'pulled' }));
+    const canonical = fromAny(makeEntry());
+    delete canonical.checkInStatus;
+
+    expect(mergeCanonicalEntry(canonical, stored).checkInStatus).toBe('no-status');
   });
 
   it('excludes entries from other shows', () => {

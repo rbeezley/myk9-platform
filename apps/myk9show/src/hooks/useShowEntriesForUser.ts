@@ -173,7 +173,7 @@ function normalizeCanonicalEntry(row: SubmittedEntryDbRow): SyncableShowEntry | 
   };
 }
 
-function mergeCanonicalEntry(
+export function mergeCanonicalEntry(
   canonical: SyncableShowEntry,
   stored: SyncableShowEntry | undefined
 ): SyncableShowEntry {
@@ -181,7 +181,9 @@ function mergeCanonicalEntry(
   return {
     ...stored,
     status: canonical.status,
-    ...(canonical.checkInStatus ? { checkInStatus: canonical.checkInStatus } : {}),
+    // The canonical per-show read is authoritative. A null status explicitly
+    // clears a stale local status such as `pulled`.
+    checkInStatus: canonical.checkInStatus ?? 'no-status',
     registrationData: {
       ...stored.registrationData,
       ...canonical.registrationData,

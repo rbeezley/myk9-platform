@@ -16,6 +16,7 @@ function row(
     checkInStatus: null,
     deletedAt: null,
     specialRequests: null,
+    handlerId: null,
     ...overrides,
   };
 }
@@ -80,4 +81,15 @@ describe('buildSubmittedEntryProjection', () => {
       expect(projection.isReady).toBe(false);
     }
   );
+
+  it('keeps an assigned handler entry visible when the handler does not own the dog', () => {
+    const projection = buildSubmittedEntryProjection({
+      rows: [row('handled', { dogId: 'other-dog', handlerId: 'handler-1' })],
+      ownedDogIds: new Set<string>(),
+      personId: 'handler-1',
+      state: 'ready',
+    });
+
+    expect(projection.activeEntries.map(entry => entry.id)).toEqual(['handled']);
+  });
 });

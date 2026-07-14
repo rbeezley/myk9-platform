@@ -58,6 +58,7 @@ export function useSubmittedEntryProjection({
     const projection = buildSubmittedEntryProjection({
       rows: projectionRows,
       ownedDogIds,
+      ...(databaseUserId !== undefined ? { personId: databaseUserId } : {}),
       state,
     });
     const visibleEntryIds = new Set(projection.ownedHistory.map(entry => entry.id));

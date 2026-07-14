@@ -166,6 +166,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * Return DB keys that a legacy full-row mutation must not restore when its
+   * rebuild omits them. Legacy queues lack explicitDataKeys, so adapters with
+   * server-owned fields can preserve server-wins behavior without changing the
+   * generic legacy payload contract for other tables.
+   */
+  protected getLegacyOmittedKeysServerWins(): readonly string[] | undefined {
+    return undefined;
+  }
+
+  /**
    * Queue a mutation for upload to Supabase.
    * Subclasses call this after set() with the Supabase-format payload.
    */
@@ -499,12 +509,23 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     if (newServerVersion !== undefined && this.mutationManager) {
       const rebuiltData =
         options?.rebuildUpdatePayload?.(nextRow.data) ?? this.rebuildUpdatePayload(nextRow.data);
-      await this.mutationManager.reconcilePendingMutationsForRow(
-        this.tableName,
-        normalizedId,
-        newServerVersion,
-        rebuiltData
-      );
+      const legacyOmittedKeysServerWins = this.getLegacyOmittedKeysServerWins();
+      if (legacyOmittedKeysServerWins) {
+        await this.mutationManager.reconcilePendingMutationsForRow(
+          this.tableName,
+          normalizedId,
+          newServerVersion,
+          rebuiltData,
+          legacyOmittedKeysServerWins
+        );
+      } else {
+        await this.mutationManager.reconcilePendingMutationsForRow(
+          this.tableName,
+          normalizedId,
+          newServerVersion,
+          rebuiltData
+        );
+      }
     }
 
     this.notifyListeners();
@@ -665,12 +686,23 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     // token forever (storm) and, for full-row UPDATEs, the stale payload (clobber).
     if (advanceToken && this.mutationManager && params.remoteServerVersion !== undefined) {
       const rebuiltData = params.rebuildPayload?.(normalizedMerged);
-      await this.mutationManager.reconcilePendingMutationsForRow(
-        this.tableName,
-        normalizedId,
-        params.remoteServerVersion,
-        rebuiltData
-      );
+      const legacyOmittedKeysServerWins = this.getLegacyOmittedKeysServerWins();
+      if (legacyOmittedKeysServerWins) {
+        await this.mutationManager.reconcilePendingMutationsForRow(
+          this.tableName,
+          normalizedId,
+          params.remoteServerVersion,
+          rebuiltData,
+          legacyOmittedKeysServerWins
+        );
+      } else {
+        await this.mutationManager.reconcilePendingMutationsForRow(
+          this.tableName,
+          normalizedId,
+          params.remoteServerVersion,
+          rebuiltData
+        );
+      }
     }
 
     this.logger.log(

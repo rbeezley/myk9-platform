@@ -2105,6 +2105,53 @@ describe('MutationManager', () => {
       expect(stored?.data).toEqual({ id: 'class-1', display_order: 4 });
     });
 
+    it('preserves omitted legacy fields when their table has no server-owned key policy', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'legacy-entry-1',
+          tableName: 'entries',
+          rowId: 'entry-1',
+          serverVersion: 3,
+          data: { id: 'entry-1', secretary_note: 'keep this edit' },
+        })
+      );
+
+      await manager.reconcilePendingMutationsForRow('entries', 'entry-1', 8, {
+        id: 'entry-1',
+      });
+
+      const stored = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'legacy-entry-1');
+      expect(stored?.explicitDataKeys).toEqual(['id', 'secretary_note']);
+      expect(stored?.data).toEqual({ id: 'entry-1', secretary_note: 'keep this edit' });
+    });
+
+    it('keeps legacy mutations server-wins when rebuild omits stale class status', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'legacy-class-1',
+          tableName: 'classes',
+          rowId: 'class-1',
+          serverVersion: 3,
+          // Queues created before explicitDataKeys contained full-row derived status.
+          data: { id: 'class-1', display_order: 2, status: 'completed' },
+        })
+      );
+
+      await manager.reconcilePendingMutationsForRow(
+        'classes',
+        'class-1',
+        8,
+        { id: 'class-1', display_order: 4 },
+        ['status', 'status_source', 'is_scoring_finalized', 'reopened_after_closeout_at']
+      );
+
+      const stored = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'legacy-class-1');
+      expect(stored?.explicitDataKeys).toEqual(['id', 'display_order']);
+      expect(stored?.data).toEqual({ id: 'class-1', display_order: 4 });
+    });
+
     it('advances the OCC token on a queued RPC mutation (delta payload, no clobber risk)', async () => {
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,

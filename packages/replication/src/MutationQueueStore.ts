@@ -253,7 +253,8 @@ export class MutationQueueStore {
     tableName: string,
     rowId: string,
     newServerVersion: number,
-    rebuiltData?: Record<string, unknown>
+    rebuiltData?: Record<string, unknown>,
+    legacyOmittedKeysServerWins: readonly string[] = []
   ): Promise<number> {
     const db = await databaseManager.getDatabase('MutationManager');
     const all = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
@@ -275,7 +276,9 @@ export class MutationQueueStore {
           ? newServerVersion
           : mutation.serverVersion;
 
-      const explicitDataKeys = mutation.explicitDataKeys ?? Object.keys(mutation.data);
+      const explicitDataKeys =
+        mutation.explicitDataKeys ??
+        Object.keys(mutation.data).filter(key => !legacyOmittedKeysServerWins.includes(key));
       const reconciledData =
         !isRpc && rebuiltData !== undefined ? { ...rebuiltData } : mutation.data;
 

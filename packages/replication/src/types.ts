@@ -113,7 +113,8 @@ export interface PendingMutation {
   data: Record<string, unknown>; // Mutation data (generic object)
   /** Exact DB payload keys present when this mutation was first queued. Rebuilds
    *  use this to preserve deliberately supplied fields that an adapter normally
-   *  omits from full-row resends. Optional for legacy persisted mutations. */
+   *  omits from full-row resends. Optional for legacy persisted mutations; table
+   *  adapters may identify omitted keys that must remain server-wins. */
   explicitDataKeys?: string[];
   timestamp: number; // When mutation was queued
   retries: number; // Retry attempts

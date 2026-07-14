@@ -20,4 +20,4 @@
 
 - [x] 4.1 Record this scoped change and its remaining browser evidence gate in OpenSpec.
 - [x] 4.2 Update the go-live tracker to close `QA-STALE-DERIVED-STATE-035` only after task 3.3 passes.
-- [ ] 4.3 Open a PR, obtain review and green CI, merge, then archive this change.
+- [x] 4.3 Open a PR, obtain review and green CI, merge, then archive this change. Completed 2026-07-14: PR #1326 merged after review and all required CI checks passed.

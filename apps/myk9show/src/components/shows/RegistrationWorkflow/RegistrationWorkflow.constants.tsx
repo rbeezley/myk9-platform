@@ -8,10 +8,10 @@ import type {
 
 export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
   exhibitor: {
-    // INTENT: Exhibitors only see their own dogs (max 5) — auto-select all and show
-    // one tab per dog in class selection. Dogs with no classes selected produce no entries.
-    // Handler auto-assigned to dog owner; inline collapsible in class selection to change.
-    steps: ['class-selection', 'payment', 'confirmation'],
+    // INTENT: Exhibitors choose the dog they are entering before classes so the
+    // wizard never asks them to select classes for an empty cart. They only see
+    // their own dogs (max 5); handler selection stays inline in class selection.
+    steps: ['dog-selection', 'class-selection', 'payment', 'confirmation'],
     features: {
       bulkSelection: false,
       createNew: false,

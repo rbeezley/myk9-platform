@@ -97,7 +97,7 @@ Copy this block for each new finding.
 
 ### QA-STALE-DERIVED-STATE-035
 
-- **Status:** open
+- **Status:** resolved 2026-07-14
 - **Severity:** high
 - **Role:** exhibitor
 - **Surface:** Browse Shows card, `/shows/dededede-0000-0000-0000-000000000010` exhibitor detail tabs, and `/shows/dededede-0000-0000-0000-000000000010/register`.
@@ -108,8 +108,8 @@ Copy this block for each new finding.
 - **User impact:** An exhibitor cannot reliably determine whether an entry exists. An older novice is likely to distrust the site, attempt a duplicate entry, or call the secretary.
 - **Intent check:** Harms the exhibitor target feeling “This respects my time”; the basic question “am I entered?” should not require reconciling four screens.
 - **Fix owner:** exhibitor show-detail entry aggregation/display selectors and their consumers in Browse Shows and registration state.
-- **Proof required:** Add focused coverage for the seeded combination of submitted entries and a cart line, then replay the show detail and registration on phone and desktop. All surfaces must use one explicit rule: submitted entries, cart items, and no entry must be labelled/countable without contradiction.
-- **Notes:** Preserve the existing surfaces. If cart lines are intentionally excluded from submitted entries, explain that distinction plainly instead of showing an empty-state claim that contradicts the other derived state.
+- **Proof required:** Completed 2026-07-14: focused coverage covers submitted entries and cart lines; authenticated Heartland replays at 390×844 and 1440×900 followed Browse Shows → Show Detail → Select Dogs → Classes → Payment review without submission, horizontal overflow, or browser console errors.
+- **Notes:** Resolved with the shared owned submitted-entry projection: persisted rows retain submitted status, while unsubmitted registration selections are labelled `In cart` and do not affect submitted-entry counts.
 
 ### QA-ACCESSIBILITY-GAP-036
 

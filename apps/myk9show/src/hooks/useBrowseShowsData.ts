@@ -118,16 +118,18 @@ export function useBrowseShowsData({
   // so this corrects the tab count/list without swapping the shared store.
   const personId = useCurrentUserPersonId();
   const accountEnteredShowIds = useAccountEnteredShowIds(personId);
+  const { active: activeAccountEnteredShowIds, all: allAccountEnteredShowIds } =
+    accountEnteredShowIds;
   const derivedUserId = user?.databaseUserId ?? user?.id;
   const entries = useMemo(
     () =>
       mergeAccountEnteredShowStubs(
         storeEntries,
-        accountEnteredShowIds.all,
+        allAccountEnteredShowIds,
         derivedUserId,
-        accountEnteredShowIds.active
+        activeAccountEnteredShowIds
       ),
-    [storeEntries, accountEnteredShowIds, derivedUserId]
+    [storeEntries, allAccountEnteredShowIds, activeAccountEnteredShowIds, derivedUserId]
   );
   const activeEnteredShowIds = useMemo(() => {
     const ids = new Set<string>();

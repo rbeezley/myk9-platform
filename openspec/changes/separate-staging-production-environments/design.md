@@ -41,7 +41,7 @@ Replace the app portion of the current automatic production workflow with a CI-g
 - Trigger only after a successful `CI` push run on `main`.
 - Check out `workflow_run.head_sha`.
 - Serialize staging deployments, cancel superseded runs, and immediately before alias update prove the candidate is still the newest successful `main` CI SHA so an older run cannot replace newer staging.
-- Deploy with `vercel deploy --target=staging --yes --archive=tgz`.
+- Advance a protected `staging-release` Git ref to that exact SHA; Vercel Custom Environment branch tracking deploys that ref to `staging` through the Git integration without exposing a Vercel access token to the automatic workflow.
 - Record commit SHA, deployment ID/URL, `staging.myk9show.com`, and readiness evidence.
 
 Add a separate `workflow_dispatch` production release workflow:
@@ -91,14 +91,17 @@ Use environment-scoped names and documentation:
 
 - Vercel custom `staging`: current staging Supabase URL/key, Stripe test-mode values, staging auth/site URLs, `VITE_APP_ENVIRONMENT=staging`.
 - Vercel Production: new production Supabase URL/key, Stripe live-mode values, production auth/site URLs, `VITE_APP_ENVIRONMENT=production`.
-- GitHub repository secrets retain shared Vercel credentials; environment-specific deployment IDs/evidence belong to the relevant GitHub environment or workflow inputs.
+- The automatic staging workflow has no Vercel access token. It may update only the protected `staging-release` ref after successful main CI; Vercel branch tracking performs the staging deployment.
+- Remove the team-scoped `VERCEL_TOKEN` from repository-level secrets. Store it only in the approval-protected GitHub `production` environment for explicit app production releases.
+- Preserve CI-gated guides deployment without a team token by advancing a dedicated `guides-release` ref to the exact successful main CI SHA and configuring the guides Vercel project to track that ref as its production branch.
+- Environment-specific deployment IDs/evidence belong to the relevant GitHub environment or workflow outputs.
 - `staging.myk9show.com` is never aliased to a Production deployment, and `myk9show.com` is never aliased to a staging deployment.
 - [ADDED] Local development remains `localhost`; PR branches remain isolated Vercel Preview deployments. Neither is considered shared staging evidence.
 - [ADDED] Protect `staging.myk9show.com` with the strongest Pro-compatible deployment protection available to intended testers and send `noindex` headers/meta so staging is not treated as a public site.
 
 ### 6. Preserve guides deployment behavior
 
-The guides project remains independently CI-gated to `help.myk9show.com`. Its job may be moved to a clearly named workflow while app staging/production workflows are split, but its release semantics do not change in this scope.
+The guides project remains independently CI-gated to `help.myk9show.com`. After successful main CI, the trusted workflow advances `guides-release` to the exact validated SHA; the guides Vercel project tracks that ref and deploys through its Git integration. This preserves the existing CI gate while removing production-capable team credentials from an automatic job.
 
 ### 7. Verification is layered and approval-gated
 
@@ -111,6 +114,7 @@ Each Vercel plan/domain/environment mutation, GitHub environment protection chan
 - **[Production and staging schema drift]** → Apply the same migration commit to staging first, verify it, then apply that exact migration set to production; add drift checks before promotion.
 - **[Staging artifact differs from production build]** → Require the same exact source SHA and lockfile; verify environment-sensitive differences explicitly. Rebuilding is necessary because Vite variables are embedded at build time.
 - **[Accidental production release]** → Use `workflow_dispatch`, full-SHA validation, successful-CI lookup, READY-staging lookup, and GitHub `production` environment approval.
+- **[Automatic staging or guides job holds a production-capable Vercel token]** → Use protected release refs plus Vercel Git branch tracking for automatic deployments; keep the team-scoped token only in the approval-protected app production environment.
 - **[Test traffic reaches production]** → Use separate Supabase, Stripe, auth, email, webhook, cron, and storage configuration; prohibit production credentials in preview/staging scopes.
 - **[Production project is incomplete]** → Use an environment parity checklist and block first public release until every required service has evidence.
 - **[Vercel Pro cost and usage]** → Record the plan upgrade and expected monthly baseline before approval; retain the two-project fallback only as a documented contingency.

@@ -2,13 +2,14 @@
 
 ### Requirement: Successful main CI deploys only to staging
 
-The system SHALL deploy the exact commit validated by a successful `main` push CI run to the Vercel `staging` environment and SHALL NOT update `myk9show.com` as part of that automatic workflow.
+The system SHALL deploy the exact commit validated by a successful `main` push CI run to the Vercel `staging` environment and SHALL NOT update `myk9show.com` as part of that automatic workflow. The automatic workflow MUST NOT receive a Vercel access token capable of production deployment; it SHALL advance only the protected staging release ref consumed by Vercel Custom Environment branch tracking.
 
 #### Scenario: Main CI succeeds
 
 - **WHEN** the complete CI workflow succeeds for a push commit on `main`
 - **THEN** that exact commit is deployed to `staging.myk9show.com`
 - **AND** the current production deployment remains unchanged
+- **AND** the automatic workflow has no Vercel production credential
 
 #### Scenario: Successful main CI runs complete out of order
 
@@ -69,6 +70,12 @@ The system MUST use separate Vercel environment variables and separate Supabase 
 - **WHEN** myK9Show is built for Vercel Production
 - **THEN** it uses `VITE_APP_ENVIRONMENT=production`, the production Supabase project, and production service credentials
 - **AND** no staging-only credential or endpoint is present
+
+#### Scenario: Production deployment credential is requested
+
+- **WHEN** any automatic staging, preview, or guides workflow runs
+- **THEN** the team-scoped Vercel production token is unavailable
+- **AND** that token is available only to the approval-protected production release job
 
 ### Requirement: Environment domains are unambiguous
 

@@ -89,12 +89,12 @@ High-judgment work to prioritize while strong-model access is available. These a
   clean after #1294 merged remote versions `20260712180000`/`190000`; the post-merge
   `supabase db push --dry-run` reports the remote database is up to date.
 
-- [ ] **Run the morning evidence sweep (gates 2.4 + 2.5)** — After 08:15 UTC (3:15 AM CDT), three
-      read-only checks: (1) `cron.job_run_details` for the `daily-health-snapshot-watchdog` job shows
-      `status='succeeded'` on its first 08:00 UTC run → closes gate 2.4; (2) Sentry Cron Monitor
-      `daily-health-check` received correlated `in_progress → ok` check-ins from the 07:00 UTC run and a
-      fresh `system_health_snapshots` row landed; (3) operator confirms the monitor's missed/error/recovery
-      routing goes to a named human, plus one missed-notification test → closes gate 2.5. Cheap-model work.
+- [~] **Run the morning evidence sweep (gates 2.4 + 2.5)** — **Gate 2.4 complete 2026-07-15:**
+      read-only `cron.job_run_details` evidence shows `daily-health-snapshot-watchdog` succeeded at
+      08:00 UTC as `postgres` with `INSERT 0 0`; the 07:00 run also succeeded and a fresh
+      `system_health_snapshots` row landed at `07:00:02.440617 UTC` with `overall_status=ok`.
+      **Gate 2.5 remains operator-owned:** the Sentry Cron Monitor, named-human route, correlated
+      check-ins, and missed-notification test still need external Sentry evidence. Cheap-model work.
       Then Sections 9.3–9.7 and human review of the draft grant migration (esp. `get_license_key()`, live
       grant + zero call sites). Full context in TO-DOS.md § "Go-Live Morning Evidence Sweep".
 

@@ -1,6 +1,6 @@
 # Daily Health Monitoring Evidence
 
-**Checked:** 2026-07-11 15:59 UTC
+**Checked:** 2026-07-15 08:15 UTC
 
 **Project:** `sojmvhhwsjxmfistvzbe`
 
@@ -8,16 +8,12 @@
 
 ## Read-only baseline
 
-- `daily-health-check` is active at `0 7 * * *`; the July 11 scheduler run reported
-  `succeeded`, which proves only that `net.http_post` was queued.
-- The newest `cron-health-check` row remained `2026-07-10 07:00:02 UTC`, more than 30 hours old
-  during evidence gathering.
-- Deployed `cron-health-check` version 3 was active with JWT verification disabled, matching its
-  internal `x-function-secret` authentication design.
-- Redacted digest comparison showed that Vault `service_role_key` did not match the current Edge
-  runtime service-role secret. The archived `pg_net` response was no longer available, so this is
-  the leading delivery-failure hypothesis, not a closed root-cause claim. Vault reconciliation and
-  a manual dispatch remain approval-gated.
+- `daily-health-check` is active at `0 7 * * *`; its 2026-07-15 run reported `succeeded`.
+- `daily-health-snapshot-watchdog` is active at `0 8 * * *`; its 2026-07-15 run reported
+  `succeeded` with `return_message = INSERT 0 0`.
+- The newest `cron-health-check` row is `2026-07-15 07:00:02.440617 UTC` with
+  `overall_status = ok` and `source = cron-health-check`.
+- Both scheduled jobs execute as `postgres`, matching the required owner for the watchdog proof.
 
 No secret value was read into this evidence file.
 
@@ -39,10 +35,10 @@ The watchdog:
 
 A read-only live `EXPLAIN (FORMAT JSON, COSTS OFF)` selected
 `system_health_snapshots_created_at_desc_idx` via a `Bitmap Index Scan` for the same bounded
-timestamp predicate. The migration itself and a rolled-back write-path transaction were not run;
-those remain behind the shared-system gate. The write proof must use the exact owner recorded in
-`cron.job.username`, not `service_role`, and the first scheduled run must be checked in
-`cron.job_run_details` so FORCE RLS or execution-role failures cannot remain hidden.
+timestamp predicate. The approved write proof, deduplication/recurrence proof, and rollback
+evidence are recorded in the runbook. The 2026-07-15 `cron.job_run_details` read-back now proves
+the first scheduled path is live under the recorded `postgres` owner; no shared-system mutation
+was performed during this evidence sweep.
 
 ## External Sentry Cron path
 
@@ -53,6 +49,7 @@ no-DSN path.
 
 The Edge runner uses optional Supabase-side `SENTRY_DSN` and `SENTRY_ENVIRONMENT` values. It does
 not require them for snapshot generation, does not read the browser DSN, starts monitoring only
-after request authentication, and does not mutate monitor schedule configuration. Sentry monitor
-creation, named-human routing, secret configuration, deployment, and missed/recovery proof remain
-operator/shared-system tasks.
+after request authentication, and does not mutate monitor schedule configuration. The live
+correlated `in_progress` → `ok` check-in, Sentry monitor creation, named-human routing, secret
+configuration, deployment, and missed/recovery proof remain unverified operator/shared-system
+tasks. The 2026-07-15 database query cannot establish those external Sentry facts.

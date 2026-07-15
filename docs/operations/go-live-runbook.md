@@ -429,7 +429,7 @@ the Edge runner. Do not treat either as live until its approval-gated steps belo
       cron discarded the `pg_net` request ID and its response row expired. Do not rotate a working
       credential solely on that disproved hypothesis. The independent watchdog and Sentry proof
       below remain required because pg_cron success alone still proves only queueing.
-- [~] **Prove the durable miss:** **WRITE-PROOF COMPLETE 2026-07-13 02:22 UTC** (approved gate 2.4
+- [x] **Prove the durable miss:** **SCHEDULED PATH PROVEN 2026-07-15** (approved gate 2.4
   run, executed as `postgres` — the recorded `cron.job.username` — via the session pooler). The
   watchdog body was run with its window fixed to the genuinely snapshot-less 2026-07-11 07:00–08:00
   UTC day: (1) insert produced unresolved alert `aa1b43cd-66dd-4cca-a4fd-004f66b70f01` with
@@ -437,10 +437,8 @@ the Edge runner. Do not treat either as live until its approval-gated steps belo
   proving deduplication via the partial unique index; (3) after `resolved_at` was set, a further
   insert created new row `c7e056d5-596d-4935-9335-833bf4a9a641`, proving recurrence after
   resolution. Both rows are resolved with resolution notes appended to `detail` and retained as
-  durable evidence. Still open before calling the database path live: after the first scheduled
-  08:00 UTC run (2026-07-13), verify `cron.job_run_details.status = 'succeeded'` and inspect
-  `return_message` for the watchdog job (jobid 12 had zero `job_run_details` rows as of this
-  proof because it was scheduled after 08:00 UTC on 2026-07-12).
+  durable evidence. Read-only scheduled evidence on 2026-07-15 shows jobid 12 ran at 08:00 UTC as
+  `postgres` with `cron.job_run_details.status = 'succeeded'` and `return_message = 'INSERT 0 0'`.
 - [ ] **External path:** create the Sentry Cron Monitor with slug `daily-health-check`, schedule
       `0 7 * * *`, timezone UTC, 15-minute check-in margin, and 10-minute max runtime. Route missed,
       error, and recovery notifications to a named human. Keep monitor configuration in Sentry;

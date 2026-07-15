@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { AppShellPage } from '@/components/layout/AppShell';
 
 interface EntityPageLayoutProps {
   children: React.ReactNode;
@@ -26,11 +27,8 @@ const EntityPageLayout: React.FC<EntityPageLayoutProps> = ({
   actions,
 }) => {
   return (
-    <div className={cn(
-      "w-full flex justify-center pt-20",
-      className
-    )}>
-      <div className="w-full max-w-[1200px] px-4">
+    <AppShellPage maxWidthClass="max-w-[1200px]" className={cn('w-full', className)}>
+      <div className="w-full">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div>
@@ -44,7 +42,7 @@ const EntityPageLayout: React.FC<EntityPageLayoutProps> = ({
         </div>
         {children}
       </div>
-    </div>
+    </AppShellPage>
   );
 };
 

@@ -1,14 +1,14 @@
-# CI-gated production deploys (myK9Show)
+# CI-gated production deploys (myK9Show + guides)
 
 > **Status:** Rollout pending — the workflow is merged but **not yet in effect**.
 > Until the operator setup below completes (secrets + the
 > `PRODUCTION_DEPLOY_ENABLED` variable + `git.deploymentEnabled`), Vercel's Git
 > integration still auto-deploys `main` on every push.
 
-**Target state:** production deploys of myK9Show gated on a green CI run — the
+**Target state:** production deploys of myK9Show and the guides site gated on a green CI run — the
 [`Deploy Production`](../../.github/workflows/deploy-production.yml) workflow
-ships `main` to Vercel **only after** the entire `CI` workflow (Quality Checks +
-Test + Build + A11y smoke + E2E PR Smoke) succeeds on the merged commit.
+ships both projects to Vercel **only after** the entire `CI` workflow (Quality
+Checks + Test + Build + A11y smoke + E2E PR Smoke) succeeds on the merged commit.
 
 **Current state:** Vercel's Git integration still deploys every push to `main`
 to production regardless of whether tests passed. The workflow is **inert until
@@ -39,15 +39,16 @@ the build environment is identical, which keeps the failure surface small.
 
 ## One-time operator setup
 
-### 1. Add three GitHub Actions secrets
+### 1. Add four GitHub Actions secrets
 
 Repo → Settings → Secrets and variables → Actions → **New repository secret**:
 
-| Secret | Value | Where to get it |
-| --- | --- | --- |
-| `VERCEL_TOKEN` | A Vercel access token | Vercel → Account Settings → Tokens → Create. Scope it to the team that owns the project. |
-| `VERCEL_ORG_ID` | The Vercel org/team id | `cd apps/myk9show && vercel link` (once), then read `.vercel/project.json` → `orgId`. |
-| `VERCEL_PROJECT_ID` | The myK9Show project id | Same `.vercel/project.json` → `projectId`. |
+| Secret                   | Value                   | Where to get it                                                                          |
+| ------------------------ | ----------------------- | ---------------------------------------------------------------------------------------- |
+| `VERCEL_TOKEN`           | A Vercel access token   | Vercel → Account Settings → Tokens → Create. Scope it to the team that owns the project. |
+| `VERCEL_ORG_ID`          | The Vercel org/team id  | `cd apps/myk9show && vercel link` (once), then read `.vercel/project.json` → `orgId`.    |
+| `VERCEL_PROJECT_ID`      | The myK9Show project id | Same `.vercel/project.json` → `projectId`.                                               |
+| `VERCEL_DOCS_PROJECT_ID` | The guides project id   | Link the guides project once and read its `.vercel/project.json` → `projectId`.          |
 
 `.vercel/` is git-ignored — `vercel link` is only used locally to read the two
 ids; do not commit it.
@@ -91,9 +92,9 @@ deploys created from **Git events** on `main`, while leaving **CLI/API** deploys
   // ...existing config...
   "git": {
     "deploymentEnabled": {
-      "main": false
-    }
-  }
+      "main": false,
+    },
+  },
 }
 ```
 
@@ -117,10 +118,10 @@ on) while the workflow is fixed.
 
 ## Not covered here
 
-- **Docs/guides Vercel project** (`apps/docs`) still auto-deploys from `main`
-  via its own Git integration. Gating it the same way is a follow-up — add a
-  second job (or workflow) with that project's `VERCEL_PROJECT_ID`. Its build is
-  independent of the app test suite, so it is lower risk to leave as-is for now.
+- **Docs/guides Vercel project** (`apps/docs`) uses the `deploy-docs` job and
+  `VERCEL_DOCS_PROJECT_ID`. It is gated by the same post-merge CI completion
+  event as myK9Show, but retains its own Vercel project and production
+  environment.
 - **Preview deploys for PRs** are unchanged — they keep coming from Vercel's Git
   integration (`git.deploymentEnabled.main: false` disables Git deploys only for
   the `main` branch, so other-branch previews still build).

@@ -26,10 +26,8 @@
 --   (subquery on public.people) so the fixed UUIDs below never collide with
 --   real account ids. Dogs/entries are attached to:
 --     - e2e-exhibitor@test.myk9.com  (primary demo exhibitor)
---     - beezley@cox.net
---     - secretary@myk9t.com          (Test Secretary)
---   (club@myk9t.com exists but `clubs` has no owner/admin column, so the club
---    is associated by convention only — no FK to set.)
+--     - e2e-secretary@test.myk9.com  (Test Secretary)
+--     - e2e-admin@test.myk9.com      (club administrator / chairman)
 --
 -- HOW TO RUN
 --   source "supabase/.env"
@@ -67,14 +65,14 @@ DECLARE
   v_count int;
 BEGIN
   FOREACH v_email IN ARRAY ARRAY[
-    'e2e-exhibitor@test.myk9.com', 'beezley@cox.net', 'secretary@myk9t.com',
+    'e2e-exhibitor@test.myk9.com', 'e2e-secretary@test.myk9.com',
     -- Section 10 grants RBAC roles to these accounts by email; a missing/dup row
     -- would silently grant nothing (re-introducing the F1 secretary-403 bug),
     -- so require each to resolve to exactly one person here.
-    'e2e-secretary@test.myk9.com', 'club@myk9t.com', 'e2e-clubadmin@test.myk9.com',
+    'e2e-admin@test.myk9.com',
     -- Judge / steward grant accounts (added so the judge + steward golden paths
     -- survive a reseed; previously only secretary/club_admin were guaranteed).
-    'judge@myk9t.com', 'e2e-judge@test.myk9.com', 'e2e-steward@test.myk9.com'
+    'e2e-judge@test.myk9.com'
   ] LOOP
     SELECT count(*) INTO v_count FROM public.people WHERE lower(email) = v_email;
     IF v_count <> 1 THEN
@@ -98,12 +96,11 @@ BEGIN
   -- (ur.auth_user_id = auth.uid()) can NEVER match — a silent broken role, the
   -- same 403 symptom this seed exists to prevent. Require each RBAC grant
   -- account to resolve to exactly one person WITH a non-null auth_user_id.
-  -- (club@myk9t.com / e2e-clubadmin also hold the new chairman grant; the judge
-  -- and steward accounts are added for sections 10b/10c.)
+  -- (e2e-admin holds the chairman grant; the judge account is added for
+  -- section 10b and the secretary account also receives steward access.)
   FOREACH v_email IN ARRAY ARRAY[
-    'secretary@myk9t.com', 'e2e-secretary@test.myk9.com',
-    'club@myk9t.com', 'e2e-clubadmin@test.myk9.com',
-    'judge@myk9t.com', 'e2e-judge@test.myk9.com', 'e2e-steward@test.myk9.com'
+    'e2e-secretary@test.myk9.com', 'e2e-admin@test.myk9.com',
+    'e2e-judge@test.myk9.com'
   ] LOOP
     SELECT count(*) INTO v_count
     FROM public.people
@@ -187,7 +184,7 @@ VALUES (
   'dededede-0000-0000-0000-000000000001',
   'Heartland Scent Work Club',
   'Tulsa', 'Oklahoma',
-  'club@myk9t.com',
+  'e2e-admin@test.myk9.com',
   'Demo scent work club for the myK9Show showcase dataset.',
   'HSWC-001', 1
 );
@@ -255,10 +252,10 @@ VALUES (
   --   * chairman + chief_steward are REPORT-ONLY free text — those people don't
   --     act inside the program, we only print their names. Free text is correct;
   --     promoting them to people rows would buy nothing and risk duplicate-person
-  --     drift. (Here: club@myk9t.com / e2e-steward person names, by convention.)
+  --     drift. (Here: canonical demo person names, by convention.)
   --   * secretary is a DENORMALIZED SNAPSHOT, not the source of truth. The real
   --     secretary "who runs the show" is the section-10 club-scoped `secretary`
-  --     role grant (a real login: secretary@myk9t.com). This text is a cached
+  --     role grant (a real login: e2e-secretary@test.myk9.com). This text is a cached
   --     label for reports; the relational truth is the grant.
   'Test Club', 'Test Secretary', 'Test Steward',
   'headline', false, '{}'::jsonb,
@@ -305,7 +302,7 @@ VALUES
 -- 4. Classes (9)  -- valid element/level/section, status 'upcoming'
 --    Saturday: 3 classes  |  Sunday: 2 classes  |  Sunday UKC: 2  |  Sunday ASCA: 2
 --    judge_name is a DENORMALIZED SNAPSHOT of the assigned judge ('Test Judge' =
---    judge@myk9t.com), NOT the source of truth: the relational link is
+--    e2e-judge@test.myk9.com), NOT the source of truth: the relational link is
 --    judge_assignments.person_id (section 11) + judge_qualifications (section 13).
 --    Kept as a label so historical scorecards/reports print the name as-judged.
 -- ---------------------------------------------------------------------------
@@ -362,11 +359,11 @@ VALUES
   ('dededede-0000-0000-0000-000000000043', 'Juniper', 'Juni', 'Border Collie', 'female', '2022-05-20', 'Black & White', 'active',
    (SELECT id FROM public.people WHERE lower(email)='e2e-exhibitor@test.myk9.com'), 1),
   ('dededede-0000-0000-0000-000000000044', 'Scout', 'Scout', 'Australian Shepherd', 'male', '2019-11-08', 'Blue Merle', 'active',
-   (SELECT id FROM public.people WHERE lower(email)='beezley@cox.net'), 1),
+   (SELECT id FROM public.people WHERE lower(email)='e2e-exhibitor@test.myk9.com'), 1),
   ('dededede-0000-0000-0000-000000000045', 'Maple', 'Maple', 'Golden Retriever', 'female', '2021-09-30', 'Golden', 'active',
-   (SELECT id FROM public.people WHERE lower(email)='beezley@cox.net'), 1),
+   (SELECT id FROM public.people WHERE lower(email)='e2e-exhibitor@test.myk9.com'), 1),
   ('dededede-0000-0000-0000-000000000046', 'Cooper', 'Cooper', 'Beagle', 'male', '2023-01-12', 'Tricolor', 'active',
-   (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'), 1);
+   (SELECT id FROM public.people WHERE lower(email)='e2e-secretary@test.myk9.com'), 1);
 
 -- ---------------------------------------------------------------------------
 -- 6. Entries (8)  -- valid entry_status + payment_status, denormalized
@@ -405,7 +402,7 @@ VALUES
   ('dededede-0000-0000-0000-000000000055',
    'dededede-0000-0000-0000-000000000044', 'dec1a55e-0000-0000-0000-000000000031',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
-   (SELECT id FROM public.people WHERE lower(email)='beezley@cox.net'), 'Richard Beezley',
+   (SELECT id FROM public.people WHERE lower(email)='e2e-exhibitor@test.myk9.com'), 'Test Exhibitor',
    'confirmed', 'paid', 30.00, 103, 2, false, 1),
   -- GAP FIXTURE #3 (pending move-up request): a move-up is NOT a separate table.
   -- The app models a pending request entirely on the entry row: entry_status=
@@ -418,19 +415,19 @@ VALUES
   ('dededede-0000-0000-0000-000000000056',
    'dededede-0000-0000-0000-000000000044', 'dec1a55e-0000-0000-0000-000000000035',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000022',
-   (SELECT id FROM public.people WHERE lower(email)='beezley@cox.net'), 'Richard Beezley',
+   (SELECT id FROM public.people WHERE lower(email)='e2e-exhibitor@test.myk9.com'), 'Test Exhibitor',
    'move-up-requested', 'paid', 30.00, 103, 1, true, 1),
   -- Maple (beezley): Interior Novice B (Sunday)
   ('dededede-0000-0000-0000-000000000057',
    'dededede-0000-0000-0000-000000000045', 'dec1a55e-0000-0000-0000-000000000035',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000022',
-   (SELECT id FROM public.people WHERE lower(email)='beezley@cox.net'), 'Richard Beezley',
+   (SELECT id FROM public.people WHERE lower(email)='e2e-exhibitor@test.myk9.com'), 'Test Exhibitor',
    'submitted', 'pending', 30.00, 104, 1, false, 1),
   -- Cooper (secretary): Container Novice A
   ('dededede-0000-0000-0000-000000000058',
    'dededede-0000-0000-0000-000000000046', 'dec1a55e-0000-0000-0000-000000000031',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
-   (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'), 'Test Secretary',
+   (SELECT id FROM public.people WHERE lower(email)='e2e-secretary@test.myk9.com'), 'Test Secretary',
    'confirmed', 'paid', 30.00, 105, 3, false, 1);
 
 -- ---------------------------------------------------------------------------
@@ -526,7 +523,7 @@ VALUES
   ('dededede-0000-0000-0000-000000000059',
    'dededede-0000-0000-0000-000000000045', 'dec1a55e-0000-0000-0000-000000000033',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
-   (SELECT id FROM public.people WHERE lower(email)='beezley@cox.net'), 'Richard Beezley',
+   (SELECT id FROM public.people WHERE lower(email)='e2e-exhibitor@test.myk9.com'), 'Test Exhibitor',
    'withdrawn', 'refunded', 30.00, NULL, NULL, false,
    'Exhibitor withdrew before the show; full refund issued.',
    30.00, 'Demo refund for the withdrawn-entry walk fixture.',
@@ -544,8 +541,8 @@ RESET ROLE;
 -- ---------------------------------------------------------------------------
 -- 10. Demo RBAC role grants  (F1 fix — audit 04-secretary-rewalk-2026-06-17)
 --     The Lane 1.1 wipe restores the protected ACCOUNTS but NOT their role
---     grants, so after a reseed secretary@myk9t.com / e2e-secretary@test.myk9.com
---     and club@myk9t.com / e2e-clubadmin@test.myk9.com hold only `exhibitor`.
+--     grants, so after a reseed e2e-secretary@test.myk9.com and
+--     e2e-admin@test.myk9.com hold only `exhibitor`.
 --     Result: /secretary/* and /club-admin/* 403 with "You don't have permission
 --     to access this page" and the sidebar renders exhibitor-only — the entire
 --     secretary golden path is unreachable with the canonical demo account.
@@ -577,7 +574,7 @@ RESET ROLE;
 --     a permanent demo grant must have no expiry. It likewise refreshes
 --     auth_user_id. The UPDATE's WHERE excludes already-correct rows (active,
 --     right auth id, no expiry), so a clean re-run touches nothing (UPDATE 0 /
---     INSERT 0) and the manual one-off unblock row for secretary@myk9t.com is
+--     INSERT 0) and the manual one-off unblock row for e2e-secretary@test.myk9.com is
 --     respected. granted_at is a literal (no now()) so inserts stay
 --     byte-identical; reactivation only fires when state diverges.
 -- ---------------------------------------------------------------------------
@@ -586,7 +583,7 @@ SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL
 FROM public.people p, public.roles r
 WHERE ur.user_id = p.id AND ur.role_id = r.id
   AND r.name = 'secretary'
-  AND lower(p.email) IN ('secretary@myk9t.com', 'e2e-secretary@test.myk9.com')
+  AND lower(p.email) = 'e2e-secretary@test.myk9.com'
   AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
   AND ur.show_id IS NULL
   AND (ur.is_active IS DISTINCT FROM true
@@ -598,7 +595,7 @@ SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id,
 FROM public.people p
 CROSS JOIN public.roles r
 WHERE r.name = 'secretary'
-  AND lower(p.email) IN ('secretary@myk9t.com', 'e2e-secretary@test.myk9.com')
+  AND lower(p.email) = 'e2e-secretary@test.myk9.com'
   AND NOT EXISTS (
     SELECT 1 FROM public.user_roles ur
     WHERE ur.user_id = p.id AND ur.role_id = r.id
@@ -610,7 +607,7 @@ SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL
 FROM public.people p, public.roles r
 WHERE ur.user_id = p.id AND ur.role_id = r.id
   AND r.name = 'club_admin'
-  AND lower(p.email) IN ('club@myk9t.com', 'e2e-clubadmin@test.myk9.com')
+  AND lower(p.email) = 'e2e-admin@test.myk9.com'
   AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
   AND ur.show_id IS NULL
   AND (ur.is_active IS DISTINCT FROM true
@@ -622,7 +619,7 @@ SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id,
 FROM public.people p
 CROSS JOIN public.roles r
 WHERE r.name = 'club_admin'
-  AND lower(p.email) IN ('club@myk9t.com', 'e2e-clubadmin@test.myk9.com')
+  AND lower(p.email) = 'e2e-admin@test.myk9.com'
   AND NOT EXISTS (
     SELECT 1 FROM public.user_roles ur
     WHERE ur.user_id = p.id AND ur.role_id = r.id
@@ -638,7 +635,7 @@ WHERE r.name = 'club_admin'
 --         judge_assignments row fixes the judge's SCHEDULING surface but does
 --         NOT satisfy the route guard, which matches the role NAME. Both judge
 --         accounts therefore need an explicit `judge` user_roles grant here.
---       * Steward ringside routes admit UserRole.STEWARD; e2e-steward needs it.
+--       * Steward ringside routes admit UserRole.STEWARD; e2e-secretary needs it.
 --       * Chairman has no dedicated account, so per the demo decision the club
 --         officer doubles as show chairman: the two club_admin accounts also
 --         receive `chairman`.
@@ -652,13 +649,13 @@ WHERE r.name = 'club_admin'
 --     pattern (flip a soft-deactivated/expired row active before filling missing
 --     rows), so a clean re-run is UPDATE 0 / INSERT 0.
 -- ---------------------------------------------------------------------------
--- 10b. judge -> judge@myk9t.com + e2e-judge@test.myk9.com
+-- 10b. judge -> e2e-judge@test.myk9.com
 UPDATE public.user_roles ur
 SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL
 FROM public.people p, public.roles r
 WHERE ur.user_id = p.id AND ur.role_id = r.id
   AND r.name = 'judge'
-  AND lower(p.email) IN ('judge@myk9t.com', 'e2e-judge@test.myk9.com')
+  AND lower(p.email) = 'e2e-judge@test.myk9.com'
   AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
   AND ur.show_id IS NULL
   AND (ur.is_active IS DISTINCT FROM true
@@ -670,20 +667,20 @@ SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id,
 FROM public.people p
 CROSS JOIN public.roles r
 WHERE r.name = 'judge'
-  AND lower(p.email) IN ('judge@myk9t.com', 'e2e-judge@test.myk9.com')
+  AND lower(p.email) = 'e2e-judge@test.myk9.com'
   AND NOT EXISTS (
     SELECT 1 FROM public.user_roles ur
     WHERE ur.user_id = p.id AND ur.role_id = r.id
       AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
       AND ur.show_id IS NULL);
 
--- 10c. steward -> e2e-steward@test.myk9.com
+-- 10c. steward -> e2e-secretary@test.myk9.com
 UPDATE public.user_roles ur
 SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL
 FROM public.people p, public.roles r
 WHERE ur.user_id = p.id AND ur.role_id = r.id
   AND r.name = 'steward'
-  AND lower(p.email) IN ('e2e-steward@test.myk9.com')
+  AND lower(p.email) = 'e2e-secretary@test.myk9.com'
   AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
   AND ur.show_id IS NULL
   AND (ur.is_active IS DISTINCT FROM true
@@ -695,20 +692,20 @@ SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id,
 FROM public.people p
 CROSS JOIN public.roles r
 WHERE r.name = 'steward'
-  AND lower(p.email) IN ('e2e-steward@test.myk9.com')
+  AND lower(p.email) = 'e2e-secretary@test.myk9.com'
   AND NOT EXISTS (
     SELECT 1 FROM public.user_roles ur
     WHERE ur.user_id = p.id AND ur.role_id = r.id
       AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
       AND ur.show_id IS NULL);
 
--- 10d. chairman -> club@myk9t.com + e2e-clubadmin@test.myk9.com (club officer doubles as chair)
+-- 10d. chairman -> e2e-admin@test.myk9.com (club officer doubles as chair)
 UPDATE public.user_roles ur
 SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL
 FROM public.people p, public.roles r
 WHERE ur.user_id = p.id AND ur.role_id = r.id
   AND r.name = 'chairman'
-  AND lower(p.email) IN ('club@myk9t.com', 'e2e-clubadmin@test.myk9.com')
+  AND lower(p.email) = 'e2e-admin@test.myk9.com'
   AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
   AND ur.show_id IS NULL
   AND (ur.is_active IS DISTINCT FROM true
@@ -720,7 +717,7 @@ SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id,
 FROM public.people p
 CROSS JOIN public.roles r
 WHERE r.name = 'chairman'
-  AND lower(p.email) IN ('club@myk9t.com', 'e2e-clubadmin@test.myk9.com')
+  AND lower(p.email) = 'e2e-admin@test.myk9.com'
   AND NOT EXISTS (
     SELECT 1 FROM public.user_roles ur
     WHERE ur.user_id = p.id AND ur.role_id = r.id
@@ -747,7 +744,7 @@ WHERE r.name = 'chairman'
 --     whichever judge account a tester signs in as, the dashboard is full. Both
 --     people are named "Test Judge" (matches classes.judge_name), so co-assigning
 --     them to the same classes is consistent. trial_id matches each class's trial.
---       ...0a{1..5}  judge@myk9t.com         -> classes 031..035
+--       ...0b{1..5}  e2e-judge@test.myk9.com -> classes 031..035
 --       ...0b{1..5}  e2e-judge@test.myk9.com -> classes 031..035
 --
 --     SCOPE NOTE: a judge_assignments row fixes the judge's SCHEDULING surface.
@@ -772,12 +769,6 @@ SELECT
   v.id, p.id, 'dededede-0000-0000-0000-000000000010', v.trial_id, v.class_id,
   'confirmed', '2026-06-17 00:00:00+00', '2026-06-17 00:00:00+00', '2026-06-17 00:00:00+00'
 FROM (VALUES
-  -- judge@myk9t.com -> all 5 classes
-  ('dededede-0000-0000-0000-0000000000a1'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000031'::uuid),
-  ('dededede-0000-0000-0000-0000000000a2'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000032'::uuid),
-  ('dededede-0000-0000-0000-0000000000a3'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000033'::uuid),
-  ('dededede-0000-0000-0000-0000000000a4'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000022'::uuid, 'dec1a55e-0000-0000-0000-000000000034'::uuid),
-  ('dededede-0000-0000-0000-0000000000a5'::uuid, 'judge@myk9t.com',         'dededede-0000-0000-0000-000000000022'::uuid, 'dec1a55e-0000-0000-0000-000000000035'::uuid),
   -- e2e-judge@test.myk9.com -> all 5 classes (e2e suite dashboard coverage)
   ('dededede-0000-0000-0000-0000000000b1'::uuid, 'e2e-judge@test.myk9.com', 'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000031'::uuid),
   ('dededede-0000-0000-0000-0000000000b2'::uuid, 'e2e-judge@test.myk9.com', 'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000032'::uuid),
@@ -862,7 +853,6 @@ SELECT
   v.id, p.id, 'AKC', 'Master', ARRAY['Scent Work'], v.judge_number,
   '2021-01-01', '2027-01-01', true
 FROM (VALUES
-  ('dededede-0000-0000-0000-000000000091'::uuid, 'judge@myk9t.com',         'AKC-SW-1001'),
   ('dededede-0000-0000-0000-000000000092'::uuid, 'e2e-judge@test.myk9.com', 'AKC-SW-1002')
 ) AS v(id, email, judge_number)
 JOIN public.people p ON lower(p.email) = v.email;

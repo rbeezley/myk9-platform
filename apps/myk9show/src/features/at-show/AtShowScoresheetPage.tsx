@@ -76,10 +76,13 @@ export const AtShowScoresheetPage: React.FC = () => {
     );
   }
 
-  return <ScoresheetContent classId={classId} entryId={entryId} onBack={handleBack} />;
+  return (
+    <ScoresheetContent showId={showId} classId={classId} entryId={entryId} onBack={handleBack} />
+  );
 };
 
 interface ScoresheetContentProps {
+  showId: string | undefined;
   classId: string | undefined;
   entryId: string | undefined;
   onBack: () => void;
@@ -124,7 +127,12 @@ function AtShowScoresheetSkeleton() {
  * `useAtShowScoresheet` engine (data load + `transitionToInRing` + submit) runs
  * exclusively for roles allowed to score.
  */
-const ScoresheetContent: React.FC<ScoresheetContentProps> = ({ classId, entryId, onBack }) => {
+const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
+  showId,
+  classId,
+  entryId,
+  onBack,
+}) => {
   const {
     entry,
     classInfo,
@@ -142,7 +150,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({ classId, entryId,
     hasSyncError,
     submitError,
     clearSubmitError,
-  } = useAtShowScoresheet({ classId, entryId, onScored: onBack });
+  } = useAtShowScoresheet({ showId, classId, entryId, onScored: onBack });
   // Requests persistent storage on entering the scoring surface; may surface an
   // iOS "Add to Home Screen" nudge when durable storage isn't granted.
   const { showAddToHomeNudge, installInstructions, dismissNudge } = useAtShowStoragePersistence();

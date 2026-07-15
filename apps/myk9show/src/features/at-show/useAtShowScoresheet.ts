@@ -34,6 +34,7 @@ import {
 } from '@/pages/scoring/types';
 
 export interface UseAtShowScoresheetOptions {
+  showId: string | undefined;
   classId: string | undefined;
   entryId: string | undefined;
   /** Called after a score is successfully submitted (at-show nav happens here). */
@@ -63,6 +64,7 @@ export interface UseAtShowScoresheetResult {
 }
 
 export function useAtShowScoresheet({
+  showId,
   classId,
   entryId,
   onScored,
@@ -101,7 +103,7 @@ export function useAtShowScoresheet({
       setLoadedClassId(null);
       setLoadedEntryId(null);
 
-      if (!classId || !entryId) {
+      if (!showId || !classId || !entryId) {
         setError('Missing class or entry ID');
         setIsLoading(false);
         return;
@@ -110,6 +112,16 @@ export function useAtShowScoresheet({
       setError(null);
 
       try {
+        await Promise.all([
+          // Classes are scoped by trial_id (not show_id); the route only carries
+          // the show id, so use the table's unscoped sync and scope entries to the
+          // show below. This keeps direct scoresheet navigation hydrated without
+          // confusing a show id for a trial id.
+          replicatedClassesTable.sync(''),
+          replicatedEntriesTable.sync(showId),
+        ]);
+        if (cancelled) return;
+
         const [cls, allEntries] = await Promise.all([
           replicatedClassesTable.getClassById(classId),
           replicatedEntriesTable.getEntriesByClass(classId),
@@ -173,7 +185,7 @@ export function useAtShowScoresheet({
     return () => {
       cancelled = true;
     };
-  }, [classId, entryId, isInitialSyncPending]);
+  }, [showId, classId, entryId, isInitialSyncPending]);
 
   const submit = async (scoreData: ScoreData) => {
     if (!entry || !classInfo) return;

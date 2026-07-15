@@ -158,7 +158,6 @@ for (const account of accounts) {
 }
 
 if (syncGithub && !dryRun) {
-  // Dedupe by secret name: clubadmin's fallback shares the demo-exhibitor var.
   const secrets = new Map(verified.map(account => [account.passwordVar, account.password]));
   for (const [name, value] of secrets) {
     if (pushGithubSecret(name, value)) {

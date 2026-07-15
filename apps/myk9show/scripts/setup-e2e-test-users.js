@@ -72,7 +72,7 @@ const TEST_USERS = [
     email: 'e2e-secretary@test.myk9.com',
     firstName: 'Test',
     lastName: 'Secretary',
-    roles: ['secretary', 'exhibitor']
+    roles: ['secretary', 'steward', 'exhibitor']
   },
   {
     email: 'e2e-judge@test.myk9.com',
@@ -81,22 +81,10 @@ const TEST_USERS = [
     roles: ['judge']
   },
   {
-    email: 'e2e-clubadmin@test.myk9.com',
-    firstName: 'Test',
-    lastName: 'ClubAdmin',
-    roles: ['club_admin', 'exhibitor']
-  },
-  {
     email: 'e2e-admin@test.myk9.com',
     firstName: 'Test',
     lastName: 'Admin',
-    roles: ['site_admin', 'secretary', 'exhibitor']
-  },
-  {
-    email: 'e2e-steward@test.myk9.com',
-    firstName: 'Test',
-    lastName: 'Steward',
-    roles: ['steward']
+    roles: ['site_admin', 'secretary', 'club_admin', 'chairman', 'exhibitor']
   }
 ];
 

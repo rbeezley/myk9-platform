@@ -43,39 +43,14 @@ describe('resolveAccounts', () => {
   });
 
   it('prefers explicit email vars and lowercases them', () => {
-    const [admin] = resolveAccounts(
-      { ...baseEnv, E2E_ADMIN_EMAIL: 'E2E-Admin@Test.myk9.com' },
-      ['admin']
-    );
-    expect(admin.email).toBe('e2e-admin@test.myk9.com');
-  });
-
-  it('falls back to the demo-exhibitor password for clubadmin, reporting the real source var', () => {
-    const [clubadmin] = resolveAccounts(baseEnv, ['clubadmin']);
-    expect(clubadmin).toEqual({
-      role: 'clubadmin',
-      email: 'e2e-clubadmin@test.myk9.com',
-      password: 'exhibitor-pw',
-      passwordVar: 'E2E_DEMO_EXHIBITOR_PASSWORD',
-    });
-  });
-
-  it('prefers the dedicated clubadmin password over the fallback', () => {
-    const [clubadmin] = resolveAccounts({ ...baseEnv, E2E_CLUB_PASSWORD: 'club-pw' }, [
-      'clubadmin',
+    const [admin] = resolveAccounts({ ...baseEnv, E2E_ADMIN_EMAIL: 'E2E-Admin@Test.myk9.com' }, [
+      'admin',
     ]);
-    expect(clubadmin.password).toBe('club-pw');
-    expect(clubadmin.passwordVar).toBe('E2E_CLUB_PASSWORD');
+    expect(admin.email).toBe('e2e-admin@test.myk9.com');
   });
 
   it('throws naming the missing env var when a password is absent', () => {
     expect(() => resolveAccounts({}, ['judge'])).toThrow(/E2E_JUDGE_PASSWORD/);
-  });
-
-  it('names both password sources for roles with a fallback', () => {
-    expect(() => resolveAccounts({}, ['clubadmin'])).toThrow(
-      /E2E_CLUB_PASSWORD or E2E_DEMO_EXHIBITOR_PASSWORD/
-    );
   });
 
   it('rejects unknown roles listing the valid ones', () => {

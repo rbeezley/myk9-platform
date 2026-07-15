@@ -25,44 +25,44 @@ export const TEST_USERS = {
     password: TEST_PASSWORD,
     firstName: 'Test',
     lastName: 'Exhibitor',
-    roles: ['exhibitor']
+    roles: ['exhibitor'],
   },
   secretary: {
     email: 'e2e-secretary@test.myk9.com',
     password: TEST_PASSWORD,
     firstName: 'Test',
     lastName: 'Secretary',
-    roles: ['secretary', 'exhibitor']
+    roles: ['secretary', 'steward', 'exhibitor'],
   },
   judge: {
     email: 'e2e-judge@test.myk9.com',
     password: TEST_PASSWORD,
     firstName: 'Test',
     lastName: 'Judge',
-    roles: ['judge']
+    roles: ['judge'],
   },
   clubAdmin: {
-    email: 'e2e-clubadmin@test.myk9.com',
+    email: 'e2e-admin@test.myk9.com',
     password: TEST_PASSWORD,
     firstName: 'Test',
-    lastName: 'ClubAdmin',
-    roles: ['club_admin', 'exhibitor']
+    lastName: 'Admin',
+    roles: ['site_admin', 'club_admin', 'chairman', 'exhibitor'],
   },
   siteAdmin: {
     email: 'e2e-admin@test.myk9.com',
     password: TEST_PASSWORD,
     firstName: 'Test',
     lastName: 'Admin',
-    roles: ['site_admin', 'secretary', 'exhibitor']
+    roles: ['site_admin', 'secretary', 'exhibitor'],
   },
   steward: {
-    email: 'e2e-steward@test.myk9.com',
+    email: 'e2e-secretary@test.myk9.com',
     password: TEST_PASSWORD,
     firstName: 'Test',
-    lastName: 'Steward',
-    roles: ['steward']
-  }
+    lastName: 'Secretary',
+    roles: ['secretary', 'steward', 'exhibitor'],
+  },
 } as const;
 
 export type TestUserRole = keyof typeof TEST_USERS;
-export type TestUser = typeof TEST_USERS[TestUserRole];
+export type TestUser = (typeof TEST_USERS)[TestUserRole];

@@ -4,7 +4,7 @@
 
 The system SHALL deploy the exact commit validated by a successful `main` push CI run to the Vercel `staging` environment and SHALL NOT update `myk9show.com` as part of that automatic workflow. The automatic workflow MUST NOT receive a Vercel access token capable of production deployment; it SHALL advance only the protected staging release ref consumed by Vercel Custom Environment branch tracking.
 
-[EXPANDED] Pushes to `staging-release` or `guides-release` MUST NOT start the main CI-to-release workflow, satisfy a main-CI gate, or recursively advance either release ref. The workflow token SHALL have write permission only to the intended release refs.
+[EXPANDED] Pushes to `staging-release` or `guides-release` MUST NOT start the main CI-to-release workflow, satisfy a main-CI gate, or recursively advance either release ref. Because GitHub Actions `contents: write` cannot be scoped to individual refs, the workflow SHALL hard-code an allowlist containing only the intended release refs, and repository rulesets SHALL reject that workflow actor's updates to every other protected ref.
 
 #### Scenario: Main CI succeeds
 
@@ -35,6 +35,12 @@ The system SHALL deploy the exact commit validated by a successful `main` push C
 - **WHEN** the trusted workflow advances `staging-release` or `guides-release`
 - **THEN** Vercel may deploy the configured target exactly once
 - **AND** GitHub does not treat the ref update as a new eligible main CI release event
+
+#### Scenario: The release workflow attempts another ref
+
+- **WHEN** the trusted workflow actor attempts to update any ref outside the hard-coded `staging-release` and `guides-release` allowlist
+- **THEN** workflow validation and repository rulesets reject the update
+- **AND** the protected ref remains unchanged
 
 ### Requirement: Production release is explicit and exact-commit
 

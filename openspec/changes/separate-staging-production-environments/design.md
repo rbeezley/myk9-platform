@@ -141,7 +141,7 @@ If any mutation, network call, or verification fails, stop the sequence, keep th
 - **[Staging is mistaken for a backup]** → Keep production backups/PITR and restore drills as the recovery system; label staging refreshes as disposable testing datasets.
 - **[ADDED: Storage assets leak personal data or break troubleshooting]** → Default to fixture assets; allowlist and scan only case-required objects, place them under a versioned staging prefix, and switch sanitized references only after every object verifies.
 - **[ADDED: Large refresh exhausts time or storage]** → Preflight counts/capacity, use a consistent snapshot plus bounded resumable batches, and retain the prior staging dataset unless all checks pass.
-- **[ADDED: Release refs recursively trigger CI/deploy workflows]** → Exclude `staging-release` and `guides-release` from CI/workflow-run sources, constrain write permissions to those exact refs, and test one deployment per successful main SHA.
+- **[ADDED: Release refs recursively trigger CI/deploy workflows]** → Exclude `staging-release` and `guides-release` from CI/workflow-run sources, hard-code those two refs in workflow validation, enforce all other protected refs with repository rulesets, and test one deployment per successful main SHA.
 - **[ADDED: External cutover fails halfway]** → Use a redacted mutation ledger, inactive configuration, verify-before-next checkpoints, reconciliation before retry, and final-only public activation.
 
 ## Migration Plan

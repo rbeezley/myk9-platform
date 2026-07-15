@@ -20,8 +20,8 @@
 - [ ] 2.7 Add an environment-isolation verifier that rejects staging/production domain overlap, missing `VITE_APP_ENVIRONMENT`, equal staging/production Supabase project references, or production credentials in preview/staging configuration.
 - [ ] 2.8 [ADDED] Pin the Vercel CLI version used by the explicit production workflow and test failure handling for Git ref update races, CLI/network timeout, invalid workflow input, missing secret, and partial external configuration cases.
 - [ ] 2.9 [ADDED] Preserve localhost development and per-branch Preview deployment behavior and prove neither can update staging/production aliases or satisfy staging acceptance.
-- [ ] 2.10 [ADDED] Add workflow tests proving `staging-release` and `guides-release` pushes cannot trigger eligible main CI/release recursion, workflow write permissions are limited to those exact refs, and each successful main SHA creates at most one deployment per intended target.
-- [ ] 2.11 [ADDED] Add failure-injection tests for the external mutation ledger/state machine: timeout with ambiguous result, verification failure, disabled side-effect cleanup, authoritative reconciliation before retry, and idempotent resume without duplicate email/payment/webhook/bootstrap/release actions.
+- [ ] 2.10 [ADDED] Add workflow tests proving `staging-release` and `guides-release` pushes cannot trigger eligible main CI/release recursion, the workflow hard-codes only those exact refs, repository rulesets reject that actor's updates to every other protected ref, and each successful main SHA creates at most one deployment per intended target.
+- [ ] 2.11 [ADDED] Add executable rehearsal cases to the mutation-ledger runbook for timeout with ambiguous result, verification failure, disabled side-effect cleanup, authoritative reconciliation before retry, and idempotent resume without duplicate email/payment/webhook/bootstrap/release actions; record evidence from synthetic or dry-run executions rather than requiring an unplanned software state machine.
 
 ## 3. Vercel and GitHub Environment Setup — Approval Gated
 

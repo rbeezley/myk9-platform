@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu/ThreeDotMenu';
+import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -80,6 +81,7 @@ const TrialDetailsPage: React.FC = () => {
     isAdmin ||
     (hasRole(UserRole.CLUB_ADMIN) &&
       hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, parentShow?.clubId));
+  const entryManagementShowId = currentTrial?.showId || showId;
 
   // Tab state — URL-synced. Pass only the tabs this visitor may see so a
   // hidden management tab in `?tab=` falls back to 'overview' instead of
@@ -298,14 +300,17 @@ const TrialDetailsPage: React.FC = () => {
             secondaryActions={
               <div className="flex items-center gap-2">
                 {showTrials.length > 1 && prevNextNav}
-                {canManageTrial && (
+                {canManageTrial && entryManagementShowId && (
                   <>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() =>
                         navigate(
-                          `/shows/${currentTrial?.showId || showId}/entry-management?trial=${trialId}`
+                          getEntryManagementHref({
+                            showId: entryManagementShowId,
+                            trialId: trialId ?? null,
+                          })
                         )
                       }
                     >

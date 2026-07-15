@@ -425,6 +425,29 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     ]);
   });
 
+  it('initializes and updates the payment filter from URL state', () => {
+    let latestSearch = '';
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
+      {
+        wrapper: createWrapper(
+          '/?trial=trial-1&class=class-1&payment=pending',
+          search => (latestSearch = search)
+        ),
+      }
+    );
+
+    expect(result.current.paymentFilter).toBe(PaymentStatus.PENDING);
+
+    act(() => result.current.setPaymentFilter('all'));
+
+    const params = new URLSearchParams(latestSearch);
+    expect(result.current.paymentFilter).toBe('all');
+    expect(params.get('payment')).toBeNull();
+    expect(params.get('trial')).toBe('trial-1');
+    expect(params.get('class')).toBe('class-1');
+  });
+
   it('does not flag accepted entries as issues when the enrollment is paid', () => {
     const entries = [
       makeEntry({

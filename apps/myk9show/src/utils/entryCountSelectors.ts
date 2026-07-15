@@ -1,4 +1,4 @@
-import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry, EntryStats } from '@/types/entry-management-types';
 import { getEffectivePaymentStatus } from '@/utils/entryManagementUtils';
 import {
@@ -7,7 +7,7 @@ import {
   isPendingEntry,
   isWaitlistEntry,
 } from '@/utils/entryPredicates';
-import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
+import { classifyRawEntryAttention } from '@/features/entry-operations/attentionClassification';
 import {
   computeOutstandingAmount,
   isEntryIncludedInFinancialReport,
@@ -31,7 +31,7 @@ export interface RawEntryStatusLike {
 }
 
 export function isRawEntryInEntryManagementPendingBucket(entry: RawEntryStatusLike): boolean {
-  return mapEntryStatus(entry.entry_status) === EntryStatus.PENDING;
+  return classifyRawEntryAttention(entry).includes('pending_review');
 }
 
 export function countRawEntryManagementPendingBucket(

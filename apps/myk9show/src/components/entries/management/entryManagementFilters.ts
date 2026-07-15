@@ -5,12 +5,25 @@ import { PaymentStatus } from '@/types/show-registration-types';
 export const ENTRY_ATTENTION_FILTER_VALUES = [
   'all',
   'pending',
+  'missing_information',
   'accepted',
   'waitlist',
   'issues',
 ] as const;
 
 export type EntryAttentionFilter = (typeof ENTRY_ATTENTION_FILTER_VALUES)[number];
+
+export const ENTRY_PAYMENT_FILTER_VALUES = [
+  'all',
+  PaymentStatus.PENDING,
+  PaymentStatus.PAID_ONLINE,
+  PaymentStatus.PAID_BY_CHECK,
+  PaymentStatus.PAID_BY_CASH,
+  PaymentStatus.WAIVED,
+  PaymentStatus.REFUNDED,
+] as const;
+
+export type EntryPaymentFilter = (typeof ENTRY_PAYMENT_FILTER_VALUES)[number];
 
 /**
  * Exception queues — move-up requests and pulls/no-shows. These are NOT entry
@@ -78,6 +91,7 @@ export const ENTRY_MANAGEMENT_FILTERS: FilterDefinition[] = [
     options: [
       { label: 'All entries', value: 'all' },
       { label: 'Pending review', value: 'pending' },
+      { label: 'Missing information', value: 'missing_information' },
       { label: 'Accepted', value: 'accepted' },
       { label: 'Waitlist', value: 'waitlist' },
       { label: 'Issues', value: 'issues' },
@@ -109,9 +123,14 @@ function isEntryManagementViewMode(value: string | null): value is EntryManageme
   return ENTRY_VIEW_MODE_VALUES.includes(value as EntryManagementViewMode);
 }
 
+export function isEntryPaymentFilter(value: string | null): value is EntryPaymentFilter {
+  return ENTRY_PAYMENT_FILTER_VALUES.includes(value as EntryPaymentFilter);
+}
+
 function legacyEntryTabToAttention(value: string | null): EntryAttentionFilter | null {
   switch (value) {
     case 'pending':
+    case 'missing_information':
     case 'accepted':
     case 'waitlist':
     case 'issues':
@@ -139,6 +158,7 @@ function legacyExceptionQueue(
 export function normalizeEntryManagementSearchParams(searchParams: URLSearchParams): {
   params: URLSearchParams;
   attention: EntryAttentionFilter;
+  payment: EntryPaymentFilter;
   mode: EntryWorkMode;
   view: EntryManagementViewMode;
 } {
@@ -152,6 +172,8 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
   const attention = exceptionQueue
     ? 'all'
     : (legacyAttention ?? (isEntryAttentionFilter(rawAttention) ? rawAttention : 'all'));
+  const rawPayment = params.get('payment');
+  const payment = isEntryPaymentFilter(rawPayment) ? rawPayment : 'all';
   const rawMode = params.get('mode');
   const mode = isEntryWorkMode(rawMode) ? rawMode : 'review';
   const rawView = params.get('view');
@@ -174,6 +196,9 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
     params.set('attention', attention);
   }
 
+  if (payment === 'all') params.delete('payment');
+  else params.set('payment', payment);
+
   if (mode === 'review') params.delete('mode');
   else params.set('mode', mode);
 
@@ -185,7 +210,7 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
   // next trial selection jump straight into Roster without the explicit toggle.
   if (!params.get('trial')) params.delete('roster');
 
-  return { params, attention, mode, view };
+  return { params, attention, payment, mode, view };
 }
 
 export function getEntryManagementEmptyStateMessage({
@@ -203,6 +228,8 @@ export function getEntryManagementEmptyStateMessage({
     switch (attention) {
       case 'pending':
         return 'No pending entries match these filters.';
+      case 'missing_information':
+        return 'No entries with missing information match these filters.';
       case 'accepted':
         return 'No accepted entries match these filters.';
       case 'waitlist':
@@ -217,6 +244,8 @@ export function getEntryManagementEmptyStateMessage({
   switch (attention) {
     case 'pending':
       return 'No pending entries right now.';
+    case 'missing_information':
+      return 'No entries have missing information right now.';
     case 'accepted':
       return 'No accepted entries right now.';
     case 'waitlist':

@@ -44,6 +44,7 @@ import { useMyEntriesInClass } from './useMyEntriesInClass';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
+import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -216,7 +217,10 @@ const ClassDetailsPage: React.FC = () => {
             size="sm"
             onClick={() =>
               navigate(
-                `/shows/${parentShow.id}/entry-management?trial=${trialId || currentClass?.trialId}`
+                getEntryManagementHref({
+                  showId: parentShow.id,
+                  trialId: trialId || currentClass?.trialId || null,
+                })
               )
             }
           >

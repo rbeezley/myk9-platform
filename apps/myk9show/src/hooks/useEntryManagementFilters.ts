@@ -1,18 +1,15 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import {
-  isPendingEntry,
-  isAcceptedEntry,
-  isWaitlistEntry,
-  isIssueEntry,
-} from '@/utils/entryPredicates';
 import { getEffectivePaymentStatus } from '@/utils/entryManagementUtils';
+import { matchesOperationalAttentionFilter } from '@/features/entry-operations/attentionClassification';
 import {
   ENTRY_WORK_MODE_PRESETS,
   type EntryAttentionFilter,
+  type EntryPaymentFilter,
   type EntryManagementViewMode,
   type EntryWorkMode,
+  isEntryPaymentFilter,
   normalizeEntryManagementSearchParams,
 } from '@/components/entries/management/entryManagementFilters';
 
@@ -45,7 +42,7 @@ interface UseEntryManagementFiltersReturn {
   // Filter state
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  paymentFilter: string;
+  paymentFilter: EntryPaymentFilter;
   setPaymentFilter: (payment: string) => void;
   selectedTab: string;
   setSelectedTab: (tab: EntryAttentionFilter) => void;
@@ -96,12 +93,12 @@ export function useEntryManagementFilters({
   const [searchParams, setSearchParams] = useSearchParams();
   const urlSearchTerm = searchParams.get('person') ?? searchParams.get('search') ?? '';
   const [searchTerm, setSearchTerm] = useState(urlSearchTerm);
-  const [paymentFilter, setPaymentFilter] = useState('all');
   const normalized = useMemo(
     () => normalizeEntryManagementSearchParams(searchParams),
     [searchParams]
   );
   const attentionFilter = normalized.attention;
+  const paymentFilter = normalized.payment;
   const workMode = normalized.mode;
   const entryViewMode = normalized.view;
   const selectedTab = attentionFilter;
@@ -141,10 +138,25 @@ export function useEntryManagementFilters({
 
   const setSelectedTab = setAttentionFilter;
 
+  const setPaymentFilter = useCallback(
+    (payment: string) => {
+      const normalizedPayment: EntryPaymentFilter = isEntryPaymentFilter(payment) ? payment : 'all';
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (normalizedPayment === 'all') next.delete('payment');
+          else next.set('payment', normalizedPayment);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
   const setWorkMode = useCallback(
     (mode: EntryWorkMode) => {
       const preset = ENTRY_WORK_MODE_PRESETS[mode];
-      setPaymentFilter(preset.payment);
       setSearchParams(
         prev => {
           const next = new URLSearchParams(prev);
@@ -154,6 +166,8 @@ export function useEntryManagementFilters({
           else next.set('attention', preset.attention);
           if (preset.view === 'table') next.delete('view');
           else next.set('view', preset.view);
+          if (preset.payment === 'all') next.delete('payment');
+          else next.set('payment', preset.payment);
           next.delete('entryTab');
           next.delete('tab');
           return next;
@@ -276,18 +290,16 @@ export function useEntryManagementFilters({
     }
 
     // Apply tab filters
-    if (attentionFilter === 'pending') {
-      filtered = filtered.filter(isPendingEntry);
-    } else if (attentionFilter === 'accepted') {
-      filtered = filtered.filter(isAcceptedEntry);
-    } else if (attentionFilter === 'waitlist') {
-      filtered = filtered.filter(isWaitlistEntry);
-    } else if (attentionFilter === 'issues') {
-      filtered = filtered.filter(e =>
-        isIssueEntry({
-          entryStatus: e.entryStatus,
-          paymentStatus: getEffectivePaymentStatus(e),
-        })
+    if (attentionFilter !== 'all') {
+      filtered = filtered.filter(entry =>
+        matchesOperationalAttentionFilter(
+          {
+            entryStatus: entry.entryStatus,
+            rawEntryStatus: entry.rawEntryStatus,
+            paymentStatus: getEffectivePaymentStatus(entry),
+          },
+          attentionFilter
+        )
       );
     }
 

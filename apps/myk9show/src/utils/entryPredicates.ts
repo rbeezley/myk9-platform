@@ -1,5 +1,9 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
+import {
+  classifyEntryAttention,
+  getOperationalEntryState,
+} from '@/features/entry-operations/attentionClassification';
 
 interface EntryWithStatus {
   entryStatus: EntryStatus;
@@ -11,20 +15,18 @@ export function entryIsScored(e: SyncableShowEntry): boolean {
 }
 
 export function isPendingEntry(e: EntryWithStatus): boolean {
-  return e.entryStatus === EntryStatus.PENDING;
+  return getOperationalEntryState(e) === 'pending_review';
 }
 
 export function isAcceptedEntry(e: EntryWithStatus): boolean {
-  return e.entryStatus === EntryStatus.ACCEPTED;
+  return getOperationalEntryState(e) === 'accepted';
 }
 
 export function isWaitlistEntry(e: EntryWithStatus): boolean {
-  return e.entryStatus === EntryStatus.WAITLIST;
+  return getOperationalEntryState(e) === 'waitlist';
 }
 
 export function isIssueEntry(e: EntryWithStatus): boolean {
-  return (
-    e.entryStatus === EntryStatus.MISSING_INFO ||
-    (e.entryStatus === EntryStatus.ACCEPTED && e.paymentStatus === PaymentStatus.PENDING)
-  );
+  const reasons = classifyEntryAttention(e);
+  return reasons.includes('missing_information') || reasons.includes('payment_due');
 }

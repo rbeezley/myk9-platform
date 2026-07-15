@@ -17,6 +17,12 @@ The system SHALL deploy the exact commit validated by a successful `main` push C
 - **THEN** the older run cannot update `staging.myk9show.com`
 - **AND** only the newest successful `main` CI SHA is eligible to become shared staging
 
+#### Scenario: A staging deployment is still building
+
+- **WHEN** another successful main CI run is queued while Vercel is deploying the current `staging-release` SHA
+- **THEN** the queued workflow does not advance `staging-release` until the current deployment reaches READY and its domain mapping is verified
+- **AND** a superseded queued SHA exits without starting a Vercel deployment
+
 #### Scenario: Main CI fails or is cancelled
 
 - **WHEN** the complete CI workflow does not succeed

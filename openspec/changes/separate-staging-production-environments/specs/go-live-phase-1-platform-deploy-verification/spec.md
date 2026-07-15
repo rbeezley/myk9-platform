@@ -2,16 +2,16 @@
 
 ### Requirement: Phase 1 source verifier reports deploy pipeline readiness
 
-The system SHALL provide a repeatable local verifier for Go Live Runbook Phase 1 source evidence. The verifier SHALL check that successful `main` CI runs deploy the exact validated SHA to the Vercel `staging` environment, that production release is operator-triggered and exact-SHA constrained, that both workflows use the required Vercel credentials and enable gates, and that source verification does not attempt a deploy.
+The system SHALL provide a repeatable local verifier for Go Live Runbook Phase 1 source evidence. The verifier SHALL check that successful `main` CI runs advance only the protected `staging-release` ref for tokenless Vercel Custom Environment branch tracking, that production release is operator-triggered and exact-SHA constrained, that only the protected production job references Vercel deployment credentials, and that source verification does not attempt a deploy.
 
 #### Scenario: Staging and production workflow source is ready
 
 - **WHEN** the verifier runs against the repository
-- **THEN** it reports deploy workflow source as `ok` only when the successful-CI gate, `main` branch gate, exact-SHA checkout, staging target, production dispatch, staging-evidence precondition, protected production environment, enable variables, Vercel secrets, and deployment commands are present
+- **THEN** it reports deploy workflow source as `ok` only when the successful-CI gate, `main` branch gate, exact-SHA release-ref update, end-to-end staging serialization/readiness wait, absence of Vercel credentials from automatic jobs, production dispatch, unprivileged preflight, staging-evidence precondition, protected production environment, production-only Vercel secret references, enable variables, and production deployment command are present
 
 ### Requirement: Vercel auto-deploy disable remains gated
 
-The verifier SHALL require `apps/myk9show/vercel.json` to disable Git-triggered deployment from `main`, because staging and production are deployed only through the repository workflows. A missing or invalid guard SHALL fail source verification.
+The verifier SHALL require `apps/myk9show/vercel.json` to disable Git-triggered deployment from `main`, because the Git integration may deploy staging only from the protected `staging-release` ref and production may deploy only through the explicit protected workflow. A missing or invalid `main` guard SHALL fail source verification.
 
 #### Scenario: Git auto-deploy guard is missing
 

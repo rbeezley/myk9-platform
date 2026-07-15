@@ -40,8 +40,9 @@ Replace the app portion of the current automatic production workflow with a CI-g
 
 - Trigger only after a successful `CI` push run on `main`.
 - Check out `workflow_run.head_sha`.
-- Serialize staging deployments, cancel superseded runs, and immediately before alias update prove the candidate is still the newest successful `main` CI SHA so an older run cannot replace newer staging.
+- Serialize the complete staging release workflow without cancelling an in-progress release. At the front of the queue, prove the candidate is still the newest successful `main` CI SHA; superseded queued candidates exit without changing the ref.
 - Advance a protected `staging-release` Git ref to that exact SHA; Vercel Custom Environment branch tracking deploys that ref to `staging` through the Git integration without exposing a Vercel access token to the automatic workflow.
+- Keep the workflow lock until the Vercel GitHub deployment/check for that exact SHA reaches READY and `staging.myk9show.com` resolves to its deployment. Only then may another queued release advance the ref. Prohibit manual deployments to the custom staging environment outside the approval-gated recovery procedure.
 - Record commit SHA, deployment ID/URL, `staging.myk9show.com`, and readiness evidence.
 
 Add a separate `workflow_dispatch` production release workflow:
@@ -123,7 +124,7 @@ Each Vercel plan/domain/environment mutation, GitHub environment protection chan
 - **[Current public domain changes during migration]** → Keep the existing Production deployment and aliases untouched until the staging environment is verified and the new manual production workflow is ready.
 - **[Staging leaks test data or is indexed publicly]** → Enable deployment protection, restrict tester access, add `noindex`, use synthetic accounts, and prohibit production secrets/data in staging.
 - **[A newer staging deploy invalidates earlier acceptance]** → Bind acceptance to deployment ID plus SHA and require the staging alias to match both immediately before production release.
-- **[An older CI run finishes after a newer run]** → Serialize staging deployments, cancel superseded runs, and require the candidate to remain the newest successful `main` CI SHA immediately before alias update.
+- **[An older CI run finishes after a newer run]** → Queue the complete ref-update/readiness cycle under one non-cancelling lock, reject superseded candidates before ref update, and do not release the lock until the exact deployment is READY and its staging alias is verified.
 - **[Pre-launch no-user assumption becomes false]** → Re-audit production/staging users and operational data immediately before cutover; if real user data exists, stop and create a separately reviewed migration/reconciliation plan.
 - **[Sanitization removes the condition needed to reproduce a defect]** → Preserve IDs/relationships and operational state by default; use the minimum-record, time-limited support-case escalation only when ordinary sanitized staging cannot reproduce the issue.
 - **[Production data leaks through a staging refresh]** → Use an explicit masking allowlist, replace Auth identities, suppress external side effects, verify the sanitized result, restrict operator access, and prohibit continuous synchronization.

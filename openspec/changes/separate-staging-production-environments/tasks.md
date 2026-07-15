@@ -11,7 +11,7 @@
 
 - [ ] 2.1 Add fixture-based tests that first fail unless the automatic app workflow checks the successful main CI `head_sha`, advances only the protected `staging-release` ref, relies on Vercel Custom Environment branch tracking, has no Vercel token, and cannot invoke production deployment.
 - [ ] 2.2 Add fixture-based tests that first fail unless production release is `workflow_dispatch`, requires a full SHA plus staging evidence, validates SHA format/main reachability/successful CI in a separate job with no environment or deployment secrets, and permits the protected production job to receive secrets only after that preflight succeeds.
-- [ ] 2.3 Split the app deployment flow so successful main CI serializes/cancels superseded runs, proves the candidate remains the newest successful main CI SHA, and advances a protected `staging-release` ref to that exact SHA for tokenless Vercel Custom Environment branch tracking; record the resulting staging evidence.
+- [ ] 2.3 Split the app deployment flow so successful main CI queues the complete staging release without cancelling in-progress work, rejects superseded candidates before ref update, advances protected `staging-release` to the exact newest successful SHA, and retains the lock until the matching Vercel GitHub deployment/check is READY and the staging domain mapping is verified; automatic staging remains tokenless.
 - [ ] 2.4 Add the explicit production release workflow with an unprivileged preflight job followed by a protected deployment job that rebuilds the selected exact SHA with Production variables, records the prior deployment, verifies `myk9show.com`, and stops before deployment when any precondition fails.
 - [ ] 2.4a [ADDED] Require the accepted staging deployment ID/SHA to match the deployment currently served by `staging.myk9show.com` immediately before production release.
 - [ ] 2.5 Preserve the guides project's CI-gated `help.myk9show.com` deployment by advancing a protected `guides-release` ref to the exact successful main CI SHA and using Vercel Git production-branch tracking; add regression assertions that the automatic guides job has no team-scoped Vercel token.
@@ -29,7 +29,7 @@
 - [ ] 3.4a [ADDED] Immediately before mutation, obtain approval to configure Pro-compatible staging access protection and effective `noindex` behavior; verify unauthorized visitors cannot access staging test data.
 - [ ] 3.5 Immediately before mutation, obtain approval to configure staging-scoped Vercel variables from the current staging configuration, including `VITE_APP_ENVIRONMENT=staging`, without copying production/live credentials into staging.
 - [ ] 3.6 Immediately before mutation, obtain approval to configure the protected `staging-release` and `guides-release` refs and GitHub staging/production deployment environments, including production reviewer rules and least-privilege ref-update permissions.
-- [ ] 3.7 Immediately before mutation, obtain approval to move the team-scoped `VERCEL_TOKEN` out of repository secrets and into the protected `production` environment; configure remaining non-secret IDs/variables, prove automatic staging/guides jobs cannot read the token, and verify only names/scopes rather than secret values.
+- [ ] 3.7 Immediately before mutation, obtain approval to copy the team-scoped `VERCEL_TOKEN` into the protected `production` environment and configure remaining non-secret IDs/variables. Retain the repository secret temporarily for the currently deployed workflows; verify names/scopes rather than secret values and schedule repository-secret removal immediately after the replacement workflow merges.
 
 ## 4. Production Supabase Provisioning — Approval Gated
 
@@ -64,10 +64,11 @@
 - [ ] 6.3 Validate OpenSpec with `pnpm openspec validate separate-staging-production-environments --type change --strict --no-interactive` and run implementation verification until no critical findings remain.
 - [ ] 6.4 Open the implementation PR with Linear/OpenSpec links, checked acceptance criteria, approval-gated external actions, risk, rollback, test evidence, and intentional non-goals.
 - [ ] 6.5 Monitor required CI through success, obtain explicit approval immediately before merge, merge the implementation PR, and complete its branch/worktree cleanup.
-- [ ] 6.6 After merge activates the trusted workflow, observe a successful main CI run followed by exactly one READY staging deployment for the same SHA and no automatic production deployment.
-- [ ] 6.7 Verify `staging.myk9show.com` serves the staged SHA, records the staging environment unambiguously, and matches immutable deployment ID plus full SHA acceptance evidence.
-- [ ] 6.8 Run the agreed staging smoke suite across authentication, secretary setup, exhibitor entry, show-day roles, offline/reconnect replication, email, and Stripe test mode; record evidence.
-- [ ] 6.9 Rehearse staging failure behavior and prove failed/cancelled or superseded CI cannot deploy staging or production.
+- [ ] 6.6 Immediately after merge activates the tokenless staging/guides workflows, obtain approval to delete the repository-level `VERCEL_TOKEN`; prove automatic jobs cannot read a production-capable token while the protected production environment retains it.
+- [ ] 6.7 Observe the merge-triggered successful main CI run followed by exactly one READY staging deployment for the same SHA and no automatic production deployment.
+- [ ] 6.8 Verify `staging.myk9show.com` serves the staged SHA, records the staging environment unambiguously, and matches immutable deployment ID plus full SHA acceptance evidence.
+- [ ] 6.9 Run the agreed staging smoke suite across authentication, secretary setup, exhibitor entry, show-day roles, offline/reconnect replication, email, and Stripe test mode; record evidence.
+- [ ] 6.10 Rehearse staging queue/supersession and failure behavior; prove failed, cancelled, superseded, or manually attempted unapproved releases cannot reorder staging or deploy production.
 
 ## 7. First Production Release and Rollback Evidence — Approval Gated
 

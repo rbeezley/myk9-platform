@@ -10,6 +10,12 @@ The system SHALL deploy the exact commit validated by a successful `main` push C
 - **THEN** that exact commit is deployed to `staging.myk9show.com`
 - **AND** the current production deployment remains unchanged
 
+#### Scenario: Successful main CI runs complete out of order
+
+- **WHEN** an older staging deployment run finishes after a newer successful `main` CI run exists
+- **THEN** the older run cannot update `staging.myk9show.com`
+- **AND** only the newest successful `main` CI SHA is eligible to become shared staging
+
 #### Scenario: Main CI fails or is cancelled
 
 - **WHEN** the complete CI workflow does not succeed
@@ -18,6 +24,8 @@ The system SHALL deploy the exact commit validated by a successful `main` push C
 ### Requirement: Production release is explicit and exact-commit
 
 The system SHALL release to production only through an operator-triggered workflow that identifies a full commit SHA, proves the SHA is reachable from `main`, proves successful main CI and a READY staging deployment for that SHA, and passes the protected GitHub production environment gate.
+
+Git reachability and successful-CI validation MUST execute in a separate unprivileged preflight job that has no production environment or deployment secrets. The protected deployment job SHALL become eligible for secrets only after that preflight succeeds.
 
 #### Scenario: Approved staged commit is released
 
@@ -40,6 +48,12 @@ The system SHALL release to production only through an operator-triggered workfl
 
 - **WHEN** production release is requested for a commit that is not reachable from `main`
 - **THEN** the workflow fails before reading production secrets or deploying
+
+#### Scenario: Unprivileged release preflight fails
+
+- **WHEN** full-SHA format, main reachability, or successful-CI validation fails
+- **THEN** the protected production deployment job does not start
+- **AND** no production environment or deployment secret is made available to the failed preflight
 
 ### Requirement: Staging and production have isolated service configuration
 
@@ -72,7 +86,7 @@ The system SHALL serve staging at `staging.myk9show.com` and production at `myk9
 
 ### Requirement: Production data refreshes into staging are selective and one-way
 
-The system SHALL support an operator-approved, on-demand production-to-staging refresh that preserves troubleshooting-relevant identifiers or mappings, relationships, timestamps, configuration, and workflow state while replacing or removing personal contact data, production authentication material, payment-sensitive values, private message content, secrets, and passcodes. The refresh MUST NOT continuously synchronize environments or permit staging-to-production writes.
+The system SHALL support an operator-approved, on-demand production-to-staging refresh that preserves troubleshooting-relevant identifiers or mappings, relationships, timestamps, configuration, and workflow state while replacing or removing personal contact data, production authentication material, payment-sensitive values, private message content, secrets, and passcodes. The refresh MUST fail closed for unclassified tables, columns, or schema drift; MUST sanitize and validate in an isolated scratch destination before staging import; and MUST NOT continuously synchronize environments or permit staging-to-production writes.
 
 #### Scenario: Operator prepares realistic staging data
 
@@ -89,6 +103,18 @@ The system SHALL support an operator-approved, on-demand production-to-staging r
 - **AND** the evidence records source snapshot time and sanitization version without exposing sensitive values
 - **AND** no staging mutation can flow back to production
 
+#### Scenario: Production schema contains an unclassified field
+
+- **WHEN** the snapshot includes a table or column absent from the versioned masking manifest
+- **THEN** sanitization fails before any import into shared staging
+- **AND** the operator must classify the field, update tests, and obtain refresh approval again
+
+#### Scenario: Sanitized export retains prohibited data
+
+- **WHEN** residual-data scanning finds a prohibited identifier, credential, contact value, payment-sensitive value, secret, or passcode
+- **THEN** the export is rejected and deleted from the scratch destination
+- **AND** no raw or rejected production snapshot is restored directly into shared staging
+
 #### Scenario: Sanitization blocks a specific investigation
 
 - **WHEN** a club or exhibitor issue cannot be reproduced from the standard sanitized dataset
@@ -97,7 +123,7 @@ The system SHALL support an operator-approved, on-demand production-to-staging r
 
 ### Requirement: Staging is not a production backup
 
-The system MUST use production backup and restore facilities independently of staging. A staging refresh SHALL be treated as disposable testing data and SHALL NOT satisfy backup, retention, or disaster-recovery requirements.
+The system MUST use production backup and restore facilities independently of staging. The initial recovery policy SHALL provide an RPO of 24 hours or less, an RTO of 8 hours or less, at least 7 days of recoverable history, an accountable owner, and a successful isolated restore drill before launch and at least quarterly thereafter. A staging refresh SHALL be treated as disposable testing data and SHALL NOT satisfy backup, retention, or disaster-recovery requirements.
 
 #### Scenario: Production recovery is evaluated
 

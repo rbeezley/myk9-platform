@@ -4,15 +4,15 @@
 - [ ] 1.2 Record current GitHub Actions deployment workflows, repository variables, secret names, GitHub environments/protection rules, and required-check behavior.
 - [ ] 1.3 Inventory the current staging Supabase project across migrations, Auth, roles/permissions, Storage, Realtime/replication, Edge Functions, function secrets, database webhooks, cron jobs, and required reference/configuration tables in one evidence pass.
 - [ ] 1.4 Inventory Stripe test/live products, prices, Connect configuration, webhook destinations, and environment ownership without changing shared state.
-- [ ] 1.5 Resolve the production Supabase organization/region, required production reference data, production reviewer, mandatory staging smoke suite, and `www.myk9show.com` redirect decision; record decisions in `design.md`.
+- [ ] 1.5 Resolve the production Supabase organization/region, required production reference data, production reviewer, mandatory staging smoke suite, backup owner/cost, and `www.myk9show.com` redirect decision; confirm the documented RPO/RTO/retention targets and record decisions in `design.md`.
 - [x] 1.6 Create implementation issue [MYK9-21](https://linear.app/myk9-platform/issue/MYK9-21/separate-staging-and-production-deployment-environments) and keep it Todo until implementation begins.
 
 ## 2. Repository Workflow Design and Tests
 
 - [ ] 2.1 Add fixture-based tests that first fail unless the automatic app deployment targets Vercel `staging`, checks out the successful main CI `head_sha`, and cannot invoke production deployment.
-- [ ] 2.2 Add fixture-based tests that first fail unless production release is `workflow_dispatch`, requires a full SHA plus staging evidence, verifies successful main CI and a READY staging deployment, checks main reachability, and uses the protected `production` environment.
-- [ ] 2.3 Split the app deployment flow so successful main CI deploys the exact validated SHA with `vercel deploy --target=staging --yes --archive=tgz` and records staging evidence.
-- [ ] 2.4 Add the explicit production release workflow that rebuilds the selected exact SHA with Production variables, records the prior deployment, verifies `myk9show.com`, and stops before deployment when any precondition fails.
+- [ ] 2.2 Add fixture-based tests that first fail unless production release is `workflow_dispatch`, requires a full SHA plus staging evidence, validates SHA format/main reachability/successful CI in a separate job with no environment or deployment secrets, and permits the protected production job to receive secrets only after that preflight succeeds.
+- [ ] 2.3 Split the app deployment flow so successful main CI deploys the exact validated SHA with `vercel deploy --target=staging --yes --archive=tgz`, serializes/cancels superseded runs, proves the candidate remains the newest successful main CI SHA immediately before alias update, and records staging evidence.
+- [ ] 2.4 Add the explicit production release workflow with an unprivileged preflight job followed by a protected deployment job that rebuilds the selected exact SHA with Production variables, records the prior deployment, verifies `myk9show.com`, and stops before deployment when any precondition fails.
 - [ ] 2.4a [ADDED] Require the accepted staging deployment ID/SHA to match the deployment currently served by `staging.myk9show.com` immediately before production release.
 - [ ] 2.5 Preserve the guides project's existing CI-gated `help.myk9show.com` production deployment behavior and add a regression assertion for that non-goal.
 - [ ] 2.6 Update the Phase 1 platform/deploy verifier and focused tests for staging target, production dispatch, exact-SHA checks, environment guards, enable gates, and both Vercel config files.
@@ -27,7 +27,7 @@
 - [ ] 3.3 Immediately before mutation, obtain explicit approval to attach `staging.myk9show.com` to the custom environment and change any required DNS/domain configuration.
 - [ ] 3.4 Attach and verify `staging.myk9show.com`, confirming it resolves only to the custom `staging` environment while `myk9show.com` and `www.myk9show.com` remain Production aliases.
 - [ ] 3.4a [ADDED] Configure Pro-compatible staging access protection and effective `noindex` behavior; verify unauthorized visitors cannot access staging test data.
-- [ ] 3.5 Configure staging-scoped Vercel variables from the current staging configuration, including `VITE_APP_ENVIRONMENT=staging`, without copying production/live credentials into staging.
+- [ ] 3.5 Immediately before mutation, obtain approval to configure staging-scoped Vercel variables from the current staging configuration, including `VITE_APP_ENVIRONMENT=staging`, without copying production/live credentials into staging.
 - [ ] 3.6 Configure or rename GitHub staging/production deployment environments and, immediately before mutation, obtain approval to add production protection/reviewer rules.
 - [ ] 3.7 Configure repository secrets/variables required by the split workflows and verify only names/scopes, never secret values.
 
@@ -37,18 +37,18 @@
 - [ ] 4.2 Create and link the production Supabase project from the implementation worktree; record project reference and rollback/ownership information without committing credentials.
 - [ ] 4.3 Run a migration dry run, resolve drift or unsupported assumptions, then obtain explicit approval immediately before applying the complete migration set to production.
 - [ ] 4.4 Apply migrations and verify schema, RLS, roles, permissions, replication publications, offline-required tables, database functions/triggers, and migration parity with staging.
-- [ ] 4.5 Create required Storage buckets/policies and verify production clients cannot access staging storage or vice versa.
-- [ ] 4.6 Configure Auth site URL/redirect allowlist, Custom SMTP/Send Email Hook, rate limits, templates, and production-only secrets using the documented Management API procedure.
-- [ ] 4.7 Deploy required Edge Functions with `--no-verify-jwt`, configure function secrets, webhooks, and schedules, and verify auth behavior and environment-specific endpoints.
-- [ ] 4.8 Bootstrap only approved immutable/reference configuration rows; prove staging users, demo shows, entries, scores, payments, passcodes, and test fixtures were not copied.
+- [ ] 4.5 Immediately before mutation, obtain approval to create required Storage buckets/policies; then verify production clients cannot access staging storage or vice versa.
+- [ ] 4.6 Immediately before mutation, obtain approval to configure Auth site URL/redirect allowlist, Custom SMTP/Send Email Hook, rate limits, templates, and production-only secrets using the documented Management API procedure.
+- [ ] 4.7 Immediately before mutation, obtain approval to deploy required Edge Functions with `--no-verify-jwt` and configure function secrets, webhooks, and schedules; then verify auth behavior and environment-specific endpoints.
+- [ ] 4.8 Immediately before mutation, obtain approval to bootstrap only approved immutable/reference configuration rows; prove staging users, demo shows, entries, scores, payments, passcodes, and test fixtures were not copied.
 - [ ] 4.8a [ADDED] Immediately before cutover, revalidate that no real user or operational data requires migration; if that assumption is false, stop and create a separately reviewed migration/reconciliation plan.
-- [ ] 4.9 Verify production Realtime and offline replication with an isolated synthetic show, including offline mutation queue flush to production only, then remove or archive the synthetic data per the runbook.
-- [ ] 4.10 Design a versioned production-to-staging masking manifest that preserves troubleshooting-relevant IDs/mappings, relationships, timestamps, permissions, and workflow state while sanitizing contact, Auth, payment-sensitive, private-message, secret, and passcode data.
-- [ ] 4.11 Add tests for deterministic masking, referential integrity, designated staging Auth-account replacement, prohibited-field removal, idempotent reruns, and zero staging-to-production connectivity.
-- [ ] 4.12 Implement an operator-approved, on-demand refresh procedure that records snapshot time and sanitization version without sensitive values and keeps email, SMS, push, Stripe live mode, webhooks, cron, and other external side effects disabled or redirected.
-- [ ] 4.13 Rehearse representative club and exhibitor troubleshooting against a sanitized refresh and verify the preserved state is sufficient to reproduce known edge cases.
+- [ ] 4.9 Immediately before mutation, obtain approval to create an isolated synthetic production show; verify Realtime and offline queue flush to production only, then remove or archive the synthetic data per the approved runbook.
+- [ ] 4.10 Design a versioned, fail-closed production-to-staging masking manifest that preserves troubleshooting-relevant IDs/mappings, relationships, timestamps, permissions, and workflow state; sanitizes contact, Auth, payment-sensitive, private-message, secret, and passcode data; and rejects every unclassified table/column or schema drift.
+- [ ] 4.11 Add tests for deterministic masking, schema-drift rejection, residual-sensitive-data scanning, referential integrity, designated staging Auth-account replacement, prohibited-field removal, idempotent reruns, scratch-destination cleanup, and zero staging-to-production connectivity.
+- [ ] 4.12 Implement the on-demand refresh procedure so it sanitizes and validates in an isolated scratch destination, blocks staging import until every check passes, records snapshot time and sanitization version without sensitive values, and keeps external side effects disabled or redirected. Obtain separate immediate approval before the first real production snapshot refresh.
+- [ ] 4.13 Before public launch, rehearse representative club and exhibitor troubleshooting using synthetic fixtures; after real production data exists, validate the first approved sanitized refresh as an operational follow-up rather than a blocker for initial environment separation.
 - [ ] 4.14 Document the exceptional support-case path: minimum required records, separate approval, access restriction/logging, read-only production diagnostics preference, outbound suppression, expiration, and verified deletion.
-- [ ] 4.15 Configure and verify production backups/PITR and a restore drill independently; do not count staging as backup or disaster-recovery evidence.
+- [ ] 4.15 Immediately before paid or shared-system mutation, obtain approval for the selected backup configuration and cost; configure physical backups or PITR to meet RPO ≤24 hours, RTO ≤8 hours, and retention ≥7 days; assign the recovery owner; restore into an isolated non-production project; record pre-launch evidence and a quarterly drill schedule; and do not count staging as recovery evidence.
 
 ## 5. Production Service Configuration — Approval Gated
 

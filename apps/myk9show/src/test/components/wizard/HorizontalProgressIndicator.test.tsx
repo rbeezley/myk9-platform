@@ -78,6 +78,13 @@ describe('HorizontalProgressIndicator', () => {
     expect(button.className).toContain('min-h-[44px]');
     expect(button.className).toContain('w-full');
   });
+
+  it('keeps connectors between the outer edges of adjacent circles', () => {
+    renderIndicator();
+    const connector = screen.getByTestId('wizard-step-connector-0');
+    expect(connector.className).toContain('left-[calc(50%+0.875rem)]');
+    expect(connector.className).toContain('w-[calc(100%-1.75rem)]');
+  });
 });
 
 describe('HorizontalProgressIndicator — many steps (mobile compaction)', () => {

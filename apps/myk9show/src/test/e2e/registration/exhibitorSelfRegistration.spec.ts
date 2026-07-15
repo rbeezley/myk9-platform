@@ -129,6 +129,23 @@ async function selectFirstAvailableClass(page: Page) {
   throw new Error('No enabled class checkbox was available for checkout handoff smoke');
 }
 
+async function selectFirstAvailableDog(page: Page) {
+  await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+    timeout: 15000,
+  });
+
+  const namedDogOptions = page.locator('[role="checkbox"][aria-label^="Select "]');
+  if ((await namedDogOptions.count()) > 0) {
+    await expect(namedDogOptions.first()).toBeVisible({ timeout: 15000 });
+    await namedDogOptions.first().click();
+  } else {
+    const dogOptions = page.getByRole('checkbox');
+    await expect(dogOptions.first()).toBeVisible({ timeout: 15000 });
+    await dogOptions.first().click();
+  }
+  await expect(page.getByRole('button', { name: /^Next$/ })).toBeEnabled({ timeout: 10000 });
+}
+
 test('exhibitor card entry hands off to cart checkout without enrollment writes', async ({
   page,
 }) => {
@@ -142,8 +159,10 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
   await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
     timeout: 15000,
   });
-  await expect(page.getByText(/Step 1 of 3:/)).toBeVisible();
+  await expect(page.getByText(/Step 1 of 4:/)).toBeVisible();
 
+  await selectFirstAvailableDog(page);
+  await page.getByRole('button', { name: /^Next$/ }).click();
   await selectFirstAvailableClass(page);
   await page.getByRole('button', { name: /^Next$/ }).click();
 

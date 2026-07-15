@@ -1,4 +1,5 @@
 import React from 'react';
+import { AppShellPage } from './AppShell';
 
 interface ListPageLayoutProps {
   actions?: React.ReactNode;
@@ -14,11 +15,10 @@ const ListPageLayout: React.FC<ListPageLayoutProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`min-h-screen bg-background flex flex-col ${className}`}>
-      {/* Top padding to account for fixed header (h-16 = 64px) */}
-      <div className="pt-20">
+    <AppShellPage className={`flex flex-col ${className}`}>
+      <div>
         {actions && (
-          <div className="container mx-auto px-4 pt-6 pb-0 flex flex-row items-center justify-between">
+          <div className="container mx-auto px-4 pt-0 pb-0 flex flex-row items-center justify-between">
             {actions}
           </div>
         )}
@@ -27,7 +27,7 @@ const ListPageLayout: React.FC<ListPageLayoutProps> = ({
         </main>
       </div>
       {footer && <div className="w-full">{footer}</div>}
-    </div>
+    </AppShellPage>
   );
 };
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { AppShellPage } from './AppShell';
 
 /**
  * DetailPageLayout - A shared layout for detail pages (Users, Dogs, etc.)
@@ -25,11 +26,11 @@ const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`min-h-screen bg-background ${className}`}>
+    <AppShellPage className={className}>
       {/* Header (e.g., AppHeader, ProfileHeader) */}
       <div className="w-full">{header}</div>
       {/* Info Section (e.g., Basic Info, Contact Info) */}
-      <div className="container mx-auto px-4 pt-20 pb-0">
+      <div className="container mx-auto px-4 pt-0 pb-0">
         <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6 min-h-[260px] mb-10">
           {info}
         </div>
@@ -38,7 +39,7 @@ const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
       <div className="container mx-auto px-4 pt-2 pb-10">
         {tabs}
       </div>
-    </div>
+    </AppShellPage>
   );
 };
 

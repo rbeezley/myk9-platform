@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Download, Settings } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
+import { AppShellPage } from '@/components/layout/AppShell';
 
 export interface DashboardAction {
   label: string;
@@ -51,7 +52,7 @@ export function DashboardLayout({
     }[maxWidth] || 'max-w-7xl';
 
   return (
-    <div className={cn('min-h-screen pt-20 pb-8 px-6', maxWidthClass, 'mx-auto', className)}>
+    <AppShellPage maxWidthClass={maxWidthClass} className={className}>
       {/* Dashboard Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-8">
         <div className="space-y-2">
@@ -91,7 +92,7 @@ export function DashboardLayout({
 
       {/* Dashboard Content */}
       <div className="space-y-8">{children}</div>
-    </div>
+    </AppShellPage>
   );
 }
 

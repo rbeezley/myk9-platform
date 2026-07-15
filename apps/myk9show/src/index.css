@@ -248,6 +248,15 @@
 
   /* myK9 semantic status scale */
   :root {
+    /* Shared app-shell contract. The fixed header, sidebar, sticky regions,
+       and page primitives all read these values instead of carrying local
+       header-clearing offsets. */
+    --app-header-height: 3rem;
+    --app-shell-page-gap: 1.5rem;
+    --app-shell-page-bottom: 2rem;
+    --app-shell-page-padding: 1rem;
+    --app-shell-safe-bottom: env(safe-area-inset-bottom, 0px);
+
     /* Canonical semantic tokens — use these */
     --success: 22 101 52; /* green-800 — WCAG AA everywhere incl. the bg-success/10 + text-success tint pattern (5.2:1 tinted, 6.3:1 white, 6.3:1 white-on-solid); green-700 (21 128 61) passed on plain white but failed the /10 tint at ~4.2:1 */
     --success-foreground: 255 255 255;
@@ -484,7 +493,7 @@ select:hover {
          .pwa-banner-visible class on <html> by PWAInstallBanner).
        --app-top-inset: full fixed-chrome height = banner + 3rem header. */
     --pwa-banner-height: 0px;
-    --app-top-inset: 3rem;
+    --app-top-inset: var(--app-header-height);
   }
 
   /* PWAInstallBanner adds this class to <html> while the banner is visible.
@@ -492,13 +501,13 @@ select:hover {
      drop, the sidebar top, and the content offset never drift apart. */
   html.pwa-banner-visible {
     --pwa-banner-height: 52px;
-    --app-top-inset: calc(3rem + 52px);
+    --app-top-inset: calc(var(--app-header-height) + 52px);
   }
 
   @media (min-width: 640px) {
     html.pwa-banner-visible {
       --pwa-banner-height: 56px;
-      --app-top-inset: calc(3rem + 56px);
+      --app-top-inset: calc(var(--app-header-height) + 56px);
     }
   }
 

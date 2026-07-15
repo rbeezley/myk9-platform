@@ -64,7 +64,10 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
                   Starting at the edge keeps it out of translucent inactive
                   circles, where a center-to-center line would show through. */}
               {!isLast && (
-                <div className="absolute left-[calc(50%+0.875rem)] top-3.5 h-0.5 w-[calc(100%-1.75rem)] -translate-y-1/2">
+                <div
+                  data-testid={`wizard-step-connector-${step.id}`}
+                  className="absolute left-[calc(50%+0.875rem)] top-3.5 h-0.5 w-[calc(100%-1.75rem)] -translate-y-1/2"
+                >
                   <div className="absolute inset-0 rounded-full bg-border/40" />
                   <div
                     className={cn(
@@ -94,6 +97,7 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
               >
                 {/* Step circle (visual only) */}
                 <span
+                  data-testid={`wizard-step-circle-${step.id}`}
                   className={cn(
                     'relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300',
                     isCompleted && 'bg-primary border-primary text-primary-foreground shadow-md',

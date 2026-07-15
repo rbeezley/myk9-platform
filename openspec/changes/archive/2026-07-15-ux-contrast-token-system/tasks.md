@@ -30,4 +30,4 @@
 
 - [x] 5.1 Update `OPEN-TODOS.md` and/or launch-readiness docs if this closes or narrows a tracked contrast-token follow-up.
 - [x] 5.2 Review the diff for accidental brand drift, new UI surface area, or edits outside the contrast-token scope.
-- [ ] 5.3 Create the PR, wait for CI, address review or CI failures, and merge before archiving this OpenSpec change.
+- [x] 5.3 Create the PR, wait for CI, address review or CI failures, and merge before archiving this OpenSpec change. PR #1270 merged 2026-07-11.

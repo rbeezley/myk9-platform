@@ -46,12 +46,6 @@ const CANONICAL_ROLES: Record<string, RoleEnvSpec> = {
     passwordVar: 'E2E_DEMO_EXHIBITOR_PASSWORD',
     defaultEmail: 'e2e-exhibitor@test.myk9.com',
   },
-  clubadmin: {
-    emailVar: 'E2E_CLUB_EMAIL',
-    passwordVar: 'E2E_CLUB_PASSWORD',
-    defaultEmail: 'e2e-clubadmin@test.myk9.com',
-    passwordFallbackVar: 'E2E_DEMO_EXHIBITOR_PASSWORD',
-  },
 };
 
 export const ALL_ROLES = Object.keys(CANONICAL_ROLES);

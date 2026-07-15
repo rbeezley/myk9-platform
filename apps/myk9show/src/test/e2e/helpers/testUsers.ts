@@ -12,7 +12,7 @@
  *
  * Legacy/demo-only accounts (EXHIBITOR_2..5) are fixture data, not route-health
  * sign-in users. Use DEMO_EXHIBITOR for authenticated exhibitor tests.
- * Club-admin remains optional and is skipped when its env vars are absent.
+ * Club-admin and steward flows use the canonical admin and secretary accounts.
  */
 
 import { expect, type Page } from '@playwright/test';
@@ -47,14 +47,10 @@ export const TEST_USERS: Record<string, TestUser> = {
   },
 
   CLUB_ADMIN: {
-    // Canonical club-admin login. The old duplicate `club@myk9t.com` auth user
-    // was removed 2026-06-25 — its `people` row remains as a seeded demo official
-    // but can no longer sign in. All e2e accounts share one password, so fall
-    // back to the demo-exhibitor secret when E2E_CLUB_PASSWORD is unset.
-    email: process.env.E2E_CLUB_EMAIL ?? 'e2e-clubadmin@test.myk9.com',
-    password: process.env.E2E_CLUB_PASSWORD ?? process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? '',
+    email: process.env.E2E_ADMIN_EMAIL ?? 'e2e-admin@test.myk9.com',
+    password: process.env.E2E_ADMIN_PASSWORD ?? '',
     role: 'club_admin',
-    description: 'Club administrator — nightly only',
+    description: 'Club administrator via the canonical admin account',
   },
 
   EXHIBITOR: {

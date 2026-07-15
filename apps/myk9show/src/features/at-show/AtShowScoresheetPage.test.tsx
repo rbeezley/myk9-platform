@@ -40,7 +40,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { get: vi.fn() },
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
-  replicatedTrialsTable: { getTrialById: vi.fn() },
+  replicatedTrialsTable: { sync: vi.fn(), getTrialsByShow: vi.fn(), getTrialById: vi.fn() },
 }));
 
 const submitScoreOptimistically = vi.fn();
@@ -103,6 +103,10 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 function seed() {
   vi.mocked(replicatedClassesTable.sync).mockResolvedValue({} as never);
   vi.mocked(replicatedEntriesTable.sync).mockResolvedValue({} as never);
+  vi.mocked(replicatedTrialsTable.sync).mockResolvedValue({} as never);
+  vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([
+    { id: 'trial-1', showId: 'show-1' },
+  ] as never);
   vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue({
     id: 'class-1',
     trialId: 'trial-1',
@@ -163,7 +167,8 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     renderPage();
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
     expect(screen.getByText('Live scoresheet for #105')).toBeInTheDocument();
-    expect(replicatedClassesTable.sync).toHaveBeenCalledWith('');
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-1');
     expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
   });
 

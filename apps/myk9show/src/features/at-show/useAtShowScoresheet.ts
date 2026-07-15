@@ -112,12 +112,12 @@ export function useAtShowScoresheet({
       setError(null);
 
       try {
+        await replicatedTrialsTable.sync(showId);
+        const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
         await Promise.all([
-          // Classes are scoped by trial_id (not show_id); the route only carries
-          // the show id, so use the table's unscoped sync and scope entries to the
-          // show below. This keeps direct scoresheet navigation hydrated without
-          // confusing a show id for a trial id.
-          replicatedClassesTable.sync(''),
+          // Classes are scoped by trial_id, so hydrate each trial belonging to
+          // the route's show instead of confusing a show id for a trial id.
+          ...showTrials.map(trial => replicatedClassesTable.sync(trial.id)),
           replicatedEntriesTable.sync(showId),
         ]);
         if (cancelled) return;

@@ -156,10 +156,12 @@ auto-deploy still ON before turning it off.
       the production URL, URL serves the expected build. (A double deploy — Git + workflow — is
       expected and harmless at this stage.)
       _Rollback:_ set the variable to `false`; the deploy job skips.
-- [ ] **c.** Only after b verifies: land a commit setting `git.deploymentEnabled.main: false` in
+- [x] **c.** Only after b verifies: land a commit setting `git.deploymentEnabled.main: false` in
       both `apps/myk9show/vercel.json` and `apps/docs/vercel.json` (config-as-code; do NOT use
       an Ignored Build Step — it would abort the workflow's own deploy).
-      _Verify:_ a push to `main` no longer auto-deploys; only the workflow does.
+      _Verify:_ DONE 2026-07-15. Main CI run 29437019905 passed for SHA `d1205aa1`, then
+      Deploy Production run 29438334433 deployed both projects. Vercel recorded exactly one
+      new `READY` production deployment per project and no parallel Git-triggered deploy.
       _Rollback:_ revert that commit.
 - [x] **d.** Gate the `apps/docs` guides Vercel project in the same workflow.
       _Audit 2026-07-15:_ PRs #1333 and #1334 added and validated both archived deployments.

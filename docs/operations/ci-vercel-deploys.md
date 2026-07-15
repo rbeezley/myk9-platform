@@ -1,10 +1,10 @@
 # CI-gated production deploys (myK9Show + guides)
 
-> **Status:** Activation finalizing. Credentials and the enable variable are
-> configured, and both CI-gated production jobs successfully deployed merge SHA
-> `8f48109b` in [Deploy Production run 29434507221](https://github.com/rbeezley/myk9-platform/actions/runs/29434507221).
-> The app and guides `git.deploymentEnabled.main=false` guards are landing now;
-> final evidence must confirm that no parallel Git-triggered production deploy occurs.
+> **Status:** Active. PR [#1335](https://github.com/rbeezley/myk9-platform/pull/1335)
+> enabled both Git guards. [Main CI run 29437019905](https://github.com/rbeezley/myk9-platform/actions/runs/29437019905)
+> passed for merge SHA `d1205aa1`, then [Deploy Production run 29438334433](https://github.com/rbeezley/myk9-platform/actions/runs/29438334433)
+> deployed both projects. Vercel recorded exactly one new `READY` production
+> deployment per project after the merge, with no parallel Git-triggered deploy.
 
 **Target state:** production deploys of myK9Show and the guides site gated on a green CI run — the
 [`Deploy Production`](../../.github/workflows/deploy-production.yml) workflow
@@ -97,9 +97,8 @@ workflow) and **PR preview** deploys (other branches) fully working:
 }
 ```
 
-Land that as a small follow-up commit once the workflow is validated — it is
-config as code (reviewable, no dashboard step). From the commit that adds it,
-pushes to `main` no longer auto-deploy; only the CI-gated workflow does.
+These guards landed in PR #1335 as config as code. Pushes to `main` no longer
+auto-deploy; only the CI-gated workflow does.
 
 ## Rollback
 

@@ -131,13 +131,14 @@ Initial run, 2026-07-06; activation evidence updated 2026-07-15:
   - `ok auth_email_management_patch_runbook: Management API PATCH procedure is documented`
   - `ok show_day_kill_switch_source_defaults: all four show-day realtime source defaults are true`
   - `ok send_auth_email_hook_source: hook source references signature and Resend secrets`
-- GitHub secrets and the enable variable are configured. Deploy Production run 29434507221
-  validated both Vercel projects at exact SHA `8f48109b`.
+- GitHub secrets and the enable variable are configured. Main CI run 29437019905 passed for
+  exact SHA `d1205aa1`, then Deploy Production run 29438334433 deployed both projects.
+- Vercel recorded exactly one new `READY` production deployment per project after the guard
+  merge, matching the workflow URLs and SHA, with no parallel Git-triggered deploy.
 
 Morning/operator checklist:
 
-- Confirm the guard merge creates exactly one production deployment per Vercel project, from
-  the post-CI Deploy Production workflow, with no parallel Git-triggered production deploy.
+- CI-gated Vercel production deployment activation is complete.
 - Back up Supabase Auth config and apply the Management API PATCH for Resend Custom SMTP +
   `rate_limit_email_sent: 100`.
 - Prove production `VITE_SHOW_*` env vars are unset/true, then rehearse one false/restore

@@ -7,7 +7,7 @@
 | myK9Show | `myk9-platform-myk9show` | `apps/myk9show` | myk9-platform-myk9show.vercel.app |
 | Guides | `myk9-platform-myk9show-guides` | `apps/docs` | help.myk9show.com |
 
-myK9Show deploys from `rbeezley/myk9-platform`. Today, pushes to `main` trigger production deployments via Vercel's Git integration and PRs get preview deployments. **Production deploys are moving to CI-gated** (rollout pending — see [`ci-vercel-deploys.md`](../operations/ci-vercel-deploys.md)): once the `VERCEL_*` secrets are added and `git.deploymentEnabled.main` is set to `false`, the [`Deploy Production`](../../.github/workflows/deploy-production.yml) workflow becomes the sole production path and ships `main` only after the `CI` workflow passes; PR previews are unaffected. (Ringside scoring lives inside myK9Show at `/at-show`; the former standalone `apps/myk9q` app — and its `myk9-platform-myk9q` Vercel project — have been removed.)
+myK9Show and the guides deploy from `rbeezley/myk9-platform`. Production pushes to `main` are gated by the [`Deploy Production`](../../.github/workflows/deploy-production.yml) workflow, which ships the exact merge SHA only after the full `CI` workflow passes. Vercel Git deployments from `main` are disabled in both project configs; PR preview deployments remain enabled. See [`ci-vercel-deploys.md`](../operations/ci-vercel-deploys.md). (Ringside scoring lives inside myK9Show at `/at-show`; the former standalone `apps/myk9q` app — and its `myk9-platform-myk9q` Vercel project — have been removed.)
 
 For Hobby-tier preview quota controls, keep Vercel preview checks non-required in GitHub and verify monorepo skip-unaffected project behavior for both projects. See [`vercel-preview-quota.md`](../operations/vercel-preview-quota.md).
 

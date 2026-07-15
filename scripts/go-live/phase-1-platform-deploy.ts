@@ -60,35 +60,52 @@ export function checkDeployWorkflow(rootDir: string): Phase1Check {
 }
 
 export function checkVercelConfig(rootDir: string): Phase1Check {
-  const configPath = path.join(rootDir, 'apps/myk9show/vercel.json');
-  const rawConfig = readOptional(configPath);
+  const configPaths = ['apps/myk9show/vercel.json', 'apps/docs/vercel.json'];
+  const missingGuards: string[] = [];
+  const invalidConfigs: string[] = [];
 
-  try {
-    const config = JSON.parse(rawConfig) as {
-      git?: { deploymentEnabled?: { main?: boolean } };
-    };
-    const mainDeployEnabled = config.git?.deploymentEnabled?.main;
+  for (const relativePath of configPaths) {
+    const configPath = path.join(rootDir, relativePath);
 
-    if (mainDeployEnabled === false) {
-      return {
-        key: 'vercel_git_auto_deploy_disable',
-        status: 'ok',
-        detail: 'git.deploymentEnabled.main=false is present',
-      };
+    if (!existsSync(configPath)) {
+      missingGuards.push(relativePath);
+      continue;
     }
 
-    return {
-      key: 'vercel_git_auto_deploy_disable',
-      status: 'warn',
-      detail: 'not yet set; expected until one CI-gated production deploy is validated',
-    };
-  } catch {
+    try {
+      const config = JSON.parse(readFileSync(configPath, 'utf8')) as {
+        git?: { deploymentEnabled?: { main?: boolean } };
+      };
+
+      if (config.git?.deploymentEnabled?.main !== false) {
+        missingGuards.push(relativePath);
+      }
+    } catch {
+      invalidConfigs.push(relativePath);
+    }
+  }
+
+  if (invalidConfigs.length > 0) {
     return {
       key: 'vercel_git_auto_deploy_disable',
       status: 'fail',
-      detail: 'apps/myk9show/vercel.json is not valid JSON',
+      detail: `invalid JSON: ${invalidConfigs.join(', ')}`,
     };
   }
+
+  if (missingGuards.length > 0) {
+    return {
+      key: 'vercel_git_auto_deploy_disable',
+      status: 'fail',
+      detail: `missing main=false: ${missingGuards.join(', ')}`,
+    };
+  }
+
+  return {
+    key: 'vercel_git_auto_deploy_disable',
+    status: 'ok',
+    detail: 'both Vercel project configs disable main Git auto-deploy',
+  };
 }
 
 export function checkAuthEmailRunbook(rootDir: string): Phase1Check {

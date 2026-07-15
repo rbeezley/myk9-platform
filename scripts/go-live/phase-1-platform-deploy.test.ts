@@ -16,6 +16,7 @@ function makeRoot(): string {
   mkdirSync(path.join(root, '.github/workflows'), { recursive: true });
   mkdirSync(path.join(root, 'apps/myk9show/src/config'), { recursive: true });
   mkdirSync(path.join(root, 'apps/myk9show'), { recursive: true });
+  mkdirSync(path.join(root, 'apps/docs'), { recursive: true });
   mkdirSync(path.join(root, 'docs/operations'), { recursive: true });
   mkdirSync(path.join(root, 'supabase/functions/send-auth-email'), { recursive: true });
   return root;
@@ -39,6 +40,10 @@ function writeCompleteRoot(root: string): void {
   );
   writeFileSync(
     path.join(root, 'apps/myk9show/vercel.json'),
+    '{"git":{"deploymentEnabled":{"main":false}}}'
+  );
+  writeFileSync(
+    path.join(root, 'apps/docs/vercel.json'),
     '{"git":{"deploymentEnabled":{"main":false}}}'
   );
   writeFileSync(
@@ -84,7 +89,7 @@ describe('phase 1 deploy verifier', () => {
       {
         key: 'vercel_git_auto_deploy_disable',
         status: 'ok',
-        detail: 'git.deploymentEnabled.main=false is present',
+        detail: 'both Vercel project configs disable main Git auto-deploy',
       },
       {
         key: 'auth_email_management_patch_runbook',
@@ -110,8 +115,22 @@ describe('phase 1 deploy verifier', () => {
 
     expect(checkVercelConfig(root)).toEqual({
       key: 'vercel_git_auto_deploy_disable',
-      status: 'warn',
-      detail: 'not yet set; expected until one CI-gated production deploy is validated',
+      status: 'fail',
+      detail: 'missing main=false: apps/myk9show/vercel.json, apps/docs/vercel.json',
+    });
+  });
+
+  it('warns when the guides Vercel Git auto-deploy guard is missing', () => {
+    const root = makeRoot();
+    writeFileSync(
+      path.join(root, 'apps/myk9show/vercel.json'),
+      '{"git":{"deploymentEnabled":{"main":false}}}'
+    );
+
+    expect(checkVercelConfig(root)).toEqual({
+      key: 'vercel_git_auto_deploy_disable',
+      status: 'fail',
+      detail: 'missing main=false: apps/docs/vercel.json',
     });
   });
 

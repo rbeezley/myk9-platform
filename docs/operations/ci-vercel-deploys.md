@@ -1,23 +1,21 @@
 # CI-gated production deploys (myK9Show + guides)
 
-> **Status:** Rollout pending — the workflow is merged but **not yet in effect**.
-> Until the operator setup below completes (secrets + the
-> `PRODUCTION_DEPLOY_ENABLED` variable + `git.deploymentEnabled`), Vercel's Git
-> integration still auto-deploys `main` on every push.
+> **Status:** Activation finalizing. Credentials and the enable variable are
+> configured, and both CI-gated production jobs successfully deployed merge SHA
+> `8f48109b` in [Deploy Production run 29434507221](https://github.com/rbeezley/myk9-platform/actions/runs/29434507221).
+> The app and guides `git.deploymentEnabled.main=false` guards are landing now;
+> final evidence must confirm that no parallel Git-triggered production deploy occurs.
 
 **Target state:** production deploys of myK9Show and the guides site gated on a green CI run — the
 [`Deploy Production`](../../.github/workflows/deploy-production.yml) workflow
 ships both projects to Vercel **only after** the entire `CI` workflow (Quality
 Checks + Test + Build + A11y smoke + E2E PR Smoke) succeeds on the merged commit.
 
-**Current state:** Vercel's Git integration still deploys every push to `main`
-to production regardless of whether tests passed. The workflow is **inert until
-the `PRODUCTION_DEPLOY_ENABLED` repo variable is set to `true`** — its deploy job
-is skipped, so merging it never runs `vercel deploy` with empty secrets. Git
-auto-deploy stays on until step 3 lands. This runbook covers the one-time
-operator setup and the **safe rollout order** — do not disable Vercel
-auto-deploy until you have seen the CI-gated workflow produce a correct
-production deployment at least once.
+**Current state:** `PRODUCTION_DEPLOY_ENABLED=true`, all four required secrets
+are configured, and the CI-gated workflow has successfully deployed both Vercel
+projects. The final config-as-code guards disable Git-event deployments from
+`main` for both projects while preserving CLI/API production deployments and PR
+previews. This runbook retains the one-time setup and rollback procedure.
 
 ## How it works
 
@@ -55,7 +53,7 @@ ids; do not commit it.
 
 ### 2. Enable the workflow, then validate WITH auto-deploy still enabled
 
-Only after the three secrets exist, flip the enable gate: Repo → Settings →
+Only after the four secrets exist, flip the enable gate: Repo → Settings →
 Secrets and variables → Actions → **Variables** → set `PRODUCTION_DEPLOY_ENABLED`
 to `true`. Until this variable is `true` the deploy job is skipped, so the
 workflow can merge harmlessly and never runs `vercel deploy` with empty secrets.
@@ -82,10 +80,11 @@ Once step 2 looks correct, stop Vercel's **Git integration** from deploying
 > `exit 0 when production` would abort the gated deploy too. It cannot
 > distinguish a Git-triggered build from a CLI/API build.
 
-Instead, set `git.deploymentEnabled` for `main` to `false` in
-[`apps/myk9show/vercel.json`](../../apps/myk9show/vercel.json). This blocks
-deploys created from **Git events** on `main`, while leaving **CLI/API** deploys
-(this workflow) and **PR preview** deploys (other branches) fully working:
+Instead, set `git.deploymentEnabled` for `main` to `false` in both
+[`apps/myk9show/vercel.json`](../../apps/myk9show/vercel.json) and
+[`apps/docs/vercel.json`](../../apps/docs/vercel.json). This blocks deploys
+created from **Git events** on `main`, while leaving **CLI/API** deploys (this
+workflow) and **PR preview** deploys (other branches) fully working:
 
 ```jsonc
 {
@@ -109,19 +108,20 @@ Two levers, no code revert needed for the fast path:
 1. **Stop the gated workflow immediately** — set the `PRODUCTION_DEPLOY_ENABLED`
    repo variable to `false` (or delete it). The deploy job is skipped on the
    next run; no merge required.
-2. **Restore Git auto-deploy** — revert the `git.deploymentEnabled` change in
-   `apps/myk9show/vercel.json` (set `main` back to `true` or remove the `git`
-   block) and merge. Vercel resumes auto-deploying `main` on push.
+2. **Restore Git auto-deploy** — revert the `git.deploymentEnabled` changes in
+   both `apps/myk9show/vercel.json` and `apps/docs/vercel.json` (set `main` back
+   to `true` or remove the `git` blocks) and merge. Vercel resumes
+   auto-deploying `main` on push.
 
 Do both to fully return to the pre-rollout state (workflow off, Git auto-deploy
 on) while the workflow is fixed.
 
 ## Not covered here
 
-- **Docs/guides Vercel project** (`apps/docs`) uses the `deploy-docs` job and
-  `VERCEL_DOCS_PROJECT_ID`. It is gated by the same post-merge CI completion
-  event as myK9Show, but retains its own Vercel project and production
-  environment.
+- **Docs/guides Vercel project** (`apps/docs`) uses the `deploy-docs` job,
+  `VERCEL_DOCS_PROJECT_ID`, and its own `vercel.json` Git guard. It is gated by
+  the same post-merge CI completion event as myK9Show but retains its own Vercel
+  project and production environment.
 - **Preview deploys for PRs** are unchanged — they keep coming from Vercel's Git
   integration (`git.deploymentEnabled.main: false` disables Git deploys only for
   the `main` branch, so other-branch previews still build).

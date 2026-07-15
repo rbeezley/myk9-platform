@@ -245,7 +245,7 @@ Supabase Cloud (myk9-platform)
 
 ### Vercel
 
-myK9Show auto-deploys from the `main` branch to `myk9-platform-myk9show.vercel.app`. The Vercel project's root directory points at the `apps/myk9show/` subdirectory. Turborepo remote caching (via `TURBO_TOKEN`) speeds up CI builds by reusing previous build artifacts.
+After the full GitHub Actions CI workflow passes on `main`, the CI-gated production workflow deploys the exact merge SHA to the myK9Show and guides Vercel projects. Vercel Git deployments from `main` are disabled, while PR previews remain enabled. The project root directories point at `apps/myk9show/` and `apps/docs/`. Turborepo remote caching (via `TURBO_TOKEN`) speeds up CI builds by reusing previous build artifacts.
 
 ### Edge Functions
 

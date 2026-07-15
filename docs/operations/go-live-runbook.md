@@ -148,26 +148,27 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
 Full detail: [`ci-vercel-deploys.md`](ci-vercel-deploys.md). Order matters — validate with
 auto-deploy still ON before turning it off.
 
-- [ ] **a.** Add three GitHub Actions secrets: `VERCEL_TOKEN` (Vercel account → Tokens),
-      `VERCEL_ORG_ID` + `VERCEL_PROJECT_ID` (from `.vercel/project.json` after a local
+- [x] **a.** Add four GitHub Actions secrets: `VERCEL_TOKEN` (Vercel account → Tokens),
+      `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, + `VERCEL_DOCS_PROJECT_ID` (from `.vercel/project.json` after a local
       `vercel link`; read locally, never commit). Owner: Operator.
-- [ ] **b.** Set repo variable `PRODUCTION_DEPLOY_ENABLED=true`.
+- [x] **b.** Set repo variable `PRODUCTION_DEPLOY_ENABLED=true`.
       _Verify:_ next `main` build → **Deploy Production** workflow runs after CI green, prints
       the production URL, URL serves the expected build. (A double deploy — Git + workflow — is
       expected and harmless at this stage.)
       _Rollback:_ set the variable to `false`; the deploy job skips.
 - [ ] **c.** Only after b verifies: land a commit setting `git.deploymentEnabled.main: false` in
-      `apps/myk9show/vercel.json` (config-as-code; do NOT use an Ignored Build Step — it would
-      abort the workflow's own deploy).
+      both `apps/myk9show/vercel.json` and `apps/docs/vercel.json` (config-as-code; do NOT use
+      an Ignored Build Step — it would abort the workflow's own deploy).
       _Verify:_ a push to `main` no longer auto-deploys; only the workflow does.
       _Rollback:_ revert that commit.
-- [ ] **d.** Follow-up (non-gating): gate the `apps/docs` guides Vercel project the same way.
-      _Audit 2026-07-06:_ PR #1173 merged the Phase 1 verifier tooling. `pnpm qa:go-live:phase1`
+- [x] **d.** Gate the `apps/docs` guides Vercel project in the same workflow.
+      _Audit 2026-07-15:_ PRs #1333 and #1334 added and validated both archived deployments.
+      Deploy Production run 29434507221 deployed both projects at exact SHA `8f48109b`.
+      PR #1173 previously merged the Phase 1 verifier tooling. `pnpm qa:go-live:phase1`
       verifies the production deploy workflow
       source is staged, CI-gated, constrained to successful `main` push CI runs, gated by
-      `PRODUCTION_DEPLOY_ENABLED`, and wired to Vercel secrets. The same verifier reports
-      `warn vercel_git_auto_deploy_disable` because `git.deploymentEnabled.main=false` is
-      intentionally not present until one CI-gated production deploy is validated.
+      `PRODUCTION_DEPLOY_ENABLED`, and wired to Vercel secrets. The same verifier checks both
+      project configs for `git.deploymentEnabled.main=false`.
 
 ### 1.2 Auth email cutover (Resend hook + Custom SMTP rate limit)
 

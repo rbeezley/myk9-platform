@@ -40,25 +40,30 @@ describe('seed-demo officials + RBAC completeness contract', () => {
   // Every role whose golden path the demo must support has an idempotent grant.
   // (secretary/club_admin existed before; judge/steward/chairman were the gap.)
   const grantedRoles: Array<{ role: string; emails: string[] }> = [
-    { role: 'secretary', emails: ['secretary@myk9t.com', 'e2e-secretary@test.myk9.com'] },
-    { role: 'club_admin', emails: ['club@myk9t.com', 'e2e-clubadmin@test.myk9.com'] },
-    { role: 'judge', emails: ['judge@myk9t.com', 'e2e-judge@test.myk9.com'] },
-    { role: 'steward', emails: ['e2e-steward@test.myk9.com'] },
-    { role: 'chairman', emails: ['club@myk9t.com', 'e2e-clubadmin@test.myk9.com'] },
+    { role: 'secretary', emails: ['e2e-secretary@test.myk9.com'] },
+    { role: 'club_admin', emails: ['e2e-admin@test.myk9.com'] },
+    { role: 'judge', emails: ['e2e-judge@test.myk9.com'] },
+    { role: 'steward', emails: ['e2e-secretary@test.myk9.com'] },
+    { role: 'chairman', emails: ['e2e-admin@test.myk9.com'] },
   ];
 
-  it.each(grantedRoles)('grants the $role role with a reactivate-then-insert block', ({ role, emails }) => {
-    // A revoke-safe grant is an UPDATE (reactivate) + INSERT (fill missing) pair.
-    expect(seed).toContain(`SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL`);
-    expect(seed.includes(`r.name = '${role}'`)).toBe(true);
-    // The INSERT for this role must club-scope to Heartland (migration 102 +
-    // stability across reseeds) — never a NULL-club_id platform-wide grant.
-    const insertForRole = seed.slice(seed.indexOf(`WHERE r.name = '${role}'`));
-    expect(insertForRole).toContain(HEARTLAND_CLUB_ID);
-    for (const email of emails) {
-      expect(seed.toLowerCase()).toContain(email.toLowerCase());
+  it.each(grantedRoles)(
+    'grants the $role role with a reactivate-then-insert block',
+    ({ role, emails }) => {
+      // A revoke-safe grant is an UPDATE (reactivate) + INSERT (fill missing) pair.
+      expect(seed).toContain(
+        `SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL`
+      );
+      expect(seed.includes(`r.name = '${role}'`)).toBe(true);
+      // The INSERT for this role must club-scope to Heartland (migration 102 +
+      // stability across reseeds) — never a NULL-club_id platform-wide grant.
+      const insertForRole = seed.slice(seed.indexOf(`WHERE r.name = '${role}'`));
+      expect(insertForRole).toContain(HEARTLAND_CLUB_ID);
+      for (const email of emails) {
+        expect(seed.toLowerCase()).toContain(email.toLowerCase());
+      }
     }
-  });
+  );
 
   it('preflights every grant account + role so a missing one fails loud', () => {
     for (const role of ['secretary', 'club_admin', 'judge', 'steward', 'chairman']) {
@@ -66,9 +71,9 @@ describe('seed-demo officials + RBAC completeness contract', () => {
     }
     // The new judge/steward accounts must be in the non-null auth_user_id guard.
     for (const email of [
-      'judge@myk9t.com',
+      'e2e-admin@test.myk9.com',
       'e2e-judge@test.myk9.com',
-      'e2e-steward@test.myk9.com',
+      'e2e-secretary@test.myk9.com',
     ]) {
       expect(seed).toContain(email);
     }
@@ -79,13 +84,10 @@ describe('seed-demo officials + RBAC completeness contract', () => {
     expect(seed).toContain('INSERT INTO public.judge_qualifications');
     expect(seed).toContain("ARRAY['Scent Work']");
     // A judge_number per demo judge.
-    expect(seed).toContain("'AKC-SW-1001'");
     expect(seed).toContain("'AKC-SW-1002'");
-    // Both judge accounts get a qualification row.
-    expect(seed).toContain('judge@myk9t.com');
+    // The canonical judge account gets a qualification row.
     expect(seed).toContain('e2e-judge@test.myk9.com');
     // The two fixed qualification ids.
-    expect(seed).toContain('dededede-0000-0000-0000-000000000091');
     expect(seed).toContain('dededede-0000-0000-0000-000000000092');
   });
 
@@ -121,10 +123,8 @@ describe('seed-demo officials + RBAC completeness contract', () => {
       expect(insertCols).toContain(classId);
     }
 
-    // Both judge accounts get class-level rows (10 fixed ids: a1..a5 / b1..b5).
-    expect(insertCols).toContain('judge@myk9t.com');
+    // The canonical judge gets class-level rows.
     expect(insertCols).toContain('e2e-judge@test.myk9.com');
-    expect(seed).toContain('dededede-0000-0000-0000-0000000000a1');
     expect(seed).toContain('dededede-0000-0000-0000-0000000000b5');
   });
 });

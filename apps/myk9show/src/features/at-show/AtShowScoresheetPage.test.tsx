@@ -31,10 +31,10 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
 });
 
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
-  replicatedClassesTable: { getClassById: vi.fn() },
+  replicatedClassesTable: { getClassById: vi.fn(), sync: vi.fn() },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: { getEntriesByClass: vi.fn() },
+  replicatedEntriesTable: { getEntriesByClass: vi.fn(), sync: vi.fn() },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { get: vi.fn() },
@@ -101,6 +101,8 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 
 function seed() {
+  vi.mocked(replicatedClassesTable.sync).mockResolvedValue({} as never);
+  vi.mocked(replicatedEntriesTable.sync).mockResolvedValue({} as never);
   vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue({
     id: 'class-1',
     trialId: 'trial-1',
@@ -161,6 +163,8 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     renderPage();
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
     expect(screen.getByText('Live scoresheet for #105')).toBeInTheDocument();
+    expect(replicatedClassesTable.sync).toHaveBeenCalledWith('');
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
   });
 
   it('shows syncing copy instead of Class not found while first sync is pending', async () => {

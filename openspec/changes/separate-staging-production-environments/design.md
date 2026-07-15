@@ -67,7 +67,19 @@ Keep `sojmvhhwsjxmfistvzbe` as staging. Provision a new production Supabase proj
 
 Before any data bootstrap, inventory the required reference tables and distinguish immutable configuration from staging fixtures. No bulk staging database clone is allowed.
 
-### 4. Make environment ownership explicit
+### 4. Refresh staging from production selectively, not continuously
+
+After real production data exists, support an operator-approved, on-demand production-to-staging refresh for realistic testing and troubleshooting. The refresh is strictly one-way and SHALL NOT make staging a replication target, production backup, or source of production writes.
+
+The standard refresh preserves troubleshooting-relevant structure: stable source-record identifiers or a protected mapping, foreign-key relationships, club/show/trial/class/entry/result/payment-status workflow state, timestamps, configuration, permissions, and known edge-case values. It replaces or removes direct contact details, authentication credentials and sessions, payment tokens/provider-sensitive values, private message content, secrets, passcodes, and any data that could contact or impersonate a real person. Production Auth users are replaced with designated staging test accounts, and all staging email, SMS, push, Stripe live-mode, webhook, cron, and other external side effects remain disabled or redirected to test sinks during and after refresh.
+
+The refresh runs from a documented allowlist/masking manifest, records source snapshot time and sanitization version without logging sensitive values, validates referential integrity and representative troubleshooting queries, and can be safely rerun. During the initial pre-launch period, staging continues to use controlled seed/demo data until production contains real operational records worth refreshing.
+
+If sanitization prevents reproduction of a specific club or exhibitor issue, use a separately approved support-case escalation: copy only the minimum required records into a time-limited, access-restricted troubleshooting dataset; preserve exact state needed to reproduce the defect; suppress all outbound side effects; log access; and delete the exceptional dataset when the investigation closes. Prefer read-only production diagnostics when a copy is unnecessary.
+
+Production recovery remains independent: use Supabase backups/PITR and restore testing. A mutable, sanitized staging database is not accepted as backup evidence.
+
+### 5. Make environment ownership explicit
 
 Use environment-scoped names and documentation:
 
@@ -78,11 +90,11 @@ Use environment-scoped names and documentation:
 - [ADDED] Local development remains `localhost`; PR branches remain isolated Vercel Preview deployments. Neither is considered shared staging evidence.
 - [ADDED] Protect `staging.myk9show.com` with the strongest Pro-compatible deployment protection available to intended testers and send `noindex` headers/meta so staging is not treated as a public site.
 
-### 5. Preserve guides deployment behavior
+### 6. Preserve guides deployment behavior
 
 The guides project remains independently CI-gated to `help.myk9show.com`. Its job may be moved to a clearly named workflow while app staging/production workflows are split, but its release semantics do not change in this scope.
 
-### 6. Verification is layered and approval-gated
+### 7. Verification is layered and approval-gated
 
 Repository verification covers workflow source, exact-SHA guards, environment target names, promotion preconditions, config files, and tests. External verification covers Vercel aliases, environment variables, Supabase parity, Auth, Storage, Realtime, replication, Edge Functions, Stripe, smoke tests, and rollback rehearsal.
 
@@ -102,6 +114,9 @@ Each Vercel plan/domain/environment mutation, GitHub environment protection chan
 - **[Staging leaks test data or is indexed publicly]** → Enable deployment protection, restrict tester access, add `noindex`, use synthetic accounts, and prohibit production secrets/data in staging.
 - **[A newer staging deploy invalidates earlier acceptance]** → Bind acceptance to deployment ID plus SHA and require the staging alias to match both immediately before production release.
 - **[Pre-launch no-user assumption becomes false]** → Re-audit production/staging users and operational data immediately before cutover; if real user data exists, stop and create a separately reviewed migration/reconciliation plan.
+- **[Sanitization removes the condition needed to reproduce a defect]** → Preserve IDs/relationships and operational state by default; use the minimum-record, time-limited support-case escalation only when ordinary sanitized staging cannot reproduce the issue.
+- **[Production data leaks through a staging refresh]** → Use an explicit masking allowlist, replace Auth identities, suppress external side effects, verify the sanitized result, restrict operator access, and prohibit continuous synchronization.
+- **[Staging is mistaken for a backup]** → Keep production backups/PITR and restore drills as the recovery system; label staging refreshes as disposable testing datasets.
 
 ## Migration Plan
 
@@ -115,6 +130,7 @@ Each Vercel plan/domain/environment mutation, GitHub environment protection chan
 8. Run production preflight without changing the public deployment, then explicitly approve and execute the first production release for an already-validated SHA.
 9. Verify `myk9show.com`, logs, auth, critical roles, payment paths, and data isolation; record evidence.
 10. Rehearse rollback to the prior Vercel deployment and document database rollback/forward-fix ownership.
+11. After production contains real operational data, implement and rehearse the approval-gated sanitized production-to-staging refresh and exceptional support-case cleanup procedure.
 
 Rollback before first production release: disable the staging workflow/custom environment and leave the existing Production deployment untouched.
 

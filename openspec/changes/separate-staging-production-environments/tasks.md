@@ -43,6 +43,12 @@
 - [ ] 4.8 Bootstrap only approved immutable/reference configuration rows; prove staging users, demo shows, entries, scores, payments, passcodes, and test fixtures were not copied.
 - [ ] 4.8a [ADDED] Immediately before cutover, revalidate that no real user or operational data requires migration; if that assumption is false, stop and create a separately reviewed migration/reconciliation plan.
 - [ ] 4.9 Verify production Realtime and offline replication with an isolated synthetic show, including offline mutation queue flush to production only, then remove or archive the synthetic data per the runbook.
+- [ ] 4.10 Design a versioned production-to-staging masking manifest that preserves troubleshooting-relevant IDs/mappings, relationships, timestamps, permissions, and workflow state while sanitizing contact, Auth, payment-sensitive, private-message, secret, and passcode data.
+- [ ] 4.11 Add tests for deterministic masking, referential integrity, designated staging Auth-account replacement, prohibited-field removal, idempotent reruns, and zero staging-to-production connectivity.
+- [ ] 4.12 Implement an operator-approved, on-demand refresh procedure that records snapshot time and sanitization version without sensitive values and keeps email, SMS, push, Stripe live mode, webhooks, cron, and other external side effects disabled or redirected.
+- [ ] 4.13 Rehearse representative club and exhibitor troubleshooting against a sanitized refresh and verify the preserved state is sufficient to reproduce known edge cases.
+- [ ] 4.14 Document the exceptional support-case path: minimum required records, separate approval, access restriction/logging, read-only production diagnostics preference, outbound suppression, expiration, and verified deletion.
+- [ ] 4.15 Configure and verify production backups/PITR and a restore drill independently; do not count staging as backup or disaster-recovery evidence.
 
 ## 5. Production Service Configuration — Approval Gated
 
@@ -73,7 +79,7 @@
 ## 8. Documentation and Tracking
 
 - [ ] 8.1 Update Vercel architecture and deployment runbooks with the final staging/production topology, domains, workflow triggers, variables, approvals, evidence, and rollback steps.
-- [ ] 8.2 Update Supabase, Auth email, Stripe, staging reseed, preview quota, and go-live runbooks with explicit environment ownership and prohibited cross-environment operations.
+- [ ] 8.2 Update Supabase, Auth email, Stripe, staging reseed/refresh, preview quota, backup/restore, support-case handling, and go-live runbooks with explicit environment ownership and prohibited cross-environment operations.
 - [ ] 8.3 Add a concise operator release checklist for “main → staging → accept → production” and link existing runbooks rather than duplicating their procedures.
 - [ ] 8.4 Update `OPEN-TODOS.md`, the launch-readiness scorecard/runbook, OpenSpec tasks, and Linear status to match actual evidence; do not mark complete while any external gate remains.
 

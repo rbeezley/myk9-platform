@@ -70,6 +70,41 @@ The system SHALL serve staging at `staging.myk9show.com` and production at `myk9
 - **WHEN** a user visits `myk9show.com`
 - **THEN** Vercel serves the last explicitly released production deployment
 
+### Requirement: Production data refreshes into staging are selective and one-way
+
+The system SHALL support an operator-approved, on-demand production-to-staging refresh that preserves troubleshooting-relevant identifiers or mappings, relationships, timestamps, configuration, and workflow state while replacing or removing personal contact data, production authentication material, payment-sensitive values, private message content, secrets, and passcodes. The refresh MUST NOT continuously synchronize environments or permit staging-to-production writes.
+
+#### Scenario: Operator prepares realistic staging data
+
+- **WHEN** an approved operator refreshes staging from a production snapshot
+- **THEN** club, show, trial, class, entry, result, payment-status, timestamp, relationship, permission, and edge-case state needed for troubleshooting remains reproducible
+- **AND** direct identifiers, contact details, credentials, sessions, sensitive payment values, private message content, secrets, and passcodes are sanitized according to the versioned masking manifest
+- **AND** production Auth identities are replaced with designated staging test accounts
+- **AND** staging outbound email, SMS, push, Stripe live mode, webhooks, cron, and other external side effects remain disabled or redirected to test sinks
+
+#### Scenario: Staging refresh completes
+
+- **WHEN** sanitization and import finish
+- **THEN** referential integrity and representative troubleshooting queries pass
+- **AND** the evidence records source snapshot time and sanitization version without exposing sensitive values
+- **AND** no staging mutation can flow back to production
+
+#### Scenario: Sanitization blocks a specific investigation
+
+- **WHEN** a club or exhibitor issue cannot be reproduced from the standard sanitized dataset
+- **THEN** the operator may use a separately approved, access-restricted support-case copy containing only the minimum required records
+- **AND** outbound side effects remain suppressed, access is logged, and the exceptional dataset is deleted when the investigation closes
+
+### Requirement: Staging is not a production backup
+
+The system MUST use production backup and restore facilities independently of staging. A staging refresh SHALL be treated as disposable testing data and SHALL NOT satisfy backup, retention, or disaster-recovery requirements.
+
+#### Scenario: Production recovery is evaluated
+
+- **WHEN** backup or recovery readiness is assessed
+- **THEN** evidence comes from production backups or point-in-time recovery and a restore test
+- **AND** the existence of staging data is not counted as recovery evidence
+
 ### Requirement: Development, preview, staging, and production remain distinct
 
 The system SHALL treat local development, per-branch Preview deployments, shared staging, and public production as separate release contexts. Preview or local verification MUST NOT satisfy the shared staging acceptance requirement.

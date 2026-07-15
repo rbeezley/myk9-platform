@@ -13,6 +13,7 @@ Requested outcome:
 - Add an explicit, operator-triggered production promotion workflow that deploys a selected, already-staged `main` commit to `myk9show.com` only after staging acceptance.
 - Create a separate production Supabase project; retain the current Supabase project as staging so test activity cannot alter public production data.
 - Separate staging and production Vercel environment variables, Supabase credentials, Stripe configuration, auth URLs, Edge Functions, scheduled jobs, and operational evidence.
+- Add an on-demand, one-way production-to-staging refresh procedure that preserves troubleshooting-relevant record structure and state while sanitizing personal, authentication, payment, message, and contact data.
 - Add source verification, focused workflow/config tests, smoke checks, rollback procedures, and environment labeling that make the active target unambiguous.
 - Update deployment architecture, go-live runbooks, and tracking documentation.
 
@@ -24,6 +25,7 @@ Non-goals:
 - No application feature or show-day workflow changes.
 - No production cutover until staging and production data-plane checks pass and the operator explicitly approves shared-system mutations.
 - No automatic promotion from staging to production.
+- No continuous database synchronization and no staging-to-production data flow; staging is not a production backup or disaster-recovery target.
 
 ## Capabilities
 

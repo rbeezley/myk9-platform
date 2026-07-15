@@ -19,11 +19,12 @@ import React, { ReactNode, useCallback, useEffect, useRef, useState } from 'reac
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
+import { APP_SHELL_HEADER_HEIGHT_PX } from './appShellContract';
 
 // Layout constants - single source of truth
 const SIDEBAR_LAYOUT_CONSTANTS = {
   /** App header height in pixels (h-12 = 3rem = 48px) */
-  HEADER_HEIGHT: 48,
+  HEADER_HEIGHT: APP_SHELL_HEADER_HEIGHT_PX,
   /** Tailwind class that offsets fixed children below the app top-chrome.
    *  Reads --app-top-inset (index.css): 3rem header alone, or 3rem + the PWA
    *  install banner when it is showing. Falls back to 3rem if the var is unset. */
@@ -201,8 +202,9 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
           applied by PWAInstallBanner's in-flow spacer above this subtree, so we
           must NOT add --app-top-inset here or the banner height double-counts. */}
       <main
+        data-layout="app-shell-main"
         className={cn(
-          'flex-1 overflow-auto pt-12',
+          'flex-1 overflow-auto pt-[var(--app-header-height,3rem)]',
           'md:ml-[var(--sidebar-width)]'
         )}
         style={{ '--sidebar-width': `${mainMarginWidth}px` } as React.CSSProperties}

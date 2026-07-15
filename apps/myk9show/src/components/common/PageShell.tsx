@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { AppShellPage } from '@/components/layout/AppShell';
 
 interface PageShellProps {
   children: React.ReactNode;
@@ -8,8 +9,8 @@ interface PageShellProps {
 
 export function PageShell({ children, maxWidth = 'max-w-7xl', className }: PageShellProps) {
   return (
-    <div className={cn(maxWidth, 'mx-auto px-4 sm:px-6 py-6 space-y-6 bg-background', className)}>
+    <AppShellPage maxWidthClass={maxWidth} className={cn('space-y-6', className)}>
       {children}
-    </div>
+    </AppShellPage>
   );
 }

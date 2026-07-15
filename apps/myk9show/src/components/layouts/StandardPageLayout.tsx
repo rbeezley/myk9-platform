@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AppShellPage } from '@/components/layout/AppShell';
 
 export interface BreadcrumbItem {
   label: string;
@@ -74,14 +75,9 @@ export function StandardPageLayout({
   };
 
   return (
-    <div
-      className={cn(
-        'min-h-screen pt-20 pb-12 px-6',
-        maxWidthClass,
-        'mx-auto',
-        centered && 'text-center',
-        className
-      )}
+    <AppShellPage
+      maxWidthClass={maxWidthClass}
+      className={cn(centered && 'text-center', className)}
     >
       {/* Breadcrumbs */}
       {breadcrumbs && breadcrumbs.length > 0 && (
@@ -159,7 +155,7 @@ export function StandardPageLayout({
 
       {/* Page Content */}
       <div className="space-y-8">{children}</div>
-    </div>
+    </AppShellPage>
   );
 }
 

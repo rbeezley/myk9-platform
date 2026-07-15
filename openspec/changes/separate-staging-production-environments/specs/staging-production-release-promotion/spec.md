@@ -113,7 +113,7 @@ The system SHALL serve staging at `staging.myk9show.com` and production at `myk9
 
 ### Requirement: Production data refreshes into staging are selective and one-way
 
-The system SHALL support an operator-approved, on-demand production-to-staging refresh that preserves troubleshooting-relevant identifiers or mappings, relationships, timestamps, configuration, workflow state, and explicitly allowlisted Storage assets while replacing or removing personal contact data, production authentication material, payment-sensitive values, private message content, secrets, passcodes, and sensitive file content/metadata. The refresh MUST fail closed for unclassified tables, columns, buckets, or object paths; MUST sanitize and validate in an isolated scratch destination before staging import; and MUST NOT continuously synchronize environments or permit staging-to-production writes.
+The system SHALL support an operator-approved, on-demand production-to-staging refresh that preserves troubleshooting-relevant identifiers or mappings, relationships, timestamps, configuration, workflow state, and explicitly allowlisted Storage assets while replacing or removing personal contact data, production authentication material, payment-sensitive values, private message content, secrets, passcodes, and sensitive file content/metadata. The refresh MUST fail closed for unclassified tables, columns, buckets, or object paths; MUST sanitize and validate in an encrypted, access-restricted, retention-limited scratch destination before staging import; MUST verifiably delete temporary snapshots, exports, and Storage objects after success or failure; and MUST NOT continuously synchronize environments or permit staging-to-production writes.
 
 #### Scenario: Operator prepares realistic staging data
 
@@ -128,6 +128,7 @@ The system SHALL support an operator-approved, on-demand production-to-staging r
 - **WHEN** sanitization and import finish
 - **THEN** referential integrity and representative troubleshooting queries pass
 - **AND** the evidence records source snapshot time and sanitization version without exposing sensitive values
+- **AND** raw snapshots, sanitized exports, temporary Storage objects, and scratch artifacts are verifiably deleted within the documented retention limit
 - **AND** no staging mutation can flow back to production
 
 #### Scenario: Production schema contains an unclassified field

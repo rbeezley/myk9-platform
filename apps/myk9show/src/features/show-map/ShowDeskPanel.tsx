@@ -21,6 +21,7 @@ import { ShowMapEntryReviewSheet } from './ShowMapEntryReviewSheet';
 import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
 import { buildMoveUpTargets } from './buildMoveUpTargets';
 import { getTrialRegistry } from '@/features/registries';
+import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import ShowMapTab from './ShowMapTab';
@@ -169,7 +170,7 @@ export default function ShowDeskPanel({
   }, [bulkApproveRequest, dispatchBulkApprove]);
 
   const openEntryManagement = useCallback(() => {
-    navigateTo(`/shows/${show.id}/entry-management?mode=review&attention=pending`);
+    navigateTo(getEntryManagementHref({ showId: show.id, attention: 'pending', mode: 'review' }));
   }, [navigateTo, show.id]);
 
   const desk = useMemo(

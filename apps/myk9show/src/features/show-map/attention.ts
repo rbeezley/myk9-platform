@@ -1,22 +1,23 @@
-// Single source of truth for "does this entry need a human's attention?".
-// Dashboard strip and show-map tree must agree, or users see contradictory
-// counts for the same data.
+// Show Map's legacy attention signal is intentionally narrow, but its predicate
+// delegates to the shared operational classifier so it cannot drift from Entry
+// Management as new entry reasons are added.
 
 import {
-  countRawEntryManagementPendingBucket,
-  isRawEntryInEntryManagementPendingBucket,
-} from '@/utils/entryCountSelectors';
+  classifyClassAttention,
+  classifyRawEntryAttention,
+  type ClassAttentionReason,
+} from '@/features/entry-operations/attentionClassification';
 
 export type AttentionReason = 'pending_review';
 
 export interface EntryLike {
   entry_status?: string | null;
+  payment_status?: string | null;
   check_in_status?: string | null;
 }
 
 export function getEntryAttention(entry: EntryLike): AttentionReason | null {
-  if (isRawEntryInEntryManagementPendingBucket(entry)) return 'pending_review';
-  return null;
+  return classifyRawEntryAttention(entry).includes('pending_review') ? 'pending_review' : null;
 }
 
 // Class-level attention reasons are tracked separately from entry-level
@@ -24,8 +25,6 @@ export function getEntryAttention(entry: EntryLike): AttentionReason | null {
 // strip) is keyed strictly on entry reasons, so widening AttentionReason
 // here would break that indexed lookup for a signal the dashboard doesn't
 // render.
-export type ClassAttentionReason = 'reopened_after_closeout';
-
 export interface ClassLike {
   reopenedAfterCloseoutAt?: string | null | undefined;
 }
@@ -35,8 +34,7 @@ export interface ClassLike {
 // (the new expected entry may already be scored). This is a class-level
 // attention reason, distinct from getEntryAttention's entry-level reasons.
 export function getClassAttention(cls: ClassLike): ClassAttentionReason | null {
-  if (cls.reopenedAfterCloseoutAt) return 'reopened_after_closeout';
-  return null;
+  return classifyClassAttention(cls)[0] ?? null;
 }
 
 export interface AttentionCounts {
@@ -49,6 +47,8 @@ export function emptyAttentionCounts(): AttentionCounts {
 }
 
 export function countAttention(entries: readonly EntryLike[]): AttentionCounts {
-  const pendingReview = countRawEntryManagementPendingBucket(entries);
+  const pendingReview = entries.filter(
+    entry => getEntryAttention(entry) === 'pending_review'
+  ).length;
   return { pending_review: pendingReview, total: pendingReview };
 }

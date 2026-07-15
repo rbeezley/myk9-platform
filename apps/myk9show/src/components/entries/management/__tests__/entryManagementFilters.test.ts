@@ -38,6 +38,7 @@ describe('entryManagementFilters', () => {
     expect([...ENTRY_ATTENTION_FILTER_VALUES]).toEqual([
       'all',
       'pending',
+      'missing_information',
       'accepted',
       'waitlist',
       'issues',
@@ -156,5 +157,25 @@ describe('entryManagementFilters', () => {
         payment: 'pending',
       })
     ).toBe('No pending entries match these filters.');
+  });
+
+  it('keeps payment filtering URL-backed and normalizes invalid values', () => {
+    const supported = normalizeEntryManagementSearchParams(
+      new URLSearchParams('trial=t1&class=c1&payment=pending')
+    );
+    expect(supported.payment).toBe('pending');
+    expect(supported.params.toString()).toBe('trial=t1&class=c1&payment=pending');
+
+    const cleared = normalizeEntryManagementSearchParams(
+      new URLSearchParams('trial=t1&class=c1&payment=all')
+    );
+    expect(cleared.payment).toBe('all');
+    expect(cleared.params.toString()).toBe('trial=t1&class=c1');
+
+    const invalid = normalizeEntryManagementSearchParams(
+      new URLSearchParams('trial=t1&class=c1&payment=surprise')
+    );
+    expect(invalid.payment).toBe('all');
+    expect(invalid.params.toString()).toBe('trial=t1&class=c1');
   });
 });

@@ -11,6 +11,7 @@ import {
   type AttentionCounts,
 } from '@/features/show-map/attention';
 import { AttentionNeededStrip } from './AttentionNeededStrip';
+import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { DashboardQuickLinks } from './DashboardQuickLinks';
 import { MyShowsSection, MyShowsSectionSkeleton } from './MyShowsSection';
 import { TasksTab } from './TasksTab';
@@ -67,7 +68,7 @@ export function SecretaryDashboardPage() {
           text: `${counts.pending_review} ${
             counts.pending_review === 1 ? 'pending entry' : 'pending entries'
           }`,
-          href: `/shows/${showId}/entry-management?mode=review&attention=pending`,
+          href: getEntryManagementHref({ showId, attention: 'pending', mode: 'review' }),
         });
       }
       return rows;

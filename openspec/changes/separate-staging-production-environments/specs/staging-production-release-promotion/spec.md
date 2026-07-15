@@ -4,6 +4,8 @@
 
 The system SHALL deploy the exact commit validated by a successful `main` push CI run to the Vercel `staging` environment and SHALL NOT update `myk9show.com` as part of that automatic workflow. The automatic workflow MUST NOT receive a Vercel access token capable of production deployment; it SHALL advance only the protected staging release ref consumed by Vercel Custom Environment branch tracking.
 
+[EXPANDED] Pushes to `staging-release` or `guides-release` MUST NOT start the main CI-to-release workflow, satisfy a main-CI gate, or recursively advance either release ref. Because GitHub Actions `contents: write` cannot be scoped to individual refs, the workflow SHALL hard-code an allowlist containing only the intended release refs, and repository rulesets SHALL reject that workflow actor's updates to every other protected ref.
+
 #### Scenario: Main CI succeeds
 
 - **WHEN** the complete CI workflow succeeds for a push commit on `main`
@@ -27,6 +29,18 @@ The system SHALL deploy the exact commit validated by a successful `main` push C
 
 - **WHEN** the complete CI workflow does not succeed
 - **THEN** neither staging nor production is deployed for that commit
+
+#### Scenario: A release ref is updated
+
+- **WHEN** the trusted workflow advances `staging-release` or `guides-release`
+- **THEN** Vercel may deploy the configured target exactly once
+- **AND** GitHub does not treat the ref update as a new eligible main CI release event
+
+#### Scenario: The release workflow attempts another ref
+
+- **WHEN** the trusted workflow actor attempts to update any ref outside the hard-coded `staging-release` and `guides-release` allowlist
+- **THEN** workflow validation and repository rulesets reject the update
+- **AND** the protected ref remains unchanged
 
 ### Requirement: Production release is explicit and exact-commit
 
@@ -99,7 +113,7 @@ The system SHALL serve staging at `staging.myk9show.com` and production at `myk9
 
 ### Requirement: Production data refreshes into staging are selective and one-way
 
-The system SHALL support an operator-approved, on-demand production-to-staging refresh that preserves troubleshooting-relevant identifiers or mappings, relationships, timestamps, configuration, and workflow state while replacing or removing personal contact data, production authentication material, payment-sensitive values, private message content, secrets, and passcodes. The refresh MUST fail closed for unclassified tables, columns, or schema drift; MUST sanitize and validate in an isolated scratch destination before staging import; and MUST NOT continuously synchronize environments or permit staging-to-production writes.
+The system SHALL support an operator-approved, on-demand production-to-staging refresh that preserves troubleshooting-relevant identifiers or mappings, relationships, timestamps, configuration, workflow state, and explicitly allowlisted Storage assets while replacing or removing personal contact data, production authentication material, payment-sensitive values, private message content, secrets, passcodes, and sensitive file content/metadata. The refresh MUST fail closed for unclassified tables, columns, buckets, or object paths; MUST sanitize and validate in an encrypted, access-restricted, retention-limited scratch destination before staging import; MUST verifiably delete temporary snapshots, exports, and Storage objects after success or failure; and MUST NOT continuously synchronize environments or permit staging-to-production writes.
 
 #### Scenario: Operator prepares realistic staging data
 
@@ -114,6 +128,7 @@ The system SHALL support an operator-approved, on-demand production-to-staging r
 - **WHEN** sanitization and import finish
 - **THEN** referential integrity and representative troubleshooting queries pass
 - **AND** the evidence records source snapshot time and sanitization version without exposing sensitive values
+- **AND** raw snapshots, sanitized exports, temporary Storage objects, and scratch artifacts are verifiably deleted within the documented retention limit
 - **AND** no staging mutation can flow back to production
 
 #### Scenario: Production schema contains an unclassified field
@@ -127,6 +142,25 @@ The system SHALL support an operator-approved, on-demand production-to-staging r
 - **WHEN** residual-data scanning finds a prohibited identifier, credential, contact value, payment-sensitive value, secret, or passcode
 - **THEN** the export is rejected and deleted from the scratch destination
 - **AND** no raw or rejected production snapshot is restored directly into shared staging
+
+#### Scenario: Troubleshooting requires a production Storage object
+
+- **WHEN** an allowlisted production object is required to reproduce a case
+- **THEN** its content, metadata, type, size, and malware checks pass before it is copied to a new staging-only versioned prefix
+- **AND** sanitized database rows reference that prefix only after every required object verifies
+- **AND** an incomplete prefix is deleted without changing the active staging dataset
+
+#### Scenario: Refresh preflight exceeds capacity or execution budget
+
+- **WHEN** consistent-snapshot row/object counts, bytes, scratch space, staging headroom, or estimated duration exceed configured limits
+- **THEN** the refresh fails before exporting or changing shared staging
+- **AND** records capacity evidence without sensitive values
+
+#### Scenario: A batched refresh fails or times out
+
+- **WHEN** a transform, upload, scan, or import batch fails
+- **THEN** an idempotent retry may resume from a non-sensitive checkpoint
+- **AND** shared staging continues serving the prior database and Storage dataset until the complete candidate passes all checks
 
 #### Scenario: Sanitization blocks a specific investigation
 
@@ -201,3 +235,20 @@ The implementation SHALL require explicit operator approval immediately before V
 
 - **WHEN** workflow source, tests, and runbooks are ready but an external mutation has not been approved
 - **THEN** the corresponding task remains incomplete and records the exact approval-gated action
+
+### Requirement: External cutover is checkpointed and recoverable
+
+The implementation SHALL record a redacted mutation ledger and SHALL verify each external mutation before starting a dependent step. New side-effecting integrations SHALL remain disabled or non-public until final activation. A partial failure MUST preserve the existing public deployment and production data path and MUST require reconciliation before retrying any potentially non-idempotent operation.
+
+#### Scenario: External configuration fails midway
+
+- **WHEN** a Vercel, GitHub, DNS, Supabase, Auth, email, Stripe, webhook, cron, or secret mutation fails verification
+- **THEN** dependent mutations and public activation stop
+- **AND** newly created side effects are disabled
+- **AND** the operator restores the prior setting or records the isolated inactive resource for an idempotent resume
+
+#### Scenario: A previous mutation has an ambiguous result
+
+- **WHEN** a network timeout or partial response leaves completion unknown
+- **THEN** the operator queries authoritative external state before retrying
+- **AND** does not duplicate a payment, email, webhook, DNS, bootstrap, or release action

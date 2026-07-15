@@ -78,6 +78,10 @@ The standard refresh preserves troubleshooting-relevant structure: stable source
 
 The refresh runs from a documented, versioned allowlist/masking manifest and fails closed when a table or column is unclassified or schema drift is detected. It creates a sanitized export in an isolated scratch destination, scans that result for prohibited residual values, validates referential integrity and representative troubleshooting queries, and only then permits import into staging. A raw production dump is never restored directly into shared staging. Evidence records source snapshot time and sanitization version without logging sensitive values, and the procedure can be safely rerun.
 
+[EXPANDED] The same manifest classifies Supabase Storage buckets and object paths. The default is to substitute staging-owned fixture assets. Copy a production object only when it is required to reproduce the case, passes content-type/size/malware and metadata checks, contains no prohibited embedded or visible personal data, and is written under a new versioned staging-only prefix. Upload and verify every required object before the database transaction points sanitized rows at that prefix. On failure, delete the incomplete prefix and leave the prior staging dataset and assets active.
+
+[ADDED] Before export, capture one transactionally consistent source snapshot and calculate table rows, object count/bytes, scratch-space need, staging disk headroom, expected duration, and configured execution limits. Refuse to start when capacity or time budget is insufficient. Encrypt scratch snapshots and temporary Storage objects, restrict access to the approved refresh operator, and enforce a short documented retention limit. Transform large datasets in bounded batches with durable non-sensitive checkpoints and idempotent retries; never persist credentials or raw field values in checkpoints. The final staging database replacement is transactional where supported and becomes visible only after database, Storage, integrity, residual-data, and representative-query checks pass. Every successful, failed, or timed-out refresh verifiably deletes raw snapshots, sanitized exports, incomplete versioned prefixes, and other scratch artifacts while preserving the active sanitized staging dataset and, on failure, the last known-good staging dataset.
+
 Build and test the refresh tooling before the first public release using controlled synthetic fixtures. Do not activate it against a real production snapshot until production contains real operational records and the operator separately approves that refresh. During the initial pre-launch period, staging continues to use controlled seed/demo data.
 
 If sanitization prevents reproduction of a specific club or exhibitor issue, use a separately approved support-case escalation: copy only the minimum required records into a time-limited, access-restricted troubleshooting dataset; preserve exact state needed to reproduce the defect; suppress all outbound side effects; log access; and delete the exceptional dataset when the investigation closes. Prefer read-only production diagnostics when a copy is unnecessary.
@@ -110,6 +114,12 @@ Repository verification covers workflow source, exact-SHA guards, environment ta
 
 Each Vercel plan/domain/environment mutation, GitHub environment protection change, Supabase project/config/function write, DNS mutation, Stripe mutation, and production release requires explicit approval immediately before execution.
 
+### 8. [ADDED] Make external cutover checkpointed and fail-safe
+
+Maintain a redacted mutation ledger containing each external action, owner, approval, precondition, verification, previous-setting recovery reference, and completion state without secret values. Configure new Supabase, Vercel, Auth, email, Stripe, webhook, cron, and GitHub resources disabled or non-public whenever the service permits. Verify one checkpoint before starting the next dependent mutation.
+
+If any mutation, network call, or verification fails, stop the sequence, keep the existing public deployment and production data path active, disable newly created side effects, and either restore the previous setting from the inventory or leave the isolated new resource inactive for a later idempotent resume. Never retry a non-idempotent payment, email, webhook, DNS, or data-bootstrap action without first reconciling whether the earlier attempt took effect. Domain/alias cutover and production workflow enablement are the final activation steps.
+
 ## Risks / Trade-offs
 
 - **[Production and staging schema drift]** → Apply the same migration commit to staging first, verify it, then apply that exact migration set to production; add drift checks before promotion.
@@ -129,6 +139,10 @@ Each Vercel plan/domain/environment mutation, GitHub environment protection chan
 - **[Sanitization removes the condition needed to reproduce a defect]** → Preserve IDs/relationships and operational state by default; use the minimum-record, time-limited support-case escalation only when ordinary sanitized staging cannot reproduce the issue.
 - **[Production data leaks through a staging refresh]** → Use an explicit masking allowlist, replace Auth identities, suppress external side effects, verify the sanitized result, restrict operator access, and prohibit continuous synchronization.
 - **[Staging is mistaken for a backup]** → Keep production backups/PITR and restore drills as the recovery system; label staging refreshes as disposable testing datasets.
+- **[ADDED: Storage assets leak personal data or break troubleshooting]** → Default to fixture assets; allowlist and scan only case-required objects, place them under a versioned staging prefix, and switch sanitized references only after every object verifies.
+- **[ADDED: Large refresh exhausts time or storage]** → Preflight counts/capacity, use a consistent snapshot plus bounded resumable batches, and retain the prior staging dataset unless all checks pass.
+- **[ADDED: Release refs recursively trigger CI/deploy workflows]** → Exclude `staging-release` and `guides-release` from CI/workflow-run sources, hard-code those two refs in workflow validation, enforce all other protected refs with repository rulesets, and test one deployment per successful main SHA.
+- **[ADDED: External cutover fails halfway]** → Use a redacted mutation ledger, inactive configuration, verify-before-next checkpoints, reconciliation before retry, and final-only public activation.
 
 ## Migration Plan
 

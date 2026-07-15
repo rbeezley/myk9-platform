@@ -13,7 +13,8 @@ Requested outcome:
 - Add an explicit, operator-triggered production promotion workflow that deploys a selected, already-staged `main` commit to `myk9show.com` only after staging acceptance.
 - Create a separate production Supabase project; retain the current Supabase project as staging so test activity cannot alter public production data.
 - Separate staging and production Vercel environment variables, Supabase credentials, Stripe configuration, auth URLs, Edge Functions, scheduled jobs, and operational evidence.
-- Add an on-demand, one-way production-to-staging refresh procedure that preserves troubleshooting-relevant record structure and state while sanitizing personal, authentication, payment, message, and contact data.
+- [EXPANDED] Add an on-demand, one-way production-to-staging refresh procedure that preserves troubleshooting-relevant database state and explicitly selected Storage assets while sanitizing personal, authentication, payment, message, contact, and file metadata/content data.
+- [ADDED] Make large refreshes capacity-checked, snapshot-consistent, resumable, and fail-safe so a partial refresh cannot replace usable staging data.
 - Add source verification, focused workflow/config tests, smoke checks, rollback procedures, and environment labeling that make the active target unambiguous.
 - Update deployment architecture, go-live runbooks, and tracking documentation.
 
@@ -48,3 +49,4 @@ Tracking: [MYK9-21](https://linear.app/myk9-platform/issue/MYK9-21/separate-stag
 - Existing deployment verification scripts and tests.
 - Deployment architecture and go-live operational documentation.
 - Shared-system changes require explicit approval immediately before each Vercel, DNS, GitHub environment, Supabase, Stripe, or production mutation.
+- [ADDED] Shared-system cutover uses a redacted mutation ledger and verify-before-next-step checkpoints; any partial failure leaves the existing public deployment active and blocks later activation steps.

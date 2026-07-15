@@ -64,14 +64,15 @@ jobs:
       # Directory apps/myk9show, the turbo buildCommand in vercel.json, and the
       # dashboard env vars) — identical to the previous Git auto-deploy, only the
       # trigger changed. Run from the repo root so the whole monorepo is uploaded
-      # and the project's Root Directory resolves correctly.
+      # and the project's Root Directory resolves correctly. Archive the upload
+      # to stay below the Hobby plan's per-deployment file-upload limit.
       - name: Deploy to Vercel (production)
         id: deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          url="$(vercel deploy --prod --yes --token="$VERCEL_TOKEN")"
+          url="$(vercel deploy --prod --yes --archive=tgz --token="$VERCEL_TOKEN")"
           echo "Deployed: $url"
           echo "url=$url" >>"$GITHUB_OUTPUT"
 
@@ -112,14 +113,15 @@ jobs:
         run: npm install --global vercel@latest
 
       # Run from the repository root so the docs project's Root Directory
-      # (apps/docs) can still read docs/user-guides during its build.
+      # (apps/docs) can still read docs/user-guides during its build. Archive the
+      # upload to stay below the Hobby plan's per-deployment file-upload limit.
       - name: Deploy guides to Vercel (production)
         id: deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          url="$(vercel deploy --prod --yes --token="$VERCEL_TOKEN")"
+          url="$(vercel deploy --prod --yes --archive=tgz --token="$VERCEL_TOKEN")"
           echo "Deployed: $url"
           echo "url=$url" >>"$GITHUB_OUTPUT"
 

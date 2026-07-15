@@ -1,10 +1,12 @@
 # Daily Health Monitoring Evidence
 
-**Checked:** 2026-07-15 08:15 UTC
+**Checked:** 2026-07-15 15:15 UTC
 
 **Project:** `sojmvhhwsjxmfistvzbe`
 
-**Mutation performed:** none
+**Mutations performed:** approved Sentry monitor/alert configuration and controlled missed interval;
+one approved authenticated recovery dispatch. The Sentry schedule was restored and no secret value
+was displayed or copied.
 
 ## Read-only baseline
 
@@ -49,7 +51,23 @@ no-DSN path.
 
 The Edge runner uses optional Supabase-side `SENTRY_DSN` and `SENTRY_ENVIRONMENT` values. It does
 not require them for snapshot generation, does not read the browser DSN, starts monitoring only
-after request authentication, and does not mutate monitor schedule configuration. The live
-correlated `in_progress` → `ok` check-in, Sentry monitor creation, named-human routing, secret
-configuration, deployment, and missed/recovery proof remain unverified operator/shared-system
-tasks. The 2026-07-15 database query cannot establish those external Sentry facts.
+after request authentication, and does not mutate monitor schedule configuration.
+
+Live operator evidence on 2026-07-15 proves the external path:
+
+- Sentry Cron monitor `daily-health-check` is active in `staging` at `0 7 * * *` UTC with a
+  15-minute grace period, 10-minute max runtime, and failure/recovery tolerance 1.
+- Alert `Daily Health Check — missed/error/recovery` is connected only to that monitor and routes
+  new, resolved, escalated, and reopened issue events to `richardbeezley1@gmail.com`.
+- A controlled every-minute Sentry-only interval produced a missed check-in and delivered
+  `JAVASCRIPT-REACT-8 — Cron failure: Daily Health Check` to the named operator at 15:00 UTC. The
+  SQL watchdog schedule and delivery path were unchanged.
+- After restoring the Sentry schedule, an approved authenticated dispatch produced successful
+  check-in `fc2e49f3` at `15:14:28 UTC`. Sentry automatically resolved issue `#584741741`, and
+  Supabase persisted a fresh `cron-health-check` snapshot at the same time with
+  `overall_status = ok` and `run_duration_ms = 257`.
+- Sentry's alert history recorded only the missed trigger and did not send a separate recovery
+  email for automatic issue resolution. The owner explicitly accepted Sentry's resolved issue plus
+  the successful check-in as provider-native recovery evidence.
+
+No Sentry or Supabase credential value was recorded in this evidence.

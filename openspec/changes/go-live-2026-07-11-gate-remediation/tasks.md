@@ -33,7 +33,7 @@
 - [x] 2.2 Verify watchdog schedule ordering, exact alert fields, query plan/index use, deduplication, recurrence after resolution, rollback SQL, and the scheduled run read-back. Focused source tests, live write proof as the recorded `cron.job.username` owner, deduplication/recurrence, rollback evidence, and 2026-07-15 `cron.job_run_details` rows (`succeeded`, `INSERT 0 0`) are complete.
 - [x] 2.3 [ADDED] Add focused tests first, then instrument `cron-health-check` with provider-supported in-progress/success/error check-ins for the `daily-health-check` Sentry Cron Monitor; a failed/missing Sentry call must not suppress the snapshot insert, and a successful snapshot with a failed check-in must remain externally visible as a missed heartbeat.
 - [x] 2.4 [SHARED-SYSTEM GATE] After approval, manually dispatched `cron-health-check`, proved a fresh snapshot lands, and recorded durable missed-snapshot alert evidence. The stale-key hypothesis was disproved; no Vault rotation was necessary.
-- [ ] 2.5 [OPERATOR/SHARED-SYSTEM GATE] Configure the independent Sentry Cron Monitor schedule and named-human route, deploy the check-in instrumentation, and record missed-check-in and recovery notification evidence without sharing the database watchdog's delivery path.
+- [x] 2.5 [OPERATOR/SHARED-SYSTEM GATE] Configured the independent Sentry Cron Monitor schedule and named-human route, proved a delivered missed-check-in email, restored the schedule, and recorded a successful recovery check-in plus automatic issue resolution without sharing the database watchdog's delivery path. Sentry did not emit a separate recovery email; the owner explicitly accepted the resolved monitor issue and successful check-in as provider-native recovery evidence.
 
 ## 3. Batch A — Migration Lineage
 
@@ -97,7 +97,7 @@
 - [ ] 10.5 [OPERATOR] Verify the confirmation-email flow in a real mailbox and prove the AKC recipient gate.
 - [ ] 10.6 [OPERATOR] Run the cold-incognito anonymous-surface walk and record screenshots/results.
 - [ ] 10.7 [OPERATOR] Run the offline ringside airplane-mode round trip and record device/reconciliation evidence.
-- [ ] 10.8 [OPERATOR] Configure and prove general Sentry alert routing to a named human, including the health cron route in task 2.5.
+- [ ] 10.8 [OPERATOR] Configure and prove general Sentry alert routing to a named human. The health-cron route is complete in task 2.5; general non-health routing remains open.
 - [ ] 10.9 [OPERATOR] Complete production domain/DNS and Vercel cutover evidence with rollback steps.
 - [ ] 10.10 [OPERATOR] Complete remaining admin-surface, show-day, print, and real-user evidence gates; review data-driven feature assignments and remove the stale removed-flag check from the runbook.
 

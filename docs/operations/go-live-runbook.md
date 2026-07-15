@@ -439,21 +439,26 @@ the Edge runner. Do not treat either as live until its approval-gated steps belo
   resolution. Both rows are resolved with resolution notes appended to `detail` and retained as
   durable evidence. Read-only scheduled evidence on 2026-07-15 shows jobid 12 ran at 08:00 UTC as
   `postgres` with `cron.job_run_details.status = 'succeeded'` and `return_message = 'INSERT 0 0'`.
-- [ ] **External path:** create the Sentry Cron Monitor with slug `daily-health-check`, schedule
-      `0 7 * * *`, timezone UTC, 15-minute check-in margin, and 10-minute max runtime. Route missed,
-      error, and recovery notifications to a named human. Keep monitor configuration in Sentry;
-      the function must not upsert it.
-- [~] **Deploy check-ins:** `cron-health-check` v5 was deployed 2026-07-12 and an authenticated
-  Vault-backed manual dispatch returned HTTP 200 and committed a fresh snapshot. The project
-  does not yet have `SENTRY_DSN` or `SENTRY_ENVIRONMENT`, so external check-ins remain inactive.
-  Configure those secrets after the Sentry monitor and named-human route exist, then redeploy with
-  `supabase functions deploy cron-health-check --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt --workdir apps/myk9show`.
-  Manually dispatch once and record correlated `in_progress` → `ok` evidence. A failed probe
-  that persists a `fail` snapshot is still an `ok` delivery check-in; the snapshot owns health
-  status.
-- [ ] **Prove independence:** use Sentry's notification test or an approved missed interval to
-      capture the named-human missed and recovery notifications without disabling the database
-      watchdog. Separately prove that a failed Sentry flush does not suppress a committed snapshot.
+- [x] **External path:** **PROVEN 2026-07-15.** Sentry Cron monitor `daily-health-check` is active in
+      `staging` at `0 7 * * *`, timezone UTC, with a 15-minute grace period, 10-minute max runtime,
+      and failure/recovery tolerance 1. Alert `Daily Health Check — missed/error/recovery` is
+      connected only to this monitor and routes new, resolved, escalated, and reopened issue events
+      to Richard. Monitor configuration remains in Sentry; the function does not upsert it.
+- [x] **Deploy check-ins:** `cron-health-check` v5 is deployed with active Supabase-side Sentry
+      configuration. The scheduled July 13–15 runs show correlated successful check-ins. After the
+      controlled miss below, an approved authenticated dispatch produced successful check-in
+      `fc2e49f3` at `2026-07-15 15:14:28 UTC`, automatically resolved Sentry issue `#584741741`, and
+      committed a fresh `overall_status=ok` snapshot in 257 ms. A failed probe that persists a
+      `fail` snapshot is still an `ok` delivery check-in; the snapshot owns health status.
+- [x] **Prove independence:** **ACCEPTED 2026-07-15.** Temporarily setting only the Sentry monitor
+      to every minute with a one-minute grace period produced a real missed check-in and delivered
+      `JAVASCRIPT-REACT-8 — Cron failure: Daily Health Check` to Richard at 15:00 UTC. The SQL
+      watchdog remained unchanged at 08:00 UTC. After the Sentry schedule was restored, the
+      authenticated run above recovered the monitor and Supabase snapshot independently. Sentry's
+      alert history recorded one missed trigger and did not send a separate email for the automatic
+      resolution; the owner explicitly accepted the resolved issue and successful check-in as the
+      provider-native recovery evidence. Focused tests separately prove that failed Sentry delivery
+      does not suppress a committed snapshot.
 
 Rollback: redeploy the last-good `cron-health-check`, remove/restore the Sentry secrets as
 appropriate, disable the Sentry monitor, and unschedule `daily-health-snapshot-watchdog` in a new

@@ -3,8 +3,8 @@ name: Deploy Production
 # CI-gated production deploys for myK9Show and the guides site.
 #
 # Vercel's Git integration must be set NOT to auto-deploy the production branch
-# (set git.deploymentEnabled.main=false in apps/myk9show/vercel.json — NOT an
-# Ignored Build Step, which would also abort this workflow's own CLI deploy; see
+# (set git.deploymentEnabled.main=false in both apps/myk9show/vercel.json and
+# apps/docs/vercel.json — NOT an Ignored Build Step, which would also abort this workflow's own CLI deploy; see
 # docs/operations/ci-vercel-deploys.md). This workflow is then the sole path
 # that ships `main` to production for both Vercel projects — and only AFTER the entire CI workflow
 # (Quality Checks + Test + Build, plus A11y smoke + E2E PR Smoke when runtime

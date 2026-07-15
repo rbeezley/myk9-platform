@@ -39,7 +39,9 @@ export function useAccountEnteredShowIds(
     queryKey: ['browse-shows', 'account-entered-show-ids', personId],
     queryFn: async () => {
       if (!personId) return EMPTY_ACCOUNT_ENTERED_SHOW_IDS;
-      const { data: rows } = await getUserEntries(personId);
+      const { data: rows, error } = await getUserEntries(personId);
+      if (error) throw error;
+
       const all = new Set<string>();
       const active = new Set<string>();
       for (const row of rows ?? []) {

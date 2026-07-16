@@ -96,6 +96,21 @@ describe('PaymentService read methods', () => {
       expect(result).toEqual([]);
     });
 
+    it('scopes the lookup to the caller: person_id on customers, customer_id on orders, with order+limit', async () => {
+      const customersBuilder = makeQueryBuilder({ data: { id: 'cust-1' }, error: null });
+      const ordersBuilder = makeQueryBuilder({ data: [], error: null });
+      mocks.from.mockImplementation((table: string) =>
+        table === 'stripe_customers' ? customersBuilder : ordersBuilder
+      );
+
+      await service.getPaymentHistory('user-1');
+
+      expect(customersBuilder.eq).toHaveBeenCalledWith('person_id', 'user-1');
+      expect(ordersBuilder.eq).toHaveBeenCalledWith('customer_id', 'cust-1');
+      expect(ordersBuilder.order).toHaveBeenCalledWith('created_at', { ascending: false });
+      expect(ordersBuilder.limit).toHaveBeenCalledWith(50);
+    });
+
     it('maps stripe_orders rows to PaymentDetails, using the caller userId as the person id', async () => {
       const orderRow = {
         id: 'order-1',
@@ -163,6 +178,16 @@ describe('PaymentService read methods', () => {
       await expect(service.getShowPaymentSummary('show-1')).resolves.toEqual(emptySummary);
     });
 
+    it('filters orders by show_id', async () => {
+      const builder = makeQueryBuilder({ data: [], error: null });
+      mocks.from.mockReturnValue(builder);
+
+      await service.getShowPaymentSummary('show-1');
+
+      expect(mocks.from).toHaveBeenCalledWith('stripe_orders');
+      expect(builder.eq).toHaveBeenCalledWith('show_id', 'show-1');
+    });
+
     it('buckets amounts by status and computes completionRate from completed orders only', async () => {
       mocks.from.mockReturnValue(
         makeQueryBuilder({
@@ -202,6 +227,15 @@ describe('PaymentService read methods', () => {
       mocks.from.mockReturnValue(makeQueryBuilder({ data: null, error: new Error('boom') }));
 
       await expect(service.checkPaymentStatus('order-1')).resolves.toBeNull();
+    });
+
+    it('filters by the requested payment id', async () => {
+      const builder = makeQueryBuilder({ data: null, error: null });
+      mocks.from.mockReturnValue(builder);
+
+      await service.checkPaymentStatus('order-1');
+
+      expect(builder.eq).toHaveBeenCalledWith('id', 'order-1');
     });
 
     it('extracts the person_id from the joined stripe_customers record', async () => {
@@ -269,6 +303,15 @@ describe('PaymentService read methods', () => {
       mocks.from.mockReturnValue(makeQueryBuilder({ data: null, error: new Error('boom') }));
 
       await expect(service.generateReceipt('order-1')).resolves.toBeNull();
+    });
+
+    it('filters by the requested payment id', async () => {
+      const builder = makeQueryBuilder({ data: null, error: null });
+      mocks.from.mockReturnValue(builder);
+
+      await service.generateReceipt('order-1');
+
+      expect(builder.eq).toHaveBeenCalledWith('id', 'order-1');
     });
 
     it('refuses to generate a receipt for a non-completed order', async () => {

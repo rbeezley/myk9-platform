@@ -156,4 +156,22 @@ describe('ClassReadinessStrip', () => {
       screen.queryByRole('status', { name: 'Class readiness unavailable' })
     ).not.toBeInTheDocument();
   });
+
+  it('does not make an actionable payment claim when enrollment payment data is unavailable', () => {
+    render(
+      <ClassReadinessStrip
+        isStaff
+        classData={classData}
+        entries={[...entries, { ...entries[0], registration_id: 'registration-1' }]}
+        showId="show-1"
+        trialId="trial-1"
+        classId="class-1"
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    expect(screen.getByText('Payment status unavailable')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /payment/i })).not.toBeInTheDocument();
+  });
 });

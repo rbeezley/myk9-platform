@@ -5,6 +5,7 @@ import {
 } from '@/features/entry-operations/attentionClassification';
 
 export interface ClassReadinessEntry extends RawOperationalEntryInput {
+  registration_id?: string | null;
   check_in_status?: string | null;
   is_scored?: boolean | null;
 }
@@ -22,6 +23,7 @@ export interface ClassReadinessSummary {
   pendingReviewCount: number;
   missingInformationCount: number;
   paymentDueCount: number;
+  paymentStatusUnavailable: boolean;
   checkedInCount: number;
   checkInEligibleCount: number;
   scoredCount: number;
@@ -40,6 +42,9 @@ export function buildClassReadinessSummary(
   const checkInEligibleEntries = entries.filter(
     entry => getOperationalEntryState({ rawEntryStatus: entry.entry_status }) === 'accepted'
   );
+  const paymentStatusUnavailable = entries.some(
+    entry => entry.registration_id != null && entry.registration == null
+  );
 
   return {
     totalEntries: entries.length,
@@ -48,7 +53,10 @@ export function buildClassReadinessSummary(
     missingInformationCount: attentionReasons.filter(reasons =>
       reasons.includes('missing_information')
     ).length,
-    paymentDueCount: attentionReasons.filter(reasons => reasons.includes('payment_due')).length,
+    paymentDueCount: paymentStatusUnavailable
+      ? 0
+      : attentionReasons.filter(reasons => reasons.includes('payment_due')).length,
+    paymentStatusUnavailable,
     checkedInCount: checkInEligibleEntries.filter(entry => entry.check_in_status === 'checked-in')
       .length,
     checkInEligibleCount: checkInEligibleEntries.length,

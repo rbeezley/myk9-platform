@@ -34,10 +34,25 @@ describe('buildClassReadinessSummary', () => {
       checkedInCount: 1,
       checkInEligibleCount: 2,
       scoredCount: 1,
+      paymentStatusUnavailable: false,
       classStatus: 'In Progress',
       isScoringFinalized: false,
       reopenedAfterCloseoutAt: null,
     });
+  });
+
+  it('does not claim a payment count when enrollment payment data is unavailable', () => {
+    const summary = buildClassReadinessSummary(
+      {
+        status: 'In Progress',
+        is_scoring_finalized: false,
+        reopened_after_closeout_at: null,
+      },
+      [entry({ payment_status: 'paid_online', registration_id: 'registration-1' })]
+    );
+
+    expect(summary.paymentStatusUnavailable).toBe(true);
+    expect(summary.paymentDueCount).toBe(0);
   });
 
   it('preserves server lifecycle fields without inferring completion from scored equality', () => {

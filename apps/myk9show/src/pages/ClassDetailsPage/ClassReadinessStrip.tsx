@@ -165,10 +165,14 @@ export function ClassReadinessStrip({
           />
           <ReadinessMetric
             label="Payment"
-            value={`${summary.paymentDueCount} payment due`}
-            href={paymentDueHref}
+            value={
+              summary.paymentStatusUnavailable
+                ? 'Payment status unavailable'
+                : `${summary.paymentDueCount} payment due`
+            }
+            href={summary.paymentStatusUnavailable ? undefined : paymentDueHref}
             icon={CreditCard}
-            emphasized={summary.paymentDueCount > 0}
+            emphasized={!summary.paymentStatusUnavailable && summary.paymentDueCount > 0}
           />
           <ReadinessMetric
             label="Check-in"

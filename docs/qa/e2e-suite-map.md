@@ -213,6 +213,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/entities/peopleUI.spec.ts`                 | People UI.                                                                                      |
 | `apps/myk9show/src/test/e2e/entities/phase2ShowDayRewalk.spec.ts`      | Phase 2 show-day re-walk.                                                                       |
 | `apps/myk9show/src/test/e2e/entities/registrationUI.spec.ts`           | Registration wizard UI.                                                                         |
+| `apps/myk9show/src/test/e2e/registration/wizardVisualQA.spec.ts`       | Registration wizard visual and responsive baselines.                                            |
 | `apps/myk9show/src/test/e2e/entities/reportsUI.spec.ts`                | Reports UI.                                                                                     |
 | `apps/myk9show/src/test/e2e/entities/secretaryEntryCreationUI.spec.ts` | Secretary entry creation.                                                                       |
 | `apps/myk9show/src/test/e2e/entities/secretaryShowWorkbenchUI.spec.ts` | Secretary show workbench.                                                                       |
@@ -225,6 +226,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/my-entries-page-ui.spec.ts`                | Exhibitor entries page.                                                                         |
 | `apps/myk9show/src/test/e2e/people-page-ui.spec.ts`                    | People page UI.                                                                                 |
 | `apps/myk9show/src/test/e2e/real-auth-browse-shows.spec.ts`            | Authenticated browse shows.                                                                     |
+| `apps/myk9show/src/test/e2e/qa/roleJourneyVisualQa.spec.ts`            | MYK9-17 role/viewport/theme visual QA matrix.                                                   |
 | `apps/myk9show/src/test/e2e/show-creation-wizard-detailed.spec.ts`     | Detailed show wizard.                                                                           |
 | `apps/myk9show/src/test/e2e/show-details-sidebar-navigation.spec.ts`   | Show details navigation.                                                                        |
 | `apps/myk9show/src/test/e2e/show/atShowJudgeScoring.spec.ts`           | At-show judge scoring authorization path.                                                       |

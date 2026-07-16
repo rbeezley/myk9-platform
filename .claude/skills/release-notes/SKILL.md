@@ -25,7 +25,7 @@ Group by conventional-commit prefix in the title (`feat`, `fix`, `perf`, `docs`,
 - Sections in this order: **New**, **Improved**, **Fixed**. No emojis (project policy; celebratory UI is the only exception and this isn't it).
 - Name the role that benefits when it isn't obvious ("Secretaries: ...").
 - Never call anything "battle-tested" or "proven" pre-launch — use "tested".
-- Follow `writing-concisely`.
+- Follow `anthropic-skills:writing-clearly-and-concisely`.
 
 ## Publish
 

@@ -24,10 +24,11 @@ describe('entry status history adapter', () => {
     vi.clearAllMocks();
     select.mockReturnThis();
     eq.mockReturnThis();
+    order.mockReset();
   });
 
   it('selects and maps generated schema fields without guessing a status property', async () => {
-    order.mockResolvedValue({
+    order.mockReturnValueOnce({ order }).mockResolvedValueOnce({
       data: [
         {
           id: 'history-1',
@@ -64,7 +65,11 @@ describe('entry status history adapter', () => {
     expect(ENTRY_STATUS_HISTORY_SELECT).toContain('reason');
     expect(ENTRY_STATUS_HISTORY_SELECT).not.toMatch(/\n\s*status[,\n]/);
     expect(eq).toHaveBeenCalledWith('entry_id', 'entry-1');
-    expect(order).toHaveBeenCalledWith('changed_at', { ascending: true });
+    expect(order).toHaveBeenNthCalledWith(1, 'changed_at', {
+      ascending: true,
+      nullsFirst: false,
+    });
+    expect(order).toHaveBeenNthCalledWith(2, 'id', { ascending: true });
   });
 
   it('keeps absent actor and reason honest', () => {

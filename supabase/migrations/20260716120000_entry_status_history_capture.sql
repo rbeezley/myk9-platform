@@ -58,6 +58,19 @@ CREATE TRIGGER entries_record_status_history
 
 REVOKE ALL ON FUNCTION public.record_entry_status_history() FROM PUBLIC, anon, authenticated;
 
+-- `entry_status_history` is FORCE RLS, including for the database owner. Keep
+-- inserts unavailable to every client role while allowing only this
+-- SECURITY DEFINER trigger (owned by postgres) to append audit rows.
+REVOKE INSERT ON TABLE public.entry_status_history FROM PUBLIC, anon, authenticated, service_role;
+
+DROP POLICY IF EXISTS "entry_status_history_trigger_insert" ON public.entry_status_history;
+
+CREATE POLICY "entry_status_history_trigger_insert"
+  ON public.entry_status_history
+  FOR INSERT
+  TO PUBLIC
+  WITH CHECK (current_user = 'postgres');
+
 DROP POLICY IF EXISTS "entry_status_history_select" ON public.entry_status_history;
 
 CREATE POLICY "entry_status_history_select"

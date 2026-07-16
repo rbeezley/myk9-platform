@@ -112,6 +112,12 @@ describe('DB migration sanity contracts', () => {
     expect(sql).toContain('OLD.entry_status');
     expect(sql).toContain('NEW.entry_status');
     expect(sql).toContain('auth.uid()');
+    expect(sql).toContain(
+      'REVOKE INSERT ON TABLE public.entry_status_history FROM PUBLIC, anon, authenticated, service_role'
+    );
+    expect(sql).toContain('DROP POLICY IF EXISTS "entry_status_history_trigger_insert"');
+    expect(sql).toContain('CREATE POLICY "entry_status_history_trigger_insert"');
+    expect(sql).toContain("WITH CHECK (current_user = 'postgres')");
     expect(sql).toContain('DROP POLICY IF EXISTS "entry_status_history_select"');
     expect(sql).toContain('public.is_show_official(e.show_id)');
     expect(sql).toContain('public.is_club_admin(s.club_id)');

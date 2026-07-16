@@ -65,7 +65,8 @@ export async function getEntryStatusHistory(entryId: string): Promise<EntryStatu
       .from('entry_status_history')
       .select(ENTRY_STATUS_HISTORY_SELECT)
       .eq('entry_id', entryId)
-      .order('changed_at', { ascending: true });
+      .order('changed_at', { ascending: true, nullsFirst: false })
+      .order('id', { ascending: true });
 
     const duration = Date.now() - startTime;
     logQuery('entry_status_history', 'get_entry_status_history', duration, error?.message);

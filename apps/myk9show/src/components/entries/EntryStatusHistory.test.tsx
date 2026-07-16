@@ -32,6 +32,17 @@ describe('EntryStatusHistory', () => {
     expect(screen.queryByRole('button', { name: /entry status history/i })).not.toBeInTheDocument();
   });
 
+  it('shows a clear loading state while history is being fetched', async () => {
+    mockUseEntryStatusHistory.mockReturnValue({ ...baseHistory, isPending: true } as never);
+
+    const { user } = render(<EntryStatusHistory entryId="entry-1" />);
+    await user.click(screen.getByRole('button', { name: /view entry status history/i }));
+
+    expect(screen.getByRole('status', { name: /loading entry status history/i })).toHaveTextContent(
+      'Loading history…'
+    );
+  });
+
   it('shows ordered transitions and calm actor/reason fallbacks', async () => {
     mockUseEntryStatusHistory.mockReturnValue({
       ...baseHistory,

@@ -13,18 +13,16 @@ import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
 
 test.describe.configure({ mode: 'serial' });
 
-// Seeded "June 2026" AKC Scent Work show.
-const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
+// The maintained seeded secretary show (Heartland Scent Work Classic). Use the
+// shared constant so the spec tracks reseeds instead of a hardcoded show id.
+const SHOW_ID = LIVE_SECRETARY_SHOW_ID;
 const ENTRIES_URL = `/secretary/entries/${SHOW_ID}`;
 
 /** Navigate to entries page and wait for the entries list to render. */
 async function gotoEntries(page: Page) {
   await page.goto(ENTRIES_URL);
-  // The entries-card heading is the data-loaded signal
-  await page
-    .getByRole('heading')
-    .filter({ hasText: /^Entries \(\d+\)$/ })
-    .waitFor({ timeout: 10_000 });
+  // The "Total Entries" stat subtitle is the data-loaded signal.
+  await page.getByText('Total Entries', { exact: true }).waitFor({ timeout: 10_000 });
 }
 
 /**
@@ -44,7 +42,7 @@ async function selectAllEntries(page: Page) {
 // ─── Browse ───────────────────────────────────────────────────────────────────
 
 test.describe('Browse entries', () => {
-  test('loads the June 2026 show with stats and entry cards', async ({ page }) => {
+  test('loads the seeded secretary show with stats and entry cards', async ({ page }) => {
     await signInAsSecretary(page);
     await gotoEntries(page);
 

@@ -1,25 +1,15 @@
 /**
- * Setup E2E Test Users in Supabase
+ * Setup E2E Test Users in Supabase.
  *
- * Creates test users for each role needed in E2E testing.
- * All users share an env-provided password; never print or commit it.
+ * Each canonical account uses its own env-provided password; never print or
+ * commit credentials.
  *
- * Roles are stored in user_roles, not people.roles. The people row stores the
- * auth/profile link, and secretary/club_admin role rows are scoped to a club_id
- * to match current RBAC/RLS rules.
- *
- * Prerequisites:
- *   - VITE_SUPABASE_URL in .env or .env.local
- *   - SUPABASE_SERVICE_ROLE_KEY in .env or .env.local (get from Supabase dashboard)
- *
- * Usage:
- *   node scripts/setup-e2e-test-users.js
+ * Usage: pnpm exec tsx scripts/setup-e2e-test-users.ts
  */
 
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 
-// Load environment variables from the same files used during local development.
 dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.local' });
 
@@ -30,69 +20,75 @@ if (!supabaseUrl || !serviceRoleKey) {
   console.error('Missing required environment variables:');
   console.error('- VITE_SUPABASE_URL:', !!supabaseUrl);
   console.error('- SUPABASE_SERVICE_ROLE_KEY:', !!serviceRoleKey);
-  console.error('\nTo get SUPABASE_SERVICE_ROLE_KEY:');
-  console.error('1. Go to Supabase dashboard');
-  console.error('2. Settings -> API -> service_role key');
-  console.error('3. Add to .env.local: SUPABASE_SERVICE_ROLE_KEY=your-key');
+  console.error('\nAdd SUPABASE_SERVICE_ROLE_KEY from Supabase Settings → API to .env.local.');
   process.exit(1);
 }
 
-// Create admin client with service role key
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
+  auth: { autoRefreshToken: false, persistSession: false },
 });
 
-// Shared password for all test accounts — env-only; never spell a live shared
-// credential into source (the last literal here was leaked + rotated 2026-06-25).
-// Set E2E_TEST_PASSWORD (or any E2E_*_PASSWORD) before running; the value must
-// pass length + complexity + HaveIBeenPwned checks GoTrue enforces.
-const TEST_PASSWORD =
-  process.env.E2E_TEST_PASSWORD ||
-  process.env.E2E_SECRETARY_PASSWORD ||
-  process.env.E2E_DEMO_EXHIBITOR_PASSWORD;
-if (!TEST_PASSWORD) {
-  console.error(
-    'Refusing to run: set E2E_TEST_PASSWORD (or E2E_SECRETARY_PASSWORD) first — see apps/myk9show/.env.local'
-  );
-  process.exit(1);
+interface TestUser {
+  email: string;
+  passwordEnv: string;
+  firstName: string;
+  lastName: string;
+  roles: string[];
 }
 
-// Test users to create
-const TEST_USERS = [
+interface RoleScope {
+  club_id: string | null;
+  show_id: string | null;
+}
+
+type TestUserResult =
+  | { success: true; email: string; userId: string }
+  | { success: false; email: string; error: string };
+
+const TEST_USERS: TestUser[] = [
   {
     email: 'e2e-exhibitor@test.myk9.com',
+    passwordEnv: 'E2E_DEMO_EXHIBITOR_PASSWORD',
     firstName: 'Test',
     lastName: 'Exhibitor',
-    roles: ['exhibitor']
+    roles: ['exhibitor'],
   },
   {
     email: 'e2e-secretary@test.myk9.com',
+    passwordEnv: 'E2E_SECRETARY_PASSWORD',
     firstName: 'Test',
     lastName: 'Secretary',
-    roles: ['secretary', 'steward', 'exhibitor']
+    roles: ['secretary', 'steward', 'exhibitor'],
   },
   {
     email: 'e2e-judge@test.myk9.com',
+    passwordEnv: 'E2E_JUDGE_PASSWORD',
     firstName: 'Test',
     lastName: 'Judge',
-    roles: ['judge']
+    roles: ['judge'],
   },
   {
     email: 'e2e-admin@test.myk9.com',
+    passwordEnv: 'E2E_ADMIN_PASSWORD',
     firstName: 'Test',
     lastName: 'Admin',
-    roles: ['site_admin', 'secretary', 'club_admin', 'chairman', 'exhibitor']
-  }
+    roles: ['site_admin', 'secretary', 'club_admin', 'chairman', 'exhibitor'],
+  },
 ];
 
-// Cache for role IDs
-let roleIdCache = {};
-let scopedClubId = null;
+for (const user of TEST_USERS) {
+  if (!process.env[user.passwordEnv]) {
+    console.error(
+      `Refusing to run: set ${user.passwordEnv} for ${user.email} in apps/myk9show/.env.local`
+    );
+    process.exit(1);
+  }
+}
 
-async function getRoleId(roleName) {
+const roleIdCache: Record<string, string> = {};
+let scopedClubId: string | null = null;
+
+async function getRoleId(roleName: string): Promise<string | null> {
   if (roleIdCache[roleName]) {
     return roleIdCache[roleName];
   }
@@ -112,7 +108,7 @@ async function getRoleId(roleName) {
   return data.id;
 }
 
-async function getScopedClubId() {
+async function getScopedClubId(): Promise<string> {
   if (scopedClubId) {
     return scopedClubId;
   }
@@ -125,15 +121,17 @@ async function getScopedClubId() {
     .single();
 
   if (error || !data) {
-    throw new Error(`Could not find a club for scoped test roles: ${error?.message || 'none found'}`);
+    throw new Error(
+      `Could not find a club for scoped test roles: ${error?.message || 'none found'}`
+    );
   }
 
   scopedClubId = data.id;
   console.log(`Using club scope for secretary/club_admin roles: ${data.name || data.id}`);
-  return scopedClubId;
+  return data.id;
 }
 
-async function getRoleScope(roleName) {
+async function getRoleScope(roleName: string): Promise<RoleScope> {
   if (roleName === 'secretary' || roleName === 'club_admin') {
     return { club_id: await getScopedClubId(), show_id: null };
   }
@@ -141,73 +139,62 @@ async function getRoleScope(roleName) {
   return { club_id: null, show_id: null };
 }
 
-function applyRoleScopeFilters(query, scope) {
-  return Object.entries(scope).reduce((scopedQuery, [column, value]) => {
-    return value === null ? scopedQuery.is(column, null) : scopedQuery.eq(column, value);
-  }, query);
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
-async function createTestUser(user) {
-  const { email, firstName, lastName, roles } = user;
+async function createTestUser(user: TestUser): Promise<TestUserResult> {
+  const { email, passwordEnv, firstName, lastName, roles } = user;
+  const password = process.env[passwordEnv];
+
+  if (!password) {
+    return { success: false, email, error: `Missing ${passwordEnv}` };
+  }
 
   console.log(`\nProcessing: ${email}`);
 
   try {
-    // Check if auth user exists by email
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(u => u.email === email);
-
-    let userId;
+    const existingUser = existingUsers?.users?.find(candidate => candidate.email === email);
+    let userId: string;
 
     if (existingUser) {
       console.log(`  Auth user exists: ${existingUser.id}`);
       userId = existingUser.id;
 
-      // Reset the password so re-running this script actually converges existing
-      // accounts onto TEST_PASSWORD — otherwise it prints the new password but
-      // leaves the auth user on its prior one.
       const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
-        password: TEST_PASSWORD,
+        password,
         email_confirm: true,
-        user_metadata: {
-          first_name: firstName,
-          last_name: lastName
-        }
+        user_metadata: { first_name: firstName, last_name: lastName },
       });
 
       if (updateError) {
         throw new Error(`Auth password update failed: ${updateError.message}`);
       }
-
-      console.log(`  Auth password reset to TEST_PASSWORD`);
+      console.log(`  Auth password reset from ${passwordEnv}`);
     } else {
-      // Create new auth user
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email,
-        password: TEST_PASSWORD,
+        password,
         email_confirm: true,
-        user_metadata: {
-          first_name: firstName,
-          last_name: lastName
-        }
+        user_metadata: { first_name: firstName, last_name: lastName },
       });
 
-      if (authError) {
-        throw new Error(`Auth creation failed: ${authError.message}`);
+      if (authError || !authData.user) {
+        throw new Error(`Auth creation failed: ${authError?.message || 'missing user'}`);
       }
 
       userId = authData.user.id;
       console.log(`  Auth user created: ${userId}`);
     }
 
-    // Check/create people profile
     const { data: profile } = await supabase
       .from('people')
       .select('id, auth_user_id')
       .eq('auth_user_id', userId)
       .maybeSingle();
 
-    let peopleId;
+    let peopleId: string | undefined;
 
     if (profile) {
       peopleId = profile.id;
@@ -222,15 +209,9 @@ async function createTestUser(user) {
         console.log('  People profile updated');
       }
     } else {
-      // Create profile in people table
       const { data: newProfile, error: insertError } = await supabase
         .from('people')
-        .insert({
-          auth_user_id: userId,
-          first_name: firstName,
-          last_name: lastName,
-          email
-        })
+        .insert({ auth_user_id: userId, first_name: firstName, last_name: lastName, email })
         .select('id')
         .single();
 
@@ -242,10 +223,8 @@ async function createTestUser(user) {
       }
     }
 
-    // Now assign roles in user_roles table (the RBAC system)
-    // user_roles.user_id references people.id, not auth.users.id
     if (!peopleId) {
-      console.warn(`  No people profile ID - cannot assign RBAC roles`);
+      console.warn('  No people profile ID - cannot assign RBAC roles');
     } else {
       for (const roleName of roles) {
         const roleId = await getRoleId(roleName);
@@ -255,30 +234,34 @@ async function createTestUser(user) {
         }
 
         const scope = await getRoleScope(roleName);
-
-        // Check if role assignment exists
-        const existingRoleQuery = supabase
+        let existingRoleQuery = supabase
           .from('user_roles')
           .select('id')
           .eq('user_id', peopleId)
           .eq('role_id', roleId)
           .eq('is_active', true);
 
-        const { data: existingRole } = await applyRoleScopeFilters(existingRoleQuery, scope).maybeSingle();
+        existingRoleQuery =
+          scope.club_id === null
+            ? existingRoleQuery.is('club_id', null)
+            : existingRoleQuery.eq('club_id', scope.club_id);
+        existingRoleQuery =
+          scope.show_id === null
+            ? existingRoleQuery.is('show_id', null)
+            : existingRoleQuery.eq('show_id', scope.show_id);
+
+        const { data: existingRole } = await existingRoleQuery.maybeSingle();
 
         if (existingRole) {
           console.log(`  Role '${roleName}' already assigned`);
         } else {
-          // Create role assignment
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: peopleId,
-              role_id: roleId,
-              auth_user_id: userId,
-              ...scope,
-              granted_at: new Date().toISOString()
-            });
+          const { error: roleError } = await supabase.from('user_roles').insert({
+            user_id: peopleId,
+            role_id: roleId,
+            auth_user_id: userId,
+            ...scope,
+            granted_at: new Date().toISOString(),
+          });
 
           if (roleError) {
             console.warn(`  Could not assign role '${roleName}': ${roleError.message}`);
@@ -290,22 +273,21 @@ async function createTestUser(user) {
     }
 
     return { success: true, email, userId };
-
   } catch (error) {
-    console.error(`  FAILED: ${error.message}`);
-    return { success: false, email, error: error.message };
+    const message = errorMessage(error);
+    console.error(`  FAILED: ${message}`);
+    return { success: false, email, error: message };
   }
 }
 
-async function main() {
+async function main(): Promise<void> {
   console.log('========================================');
   console.log('E2E Test User Setup');
   console.log('========================================');
   console.log(
-    'Password for all accounts: loaded from E2E_TEST_PASSWORD or E2E_*_PASSWORD env'
+    "Passwords: loaded from each account's E2E_*_PASSWORD env var; values are not printed"
   );
 
-  // First, list available roles
   console.log('\nFetching available roles...');
   const { data: rolesData, error: rolesError } = await supabase
     .from('roles')
@@ -315,32 +297,34 @@ async function main() {
     console.error('Could not fetch roles:', rolesError.message);
   } else {
     console.log('Available roles:');
-    rolesData.forEach(r => {
-      roleIdCache[r.name] = r.id;
-      console.log(`  - ${r.name} (${r.id})`);
-    });
+    for (const role of rolesData ?? []) {
+      roleIdCache[role.name] = role.id;
+      console.log(`  - ${role.name} (${role.id})`);
+    }
   }
 
-  const results = [];
-
+  const results: TestUserResult[] = [];
   for (const user of TEST_USERS) {
-    const result = await createTestUser(user);
-    results.push(result);
+    results.push(await createTestUser(user));
   }
+
+  const successful = results.filter(
+    (result): result is Extract<TestUserResult, { success: true }> => result.success
+  );
+  const failed = results.filter(
+    (result): result is Extract<TestUserResult, { success: false }> => !result.success
+  );
 
   console.log('\n========================================');
   console.log('Summary');
   console.log('========================================');
-
-  const successful = results.filter(r => r.success);
-  const failed = results.filter(r => !r.success);
-
   console.log(`\nSuccessful: ${successful.length}/${results.length}`);
-  successful.forEach(r => console.log(`  - ${r.email}`));
+  successful.forEach(result => console.log(`  - ${result.email}`));
 
   if (failed.length > 0) {
     console.log(`\nFailed: ${failed.length}/${results.length}`);
-    failed.forEach(r => console.log(`  - ${r.email}: ${r.error}`));
+    failed.forEach(result => console.log(`  - ${result.email}: ${result.error}`));
+    process.exitCode = 1;
   }
 
   console.log('\n========================================');
@@ -348,9 +332,10 @@ async function main() {
   console.log('========================================');
   console.log('Password: loaded from local/CI env; not printed');
   console.log('\nAccounts:');
-  TEST_USERS.forEach(u => {
-    console.log(`  ${u.roles[0].padEnd(12)} : ${u.email}`);
-  });
+  TEST_USERS.forEach(user => console.log(`  ${user.roles[0].padEnd(12)} : ${user.email}`));
 }
 
-main().catch(console.error);
+main().catch(error => {
+  console.error(errorMessage(error));
+  process.exitCode = 1;
+});

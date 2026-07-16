@@ -89,6 +89,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | Doc                                                                                                          | Status    | Title                                                         |
 | ------------------------------------------------------------------------------------------------------------ | --------- | ------------------------------------------------------------- |
 | [plans/2026-06-12-user-documentation-support-plan.md](plans/2026-06-12-user-documentation-support-plan.md)   | Active    | User Documentation and Support Materials Implementation Plan  |
+| [plans/2026-07-16-nightly-review-fixes.md](plans/2026-07-16-nightly-review-fixes.md)                           | Active    | Nightly Review Fixes — 2026-07-16                            |
 | [plans/design_handoff_premiums/README.md](plans/design_handoff_premiums/README.md)                           | Reference | Handoff: Premium List Designs (myK9Show)                      |
 | [plans/qa/2026-05-12-nightly-e2e-repair-batches.md](plans/qa/2026-05-12-nightly-e2e-repair-batches.md)       | Active    | Nightly E2E Repair Batches                                    |
 | [plans/qa/2026-05-12-proactive-quality-system-plan.md](plans/qa/2026-05-12-proactive-quality-system-plan.md) | Reference | Proactive Quality System Plan                                 |

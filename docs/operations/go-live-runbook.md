@@ -25,7 +25,7 @@ this document is the sequence, the gates, and the verification commands.
 | G1  | Security remediation deployed (including 2026-07-10 SA-018…023/026/027)                      | Phase 1                  | `security-audit-remediation` merged, migration/function deployment recorded, and `OPEN-TODOS.md` updated        |
 | G2  | Pending deploys/migrations reconciled (`ask-myk9show`, withdrawal migrations, edge-fn drift) | Phase 1                  | Phase 0 verification commands below                                                                             |
 | G3  | Money-path hardening Phases 1–3 merged + deployed (MP-01…MP-04)                              | Phase 3 (Stripe cutover) | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md) phase table; PRs merged + fns redeployed |
-| G4  | CI-gated production deploys active                                                           | Phase 4                  | Deploy Production workflow green on `main`; Git auto-deploy off                                                 |
+| G4  | Tokenless staging promotion + explicit production release ready                              | Phase 4                  | `deploy-staging.yml` and protected `deploy-production.yml` source checks pass; external gates remain open       |
 | G5  | Passcode ringside walk passes cold (`jh3k9`/`s7m2p`)                                         | Phase 4                  | Phase 2 step 2.3                                                                                                |
 | G6  | Show-day re-walk + offline rehearsal + venue print test pass                                 | Phase 5                  | Phase 4 evidence links                                                                                          |
 | G7  | Real-user testing complete, no confusion-level findings                                      | Launch                   | Lane 1.7 session results filed; scorecard UX-clarity row Green                                                  |
@@ -143,34 +143,26 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
 
 **Gate in:** G1 + G2 (Phase 0 items 0.1–0.4 done).
 
-### 1.1 Activate CI-gated production deploys
+### 1.1 Activate tokenless staging and explicit production releases
 
-Full detail: [`ci-vercel-deploys.md`](ci-vercel-deploys.md). Order matters — validate with
-auto-deploy still ON before turning it off.
+Full detail: [`ci-vercel-deploys.md`](ci-vercel-deploys.md). The repository now keeps
+automatic promotion and production release authorization separate.
 
-- [x] **a.** Add four GitHub Actions secrets: `VERCEL_TOKEN` (Vercel account → Tokens),
-      `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, + `VERCEL_DOCS_PROJECT_ID` (from `.vercel/project.json` after a local
-      `vercel link`; read locally, never commit). Owner: Operator.
-- [x] **b.** Set repo variable `PRODUCTION_DEPLOY_ENABLED=true`.
-      _Verify:_ next `main` build → **Deploy Production** workflow runs after CI green, prints
-      the production URL, URL serves the expected build. (A double deploy — Git + workflow — is
-      expected and harmless at this stage.)
-      _Rollback:_ set the variable to `false`; the deploy job skips.
-- [x] **c.** Only after b verifies: land a commit setting `git.deploymentEnabled.main: false` in
-      both `apps/myk9show/vercel.json` and `apps/docs/vercel.json` (config-as-code; do NOT use
-      an Ignored Build Step — it would abort the workflow's own deploy).
-      _Verify:_ DONE 2026-07-15. Main CI run 29437019905 passed for SHA `d1205aa1`, then
-      Deploy Production run 29438334433 deployed both projects. Vercel recorded exactly one
-      new `READY` production deployment per project and no parallel Git-triggered deploy.
-      _Rollback:_ revert that commit.
-- [x] **d.** Gate the `apps/docs` guides Vercel project in the same workflow.
-      _Audit 2026-07-15:_ PRs #1333 and #1334 added and validated both archived deployments.
-      Deploy Production run 29434507221 deployed both projects at exact SHA `8f48109b`.
-      PR #1173 previously merged the Phase 1 verifier tooling. `pnpm qa:go-live:phase1`
-      verifies the production deploy workflow
-      source is staged, CI-gated, constrained to successful `main` push CI runs, gated by
-      `PRODUCTION_DEPLOY_ENABLED`, and wired to Vercel secrets. The same verifier checks both
-      project configs for `git.deploymentEnabled.main=false`.
+- [ ] **a.** Configure protected `staging-release` and `guides-release` refs, Vercel
+      branch tracking, and the repository variable `STAGING_RELEASE_ENABLED=true` only
+      after external staging setup is verified.
+- [ ] **b.** Keep `VERCEL_TOKEN` only in the protected GitHub `production` environment,
+      alongside the production project identifiers. Automatic staging promotion must not
+      receive it.
+- [x] **c.** Source code now routes successful main CI through
+      [`deploy-staging.yml`](../../.github/workflows/deploy-staging.yml), which promotes
+      the exact validated SHA to the two release refs without invoking Vercel.
+- [x] **d.** Source code now routes production through a manual
+      [`deploy-production.yml`](../../.github/workflows/deploy-production.yml) with
+      full-SHA/main-reachability/successful-CI/staging-evidence preflight before the
+      protected production job can read deployment credentials.
+- [x] **e.** `pnpm qa:go-live:phase1:test` verifies both workflow source contracts and
+      rejects any automatic workflow reference to `VERCEL_TOKEN`.
 
 ### 1.2 Auth email cutover (Resend hook + Custom SMTP rate limit)
 
@@ -467,8 +459,9 @@ Rollback: redeploy the last-good `cron-health-check`, remove/restore the Sentry 
 appropriate, disable the Sentry monitor, and unschedule `daily-health-snapshot-watchdog` in a new
 migration. Do not edit an applied migration in place.
 
-- [ ] **5.1** `main` is green; Deploy Production workflow succeeded on the launch build; the
-      production URL serves it.
+- [ ] **5.1** `main` is green; the exact SHA has a READY staging deployment and accepted
+      staging evidence; the protected Release Production workflow succeeds; the production
+      URL serves the release SHA.
 - [ ] **5.2** Migration parity: `supabase migration list` — local and remote agree;
       `supabase db push --dry-run` reports nothing pending. (Merge is not deploy — verify, don't
       assume.)
@@ -501,7 +494,7 @@ stops the bleeding.
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
 | Realtime show-day feature misbehaving (presence/live-sync/edit-awareness/conflict toasts) | Set the matching `VITE_SHOW_*=false` in Vercel env → redeploy → hard refresh. No code change.                                                                             | ~5 min  |
 | Bad frontend build                                                                        | Vercel dashboard → Deployments → promote the previous production deployment.                                                                                              | ~2 min  |
-| CI-gated deploy pipeline itself broken                                                    | Set `PRODUCTION_DEPLOY_ENABLED=false`; temporarily revert `git.deploymentEnabled.main` to `true` to restore auto-deploy.                                                  | ~10 min |
+| Release pipeline itself broken                                                            | Set `STAGING_RELEASE_ENABLED=false`; pause the protected production environment; do not restore Git auto-deploy from `main` as a bypass.                                  | ~10 min |
 | Bad migration                                                                             | Never edit an applied migration. Write a new reverting migration and `supabase db push` it. If data was corrupted, use PITR via Supabase support as last resort.          | 15 min+ |
 | Edge function regression                                                                  | Redeploy the prior version from the last-good commit (`git show <sha>:… > tmp` then deploy), per the drift runbook.                                                       | ~10 min |
 | Stripe live cutover failing (webhooks erroring, checkout broken)                          | Rotate `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` back to test values and disable the live payment surfaces; announce a payments pause. Do NOT purge live customer rows. | ~10 min |

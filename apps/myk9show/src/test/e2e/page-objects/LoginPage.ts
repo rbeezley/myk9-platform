@@ -1,5 +1,5 @@
 import { Page, expect } from '@playwright/test';
-import { TEST_USERS, TEST_PASSWORD, TestUserRole } from '../fixtures/test-users';
+import { TEST_USERS, type TestUserRole } from '../fixtures/test-users';
 
 export class LoginPage {
   constructor(private page: Page) {}
@@ -50,11 +50,11 @@ export class LoginPage {
 
   /**
    * Login as a specific test user role
-   * Test users must be created first: node scripts/setup-e2e-test-users.js
+   * Test users must be created first: pnpm exec tsx scripts/setup-e2e-test-users.ts
    */
   async loginAs(role: TestUserRole) {
     const user = TEST_USERS[role];
-    await this.login(user.email, TEST_PASSWORD);
+    await this.login(user.email, user.password);
     // Wait for redirect away from sign-in page (app redirects to home after login)
     await this.page.waitForURL(url => !url.pathname.includes('sign-in'), { timeout: 15000 });
   }

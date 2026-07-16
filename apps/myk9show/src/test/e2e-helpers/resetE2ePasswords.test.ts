@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ALL_ROLES, parseEnvFile, resolveAccounts } from './resetE2ePasswords';
 
@@ -60,5 +62,23 @@ describe('resolveAccounts', () => {
   it('dedupes repeated roles and resolves every canonical role', () => {
     const accounts = resolveAccounts(baseEnv, [...ALL_ROLES, 'admin']);
     expect(accounts.map(account => account.role)).toEqual(ALL_ROLES);
+  });
+});
+
+describe('setup-e2e-test-users failure signaling', () => {
+  it('sets a failing process exit code when any account setup fails', () => {
+    const source = readFileSync(
+      path.join(process.cwd(), 'scripts/setup-e2e-test-users.ts'),
+      'utf8'
+    );
+    const failedBranchStart = source.indexOf('if (failed.length > 0)');
+    const failedBranchEnd = source.indexOf(
+      "console.log('\\n========================================');",
+      failedBranchStart
+    );
+
+    expect(failedBranchStart).toBeGreaterThan(-1);
+    expect(failedBranchEnd).toBeGreaterThan(failedBranchStart);
+    expect(source.slice(failedBranchStart, failedBranchEnd)).toContain('process.exitCode = 1;');
   });
 });

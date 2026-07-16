@@ -58,7 +58,7 @@ This plan is intended to run unattended overnight. An unattended worker cannot a
 **Supervised — defer to a watched session, do NOT run overnight:**
 
 - **PR 2 (authenticated route-health + Nightly replay)** — this is the one task that genuinely needs a human:
-  - It may require a **Supabase Auth reset** (`setup-e2e-test-users.js`) if credentials have drifted again — a shared-system write that AGENTS.md requires confirming. An unattended worker must NOT run it.
+  - It may require a **Supabase Auth reset** (`setup-e2e-test-users.ts`) if credentials have drifted again — a shared-system write that AGENTS.md requires confirming. An unattended worker must NOT run it.
   - It runs ~20 Playwright specs at `--workers=1` with long timeouts. Per CLAUDE.md, a runner that hangs >30s must be stopped and reported, not retried. With no human watching, a stall sits inconclusive until morning, and `QA-TEST-FLAKE-027` is itself an active-suite timeout cluster — a likely outcome, not an edge case.
   - Leave PR 2 as a morning task. If the overnight worker reaches it, it should record "deferred — requires supervised run (Auth-reset confirmation + hang triage)" and move on.
 
@@ -291,7 +291,7 @@ Run from `apps/myk9show`:
 pnpm test:e2e:clean src/test/e2e/route-health-by-role.spec.ts --project=chromium --workers=1 --timeout=30000 --retries=0
 ```
 
-Expected: all route-health role groups pass. If a group fails at sign-in with `Invalid login credentials`, rerun `node scripts/setup-e2e-test-users.js` only after confirming shared-system write approval for Supabase Auth.
+Expected: all route-health role groups pass. If a group fails at sign-in with `Invalid login credentials`, rerun `pnpm exec tsx scripts/setup-e2e-test-users.ts` only after confirming shared-system write approval for Supabase Auth.
 
 - [ ] **Step 2: Run the exact Phase 2 active Nightly Playwright command**
 
@@ -343,7 +343,7 @@ Edit `docs/qa/findings.md` under `QA-TEST-FLAKE-027`.
 If route-health and Phase 2 active Nightly pass, append:
 
 ```markdown
-- **2026-06-28 update — E2E credentials repaired and active proof replayed.** E2E Auth users were reset via `apps/myk9show/scripts/setup-e2e-test-users.js`; standalone `route-health-by-role.spec.ts --project=chromium --workers=1 --timeout=30000 --retries=0` passed, then the exact Phase 2 active Nightly command from `docs/qa/e2e-suite-map.md` passed under the 30-minute budget with `--retries=0`. Close `QA-TEST-FLAKE-027` only if the run has no residual failures from the tracked active-suite timeout cluster.
+- **2026-06-28 update — E2E credentials repaired and active proof replayed.** E2E Auth users were reset via `apps/myk9show/scripts/setup-e2e-test-users.ts`; standalone `route-health-by-role.spec.ts --project=chromium --workers=1 --timeout=30000 --retries=0` passed, then the exact Phase 2 active Nightly command from `docs/qa/e2e-suite-map.md` passed under the 30-minute budget with `--retries=0`. Close `QA-TEST-FLAKE-027` only if the run has no residual failures from the tracked active-suite timeout cluster.
 ```
 
 If either command finds product/test/data failures, use:

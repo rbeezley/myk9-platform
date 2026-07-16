@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { mkdtempSync } from 'node:fs';
@@ -24,18 +24,84 @@ function makeRoot(): string {
 
 function writeCompleteRoot(root: string): void {
   writeFileSync(
-    path.join(root, '.github/workflows/deploy-production.yml'),
+    path.join(root, '.github/workflows/deploy-staging.yml'),
     [
       'workflow_run:',
       "workflows: ['CI']",
-      "vars.PRODUCTION_DEPLOY_ENABLED == 'true'",
+      "vars.STAGING_RELEASE_ENABLED == 'true'",
+      'timeout-minutes: 25',
       "github.event.workflow_run.conclusion == 'success'",
       "github.event.workflow_run.event == 'push'",
       "github.event.workflow_run.head_branch == 'main'",
+      'github.event.workflow_run.head_sha',
+      'refs/heads/staging-release',
+      'refs/heads/guides-release',
+      'contents: write',
+      'actions: read',
+      'deployments: read',
+      'cancel-in-progress: false',
+      'id: candidate',
+      'should_promote=false',
+      'should_promote=true',
+      "if: steps.candidate.outputs.should_promote == 'true'",
+      "if: steps.candidate.outputs.should_promote == 'true'",
+      "if: steps.candidate.outputs.should_promote == 'true'",
+      'id: promote',
+      'promoted_at',
+      'git ls-remote --heads origin',
+      'app_require_fresh=false',
+      'guides_require_fresh=false',
+      'gh api',
+      'Staging – myk9-platform-myk9show',
+      'Production – myk9-platform-myk9show-guides',
+      '-f environment="$environment"',
+      '.creator.login == "vercel[bot]"',
+      '(.ref == $sha or .ref == $releaseRef)',
+      '($requireFresh == "false" or .created_at >= $promotedAt)',
+      'environment_url',
+      'latest_sha',
+      '[[ "$latest_sha" != "$TARGET_SHA" ]]',
+      'git push --atomic --force origin',
+      'refs/heads/staging-release',
+      'refs/heads/guides-release',
+      'state',
+      'success)',
+      'Skipped - Not affected',
+      'statuses?per_page=20',
+      'curl --fail --silent --show-error --head "https://$domain"',
+      'staging.myk9show.com',
+      'help.myk9show.com',
+      'sleep 10',
+    ].join('\n')
+  );
+  writeFileSync(
+    path.join(root, '.github/workflows/deploy-production.yml'),
+    [
+      'workflow_dispatch:',
+      'commit_sha:',
+      'staging_deployment_id:',
+      'staging_deployment_sha:',
+      '^[0-9a-f]{40}$',
+      'git merge-base --is-ancestor',
+      'gh run list --workflow CI',
+      'needs: preflight',
+      'environment:',
+      '      name: production',
       'secrets.VERCEL_ORG_ID',
       'secrets.VERCEL_PROJECT_ID',
       'secrets.VERCEL_TOKEN',
-      'vercel deploy --prod',
+      'api.vercel.com/v13/deployments',
+      'api.vercel.com/v2/deployments/$STAGING_DEPLOYMENT_ID/aliases',
+      "aliases?.some(({ alias }) => alias === 'staging.myk9show.com')",
+      "deployment.readyState !== 'READY'",
+      'rm -f staging-deployment.json staging-aliases.json',
+      'staging.myk9show.com',
+      'api.vercel.com/v13/deployments/$PRODUCTION_DEPLOYMENT_REF',
+      'api.vercel.com/v2/deployments/$PRODUCTION_DEPLOYMENT_ID/aliases',
+      "aliases?.some(({ alias }) => alias === 'myk9show.com')",
+      'deploymentSha !== expectedSha',
+      'curl --fail --silent --show-error --head https://myk9show.com',
+      'pnpm dlx vercel@latest deploy --prod',
     ].join('\n')
   );
   writeFileSync(
@@ -84,7 +150,7 @@ describe('phase 1 deploy verifier', () => {
       {
         key: 'deploy_workflow_ci_gate',
         status: 'ok',
-        detail: 'CI-gated production deploy workflow source is staged',
+        detail: 'tokenless staging promotion and protected production release source are staged',
       },
       {
         key: 'vercel_git_auto_deploy_disable',
@@ -136,11 +202,134 @@ describe('phase 1 deploy verifier', () => {
 
   it('fails when the deploy workflow is missing its enable gate', () => {
     const root = makeRoot();
-    writeFileSync(path.join(root, '.github/workflows/deploy-production.yml'), 'workflow_run:\n');
+    writeFileSync(path.join(root, '.github/workflows/deploy-staging.yml'), 'workflow_run:\n');
 
     expect(checkDeployWorkflow(root)).toMatchObject({
       key: 'deploy_workflow_ci_gate',
       status: 'fail',
+    });
+  });
+
+  it('fails when the automatic staging workflow receives a Vercel token', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    writeFileSync(
+      path.join(root, '.github/workflows/deploy-staging.yml'),
+      'VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}'
+    );
+
+    expect(checkDeployWorkflow(root)).toEqual({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+      detail: 'automatic staging workflow contains: VERCEL_TOKEN',
+    });
+  });
+
+  it('fails when superseded staging candidates do not gate every later step', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    const workflowPath = path.join(root, '.github/workflows/deploy-staging.yml');
+    const workflow = readFileSync(workflowPath, 'utf8').replace(
+      "if: steps.candidate.outputs.should_promote == 'true'",
+      ''
+    );
+    writeFileSync(workflowPath, workflow);
+
+    expect(checkDeployWorkflow(root)).toMatchObject({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+    });
+  });
+
+  it('fails when staging readiness can select another Vercel project or ref', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    const workflowPath = path.join(root, '.github/workflows/deploy-staging.yml');
+    const workflow = readFileSync(workflowPath, 'utf8').replace(
+      '(.ref == $sha or .ref == $releaseRef)',
+      ''
+    );
+    writeFileSync(workflowPath, workflow);
+
+    expect(checkDeployWorkflow(root)).toMatchObject({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+    });
+  });
+
+  it('fails when release refs are not advanced atomically', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    const workflowPath = path.join(root, '.github/workflows/deploy-staging.yml');
+    const workflow = readFileSync(workflowPath, 'utf8').replace(
+      'git push --atomic --force origin',
+      'git push --force origin'
+    );
+    writeFileSync(workflowPath, workflow);
+
+    expect(checkDeployWorkflow(root)).toMatchObject({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+    });
+  });
+
+  it('fails when Vercel skip-unaffected evidence is not handled', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    const workflowPath = path.join(root, '.github/workflows/deploy-staging.yml');
+    const workflow = readFileSync(workflowPath, 'utf8').replace('Skipped - Not affected', '');
+    writeFileSync(workflowPath, workflow);
+
+    expect(checkDeployWorkflow(root)).toMatchObject({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+    });
+  });
+
+  it('fails when same-SHA retries cannot reuse exact existing deployment evidence', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    const workflowPath = path.join(root, '.github/workflows/deploy-staging.yml');
+    const workflow = readFileSync(workflowPath, 'utf8').replace(
+      '($requireFresh == "false" or .created_at >= $promotedAt)',
+      '.created_at >= $promotedAt'
+    );
+    writeFileSync(workflowPath, workflow);
+
+    expect(checkDeployWorkflow(root)).toMatchObject({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+    });
+  });
+
+  it('fails when production does not attest the new deployment alias', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    const workflowPath = path.join(root, '.github/workflows/deploy-production.yml');
+    const workflow = readFileSync(workflowPath, 'utf8').replace(
+      "aliases?.some(({ alias }) => alias === 'myk9show.com')",
+      ''
+    );
+    writeFileSync(workflowPath, workflow);
+
+    expect(checkDeployWorkflow(root)).toMatchObject({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+    });
+  });
+
+  it('fails when production credentials are not behind the protected environment', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    writeFileSync(
+      path.join(root, '.github/workflows/deploy-production.yml'),
+      ['secrets.VERCEL_TOKEN', 'environment:', 'name: production'].join('\n')
+    );
+
+    expect(checkDeployWorkflow(root)).toEqual({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+      detail: 'production Vercel token is not scoped behind the protected production environment',
     });
   });
 

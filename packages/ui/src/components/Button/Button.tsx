@@ -1,13 +1,13 @@
 import * as React from 'react';
 import { useRender } from '@base-ui/react/use-render';
 import { type VariantProps } from 'class-variance-authority';
+import { Loader2 } from 'lucide-react';
 
 import { cn } from '../../utils/cn';
 import { buttonVariants } from './buttonVariants';
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   /**
    * Override the rendered element with a custom one.
    * @example <Button render={<a href="/contact" />}>Contact</Button>
@@ -18,6 +18,12 @@ export interface ButtonProps
    * @deprecated Use `render` prop instead
    */
   asChild?: boolean;
+  /**
+   * Show a pending spinner and disable the button for the duration of an action.
+   * Opt-in: omit it on surfaces where a spinner is deliberately absent
+   * (judge scoring between entries, silent background sync — see docs/INTENT.md).
+   */
+  loading?: boolean;
 }
 
 /**
@@ -40,16 +46,32 @@ export interface ButtonProps
  * <Button render={<a href="/page" />}>Go to page</Button>
  */
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, render, asChild, children, ...props }, ref) => {
+  ({ className, variant, size, render, asChild, loading, disabled, children, ...props }, ref) => {
     // Support asChild by converting to render prop (backwards compatibility)
     const actualRender = asChild && React.isValidElement(children) ? children : render;
+
+    const content =
+      loading && !asChild ? (
+        <>
+          <Loader2
+            data-testid="button-spinner"
+            className="animate-spin motion-reduce:animate-none"
+            aria-hidden="true"
+          />
+          {children}
+        </>
+      ) : asChild ? undefined : (
+        children
+      );
 
     return useRender({
       render: actualRender,
       defaultTagName: 'button',
       props: {
         ...props,
-        children: asChild ? undefined : children,
+        disabled: disabled || loading,
+        'aria-busy': loading || undefined,
+        children: content,
         className: cn(buttonVariants({ variant, size, className })),
       },
       ref,

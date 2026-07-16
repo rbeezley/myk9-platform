@@ -65,6 +65,48 @@ describe('Button', () => {
     expect(button).toHaveAttribute('aria-label', 'Submit form');
   });
 
+  describe('loading', () => {
+    it('disables the button and marks it busy', () => {
+      render(<Button loading>Save</Button>);
+      const button = screen.getByRole('button');
+      expect(button).toBeDisabled();
+      expect(button).toHaveAttribute('aria-busy', 'true');
+    });
+
+    it('renders a spinner while loading', () => {
+      render(<Button loading>Save</Button>);
+      expect(screen.getByTestId('button-spinner')).toBeInTheDocument();
+    });
+
+    it('renders no spinner and is not busy when not loading', () => {
+      render(<Button>Save</Button>);
+      expect(screen.queryByTestId('button-spinner')).not.toBeInTheDocument();
+      expect(screen.getByRole('button')).not.toHaveAttribute('aria-busy', 'true');
+    });
+
+    it('does not fire onClick while loading', async () => {
+      const user = userEvent.setup();
+      let clicked = false;
+      render(
+        <Button
+          loading
+          onClick={() => {
+            clicked = true;
+          }}
+        >
+          Save
+        </Button>
+      );
+      await user.click(screen.getByRole('button'));
+      expect(clicked).toBe(false);
+    });
+
+    it('keeps its accessible name while loading', () => {
+      render(<Button loading>Save</Button>);
+      expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
+    });
+  });
+
   describe('variants', () => {
     it.each(['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'] as const)(
       'should render %s variant',
@@ -100,5 +142,12 @@ describe('buttonVariants', () => {
     const defaultSize = buttonVariants({ size: 'default' });
     const smSize = buttonVariants({ size: 'sm' });
     expect(defaultSize).not.toBe(smSize);
+  });
+
+  it('uses the canonical focus ring', () => {
+    const base = buttonVariants();
+    expect(base).toContain('focus-visible:ring-2');
+    expect(base).toContain('focus-visible:ring-ring');
+    expect(base).toContain('focus-visible:ring-offset-2');
   });
 });

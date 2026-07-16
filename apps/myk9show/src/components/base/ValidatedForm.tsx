@@ -3,9 +3,14 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { AlertCircle } from 'lucide-react';
-import { buildClasses } from '@/utils/designTokens';
 
 // Base field wrapper
 interface FieldWrapperProps {
@@ -41,20 +46,17 @@ interface ValidatedInputProps extends React.InputHTMLAttributes<HTMLInputElement
   required?: boolean;
 }
 
-export function ValidatedInput({ 
-  label, 
-  error, 
-  required, 
-  className, 
-  ...props 
+export function ValidatedInput({
+  label,
+  error,
+  required,
+  className,
+  ...props
 }: ValidatedInputProps) {
   return (
     <FieldWrapper label={label} error={error} required={required} htmlFor={props.id}>
       <Input
-        className={cn(
-          error && 'border-destructive focus-visible:ring-destructive',
-          className
-        )}
+        className={cn(error && 'border-destructive focus-visible:ring-destructive', className)}
         {...props}
       />
     </FieldWrapper>
@@ -68,20 +70,17 @@ interface ValidatedTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAr
   required?: boolean;
 }
 
-export function ValidatedTextarea({ 
-  label, 
-  error, 
-  required, 
-  className, 
-  ...props 
+export function ValidatedTextarea({
+  label,
+  error,
+  required,
+  className,
+  ...props
 }: ValidatedTextareaProps) {
   return (
     <FieldWrapper label={label} error={error} required={required} htmlFor={props.id}>
       <Textarea
-        className={cn(
-          error && 'border-destructive focus-visible:ring-destructive',
-          className
-        )}
+        className={cn(error && 'border-destructive focus-visible:ring-destructive', className)}
         {...props}
       />
     </FieldWrapper>
@@ -99,14 +98,14 @@ interface ValidatedSelectProps {
   options: Array<{ value: string; label: string }>;
 }
 
-export function ValidatedSelect({ 
-  label, 
-  error, 
-  required, 
-  value, 
-  onValueChange, 
+export function ValidatedSelect({
+  label,
+  error,
+  required,
+  value,
+  onValueChange,
   placeholder,
-  options 
+  options,
 }: ValidatedSelectProps) {
   return (
     <FieldWrapper label={label} error={error} required={required}>
@@ -115,7 +114,7 @@ export function ValidatedSelect({
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
-          {options.map((option) => (
+          {options.map(option => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
             </SelectItem>
@@ -137,18 +136,10 @@ export function FormSection({ title, description, children }: FormSectionProps) 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium leading-6 text-foreground">
-          {title}
-        </h3>
-        {description && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            {description}
-          </p>
-        )}
+        <h3 className="text-lg font-medium leading-6 text-foreground">{title}</h3>
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
-      <div className="space-y-4">
-        {children}
-      </div>
+      <div className="space-y-4">{children}</div>
     </div>
   );
 }
@@ -166,11 +157,7 @@ export function FormGrid({ children, cols = 2, className }: FormGridProps) {
     3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
   };
 
-  return (
-    <div className={cn('grid gap-4', gridClasses[cols], className)}>
-      {children}
-    </div>
-  );
+  return <div className={cn('grid gap-4', gridClasses[cols], className)}>{children}</div>;
 }
 
 // Form buttons
@@ -204,7 +191,7 @@ export function FormButtons({
           type="button"
           onClick={onCancel}
           disabled={isSubmitting}
-          className={`${buildClasses.button.secondary} px-4 py-2 text-sm font-medium border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
+          className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 px-4 py-2 text-sm font-medium border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {cancelLabel}
         </button>
@@ -214,7 +201,7 @@ export function FormButtons({
           type="submit"
           onClick={onSave}
           disabled={isSubmitting}
-          className={`${buildClasses.button.primary} px-4 py-2 text-sm font-medium border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
+          className="bg-primary text-primary-foreground hover:opacity-90 hover:-translate-y-0.5 transition-all duration-200 px-4 py-2 text-sm font-medium border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {isSubmitting ? 'Saving...' : saveLabel}
         </button>
@@ -231,14 +218,11 @@ interface FormErrorSummaryProps {
 
 export function FormErrorSummary({ errors, className }: FormErrorSummaryProps) {
   const errorEntries = Object.entries(errors).filter(([, message]) => message);
-  
+
   if (errorEntries.length === 0) return null;
 
   return (
-    <div className={cn(
-      'rounded-md bg-destructive/10 p-4 border border-destructive/20',
-      className
-    )}>
+    <div className={cn('rounded-md bg-destructive/10 p-4 border border-destructive/20', className)}>
       <div className="flex">
         <AlertCircle className="h-5 w-5 text-destructive" />
         <div className="ml-3">

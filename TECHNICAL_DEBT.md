@@ -12,7 +12,11 @@ The historical DEBT-001..030 sweep below closed out in Feb 2026. It is **not** a
 
 - **Static code-quality debt** is measured by the ratchet, not this file: `pnpm qa:code-quality-ratchet` against `scripts/qa/code-quality-ratchet.baseline.json`. As of 2026-07-11 the ratchet counts **175 source files exceeding the 500-line rule** (recorded baseline: 176 oversized files, plus tracked `as any` casts, TODO markers, and direct-Supabase core bypasses). The ratchet only prevents regressions — it does not mean the tracked debt is resolved.
 - **Active remediation backlog and audit findings:** see [`docs/improve-audit-2026-07-11/README.md`](docs/improve-audit-2026-07-11/README.md) for the current audit and its executor plans.
-- **Live deferred/open work items:** `OPEN-TODOS.md` (and the audit backlog above).
+- **Live deferred/open work items:** tracked in **Linear** (workspace `myk9-platform`, team `MyK9-platform`, prefix `MYK9-*`) as of 2026-07-16 — `OPEN-TODOS.md` / `TO-DOS.md` were retired. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
+
+### Standing watch-item — wall-clock perf asserts
+
+~30 `expect(duration).toBeLessThan(...)` assertions survive in 7 test files: the DB-query suites (`userQueries` ×7, `dogQueries` ×7, `showQueries` ×6, `simplified-database-queries` ×6, `comprehensive-database-test-suite` ×2), `comprehensive-store` ×1, `ReplicatedClassesTable` ×1. Same machine-dependent anti-pattern as the former #761/#762, but empirically stable across the 18-seed shuffle sweep and mostly asserting 200ms budgets on mocked DB calls. **Do not proactively rewrite all 30.** Fix reactively: if CI reds under shuffle, convert that one spec to a non-blocking log using the #762 pattern. (Migrated from the retired `OPEN-TODOS.md` on 2026-07-16 — kept here as reactive guidance rather than a Linear task.)
 
 The Feb-2026 summary and item history below are retained for provenance.
 

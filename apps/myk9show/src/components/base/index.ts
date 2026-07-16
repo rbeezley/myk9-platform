@@ -4,9 +4,6 @@ export type { BaseEntityDialogProps } from './BaseEntityDialog';
 export { DeleteConfirmationDialog } from './DeleteConfirmationDialog';
 export type { DeleteConfirmationDialogProps } from './DeleteConfirmationDialog';
 
-export { FormDialog } from './FormDialog';
-export type { FormDialogProps } from './FormDialog';
-
 export { EntitySidebar } from './EntitySidebar';
 export type { EntitySidebarProps, EntitySidebarItem } from './EntitySidebar';
 

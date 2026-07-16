@@ -5,7 +5,7 @@ description: Use when auditing myK9Show pages for console errors, network errors
 
 # Audit Pages for Console and Network Errors
 
-Systematically visit every route in myK9Show, capture errors, fix what's addressable inline, and log the rest as `OPEN-TODOS.md` entries.
+Systematically visit every route in myK9Show, capture errors, fix what's addressable inline, and log the rest as Linear issues (team **MyK9-platform**).
 
 Before starting, read:
 
@@ -53,7 +53,7 @@ These pre-existing issues fire on every page load and should be **ignored** duri
 
 | Error                                                       | Status                                                 |
 | ----------------------------------------------------------- | ------------------------------------------------------ |
-| `Maximum update depth exceeded` (~258 occurrences per load) | Open bug — tracked in TO-DOS.md "App-Wide Render Loop" |
+| `Maximum update depth exceeded` (~258 occurrences per load) | Open bug — tracked in Linear (team **MyK9-platform**) "App-Wide Render Loop" |
 
 Add new confirmed-pre-existing errors here as discovered.
 
@@ -160,11 +160,7 @@ Secretary audit — 23 routes (full) | or: (partial — secretary group only)
   Clean:    16
 ```
 
-Append all new TODOs to TO-DOS.md under a dated heading:
-
-```markdown
-## Page Audit Findings — YYYY-MM-DD HH:MM
-```
+Log all new TODOs as Linear issues (team **MyK9-platform**), tagged so they group under the audit run — e.g. include `Page Audit Findings — YYYY-MM-DD` in the issue title or a shared label.
 
 ## Rules
 

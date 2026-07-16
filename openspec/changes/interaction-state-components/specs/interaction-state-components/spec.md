@@ -86,7 +86,7 @@ The system SHALL define selected and disabled state values as semantic tokens in
 
 ### Requirement: A destructive dialog action cannot be submitted twice
 
-The system SHALL prevent a destructive dialog action from being dispatched more than once per confirmation. A dialog action that triggers a mutation SHALL become non-actionable for the duration of that mutation and SHALL show pending feedback. A disabled dialog action SHALL have a rationale the user can determine without guessing.
+The system SHALL prevent a destructive dialog action from being dispatched more than once per confirmation. This guard SHALL live in the shared confirm primitive (`AlertDialogAction`), not in each caller, so every call site inherits it and a new dialog cannot forget it. Independently, a dialog action that triggers a mutation SHOULD show pending feedback (a separate concern satisfied by the `Button` `loading` prop where the dialog exposes a pending flag). A disabled dialog action SHALL have a rationale the user can determine without guessing.
 
 #### Scenario: Destructive confirm is pressed twice
 
@@ -96,9 +96,10 @@ The system SHALL prevent a destructive dialog action from being dispatched more 
 
 #### Scenario: Delete dialogs are guarded
 
-- **WHEN** `DeletePersonDialog`, `DeleteClassDialog`, `DeleteEntryDialog`, `ClassEntriesTable/components/DeleteDialog`, `TrialManagementDialogs`, `TemplateActions`, `TemplateList`, `RoleListPage`, `UserRoleManagementPage`, or `TemplateManagementPage` confirms a destructive action
-- **THEN** the confirm action is guarded against double-submit
-- **AND** it renders pending feedback via the shared `Button` `loading` prop
+- **WHEN** any dialog whose confirm action is an `AlertDialogAction` — including `DeletePersonDialog`, `DeleteClassDialog`, `DeleteEntryDialog`, `ClassEntriesTable/components/DeleteDialog`, and `TrialManagementDialogs` — confirms a destructive action, and the action is pressed twice before the dialog closes
+- **THEN** the underlying handler is invoked exactly once
+- **AND** the guard is inherited from `AlertDialogAction`, not re-implemented in the dialog
+- **AND** reopening the dialog resets the guard so a later, separate confirmation still works
 
 #### Scenario: Post-action feedback is visible
 

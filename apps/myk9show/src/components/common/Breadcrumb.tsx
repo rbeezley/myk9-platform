@@ -1,7 +1,6 @@
 import React, { startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
-import { buildClasses } from '@/utils/designTokens';
 
 interface BreadcrumbItem {
   label: string;
@@ -20,13 +19,13 @@ interface BreadcrumbProps {
 export const Breadcrumb: React.FC<BreadcrumbProps> = ({
   items,
   className = '',
-  showHomeIcon = false
+  showHomeIcon = false,
 }) => {
   const navigate = useNavigate();
 
   const handleClick = (item: BreadcrumbItem) => {
     if (item.isCurrentPage) return;
-    
+
     if (item.onClick) {
       item.onClick();
     } else if (item.href) {
@@ -46,7 +45,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
             <li>
               <button
                 onClick={() => startTransition(() => navigate('/'))}
-                className={`${buildClasses.button.ghost} p-1 rounded-md text-muted-foreground hover:text-primary transition-colors`}
+                className="text-primary hover:bg-primary/10 p-1 rounded-md text-muted-foreground hover:text-primary transition-colors"
                 aria-label="Home"
               >
                 <Home className="w-4 h-4" />
@@ -59,7 +58,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
             )}
           </>
         )}
-        
+
         {items.map((item, index) => (
           <React.Fragment key={`${item.label}-${index}`}>
             <li>
@@ -67,20 +66,18 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
                 <span className="font-medium text-foreground" aria-current="page">
                   {item.label}
                 </span>
-              ) : (item.href || item.onClick) ? (
+              ) : item.href || item.onClick ? (
                 <button
                   onClick={() => handleClick(item)}
-                  className={`${buildClasses.button.ghost} font-medium text-muted-foreground hover:text-primary transition-colors`}
+                  className="text-primary hover:bg-primary/10 font-medium text-muted-foreground hover:text-primary transition-colors"
                 >
                   {item.label}
                 </button>
               ) : (
-                <span className="font-medium text-muted-foreground">
-                  {item.label}
-                </span>
+                <span className="font-medium text-muted-foreground">{item.label}</span>
               )}
             </li>
-            
+
             {index < items.length - 1 && (
               <li aria-hidden="true">
                 <ChevronRight className="w-3 h-3 text-muted-foreground" />

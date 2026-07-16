@@ -1,11 +1,10 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { buildClasses } from '@/utils/designTokens';
 
 // Card skeleton for entity cards
 export function SkeletonCard() {
   return (
-    <Card className={buildClasses.card.base}>
+    <Card className="backdrop-blur-sm transition-all duration-300">
       <CardHeader className="pb-3">
         <div className="flex items-start gap-4">
           <Skeleton className="h-16 w-16 rounded-full" />
@@ -136,7 +135,7 @@ export function SkeletonStats() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {Array.from({ length: 4 }).map((_, i) => (
-        <Card key={i} className={buildClasses.card.base}>
+        <Card key={i} className="backdrop-blur-sm transition-all duration-300">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
@@ -163,7 +162,7 @@ export function SkeletonDetailView() {
           <SkeletonTable rows={3} />
         </div>
         <div className="space-y-4">
-          <Card className={buildClasses.card.base}>
+          <Card className="backdrop-blur-sm transition-all duration-300">
             <CardHeader>
               <Skeleton className="h-5 w-24" />
             </CardHeader>

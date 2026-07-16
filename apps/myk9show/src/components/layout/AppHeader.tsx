@@ -12,7 +12,6 @@ import {
   getShortcutDisplays,
   type ShortcutDefinition,
 } from '@/hooks/useKeyboardShortcuts';
-import { buildClasses } from '@/utils/designTokens';
 import { useCartItemCount, useCartStore } from '@/store/cartStore';
 import { useActiveCartItemCount } from '@/hooks/queries/useActiveCartItemCount';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
@@ -209,7 +208,7 @@ const AppHeader: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => openCommandPalette()}
-                className={`${buildClasses.button.ghost} flex min-h-11 items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80`}
+                className="text-primary hover:bg-primary/10 flex min-h-11 items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
               >
                 <Search className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Search...</span>
@@ -320,7 +319,7 @@ const AppHeader: React.FC = () => {
                   <DropdownMenuTrigger asChild nativeButton>
                     <Button
                       variant="ghost"
-                      className={`${buildClasses.button.ghost} flex min-h-11 min-w-11 items-center gap-1.5 rounded-lg px-2 py-2 hover:bg-muted/50`}
+                      className="text-primary hover:bg-primary/10 flex min-h-11 min-w-11 items-center gap-1.5 rounded-lg px-2 py-2 hover:bg-muted/50"
                       aria-label="Account menu"
                     >
                       <Avatar className="w-7 h-7">
@@ -341,13 +340,13 @@ const AppHeader: React.FC = () => {
               <>
                 <Link
                   to="/sign-in"
-                  className={`${buildClasses.button.ghost} px-3 py-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors`}
+                  className="text-primary hover:bg-primary/10 px-3 py-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors"
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/sign-up"
-                  className={`${buildClasses.button.primary} px-3 py-1.5 rounded-lg font-medium transition-colors text-sm`}
+                  className="bg-primary text-primary-foreground hover:opacity-90 hover:-translate-y-0.5 transition-all duration-200 px-3 py-1.5 rounded-lg font-medium transition-colors text-sm"
                 >
                   Sign Up
                 </Link>

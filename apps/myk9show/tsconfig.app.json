@@ -131,7 +131,6 @@
     "src/providers/StoreProvider.tsx",
     "src/routes/utils/SuspenseWrapper.tsx",
 
-    "src/utils/designTokens.ts",
     "src/utils/encryption.ts",
     "src/lib/networkUtils.ts"
   ]

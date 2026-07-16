@@ -25,7 +25,7 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({
       className={cn(
         'flex flex-col min-w-[280px] max-w-[320px] rounded-lg',
         'bg-muted/30 border border-border/40',
-        isCurrentStage && 'ring-2 ring-primary/30',
+        isCurrentStage && 'ring-2 ring-ring'
       )}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
@@ -40,13 +40,11 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({
         {trials.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-6">No trials</p>
         ) : (
-          trials.map((trial) => (
+          trials.map(trial => (
             <TrialPipelineCard
               key={trial.id}
               trial={trial}
-              checklistProgress={
-                checklistProgressMap.get(trial.id) ?? { completed: 0, total: 0 }
-              }
+              checklistProgress={checklistProgressMap.get(trial.id) ?? { completed: 0, total: 0 }}
             />
           ))
         )}

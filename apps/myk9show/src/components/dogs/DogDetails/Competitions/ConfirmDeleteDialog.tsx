@@ -26,7 +26,7 @@ const ConfirmDeleteDialog: React.FC<ConfirmDeleteDialogProps> = ({
         <>
           <button
             type="button"
-            className="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 bg-card text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 bg-card text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
             onClick={onCancel}
           >
             Cancel

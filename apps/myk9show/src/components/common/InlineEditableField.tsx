@@ -130,7 +130,7 @@ export function InlineEditableField({
       'border outline-none transition-colors',
       error
         ? 'border-destructive/40 ring-2 ring-destructive/20'
-        : 'border-primary/40 ring-2 ring-primary/20'
+        : 'border-primary/40 ring-2 ring-ring'
     );
 
     return (

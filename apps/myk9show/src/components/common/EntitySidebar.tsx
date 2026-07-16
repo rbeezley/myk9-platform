@@ -109,7 +109,7 @@ function EntitySidebar<T extends { id: string }>({
           <div className="relative">
             <input
               type="text"
-              className="w-full pl-8 pr-2 py-1 rounded bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full pl-8 pr-2 py-1 rounded bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               placeholder={`Search ${title.toLowerCase()}...`}
               value={search}
               onChange={e => setSearch(e.target.value)}

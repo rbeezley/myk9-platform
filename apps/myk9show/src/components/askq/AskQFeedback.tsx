@@ -80,7 +80,7 @@ export function AskQFeedback({ queryLogId }: AskQFeedbackProps) {
             value={reportText}
             onChange={e => setReportText(e.target.value)}
             placeholder="What went wrong?"
-            className="flex-1 text-xs rounded-md bg-muted px-2.5 py-1.5 placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
+            className="flex-1 text-xs rounded-md bg-muted px-2.5 py-1.5 placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <button
             onClick={handleReport}

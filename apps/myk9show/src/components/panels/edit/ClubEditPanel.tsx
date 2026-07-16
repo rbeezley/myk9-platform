@@ -285,7 +285,7 @@ const ClubEditForm: React.FC<{ clubId: string; onClose?: () => void }> = ({ club
                   onChange={handleInputChange('description')}
                   onBlur={handleBlur('description')}
                   placeholder="Enter club description"
-                  className="min-h-[80px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
+                  className="min-h-[80px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
                 />
               </FormField>
 

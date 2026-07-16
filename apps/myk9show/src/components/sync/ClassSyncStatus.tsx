@@ -4,19 +4,25 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { logger } from '@/services/LoggingService';
 import {
-  Search, 
-  Filter, 
-  RefreshCw, 
-  Users, 
+  Search,
+  Filter,
+  RefreshCw,
+  Users,
   Calendar,
   MapPin,
   AlertTriangle,
   CheckCircle,
   Clock,
-  XCircle
+  XCircle,
 } from 'lucide-react';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { useShowStore } from '@/store/showStore';
@@ -48,14 +54,11 @@ interface ClassSyncData {
 
 /**
  * ClassSyncStatus - Displays sync status for all classes with filtering and actions
- * 
+ *
  * Shows detailed sync information for classes including entry counts, schedules,
  * and sync errors. Provides filtering and bulk actions for class management.
  */
-export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({
-  showId,
-  className = ''
-}) => {
+export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({ showId, className = '' }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -80,8 +83,8 @@ export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({
           schedule: {
             date: '2024-03-15',
             time: '09:00',
-            ring: 'Ring 1'
-          }
+            ring: 'Ring 1',
+          },
         },
         {
           id: 'class-2',
@@ -94,8 +97,8 @@ export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({
           schedule: {
             date: '2024-03-15',
             time: '10:30',
-            ring: 'Ring 1'
-          }
+            ring: 'Ring 1',
+          },
         },
         {
           id: 'class-3',
@@ -109,8 +112,8 @@ export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({
           schedule: {
             date: '2024-03-15',
             time: '14:00',
-            ring: 'Ring 2'
-          }
+            ring: 'Ring 2',
+          },
         },
         {
           id: 'class-4',
@@ -124,13 +127,13 @@ export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({
           schedule: {
             date: '2024-03-15',
             time: '15:30',
-            ring: 'Ring 2'
-          }
-        }
+            ring: 'Ring 2',
+          },
+        },
       ];
 
       // Filter by show if specified
-      const filteredClasses = showId 
+      const filteredClasses = showId
         ? mockClasses.filter(c => c.showName === shows.find(s => s.id === showId)?.name)
         : mockClasses;
 
@@ -142,14 +145,13 @@ export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({
 
   // Filter classes based on search and status
   const filteredClasses = classes.filter(classItem => {
-    const matchesSearch = classItem.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         classItem.trialName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         classItem.judgeNames.some(judge => 
-                           judge.toLowerCase().includes(searchTerm.toLowerCase())
-                         );
-    
+    const matchesSearch =
+      classItem.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      classItem.trialName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      classItem.judgeNames.some(judge => judge.toLowerCase().includes(searchTerm.toLowerCase()));
+
     const matchesStatus = statusFilter === 'all' || classItem.syncStatus === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -159,7 +161,7 @@ export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({
     synced: classes.filter(c => c.syncStatus === 'synced').length,
     pending: classes.filter(c => c.syncStatus === 'pending').length,
     error: classes.filter(c => c.syncStatus === 'error').length,
-    conflict: classes.filter(c => c.syncStatus === 'conflict').length
+    conflict: classes.filter(c => c.syncStatus === 'conflict').length,
   };
 
   const handleRefresh = async () => {
@@ -185,7 +187,8 @@ export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({
         <div className="space-y-1">
           <h3 className="text-lg font-semibold">Class Sync Status</h3>
           <p className="text-sm text-muted-foreground">
-            {statusCounts.total} classes • {statusCounts.synced} synced • {statusCounts.pending + statusCounts.error + statusCounts.conflict} need attention
+            {statusCounts.total} classes • {statusCounts.synced} synced •{' '}
+            {statusCounts.pending + statusCounts.error + statusCounts.conflict} need attention
           </p>
         </div>
         <Button
@@ -259,8 +262,8 @@ export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({
             <Input
               placeholder="Search classes, trials, or judges..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-background border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg"
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-10 bg-background border-border/50 focus:border-primary focus:ring-2 focus:ring-ring rounded-lg"
             />
           </div>
         </div>
@@ -289,7 +292,7 @@ export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({
         <CardContent>
           <ScrollArea className="h-[400px]">
             <div className="space-y-4">
-              {filteredClasses.map((classItem) => (
+              {filteredClasses.map(classItem => (
                 <div
                   key={classItem.id}
                   className="flex items-start justify-between p-4 bg-muted/30 rounded-lg border border-border/50 hover:border-border transition-all duration-200"
@@ -320,17 +323,18 @@ export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({
                         <span className="text-muted-foreground">Entries:</span>
                         <span className="font-medium">{classItem.entryCount}</span>
                       </div>
-                      
+
                       {classItem.schedule && (
                         <>
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
                             <span className="text-muted-foreground">Schedule:</span>
                             <span className="font-medium">
-                              {new Date(classItem.schedule.date).toLocaleDateString()} {classItem.schedule.time}
+                              {new Date(classItem.schedule.date).toLocaleDateString()}{' '}
+                              {classItem.schedule.time}
                             </span>
                           </div>
-                          
+
                           {classItem.schedule.ring && (
                             <div className="flex items-center gap-2">
                               <MapPin className="h-4 w-4 text-muted-foreground" />

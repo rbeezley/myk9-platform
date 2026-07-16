@@ -50,7 +50,7 @@ export function SearchBar({
         onChange={e => onChange(e.target.value)}
         aria-label={ariaLabel ?? placeholder}
         className={cn(
-          'w-full bg-card shadow-card focus:shadow-card-hover focus:ring-2 focus:ring-primary/20 outline-none transition-all',
+          'w-full bg-card shadow-card focus:shadow-card-hover focus:ring-2 focus:ring-ring outline-none transition-all',
           styles.input
         )}
       />

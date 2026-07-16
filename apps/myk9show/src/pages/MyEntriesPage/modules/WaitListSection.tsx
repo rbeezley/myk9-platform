@@ -43,7 +43,10 @@ function getOfferDisplayState(entry: WaitListEntry, now: Date): OfferDisplayStat
 }
 
 function formatOfferDeadline(offerExpiresAt: string, now: Date): string {
-  const remainingMinutes = Math.max(0, Math.ceil((Date.parse(offerExpiresAt) - now.getTime()) / 60000));
+  const remainingMinutes = Math.max(
+    0,
+    Math.ceil((Date.parse(offerExpiresAt) - now.getTime()) / 60000)
+  );
   if (remainingMinutes < 1) return 'Expires now';
   if (remainingMinutes < 60) return `Expires in ${remainingMinutes} min`;
   const hours = Math.floor(remainingMinutes / 60);
@@ -130,7 +133,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                     tabIndex={-1}
                     className={`rounded-lg border bg-background/60 px-4 py-3 outline-none transition-colors ${
                       isFocused
-                        ? 'border-primary ring-2 ring-primary/40 ring-offset-2 ring-offset-background'
+                        ? 'border-primary ring-2 ring-ring ring-offset-2 ring-offset-background'
                         : 'border-border/40'
                     }`}
                   >
@@ -155,10 +158,14 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                             </p>
                           )}
                           {displayState === 'expired' && (
-                            <p className="mt-1 text-sm text-muted-foreground">This offer has expired.</p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              This offer has expired.
+                            </p>
                           )}
                           {displayState === 'declined' && (
-                            <p className="mt-1 text-sm text-muted-foreground">You declined this spot.</p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              You declined this spot.
+                            </p>
                           )}
                           {displayState === 'reconciled' && (
                             <p className="mt-1 text-sm text-muted-foreground">
@@ -169,7 +176,10 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         {displayState === 'offered' && (
-                          <Badge variant="outline" className="border-success/50 text-success text-xs">
+                          <Badge
+                            variant="outline"
+                            className="border-success/50 text-success text-xs"
+                          >
                             Spot offered
                           </Badge>
                         )}

@@ -214,7 +214,7 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
-              className="w-full pl-8 pr-8 py-2 rounded-lg bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+              className="w-full pl-8 pr-8 py-2 rounded-lg bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
               placeholder="Search by name, email, role..."
               value={search}
               onChange={e => setSearch(e.target.value)}

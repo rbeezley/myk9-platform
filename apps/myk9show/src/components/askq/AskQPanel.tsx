@@ -160,7 +160,7 @@ export function AskQPanel() {
               name="supportRequest"
               defaultValue={escalationQuestion}
               rows={3}
-              className="w-full resize-none rounded-lg border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full resize-none rounded-lg border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               aria-label="Support request"
             />
             <Button

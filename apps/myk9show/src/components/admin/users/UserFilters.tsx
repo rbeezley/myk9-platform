@@ -1,6 +1,6 @@
 /**
  * UserFilters Component - Advanced filtering controls for user management
- * 
+ *
  * Features:
  * - Role-based filtering with statistics
  * - Status filtering (active/inactive/suspended)
@@ -23,11 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -60,16 +56,13 @@ const STATUS_OPTIONS = [
 export const UserFilters: React.FC<UserFiltersProps> = ({
   filters,
   onFiltersChange,
-  roleStats
+  roleStats,
 }) => {
   // Update individual filter values
-  const updateFilter = <K extends keyof UserFilter>(
-    key: K,
-    value: UserFilter[K]
-  ) => {
+  const updateFilter = <K extends keyof UserFilter>(key: K, value: UserFilter[K]) => {
     onFiltersChange({
       ...filters,
-      [key]: value
+      [key]: value,
     });
   };
 
@@ -91,47 +84,60 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
   const handleStartDateChange = (date: Date | undefined) => {
     updateFilter('dateRange', {
       ...filters.dateRange,
-      start: date || null
+      start: date || null,
     });
   };
 
   const handleEndDateChange = (date: Date | undefined) => {
     updateFilter('dateRange', {
       ...filters.dateRange,
-      end: date || null
+      end: date || null,
     });
   };
 
   return (
-    <div className="space-y-8" 
-         style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}>
+    <div
+      className="space-y-8"
+      style={{
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
+      }}
+    >
       {/* Filter Controls Row 1: Role and Status */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Role Filter */}
         <div className="space-y-3">
-          <Label htmlFor="role-filter" className="text-sm font-[590] text-muted-foreground uppercase tracking-[0.02em]">
+          <Label
+            htmlFor="role-filter"
+            className="text-sm font-[590] text-muted-foreground uppercase tracking-[0.02em]"
+          >
             Role
           </Label>
           <Select
             value={filters.role}
-            onValueChange={(value) => updateFilter('role', value as UserFilter['role'])}
+            onValueChange={value => updateFilter('role', value as UserFilter['role'])}
           >
-            <SelectTrigger className="h-11 rounded-xl border-border/50 bg-background/50 
-                                      focus:border-primary/50 focus:ring-2 focus:ring-primary/20 
-                                      transition-all duration-300 font-[500]">
+            <SelectTrigger
+              className="h-11 rounded-xl border-border/50 bg-background/50 
+                                      focus:border-primary/50 focus:ring-2 focus:ring-ring 
+                                      transition-all duration-300 font-[500]"
+            >
               <SelectValue placeholder="Select role" />
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border/30 bg-card/95 backdrop-blur-xl shadow-xl">
-              {ROLE_OPTIONS.map((option) => (
-                <SelectItem 
-                  key={option.value} 
+              {ROLE_OPTIONS.map(option => (
+                <SelectItem
+                  key={option.value}
                   value={option.value}
                   className="rounded-lg font-[500] py-3 focus:bg-primary/10 focus:text-primary"
                 >
                   <div className="flex items-center justify-between w-full">
                     <span>{option.label}</span>
                     {option.value !== 'all' && roleStats[option.value] && (
-                      <Badge variant="secondary" className="ml-2 bg-primary/10 text-primary border-0 rounded-full">
+                      <Badge
+                        variant="secondary"
+                        className="ml-2 bg-primary/10 text-primary border-0 rounded-full"
+                      >
                         {roleStats[option.value]}
                       </Badge>
                     )}
@@ -144,22 +150,27 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
 
         {/* Status Filter */}
         <div className="space-y-3">
-          <Label htmlFor="status-filter" className="text-sm font-[590] text-muted-foreground uppercase tracking-[0.02em]">
+          <Label
+            htmlFor="status-filter"
+            className="text-sm font-[590] text-muted-foreground uppercase tracking-[0.02em]"
+          >
             Status
           </Label>
           <Select
             value={filters.status}
-            onValueChange={(value) => updateFilter('status', value as UserFilter['status'])}
+            onValueChange={value => updateFilter('status', value as UserFilter['status'])}
           >
-            <SelectTrigger className="h-11 rounded-xl border-border/50 bg-background/50 
-                                      focus:border-primary/50 focus:ring-2 focus:ring-primary/20 
-                                      transition-all duration-300 font-[500]">
+            <SelectTrigger
+              className="h-11 rounded-xl border-border/50 bg-background/50 
+                                      focus:border-primary/50 focus:ring-2 focus:ring-ring 
+                                      transition-all duration-300 font-[500]"
+            >
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border/30 bg-card/95 backdrop-blur-xl shadow-xl">
-              {STATUS_OPTIONS.map((option) => (
-                <SelectItem 
-                  key={option.value} 
+              {STATUS_OPTIONS.map(option => (
+                <SelectItem
+                  key={option.value}
                   value={option.value}
                   className="rounded-lg font-[500] py-3 focus:bg-primary/10 focus:text-primary"
                 >
@@ -172,16 +183,19 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
 
         {/* Club Affiliation Filter */}
         <div className="space-y-3">
-          <Label htmlFor="club-filter" className="text-sm font-[590] text-muted-foreground uppercase tracking-[0.02em]">
+          <Label
+            htmlFor="club-filter"
+            className="text-sm font-[590] text-muted-foreground uppercase tracking-[0.02em]"
+          >
             Club Affiliation
           </Label>
           <Input
             id="club-filter"
             placeholder="Filter by club name..."
             value={filters.clubAffiliation}
-            onChange={(e) => updateFilter('clubAffiliation', e.target.value)}
+            onChange={e => updateFilter('clubAffiliation', e.target.value)}
             className="h-11 bg-background/50 border-border/50 rounded-xl text-base font-[500]
-                       focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-primary/20
+                       focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-ring
                        transition-all duration-300"
           />
         </div>
@@ -207,7 +221,7 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
           <input
             type="checkbox"
             checked={filters.showDeleted}
-            onChange={(e) => updateFilter('showDeleted', e.target.checked)}
+            onChange={e => updateFilter('showDeleted', e.target.checked)}
             className="accent-destructive"
           />
           Show deleted
@@ -226,26 +240,29 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
               <Button
                 variant="outline"
                 className={cn(
-                  "w-full justify-start text-left font-[500] h-11 rounded-xl border-border/50 bg-background/50",
-                  "hover:bg-muted/50 transition-all duration-300",
-                  !filters.dateRange.start && "text-muted-foreground"
+                  'w-full justify-start text-left font-[500] h-11 rounded-xl border-border/50 bg-background/50',
+                  'hover:bg-muted/50 transition-all duration-300',
+                  !filters.dateRange.start && 'text-muted-foreground'
                 )}
               >
                 <Calendar className="mr-3 h-4 w-4" />
                 {filters.dateRange.start ? (
-                  format(filters.dateRange.start, "PPP")
+                  format(filters.dateRange.start, 'PPP')
                 ) : (
                   <span>Pick start date</span>
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 rounded-xl border-border/30 bg-card/95 backdrop-blur-xl shadow-xl" align="start">
+            <PopoverContent
+              className="w-auto p-0 rounded-xl border-border/30 bg-card/95 backdrop-blur-xl shadow-xl"
+              align="start"
+            >
               <CalendarComponent
                 mode="single"
                 selected={filters.dateRange.start || undefined}
                 onSelect={handleStartDateChange}
-                disabled={(date) =>
-                  date > new Date() || 
+                disabled={date =>
+                  date > new Date() ||
                   Boolean(filters.dateRange.end && date > filters.dateRange.end)
                 }
                 initialFocus
@@ -265,26 +282,29 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
               <Button
                 variant="outline"
                 className={cn(
-                  "w-full justify-start text-left font-[500] h-11 rounded-xl border-border/50 bg-background/50",
-                  "hover:bg-muted/50 transition-all duration-300",
-                  !filters.dateRange.end && "text-muted-foreground"
+                  'w-full justify-start text-left font-[500] h-11 rounded-xl border-border/50 bg-background/50',
+                  'hover:bg-muted/50 transition-all duration-300',
+                  !filters.dateRange.end && 'text-muted-foreground'
                 )}
               >
                 <Calendar className="mr-3 h-4 w-4" />
                 {filters.dateRange.end ? (
-                  format(filters.dateRange.end, "PPP")
+                  format(filters.dateRange.end, 'PPP')
                 ) : (
                   <span>Pick end date</span>
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 rounded-xl border-border/30 bg-card/95 backdrop-blur-xl shadow-xl" align="start">
+            <PopoverContent
+              className="w-auto p-0 rounded-xl border-border/30 bg-card/95 backdrop-blur-xl shadow-xl"
+              align="start"
+            >
               <CalendarComponent
                 mode="single"
                 selected={filters.dateRange.end || undefined}
                 onSelect={handleEndDateChange}
-                disabled={(date) =>
-                  date > new Date() || 
+                disabled={date =>
+                  date > new Date() ||
                   Boolean(filters.dateRange.start && date < filters.dateRange.start)
                 }
                 initialFocus
@@ -301,9 +321,12 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
           <span className="text-sm font-[590] text-muted-foreground uppercase tracking-[0.02em]">
             Active filters:
           </span>
-          
+
           {filters.role !== 'all' && (
-            <Badge variant="secondary" className="gap-2 px-3 py-2 rounded-full bg-primary/10 text-primary border-0 font-[500]">
+            <Badge
+              variant="secondary"
+              className="gap-2 px-3 py-2 rounded-full bg-primary/10 text-primary border-0 font-[500]"
+            >
               Role: {ROLE_OPTIONS.find(r => r.value === filters.role)?.label}
               <Button
                 variant="ghost"
@@ -315,9 +338,12 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
               </Button>
             </Badge>
           )}
-          
+
           {filters.status !== 'all' && (
-            <Badge variant="secondary" className="gap-2 px-3 py-2 rounded-full bg-success/10 text-success border-0 font-[500]">
+            <Badge
+              variant="secondary"
+              className="gap-2 px-3 py-2 rounded-full bg-success/10 text-success border-0 font-[500]"
+            >
               Status: {STATUS_OPTIONS.find(s => s.value === filters.status)?.label}
               <Button
                 variant="ghost"
@@ -329,9 +355,12 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
               </Button>
             </Badge>
           )}
-          
+
           {filters.clubAffiliation && (
-            <Badge variant="secondary" className="gap-2 px-3 py-2 rounded-full bg-purple-500/10 text-purple-500 border-0 font-[500]">
+            <Badge
+              variant="secondary"
+              className="gap-2 px-3 py-2 rounded-full bg-purple-500/10 text-purple-500 border-0 font-[500]"
+            >
               Club: {filters.clubAffiliation}
               <Button
                 variant="ghost"
@@ -343,10 +372,13 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
               </Button>
             </Badge>
           )}
-          
+
           {filters.dateRange.start && (
-            <Badge variant="secondary" className="gap-2 px-3 py-2 rounded-full bg-blue-500/10 text-blue-500 border-0 font-[500]">
-              From: {format(filters.dateRange.start, "MMM d, yyyy")}
+            <Badge
+              variant="secondary"
+              className="gap-2 px-3 py-2 rounded-full bg-blue-500/10 text-blue-500 border-0 font-[500]"
+            >
+              From: {format(filters.dateRange.start, 'MMM d, yyyy')}
               <Button
                 variant="ghost"
                 size="sm"
@@ -357,10 +389,13 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
               </Button>
             </Badge>
           )}
-          
+
           {filters.dateRange.end && (
-            <Badge variant="secondary" className="gap-2 px-3 py-2 rounded-full bg-orange-500/10 text-orange-500 border-0 font-[500]">
-              To: {format(filters.dateRange.end, "MMM d, yyyy")}
+            <Badge
+              variant="secondary"
+              className="gap-2 px-3 py-2 rounded-full bg-orange-500/10 text-orange-500 border-0 font-[500]"
+            >
+              To: {format(filters.dateRange.end, 'MMM d, yyyy')}
               <Button
                 variant="ghost"
                 size="sm"

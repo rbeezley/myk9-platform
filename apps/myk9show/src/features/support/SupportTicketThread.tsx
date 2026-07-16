@@ -93,7 +93,7 @@ export function SupportTicketThread({
           value={reply}
           onChange={event => setReply(event.target.value)}
           placeholder="Reply"
-          className="min-h-11 flex-1 rounded-lg bg-muted px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+          className="min-h-11 flex-1 rounded-lg bg-muted px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         />
         <Button
           type="submit"

@@ -66,7 +66,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
             <button
               type="button"
               onClick={onEditPhoto}
-              className="relative group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2"
+              className="relative group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label="Edit profile photo"
             >
               {/* Glow effect */}

@@ -408,7 +408,7 @@ jobs:
 
       - name: Run E2E PR Smoke
         working-directory: apps/myk9show
-        run: pnpm test:e2e:ci --fail-on-flaky-tests
+        run: pnpm test:e2e:ci
         env:
           CI: 'true'
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}

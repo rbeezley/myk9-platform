@@ -39,6 +39,7 @@ import { EditEntryDialog } from './EditEntryDialog';
 import { DeleteEntryDialog } from './DeleteEntryDialog';
 import { ExhibitorClassCallout } from './ExhibitorClassCallout';
 import { SecretaryRunSheet } from './SecretaryRunSheet';
+import { ClassReadinessStrip } from './ClassReadinessStrip';
 import { useMyEntriesInClass } from './useMyEntriesInClass';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -60,6 +61,8 @@ const ClassDetailsPage: React.FC = () => {
     localRawEntries,
     dbRawEntries,
     classEntries,
+    entriesLoading,
+    entriesError,
     parentTrial,
     parentShow,
     dogs,
@@ -302,6 +305,17 @@ const ClassDetailsPage: React.FC = () => {
         {!isStaff && (
           <ExhibitorClassCallout classId={classId} releasedRows={releasedResults.rawEntries} />
         )}
+
+        <ClassReadinessStrip
+          isStaff={isStaff}
+          classData={currentClass}
+          entries={dbRawEntries}
+          showId={parentShow?.id}
+          trialId={trialId || currentClass.trialId}
+          classId={classId}
+          isLoading={entriesLoading}
+          error={dbRawEntries.length > 0 ? null : entriesError}
+        />
 
         {isStaff ? (
           <SecretaryRunSheet

@@ -13,6 +13,9 @@ export interface RawEntryRow {
   class_id: string;
   show_id: string;
   dog_id: string;
+  entry_status?: string | null;
+  payment_status?: string | null;
+  registration?: { payment_status?: string | null } | null;
   handler_id: string | null;
   armband: string | null;
   handler: string | null;
@@ -59,6 +62,9 @@ export function publicRowToRawEntryRow(row: PublicEntryRow): RawEntryRow {
     class_id: row.class_id ?? '',
     show_id: row.show_id ?? '',
     dog_id: row.dog_id ?? '',
+    entry_status: row.entry_status,
+    payment_status: null,
+    registration: null,
     handler_id: null,
     armband: row.armband,
     handler: row.handler,

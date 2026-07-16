@@ -208,8 +208,7 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
 
   // Extract judge from joined judge_assignments data
   const judgeAssignments = (dbClass as unknown as Record<string, unknown>).judge_assignments as
-    | Array<{ person_id: string; people: { first_name: string; last_name: string } }>
-    | undefined;
+    Array<{ person_id: string; people: { first_name: string; last_name: string } }> | undefined;
   const firstJudge = judgeAssignments?.[0];
 
   return {
@@ -220,6 +219,9 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     trialNumber: trial?.trial_number || 'TBD',
     classOrder: dbClass.start_time ? extractClassOrder(dbClass.start_time) : '1',
     status: mapClassStatus(dbClass.status),
+    is_scoring_finalized: dbClass.is_scoring_finalized ?? null,
+    scored_count: dbClass.scored_count ?? null,
+    reopened_after_closeout_at: dbClass.reopened_after_closeout_at ?? null,
     judge: firstJudge
       ? `${firstJudge.people.first_name} ${firstJudge.people.last_name}`.trim()
       : 'TBD',

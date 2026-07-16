@@ -48,13 +48,16 @@ function writeCompleteRoot(root: string): void {
       "if: steps.candidate.outputs.should_promote == 'true'",
       'id: promote',
       'promoted_at',
+      'git ls-remote --heads origin',
+      'app_require_fresh=false',
+      'guides_require_fresh=false',
       'gh api',
       'Staging – myk9-platform-myk9show',
       'Production – myk9-platform-myk9show-guides',
       '-f environment="$environment"',
       '.creator.login == "vercel[bot]"',
       '(.ref == $sha or .ref == $releaseRef)',
-      '.created_at >= $promotedAt',
+      '($requireFresh == "false" or .created_at >= $promotedAt)',
       'environment_url',
       'latest_sha',
       '[[ "$latest_sha" != "$TARGET_SHA" ]]',
@@ -275,6 +278,22 @@ describe('phase 1 deploy verifier', () => {
     writeCompleteRoot(root);
     const workflowPath = path.join(root, '.github/workflows/deploy-staging.yml');
     const workflow = readFileSync(workflowPath, 'utf8').replace('Skipped - Not affected', '');
+    writeFileSync(workflowPath, workflow);
+
+    expect(checkDeployWorkflow(root)).toMatchObject({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+    });
+  });
+
+  it('fails when same-SHA retries cannot reuse exact existing deployment evidence', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    const workflowPath = path.join(root, '.github/workflows/deploy-staging.yml');
+    const workflow = readFileSync(workflowPath, 'utf8').replace(
+      '($requireFresh == "false" or .created_at >= $promotedAt)',
+      '.created_at >= $promotedAt'
+    );
     writeFileSync(workflowPath, workflow);
 
     expect(checkDeployWorkflow(root)).toMatchObject({

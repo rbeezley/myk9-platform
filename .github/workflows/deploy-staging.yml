@@ -59,7 +59,18 @@ jobs:
         if: steps.candidate.outputs.should_promote == 'true'
         run: |
           set -euo pipefail
-          echo "promoted_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >>"$GITHUB_OUTPUT"
+          promoted_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          app_ref_sha="$(git ls-remote --heads origin refs/heads/staging-release | cut -f1)"
+          guides_ref_sha="$(git ls-remote --heads origin refs/heads/guides-release | cut -f1)"
+          app_require_fresh=true
+          guides_require_fresh=true
+          [[ "$app_ref_sha" == "$TARGET_SHA" ]] && app_require_fresh=false
+          [[ "$guides_ref_sha" == "$TARGET_SHA" ]] && guides_require_fresh=false
+          {
+            echo "promoted_at=$promoted_at"
+            echo "app_require_fresh=$app_require_fresh"
+            echo "guides_require_fresh=$guides_require_fresh"
+          } >>"$GITHUB_OUTPUT"
           git push --atomic --force origin \
             "$TARGET_SHA:refs/heads/staging-release" \
             "$TARGET_SHA:refs/heads/guides-release"
@@ -70,6 +81,8 @@ jobs:
         env:
           REPOSITORY: ${{ github.repository }}
           PROMOTED_AT: ${{ steps.promote.outputs.promoted_at }}
+          APP_REQUIRE_FRESH: ${{ steps.promote.outputs.app_require_fresh }}
+          GUIDES_REQUIRE_FRESH: ${{ steps.promote.outputs.guides_require_fresh }}
         run: |
           set -euo pipefail
 
@@ -78,6 +91,7 @@ jobs:
             local release_ref="$2"
             local domain="$3"
             local label="$4"
+            local require_fresh="$5"
 
             for attempt in {1..60}; do
               deployments="$(gh api --method GET "repos/$REPOSITORY/deployments" \
@@ -89,12 +103,13 @@ jobs:
                 --arg environment "$environment" \
                 --arg releaseRef "$release_ref" \
                 --arg promotedAt "$PROMOTED_AT" \
+                --arg requireFresh "$require_fresh" \
                 '[.[] | select(
                   .creator.login == "vercel[bot]" and
                   .sha == $sha and
                   .environment == $environment and
                   (.ref == $sha or .ref == $releaseRef) and
-                  .created_at >= $promotedAt
+                  ($requireFresh == "false" or .created_at >= $promotedAt)
                 )] | first | .id // empty' <<<"$deployments")"
               if [[ -n "$deployment_id" && "$deployment_id" != "null" ]]; then
                 statuses="$(gh api \
@@ -146,12 +161,14 @@ jobs:
             'Staging – myk9-platform-myk9show' \
             staging-release \
             staging.myk9show.com \
-            app
+            app \
+            "$APP_REQUIRE_FRESH"
           wait_for_ready_deployment \
             'Production – myk9-platform-myk9show-guides' \
             guides-release \
             help.myk9show.com \
-            guides
+            guides \
+            "$GUIDES_REQUIRE_FRESH"
 
       - name: Summary
         if: steps.candidate.outputs.should_promote == 'true'

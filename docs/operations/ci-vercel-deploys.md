@@ -25,6 +25,10 @@ releasing the concurrency lock. It updates exactly these refs:
 - `staging-release` → Vercel app staging environment
 - `guides-release` → Vercel guides production branch
 
+A same-SHA workflow rerun reuses an existing exact deployment record only when
+the corresponding protected release ref already points to that SHA. A ref that
+still needs updating must produce fresh post-promotion deployment evidence.
+
 The CI workflow runs only for `main` pushes and pull requests, so release-ref
 updates do not satisfy the main-CI promotion condition or recurse into another
 promotion.

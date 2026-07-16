@@ -41,6 +41,7 @@ export function checkDeployWorkflow(rootDir: string): Phase1Check {
     'workflow_run:',
     "workflows: ['CI']",
     "vars.STAGING_RELEASE_ENABLED == 'true'",
+    'timeout-minutes: 25',
     "github.event.workflow_run.conclusion == 'success'",
     "github.event.workflow_run.event == 'push'",
     "github.event.workflow_run.head_branch == 'main'",
@@ -67,10 +68,10 @@ export function checkDeployWorkflow(rootDir: string): Phase1Check {
     'environment_url',
     'latest_sha',
     '[[ "$latest_sha" != "$TARGET_SHA" ]]',
-    'refs/heads/staging-release" --force',
-    'refs/heads/guides-release" --force',
+    'git push --atomic --force origin',
     'state',
     'success)',
+    'Skipped - Not affected',
     'statuses?per_page=20',
     'curl --fail --silent --show-error --head "https://$domain"',
     'staging.myk9show.com',
@@ -115,6 +116,16 @@ export function checkDeployWorkflow(rootDir: string): Phase1Check {
       key: 'deploy_workflow_ci_gate',
       status: 'fail',
       detail: `automatic staging workflow contains: ${forbiddenAutomaticTokens.join(', ')}`,
+    };
+  }
+
+  const candidateGate = "if: steps.candidate.outputs.should_promote == 'true'";
+  const candidateGateCount = stagingWorkflow.split(candidateGate).length - 1;
+  if (candidateGateCount < 3) {
+    return {
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+      detail: `superseded-candidate gate covers ${candidateGateCount}/3 downstream steps`,
     };
   }
 

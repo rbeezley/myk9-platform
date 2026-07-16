@@ -29,6 +29,7 @@ function writeCompleteRoot(root: string): void {
       'workflow_run:',
       "workflows: ['CI']",
       "vars.STAGING_RELEASE_ENABLED == 'true'",
+      'timeout-minutes: 25',
       "github.event.workflow_run.conclusion == 'success'",
       "github.event.workflow_run.event == 'push'",
       "github.event.workflow_run.head_branch == 'main'",
@@ -43,6 +44,8 @@ function writeCompleteRoot(root: string): void {
       'should_promote=false',
       'should_promote=true',
       "if: steps.candidate.outputs.should_promote == 'true'",
+      "if: steps.candidate.outputs.should_promote == 'true'",
+      "if: steps.candidate.outputs.should_promote == 'true'",
       'id: promote',
       'promoted_at',
       'gh api',
@@ -55,10 +58,12 @@ function writeCompleteRoot(root: string): void {
       'environment_url',
       'latest_sha',
       '[[ "$latest_sha" != "$TARGET_SHA" ]]',
-      'refs/heads/staging-release" --force',
-      'refs/heads/guides-release" --force',
+      'git push --atomic --force origin',
+      'refs/heads/staging-release',
+      'refs/heads/guides-release',
       'state',
       'success)',
+      'Skipped - Not affected',
       'statuses?per_page=20',
       'curl --fail --silent --show-error --head "https://$domain"',
       'staging.myk9show.com',
@@ -241,6 +246,35 @@ describe('phase 1 deploy verifier', () => {
       '(.ref == $sha or .ref == $releaseRef)',
       ''
     );
+    writeFileSync(workflowPath, workflow);
+
+    expect(checkDeployWorkflow(root)).toMatchObject({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+    });
+  });
+
+  it('fails when release refs are not advanced atomically', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    const workflowPath = path.join(root, '.github/workflows/deploy-staging.yml');
+    const workflow = readFileSync(workflowPath, 'utf8').replace(
+      'git push --atomic --force origin',
+      'git push --force origin'
+    );
+    writeFileSync(workflowPath, workflow);
+
+    expect(checkDeployWorkflow(root)).toMatchObject({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+    });
+  });
+
+  it('fails when Vercel skip-unaffected evidence is not handled', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    const workflowPath = path.join(root, '.github/workflows/deploy-staging.yml');
+    const workflow = readFileSync(workflowPath, 'utf8').replace('Skipped - Not affected', '');
     writeFileSync(workflowPath, workflow);
 
     expect(checkDeployWorkflow(root)).toMatchObject({

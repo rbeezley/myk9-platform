@@ -28,7 +28,7 @@ jobs:
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_sha != ''
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     permissions:
       contents: write
       actions: read
@@ -60,8 +60,9 @@ jobs:
         run: |
           set -euo pipefail
           echo "promoted_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >>"$GITHUB_OUTPUT"
-          git push origin "$TARGET_SHA:refs/heads/staging-release" --force
-          git push origin "$TARGET_SHA:refs/heads/guides-release" --force
+          git push --atomic --force origin \
+            "$TARGET_SHA:refs/heads/staging-release" \
+            "$TARGET_SHA:refs/heads/guides-release"
 
       - name: Wait for READY staging and guides deployments
         id: readiness
@@ -100,8 +101,26 @@ jobs:
                   "repos/$REPOSITORY/deployments/$deployment_id/statuses?per_page=20" \
                   2>/dev/null || echo '[]')"
                 state="$(jq -r 'first | select(.creator.login == "vercel[bot]") | .state // empty' <<<"$statuses")"
+                description="$(jq -r 'first | .description // empty' <<<"$statuses")"
+                outcome=''
                 case "$state" in
                   success)
+                    outcome='READY'
+                    ;;
+                  inactive)
+                    if [[ "$description" == "Skipped - Not affected"* ]]; then
+                      outcome='SKIPPED_UNAFFECTED'
+                    else
+                      echo "$label deployment became inactive: $description" >&2
+                      return 1
+                    fi
+                    ;;
+                  error|failure)
+                    echo "$label deployment $deployment_id ended in $state" >&2
+                    return 1
+                    ;;
+                esac
+                if [[ -n "$outcome" ]]; then
                     environment_url="$(jq -r 'first | .environment_url // empty' <<<"$statuses")"
                     [[ "$environment_url" == https://*.vercel.app ]] || {
                       echo "$label deployment is missing an immutable Vercel environment URL" >&2
@@ -111,14 +130,9 @@ jobs:
                     curl --fail --silent --show-error --head "https://$domain" >/dev/null
                     echo "${label}_deployment_id=$deployment_id" >>"$GITHUB_OUTPUT"
                     echo "${label}_deployment_url=$environment_url" >>"$GITHUB_OUTPUT"
-                    echo "$label deployment $deployment_id is READY at $environment_url and https://$domain"
+                    echo "$label deployment $deployment_id is $outcome at $environment_url; verified https://$domain"
                     return 0
-                    ;;
-                  error|failure|inactive)
-                    echo "$label deployment $deployment_id ended in $state" >&2
-                    return 1
-                    ;;
-                esac
+                fi
               fi
               echo "Waiting for $label deployment (attempt $attempt/60)..."
               sleep 10

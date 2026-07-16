@@ -17,9 +17,10 @@ The repository has two separate release paths:
 Set the repository variable `STAGING_RELEASE_ENABLED=true` only after the
 protected refs and Vercel branch tracking are configured. The workflow is
 serialized and skips an older successful CI SHA when a newer successful main
-run is available, then waits for both Vercel deployments to report READY and for
-their public domains to respond before releasing the concurrency lock. It updates
-exactly these refs:
+run is available, advances both release refs atomically, then waits for both
+Vercel records to report READY (or the explicit `Skipped - Not affected` result)
+and for their immutable deployment URLs and public domains to respond before
+releasing the concurrency lock. It updates exactly these refs:
 
 - `staging-release` → Vercel app staging environment
 - `guides-release` → Vercel guides production branch

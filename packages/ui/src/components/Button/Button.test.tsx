@@ -105,6 +105,21 @@ describe('Button', () => {
       render(<Button loading>Save</Button>);
       expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
     });
+
+    it('makes a custom-rendered (asChild) element non-interactive while loading', () => {
+      render(
+        <Button asChild loading>
+          <a href="/x">Go</a>
+        </Button>
+      );
+      const link = screen.getByText('Go');
+      expect(link.tagName).toBe('A');
+      // disabled is inert on <a>, so pending state must block interaction another way
+      expect(link).toHaveAttribute('aria-busy', 'true');
+      expect(link).toHaveAttribute('aria-disabled', 'true');
+      expect(link).toHaveAttribute('tabindex', '-1');
+      expect(link.className).toContain('pointer-events-none');
+    });
   });
 
   describe('variants', () => {

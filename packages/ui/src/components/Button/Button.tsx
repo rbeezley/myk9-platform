@@ -69,10 +69,21 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       defaultTagName: 'button',
       props: {
         ...props,
+        // `disabled` only blocks native <button>. When rendering a custom
+        // element (asChild/render, e.g. an <a>), also mark it aria-disabled and
+        // make it non-interactive so a pending action cannot be re-triggered by
+        // pointer or keyboard. The spinner affordance renders for the button
+        // form; custom-render forms convey pending via aria-busy + inertness.
         disabled: disabled || loading,
         'aria-busy': loading || undefined,
+        'aria-disabled': loading || undefined,
+        tabIndex: loading ? -1 : props.tabIndex,
         children: content,
-        className: cn(buttonVariants({ variant, size, className })),
+        className: cn(
+          buttonVariants({ variant, size }),
+          loading && 'pointer-events-none',
+          className
+        ),
       },
       ref,
     });

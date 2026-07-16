@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { Button } from './Button';
@@ -119,6 +119,25 @@ describe('Button', () => {
       expect(link).toHaveAttribute('aria-disabled', 'true');
       expect(link).toHaveAttribute('tabindex', '-1');
       expect(link.className).toContain('pointer-events-none');
+    });
+
+    it('guards activation on a loading custom-rendered element', () => {
+      // A click event is what both a pointer click and a keyboard Enter on a
+      // focused link dispatch; the guard must swallow it while loading.
+      let clicked = false;
+      render(
+        <Button
+          asChild
+          loading
+          onClick={() => {
+            clicked = true;
+          }}
+        >
+          <a href="/x">Go</a>
+        </Button>
+      );
+      fireEvent.click(screen.getByText('Go'));
+      expect(clicked).toBe(false);
     });
   });
 

@@ -46,9 +46,23 @@ export interface ButtonProps
  * <Button render={<a href="/page" />}>Go to page</Button>
  */
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, render, asChild, loading, disabled, children, ...props }, ref) => {
+  (
+    { className, variant, size, render, asChild, loading, disabled, children, onClick, ...props },
+    ref
+  ) => {
     // Support asChild by converting to render prop (backwards compatibility)
     const actualRender = asChild && React.isValidElement(children) ? children : render;
+
+    // Activation guard: `disabled` only blocks a native <button>. For custom
+    // renders (asChild, e.g. an <a>) intercept the activation itself so a
+    // pending action cannot fire again from a pointer click OR a keyboard Enter
+    // on an already-focused element — both dispatch a click event.
+    const handleClick = loading
+      ? (event: React.MouseEvent<HTMLButtonElement>) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      : onClick;
 
     const content =
       loading && !asChild ? (
@@ -69,11 +83,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       defaultTagName: 'button',
       props: {
         ...props,
-        // `disabled` only blocks native <button>. When rendering a custom
-        // element (asChild/render, e.g. an <a>), also mark it aria-disabled and
-        // make it non-interactive so a pending action cannot be re-triggered by
-        // pointer or keyboard. The spinner affordance renders for the button
-        // form; custom-render forms convey pending via aria-busy + inertness.
+        // `disabled` only blocks native <button>. For custom renders, the
+        // handleClick guard above blocks activation; aria-disabled + tabIndex +
+        // pointer-events convey and reinforce the inert pending state. The
+        // spinner affordance renders for the button form.
+        onClick: handleClick,
         disabled: disabled || loading,
         'aria-busy': loading || undefined,
         'aria-disabled': loading || undefined,

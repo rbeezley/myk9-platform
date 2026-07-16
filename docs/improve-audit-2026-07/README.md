@@ -57,7 +57,7 @@ proof — not visual inspection, not typechecking. Each plan's "Test plan" and
 | [002](002-move-up-create-before-mark.md) | Move-up corrupts an entry if the new-entry write fails (wrong write order) | **HIGH / data-integrity** | M | MED | **DONE** — [#1090](https://github.com/rbeezley/myk9-platform/pull/1090)/[#1091](https://github.com/rbeezley/myk9-platform/pull/1091) merged, client-only, live |
 | [003](003-surface-mutation-errors.md) | Judge-assign & bulk class ops fail silently (secretary told nothing) | **MED–HIGH / UX-integrity** | S–M | LOW | **DONE** — [#1132](https://github.com/rbeezley/myk9-platform/pull/1132), client-only; local typecheck/lint/focused test green, GitHub myK9Show shards + PR smoke/a11y green; Vercel contexts rate-limited |
 | [004](004-cart-checkout-loading-reset.md) | Checkout button stuck spinning after waitlist-only checkout | LOW / polish | S | LOW | **DONE** — [#1092](https://github.com/rbeezley/myk9-platform/pull/1092) merged, live |
-| [005](005-replication-occ-watermark-spike.md) | Investigate: OCC-token / watermark / conflict race cluster (read-only spike) | MED / investigate | M | LOW | **DONE + RE-CHECKED 2026-07-04** — OCC leads remain closed in [findings](../archive/plan-replication-occ-watermark-findings.md); UI S1 is covered on current at-show/My Entries surfaces; UI S2 still needs a small follow-up for entries read timeout/error copy |
+| [005](005-replication-occ-watermark-spike.md) | Investigate: OCC-token / watermark / conflict race cluster (read-only spike) | MED / investigate | M | LOW | **DONE + RE-CHECKED 2026-07-04** — OCC leads remain closed in [findings](../archive/plan-replication-occ-watermark-findings.md); UI S1 is covered on current at-show/My Entries surfaces; UI S2 **error-copy half now fixed** (`replicationSyncFormatters.ts` emits friendly copy, no raw leak), **read statement-timeout half still open — tracked in [MYK9-24](https://linear.app/myk9-platform/issue/MYK9-24)** (verified 2026-07-16). This lone tail is why the audit stays `Active`. |
 
 **Suggested order:** 001 first (only cross-tenant data leak here; smallest fix,
 cleanest test). Then 002 (the one that can actually corrupt show-day data).
@@ -90,12 +90,12 @@ parallelize by *file set*):
   bulk-checkbox names) — injecting 003 into it mid-package causes the exact
   file collision the handoff warns against. So: run 003 as its **own small bug
   PR after Phase 3's `ClassManagementPage.tsx` edits land**, adopting 5.A's toast
-  copy when it goes. Status below: **BLOCKED (after Phase 3)**.
+  copy when it goes. Status below: **DONE** — shipped as its own bug PR [#1132](https://github.com/rbeezley/myk9-platform/pull/1132), archived `2026-07-04-class-mgmt-mutation-error-surfacing` (this planning note is retained for history; the status table above is authoritative).
 - **004 — run after Phase 3, adopt Phase 5 copy.** Phase 5 (polish) is not
   started, so there's no open task to fold into; keep 004 as a standalone
   one-line fix, sequenced so it doesn't race in-flight `CartPage` work (none
   currently in Phase 2/3, so it can go anytime it won't collide). Status:
-  **TODO (standalone)**.
+  **DONE** — [#1092](https://github.com/rbeezley/myk9-platform/pull/1092) merged, live (see status table above).
 - **005** — read-only spike, no file collision; adjacent to UX 1.G/0.G but
   covers different ground (replication concurrency internals vs. sync-state UI).
   Run anytime.

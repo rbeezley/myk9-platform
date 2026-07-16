@@ -26,6 +26,6 @@ Read the matching reference file in full before starting — each contains the c
 
 ## Ground rules (all modes)
 
-- Read-only on source: this skill never fixes code. Findings go to the report, `OPEN-TODOS.md`, or an opsx proposal.
+- Read-only on source: this skill never fixes code. Findings go to the report, Linear (team **MyK9-platform**), or an opsx proposal.
 - Compare against the previous audit report (in `docs/`) when one exists, and state drift explicitly.
-- Findings that justify work become an `opsx:propose` change or an `OPEN-TODOS.md` entry — never a silent chat-only summary.
+- Findings that justify work become an `opsx:propose` change or a Linear issue (team **MyK9-platform**) — never a silent chat-only summary.

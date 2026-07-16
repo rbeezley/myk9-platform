@@ -42,7 +42,7 @@ The audit can work from any of these (combine for deeper analysis):
 | **Codebase**                       | Page components + nav config + breadcrumb logic     | Identifying duplication, orphan pages   |
 | **Screenshots**                    | Annotated screenshots of current navigation         | Visualizing the mental model mismatch   |
 | **Product owner intuition**        | Conversation with the user about felt friction      | Step 3 — Mental model check             |
-| **Existing OPEN-TODOS / brainstorm** | Captured user-felt friction may already name issues | Speeds up Step 1 and Step 4             |
+| **Existing Linear issues / brainstorm** | Captured user-felt friction may already name issues | Speeds up Step 1 and Step 4             |
 
 ## Output Location
 

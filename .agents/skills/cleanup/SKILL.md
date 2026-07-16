@@ -65,22 +65,18 @@ ls supabase/migrations/ | tail -5
 source supabase/.env 2>/dev/null && supabase db push --password "$SUPABASE_DB_PASSWORD" --dry-run 2>&1
 ```
 
-- If `--dry-run` is not supported, check the last commit that touched `supabase/migrations/` and compare with any deploy note in `OPEN-TODOS.md` or the relevant plan document.
+- If `--dry-run` is not supported, check the last commit that touched `supabase/migrations/` and compare with any deploy note in the relevant Linear issue (team **MyK9-platform**) or plan document.
 - If unapplied migrations exist, report them and ask if user wants to push now
 - If user confirms, invoke the `/db-push` skill
 
-### 5. OPEN-TODOS.md Sync
+### 5. Linear Sync
 
-```bash
-# Check for items marked done in this session's commit
-git diff HEAD~1 -- OPEN-TODOS.md | grep '^\+.*\[x\]' | head -10
-git diff HEAD~1 -- OPEN-TODOS.md | grep '^\-.*\[ \]' | head -10
-```
+Verify that any Linear issues (team **MyK9-platform**) you closed or finished this session are actually moved to Done. Reconcile against Linear — issues completed in work but still Open, or issues moved to Done whose work did not land.
 
 Also scan for staleness:
 
-- Items still marked `[ ]` whose referenced PRs or files already exist (done but not updated)
-- Items marked `[x]` that reference "Deploy: `supabase db push`" -- cross-check with migration push status
+- Issues still Open whose referenced PRs or files already exist (done but not updated)
+- Done issues that reference "Deploy: `supabase db push`" -- cross-check with migration push status
 
 ### 6. Stale Branches
 
@@ -120,7 +116,7 @@ Session Cleanup Report
 Worktrees:     2 stale worktrees cleaned up
 Git:           Working tree clean, all pushed
 Migrations:    109_restrict_subscription_columns.sql already applied
-OPEN-TODOS:   3 items marked done, all consistent
+Linear:        3 issues moved to Done, all consistent
 Branches:      1 merged branch deleted (worktree-agent-abc123)
 Edge Functions: No changes detected
 

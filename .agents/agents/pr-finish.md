@@ -45,7 +45,7 @@ Read these first:
 - The diff matches the requested scope and does not add duplicate UI surface area.
 - Focused tests were run for touched components, hooks, utilities, or data paths.
 - Typecheck or narrower type verification was run when TypeScript risk exists.
-- Tracking docs such as `OPEN-TODOS.md`, sprint docs, or plan files were updated when the task completed a tracked item.
+- Tracking was updated when the task completed a tracked item — the Linear issue (team **MyK9-platform**) was moved to Done (or it auto-completes on merge of a `MYK9-NN` branch), plus any sprint docs or plan files.
 - Database or deploy actions were not performed without explicit shared-system confirmation.
 - Final response names what changed, what was verified, and remaining risk.
 

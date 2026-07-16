@@ -13,7 +13,7 @@ Check whether a change makes real show-day operation calmer, more reliable, and 
 ## Use When
 
 - Reviewing scoring, run order, class status, ring workflow, judge sheet, secretary dashboard, check-in, move-up, conflict, or wrap-up flows.
-- Validating a launch-readiness slice from `OPEN-TODOS.md` or a show-day plan.
+- Validating a launch-readiness slice from Linear (team **MyK9-platform**) or a show-day plan.
 - Running focused manual or automated QA against myK9Show.
 
 ## Inputs

@@ -1,0 +1,106 @@
+name: Deploy Staging
+
+# Successful main CI promotes the exact validated SHA to protected release
+# refs. Vercel Git branch tracking performs the staging/guides deployments;
+# this automatic workflow never receives a Vercel access token.
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote exact SHA to staging release refs
+    if: >-
+      vars.STAGING_RELEASE_ENABLED == 'true' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_sha != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Skip superseded CI candidates
+        run: |
+          set -euo pipefail
+          latest_sha="$(gh run list --workflow CI --branch main --event push --status success --limit 1 --json headSha --jq '.[0].headSha')"
+          if [[ "$latest_sha" != "$TARGET_SHA" ]]; then
+            echo "Superseded by newer successful main CI SHA $latest_sha"
+            exit 0
+          fi
+
+      - name: Advance the protected release refs
+        run: |
+          set -euo pipefail
+          git push origin "$TARGET_SHA:refs/heads/staging-release" --force
+          git push origin "$TARGET_SHA:refs/heads/guides-release" --force
+
+      - name: Wait for READY staging and guides deployments
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          wait_for_ready_deployment() {
+            local environment="$1"
+            local domain="$2"
+            local label="$3"
+
+            for attempt in {1..60}; do
+              deployment_id="$(gh api \
+                "repos/$REPOSITORY/deployments?sha=$TARGET_SHA&environment=$environment&per_page=20" \
+                --jq '.[0].id' 2>/dev/null || true)"
+              if [[ -n "$deployment_id" && "$deployment_id" != "null" ]]; then
+                state="$(gh api \
+                  "repos/$REPOSITORY/deployments/$deployment_id/statuses?per_page=20" \
+                  --jq '.[0].state' 2>/dev/null || true)"
+                case "$state" in
+                  success)
+                    curl --fail --silent --show-error --head "https://$domain" >/dev/null
+                    echo "$label deployment $deployment_id is READY at https://$domain"
+                    return 0
+                    ;;
+                  error|failure|inactive)
+                    echo "$label deployment $deployment_id ended in $state" >&2
+                    return 1
+                    ;;
+                esac
+              fi
+              echo "Waiting for $label deployment (attempt $attempt/60)..."
+              sleep 10
+            done
+
+            echo "Timed out waiting for $label deployment to become READY" >&2
+            return 1
+          }
+
+          wait_for_ready_deployment staging staging.myk9show.com app
+          wait_for_ready_deployment production help.myk9show.com guides
+
+      - name: Summary
+        run: |
+          {
+            echo "### Staging release promotion"
+            echo ""
+            echo "- Commit: \`$TARGET_SHA\`"
+            echo "- Refs: \`staging-release\`, \`guides-release\`"
+            echo "- READY domains: \`staging.myk9show.com\`, \`help.myk9show.com\`"
+          } >>"$GITHUB_STEP_SUMMARY"

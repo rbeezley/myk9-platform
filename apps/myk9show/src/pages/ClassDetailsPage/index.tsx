@@ -220,6 +220,7 @@ const ClassDetailsPage: React.FC = () => {
                 getEntryManagementHref({
                   showId: parentShow.id,
                   trialId: trialId || currentClass?.trialId || null,
+                  classId: classId || null,
                 })
               )
             }
@@ -267,6 +268,7 @@ const ClassDetailsPage: React.FC = () => {
     trialId,
     currentClass?.trialId,
     navigate,
+    classId,
   ]);
 
   // Early returns for different states

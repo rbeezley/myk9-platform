@@ -7,7 +7,7 @@
 | myK9Show | `myk9-platform-myk9show` | `apps/myk9show` | myk9-platform-myk9show.vercel.app |
 | Guides | `myk9-platform-myk9show-guides` | `apps/docs` | help.myk9show.com |
 
-myK9Show and the guides deploy from `rbeezley/myk9-platform`. Production pushes to `main` are gated by the [`Deploy Production`](../../.github/workflows/deploy-production.yml) workflow, which ships the exact merge SHA only after the full `CI` workflow passes. Vercel Git deployments from `main` are disabled in both project configs; PR preview deployments remain enabled. See [`ci-vercel-deploys.md`](../operations/ci-vercel-deploys.md). (Ringside scoring lives inside myK9Show at `/at-show`; the former standalone `apps/myk9q` app — and its `myk9-platform-myk9q` Vercel project — have been removed.)
+myK9Show and the guides deploy from `rbeezley/myk9-platform`. Successful `main` CI promotes the exact validated SHA to protected `staging-release` and `guides-release` refs through the tokenless [`Deploy Staging`](../../.github/workflows/deploy-staging.yml) workflow. Production is released only through the explicit, protected [`Release Production`](../../.github/workflows/deploy-production.yml) workflow after exact-SHA and staging-evidence preflight. Vercel Git deployments from `main` are disabled in both project configs; PR preview deployments remain enabled. See [`ci-vercel-deploys.md`](../operations/ci-vercel-deploys.md). (Ringside scoring lives inside myK9Show at `/at-show`; the former standalone `apps/myk9q` app — and its `myk9-platform-myk9q` Vercel project — have been removed.)
 
 For Hobby-tier preview quota controls, keep Vercel preview checks non-required in GitHub and verify monorepo skip-unaffected project behavior for both projects. See [`vercel-preview-quota.md`](../operations/vercel-preview-quota.md).
 
@@ -27,6 +27,14 @@ For Hobby-tier preview quota controls, keep Vercel preview checks non-required i
 | Variable | Value |
 |----------|-------|
 | `VITE_APP_ENVIRONMENT` | `staging` |
+
+### Production configuration
+
+Production must use a separate Vercel environment configuration and Supabase
+project. Populate the production project’s `VITE_SUPABASE_URL`, anon key, and
+`VITE_APP_ENVIRONMENT=production` independently; do not copy staging values into
+the production project. The repository does not store either environment’s
+secret values.
 
 ## Build Configuration
 

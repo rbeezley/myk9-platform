@@ -24,18 +24,58 @@ function makeRoot(): string {
 
 function writeCompleteRoot(root: string): void {
   writeFileSync(
-    path.join(root, '.github/workflows/deploy-production.yml'),
+    path.join(root, '.github/workflows/deploy-staging.yml'),
     [
       'workflow_run:',
       "workflows: ['CI']",
-      "vars.PRODUCTION_DEPLOY_ENABLED == 'true'",
+      "vars.STAGING_RELEASE_ENABLED == 'true'",
       "github.event.workflow_run.conclusion == 'success'",
       "github.event.workflow_run.event == 'push'",
       "github.event.workflow_run.head_branch == 'main'",
+      'github.event.workflow_run.head_sha',
+      'refs/heads/staging-release',
+      'refs/heads/guides-release',
+      'contents: write',
+      'cancel-in-progress: false',
+      'gh api',
+      'deployments?sha=$TARGET_SHA&environment=$environment',
+      'latest_sha',
+      '[[ "$latest_sha" != "$TARGET_SHA" ]]',
+      'refs/heads/staging-release" --force',
+      'refs/heads/guides-release" --force',
+      'state',
+      'success)',
+      'statuses?per_page=20',
+      'curl --fail --silent --show-error --head "https://$domain"',
+      'staging.myk9show.com',
+      'help.myk9show.com',
+      'sleep 10',
+    ].join('\n')
+  );
+  writeFileSync(
+    path.join(root, '.github/workflows/deploy-production.yml'),
+    [
+      'workflow_dispatch:',
+      'commit_sha:',
+      'staging_deployment_id:',
+      'staging_deployment_sha:',
+      '^[0-9a-f]{40}$',
+      'git merge-base --is-ancestor',
+      'gh run list --workflow CI',
+      'needs: preflight',
+      'environment:',
+      '      name: production',
       'secrets.VERCEL_ORG_ID',
       'secrets.VERCEL_PROJECT_ID',
       'secrets.VERCEL_TOKEN',
-      'vercel deploy --prod',
+      'api.vercel.com/v13/deployments',
+      'api.vercel.com/v2/deployments/$STAGING_DEPLOYMENT_ID/aliases',
+      "aliases?.some(({ alias }) => alias === 'staging.myk9show.com')",
+      "deployment.readyState !== 'READY'",
+      'rm -f staging-deployment.json staging-aliases.json',
+      'staging.myk9show.com',
+      'curl --fail --silent --show-error --head https://myk9show.com',
+      'pnpm dlx vercel@latest deploy --prod',
     ].join('\n')
   );
   writeFileSync(
@@ -84,7 +124,7 @@ describe('phase 1 deploy verifier', () => {
       {
         key: 'deploy_workflow_ci_gate',
         status: 'ok',
-        detail: 'CI-gated production deploy workflow source is staged',
+        detail: 'tokenless staging promotion and protected production release source are staged',
       },
       {
         key: 'vercel_git_auto_deploy_disable',
@@ -136,11 +176,41 @@ describe('phase 1 deploy verifier', () => {
 
   it('fails when the deploy workflow is missing its enable gate', () => {
     const root = makeRoot();
-    writeFileSync(path.join(root, '.github/workflows/deploy-production.yml'), 'workflow_run:\n');
+    writeFileSync(path.join(root, '.github/workflows/deploy-staging.yml'), 'workflow_run:\n');
 
     expect(checkDeployWorkflow(root)).toMatchObject({
       key: 'deploy_workflow_ci_gate',
       status: 'fail',
+    });
+  });
+
+  it('fails when the automatic staging workflow receives a Vercel token', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    writeFileSync(
+      path.join(root, '.github/workflows/deploy-staging.yml'),
+      'VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}'
+    );
+
+    expect(checkDeployWorkflow(root)).toEqual({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+      detail: 'automatic staging workflow contains: VERCEL_TOKEN',
+    });
+  });
+
+  it('fails when production credentials are not behind the protected environment', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    writeFileSync(
+      path.join(root, '.github/workflows/deploy-production.yml'),
+      ['secrets.VERCEL_TOKEN', 'environment:', 'name: production'].join('\n')
+    );
+
+    expect(checkDeployWorkflow(root)).toEqual({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+      detail: 'production Vercel token is not scoped behind the protected production environment',
     });
   });
 

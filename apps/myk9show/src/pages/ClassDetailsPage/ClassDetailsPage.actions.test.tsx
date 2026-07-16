@@ -183,4 +183,14 @@ describe('ClassDetailsPage header actions', () => {
     expect(screen.queryByRole('button', { name: /message show/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /show messages/i })).not.toBeInTheDocument();
   });
+
+  it('keeps the current class when opening Manage Entries', async () => {
+    const { user } = renderClassDetailsPage();
+
+    await user.click(screen.getByRole('button', { name: /manage entries/i }));
+
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/shows/show-1/entry-management?trial=trial-1&class=class-1'
+    );
+  });
 });

@@ -1,135 +1,161 @@
-name: Deploy Production
+name: Release Production
 
-# CI-gated production deploys for myK9Show and the guides site.
-#
-# Vercel's Git integration must be set NOT to auto-deploy the production branch
-# (set git.deploymentEnabled.main=false in both apps/myk9show/vercel.json and
-# apps/docs/vercel.json — NOT an Ignored Build Step, which would also abort this workflow's own CLI deploy; see
-# docs/operations/ci-vercel-deploys.md). This workflow is then the sole path
-# that ships `main` to production for both Vercel projects — and only AFTER the entire CI workflow
-# (Quality Checks + Test + Build, plus A11y smoke + E2E PR Smoke when runtime
-# paths changed) passes on the merged commit. Before this, every push to `main`
-# deployed to production regardless of whether tests passed.
-#
-# It triggers on the *completion* of the "CI" workflow rather than on `push`
-# directly, so it can gate on CI's overall conclusion. It deploys the exact
-# commit CI validated (head_sha), not the branch tip.
+# Production is an explicit operator action. Automatic main-CI promotion lives
+# in deploy-staging.yml and has no Vercel deployment credentials.
 
 on:
-  workflow_run:
-    workflows: ['CI']
-    types: [completed]
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full 40-character main commit SHA to release
+        required: true
+        type: string
+      staging_deployment_id:
+        description: READY staging deployment ID accepted by the operator
+        required: true
+        type: string
+      staging_deployment_sha:
+        description: Full SHA recorded by the accepted staging deployment
+        required: true
+        type: string
 
-# Never run two production deploys at once; let an in-flight deploy finish
-# rather than cancelling it mid-upload.
+permissions:
+  contents: read
+  actions: read
+
 concurrency:
-  group: deploy-production
+  group: release-production
   cancel-in-progress: false
 
 jobs:
+  preflight:
+    name: Validate production release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      commit_sha: ${{ steps.validate.outputs.commit_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate exact SHA and CI evidence
+        id: validate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          STAGING_DEPLOYMENT_ID: ${{ inputs.staging_deployment_id }}
+          STAGING_DEPLOYMENT_SHA: ${{ inputs.staging_deployment_sha }}
+        run: |
+          set -euo pipefail
+
+          [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "commit_sha must be a full 40-character SHA" >&2
+            exit 1
+          }
+          [[ "$STAGING_DEPLOYMENT_ID" =~ ^[A-Za-z0-9._:-]+$ ]] || {
+            echo "staging_deployment_id is invalid" >&2
+            exit 1
+          }
+          [[ "$STAGING_DEPLOYMENT_SHA" == "$COMMIT_SHA" ]] || {
+            echo "staging evidence SHA does not match commit_sha" >&2
+            exit 1
+          }
+
+          git fetch origin main --no-tags
+          git merge-base --is-ancestor "$COMMIT_SHA" origin/main || {
+            echo "commit_sha is not reachable from origin/main" >&2
+            exit 1
+          }
+
+          ci_sha="$(gh run list --workflow CI --branch main --event push --status success --limit 100 --json headSha --jq '.[].headSha' | grep -Fx "$COMMIT_SHA" || true)"
+          [[ -n "$ci_sha" ]] || {
+            echo "no successful main CI push found for commit_sha" >&2
+            exit 1
+          }
+
+          echo "commit_sha=$COMMIT_SHA" >>"$GITHUB_OUTPUT"
+          echo "Validated main reachability, successful CI, and staging evidence $STAGING_DEPLOYMENT_ID."
+
   deploy:
-    name: Deploy myK9Show to Vercel (production)
+    name: Deploy myK9Show to Vercel production
+    needs: preflight
+    if: needs.preflight.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Only when CI SUCCEEDED on a push to main (post-merge). Skips PR runs,
-    # failed/cancelled CI runs, and any non-main branch.
-    #
-    # The PRODUCTION_DEPLOY_ENABLED repo variable is the enable gate: until an
-    # operator sets it to 'true' (AFTER adding the VERCEL_* secrets), this job is
-    # SKIPPED — so the workflow is genuinely inert on merge and never runs
-    # `vercel deploy` with empty secrets (which would fail the run, not no-op).
-    # See docs/operations/ci-vercel-deploys.md.
-    if: >-
-      vars.PRODUCTION_DEPLOY_ENABLED == 'true' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main'
     environment:
       name: production
       url: ${{ steps.deploy.outputs.url }}
+    permissions:
+      contents: read
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v7
         with:
-          # Deploy the commit CI actually validated, not whatever the branch tip
-          # has drifted to since the CI run started.
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ needs.preflight.outputs.commit_sha }}
 
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-
-      # Remote build: Vercel builds using the project's own settings (Root
-      # Directory apps/myk9show, the turbo buildCommand in vercel.json, and the
-      # dashboard env vars) — identical to the previous Git auto-deploy, only the
-      # trigger changed. Run from the repo root so the whole monorepo is uploaded
-      # and the project's Root Directory resolves correctly. Archive the upload
-      # to stay below the Hobby plan's per-deployment file-upload limit.
-      - name: Deploy to Vercel (production)
-        id: deploy
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set -euo pipefail
-          url="$(vercel deploy --prod --yes --archive=tgz --token="$VERCEL_TOKEN")"
-          echo "Deployed: $url"
-          echo "url=$url" >>"$GITHUB_OUTPUT"
-
-      - name: Summary
-        run: |
-          {
-            echo "### Production deploy"
-            echo ""
-            echo "- Commit: \`${{ github.event.workflow_run.head_sha }}\`"
-            echo "- URL: ${{ steps.deploy.outputs.url }}"
-          } >>"$GITHUB_STEP_SUMMARY"
-
-  deploy-docs:
-    name: Deploy guides to Vercel (production)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    # Keep the guides project on the same post-merge CI gate as myK9Show.
-    # The separate project ID lets both projects share the Vercel org and token
-    # without accidentally deploying the app project twice.
-    if: >-
-      vars.PRODUCTION_DEPLOY_ENABLED == 'true' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main'
-    environment:
-      name: production-docs
-      url: ${{ steps.deploy.outputs.url }}
-    env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_DOCS_PROJECT_ID }}
-    steps:
-      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
         with:
-          # Deploy the same commit that CI validated for the app deployment.
-          ref: ${{ github.event.workflow_run.head_sha }}
+          run_install: false
 
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+      - name: Verify accepted staging deployment is READY
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          STAGING_DEPLOYMENT_ID: ${{ inputs.staging_deployment_id }}
+          EXPECTED_SHA: ${{ needs.preflight.outputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v13/deployments/$STAGING_DEPLOYMENT_ID?teamId=$VERCEL_ORG_ID" \
+            > staging-deployment.json
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v2/deployments/$STAGING_DEPLOYMENT_ID/aliases?teamId=$VERCEL_ORG_ID" \
+            > staging-aliases.json
+          node - staging-deployment.json "$EXPECTED_SHA" <<'NODE'
+          const fs = require('node:fs');
+          const [file, expectedSha] = process.argv.slice(2);
+          const deployment = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const deploymentSha = deployment.meta?.githubCommitSha ?? deployment.gitSource?.sha;
+          if (deployment.readyState !== 'READY') {
+            throw new Error(`staging deployment is ${deployment.readyState ?? 'unknown'}, not READY`);
+          }
+          if (deploymentSha !== expectedSha) {
+            throw new Error(`staging deployment SHA ${deploymentSha ?? 'missing'} does not match ${expectedSha}`);
+          }
+          NODE
+          node - staging-aliases.json <<'NODE'
+          const fs = require('node:fs');
+          const aliases = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!aliases.aliases?.some(({ alias }) => alias === 'staging.myk9show.com')) {
+            throw new Error('accepted staging deployment does not own staging.myk9show.com');
+          }
+          NODE
+          curl --fail --silent --show-error --head https://staging.myk9show.com >/dev/null
+          rm -f staging-deployment.json staging-aliases.json
 
-      # Run from the repository root so the docs project's Root Directory
-      # (apps/docs) can still read docs/user-guides during its build. Archive the
-      # upload to stay below the Hobby plan's per-deployment file-upload limit.
-      - name: Deploy guides to Vercel (production)
+      - name: Deploy exact approved SHA to production
         id: deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          url="$(vercel deploy --prod --yes --archive=tgz --token="$VERCEL_TOKEN")"
+          url="$(pnpm dlx vercel@latest deploy --prod --yes --archive=tgz --token="$VERCEL_TOKEN")"
           echo "Deployed: $url"
           echo "url=$url" >>"$GITHUB_OUTPUT"
 
       - name: Summary
         run: |
+          curl --fail --silent --show-error --head https://myk9show.com >/dev/null
           {
-            echo "### Guides production deploy"
+            echo "### Production release"
             echo ""
-            echo "- Commit: \`${{ github.event.workflow_run.head_sha }}\`"
+            echo "- Commit: \`${{ needs.preflight.outputs.commit_sha }}\`"
             echo "- URL: ${{ steps.deploy.outputs.url }}"
           } >>"$GITHUB_STEP_SUMMARY"

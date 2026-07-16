@@ -20,12 +20,12 @@
 
 ## 3. Entry Status History ([MYK9-20](https://linear.app/myk9-platform/issue/MYK9-20/add-staff-visible-entry-status-history-to-the-existing-entry-workflow))
 
-- [ ] 3.1 Inventory every authoritative entry-status write path and the existing staff entry-detail/edit surfaces; confirm the chosen host and update the design before implementation if current writes cannot support a truthful history.
-- [ ] 3.2 Write value-sensitive mapper/read-adapter tests that assert `previous_status`, `new_status`, `changed_by`, `changed_at`, and `reason` are selected and mapped by their generated schema names.
-- [ ] 3.3 Implement a typed, staff-authorized status-history service and React Query hook that remains outside core entry/class loading and action paths.
-- [ ] 3.4 Write component tests for ordered transitions, missing actor/reason fallbacks, no-history fallback, loading, scoped failure/retry, first-time offline, cached offline, and unauthorized-role hiding.
-- [ ] 3.5 Add the read-only “Entry status history” timeline to the chosen existing entry-detail/edit workflow without creating a new route, page, sheet, or generic activity feed.
-- [ ] 3.6 Run focused history service/hook/component tests, relevant RLS contract tests, and the narrow myK9Show TypeScript check.
+- [x] 3.1 Inventory every authoritative entry-status write path and the existing staff entry-detail/edit surfaces; confirm the chosen host and update the design before implementation if current writes cannot support a truthful history.
+- [x] 3.2 Write value-sensitive mapper/read-adapter tests that assert `previous_status`, `new_status`, `changed_by`, `changed_at`, and `reason` are selected and mapped by their generated schema names.
+- [x] 3.3 Implement a typed, staff-authorized status-history service and React Query hook that remains outside core entry/class loading and action paths.
+- [x] 3.4 Write component tests for ordered transitions, missing actor/reason fallbacks, no-history fallback, loading, scoped failure/retry, first-time offline, cached offline, and unauthorized-role hiding.
+- [x] 3.5 Add the read-only “Entry status history” timeline to the chosen existing entry-detail/edit workflow without creating a new route, page, sheet, or generic activity feed.
+- [x] 3.6 Run focused history service/hook/component tests, relevant RLS contract tests, and the narrow myK9Show TypeScript check.
 - [ ] 3.7 Open the third Linear-linked PR with authorization/offline evidence and intentional exclusions, obtain review, wait for required CI, and merge.
 
 ## 4. End-to-End Verification and Closeout

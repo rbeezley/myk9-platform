@@ -49,6 +49,7 @@ import { logger } from '@/services/LoggingService';
 import { disciplineUsesJumpHeight } from '@/types/template.types';
 import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
 import { EditingBadge } from '@/features/show-presence/EditingBadge';
+import { EntryStatusHistory } from './EntryStatusHistory';
 
 interface EntryClass {
   id: string;
@@ -69,6 +70,8 @@ interface EntryData {
   showId: string;
   showName: string;
   dogName: string;
+  currentStatus?: string | null;
+  createdAt?: string | null;
   handler?: string;
   classes: EntryClass[];
 }
@@ -423,6 +426,12 @@ export function EntryEditDialog({
                     );
                   })}
                 </div>
+
+                <EntryStatusHistory
+                  entryId={entry.id}
+                  currentStatus={entry.currentStatus}
+                  createdAt={entry.createdAt}
+                />
               </div>
             )}
           </SheetBody>

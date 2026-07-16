@@ -62,7 +62,37 @@ Each actionable metric links to the existing owner surface. Entry, review, payme
 
 Alternative considered: a separate Class Command Center. Rejected as direct duplication of Class Details, Entry Management, Show Map, and scoring.
 
-### 4. Treat lifecycle history as a secondary, read-only staff enhancement
+### 4. Capture lifecycle history at the database status boundary
+
+The implementation inventory found that `entry_status_history` exists but no
+current app path inserts rows. The authoritative status writes are split across
+the replicated secretary mutation seam (`services/database/entries/secretary.ts`
+and `services/replication/ReplicatedEntriesTable.ts`), named lifecycle and
+day-of transitions (`services/database/entries/lifecycle.ts` and
+`services/database/day-of-operations/`), Show Map restore/move-up mutations,
+and direct SQL/RPC/ringside updates in Supabase migrations. The existing
+`auditService` calls are useful operational logs but do not populate the
+generated `entry_status_history` schema.
+
+Install one `AFTER UPDATE OF entry_status` trigger on `public.entries` so every
+authoritative database write records the old and new status. The trigger maps
+`auth.uid()` to `people.id` when available. It only copies a reason changed in
+the same update from the existing withdrawal/special-request fields; otherwise
+`reason` remains null rather than inventing an explanation. This keeps the
+history truthful for direct, replicated, RPC, and service-role writes.
+
+Tighten the existing history SELECT policy to the entry's show access using
+the established `is_show_official` and club-admin helpers. The UI remains
+staff-gated, while RLS is the final boundary for show scope.
+
+The chosen host is the existing `EntryEditDialog`, which is opened from the
+secretary Entry Management workflow and already serves the exhibitor edit
+workflow. The control is hidden for non-staff roles and expands an inline,
+read-only section, preserving the current entry and filter context. The older
+`entryMappers.ts` relation mapper remains a compatibility path; the new
+adapter does not reuse its non-schema `history.status` assumption.
+
+### 5. Treat lifecycle history as a secondary, read-only staff enhancement
 
 Add a typed history read adapter that selects the generated `entry_status_history` fields and maps `new_status`/`previous_status` explicitly. The timeline is available from the existing staff entry-detail/edit workflow and does not create another route.
 
@@ -70,11 +100,11 @@ History is staff-only and read-only. Existing RLS remains the authorization boun
 
 Alternative considered: add status history to replication in the same change. Rejected because that expands replication schema, storage, and sync risk for a secondary view. If show-day validation proves offline history is operationally required, that becomes a separate replication change.
 
-### 5. Preserve truthful partial states
+### 6. Preserve truthful partial states
 
 Readiness uses the already-loaded class/entry source and does not issue a second competing count query. While that source is loading, the strip uses a compact skeleton. If the source fails, it does not render confident zeros. History failures remain scoped to history and never replace the run sheet or Entry Management content.
 
-### 6. Ship in dependency order
+### 7. Ship in dependency order
 
 The implementation order is:
 
@@ -97,7 +127,10 @@ This ordering lets later UI depend on tested contracts and keeps each Linear iss
 
 ## Migration Plan
 
-No database migration is expected for the initial scope because `entry_status_history` and its staff-scoped RLS already exist. If implementation discovers missing authoritative writes, stop and update this design before adding schema or triggers.
+One migration adds the status-boundary trigger and replaces the permissive
+history SELECT policy with show-scoped staff access. The existing table and
+generated fields are reused; no new history table or replication surface is
+introduced.
 
 Deploy the shared classifier/URL contract first, then the readiness UI, then the read-only history UI. Rollback removes the new UI and URL handling; no user data is rewritten. Existing links without the new parameters retain their current behavior.
 

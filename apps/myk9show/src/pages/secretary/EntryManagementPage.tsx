@@ -210,6 +210,8 @@ const EntryManagementPage: React.FC = () => {
       showId: entry.showId,
       showName: selectedShow?.name ?? 'this show',
       dogName: entry.dogName,
+      currentStatus: entry.rawEntryStatus ?? entry.entryStatus,
+      createdAt: entry.submittedAt.toISOString(),
       handler: entry.handlerName,
       classes: entry.classes.map(cls => ({
         id: cls.id,

@@ -139,6 +139,17 @@ describe('Button', () => {
       fireEvent.click(screen.getByText('Go'));
       expect(clicked).toBe(false);
     });
+
+    it('preserves a caller-provided aria state when not loading', () => {
+      render(
+        <Button aria-disabled aria-busy>
+          Save
+        </Button>
+      );
+      const button = screen.getByRole('button');
+      expect(button).toHaveAttribute('aria-disabled', 'true');
+      expect(button).toHaveAttribute('aria-busy', 'true');
+    });
   });
 
   describe('variants', () => {

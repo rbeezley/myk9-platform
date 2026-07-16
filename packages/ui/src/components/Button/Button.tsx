@@ -22,6 +22,11 @@ export interface ButtonProps
    * Show a pending spinner and disable the button for the duration of an action.
    * Opt-in: omit it on surfaces where a spinner is deliberately absent
    * (judge scoring between entries, silent background sync — see docs/INTENT.md).
+   *
+   * Designed for the standard button form. With `asChild`/`render`, loading
+   * still applies inert affordances (aria-busy, aria-disabled, tabIndex,
+   * pointer-events) and guards the wrapper click handler, but it cannot block a
+   * custom child element's own `onClick`. Keep pending actions on plain buttons.
    */
   loading?: boolean;
 }
@@ -89,8 +94,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         // spinner affordance renders for the button form.
         onClick: handleClick,
         disabled: disabled || loading,
-        'aria-busy': loading || undefined,
-        'aria-disabled': loading || undefined,
+        // Force the pending ARIA state while loading, but fall through to any
+        // caller-provided value otherwise — never clobber it with undefined.
+        'aria-busy': loading ? true : props['aria-busy'],
+        'aria-disabled': loading ? true : props['aria-disabled'],
         tabIndex: loading ? -1 : props.tabIndex,
         children: content,
         className: cn(

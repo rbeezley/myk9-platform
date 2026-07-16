@@ -112,7 +112,7 @@ jobs:
           set -euo pipefail
           curl --fail --silent --show-error --location \
             --header "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v13/deployments/$STAGING_DEPLOYMENT_ID?teamId=$VERCEL_ORG_ID" \
+            "https://api.vercel.com/v13/deployments/$STAGING_DEPLOYMENT_ID?teamId=$VERCEL_ORG_ID&withGitRepoInfo=true" \
             > staging-deployment.json
           curl --fail --silent --show-error --location \
             --header "Authorization: Bearer $VERCEL_TOKEN" \
@@ -150,12 +150,63 @@ jobs:
           echo "Deployed: $url"
           echo "url=$url" >>"$GITHUB_OUTPUT"
 
+      - name: Verify released deployment owns production domain
+        id: verify_production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          EXPECTED_SHA: ${{ needs.preflight.outputs.commit_sha }}
+          PRODUCTION_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          PRODUCTION_DEPLOYMENT_REF="${PRODUCTION_URL#https://}"
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v13/deployments/$PRODUCTION_DEPLOYMENT_REF?teamId=$VERCEL_ORG_ID&withGitRepoInfo=true" \
+            > production-deployment.json
+          PRODUCTION_DEPLOYMENT_ID="$(node - production-deployment.json "$EXPECTED_SHA" "$VERCEL_PROJECT_ID" <<'NODE'
+          const fs = require('node:fs');
+          const [file, expectedSha, expectedProjectId] = process.argv.slice(2);
+          const deployment = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const deploymentSha = deployment.meta?.githubCommitSha ?? deployment.gitSource?.sha;
+          if (deployment.readyState !== 'READY') {
+            throw new Error(`production deployment is ${deployment.readyState ?? 'unknown'}, not READY`);
+          }
+          if (deploymentSha !== expectedSha) {
+            throw new Error(`production deployment SHA ${deploymentSha ?? 'missing'} does not match ${expectedSha}`);
+          }
+          if (deployment.projectId !== expectedProjectId) {
+            throw new Error('production deployment belongs to an unexpected Vercel project');
+          }
+          const deploymentId = deployment.id ?? deployment.uid;
+          if (!deploymentId) {
+            throw new Error('production deployment response is missing its deployment ID');
+          }
+          process.stdout.write(deploymentId);
+          NODE
+          )"
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v2/deployments/$PRODUCTION_DEPLOYMENT_ID/aliases?teamId=$VERCEL_ORG_ID" \
+            > production-aliases.json
+          node - production-aliases.json <<'NODE'
+          const fs = require('node:fs');
+          const aliases = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!aliases.aliases?.some(({ alias }) => alias === 'myk9show.com')) {
+            throw new Error('released production deployment does not own myk9show.com');
+          }
+          NODE
+          curl --fail --silent --show-error --head "$PRODUCTION_URL" >/dev/null
+          curl --fail --silent --show-error --head https://myk9show.com >/dev/null
+          echo "deployment_id=$PRODUCTION_DEPLOYMENT_ID" >>"$GITHUB_OUTPUT"
+          rm -f production-deployment.json production-aliases.json
+
       - name: Summary
         run: |
-          curl --fail --silent --show-error --head https://myk9show.com >/dev/null
           {
             echo "### Production release"
             echo ""
             echo "- Commit: \`${{ needs.preflight.outputs.commit_sha }}\`"
+            echo "- Deployment: \`${{ steps.verify_production.outputs.deployment_id }}\`"
             echo "- URL: ${{ steps.deploy.outputs.url }}"
+            echo "- Verified domain: \`myk9show.com\`"
           } >>"$GITHUB_STEP_SUMMARY"

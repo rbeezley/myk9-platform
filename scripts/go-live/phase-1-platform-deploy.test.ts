@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { mkdtempSync } from 'node:fs';
@@ -36,9 +36,23 @@ function writeCompleteRoot(root: string): void {
       'refs/heads/staging-release',
       'refs/heads/guides-release',
       'contents: write',
+      'actions: read',
+      'deployments: read',
       'cancel-in-progress: false',
+      'id: candidate',
+      'should_promote=false',
+      'should_promote=true',
+      "if: steps.candidate.outputs.should_promote == 'true'",
+      'id: promote',
+      'promoted_at',
       'gh api',
-      'deployments?sha=$TARGET_SHA&environment=$environment',
+      'Staging – myk9-platform-myk9show',
+      'Production – myk9-platform-myk9show-guides',
+      '-f environment="$environment"',
+      '.creator.login == "vercel[bot]"',
+      '(.ref == $sha or .ref == $releaseRef)',
+      '.created_at >= $promotedAt',
+      'environment_url',
       'latest_sha',
       '[[ "$latest_sha" != "$TARGET_SHA" ]]',
       'refs/heads/staging-release" --force',
@@ -74,6 +88,10 @@ function writeCompleteRoot(root: string): void {
       "deployment.readyState !== 'READY'",
       'rm -f staging-deployment.json staging-aliases.json',
       'staging.myk9show.com',
+      'api.vercel.com/v13/deployments/$PRODUCTION_DEPLOYMENT_REF',
+      'api.vercel.com/v2/deployments/$PRODUCTION_DEPLOYMENT_ID/aliases',
+      "aliases?.some(({ alias }) => alias === 'myk9show.com')",
+      'deploymentSha !== expectedSha',
       'curl --fail --silent --show-error --head https://myk9show.com',
       'pnpm dlx vercel@latest deploy --prod',
     ].join('\n')
@@ -196,6 +214,54 @@ describe('phase 1 deploy verifier', () => {
       key: 'deploy_workflow_ci_gate',
       status: 'fail',
       detail: 'automatic staging workflow contains: VERCEL_TOKEN',
+    });
+  });
+
+  it('fails when superseded staging candidates do not gate every later step', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    const workflowPath = path.join(root, '.github/workflows/deploy-staging.yml');
+    const workflow = readFileSync(workflowPath, 'utf8').replace(
+      "if: steps.candidate.outputs.should_promote == 'true'",
+      ''
+    );
+    writeFileSync(workflowPath, workflow);
+
+    expect(checkDeployWorkflow(root)).toMatchObject({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+    });
+  });
+
+  it('fails when staging readiness can select another Vercel project or ref', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    const workflowPath = path.join(root, '.github/workflows/deploy-staging.yml');
+    const workflow = readFileSync(workflowPath, 'utf8').replace(
+      '(.ref == $sha or .ref == $releaseRef)',
+      ''
+    );
+    writeFileSync(workflowPath, workflow);
+
+    expect(checkDeployWorkflow(root)).toMatchObject({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
+    });
+  });
+
+  it('fails when production does not attest the new deployment alias', () => {
+    const root = makeRoot();
+    writeCompleteRoot(root);
+    const workflowPath = path.join(root, '.github/workflows/deploy-production.yml');
+    const workflow = readFileSync(workflowPath, 'utf8').replace(
+      "aliases?.some(({ alias }) => alias === 'myk9show.com')",
+      ''
+    );
+    writeFileSync(workflowPath, workflow);
+
+    expect(checkDeployWorkflow(root)).toMatchObject({
+      key: 'deploy_workflow_ci_gate',
+      status: 'fail',
     });
   });
 

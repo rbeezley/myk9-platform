@@ -324,6 +324,7 @@ async function main(): Promise<void> {
   if (failed.length > 0) {
     console.log(`\nFailed: ${failed.length}/${results.length}`);
     failed.forEach(result => console.log(`  - ${result.email}: ${result.error}`));
+    process.exitCode = 1;
   }
 
   console.log('\n========================================');

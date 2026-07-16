@@ -112,9 +112,9 @@ export function toScoringEntry(
     dogId: entry.dogId || '',
 
     // Display fields
-    callName: entry.dogCallName || entry.dog_call_name || dog?.callName || dog?.name || 'Unknown',
+    callName: dog?.callName || dog?.name || entry.dogCallName || entry.dog_call_name || 'Unknown',
     handler: entry.handler || 'Unknown Handler',
-    breed: breedOverride || entry.dogBreed || entry.dog_breed || dog?.breed || 'Unknown Breed',
+    breed: breedOverride || dog?.breed || entry.dogBreed || entry.dog_breed || 'Unknown Breed',
     armband,
 
     // Status

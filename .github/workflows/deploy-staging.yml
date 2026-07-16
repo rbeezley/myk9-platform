@@ -11,6 +11,8 @@ on:
 
 permissions:
   contents: write
+  actions: read
+  deployments: read
 
 concurrency:
   group: deploy-staging
@@ -29,6 +31,8 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      actions: read
+      deployments: read
     env:
       GH_TOKEN: ${{ github.token }}
       TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -39,43 +43,75 @@ jobs:
           fetch-depth: 0
 
       - name: Skip superseded CI candidates
+        id: candidate
         run: |
           set -euo pipefail
           latest_sha="$(gh run list --workflow CI --branch main --event push --status success --limit 1 --json headSha --jq '.[0].headSha')"
           if [[ "$latest_sha" != "$TARGET_SHA" ]]; then
             echo "Superseded by newer successful main CI SHA $latest_sha"
+            echo "should_promote=false" >>"$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "should_promote=true" >>"$GITHUB_OUTPUT"
 
       - name: Advance the protected release refs
+        id: promote
+        if: steps.candidate.outputs.should_promote == 'true'
         run: |
           set -euo pipefail
+          echo "promoted_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >>"$GITHUB_OUTPUT"
           git push origin "$TARGET_SHA:refs/heads/staging-release" --force
           git push origin "$TARGET_SHA:refs/heads/guides-release" --force
 
       - name: Wait for READY staging and guides deployments
+        id: readiness
+        if: steps.candidate.outputs.should_promote == 'true'
         env:
           REPOSITORY: ${{ github.repository }}
+          PROMOTED_AT: ${{ steps.promote.outputs.promoted_at }}
         run: |
           set -euo pipefail
 
           wait_for_ready_deployment() {
             local environment="$1"
-            local domain="$2"
-            local label="$3"
+            local release_ref="$2"
+            local domain="$3"
+            local label="$4"
 
             for attempt in {1..60}; do
-              deployment_id="$(gh api \
-                "repos/$REPOSITORY/deployments?sha=$TARGET_SHA&environment=$environment&per_page=20" \
-                --jq '.[0].id' 2>/dev/null || true)"
+              deployments="$(gh api --method GET "repos/$REPOSITORY/deployments" \
+                -f sha="$TARGET_SHA" \
+                -f environment="$environment" \
+                -f per_page=20 2>/dev/null || echo '[]')"
+              deployment_id="$(jq -r \
+                --arg sha "$TARGET_SHA" \
+                --arg environment "$environment" \
+                --arg releaseRef "$release_ref" \
+                --arg promotedAt "$PROMOTED_AT" \
+                '[.[] | select(
+                  .creator.login == "vercel[bot]" and
+                  .sha == $sha and
+                  .environment == $environment and
+                  (.ref == $sha or .ref == $releaseRef) and
+                  .created_at >= $promotedAt
+                )] | first | .id // empty' <<<"$deployments")"
               if [[ -n "$deployment_id" && "$deployment_id" != "null" ]]; then
-                state="$(gh api \
+                statuses="$(gh api \
                   "repos/$REPOSITORY/deployments/$deployment_id/statuses?per_page=20" \
-                  --jq '.[0].state' 2>/dev/null || true)"
+                  2>/dev/null || echo '[]')"
+                state="$(jq -r 'first | select(.creator.login == "vercel[bot]") | .state // empty' <<<"$statuses")"
                 case "$state" in
                   success)
+                    environment_url="$(jq -r 'first | .environment_url // empty' <<<"$statuses")"
+                    [[ "$environment_url" == https://*.vercel.app ]] || {
+                      echo "$label deployment is missing an immutable Vercel environment URL" >&2
+                      return 1
+                    }
+                    curl --fail --silent --show-error --head "$environment_url" >/dev/null
                     curl --fail --silent --show-error --head "https://$domain" >/dev/null
-                    echo "$label deployment $deployment_id is READY at https://$domain"
+                    echo "${label}_deployment_id=$deployment_id" >>"$GITHUB_OUTPUT"
+                    echo "${label}_deployment_url=$environment_url" >>"$GITHUB_OUTPUT"
+                    echo "$label deployment $deployment_id is READY at $environment_url and https://$domain"
                     return 0
                     ;;
                   error|failure|inactive)
@@ -92,15 +128,26 @@ jobs:
             return 1
           }
 
-          wait_for_ready_deployment staging staging.myk9show.com app
-          wait_for_ready_deployment production help.myk9show.com guides
+          wait_for_ready_deployment \
+            'Staging – myk9-platform-myk9show' \
+            staging-release \
+            staging.myk9show.com \
+            app
+          wait_for_ready_deployment \
+            'Production – myk9-platform-myk9show-guides' \
+            guides-release \
+            help.myk9show.com \
+            guides
 
       - name: Summary
+        if: steps.candidate.outputs.should_promote == 'true'
         run: |
           {
             echo "### Staging release promotion"
             echo ""
             echo "- Commit: \`$TARGET_SHA\`"
             echo "- Refs: \`staging-release\`, \`guides-release\`"
-            echo "- READY domains: \`staging.myk9show.com\`, \`help.myk9show.com\`"
+            echo "- App deployment: \`${{ steps.readiness.outputs.app_deployment_id }}\` (${{ steps.readiness.outputs.app_deployment_url }})"
+            echo "- Guides deployment: \`${{ steps.readiness.outputs.guides_deployment_id }}\` (${{ steps.readiness.outputs.guides_deployment_url }})"
+            echo "- Verified domains: \`staging.myk9show.com\`, \`help.myk9show.com\`"
           } >>"$GITHUB_STEP_SUMMARY"

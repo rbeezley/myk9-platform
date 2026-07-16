@@ -19,6 +19,8 @@ interface StandardDialogProps {
   saveIcon?: React.ReactNode | undefined;
   hideSave?: boolean | undefined;
   showIcons?: boolean | undefined;
+  /** Tailwind max-width class for the dialog (e.g. 'max-w-md'). Defaults to CommonDialog's max-w-lg. */
+  maxWidth?: string | undefined;
 }
 
 const StandardDialog: React.FC<StandardDialogProps> = ({
@@ -37,6 +39,7 @@ const StandardDialog: React.FC<StandardDialogProps> = ({
   saveIcon,
   hideSave,
   showIcons,
+  maxWidth,
 }) => (
   <CommonDialog
     open={open}
@@ -44,6 +47,7 @@ const StandardDialog: React.FC<StandardDialogProps> = ({
     title={title}
     titleIcon={titleIcon}
     description={description}
+    {...(maxWidth !== undefined && { maxWidth })}
     footer={
       !hideSave ? (
         <DialogFooterButtons
@@ -52,7 +56,10 @@ const StandardDialog: React.FC<StandardDialogProps> = ({
           saveLabel={saveLabel}
           cancelLabel={cancelLabel}
           isSubmitting={isSubmitting}
-          showIcons={showIcons ?? (saveLabel !== 'Delete' && !saveLabel?.toString().toLowerCase().includes('delete'))}
+          showIcons={
+            showIcons ??
+            (saveLabel !== 'Delete' && !saveLabel?.toString().toLowerCase().includes('delete'))
+          }
           formId={formId}
           saveButtonProps={saveButtonProps}
           saveIcon={saveIcon}

@@ -109,14 +109,40 @@ AlertDialogDescription.displayName = 'AlertDialogDescription';
 const AlertDialogAction = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement>
->(({ className, style, ...props }, ref) => (
-  <AlertDialogPrimitive.Close
-    ref={ref}
-    className={cn(buttonVariants({ size: 'lg' }), className)}
-    {...(style !== undefined && { style })}
-    {...props}
-  />
-));
+>(({ className, style, onClick, ...props }, ref) => {
+  // Guard against double-submit. This action is a Close, so a click fires the
+  // caller's handler and begins dismissing the dialog. When the handler is
+  // async the popup stays mounted until it resolves, so a second tap in that
+  // window would re-fire an irreversible action (delete, release, revoke).
+  // Latch to one invocation per mount; the popup unmounts on close, so the
+  // latch resets on the next open.
+  //
+  // Known narrow limitation: if a dialog is programmatically reopened *during*
+  // its ~200ms closing animation (before unmount), this instance is reused with
+  // the latch still set and the next confirm is ignored until a full close.
+  // Resetting on the open transition instead would need Base UI's live open
+  // state, which is only reachable via a Popup render wrapper (breaks the popup
+  // grid) or onOpenChange (does not fire for controlled dialogs) — both worse
+  // than the edge they fix. No app flow reopens a confirm dialog that fast.
+  const firedRef = React.useRef(false);
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (firedRef.current) {
+      event.preventDefault();
+      return;
+    }
+    firedRef.current = true;
+    onClick?.(event);
+  };
+  return (
+    <AlertDialogPrimitive.Close
+      ref={ref}
+      className={cn(buttonVariants({ size: 'lg' }), className)}
+      {...(style !== undefined && { style })}
+      onClick={handleClick}
+      {...props}
+    />
+  );
+});
 AlertDialogAction.displayName = 'AlertDialogAction';
 
 const AlertDialogCancel = React.forwardRef<

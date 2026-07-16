@@ -1,0 +1,77 @@
+# Nightly E2E — full myK9Show Playwright suite (beyond the 2-spec PR smoke in
+# ci.yml's e2e-myk9show job). Runs on a schedule so broader E2E coverage
+# doesn't slow down every PR, while still catching regressions daily.
+#
+# Manual dispatch: use "Run workflow" in the Actions tab to trigger on demand
+# (e.g. to verify a fix before waiting for the next scheduled run).
+#
+# Gated on the MYK9SHOW_SMOKE_CI_ENABLED repository variable since this job
+# exercises the shared Supabase project, same as the PR smoke job. Schedule
+# events have no PR context, so the `if:` only checks the repo variable.
+name: Nightly E2E
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+jobs:
+  e2e-myk9show-nightly:
+    name: E2E Nightly
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.12.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify E2E auth credentials
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts secretary
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+
+      - name: Build app + packages
+        run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Install Playwright browser
+        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
+
+      - name: Run E2E Nightly
+        working-directory: apps/myk9show
+        run: pnpm test:e2e:nightly
+        env:
+          CI: 'true'
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+
+      - name: Upload E2E nightly report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: myk9show-nightly-e2e-report
+          path: apps/myk9show/playwright-report-ci/
+          retention-days: 7

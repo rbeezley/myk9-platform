@@ -7,6 +7,42 @@ loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
 
 const isA11ySmoke = process.env.PLAYWRIGHT_A11Y === 'true';
+const isNightly = process.env.PLAYWRIGHT_NIGHTLY === 'true';
+
+// Nightly: curated ~20-spec journey suite, run on a schedule outside CI's PR gate.
+const NIGHTLY_SPECS = [
+  '**/uat/secretary/critical-path.spec.ts',
+  '**/uat/secretary/disposable-entry.spec.ts',
+  '**/uat/secretary/evidence.spec.ts',
+  '**/uat/secretary/qa-regression-proof.spec.ts',
+  // payment/* specs are excluded: both are aspirational mock-based suites
+  // asserting features that don't exist (PayPal, chargebacks, payment plans)
+  // and fail unconditionally. Real payment journeys are tracked in MYK9-42.
+  '**/scoring/scoringWorkflow.spec.ts',
+  '**/show/atShowJudgeScoring.spec.ts',
+  '**/show/atShowOfflineScoring.spec.ts',
+  '**/show/showManagement.spec.ts',
+  '**/registration/entryCreationCore.spec.ts',
+  '**/registration/exhibitorSelfRegistration.spec.ts',
+  '**/authentication-validation.spec.ts',
+  '**/entities/entriesUI.spec.ts',
+  '**/secretary/show-creation-wizard.spec.ts',
+  '**/secretary/classCreation.spec.ts',
+  '**/browse-shows-to-details.spec.ts',
+  '**/my-entries-page-ui.spec.ts',
+  '**/cross-role-workflows.spec.ts',
+  '**/simple-connectivity.spec.ts',
+];
+
+// PR Smoke: 3 stable specs — connectivity, secretary regression proof, and the
+// secretary critical-path UAT suite. Verified green under this config before
+// promotion (2026-07-16). atShowOfflineScoring stays nightly-only (depends on
+// staging seed data); payment specs are excluded entirely (see NIGHTLY_SPECS).
+const PR_SMOKE_SPECS = [
+  '**/simple-connectivity.spec.ts',
+  '**/uat/secretary/qa-regression-proof.spec.ts',
+  '**/uat/secretary/critical-path.spec.ts',
+];
 
 /**
  * CI E2E Test Configuration for myK9Show
@@ -14,18 +50,15 @@ const isA11ySmoke = process.env.PLAYWRIGHT_A11Y === 'true';
  * Runs E2E tests against a built preview of the app.
  * Chromium only to keep CI fast.
  *
+ * Mode precedence: a11y > nightly > pr-smoke.
+ *
  * Run with: npx playwright test --config=playwright.ci.config.ts
+ * Nightly:  PLAYWRIGHT_NIGHTLY=true npx playwright test --config=playwright.ci.config.ts
  */
 export default defineConfig({
   testDir: './src/test/e2e',
-  // PR Smoke: 2 stable specs — connectivity + secretary regression proof.
-  // The Nightly suite (20 specs) runs on a separate schedule, not in CI.
-  testMatch: isA11ySmoke
-    ? ['**/a11y-smoke.spec.ts']
-    : ['**/simple-connectivity.spec.ts', '**/uat/secretary/qa-regression-proof.spec.ts'],
-  grep: isA11ySmoke
-    ? /has no serious\/critical violations/
-    : /load home page without authentication|Secretary QA regression proof/,
+  testMatch: isA11ySmoke ? ['**/a11y-smoke.spec.ts'] : isNightly ? NIGHTLY_SPECS : PR_SMOKE_SPECS,
+  grep: isA11ySmoke ? /has no serious\/critical violations/ : undefined,
   fullyParallel: false,
   forbidOnly: true,
   retries: 2,

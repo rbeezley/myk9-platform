@@ -166,18 +166,43 @@ describe('AskQPanel', () => {
   });
 
   it('shows an answer skeleton while waiting for the first AskQ response token', async () => {
+    // Deferred: the test decides when the first response arrives, so the
+    // skeleton assertion cannot race the stream under load. parseSSEStream is
+    // module-mocked to a no-op, so deliver events through its mock directly.
+    let releaseResponse!: (stream: ReadableStream<Uint8Array>) => void;
     vi.mocked(askqService.sendAskQQuery).mockReturnValue(
-      new Promise<ReadableStream<Uint8Array>>(() => {})
+      new Promise<ReadableStream<Uint8Array>>(resolve => {
+        releaseResponse = resolve;
+      })
     );
+    vi.mocked(askqService.parseSSEStream).mockImplementation(async (_stream, onEvent) => {
+      onEvent('token', 'Max time is 3 minutes.');
+      onEvent('done', {});
+    });
 
     act(() => useAskQPanelStore.getState().open());
     const { user } = render(<AskQPanel />);
 
     await user.click(screen.getByRole('button', { name: 'Rules' }));
-    await user.type(screen.getByPlaceholderText('Ask about the selected rulebook...'), 'Max time?');
+    // Barrier: prove the mode selection committed before interacting further
+    // (same stale-closure hazard as the 'This show' test below).
+    await screen.findByRole('button', { name: 'Rules', pressed: true });
+    const input = screen.getByPlaceholderText('Ask about the selected rulebook...');
+    fireEvent.change(input, { target: { value: 'Max time?' } });
     await user.click(screen.getByRole('button', { name: 'Send query' }));
 
-    expect(await screen.findByRole('status', { name: 'AskQ is answering' })).toBeInTheDocument();
+    // The deferred is still pending, so the skeleton must already be in the
+    // DOM — synchronous assertion, no waitFor needed.
+    expect(screen.getByRole('status', { name: 'AskQ is answering' })).toBeInTheDocument();
+
+    await act(async () => {
+      releaseResponse(createMockStream('Max time is 3 minutes.'));
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('status', { name: 'AskQ is answering' })).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Max time is 3 minutes.')).toBeInTheDocument();
   });
 
   it('keeps route-default mode out of the payload until the user chooses it', async () => {

@@ -14,11 +14,6 @@ export interface BaseEntityDialogProps {
   submitLabel?: string;
   cancelLabel?: string;
   isSubmitting?: boolean;
-  /**
-   * @deprecated Declared but not wired — its only caller is the dead FormDialog.
-   * Removed together with FormDialog when the shadow token layer is deleted.
-   */
-  submitDisabled?: boolean;
   maxWidth?: string;
   /** Render the submit action as destructive (see DialogFooterButtons). */
   destructive?: boolean;

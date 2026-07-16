@@ -109,14 +109,32 @@ AlertDialogDescription.displayName = 'AlertDialogDescription';
 const AlertDialogAction = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement>
->(({ className, style, ...props }, ref) => (
-  <AlertDialogPrimitive.Close
-    ref={ref}
-    className={cn(buttonVariants({ size: 'lg' }), className)}
-    {...(style !== undefined && { style })}
-    {...props}
-  />
-));
+>(({ className, style, onClick, ...props }, ref) => {
+  // Guard against double-submit. This action is a Close, so a click fires the
+  // caller's handler and begins dismissing the dialog. When the handler is
+  // async the popup stays mounted until it resolves, so a second tap in that
+  // window would re-fire an irreversible action (delete, release, revoke).
+  // Latch to one invocation per mount; the popup unmounts on close, so the
+  // latch resets naturally on the next open.
+  const firedRef = React.useRef(false);
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (firedRef.current) {
+      event.preventDefault();
+      return;
+    }
+    firedRef.current = true;
+    onClick?.(event);
+  };
+  return (
+    <AlertDialogPrimitive.Close
+      ref={ref}
+      className={cn(buttonVariants({ size: 'lg' }), className)}
+      {...(style !== undefined && { style })}
+      onClick={handleClick}
+      {...props}
+    />
+  );
+});
 AlertDialogAction.displayName = 'AlertDialogAction';
 
 const AlertDialogCancel = React.forwardRef<

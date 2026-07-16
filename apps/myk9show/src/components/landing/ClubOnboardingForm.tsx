@@ -267,7 +267,7 @@ export default function ClubOnboardingForm() {
               value={clubName}
               onChange={e => setClubName(e.target.value)}
               placeholder="e.g. Tri-State Kennel Club"
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-colors"
               required
             />
           </div>
@@ -284,7 +284,7 @@ export default function ClubOnboardingForm() {
               id="onb-organization"
               value={organization}
               onChange={e => setOrganization(e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-colors"
               required
             >
               <option value="">Select organization...</option>
@@ -311,7 +311,7 @@ export default function ClubOnboardingForm() {
                 value={contactName}
                 onChange={e => setContactName(e.target.value)}
                 placeholder="Your full name"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-colors"
                 required
               />
             </div>
@@ -328,7 +328,7 @@ export default function ClubOnboardingForm() {
                 value={contactEmail}
                 onChange={e => setContactEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-colors"
                 required
               />
             </div>
@@ -349,7 +349,7 @@ export default function ClubOnboardingForm() {
                 value={contactPhone}
                 onChange={e => setContactPhone(e.target.value)}
                 placeholder="(555) 123-4567"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-colors"
               />
             </div>
             <div>
@@ -364,7 +364,7 @@ export default function ClubOnboardingForm() {
                 type="date"
                 value={firstShowDate}
                 onChange={e => setFirstShowDate(e.target.value)}
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-colors"
               />
             </div>
           </div>
@@ -383,7 +383,7 @@ export default function ClubOnboardingForm() {
               onChange={e => setMessage(e.target.value)}
               placeholder="Anything else you'd like us to know?"
               rows={3}
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors resize-none"
+              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-colors resize-none"
             />
           </div>
 

@@ -90,7 +90,7 @@ export const OwnerSelectionField: React.FC = () => {
           id="ownerId"
           value={data.ownerId || ''}
           onChange={e => updateData({ ownerId: e.target.value })}
-          className="w-full border-0 bg-input rounded-xl px-3.5 py-3 text-base font-medium transition-all duration-200 focus:bg-background focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 focus:outline-none"
+          className="w-full border-0 bg-input rounded-xl px-3.5 py-3 text-base font-medium transition-all duration-200 focus:bg-background focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none"
         >
           <option value="" disabled>
             Select owner
@@ -348,7 +348,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     value={data.notes || ''}
                     onChange={handleInputChange('notes')}
                     placeholder="Enter additional notes about the dog"
-                    className="min-h-[80px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
+                    className="min-h-[80px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
                   />
                 </FormField>
 
@@ -358,7 +358,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     value={data.specialNeeds || ''}
                     onChange={handleInputChange('specialNeeds')}
                     placeholder="Enter any special needs or requirements"
-                    className="min-h-[60px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
+                    className="min-h-[60px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
                   />
                 </FormField>
               </div>

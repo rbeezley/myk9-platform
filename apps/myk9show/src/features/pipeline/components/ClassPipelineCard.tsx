@@ -174,7 +174,7 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
       className={cn(
         'relative w-full text-left rounded-lg border border-border/60 bg-card overflow-hidden',
         'transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         isClosed && 'opacity-60',
         isDragging && 'opacity-40'
       )}

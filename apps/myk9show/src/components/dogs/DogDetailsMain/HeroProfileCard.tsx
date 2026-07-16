@@ -30,7 +30,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
         <button
           type="button"
           onClick={onPhotoDialogOpen}
-          className="relative group flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 rounded-full"
+          className="relative group flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
           aria-label="Edit dog photo"
         >
           <Avatar className="w-20 h-20 border border-border">

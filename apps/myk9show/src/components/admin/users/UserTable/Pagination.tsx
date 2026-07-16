@@ -44,7 +44,7 @@ export const Pagination: React.FC<PaginationProps> = ({
               onChange={e => onPageSizeChange(Number(e.target.value))}
               aria-label="Rows per page"
               className="h-8 px-2 rounded-lg border border-border/50 bg-background/50 text-foreground
-                         text-sm font-[590] cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+                         text-sm font-[590] cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring"
             >
               {PAGE_SIZE_OPTIONS.map(size => (
                 <option key={size} value={size}>

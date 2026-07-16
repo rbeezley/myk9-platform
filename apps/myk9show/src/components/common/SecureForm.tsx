@@ -313,7 +313,7 @@ export function SecureInput({
         onChange={handleChange}
         onBlur={handleBlur}
         className={cn(
-          'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
+          'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring',
           displayError ? 'border-destructive focus-visible:ring-destructive' : 'border-gray-300',
           !hasSecurity && 'border-destructive bg-destructive/5',
           className
@@ -413,7 +413,7 @@ export function SecureTextarea({
         onChange={handleChange}
         maxLength={maxLength}
         className={cn(
-          'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical',
+          'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-ring resize-vertical',
           displayError ? 'border-destructive focus-visible:ring-destructive' : 'border-gray-300',
           className
         )}

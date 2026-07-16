@@ -43,9 +43,10 @@ function getActiveStep(entryStatus: EntryStatus, paymentStatus: PaymentStatus): 
   // a confirmed entry awaiting a separate approval, so its registration
   // lifecycle mirrors ACCEPTED.
   if (entryStatus === EntryStatus.ACCEPTED || entryStatus === EntryStatus.MOVE_UP_REQUESTED) {
-    const isPaid = paymentStatus === PaymentStatus.PAID_ONLINE ||
-                   paymentStatus === PaymentStatus.PAID_BY_CHECK ||
-                   paymentStatus === PaymentStatus.PAID_BY_CASH;
+    const isPaid =
+      paymentStatus === PaymentStatus.PAID_ONLINE ||
+      paymentStatus === PaymentStatus.PAID_BY_CHECK ||
+      paymentStatus === PaymentStatus.PAID_BY_CASH;
     return isPaid ? 3 : 2; // Step 3 (paid) or Step 2 (accepted)
   }
 
@@ -93,17 +94,13 @@ export const EntryStatusStepper: React.FC<EntryStatusStepperProps> = ({
                   className={cn(
                     'w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300',
                     completed && 'bg-success text-success-foreground',
-                    active && !hasError && 'bg-primary text-primary-foreground ring-2 ring-primary/30',
+                    active && !hasError && 'bg-primary text-primary-foreground ring-2 ring-ring',
                     active && hasError && 'bg-destructive text-white ring-2 ring-destructive/30',
                     active && isWaitlist && 'bg-warning text-white ring-2 ring-warning/30',
                     !completed && !active && 'bg-muted text-muted-foreground'
                   )}
                 >
-                  {completed ? (
-                    <Check className="w-3.5 h-3.5" />
-                  ) : (
-                    <span>{index + 1}</span>
-                  )}
+                  {completed ? <Check className="w-3.5 h-3.5" /> : <span>{index + 1}</span>}
                 </div>
                 <span
                   className={cn(
@@ -116,7 +113,13 @@ export const EntryStatusStepper: React.FC<EntryStatusStepperProps> = ({
                   )}
                 >
                   {/* Show special label for waitlist/rejected */}
-                  {active && isWaitlist ? 'Waitlist' : active && isRejected ? 'Rejected' : active && isCancelled ? 'Cancelled' : step.shortLabel}
+                  {active && isWaitlist
+                    ? 'Waitlist'
+                    : active && isRejected
+                      ? 'Rejected'
+                      : active && isCancelled
+                        ? 'Cancelled'
+                        : step.shortLabel}
                 </span>
               </div>
 

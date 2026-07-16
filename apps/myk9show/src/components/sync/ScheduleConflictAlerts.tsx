@@ -386,7 +386,7 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="pl-10 bg-background border-border/50 focus:border-primary 
-                         focus:ring-2 focus:ring-primary/20 rounded-lg"
+                         focus:ring-2 focus:ring-ring rounded-lg"
             />
           </div>
         </div>

@@ -495,7 +495,7 @@ function UnifiedSidebar<T extends { id: string }>({
                 'placeholder:text-slate-400 dark:placeholder:text-slate-500',
                 'text-slate-900 dark:text-slate-100',
                 // Focus states with primary accent color
-                'focus:ring-2 focus:ring-primary/20',
+                'focus:ring-2 focus:ring-ring',
                 'focus:border-primary/60',
                 'focus:bg-background dark:focus:bg-slate-800',
                 'focus:shadow-lg focus:shadow-primary/10',

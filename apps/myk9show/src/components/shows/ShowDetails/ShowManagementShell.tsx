@@ -245,7 +245,7 @@ export function ShowManagementShell({
             the target: ring makes the jump visibly land somewhere. */}
         <div
           id={SETUP_PUBLISH_ANCHOR}
-          className="mt-4 grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2 target:ring-2 target:ring-ring target:ring-offset-4 target:ring-offset-background"
+          className="mt-4 grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2 target:ring-2 target:ring-ring target:ring-offset-2 target:ring-offset-background"
         >
           <PremiumDownloadCard showId={show.id} showStaleBadge={true} />
           <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />

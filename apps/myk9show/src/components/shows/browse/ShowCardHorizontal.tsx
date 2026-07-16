@@ -40,7 +40,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
         'transition-all duration-200 ease-out',
         'hover:shadow-card-hover',
         entryStatus.status === 'closing_soon' && 'ring-2 ring-warning',
-        isSelected && 'ring-2 ring-primary/50'
+        isSelected && 'ring-2 ring-ring'
       )}
     >
       <Link

@@ -1,6 +1,6 @@
 /**
  * Live Score Updates Component
- * 
+ *
  * Real-time score display with sync status for live scoring sessions.
  * Provides visual feedback on score submission, sync status, and placement changes.
  * Optimized for judge workflow with Premium design.
@@ -20,11 +20,11 @@ import { Separator } from '@/components/ui/separator';
 // Icons
 import { logger } from '@/services/LoggingService';
 import {
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
-  Wifi, 
-  WifiOff, 
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Wifi,
+  WifiOff,
   RefreshCw,
   Trophy,
   Target,
@@ -32,7 +32,7 @@ import {
   User,
   ArrowUp,
   ArrowDown,
-  Minus
+  Minus,
 } from 'lucide-react';
 
 // Hooks and Services
@@ -80,14 +80,10 @@ export function LiveScoreUpdates({
   showOnlyQualified = false,
   maxDisplayEntries = 10,
   onScoreSelect,
-  className
+  className,
 }: LiveScoreUpdatesProps) {
   // Store hooks
-  const { 
-    getScoresByClass, 
-    getPendingSyncItems, 
-    isOffline
-  } = useOfflineScoringStore();
+  const { getScoresByClass, getPendingSyncItems, isOffline } = useOfflineScoringStore();
 
   // Local state
   const [scores, setScores] = useState<BaseScore[]>([]);
@@ -96,7 +92,7 @@ export function LiveScoreUpdates({
   const [syncStatus, setSyncStatus] = useState<SyncStatusInfo>({
     isOnline: !isOffline,
     pendingCount: 0,
-    syncInProgress: false
+    syncInProgress: false,
   });
   const [previousPlacements, setPreviousPlacements] = useState<Map<string, number>>(new Map());
   const [newlyAddedEntries, setNewlyAddedEntries] = useState<Set<string>>(new Set());
@@ -148,9 +144,8 @@ export function LiveScoreUpdates({
       setSyncStatus(prev => ({
         ...prev,
         isOnline: navigator.onLine && !isOffline,
-        pendingCount: pendingItems.length
+        pendingCount: pendingItems.length,
       }));
-
     } catch (error) {
       logger.error('Failed to load live score data:', 'scoring', {}, error as Error);
     }
@@ -159,7 +154,7 @@ export function LiveScoreUpdates({
   // Real-time data updates
   useEffect(() => {
     loadData();
-    
+
     // Set up periodic refresh for live updates
     const refreshInterval = setInterval(loadData, 2000); // Every 2 seconds
 
@@ -167,7 +162,7 @@ export function LiveScoreUpdates({
     const handleScoringEvent = (event: { classId: string; type: string; entryId: string }) => {
       if (event.classId === classId) {
         loadData();
-        
+
         // Mark new entries for animation
         if (event.type === 'score_submitted') {
           setNewlyAddedEntries(prev => new Set([...prev, event.entryId]));
@@ -202,7 +197,7 @@ export function LiveScoreUpdates({
       const metadata = {
         dogName: placement.dogName,
         handlerName: placement.handlerName,
-        armband: placement.armband
+        armband: placement.armband,
       };
 
       return {
@@ -218,12 +213,12 @@ export function LiveScoreUpdates({
           }
           const previousPlacement = previousPlacements.get(placement.entryId);
           if (previousPlacement === undefined) return undefined;
-          
+
           if (placement.placement === previousPlacement) return 'same' as const;
           if (placement.placement < previousPlacement) return 'up' as const;
           return 'down' as const;
         })(),
-        isNew: newlyAddedEntries.has(placement.entryId)
+        isNew: newlyAddedEntries.has(placement.entryId),
       };
     });
 
@@ -241,45 +236,52 @@ export function LiveScoreUpdates({
   }, [placements, previousPlacements, newlyAddedEntries, showOnlyQualified, maxDisplayEntries]);
 
   // Format score display based on format
-  const formatScoreDisplay = useCallback((score: BaseScore): { primary: string; secondary?: string | undefined } => {
-    switch (format) {
-      case 'scent_work': {
-        const scentScore = score as BaseScore & { searchTime?: number; totalSearchTime?: number; totalFaults?: number };
-        const time = scentScore.searchTime || scentScore.totalSearchTime || 0;
-        const faults = scentScore.faults || scentScore.totalFaults || 0;
-        return { 
-          primary: `${(time / 1000).toFixed(2)}s`, 
-          secondary: faults > 0 ? `${faults}F` : undefined 
-        };
+  const formatScoreDisplay = useCallback(
+    (score: BaseScore): { primary: string; secondary?: string | undefined } => {
+      switch (format) {
+        case 'scent_work': {
+          const scentScore = score as BaseScore & {
+            searchTime?: number;
+            totalSearchTime?: number;
+            totalFaults?: number;
+          };
+          const time = scentScore.searchTime || scentScore.totalSearchTime || 0;
+          const faults = scentScore.faults || scentScore.totalFaults || 0;
+          return {
+            primary: `${(time / 1000).toFixed(2)}s`,
+            secondary: faults > 0 ? `${faults}F` : undefined,
+          };
+        }
+
+        case 'agility': {
+          const agilityScore = score as BaseScore & { courseTime: number; totalFaults: number };
+          return {
+            primary: `${(agilityScore.courseTime / 1000).toFixed(2)}s`,
+            secondary: agilityScore.totalFaults > 0 ? `${agilityScore.totalFaults}F` : undefined,
+          };
+        }
+
+        case 'obedience': {
+          const obedienceScore = score as BaseScore & { totalScore: number; maximumScore: number };
+          return {
+            primary: `${obedienceScore.totalScore}/${obedienceScore.maximumScore}`,
+          };
+        }
+
+        case 'rally': {
+          const rallyScore = score as BaseScore & { finalScore: number; courseTime: number };
+          return {
+            primary: `${rallyScore.finalScore}`,
+            secondary: `${(rallyScore.courseTime / 1000).toFixed(1)}s`,
+          };
+        }
+
+        default:
+          return { primary: 'Score' };
       }
-      
-      case 'agility': {
-        const agilityScore = score as BaseScore & { courseTime: number; totalFaults: number };
-        return { 
-          primary: `${(agilityScore.courseTime / 1000).toFixed(2)}s`, 
-          secondary: agilityScore.totalFaults > 0 ? `${agilityScore.totalFaults}F` : undefined 
-        };
-      }
-      
-      case 'obedience': {
-        const obedienceScore = score as BaseScore & { totalScore: number; maximumScore: number };
-        return { 
-          primary: `${obedienceScore.totalScore}/${obedienceScore.maximumScore}` 
-        };
-      }
-      
-      case 'rally': {
-        const rallyScore = score as BaseScore & { finalScore: number; courseTime: number };
-        return { 
-          primary: `${rallyScore.finalScore}`,
-          secondary: `${(rallyScore.courseTime / 1000).toFixed(1)}s`
-        };
-      }
-      
-      default:
-        return { primary: 'Score' };
-    }
-  }, [format]);
+    },
+    [format]
+  );
 
   // Get qualification status styling
   const getQualificationStyling = (qualification: QualificationStatus) => {
@@ -327,10 +329,7 @@ export function LiveScoreUpdates({
   }, [loadData]);
 
   return (
-    <Card className={cn(
-      "bg-card/95 backdrop-blur-sm border-border/50 shadow-lg",
-      className
-    )}>
+    <Card className={cn('bg-card/95 backdrop-blur-sm border-border/50 shadow-lg', className)}>
       <CardContent className="p-6 space-y-4">
         {/* Header with sync status */}
         <div className="flex items-center justify-between">
@@ -343,7 +342,7 @@ export function LiveScoreUpdates({
               {displayEntries.length} {showOnlyQualified ? 'Qualified' : 'Entries'}
             </Badge>
           </div>
-          
+
           <div className="flex items-center gap-2">
             {/* Connection status */}
             <div className="flex items-center gap-1">
@@ -373,10 +372,7 @@ export function LiveScoreUpdates({
                 disabled={syncStatus.syncInProgress}
                 className="h-8 px-2"
               >
-                <RefreshCw className={cn(
-                  "h-3 w-3",
-                  syncStatus.syncInProgress && "animate-spin"
-                )} />
+                <RefreshCw className={cn('h-3 w-3', syncStatus.syncInProgress && 'animate-spin')} />
               </Button>
             )}
           </div>
@@ -394,15 +390,15 @@ export function LiveScoreUpdates({
                   initial={entry.isNew ? { opacity: 0, x: -20, scale: 0.95 } : false}
                   animate={{ opacity: 1, x: 0, scale: 1 }}
                   exit={{ opacity: 0, x: 20, scale: 0.95 }}
-                  transition={{ 
-                    duration: 0.3, 
+                  transition={{
+                    duration: 0.3,
                     ease: [0.25, 0.46, 0.45, 0.94],
-                    delay: entry.isNew ? index * 0.05 : 0
+                    delay: entry.isNew ? index * 0.05 : 0,
                   }}
                   className={cn(
-                    "p-3 rounded-lg border border-border/50 bg-background/50",
-                    "hover:bg-accent/50 transition-colors cursor-pointer",
-                    entry.isNew && "ring-2 ring-primary/20 bg-primary/5"
+                    'p-3 rounded-lg border border-border/50 bg-background/50',
+                    'hover:bg-accent/50 transition-colors cursor-pointer',
+                    entry.isNew && 'ring-2 ring-ring bg-primary/5'
                   )}
                   onClick={() => onScoreSelect?.(entry.entryId)}
                 >
@@ -441,8 +437,12 @@ export function LiveScoreUpdates({
                       {/* Score display */}
                       <div className="text-right">
                         <div className="flex items-center gap-1">
-                          {format === 'scent_work' && <Timer className="h-3 w-3 text-muted-foreground" />}
-                          {format === 'agility' && <Target className="h-3 w-3 text-muted-foreground" />}
+                          {format === 'scent_work' && (
+                            <Timer className="h-3 w-3 text-muted-foreground" />
+                          )}
+                          {format === 'agility' && (
+                            <Target className="h-3 w-3 text-muted-foreground" />
+                          )}
                           <span className="font-mono text-sm font-medium">
                             {formatScoreDisplay(entry.score).primary}
                           </span>
@@ -455,16 +455,18 @@ export function LiveScoreUpdates({
                       </div>
 
                       {/* Qualification status */}
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className={cn(
-                          "text-xs",
+                          'text-xs',
                           getQualificationStyling(entry.score.qualification)
                         )}
                       >
-                        {entry.score.qualification === 'Qualified' ? 'Q' : 
-                         entry.score.qualification === 'Not Qualified' ? 'NQ' :
-                         entry.score.qualification.charAt(0)}
+                        {entry.score.qualification === 'Qualified'
+                          ? 'Q'
+                          : entry.score.qualification === 'Not Qualified'
+                            ? 'NQ'
+                            : entry.score.qualification.charAt(0)}
                       </Badge>
 
                       {/* Sync status */}

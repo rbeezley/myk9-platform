@@ -43,7 +43,7 @@ export const ClassPipelineColumn: React.FC<ClassPipelineColumnProps> = ({
         'border border-border/40',
         isEmpty ? 'min-w-[100px] max-w-[100px] flex-none' : 'flex-1 min-w-[220px] max-w-[350px]',
         isLive && 'ring-2 ring-green-500/20',
-        isOver && 'ring-2 ring-primary/20 ring-inset bg-primary/5'
+        isOver && 'ring-2 ring-ring ring-inset bg-primary/5'
       )}
     >
       {/* Column header */}

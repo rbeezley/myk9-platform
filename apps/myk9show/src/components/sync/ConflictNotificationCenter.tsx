@@ -78,7 +78,7 @@ export const ConflictNotificationCenter: React.FC<ConflictNotificationCenterProp
   onNotificationRead,
   onBulkAction,
   onSettingsOpen,
-  maxHeight = "600px",
+  maxHeight = '600px',
 }) => {
   const [filter, setFilter] = useState<FilterType>('all');
   const [sort, setSort] = useState<SortType>('newest');
@@ -183,9 +183,7 @@ export const ConflictNotificationCenter: React.FC<ConflictNotificationCenterProp
   };
 
   const toggleExpanded = (notificationId: string) => {
-    setExpandedNotification(
-      expandedNotification === notificationId ? null : notificationId
-    );
+    setExpandedNotification(expandedNotification === notificationId ? null : notificationId);
   };
 
   return (
@@ -206,9 +204,7 @@ export const ConflictNotificationCenter: React.FC<ConflictNotificationCenterProp
               <CardDescription>
                 {notifications.length} total • {unreadCount} unread
                 {criticalCount > 0 && (
-                  <span className="text-destructive font-medium">
-                    {' '}• {criticalCount} critical
-                  </span>
+                  <span className="text-destructive font-medium"> • {criticalCount} critical</span>
                 )}
               </CardDescription>
             </div>
@@ -242,9 +238,7 @@ export const ConflictNotificationCenter: React.FC<ConflictNotificationCenterProp
                 <DropdownMenuItem onClick={() => setFilter('all')}>
                   All Notifications
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilter('unread')}>
-                  Unread Only
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilter('unread')}>Unread Only</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setFilter('conflicts')}>
                   Conflicts Only
                 </DropdownMenuItem>
@@ -268,18 +262,10 @@ export const ConflictNotificationCenter: React.FC<ConflictNotificationCenterProp
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Sort by</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setSort('newest')}>
-                  Newest First
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSort('oldest')}>
-                  Oldest First
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSort('priority')}>
-                  Priority
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSort('entity')}>
-                  Entity Type
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSort('newest')}>Newest First</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSort('oldest')}>Oldest First</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSort('priority')}>Priority</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSort('entity')}>Entity Type</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -302,8 +288,7 @@ export const ConflictNotificationCenter: React.FC<ConflictNotificationCenterProp
             <span className="text-sm text-muted-foreground">
               {selectedNotifications.size > 0
                 ? `${selectedNotifications.size} selected`
-                : 'Select all'
-              }
+                : 'Select all'}
             </span>
           </div>
         )}
@@ -325,13 +310,13 @@ export const ConflictNotificationCenter: React.FC<ConflictNotificationCenterProp
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                     className={cn(
-                      "border rounded-lg overflow-hidden transition-all duration-200",
-                      notification.status === 'unread' && "bg-primary/5 border-primary/20",
-                      notification.priority === 'critical' && "border-destructive/50",
-                      isSelected && "ring-2 ring-primary/50"
+                      'border rounded-lg overflow-hidden transition-all duration-200',
+                      notification.status === 'unread' && 'bg-primary/5 border-primary/20',
+                      notification.priority === 'critical' && 'border-destructive/50',
+                      isSelected && 'ring-2 ring-ring'
                     )}
                   >
-                    <div 
+                    <div
                       className="p-4 cursor-pointer hover:bg-muted/20"
                       onClick={() => toggleExpanded(notification.id)}
                     >
@@ -339,26 +324,23 @@ export const ConflictNotificationCenter: React.FC<ConflictNotificationCenterProp
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={(e) => {
+                          onChange={e => {
                             e.stopPropagation();
                             handleSelectNotification(notification.id, e.target.checked);
                           }}
                           className="mt-1 rounded"
                         />
 
-                        <div className={cn(
-                          'p-2 rounded-lg',
-                          getPriorityColor(notification.priority)
-                        )}>
+                        <div
+                          className={cn('p-2 rounded-lg', getPriorityColor(notification.priority))}
+                        >
                           <Icon className="h-4 w-4" />
                         </div>
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                              <h4 className="font-medium text-sm truncate">
-                                {notification.title}
-                              </h4>
+                              <h4 className="font-medium text-sm truncate">{notification.title}</h4>
                               {notification.status === 'unread' && (
                                 <div className="w-2 h-2 bg-primary rounded-full" />
                               )}
@@ -376,14 +358,14 @@ export const ConflictNotificationCenter: React.FC<ConflictNotificationCenterProp
                                     variant="ghost"
                                     size="sm"
                                     className="h-6 w-6 p-0"
-                                    onClick={(e) => e.stopPropagation()}
+                                    onClick={e => e.stopPropagation()}
                                   >
                                     <MoreHorizontal className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem
-                                    onClick={(e) => {
+                                    onClick={e => {
                                       e.stopPropagation();
                                       onNotificationRead(notification.id);
                                     }}
@@ -392,7 +374,7 @@ export const ConflictNotificationCenter: React.FC<ConflictNotificationCenterProp
                                     Mark as Read
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
-                                    onClick={(e) => {
+                                    onClick={e => {
                                       e.stopPropagation();
                                       onNotificationDismiss(notification.id);
                                     }}
@@ -477,7 +459,7 @@ export const ConflictNotificationCenter: React.FC<ConflictNotificationCenterProp
                             {/* Action Buttons */}
                             {notification.actions && notification.actions.length > 0 && (
                               <div className="flex items-center gap-2 pt-2 border-t">
-                                {notification.actions.map((action) => (
+                                {notification.actions.map(action => (
                                   <Button
                                     key={action.id}
                                     variant={action.variant}
@@ -507,10 +489,9 @@ export const ConflictNotificationCenter: React.FC<ConflictNotificationCenterProp
               </div>
               <h3 className="font-medium mb-2">No notifications</h3>
               <p className="text-sm text-muted-foreground">
-                {filter === 'all' 
+                {filter === 'all'
                   ? "You're all caught up! No conflicts to resolve."
-                  : `No notifications match the current filter: ${filter}`
-                }
+                  : `No notifications match the current filter: ${filter}`}
               </p>
             </div>
           )}

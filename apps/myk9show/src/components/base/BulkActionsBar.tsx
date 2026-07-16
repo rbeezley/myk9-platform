@@ -127,7 +127,7 @@ export function BulkSelectCheckbox({
       }}
       onChange={e => onCheckedChange(e.target.checked)}
       aria-label={ariaLabel}
-      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-ring dark:border-gray-600 dark:bg-gray-700"
     />
   );
 }
@@ -150,7 +150,7 @@ export function BulkSelectRow({
       checked={checked}
       onChange={e => onCheckedChange(e.target.checked)}
       aria-label={ariaLabel}
-      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-ring dark:border-gray-600 dark:bg-gray-700"
     />
   );
 }

@@ -204,7 +204,7 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
                           }
                           disabled={isUpdating === entry.id}
                         >
-                          <SelectTrigger className="w-full h-10 bg-background border-border/50 hover:border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200">
+                          <SelectTrigger className="w-full h-10 bg-background border-border/50 hover:border-border focus:border-primary focus:ring-2 focus:ring-ring transition-all duration-200">
                             <SelectValue placeholder="Select status" />
                           </SelectTrigger>
                           <SelectContent className="bg-card/95 backdrop-blur-xl border-border shadow-xl">

@@ -103,7 +103,7 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
                     isCompleted && 'bg-primary border-primary text-primary-foreground shadow-md',
                     isCurrent &&
                       !isCompleted &&
-                      'bg-primary/10 border-primary text-primary shadow-sm ring-4 ring-primary/20',
+                      'bg-primary/10 border-primary text-primary shadow-sm ring-4 ring-ring',
                     !isCompleted && !isCurrent && 'bg-muted/50 border-border text-muted-foreground',
                     isClickable && 'group-hover/step:scale-110 group-hover/step:shadow-lg'
                   )}

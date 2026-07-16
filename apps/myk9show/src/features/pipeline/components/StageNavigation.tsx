@@ -32,7 +32,7 @@ export const StageNavigation: React.FC<StageNavigationProps> = ({
             disabled={isFuture}
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap',
-              isViewing && 'ring-2 ring-primary ring-offset-1',
+              isViewing && 'ring-2 ring-primary ring-offset-2',
               isCompleted && 'bg-success/10 text-success ',
               isCurrent && !isViewing && 'bg-primary/10 text-primary',
               isFuture && 'bg-muted text-muted-foreground opacity-50 cursor-not-allowed',

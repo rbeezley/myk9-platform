@@ -83,4 +83,44 @@ describe('AlertDialogAction double-submit guard', () => {
     await user.click(screen.getByRole('button', { name: /delete/i }));
     expect(onConfirm).toHaveBeenCalledTimes(2);
   });
+
+  it('resets the latch when a controlled dialog is toggled closed then open', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+
+    function ControlledHarness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>reopen</button>
+          <button onClick={() => setOpen(false)}>close</button>
+          <AlertDialog open={open} onOpenChange={setOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete</AlertDialogTitle>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogAction onClick={onConfirm}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      );
+    }
+
+    render(<ControlledHarness />);
+
+    // Confirm once, then double-tap is swallowed.
+    const firstDelete = await screen.findByRole('button', { name: /^delete$/i });
+    await user.click(firstDelete);
+    await user.click(firstDelete);
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+
+    // Drive open false → true via the controlled prop; the guard resets on the
+    // open transition, so the next confirmation fires.
+    await user.click(screen.getByRole('button', { name: /^close$/i }));
+    await user.click(screen.getByRole('button', { name: /^reopen$/i }));
+    await user.click(screen.getByRole('button', { name: /^delete$/i }));
+    expect(onConfirm).toHaveBeenCalledTimes(2);
+  });
 });

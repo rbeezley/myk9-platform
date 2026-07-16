@@ -7,6 +7,34 @@ import { getNativeButtonProp } from '@/components/ui/base-ui-native-button';
 
 const AlertDialog = AlertDialogPrimitive.Root;
 
+// Double-submit guard shared with AlertDialogAction. AlertDialogAction is a
+// Close, so a click fires the caller's handler and begins dismissing. When the
+// handler is async the popup stays mounted until it resolves (and Base UI keeps
+// it mounted through the closing transition), so a second tap — or a tap after
+// a fast programmatic reopen — would re-fire an irreversible action. The latch
+// allows one invocation and resets whenever the dialog transitions to open, so
+// every fresh confirmation works while accidental repeats do not.
+const AlertDialogConfirmGuardContext = React.createContext<() => boolean>(() => true);
+
+function AlertDialogConfirmGuard({ open, children }: { open: boolean; children: React.ReactNode }) {
+  const firedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (open) firedRef.current = false;
+  }, [open]);
+
+  const tryFire = React.useCallback(() => {
+    if (firedRef.current) return false;
+    firedRef.current = true;
+    return true;
+  }, []);
+
+  return (
+    <AlertDialogConfirmGuardContext.Provider value={tryFire}>
+      {children}
+    </AlertDialogConfirmGuardContext.Provider>
+  );
+}
+
 interface AlertDialogTriggerProps extends React.ComponentPropsWithoutRef<
   typeof AlertDialogPrimitive.Trigger
 > {
@@ -54,7 +82,7 @@ AlertDialogOverlay.displayName = 'AlertDialogOverlay';
 const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Popup>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Popup>
->(({ className, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => (
   <AlertDialogPortal>
     <AlertDialogOverlay />
     <AlertDialogPrimitive.Popup
@@ -64,6 +92,11 @@ const AlertDialogContent = React.forwardRef<
         className
       )}
       {...props}
+      render={(popupProps, state) => (
+        <div {...popupProps}>
+          <AlertDialogConfirmGuard open={state.open}>{children}</AlertDialogConfirmGuard>
+        </div>
+      )}
     />
   </AlertDialogPortal>
 ));
@@ -110,19 +143,15 @@ const AlertDialogAction = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement>
 >(({ className, style, onClick, ...props }, ref) => {
-  // Guard against double-submit. This action is a Close, so a click fires the
-  // caller's handler and begins dismissing the dialog. When the handler is
-  // async the popup stays mounted until it resolves, so a second tap in that
-  // window would re-fire an irreversible action (delete, release, revoke).
-  // Latch to one invocation per mount; the popup unmounts on close, so the
-  // latch resets naturally on the next open.
-  const firedRef = React.useRef(false);
+  // The double-submit latch is owned by AlertDialogConfirmGuard (see its
+  // definition) and reset per open, so a first tap fires and any repeat before
+  // the dialog reopens is ignored.
+  const tryFire = React.useContext(AlertDialogConfirmGuardContext);
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    if (firedRef.current) {
+    if (!tryFire()) {
       event.preventDefault();
       return;
     }
-    firedRef.current = true;
     onClick?.(event);
   };
   return (

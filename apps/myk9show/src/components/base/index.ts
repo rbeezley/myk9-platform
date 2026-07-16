@@ -13,18 +13,6 @@ export type { EntityCardProps } from './EntityCard';
 export { Chip } from './Chip';
 export type { ChipProps, ChipColor, ChipSize } from './Chip';
 
-// Skeleton loaders
-export {
-  SkeletonCard,
-  SkeletonTable,
-  SkeletonSidebar,
-  SkeletonListItem,
-  SkeletonPageHeader,
-  SkeletonForm,
-  SkeletonStats,
-  SkeletonDetailView,
-} from './SkeletonLoaders';
-
 // Bulk operations
 export { BulkActionsBar, BulkSelectCheckbox, BulkSelectRow } from './BulkActionsBar';
 export { createBulkActions } from '@/utils/bulkActions';

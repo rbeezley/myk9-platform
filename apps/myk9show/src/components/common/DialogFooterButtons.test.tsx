@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import DialogFooterButtons from './DialogFooterButtons';
+import StandardDialog from './StandardDialog';
 
 describe('DialogFooterButtons', () => {
   const base = { onCancel: vi.fn(), onSubmit: vi.fn() };
@@ -30,5 +31,21 @@ describe('DialogFooterButtons', () => {
   it('is not destructive for a neutral label', () => {
     render(<DialogFooterButtons {...base} saveLabel="Save" />);
     expect(screen.getByRole('button', { name: /save/i }).className).not.toContain('bg-destructive');
+  });
+
+  it('forwards destructive through StandardDialog to the save action', () => {
+    render(
+      <StandardDialog
+        open
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        title="Remove item"
+        saveLabel="Remove"
+        destructive
+      >
+        Body
+      </StandardDialog>
+    );
+    expect(screen.getByRole('button', { name: /remove/i }).className).toContain('bg-destructive');
   });
 });

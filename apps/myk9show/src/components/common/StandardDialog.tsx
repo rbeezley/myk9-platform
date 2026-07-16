@@ -21,6 +21,8 @@ interface StandardDialogProps {
   showIcons?: boolean | undefined;
   /** Tailwind max-width class for the dialog (e.g. 'max-w-md'). Defaults to CommonDialog's max-w-lg. */
   maxWidth?: string | undefined;
+  /** Render the save action as destructive (see DialogFooterButtons). */
+  destructive?: boolean | undefined;
 }
 
 const StandardDialog: React.FC<StandardDialogProps> = ({
@@ -40,6 +42,7 @@ const StandardDialog: React.FC<StandardDialogProps> = ({
   hideSave,
   showIcons,
   maxWidth,
+  destructive,
 }) => (
   <CommonDialog
     open={open}
@@ -63,6 +66,7 @@ const StandardDialog: React.FC<StandardDialogProps> = ({
           formId={formId}
           saveButtonProps={saveButtonProps}
           saveIcon={saveIcon}
+          {...(destructive !== undefined && { destructive })}
         />
       ) : null
     }

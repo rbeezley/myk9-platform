@@ -20,6 +20,8 @@ export interface BaseEntityDialogProps {
    */
   submitDisabled?: boolean;
   maxWidth?: string;
+  /** Render the submit action as destructive (see DialogFooterButtons). */
+  destructive?: boolean;
   showFooter?: boolean;
 }
 
@@ -36,6 +38,7 @@ export function BaseEntityDialog({
   cancelLabel = 'Cancel',
   isSubmitting = false,
   maxWidth,
+  destructive,
   showFooter = true,
 }: BaseEntityDialogProps) {
   const handleCancel = () => {
@@ -72,6 +75,7 @@ export function BaseEntityDialog({
                 submitLabel !== 'Delete' &&
                 !submitLabel?.toString().toLowerCase().includes('delete')
               }
+              {...(destructive !== undefined && { destructive })}
             />
           </div>
         )}

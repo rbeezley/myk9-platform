@@ -29,16 +29,32 @@ export class TestSetup {
     logger.debug(`Using credentials: ${creds.email}`, 'app', {});
 
     // Drive the real SmartSignInPage flow via the shared helper (credential →
-    // Continue → password → submit → wait off /sign-in).
+    // Continue → password → submit → wait off /sign-in). performSignIn already
+    // throws on an auth-error banner and asserts navigation off /sign-in, so a
+    // successful return means this user is authenticated.
     await performSignIn(this.page, creds.email, creds.password, returnTo);
 
+    // Confirm the *correct* user is in session by reading Supabase's persisted
+    // auth token from localStorage. This works against both the dev server and
+    // the built `vite preview` target used in CI — unlike importing the app's
+    // TS source by path (`/src/...`), which only resolves under the dev server.
     await expect
       .poll(
         async () =>
-          await this.page.evaluate(async () => {
-            const { supabase } = await import('/src/services/database/supabaseClient.ts');
-            const { data } = await supabase.auth.getUser();
-            return data.user?.email ?? null;
+          await this.page.evaluate(() => {
+            for (let i = 0; i < localStorage.length; i += 1) {
+              const key = localStorage.key(i);
+              if (!key || !/^sb-.*-auth-token$/.test(key)) continue;
+              try {
+                const raw = localStorage.getItem(key);
+                const parsed = raw ? JSON.parse(raw) : null;
+                const email = parsed?.user?.email ?? parsed?.currentSession?.user?.email;
+                if (email) return email as string;
+              } catch {
+                // Non-JSON or partial write mid-poll; try the next key.
+              }
+            }
+            return null;
           }),
         { timeout: 15000 }
       )

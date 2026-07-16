@@ -3,7 +3,7 @@
 ## 1. Playwright CI config
 
 - [x] 1.1 Add nightly mode to `apps/myk9show/playwright.ci.config.ts`: `PLAYWRIGHT_NIGHTLY=true` → testMatch = curated ~20-spec list (existing files only, verified with ls), no grep filter, retries 2, workers 1
-- [x] 1.2 Expand PR-smoke testMatch+grep from 2 to 5 specs: add `payment/paymentFlow.spec.ts`, `show/atShowOfflineScoring.spec.ts`, `uat/secretary/critical-path.spec.ts`
+- [x] 1.2 Expand PR-smoke specs (final: 2 → 3, adding `uat/secretary/critical-path.spec.ts`). Verification (3.1) rejected the other two candidates: both `payment/*` specs are aspirational mock suites that fail unconditionally (excluded everywhere; real journeys → MYK9-42); `atShowOfflineScoring` depends on staging seed data (nightly-only)
 - [x] 1.3 Add `test:e2e:nightly` script (`cross-env PLAYWRIGHT_NIGHTLY=true npx playwright test --config=playwright.ci.config.ts`) to `apps/myk9show/package.json`
 
 ## 2. Nightly workflow

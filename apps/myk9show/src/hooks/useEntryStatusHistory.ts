@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { UserRole } from '@/types/auth-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -19,7 +20,7 @@ export function useEntryStatusHistory(entryId: string, enabled: boolean) {
   const canViewHistory =
     userWithRoles?.roles.some(role => ENTRY_HISTORY_STAFF_ROLES.has(role)) ?? false;
 
-  const query = useQuery<EntryStatusHistoryItem[]>({
+  const { refetch, ...query } = useQuery<EntryStatusHistoryItem[]>({
     queryKey: ['entry-status-history', entryId],
     queryFn: () => getEntryStatusHistory(entryId),
     enabled: Boolean(entryId) && enabled && canViewHistory,
@@ -27,10 +28,29 @@ export function useEntryStatusHistory(entryId: string, enabled: boolean) {
     retry: false,
   });
 
-  const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+  const [isOffline, setIsOffline] = useState(
+    () => typeof navigator !== 'undefined' && !navigator.onLine
+  );
+
+  useEffect(() => {
+    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => {
+      setIsOffline(false);
+      if (enabled && canViewHistory) void refetch();
+    };
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [canViewHistory, enabled, refetch]);
 
   return {
     ...query,
+    refetch,
     canViewHistory,
     isOffline,
   };

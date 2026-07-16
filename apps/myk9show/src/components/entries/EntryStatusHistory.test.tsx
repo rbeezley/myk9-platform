@@ -121,6 +121,8 @@ describe('EntryStatusHistory', () => {
     const { user, rerender } = render(<EntryStatusHistory entryId="entry-1" />);
     await user.click(screen.getByRole('button', { name: /view entry status history/i }));
     expect(screen.getByText(/available when this device is connected/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /try again/i }));
+    expect(baseHistory.refetch).toHaveBeenCalledOnce();
 
     mockUseEntryStatusHistory.mockReturnValue({
       ...baseHistory,

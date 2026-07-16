@@ -61,8 +61,17 @@ export function EntryStatusHistory({ entryId, currentStatus, createdAt }: EntryS
 
           {history.isOffline && !history.data && (
             <Alert>
-              <AlertDescription>
-                History is available when this device is connected.
+              <AlertDescription className="flex flex-wrap items-center gap-2">
+                <span>History is available when this device is connected.</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={() => history.refetch()}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Try again
+                </Button>
               </AlertDescription>
             </Alert>
           )}
@@ -79,7 +88,12 @@ export function EntryStatusHistory({ entryId, currentStatus, createdAt }: EntryS
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="flex flex-wrap items-center gap-2">
                 <span>History is temporarily unavailable. Entry work remains usable.</span>
-                <Button type="button" variant="outline" size="sm" onClick={() => history.refetch()}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={() => history.refetch()}
+                >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Try again
                 </Button>

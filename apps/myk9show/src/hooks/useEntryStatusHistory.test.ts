@@ -1,6 +1,6 @@
 import { createElement, type ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient, renderHook, waitFor } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -25,6 +25,10 @@ function wrapper({ children }: { children: ReactNode }) {
 beforeEach(() => {
   vi.clearAllMocks();
   mockGetEntryStatusHistory.mockResolvedValue([]);
+});
+
+afterEach(() => {
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
 });
 
 describe('useEntryStatusHistory', () => {
@@ -65,6 +69,22 @@ describe('useEntryStatusHistory', () => {
     rerender({ enabled: true });
 
     await waitFor(() => expect(result.current.data).toHaveLength(1));
+    expect(mockGetEntryStatusHistory).toHaveBeenCalledWith('entry-1');
+  });
+
+  it('refreshes and clears the offline state when the browser reconnects', async () => {
+    mockUseAuthContext.mockReturnValue({
+      userWithRoles: { roles: [UserRole.SECRETARY] },
+    } as never);
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+
+    const { result } = renderHook(() => useEntryStatusHistory('entry-1', true), { wrapper });
+    expect(result.current.isOffline).toBe(true);
+
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    window.dispatchEvent(new Event('online'));
+
+    await waitFor(() => expect(result.current.isOffline).toBe(false));
     expect(mockGetEntryStatusHistory).toHaveBeenCalledWith('entry-1');
   });
 });

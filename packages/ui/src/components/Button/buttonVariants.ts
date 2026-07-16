@@ -16,11 +16,11 @@ export const buttonVariants = cva(
     // Border radius - matches myK9Q (0.5rem = 8px)
     'rounded-lg',
 
-    // Focus states
+    // Focus states — canonical ring (contrast-verified --ring token)
     'focus-visible:outline-none',
     'focus-visible:ring-2',
-    'focus-visible:ring-primary/30',
-    'focus-visible:ring-offset-1',
+    'focus-visible:ring-ring',
+    'focus-visible:ring-offset-2',
 
     // Transitions - matches myK9Q (150ms ease-out)
     'transition-all duration-150 ease-out',

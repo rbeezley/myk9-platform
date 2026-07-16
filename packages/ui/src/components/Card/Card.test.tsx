@@ -10,7 +10,11 @@ describe('Card', () => {
   });
 
   it('should apply custom className', () => {
-    render(<Card className="custom" data-testid="card">Content</Card>);
+    render(
+      <Card className="custom" data-testid="card">
+        Content
+      </Card>
+    );
     expect(screen.getByTestId('card').className).toContain('custom');
   });
 
@@ -22,6 +26,33 @@ describe('Card', () => {
 
   it('should have displayName', () => {
     expect(Card.displayName).toBe('Card');
+  });
+
+  it('renders a selection ring from the --ring token when selected', () => {
+    render(
+      <Card selected data-testid="card">
+        Content
+      </Card>
+    );
+    const card = screen.getByTestId('card');
+    expect(card.className).toContain('ring-ring');
+    expect(card).toHaveAttribute('data-selected', 'true');
+  });
+
+  it('has no selection ring by default', () => {
+    render(<Card data-testid="card">Content</Card>);
+    const card = screen.getByTestId('card');
+    expect(card.className).not.toContain('ring-ring');
+    expect(card).not.toHaveAttribute('data-selected');
+  });
+
+  it('adds an interactive affordance when interactive', () => {
+    render(
+      <Card interactive data-testid="card">
+        Content
+      </Card>
+    );
+    expect(screen.getByTestId('card').className).toContain('cursor-pointer');
   });
 });
 

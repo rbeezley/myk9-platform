@@ -12,19 +12,32 @@ type CardVariant = keyof typeof cardVariantStyles;
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: CardVariant;
+  /**
+   * Render a selection ring from the contrast-verified `--ring` token. Selection
+   * is conveyed by the ring (offset border), not by color alone.
+   */
+  selected?: boolean;
+  /**
+   * Add a pointer/hover affordance for cards that behave as a control. The
+   * caller still owns the click handler, role, and keyboard wiring.
+   */
+  interactive?: boolean;
 }
 
 /**
  * Card container component
  */
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, variant = 'default', ...props }, ref) => (
+  ({ className, variant = 'default', selected, interactive, ...props }, ref) => (
     <div
       ref={ref}
+      data-selected={selected ? 'true' : undefined}
       className={cn(
         'rounded-xl border border-border/50 bg-card text-card-foreground shadow-card',
         'backdrop-blur-sm',
         cardVariantStyles[variant],
+        interactive && 'cursor-pointer transition-shadow hover:shadow-card-hover',
+        selected && 'ring-2 ring-ring ring-offset-2',
         className
       )}
       {...props}

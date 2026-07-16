@@ -14,8 +14,14 @@ export interface BaseEntityDialogProps {
   submitLabel?: string;
   cancelLabel?: string;
   isSubmitting?: boolean;
+  /**
+   * @deprecated Declared but not wired — its only caller is the dead FormDialog.
+   * Removed together with FormDialog when the shadow token layer is deleted.
+   */
   submitDisabled?: boolean;
   maxWidth?: string;
+  /** Render the submit action as destructive (see DialogFooterButtons). */
+  destructive?: boolean;
   showFooter?: boolean;
 }
 
@@ -31,6 +37,8 @@ export function BaseEntityDialog({
   submitLabel = 'Save',
   cancelLabel = 'Cancel',
   isSubmitting = false,
+  maxWidth,
+  destructive,
   showFooter = true,
 }: BaseEntityDialogProps) {
   const handleCancel = () => {
@@ -50,6 +58,7 @@ export function BaseEntityDialog({
       title={title}
       titleIcon={titleIcon}
       description={description}
+      {...(maxWidth !== undefined && { maxWidth })}
       hideSave={true}
     >
       <div className="space-y-4">
@@ -62,7 +71,11 @@ export function BaseEntityDialog({
               cancelLabel={cancelLabel}
               saveLabel={submitLabel}
               isSubmitting={isSubmitting}
-              showIcons={submitLabel !== 'Delete' && !submitLabel?.toString().toLowerCase().includes('delete')}
+              showIcons={
+                submitLabel !== 'Delete' &&
+                !submitLabel?.toString().toLowerCase().includes('delete')
+              }
+              {...(destructive !== undefined && { destructive })}
             />
           </div>
         )}

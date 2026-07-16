@@ -131,7 +131,7 @@ Follow `UX-Audit`'s severity definitions and, where useful, its 6-pass structure
 
 ### Step 5 — STOP and report
 
-Do **not** create an OpenSpec change, modify `OPEN-TODOS.md`, or write a `docs/plan-*.md`.
+Do **not** create an OpenSpec change, file Linear issues, or write a `docs/plan-*.md`.
 Post to chat: the top 5 findings, the regression delta, and the report path. Wait for the user
 to review and say "proceed."
 
@@ -143,8 +143,8 @@ to review and say "proceed."
    remediation plan — **do not also write a `docs/plan-*.md`** (per CLAUDE.md OpenSpec carve-out).
    `tasks.md` **must** include a testing phase (unit tests for extracted logic + a manual re-walk).
    Note in the change which findings were deliberately excluded (cosmetic-only) and why.
-2. Add **one** pointer row to `OPEN-TODOS.md` linking to the change — e.g.
-   `- [ ] <Role> UX remediation — tracked in openspec change \`<role>-ux-remediation\``.
+2. Create **one** pointer Linear issue (team **MyK9-platform**) linking to the change — e.g.
+   `<Role> UX remediation — tracked in openspec change \`<role>-ux-remediation\``.
    Do not re-list individual findings; `tasks.md` is the execution tracker.
 3. Tell the user the change id and that they can implement it with `opsx:ship <id>` (full pipeline)
    or `opsx:apply <id>` (work tasks with checkpoints).
@@ -165,7 +165,7 @@ a brand-new one is NEW. The regression line at the top of each report is the at-
   `mcp__ccd_session__spawn_task` to flag it; don't chase it.
 - **Respect INTENT.** A behavior with an `// INTENT:` comment or `docs/INTENT.md` entry is not a
   finding unless the user approves changing it.
-- **The stop-gate is mandatory.** Nothing lands in `openspec/` or `OPEN-TODOS.md` until the user
+- **The stop-gate is mandatory.** Nothing lands in `openspec/` or Linear until the user
   reviews the report and says "proceed."
 - **One change per audit, scoped to buildable findings.** Consolidate; do not spin up a spec per nitpick.
 

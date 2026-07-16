@@ -1,59 +1,29 @@
 ---
-description: Add todo item to OPEN-TODOS.md with context from conversation
+description: Create a Linear issue (MyK9-platform) with context from the conversation
 argument-hint: <todo-description> (optional - infers from conversation if omitted)
-allowed-tools:
-  - Read
-  - Edit
-  - Write
 ---
 
-# Add Todo Item
+# Add Todo (Linear)
 
-## Context
-
-- Current timestamp: !`date "+%Y-%m-%d %H:%M"`
+`OPEN-TODOS.md` / `TO-DOS.md` were retired on 2026-07-16 — **Linear is the single source of truth.** Workspace `myk9-platform`, team **MyK9-platform**, issue prefix `MYK9-*`. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
 
 ## Instructions
 
-1. Read `OPEN-TODOS.md` in the working directory (create it with the Write tool if it doesn't exist, using the standard heading and section structure).
+1. **Ensure the Linear MCP tools are loaded.** They may be deferred — discover them with ToolSearch (e.g. query `linear issue`). You need a create/update-issue tool and a list-issues tool for the MyK9-platform team.
 
-2. Check for duplicates:
-   - Extract key concept/action from the new todo
-   - Search existing `- [ ]` lines in `OPEN-TODOS.md` for similar titles or overlapping scope
-   - If found, ask user: "A similar todo already exists: [title]. Would you like to:\n\n1. Skip adding (keep existing)\n2. Replace existing with new version\n3. Add anyway as separate item\n\nReply with the number of your choice."
-   - Wait for user response before proceeding
+2. **Extract the todo content:**
+   - **With $ARGUMENTS**: use as the title/focus.
+   - **Without $ARGUMENTS**: analyze the recent conversation for the specific task, relevant file paths, line numbers, error messages, and root cause if identified.
 
-3. Extract todo content:
-   - **With $ARGUMENTS**: Use as the focus/title for the todo
-   - **Without $ARGUMENTS**: Analyze recent conversation to extract:
-     - Specific problem or task discussed
-     - Relevant file paths that need attention
-     - Technical details (line numbers, error messages, root cause if identified)
+3. **Check for duplicates:** list open issues in the MyK9-platform team (states `Backlog` / `Todo` / `In Progress`) and search titles + descriptions for overlapping scope. If a near-duplicate exists, ask the user:
+   "A similar issue already exists: [identifier] [title]. Would you like to:\n\n1. Skip (keep existing)\n2. Update the existing issue\n3. Create anyway as a separate issue\n\nReply with the number of your choice."
+   Wait for the response.
 
-4. Write the todo in two places:
+4. **Create the issue** in team **MyK9-platform** with a self-contained description (assume the reader has none of this conversation's context):
+   - **Title**: `[Action verb] [Component] — [concise summary]`
+   - **Description** (Markdown): `## Problem` (what's wrong / why needed) · `## Scope / Files` (paths with line numbers like `path/to/file.ts:123-145`) · `## Done when` (acceptance criteria).
+   - **Priority**: `1` Urgent / `2` High / `3` Medium / `4` Low by launch-relevance (default `3`).
+   - **State**: `Backlog` unless the work is clearly active now.
+   - **Label**: `Bug` or `Improvement` as appropriate.
 
-   **A. Add a `- [ ]` line to `OPEN-TODOS.md`** under the most appropriate `##` section (add a new section if none fits):
-   - Format: `- [ ] **[Action verb] [Component]** — [One-sentence description]. [Key files if space permits]. Full context in TO-DOS.md § "[heading]".`
-   - Keep it short enough to read in a list — delegate the full detail to TO-DOS.md
-
-   **B. Append a full-context section to the bottom of `TO-DOS.md`**:
-   - **Heading**: `## Brief Context Title — YYYY-MM-DD HH:MM` (3-8 word title, current timestamp)
-   - **Body**: `- **[Action verb] [Component]** - [Brief description]. **Problem:** [What's wrong/why needed]. **Files:** [Comma-separated paths with line numbers]. **Solution:** [Approach hints or constraints, if applicable].`
-   - Required fields: Problem and Files (with line numbers like `path/to/file.ts:123-145`)
-   - Optional field: Solution
-   - Make each section self-contained for future Claude to understand weeks later
-
-5. Confirm and offer to continue with original work:
-   - Confirm the todo was saved: "✓ Saved to todos."
-   - Ask if they want to continue with the original work: "Would you like to continue with [original task]?"
-   - Wait for user response
-
-## Format Example
-
-```markdown
-## Add Todo Command Improvements - 2025-11-15 14:23
-
-- **Add structured format to add-to-todos** - Standardize todo entries with Problem/Files/Solution pattern. **Problem:** Current todos lack consistent structure, making it hard for Claude to have enough context when revisiting tasks later. **Files:** `commands/add-to-todos.md:22-29`. **Solution:** Use inline bold labels with required Problem and Files fields, optional Solution field.
-
-- **Create check-todos command** - Build companion command to list and select todos. **Problem:** Need workflow to review outstanding todos and load context for selected item. **Files:** `commands/check-todos.md` (new), `TO-DOS.md` (reads from). **Solution:** Parse markdown list, display numbered list, accept selection to load full context and remove item.
-```
+5. **Confirm and offer to continue:** report the created issue's identifier + URL ("✓ Created MYK9-NN — <url>"), then ask whether to continue with the original work.

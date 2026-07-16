@@ -5,7 +5,7 @@ description: Use when auditing myK9Show pages for console errors, network errors
 
 # Audit Pages for Console and Network Errors
 
-Systematically visit every route in myK9Show, capture errors, fix what's addressable inline, and log the rest as `OPEN-TODOS.md` entries.
+Systematically visit every route in myK9Show, capture errors, fix what's addressable inline, and log the rest as Linear issues (team **MyK9-platform**).
 
 Before starting, read:
 
@@ -46,7 +46,7 @@ These pre-existing issues fire on every page load and should be **ignored** duri
 
 | Error                                                       | Status                                                 |
 | ----------------------------------------------------------- | ------------------------------------------------------ |
-| `Maximum update depth exceeded` (~258 occurrences per load) | Open bug — track in `OPEN-TODOS.md` if still reproducible |
+| `Maximum update depth exceeded` (~258 occurrences per load) | Open bug — track in Linear (team **MyK9-platform**) if still reproducible |
 
 Add new confirmed-pre-existing errors here as discovered.
 
@@ -69,7 +69,7 @@ For each route:
 - **Fix [page] [symptom]** — **Problem:** [what's wrong]. **Files:** [paths]. **Solution:** [hints].
 ```
 
-Also log confirmed durable issues in `docs/qa/findings.md` using the shared template. Use `OPEN-TODOS.md` for sprint/task tracking and `docs/qa/findings.md` for reusable QA evidence and proof requirements.
+Also log confirmed durable issues in `docs/qa/findings.md` using the shared template. Use Linear (team **MyK9-platform**) for sprint/task tracking and `docs/qa/findings.md` for reusable QA evidence and proof requirements.
 
 ## Route Inventory Support
 
@@ -160,11 +160,7 @@ Secretary audit — 23 routes (full) | or: (partial — secretary group only)
   Clean:    16
 ```
 
-Append all new TODOs to `OPEN-TODOS.md` under a dated heading:
-
-```markdown
-## Page Audit Findings — YYYY-MM-DD HH:MM
-```
+Log all new TODOs as Linear issues (team **MyK9-platform**), tagged so they group under the audit run — e.g. include `Page Audit Findings — YYYY-MM-DD` in the issue title or a shared label.
 
 For each confirmed issue, append a finding to `docs/qa/findings.md` with:
 

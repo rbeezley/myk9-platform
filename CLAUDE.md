@@ -140,7 +140,7 @@ For bug-fixing methodology (assertion-first testing, seed-data/RBAC survey-first
 
 ## Workflow
 
-Update plan/tracking documents (`OPEN-TODOS.md`, sprint docs, debt register) after completing each task or sprint item. Keep them in sync with actual progress.
+Update tracking after completing each task or sprint item: move the corresponding Linear issue (team **MyK9-platform**) to Done, and keep sprint docs and the debt register in sync with actual progress.
 
 **Which review to use, and the Codex second-opinion policy: see [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 4.**
 

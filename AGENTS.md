@@ -171,7 +171,7 @@ When asked to review a PR, run focused verification by default when practical:
 
 ## Workflow
 
-Update plan/tracking documents (`OPEN-TODOS.md`, sprint docs, debt register) after completing each task or sprint item. Keep them in sync with actual progress.
+Update tracking after completing each task or sprint item: move the corresponding Linear issue (team **MyK9-platform**) to Done, and keep sprint docs and the debt register in sync with actual progress.
 
 ## Linear Issue and PR Workflow
 
@@ -208,7 +208,7 @@ Return findings in three groups:
 
 ## Small Maintenance Changes
 
-**Docs-only tracking edits go direct to `main` by default.** For `OPEN-TODOS.md`, `TO-DOS.md`, and other files in the `CLAUDE.md` docs-only-direct-to-`main` scope (`docs/**/*.md`, top-level tracking/reference docs, package/function READMEs):
+**Docs-only tracking edits go direct to `main` by default.** For files in the `CLAUDE.md` docs-only-direct-to-`main` scope (`docs/**/*.md`, top-level tracking/reference docs, package/function READMEs):
 
 - Commit and `git push origin main` directly — no branch, no PR, no per-session approval needed. As of 2026-06-14 the `main` rulesets grant the admin role (the owner token) `bypass_mode: always`, so the push succeeds; the PR + required-checks gates are bypassed for that identity. The restriction is convention, not enforcement, so stay strictly inside the docs-only scope.
 - From the primary checkout while linked worktrees exist, prefix with `MYK9_ALLOW_PRIMARY_COMMIT=1 git commit ...` (the local pre-commit guard is separate from the ruleset and still applies).

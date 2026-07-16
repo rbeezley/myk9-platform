@@ -116,8 +116,9 @@ describe('AlertDialogAction double-submit guard', () => {
     await user.click(firstDelete);
     expect(onConfirm).toHaveBeenCalledTimes(1);
 
-    // Drive open false → true via the controlled prop; the guard resets on the
-    // open transition, so the next confirmation fires.
+    // Drive open false → true via the controlled prop. In jsdom the popup
+    // unmounts on close (no animation), so this exercises the common reopen
+    // path where the latch resets on remount; a fresh confirmation fires.
     await user.click(screen.getByRole('button', { name: /^close$/i }));
     await user.click(screen.getByRole('button', { name: /^reopen$/i }));
     await user.click(screen.getByRole('button', { name: /^delete$/i }));

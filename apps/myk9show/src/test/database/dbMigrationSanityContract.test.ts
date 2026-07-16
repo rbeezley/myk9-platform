@@ -105,6 +105,25 @@ describe('DB migration sanity contracts', () => {
     expect(waitlistPolicy).not.toContain('with check (true)');
   });
 
+  it('captures every entry status transition and scopes history to show staff', () => {
+    const { sql } = latestMigrationContaining(/record_entry_status_history/i);
+
+    expect(sql).toContain('AFTER UPDATE OF entry_status ON public.entries');
+    expect(sql).toContain('OLD.entry_status');
+    expect(sql).toContain('NEW.entry_status');
+    expect(sql).toContain('auth.uid()');
+    expect(sql).toContain(
+      'REVOKE INSERT ON TABLE public.entry_status_history FROM PUBLIC, anon, authenticated, service_role'
+    );
+    expect(sql).toContain('DROP POLICY IF EXISTS "entry_status_history_trigger_insert"');
+    expect(sql).toContain('CREATE POLICY "entry_status_history_trigger_insert"');
+    expect(sql).toContain("WITH CHECK (current_user = 'postgres')");
+    expect(sql).toContain('DROP POLICY IF EXISTS "entry_status_history_select"');
+    expect(sql).toContain('public.is_show_official(e.show_id)');
+    expect(sql).toContain('public.is_club_admin(s.club_id)');
+    expect(sql).not.toContain('USING (true)');
+  });
+
   it('keeps own-entry results visible for every non-draft, non-cancelled show state', () => {
     // Match the DDL marker, not any prose mention — later migrations may reference the view name
     // in comments (e.g. function-grant sweeps) without redefining it.

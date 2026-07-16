@@ -490,6 +490,22 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     expect(result.current.classFilter).toBeNull();
   });
 
+  it('preserves deep-link scope while the selected show resolves on mount', () => {
+    const { result, rerender } = renderHook(
+      ({ showId }) => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts, showId }),
+      {
+        wrapper: createWrapper('/?trial=trial-1&class=class-1&attention=pending'),
+        initialProps: { showId: '' },
+      }
+    );
+
+    rerender({ showId: 'show-1' });
+
+    expect(result.current.trialFilter).toBe('trial-1');
+    expect(result.current.classFilter).toBe('class-1');
+    expect(result.current.attentionFilter).toBe('pending');
+  });
+
   it('setClassFilter sets classFilter and syncs to URL', () => {
     const { result } = renderHook(
       () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),

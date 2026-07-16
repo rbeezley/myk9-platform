@@ -6,6 +6,9 @@ export interface ClassData {
   trialNumber: string;
   classOrder: string;
   status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled' | 'Upcoming';
+  is_scoring_finalized?: boolean | null | undefined;
+  scored_count?: number | null | undefined;
+  reopened_after_closeout_at?: string | null | undefined;
   judge: string;
   judgeId?: string | undefined;
   // More flexible class properties to support different organizations

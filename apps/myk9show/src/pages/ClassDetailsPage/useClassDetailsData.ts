@@ -110,7 +110,11 @@ export function useClassDetailsData() {
 
   // --- Entry sources ---
   // 1. Database entries via React Query (primary source)
-  const { entries: dbEntries } = useClassEntriesWithQuery(classId || '', !!classId);
+  const {
+    entries: dbEntries,
+    isLoading: dbEntriesLoading,
+    error: dbEntriesError,
+  } = useClassEntriesWithQuery(classId || '', !!classId);
 
   // 2. Local-only entries from the Zustand entry store (may include entries not yet synced)
   const localEntries = useEntriesByClass(classId || '');
@@ -121,7 +125,11 @@ export function useClassDetailsData() {
   const localRawEntries = localEntries;
 
   // Raw DB entry rows with scoring columns intact (for ClassResultsTable)
-  const { data: dbRawEntries = [] } = useClassEntriesRaw(classId || undefined);
+  const {
+    data: dbRawEntries = [],
+    isLoading: dbRawEntriesLoading,
+    error: dbRawEntriesError,
+  } = useClassEntriesRaw(classId || undefined);
 
   // Get parent trial and show for breadcrumb context
   const parentTrial = trialId
@@ -219,6 +227,8 @@ export function useClassDetailsData() {
     localRawEntries,
     dbRawEntries,
     classEntries,
+    entriesLoading: dbEntriesLoading || dbRawEntriesLoading,
+    entriesError: dbRawEntriesError?.message ?? dbEntriesError,
 
     // Parent context
     parentTrial,

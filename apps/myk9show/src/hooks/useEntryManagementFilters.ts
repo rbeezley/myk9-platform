@@ -258,6 +258,14 @@ export function useEntryManagementFilters({
   // Reset trial/class filters when showId changes (but not on initial mount)
   const prevShowIdRef = useRef(showId);
   useEffect(() => {
+    // The entry-management page resolves its selected show asynchronously. Do
+    // not treat that first undefined -> show id transition as leaving one show;
+    // deep links may already contain the intended trial/class scope.
+    if (!prevShowIdRef.current && showId) {
+      prevShowIdRef.current = showId;
+      return;
+    }
+
     if (prevShowIdRef.current !== showId) {
       prevShowIdRef.current = showId;
       setSearchParams(

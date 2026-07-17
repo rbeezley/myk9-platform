@@ -364,7 +364,7 @@ describe('MutationManager', () => {
         .mockRejectedValueOnce(new Error('DB crash'))
         .mockResolvedValue(mockDb); // Restore for next call
 
-      await manager.uploadPendingMutations();
+      await expect(manager.uploadPendingMutations()).rejects.toThrow('DB crash');
 
       // isUploading should be reset — next call shouldn't be skipped
       await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, makeMutation({ id: 'mut-2' }));
@@ -1662,12 +1662,11 @@ describe('MutationManager', () => {
   // ========================================
 
   describe('Error Handling', () => {
-    it('should handle database errors gracefully', async () => {
+    it('surfaces database errors as a rejection, not an empty-success result', async () => {
       vi.mocked(databaseManager.getDatabase).mockRejectedValueOnce(new Error('DB error'));
 
-      const results = await manager.uploadPendingMutations();
+      await expect(manager.uploadPendingMutations()).rejects.toThrow('DB error');
 
-      expect(results).toHaveLength(0);
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.stringContaining('Failed to upload mutations'),
         expect.any(Error)
@@ -2070,12 +2069,7 @@ describe('MutationManager', () => {
       });
 
       const stored = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, mutationId);
-      expect(stored?.explicitDataKeys).toEqual([
-        'id',
-        'display_order',
-        'status',
-        'status_source',
-      ]);
+      expect(stored?.explicitDataKeys).toEqual(['id', 'display_order', 'status', 'status_source']);
       expect(stored?.data).toEqual({
         id: 'class-1',
         display_order: 4,

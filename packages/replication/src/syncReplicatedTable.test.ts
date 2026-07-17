@@ -40,7 +40,9 @@ class TestTable extends ReplicatedTable<LocalEntry> {
   }
 }
 
-function makeAdapter(remoteRows: RemoteEntry[]): SyncReplicatedTableAdapter<RemoteEntry, LocalEntry> {
+function makeAdapter(
+  remoteRows: RemoteEntry[]
+): SyncReplicatedTableAdapter<RemoteEntry, LocalEntry> {
   return {
     fetchRemoteRows: vi.fn(async () => remoteRows),
     getRemoteId: remote => String(remote.id),
@@ -109,7 +111,13 @@ describe('syncReplicatedTable', () => {
       true
     );
     const adapter = makeAdapter([
-      { id: 1, name: 'Server Rex', status: 'completed', result_status: 'qualified', final_placement: 2 },
+      {
+        id: 1,
+        name: 'Server Rex',
+        status: 'completed',
+        result_status: 'qualified',
+        final_placement: 2,
+      },
     ]);
     adapter.mergeDirtyRow = (local, remote) => ({
       ...local,
@@ -158,6 +166,48 @@ describe('syncReplicatedTable', () => {
     );
   });
 
+  it('continues the download but surfaces the upload failure on the result when the upload rejects', async () => {
+    const uploadPendingMutations = vi.fn(async () => {
+      throw new Error('upload pass crashed');
+    });
+    const adapter = makeAdapter([{ id: '1', name: 'Remote Rex' }]);
+
+    const result = await syncReplicatedTable(table, adapter, {}, { uploadPendingMutations });
+
+    // Download still ran and succeeded...
+    expect(adapter.fetchRemoteRows).toHaveBeenCalledTimes(1);
+    expect(await table.get('1')).toMatchObject({ name: 'Remote Rex' });
+    expect(result.success).toBe(true);
+    // ...but the upload failure is retained so callers don't read a false-healthy sync.
+    expect(result.uploadError).toBe('upload pass crashed');
+  });
+
+  it('retains uploadError even when the download phase also fails', async () => {
+    const uploadPendingMutations = vi.fn(async () => {
+      throw new Error('upload pass crashed');
+    });
+    const adapter = makeAdapter([]);
+    vi.mocked(adapter.fetchRemoteRows).mockRejectedValue(new Error('download crashed'));
+
+    const result = await syncReplicatedTable(table, adapter, {}, { uploadPendingMutations });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('download crashed');
+    // Both failures are independently actionable — the download failure must
+    // not erase the earlier upload failure.
+    expect(result.uploadError).toBe('upload pass crashed');
+  });
+
+  it('leaves uploadError undefined on a clean sync', async () => {
+    const uploadPendingMutations = vi.fn(async () => undefined);
+    const adapter = makeAdapter([]);
+
+    const result = await syncReplicatedTable(table, adapter, {}, { uploadPendingMutations });
+
+    expect(result.success).toBe(true);
+    expect(result.uploadError).toBeUndefined();
+  });
+
   it('applies an incremental buffer to the remote fetch timestamp', async () => {
     await table.set('1', { id: '1', name: 'Rex' });
     await table.updateSyncMetadata({ lastIncrementalSyncAt: 10_000 });
@@ -173,8 +223,7 @@ describe('syncReplicatedTable', () => {
     await table.set('2', { id: '2', name: 'Max', license_key: 'show-2' });
     await table.updateSyncMetadata({ lastIncrementalSyncAt: 10_000 });
     const adapter = makeAdapter([]);
-    adapter.filterLocalRows = (rows, scope) =>
-      rows.filter(row => row.license_key === scope.value);
+    adapter.filterLocalRows = (rows, scope) => rows.filter(row => row.license_key === scope.value);
 
     const result = await syncReplicatedTable(table, adapter, { value: 'show-1' });
 
@@ -188,8 +237,7 @@ describe('syncReplicatedTable', () => {
     await table.set('1', { id: '1', name: 'Rex', license_key: 'show-1' });
     await table.set('2', { id: '2', name: 'Max', license_key: 'show-2' });
     const adapter = makeAdapter([{ id: 1, name: 'Server Rex', license_key: 'show-1' }]);
-    adapter.filterLocalRows = (rows, scope) =>
-      rows.filter(row => row.license_key === scope.value);
+    adapter.filterLocalRows = (rows, scope) => rows.filter(row => row.license_key === scope.value);
     adapter.afterSuccessfulSync = vi.fn();
 
     const result = await syncReplicatedTable(table, adapter, { value: 'show-1' });
@@ -231,7 +279,12 @@ describe('syncReplicatedTable', () => {
       // Remote also changed 'status' → same-field collision
       const adapter = makeAdapter([{ id: 1, name: 'Rex', status: 'scratched' }]);
 
-      const result = await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+      const result = await syncReplicatedTable(
+        table,
+        adapter,
+        {},
+        { conflictSurfacingEnabled: true }
+      );
 
       window.removeEventListener('replication:conflict', handler);
 
@@ -258,7 +311,11 @@ describe('syncReplicatedTable', () => {
 
       await table.set('1', { id: '1', name: 'Rex', status: 'checked-in', resultStatus: 'pending' });
       // Local changed 'status'; remote will change 'resultStatus' → non-overlapping
-      await table.set('1', { id: '1', name: 'Rex', status: 'in-ring', resultStatus: 'pending' }, true);
+      await table.set(
+        '1',
+        { id: '1', name: 'Rex', status: 'in-ring', resultStatus: 'pending' },
+        true
+      );
 
       const adapter = makeAdapter([
         { id: 1, name: 'Rex', status: 'checked-in', result_status: 'qualified' },
@@ -322,10 +379,7 @@ describe('syncReplicatedTable', () => {
     it('stores remoteServerVersion on clean rows from the server', async () => {
       // Remote row includes version column (stripped by toLocalRow but captured separately)
       const remoteWithVersion = [{ id: 1, name: 'Rex', status: 'checked-in', version: 7 }];
-      const adapter: SyncReplicatedTableAdapter<
-        (typeof remoteWithVersion)[0],
-        LocalEntry
-      > = {
+      const adapter: SyncReplicatedTableAdapter<(typeof remoteWithVersion)[0], LocalEntry> = {
         fetchRemoteRows: vi.fn(async () => remoteWithVersion),
         getRemoteId: r => String(r.id),
         toLocalRow: r => ({ id: String(r.id), name: r.name, status: r.status }),
@@ -470,9 +524,7 @@ describe('syncReplicatedTable', () => {
 
       // Server row is identical to base except the version moved (e.g. a no-op
       // trigger touched the row). The token must still advance to stop the storm.
-      const adapter = makeVersionedAdapter([
-        { id: 1, name: 'Rex', status: 'scored', version: 9 },
-      ]);
+      const adapter = makeVersionedAdapter([{ id: 1, name: 'Rex', status: 'scored', version: 9 }]);
 
       await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
 
@@ -868,8 +920,14 @@ describe('syncReplicatedTable', () => {
 
   describe('per-scope incremental watermark', () => {
     it('stores and reads the incremental watermark independently per scope', async () => {
-      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1_000, totalRows: 3 }, { scopeValue: 'show-A' });
-      await table.updateSyncMetadata({ lastIncrementalSyncAt: 9_000, totalRows: 7 }, { scopeValue: 'show-B' });
+      await table.updateSyncMetadata(
+        { lastIncrementalSyncAt: 1_000, totalRows: 3 },
+        { scopeValue: 'show-A' }
+      );
+      await table.updateSyncMetadata(
+        { lastIncrementalSyncAt: 9_000, totalRows: 7 },
+        { scopeValue: 'show-B' }
+      );
 
       const metaA = await table.getSyncMetadata('show-A');
       const metaB = await table.getSyncMetadata('show-B');
@@ -897,7 +955,10 @@ describe('syncReplicatedTable', () => {
       expect(metaScoped?.lastIncrementalSyncAt).toBe(1_000);
       expect(metaScoped?.totalRows).toBeUndefined();
 
-      await table.updateSyncMetadata({ lastIncrementalSyncAt: 2_000, totalRows: 5 }, { scopeValue: 'show-B' });
+      await table.updateSyncMetadata(
+        { lastIncrementalSyncAt: 2_000, totalRows: 5 },
+        { scopeValue: 'show-B' }
+      );
       expect((await table.getSyncMetadata('show-B'))?.totalRows).toBe(5);
     });
 
@@ -911,7 +972,7 @@ describe('syncReplicatedTable', () => {
       expect((await table.getSyncMetadata('show-B'))?.lastIncrementalSyncAt).toBe(8_000);
     });
 
-    it('does not drop one scope\'s rows after another scope advances its watermark', async () => {
+    it("does not drop one scope's rows after another scope advances its watermark", async () => {
       // The core regression. Two scopes share the `entries` table. The server has a
       // row for scope A updated at t=150. Both scopes previously synced up to t=100.
       // Scope B syncs (advancing ONLY B's watermark to "now" >> 150), then scope A
@@ -981,8 +1042,14 @@ describe('syncReplicatedTable', () => {
     });
 
     it('clearCache resets every per-scope watermark', async () => {
-      await table.updateSyncMetadata({ lastIncrementalSyncAt: 5_000, totalRows: 4 }, { scopeValue: 'show-A' });
-      await table.updateSyncMetadata({ lastIncrementalSyncAt: 6_000, totalRows: 2 }, { scopeValue: 'show-B' });
+      await table.updateSyncMetadata(
+        { lastIncrementalSyncAt: 5_000, totalRows: 4 },
+        { scopeValue: 'show-A' }
+      );
+      await table.updateSyncMetadata(
+        { lastIncrementalSyncAt: 6_000, totalRows: 2 },
+        { scopeValue: 'show-B' }
+      );
 
       await table.clearCache();
 

@@ -52,8 +52,15 @@ export async function retryFailedItems<T>(
 }
 
 export function errorReason(error: unknown): string {
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error && error.message.trim().length > 0) return error.message;
   if (typeof error === 'string' && error.trim().length > 0) return error;
+  // The repository's DatabaseError is a plain object (createDatabaseError returns
+  // an object literal, not an Error instance), so also read a string `message` off
+  // any error-like object — otherwise real DB failure reasons show as "Unknown error".
+  if (error && typeof error === 'object') {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim().length > 0) return message;
+  }
   return 'Unknown error';
 }
 

@@ -96,8 +96,15 @@ describe('errorReason', () => {
     expect(errorReason('bad string')).toBe('bad string');
   });
 
+  it('reads the message off a plain error-like object (repository DatabaseError)', () => {
+    // createDatabaseError returns an object literal, not an Error instance.
+    const dbError = { name: 'DatabaseError', message: 'duplicate key value', code: '23505' };
+    expect(errorReason(dbError)).toBe('duplicate key value');
+  });
+
   it('falls back for unknown shapes', () => {
     expect(errorReason(undefined)).toBe('Unknown error');
     expect(errorReason({})).toBe('Unknown error');
+    expect(errorReason({ message: '   ' })).toBe('Unknown error');
   });
 });

@@ -22,6 +22,8 @@ Independent-review hardening was reverified after the initial sweep:
 
 This review pass added cancelled-trial coverage, restored the accepted/payment-due indicator, routed the schedule timeline through the shared shape grammar, tied coverage to canonical entry/class statuses, and removed the shared component's runtime dependency on mocked icon exports.
 
+The second independent-review pass also verified cancelled trials with zero classes, neutral-outline badge contrast, Entry Management's composed status line, and the secretary run-sheet check-in selector. The expanded app regression set passed 83 tests across 10 files; the shared UI suite passed 295 tests across 18 files. Typecheck (26/26), lint (14/14), and strict OpenSpec validation remained clean.
+
 The broad myK9Show suite was also started. It exposed three contextual My Entries label regressions, which were fixed and covered by the focused 67-test card suite, then reached the repository's known 60-second hang threshold and was stopped. CI remains the broad-suite gate.
 
 ## Browser sweep

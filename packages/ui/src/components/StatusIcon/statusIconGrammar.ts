@@ -218,14 +218,14 @@ export function getTrialCompositeStatus(
   classStatus: string | null | undefined,
   classCount: number
 ): (typeof TRIAL_STATUS_VALUES)[number] {
-  if (classCount === 0) return 'no-classes';
   const normalized =
     classStatus
       ?.trim()
       .toLowerCase()
       .replace(/[\s_]+/g, '-') ?? '';
-  if (normalized === 'completed' || normalized === 'complete') return 'completed';
   if (normalized === 'cancelled' || normalized === 'canceled') return 'cancelled';
+  if (classCount === 0) return 'no-classes';
+  if (normalized === 'completed' || normalized === 'complete') return 'completed';
   if (normalized === 'in-progress' || normalized === 'inprogress') return 'in-progress';
   return 'not-started';
 }

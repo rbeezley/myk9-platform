@@ -10,11 +10,22 @@ interface StatusBadgeProps extends Omit<ComponentProps<typeof Badge>, 'children'
   label?: string | undefined;
 }
 
-export function StatusBadge({ family, status, label, className, ...badgeProps }: StatusBadgeProps) {
+export function StatusBadge({
+  family,
+  status,
+  label,
+  className,
+  variant,
+  ...badgeProps
+}: StatusBadgeProps) {
   const descriptor = getStatusDescriptor(family, status);
 
   return (
-    <Badge className={cn('inline-flex items-center gap-1.5', className)} {...badgeProps}>
+    <Badge
+      variant={variant ?? 'outline'}
+      className={cn('inline-flex items-center gap-1.5', className)}
+      {...badgeProps}
+    >
       <StatusIcon family={family} status={status} size="sm" decorative />
       <span>{label ?? descriptor.label}</span>
     </Badge>

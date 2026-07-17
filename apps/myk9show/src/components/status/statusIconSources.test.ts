@@ -17,6 +17,7 @@ const MIGRATED_RENDERERS = [
   'components/common/CheckInStatusBadge.tsx',
   'components/common/CheckInStatusIndicator.tsx',
   'components/classes/ClassResultsTable/StatusBadge.tsx',
+  'components/entries/EntryStatusLine.tsx',
   'components/live/EntryRow.tsx',
   'components/live/LiveClassCard.tsx',
   'components/schedule/ElementCard.tsx',
@@ -25,6 +26,7 @@ const MIGRATED_RENDERERS = [
   'components/trials/TrialDetail/TrialClassesCards.tsx',
   'features/show-map/ShowMapStatusBadge.tsx',
   'pages/ClassDetailsPage/ClassReadinessStrip.tsx',
+  'pages/ClassDetailsPage/SecretaryRunSheet/RunSheetRow.tsx',
   'pages/TrialDetailsPage.tsx',
 ] as const;
 
@@ -40,7 +42,7 @@ describe('status icon grammar source ownership', () => {
       const source = readFileSync(resolve(SOURCE_ROOT, sourcePath), 'utf8');
       expect(source, sourcePath).toContain('@/components/status');
       expect(source, sourcePath).not.toMatch(
-        /CHECKIN_ICON_MAP|STATUS_ICONS|STATUS_BADGE_COLORS|CLASS_STATUS_CONFIG|ENTRY_STATUS_BADGE/
+        /CHECKIN_ICON_MAP|STATUS_ICONS|STATUS_BADGE_COLORS|STATUS_CLASS_BY_VALUE|CLASS_STATUS_CONFIG|ENTRY_STATUS_BADGE/
       );
     }
   });

@@ -2,6 +2,7 @@ import { ClipboardCheck, Pencil, X, CheckCircle2 } from 'lucide-react';
 import { CHECKIN_STATUSES, getCheckinStatusConfig, type CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/base/Chip';
+import { StatusIcon } from '@/components/status';
 import {
   Select,
   SelectContent,
@@ -20,17 +21,6 @@ interface RunSheetRowProps {
   isMine?: boolean;
 }
 
-const STATUS_CLASS_BY_VALUE: Partial<Record<CheckInStatus, string>> = {
-  'no-status': 'border-border bg-background text-muted-foreground',
-  'checked-in': 'border-emerald-300 bg-emerald-950/20 text-emerald-300',
-  'at-gate': 'border-sky-300 bg-sky-950/20 text-sky-300',
-  'come-to-gate': 'border-amber-300 bg-amber-950/20 text-amber-300',
-  conflict: 'border-red-300 bg-red-950/20 text-red-300',
-  pulled: 'border-red-300 bg-red-950/20 text-red-300',
-  'in-ring': 'border-violet-300 bg-violet-950/20 text-violet-300',
-  completed: 'border-green-300 bg-green-950/20 text-green-300',
-};
-
 function statusLabel(status: CheckInStatus): string {
   return getCheckinStatusConfig(status)?.label ?? 'No Status';
 }
@@ -46,8 +36,6 @@ export function RunSheetRow({
   isMine = false,
 }: RunSheetRowProps) {
   const { isScored, isScratched, result } = entry;
-  const statusClass =
-    STATUS_CLASS_BY_VALUE[entry.checkInStatus] ?? STATUS_CLASS_BY_VALUE['no-status'];
 
   return (
     <div
@@ -111,8 +99,14 @@ export function RunSheetRow({
           >
             <SelectTrigger
               aria-label={`Check-in status for ${entry.dogName}`}
-              className={cn('h-11 min-w-[148px] rounded-full border font-semibold', statusClass)}
+              className="h-11 min-w-[148px] rounded-full border bg-background font-semibold text-foreground"
             >
+              <StatusIcon
+                family="entry"
+                status={entry.checkInStatus}
+                size="sm"
+                decorative
+              />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

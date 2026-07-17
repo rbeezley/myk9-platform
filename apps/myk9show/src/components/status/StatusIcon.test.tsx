@@ -10,6 +10,7 @@ import {
   getTrialCompositeStatus,
 } from './statusIconGrammar';
 import { StatusIcon } from './StatusIcon';
+import { StatusBadge } from './StatusBadge';
 
 describe('status icon grammar', () => {
   it('covers every declared and canonical entry, class, and trial status', () => {
@@ -96,5 +97,14 @@ describe('status icon grammar', () => {
         expect(STATUS_COLOR_CLASSES).toContain(getStatusDescriptor(family, status).colorClass);
       }
     }
+  });
+
+  it('defaults status badges to a neutral outline behind semantic icon colors', () => {
+    render(<StatusBadge family="entry" status="accepted" />);
+
+    const badge = screen.getByText('Accepted').parentElement;
+    expect(badge).toHaveClass('text-foreground');
+    expect(badge).not.toHaveClass('bg-primary');
+    expect(badge?.querySelector('[data-family="entry"]')).toHaveClass('text-info');
   });
 });

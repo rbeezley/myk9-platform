@@ -6,6 +6,7 @@ import {
   ENTRY_STATUS_VALUES,
   TRIAL_STATUS_VALUES,
   getStatusDescriptor,
+  getTrialCompositeStatus,
 } from './statusIconGrammar';
 
 describe('StatusIcon', () => {
@@ -51,5 +52,9 @@ describe('StatusIcon', () => {
       'complete'
     );
     expect(screen.getByRole('img', { name: 'Cancelled' })).toHaveClass('text-destructive');
+  });
+
+  it('preserves cancellation even when the trial has no classes', () => {
+    expect(getTrialCompositeStatus('Cancelled', 0)).toBe('cancelled');
   });
 });

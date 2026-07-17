@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+import { EmptyState } from '@/components/common/EmptyState';
 import { ScoringEntryListLoadingSkeleton } from '@/components/scoring/ScoringLoadingSkeletons';
 
 // Replication
@@ -334,7 +335,27 @@ export function ScoringEntryListPage() {
         >
           <div className="space-y-3">
             {currentEntries.length === 0 ? (
-              <EmptyState tab={activeTab} searchTerm={searchTerm} />
+              <EmptyState
+                icon={searchTerm ? Search : AlertCircle}
+                title={
+                  searchTerm
+                    ? 'No Results Found'
+                    : activeTab === 'pending'
+                      ? 'No Pending Entries'
+                      : 'No Completed Entries'
+                }
+                description={
+                  searchTerm
+                    ? `No entries match "${searchTerm}"`
+                    : activeTab === 'pending'
+                      ? 'All entries have been scored!'
+                      : 'No entries have been scored yet.'
+                }
+                action={
+                  searchTerm ? { label: 'Clear Search', onClick: () => setSearchTerm('') } : null
+                }
+                size="sm"
+              />
             ) : (
               currentEntries.map(entry => (
                 <SortableScoringEntryCard
@@ -358,33 +379,6 @@ export function ScoringEntryListPage() {
           ) : null}
         </DragOverlay>
       </DndContext>
-    </div>
-  );
-}
-
-/**
- * Empty state component
- */
-function EmptyState({ tab, searchTerm }: { tab: 'pending' | 'completed'; searchTerm: string }) {
-  if (searchTerm) {
-    return (
-      <div className="text-center py-12">
-        <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-        <h3 className="text-lg font-semibold text-foreground mb-2">No Results Found</h3>
-        <p className="text-muted-foreground">No entries match "{searchTerm}"</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="text-center py-12">
-      <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-      <h3 className="text-lg font-semibold text-foreground mb-2">
-        {tab === 'pending' ? 'No Pending Entries' : 'No Completed Entries'}
-      </h3>
-      <p className="text-muted-foreground">
-        {tab === 'pending' ? 'All entries have been scored!' : 'No entries have been scored yet.'}
-      </p>
     </div>
   );
 }

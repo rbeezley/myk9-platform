@@ -416,6 +416,14 @@ const EntryManagementPage: React.FC = () => {
                   entryViewMode={entryViewMode}
                   setEntryViewMode={setEntryViewMode}
                   filteredEntries={filteredEntries}
+                  hasActiveScopeFilters={Boolean(trialFilter || classFilter)}
+                  onResetFilters={() => {
+                    setSearchTerm('');
+                    setPaymentFilter('all');
+                    setAttentionFilter('all');
+                    setTrialFilter(null);
+                    setClassFilter(null);
+                  }}
                   showId={selectedShowId}
                   showName={selectedShow?.name ?? undefined}
                   entries={entries}

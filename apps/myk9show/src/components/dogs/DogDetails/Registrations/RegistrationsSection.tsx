@@ -8,7 +8,7 @@ import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
 import { Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { NoDataEmptyState } from '@/components/common/EmptyState';
+import { EmptyState } from '@/components/common/EmptyState';
 import { useEffect, useState } from 'react';
 import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
@@ -231,11 +231,15 @@ export default function RegistrationsSection({
         </Button>
       </div>
       {!registrations || registrations.length === 0 ? (
-        <NoDataEmptyState
-          entityName="Registrations"
+        <EmptyState
+          icon={Plus}
+          title="No Registrations Found"
           description="Add your first kennel club registration to get started."
-          canCreate={true}
-          onCreateClick={() => setIsAddRegistrationDialogOpen(true)}
+          action={{
+            label: 'Add Registration',
+            onClick: () => setIsAddRegistrationDialogOpen(true),
+            icon: Plus,
+          }}
         />
       ) : (
         <div className="grid gap-4 grid-cols-1">

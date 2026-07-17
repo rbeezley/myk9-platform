@@ -259,6 +259,7 @@ const UserManagementPage: React.FC = () => {
                   setFilters(DEFAULT_USER_FILTER);
                 },
               }}
+              variant="filter"
             />
           )}
 
@@ -276,6 +277,10 @@ const UserManagementPage: React.FC = () => {
               totalPages={totalPages}
               totalFilteredUsers={filteredUsers.length}
               onPageChange={setCurrentPage}
+              onClearSearch={() => {
+                setSearchTerm('');
+                setFilters(DEFAULT_USER_FILTER);
+              }}
               pageSize={pageSize}
               onPageSizeChange={size => {
                 setPageSize(size);

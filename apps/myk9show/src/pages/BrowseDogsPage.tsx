@@ -144,7 +144,7 @@ const BrowseDogsPage: React.FC = () => {
                   onClick: openCreateDogPanel,
                   icon: Plus,
                 }
-              : undefined
+              : null
           }
         />
       );
@@ -157,6 +157,7 @@ const BrowseDogsPage: React.FC = () => {
           title="No dogs match your filters"
           description="Try adjusting your search or filter criteria."
           action={{ label: 'Clear Filters', onClick: clearAllFilters }}
+          variant="filter"
         />
       );
     }

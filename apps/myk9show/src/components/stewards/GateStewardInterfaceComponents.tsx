@@ -10,6 +10,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users } from 'lucide-react';
+import { EmptyState } from '@/components/common/EmptyState';
 import {
   CheckInStatusIndicator,
   CheckInQuickActions,
@@ -150,9 +151,12 @@ export const GateEntryRow: React.FC<GateEntryRowProps> = ({
 
 /* ---------- Empty State ---------- */
 
-export const GateEmptyState: React.FC = () => (
-  <div className="text-center py-8 text-muted-foreground">
-    <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-    <p>No entries match the current filters</p>
-  </div>
+export const GateEmptyState: React.FC<{ onReset: () => void }> = ({ onReset }) => (
+  <EmptyState
+    icon={Users}
+    title="No entries match the current filters"
+    action={{ label: 'Show all entries', onClick: onReset }}
+    variant="filter"
+    size="sm"
+  />
 );

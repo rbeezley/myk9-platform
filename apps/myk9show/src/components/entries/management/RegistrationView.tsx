@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { toast } from 'sonner';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
@@ -9,6 +8,8 @@ import { ListControls } from '@/components/common/ListControls';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/common/EmptyState';
+import { Search, Users } from 'lucide-react';
 
 import { EntryStatsCards } from './EntryStatsCards';
 import { EnrollmentCard } from './EnrollmentCard';
@@ -102,6 +103,9 @@ interface RegistrationViewProps {
   onRefresh: () => void;
   /** Entries grouped by enrollment/order for the list view */
   enrollmentGroups: EnrollmentGroup[];
+  /** Clears all entry and scope filters for the filtered-empty recovery action. */
+  onResetFilters: () => void;
+  hasActiveScopeFilters: boolean;
   onSendDecisionEmail: (
     registrationId: string,
     message?: string,
@@ -142,6 +146,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   onRemoveEntry,
   onRefresh,
   enrollmentGroups,
+  onResetFilters,
+  hasActiveScopeFilters,
   onSendDecisionEmail,
   lastEmailedMap = {},
 }) => {
@@ -257,6 +263,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   const hasSearchFilter = searchTerm.trim().length > 0;
   const isTrulyEmpty =
     entries.length === 0 &&
+    !hasActiveScopeFilters &&
     !hasSearchFilter &&
     paymentFilter === 'all' &&
     attentionFilter === 'all';
@@ -266,14 +273,22 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     payment: paymentFilter,
   });
   const emptyStateContent = (
-    <div className="space-y-3">
-      <p>{emptyStateMessage}</p>
-      {isTrulyEmpty && showId && (
-        <Button asChild>
-          <Link to={`/secretary/register/${encodeURIComponent(showId)}`}>Add mail-in entry</Link>
-        </Button>
-      )}
-    </div>
+    <EmptyState
+      icon={isTrulyEmpty ? Users : Search}
+      title={emptyStateMessage}
+      action={
+        isTrulyEmpty
+          ? showId
+            ? {
+                label: 'Add mail-in entry',
+                href: `/secretary/register/${encodeURIComponent(showId)}`,
+              }
+            : null
+          : { label: 'Clear filters', onClick: onResetFilters }
+      }
+      variant={isTrulyEmpty ? 'default' : 'filter'}
+      size="sm"
+    />
   );
   const enrollmentPageCount = Math.max(
     1,

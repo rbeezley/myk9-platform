@@ -79,7 +79,7 @@ export function CoverImageUpload({
                 type="button"
                 aria-label="Remove cover"
                 onClick={onRemove}
-                className="flex items-center gap-2 rounded-lg bg-destructive/80 px-4 py-2 text-sm text-white transition-colors hover:bg-destructive"
+                className="flex items-center gap-2 rounded-lg bg-destructive/80 px-4 py-2 text-sm text-destructive-foreground transition-colors hover:bg-destructive"
               >
                 <Trash2 className="h-4 w-4" />
               </button>

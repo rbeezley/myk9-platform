@@ -46,7 +46,7 @@ const DeletePersonDialog: React.FC<DeletePersonDialogProps> = ({
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onDelete}
-            className="bg-destructive hover:bg-destructive/90 text-white !rounded-button cursor-pointer whitespace-nowrap"
+            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground !rounded-button cursor-pointer whitespace-nowrap"
           >
             Delete
           </AlertDialogAction>

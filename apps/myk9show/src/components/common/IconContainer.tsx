@@ -227,7 +227,7 @@ export function QuickActionIcon({ label, badge, className, ...props }: QuickActi
 
       {/* Badge */}
       {badge && (
-        <div className="absolute -top-1 -right-1 bg-destructive text-white text-xs rounded-full min-w-[1.25rem] h-5 flex items-center justify-center">
+        <div className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full min-w-[1.25rem] h-5 flex items-center justify-center">
           {badge}
         </div>
       )}

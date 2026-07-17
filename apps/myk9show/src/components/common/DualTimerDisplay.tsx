@@ -198,7 +198,7 @@ export function DualTimerDisplay({
             'flex items-center justify-center space-x-2 px-3 py-2 rounded-md',
             isLarge && 'px-4 py-3',
             timer.isExpired
-              ? 'bg-destructive/50 text-destructive'
+              ? 'bg-destructive/10 text-destructive'
               : 'bg-yellow-900/50 text-yellow-200'
           )}
         >

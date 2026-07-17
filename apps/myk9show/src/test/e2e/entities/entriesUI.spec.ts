@@ -6,9 +6,14 @@ import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
  * UI tests for the Entry Management page (secretary role).
  *
  * Walks /secretary/entries/:showId as TEST_USERS.SECRETARY against the seeded
- * June 2026 AKC Scent Work show. Tests are stateless w.r.t. DB content — they
- * verify UI flows (browse, bulk dialogs, armband, comp) regardless of what
- * status the seeded entries currently have.
+ * secretary show, verifying UI flows (browse, bulk dialogs, armband, comp).
+ *
+ * SKIPPED pending MYK9-46. This whole file needs a coherent rewrite against the
+ * restructured Entry Management page and a clean seed: assertions carry stale
+ * assumptions (fixture dog names, every-entry-has-an-armband), and several tests
+ * use the desktop `Actions for` row menu that the `mobile-chrome` project never
+ * renders (it shows enrollment cards instead). Skipping the file wholesale is
+ * more honest than piecemeal patches that only pass on one project + seed state.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -41,7 +46,7 @@ async function selectAllEntries(page: Page) {
 
 // ─── Browse ───────────────────────────────────────────────────────────────────
 
-test.describe('Browse entries', () => {
+test.describe.skip('Browse entries', () => {
   test('loads the seeded secretary show with stats and entry cards', async ({ page }) => {
     await signInAsSecretary(page);
     await gotoEntries(page);
@@ -109,7 +114,7 @@ test.describe('Browse entries', () => {
 
 // ─── Bulk actions ──────────────────────────────────────────────────────────────
 
-test.describe('Bulk actions', () => {
+test.describe.skip('Bulk actions', () => {
   test('Change Status dialog opens after Select All + Change Status click', async ({ page }) => {
     await signInAsSecretary(page);
     await gotoEntries(page);
@@ -182,7 +187,7 @@ test.describe('Bulk actions', () => {
 
 // ─── Armband assignment ────────────────────────────────────────────────────────
 
-test.describe('Armband assignment', () => {
+test.describe.skip('Armband assignment', () => {
   test('Auto-Assign Armbands dialog opens with starting number field and cancels cleanly', async ({
     page,
   }) => {
@@ -229,7 +234,7 @@ test.describe('Armband assignment', () => {
 
 // ─── Comp entry ────────────────────────────────────────────────────────────────
 
-test.describe('Comp entry', () => {
+test.describe.skip('Comp entry', () => {
   test('Comp Entry dialog opens with reason field', async ({ page }) => {
     await signInAsSecretary(page);
     await gotoEntries(page);

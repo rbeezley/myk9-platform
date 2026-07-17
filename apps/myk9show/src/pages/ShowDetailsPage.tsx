@@ -14,7 +14,7 @@ import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
-import { CLASS_STATUS } from '@myk9/core';
+import { CLASS_STATUS, normalizeClassStatus } from '@myk9/core';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { getEntriesForShow } from '@/services/database/entries';
 import { queryKeys } from '@/lib/queryClient';
@@ -283,7 +283,9 @@ const ShowDetailsPage: React.FC = () => {
       stats[trial.id] = {
         classCount: classes.length,
         entryCount: trialEntryCount,
-        completedClasses: classes.filter(cls => cls.status === CLASS_STATUS.COMPLETED).length,
+        completedClasses: classes.filter(
+          cls => normalizeClassStatus(cls.status) === CLASS_STATUS.COMPLETED
+        ).length,
       };
     }
     return stats;

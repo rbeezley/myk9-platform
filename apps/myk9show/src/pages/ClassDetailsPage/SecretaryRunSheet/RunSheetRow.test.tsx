@@ -1,4 +1,4 @@
-import { render } from '@/test/utils/testUtils';
+import { render, screen } from '@/test/utils/testUtils';
 import { describe, expect, it, vi } from 'vitest';
 import { RunSheetRow } from './RunSheetRow';
 import type { RunSheetEntry } from './types';
@@ -27,5 +27,7 @@ describe('RunSheetRow', () => {
     const icon = container.querySelector('[data-family="entry"][data-status="checked-in"]');
     expect(icon).toHaveAttribute('data-shape', 'in-progress');
     expect(icon).toHaveClass('text-info');
+    expect(screen.getByText('Checked-in')).toBeInTheDocument();
+    expect(screen.queryByText('checked-in')).not.toBeInTheDocument();
   });
 });

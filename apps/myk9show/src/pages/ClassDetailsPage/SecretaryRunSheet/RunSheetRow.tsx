@@ -8,7 +8,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { PlacementPill } from '@/components/base/PlacementPill';
@@ -107,7 +106,7 @@ export function RunSheetRow({
                 size="sm"
                 decorative
               />
-              <SelectValue />
+              <span>{statusLabel(entry.checkInStatus)}</span>
             </SelectTrigger>
             <SelectContent>
               {CHECKIN_STATUSES.map(status => (

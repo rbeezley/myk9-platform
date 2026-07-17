@@ -162,4 +162,15 @@ describe('status icon grammar source ownership', () => {
     expect(classManagement).toContain('lg:grid-cols-7');
     expect(classManagement).not.toContain('md:grid-cols-7');
   });
+
+  it('normalizes warm-store class statuses before computing trial completion', () => {
+    const showDetails = readFileSync(
+      resolve(WORKSPACE_ROOT, 'apps/myk9show/src/pages/ShowDetailsPage.tsx'),
+      'utf8'
+    );
+
+    expect(showDetails).toContain(
+      'normalizeClassStatus(cls.status) === CLASS_STATUS.COMPLETED'
+    );
+  });
 });

@@ -2,6 +2,7 @@ import {
   CLASS_STATUS,
   isCheckInStatus,
   normalizeClassStatus,
+  type TrialStatusKey,
 } from '@myk9/core';
 import { getStatusDescriptor } from '@/components/status';
 import type {
@@ -69,6 +70,19 @@ export function classifyClassStatus(status?: string): ShowMapDisplayStatus | und
     return { value: normalized, label, kind: 'muted' };
   }
   return { value: normalized, label: 'Not started', kind: 'neutral' };
+}
+
+export function classifyTrialStatus(status: TrialStatusKey): ShowMapDisplayStatus {
+  const label = getStatusDescriptor('trial', status).label;
+  const kind =
+    status === 'completed'
+      ? 'complete'
+      : status === 'in-progress'
+        ? 'active'
+        : status === 'cancelled'
+          ? 'muted'
+          : 'neutral';
+  return { value: status, label, kind };
 }
 
 export function classifyClassWrapUpStatus(

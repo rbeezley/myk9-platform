@@ -27,6 +27,19 @@ describe('ShowMapNodeStatusBadge', () => {
     expect(screen.queryByText('Not started')).not.toBeInTheDocument();
   });
 
+  it('shows in progress when an active child exists before any class completes', () => {
+    render(
+      <ShowMapNodeStatusBadge
+        node={node({
+          status: { value: 'In Progress', label: 'In Progress', kind: 'active' },
+          progress: { completed: 0, total: 5, label: '0/5 classes complete' },
+        })}
+      />
+    );
+
+    expect(screen.getByText('In progress')).toBeInTheDocument();
+  });
+
   it.each(['scratch', 'scratched', 'cancelled', 'canceled'])('%s uses the pulled entry shape', value => {
     const { container } = render(
       <ShowMapNodeStatusBadge

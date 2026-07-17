@@ -32,6 +32,7 @@ import {
 } from '../_shared/chargeRefundedDecision.ts';
 import { decideFreshSessionGate } from '../_shared/freshSessionGate.ts';
 import { buildConfirmationStampPayload } from '../_shared/entryConfirmationStamp.ts';
+import { createWebhookRequestHandler } from './webhookHandler.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -69,80 +70,16 @@ type CartOverflowLine = {
   errorMessage?: string;
 };
 
-Deno.serve(async req => {
-  // Hoisted so the outer catch can dedupe re-deliveries: Stripe retries the
-  // same event id on every non-2xx response, and each retry would otherwise
-  // insert a fresh unresolved operator_alerts row. Stays null until signature
-  // verification succeeds — a verification failure has no trusted event id,
-  // so that path correctly stays keyless.
-  let eventId: string | null = null;
-  try {
-    if (req.method === 'OPTIONS') {
-      return new Response(null, { status: 204 });
-    }
-
-    if (req.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405 });
-    }
-
-    const signature = req.headers.get('stripe-signature');
-    if (!signature) {
-      return new Response('No signature found', { status: 400 });
-    }
-
-    const body = await req.text();
-    let event: Stripe.Event;
-
-    try {
-      event = await verifyWithEitherSecret(body, signature);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`Webhook signature verification failed: ${errorMessage}`);
-      return new Response(`Webhook signature verification failed: ${errorMessage}`, {
-        status: 400,
-      });
-    }
-    eventId = event.id;
-
-    await handleEvent(event);
-
-    return Response.json({ received: true });
-  } catch (error: unknown) {
-    console.error('Error processing webhook:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    try {
-      await alertAdmin(
-        'Webhook handler failed before acknowledgment',
-        `<p>A Stripe webhook handler failed before returning 2xx, so Stripe should retry it.</p>
-         <pre>${errorMessage}</pre>`,
-        {
-          source: 'stripe-webhook',
-          dedupeKey: eventId ? `handler-failed-${eventId}` : undefined,
-          detail: { eventId, message: errorMessage },
-        }
-      );
-    } catch (alertError) {
-      console.error('Webhook failure alert also failed:', alertError);
-    }
-    return Response.json({ error: errorMessage }, { status: 500 });
-  }
-});
-
-// Platform-scoped and Connect-scoped destinations sign with different secrets;
-// try the platform secret first, then the Connect secret when configured.
-async function verifyWithEitherSecret(body: string, signature: string): Promise<Stripe.Event> {
-  try {
-    return await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
-  } catch (platformError) {
-    if (!stripeConnectWebhookSecret) throw platformError;
-    // Log the platform-secret failure so a misconfigured PRIMARY secret isn't
-    // masked by the Connect-secret error when both verifications fail.
-    console.log(
-      `Platform-secret verification failed (${platformError instanceof Error ? platformError.message : 'unknown'}); trying Connect secret`
-    );
-    return await stripe.webhooks.constructEventAsync(body, signature, stripeConnectWebhookSecret);
-  }
-}
+Deno.serve(
+  createWebhookRequestHandler({
+    verifyEvent: (body, signature, secret) =>
+      stripe.webhooks.constructEventAsync(body, signature, secret),
+    platformSecret: stripeWebhookSecret,
+    connectSecret: stripeConnectWebhookSecret,
+    dispatch: handleEvent,
+    alertAdmin,
+  })
+);
 
 async function handleEvent(event: Stripe.Event) {
   console.log(`Processing event: ${event.type}`);

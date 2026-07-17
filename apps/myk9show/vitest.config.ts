@@ -34,6 +34,9 @@ export default defineConfig({
       '../../supabase/functions/send-registration-email/dateFormat.test.ts',
       '../../supabase/functions/validate-passcode/*.test.ts',
       '../../supabase/functions/generate-premium/*.test.ts',
+      '../../supabase/functions/admin-delete-user/*.test.ts',
+      '../../supabase/functions/admin-generate-reset-link/*.test.ts',
+      'supabase/functions/stripe-webhook/*.test.ts',
     ],
     exclude: [
       '**/node_modules/**',

@@ -36,6 +36,8 @@ The next two-axis review corrected the remaining ringside and scoring lifecycle 
 
 The following review loop migrated the Class Details compact header's final local class-status variant map and moved the newly added component tests onto the required application test renderer. The ownership and shared-shape assertions failed before the migration; the focused 47-test app set passed afterward.
 
+The next standards pass found six other modified status tests still using raw Testing Library render. They now use the application renderer (with router mocks/wrappers adjusted to avoid nesting), and all 74 tests across those 6 files pass. The parallel spec review reported no actionable findings.
+
 The broad myK9Show suite was also started. It exposed three contextual My Entries label regressions, which were fixed and covered by the focused 67-test card suite, then reached the repository's known 60-second hang threshold and was stopped. CI remains the broad-suite gate.
 
 ## Browser sweep

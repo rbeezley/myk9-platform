@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@/test/utils/testUtils';
 import { describe, it, expect, vi } from 'vitest';
 import { ClassCard } from '@/components/shows/tabs/ClassCard';
 

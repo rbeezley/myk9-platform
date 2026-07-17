@@ -1,13 +1,17 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@/test/utils/testUtils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TrialsTab } from '@/components/shows/tabs/TrialsTab';
 import type { Trial } from '@/components/trials/types/trial.types';
 
 // Mock dependencies
 const mockNavigate = vi.fn();
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => mockNavigate,
-}));
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 let mockHasPermission = (_p: string) => false;
 vi.mock('@/hooks/useRBAC', () => ({

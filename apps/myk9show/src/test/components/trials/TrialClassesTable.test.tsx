@@ -1,8 +1,6 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
-import { BrowserRouter } from 'react-router-dom';
 import { TrialClassesTable } from '@/components/trials/TrialDetail/TrialClassesTable';
 import { TrialClass } from '@/components/trials/types/trial.types';
 
@@ -15,10 +13,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Helper to wrap component with router
-const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
-};
+const renderWithRouter = render;
 
 // Mock class data
 const mockClasses: TrialClass[] = [

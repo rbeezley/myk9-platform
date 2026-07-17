@@ -15,6 +15,9 @@ const useJudgesWithQualificationsMock = vi.hoisted(() => vi.fn());
 const useShowQueryMock = vi.hoisted(() => vi.fn());
 const updateClassMock = vi.hoisted(() => vi.fn());
 const deleteClassMock = vi.hoisted(() => vi.fn());
+// Bulk delete routes through the soft_delete_class service RPC (same recoverable
+// path as single-class delete), NOT the replicated table's raw hard DELETE.
+const softDeleteClassServiceMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/queries/useClassesDatabase', () => ({
   useClassesByTrialQuery: useClassesByTrialQueryMock,
@@ -43,6 +46,10 @@ vi.mock('@/services/replication', () => ({
     updateClass: updateClassMock,
     deleteClass: deleteClassMock,
   },
+}));
+
+vi.mock('@/services/database/classes', () => ({
+  deleteClass: softDeleteClassServiceMock,
 }));
 
 vi.mock('@/store/trialStore', () => ({
@@ -104,6 +111,10 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     useShowQueryMock.mockReturnValue({ data: { id: 'show-1', status: 'published' } });
     updateClassMock.mockResolvedValue('mutation-1');
     deleteClassMock.mockResolvedValue('mutation-1');
+    softDeleteClassServiceMock.mockResolvedValue({
+      data: { id: 'class-1', name: null },
+      error: null,
+    });
   });
 
   it('does not render the removed "Select all filtered" button', () => {
@@ -160,6 +171,26 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     expect(updateClassMock).toHaveBeenCalledWith('class-2', { classStatus: 'In Progress' });
     // Selection clears on full success.
     await waitFor(() => expect(screen.queryByText(/selected/i)).not.toBeInTheDocument());
+  });
+
+  it('bulk delete soft-deletes via the service RPC, not the replicated hard DELETE', async () => {
+    const { user } = renderPage();
+    await user.click(screen.getByRole('checkbox', { name: /select all visible classes/i }));
+
+    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i }));
+
+    // Destructive → confirmation dialog before dispatch.
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /delete/i }));
+
+    await waitFor(() => {
+      expect(softDeleteClassServiceMock).toHaveBeenCalledWith('class-1');
+      expect(softDeleteClassServiceMock).toHaveBeenCalledWith('class-2');
+    });
+    // The raw hard-delete path must NOT be used — it would cascade-delete entries
+    // irrecoverably and diverge from single-class soft-delete semantics.
+    expect(deleteClassMock).not.toHaveBeenCalled();
   });
 
   it('a second click while a bulk dispatch is in flight is a no-op (in-flight latch)', async () => {

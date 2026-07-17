@@ -34,8 +34,16 @@ vi.mock('@/services/database/judges', () => ({
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: {
     updateClass: updateClassMock,
-    deleteClass: deleteClassMock,
+    // Bulk delete no longer uses the replicated hard-DELETE; it routes through the
+    // soft_delete_class service RPC below. Keep a distinct fn to assert it's unused.
+    deleteClass: vi.fn(),
   },
+}));
+
+// Bulk delete goes through the soft_delete_class service (recoverable), not the
+// replicated table — `deleteClass` returns { data, error }.
+vi.mock('@/services/database/classes', () => ({
+  deleteClass: deleteClassMock,
 }));
 
 vi.mock('sonner', () => ({ toast: { error: toastErrorMock, success: vi.fn() } }));
@@ -91,7 +99,7 @@ describe('ClassManagementPage judge assignment', () => {
     });
     upsertClassJudgeAssignmentMock.mockResolvedValue(undefined);
     updateClassMock.mockResolvedValue('mutation-1');
-    deleteClassMock.mockResolvedValue('mutation-1');
+    deleteClassMock.mockResolvedValue({ data: { id: 'class-1', name: null }, error: null });
   });
 
   it('renders inline judge assignment and writes the selected class judge', async () => {

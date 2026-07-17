@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { SelectedUser } from '@/pages/admin/UserManagementPage';
 import {
@@ -128,13 +129,16 @@ export function useBulkActions({
           .map(r => `${labelFor(r.userId)}: owns registered dogs`)
           .join('; ');
 
-        setError(
+        const message =
           successful.length > 0
             ? `${successful.length} of ${userIds.length} users deleted — ${ownsDogsBlocked.length} could not be deleted (${details})`
-            : `Could not delete: ${details}`
-        );
-
+            : `Could not delete: ${details}`;
+        setError(message);
+        // When some deletes succeed, onBulkComplete clears the parent selection and
+        // unmounts BulkActionsBar — taking the inline `error` alert with it. A toast
+        // persists past the unmount so the operator still sees why users remained.
         if (successful.length > 0) {
+          toast.error(message);
           onBulkComplete();
           onUsersDeleted?.(successful.map(r => r.userId));
         }

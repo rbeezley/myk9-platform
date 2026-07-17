@@ -1,15 +1,23 @@
 /**
  * Bulk status-change and bulk-delete dispatch for Class Management.
  *
- * Routes both through `replicatedClassesTable` (not the direct
- * `services/database/classes/reads.ts updateClass`/`deleteClass` seam — verified
- * task 2.1: that seam is a direct Supabase write, not replication-backed). Uses
- * `useBulkDispatch`'s `Promise.allSettled` fold + in-flight latch + summary toast
- * (design.md decision D3), matching Entry Management's bulk pattern.
+ * - STATUS goes through `replicatedClassesTable.updateClass` (offline-capable;
+ *   the direct `services/database/classes/reads.ts updateClass` seam bypasses
+ *   replication — verified task 2.1).
+ * - DELETE goes through the `deleteClass` service, which delegates to the
+ *   `soft_delete_class` SECURITY DEFINER RPC — the SAME path single-class delete
+ *   uses. This is a SOFT delete (class + entries recoverable, atomic). Using
+ *   `replicatedClassesTable.deleteClass` here would queue a raw hard DELETE that
+ *   cascade-removes entries irrecoverably and diverges from single-class
+ *   semantics (Codex review). The RPC is online-only, matching single delete.
+ *
+ * Both use `useBulkDispatch`'s `Promise.allSettled` fold + in-flight latch +
+ * summary toast (design.md decision D3), matching Entry Management's pattern.
  */
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { replicatedClassesTable } from '@/services/replication';
+import { deleteClass } from '@/services/database/classes';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import type { ClassActionItem } from './classActions';
@@ -66,7 +74,10 @@ export function useClassBulkActions({
       if (classIds.length === 0) return false;
       try {
         const outcome = await deleteDispatch.run(classIds, async classId => {
-          await replicatedClassesTable.deleteClass(classId);
+          // Soft delete via the shared service (soft_delete_class RPC) — same
+          // recoverable, entry-cascading path as single-class delete.
+          const { error } = await deleteClass(classId);
+          if (error) throw error;
         });
         // null = latched no-op — treat as not-done so the selection is kept.
         return outcome !== null && outcome.failed.length === 0;

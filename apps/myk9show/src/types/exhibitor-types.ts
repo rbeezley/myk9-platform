@@ -106,19 +106,22 @@ export interface ExhibitorEntry {
  * exhibitor-display values (not-opened, pending, scratched, absent).
  * Unifying these in @myk9/core is a follow-up task.
  */
-export type CheckInStatus =
-  | 'no-status' // not yet visible to exhibitor
-  | 'not-opened' // check-in window not yet open
-  | 'pending' // window open, not checked in
-  | 'checked-in' // present and ready
-  | 'at-gate' // called to gate
-  | 'come-to-gate' // urgent gate call
-  | 'in-ring' // currently running
-  | 'conflict' // scheduling conflict flagged
-  | 'pulled' // pulled from ring
-  | 'scratched' // withdrawn by exhibitor
-  | 'absent' // no-show
-  | 'completed'; // judged
+export const EXHIBITOR_CHECK_IN_STATUS_VALUES = [
+  'no-status',
+  'not-opened',
+  'pending',
+  'checked-in',
+  'at-gate',
+  'come-to-gate',
+  'in-ring',
+  'conflict',
+  'pulled',
+  'scratched',
+  'absent',
+  'completed',
+] as const;
+
+export type CheckInStatus = (typeof EXHIBITOR_CHECK_IN_STATUS_VALUES)[number];
 
 /**
  * Conflict information for scheduling

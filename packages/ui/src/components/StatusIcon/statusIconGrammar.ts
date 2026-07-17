@@ -22,6 +22,7 @@ export interface StatusDescriptor {
 
 export const ENTRY_STATUS_VALUES = [
   'no-status',
+  'not-opened',
   'draft',
   'submitted',
   'paid',
@@ -31,6 +32,7 @@ export const ENTRY_STATUS_VALUES = [
   'at-gate',
   'come-to-gate',
   'in-ring',
+  'in-progress',
   'competing',
   'completed',
   'withdrawn',
@@ -101,6 +103,12 @@ function descriptor(
 
 export const ENTRY_STATUS_DESCRIPTORS = {
   'no-status': descriptor('no-status', 'No Status', 'not-started', 'text-muted-foreground'),
+  'not-opened': descriptor(
+    'not-opened',
+    'Check-in not open',
+    'not-started',
+    'text-muted-foreground'
+  ),
   draft: descriptor('draft', 'Draft', 'not-started', 'text-muted-foreground'),
   submitted: descriptor('submitted', 'Submitted', 'pending', 'text-warning'),
   paid: descriptor('paid', 'Paid', 'pending', 'text-warning'),
@@ -110,6 +118,7 @@ export const ENTRY_STATUS_DESCRIPTORS = {
   'at-gate': descriptor('at-gate', 'At Gate', 'in-progress', 'text-info'),
   'come-to-gate': descriptor('come-to-gate', 'Come to Gate', 'needs-attention', 'text-warning'),
   'in-ring': descriptor('in-ring', 'In Ring', 'in-progress', 'text-info'),
+  'in-progress': descriptor('in-progress', 'In Progress', 'in-progress', 'text-info'),
   competing: descriptor('competing', 'Competing', 'in-progress', 'text-info'),
   completed: descriptor('completed', 'Completed', 'complete', 'text-success'),
   withdrawn: descriptor('withdrawn', 'Withdrawn', 'complete', 'text-muted-foreground'),

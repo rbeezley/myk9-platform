@@ -114,4 +114,43 @@ describe('ResultEntryNavigation', () => {
     expect(screen.getByText('Checked-in')).toBeInTheDocument();
     expect(container.querySelector('[data-family="entry"][data-shape="in-progress"]')).not.toBeNull();
   });
+
+  it('renders navigation lifecycle states through the shared status grammar', () => {
+    const pending = { ...makeEntry(), checkInStatus: 'no-status' as const };
+    const inProgress = {
+      ...makeEntry(),
+      id: 'entry-2',
+      navigationStatus: 'in-progress' as const,
+      checkInStatus: 'no-status' as const,
+      displayInfo: { ...makeEntry().displayInfo, armband: '102' },
+    };
+    const completed = {
+      ...makeEntry(),
+      id: 'entry-3',
+      navigationStatus: 'completed' as const,
+      checkInStatus: 'no-status' as const,
+      displayInfo: { ...makeEntry().displayInfo, armband: '103' },
+    };
+
+    const { container } = render(
+      <ResultEntryNavigation
+        entries={[pending, inProgress, completed]}
+        classInfo={{
+          element: 'Container',
+          level: 'Novice',
+          judge: 'Judge One',
+          totalEntries: 3,
+        }}
+        onSelectEntry={vi.fn()}
+      />
+    );
+
+    expect(container.querySelector('[data-family="entry"][data-status="pending"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-family="entry"][data-status="in-progress"]')
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-family="entry"][data-status="completed"]')
+    ).not.toBeNull();
+  });
 });

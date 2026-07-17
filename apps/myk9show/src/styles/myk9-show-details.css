@@ -1163,37 +1163,7 @@
   opacity: 0.6;
 }
 
-/* Entry card status variants */
-.myk9-entry-card.pending {
-  border-color: var(--border);
-  background: var(--card);
-}
-
-.myk9-entry-card.pending:hover {
-  border-color: rgba(156, 163, 175, 0.4);
-}
-
-.myk9-entry-card.in-progress {
-  border-color: rgba(255, 149, 0, 0.3);
-  background: rgba(255, 149, 0, 0.02);
-}
-
-.myk9-entry-card.in-progress:hover {
-  border-color: rgba(255, 149, 0, 0.5);
-  box-shadow: 0 12px 32px rgba(255, 149, 0, 0.15);
-}
-
-.myk9-entry-card.completed {
-  border-color: rgba(52, 199, 89, 0.6);
-  background: rgba(52, 199, 89, 0.08);
-  box-shadow: 0 8px 24px rgba(52, 199, 89, 0.2);
-}
-
-.myk9-entry-card.completed:hover {
-  border-color: rgba(52, 199, 89, 0.8);
-  box-shadow: 0 12px 32px rgba(52, 199, 89, 0.3);
-}
-
+/* Current-entry emphasis is selection state, not lifecycle status. */
 .myk9-entry-card.current {
   border-color: rgba(0, 122, 255, 0.5);
   background: rgba(0, 122, 255, 0.04);
@@ -1283,34 +1253,6 @@
   gap: 8px;
 }
 
-.myk9-entry-status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  transition: all 0.2s ease;
-}
-
-.myk9-entry-status-dot.pending {
-  background: #9ca3af;
-}
-
-.myk9-entry-status-dot.in-progress {
-  background: #ff9500;
-  box-shadow: 0 0 8px rgba(255, 149, 0, 0.4);
-  animation: pulse 2s infinite;
-}
-
-.myk9-entry-status-dot.completed {
-  background: #34c759;
-  box-shadow: 0 0 8px rgba(52, 199, 89, 0.4);
-}
-
-.myk9-entry-status-dot.current {
-  background: #007aff;
-  box-shadow: 0 0 12px rgba(0, 122, 255, 0.6);
-  animation: pulse 2s infinite;
-}
-
 /* Entry dog information */
 .myk9-entry-dog-info {
   margin-bottom: 12px;
@@ -1383,19 +1325,6 @@
   border: 1px solid rgba(139, 92, 246, 0.2);
 }
 
-.myk9-entry-status-text {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.myk9-entry-status-text.in-progress {
-  color: #ff9500;
-}
-
-.myk9-entry-status-text.pending {
-  color: var(--muted-foreground);
-}
-
 /* Progress bar and stats for judge navigation */
 .myk9-judge-progress-section {
   background: var(--card);
@@ -1453,24 +1382,6 @@
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.myk9-judge-progress-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.myk9-judge-progress-dot.completed {
-  background: #34c759;
-}
-
-.myk9-judge-progress-dot.in-progress {
-  background: #ff9500;
-}
-
-.myk9-judge-progress-dot.pending {
-  background: #9ca3af;
 }
 
 /* Quick stats cards */

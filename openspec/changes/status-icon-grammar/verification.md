@@ -30,6 +30,8 @@ The fourth independent-review pass removed the remaining presentation owners fro
 
 An owner-authorized additional review cycle found and removed the last local presentation paths in scoring navigation, the at-show check-in picker, and ringside class-list formatting. Ringside now derives only an effective operational class status; the app passes that key directly to the shared badge. The recursive ownership gate was expanded to cover these retired helpers and renderers. Assertion-first tests failed on all reported leaks before the fixes. Afterward, the focused app set passed 23 tests across 4 files; the full shared UI, core, and ringside suites passed 295, 360, and 369 tests respectively. Final typecheck (26/26), lint (14/14), and strict OpenSpec validation passed.
 
+The subsequent clean-review loop removed the scoring navigation's remaining lifecycle dots, hard-coded status icons, card color variants, and status-text colors. It added exact shared descriptors for navigation `in-progress` and exhibitor `not-opened`, tied exhaustive coverage to the exhibitor status union, and expanded ownership scanning to production CSS. Assertion-first coverage failed on each leak before remediation. Afterward, the focused app set passed 14 tests across 4 files, the full shared UI suite passed 295 tests, typecheck passed 26/26 tasks, lint passed 14/14 tasks, and strict OpenSpec validation passed.
+
 The broad myK9Show suite was also started. It exposed three contextual My Entries label regressions, which were fixed and covered by the focused 67-test card suite, then reached the repository's known 60-second hang threshold and was stopped. CI remains the broad-suite gate.
 
 ## Browser sweep

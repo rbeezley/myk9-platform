@@ -1,0 +1,93 @@
+/**
+ * Class Management's shared action catalog — one `EntityAction` definition per
+ * status transition plus delete, projected into `RowActionMenu` for both the
+ * per-row "3-dot" menu and the bulk-selection menu via `toRowActions`/`toBulkActions`.
+ *
+ * See openspec/changes/inline-bulk-actions-and-editable-status/design.md
+ * decisions D1-D3. Bulk status/delete route through `replicatedClassesTable`
+ * (verified task 2.1 — the direct `services/database/classes/reads.ts` seam is
+ * not replication-backed); handlers here stay thin wiring, the actual dispatch
+ * lives in `useClassBulkActions.ts`.
+ */
+
+import { CLASS_STATUS } from '@myk9/core';
+import type { EntityAction } from '@/components/ui/RowActionMenu';
+
+export interface ClassActionItem {
+  id: string;
+  name: string | null;
+  status: string | null;
+}
+
+/** Handlers a class-domain `EntityAction` definition may call. A page wires up
+ * only the callbacks it supports; `applicableWhen` treats a missing handler as
+ * "not applicable" so the action disappears rather than firing a no-op. */
+export interface ClassActionHandlers {
+  onStatusChange?: ((classId: string, status: string) => void) | undefined;
+  onBulkStatusChange?: (
+    classIds: string[],
+    status: string
+  ) => boolean | Promise<boolean> | undefined;
+  onDelete?: ((classId: string) => void) | undefined;
+  onBulkDelete?: ((classIds: string[]) => boolean | Promise<boolean> | undefined) | undefined;
+  onClear?: () => void;
+}
+
+const STATUS_VALUES = Object.values(CLASS_STATUS);
+
+async function runBulkAndClear(
+  handlers: ClassActionHandlers,
+  action: () => boolean | Promise<boolean> | undefined
+): Promise<void> {
+  try {
+    const result = await action();
+    if (result !== false) handlers.onClear?.();
+  } catch {
+    // Parent handler owns user-visible error copy; keep selection so retry is possible.
+  }
+}
+
+const statusActions: Array<EntityAction<ClassActionItem, ClassActionHandlers>> = STATUS_VALUES.map(
+  status => ({
+    id: `set-status-${status}`,
+    label: `Set to ${status}`,
+    sectionLabel: 'Status',
+    applicableWhen: (item, handlers) => Boolean(handlers.onStatusChange) && item.status !== status,
+    run: (item, handlers) => handlers.onStatusChange?.(item.id, status),
+    bulk: {
+      applicableWhen: item => item.status !== status,
+      label: (eligibleCount, selectedCount) =>
+        eligibleCount > 0
+          ? `Set to ${status} — ${eligibleCount} of ${selectedCount} selected`
+          : `Set to ${status}`,
+      unavailableReason: 'All selected classes already have this status',
+      run: (eligible, handlers) =>
+        runBulkAndClear(handlers, () =>
+          handlers.onBulkStatusChange?.(
+            eligible.map(item => item.id),
+            status
+          )
+        ),
+    },
+  })
+);
+
+export const classActions: ReadonlyArray<EntityAction<ClassActionItem, ClassActionHandlers>> = [
+  ...statusActions,
+  {
+    id: 'delete',
+    label: 'Delete class',
+    sectionLabel: 'Danger',
+    variant: 'destructive',
+    applicableWhen: (_item, handlers) => Boolean(handlers.onDelete),
+    run: (item, handlers) => handlers.onDelete?.(item.id),
+    bulk: {
+      applicableWhen: () => true,
+      label: (eligibleCount, selectedCount) =>
+        eligibleCount > 0 ? `Delete ${eligibleCount} of ${selectedCount} selected` : 'Delete',
+      unavailableReason: 'No selected classes can be deleted',
+      run: (eligible, handlers) =>
+        runBulkAndClear(handlers, () => handlers.onBulkDelete?.(eligible.map(item => item.id))),
+    },
+  },
+];

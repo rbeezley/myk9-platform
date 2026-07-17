@@ -8,8 +8,11 @@ vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: { ensureUserHasRole: (...args: unknown[]) => ensureUserHasRole(...args) },
 }));
 
+const deleteUserMutateAsync = vi.fn();
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
-  useDeleteUserMutation: () => ({ mutateAsync: vi.fn() }),
+  useDeleteUserMutation: () => ({
+    mutateAsync: (...args: unknown[]) => deleteUserMutateAsync(...args),
+  }),
   usePermanentDeleteUserMutation: () => ({ mutateAsync: vi.fn() }),
 }));
 
@@ -161,5 +164,70 @@ describe('useBulkActions — bulk role dispatch', () => {
     expect(result.current).not.toHaveProperty('handleBulkStatusAction');
     expect(result.current).not.toHaveProperty('statusData');
     expect(result.current).not.toHaveProperty('setStatusData');
+  });
+});
+
+describe('useBulkActions — bulk delete MK001 reason mapping', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    responseQueues.clear();
+  });
+
+  function mk001Error(): Error {
+    const error = new Error('people_owns_dogs_guard') as Error & { code?: string };
+    error.code = 'MK001';
+    return error;
+  }
+
+  it('reports the owns-registered-dogs reason for a person blocked by the MK001 guard', async () => {
+    deleteUserMutateAsync.mockResolvedValueOnce(undefined).mockRejectedValueOnce(mk001Error());
+    const selectedUsers = [selectedUser('u1', 'Alice'), selectedUser('u2', 'Bob')];
+    const onBulkComplete = vi.fn();
+    const onUsersDeleted = vi.fn();
+    const { result } = renderHook(() =>
+      useBulkActions({ selectedUsers, onBulkComplete, onUsersDeleted })
+    );
+
+    await act(async () => {
+      await result.current.handleBulkDelete();
+    });
+
+    // Human-readable reason, not the raw SQLSTATE or trigger message.
+    expect(result.current.error).toMatch(/Bob Test: owns registered dogs/);
+    expect(result.current.error).not.toMatch(/MK001/);
+    expect(result.current.error).not.toMatch(/people_owns_dogs_guard/);
+    // The unblocked user still deletes — a partial failure isn't a full abort.
+    expect(onUsersDeleted).toHaveBeenCalledWith(['u1']);
+    expect(onBulkComplete).toHaveBeenCalled();
+  });
+
+  it('reports every blocked person when the whole batch is owns-dogs blocked', async () => {
+    deleteUserMutateAsync.mockRejectedValue(mk001Error());
+    const selectedUsers = [selectedUser('u1', 'Alice'), selectedUser('u2', 'Bob')];
+    const onUsersDeleted = vi.fn();
+    const { result } = renderHook(() =>
+      useBulkActions({ selectedUsers, onBulkComplete: vi.fn(), onUsersDeleted })
+    );
+
+    await act(async () => {
+      await result.current.handleBulkDelete();
+    });
+
+    expect(result.current.error).toMatch(/Alice Test: owns registered dogs/);
+    expect(result.current.error).toMatch(/Bob Test: owns registered dogs/);
+    expect(onUsersDeleted).not.toHaveBeenCalled();
+  });
+
+  it('does not confuse MK001 with the HAS_RELATED_DATA cascade path', async () => {
+    deleteUserMutateAsync.mockRejectedValue(mk001Error());
+    const selectedUsers = [selectedUser('u1', 'Alice')];
+    const { result } = renderHook(() => useBulkActions({ selectedUsers, onBulkComplete: vi.fn() }));
+
+    await act(async () => {
+      await result.current.handleBulkDelete();
+    });
+
+    expect(result.current.currentDialog).not.toBe('cascadeConfirm');
+    expect(result.current.cascadeData).toBeNull();
   });
 });

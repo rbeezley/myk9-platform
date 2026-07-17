@@ -10,6 +10,8 @@ const useDeleteClassMutationMock = vi.hoisted(() => vi.fn());
 const useJudgesWithQualificationsMock = vi.hoisted(() => vi.fn());
 const upsertClassJudgeAssignmentMock = vi.hoisted(() => vi.fn());
 const toastErrorMock = vi.hoisted(() => vi.fn());
+const updateClassMock = vi.hoisted(() => vi.fn());
+const deleteClassMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/queries/useClassesDatabase', () => ({
   useClassesByTrialQuery: useClassesByTrialQueryMock,
@@ -27,6 +29,13 @@ vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
 
 vi.mock('@/services/database/judges', () => ({
   upsertClassJudgeAssignment: upsertClassJudgeAssignmentMock,
+}));
+
+vi.mock('@/services/replication', () => ({
+  replicatedClassesTable: {
+    updateClass: updateClassMock,
+    deleteClass: deleteClassMock,
+  },
 }));
 
 vi.mock('sonner', () => ({ toast: { error: toastErrorMock, success: vi.fn() } }));
@@ -81,6 +90,8 @@ describe('ClassManagementPage judge assignment', () => {
       ],
     });
     upsertClassJudgeAssignmentMock.mockResolvedValue(undefined);
+    updateClassMock.mockResolvedValue('mutation-1');
+    deleteClassMock.mockResolvedValue('mutation-1');
   });
 
   it('renders inline judge assignment and writes the selected class judge', async () => {
@@ -130,15 +141,9 @@ describe('ClassManagementPage judge assignment', () => {
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalled());
   });
 
-  it('shows a visible error when bulk delete fails', async () => {
+  it('keeps the selection and does not clear it when a bulk delete fails', async () => {
     const user = userEvent.setup();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    const deleteMutateMock = vi.fn(
-      (_variables: unknown, options?: { onError?: (error: Error) => void }) => {
-        options?.onError?.(new Error('delete failed'));
-      }
-    );
-    useDeleteClassMutationMock.mockReturnValue({ mutate: deleteMutateMock, isPending: false });
+    deleteClassMock.mockRejectedValue(new Error('delete failed'));
 
     render(
       <Routes>
@@ -148,23 +153,18 @@ describe('ClassManagementPage judge assignment', () => {
     );
 
     await user.click(screen.getByRole('checkbox', { name: /select container novice a/i }));
-    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /delete 1 of 1 selected/i }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /delete/i }));
 
-    expect(deleteMutateMock).toHaveBeenCalledWith(
-      { id: 'class-1' },
-      expect.objectContaining({ onError: expect.any(Function) })
-    );
-    expect(toastErrorMock).toHaveBeenCalled();
+    await waitFor(() => expect(deleteClassMock).toHaveBeenCalledWith('class-1'));
+    // Failure keeps the row selected so the secretary can retry — no window.confirm anywhere.
+    await waitFor(() => expect(screen.getByText('1 class selected')).toBeInTheDocument());
   });
 
-  it('shows a visible error when bulk status update fails', async () => {
+  it('routes bulk status changes through replicatedClassesTable.updateClass and clears selection on success', async () => {
     const user = userEvent.setup();
-    const updateMutateMock = vi.fn(
-      (_variables: unknown, options?: { onError?: (error: Error) => void }) => {
-        options?.onError?.(new Error('update failed'));
-      }
-    );
-    useUpdateClassMutationMock.mockReturnValue({ mutate: updateMutateMock, isPending: false });
 
     render(
       <Routes>
@@ -174,24 +174,26 @@ describe('ClassManagementPage judge assignment', () => {
     );
 
     await user.click(screen.getByRole('checkbox', { name: /select container novice a/i }));
-    const bulkStatusTrigger = screen.getByText('Change Status').closest('button');
-    expect(bulkStatusTrigger).not.toBeNull();
-
-    await user.click(bulkStatusTrigger as HTMLButtonElement);
-    await user.click(await screen.findByRole('option', { name: 'In Progress' }));
-
-    expect(updateMutateMock).toHaveBeenCalledWith(
-      { id: 'class-1', updates: { status: 'In Progress' } },
-      expect.objectContaining({ onError: expect.any(Function) })
+    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
+    await user.click(
+      await screen.findByRole('menuitem', { name: /set to in progress — 1 of 1 selected/i })
     );
-    expect(toastErrorMock).toHaveBeenCalled();
+
+    await waitFor(() =>
+      expect(updateClassMock).toHaveBeenCalledWith('class-1', { classStatus: 'In Progress' })
+    );
+    await waitFor(() => expect(screen.queryByText(/selected/i)).not.toBeInTheDocument());
   });
 
-  it('does not fire a bulk delete while a bulk mutation is pending', async () => {
+  it('disables the bulk menu while a bulk delete is in flight (in-flight latch)', async () => {
     const user = userEvent.setup();
-    const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    const deleteMutateMock = vi.fn();
-    useDeleteClassMutationMock.mockReturnValue({ mutate: deleteMutateMock, isPending: true });
+    let resolveDelete!: () => void;
+    deleteClassMock.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          resolveDelete = () => resolve('mutation-1');
+        })
+    );
 
     render(
       <Routes>
@@ -201,13 +203,16 @@ describe('ClassManagementPage judge assignment', () => {
     );
 
     await user.click(screen.getByRole('checkbox', { name: /select container novice a/i }));
-    const deleteButton = screen.getByRole('button', { name: 'Delete' });
+    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /delete 1 of 1 selected/i }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /delete/i }));
 
-    expect(deleteButton).toBeDisabled();
-    await user.click(deleteButton);
+    await waitFor(() => expect(deleteClassMock).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('button', { name: /bulk class actions/i })).toBeDisabled();
 
-    expect(confirmMock).not.toHaveBeenCalled();
-    expect(deleteMutateMock).not.toHaveBeenCalled();
+    resolveDelete();
+    await waitFor(() => expect(screen.queryByText(/selected/i)).not.toBeInTheDocument());
   });
 
   it('uses show-scoped workbench links instead of browser-history back navigation', () => {

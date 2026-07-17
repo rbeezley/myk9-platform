@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -7,6 +7,9 @@ import {
   useDeleteClassMutation,
   classKeys,
 } from '@/hooks/queries/useClassesDatabase';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
+import { useClassBulkActions } from '@/components/classes/useClassBulkActions';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import {
   deriveClassLifecyclePresentation,
@@ -36,7 +39,6 @@ import {
   Plus,
   Search,
   Filter,
-  Trash2,
   Play,
   Pause,
   CheckCircle,
@@ -107,7 +109,6 @@ export const ClassManagementPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [elementFilter, setElementFilter] = useState<string>('all');
-  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
 
   const allClasses = useMemo(() => (rawClasses as DbClassRow[]) ?? [], [rawClasses]);
 
@@ -162,28 +163,23 @@ export const ClassManagementPage: React.FC = () => {
     [judges]
   );
 
-  const toggleClassSelection = (classId: string) => {
-    setSelectedClasses(prev =>
-      prev.includes(classId) ? prev.filter(id => id !== classId) : [...prev, classId]
-    );
-  };
+  const getClassId = useCallback((cls: DbClassRow) => cls.id, []);
+  const selection = useBulkSelection<DbClassRow>({
+    items: filteredClasses,
+    getItemId: getClassId,
+    pruneToItems: true,
+  });
 
-  const selectAllFiltered = () => {
-    const filteredIds = filteredClasses.map(c => c.id);
-    setSelectedClasses(prev => {
-      const newSelection = [...prev];
-      filteredIds.forEach(id => {
-        if (!newSelection.includes(id)) {
-          newSelection.push(id);
-        }
-      });
-      return newSelection;
-    });
-  };
+  const classesById = useMemo(
+    () =>
+      new Map(allClasses.map(cls => [cls.id, { id: cls.id, name: cls.name, status: cls.status }])),
+    [allClasses]
+  );
 
-  const clearSelection = () => {
-    setSelectedClasses([]);
-  };
+  const { bulkBusy, handleBulkStatusChange, handleBulkDelete } = useClassBulkActions({
+    trialId,
+    classesById,
+  });
 
   const handleStatusChange = (classId: string, newStatus: string) => {
     updateClassMutation.mutate({ id: classId, updates: { status: newStatus } });
@@ -196,42 +192,6 @@ export const ClassManagementPage: React.FC = () => {
   const handleDelete = (classId: string) => {
     if (confirm('Are you sure you want to delete this class?')) {
       deleteClassMutation.mutate({ id: classId });
-    }
-  };
-
-  const bulkBusy = updateClassMutation.isPending || deleteClassMutation.isPending;
-
-  const handleBulkStatusChange = (newStatus: string) => {
-    if (bulkBusy) return;
-
-    selectedClasses.forEach(classId => {
-      updateClassMutation.mutate(
-        { id: classId, updates: { status: newStatus } },
-        {
-          onError: () => {
-            toast.error('Failed to update a class. Some changes may not have saved.');
-          },
-        }
-      );
-    });
-    setSelectedClasses([]);
-  };
-
-  const handleBulkDelete = () => {
-    if (bulkBusy) return;
-
-    if (confirm(`Are you sure you want to delete ${selectedClasses.length} classes?`)) {
-      selectedClasses.forEach(classId => {
-        deleteClassMutation.mutate(
-          { id: classId },
-          {
-            onError: () => {
-              toast.error('Failed to delete a class. Some changes may not have saved.');
-            },
-          }
-        );
-      });
-      setSelectedClasses([]);
     }
   };
 
@@ -412,55 +372,28 @@ export const ClassManagementPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {selectedClasses.length > 0 && (
-        <Card className="mb-6">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <span className="font-medium">
-                  {selectedClasses.length} class{selectedClasses.length !== 1 ? 'es' : ''} selected
-                </span>
-                <div className="flex gap-2">
-                  <Select onValueChange={handleBulkStatusChange} disabled={bulkBusy}>
-                    <SelectTrigger className="w-[150px]">
-                      <SelectValue placeholder="Change Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statuses.map(status => (
-                        <SelectItem key={status} value={status}>
-                          {status}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="outline"
-                    onClick={handleBulkDelete}
-                    className="text-destructive"
-                    disabled={bulkBusy}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Delete
-                  </Button>
-                </div>
-              </div>
-              <Button variant="outline" onClick={clearSelection}>
-                Clear Selection
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <ClassBulkActionsBar
+        selectedClasses={selection.selectedItems}
+        bulkBusy={bulkBusy}
+        onBulkStatusChange={handleBulkStatusChange}
+        onBulkDelete={handleBulkDelete}
+        onClear={selection.clearSelection}
+      />
 
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Classes ({filteredClasses.length})</CardTitle>
-            {filteredClasses.length > 0 && (
-              <Button variant="outline" size="sm" onClick={selectAllFiltered}>
-                Select All Visible
-              </Button>
-            )}
+            <CardTitle className="flex items-center gap-2">
+              {filteredClasses.length > 0 && (
+                <Checkbox
+                  checked={selection.isAllSelected}
+                  indeterminate={selection.isPartiallySelected}
+                  onCheckedChange={() => selection.toggleAll()}
+                  aria-label="Select all visible classes"
+                />
+              )}
+              Classes ({filteredClasses.length})
+            </CardTitle>
           </div>
         </CardHeader>
         <CardContent>
@@ -478,15 +411,15 @@ export const ClassManagementPage: React.FC = () => {
                     key={cls.id}
                     data-class-id={cls.id}
                     className={`border rounded-lg p-4 transition-all ${
-                      selectedClasses.includes(cls.id)
+                      selection.isSelected(cls)
                         ? 'ring-2 ring-primary bg-primary/5'
                         : 'hover:bg-muted/50'
                     }`}
                   >
                     <div className="flex items-center gap-4">
                       <Checkbox
-                        checked={selectedClasses.includes(cls.id)}
-                        onCheckedChange={() => toggleClassSelection(cls.id)}
+                        checked={selection.isSelected(cls)}
+                        onCheckedChange={() => selection.toggleItem(cls)}
                         aria-label={`Select ${cls.name || 'Untitled Class'}`}
                       />
 

@@ -12,23 +12,23 @@
 
 ## 2. Class Management selection migration
 
-- [ ] 2.1 Verify the `updateClass` write seam is replication-backed; if not, route class bulk through `replicatedClassesTable` or scope class bulk accordingly (document decision in design.md)
-- [ ] 2.2 Replace `ClassManagementPage` local selection (`useState<string[]>`, `toggleClassSelection`, `selectAllFiltered`, "Select all filtered" button) with `useBulkSelection` (`pruneToItems: true`) + header/indeterminate checkbox
-- [ ] 2.3 Define class-domain `EntityAction` definitions (status change, delete) and render the bulk bar/menu from the shared resolver
-- [ ] 2.4 Convert class bulk handlers to `Promise.allSettled` over per-item mutations with structured `{succeeded, failed}` outcome; remove `window.confirm` for undo-covered transitions only (delete keeps its dialog until 4.x undo policy applies — delete is destructive, retains confirmation)
-- [ ] 2.5 Component tests: selection pruning on filter change, indeterminate header, bulk dispatch outcomes, double-fire latch
-- [ ] 2.6 Verify: `cd apps/myk9show && pnpm vitest run src/pages/secretary` (class mgmt tests) + `pnpm typecheck && pnpm lint`
+- [x] 2.1 Verify the `updateClass` write seam is replication-backed; if not, route class bulk through `replicatedClassesTable` or scope class bulk accordingly (document decision in design.md)
+- [x] 2.2 Replace `ClassManagementPage` local selection (`useState<string[]>`, `toggleClassSelection`, `selectAllFiltered`, "Select all filtered" button) with `useBulkSelection` (`pruneToItems: true`) + header/indeterminate checkbox
+- [x] 2.3 Define class-domain `EntityAction` definitions (status change, delete) and render the bulk bar/menu from the shared resolver
+- [x] 2.4 Convert class bulk handlers to `Promise.allSettled` over per-item mutations with structured `{succeeded, failed}` outcome; remove `window.confirm` for undo-covered transitions only (delete keeps its dialog until 4.x undo policy applies — delete is destructive, retains confirmation)
+- [x] 2.5 Component tests: selection pruning on filter change, indeterminate header, bulk dispatch outcomes, double-fire latch
+- [x] 2.6 Verify: `cd apps/myk9show && pnpm vitest run src/pages/secretary` (class mgmt tests) + `pnpm typecheck && pnpm lint`
 
 ## 3. Honest dispatch everywhere + surface opt-ins
 
 - [x] 3.1 Build the shared bulk-outcome helper: `Promise.allSettled` fold, partial-failure summary toast with per-item reasons, retry-failed that re-runs `applicableWhen` and reports newly ineligible items as skipped; in-flight latch via `useRef`
 - [x] 3.2 Adopt the helper in Entry Management bulk handlers (`handleEnrollmentBulkStatusChange`, `handleEnrollmentBulkCheckIn`) replacing `Promise.all`
 - [x] 3.3 Admin Users: wire bulk role and bulk status to the real mutations used by single-user actions; delete any action with no real mutation (remove `setTimeout` stubs in `useBulkActions.ts`)
-- [ ] 3.4 Dogs: opt `DogsTableView` into `DataTable` native selection bridged to `useBulkSelection`; add dog `EntityAction` definitions (status change active/retired/deceased via `updateDog`, soft-delete via `useDeleteDogMutation`) + bulk bar
-- [ ] 3.5 People (admin Users surface per design open question): ensure bulk delete reports per-item `MK001` failures with human-readable "owns registered dogs" reason
-- [ ] 3.6 Replace legacy `ThreeDotMenu` on `DogListRow` with `RowActionMenu` (consistency sweep; delete legacy wrappers if no consumers remain)
-- [ ] 3.7 Tests: outcome helper unit tests (partial failure, retry-skip, latch), dogs/people selection + bulk component tests, admin Users de-stub tests
-- [ ] 3.8 Verify: `cd apps/myk9show && pnpm vitest run src/components/admin src/components/dogs` + `pnpm typecheck && pnpm lint`
+- [x] 3.4 Dogs: opt `DogsTableView` into `DataTable` native selection bridged to `useBulkSelection`; add dog `EntityAction` definitions (status change active/retired/deceased via `updateDog`, soft-delete via `useDeleteDogMutation`) + bulk bar
+- [x] 3.5 People (admin Users surface per design open question): ensure bulk delete reports per-item `MK001` failures with human-readable "owns registered dogs" reason
+- [x] 3.6 Replace legacy `ThreeDotMenu` on `DogListRow` with `RowActionMenu` (consistency sweep; delete legacy wrappers if no consumers remain)
+- [x] 3.7 Tests: outcome helper unit tests (partial failure, retry-skip, latch), dogs/people selection + bulk component tests, admin Users de-stub tests
+- [x] 3.8 Verify: `cd apps/myk9show && pnpm vitest run src/components/admin src/components/dogs` + `pnpm typecheck && pnpm lint`
 
 ## 4. Inline status editing + undo
 

@@ -6,7 +6,9 @@ import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useBrowseDogsData } from '@/hooks/useBrowseDogsData';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { DogsGridView, DogsTableView } from '@/components/dogs/browse';
+import { DogsBulkActionsBar } from '@/components/dogs/browse/DogsBulkActionsBar';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog as DogType } from '@/types/dog-types';
@@ -52,6 +54,16 @@ const BrowseDogsPage: React.FC = () => {
   } = useBrowseDogsData();
 
   const canCreateDogs = !rbacLoading && hasPermission('dog:create');
+  // Bulk selection/actions gated the same coarse way as the rest of this page
+  // (management-capable roles, not exhibitor-only roster view). No per-action
+  // RBAC — see design.md decision D1.
+  const canBulkManageDogs = !rbacLoading && !isExhibitorOnly && hasPermission('dog:update');
+
+  const dogSelection = useBulkSelection({
+    items: filteredDogs,
+    getItemId: (dog: DogType) => dog.id,
+    pruneToItems: true,
+  });
 
   // FilterChips definitions
   const chipFilters: ChipFilterDefinition[] = useMemo(
@@ -163,7 +175,12 @@ const BrowseDogsPage: React.FC = () => {
 
     switch (viewMode) {
       case 'table':
-        return <DogsTableView dogs={filteredDogs} />;
+        return (
+          <DogsTableView
+            dogs={filteredDogs}
+            selection={canBulkManageDogs ? dogSelection : undefined}
+          />
+        );
       case 'cards':
       default:
         return <DogsGridView dogs={filteredDogs} />;
@@ -205,6 +222,13 @@ const BrowseDogsPage: React.FC = () => {
 
           {/* Dog Cards / Table */}
           {renderContent()}
+
+          {canBulkManageDogs && viewMode === 'table' && dogSelection.selectedCount > 0 && (
+            <DogsBulkActionsBar
+              selectedDogs={dogSelection.selectedItems}
+              onClear={dogSelection.clearSelection}
+            />
+          )}
         </>
       )}
 

@@ -182,11 +182,23 @@ export function useBulkActions({
       const deletePromises = userIds.map(async userId => {
         try {
           await deleteUserMutation.mutateAsync({ id: userId });
-          return { userId, success: true };
+          return { userId, success: true as const };
         } catch (error: unknown) {
           const errorWithCode = error as ErrorWithRelatedData;
           if (error instanceof Error && errorWithCode.code === 'HAS_RELATED_DATA') {
-            return { userId, success: false, relatedData: errorWithCode.details };
+            return {
+              userId,
+              success: false as const,
+              code: 'HAS_RELATED_DATA' as const,
+              relatedData: errorWithCode.details,
+            };
+          }
+          // MK001: the person_delete_owns_dogs_guard DB trigger blocks deleting a
+          // person who's the primary owner of a live dog — an expected, per-item
+          // partial-failure case (design.md "Bulk people delete blocked by
+          // ownership guard" scenario), not a batch-aborting error.
+          if (error instanceof Error && errorWithCode.code === 'MK001') {
+            return { userId, success: false as const, code: 'MK001' as const };
           }
           throw error; // Re-throw other errors
         }
@@ -194,7 +206,8 @@ export function useBulkActions({
 
       const results = await Promise.all(deletePromises);
       const successful = results.filter(r => r.success);
-      const needsCascade = results.filter(r => !r.success);
+      const needsCascade = results.filter(r => !r.success && r.code === 'HAS_RELATED_DATA');
+      const ownsDogsBlocked = results.filter(r => !r.success && r.code === 'MK001');
 
       if (needsCascade.length > 0) {
         // Some users have related data - show cascade confirmation
@@ -214,6 +227,33 @@ export function useBulkActions({
         });
 
         setCurrentDialog('cascadeConfirm');
+        setIsProcessing(false);
+        return;
+      }
+
+      if (ownsDogsBlocked.length > 0) {
+        // Unlike HAS_RELATED_DATA, the owns-dogs guard has no cascade override —
+        // the trigger blocks unconditionally until the person's dogs are
+        // reassigned or deleted. Report each blocked person by name with the
+        // human-readable reason; any other selected users still delete.
+        const labelFor = (userId: string) => {
+          const selected = selectedUsers.find(u => u.id === userId);
+          return selected ? `${selected.user.firstName} ${selected.user.lastName}` : userId;
+        };
+        const details = ownsDogsBlocked
+          .map(r => `${labelFor(r.userId)}: owns registered dogs`)
+          .join('; ');
+
+        setError(
+          successful.length > 0
+            ? `${successful.length} of ${userIds.length} users deleted — ${ownsDogsBlocked.length} could not be deleted (${details})`
+            : `Could not delete: ${details}`
+        );
+
+        if (successful.length > 0) {
+          onBulkComplete();
+          onUsersDeleted?.(successful.map(r => r.userId));
+        }
         setIsProcessing(false);
         return;
       }

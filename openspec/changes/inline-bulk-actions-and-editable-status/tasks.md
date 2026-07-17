@@ -43,8 +43,8 @@
 
 ## 5. Verification and merge gate
 
-- [ ] 5.1 Full checks: `pnpm typecheck && pnpm lint`; `cd apps/myk9show && pnpm test`
-- [ ] 5.2 OpenSpec validation: `pnpm openspec validate inline-bulk-actions-and-editable-status`
-- [ ] 5.3 Tablet browser verification (secretary/steward): keyboard focus through badge popover and bulk menus, 44px touch targets, permission gating (non-managers see no selection/bulk), offline queued bulk change + honest messaging, forced partial failure (people `MK001` or rejected mutation) showing summary + retry — capture screenshots as documented evidence
+- [x] 5.1 Full checks: `pnpm typecheck && pnpm lint`; `cd apps/myk9show && pnpm test`
+- [x] 5.2 OpenSpec validation: `pnpm openspec validate inline-bulk-actions-and-editable-status`
+- [x] 5.3 Tablet browser verification (secretary/steward): keyboard focus through badge popover and bulk menus, 44px touch targets, permission gating (non-managers see no selection/bulk), offline queued bulk change + honest messaging, forced partial failure (people `MK001` or rejected mutation) showing summary + retry — capture screenshots as documented evidence
 - [ ] 5.4 PR with browser evidence; Codex review (behavior-changing: default ON); CI green; merge
 - [ ] 5.5 Update Linear MYK9-47 (auto-completes on `myk9-47-*` PR merge — re-open until final PR if multiple slices ship separately); archive this change via `/opsx:archive`

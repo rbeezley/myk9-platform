@@ -21,8 +21,7 @@ import { AlertCircle, User, ChevronRight, Star, ArrowLeft } from 'lucide-react';
 import {
   groupSectionedClasses,
   getClassIds,
-  getClassStatusColor,
-  getFormattedClassStatus,
+  getEffectiveClassStatus,
   type ClassEntry,
 } from '@myk9/ringside';
 import { formatTrialDate } from '@myk9/core';
@@ -326,8 +325,7 @@ export const AtShowClassListPage: React.FC = () => {
             <CollapsibleContent>
               <ul className="mt-2 space-y-2">
                 {classes.map(entry => {
-                  const status = getFormattedClassStatus(entry);
-                  const statusKey = getClassStatusColor(entry.class_status, entry);
+                  const status = getEffectiveClassStatus(entry);
                   return (
                     <li key={entry.id}>
                       <button
@@ -357,8 +355,7 @@ export const AtShowClassListPage: React.FC = () => {
                         <div className="flex shrink-0 flex-col items-end gap-1">
                           <StatusBadge
                             family="class"
-                            status={statusKey}
-                            label={status.label}
+                            status={status}
                             className="px-2 py-0.5 text-xs font-medium"
                           />
                           <span className="text-xs text-muted-foreground">

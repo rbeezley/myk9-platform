@@ -1,30 +1,4 @@
-/**
- * Class status detection + display utilities.
- *
- * Class-related half of what was `apps/myk9q/src/utils/statusUtils.ts`.
- * The entry-related half (getEntryStatusColor, getEntryStatusLabel,
- * getCheckInStatusIcon, determineEntryStatus, DogEntry, EntryCheckInStatus,
- * EntryResultStatus) stays in apps/myk9q for PR E2 to handle alongside
- * the EntryList move.
- *
- * The split's worth tracking: apps/myk9q's `utils/statusUtils.ts`
- * remains the canonical import path for existing consumers (it
- * re-exports the moved symbols from `@myk9/ringside`), so 11 external
- * consumers see no behavior change.
- *
- * Type naming
- * -----------
- * The local `ClassEntry` interface from the original file is renamed
- * here to `ClassStatusInput` to avoid colliding with the broader
- * `ClassEntry` shape in `pages/ClassList/types.ts` (which is the
- * fetched-row shape, ~25 fields). `ClassStatusInput` is the minimal
- * 9-field shape these status functions actually need — page callers
- * pass their richer `ClassEntry`, structural typing accepts it.
- *
- * `apps/myk9q/src/utils/statusUtils.ts` re-exports `ClassStatusInput`
- * as `ClassEntry` for backwards compat with `classFilterUtils.ts`
- * which imports `ClassEntry as BaseClassEntry`.
- */
+/** Operational class-state derivation. Presentation belongs to @myk9/ui's status grammar. */
 
 export type ClassStatus =
   | 'setup'
@@ -121,109 +95,16 @@ export function getClassDisplayStatus(
   return 'not-started';
 }
 
-/**
- * Returns the CSS class-name token for class status coloring.
- */
-export function getClassStatusColor(status: ClassStatus, classEntry?: ClassStatusInput): string {
-  // PRIORITY 1: Offline scoring status should always use its own color
-  // This must be checked BEFORE smart detection to prevent override
-  if (status === 'offline-scoring') {
+export type EffectiveClassStatus = ClassStatus | 'in-progress';
+
+/** Resolve stored state plus scoring activity into the status key the UI should render. */
+export function getEffectiveClassStatus(classEntry: ClassStatusInput): EffectiveClassStatus {
+  if (classEntry.class_status === 'offline-scoring') {
     return 'offline-scoring';
   }
 
-  // Check smart display status first if classEntry provided
-  if (classEntry) {
-    const displayStatus = getClassDisplayStatus(classEntry);
-    if (displayStatus === 'completed') return 'completed';
-    if (displayStatus === 'in-progress') return 'in-progress';
-  }
-
-  switch (status) {
-    case 'no-status':
-      return 'no-status';
-    case 'setup':
-      return 'setup';
-    case 'briefing':
-      return 'briefing';
-    case 'break':
-      return 'break';
-    case 'start_time':
-      return 'start-time';
-    case 'in_progress':
-      return 'in-progress';
-    case 'completed':
-      return 'completed';
-    default:
-      // Note: offline-scoring is handled at the top of the function before smart detection
-      // Intelligent color based on actual class progress
-      if (classEntry) {
-        const isCompleted =
-          classEntry.completed_count === classEntry.entry_count && classEntry.entry_count > 0;
-        const hasDogsInRing = classEntry.dogs && classEntry.dogs.some(dog => dog.in_ring);
-
-        if (isCompleted) return 'completed';
-        if (hasDogsInRing) return 'in-progress';
-        if (classEntry.completed_count > 0) return 'in-progress';
-        return 'no-status';
-      }
-      return 'no-status';
-  }
-}
-
-export interface FormattedStatus {
-  label: string;
-  time: string | null;
-}
-
-/**
- * Returns the user-facing label + optional time string for a class's
- * current status.
- */
-export function getFormattedClassStatus(classEntry: ClassStatusInput): FormattedStatus {
-  // PRIORITY 1: Offline scoring status should always show as-is (user explicitly set it)
-  // This must be checked BEFORE smart detection to prevent override
-  if (classEntry.class_status === 'offline-scoring') {
-    return { label: 'Offline Scoring', time: null };
-  }
-
-  // Check smart display status first
   const displayStatus = getClassDisplayStatus(classEntry);
-
-  if (displayStatus === 'completed') {
-    return { label: 'Completed', time: null };
-  }
-
-  // If detected as in-progress via scoring activity (dogs scored or in ring), show In Progress
-  if (displayStatus === 'in-progress') {
-    return { label: 'In Progress', time: null };
-  }
-
-  const status = classEntry.class_status;
-
-  switch (status) {
-    case 'briefing':
-      return {
-        label: 'Briefing at',
-        time: classEntry.briefing_time || null,
-      };
-    case 'break':
-      return {
-        label: 'Break until',
-        time: classEntry.break_until || null,
-      };
-    case 'start_time':
-      return {
-        label: 'Start at',
-        time: classEntry.start_time || null,
-      };
-    case 'setup':
-      return { label: 'Setup', time: null };
-    case 'in_progress':
-      return { label: 'In Progress', time: null };
-    case 'completed':
-      return { label: 'Completed', time: null };
-    default:
-      // Note: offline-scoring is handled at the top of the function before smart detection
-      return { label: 'No Status', time: null };
-  }
+  if (displayStatus === 'completed') return 'completed';
+  if (displayStatus === 'in-progress') return 'in-progress';
+  return classEntry.class_status;
 }

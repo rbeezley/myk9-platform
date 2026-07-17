@@ -96,4 +96,22 @@ describe('ResultEntryNavigation', () => {
 
     expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'at-gate');
   });
+
+  it('renders pending-entry check-in state through the shared status grammar', () => {
+    const { container } = render(
+      <ResultEntryNavigation
+        entries={[makeEntry()]}
+        classInfo={{
+          element: 'Container',
+          level: 'Novice',
+          judge: 'Judge One',
+          totalEntries: 1,
+        }}
+        onSelectEntry={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Checked-in')).toBeInTheDocument();
+    expect(container.querySelector('[data-family="entry"][data-shape="in-progress"]')).not.toBeNull();
+  });
 });

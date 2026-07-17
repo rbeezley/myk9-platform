@@ -13,6 +13,7 @@ import '@/styles/myk9-show-details.css';
 
 // UI Components
 import { Button } from '@/components/ui/button';
+import { StatusBadge } from '@/components/status';
 
 // Types
 import type { ScentWorkEntry, ScentWorkResult } from '@/types/scent-work-types';
@@ -348,43 +349,9 @@ export function ResultEntryNavigation({
                     // For pending entries, show check-in status badge in bottom-right corner
                     <div className="flex items-center justify-between w-full">
                       <div className="myk9-entry-status-text pending">Not Started</div>
-                      {(() => {
-                        const status = entry.checkInStatus || 'no-status';
-                        switch (status) {
-                          case 'checked-in':
-                            return (
-                              <div className="px-2 py-1 text-xs font-medium bg-info/10 text-info rounded-md border border-info/30 ">
-                                Checked In
-                              </div>
-                            );
-                          case 'conflict':
-                            return (
-                              <div className="px-2 py-1 text-xs font-medium bg-warning/10 text-warning rounded-md border border-warning/30 ">
-                                Conflict
-                              </div>
-                            );
-                          case 'at-gate':
-                            return (
-                              <div className="px-2 py-1 text-xs font-medium bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200 rounded-md border border-teal-200 dark:border-teal-700">
-                                At Gate
-                              </div>
-                            );
-                          case 'pulled':
-                            return (
-                              <div className="px-2 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-md border border-destructive/30 ">
-                                Pulled
-                              </div>
-                            );
-                          case 'come-to-gate':
-                            return (
-                              <div className="px-2 py-1 text-xs font-medium bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200 rounded-md border border-violet-200 dark:border-violet-700">
-                                Come to Gate
-                              </div>
-                            );
-                          default:
-                            return null;
-                        }
-                      })()}
+                      {entry.checkInStatus && entry.checkInStatus !== 'no-status' && (
+                        <StatusBadge family="entry" status={entry.checkInStatus} />
+                      )}
                     </div>
                   )}
                 </div>

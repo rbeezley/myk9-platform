@@ -50,12 +50,11 @@ export type {
   ClassStatus,
   ClassDog,
   ClassStatusInput,
-  FormattedStatus,
+  EffectiveClassStatus,
 } from './utils/classStatus';
 export {
   getClassDisplayStatus,
-  getClassStatusColor,
-  getFormattedClassStatus,
+  getEffectiveClassStatus,
 } from './utils/classStatus';
 
 // Level sort + stale-data helpers (moved from apps/myk9q in PR E1a)

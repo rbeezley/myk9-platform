@@ -34,6 +34,7 @@ const MIGRATED_RENDERERS = [
   'components/common/CheckInStatusBadge.tsx',
   'components/common/CheckInStatusIndicator.tsx',
   'components/classes/ClassResultsTable/StatusBadge.tsx',
+  'components/scoring/ResultEntryNavigation.tsx',
   'components/entries/EntryStatusLine.tsx',
   'components/live/EntryRow.tsx',
   'components/live/LiveClassCard.tsx',
@@ -43,6 +44,7 @@ const MIGRATED_RENDERERS = [
   'components/trials/TrialDetail/TrialClassesCards.tsx',
   'features/show-map/ShowMapStatusBadge.tsx',
   'features/at-show/AtShowClassListPage.tsx',
+  'features/at-show/slots/CheckinStatusDialog.tsx',
   'features/at-show/slots/ClassDetailsPopoverSlot.tsx',
   'pages/ClassDetailsPage/ClassReadinessStrip.tsx',
   'pages/ClassDetailsPage/SecretaryRunSheet/RunSheetRow.tsx',
@@ -61,7 +63,7 @@ describe('status icon grammar source ownership', () => {
       const source = readFileSync(resolve(SOURCE_ROOT, sourcePath), 'utf8');
       expect(source, sourcePath).toMatch(/@\/components\/status|@myk9\/ui/);
       expect(source, sourcePath).not.toMatch(
-        /CHECKIN_ICON_MAP|STATUS_ICONS|STATUS_BADGE_COLORS|STATUS_CLASS_BY_VALUE|CLASS_STATUS_CONFIG|ENTRY_STATUS_BADGE/
+      /CHECKIN_ICON_MAP|STATUS_ICONS|STATUS_BADGE_COLORS|STATUS_CLASS_BY_VALUE|CLASS_STATUS_CONFIG|ENTRY_STATUS_BADGE|BASE_STATUSES|RING_MANAGEMENT_STATUSES|getClassStatusColor|getFormattedClassStatus/
       );
     }
   });
@@ -111,7 +113,7 @@ describe('status icon grammar source ownership', () => {
       resolve(WORKSPACE_ROOT, 'packages/ringside/src'),
     ];
     const forbidden =
-      /\bCHECKIN_STATUS\b|\bgetCheckinStatusConfig\b|\bCheckInStatusConfig\b|\bCLASS_STATUS_DISPLAY\b|\bgetClassStatusDisplay\b|\bgetClassStatusBadgeClasses\b|\bCLASS_DISPLAY_STATUS_LABELS\b|\bgetClassDisplayStatusLabel\b|\bgetFormattedStatus\b|const\s+statusColors\s*:\s*Record<ClassStatus|const\s+statusBadgeColors\s*:\s*Record<ClassStatus|function\s+getStatusColor\s*\(\s*status:\s*(?:CheckInStatus|ClassEntry)/;
+      /\bCHECKIN_STATUS\b|\bgetCheckinStatusConfig\b|\bCheckInStatusConfig\b|\bCLASS_STATUS_DISPLAY\b|\bgetClassStatusDisplay\b|\bgetClassStatusBadgeClasses\b|\bCLASS_DISPLAY_STATUS_LABELS\b|\bgetClassDisplayStatusLabel\b|\bgetFormattedStatus\b|\bgetClassStatusColor\b|\bgetFormattedClassStatus\b|\bBASE_STATUSES\b|\bRING_MANAGEMENT_STATUSES\b|const\s+statusColors\s*:\s*Record<ClassStatus|const\s+statusBadgeColors\s*:\s*Record<ClassStatus|function\s+getStatusColor\s*\(\s*status:\s*(?:CheckInStatus|ClassEntry)/;
 
     for (const sourcePath of roots.flatMap(productionSources)) {
       if (OUT_OF_SCOPE_STATUS_SOURCE_SEGMENTS.some(segment => sourcePath.includes(segment))) {

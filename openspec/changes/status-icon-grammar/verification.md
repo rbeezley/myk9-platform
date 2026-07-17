@@ -28,6 +28,8 @@ The third independent-review pass removed the final parallel class/check-in pres
 
 The fourth independent-review pass removed the remaining presentation owners from the shared ClassCard, core class/check-in constants, ringside formatting helpers, check-in class rows, and multi-dog schedule. A recursive ownership test now scans all production TypeScript sources in myK9Show, core, shared UI, and ringside for the retired maps and helpers. Assertion-first coverage failed on the remaining leaks before the fixes. Afterward, the focused app regression set passed 69 tests across 10 files; the full shared UI, core, and ringside suites passed 295, 360, and 370 tests respectively. Typecheck (26/26) and lint (14/14) remained clean.
 
+An owner-authorized additional review cycle found and removed the last local presentation paths in scoring navigation, the at-show check-in picker, and ringside class-list formatting. Ringside now derives only an effective operational class status; the app passes that key directly to the shared badge. The recursive ownership gate was expanded to cover these retired helpers and renderers. Assertion-first tests failed on all reported leaks before the fixes. Afterward, the focused app set passed 23 tests across 4 files; the full shared UI, core, and ringside suites passed 295, 360, and 369 tests respectively. Final typecheck (26/26), lint (14/14), and strict OpenSpec validation passed.
+
 The broad myK9Show suite was also started. It exposed three contextual My Entries label regressions, which were fixed and covered by the focused 67-test card suite, then reached the repository's known 60-second hang threshold and was stopped. CI remains the broad-suite gate.
 
 ## Browser sweep

@@ -5,8 +5,8 @@ import { cn } from '../../utils/cn';
 import { STAT_COLORS, type StatColor } from './statCardVariants';
 
 export interface StatCardProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onClick'> {
-  /** Lucide icon component to display in the card header. */
-  icon: LucideIcon;
+  /** Lucide icon component or a shared semantic icon element for the card header. */
+  icon: LucideIcon | React.ReactElement;
   /** Label displayed above the value. */
   title: string;
   /** Primary metric — number or formatted string. */
@@ -41,7 +41,7 @@ export interface StatCardProps extends Omit<React.HTMLAttributes<HTMLDivElement>
  * />
  */
 function StatCard({
-  icon: Icon,
+  icon,
   title,
   value,
   color = 'primary',
@@ -53,6 +53,7 @@ function StatCard({
   ...props
 }: StatCardProps) {
   const colors = STAT_COLORS[color];
+  const hasCustomIcon = React.isValidElement(icon);
   const clampedProgress = progress != null ? Math.min(100, Math.max(0, progress)) : undefined;
   const isPositiveTrend = trend?.startsWith('+');
   const isNegativeTrend = trend?.startsWith('-');
@@ -84,10 +85,14 @@ function StatCard({
           data-slot="icon"
           className={cn(
             'flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px]',
-            colors.iconBg
+            hasCustomIcon ? 'bg-muted' : colors.iconBg
           )}
         >
-          <Icon className={cn('h-5 w-5', colors.iconStroke)} />
+          {hasCustomIcon
+            ? icon
+            : React.createElement(icon as LucideIcon, {
+                className: cn('h-5 w-5', colors.iconStroke),
+              })}
         </div>
 
         <div className="min-w-0 flex-1">

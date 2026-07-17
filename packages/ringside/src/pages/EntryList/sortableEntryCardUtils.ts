@@ -13,7 +13,6 @@
  */
 
 import type { Entry } from '../../stores/entryStore';
-import { getStatusDescriptor } from '@myk9/ui';
 
 // ========================================
 // TYPES
@@ -27,11 +26,6 @@ export type StatusBorderClass =
   | 'result-wd'
   | 'scored'
   | 'no-status';
-
-export interface StatusConfig {
-  iconName: 'circle' | 'check' | 'alert-triangle' | 'x-circle' | 'star' | 'bell' | 'target' | null;
-  text: string;
-}
 
 // ========================================
 // HELPER FUNCTIONS
@@ -121,20 +115,6 @@ export function getPlacementText(placement: number): string {
     default:
       return `${placement}th`;
   }
-}
-
-/**
- * Get status icon name and text configuration
- */
-export function getStatusConfig(status: string | null | undefined): StatusConfig {
-  const descriptor = getStatusDescriptor('entry', status);
-  const iconName: StatusConfig['iconName'] =
-    descriptor.shape === 'complete'
-      ? 'check'
-      : descriptor.shape === 'needs-attention'
-        ? 'alert-triangle'
-        : 'circle';
-  return { iconName, text: descriptor.label };
 }
 
 /**

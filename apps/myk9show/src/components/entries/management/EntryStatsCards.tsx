@@ -1,6 +1,6 @@
 import React from 'react';
-import { StatCard, StatsGrid } from '@myk9/ui';
-import { Users, AlertCircle, CheckCircle2, Clock, DollarSign, Receipt } from 'lucide-react';
+import { StatCard, StatsGrid, StatusIcon } from '@myk9/ui';
+import { Users, DollarSign, Receipt } from 'lucide-react';
 import type { EntryStats } from '@/types/entry-management-types';
 
 interface EntryStatsCardsProps {
@@ -19,21 +19,21 @@ export const EntryStatsCards: React.FC<EntryStatsCardsProps> = ({ stats }) => {
         subtitle="All entries"
       />
       <StatCard
-        icon={AlertCircle}
+        icon={<StatusIcon family="entry" status="pending" decorative />}
         title="Pending"
         value={stats.pending}
         color="amber"
         subtitle="Need review"
       />
       <StatCard
-        icon={CheckCircle2}
+        icon={<StatusIcon family="entry" status="accepted" decorative />}
         title="Accepted"
         value={stats.accepted}
         color="emerald"
         subtitle="Confirmed entries"
       />
       <StatCard
-        icon={Clock}
+        icon={<StatusIcon family="entry" status="waitlist" decorative />}
         title="Waitlist"
         value={stats.waitlist}
         color="blue"

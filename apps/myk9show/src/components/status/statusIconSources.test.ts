@@ -42,8 +42,12 @@ const MIGRATED_RENDERERS = [
   'components/entries/EntryStatusLine.tsx',
   'components/entries/EntryStatusHistory.tsx',
   'components/entries/EntryStatusStepper.tsx',
+  'components/entries/PullManagementTab.tsx',
+  'components/entries/management/EntryStatsCards.tsx',
   'components/live/EntryRow.tsx',
   'components/live/LiveClassCard.tsx',
+  'components/judges/JudgeCheckInInterface.tsx',
+  'components/offline-checkin/StatisticsPanel.tsx',
   'components/schedule/ElementCard.tsx',
   'components/shows/tabs/ClassesTab.tsx',
   'components/shows/tabs/ClassCard.tsx',
@@ -59,9 +63,12 @@ const MIGRATED_RENDERERS = [
   'features/at-show/slots/ClassDetailsPopoverSlot.tsx',
   'pages/ClassDetailsPage/ClassReadinessStrip.tsx',
   'pages/ClassDetailsPage/SecretaryRunSheet/RunSheetRow.tsx',
+  'pages/judge/JudgeCheckInDashboard.tsx',
   'pages/secretary/ClassManagementPage.tsx',
   'components/templates/secretary/RunOrderBoard.tsx',
+  'components/stewards/GateStewardInterfaceComponents.tsx',
   'pages/TrialDetailsPage.tsx',
+  'pages/secretary/WaitlistManagementPage/ClassStatsCards.tsx',
 ] as const;
 
 describe('status icon grammar source ownership', () => {
@@ -110,12 +117,25 @@ describe('status icon grammar source ownership', () => {
       WORKSPACE_ROOT,
       'packages/ringside/src/pages/EntryList/SortableEntryCardComponents.tsx'
     );
+    const ringsideStatusApiSources = [
+      resolve(
+        WORKSPACE_ROOT,
+        'packages/ringside/src/pages/EntryList/sortableEntryCardUtils.ts'
+      ),
+      resolve(WORKSPACE_ROOT, 'packages/ringside/src/pages/EntryList/index.ts'),
+      resolve(WORKSPACE_ROOT, 'packages/ringside/src/index.ts'),
+    ];
 
     expect(existsSync(sharedGrammar)).toBe(true);
     const ringsideSource = readFileSync(ringsideRenderer, 'utf8');
     expect(ringsideSource).toContain('StatusIcon');
     expect(ringsideSource).toContain("from '@myk9/ui'");
     expect(ringsideSource).not.toMatch(/function getIcon|switch \(config\.iconName\)/);
+    for (const sourcePath of ringsideStatusApiSources) {
+      expect(readFileSync(sourcePath, 'utf8'), sourcePath).not.toMatch(
+        /\bgetStatusConfig\b|\bStatusConfig\b/
+      );
+    }
   });
 
   it('scans every in-scope source root for legacy entry/class presentation owners', () => {

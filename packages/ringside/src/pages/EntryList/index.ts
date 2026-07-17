@@ -40,7 +40,7 @@ export type {
 } from './types';
 
 // ── Sortable card utilities (moved from sortableEntryCardUtils.ts) ───────
-export type { StatusBorderClass, StatusConfig } from './sortableEntryCardUtils';
+export type { StatusBorderClass } from './sortableEntryCardUtils';
 export {
   normalizeResultText,
   getResultClassName,
@@ -48,7 +48,6 @@ export {
   getStatusBorderClass,
   getPlacementEmoji,
   getPlacementText,
-  getStatusConfig,
   isNationalsCompetition,
   getDisplayTime,
 } from './sortableEntryCardUtils';

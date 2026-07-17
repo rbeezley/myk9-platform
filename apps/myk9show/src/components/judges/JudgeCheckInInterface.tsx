@@ -25,10 +25,11 @@ import {
   CheckInQuickActions,
 } from '@/components/common/CheckInStatusIndicator';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
+import { StatusIcon } from '@/components/status';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
-import { Search, Filter, CheckCircle2, AlertTriangle, RefreshCw, Eye, Users } from 'lucide-react';
+import { Search, Filter, RefreshCw, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatRingLabel } from '@/utils/ringLabel';
 import '@/styles/myk9-show-details.css';
@@ -370,7 +371,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Checked In</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+            <StatusIcon family="entry" status="checked-in" size="sm" decorative />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.checkedIn}</div>
@@ -381,7 +382,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">At Gate</CardTitle>
-            <Eye className="h-4 w-4 text-muted-foreground" />
+            <StatusIcon family="entry" status="at-gate" size="sm" decorative />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.atGate}</div>
@@ -392,7 +393,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Needs Attention</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <StatusIcon family="entry" status="come-to-gate" size="sm" decorative />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.needsAttention}</div>

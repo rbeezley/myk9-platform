@@ -139,7 +139,7 @@ export type {
   EntryListDataDependencies,
 } from './pages/EntryList';
 
-export type { StatusBorderClass, StatusConfig } from './pages/EntryList';
+export type { StatusBorderClass } from './pages/EntryList';
 export {
   normalizeResultText,
   getResultClassName,
@@ -147,7 +147,6 @@ export {
   getStatusBorderClass,
   getPlacementEmoji,
   getPlacementText,
-  getStatusConfig,
   isNationalsCompetition,
   getDisplayTime,
 } from './pages/EntryList';

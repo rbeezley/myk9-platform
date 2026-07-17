@@ -83,8 +83,15 @@ The complete in-scope renderer inventory migrated to the shared grammar is:
 - Schedule, scoring, and operational summaries:
   `components/schedule/ElementAccordion.tsx`, `ElementCard.tsx`,
   `StatusDot.tsx`, `components/scoring/ResultEntryNavigation.tsx`,
+  `components/entries/management/EntryStatsCards.tsx`,
+  `components/offline-checkin/StatisticsPanel.tsx`,
+  `components/judges/JudgeCheckInInterface.tsx`,
+  `components/stewards/GateStewardInterfaceComponents.tsx`,
+  `components/entries/PullManagementTab.tsx`,
   `components/secretary/SecretaryClassDashboard.tsx`,
   `components/templates/secretary/RunOrderBoard.tsx`,
+  `pages/judge/JudgeCheckInDashboard.tsx`,
+  `pages/secretary/WaitlistManagementPage/ClassStatsCards.tsx`,
   `features/pipeline/components/ClassPipelineCard.tsx`,
   `ScoringDaySummary.tsx`, and
   `features/show-desk-people-roster/ShowDeskPeopleRoster.tsx`.
@@ -111,7 +118,9 @@ state derivation are `constants/live-status-config.ts`,
 `packages/core/src/helpers/class-display-status.ts`,
 `packages/core/src/helpers/trial-status.ts`,
 `packages/ringside/src/pages/ClassList/utils/statusFormatting.ts`, and
-`packages/ringside/src/utils/classStatus.ts`.
+`packages/ringside/src/utils/classStatus.ts`. The unused ringside
+`StatusConfig`/`getStatusConfig` presentation API was also removed from
+`pages/EntryList/sortableEntryCardUtils.ts` and its package exports.
 
 The owning grammar and icon component now live in
 `packages/ui/src/components/StatusIcon/`; myK9Show re-exports them from its

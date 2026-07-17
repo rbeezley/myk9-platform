@@ -32,8 +32,13 @@ The system SHALL present a time-boxed undo affordance after simple single and bu
 
 #### Scenario: Undo a bulk change reverts only the succeeded subset
 
-- **WHEN** a bulk status change partially succeeded and the user activates Undo
+- **WHEN** a fully succeeded bulk status change's Undo is activated
 - **THEN** only the items that succeeded are reverted, each with its own supersession check
+
+#### Scenario: Partial failure offers retry, not undo
+
+- **WHEN** a bulk status change settles with some items failed
+- **THEN** the summary's single action affordance is "Retry failed" (the more useful next step); undo is offered only on fully succeeded batches
 
 #### Scenario: Undo window expires
 

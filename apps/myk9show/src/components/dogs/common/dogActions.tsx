@@ -12,7 +12,14 @@ import type { EntityAction } from '@/components/ui/RowActionMenu';
 import type { Dog, DogStatus } from '@/types/dog-types';
 
 export interface DogActionHandlers {
+  /** Row menu: change one dog's status. */
   onSetStatus?: ((dog: Dog, status: DogStatus) => void) | undefined;
+  /**
+   * Bulk bar: change every eligible dog's status in ONE dispatch. Distinct from
+   * `onSetStatus` because a per-dog call would trip the dispatch in-flight latch
+   * and only update the first dog.
+   */
+  onBulkSetStatus?: ((dogs: Dog[], status: DogStatus) => void) | undefined;
   /** Row menu: opens the single-dog delete confirmation. */
   onDelete?: ((dog: Dog) => void) | undefined;
   /** Bulk bar: opens the multi-dog delete confirmation with the eligible subset. */
@@ -38,14 +45,16 @@ function makeStatusAction(
       Boolean(handlers.onSetStatus) && (dog.status ?? 'active') !== status,
     run: (dog, handlers) => handlers.onSetStatus?.(dog, status),
     bulk: {
+      // Bulk uses `onBulkSetStatus` (one dispatch for the whole eligible subset),
+      // not the row's per-dog `onSetStatus` — so eligibility gates on that handler.
+      applicableWhen: (dog, handlers) =>
+        Boolean(handlers.onBulkSetStatus) && (dog.status ?? 'active') !== status,
       label: (eligibleCount, selectedCount) =>
         eligibleCount > 0
           ? `Mark ${STATUS_LABEL[status].toLowerCase()} ${eligibleCount} of ${selectedCount} selected`
           : `Mark ${STATUS_LABEL[status].toLowerCase()}`,
       unavailableReason: `No selected dogs can be marked ${STATUS_LABEL[status].toLowerCase()}`,
-      run: (eligible, handlers) => {
-        eligible.forEach(dog => handlers.onSetStatus?.(dog, status));
-      },
+      run: (eligible, handlers) => handlers.onBulkSetStatus?.(eligible, status),
     },
   };
 }

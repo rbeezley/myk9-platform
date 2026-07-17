@@ -27,6 +27,14 @@ export interface BulkDispatchRunOptions<T> {
    * `undefined` to show no Undo.
    */
   buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined;
+  /**
+   * Per-run eligibility re-check used when the user retries the failed subset.
+   * Overrides the hook-level `applicableWhen` for this dispatch and its retries.
+   * Use it when eligibility is specific to THIS invocation — e.g. a bulk "accept"
+   * must not re-run on an entry another actor has since moved to a different status.
+   * Items that no longer pass are reported as skipped rather than re-attempted.
+   */
+  applicableWhen?: (item: T) => boolean;
 }
 
 export interface UseBulkDispatchResult<T> {
@@ -63,7 +71,8 @@ export function useBulkDispatch<T>({
       total: number,
       outcome: BulkDispatchOutcome<T>,
       runItem: (item: T) => Promise<void>,
-      buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined
+      buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined,
+      runApplicableWhen?: (item: T) => boolean
     ) => {
       const summary = summarizeBulkOutcome(total, outcome, getLabel);
       if (summary.fullSuccess) {
@@ -81,7 +90,8 @@ export function useBulkDispatch<T>({
           onClick: () => {
             void retry(
               outcome.failed.map(({ item }) => item),
-              runItem
+              runItem,
+              runApplicableWhen
             );
           },
         },
@@ -92,14 +102,21 @@ export function useBulkDispatch<T>({
   );
 
   const retry = useCallback(
-    async (failedItems: T[], runItem: (item: T) => Promise<void>): Promise<void> => {
+    async (
+      failedItems: T[],
+      runItem: (item: T) => Promise<void>,
+      runApplicableWhen?: (item: T) => boolean
+    ): Promise<void> => {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
       setIsBusy(true);
       try {
+        // Prefer the per-run predicate (e.g. the specific target status of THIS
+        // batch) over the generic hook-level one, so a retry can't overwrite a
+        // decision another actor made in the meantime.
         const outcome = await retryFailedItems(
           failedItems,
-          applicableWhen ?? (() => true),
+          runApplicableWhen ?? applicableWhen ?? (() => true),
           runItem
         );
         if (outcome.skipped.length > 0) {
@@ -114,7 +131,9 @@ export function useBulkDispatch<T>({
           showSummary(
             retriedCount,
             { succeeded: outcome.succeeded, failed: outcome.failed },
-            runItem
+            runItem,
+            undefined,
+            runApplicableWhen
           );
         }
       } finally {
@@ -138,7 +157,7 @@ export function useBulkDispatch<T>({
       setIsBusy(true);
       try {
         const outcome = await dispatchBulk(items, runItem);
-        showSummary(items.length, outcome, runItem, options?.buildUndo);
+        showSummary(items.length, outcome, runItem, options?.buildUndo, options?.applicableWhen);
         return outcome;
       } finally {
         inFlightRef.current = false;

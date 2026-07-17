@@ -65,7 +65,7 @@ describe('dogActions row menu', () => {
 
 describe('dogActions bulk menu', () => {
   it('narrows the eligible subset for a status action and formats the count', () => {
-    const handlers: DogActionHandlers = { onSetStatus: vi.fn() };
+    const handlers: DogActionHandlers = { onBulkSetStatus: vi.fn() };
     const dogs = [dog('1', 'active'), dog('2', 'retired'), dog('3', 'active')];
     const result = toBulkActions(dogs, handlers, dogActions);
     const retire = result.find(a => a.id === 'set-status-retired');
@@ -74,7 +74,7 @@ describe('dogActions bulk menu', () => {
   });
 
   it('disables a bulk status action with zero eligible items', () => {
-    const handlers: DogActionHandlers = { onSetStatus: vi.fn() };
+    const handlers: DogActionHandlers = { onBulkSetStatus: vi.fn() };
     const dogs = [dog('1', 'retired'), dog('2', 'retired')];
     const result = toBulkActions(dogs, handlers, dogActions);
     const retire = result.find(a => a.id === 'set-status-retired');
@@ -82,13 +82,21 @@ describe('dogActions bulk menu', () => {
     expect(retire?.description).toBe('No selected dogs can be marked retired');
   });
 
-  it('dispatches only the eligible dogs to bulk.run', () => {
-    const onSetStatus = vi.fn();
-    const dogs = [dog('1', 'active'), dog('2', 'retired')];
-    const result = toBulkActions(dogs, { onSetStatus }, dogActions);
+  it('hides bulk status actions when onBulkSetStatus is not wired', () => {
+    // Bulk uses onBulkSetStatus, distinct from the row menu's per-dog onSetStatus.
+    const result = toBulkActions([dog('1', 'active')], { onSetStatus: vi.fn() }, dogActions);
+    expect(result.find(a => a.id === 'set-status-retired')?.disabled).toBe(true);
+  });
+
+  it('dispatches the whole eligible subset to onBulkSetStatus in one call', () => {
+    const onBulkSetStatus = vi.fn();
+    const dogs = [dog('1', 'active'), dog('2', 'retired'), dog('3', 'active')];
+    const result = toBulkActions(dogs, { onBulkSetStatus }, dogActions);
     result.find(a => a.id === 'set-status-retired')?.onSelect();
-    expect(onSetStatus).toHaveBeenCalledTimes(1);
-    expect(onSetStatus).toHaveBeenCalledWith(dogs[0], 'retired');
+    // One call with only the eligible dogs (dog 2 is already retired) — NOT one
+    // call per dog, which would trip the dispatch latch and update only the first.
+    expect(onBulkSetStatus).toHaveBeenCalledTimes(1);
+    expect(onBulkSetStatus).toHaveBeenCalledWith([dogs[0], dogs[2]], 'retired');
   });
 
   it('delete is applicable to every selected dog and dispatches via onBulkDelete', () => {

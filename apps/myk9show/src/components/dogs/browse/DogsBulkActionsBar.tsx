@@ -20,9 +20,19 @@ import { dogActions } from '@/components/dogs/common/dogActions';
 interface DogsBulkActionsBarProps {
   selectedDogs: Dog[];
   onClear: () => void;
+  /**
+   * Whether the current user may delete dogs (`dog:delete`). When false the bulk
+   * Delete action is not offered at all — status changes (`dog:update`) remain.
+   * Per-dog ownership rejections still surface as honest partial-failures.
+   */
+  canDelete?: boolean;
 }
 
-export function DogsBulkActionsBar({ selectedDogs, onClear }: DogsBulkActionsBarProps) {
+export function DogsBulkActionsBar({
+  selectedDogs,
+  onClear,
+  canDelete = false,
+}: DogsBulkActionsBarProps) {
   const { user } = useAuthContext();
   const updateDogMutation = useUpdateDogMutation();
   const deleteDogMutation = useDeleteDogMutation();
@@ -35,9 +45,11 @@ export function DogsBulkActionsBar({ selectedDogs, onClear }: DogsBulkActionsBar
 
   const count = selectedDogs.length;
 
-  const handleSetStatus = (dog: Dog, status: DogStatus) => {
+  const handleBulkSetStatus = (dogs: Dog[], status: DogStatus) => {
     void (async () => {
-      const outcome = await statusDispatch.run([dog], async d => {
+      // One dispatch for the whole eligible subset — a per-dog call would trip
+      // the in-flight latch and only update the first dog.
+      const outcome = await statusDispatch.run(dogs, async d => {
         await updateDogMutation.mutateAsync({ id: d.id, updates: { status } });
       });
       // Clear only on full success — a latched no-op (null) or failure keeps
@@ -63,9 +75,12 @@ export function DogsBulkActionsBar({ selectedDogs, onClear }: DogsBulkActionsBar
 
   const actions = toBulkActions(
     selectedDogs,
-    { onSetStatus: handleSetStatus, onBulkDelete: handleBulkDelete },
+    { onBulkSetStatus: handleBulkSetStatus, onBulkDelete: handleBulkDelete },
     dogActions
-  );
+    // Hide Delete entirely when the user lacks `dog:delete` — showing it disabled
+    // with "no dogs can be deleted" would misattribute a permission gate to
+    // eligibility. Status changes (dog:update) remain.
+  ).filter(action => canDelete || action.id !== 'delete');
 
   const isBusy = statusDispatch.isBusy || deleteDispatch.isBusy;
 

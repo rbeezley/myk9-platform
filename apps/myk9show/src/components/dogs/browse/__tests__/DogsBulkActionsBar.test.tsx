@@ -32,9 +32,11 @@ function dog(id: string, status: Dog['status'] = 'active'): Dog {
   };
 }
 
-function setup(dogs: Dog[]) {
+function setup(dogs: Dog[], canDelete = true) {
   const onClear = vi.fn();
-  const utils = render(<DogsBulkActionsBar selectedDogs={dogs} onClear={onClear} />);
+  const utils = render(
+    <DogsBulkActionsBar selectedDogs={dogs} onClear={onClear} canDelete={canDelete} />
+  );
   return { ...utils, onClear };
 }
 
@@ -93,5 +95,27 @@ describe('DogsBulkActionsBar', () => {
       expect(deleteDogMutateAsync).toHaveBeenCalledWith({ id: '2', deletedBy: 'staff-1' });
     });
     expect(deleteDogMutateAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not offer bulk delete when the user cannot delete dogs', async () => {
+    const { user } = setup([dog('1'), dog('2')], false);
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    // Status change (dog:update) is still offered; Delete (dog:delete) is absent.
+    expect(await screen.findByRole('menuitem', { name: /mark retired/i })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /delete/i })).not.toBeInTheDocument();
+  });
+
+  it('dispatches one update per eligible dog when marking several at once', async () => {
+    const { user } = setup([dog('1', 'active'), dog('2', 'active'), dog('3', 'active')]);
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    await user.click(
+      await screen.findByRole('menuitem', { name: /mark retired 3 of 3 selected/i })
+    );
+
+    // Regression guard: a per-dog dispatch would trip the in-flight latch and
+    // update only the first dog. All three must be updated.
+    await waitFor(() => {
+      expect(updateDogMutateAsync).toHaveBeenCalledTimes(3);
+    });
   });
 });

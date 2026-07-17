@@ -182,6 +182,22 @@ describe('syncReplicatedTable', () => {
     expect(result.uploadError).toBe('upload pass crashed');
   });
 
+  it('retains uploadError even when the download phase also fails', async () => {
+    const uploadPendingMutations = vi.fn(async () => {
+      throw new Error('upload pass crashed');
+    });
+    const adapter = makeAdapter([]);
+    vi.mocked(adapter.fetchRemoteRows).mockRejectedValue(new Error('download crashed'));
+
+    const result = await syncReplicatedTable(table, adapter, {}, { uploadPendingMutations });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('download crashed');
+    // Both failures are independently actionable — the download failure must
+    // not erase the earlier upload failure.
+    expect(result.uploadError).toBe('upload pass crashed');
+  });
+
   it('leaves uploadError undefined on a clean sync', async () => {
     const uploadPendingMutations = vi.fn(async () => undefined);
     const adapter = makeAdapter([]);

@@ -384,6 +384,9 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       conflictsResolved,
       duration: Date.now() - startedAt,
       error: message,
+      // A download-phase failure must not erase a prior upload-phase failure —
+      // both are real and independently actionable (Codex review, P2 follow-up).
+      ...(uploadError ? { uploadError } : {}),
     };
   }
 }

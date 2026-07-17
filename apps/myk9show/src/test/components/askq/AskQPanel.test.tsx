@@ -19,7 +19,10 @@ vi.mock('@/hooks/useAuthContext', () => ({
 describe('AskQPanel', () => {
   beforeEach(() => {
     authState.user = { id: 'user-1' };
+    // `parseSSEStream` is overridden by the deferred skeleton test. Clear-only
+    // resets let that implementation leak when Vitest shuffles test order.
     vi.clearAllMocks();
+    vi.mocked(askqService.parseSSEStream).mockReset();
     useAskQPanelStore.getState().close();
   });
 

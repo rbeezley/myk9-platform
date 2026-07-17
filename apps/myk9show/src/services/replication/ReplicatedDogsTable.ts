@@ -66,7 +66,7 @@ export interface ReplicatedDog {
 /**
  * Convert database row to app Dog type
  */
-function rowToDog(row: DogRow): ReplicatedDog {
+export function rowToDog(row: DogRow): ReplicatedDog {
   return {
     id: String(row.id),
     name: row.name,

@@ -67,7 +67,7 @@ export interface AssignedArmbandInput {
 /**
  * Convert database row to app Armband type
  */
-function rowToArmband(row: ArmbandRow): ReplicatedArmband {
+export function rowToArmband(row: ArmbandRow): ReplicatedArmband {
   return {
     id: String(row.id),
     showId: String(row.show_id),

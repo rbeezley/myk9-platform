@@ -64,7 +64,7 @@ export interface ReplicatedTrial {
 /**
  * Convert database row to app Trial type
  */
-function rowToTrial(row: TrialRow): ReplicatedTrial {
+export function rowToTrial(row: TrialRow): ReplicatedTrial {
   return {
     id: String(row.id),
     showId: row.show_id ?? undefined,

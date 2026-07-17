@@ -113,7 +113,6 @@ describe('resolveRefund', () => {
     name: string;
     amountStr: string;
     paidDollars: number;
-    isPartial: boolean;
     method: 'check_mailed' | 'cash_returned' | 'stripe' | 'other';
     notes: string;
     expected: ReturnType<typeof resolveRefund>;
@@ -124,7 +123,6 @@ describe('resolveRefund', () => {
       name: 'zero amount -> null',
       amountStr: '0',
       paidDollars: 50,
-      isPartial: false,
       method: 'check_mailed',
       notes: '',
       expected: null,
@@ -133,7 +131,6 @@ describe('resolveRefund', () => {
       name: 'negative amount -> null',
       amountStr: '-10',
       paidDollars: 50,
-      isPartial: false,
       method: 'check_mailed',
       notes: '',
       expected: null,
@@ -142,7 +139,6 @@ describe('resolveRefund', () => {
       name: 'non-numeric amount -> null',
       amountStr: 'nope',
       paidDollars: 50,
-      isPartial: false,
       method: 'check_mailed',
       notes: '',
       expected: null,
@@ -151,43 +147,38 @@ describe('resolveRefund', () => {
       name: 'full refund (not partial), no notes -> REFUNDED, notes = method label only',
       amountStr: '50',
       paidDollars: 50,
-      isPartial: false,
       method: 'check_mailed',
       notes: '',
       expected: { status: PaymentStatus.REFUNDED, amount: 50, notes: 'Check Mailed' },
     },
     {
-      name: 'not partial, amount less than paid -> still REFUNDED (isPartial flag rules, not amount)',
+      name: 'amount less than paid -> PARTIAL_REFUND regardless of dialog mode',
       amountStr: '10',
       paidDollars: 50,
-      isPartial: false,
       method: 'cash_returned',
       notes: '',
-      expected: { status: PaymentStatus.REFUNDED, amount: 10, notes: 'Cash Returned' },
+      expected: { status: PaymentStatus.PARTIAL_REFUND, amount: 10, notes: 'Cash Returned' },
     },
     {
-      name: 'partial flagged, amount equals paid -> REFUNDED (covers whole amount)',
+      name: 'amount equals paid -> REFUNDED',
       amountStr: '50',
       paidDollars: 50,
-      isPartial: true,
       method: 'stripe',
       notes: '',
       expected: { status: PaymentStatus.REFUNDED, amount: 50, notes: 'Stripe (manual)' },
     },
     {
-      name: 'partial flagged, amount exceeds paid -> REFUNDED',
+      name: 'amount exceeds paid -> null',
       amountStr: '75',
       paidDollars: 50,
-      isPartial: true,
       method: 'stripe',
       notes: '',
-      expected: { status: PaymentStatus.REFUNDED, amount: 75, notes: 'Stripe (manual)' },
+      expected: null,
     },
     {
-      name: 'partial flagged, amount below paid -> PARTIAL_REFUND',
+      name: 'amount below paid -> PARTIAL_REFUND',
       amountStr: '20',
       paidDollars: 50,
-      isPartial: true,
       method: 'other',
       notes: '',
       expected: { status: PaymentStatus.PARTIAL_REFUND, amount: 20, notes: 'Other' },
@@ -196,7 +187,6 @@ describe('resolveRefund', () => {
       name: 'notes provided -> combined with method label',
       amountStr: '20',
       paidDollars: 50,
-      isPartial: true,
       method: 'other',
       notes: 'customer requested',
       expected: {
@@ -209,7 +199,6 @@ describe('resolveRefund', () => {
       name: 'notes whitespace-only -> trimmed away, notes = method label only',
       amountStr: '20',
       paidDollars: 50,
-      isPartial: true,
       method: 'other',
       notes: '   ',
       expected: { status: PaymentStatus.PARTIAL_REFUND, amount: 20, notes: 'Other' },
@@ -218,7 +207,6 @@ describe('resolveRefund', () => {
       name: 'unknown method falls back to raw method string as label',
       amountStr: '20',
       paidDollars: 50,
-      isPartial: true,
       // Cast to force an out-of-union method through the fallback branch.
       method: 'unknown_method' as unknown as 'other',
       notes: '',
@@ -226,7 +214,7 @@ describe('resolveRefund', () => {
     },
   ];
 
-  it.each(cases)('$name', ({ amountStr, paidDollars, isPartial, method, notes, expected }) => {
-    expect(resolveRefund(amountStr, paidDollars, isPartial, method, notes)).toEqual(expected);
+  it.each(cases)('$name', ({ amountStr, paidDollars, method, notes, expected }) => {
+    expect(resolveRefund(amountStr, paidDollars, method, notes)).toEqual(expected);
   });
 });

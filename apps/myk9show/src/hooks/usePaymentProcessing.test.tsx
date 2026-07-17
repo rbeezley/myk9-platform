@@ -7,11 +7,8 @@ import { MemoryRouter } from 'react-router-dom';
 
 // ---------------------------------------------------------------------------
 // paymentService is mocked at the module boundary; this suite verifies only
-// what the hook itself owns: state transitions on success/failure, and
-// whether a second in-flight call is guarded (task 3.1). The hook has no
-// explicit in-flight guard (no early-return on state.loading) — see
-// CONCERNS in the handoff for the "second invocation while in flight"
-// behavior this suite documents as observed, not necessarily intended.
+// what the hook itself owns: state transitions on success/failure and the
+// duplicate-submit guard.
 // ---------------------------------------------------------------------------
 
 const createPaymentIntentMock = vi.hoisted(() => vi.fn());
@@ -131,10 +128,7 @@ describe('usePaymentProcessing', () => {
       expect(result.current.error).toBe('Failed to create payment');
     });
 
-    // CONCERN: the hook has no in-flight guard — it never checks state.loading
-    // before starting a new call. This test documents the OBSERVED behavior
-    // (both calls run, both hit the service) rather than an intended guard.
-    it('observed: a second invocation while one is in flight is NOT blocked and both calls reach the service', async () => {
+    it('blocks a second invocation while the first payment is in flight', async () => {
       let resolveFirst: (value: { paymentId: string; clientSecret?: string }) => void;
       const firstCall = new Promise<{ paymentId: string; clientSecret?: string }>((resolve) => {
         resolveFirst = resolve;
@@ -157,17 +151,17 @@ describe('usePaymentProcessing', () => {
       });
 
       await waitFor(() => {
-        expect(createPaymentIntentMock).toHaveBeenCalledTimes(2);
+        expect(createPaymentIntentMock).toHaveBeenCalledTimes(1);
       });
+
+      expect(await secondOutcome!).toBe(false);
 
       await act(async () => {
         resolveFirst({ paymentId: 'pay-1', clientSecret: 'secret-1' });
         await firstOutcome;
-        await secondOutcome;
       });
 
       expect(await firstOutcome!).toBe(true);
-      expect(await secondOutcome!).toBe(true);
     });
   });
 

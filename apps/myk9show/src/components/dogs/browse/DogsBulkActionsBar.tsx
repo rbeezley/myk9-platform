@@ -49,9 +49,17 @@ export function DogsBulkActionsBar({
     void (async () => {
       // One dispatch for the whole eligible subset — a per-dog call would trip
       // the in-flight latch and only update the first dog.
-      const outcome = await statusDispatch.run(dogs, async d => {
-        await updateDogMutation.mutateAsync({ id: d.id, updates: { status } });
-      });
+      const outcome = await statusDispatch.run(
+        dogs,
+        async d => {
+          await updateDogMutation.mutateAsync({ id: d.id, updates: { status } });
+        },
+        {
+          // On retry, skip any dog already in the target status (e.g. another user
+          // set it meanwhile) rather than re-writing it.
+          applicableWhen: d => (d.status ?? 'active') !== status,
+        }
+      );
       // Clear only on full success — a latched no-op (null) or failure keeps
       // the selection so the user can retry.
       if (outcome !== null && outcome.failed.length === 0) onClear();
@@ -96,7 +104,7 @@ export function DogsBulkActionsBar({
             <span className="text-sm font-medium">
               {count} dog{count === 1 ? '' : 's'} selected
             </span>
-            <Button variant="ghost" size="sm" onClick={onClear}>
+            <Button variant="ghost" size="sm" onClick={onClear} disabled={isBusy}>
               Clear
             </Button>
           </div>

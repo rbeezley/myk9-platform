@@ -97,6 +97,20 @@ describe('DogsBulkActionsBar', () => {
     expect(deleteDogMutateAsync).toHaveBeenCalledTimes(2);
   });
 
+  it('disables Clear while a bulk mutation is in flight so failed items stay selectable', async () => {
+    let resolve!: () => void;
+    updateDogMutateAsync.mockImplementation(() => new Promise<void>(r => (resolve = r)));
+    const { user } = setup([dog('1', 'active'), dog('2', 'active')]);
+    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    await user.click(
+      await screen.findByRole('menuitem', { name: /mark retired 2 of 2 selected/i })
+    );
+
+    // In flight: Clear is disabled so the selection can't be dropped mid-batch.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Clear' })).toBeDisabled());
+    resolve();
+  });
+
   it('does not offer bulk delete when the user cannot delete dogs', async () => {
     const { user } = setup([dog('1'), dog('2')], false);
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));

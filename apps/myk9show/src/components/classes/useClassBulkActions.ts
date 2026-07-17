@@ -57,16 +57,24 @@ export function useClassBulkActions({
     async (classIds: string[], status: string) => {
       if (classIds.length === 0) return false;
       try {
-        const outcome = await statusDispatch.run(classIds, async classId => {
-          await replicatedClassesTable.updateClass(classId, { classStatus: status });
-        });
+        const outcome = await statusDispatch.run(
+          classIds,
+          async classId => {
+            await replicatedClassesTable.updateClass(classId, { classStatus: status });
+          },
+          {
+            // On retry, skip any class already in the target status (e.g. another
+            // actor set it meanwhile) rather than overwriting a newer state.
+            applicableWhen: classId => classesById.get(classId)?.status !== status,
+          }
+        );
         // null = latched no-op — treat as not-done so the selection is kept.
         return outcome !== null && outcome.failed.length === 0;
       } finally {
         invalidate();
       }
     },
-    [statusDispatch, invalidate]
+    [statusDispatch, invalidate, classesById]
   );
 
   const handleBulkDelete = useCallback(

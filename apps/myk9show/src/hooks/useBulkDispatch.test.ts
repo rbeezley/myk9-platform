@@ -146,6 +146,37 @@ describe('useBulkDispatch', () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 
+  it('preserves Undo when a retry of the failed subset fully succeeds', async () => {
+    const onUndo = vi.fn();
+    let attempt = 0;
+    const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
+
+    await act(async () => {
+      await result.current.run(
+        [item('a'), item('b')],
+        async i => {
+          // 'b' fails the first time, succeeds on retry.
+          if (i.id === 'b' && attempt++ === 0) throw new Error('boom');
+        },
+        { buildUndo: outcome => (outcome.succeeded.length > 0 ? onUndo : undefined) }
+      );
+    });
+
+    // First pass partially failed → retry action, no success toast yet.
+    const retry = retryActionFromCall();
+    await act(async () => {
+      retry.onClick();
+    });
+
+    // The retry fully succeeded → success toast WITH an Undo for the retried item.
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    const options = vi.mocked(toast.success).mock.calls[0]?.[1] as
+      { action?: { label: string; onClick: () => void } } | undefined;
+    expect(options?.action?.label).toBe('Undo');
+    options?.action?.onClick();
+    expect(onUndo).toHaveBeenCalledTimes(1);
+  });
+
   it('ignores a second concurrent run while one is already in flight (useRef latch)', async () => {
     let resolveFirst!: () => void;
     const first = new Promise<void>(resolve => {

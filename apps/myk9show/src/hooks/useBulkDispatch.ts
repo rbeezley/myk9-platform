@@ -91,7 +91,8 @@ export function useBulkDispatch<T>({
             void retry(
               outcome.failed.map(({ item }) => item),
               runItem,
-              runApplicableWhen
+              runApplicableWhen,
+              buildUndo
             );
           },
         },
@@ -105,7 +106,8 @@ export function useBulkDispatch<T>({
     async (
       failedItems: T[],
       runItem: (item: T) => Promise<void>,
-      runApplicableWhen?: (item: T) => boolean
+      runApplicableWhen?: (item: T) => boolean,
+      buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined
     ): Promise<void> => {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
@@ -128,11 +130,14 @@ export function useBulkDispatch<T>({
         }
         const retriedCount = failedItems.length - outcome.skipped.length;
         if (retriedCount > 0) {
+          // Forward `buildUndo` so a retry that fully succeeds still offers Undo
+          // for the newly-succeeded subset (buildUndo reverts `outcome.succeeded`,
+          // and the caller's prior-state map covers these items too).
           showSummary(
             retriedCount,
             { succeeded: outcome.succeeded, failed: outcome.failed },
             runItem,
-            undefined,
+            buildUndo,
             runApplicableWhen
           );
         }

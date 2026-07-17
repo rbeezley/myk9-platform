@@ -7,7 +7,7 @@
  * (destructive, so it keeps the extra step) before dispatching
  * `useDeleteDogMutation` for the confirmed subset.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { DeleteConfirmationDialog } from '@/components/base';
 import { RowActionMenu, toBulkActions } from '@/components/ui/RowActionMenu';
@@ -41,6 +41,15 @@ export function DogsBulkActionsBar({
   const statusDispatch = useBulkDispatch<Dog>({ getLabel: getDogDisplayName });
   const deleteDispatch = useBulkDispatch<Dog>({ getLabel: getDogDisplayName });
 
+  // Latest selected-dog snapshot, read at RETRY time (which fires later, from the
+  // toast) so a retry re-checks fresh status rather than the objects captured when
+  // the batch was first dispatched. Updated in an effect (not during render) per
+  // react-hooks/refs.
+  const selectedDogsRef = useRef(selectedDogs);
+  useEffect(() => {
+    selectedDogsRef.current = selectedDogs;
+  }, [selectedDogs]);
+
   if (selectedDogs.length === 0) return null;
 
   const count = selectedDogs.length;
@@ -55,9 +64,13 @@ export function DogsBulkActionsBar({
           await updateDogMutation.mutateAsync({ id: d.id, updates: { status } });
         },
         {
-          // On retry, skip any dog already in the target status (e.g. another user
-          // set it meanwhile) rather than re-writing it.
-          applicableWhen: d => (d.status ?? 'active') !== status,
+          // On retry, re-read the dog's CURRENT status from the freshest snapshot
+          // and skip any already in the target status (e.g. another user set it
+          // meanwhile) rather than re-writing it.
+          applicableWhen: d => {
+            const fresh = selectedDogsRef.current.find(x => x.id === d.id) ?? d;
+            return (fresh.status ?? 'active') !== status;
+          },
         }
       );
       // Clear only on full success — a latched no-op (null) or failure keeps
@@ -83,6 +96,7 @@ export function DogsBulkActionsBar({
 
   const actions = toBulkActions(
     selectedDogs,
+    // eslint-disable-next-line react-hooks/refs -- handleBulkSetStatus reads selectedDogsRef only inside the async retry (an event-handler path), never during render; toBulkActions stores it as onSelect and does not invoke it while rendering.
     { onBulkSetStatus: handleBulkSetStatus, onBulkDelete: handleBulkDelete },
     dogActions
     // Hide Delete entirely when the user lacks `dog:delete` — showing it disabled

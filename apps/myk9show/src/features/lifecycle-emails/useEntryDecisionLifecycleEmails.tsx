@@ -228,6 +228,14 @@ export function useEntryDecisionLifecycleEmails({
         amountDue: Math.max(0, prompt.entry.totalFee - prompt.entry.paidAmount),
       }}
       onNotNow={values => {
+        // Saving a superseded fresh decision for later would persist a sendable
+        // job for a decision that was undone — same hazard as sending it now.
+        // (Exempt for jobId/correction prompts, per isDecisionEmailSuperseded.)
+        if (isDecisionEmailSuperseded(prompt, entries)) {
+          toast.error('Entry status changed since this prompt opened — email not saved.');
+          setPrompt(null);
+          return;
+        }
         if (prompt.jobId) {
           void updateReadyLifecycleEmailJob({
             supabase: lifecycleClient,

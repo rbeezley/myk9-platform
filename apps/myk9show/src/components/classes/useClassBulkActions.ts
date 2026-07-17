@@ -14,7 +14,7 @@
  * Both use `useBulkDispatch`'s `Promise.allSettled` fold + in-flight latch +
  * summary toast (design.md decision D3), matching Entry Management's pattern.
  */
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { replicatedClassesTable } from '@/services/replication';
 import { deleteClass } from '@/services/database/classes';
@@ -38,6 +38,14 @@ export function useClassBulkActions({
   classesById,
 }: UseClassBulkActionsOptions): UseClassBulkActionsResult {
   const queryClient = useQueryClient();
+
+  // Latest class map, read at RETRY time (which fires later, from the toast) so a
+  // retry re-checks fresh status rather than the map captured at dispatch. Updated
+  // in an effect (not during render) per react-hooks/refs.
+  const classesByIdRef = useRef(classesById);
+  useEffect(() => {
+    classesByIdRef.current = classesById;
+  }, [classesById]);
 
   const invalidate = useCallback(() => {
     if (trialId) {
@@ -63,9 +71,10 @@ export function useClassBulkActions({
             await replicatedClassesTable.updateClass(classId, { classStatus: status });
           },
           {
-            // On retry, skip any class already in the target status (e.g. another
-            // actor set it meanwhile) rather than overwriting a newer state.
-            applicableWhen: classId => classesById.get(classId)?.status !== status,
+            // On retry, re-read the class's CURRENT status from the freshest map
+            // and skip any already in the target status (e.g. another actor set it
+            // meanwhile) rather than overwriting a newer state.
+            applicableWhen: classId => classesByIdRef.current.get(classId)?.status !== status,
           }
         );
         // null = latched no-op — treat as not-done so the selection is kept.
@@ -74,7 +83,7 @@ export function useClassBulkActions({
         invalidate();
       }
     },
-    [statusDispatch, invalidate, classesById]
+    [statusDispatch, invalidate]
   );
 
   const handleBulkDelete = useCallback(

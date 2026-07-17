@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   useClassesByTrialQuery,
@@ -44,15 +44,10 @@ import {
   CheckCircle,
   Clock,
   Settings,
-  MoreVertical,
   ListOrdered,
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { RowActionMenu, toRowActions, type RowAction } from '@/components/ui/RowActionMenu';
+import { classActions } from '@/components/classes/classActions';
 
 type DbClassRow = {
   id: string;
@@ -86,6 +81,7 @@ export const ClassManagementPage: React.FC = () => {
   const { data: rawClasses = [], isLoading } = useClassesByTrialQuery(trialId || '');
   const { data: judges = [] } = useJudgesWithQualifications();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const updateClassMutation = useUpdateClassMutation();
   const deleteClassMutation = useDeleteClassMutation();
   const assignJudgeMutation = useMutation({
@@ -491,39 +487,27 @@ export const ClassManagementPage: React.FC = () => {
                         </div>
 
                         <div className="flex gap-1">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                aria-label={`More actions for ${cls.name || 'Untitled Class'}`}
-                              >
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link to={waitlistHref}>
-                                  <ListOrdered className="h-4 w-4 mr-2" />
-                                  View Waitlist
-                                </Link>
-                              </DropdownMenuItem>
-                              {statuses.map(status => (
-                                <DropdownMenuItem
-                                  key={status}
-                                  onClick={() => handleStatusChange(cls.id, status)}
-                                >
-                                  Set to {status}
-                                </DropdownMenuItem>
-                              ))}
-                              <DropdownMenuItem
-                                onClick={() => handleDelete(cls.id)}
-                                className="text-destructive"
-                              >
-                                Delete Class
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <RowActionMenu
+                            align="end"
+                            label={`More actions for ${cls.name || 'Untitled Class'}`}
+                            actions={[
+                              {
+                                id: 'view-waitlist',
+                                label: 'View waitlist',
+                                icon: <ListOrdered className="h-4 w-4" />,
+                                onSelect: () => navigate(waitlistHref),
+                              } as RowAction,
+                              // Status + delete resolve from the SAME shared catalog
+                              // the bulk bar uses (toRowActions), so row and bulk
+                              // eligibility/handlers can't diverge. Row delete keeps
+                              // its confirm() via handleDelete.
+                              ...toRowActions(
+                                { id: cls.id, name: cls.name, status: cls.status },
+                                { onStatusChange: handleStatusChange, onDelete: handleDelete },
+                                classActions
+                              ),
+                            ]}
+                          />
                         </div>
                       </div>
                     </div>

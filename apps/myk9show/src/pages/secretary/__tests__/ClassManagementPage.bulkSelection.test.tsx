@@ -173,6 +173,18 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     await waitFor(() => expect(screen.queryByText(/selected/i)).not.toBeInTheDocument());
   });
 
+  it('resolves the per-row menu from the shared classActions catalog (row/bulk parity)', async () => {
+    const { user } = renderPage();
+    await user.click(screen.getByRole('button', { name: /more actions for Container Novice A/i }));
+
+    // Status transitions + Delete come from toRowActions(classActions) — the SAME
+    // catalog the bulk bar uses, so row and bulk can't diverge. The current status
+    // ('Scheduled') is hidden (already applied); others are offered.
+    expect(await screen.findByRole('menuitem', { name: /delete class/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /set to in progress/i })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /^set to scheduled$/i })).not.toBeInTheDocument();
+  });
+
   it('bulk delete soft-deletes via the service RPC, not the replicated hard DELETE', async () => {
     const { user } = renderPage();
     await user.click(screen.getByRole('checkbox', { name: /select all visible classes/i }));

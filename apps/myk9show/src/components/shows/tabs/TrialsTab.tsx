@@ -19,6 +19,7 @@ export interface TrialStats {
   classCount: number;
   entryCount: number;
   completedClasses: number;
+  hasStarted?: boolean;
 }
 
 interface TrialsTabProps {
@@ -36,7 +37,12 @@ function getDateParts(dateStr: string): { month: string; day: string } | null {
   };
 }
 
-const EMPTY_STATS: TrialStats = { classCount: 0, entryCount: 0, completedClasses: 0 };
+const EMPTY_STATS: TrialStats = {
+  classCount: 0,
+  entryCount: 0,
+  completedClasses: 0,
+  hasStarted: false,
+};
 
 function getTrialDisplayStatus(trial: Trial, trialStats: Record<string, TrialStats>) {
   const stats = trialStats[trial.id] || EMPTY_STATS;
@@ -44,6 +50,7 @@ function getTrialDisplayStatus(trial: Trial, trialStats: Record<string, TrialSta
     trialStatus: trial.status,
     classCount: stats.classCount,
     completedCount: stats.completedClasses,
+    hasStarted: stats.hasStarted,
   });
 }
 
@@ -59,6 +66,7 @@ interface TrialRow {
   classCount: number;
   entryCount: number;
   completedClasses: number;
+  hasStarted?: boolean;
 }
 
 const trialColumns: ColumnDef<TrialRow, unknown>[] = [
@@ -94,6 +102,7 @@ const trialColumns: ColumnDef<TrialRow, unknown>[] = [
           trialStatus: row.original.status,
           classCount: row.original.classCount,
           completedCount: row.original.completedClasses,
+          hasStarted: row.original.hasStarted,
         })}
         className="text-xs"
         variant="outline"
@@ -193,6 +202,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
               trialStatus: trial.status,
               classCount: stats.classCount,
               completedCount: stats.completedClasses,
+              hasStarted: stats.hasStarted,
             });
             const progressPct =
               stats.classCount > 0 ? (stats.completedClasses / stats.classCount) * 100 : 0;

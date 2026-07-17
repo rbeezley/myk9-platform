@@ -286,6 +286,9 @@ const ShowDetailsPage: React.FC = () => {
         completedClasses: classes.filter(
           cls => normalizeClassStatus(cls.status) === CLASS_STATUS.COMPLETED
         ).length,
+        hasStarted: classes.some(
+          cls => normalizeClassStatus(cls.status) === CLASS_STATUS.IN_PROGRESS
+        ),
       };
     }
     return stats;

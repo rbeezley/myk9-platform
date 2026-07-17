@@ -172,5 +172,8 @@ describe('status icon grammar source ownership', () => {
     expect(showDetails).toContain(
       'normalizeClassStatus(cls.status) === CLASS_STATUS.COMPLETED'
     );
+    expect(showDetails).toContain(
+      'normalizeClassStatus(cls.status) === CLASS_STATUS.IN_PROGRESS'
+    );
   });
 });

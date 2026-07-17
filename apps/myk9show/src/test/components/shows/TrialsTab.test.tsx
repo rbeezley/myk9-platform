@@ -131,6 +131,17 @@ describe('TrialsTab', () => {
     );
   });
 
+  it('derives in-progress from an active child before any class completes', () => {
+    const trials = [makeTrial({ id: 't1', status: 'Scheduled' })];
+    const stats = {
+      t1: { classCount: 5, entryCount: 42, completedClasses: 0, hasStarted: true },
+    };
+
+    render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
+
+    expect(screen.getByText('In progress')).toBeInTheDocument();
+  });
+
   it('filters by the same child-derived status shown in each badge', async () => {
     const trials = [
       makeTrial({ id: 'derived-complete', name: 'Derived Complete', status: 'Scheduled' }),

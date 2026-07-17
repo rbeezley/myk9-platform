@@ -112,10 +112,14 @@ export function buildPublicTrialStats(
     const completedClasses = rows.filter(
       row => normalizeClassStatus(str(row.status)) === CLASS_STATUS.COMPLETED
     ).length;
+    const hasStarted = rows.some(
+      row => normalizeClassStatus(str(row.status)) === CLASS_STATUS.IN_PROGRESS
+    );
     stats[trialId] = {
       classCount: rows.length,
       entryCount,
       completedClasses,
+      hasStarted,
     };
   }
 

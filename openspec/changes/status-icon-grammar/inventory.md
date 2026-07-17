@@ -11,9 +11,10 @@ Canonical lifecycle values from `types/entry-lifecycle.ts`:
 
 Additional UI/check-in values rendered by existing entry surfaces:
 
-`pending`, `accepted`, `waitlist`, `missing_info`, `come-to-gate`, `conflict`,
-`pulled`, plus the live-view aliases `checked_in`, `not_checked_in`, `at_gate`,
-and `in_ring`.
+`not-opened`, `in-progress`, `pending`, `accepted`, `waitlist`, `waitlisted`,
+`rejected`, `missing_info`, `come-to-gate`, `conflict`, and `pulled`, plus the
+persisted request aliases `scratch_requested` and `move_up_requested` and the
+live-view aliases `checked_in`, `not_checked_in`, `at_gate`, and `in_ring`.
 
 The registration UI enum aliases `not_accepted` as `not_accepted` and
 withdrawal as `withdrawn`; those raw values therefore remain the grammar keys.
@@ -26,20 +27,24 @@ Canonical values from `@myk9/core`:
 
 Replicated/ringside aliases that are rendered before normalization:
 
-`no-status`, `setup`, `briefing`, `break`, `in_progress`, `offline-scoring`,
-`completed`, `not-started`, `in-progress`, `not_started`, `pending`, `paused`,
-`cancelled`, and `start_time`.
+`no-status`, `none`, `setup`, `briefing`, `break`, `in_progress`,
+`offline-scoring`, `offline`, `upcoming`, `completed`, `not-started`,
+`in-progress`, `not_started`, `pending`, `paused`, `cancelled`, `start_time`,
+and `start-time`.
 
 Accepted legacy aliases from `LEGACY_STATUS_MAP` are normalized to the same
-shape and semantic color as their canonical value. This includes casing and
-separator variants such as `scheduled`, `in progress`, `InProgress`,
-`inProgress`, `complete`, `canceled`, plus setup/publish workflow spellings.
+shape and semantic color as their canonical value. The non-canonical aliases
+are `scheduled`, `upcoming`, `Pending`, `pending`, `Planned`, `planned`,
+`Published`, `published`, `check_in`, `scoring`, `draft`, `accepting_entries`,
+`closed`, `unpublished`, `setup`, `in progress`, `in_progress`, `InProgress`,
+`inProgress`, `completed`, `Complete`, `complete`, `cancelled`, `Canceled`, and
+`canceled`.
 
 ### Trial family
 
 Derived composite values from `deriveTrialCompositeStatus`:
 
-`no-classes`, `not-started`, `in-progress`, `completed`.
+`no-classes`, `not-started`, `in-progress`, `completed`, `cancelled`.
 
 ### Existing renderers and maps
 

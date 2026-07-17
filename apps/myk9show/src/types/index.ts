@@ -190,9 +190,7 @@ export {
   isEntryEditable,
   isClassEntryEditable,
   PAYMENT_STATUS_LABELS,
-  CLASS_ENTRY_STATUS_LABELS,
   PAYMENT_STATUS_COLORS,
-  CLASS_ENTRY_STATUS_COLORS,
 } from './entry-refactored-types';
 
 // Audit Types

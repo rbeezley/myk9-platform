@@ -26,6 +26,8 @@ The second independent-review pass also verified cancelled trials with zero clas
 
 The third independent-review pass removed the final parallel class/check-in presentation maps, routed both active at-show class renderers through the shared badge, corrected the scored-result badge contrast, and tied entry coverage to the canonical lifecycle type. Assertion-first coverage failed on all four leaks before the fixes. Afterward, the focused regression set passed 66 tests across 10 files and the shared UI suite passed 295 tests across 18 files. Typecheck (26/26), lint (14/14), and strict OpenSpec validation remained clean.
 
+The fourth independent-review pass removed the remaining presentation owners from the shared ClassCard, core class/check-in constants, ringside formatting helpers, check-in class rows, and multi-dog schedule. A recursive ownership test now scans all production TypeScript sources in myK9Show, core, shared UI, and ringside for the retired maps and helpers. Assertion-first coverage failed on the remaining leaks before the fixes. Afterward, the focused app regression set passed 69 tests across 10 files; the full shared UI, core, and ringside suites passed 295, 360, and 370 tests respectively. Typecheck (26/26) and lint (14/14) remained clean.
+
 The broad myK9Show suite was also started. It exposed three contextual My Entries label regressions, which were fixed and covered by the focused 67-test card suite, then reached the repository's known 60-second hang threshold and was stopped. CI remains the broad-suite gate.
 
 ## Browser sweep

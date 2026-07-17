@@ -2,26 +2,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ClassCard } from '@/components/shows/tabs/ClassCard';
 
-vi.mock('@myk9/core', () => ({
-  getClassStatusDisplay: (status: string) => {
-    if (status === 'In Progress')
-      return {
-        label: 'In Progress',
-        bgClass: 'bg-blue-100',
-        textClass: 'text-blue-800',
-        darkBgClass: '',
-        darkTextClass: '',
-      };
-    return {
-      label: 'Scheduled',
-      bgClass: 'bg-gray-100',
-      textClass: 'text-gray-800',
-      darkBgClass: '',
-      darkTextClass: '',
-    };
-  },
-}));
-
 const baseClass = {
   id: 'c1',
   name: 'Novice Containers',

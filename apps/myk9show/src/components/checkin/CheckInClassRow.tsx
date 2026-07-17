@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { getCheckinStatusConfig } from '@myk9/core';
+import { StatusIcon, getStatusDescriptor } from '@/components/status';
 
 interface CheckInClassRowProps {
   entryId: string;
@@ -16,19 +16,13 @@ export function CheckInClassRow({
   onCheckIn,
   checkedBySecretary = false,
 }: CheckInClassRowProps) {
-  const config = getCheckinStatusConfig(checkInStatus);
   const isNone = checkInStatus === 'no-status' || !checkInStatus;
-  const colorVar = config?.colorVar ?? '--status-no-status';
-  const label = config?.label ?? 'No Status';
+  const descriptor = getStatusDescriptor('entry', checkInStatus);
 
   return (
     <div className="flex items-center justify-between rounded-md bg-background px-3 py-2">
       <div className="flex items-center gap-2 text-sm">
-        <span
-          data-testid="status-dot"
-          className="inline-block h-2 w-2 shrink-0 rounded-full"
-          style={{ backgroundColor: `var(${colorVar})` }}
-        />
+        <StatusIcon family="entry" status={checkInStatus} size="sm" decorative />
         {className}
       </div>
 
@@ -42,12 +36,12 @@ export function CheckInClassRow({
           Check In
         </Button>
       ) : (
-        <span className="text-xs" style={{ color: `var(${colorVar})` }}>
+        <span className="inline-flex items-center gap-1 text-xs text-foreground">
           {checkInStatus === 'checked-in'
             ? checkedBySecretary
               ? '✓ Secretary'
               : '✓ Self check-in'
-            : label}
+            : descriptor.label}
         </span>
       )}
     </div>

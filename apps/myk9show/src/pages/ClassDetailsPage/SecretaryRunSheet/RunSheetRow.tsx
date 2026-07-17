@@ -1,8 +1,8 @@
 import { ClipboardCheck, Pencil, X, CheckCircle2 } from 'lucide-react';
-import { CHECKIN_STATUSES, getCheckinStatusConfig, type CheckInStatus } from '@myk9/core';
+import { CHECKIN_STATUSES, type CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/base/Chip';
-import { StatusIcon } from '@/components/status';
+import { StatusIcon, getStatusDescriptor } from '@/components/status';
 import {
   Select,
   SelectContent,
@@ -22,7 +22,7 @@ interface RunSheetRowProps {
 }
 
 function statusLabel(status: CheckInStatus): string {
-  return getCheckinStatusConfig(status)?.label ?? 'No Status';
+  return getStatusDescriptor('entry', status).label;
 }
 
 // INTENT: Row identity + check-in select + score button. The drag handle

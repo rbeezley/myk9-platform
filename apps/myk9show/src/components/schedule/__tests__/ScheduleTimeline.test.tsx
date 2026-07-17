@@ -110,8 +110,7 @@ describe('ScheduleTimeline', () => {
 
   it('renders status badges', () => {
     renderWithRouter(<ScheduleTimeline showId="show-1" />);
-    // getClassStatusDisplay returns labels like "Completed", "In Progress"
-    // (UX walk remediation 2.B fixed the "Complete"/"Completed" drift)
+    // Shared grammar keeps the complete/in-progress labels consistent.
     expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.getByText('In Progress')).toBeInTheDocument();
   });

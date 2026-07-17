@@ -1,4 +1,3 @@
-import { CHECKIN_STATUS } from '@myk9/core';
 import type { CheckInStatus } from '@myk9/core';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { logger } from '@/services/LoggingService';
@@ -11,9 +10,9 @@ export function transitionToInRing(
   entryId: string,
   currentStatus: CheckInStatus | undefined
 ): void {
-  if (currentStatus === CHECKIN_STATUS.COMPLETED.value) return;
+  if (currentStatus === 'completed') return;
 
-  updateReplicatedCheckInStatus(entryId, CHECKIN_STATUS.IN_RING.value, {
+  updateReplicatedCheckInStatus(entryId, 'in-ring', {
     ring_entry_time: new Date().toISOString(),
   })
     .catch(err =>
@@ -26,7 +25,7 @@ export function transitionToInRing(
  * Sets check-in status + ring_exit_time.
  */
 export function transitionToCompleted(entryId: string): void {
-  updateReplicatedCheckInStatus(entryId, CHECKIN_STATUS.COMPLETED.value, {
+  updateReplicatedCheckInStatus(entryId, 'completed', {
     ring_exit_time: new Date().toISOString(),
   })
     .catch(err =>

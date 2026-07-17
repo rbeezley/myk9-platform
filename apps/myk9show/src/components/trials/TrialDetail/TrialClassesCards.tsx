@@ -1,9 +1,7 @@
 import { startTransition, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ClassCard, type ClassStatus } from '@myk9/ui';
+import { ClassCard } from '@myk9/ui';
 import { TrialClass } from '../types/trial.types';
-import { CLASS_STATUS } from '@myk9/core';
-import { StatusIcon, getStatusDescriptor } from '@/components/status';
 import { useClassEntriesPreview } from '@/hooks/useClassEntriesPreview';
 import { useFavoriteClassesStore } from '@/store/favoriteClassesStore';
 import {
@@ -19,24 +17,6 @@ interface TrialClassesCardsProps {
   canManage?: boolean;
   onEditClass: (classItem: TrialClass) => void;
   onDeleteClass: (classItem: TrialClass) => void;
-}
-
-/**
- * Map myK9Show status to shared ClassCard status
- */
-function mapStatus(status: TrialClass['status']): ClassStatus {
-  switch (status) {
-    case CLASS_STATUS.SCHEDULED:
-      return 'setup'; // 'scheduled' not in ClassStatus, use 'setup'
-    case CLASS_STATUS.IN_PROGRESS:
-      return 'in-progress';
-    case CLASS_STATUS.COMPLETED:
-      return 'completed';
-    case CLASS_STATUS.CANCELLED:
-      return 'none'; // 'cancelled' not in ClassStatus, use 'none'
-    default:
-      return 'setup';
-  }
 }
 
 /**
@@ -123,11 +103,7 @@ export function TrialClassesCards({
                 className={className}
                 judgeName={classItem.judgeName || 'TBD'}
                 {...(startTime !== undefined && { plannedStartTime: startTime })}
-                status={mapStatus(classItem.status)}
-                statusLabel={getStatusDescriptor('class', classItem.status).label}
-                statusIcon={
-                  <StatusIcon family="class" status={classItem.status} size="sm" decorative />
-                }
+                status={classItem.status}
                 entryCount={classItem.entries}
                 completedCount={classItem.completedEntries ?? 0}
                 entries={entryPreview}

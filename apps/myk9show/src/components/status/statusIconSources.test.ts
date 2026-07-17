@@ -1,9 +1,26 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const SOURCE_ROOT = resolve(process.cwd(), 'src');
 const WORKSPACE_ROOT = resolve(process.cwd(), '../..');
+
+const OUT_OF_SCOPE_STATUS_SOURCE_SEGMENTS = [
+  '/components/common/ResultBadge.tsx',
+  '/components/secretary/PromoCodesSection.tsx',
+  '/features/lifecycle-emails/',
+  '/pages/admin/SystemHealthPage.tsx',
+  '/utils/showCardUtils.ts',
+] as const;
+
+function productionSources(root: string): string[] {
+  return readdirSync(root, { withFileTypes: true }).flatMap(entry => {
+    const path = resolve(root, entry.name);
+    if (entry.isDirectory()) return productionSources(path);
+    if (!/\.(ts|tsx)$/.test(entry.name) || /\.(test|spec)\.(ts|tsx)$/.test(entry.name)) return [];
+    return [path];
+  });
+}
 
 const REMOVED_DUPLICATES = [
   'components/exhibitor/CheckInStatusBadge.tsx',
@@ -42,7 +59,7 @@ describe('status icon grammar source ownership', () => {
   it('routes primary entry, class, and trial renderers through the shared status module', () => {
     for (const sourcePath of MIGRATED_RENDERERS) {
       const source = readFileSync(resolve(SOURCE_ROOT, sourcePath), 'utf8');
-      expect(source, sourcePath).toContain('@/components/status');
+      expect(source, sourcePath).toMatch(/@\/components\/status|@myk9\/ui/);
       expect(source, sourcePath).not.toMatch(
         /CHECKIN_ICON_MAP|STATUS_ICONS|STATUS_BADGE_COLORS|STATUS_CLASS_BY_VALUE|CLASS_STATUS_CONFIG|ENTRY_STATUS_BADGE/
       );
@@ -84,5 +101,24 @@ describe('status icon grammar source ownership', () => {
     expect(ringsideSource).toContain('StatusIcon');
     expect(ringsideSource).toContain("from '@myk9/ui'");
     expect(ringsideSource).not.toMatch(/function getIcon|switch \(config\.iconName\)/);
+  });
+
+  it('scans every in-scope source root for legacy entry/class presentation owners', () => {
+    const roots = [
+      resolve(WORKSPACE_ROOT, 'apps/myk9show/src'),
+      resolve(WORKSPACE_ROOT, 'packages/core/src'),
+      resolve(WORKSPACE_ROOT, 'packages/ui/src'),
+      resolve(WORKSPACE_ROOT, 'packages/ringside/src'),
+    ];
+    const forbidden =
+      /\bCHECKIN_STATUS\b|\bgetCheckinStatusConfig\b|\bCheckInStatusConfig\b|\bCLASS_STATUS_DISPLAY\b|\bgetClassStatusDisplay\b|\bgetClassStatusBadgeClasses\b|\bCLASS_DISPLAY_STATUS_LABELS\b|\bgetClassDisplayStatusLabel\b|\bgetFormattedStatus\b|const\s+statusColors\s*:\s*Record<ClassStatus|const\s+statusBadgeColors\s*:\s*Record<ClassStatus|function\s+getStatusColor\s*\(\s*status:\s*(?:CheckInStatus|ClassEntry)/;
+
+    for (const sourcePath of roots.flatMap(productionSources)) {
+      if (OUT_OF_SCOPE_STATUS_SOURCE_SEGMENTS.some(segment => sourcePath.includes(segment))) {
+        continue;
+      }
+      const source = readFileSync(sourcePath, 'utf8');
+      expect(source, sourcePath.replace(`${WORKSPACE_ROOT}/`, '')).not.toMatch(forbidden);
+    }
   });
 });

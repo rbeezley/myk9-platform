@@ -45,6 +45,8 @@ export const ENTRY_STATUS_VALUES = [
   'pending',
   'accepted',
   'waitlist',
+  'waitlisted',
+  'rejected',
   'missing_info',
   'conflict',
   'pulled',
@@ -142,6 +144,8 @@ export const ENTRY_STATUS_DESCRIPTORS = {
   pending: descriptor('pending', 'Pending', 'pending', 'text-warning'),
   accepted: descriptor('accepted', 'Accepted', 'in-progress', 'text-info'),
   waitlist: descriptor('waitlist', 'Wait list', 'pending', 'text-warning'),
+  waitlisted: descriptor('waitlisted', 'Wait list', 'pending', 'text-warning'),
+  rejected: descriptor('rejected', 'Rejected', 'complete', 'text-destructive'),
   missing_info: descriptor(
     'missing_info',
     'Missing information',

@@ -97,9 +97,6 @@ export {
 // Status formatting + sort/filter helpers (PR E1a)
 export {
   getContextualPreview,
-  getFormattedStatus,
-  getStatusColor,
-  getStatusLabel,
   isMaxTimeSet,
   shouldShowMaxTimeWarning,
   isEmptyDataError,

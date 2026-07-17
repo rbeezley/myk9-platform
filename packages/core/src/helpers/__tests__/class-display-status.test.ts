@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   getClassDisplayStatus,
-  getClassDisplayStatusLabel,
   shouldShowClassLifecycleChips,
 } from '../../index';
 
@@ -100,20 +99,6 @@ describe('getClassDisplayStatus', () => {
         scored_count: 0,
       })
     ).toBe('in-progress');
-  });
-});
-
-describe('getClassDisplayStatusLabel', () => {
-  it('maps each lifecycle stage to its one canonical label', () => {
-    expect(getClassDisplayStatusLabel('not-started')).toBe('Not started');
-    expect(getClassDisplayStatusLabel('in-progress')).toBe('In Progress');
-    expect(getClassDisplayStatusLabel('completed')).toBe('Completed');
-  });
-
-  it('never renders "No Status" or a raw enum for unrecognized values', () => {
-    expect(getClassDisplayStatusLabel('no_status')).toBe('Not started');
-    expect(getClassDisplayStatusLabel(null)).toBe('Not started');
-    expect(getClassDisplayStatusLabel(undefined)).toBe('Not started');
   });
 });
 

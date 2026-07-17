@@ -2,6 +2,7 @@ import { render, screen } from '@/test/utils/testUtils';
 import { CLASS_STATUS, type ClassStatusValue } from '@myk9/core';
 import { EntryStatus } from '@/types/show-registration-types';
 import { ENTRY_LIFECYCLE_STATUS_VALUES } from '@/types/entry-lifecycle';
+import { CLASS_ENTRY_STATUS_VALUES } from '@/types/entry-refactored-types';
 import {
   CLASS_STATUS_VALUES,
   ENTRY_STATUS_VALUES,
@@ -22,6 +23,9 @@ describe('status icon grammar', () => {
       expect(getStatusDescriptor('entry', status).status).toBe(status);
     }
     for (const status of ENTRY_LIFECYCLE_STATUS_VALUES) {
+      expect(getStatusDescriptor('entry', status).status).toBe(status);
+    }
+    for (const status of CLASS_ENTRY_STATUS_VALUES) {
       expect(getStatusDescriptor('entry', status).status).toBe(status);
     }
     for (const status of CLASS_STATUS_VALUES) {

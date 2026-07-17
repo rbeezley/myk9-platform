@@ -9,10 +9,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { CheckInStatus } from '@myk9/core';
-import { getCheckinStatusConfig } from '@myk9/core';
 import { Check } from 'lucide-react';
 import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
 import { StatusIcon, getStatusDescriptor } from '@/components/status';
+import { getCheckInStatusMetadata } from '@/types/check-in-types';
 
 /** Status display order in the menu */
 const MENU_ORDER: CheckInStatus[] = ['checked-in', 'at-gate', 'conflict', 'pulled', 'no-status'];
@@ -146,8 +146,7 @@ export function CheckInStatusMenu({
             )}
           >
             {MENU_ORDER.map((optionStatus, index) => {
-              const config = getCheckinStatusConfig(optionStatus);
-              if (!config) return null;
+              const metadata = getCheckInStatusMetadata(optionStatus);
               const descriptor = getStatusDescriptor('entry', optionStatus);
               const isActive = optionStatus === status;
 
@@ -169,7 +168,7 @@ export function CheckInStatusMenu({
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium">{descriptor.label}</div>
                     <div className="text-xs text-muted-foreground truncate">
-                      {config.description}
+                      {metadata.description}
                     </div>
                   </div>
                   {isActive && <Check className="h-4 w-4 flex-shrink-0 text-primary" />}

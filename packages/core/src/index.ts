@@ -50,11 +50,8 @@ export type {
 // Class status constants
 export {
   CLASS_STATUS,
-  CLASS_STATUS_DISPLAY,
   CLASS_STATUS_ORDER,
   getNextClassStatus,
-  getClassStatusDisplay,
-  getClassStatusBadgeClasses,
   LEGACY_STATUS_MAP,
   normalizeClassStatus,
   type ClassStatusValue,
@@ -63,8 +60,6 @@ export {
 // Class display status helper
 export {
   getClassDisplayStatus,
-  CLASS_DISPLAY_STATUS_LABELS,
-  getClassDisplayStatusLabel,
   shouldShowClassLifecycleChips,
   type ClassDisplayStatus,
   type ClassDisplayStatusInput,
@@ -175,18 +170,15 @@ export {
 
 // Check-in status constants
 export {
-  CHECKIN_STATUS,
   CHECKIN_STATUSES,
   ENTRY_STATUSES,
   EXHIBITOR_ALLOWED_STATUSES,
   SECRETARY_ONLY_STATUSES,
-  getCheckinStatusConfig,
   isCheckInStatus,
   isEntryStatus,
   isExhibitorAllowedStatus,
   type CheckInStatus,
   type EntryStatus,
-  type CheckInStatusConfig,
 } from './constants/check-in-status';
 
 // Passcode utilities (random + legacy derivation)

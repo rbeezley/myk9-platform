@@ -40,6 +40,8 @@ The next standards pass found six other modified status tests still using raw Te
 
 The subsequent spec pass removed TV Display's class and in-ring entry presentation maps, removed an unused status-to-Lucide map from the grouped class sidebar, and restored the ringside header's pre-migration status visibility set. Assertion-first ownership, shared-shape, and visibility tests failed before remediation; 19 focused TV/source tests and the new ringside visibility test pass afterward.
 
+The next spec pass migrated the exhibitor check-in summary and entry lifecycle stepper to shared shapes, removed Class Management's parallel lifecycle label/tone maps, and expanded the ownership gate for all three patterns. Assertion-first checks failed on each path before remediation; 45 focused ownership/component/helper tests and 9 Class Management lifecycle/judge tests pass afterward.
+
 The broad myK9Show suite was also started. It exposed three contextual My Entries label regressions, which were fixed and covered by the focused 67-test card suite, then reached the repository's known 60-second hang threshold and was stopped. CI remains the broad-suite gate.
 
 ## Browser sweep

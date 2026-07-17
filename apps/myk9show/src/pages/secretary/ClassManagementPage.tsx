@@ -9,8 +9,8 @@ import {
 } from '@/hooks/queries/useClassesDatabase';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import {
-  deriveClassLifecyclePresentation,
   deriveClassLifecycleValue,
+  shouldShowClassLifecycle,
   type ClassLifecycleValue,
 } from '@/lib/status/classLifecycle';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
@@ -22,7 +22,7 @@ import { CLASS_STATUS, matchesAny } from '@myk9/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { StatusIcon } from '@/components/status';
+import { StatusBadge, StatusIcon } from '@/components/status';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -492,21 +492,14 @@ export const ClassManagementPage: React.FC = () => {
                           // never the raw enum ("in_progress") or "No Status".
                           // Draft/unpublished shows render no chip at all
                           // (UX walk remediation 2.B).
-                          const lifecycle = deriveClassLifecyclePresentation({
-                            classStatus: cls.status,
-                            showStatus,
-                          });
-                          if (!lifecycle) return null;
+                          if (!shouldShowClassLifecycle(showStatus)) return null;
+                          const lifecycleValue = deriveClassLifecycleValue(cls.status);
                           return (
-                            <div className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-1 text-xs font-medium">
-                              <StatusIcon
-                                family="class"
-                                status={lifecycle.value}
-                                size="sm"
-                                decorative
-                              />
-                              {lifecycle.label}
-                            </div>
+                            <StatusBadge
+                              family="class"
+                              status={lifecycleValue}
+                              className="rounded-full bg-muted/40 px-2 py-1 text-xs font-medium"
+                            />
                           );
                         })()}
 

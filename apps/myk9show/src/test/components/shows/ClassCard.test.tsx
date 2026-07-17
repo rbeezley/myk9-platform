@@ -1,26 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@/test/utils/testUtils';
 import { describe, it, expect, vi } from 'vitest';
 import { ClassCard } from '@/components/shows/tabs/ClassCard';
-
-vi.mock('@myk9/core', () => ({
-  getClassStatusDisplay: (status: string) => {
-    if (status === 'In Progress')
-      return {
-        label: 'In Progress',
-        bgClass: 'bg-blue-100',
-        textClass: 'text-blue-800',
-        darkBgClass: '',
-        darkTextClass: '',
-      };
-    return {
-      label: 'Scheduled',
-      bgClass: 'bg-gray-100',
-      textClass: 'text-gray-800',
-      darkBgClass: '',
-      darkTextClass: '',
-    };
-  },
-}));
 
 const baseClass = {
   id: 'c1',
@@ -51,7 +31,7 @@ describe('ClassCard', () => {
 
   it('renders status badge', () => {
     render(<ClassCard classInfo={baseClass} />);
-    expect(screen.getByText('Scheduled')).toBeInTheDocument();
+    expect(screen.getByText('Not started')).toBeInTheDocument();
   });
 
   it('renders entry count', () => {
@@ -83,7 +63,7 @@ describe('ClassCard', () => {
       ...baseClass,
       status: 'In Progress' as const,
     };
-    render(
+    const { container } = render(
       <ClassCard
         classInfo={liveClass}
         liveData={{
@@ -97,6 +77,7 @@ describe('ClassCard', () => {
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
     expect(screen.getByText('#205')).toBeInTheDocument();
     expect(screen.getByText('#206')).toBeInTheDocument();
+    expect(container.querySelector('[data-status="in-ring"][data-shape="in-progress"]')).toBeTruthy();
   });
 
   it('does not show live data for scheduled class even if provided', () => {

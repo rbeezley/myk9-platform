@@ -70,11 +70,12 @@ describe('EntryStatusHistory', () => {
       ],
     } as never);
 
-    const { user } = render(<EntryStatusHistory entryId="entry-1" />);
+    const { user, container } = render(<EntryStatusHistory entryId="entry-1" />);
     await user.click(screen.getByRole('button', { name: /view entry status history/i }));
 
-    expect(screen.getByText('Submitted → Confirmed')).toBeInTheDocument();
-    expect(screen.getByText('Confirmed → Scratched')).toBeInTheDocument();
+    expect(screen.getByText('Submitted → Accepted')).toBeInTheDocument();
+    expect(screen.getByText('Accepted → Scratched')).toBeInTheDocument();
+    expect(container.querySelectorAll('[data-family="entry"][data-shape]')).toHaveLength(2);
     expect(screen.getByText(/Sam Secretary/)).toBeInTheDocument();
     expect(screen.getByText(/Staff member not recorded/)).toBeInTheDocument();
     expect(screen.getByText(/No reason recorded/)).toBeInTheDocument();
@@ -93,7 +94,7 @@ describe('EntryStatusHistory', () => {
     await user.click(screen.getByRole('button', { name: /view entry status history/i }));
 
     expect(screen.getByText(/no status changes have been recorded/i)).toBeInTheDocument();
-    expect(screen.getByText(/current status Confirmed/i)).toBeInTheDocument();
+    expect(screen.getByText(/current status Accepted/i)).toBeInTheDocument();
   });
 
   it('keeps history failure scoped and provides retry', async () => {

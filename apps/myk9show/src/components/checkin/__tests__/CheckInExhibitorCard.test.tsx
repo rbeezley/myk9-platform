@@ -73,8 +73,11 @@ describe('CheckInExhibitorCard', () => {
       ],
       totalEntries: 2,
     });
-    render(<CheckInExhibitorCard group={group} onCheckIn={vi.fn()} onCheckInAll={vi.fn()} />);
+    const { container } = render(
+      <CheckInExhibitorCard group={group} onCheckIn={vi.fn()} onCheckInAll={vi.fn()} />
+    );
     expect(screen.getByRole('button', { name: /check in rest/i })).toBeInTheDocument();
+    expect(container.querySelector('[data-family="entry"][data-status="pending"]')).not.toBeNull();
   });
 
   it('shows checkmark when fully checked in', () => {
@@ -106,8 +109,13 @@ describe('CheckInExhibitorCard', () => {
       ],
       totalEntries: 3,
     });
-    render(<CheckInExhibitorCard group={group} onCheckIn={vi.fn()} onCheckInAll={vi.fn()} />);
+    const { container } = render(
+      <CheckInExhibitorCard group={group} onCheckIn={vi.fn()} onCheckInAll={vi.fn()} />
+    );
     expect(screen.queryByRole('button', { name: /check in/i })).not.toBeInTheDocument();
+    expect(
+      container.querySelector('[data-family="entry"][data-status="checked-in"]')
+    ).not.toBeNull();
   });
 
   it('expands to show class rows on click', async () => {

@@ -44,9 +44,12 @@ describe('CheckInClassRow', () => {
     expect(onCheckIn).toHaveBeenCalledWith('entry-1');
   });
 
-  it('renders status dot with correct color variable', () => {
+  it('renders status through the shared shape grammar', () => {
     const { container } = render(<CheckInClassRow {...defaultProps} checkInStatus="checked-in" />);
-    const dot = container.querySelector('[data-testid="status-dot"]');
-    expect(dot).toHaveStyle({ backgroundColor: 'var(--status-checked-in)' });
+    expect(container.querySelector('[data-family="entry"]')).toHaveAttribute(
+      'data-shape',
+      'in-progress'
+    );
+    expect(container.querySelector('[data-testid="status-dot"]')).toBeNull();
   });
 });

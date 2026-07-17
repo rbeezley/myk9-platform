@@ -25,15 +25,13 @@ describe('CheckInManagementOverlay', () => {
       />
     );
 
-    const badge = getByText('Checked In');
-    expect(badge.className).toContain('var(--chip-teal-bg)');
-    expect(badge.className).toContain('var(--chip-teal-fg)');
-    expect(badge.className).not.toContain('#007AFF');
+    const badge = getByText('Checked-in').parentElement;
+    const icon = badge?.querySelector('[data-family="entry"]');
+    expect(icon).toHaveAttribute('data-shape', 'in-progress');
+    expect(icon?.className).toContain('text-info');
   });
 
-  it('renders an unexpected status without throwing (icon-map fallback)', () => {
-    // Before the fix, STATUS_ICONS[rogue] was undefined and rendering
-    // <undefined /> threw "Element type is invalid", taking the tree down.
+  it('renders an unexpected status without throwing (shared fallback)', () => {
     const rogue = 'legacy-db-status' as CheckInStatus;
     const { getByText } = render(
       <CheckInManagementOverlay

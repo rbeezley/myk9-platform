@@ -21,14 +21,14 @@ import { AlertCircle, User, ChevronRight, Star, ArrowLeft } from 'lucide-react';
 import {
   groupSectionedClasses,
   getClassIds,
-  getClassStatusColor,
-  getFormattedClassStatus,
+  getEffectiveClassStatus,
   type ClassEntry,
 } from '@myk9/ringside';
 import { formatTrialDate } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
+import { StatusBadge } from '@/components/status';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
@@ -41,7 +41,6 @@ import { useMyAtShowEntryDetails } from './useMyAtShowEntryDetails';
 import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
 import { isExhibitorOnlyForAtShow, type AtShowClassSummary } from './myAtShowEntryDetails.helpers';
 import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListState';
-import { badgeClass, getClassListStatusTier } from './slots/atShowChrome.helpers';
 
 const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
   'briefing',
@@ -326,16 +325,10 @@ export const AtShowClassListPage: React.FC = () => {
             <CollapsibleContent>
               <ul className="mt-2 space-y-2">
                 {classes.map(entry => {
-                  const status = getFormattedClassStatus(entry);
-                  // Smart colour key (folds in dogs-in-ring / completed-count
-                  // detection) → badge tier, so the pill glance-distinguishes a
-                  // live ring from a finished one. INTENT: in-ring gloved taps
-                  // want ~48px rows — hence min-h-12.
-                  const statusTier = getClassListStatusTier(
-                    getClassStatusColor(entry.class_status, entry)
-                  );
+                  const status = getEffectiveClassStatus(entry);
                   return (
                     <li key={entry.id}>
+                      {/* INTENT: in-ring gloved taps want ~48px rows — hence min-h-12. */}
                       <button
                         type="button"
                         onClick={() => handleClassClick(entry)}
@@ -361,14 +354,11 @@ export const AtShowClassListPage: React.FC = () => {
                           )}
                         </div>
                         <div className="flex shrink-0 flex-col items-end gap-1">
-                          <span
-                            className={cn(
-                              'rounded-full px-2 py-0.5 text-xs font-medium',
-                              badgeClass(statusTier)
-                            )}
-                          >
-                            {status.label}
-                          </span>
+                          <StatusBadge
+                            family="class"
+                            status={status}
+                            className="px-2 py-0.5 text-xs font-medium"
+                          />
                           <span className="text-xs text-muted-foreground">
                             {entry.completed_count} / {entry.entry_count}
                           </span>

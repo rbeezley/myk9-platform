@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge';
+import { ShowMapCheckInStatusBadge, ShowMapNodeStatusBadge } from './ShowMapStatusBadge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
@@ -75,13 +76,13 @@ export function StatusCell({
   return (
     <div className="flex flex-wrap items-center gap-1">
       {classId && <JudgePresenceDot present={present} classId={classId} />}
-      {node.status && <Badge variant="secondary">{node.status.label}</Badge>}
+      <ShowMapNodeStatusBadge node={node} />
       {node.wrapUpStatus && (
         <Badge variant={node.wrapUpStatus.kind === 'attention' ? 'destructive' : 'outline'}>
           {node.wrapUpStatus.label}
         </Badge>
       )}
-      {node.checkInStatus && <Badge variant="outline">{node.checkInStatus.label}</Badge>}
+      <ShowMapCheckInStatusBadge node={node} />
       {attentionCount > 0 && <Badge variant="outline">{attentionCount} need attention</Badge>}
       {!node.status &&
         !node.wrapUpStatus &&

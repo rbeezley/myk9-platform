@@ -1,47 +1,46 @@
 import { describe, it, expect } from 'vitest';
 import {
-  getCheckInStatusConfig,
-  CHECK_IN_STATUS_CONFIG,
+  getCheckInStatusMetadata,
+  CHECK_IN_STATUS_METADATA,
   type CheckInStatus,
 } from './check-in-types';
 
-describe('getCheckInStatusConfig', () => {
-  it('returns the matching config for a known status', () => {
-    expect(getCheckInStatusConfig('checked-in')).toBe(CHECK_IN_STATUS_CONFIG['checked-in']);
-    expect(getCheckInStatusConfig('no-status')).toBe(CHECK_IN_STATUS_CONFIG['no-status']);
+describe('getCheckInStatusMetadata', () => {
+  it('returns the matching metadata for a known status', () => {
+    expect(getCheckInStatusMetadata('checked-in')).toBe(CHECK_IN_STATUS_METADATA['checked-in']);
+    expect(getCheckInStatusMetadata('no-status')).toBe(CHECK_IN_STATUS_METADATA['no-status']);
   });
 
-  it('returns a defined config (never undefined) for every known status', () => {
-    for (const status of Object.keys(CHECK_IN_STATUS_CONFIG) as CheckInStatus[]) {
-      const config = getCheckInStatusConfig(status);
-      expect(config).toBeDefined();
-      // The styling fields the UI dereferences must always be present.
-      expect(config.backgroundColor).toBeTruthy();
-      expect(config.borderColor).toBeTruthy();
-      expect(config.color).toBeTruthy();
+  it('keeps only workflow metadata for every known status', () => {
+    for (const status of Object.keys(CHECK_IN_STATUS_METADATA) as CheckInStatus[]) {
+      const metadata = getCheckInStatusMetadata(status);
+      expect(metadata).toMatchObject({ status });
+      expect(metadata.description).toBeTruthy();
+      expect(metadata.priority).toEqual(expect.any(Number));
+      expect(metadata).not.toHaveProperty('label');
+      expect(metadata).not.toHaveProperty('color');
+      expect(metadata).not.toHaveProperty('backgroundColor');
+      expect(metadata).not.toHaveProperty('borderColor');
+      expect(metadata).not.toHaveProperty('icon');
     }
   });
 
-  it('falls back to the neutral no-status config for an unmapped value', () => {
-    // Simulate a legacy DB row / future status / coerced null that escapes the union.
+  it('falls back to neutral no-status metadata for an unmapped value', () => {
     const rogue = 'totally-unknown-status' as CheckInStatus;
-    const config = getCheckInStatusConfig(rogue);
+    const metadata = getCheckInStatusMetadata(rogue);
 
-    expect(config).toBeDefined();
-    expect(config).toBe(CHECK_IN_STATUS_CONFIG['no-status']);
-    // Crash site in CheckInStatusIndicator: these reads must not throw.
-    expect(config.backgroundColor).toBe('bg-gray-100');
-    expect(config.borderColor).toBe('border-gray-200');
-    expect(config.color).toBe('text-gray-500');
+    expect(metadata).toBe(CHECK_IN_STATUS_METADATA['no-status']);
   });
 
   it('falls back for empty / null-coerced values', () => {
-    expect(getCheckInStatusConfig('' as CheckInStatus)).toBe(CHECK_IN_STATUS_CONFIG['no-status']);
-    expect(getCheckInStatusConfig(null as unknown as CheckInStatus)).toBe(
-      CHECK_IN_STATUS_CONFIG['no-status']
+    expect(getCheckInStatusMetadata('' as CheckInStatus)).toBe(
+      CHECK_IN_STATUS_METADATA['no-status']
     );
-    expect(getCheckInStatusConfig(undefined as unknown as CheckInStatus)).toBe(
-      CHECK_IN_STATUS_CONFIG['no-status']
+    expect(getCheckInStatusMetadata(null as unknown as CheckInStatus)).toBe(
+      CHECK_IN_STATUS_METADATA['no-status']
+    );
+    expect(getCheckInStatusMetadata(undefined as unknown as CheckInStatus)).toBe(
+      CHECK_IN_STATUS_METADATA['no-status']
     );
   });
 });

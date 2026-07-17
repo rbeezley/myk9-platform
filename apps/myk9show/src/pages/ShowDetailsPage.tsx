@@ -14,7 +14,7 @@ import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
-import { CLASS_STATUS } from '@myk9/core';
+import { CLASS_STATUS, normalizeClassStatus } from '@myk9/core';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { getEntriesForShow } from '@/services/database/entries';
 import { queryKeys } from '@/lib/queryClient';
@@ -42,12 +42,7 @@ import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 import { useSubmittedEntryProjection } from '@/features/exhibitor-entry/useSubmittedEntryProjection';
 import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
 
-/**
- * Thin audience router for `/shows/:id`. Loads the show + entries once, derives
- * the shared tab data, then delegates to one of three focused surfaces by
- * audience (see resolveShowAudience): the public landing, the exhibitor view, or
- * the management shell. The presence provider wraps only the authed surfaces.
- */
+/** Loads `/shows/:id` once and delegates to the public, exhibitor, or management surface. */
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -187,10 +182,7 @@ const ShowDetailsPage: React.FC = () => {
   const isAuthenticated = !!user;
   const requestedTab = searchParams.get('tab');
   const isWaitingForExhibitorEntryDefault =
-    isAuthenticated &&
-    !canManageShow &&
-    !requestedTab &&
-    exhibitorEntryDataState === 'loading';
+    isAuthenticated && !canManageShow && !requestedTab && exhibitorEntryDataState === 'loading';
 
   // Tab state — URL-synced with dynamic allowed tabs
   const canShowMap = features.showMap && canManageShow;
@@ -283,7 +275,12 @@ const ShowDetailsPage: React.FC = () => {
       stats[trial.id] = {
         classCount: classes.length,
         entryCount: trialEntryCount,
-        completedClasses: classes.filter(cls => cls.status === CLASS_STATUS.COMPLETED).length,
+        completedClasses: classes.filter(
+          cls => normalizeClassStatus(cls.status) === CLASS_STATUS.COMPLETED
+        ).length,
+        hasStarted: classes.some(
+          cls => normalizeClassStatus(cls.status) === CLASS_STATUS.IN_PROGRESS
+        ),
       };
     }
     return stats;

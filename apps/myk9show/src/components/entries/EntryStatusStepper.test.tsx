@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/testUtils';
 import { EntryStatusStepper } from './EntryStatusStepper';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 
@@ -102,13 +102,15 @@ describe('EntryStatusStepper', () => {
   });
 
   describe('completed and move-up-requested progression', () => {
-    // Completed steps + their connectors carry the literal `bg-success` class,
-    // so the count is a proxy for "how far the stepper has progressed".
+    // Completed steps use the shared complete shape, so the count is a proxy
+    // for how far the stepper has progressed.
     function progressMarkers(entryStatus: EntryStatus, paymentStatus: PaymentStatus): number {
       const { container, unmount } = render(
         <EntryStatusStepper entryStatus={entryStatus} paymentStatus={paymentStatus} />
       );
-      const count = container.querySelectorAll('.bg-success').length;
+      const count = container.querySelectorAll(
+        '[data-family="entry"][data-shape="complete"]'
+      ).length;
       unmount();
       return count;
     }
@@ -138,6 +140,17 @@ describe('EntryStatusStepper', () => {
   });
 
   describe('component structure', () => {
+    it('renders each step through the shared entry status grammar', () => {
+      const { container } = render(
+        <EntryStatusStepper
+          entryStatus={EntryStatus.PENDING}
+          paymentStatus={PaymentStatus.PENDING}
+        />
+      );
+
+      expect(container.querySelectorAll('[data-family="entry"]')).toHaveLength(4);
+    });
+
     it('should render with entry-status-stepper class', () => {
       const { container } = render(
         <EntryStatusStepper

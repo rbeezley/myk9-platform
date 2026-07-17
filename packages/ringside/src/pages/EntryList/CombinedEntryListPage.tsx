@@ -19,8 +19,8 @@
 
 import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TabBar, type Tab } from '@myk9/ui';
-import { Clock, CheckCircle, ArrowUpDown, Trophy } from 'lucide-react';
+import { StatusIcon, TabBar, type Tab } from '@myk9/ui';
+import { ArrowUpDown, Trophy } from 'lucide-react';
 import type { Entry } from '../../stores/entryStore';
 import type { CombinedEntryListPageProps, FilterPanelSortOption } from './pageProps';
 import type { SortOrder } from './types';
@@ -232,11 +232,16 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
   // Status tabs
   const statusTabs: Tab[] = useMemo(
     () => [
-      { id: 'pending', label: 'Pending', icon: <Clock size={16} />, count: entryCounts.pending },
+      {
+        id: 'pending',
+        label: 'Pending',
+        icon: <StatusIcon family="entry" status="pending" size="sm" decorative />,
+        count: entryCounts.pending,
+      },
       {
         id: 'completed',
         label: 'Completed',
-        icon: <CheckCircle size={16} />,
+        icon: <StatusIcon family="entry" status="completed" size="sm" decorative />,
         count: entryCounts.completed,
       },
     ],

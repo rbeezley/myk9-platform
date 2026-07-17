@@ -30,4 +30,14 @@ describe('EntryStatsCards', () => {
     expect(screen.getByText('Outstanding')).toBeInTheDocument();
     expect(screen.getByText('$0')).toBeInTheDocument();
   });
+
+  it('routes lifecycle summaries through the shared status grammar', () => {
+    const { container } = render(
+      <EntryStatsCards stats={stats({ pending: 2, accepted: 3, waitlist: 4 })} />
+    );
+
+    expect(container.querySelector('[data-status="pending"]')).not.toBeNull();
+    expect(container.querySelector('[data-status="accepted"]')).not.toBeNull();
+    expect(container.querySelector('[data-status="waitlist"]')).not.toBeNull();
+  });
 });

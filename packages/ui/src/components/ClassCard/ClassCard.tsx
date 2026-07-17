@@ -1,10 +1,17 @@
 import * as React from 'react';
 import { cn } from '../../utils/cn';
+import { StatusIcon } from '../StatusIcon/StatusIcon';
+import { getStatusDescriptor } from '../StatusIcon/statusIconGrammar';
 
 /**
  * Class status type matching myK9Q statuses
  */
 export type ClassStatus =
+  | 'Scheduled'
+  | 'Upcoming'
+  | 'In Progress'
+  | 'Completed'
+  | 'Cancelled'
   | 'none'
   | 'setup'
   | 'briefing'
@@ -36,12 +43,8 @@ export interface ClassCardProps {
   plannedStartTime?: string;
   /** Current class status */
   status: ClassStatus;
-  /** Status label to display */
-  statusLabel: string;
   /** Optional time to show with status (e.g., "10:30 AM") */
   statusTime?: string;
-  /** Icon to show in status badge */
-  statusIcon?: React.ReactNode;
   /** Total number of entries */
   entryCount: number;
   /** Number of completed entries */
@@ -75,35 +78,10 @@ export interface ClassCardProps {
 }
 
 /**
- * Status color classes for left border
- */
-const statusColors: Record<ClassStatus, string> = {
-  none: 'border-l-gray-400',
-  setup: 'border-l-slate-500',
-  briefing: 'border-l-sky-500',
-  break: 'border-l-orange-500',
-  'start-time': 'border-l-violet-500',
-  'in-progress': 'border-l-teal-500',
-  'offline-scoring': 'border-l-amber-500',
-  completed: 'border-l-green-500',
-};
-
-const statusBadgeColors: Record<ClassStatus, string> = {
-  none: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
-  setup: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-  briefing: 'bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300',
-  break: 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300',
-  'start-time': 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300',
-  'in-progress': 'bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300',
-  'offline-scoring': 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
-  completed: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300',
-};
-
-/**
  * ClassCard Component
  *
  * A shared class display card with light/dark mode support.
- * Features status-colored left border, corner status badge, progress bar,
+ * Features a shared-grammar status badge, progress bar,
  * entry preview, favorite and menu buttons.
  */
 export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
@@ -113,9 +91,7 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
       judgeName,
       plannedStartTime,
       status,
-      statusLabel,
       statusTime,
-      statusIcon,
       entryCount,
       completedCount,
       isFavorite = false,
@@ -138,6 +114,9 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
     const inRingEntry = entries.find(e => e.inRing);
     const nextEntries = entries.filter(e => !e.isScored && !e.inRing).slice(0, 3);
     const remainingCount = entryCount - completedCount;
+    const statusDescriptor = getStatusDescriptor('class', status);
+    const isCompleted = status === 'Completed' || status === 'completed';
+    const isInProgress = statusDescriptor.shape === 'in-progress';
 
     const handleCardClick = (e: React.MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -153,7 +132,6 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
           'bg-card border border-border',
           'rounded-2xl shadow-sm',
           'border-l-4',
-          statusColors[status],
           'transition-all duration-300',
           'hover:-translate-y-1 hover:shadow-lg hover:border-border/80',
           'active:scale-[0.98]',
@@ -175,8 +153,8 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                 'border-none cursor-pointer',
                 'transition-all duration-200',
                 'hover:-translate-y-0.5 hover:shadow-sm',
-                statusBadgeColors[status],
-                status === 'in-progress' && 'animate-pulse',
+                'border border-border bg-card text-foreground',
+                isInProgress && 'animate-pulse',
                 statusJustChanged && 'animate-bounce'
               )}
               onClick={e => {
@@ -184,9 +162,9 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                 onStatusClick();
               }}
             >
-              {statusIcon && <span className="flex-shrink-0 w-[18px] h-[18px]">{statusIcon}</span>}
+              <StatusIcon family="class" status={status} size="sm" decorative />
               <span>
-                {statusLabel}
+                {statusDescriptor.label}
                 {statusTime && <span className="ml-1 font-bold">{statusTime}</span>}
               </span>
             </button>
@@ -196,14 +174,14 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                 'flex items-center gap-1.5 px-3 py-2',
                 'rounded-bl-2xl rounded-tr-2xl',
                 'text-xs font-semibold uppercase tracking-wide',
-                statusBadgeColors[status],
-                status === 'in-progress' && 'animate-pulse',
+                'border border-border bg-card text-foreground',
+                isInProgress && 'animate-pulse',
                 statusJustChanged && 'animate-bounce'
               )}
             >
-              {statusIcon && <span className="flex-shrink-0 w-[18px] h-[18px]">{statusIcon}</span>}
+              <StatusIcon family="class" status={status} size="sm" decorative />
               <span>
-                {statusLabel}
+                {statusDescriptor.label}
                 {statusTime && <span className="ml-1 font-bold">{statusTime}</span>}
               </span>
             </div>
@@ -360,7 +338,7 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                 <div
                   className={cn(
                     'h-full rounded-full transition-all duration-300',
-                    status === 'completed' ? 'bg-green-500' : 'bg-teal-500'
+                    isCompleted ? 'bg-green-500' : 'bg-teal-500'
                   )}
                   style={{ width: `${progressPercent}%` }}
                 />
@@ -370,8 +348,8 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
             {entries.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2.5 pt-2 mt-1 font-mono text-sm font-medium text-muted-foreground">
                 {inRingEntry && (
-                  <span className="inline-flex items-center text-amber-600 dark:text-amber-500">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 mr-1" />#
+                  <span className="inline-flex items-center">
+                    <StatusIcon family="entry" status="in-ring" size="sm" className="mr-1" />#
                     {inRingEntry.armband}
                   </span>
                 )}
@@ -383,7 +361,7 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                 ))}
 
                 <span className="ml-auto text-muted-foreground/70 whitespace-nowrap">
-                  {status === 'completed'
+                  {isCompleted
                     ? 'All complete'
                     : `${remainingCount} of ${entryCount} remaining`}
                 </span>

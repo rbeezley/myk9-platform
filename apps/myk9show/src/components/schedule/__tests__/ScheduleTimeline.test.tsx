@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
 import { ScheduleTimeline, SCHEDULE_TIMELINE_RESERVED_MIN_HEIGHT_PX } from '../ScheduleTimeline';
 import type { DayTimelineData } from '../schedule-timeline.types';
 import { CLASS_STATUS } from '@myk9/core';
@@ -51,9 +50,7 @@ vi.mock('@/hooks/queries/useScheduleTimeline', () => ({
   }),
 }));
 
-function renderWithRouter(ui: React.ReactElement) {
-  return render(<MemoryRouter>{ui}</MemoryRouter>);
-}
+const renderWithRouter = render;
 
 describe('ScheduleTimeline', () => {
   beforeEach(() => {
@@ -110,8 +107,7 @@ describe('ScheduleTimeline', () => {
 
   it('renders status badges', () => {
     renderWithRouter(<ScheduleTimeline showId="show-1" />);
-    // getClassStatusDisplay returns labels like "Completed", "In Progress"
-    // (UX walk remediation 2.B fixed the "Complete"/"Completed" drift)
+    // Shared grammar keeps the complete/in-progress labels consistent.
     expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.getByText('In Progress')).toBeInTheDocument();
   });

@@ -1,12 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ClassCard, type ClassStatus } from './ClassCard';
+import { ClassCard } from './ClassCard';
 
 const defaultProps = {
   className: 'Novice A Buried',
-  status: 'in-progress' as ClassStatus,
-  statusLabel: 'In Progress',
+  status: 'In Progress',
   entryCount: 12,
   completedCount: 5,
 };
@@ -20,6 +19,15 @@ describe('ClassCard', () => {
   it('should render status label', () => {
     render(<ClassCard {...defaultProps} />);
     expect(screen.getByText('In Progress')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'In Progress' })).not.toBeInTheDocument();
+    expect(screen.getByText('In Progress').parentElement?.querySelector('[data-family="class"]'))
+      .toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('keeps a cancelled class destructive instead of mapping it to neutral', () => {
+    const { container } = render(<ClassCard {...defaultProps} status="Cancelled" />);
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+    expect(container.querySelector('[data-status="Cancelled"]')).toHaveClass('text-destructive');
   });
 
   it('should render judge name when provided', () => {
@@ -44,8 +52,7 @@ describe('ClassCard', () => {
     render(
       <ClassCard
         {...defaultProps}
-        status="completed"
-        statusLabel="Completed"
+        status="Completed"
         entryCount={5}
         completedCount={5}
         entries={[{ id: 1, armband: 101, isScored: true }]}
@@ -64,16 +71,6 @@ describe('ClassCard', () => {
     expect(screen.getByText('10:30 AM')).toBeInTheDocument();
   });
 
-  it('should display status icon when provided', () => {
-    render(
-      <ClassCard
-        {...defaultProps}
-        statusIcon={<span data-testid="status-icon">P</span>}
-      />
-    );
-    expect(screen.getByTestId('status-icon')).toBeInTheDocument();
-  });
-
   describe('entry preview', () => {
     it('should highlight in-ring entry', () => {
       render(
@@ -87,6 +84,10 @@ describe('ClassCard', () => {
       );
       expect(screen.getByText('#102')).toBeInTheDocument();
       expect(screen.getByText('#105')).toBeInTheDocument();
+      expect(screen.getByRole('img', { name: 'In Ring' })).toHaveAttribute(
+        'data-family',
+        'entry'
+      );
     });
 
     it('should show up to 3 next entries', () => {
@@ -204,25 +205,19 @@ describe('ClassCard', () => {
     });
   });
 
-  describe('status colors', () => {
+  describe('status grammar', () => {
     it.each([
-      'none',
-      'setup',
-      'briefing',
-      'break',
-      'start-time',
-      'in-progress',
-      'offline-scoring',
-      'completed',
-    ] as ClassStatus[])('should render with %s status', (status) => {
-      render(
-        <ClassCard
-          {...defaultProps}
-          status={status}
-          statusLabel={status}
-        />
-      );
-      expect(screen.getByText(status)).toBeInTheDocument();
+      ['none', 'Not started'],
+      ['setup', 'Setup'],
+      ['briefing', 'Briefing'],
+      ['break', 'Break'],
+      ['start-time', 'Upcoming'],
+      ['in-progress', 'In Progress'],
+      ['offline-scoring', 'Offline scoring'],
+      ['completed', 'Completed'],
+    ] as const)('should render %s through the shared descriptor', (status, label) => {
+      render(<ClassCard {...defaultProps} status={status} />);
+      expect(screen.getByText(label)).toBeInTheDocument();
     });
   });
 

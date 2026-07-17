@@ -10,15 +10,6 @@ export const TV_ACTIVE_STATUSES = [
   'start_time',
 ] as const;
 
-export const TV_STATUS_CONFIG = {
-  'In Progress': { label: 'IN PROGRESS', color: 'bg-green-500 text-white' },
-  in_progress: { label: 'IN PROGRESS', color: 'bg-green-500 text-white' },
-  briefing: { label: 'BRIEFING', color: 'bg-amber-500 text-white' },
-  setup: { label: 'UPCOMING', color: 'bg-zinc-600 text-zinc-200' },
-  Scheduled: { label: 'UPCOMING', color: 'bg-zinc-600 text-zinc-200' },
-  start_time: { label: 'UPCOMING', color: 'bg-zinc-600 text-zinc-200' },
-} as const;
-
 export interface TVShowInfo {
   id: string;
   name: string;
@@ -111,10 +102,10 @@ export function formatDisplayTime(searchTime: number | null, totalScore: number 
   return '';
 }
 
-export function getStatusBadge(status: string | null, startTime?: string | null) {
+export function getTVStatusLabel(status: string | null, startTime?: string | null): string {
   if (status === 'start_time' && startTime) {
-    return { label: `STARTS ${startTime}`, color: 'bg-zinc-600 text-zinc-200' };
+    return `STARTS ${startTime}`;
   }
-  const config = TV_STATUS_CONFIG[status as keyof typeof TV_STATUS_CONFIG];
-  return config ?? { label: status ?? 'UNKNOWN', color: 'bg-zinc-600 text-zinc-200' };
+  return getStatusDescriptor('class', status).label.toUpperCase();
 }
+import { getStatusDescriptor } from '@myk9/ui';

@@ -123,6 +123,7 @@ describe('buildPublicTrialStats', () => {
         rows: [
           makeClassRow({ id: 'class-1', status: 'scheduled' }),
           makeClassRow({ id: 'class-2', status: 'completed' }),
+          makeClassRow({ id: 'class-3', status: 'in_progress' }),
         ],
       },
     ];
@@ -131,15 +132,21 @@ describe('buildPublicTrialStats', () => {
     const stats = buildPublicTrialStats(classesByTrial, showEntries);
 
     expect(stats['trial-1']).toEqual({
-      classCount: 2,
+      classCount: 3,
       entryCount: 3,
       completedClasses: 1,
+      hasStarted: true,
     });
   });
 
   it('returns zeroed stats for a trial with no classes', () => {
     const stats = buildPublicTrialStats([{ trialId: 'trial-1', rows: [] }], []);
 
-    expect(stats['trial-1']).toEqual({ classCount: 0, entryCount: 0, completedClasses: 0 });
+    expect(stats['trial-1']).toEqual({
+      classCount: 0,
+      entryCount: 0,
+      completedClasses: 0,
+      hasStarted: false,
+    });
   });
 });

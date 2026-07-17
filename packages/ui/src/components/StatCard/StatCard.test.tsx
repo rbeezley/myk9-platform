@@ -3,12 +3,27 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Users } from 'lucide-react';
 import { StatCard, StatCardSkeleton } from './StatCard';
+import { StatusIcon } from '../StatusIcon/StatusIcon';
 
 describe('StatCard', () => {
   it('should render icon, title, and value', () => {
     render(<StatCard icon={Users} title="Total Entries" value={142} />);
     expect(screen.getByText('Total Entries')).toBeInTheDocument();
     expect(screen.getByText('142')).toBeInTheDocument();
+  });
+
+  it('renders a shared status icon in a neutral icon surface', () => {
+    const { container } = render(
+      <StatCard
+        icon={<StatusIcon family="entry" status="pending" decorative />}
+        title="Pending"
+        value={3}
+        color="amber"
+      />
+    );
+
+    expect(container.querySelector('[data-family="entry"][data-status="pending"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="icon"]')).toHaveClass('bg-muted');
   });
 
   it('should render string values', () => {

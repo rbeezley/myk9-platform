@@ -1,32 +1,35 @@
 // Single store architecture for dog show entries
 // Entry progresses through lifecycle stages
 
-export type EntryStatus =
+export const ENTRY_LIFECYCLE_STATUS_VALUES = [
   // Pre-show lifecycle
-  | 'no-status' // DB default, not yet categorized
-  | 'draft' // User building entry
-  | 'submitted' // Submitted, awaiting payment
-  | 'paid' // Payment confirmed
-  | 'confirmed' // Accepted by show
-  | 'scheduled' // Running order assigned (UI-only, not a DB constraint value)
+  'no-status', // DB default, not yet categorized
+  'draft', // User building entry
+  'submitted', // Submitted, awaiting payment
+  'paid', // Payment confirmed
+  'confirmed', // Accepted by show
+  'scheduled', // Running order assigned (UI-only, not a DB constraint value)
   // Day-of states
-  | 'checked-in' // Dog checked in at venue
-  | 'at-gate' // At the gate, next to run
-  | 'in-ring' // Currently competing
-  | 'competing' // In-ring / actively competing
-  | 'completed' // Results recorded
+  'checked-in', // Dog checked in at venue
+  'at-gate', // At the gate, next to run
+  'in-ring', // Currently competing
+  'competing', // In-ring / actively competing
+  'completed', // Results recorded
   // Terminal / removal states
-  | 'withdrawn' // Exhibitor or secretary withdrew the entry
-  | 'not_accepted' // Secretary declined the entry
-  | 'scratched' // Scratched day of show
-  | 'absent' // Dog did not appear
-  | 'moved' // Entry moved to a different class (source record)
+  'withdrawn', // Exhibitor or secretary withdrew the entry
+  'not_accepted', // Secretary declined the entry
+  'scratched', // Scratched day of show
+  'absent', // Dog did not appear
+  'moved', // Entry moved to a different class (source record)
   // Secretary-approval workflow
-  | 'scratch-requested' // Exhibitor requested scratch; awaiting secretary approval
-  | 'move-up-requested' // Exhibitor requested move-up; awaiting secretary approval
+  'scratch-requested', // Exhibitor requested scratch; awaiting secretary approval
+  'move-up-requested', // Exhibitor requested move-up; awaiting secretary approval
   // Waitlist promotion flow
-  | 'pending-payment' // Promoted from waitlist, awaiting Stripe checkout
-  | 'promotion-expired'; // Did not pay within promotion deadline
+  'pending-payment', // Promoted from waitlist, awaiting Stripe checkout
+  'promotion-expired', // Did not pay within promotion deadline
+] as const;
+
+export type EntryStatus = (typeof ENTRY_LIFECYCLE_STATUS_VALUES)[number];
 
 /**
  * Statuses where the dog is currently in the ring.

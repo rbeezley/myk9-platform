@@ -42,10 +42,6 @@ const requiredLabels: Array<{ file: string; labels: string[] }> = [
     labels: ['Close sidebar'],
   },
   {
-    file: 'apps/myk9show/src/components/shows/ShowDetails/TrialsList.tsx',
-    labels: ['Actions for ${trial.name'],
-  },
-  {
     file: 'apps/myk9show/src/components/shows/RegistrationWorkflow/DogSearchInterface.tsx',
     labels: ['Clear dog search'],
   },

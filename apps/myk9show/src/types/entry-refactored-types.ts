@@ -52,13 +52,16 @@ export interface Entry extends BaseEntity, SyncableEntity {
 // Class Entry Types (Product-level)
 // ============================================================================
 
-export type ClassEntryStatus =
-  | 'pending' // Awaiting review
-  | 'accepted' // Accepted into class
-  | 'rejected' // Rejected from class
-  | 'waitlisted' // On waiting list
-  | 'withdrawn' // Withdrawn from class
-  | 'moved'; // Moved to different class
+export const CLASS_ENTRY_STATUS_VALUES = [
+  'pending',
+  'accepted',
+  'rejected',
+  'waitlisted',
+  'withdrawn',
+  'moved',
+] as const;
+
+export type ClassEntryStatus = (typeof CLASS_ENTRY_STATUS_VALUES)[number];
 
 export interface ClassEntry extends BaseEntity, SyncableEntity {
   // Core Relationships
@@ -417,28 +420,10 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   failed: 'Failed',
 };
 
-export const CLASS_ENTRY_STATUS_LABELS: Record<ClassEntryStatus, string> = {
-  pending: 'Pending',
-  accepted: 'Accepted',
-  rejected: 'Rejected',
-  waitlisted: 'Waitlisted',
-  withdrawn: 'Withdrawn',
-  moved: 'Moved',
-};
-
 export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
   pending: 'yellow',
   paid: 'green',
   partial: 'orange',
   refunded: 'purple',
   failed: 'red',
-};
-
-export const CLASS_ENTRY_STATUS_COLORS: Record<ClassEntryStatus, string> = {
-  pending: 'yellow',
-  accepted: 'green',
-  rejected: 'red',
-  waitlisted: 'orange',
-  withdrawn: 'gray',
-  moved: 'blue',
 };

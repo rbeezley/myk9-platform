@@ -6,14 +6,13 @@ import {
   mapPaymentStatus,
   mapStatusToDb,
   mapClassEntryStatus,
-  getEntryStatusClasses,
   getEntryStatusBadge,
   getPaymentStatusBadge,
   getEntryPaidAmount,
 } from './entryManagementUtils';
 
 const badgeClass = (node: ReturnType<typeof getEntryStatusBadge>): string =>
-  ((node as ReactElement<{ className?: string }>).props.className ?? '');
+  (node as ReactElement<{ className?: string }>).props.className ?? '';
 
 describe('mapEntryStatus', () => {
   it("maps 'confirmed' to ACCEPTED", () => {
@@ -98,75 +97,28 @@ describe('mapClassEntryStatus — participation chip via the shared classifier',
   });
 });
 
-describe('getEntryStatusClasses — colour via the shared classifier KIND', () => {
-  it('tints accepted / pending / withdrawn / waitlist consistently', () => {
-    expect(getEntryStatusClasses('confirmed')).toContain('text-success');
-    expect(getEntryStatusClasses('accepted')).toContain('text-success');
-    expect(getEntryStatusClasses('submitted')).toContain('text-warning');
-    expect(getEntryStatusClasses('withdrawn')).toContain('text-destructive');
-    expect(getEntryStatusClasses('waitlisted')).toContain('text-info');
-  });
-
-  it('uses the neutral chip for terminal/uncoloured statuses', () => {
-    // COMPLETED / SCRATCHED / MOVED / REJECTED project to the neutral stone token.
-    expect(getEntryStatusClasses('completed')).toContain('var(--chip-stone-fg)');
-    expect(getEntryStatusClasses('scratched')).toContain('var(--chip-stone-fg)');
-    expect(getEntryStatusClasses('moved')).toContain('var(--chip-stone-fg)');
-  });
-
-  it('treats null / no-status as PENDING (warning), matching the stats bucket', () => {
-    // mapEntryStatus(null) is the safe PENDING default — the same bucket the
-    // needs-review stat counts — so the colour is warning, not a misleading
-    // neutral gray that would imply "nothing to do".
-    expect(getEntryStatusClasses(null)).toContain('text-warning');
-    expect(getEntryStatusClasses('no-status')).toContain('text-warning');
-  });
-
-  it("colours 'paid'/'promotion-expired' as PENDING (warning), matching the bucket — not success", () => {
-    // Regression pin (PR #829 review): these color via the owner-aware UI
-    // projection, NOT getEntryStatusKind. getEntryStatusKind('paid') is
-    // 'accepted', which would tint success/green while the stats count the
-    // entry pending — the exact label-vs-status divergence this PR removes.
-    expect(getEntryStatusClasses('paid')).toContain('text-warning');
-    expect(getEntryStatusClasses('paid')).not.toContain('text-success');
-    expect(getEntryStatusClasses('promotion-expired')).toContain('text-warning');
-  });
-});
-
 describe('getEntryStatusBadge / getPaymentStatusBadge — warm --chip-* token vocabulary', () => {
   // Regression guard: these badges must use the --chip-* token pairs (which ship
   // matched dark values), never raw Tailwind palette classes (no dark: variant →
   // light chip on a dark card) and never cool grays outside the status vocabulary.
-  it('tints entry-status chips with chip tokens, never raw palette classes', () => {
-    expect(badgeClass(getEntryStatusBadge(EntryStatus.ACCEPTED))).toContain('var(--chip-teal-bg)');
-    expect(badgeClass(getEntryStatusBadge(EntryStatus.WAITLIST))).toContain('var(--chip-amber-bg)');
-    expect(badgeClass(getEntryStatusBadge(EntryStatus.COMPLETED))).toContain('var(--chip-blue-bg)');
-  });
-
-  it('moves "Pulled"/"Moved" off cool gray onto the warm stone (inactive) token', () => {
-    expect(badgeClass(getEntryStatusBadge(EntryStatus.SCRATCHED))).toContain('var(--chip-stone-bg)');
-    expect(badgeClass(getEntryStatusBadge(EntryStatus.MOVED))).toContain('var(--chip-stone-bg)');
-    expect(badgeClass(getEntryStatusBadge(EntryStatus.SCRATCHED))).not.toContain('gray');
-  });
-
-  it('overrides the Badge default hover so filled chips do not flip to the accent', () => {
-    // Regression guard: Badge's default variant carries hover:bg-primary/80, so a
-    // tokenized chip without its own hover override flips to the user's accent on
-    // hover. Each filled chip must re-assert its token bg on hover.
-    expect(badgeClass(getEntryStatusBadge(EntryStatus.ACCEPTED))).toContain(
-      'hover:bg-[color:var(--chip-teal-bg)]'
-    );
-    expect(badgeClass(getEntryStatusBadge(EntryStatus.SCRATCHED))).toContain(
-      'hover:bg-[color:var(--chip-stone-bg)]'
-    );
-    expect(badgeClass(getEntryStatusBadge(EntryStatus.WAITLIST))).not.toContain('hover:bg-primary');
+  it('routes every entry status through the shared status badge', () => {
+    for (const status of Object.values(EntryStatus)) {
+      const node = getEntryStatusBadge(status) as ReactElement<{
+        family: string;
+        status: EntryStatus;
+        variant: string;
+      }>;
+      expect(node.props).toMatchObject({ family: 'entry', status, variant: 'outline' });
+    }
   });
 
   it('tints payment chips with chip tokens', () => {
     expect(badgeClass(getPaymentStatusBadge(PaymentStatus.PAID_ONLINE))).toContain(
       'var(--chip-teal-bg)'
     );
-    expect(badgeClass(getPaymentStatusBadge(PaymentStatus.PENDING))).toContain('var(--chip-red-bg)');
+    expect(badgeClass(getPaymentStatusBadge(PaymentStatus.PENDING))).toContain(
+      'var(--chip-red-bg)'
+    );
     expect(badgeClass(getPaymentStatusBadge(PaymentStatus.REFUNDED))).toContain(
       'var(--chip-blue-fg)'
     );
@@ -176,13 +128,6 @@ describe('getEntryStatusBadge / getPaymentStatusBadge — warm --chip-* token vo
     const rawPalette = /bg-(teal|amber|gray|blue|red|green|slate|zinc)-\d{2,3}/;
     for (const status of Object.values(EntryStatus)) {
       expect(badgeClass(getEntryStatusBadge(status))).not.toMatch(rawPalette);
-    }
-  });
-
-  it('leaves no raw Tailwind palette class on string status classes', () => {
-    const rawPalette = /(bg|text|border)-(teal|amber|gray|blue|red|green|slate|zinc)-\d{2,3}/;
-    for (const status of ['confirmed', 'submitted', 'withdrawn', 'waitlisted', 'completed']) {
-      expect(getEntryStatusClasses(status)).not.toMatch(rawPalette);
     }
   });
 });

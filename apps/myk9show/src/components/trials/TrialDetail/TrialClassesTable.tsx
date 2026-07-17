@@ -14,7 +14,7 @@ import {
 import { Plus, Layers } from 'lucide-react';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { TrialClassesCards } from './TrialClassesCards';
-import { getClassStatusBadgeClasses } from '@myk9/core';
+import { StatusBadge } from '@/components/status';
 import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 
 type ViewMode = 'table' | 'cards';
@@ -143,11 +143,12 @@ export const TrialClassesTable = ({
         accessorKey: 'status',
         header: 'Status',
         cell: ({ row }) => (
-          <span
-            className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${getClassStatusBadgeClasses(row.original.status)}`}
-          >
-            {row.original.status}
-          </span>
+          <StatusBadge
+            family="class"
+            status={row.original.status}
+            className="px-3 py-1 text-xs"
+            variant="outline"
+          />
         ),
       },
       // Edit/delete row actions are staff-only; read-only visitors never see them.

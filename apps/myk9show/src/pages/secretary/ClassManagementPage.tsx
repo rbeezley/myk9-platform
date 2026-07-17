@@ -9,8 +9,8 @@ import {
 } from '@/hooks/queries/useClassesDatabase';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import {
-  deriveClassLifecyclePresentation,
   deriveClassLifecycleValue,
+  shouldShowClassLifecycle,
   type ClassLifecycleValue,
 } from '@/lib/status/classLifecycle';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
@@ -18,10 +18,11 @@ import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualif
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTrialStore } from '@/store/trialStore';
-import { CLASS_STATUS, getClassStatusBadgeClasses, matchesAny } from '@myk9/core';
+import { CLASS_STATUS, matchesAny } from '@myk9/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge, StatusIcon } from '@/components/status';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -37,10 +38,6 @@ import {
   Search,
   Filter,
   Trash2,
-  Play,
-  Pause,
-  CheckCircle,
-  Clock,
   Settings,
   MoreVertical,
   ListOrdered,
@@ -235,23 +232,6 @@ export const ClassManagementPage: React.FC = () => {
     }
   };
 
-  const getStatusIcon = (value: ClassLifecycleValue) => {
-    switch (value) {
-      case 'in_progress':
-        return <Play className="h-4 w-4" />;
-      case 'completed':
-        return <CheckCircle className="h-4 w-4" />;
-      case 'cancelled':
-        return <Pause className="h-4 w-4" />;
-      default:
-        return <Clock className="h-4 w-4" />;
-    }
-  };
-
-  const getStatusColor = (status: string | null) => {
-    return getClassStatusBadgeClasses(status ?? '');
-  };
-
   const trialDisplayName = trial?.name || (trialId ? 'Trial' : 'No trial selected');
   const setupHref = showId ? `/shows/${showId}/setup` : '/secretary/dashboard';
   const waitlistHref = showId
@@ -323,7 +303,13 @@ export const ClassManagementPage: React.FC = () => {
 
         <Card>
           <CardContent className="flex items-center p-4">
-            <Clock className="h-8 w-8 text-blue-500 mr-3" />
+            <StatusIcon
+              family="class"
+              status="not_started"
+              size="lg"
+              className="mr-3"
+              decorative
+            />
             <div>
               <div className="text-2xl font-bold">{lifecycleCounts.not_started}</div>
               <div className="text-sm text-muted-foreground">Not started</div>
@@ -333,7 +319,13 @@ export const ClassManagementPage: React.FC = () => {
 
         <Card>
           <CardContent className="flex items-center p-4">
-            <Play className="h-8 w-8 text-amber-500 mr-3" />
+            <StatusIcon
+              family="class"
+              status="in_progress"
+              size="lg"
+              className="mr-3"
+              decorative
+            />
             <div>
               <div className="text-2xl font-bold">{lifecycleCounts.in_progress}</div>
               <div className="text-sm text-muted-foreground">In Progress</div>
@@ -343,7 +335,13 @@ export const ClassManagementPage: React.FC = () => {
 
         <Card>
           <CardContent className="flex items-center p-4">
-            <CheckCircle className="h-8 w-8 text-green-500 mr-3" />
+            <StatusIcon
+              family="class"
+              status="completed"
+              size="lg"
+              className="mr-3"
+              decorative
+            />
             <div>
               <div className="text-2xl font-bold">{lifecycleCounts.completed}</div>
               <div className="text-sm text-muted-foreground">Completed</div>
@@ -512,18 +510,14 @@ export const ClassManagementPage: React.FC = () => {
                           // never the raw enum ("in_progress") or "No Status".
                           // Draft/unpublished shows render no chip at all
                           // (UX walk remediation 2.B).
-                          const lifecycle = deriveClassLifecyclePresentation({
-                            classStatus: cls.status,
-                            showStatus,
-                          });
-                          if (!lifecycle) return null;
+                          if (!shouldShowClassLifecycle(showStatus)) return null;
+                          const lifecycleValue = deriveClassLifecycleValue(cls.status);
                           return (
-                            <div
-                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(cls.status)}`}
-                            >
-                              {getStatusIcon(lifecycle.value)}
-                              {lifecycle.label}
-                            </div>
+                            <StatusBadge
+                              family="class"
+                              status={lifecycleValue}
+                              className="rounded-full bg-muted/40 px-2 py-1 text-xs font-medium"
+                            />
                           );
                         })()}
 

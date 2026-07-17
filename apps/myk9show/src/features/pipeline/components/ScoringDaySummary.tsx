@@ -2,8 +2,9 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Loader2, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { StatusIcon } from '@/components/status';
 import type { ClassPipelineData } from '../types';
 
 interface ScoringDaySummaryProps {
@@ -42,13 +43,11 @@ export const ScoringDaySummary: React.FC<ScoringDaySummaryProps> = ({ classes, s
             const isInProgress = cls.status === 'in-progress';
             return (
               <div key={cls.id} className="flex items-center gap-2 text-sm">
-                {isComplete ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
-                ) : isInProgress ? (
-                  <Loader2 className="h-4 w-4 text-amber-500 animate-spin flex-shrink-0" />
-                ) : (
-                  <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 flex-shrink-0" />
-                )}
+                <StatusIcon
+                  family="class"
+                  status={isComplete ? 'completed' : isInProgress ? 'in-progress' : 'not-started'}
+                  decorative={false}
+                />
                 <span className={cn(isComplete && 'text-muted-foreground')}>
                   Class {cls.id.slice(0, 6)}
                 </span>

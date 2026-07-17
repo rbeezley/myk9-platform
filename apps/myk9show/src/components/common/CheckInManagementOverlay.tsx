@@ -8,7 +8,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
@@ -17,10 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CheckInStatus, CHECK_IN_STATUS_CONFIG } from '@/types/check-in-types';
-import { CheckCircle2, AlertTriangle, XCircle, Eye, ArrowRight, Users, User } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { chipClasses } from '@/components/base/chipClasses';
+import { CheckInStatus } from '@/types/check-in-types';
+import { Users } from 'lucide-react';
+import { StatusBadge, StatusIcon, getStatusDescriptor } from '@/components/status';
 
 interface EntryForCheckIn {
   id: string;
@@ -37,39 +35,6 @@ interface CheckInManagementOverlayProps {
   entries: EntryForCheckIn[];
   onUpdateStatus: (entryId: string, status: CheckInStatus) => Promise<void>;
 }
-
-const STATUS_ICONS = {
-  'no-status': User,
-  'checked-in': CheckCircle2,
-  conflict: AlertTriangle,
-  pulled: XCircle,
-  'at-gate': Eye,
-  'come-to-gate': ArrowRight,
-  'in-ring': Eye,
-  completed: CheckCircle2,
-};
-
-const STATUS_COLORS = {
-  'no-status': 'text-muted-foreground',
-  'checked-in': 'text-[color:var(--chip-teal-fg)]',
-  conflict: 'text-[color:var(--chip-amber-fg)]',
-  pulled: 'text-[color:var(--chip-red-fg)]',
-  'at-gate': 'text-[color:var(--chip-green-fg)]',
-  'come-to-gate': 'text-[color:var(--chip-blue-fg)]',
-  'in-ring': 'text-[color:var(--chip-purple-fg)]',
-  completed: 'text-[color:var(--chip-green-fg)]',
-};
-
-const STATUS_BADGE_COLORS = {
-  'no-status': chipClasses('stone', { border: true }),
-  'checked-in': chipClasses('teal', { border: true }),
-  conflict: chipClasses('amber', { border: true }),
-  pulled: chipClasses('red', { border: true }),
-  'at-gate': chipClasses('green', { border: true }),
-  'come-to-gate': chipClasses('blue', { border: true }),
-  'in-ring': chipClasses('purple', { border: true }),
-  completed: chipClasses('green', { border: true }),
-};
 
 export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> = ({
   open,
@@ -110,8 +75,7 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
   };
 
   const getStatusDisplayName = (status: CheckInStatus): string => {
-    const config = CHECK_IN_STATUS_CONFIG[status];
-    return config?.label || status;
+    return getStatusDescriptor('entry', status).label;
   };
 
   const getCurrentStatus = (entry: EntryForCheckIn): CheckInStatus => {
@@ -150,15 +114,6 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
               <div className="space-y-3">
                 {pendingEntries.map(entry => {
                   const currentStatus = getCurrentStatus(entry);
-                  // Defensive: currentStatus can be an unmapped DB string (legacy
-                  // row / future status) that escapes the CheckInStatus union —
-                  // getCurrentStatus's `?? 'no-status'` only catches null/undefined.
-                  // STATUS_ICONS[rogue] is undefined, and rendering <undefined /> at
-                  // line ~184 throws "Element type is invalid", crashing the tree.
-                  const StatusIcon = STATUS_ICONS[currentStatus] ?? STATUS_ICONS['no-status'];
-                  const badgeColors =
-                    STATUS_BADGE_COLORS[currentStatus] ?? STATUS_BADGE_COLORS['no-status'];
-
                   return (
                     <div
                       key={entry.id}
@@ -185,13 +140,12 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
 
                         {/* Current Status Badge */}
                         <div className="flex-shrink-0">
-                          <Badge
+                          <StatusBadge
+                            family="entry"
+                            status={currentStatus}
                             variant="outline"
-                            className={cn('font-medium border', badgeColors)}
-                          >
-                            <StatusIcon className="h-3.5 w-3.5 mr-1.5" />
-                            {getStatusDisplayName(currentStatus)}
-                          </Badge>
+                            className="font-medium"
+                          />
                         </div>
                       </div>
 
@@ -209,7 +163,6 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
                           </SelectTrigger>
                           <SelectContent className="bg-card/95 backdrop-blur-xl border-border shadow-xl">
                             {availableStatuses.map(status => {
-                              const Icon = STATUS_ICONS[status];
                               return (
                                 <SelectItem
                                   key={status}
@@ -217,7 +170,12 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
                                   className="cursor-pointer hover:bg-muted/50 focus:bg-muted/50"
                                 >
                                   <div className="flex items-center gap-2">
-                                    <Icon className={cn('h-4 w-4', STATUS_COLORS[status])} />
+                                    <StatusIcon
+                                      family="entry"
+                                      status={status}
+                                      size="md"
+                                      decorative
+                                    />
                                     <span>{getStatusDisplayName(status)}</span>
                                   </div>
                                 </SelectItem>

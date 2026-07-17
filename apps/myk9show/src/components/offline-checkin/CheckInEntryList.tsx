@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { getStatusColor, getStatusIcon } from './check-in-utils';
+import { StatusBadge } from '@/components/status';
 import type { CheckInEntry } from '@/types/offline-checkin-types';
 
 interface CheckInEntryListProps {
@@ -39,10 +39,7 @@ export const CheckInEntryList: React.FC<CheckInEntryListProps> = ({ entries, onE
                 </div>
               </div>
 
-              <Badge className={getStatusColor(entry.checkInStatus)}>
-                {getStatusIcon(entry.checkInStatus)}
-                <span className="ml-1">{entry.checkInStatus.replace('-', ' ')}</span>
-              </Badge>
+              <StatusBadge family="entry" status={entry.checkInStatus} variant="outline" />
             </div>
           ))}
 

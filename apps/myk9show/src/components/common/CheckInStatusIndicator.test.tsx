@@ -1,13 +1,26 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@/test/utils/testUtils';
-import { CheckInStatusIndicator } from './CheckInStatusIndicator';
+import { CheckInStatusIndicator, CheckInStatusLegend } from './CheckInStatusIndicator';
 import type { CheckInStatus } from '@/types/check-in-types';
 
 describe('CheckInStatusIndicator', () => {
   it('renders a known status without throwing', () => {
-    expect(() =>
-      render(<CheckInStatusIndicator status="checked-in" showLabel showTooltip={false} />)
-    ).not.toThrow();
+    const { container } = render(
+      <CheckInStatusIndicator status="checked-in" showLabel showTooltip={false} />
+    );
+
+    expect(container.querySelector('[data-family="entry"]')).toHaveAttribute(
+      'data-shape',
+      'in-progress'
+    );
+  });
+
+  it('gives an icon-only status an accessible name', () => {
+    const { getByRole } = render(
+      <CheckInStatusIndicator status="checked-in" showTooltip={false} />
+    );
+
+    expect(getByRole('img', { name: 'Checked-in' })).toBeInTheDocument();
   });
 
   it('renders an unexpected status without throwing (defensive config fallback)', () => {
@@ -25,6 +38,15 @@ describe('CheckInStatusIndicator', () => {
     const { getByText } = render(
       <CheckInStatusIndicator status={rogue} showLabel showTooltip={false} />
     );
-    expect(getByText('Not Checked In')).toBeInTheDocument();
+    expect(getByText('No Status')).toBeInTheDocument();
+  });
+
+  it('announces each legend status once', () => {
+    const { getAllByText, queryByRole } = render(
+      <CheckInStatusLegend statuses={['checked-in']} />
+    );
+
+    expect(getAllByText('Checked-in')).toHaveLength(1);
+    expect(queryByRole('img', { name: 'Checked-in' })).not.toBeInTheDocument();
   });
 });

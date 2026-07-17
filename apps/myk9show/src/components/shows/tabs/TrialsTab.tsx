@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, Plus } from 'lucide-react';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
@@ -10,20 +9,17 @@ import { StatusFilter, type StatusFilterValue } from '@/components/common/Status
 import { FilterEmptyState } from '@/components/common/FilterEmptyState';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useRBAC } from '@/hooks/useRBAC';
-import {
-  getClassStatusBadgeClasses,
-  getClassStatusDisplay,
-  CLASS_STATUS,
-  type ClassStatusValue,
-} from '@myk9/core';
+import { deriveTrialStatusKey, type ClassStatusValue } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatTrialTypeLabel } from '@/types/template.types';
+import { StatusBadge } from '@/components/status';
 
 export interface TrialStats {
   classCount: number;
   entryCount: number;
   completedClasses: number;
+  hasStarted?: boolean;
 }
 
 interface TrialsTabProps {
@@ -41,20 +37,21 @@ function getDateParts(dateStr: string): { month: string; day: string } | null {
   };
 }
 
-const EMPTY_STATS: TrialStats = { classCount: 0, entryCount: 0, completedClasses: 0 };
+const EMPTY_STATS: TrialStats = {
+  classCount: 0,
+  entryCount: 0,
+  completedClasses: 0,
+  hasStarted: false,
+};
 
-function getTrialStatusTokens(status: string): {
-  border: string;
-  text: string;
-  bar: string;
-} {
-  if (status === CLASS_STATUS.COMPLETED) {
-    return { border: 'border-green-600', text: 'text-green-600', bar: 'bg-green-600' };
-  }
-  if (status === CLASS_STATUS.IN_PROGRESS) {
-    return { border: 'border-blue-500', text: 'text-blue-500', bar: 'bg-blue-500' };
-  }
-  return { border: 'border-border', text: 'text-blue-500', bar: 'bg-blue-500' };
+function getTrialDisplayStatus(trial: Trial, trialStats: Record<string, TrialStats>) {
+  const stats = trialStats[trial.id] || EMPTY_STATS;
+  return deriveTrialStatusKey({
+    trialStatus: trial.status,
+    classCount: stats.classCount,
+    completedCount: stats.completedClasses,
+    hasStarted: stats.hasStarted,
+  });
 }
 
 interface TrialRow {
@@ -69,6 +66,7 @@ interface TrialRow {
   classCount: number;
   entryCount: number;
   completedClasses: number;
+  hasStarted?: boolean;
 }
 
 const trialColumns: ColumnDef<TrialRow, unknown>[] = [
@@ -98,9 +96,17 @@ const trialColumns: ColumnDef<TrialRow, unknown>[] = [
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => (
-      <Badge className={`text-[10px] ${getClassStatusBadgeClasses(row.original.status)}`}>
-        {getClassStatusDisplay(row.original.status).label}
-      </Badge>
+      <StatusBadge
+        family="trial"
+        status={deriveTrialStatusKey({
+          trialStatus: row.original.status,
+          classCount: row.original.classCount,
+          completedCount: row.original.completedClasses,
+          hasStarted: row.original.hasStarted,
+        })}
+        className="text-xs"
+        variant="outline"
+      />
     ),
   },
 ];
@@ -116,18 +122,18 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   const statusCounts = useMemo(() => {
     let completed = 0;
     for (const trial of trials) {
-      if (trial.status === CLASS_STATUS.COMPLETED) completed++;
+      if (getTrialDisplayStatus(trial, trialStats) === 'completed') completed++;
     }
     return { all: trials.length, pending: trials.length - completed, completed };
-  }, [trials]);
+  }, [trials, trialStats]);
 
   const filteredTrials = useMemo(() => {
     if (statusFilter === 'all') return trials;
     return trials.filter(trial => {
-      const isCompleted = trial.status === CLASS_STATUS.COMPLETED;
+      const isCompleted = getTrialDisplayStatus(trial, trialStats) === 'completed';
       return statusFilter === 'completed' ? isCompleted : !isCompleted;
     });
-  }, [trials, statusFilter]);
+  }, [trials, trialStats, statusFilter]);
 
   const tableData = useMemo<TrialRow[]>(
     () =>
@@ -192,7 +198,12 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           {filteredTrials.map(trial => {
             const dateParts = trial.trialDate ? getDateParts(trial.trialDate) : null;
             const stats = trialStats[trial.id] || EMPTY_STATS;
-            const tokens = getTrialStatusTokens(trial.status);
+            const trialCompositeStatus = deriveTrialStatusKey({
+              trialStatus: trial.status,
+              classCount: stats.classCount,
+              completedCount: stats.completedClasses,
+              hasStarted: stats.hasStarted,
+            });
             const progressPct =
               stats.classCount > 0 ? (stats.completedClasses / stats.classCount) * 100 : 0;
             const showScored = stats.completedClasses > 0;
@@ -219,12 +230,8 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                   <div className="flex gap-4 items-start">
                     {/* Date element */}
                     {dateParts && (
-                      <div
-                        className={`flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl border-2 bg-background ${tokens.border}`}
-                      >
-                        <span
-                          className={`text-[10px] font-semibold uppercase leading-none tracking-wide ${tokens.text}`}
-                        >
+                      <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl border-2 border-border bg-background">
+                        <span className="text-xs font-semibold uppercase leading-none tracking-wide text-muted-foreground">
                           {dateParts.month}
                         </span>
                         <span className="text-[22px] font-bold leading-tight text-card-foreground">
@@ -240,11 +247,12 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                         <h3 className="text-sm font-semibold text-card-foreground truncate">
                           {trial.name || `Trial ${trial.trialNumber}`}
                         </h3>
-                        <Badge
-                          className={`shrink-0 text-[10px] ${getClassStatusBadgeClasses(trial.status)}`}
-                        >
-                          {getClassStatusDisplay(trial.status).label}
-                        </Badge>
+                        <StatusBadge
+                          family="trial"
+                          status={trialCompositeStatus}
+                          className="shrink-0 text-xs"
+                          variant="outline"
+                        />
                       </div>
 
                       {/* Row 2: Type + time */}
@@ -256,7 +264,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                       <div className="h-[3px] rounded-full bg-border overflow-hidden mb-2">
                         {progressPct > 0 && (
                           <div
-                            className={`h-full rounded-full ${tokens.bar}`}
+                            className="h-full rounded-full bg-primary"
                             style={{ width: `${progressPct}%` }}
                           />
                         )}
@@ -275,7 +283,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                           </span>
                         </div>
                         {showScored && (
-                          <span className={`text-[11px] ${tokens.text}`}>
+                          <span className="text-xs text-muted-foreground">
                             {stats.completedClasses}/{stats.classCount} scored
                           </span>
                         )}

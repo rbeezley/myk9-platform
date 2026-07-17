@@ -11,16 +11,8 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { notifications } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
-import {
-  Circle,
-  Settings,
-  Play,
-  CheckCircle,
-  Lock,
-  Printer,
-  GripVertical,
-  ClipboardList,
-} from 'lucide-react';
+import { Printer, GripVertical, ClipboardList } from 'lucide-react';
+import { StatusBadge } from '@/components/status';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -39,56 +31,17 @@ interface ClassPipelineCardProps {
   print?: UsePipelinePrintReturn;
 }
 
-// Two result sub-states: 'results' (done, needs review) and
-// 'results-reviewed' (reviewed, ready to publish). The stage is still
-// 'results' — the card checks is_results_reviewed for visual distinction.
-const STAGE_STYLE: Record<
-  string,
-  { accent: string; badgeBg: string; badgeText: string; icon: React.ElementType; label: string }
-> = {
-  'not-started': {
-    accent: 'bg-muted-foreground/40',
-    badgeBg: 'bg-muted',
-    badgeText: 'text-muted-foreground',
-    icon: Circle,
-    label: 'No Status',
-  },
-  setup: {
-    accent: 'bg-yellow-500',
-    badgeBg: 'bg-yellow-500/15',
-    badgeText: 'text-yellow-500',
-    icon: Settings,
-    label: 'Setup',
-  },
-  'in-progress': {
-    accent: 'bg-green-500',
-    badgeBg: 'bg-green-500/15',
-    badgeText: 'text-green-500',
-    icon: Play,
-    label: 'Active',
-  },
-  results: {
-    accent: 'bg-primary',
-    badgeBg: 'bg-primary/15',
-    badgeText: 'text-primary',
-    icon: CheckCircle,
-    label: 'Done',
-  },
-  'results-reviewed': {
-    accent: 'bg-green-500',
-    badgeBg: 'bg-green-500/15',
-    badgeText: 'text-green-500',
-    icon: CheckCircle,
-    label: 'Reviewed',
-  },
-  closed: {
-    accent: 'bg-muted-foreground/50',
-    badgeBg: 'bg-muted',
-    badgeText: 'text-muted-foreground',
-    icon: Lock,
-    label: 'Published',
-  },
-};
+function getPipelineStatus(item: ClassPipelineItem): { status: string; label: string } {
+  if (item.stage === 'results') {
+    return {
+      status: 'completed',
+      label: item.is_results_reviewed ? 'Reviewed' : 'Done',
+    };
+  }
+  if (item.stage === 'closed') return { status: 'completed', label: 'Published' };
+  if (item.stage === 'in-progress') return { status: 'in-progress', label: 'Active' };
+  return { status: item.stage, label: item.stage === 'setup' ? 'Setup' : 'Not started' };
+}
 
 export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
   item,
@@ -106,11 +59,7 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
     data: { type: 'class-card', item },
   });
 
-  // Resolve style key: results cards distinguish Done vs Reviewed
-  const styleKey =
-    item.stage === 'results' && item.is_results_reviewed ? 'results-reviewed' : item.stage;
-  const style = STAGE_STYLE[styleKey] ?? STAGE_STYLE['not-started'];
-  const Icon = style.icon;
+  const pipelineStatus = getPipelineStatus(item);
   const progress =
     item.total_entries > 0 ? Math.round((item.scored_count / item.total_entries) * 100) : 0;
   const isClosed = item.stage === 'closed';
@@ -191,19 +140,15 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
       </div>
 
       {/* Left accent bar */}
-      <div className={cn('absolute left-0 top-0 bottom-0 w-1', style.accent)} />
+      <div className="absolute bottom-0 left-0 top-0 w-1 bg-border" />
 
       {/* Status badge (top-right) */}
-      <div
-        className={cn(
-          'absolute top-0 right-0 flex items-center gap-1 px-2.5 py-1 text-sm font-semibold rounded-bl-lg',
-          style.badgeBg,
-          style.badgeText
-        )}
-      >
-        <Icon className="h-3 w-3" />
-        {style.label}
-      </div>
+      <StatusBadge
+        family="class"
+        status={pipelineStatus.status}
+        label={pipelineStatus.label}
+        className="absolute right-0 top-0 rounded-bl-lg rounded-br-none rounded-tl-none text-sm"
+      />
 
       {/* Card body */}
       <div className="p-4 pl-5 pt-5 space-y-2">
@@ -233,7 +178,7 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
         {/* Progress bar */}
         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
           <div
-            className={cn('h-full rounded-full transition-all duration-500', style.accent)}
+            className="h-full rounded-full bg-primary transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>

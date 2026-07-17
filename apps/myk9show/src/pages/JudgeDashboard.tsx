@@ -3,7 +3,6 @@ import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -17,11 +16,9 @@ import {
   Clock,
   Users,
   CheckCircle2,
-  Circle,
   AlertCircle,
   Calendar,
   ArrowRight,
-  Timer,
   CalendarDays,
   CheckCircle,
   Eye,
@@ -36,6 +33,7 @@ import {
 } from './judgeStatsUtils';
 import { useJudgeAssignments } from '@/hooks/queries/useJudgeAssignments';
 import { formatRingLabel } from '@/utils/ringLabel';
+import { StatusBadge, StatusIcon } from '@/components/status';
 
 const JUDGE_TABS: PrimaryTabDef[] = [
   { id: 'today', label: 'Today', icon: CalendarDays },
@@ -43,34 +41,10 @@ const JUDGE_TABS: PrimaryTabDef[] = [
   { id: 'completed', label: 'Completed', icon: CheckCircle },
 ];
 
-const getStatusIcon = (status: JudgeClass['status']) => {
-  switch (status) {
-    case 'completed':
-      return <CheckCircle2 className="h-5 w-5 text-[#34C759]" />;
-    case 'in-progress':
-      return <Timer className="h-5 w-5 text-[#007AFF] animate-pulse" />;
-    default:
-      return <Circle className="h-5 w-5 text-muted-foreground" />;
-  }
-};
-
 const getStatusBadge = (status: JudgeClass['status']) => {
-  switch (status) {
-    case 'completed':
-      return (
-        <Badge className="bg-success/10 text-success border-success/20 border">
-          Completed
-        </Badge>
-      );
-    case 'in-progress':
-      return (
-        <Badge className="bg-primary/10 text-primary border-primary/20 border">In Progress</Badge>
-      );
-    default:
-      return (
-        <Badge className="bg-muted text-muted-foreground border-border border">Pending</Badge>
-      );
-  }
+  return (
+    <StatusBadge family="class" status={status} className="border border-border bg-muted/40" />
+  );
 };
 
 interface AssignmentRowProps {
@@ -93,7 +67,7 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
     <div className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       <div className="relative flex items-center gap-4">
-        {getStatusIcon(judgeClass.status)}
+        <StatusIcon family="class" status={judgeClass.status} size="lg" decorative />
         <div>
           <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300">
             {judgeClass.name}

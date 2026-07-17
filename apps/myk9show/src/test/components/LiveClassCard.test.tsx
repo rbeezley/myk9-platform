@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/testUtils';
 import { describe, it, expect } from 'vitest';
 import { LiveClassCard } from '@/components/live/LiveClassCard';
 
@@ -31,8 +31,9 @@ describe('LiveClassCard', () => {
   });
 
   it('renders in-ring dog armband', () => {
-    render(<LiveClassCard {...baseProps} />);
+    const { container } = render(<LiveClassCard {...baseProps} />);
     expect(screen.getByText('#142')).toBeInTheDocument();
+    expect(container.querySelector('[data-status="in-ring"][data-shape="in-progress"]')).toBeTruthy();
   });
 
   it('renders next 3 armbands', () => {

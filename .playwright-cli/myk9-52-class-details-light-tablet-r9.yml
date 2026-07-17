@@ -1,0 +1,348 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - img [ref=e6]
+      - generic [ref=e9]:
+        - generic [ref=e10]: Install myK9Show
+        - generic [ref=e11]: One home-screen app for entries, Ringside, and alerts
+      - button "Install" [ref=e12] [cursor=pointer]
+      - button "Dismiss install banner" [ref=e13] [cursor=pointer]:
+        - img [ref=e14]
+    - navigation [ref=e18]:
+      - generic [ref=e20]:
+        - link "myK9Show" [ref=e22] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e23]: myK9Show
+        - button "Search... ⌘K" [ref=e25] [cursor=pointer]:
+          - img
+          - generic [ref=e26]: Search...
+          - generic [ref=e27]: ⌘K
+        - generic [ref=e28]:
+          - button "Message Center" [ref=e29] [cursor=pointer]:
+            - img [ref=e30]
+          - button "Switch to dark mode" [ref=e33] [cursor=pointer]:
+            - img
+          - button "AskQ Assistant" [ref=e34] [cursor=pointer]:
+            - img
+          - button "Account menu" [ref=e35] [cursor=pointer]:
+            - generic [ref=e37]: E
+            - img
+    - generic [ref=e38]:
+      - generic [ref=e40]:
+        - generic [ref=e42]:
+          - img [ref=e44]
+          - heading "myK9 Manager" [level=2] [ref=e49]
+        - navigation [ref=e51]:
+          - generic [ref=e52]:
+            - heading "Manage" [level=3] [ref=e53]
+            - generic [ref=e54]:
+              - link "Dashboard Show management dashboard" [ref=e55] [cursor=pointer]:
+                - /url: /secretary/dashboard
+                - img [ref=e57]
+                - generic [ref=e62]:
+                  - generic [ref=e63]: Dashboard
+                  - generic [ref=e64]: Show management dashboard
+              - link "Heartland Scent Work Classic Setup & scheduling" [ref=e65] [cursor=pointer]:
+                - /url: /shows/dededede-0000-0000-0000-000000000010/setup
+                - img [ref=e67]
+                - generic [ref=e68]:
+                  - generic [ref=e69]: Heartland Scent Work Classic
+                  - generic [ref=e70]: Setup & scheduling
+          - generic [ref=e71]:
+            - heading "Show Day" [level=3] [ref=e72]
+            - link "Ringside Step into the ring on show day" [ref=e74] [cursor=pointer]:
+              - /url: /at-show
+              - img [ref=e76]
+              - generic [ref=e82]:
+                - generic [ref=e83]: Ringside
+                - generic [ref=e84]: Step into the ring on show day
+          - generic [ref=e85]:
+            - heading "As Exhibitor" [level=3] [ref=e86]
+            - link "My Entries Your entries, dogs, and upcoming shows" [ref=e88] [cursor=pointer]:
+              - /url: /exhibitor/entries
+              - img [ref=e90]
+              - generic [ref=e93]:
+                - generic [ref=e94]: My Entries
+                - generic [ref=e95]: Your entries, dogs, and upcoming shows
+          - generic [ref=e96]:
+            - heading "Browse" [level=3] [ref=e97]
+            - generic [ref=e98]:
+              - link "Shows Find and explore shows" [ref=e99] [cursor=pointer]:
+                - /url: /shows
+                - img [ref=e101]
+                - generic [ref=e103]:
+                  - generic [ref=e104]: Shows
+                  - generic [ref=e105]: Find and explore shows
+              - link "Dogs Browse dogs" [ref=e106] [cursor=pointer]:
+                - /url: /dogs
+                - img [ref=e108]
+                - generic [ref=e110]:
+                  - generic [ref=e111]: Dogs
+                  - generic [ref=e112]: Browse dogs
+              - link "Clubs Browse clubs" [ref=e113] [cursor=pointer]:
+                - /url: /clubs
+                - img [ref=e115]
+                - generic [ref=e119]:
+                  - generic [ref=e120]: Clubs
+                  - generic [ref=e121]: Browse clubs
+              - link "People Browse people" [ref=e122] [cursor=pointer]:
+                - /url: /people
+                - img [ref=e124]
+                - generic [ref=e129]:
+                  - generic [ref=e130]: People
+                  - generic [ref=e131]: Browse people
+        - generic [ref=e133]:
+          - generic [ref=e134]:
+            - img [ref=e135]
+            - generic [ref=e139]: Manager Access
+          - paragraph [ref=e140]: Show management and coordination
+      - main [ref=e141]:
+        - generic [ref=e143]:
+          - generic [ref=e144]:
+            - heading "Container Novice A" [level=1] [ref=e145]
+            - navigation "Breadcrumb" [ref=e147]:
+              - link "Home" [ref=e148] [cursor=pointer]:
+                - /url: /
+                - img [ref=e149]
+              - generic [ref=e152]:
+                - img [ref=e153]
+                - link "Shows" [ref=e155] [cursor=pointer]:
+                  - /url: /shows
+              - generic [ref=e156]:
+                - img [ref=e157]
+                - link "Heartland Scent Work Classic" [ref=e159] [cursor=pointer]:
+                  - /url: /shows/dededede-0000-0000-0000-000000000010
+              - generic [ref=e160]:
+                - img [ref=e161]
+                - link "Saturday Trial" [ref=e163] [cursor=pointer]:
+                  - /url: /trials/dededede-0000-0000-0000-000000000021
+              - generic [ref=e164]:
+                - img [ref=e165]
+                - generic [ref=e167]: Container Novice A
+          - generic [ref=e168]:
+            - generic [ref=e169]:
+              - generic [ref=e170]:
+                - generic [ref=e171]:
+                  - heading "Container Novice A" [level=2] [ref=e172]
+                  - generic [ref=e173]:
+                    - img [ref=e175]
+                    - generic [ref=e178]: In Progress
+                - generic [ref=e179]: Section A
+              - generic [ref=e181]:
+                - button "Manage Entries" [ref=e182] [cursor=pointer]:
+                  - img
+                  - text: Manage Entries
+                - button "Edit" [ref=e183] [cursor=pointer]:
+                  - img
+                  - text: Edit
+                - button [ref=e184] [cursor=pointer]:
+                  - img
+            - generic [ref=e185]:
+              - generic [ref=e186]:
+                - generic [ref=e187]: Judge
+                - generic [ref=e188]: Test Judge
+              - generic [ref=e189]:
+                - generic [ref=e190]: Trial
+                - generic [ref=e191]: Saturday Trial
+              - generic [ref=e192]:
+                - generic [ref=e193]: Date
+                - generic [ref=e194]: 8/1/2026
+              - generic [ref=e195]:
+                - generic [ref=e196]: Entry Fee
+                - generic [ref=e197]: $30.00
+              - generic [ref=e198]:
+                - generic [ref=e199]: Max Entries
+                - generic [ref=e200]: "40"
+              - generic [ref=e201]:
+                - generic [ref=e202]: Time Limit
+                - generic [ref=e203]: 3:00
+          - region "Class readiness" [ref=e204]:
+            - generic [ref=e205]:
+              - generic [ref=e206]:
+                - heading "Class readiness" [level=3] [ref=e207]
+                - generic [ref=e208]:
+                  - generic [ref=e209]: Factual progress for this class.
+                  - generic [ref=e210]:
+                    - img [ref=e212]
+                    - generic [ref=e215]: In Progress
+              - generic [ref=e216]:
+                - generic [ref=e217]:
+                  - img [ref=e218]
+                  - generic [ref=e223]:
+                    - generic [ref=e224]: Entries
+                    - generic [ref=e225]: 8 total entries
+                - link "5 needs review" [ref=e226] [cursor=pointer]:
+                  - /url: /shows/dededede-0000-0000-0000-000000000010/entry-management?mode=review&attention=pending&trial=dededede-0000-0000-0000-000000000021&class=dec1a55e-0000-0000-0000-000000000031
+                  - img [ref=e227]
+                  - generic [ref=e229]:
+                    - generic [ref=e230]: Review
+                    - generic [ref=e231]: 5 needs review
+                - link "0 missing information" [ref=e232] [cursor=pointer]:
+                  - /url: /shows/dededede-0000-0000-0000-000000000010/entry-management?mode=review&attention=missing_information&trial=dededede-0000-0000-0000-000000000021&class=dec1a55e-0000-0000-0000-000000000031
+                  - img [ref=e233]
+                  - generic [ref=e235]:
+                    - generic [ref=e236]: Missing information
+                    - generic [ref=e237]: 0 missing information
+                - link "0 payment due" [ref=e238] [cursor=pointer]:
+                  - /url: /shows/dededede-0000-0000-0000-000000000010/entry-management?mode=review&attention=accepted&payment=pending&trial=dededede-0000-0000-0000-000000000021&class=dec1a55e-0000-0000-0000-000000000031
+                  - img [ref=e239]
+                  - generic [ref=e241]:
+                    - generic [ref=e242]: Payment
+                    - generic [ref=e243]: 0 payment due
+                - link "0 of 1 checked in" [ref=e244] [cursor=pointer]:
+                  - /url: /shows/dededede-0000-0000-0000-000000000010/entry-management?mode=day-of&attention=accepted&trial=dededede-0000-0000-0000-000000000021&class=dec1a55e-0000-0000-0000-000000000031
+                  - img [ref=e245]
+                  - generic [ref=e248]:
+                    - generic [ref=e249]: Check-in
+                    - generic [ref=e250]: 0 of 1 checked in
+                - link "3 of 8 scored" [ref=e251] [cursor=pointer]:
+                  - /url: /scoring/classes/dec1a55e-0000-0000-0000-000000000031/entries?mode=split
+                  - img [ref=e252]
+                  - generic [ref=e255]:
+                    - generic [ref=e256]: Scoring
+                    - generic [ref=e257]: 3 of 8 scored
+          - generic [ref=e258]:
+            - link "Reorder in Show Map" [ref=e260] [cursor=pointer]:
+              - /url: /shows/dededede-0000-0000-0000-000000000010/show-desk
+              - img [ref=e261]
+              - text: Reorder in Show Map
+            - generic [ref=e264]:
+              - generic [ref=e266]:
+                - generic [ref=e267]: "-"
+                - generic [ref=e268]:
+                  - generic [ref=e270]: Codex Daisy
+                  - generic [ref=e271]:
+                    - paragraph [ref=e272]: Mixed Breed
+                    - paragraph [ref=e273]: Test Exhibitor
+                - generic [ref=e274]:
+                  - combobox "Check-in status for Codex Daisy" [ref=e275] [cursor=pointer]:
+                    - img [ref=e277]
+                    - generic [ref=e279]: No Status
+                    - img [ref=e281]
+                  - textbox [ref=e283]: no-status
+                - button "Enter result" [ref=e285] [cursor=pointer]:
+                  - img
+                  - text: Enter result
+              - generic [ref=e287]:
+                - generic [ref=e288]: "102"
+                - generic [ref=e289]:
+                  - generic [ref=e291]: Juni
+                  - paragraph [ref=e293]: Border Collie
+                - generic [ref=e294]:
+                  - combobox "Check-in status for Juni" [ref=e295] [cursor=pointer]:
+                    - img [ref=e297]
+                    - generic [ref=e300]: In Ring
+                    - img [ref=e302]
+                  - textbox [ref=e304]: in-ring
+                - button "Enter result" [ref=e306] [cursor=pointer]:
+                  - img
+                  - text: Enter result
+              - generic [ref=e308]:
+                - generic [ref=e309]: "-"
+                - generic [ref=e310]:
+                  - generic [ref=e312]: Juniper
+                  - generic [ref=e313]:
+                    - paragraph [ref=e314]: Nova Scotia Duck Tolling Retriever
+                    - paragraph [ref=e315]: Maya Rivers
+                - generic [ref=e316]:
+                  - combobox "Check-in status for Juniper" [ref=e317] [cursor=pointer]:
+                    - img [ref=e319]
+                    - generic [ref=e321]: No Status
+                    - img [ref=e323]
+                  - textbox [ref=e325]: no-status
+                - button "Enter result" [ref=e327] [cursor=pointer]:
+                  - img
+                  - text: Enter result
+              - generic [ref=e329]:
+                - generic [ref=e330]: "-"
+                - generic [ref=e331]:
+                  - generic [ref=e333]: Tera
+                  - generic [ref=e334]:
+                    - paragraph [ref=e335]: Dutch Shepherd
+                    - paragraph [ref=e336]: Richard Beezley
+                - generic [ref=e337]:
+                  - combobox "Check-in status for Tera" [ref=e338] [cursor=pointer]:
+                    - img [ref=e340]
+                    - generic [ref=e342]: No Status
+                    - img [ref=e344]
+                  - textbox [ref=e346]: no-status
+                - button "Enter result" [ref=e348] [cursor=pointer]:
+                  - img
+                  - text: Enter result
+              - generic [ref=e350]:
+                - generic [ref=e351]: "-"
+                - generic [ref=e352]:
+                  - generic [ref=e354]: Buddy
+                  - generic [ref=e355]:
+                    - paragraph [ref=e356]: Golden Retriever
+                    - paragraph [ref=e357]: Test Exhibitor
+                - generic [ref=e358]:
+                  - combobox "Check-in status for Buddy" [ref=e359] [cursor=pointer]:
+                    - img [ref=e361]
+                    - generic [ref=e363]: No Status
+                    - img [ref=e365]
+                  - textbox [ref=e367]: no-status
+                - button "Enter result" [ref=e369] [cursor=pointer]:
+                  - img
+                  - text: Enter result
+              - generic [ref=e371]:
+                - generic [ref=e372]: "100"
+                - generic:
+                  - generic [ref=e373]: Willow
+                  - generic:
+                    - paragraph: Labrador Retriever
+                    - paragraph: Test Exhibitor
+                - generic [ref=e374]:
+                  - generic [ref=e375]:
+                    - img [ref=e377]
+                    - text: Qualified
+                  - generic [ref=e380]: 0:38.50
+                  - combobox "Check-in status for Willow" [ref=e381] [cursor=pointer]:
+                    - img [ref=e383]
+                    - generic [ref=e386]: Completed
+                    - img [ref=e388]
+                  - textbox [ref=e390]: completed
+                - button "Edit result" [ref=e392] [cursor=pointer]:
+                  - img
+                  - text: Edit result
+              - generic [ref=e394]:
+                - generic [ref=e395]: "103"
+                - generic:
+                  - generic [ref=e396]: Scout
+                  - generic:
+                    - paragraph: Australian Shepherd
+                    - paragraph: Richard Beezley
+                - generic [ref=e397]:
+                  - generic [ref=e398]:
+                    - img [ref=e400]
+                    - text: Qualified
+                  - generic [ref=e403]: 0:41.20
+                  - combobox "Check-in status for Scout" [ref=e404] [cursor=pointer]:
+                    - img [ref=e406]
+                    - generic [ref=e409]: Completed
+                    - img [ref=e411]
+                  - textbox [ref=e413]: completed
+                - button "Edit result" [ref=e415] [cursor=pointer]:
+                  - img
+                  - text: Edit result
+              - generic [ref=e417]:
+                - generic [ref=e418]: "105"
+                - generic:
+                  - generic [ref=e419]: Cooper
+                  - generic:
+                    - paragraph: Beagle
+                    - paragraph: Test Secretary
+                - generic [ref=e420]:
+                  - generic [ref=e421]:
+                    - img [ref=e423]
+                    - text: Qualified
+                  - generic [ref=e426]: 0:45.79
+                  - combobox "Check-in status for Cooper" [ref=e427] [cursor=pointer]:
+                    - img [ref=e429]
+                    - generic [ref=e432]: Completed
+                    - img [ref=e434]
+                  - textbox [ref=e436]: completed
+                - button "Edit result" [ref=e438] [cursor=pointer]:
+                  - img
+                  - text: Edit result
+  - region "Notifications alt+T"

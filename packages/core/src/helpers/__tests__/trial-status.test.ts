@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveTrialCompositeStatus } from '../trial-status';
+import { deriveTrialCompositeStatus, deriveTrialStatusKey } from '../trial-status';
 import type { ClassDisplayStatusInput } from '../class-display-status';
 
 function cls(overrides: Partial<ClassDisplayStatusInput> = {}): ClassDisplayStatusInput {
@@ -72,6 +72,37 @@ describe('deriveTrialCompositeStatus', () => {
   it('uses the singular noun for a one-class trial', () => {
     const result = deriveTrialCompositeStatus([cls({ scored_count: 1, entry_count: 2 })]);
     expect(result.label).toBe('In progress — 0 of 1 class complete');
+  });
+});
+
+describe('deriveTrialStatusKey', () => {
+  it('derives progress from completed child classes instead of stale trial status', () => {
+    expect(
+      deriveTrialStatusKey({
+        trialStatus: 'Scheduled',
+        classCount: 5,
+        completedCount: 3,
+      })
+    ).toBe('in-progress');
+  });
+
+  it('derives completion when every child class is complete', () => {
+    expect(
+      deriveTrialStatusKey({
+        trialStatus: 'Scheduled',
+        classCount: 5,
+        completedCount: 5,
+      })
+    ).toBe('completed');
+  });
+
+  it('preserves a cancelled trial even with no classes', () => {
+    expect(
+      deriveTrialStatusKey({
+        trialStatus: 'Cancelled',
+        classCount: 0,
+      })
+    ).toBe('cancelled');
   });
 });
 

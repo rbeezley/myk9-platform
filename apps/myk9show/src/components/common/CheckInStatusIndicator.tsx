@@ -1,9 +1,10 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { CheckInStatus, getCheckInStatusConfig, requiresAction } from '@/types/check-in-types';
+import { CheckInStatus, getCheckInStatusMetadata, requiresAction } from '@/types/check-in-types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+import { StatusIcon, getStatusDescriptor } from '@/components/status';
 
 interface CheckInStatusIndicatorProps {
   status: CheckInStatus;
@@ -16,22 +17,19 @@ interface CheckInStatusIndicatorProps {
 
 const sizeClasses = {
   sm: {
-    dot: 'h-2 w-2',
     container: 'text-xs',
-    icon: 'text-[10px]',
     padding: 'px-2 py-0.5',
+    iconSize: 'sm' as const,
   },
   md: {
-    dot: 'h-3 w-3',
     container: 'text-sm',
-    icon: 'text-xs',
     padding: 'px-3 py-1',
+    iconSize: 'md' as const,
   },
   lg: {
-    dot: 'h-4 w-4',
     container: 'text-base',
-    icon: 'text-sm',
     padding: 'px-4 py-1.5',
+    iconSize: 'lg' as const,
   },
 };
 
@@ -43,7 +41,8 @@ export const CheckInStatusIndicator: React.FC<CheckInStatusIndicatorProps> = ({
   className,
   animated = true,
 }) => {
-  const config = getCheckInStatusConfig(status);
+  const metadata = getCheckInStatusMetadata(status);
+  const descriptor = getStatusDescriptor('entry', status);
   const sizes = sizeClasses[size];
   const shouldAnimate = animated && requiresAction(status);
 
@@ -52,40 +51,20 @@ export const CheckInStatusIndicator: React.FC<CheckInStatusIndicatorProps> = ({
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full font-medium',
         showLabel && sizes.padding,
-        showLabel && config.backgroundColor,
-        showLabel && config.borderColor,
+        showLabel && 'bg-muted/40 border-border',
         showLabel && 'border',
-        config.color,
         className
       )}
     >
-      <div className="relative">
-        <div
-          className={cn(
-            'rounded-full flex items-center justify-center',
-            sizes.dot,
-            config.backgroundColor,
-            config.borderColor,
-            'border',
-            shouldAnimate && 'animate-pulse'
-          )}
-        >
-          {config.icon && (
-            <span className={cn(sizes.icon, 'font-bold leading-none')}>{config.icon}</span>
-          )}
-        </div>
-        {/* Ripple effect for urgent statuses */}
-        {shouldAnimate && (
-          <div
-            className={cn(
-              'absolute inset-0 rounded-full',
-              config.backgroundColor,
-              'animate-ping opacity-75'
-            )}
-          />
-        )}
+      <div className={cn('relative inline-flex', shouldAnimate && 'animate-pulse')}>
+        <StatusIcon
+          family="entry"
+          status={status}
+          size={sizes.iconSize}
+          decorative={showLabel}
+        />
       </div>
-      {showLabel && <span className={sizes.container}>{config.label}</span>}
+      {showLabel && <span className={sizes.container}>{descriptor.label}</span>}
     </div>
   );
 
@@ -99,28 +78,12 @@ export const CheckInStatusIndicator: React.FC<CheckInStatusIndicatorProps> = ({
         <TooltipTrigger asChild>{indicator}</TooltipTrigger>
         <TooltipContent>
           <div className="space-y-1">
-            <p className="font-semibold">{config.label}</p>
-            <p className="text-xs text-muted-foreground">{config.description}</p>
+            <p className="font-semibold">{descriptor.label}</p>
+            <p className="text-xs text-muted-foreground">{metadata.description}</p>
           </div>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
-  );
-};
-
-// Convenience component for inline status display
-export const CheckInStatusBadge: React.FC<{
-  status: CheckInStatus;
-  className?: string;
-}> = ({ status, className }) => {
-  return (
-    <CheckInStatusIndicator
-      status={status}
-      size="sm"
-      showLabel={true}
-      showTooltip={false}
-      className={className}
-    />
   );
 };
 
@@ -135,16 +98,15 @@ export const CheckInStatusLegend: React.FC<{
   return (
     <div className={cn('grid grid-cols-2 md:grid-cols-3 gap-3', className)}>
       {statuses.map(status => {
-        const config = getCheckInStatusConfig(status);
         return (
           <div key={status} className="flex items-center gap-2">
             <CheckInStatusIndicator
               status={status}
               size="sm"
+              showLabel
               showTooltip={false}
               animated={false}
             />
-            <span className="text-sm text-muted-foreground">{config.label}</span>
           </div>
         );
       })}

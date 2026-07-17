@@ -289,10 +289,11 @@ describe('ShowMapTab', () => {
       />
     );
 
-    expect(screen.getByText('Trial 1')).toBeInTheDocument();
+    expect(screen.queryByText('Trial 1')).not.toBeInTheDocument();
     expect(screen.queryByText('Interior Novice A')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^completed$/i }));
+    expect(screen.getByText('Trial 1')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
 
     expect(screen.getByText('Interior Novice A')).toBeInTheDocument();

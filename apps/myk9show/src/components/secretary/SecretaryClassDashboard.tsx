@@ -10,17 +10,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useClassScentWorkEntries } from '@/hooks/queries/useClassScentWorkEntries';
-import {
-  Clock,
-  Users,
-  Award,
-  FileText,
-  Download,
-  Calculator,
-  ArrowLeft,
-  Play,
-  Check,
-} from 'lucide-react';
+import { Clock, Users, Award, FileText, Download, Calculator, ArrowLeft } from 'lucide-react';
 import { StatCard, StatsGrid } from '@myk9/ui';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUrlTab } from '@/hooks/useUrlTab';
@@ -56,6 +46,8 @@ import { useClassEffectiveSettings } from '@/hooks/queries/useShowSettingsDataba
 // Utilities
 import { msToDisplay } from '@/lib/timeUtils';
 import { formatRingLabel } from '@/utils/ringLabel';
+import { StatusBadge } from '@/components/status';
+import { normalizeSecretaryDashboardClassStatus } from './SecretaryClassDashboard.status';
 
 // Premium styling
 import '@/styles/myk9-show-details.css';
@@ -186,8 +178,7 @@ export function SecretaryClassDashboard({
     judgeAssignment: currentClass?.judge || 'Jane Doe',
     scheduledTime: currentClass?.startTime ? new Date(currentClass.startTime) : new Date(),
     ring: 'Ring 1',
-    status: (currentClass?.status?.toLowerCase() === 'in progress' ? 'in-progress' : 'pending') as
-      'in-progress' | 'pending',
+    status: normalizeSecretaryDashboardClassStatus(currentClass?.status),
   };
   const ringLabel = formatRingLabel(classInfo.ring);
 
@@ -315,35 +306,6 @@ export function SecretaryClassDashboard({
     [onExportResults]
   );
 
-  // Premium status helpers
-  const getStatusClass = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'pending':
-        return 'myk9-show-status-upcoming';
-      case 'in-progress':
-      case 'in progress':
-        return 'myk9-show-status-in-progress';
-      case 'completed':
-        return 'myk9-show-status-completed';
-      default:
-        return 'myk9-show-status-upcoming';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'pending':
-        return <Clock className="w-3 h-3" />;
-      case 'in-progress':
-      case 'in progress':
-        return <Play className="w-3 h-3" />;
-      case 'completed':
-        return <Check className="w-3 h-3" />;
-      default:
-        return <Clock className="w-3 h-3" />;
-    }
-  };
-
   return (
     <div className="myk9-show-container">
       {/* Breadcrumb Navigation */}
@@ -361,10 +323,7 @@ export function SecretaryClassDashboard({
             <div>
               <div className="flex items-center gap-3">
                 <div className="myk9-show-info-title">{classInfo.name}</div>
-                <div className={`myk9-show-status ${getStatusClass(classInfo.status)}`}>
-                  {getStatusIcon(classInfo.status)}
-                  {classInfo.status}
-                </div>
+                <StatusBadge family="class" status={classInfo.status} variant="outline" />
               </div>
               <p className="text-sm font-medium text-muted-foreground mt-2">
                 {classConfig.element} {classConfig.level}

@@ -94,6 +94,18 @@ describe('computeShowDeskStatus', () => {
     expect(result.status).toBe('show-in-progress');
   });
 
+  it('derives the trial node as active when a child class has started', () => {
+    const tree = buildTree({
+      classes: [{ id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'In Progress' }],
+    });
+
+    expect(tree.nodesById['trial:trial-1']?.status).toMatchObject({
+      value: 'in-progress',
+      label: 'In progress',
+      kind: 'active',
+    });
+  });
+
   it('enters wrap-up on the SAME day for a single-day show when classes are done but signatures pending', () => {
     // Regression: previously gated on today > endDate, which forced single-day shows
     // to stay show-in-progress until the next calendar day. Plan Q1 says wrap-up

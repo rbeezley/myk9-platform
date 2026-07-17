@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { ArmbandLookup } from '../ArmbandLookup';
+import { render } from '@/test/utils/testUtils';
 
 // --- Mocks ---
 
@@ -15,7 +16,8 @@ vi.mock('@/hooks/queries/useArmbandLookup', () => ({
   useArmbandLookup: (...args: unknown[]) => mockUseArmbandLookup(...args),
 }));
 
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router-dom', async importOriginal => ({
+  ...(await importOriginal<typeof import('react-router-dom')>()),
   Link: ({
     to,
     children,
@@ -153,7 +155,7 @@ describe('ArmbandLookup', () => {
     submitArmband('101');
     expect(screen.getByText(/Novice A/)).toBeInTheDocument();
     expect(screen.getByText(/Level 1/)).toBeInTheDocument();
-    expect(screen.getByText('checked_in')).toBeInTheDocument();
+    expect(screen.getByText('Checked-in')).toBeInTheDocument();
   });
 
   it('shows handler when present', () => {

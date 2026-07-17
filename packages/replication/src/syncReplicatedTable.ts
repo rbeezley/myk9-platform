@@ -117,6 +117,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   const startedAt = Date.now();
   let rowsAffected = 0;
   let conflictsResolved = 0;
+  let uploadError: string | undefined;
 
   const getLocalRowsForScope = async (): Promise<TLocal[]> => {
     const rows = await table.getAll(adapter.filterLocalRows ? undefined : scope.value);
@@ -137,12 +138,15 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       // A crashed upload pass now rejects instead of masquerading as an empty
       // queue. Don't let that abort the download phase — dirty local rows are
       // protected from clobber by reconcileDirtyRow, and a fresh download is
-      // exactly what a wedged client needs. The pass already logged the error
-      // (this engine stays logger-free), so swallow here.
+      // exactly what a wedged client needs. But DON'T discard the failure: a
+      // download-only success would otherwise read as fully healthy while
+      // pending writes stay unsynced (Codex review, P2). Retain it on the
+      // result via `uploadError` so callers can distinguish the two. The pass
+      // already logged the error (this engine stays logger-free).
       try {
         await options.uploadPendingMutations();
-      } catch {
-        /* logged by MutationUploadRunner; download proceeds */
+      } catch (error) {
+        uploadError = error instanceof Error ? error.message : String(error);
       }
     }
 
@@ -363,6 +367,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       duration: Date.now() - startedAt,
       since,
       recoveredFromEmptyReplica,
+      ...(uploadError ? { uploadError } : {}),
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

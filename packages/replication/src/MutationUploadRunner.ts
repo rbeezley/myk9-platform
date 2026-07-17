@@ -164,6 +164,12 @@ export class MutationUploadRunner {
 
       const results: SyncResult[] = [];
       const failedMutations: PendingMutation[] = [];
+      // Skip accounting: a pass that touches nothing while the queue is
+      // non-empty must be loud (warn), because every individual skip below
+      // logs at debug level — invisible with the app's default log filter,
+      // which made a permanently-stalled queue indistinguishable from a
+      // healthy empty one (MYK9-47 restored-queue investigation).
+      const skipped = { dependency: 0, backoff: 0, conflict: 0, vanished: 0 };
       const now = Date.now();
       // Independent mutations shouldn't stall on one mutation's backoff; track the
       // earliest skipped nextRetryAt so we can self-schedule a follow-up pass.
@@ -177,6 +183,7 @@ export class MutationUploadRunner {
             (queuedMutationIds.has(dependencyId) && !uploadedMutationIds.has(dependencyId))
         );
         if (unresolvedDependencies.length > 0) {
+          skipped.dependency++;
           blockedDependencyIds.add(mutation.id);
           this.logger.log(
             `[MutationManager] Skipping ${mutation.id} — waiting on dependencies ${unresolvedDependencies.join(', ')}`
@@ -185,6 +192,7 @@ export class MutationUploadRunner {
         }
 
         if (mutation.nextRetryAt && mutation.nextRetryAt > now) {
+          skipped.backoff++;
           blockedDependencyIds.add(mutation.id);
           this.logger.log(
             `[MutationManager] Skipping ${mutation.id} — backoff until ${new Date(mutation.nextRetryAt).toISOString()}`
@@ -198,6 +206,7 @@ export class MutationUploadRunner {
         const queuedMutation = (await db.get(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id)) as
           PendingMutation | undefined;
         if (!queuedMutation) {
+          skipped.vanished++;
           continue;
         }
 
@@ -210,6 +219,7 @@ export class MutationUploadRunner {
           String(queuedMutation.rowId),
         ])) as ReplicatedRow<unknown> | undefined;
         if (replicatedRow?.syncStatus === 'conflict') {
+          skipped.conflict++;
           blockedDependencyIds.add(queuedMutation.id);
           this.logger.log(
             `[MutationManager] Skipping ${queuedMutation.id} — ${queuedMutation.tableName}/${queuedMutation.rowId} has unresolved conflict`
@@ -458,6 +468,15 @@ export class MutationUploadRunner {
         }
       }
 
+      if (results.length === 0 && pending.length > 0) {
+        this.logger.warn(
+          `[MutationManager] Upload pass skipped all ${pending.length} pending mutation(s) — ` +
+            `dependency: ${skipped.dependency}, backoff: ${skipped.backoff}, ` +
+            `conflict: ${skipped.conflict}, vanished mid-pass: ${skipped.vanished}. ` +
+            `Queue is stalled until the blocking condition clears.`
+        );
+      }
+
       uploadEvents.notifyUserOfSyncFailure(this.logger, failedMutations);
 
       // Persist the post-upload queue immediately. A debounced backup here can
@@ -479,8 +498,12 @@ export class MutationUploadRunner {
 
       return results;
     } catch (error) {
+      // Rethrow, don't return []: an empty array is the healthy "queue is
+      // empty" signal, and returning it here made a completely broken pass
+      // (e.g. IndexedDB open failure) indistinguishable from success — the
+      // queue stalled forever with diagnostics reporting all-clear.
       this.logger.error('[MutationManager] Failed to upload mutations:', error);
-      return [];
+      throw error;
     } finally {
       this.isUploading = false;
       measurePerf('replication:flush', 'replication:flush:start', {

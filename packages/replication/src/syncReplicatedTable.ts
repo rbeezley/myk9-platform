@@ -134,7 +134,16 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     await table.updateSyncMetadata({ syncStatus: 'syncing', errorMessage: undefined });
 
     if (!options.skipMutationUpload && options.uploadPendingMutations) {
-      await options.uploadPendingMutations();
+      // A crashed upload pass now rejects instead of masquerading as an empty
+      // queue. Don't let that abort the download phase — dirty local rows are
+      // protected from clobber by reconcileDirtyRow, and a fresh download is
+      // exactly what a wedged client needs. The pass already logged the error
+      // (this engine stays logger-free), so swallow here.
+      try {
+        await options.uploadPendingMutations();
+      } catch {
+        /* logged by MutationUploadRunner; download proceeds */
+      }
     }
 
     const localRows = await getLocalRowsForScope();
@@ -149,15 +158,13 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const lastFullSyncAt = metadata?.lastFullSyncAt || 0;
     const fullSyncStale = lastFullSyncAt > 0 && Date.now() - lastFullSyncAt > fullSyncIntervalMs;
 
-    const forceFullSync =
-      options.forceFullSync === true || localRows.length === 0 || fullSyncStale;
+    const forceFullSync = options.forceFullSync === true || localRows.length === 0 || fullSyncStale;
 
     // Observability: a full sync triggered by an empty local replica that metadata
     // says previously held rows is an unexpected eviction/heal — the silent failure
     // mode this engine guards against. Surfaced on the result so callers can log it
     // (the engine itself stays logger-free).
-    const recoveredFromEmptyReplica =
-      localRows.length === 0 && (metadata?.totalRows ?? 0) > 0;
+    const recoveredFromEmptyReplica = localRows.length === 0 && (metadata?.totalRows ?? 0) > 0;
 
     // Finite-guard the persisted watermark: a corrupt IDB value (NaN/Infinity)
     // would otherwise reach `new Date(since).toISOString()` in the adapter and
@@ -211,9 +218,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       // Extract the server-side `version` column before toLocalRow() strips it.
       // Stored as serverVersion on the IDB row so the next offline UPDATE can
       // carry an OCC precondition (WHERE version = remoteServerVersion).
-      const remoteServerVersion = (remote as Record<string, unknown>).version as
-        | number
-        | undefined;
+      const remoteServerVersion = (remote as Record<string, unknown>).version as number | undefined;
 
       if (adapter.shouldSkipRemoteRow?.(remote, { local })) {
         continue;
@@ -247,9 +252,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
             const marked = await table.markConflict(id, snapshot);
             if (marked) {
               if (typeof window !== 'undefined') {
-                window.dispatchEvent(
-                  new CustomEvent('replication:conflict', { detail: snapshot })
-                );
+                window.dispatchEvent(new CustomEvent('replication:conflict', { detail: snapshot }));
               }
               conflictsResolved++;
             }
@@ -296,7 +299,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       }
 
       const nextRow = local
-        ? adapter.resolveConflict?.(local, remoteLocal) ?? remoteLocal
+        ? (adapter.resolveConflict?.(local, remoteLocal) ?? remoteLocal)
         : remoteLocal;
 
       if (local) {

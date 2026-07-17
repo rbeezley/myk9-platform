@@ -80,4 +80,3 @@ When the palette executes a mutation, it SHALL use the action’s existing pendi
 - **WHEN** a command mutation fails
 - **THEN** the user sees plain-language retry/recovery feedback
 - **AND** the failure does not leave the palette or target row claiming an unaccepted durable state
-

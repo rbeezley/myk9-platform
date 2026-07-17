@@ -158,19 +158,16 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     expect(screen.queryByText('Container Novice A')).not.toBeInTheDocument();
   });
 
-  it('dispatches a bulk status change through replicatedClassesTable.updateClass for each selected class', async () => {
+  it('offers only bulk Delete — bulk status change is descoped (MYK9-59)', async () => {
     const { user } = renderPage();
     await user.click(screen.getByRole('checkbox', { name: /select all visible classes/i }));
 
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
-    await user.click(
-      await screen.findByRole('menuitem', { name: /set to in progress — 2 of 2 selected/i })
-    );
-
-    expect(updateClassMock).toHaveBeenCalledWith('class-1', { classStatus: 'In Progress' });
-    expect(updateClassMock).toHaveBeenCalledWith('class-2', { classStatus: 'In Progress' });
-    // Selection clears on full success.
-    await waitFor(() => expect(screen.queryByText(/selected/i)).not.toBeInTheDocument());
+    expect(
+      await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i })
+    ).toBeInTheDocument();
+    // Bulk status change is per-row only now; no "Set to" bulk items.
+    expect(screen.queryByRole('menuitem', { name: /set to/i })).not.toBeInTheDocument();
   });
 
   it('resolves the per-row menu from the shared classActions catalog (row/bulk parity)', async () => {
@@ -205,12 +202,12 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     expect(deleteClassMock).not.toHaveBeenCalled();
   });
 
-  it('a second click while a bulk dispatch is in flight is a no-op (in-flight latch)', async () => {
+  it('disables bulk controls while a bulk delete is in flight (in-flight latch)', async () => {
     const resolvers: Array<() => void> = [];
-    updateClassMock.mockImplementation(
+    softDeleteClassServiceMock.mockImplementation(
       () =>
         new Promise(resolve => {
-          resolvers.push(() => resolve('mutation-1'));
+          resolvers.push(() => resolve({ data: { id: 'class-1', name: null }, error: null }));
         })
     );
 
@@ -218,14 +215,15 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     await user.click(screen.getByRole('checkbox', { name: /select all visible classes/i }));
 
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
-    const menuItem = await screen.findByRole('menuitem', {
-      name: /set to in progress — 2 of 2 selected/i,
-    });
-    await user.click(menuItem);
+    await user.click(await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /delete/i }));
 
     // Bulk controls are disabled while busy, so a second dispatch cannot fire.
-    expect(screen.getByRole('button', { name: /bulk class actions/i })).toBeDisabled();
-    expect(updateClassMock).toHaveBeenCalledTimes(2);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /bulk class actions/i })).toBeDisabled()
+    );
+    expect(softDeleteClassServiceMock).toHaveBeenCalledTimes(2);
 
     resolvers.forEach(resolve => resolve());
     await waitFor(() => expect(screen.queryByText(/selected/i)).not.toBeInTheDocument());

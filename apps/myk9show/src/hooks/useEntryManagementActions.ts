@@ -18,11 +18,7 @@ import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { useEntryStatusUndo } from '@/hooks/useEntryStatusUndo';
 import { showUndoToast } from '@/lib/undoToast';
-import {
-  CLOSED_STATUSES,
-  getEligibleForBulkAction,
-  type BulkEntryAction,
-} from '@/components/entries/management/bulkActionEligibility';
+import { CLOSED_STATUSES } from '@/components/entries/management/bulkActionEligibility';
 import {
   autoAssignArmbands,
   getNextArmbandForShow,
@@ -293,17 +289,6 @@ export function useEntryManagementActions({
       // Capture each entry's prior status BEFORE the change so undo can revert
       // each item to exactly where it started (design.md D6).
       const priorById = new Map(targets.map(e => [e.id, e.entryStatus]));
-      // Map the target status back to its bulk-eligibility action so a RETRY
-      // re-checks each failed entry's FRESH status against the same rule the
-      // initial dispatch used — a retry-accept must not overwrite an entry another
-      // actor has since rejected (Codex finding). Falls back to the generic
-      // not-closed check for statuses without a dedicated bulk action.
-      const retryAction: BulkEntryAction | null =
-        status === EntryStatus.ACCEPTED
-          ? 'approve'
-          : status === EntryStatus.REJECTED
-            ? 'reject'
-            : null;
       setIsProcessing(true);
       try {
         const outcome = await bulkStatusDispatch.run(
@@ -324,9 +309,12 @@ export function useEntryManagementActions({
                 : undefined,
             applicableWhen: entry => {
               const fresh = entriesRef.current.find(e => e.id === entry.id) ?? entry;
-              return retryAction
-                ? getEligibleForBulkAction([fresh], retryAction).length === 1
-                : !CLOSED_STATUSES.has(fresh.entryStatus);
+              // Retry ONLY if no other actor has touched this entry since our first
+              // attempt. A failed item keeps its prior status, so fresh must still
+              // equal it — this catches the case `getEligibleForBulkAction` misses:
+              // a pending entry another actor REJECTED is still "approve-eligible"
+              // (rejected isn't closed), and retrying would overwrite that decision.
+              return fresh.entryStatus === priorById.get(entry.id);
             },
           }
         );

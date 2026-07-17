@@ -137,7 +137,7 @@ export function DogsBulkActionsBar({
         }
         entityType="Dog"
         isDeleting={deleteDispatch.isBusy}
-        warningText="This will remove each dog's profile. This action cannot be undone."
+        warningText="Deleting these dogs also removes their show entries and any related cart items. This action cannot be undone."
       />
     </>
   );

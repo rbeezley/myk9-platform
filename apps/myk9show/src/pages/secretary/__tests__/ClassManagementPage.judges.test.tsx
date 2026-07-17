@@ -171,28 +171,6 @@ describe('ClassManagementPage judge assignment', () => {
     await waitFor(() => expect(screen.getByText('1 class selected')).toBeInTheDocument());
   });
 
-  it('routes bulk status changes through replicatedClassesTable.updateClass and clears selection on success', async () => {
-    const user = userEvent.setup();
-
-    render(
-      <Routes>
-        <Route path="/trials/:trialId/classes" element={<ClassManagementPage />} />
-      </Routes>,
-      { initialRoute: '/trials/trial-1/classes' }
-    );
-
-    await user.click(screen.getByRole('checkbox', { name: /select container novice a/i }));
-    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
-    await user.click(
-      await screen.findByRole('menuitem', { name: /set to in progress — 1 of 1 selected/i })
-    );
-
-    await waitFor(() =>
-      expect(updateClassMock).toHaveBeenCalledWith('class-1', { classStatus: 'In Progress' })
-    );
-    await waitFor(() => expect(screen.queryByText(/selected/i)).not.toBeInTheDocument());
-  });
-
   it('disables the bulk menu while a bulk delete is in flight (in-flight latch)', async () => {
     const user = userEvent.setup();
     let resolveDelete!: () => void;

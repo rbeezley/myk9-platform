@@ -24,10 +24,6 @@ export interface ClassActionItem {
  * "not applicable" so the action disappears rather than firing a no-op. */
 export interface ClassActionHandlers {
   onStatusChange?: ((classId: string, status: string) => void) | undefined;
-  onBulkStatusChange?: (
-    classIds: string[],
-    status: string
-  ) => boolean | Promise<boolean> | undefined;
   onDelete?: ((classId: string) => void) | undefined;
   onBulkDelete?: ((classIds: string[]) => boolean | Promise<boolean> | undefined) | undefined;
   onClear?: () => void;
@@ -47,6 +43,12 @@ async function runBulkAndClear(
   }
 }
 
+// Status transitions are ROW-only. Bulk status change was descoped (MYK9-59):
+// a correct bulk status change must set `status_source='manual'` and the
+// per-status timing fields the canonical show-map path uses (markClassStarted/
+// markClassComplete), or the server's class-status derivation silently overwrites
+// it — that's a distinct feature, out of scope for this bulk-actions change. Bulk
+// DELETE (below) stays; the bulk bar therefore offers delete only.
 const statusActions: Array<EntityAction<ClassActionItem, ClassActionHandlers>> = STATUS_VALUES.map(
   status => ({
     id: `set-status-${status}`,
@@ -54,21 +56,6 @@ const statusActions: Array<EntityAction<ClassActionItem, ClassActionHandlers>> =
     sectionLabel: 'Status',
     applicableWhen: (item, handlers) => Boolean(handlers.onStatusChange) && item.status !== status,
     run: (item, handlers) => handlers.onStatusChange?.(item.id, status),
-    bulk: {
-      applicableWhen: item => item.status !== status,
-      label: (eligibleCount, selectedCount) =>
-        eligibleCount > 0
-          ? `Set to ${status} — ${eligibleCount} of ${selectedCount} selected`
-          : `Set to ${status}`,
-      unavailableReason: 'All selected classes already have this status',
-      run: (eligible, handlers) =>
-        runBulkAndClear(handlers, () =>
-          handlers.onBulkStatusChange?.(
-            eligible.map(item => item.id),
-            status
-          )
-        ),
-    },
   })
 );
 

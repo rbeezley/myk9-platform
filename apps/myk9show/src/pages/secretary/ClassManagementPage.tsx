@@ -172,7 +172,7 @@ export const ClassManagementPage: React.FC = () => {
     [allClasses]
   );
 
-  const { bulkBusy, handleBulkStatusChange, handleBulkDelete } = useClassBulkActions({
+  const { bulkBusy, handleBulkDelete } = useClassBulkActions({
     trialId,
     classesById,
   });
@@ -371,7 +371,6 @@ export const ClassManagementPage: React.FC = () => {
       <ClassBulkActionsBar
         selectedClasses={selection.selectedItems}
         bulkBusy={bulkBusy}
-        onBulkStatusChange={handleBulkStatusChange}
         onBulkDelete={handleBulkDelete}
         onClear={selection.clearSelection}
       />

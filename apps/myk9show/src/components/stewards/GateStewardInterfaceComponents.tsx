@@ -9,7 +9,8 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, CheckCircle2, AlertTriangle, Eye } from 'lucide-react';
+import { Users } from 'lucide-react';
+import { EmptyState } from '@/components/common/EmptyState';
 import {
   CheckInStatusIndicator,
   CheckInQuickActions,
@@ -18,6 +19,7 @@ import type { CheckInStatus } from '@myk9/core';
 import { cn } from '@/lib/utils';
 import type { GateEntry, GateStats } from './GateStewardInterface.types';
 import { formatRingLabel } from '@/utils/ringLabel';
+import { StatusIcon } from '@/components/status';
 
 /* ---------- Stats Cards ---------- */
 
@@ -30,7 +32,7 @@ export const GateStatsCards: React.FC<GateStatsCardsProps> = ({ stats }) => (
     <Card className={stats.needsAttention > 0 ? 'border-orange-200 bg-orange-50/50' : ''}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">Needs Attention</CardTitle>
-        <AlertTriangle className="h-4 w-4 text-orange-500" />
+        <StatusIcon family="entry" status="come-to-gate" size="sm" decorative />
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{stats.needsAttention}</div>
@@ -41,7 +43,7 @@ export const GateStatsCards: React.FC<GateStatsCardsProps> = ({ stats }) => (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">At Gate</CardTitle>
-        <Eye className="h-4 w-4 text-muted-foreground" />
+        <StatusIcon family="entry" status="at-gate" size="sm" decorative />
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{stats.atGate}</div>
@@ -52,7 +54,7 @@ export const GateStatsCards: React.FC<GateStatsCardsProps> = ({ stats }) => (
     <Card className={stats.conflicts > 0 ? 'border-destructive/20 bg-destructive/10' : ''}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">Conflicts</CardTitle>
-        <AlertTriangle className="h-4 w-4 text-destructive" />
+        <StatusIcon family="entry" status="conflict" size="sm" decorative />
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{stats.conflicts}</div>
@@ -63,7 +65,7 @@ export const GateStatsCards: React.FC<GateStatsCardsProps> = ({ stats }) => (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">Ready</CardTitle>
-        <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+        <StatusIcon family="entry" status="checked-in" size="sm" decorative />
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{stats.ready}</div>
@@ -149,9 +151,12 @@ export const GateEntryRow: React.FC<GateEntryRowProps> = ({
 
 /* ---------- Empty State ---------- */
 
-export const GateEmptyState: React.FC = () => (
-  <div className="text-center py-8 text-muted-foreground">
-    <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-    <p>No entries match the current filters</p>
-  </div>
+export const GateEmptyState: React.FC<{ onReset: () => void }> = ({ onReset }) => (
+  <EmptyState
+    icon={Users}
+    title="No entries match the current filters"
+    action={{ label: 'Show all entries', onClick: onReset }}
+    variant="filter"
+    size="sm"
+  />
 );

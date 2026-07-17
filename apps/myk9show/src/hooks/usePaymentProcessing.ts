@@ -2,7 +2,7 @@
  * Hook for payment processing in the dog show management system
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { 
   paymentService, 
   PaymentDetails, 
@@ -36,6 +36,7 @@ export function usePaymentProcessing() {
   const [feeCalculation, setFeeCalculation] = useState<FeeCalculation | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<PaymentDetails[]>([]);
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummary | null>(null);
+  const createPaymentInFlightRef = useRef(false);
 
   /**
    * Calculate entry fee with discounts and adjustments
@@ -77,6 +78,8 @@ export function usePaymentProcessing() {
     currency: string = 'usd',
     metadata: Record<string, unknown> = {}
   ): Promise<boolean> => {
+    if (createPaymentInFlightRef.current) return false;
+    createPaymentInFlightRef.current = true;
     setState(prev => ({ ...prev, loading: true, error: null, success: false }));
 
     try {
@@ -117,6 +120,8 @@ export function usePaymentProcessing() {
         success: false
       }));
       return false;
+    } finally {
+      createPaymentInFlightRef.current = false;
     }
   }, []);
 

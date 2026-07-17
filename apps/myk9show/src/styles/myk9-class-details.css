@@ -177,24 +177,6 @@
   letter-spacing: 0.02em;
 }
 
-.myk9-class-status-scheduled {
-  background: rgba(52, 199, 89, 0.1);
-  color: #34c759;
-  border: 1px solid rgba(52, 199, 89, 0.2);
-}
-
-.myk9-class-status-in-progress {
-  background: rgba(255, 149, 0, 0.1);
-  color: #ff9500;
-  border: 1px solid rgba(255, 149, 0, 0.2);
-}
-
-.myk9-class-status-completed {
-  background: rgba(88, 86, 214, 0.1);
-  color: #5856d6;
-  border: 1px solid rgba(88, 86, 214, 0.2);
-}
-
 .myk9-class-info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

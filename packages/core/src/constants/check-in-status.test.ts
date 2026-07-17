@@ -2,30 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   CHECKIN_STATUSES,
   EXHIBITOR_ALLOWED_STATUSES,
-  getCheckinStatusConfig,
   isCheckInStatus,
   isExhibitorAllowedStatus,
   isEntryStatus,
 } from './check-in-status';
 import type { CheckInStatus } from './check-in-status';
-
-describe('getCheckinStatusConfig', () => {
-  it('returns config for a valid status value', () => {
-    const config = getCheckinStatusConfig('checked-in');
-    expect(config).toBeDefined();
-    expect(config?.value).toBe('checked-in');
-  });
-
-  it('returns undefined for an unknown status', () => {
-    expect(getCheckinStatusConfig('not-a-status')).toBeUndefined();
-  });
-
-  it('returns config for every known status', () => {
-    for (const status of CHECKIN_STATUSES) {
-      expect(getCheckinStatusConfig(status)).toBeDefined();
-    }
-  });
-});
 
 describe('isCheckInStatus', () => {
   it('returns true for all valid statuses', () => {

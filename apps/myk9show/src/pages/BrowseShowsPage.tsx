@@ -382,8 +382,9 @@ const BrowseShowsPage: React.FC = () => {
               : 'Shows will appear here as they are added. Try searching by discipline or club name above.'
           }
           action={
-            hasActiveFilters ? { label: 'Clear Filters', onClick: clearAllFilters } : undefined
+            hasActiveFilters ? { label: 'Clear Filters', onClick: clearAllFilters } : null
           }
+          variant={hasActiveFilters ? 'filter' : 'default'}
         />
       );
     }

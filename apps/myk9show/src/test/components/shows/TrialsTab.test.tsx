@@ -1,13 +1,17 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@/test/utils/testUtils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TrialsTab } from '@/components/shows/tabs/TrialsTab';
 import type { Trial } from '@/components/trials/types/trial.types';
 
 // Mock dependencies
 const mockNavigate = vi.fn();
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => mockNavigate,
-}));
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 let mockHasPermission = (_p: string) => false;
 vi.mock('@/hooks/useRBAC', () => ({
@@ -16,20 +20,17 @@ vi.mock('@/hooks/useRBAC', () => ({
   }),
 }));
 
-vi.mock('@myk9/core', () => ({
-  getClassStatusBadgeClasses: () => 'bg-gray-100 text-gray-800',
-  getClassStatusDisplay: (status: string) => {
-    if (status === 'In Progress') return { label: 'In Progress' };
-    // UX walk remediation 2.B fixed the "Complete"/"Completed" drift
-    if (status === 'Completed') return { label: 'Completed' };
-    return { label: 'Not started' };
-  },
-  CLASS_STATUS: {
-    COMPLETED: 'Completed',
-    IN_PROGRESS: 'In Progress',
-    SCHEDULED: 'Scheduled',
-  },
-}));
+vi.mock('@myk9/core', async () => {
+  const actual = await vi.importActual<typeof import('@myk9/core')>('@myk9/core');
+  return {
+    ...actual,
+    CLASS_STATUS: {
+      COMPLETED: 'Completed',
+      IN_PROGRESS: 'In Progress',
+      SCHEDULED: 'Scheduled',
+    },
+  };
+});
 
 let mockViewMode = 'cards';
 vi.mock('@/hooks/useViewPreference', () => ({
@@ -113,6 +114,51 @@ describe('TrialsTab', () => {
     render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
     expect(screen.getByText('3/5 scored')).toBeInTheDocument();
+  });
+
+  it('derives in-progress from child completion when stored trial status is stale', () => {
+    const trials = [makeTrial({ id: 't1', status: 'Scheduled' })];
+    const stats = { t1: { classCount: 5, entryCount: 42, completedClasses: 3 } };
+
+    const { container } = render(
+      <TrialsTab trials={trials} showId="show-1" trialStats={stats} />
+    );
+
+    expect(screen.getByText('In progress')).toBeInTheDocument();
+    expect(container.querySelector('[data-status="in-progress"]')).toHaveAttribute(
+      'data-shape',
+      'in-progress'
+    );
+  });
+
+  it('derives in-progress from an active child before any class completes', () => {
+    const trials = [makeTrial({ id: 't1', status: 'Scheduled' })];
+    const stats = {
+      t1: { classCount: 5, entryCount: 42, completedClasses: 0, hasStarted: true },
+    };
+
+    render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
+
+    expect(screen.getByText('In progress')).toBeInTheDocument();
+  });
+
+  it('filters by the same child-derived status shown in each badge', async () => {
+    const trials = [
+      makeTrial({ id: 'derived-complete', name: 'Derived Complete', status: 'Scheduled' }),
+      makeTrial({ id: 'derived-pending', name: 'Derived Pending', status: 'Completed' }),
+    ];
+    const stats = {
+      'derived-complete': { classCount: 2, entryCount: 8, completedClasses: 2 },
+      'derived-pending': { classCount: 2, entryCount: 8, completedClasses: 0 },
+    };
+
+    const { user } = render(
+      <TrialsTab trials={trials} showId="show-1" trialStats={stats} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /Completed \(1\)/ }));
+    expect(screen.getByText('Derived Complete')).toBeInTheDocument();
+    expect(screen.queryByText('Derived Pending')).not.toBeInTheDocument();
   });
 
   it('hides scored text when completedClasses is 0', () => {

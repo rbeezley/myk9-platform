@@ -8,6 +8,7 @@ interface MetadataItem {
 export interface HeroBadge {
   label: string;
   variant: 'success' | 'warning' | 'destructive' | 'default';
+  icon?: React.ReactNode | undefined;
 }
 
 interface HeroAction {
@@ -80,20 +81,18 @@ export function DetailHero({
             </p>
           )}
           <div
-            className={cn(
-              'flex min-w-0 flex-wrap items-center gap-3',
-              headerActions && 'lg:pr-44'
-            )}
+            className={cn('flex min-w-0 flex-wrap items-center gap-3', headerActions && 'lg:pr-44')}
           >
             <h2 className="text-2xl font-bold tracking-tight break-words">{name}</h2>
             {badges?.map((badge, i) => (
               <span
                 key={i}
                 className={cn(
-                  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-sm font-medium',
+                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-sm font-medium',
                   badgeStyles[badge.variant]
                 )}
               >
+                {badge.icon}
                 {badge.label}
               </span>
             ))}

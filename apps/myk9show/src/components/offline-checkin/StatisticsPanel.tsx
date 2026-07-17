@@ -1,6 +1,6 @@
 import React from 'react';
-import { Users, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
-import { StatCard, StatsGrid } from '@myk9/ui';
+import { Users } from 'lucide-react';
+import { StatCard, StatsGrid, StatusIcon } from '@myk9/ui';
 import type { CheckInStatistics } from '@/types/offline-checkin-types';
 
 interface StatisticsPanelProps {
@@ -17,14 +17,19 @@ export const StatisticsPanel: React.FC<StatisticsPanelProps> = ({ statistics }) 
         color="primary"
       />
       <StatCard
-        icon={CheckCircle}
+        icon={<StatusIcon family="entry" status="checked-in" decorative />}
         title="Checked In"
         value={statistics.checkedInCount}
         color="emerald"
       />
-      <StatCard icon={XCircle} title="Pulled" value={statistics.scratchedCount} color="amber" />
       <StatCard
-        icon={AlertTriangle}
+        icon={<StatusIcon family="entry" status="pulled" decorative />}
+        title="Pulled"
+        value={statistics.scratchedCount}
+        color="amber"
+      />
+      <StatCard
+        icon={<StatusIcon family="entry" status="conflict" decorative />}
         title="Conflicts"
         value={statistics.conflictCount}
         color="red"

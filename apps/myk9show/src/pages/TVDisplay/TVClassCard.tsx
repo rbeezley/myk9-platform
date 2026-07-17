@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
-import { TVClass, TVEntry, getStatusBadge, getDisplayName, formatArmband } from './types';
+import { StatusBadge } from '@/components/status';
+import { TVClass, TVEntry, getTVStatusLabel, getDisplayName, formatArmband } from './types';
 
 interface TVClassCardProps {
   tvClass: TVClass;
@@ -9,8 +10,13 @@ interface TVClassCardProps {
 
 function InRingEntry({ entry }: { entry: TVEntry }) {
   return (
-    <div className="bg-blue-950 border border-blue-600 rounded-md p-2 mb-2">
-      <span className="text-blue-400 text-xs font-semibold">IN RING</span>
+    <div className="mb-2 rounded-md border border-zinc-700 bg-zinc-900 p-2">
+      <StatusBadge
+        family="entry"
+        status="in-ring"
+        label="IN RING"
+        className="border-zinc-700 bg-zinc-800 text-xs font-semibold text-zinc-200"
+      />
       <div className="mt-0.5">
         <span className="text-white font-semibold">
           {formatArmband(entry.armband)} {getDisplayName(entry.dog)}
@@ -37,7 +43,7 @@ function NextUpEntry({ entry, isNext }: { entry: TVEntry; isNext: boolean }) {
 }
 
 export function TVClassCard({ tvClass, highlighted, maxNextUp = 5 }: TVClassCardProps) {
-  const { label, color } = getStatusBadge(tvClass.status, tvClass.startTime);
+  const statusLabel = getTVStatusLabel(tvClass.status, tvClass.startTime);
   const inRingEntry = tvClass.entries.find(e => e.isInRing);
   const pendingEntries = tvClass.entries
     .filter(e => !e.isInRing && !e.isScored)
@@ -63,9 +69,12 @@ export function TVClassCard({ tvClass, highlighted, maxNextUp = 5 }: TVClassCard
               {tvClass.scoredCount} / {tvClass.totalEntries}
             </span>
           )}
-          <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-semibold', color)}>
-            {label}
-          </span>
+          <StatusBadge
+            family="class"
+            status={tvClass.status}
+            label={statusLabel}
+            className="rounded-full border-zinc-600 bg-zinc-800 px-2 py-0.5 text-xs font-semibold text-zinc-200"
+          />
         </div>
       </div>
       <div className="p-3">

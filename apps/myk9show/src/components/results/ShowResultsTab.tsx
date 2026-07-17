@@ -156,6 +156,7 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
         icon={Trophy}
         title={emptyState.title}
         description={emptyState.description}
+        action={null}
       />
     );
   }

@@ -39,6 +39,7 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
+import { StatusIcon } from '@/components/status';
 import {
   getPendingPullRequests,
   getPulledEntries,
@@ -373,8 +374,8 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100">
-                          <XCircle className="h-5 w-5 text-gray-500" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                          <StatusIcon family="entry" status="pulled" decorative />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">

@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, ClipboardList } from 'lucide-react';
 import { getEntriesByShow, getPublicEntriesByShow } from '@/services/database/entries';
-import { getEntryStatusClasses } from '@/utils/entryManagementUtils';
+import { StatusBadge } from '@/components/status';
 import { formatShortDate } from '@/lib/format/dates';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -67,13 +67,7 @@ const entryColumns: ColumnDef<ShowEntryRow, unknown>[] = [
     header: 'Status',
     cell: ({ getValue }) => {
       const status = (getValue() as string) || 'Unknown';
-      return (
-        <span
-          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getEntryStatusClasses(status)}`}
-        >
-          {status}
-        </span>
-      );
+      return <StatusBadge family="entry" status={status} variant="outline" />;
     },
   },
   {

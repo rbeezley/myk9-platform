@@ -32,59 +32,6 @@ export const CLASS_STATUS = {
 export type ClassStatusValue = (typeof CLASS_STATUS)[keyof typeof CLASS_STATUS];
 
 /**
- * Display configuration for each status
- * - label: User-facing display text
- * - color: Tailwind color class name (without the full class)
- * - bgClass: Full Tailwind background class
- * - textClass: Full Tailwind text class
- */
-export const CLASS_STATUS_DISPLAY = {
-  // Lifecycle labels are fixed to the "Not started" / "In Progress" /
-  // "Completed" triple (UX walk remediation 2.B): one label per stage,
-  // never "No Status", never Complete/Completed drift.
-  [CLASS_STATUS.SCHEDULED]: {
-    label: 'Not started',
-    color: 'blue',
-    bgClass: 'bg-blue-100',
-    textClass: 'text-blue-800',
-    darkBgClass: 'dark:bg-blue-900/30',
-    darkTextClass: 'dark:text-blue-300',
-  },
-  [CLASS_STATUS.UPCOMING]: {
-    label: 'Not started',
-    color: 'blue',
-    bgClass: 'bg-blue-100',
-    textClass: 'text-blue-800',
-    darkBgClass: 'dark:bg-blue-900/30',
-    darkTextClass: 'dark:text-blue-300',
-  },
-  [CLASS_STATUS.IN_PROGRESS]: {
-    label: 'In Progress',
-    color: 'amber',
-    bgClass: 'bg-amber-100',
-    textClass: 'text-amber-800',
-    darkBgClass: 'dark:bg-amber-900/30',
-    darkTextClass: 'dark:text-amber-300',
-  },
-  [CLASS_STATUS.COMPLETED]: {
-    label: 'Completed',
-    color: 'green',
-    bgClass: 'bg-green-100',
-    textClass: 'text-green-800',
-    darkBgClass: 'dark:bg-green-900/30',
-    darkTextClass: 'dark:text-green-300',
-  },
-  [CLASS_STATUS.CANCELLED]: {
-    label: 'Cancelled',
-    color: 'gray',
-    bgClass: 'bg-gray-100',
-    textClass: 'text-gray-800',
-    darkBgClass: 'dark:bg-gray-700/30',
-    darkTextClass: 'dark:text-gray-400',
-  },
-} as const;
-
-/**
  * Order of status progression (for status cycling)
  */
 export const CLASS_STATUS_ORDER: ClassStatusValue[] = [
@@ -106,36 +53,6 @@ export function getNextClassStatus(currentStatus: ClassStatusValue): ClassStatus
   const nextIndex = (currentIndex + 1) % CLASS_STATUS_ORDER.length;
   // nextIndex is always valid due to modulo, but TypeScript can't infer this
   return CLASS_STATUS_ORDER[nextIndex] ?? CLASS_STATUS.SCHEDULED;
-}
-
-/**
- * Get display configuration for a status value
- * @param status - The class status value
- * @returns Display configuration or default values
- */
-export function getClassStatusDisplay(status: string) {
-  // Try direct lookup first, then normalize legacy/trial status values
-  return (
-    CLASS_STATUS_DISPLAY[status as ClassStatusValue] ??
-    CLASS_STATUS_DISPLAY[normalizeClassStatus(status)] ?? {
-      label: status,
-      color: 'gray',
-      bgClass: 'bg-gray-100',
-      textClass: 'text-gray-800',
-      darkBgClass: 'dark:bg-gray-700/30',
-      darkTextClass: 'dark:text-gray-400',
-    }
-  );
-}
-
-/**
- * Get CSS classes for a status badge
- * @param status - The class status value
- * @returns Combined CSS class string for badge styling
- */
-export function getClassStatusBadgeClasses(status: string): string {
-  const display = getClassStatusDisplay(status);
-  return `${display.bgClass} ${display.textClass} ${display.darkBgClass} ${display.darkTextClass}`;
 }
 
 /**

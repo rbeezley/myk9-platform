@@ -27,9 +27,14 @@ describe('DogCard', () => {
     expect(armband.className).not.toContain('text-[0.9375rem]');
   });
 
-  it('applies the status left-border to the card', () => {
+  it('does not duplicate entry status with a color-only card border', () => {
     render(<DogCard armband={1} callName="A" breed="B" handler="C" statusBorder="checked-in" />);
-    expect(screen.getByTestId('dog-card').className).toContain('border-l-status-checked-in');
+    expect(screen.getByTestId('dog-card').className).not.toContain('border-l-status-checked-in');
+  });
+
+  it('keeps result borders as result reinforcement', () => {
+    render(<DogCard armband={1} callName="A" breed="B" handler="C" statusBorder="result-nq" />);
+    expect(screen.getByTestId('dog-card').className).toContain('border-l-red-600');
   });
 
   it('marks 4+ digit armbands as long (smaller text)', () => {

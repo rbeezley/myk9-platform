@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CLASS_LIFECYCLE_LABELS,
-  deriveClassLifecyclePresentation,
   deriveClassLifecycleValue,
-  type ClassLifecycleValue,
+  shouldShowClassLifecycle,
 } from '../classLifecycle';
 
 describe('deriveClassLifecycleValue', () => {
@@ -26,54 +24,16 @@ describe('deriveClassLifecycleValue', () => {
   });
 });
 
-describe('CLASS_LIFECYCLE_LABELS', () => {
-  it.each([
-    ['not_started', 'Not started'],
-    ['in_progress', 'In Progress'],
-    ['completed', 'Completed'],
-    ['cancelled', 'Cancelled'],
-    ['unknown', 'Unknown status'],
-  ] satisfies Array<[ClassLifecycleValue, string]>)('labels %s as %s', (status, label) => {
-    expect(CLASS_LIFECYCLE_LABELS[status] ?? CLASS_LIFECYCLE_LABELS.unknown).toBe(label);
-  });
-});
-
-describe('deriveClassLifecyclePresentation', () => {
-  it('returns a single presentation model for published shows', () => {
-    expect(
-      deriveClassLifecyclePresentation({
-        classStatus: 'completed',
-        showStatus: 'published',
-      })
-    ).toEqual({
-      value: 'completed',
-      label: 'Completed',
-      tone: 'complete',
-    });
-  });
-
+describe('shouldShowClassLifecycle', () => {
   it.each(['draft', 'unpublished', 'Draft', 'UNPUBLISHED'])(
     'suppresses lifecycle chips for %s shows',
     showStatus => {
-      expect(
-        deriveClassLifecyclePresentation({
-          classStatus: 'in_progress',
-          showStatus,
-        })
-      ).toBeNull();
+      expect(shouldShowClassLifecycle(showStatus)).toBe(false);
     }
   );
 
-  it('uses the unknown fallback for unexpected class status values', () => {
-    expect(
-      deriveClassLifecyclePresentation({
-        classStatus: 'future-status',
-        showStatus: 'published',
-      })
-    ).toEqual({
-      value: 'unknown',
-      label: 'Unknown status',
-      tone: 'neutral',
-    });
+  it('shows lifecycle for published and unknown show states', () => {
+    expect(shouldShowClassLifecycle('published')).toBe(true);
+    expect(shouldShowClassLifecycle('future-status')).toBe(true);
   });
 });

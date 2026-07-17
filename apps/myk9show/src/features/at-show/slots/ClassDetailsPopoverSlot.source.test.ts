@@ -10,4 +10,10 @@ describe('ClassDetailsPopoverSlot touch targets', () => {
     expect(source).toContain('min-h-11 min-w-11');
     expect(source).not.toContain('h-6 w-6');
   });
+
+  it('renders class state through the shared status grammar', () => {
+    expect(source).toContain("from '@/components/status'");
+    expect(source).toContain('<StatusBadge family="class"');
+    expect(source).not.toMatch(/getClassStatusLabel|getClassStatusTier/);
+  });
 });

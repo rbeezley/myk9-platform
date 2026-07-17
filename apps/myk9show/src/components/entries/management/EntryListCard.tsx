@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
+import { getStatusDescriptor } from '@/components/status';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Users,
@@ -43,7 +44,7 @@ import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import type { CheckInStatus } from '@myk9/core';
-import { CHECKIN_STATUS } from '@myk9/core';
+import { CHECKIN_STATUSES } from '@myk9/core';
 import { WithdrawalReasonDialog } from './WithdrawalReasonDialog';
 import { RefundEntryDialog } from './RefundEntryDialog';
 import { isStripeRefundable } from './refundEligibility';
@@ -401,12 +402,12 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
-                    {Object.values(CHECKIN_STATUS).map(s => (
+                    {CHECKIN_STATUSES.map(status => (
                       <DropdownMenuItem
-                        key={s.value}
-                        onClick={() => onCheckInStatusChange(entry, cls, s.value)}
+                        key={status}
+                        onClick={() => onCheckInStatusChange(entry, cls, status)}
                       >
-                        {s.label}
+                        {getStatusDescriptor('entry', status).label}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>

@@ -4,26 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Loader2, Dog, User, ClipboardList } from 'lucide-react';
 import { useArmbandLookup } from '@/hooks/queries/useArmbandLookup';
 import { Link } from 'react-router-dom';
-
-/** Display labels for entry_status DB values */
-const ENTRY_STATUS_LABEL: Record<string, string> = {
-  'no-status': 'No Status',
-  draft: 'Draft',
-  submitted: 'Submitted',
-  paid: 'Paid',
-  confirmed: 'Confirmed',
-  'checked-in': 'Checked In',
-  competing: 'Competing',
-  completed: 'Completed',
-  withdrawn: 'Withdrawn',
-  scratched: 'Pulled',
-  absent: 'Absent',
-};
-
-function formatEntryStatus(status: string | null): string {
-  if (!status) return 'Registered';
-  return ENTRY_STATUS_LABEL[status] ?? status;
-}
+import { StatusBadge } from '@/components/status';
 
 interface ArmbandLookupProps {
   showId: string;
@@ -142,9 +123,12 @@ export function ArmbandLookup({ showId }: ArmbandLookupProps) {
                             {entry.class_name}
                             {entry.class_level ? ` · ${entry.class_level}` : ''}
                           </span>
-                          <Badge variant="outline" className="text-[10px] ml-2 shrink-0">
-                            {formatEntryStatus(entry.entry_status)}
-                          </Badge>
+                          <StatusBadge
+                            family="entry"
+                            status={entry.entry_status}
+                            variant="outline"
+                            className="ml-2 shrink-0 text-xs"
+                          />
                         </div>
                         {entry.handler && (
                           <p className="text-xs text-muted-foreground mt-0.5">

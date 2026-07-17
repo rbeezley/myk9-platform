@@ -252,5 +252,12 @@ describe('ClassManagementPage judge assignment', () => {
     expect(screen.getByText('Saturday Trial')).toHaveClass('truncate');
     expect(screen.getByText('Saturday Trial')).toHaveAttribute('title', 'Saturday Trial');
     expect(screen.queryByRole('button', { name: 'Back to Trial' })).not.toBeInTheDocument();
+
+    const classRow = screen.getByText('Container Novice A').closest('[data-class-id="class-1"]');
+    expect(classRow).toHaveClass('border', 'rounded-lg');
+    expect(classRow?.querySelector('.manager-class-row-grid')).not.toBeNull();
+    expect(screen.getByRole('link', { name: 'Add Classes' }).parentElement).toHaveClass(
+      'manager-page-actions'
+    );
   });
 });

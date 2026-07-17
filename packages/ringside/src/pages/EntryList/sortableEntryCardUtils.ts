@@ -25,19 +25,7 @@ export type StatusBorderClass =
   | 'result-abs'
   | 'result-wd'
   | 'scored'
-  | 'in-ring'
-  | 'checked-in'
-  | 'conflict'
-  | 'pulled'
-  | 'at-gate'
-  | 'come-to-gate'
-  | 'completed'
   | 'no-status';
-
-export interface StatusConfig {
-  iconName: 'circle' | 'check' | 'alert-triangle' | 'x-circle' | 'star' | 'bell' | 'target' | null;
-  text: string;
-}
 
 // ========================================
 // HELPER FUNCTIONS
@@ -81,7 +69,7 @@ export function isNonQualifyingResult(result: string | null | undefined): boolea
 }
 
 /**
- * Get status border class based on entry state
+ * Get result-border reinforcement without duplicating entry lifecycle status.
  */
 export function getStatusBorderClass(entry: Entry): StatusBorderClass {
   if (entry.isScored) {
@@ -94,14 +82,6 @@ export function getStatusBorderClass(entry: Entry): StatusBorderClass {
     return 'scored'; // Fallback to generic scored
   }
 
-  if (entry.status === 'in-ring') return 'in-ring';
-  if (entry.status === 'checked-in') return 'checked-in';
-  if (entry.status === 'conflict') return 'conflict';
-  if (entry.status === 'pulled') return 'pulled';
-  if (entry.status === 'at-gate') return 'at-gate';
-  if (entry.status === 'come-to-gate') return 'come-to-gate';
-  if (entry.status === 'completed') return 'completed';
-
   return 'no-status';
 }
 
@@ -110,10 +90,14 @@ export function getStatusBorderClass(entry: Entry): StatusBorderClass {
  */
 export function getPlacementEmoji(placement: number): string {
   switch (placement) {
-    case 1: return '🥇';
-    case 2: return '🥈';
-    case 3: return '🥉';
-    default: return '🎖️';
+    case 1:
+      return '🥇';
+    case 2:
+      return '🥈';
+    case 3:
+      return '🥉';
+    default:
+      return '🎖️';
   }
 }
 
@@ -122,38 +106,14 @@ export function getPlacementEmoji(placement: number): string {
  */
 export function getPlacementText(placement: number): string {
   switch (placement) {
-    case 1: return '1st';
-    case 2: return '2nd';
-    case 3: return '3rd';
-    default: return `${placement}th`;
-  }
-}
-
-/**
- * Get status icon name and text configuration
- */
-export function getStatusConfig(status: string | null | undefined): StatusConfig {
-  const normalizedStatus = status || 'no-status';
-
-  switch (normalizedStatus) {
-    case 'in-ring':
-      return { iconName: 'target', text: 'In Ring' };
-    case 'completed':
-      return { iconName: 'check', text: 'Completed' };
-    case 'checked-in':
-      return { iconName: 'check', text: 'Checked-in' };
-    case 'conflict':
-      return { iconName: 'alert-triangle', text: 'Conflict' };
-    case 'pulled':
-      return { iconName: 'x-circle', text: 'Pulled' };
-    case 'at-gate':
-      return { iconName: 'star', text: 'At Gate' };
-    case 'come-to-gate':
-      return { iconName: 'bell', text: 'Come to Gate' };
-    case 'no-status':
-      return { iconName: 'circle', text: 'No Status' };
+    case 1:
+      return '1st';
+    case 2:
+      return '2nd';
+    case 3:
+      return '3rd';
     default:
-      return { iconName: null, text: normalizedStatus };
+      return `${placement}th`;
   }
 }
 

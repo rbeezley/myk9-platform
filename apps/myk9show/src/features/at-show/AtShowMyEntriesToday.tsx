@@ -12,12 +12,13 @@ import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, ChevronRight, Clock3, ListChecks } from 'lucide-react';
 import type { CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
+import { getStatusDescriptor, StatusBadge } from '@/components/status';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { cn } from '@/lib/utils';
 import { notifications } from '@/lib/notifications';
 import { replicatedEntriesTable } from '@/services/replication';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
-import { EXHIBITOR_STATUS_LABELS, getCheckInStatusConfig } from '@/types/check-in-types';
+import { EXHIBITOR_STATUS_LABELS } from '@/types/check-in-types';
 import { deriveAtShowNextAction, type AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 
 export interface AtShowMyEntriesTodayProps {
@@ -34,10 +35,10 @@ export interface AtShowMyEntriesTodayProps {
 // CheckInStatusDialog uses — so a status without a plain override (at-gate,
 // come-to-gate, in-ring, completed) still reads correctly instead of always
 // showing "not checked in".
-function statusLabel(detail: AtShowEntryDetail): string {
+function getExhibitorStatusLabel(detail: AtShowEntryDetail): string {
   return (
     EXHIBITOR_STATUS_LABELS[detail.checkInStatus] ??
-    getCheckInStatusConfig(detail.checkInStatus).label
+    getStatusDescriptor('entry', detail.checkInStatus).label
   );
 }
 
@@ -71,7 +72,12 @@ function EntryRow({
         <div className="mt-0.5 truncate text-sm text-muted-foreground">
           {detail.className ?? 'Running order not posted yet'}
         </div>
-        <div className="mt-0.5 text-xs text-muted-foreground">{statusLabel(detail)}</div>
+        <StatusBadge
+          family="entry"
+          status={detail.checkInStatus}
+          label={getExhibitorStatusLabel(detail)}
+          className="mt-1 text-xs"
+        />
       </div>
 
       {action.kind === 'check-in' && (

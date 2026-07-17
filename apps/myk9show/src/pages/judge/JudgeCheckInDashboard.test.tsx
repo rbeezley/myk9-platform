@@ -94,6 +94,9 @@ describe('JudgeCheckInDashboard', () => {
     expect(screen.getByText('20 entries')).toBeInTheDocument();
     const checkedInSummary = screen.getByText('70% ready').parentElement;
     expect(checkedInSummary).toHaveTextContent('14');
+    expect(document.querySelector('[data-status="checked-in"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-status="conflict"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-status="at-gate"]')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /multi-ring view/i })).toBeEnabled();
   });
 

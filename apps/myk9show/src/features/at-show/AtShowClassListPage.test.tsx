@@ -149,6 +149,7 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     // The Novice A/B pair renders as a single card.
     expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
     expect(screen.getByText(/Interior Excellent/)).toBeInTheDocument();
+    expect(document.querySelectorAll('[data-family="class"]').length).toBeGreaterThan(0);
   });
 
   it('shows syncing copy instead of a definitive empty state while first sync is pending', async () => {

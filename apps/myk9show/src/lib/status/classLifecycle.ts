@@ -5,19 +5,6 @@ export type ClassLifecycleValue =
   | 'cancelled'
   | 'unknown';
 
-export type ClassLifecycleTone = 'neutral' | 'active' | 'complete' | 'muted';
-
-export interface ClassLifecyclePresentation {
-  value: ClassLifecycleValue;
-  label: string;
-  tone: ClassLifecycleTone;
-}
-
-export interface ClassLifecyclePresentationInput {
-  classStatus?: string | null | undefined;
-  showStatus?: string | null | undefined;
-}
-
 const UNKNOWN_LIFECYCLE: ClassLifecycleValue = 'unknown';
 
 const CLASS_LIFECYCLE_BY_STATUS: Record<string, ClassLifecycleValue> = {
@@ -49,22 +36,6 @@ const CLASS_LIFECYCLE_BY_STATUS: Record<string, ClassLifecycleValue> = {
   unknown: UNKNOWN_LIFECYCLE,
 };
 
-export const CLASS_LIFECYCLE_LABELS: Record<ClassLifecycleValue, string> = {
-  not_started: 'Not started',
-  in_progress: 'In Progress',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-  unknown: 'Unknown status',
-};
-
-const CLASS_LIFECYCLE_TONES: Record<ClassLifecycleValue, ClassLifecycleTone> = {
-  not_started: 'neutral',
-  in_progress: 'active',
-  completed: 'complete',
-  cancelled: 'muted',
-  unknown: 'neutral',
-};
-
 const CLASS_LIFECYCLE_SHOW_VISIBILITY: Record<string, boolean> = {
   draft: false,
   unpublished: false,
@@ -85,19 +56,4 @@ export function deriveClassLifecycleValue(
 ): ClassLifecycleValue {
   const key = lookupKey(classStatus);
   return CLASS_LIFECYCLE_BY_STATUS[key] ?? CLASS_LIFECYCLE_BY_STATUS.unknown;
-}
-
-export function deriveClassLifecyclePresentation({
-  classStatus,
-  showStatus,
-}: ClassLifecyclePresentationInput): ClassLifecyclePresentation | null {
-  if (!shouldShowClassLifecycle(showStatus)) return null;
-
-  const value = deriveClassLifecycleValue(classStatus);
-
-  return {
-    value,
-    label: CLASS_LIFECYCLE_LABELS[value] ?? CLASS_LIFECYCLE_LABELS.unknown,
-    tone: CLASS_LIFECYCLE_TONES[value] ?? CLASS_LIFECYCLE_TONES.unknown,
-  };
 }

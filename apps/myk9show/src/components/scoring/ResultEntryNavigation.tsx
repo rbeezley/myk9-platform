@@ -7,12 +7,13 @@
  */
 
 import { useMemo, useState, useCallback } from 'react';
-import { Clock, AlertCircle, User, Users } from 'lucide-react';
+import { AlertCircle, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import '@/styles/myk9-show-details.css';
 
 // UI Components
 import { Button } from '@/components/ui/button';
+import { StatusBadge, StatusIcon, getStatusDescriptor } from '@/components/status';
 
 // Types
 import type { ScentWorkEntry, ScentWorkResult } from '@/types/scent-work-types';
@@ -176,16 +177,23 @@ export function ResultEntryNavigation({
             <div className="myk9-judge-progress-indicators">
               <div className="flex items-center space-x-4">
                 <div className="myk9-judge-progress-indicator">
-                  <div className="myk9-judge-progress-dot completed"></div>
-                  <span>{progressStats.completed} Completed</span>
+                  <StatusIcon family="entry" status="completed" size="sm" decorative />
+                  <span>
+                    {progressStats.completed} {getStatusDescriptor('entry', 'completed').label}
+                  </span>
                 </div>
                 <div className="myk9-judge-progress-indicator">
-                  <div className="myk9-judge-progress-dot in-progress"></div>
-                  <span>{progressStats.inProgress} In Progress</span>
+                  <StatusIcon family="entry" status="in-progress" size="sm" decorative />
+                  <span>
+                    {progressStats.inProgress}{' '}
+                    {getStatusDescriptor('entry', 'in-progress').label}
+                  </span>
                 </div>
                 <div className="myk9-judge-progress-indicator">
-                  <div className="myk9-judge-progress-dot pending"></div>
-                  <span>{progressStats.pending} Pending</span>
+                  <StatusIcon family="entry" status="pending" size="sm" decorative />
+                  <span>
+                    {progressStats.pending} {getStatusDescriptor('entry', 'pending').label}
+                  </span>
                 </div>
               </div>
               <span>{progressStats.completionPercentage}% Complete</span>
@@ -205,10 +213,12 @@ export function ResultEntryNavigation({
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {entries.map(entry => {
-            const getStatusClass = () => {
-              if (entry.isCurrentEntry) return 'current';
-              return entry.navigationStatus;
-            };
+            const navigationStatus =
+              entry.navigationStatus === 'completed'
+                ? entry.navigationStatus
+                : entry.isCurrentEntry
+                  ? ('in-progress' as const)
+                  : entry.navigationStatus;
 
             // Debug logging for entries #107 and #108
             if (['107', '108'].includes(entry.displayInfo.armband)) {
@@ -217,7 +227,7 @@ export function ResultEntryNavigation({
                   navigationStatus: entry.navigationStatus,
                   hasResult: !!entry.result,
                   result: entry.result,
-                  statusClass: getStatusClass(),
+                  statusClass: navigationStatus,
                 },
               });
             }
@@ -225,7 +235,7 @@ export function ResultEntryNavigation({
             return (
               <div
                 key={entry.id}
-                className={cn('myk9-entry-card', getStatusClass())}
+                className={cn('myk9-entry-card', entry.isCurrentEntry && 'current')}
                 onPointerDown={e => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -250,41 +260,29 @@ export function ResultEntryNavigation({
                     <div className="myk9-entry-armband">#{entry.displayInfo.armband}</div>
                   </div>
                   <div className="myk9-entry-status-indicator">
-                    {/* For completed entries, show placement badge or nothing */}
-                    {entry.navigationStatus === 'completed' ? (
-                      entry.placement ? (
-                        <div
-                          className={cn(
-                            'myk9-entry-placement-badge',
-                            entry.placement === 1
-                              ? 'first-place'
-                              : entry.placement === 2
-                                ? 'second-place'
-                                : entry.placement === 3
-                                  ? 'third-place'
-                                  : 'other-place'
-                          )}
-                        >
-                          {entry.placement === 1
-                            ? '1st'
+                    {entry.navigationStatus === 'completed' && entry.placement && (
+                      <div
+                        className={cn(
+                          'myk9-entry-placement-badge',
+                          entry.placement === 1
+                            ? 'first-place'
                             : entry.placement === 2
-                              ? '2nd'
+                              ? 'second-place'
                               : entry.placement === 3
-                                ? '3rd'
-                                : `${entry.placement}th`}
-                        </div>
-                      ) : null
-                    ) : (
-                      /* For pending/in-progress entries, show status indicators */
-                      <>
-                        {entry.navigationStatus === 'in-progress' || entry.isCurrentEntry ? (
-                          <Clock className="h-4 w-4 text-[#FF9500]" />
-                        ) : (
-                          <User className="h-4 w-4 text-muted-foreground" />
+                                ? 'third-place'
+                                : 'other-place'
                         )}
-                        <div className={cn('myk9-entry-status-dot', getStatusClass())}></div>
-                      </>
+                      >
+                        {entry.placement === 1
+                          ? '1st'
+                          : entry.placement === 2
+                            ? '2nd'
+                            : entry.placement === 3
+                              ? '3rd'
+                              : `${entry.placement}th`}
+                      </div>
                     )}
+                    <StatusIcon family="entry" status={navigationStatus} />
                   </div>
                 </div>
 
@@ -342,49 +340,16 @@ export function ResultEntryNavigation({
                         }
                       })()}
                     </>
-                  ) : entry.navigationStatus === 'in-progress' ? (
-                    <div className="myk9-entry-status-text in-progress">In Progress</div>
                   ) : (
-                    // For pending entries, show check-in status badge in bottom-right corner
                     <div className="flex items-center justify-between w-full">
-                      <div className="myk9-entry-status-text pending">Not Started</div>
-                      {(() => {
-                        const status = entry.checkInStatus || 'no-status';
-                        switch (status) {
-                          case 'checked-in':
-                            return (
-                              <div className="px-2 py-1 text-xs font-medium bg-info/10 text-info rounded-md border border-info/30 ">
-                                Checked In
-                              </div>
-                            );
-                          case 'conflict':
-                            return (
-                              <div className="px-2 py-1 text-xs font-medium bg-warning/10 text-warning rounded-md border border-warning/30 ">
-                                Conflict
-                              </div>
-                            );
-                          case 'at-gate':
-                            return (
-                              <div className="px-2 py-1 text-xs font-medium bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200 rounded-md border border-teal-200 dark:border-teal-700">
-                                At Gate
-                              </div>
-                            );
-                          case 'pulled':
-                            return (
-                              <div className="px-2 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-md border border-destructive/30 ">
-                                Pulled
-                              </div>
-                            );
-                          case 'come-to-gate':
-                            return (
-                              <div className="px-2 py-1 text-xs font-medium bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200 rounded-md border border-violet-200 dark:border-violet-700">
-                                Come to Gate
-                              </div>
-                            );
-                          default:
-                            return null;
-                        }
-                      })()}
+                      <span className="text-sm font-medium text-muted-foreground">
+                        {getStatusDescriptor('entry', navigationStatus).label}
+                      </span>
+                      {navigationStatus === 'pending' &&
+                        entry.checkInStatus &&
+                        entry.checkInStatus !== 'no-status' && (
+                          <StatusBadge family="entry" status={entry.checkInStatus} />
+                        )}
                     </div>
                   )}
                 </div>

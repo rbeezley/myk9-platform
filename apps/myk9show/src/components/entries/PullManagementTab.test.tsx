@@ -84,3 +84,17 @@ describe('PullManagementTab — loading state (Phase 4 skeleton convergence)', (
     expect(document.querySelector('.animate-spin')).toBeNull();
   });
 });
+
+describe('PullManagementTab — processed entry status', () => {
+  it('renders pulled entries through the shared status grammar', async () => {
+    dayOfOpsMocks.getPulledEntries.mockResolvedValue({ data: [onlineEntry], error: null });
+
+    const { container, user } = render(<PullManagementTab showId="show-1" />);
+
+    const pulledTab = await screen.findByRole('tab', { name: /pulled \(1\)/i });
+    await user.click(pulledTab);
+    await screen.findByText('Buddy');
+
+    expect(container.querySelector('[data-family="entry"][data-status="pulled"]')).not.toBeNull();
+  });
+});

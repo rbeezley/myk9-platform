@@ -1,11 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   CLASS_STATUS,
-  CLASS_STATUS_DISPLAY,
   CLASS_STATUS_ORDER,
   getNextClassStatus,
-  getClassStatusDisplay,
-  getClassStatusBadgeClasses,
   LEGACY_STATUS_MAP,
   normalizeClassStatus,
   type ClassStatusValue,
@@ -22,40 +19,6 @@ describe('CLASS_STATUS constants', () => {
 
   it('should have 5 status values', () => {
     expect(Object.keys(CLASS_STATUS)).toHaveLength(5);
-  });
-});
-
-describe('CLASS_STATUS_DISPLAY', () => {
-  it('should have display config for Scheduled', () => {
-    const display = CLASS_STATUS_DISPLAY[CLASS_STATUS.SCHEDULED];
-    expect(display.label).toBe('Not started');
-    expect(display.color).toBe('blue');
-    expect(display.bgClass).toBe('bg-blue-100');
-    expect(display.textClass).toBe('text-blue-800');
-  });
-
-  it('should have display config for Upcoming (alias)', () => {
-    const display = CLASS_STATUS_DISPLAY[CLASS_STATUS.UPCOMING];
-    expect(display.label).toBe('Not started');
-    expect(display.color).toBe('blue');
-  });
-
-  it('should have display config for In Progress', () => {
-    const display = CLASS_STATUS_DISPLAY[CLASS_STATUS.IN_PROGRESS];
-    expect(display.label).toBe('In Progress');
-    expect(display.color).toBe('amber');
-  });
-
-  it('should have display config for Completed', () => {
-    const display = CLASS_STATUS_DISPLAY[CLASS_STATUS.COMPLETED];
-    expect(display.label).toBe('Completed');
-    expect(display.color).toBe('green');
-  });
-
-  it('should have display config for Cancelled', () => {
-    const display = CLASS_STATUS_DISPLAY[CLASS_STATUS.CANCELLED];
-    expect(display.label).toBe('Cancelled');
-    expect(display.color).toBe('gray');
   });
 });
 
@@ -91,43 +54,6 @@ describe('getNextClassStatus', () => {
 
   it('should return Scheduled for Cancelled status', () => {
     expect(getNextClassStatus(CLASS_STATUS.CANCELLED)).toBe(CLASS_STATUS.SCHEDULED);
-  });
-});
-
-describe('getClassStatusDisplay', () => {
-  it('should return display config for known status', () => {
-    const display = getClassStatusDisplay(CLASS_STATUS.SCHEDULED);
-    expect(display.label).toBe('Not started');
-    expect(display.color).toBe('blue');
-  });
-
-  it('should return Upcoming config for unknown status (falls through to Scheduled default)', () => {
-    const display = getClassStatusDisplay('Unknown');
-    expect(display.label).toBe('Not started');
-    expect(display.color).toBe('blue');
-    expect(display.bgClass).toBe('bg-blue-100');
-  });
-});
-
-describe('getClassStatusBadgeClasses', () => {
-  it('should return combined classes for Scheduled', () => {
-    const classes = getClassStatusBadgeClasses(CLASS_STATUS.SCHEDULED);
-    expect(classes).toContain('bg-blue-100');
-    expect(classes).toContain('text-blue-800');
-    expect(classes).toContain('dark:bg-blue-900/30');
-    expect(classes).toContain('dark:text-blue-300');
-  });
-
-  it('should return combined classes for In Progress', () => {
-    const classes = getClassStatusBadgeClasses(CLASS_STATUS.IN_PROGRESS);
-    expect(classes).toContain('bg-amber-100');
-    expect(classes).toContain('text-amber-800');
-  });
-
-  it('should return blue classes for unknown status (falls through to Scheduled default)', () => {
-    const classes = getClassStatusBadgeClasses('Unknown');
-    expect(classes).toContain('bg-blue-100');
-    expect(classes).toContain('text-blue-800');
   });
 });
 

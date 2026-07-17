@@ -4,12 +4,15 @@ import { CheckInProgressBar } from '../CheckInProgressBar';
 
 describe('CheckInProgressBar', () => {
   it('renders counts for each status group', () => {
-    render(
+    const { container } = render(
       <CheckInProgressBar checkedInCount={27} partialCount={8} noneCount={12} totalEntries={47} />
     );
     expect(screen.getByText(/Checked In 27/)).toBeInTheDocument();
     expect(screen.getByText(/Partial 8/)).toBeInTheDocument();
     expect(screen.getByText(/Not Checked In 12/)).toBeInTheDocument();
+    expect(container.querySelector('[data-status="checked-in"][data-shape="in-progress"]')).toBeTruthy();
+    expect(container.querySelector('[data-status="pending"][data-shape="pending"]')).toBeTruthy();
+    expect(container.querySelector('[data-status="no-status"][data-shape="not-started"]')).toBeTruthy();
   });
 
   it('shows percentage', () => {

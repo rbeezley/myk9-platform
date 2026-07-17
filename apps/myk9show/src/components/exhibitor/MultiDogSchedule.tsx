@@ -9,12 +9,11 @@ import {
   Users,
   ChevronRight,
   Filter,
-  CheckCircle,
-  XCircle,
 } from 'lucide-react';
-import { ExhibitorEntry, CheckInStatus } from '@/types/exhibitor-types';
+import { ExhibitorEntry } from '@/types/exhibitor-types';
 import { cn } from '@/lib/utils';
 import { formatRingLabel } from '@/utils/ringLabel';
+import { StatusBadge } from '@/components/status';
 
 interface MultiDogScheduleProps {
   entries: ExhibitorEntry[];
@@ -97,20 +96,6 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
 
     return { completed, checkedIn, conflicts };
   }, [entries, timeline]);
-
-  // Get status color
-  const getStatusColor = (status: CheckInStatus) => {
-    switch (status) {
-      case 'checked-in':
-        return 'text-success ';
-      case 'pulled':
-        return 'text-destructive ';
-      case 'completed':
-        return 'text-purple-600 dark:text-purple-400';
-      default:
-        return 'text-gray-600 dark:text-gray-400';
-    }
-  };
 
   // Format time
   const formatTime = (date: Date) => {
@@ -264,20 +249,7 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
                           </div>
                         </div>
                         <div className="text-right">
-                          <span
-                            className={cn(
-                              'text-sm font-medium',
-                              getStatusColor(entry.checkInStatus)
-                            )}
-                          >
-                            {entry.checkInStatus === 'checked-in' && (
-                              <CheckCircle className="w-4 h-4 inline" />
-                            )}
-                            {entry.checkInStatus === 'pulled' && (
-                              <XCircle className="w-4 h-4 inline" />
-                            )}
-                            {entry.checkInStatus.replace('-', ' ')}
-                          </span>
+                          <StatusBadge family="entry" status={entry.checkInStatus} />
                         </div>
                       </div>
                     </div>
@@ -357,14 +329,7 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
                               {details}
                             </div>
                           </div>
-                          <span
-                            className={cn(
-                              'text-sm font-medium',
-                              getStatusColor(entry.checkInStatus)
-                            )}
-                          >
-                            {entry.checkInStatus.replace('-', ' ')}
-                          </span>
+                          <StatusBadge family="entry" status={entry.checkInStatus} />
                         </div>
                       );
                     })}

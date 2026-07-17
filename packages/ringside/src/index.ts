@@ -50,12 +50,11 @@ export type {
   ClassStatus,
   ClassDog,
   ClassStatusInput,
-  FormattedStatus,
+  EffectiveClassStatus,
 } from './utils/classStatus';
 export {
   getClassDisplayStatus,
-  getClassStatusColor,
-  getFormattedClassStatus,
+  getEffectiveClassStatus,
 } from './utils/classStatus';
 
 // Level sort + stale-data helpers (moved from apps/myk9q in PR E1a)
@@ -97,9 +96,6 @@ export {
 // Status formatting + sort/filter helpers (PR E1a)
 export {
   getContextualPreview,
-  getFormattedStatus,
-  getStatusColor,
-  getStatusLabel,
   isMaxTimeSet,
   shouldShowMaxTimeWarning,
   isEmptyDataError,
@@ -143,7 +139,7 @@ export type {
   EntryListDataDependencies,
 } from './pages/EntryList';
 
-export type { StatusBorderClass, StatusConfig } from './pages/EntryList';
+export type { StatusBorderClass } from './pages/EntryList';
 export {
   normalizeResultText,
   getResultClassName,
@@ -151,7 +147,6 @@ export {
   getStatusBorderClass,
   getPlacementEmoji,
   getPlacementText,
-  getStatusConfig,
   isNationalsCompetition,
   getDisplayTime,
 } from './pages/EntryList';

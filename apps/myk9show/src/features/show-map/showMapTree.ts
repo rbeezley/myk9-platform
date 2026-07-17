@@ -2,11 +2,13 @@ import {
   buildClassProgress,
   buildProgress,
   classifyClassStatus,
+  classifyTrialStatus,
   classifyClassWrapUpStatus,
   classifyEntryCheckInStatus,
   classifyEntryRunStatus,
   isEntryComplete,
 } from './showMapStatus';
+import { deriveTrialStatusKey } from '@myk9/core';
 import { getEntryAttention } from './attention';
 import {
   getShowMapClassHref,
@@ -208,6 +210,12 @@ export function buildShowMapTree({
     const completedClasses = trialClasses.filter(
       cls => classifyClassStatus(cls.status)?.kind === 'complete'
     ).length;
+    const trialStatusKey = deriveTrialStatusKey({
+      trialStatus: trial.status,
+      classCount: trialClasses.length,
+      completedCount: completedClasses,
+      hasStarted: trialClasses.some(cls => classifyClassStatus(cls.status)?.kind === 'active'),
+    });
     const resultSubmittedAt = trial.resultSubmittedAt ?? undefined;
     const classWrapUpStatusesById = new Map(
       trialClasses.map(cls => [
@@ -259,7 +267,7 @@ export function buildShowMapTree({
         .filter(Boolean)
         .join(' · '),
       count: trialClasses.length,
-      status: classifyClassStatus(trial.status),
+      status: classifyTrialStatus(trialStatusKey),
       wrapUpStatus: trialWrapUpStatus,
       progress: buildProgress(completedClasses, trialClasses.length, 'classes'),
       attentionCount,

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AlertCircle, History, Loader2, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { getStatusDescriptor, StatusIcon } from '@/components/status';
 import { useEntryStatusHistory } from '@/hooks/useEntryStatusHistory';
 
 interface EntryStatusHistoryProps {
@@ -10,8 +11,8 @@ interface EntryStatusHistoryProps {
   createdAt?: string | null | undefined;
 }
 
-function statusLabel(status: string): string {
-  return status.replace(/[-_]/g, ' ').replace(/\b\w/g, character => character.toUpperCase());
+function entryStatusLabel(status: string): string {
+  return getStatusDescriptor('entry', status).label;
 }
 
 function formatTimestamp(timestamp: string | null): string {
@@ -111,11 +112,17 @@ export function EntryStatusHistory({ entryId, currentStatus, createdAt }: EntryS
               <ol className="space-y-3 border-l border-border pl-4">
                 {history.data.map(item => (
                   <li key={item.id} className="relative space-y-1">
-                    <span className="absolute -left-[1.3rem] top-1.5 h-2 w-2 rounded-full bg-muted-foreground" />
+                    <StatusIcon
+                      family="entry"
+                      status={item.newStatus}
+                      size="sm"
+                      decorative
+                      className="absolute -left-[1.65rem] top-1 bg-card"
+                    />
                     <p className="font-medium">
                       {item.previousStatus
-                        ? `${statusLabel(item.previousStatus)} → ${statusLabel(item.newStatus)}`
-                        : `Created as ${statusLabel(item.newStatus)}`}
+                        ? `${entryStatusLabel(item.previousStatus)} → ${entryStatusLabel(item.newStatus)}`
+                        : `Created as ${entryStatusLabel(item.newStatus)}`}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {formatTimestamp(item.changedAt)} ·{' '}
@@ -135,8 +142,8 @@ export function EntryStatusHistory({ entryId, currentStatus, createdAt }: EntryS
               <p>No status changes have been recorded for this entry.</p>
               {createdAt && currentStatus && (
                 <p className="mt-1">
-                  Created {formatTimestamp(createdAt)} · current status {statusLabel(currentStatus)}
-                  .
+                  Created {formatTimestamp(createdAt)} · current status{' '}
+                  {entryStatusLabel(currentStatus)}.
                 </p>
               )}
             </div>

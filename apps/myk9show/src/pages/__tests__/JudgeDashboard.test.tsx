@@ -117,6 +117,15 @@ describe('JudgeDashboard', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/at-show/show-1/class/class-1');
   });
 
+  it('announces an assignment status once through visible badge text', () => {
+    mockUseJudgeAssignments.mockReturnValue(hookState({ assignments: [makeAssignment()] }));
+
+    render(<JudgeDashboard />);
+
+    expect(screen.getByText('Not started')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Not started' })).not.toBeInTheDocument();
+  });
+
   it('labels the action Continue Judging for an in-progress class', () => {
     mockUseJudgeAssignments.mockReturnValue(
       hookState({ assignments: [makeAssignment({ status: 'in-progress' })] })

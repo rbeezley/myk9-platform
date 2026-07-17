@@ -30,12 +30,7 @@ export {
   getClassIds,
 } from './utils/noviceClassGrouping';
 
-export {
-  getContextualPreview,
-  getFormattedStatus,
-  getStatusColor,
-  getStatusLabel,
-} from './utils/statusFormatting';
+export { getContextualPreview } from './utils/statusFormatting';
 
 export {
   isMaxTimeSet,

@@ -43,7 +43,7 @@ export function toShowClassStatus(ringsideStatus: ClassStatusValue): ShowClassSt
 
 /**
  * Inverse: myK9Show class status → ringside `ClassStatusValue`, for DISPLAY
- * (e.g. the ClassList card's status badge via `getFormattedClassStatus`).
+ * (e.g. the ClassList card's status badge via `getEffectiveClassStatus`).
  *
  * myK9Show's vocabulary is coarser, so this widens to the nearest ringside
  * value. `cancelled`/`upcoming` have no ringside equivalent → `no-status`.

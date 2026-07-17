@@ -3,8 +3,8 @@
  */
 
 import React from 'react';
-import { StatCard, StatsGrid } from '@myk9/ui';
-import { Users, CheckCircle2, Clock, ArrowUpCircle } from 'lucide-react';
+import { StatCard, StatsGrid, StatusIcon } from '@myk9/ui';
+import { Users, ArrowUpCircle } from 'lucide-react';
 import type { ClassWithWaitlistCount } from './types';
 
 interface ClassStatsCardsProps {
@@ -30,14 +30,14 @@ export const ClassStatsCards: React.FC<ClassStatsCardsProps> = ({ selectedClass 
         subtitle="Maximum entries"
       />
       <StatCard
-        icon={CheckCircle2}
+        icon={<StatusIcon family="entry" status="accepted" decorative />}
         title="Accepted"
         value={selectedClass.accepted_count}
         color="emerald"
         subtitle={percentFull !== null ? `${percentFull}% full` : 'No limit set'}
       />
       <StatCard
-        icon={Clock}
+        icon={<StatusIcon family="entry" status="waitlist" decorative />}
         title="Waitlist"
         value={selectedClass.waitlist_count}
         color="amber"

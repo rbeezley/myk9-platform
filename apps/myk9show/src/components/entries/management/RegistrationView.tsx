@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { toast } from 'sonner';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
@@ -7,7 +6,10 @@ import { supabase } from '@/lib/supabase';
 import { useEntryDecisionLifecycleEmails } from '@/features/lifecycle-emails';
 import { ListControls } from '@/components/common/ListControls';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useElementWidth } from '@/hooks/useElementWidth';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/common/EmptyState';
+import { Search, Users } from 'lucide-react';
 
 import { EntryStatsCards } from './EntryStatsCards';
 import { EnrollmentCard } from './EnrollmentCard';
@@ -25,6 +27,7 @@ import {
   type EntryManagementViewMode,
   type EntryWorkMode,
 } from './entryManagementFilters';
+import { shouldUseEntryCards } from './entryManagementResponsive';
 
 import type {
   BulkActionResult,
@@ -102,6 +105,9 @@ interface RegistrationViewProps {
   onRefresh: () => void;
   /** Entries grouped by enrollment/order for the list view */
   enrollmentGroups: EnrollmentGroup[];
+  /** Clears all entry and scope filters for the filtered-empty recovery action. */
+  onResetFilters: () => void;
+  hasActiveScopeFilters: boolean;
   onSendDecisionEmail: (
     registrationId: string,
     message?: string,
@@ -143,6 +149,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   onRemoveEntry,
   onRefresh,
   enrollmentGroups,
+  onResetFilters,
+  hasActiveScopeFilters,
   onSendDecisionEmail,
   lastEmailedMap = {},
 }) => {
@@ -213,6 +221,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   );
   const { data: emailStatusMap } = useEmailStatus(registrationIds);
   const isMobileViewport = useMediaQuery('(max-width: 767px)');
+  const { ref: registrationViewRef, width: contentWidth } = useElementWidth<HTMLDivElement>();
+  const useCardsForContent = shouldUseEntryCards(contentWidth, isMobileViewport);
 
   // Resend cooldown state (registrationId -> cooldown expiry timestamp)
   const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
@@ -256,6 +266,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   const hasSearchFilter = searchTerm.trim().length > 0;
   const isTrulyEmpty =
     entries.length === 0 &&
+    !hasActiveScopeFilters &&
     !hasSearchFilter &&
     paymentFilter === 'all' &&
     attentionFilter === 'all';
@@ -265,14 +276,22 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     payment: paymentFilter,
   });
   const emptyStateContent = (
-    <div className="space-y-3">
-      <p>{emptyStateMessage}</p>
-      {isTrulyEmpty && showId && (
-        <Button asChild>
-          <Link to={`/secretary/register/${encodeURIComponent(showId)}`}>Add mail-in entry</Link>
-        </Button>
-      )}
-    </div>
+    <EmptyState
+      icon={isTrulyEmpty ? Users : Search}
+      title={emptyStateMessage}
+      action={
+        isTrulyEmpty
+          ? showId
+            ? {
+                label: 'Add mail-in entry',
+                href: `/secretary/register/${encodeURIComponent(showId)}`,
+              }
+            : null
+          : { label: 'Clear filters', onClick: onResetFilters }
+      }
+      variant={isTrulyEmpty ? 'default' : 'filter'}
+      size="sm"
+    />
   );
   const enrollmentPageCount = Math.max(
     1,
@@ -380,7 +399,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   );
 
   return (
-    <div className="space-y-6">
+    <div ref={registrationViewRef} className="space-y-6">
       {/* Stats Overview */}
       <EntryStatsCards stats={stats} />
 
@@ -426,7 +445,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         entityName="entries"
       />
 
-      {entryViewMode === 'table' && isMobileViewport ? (
+      {entryViewMode === 'table' && useCardsForContent ? (
         enrollmentCardList
       ) : entryViewMode === 'table' ? (
         <EntriesTableView

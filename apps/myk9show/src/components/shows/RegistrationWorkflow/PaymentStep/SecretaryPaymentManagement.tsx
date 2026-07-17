@@ -28,8 +28,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 import type { PaymentMethod } from '@/types/show-registration-types';
-import { getPaymentStatusBadgeColor, getEntryStatusBadgeColor } from './utils';
+import { getPaymentStatusBadgeColor } from './utils';
 import type { SecretaryPaymentManagementProps } from './types';
+import { StatusBadge } from '@/components/status';
 
 /**
  * Secretary-only payment management panel with tabs for:
@@ -201,7 +202,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                 {/* Current Entry Status */}
                 <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                   <span className="text-sm font-medium">Current Status:</span>
-                  <Badge className={getEntryStatusBadgeColor(entryStatus)}>{entryStatus}</Badge>
+                  <StatusBadge family="entry" status={entryStatus} variant="outline" />
                 </div>
 
                 {/* Entry Status Actions */}

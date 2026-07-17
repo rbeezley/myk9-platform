@@ -89,7 +89,7 @@ export type {
 // Check-in and offline types
 export type {
   CheckInStatus,
-  CheckInStatusConfig,
+  CheckInStatusMetadata,
   CheckInInfo
 } from './check-in-types';
 

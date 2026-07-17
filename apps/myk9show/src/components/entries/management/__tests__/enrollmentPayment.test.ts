@@ -45,12 +45,12 @@ describe('resolvePartialPayment', () => {
 
 describe('resolveRefund', () => {
   it('returns null for a non-positive amount', () => {
-    expect(resolveRefund('', 50, false, 'check_mailed', '')).toBeNull();
-    expect(resolveRefund('0', 50, false, 'check_mailed', '')).toBeNull();
+    expect(resolveRefund('', 50, 'check_mailed', '')).toBeNull();
+    expect(resolveRefund('0', 50, 'check_mailed', '')).toBeNull();
   });
 
   it('lands a full refund as REFUNDED with the method label as notes', () => {
-    const result = resolveRefund('50', 50, false, 'check_mailed', '');
+    const result = resolveRefund('50', 50, 'check_mailed', '');
     expect(result).toEqual({
       status: PaymentStatus.REFUNDED,
       amount: 50,
@@ -59,7 +59,7 @@ describe('resolveRefund', () => {
   });
 
   it('lands a partial refund below the paid amount as PARTIAL_REFUND', () => {
-    const result = resolveRefund('20', 50, true, 'cash_returned', '');
+    const result = resolveRefund('20', 50, 'cash_returned', '');
     expect(result).toEqual({
       status: PaymentStatus.PARTIAL_REFUND,
       amount: 20,
@@ -68,12 +68,16 @@ describe('resolveRefund', () => {
   });
 
   it('treats a "partial" refund covering the whole paid amount as REFUNDED', () => {
-    const result = resolveRefund('50', 50, true, 'stripe', '');
+    const result = resolveRefund('50', 50, 'stripe', '');
     expect(result?.status).toBe(PaymentStatus.REFUNDED);
   });
 
   it('appends trimmed notes after the method label', () => {
-    const result = resolveRefund('50', 50, false, 'other', '  mailed 5/1  ');
+    const result = resolveRefund('50', 50, 'other', '  mailed 5/1  ');
     expect(result?.notes).toBe('Other: mailed 5/1');
+  });
+
+  it('rejects a refund above the amount paid', () => {
+    expect(resolveRefund('51', 50, 'stripe', '')).toBeNull();
   });
 });

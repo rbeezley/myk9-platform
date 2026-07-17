@@ -120,7 +120,7 @@ export function EmptyState({
       {(action || secondaryAction) && (
         <div className="flex flex-col sm:flex-row items-center gap-3 mt-8">
           {action && (
-            'href' in action ? (
+            action.href !== undefined ? (
               <Link
                 to={action.href}
                 className={cn(

@@ -134,6 +134,8 @@ function renderView(
     onRemoveEntry: vi.fn(),
     onRefresh: vi.fn(),
     enrollmentGroups,
+    onResetFilters: vi.fn(),
+    hasActiveScopeFilters: false,
     onSendDecisionEmail: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };

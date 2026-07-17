@@ -1,6 +1,6 @@
 /**
  * Rally Scoresheet Component
- * 
+ *
  * Specialized scoring interface for Rally competitions.
  * Handles deduction-based scoring starting from perfect score.
  */
@@ -40,7 +40,7 @@ export function RallyScoresheet({
   onSave,
   onCancel,
   validationErrors,
-  className
+  className,
 }: RallyScoresheetProps) {
   const { user } = useAuthContext();
 
@@ -65,72 +65,84 @@ export function RallyScoresheet({
     timestamp: new Date(),
     version: 1,
     lastModified: new Date(),
-    syncStatus: 'pending'
+    syncStatus: 'pending',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Calculate totals
   const calculations = useMemo(() => {
-    const totalDeductions = (score.stationDeductions || 0) + 
-                           (score.lackOfControl || 0) + 
-                           (score.repeatStation || 0);
+    const totalDeductions =
+      (score.stationDeductions || 0) + (score.lackOfControl || 0) + (score.repeatStation || 0);
     const finalScore = Math.max(0, 210 - totalDeductions);
     const isQualifying = finalScore >= (score.qualifyingScore || 170) && !score.timeFault;
-    const timeExceeded = score.maxCourseTime && score.courseTime && 
-                         score.courseTime > score.maxCourseTime;
-    
+    const timeExceeded =
+      score.maxCourseTime && score.courseTime && score.courseTime > score.maxCourseTime;
+
     return {
       totalDeductions,
       finalScore,
       isQualifying,
-      timeExceeded
+      timeExceeded,
     };
-  }, [score.stationDeductions, score.lackOfControl, score.repeatStation, 
-      score.qualifyingScore, score.timeFault, score.courseTime, score.maxCourseTime]);
+  }, [
+    score.stationDeductions,
+    score.lackOfControl,
+    score.repeatStation,
+    score.qualifyingScore,
+    score.timeFault,
+    score.courseTime,
+    score.maxCourseTime,
+  ]);
 
   // Update score with automatic calculations
-  const updateScore = useCallback((updates: Partial<RallyScore>) => {
-    setScore(prev => {
-      const newScore = { ...prev, ...updates };
-      
-      // Update calculated fields
-      newScore.totalDeductions = calculations.totalDeductions;
-      newScore.finalScore = calculations.finalScore;
-      newScore.isQualifying = calculations.isQualifying;
-      
-      // Auto-set time fault if time exceeded
-      if (calculations.timeExceeded && !newScore.timeFault) {
-        newScore.timeFault = true;
-      }
-      
-      // Auto-determine qualification
-      if (!calculations.isQualifying || newScore.timeFault) {
-        newScore.qualification = 'Not Qualified';
-      } else {
-        newScore.qualification = 'Qualified';
-      }
+  const updateScore = useCallback(
+    (updates: Partial<RallyScore>) => {
+      setScore(prev => {
+        const newScore = { ...prev, ...updates };
 
-      return newScore;
-    });
-  }, [calculations]);
+        // Update calculated fields
+        newScore.totalDeductions = calculations.totalDeductions;
+        newScore.finalScore = calculations.finalScore;
+        newScore.isQualifying = calculations.isQualifying;
+
+        // Auto-set time fault if time exceeded
+        if (calculations.timeExceeded && !newScore.timeFault) {
+          newScore.timeFault = true;
+        }
+
+        // Auto-determine qualification
+        if (!calculations.isQualifying || newScore.timeFault) {
+          newScore.qualification = 'Not Qualified';
+        } else {
+          newScore.qualification = 'Qualified';
+        }
+
+        return newScore;
+      });
+    },
+    [calculations]
+  );
 
   // Quick deduction buttons
-  const addStationDeduction = useCallback((amount: number) => {
-    updateScore({ 
-      stationDeductions: Math.max(0, (score.stationDeductions || 0) + amount)
-    });
-  }, [score.stationDeductions, updateScore]);
+  const addStationDeduction = useCallback(
+    (amount: number) => {
+      updateScore({
+        stationDeductions: Math.max(0, (score.stationDeductions || 0) + amount),
+      });
+    },
+    [score.stationDeductions, updateScore]
+  );
 
   const addLackOfControl = useCallback(() => {
-    updateScore({ 
-      lackOfControl: (score.lackOfControl || 0) + 10
+    updateScore({
+      lackOfControl: (score.lackOfControl || 0) + 10,
     });
   }, [score.lackOfControl, updateScore]);
 
   const addRepeatStation = useCallback(() => {
-    updateScore({ 
-      repeatStation: (score.repeatStation || 0) + 3
+    updateScore({
+      repeatStation: (score.repeatStation || 0) + 3,
     });
   }, [score.repeatStation, updateScore]);
 
@@ -180,26 +192,24 @@ export function RallyScoresheet({
         <CardContent className="pt-6">
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <div className="text-3xl font-bold text-blue-600">
-                {calculations.finalScore}
-              </div>
+              <div className="text-3xl font-bold text-blue-600">{calculations.finalScore}</div>
               <div className="text-sm text-muted-foreground">Final Score</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-red-600">
-                -{calculations.totalDeductions}
-              </div>
+              <div className="text-3xl font-bold text-red-600">-{calculations.totalDeductions}</div>
               <div className="text-sm text-muted-foreground">Total Deductions</div>
             </div>
             <div>
-              <div className={cn(
-                "text-3xl font-bold",
-                calculations.isQualifying ? "text-green-600" : "text-red-600"
-              )}>
-                {calculations.isQualifying ? "Q" : "NQ"}
+              <div
+                className={cn(
+                  'text-3xl font-bold',
+                  calculations.isQualifying ? 'text-green-600' : 'text-destructive'
+                )}
+              >
+                {calculations.isQualifying ? 'Q' : 'NQ'}
               </div>
               <div className="text-sm text-muted-foreground">
-                {calculations.isQualifying ? "Qualifying" : "Non-Qualifying"}
+                {calculations.isQualifying ? 'Qualifying' : 'Non-Qualifying'}
               </div>
             </div>
           </div>
@@ -224,7 +234,7 @@ export function RallyScoresheet({
                 step="0.01"
                 min="0"
                 value={score.courseTime ? (score.courseTime / 1000).toFixed(2) : ''}
-                onChange={(e) => {
+                onChange={e => {
                   const seconds = parseFloat(e.target.value) || 0;
                   updateScore({ courseTime: seconds * 1000 });
                 }}
@@ -239,7 +249,7 @@ export function RallyScoresheet({
                 step="0.01"
                 min="0"
                 value={score.maxCourseTime ? (score.maxCourseTime / 1000).toFixed(2) : ''}
-                onChange={(e) => {
+                onChange={e => {
                   const seconds = parseFloat(e.target.value) || 0;
                   updateScore({ maxCourseTime: seconds * 1000 });
                 }}
@@ -253,7 +263,7 @@ export function RallyScoresheet({
               type="checkbox"
               id="timeFault"
               checked={score.timeFault || false}
-              onChange={(e) => updateScore({ timeFault: e.target.checked })}
+              onChange={e => updateScore({ timeFault: e.target.checked })}
             />
             <Label htmlFor="timeFault">Time Fault (exceeded maximum time)</Label>
           </div>
@@ -261,9 +271,7 @@ export function RallyScoresheet({
           {calculations.timeExceeded && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Course time exceeded maximum allowed time.
-              </AlertDescription>
+              <AlertDescription>Course time exceeded maximum allowed time.</AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -280,18 +288,10 @@ export function RallyScoresheet({
             <div className="flex items-center justify-between">
               <Label className="font-medium">Station Deductions (1-3 pts each)</Label>
               <div className="flex items-center space-x-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => addStationDeduction(1)}
-                >
+                <Button size="sm" variant="outline" onClick={() => addStationDeduction(1)}>
                   +1pt
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => addStationDeduction(3)}
-                >
+                <Button size="sm" variant="outline" onClick={() => addStationDeduction(3)}>
                   +3pts
                 </Button>
                 <Button
@@ -309,7 +309,7 @@ export function RallyScoresheet({
                 type="number"
                 min="0"
                 value={score.stationDeductions || 0}
-                onChange={(e) => updateScore({ stationDeductions: parseInt(e.target.value) || 0 })}
+                onChange={e => updateScore({ stationDeductions: parseInt(e.target.value) || 0 })}
                 className="w-24"
               />
               <span className="text-sm text-muted-foreground">
@@ -323,17 +323,15 @@ export function RallyScoresheet({
             <div className="flex items-center justify-between">
               <Label className="font-medium">Lack of Control (10 pts each)</Label>
               <div className="flex items-center space-x-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={addLackOfControl}
-                >
+                <Button size="sm" variant="outline" onClick={addLackOfControl}>
                   +10pts
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => updateScore({ lackOfControl: Math.max(0, (score.lackOfControl || 0) - 10) })}
+                  onClick={() =>
+                    updateScore({ lackOfControl: Math.max(0, (score.lackOfControl || 0) - 10) })
+                  }
                   disabled={(score.lackOfControl || 0) <= 0}
                 >
                   -10pts
@@ -346,7 +344,7 @@ export function RallyScoresheet({
                 min="0"
                 step="10"
                 value={score.lackOfControl || 0}
-                onChange={(e) => updateScore({ lackOfControl: parseInt(e.target.value) || 0 })}
+                onChange={e => updateScore({ lackOfControl: parseInt(e.target.value) || 0 })}
                 className="w-24"
               />
               <span className="text-sm text-muted-foreground">
@@ -360,17 +358,15 @@ export function RallyScoresheet({
             <div className="flex items-center justify-between">
               <Label className="font-medium">Repeat Station (3 pts each)</Label>
               <div className="flex items-center space-x-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={addRepeatStation}
-                >
+                <Button size="sm" variant="outline" onClick={addRepeatStation}>
                   +3pts
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => updateScore({ repeatStation: Math.max(0, (score.repeatStation || 0) - 3) })}
+                  onClick={() =>
+                    updateScore({ repeatStation: Math.max(0, (score.repeatStation || 0) - 3) })
+                  }
                   disabled={(score.repeatStation || 0) <= 0}
                 >
                   -3pts
@@ -383,12 +379,10 @@ export function RallyScoresheet({
                 min="0"
                 step="3"
                 value={score.repeatStation || 0}
-                onChange={(e) => updateScore({ repeatStation: parseInt(e.target.value) || 0 })}
+                onChange={e => updateScore({ repeatStation: parseInt(e.target.value) || 0 })}
                 className="w-24"
               />
-              <span className="text-sm text-muted-foreground">
-                Retrying a station
-              </span>
+              <span className="text-sm text-muted-foreground">Retrying a station</span>
             </div>
           </div>
 
@@ -416,7 +410,9 @@ export function RallyScoresheet({
               <select
                 className="w-full mt-1 px-3 py-2 border rounded-md"
                 value={score.qualification || 'Qualified'}
-                onChange={(e) => updateScore({ qualification: e.target.value as QualificationStatus })}
+                onChange={e =>
+                  updateScore({ qualification: e.target.value as QualificationStatus })
+                }
               >
                 <option value="Qualified">Qualified</option>
                 <option value="Not Qualified">Not Qualified</option>
@@ -433,7 +429,7 @@ export function RallyScoresheet({
                 min="0"
                 max="210"
                 value={score.qualifyingScore || 170}
-                onChange={(e) => updateScore({ qualifyingScore: parseInt(e.target.value) || 170 })}
+                onChange={e => updateScore({ qualifyingScore: parseInt(e.target.value) || 170 })}
               />
             </div>
           </div>
@@ -442,10 +438,9 @@ export function RallyScoresheet({
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                {score.timeFault 
+                {score.timeFault
                   ? 'Time fault results in non-qualifying score'
-                  : `Score below qualifying threshold (${score.qualifyingScore || 170} required)`
-                }
+                  : `Score below qualifying threshold (${score.qualifyingScore || 170} required)`}
               </AlertDescription>
             </Alert>
           )}
@@ -456,7 +451,7 @@ export function RallyScoresheet({
               <Input
                 id="excusedStation"
                 value={score.excusedStation || ''}
-                onChange={(e) => updateScore({ excusedStation: e.target.value })}
+                onChange={e => updateScore({ excusedStation: e.target.value })}
                 placeholder="Station number or description"
               />
             </div>
@@ -483,10 +478,7 @@ export function RallyScoresheet({
         <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={!isComplete || isSubmitting}
-        >
+        <Button onClick={handleSubmit} disabled={!isComplete || isSubmitting}>
           {isSubmitting ? 'Saving...' : 'Save Score'}
         </Button>
       </div>

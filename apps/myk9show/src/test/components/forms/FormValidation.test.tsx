@@ -53,7 +53,7 @@ const ValidatedInput = ({
   return (
     <div className="form-field">
       <label htmlFor={inputId} className="block text-sm font-medium mb-1">
-        {label} {required && <span className="text-red-500">*</span>}
+        {label} {required && <span className="text-destructive">*</span>}
       </label>
       <input
         id={inputId}
@@ -61,14 +61,14 @@ const ValidatedInput = ({
         value={value}
         onChange={e => onChange(e.target.value)}
         onBlur={onBlur}
-        className={`w-full p-2 border rounded ${error ? 'border-red-500' : 'border-gray-300'}`}
+        className={`w-full p-2 border rounded ${error ? 'border-destructive' : 'border-gray-300'}`}
         placeholder={placeholder}
         aria-invalid={!!error}
         aria-describedby={error ? `${inputId}-error` : undefined}
         {...props}
       />
       {error && (
-        <p id={`${inputId}-error`} className="text-red-500 text-sm mt-1" role="alert">
+        <p id={`${inputId}-error`} className="text-destructive text-sm mt-1" role="alert">
           {error}
         </p>
       )}

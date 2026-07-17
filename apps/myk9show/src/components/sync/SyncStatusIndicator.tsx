@@ -2,14 +2,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { 
-  CheckCircle, 
-  Clock, 
-  AlertTriangle, 
-  XCircle, 
-  RefreshCw,
-  CloudOff
-} from 'lucide-react';
+import { CheckCircle, Clock, AlertTriangle, XCircle, RefreshCw, CloudOff } from 'lucide-react';
 
 export type SyncStatus = 'synced' | 'pending' | 'error' | 'conflict' | 'offline';
 
@@ -38,7 +31,7 @@ interface SyncStatusIndicatorProps {
 
 /**
  * SyncStatusIndicator - Reusable component showing sync status with Premium design
- * 
+ *
  * Displays sync status with appropriate colors, icons, and optional actions.
  * Supports tooltips with detailed information and quick actions.
  */
@@ -52,7 +45,7 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
   errorMessage,
   enableActions = false,
   className = '',
-  onRetry
+  onRetry,
 }) => {
   // Status configuration with design tokens
   const statusConfig = {
@@ -63,7 +56,7 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
       color: 'text-green-600',
       bgColor: 'bg-green-50',
       borderColor: 'border-green-200',
-      description: 'All changes synchronized'
+      description: 'All changes synchronized',
     },
     pending: {
       icon: Clock,
@@ -72,7 +65,7 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
       borderColor: 'border-orange-200',
-      description: 'Waiting to sync'
+      description: 'Waiting to sync',
     },
     error: {
       icon: XCircle,
@@ -81,7 +74,7 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
       color: 'text-red-600',
       bgColor: 'bg-red-50',
       borderColor: 'border-red-200',
-      description: 'Sync failed'
+      description: 'Sync failed',
     },
     conflict: {
       icon: AlertTriangle,
@@ -90,7 +83,7 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-50',
       borderColor: 'border-yellow-200',
-      description: 'Requires manual resolution'
+      description: 'Requires manual resolution',
     },
     offline: {
       icon: CloudOff,
@@ -99,8 +92,8 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
       color: 'text-gray-600',
       bgColor: 'bg-gray-50',
       borderColor: 'border-gray-200',
-      description: 'No network connection'
-    }
+      description: 'No network connection',
+    },
   };
 
   const config = statusConfig[status];
@@ -109,7 +102,7 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
   // Format last sync time
   const formatLastSync = (date?: Date): string => {
     if (!date) return 'Never synced';
-    
+
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / (1000 * 60));
@@ -132,14 +125,10 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
       </div>
       <p className="text-sm text-muted-foreground">{config.description}</p>
       {lastSyncAt && (
-        <p className="text-xs text-muted-foreground">
-          Last sync: {formatLastSync(lastSyncAt)}
-        </p>
+        <p className="text-xs text-muted-foreground">Last sync: {formatLastSync(lastSyncAt)}</p>
       )}
       {errorMessage && status === 'error' && (
-        <p className="text-xs text-red-600">
-          Error: {errorMessage}
-        </p>
+        <p className="text-xs text-destructive">Error: {errorMessage}</p>
       )}
       {entityType && entityId && (
         <p className="text-xs text-muted-foreground">
@@ -156,7 +145,7 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <div className={`inline-flex items-center ${className}`}>
-              <IconComponent 
+              <IconComponent
                 className={`h-4 w-4 ${config.color}`}
                 aria-label={`${entityType} sync status: ${config.label}`}
               />
@@ -177,12 +166,12 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <div className="flex items-center gap-2">
-              <IconComponent 
+              <IconComponent
                 className={`h-4 w-4 ${config.color}`}
                 aria-label={`${entityType} sync status: ${config.label}`}
               />
               {showLabel && (
-                <Badge 
+                <Badge
                   variant={config.badge}
                   className={`text-xs px-2 py-1 rounded-full border 
                              ${config.bgColor} ${config.borderColor} ${config.color}`}
@@ -215,15 +204,15 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
 };
 
 // Convenience components for common use cases
-export const ShowSyncIndicator: React.FC<Omit<SyncStatusIndicatorProps, 'entityType'>> = (props) => (
+export const ShowSyncIndicator: React.FC<Omit<SyncStatusIndicatorProps, 'entityType'>> = props => (
   <SyncStatusIndicator {...props} entityType="show" />
 );
 
-export const ClassSyncIndicator: React.FC<Omit<SyncStatusIndicatorProps, 'entityType'>> = (props) => (
+export const ClassSyncIndicator: React.FC<Omit<SyncStatusIndicatorProps, 'entityType'>> = props => (
   <SyncStatusIndicator {...props} entityType="class" />
 );
 
-export const EntrySyncIndicator: React.FC<Omit<SyncStatusIndicatorProps, 'entityType'>> = (props) => (
+export const EntrySyncIndicator: React.FC<Omit<SyncStatusIndicatorProps, 'entityType'>> = props => (
   <SyncStatusIndicator {...props} entityType="entry" />
 );
 

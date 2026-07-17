@@ -281,8 +281,8 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentDialog('delete')}
-                className="h-10 px-4 rounded-xl border-red-200/50 bg-red-50/50 text-red-600 font-semibold
-                           hover:bg-red-100/50 hover:text-red-700 transition-all duration-300
+                className="h-10 px-4 rounded-xl border-destructive/50 bg-destructive/10 text-destructive font-semibold
+                           hover:bg-destructive/10 hover:text-destructive transition-all duration-300
                              "
               >
                 <Trash2 className="h-4 w-4 mr-2" />

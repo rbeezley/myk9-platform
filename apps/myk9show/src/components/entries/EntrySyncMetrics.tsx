@@ -4,27 +4,27 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  BarChart, 
-  Bar, 
-  // LineChart, 
-  // Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  // LineChart,
+  // Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
-  Legend
+  Legend,
 } from 'recharts';
-import { 
-  Gauge, 
-  // TrendingUp, 
-  // TrendingDown, 
-  Clock, 
-  CheckCircle, 
+import {
+  Gauge,
+  // TrendingUp,
+  // TrendingDown,
+  Clock,
+  CheckCircle,
   AlertTriangle,
   RefreshCw,
   Wifi,
@@ -35,7 +35,7 @@ import {
   // FileText,
   Timer,
   Activity,
-  DollarSign
+  DollarSign,
 } from 'lucide-react';
 import { useEntryStore } from '@/store/entryStore';
 
@@ -84,7 +84,7 @@ interface EntrySyncMetricsProps {
 
 /**
  * EntrySyncMetrics - Comprehensive metrics dashboard for entry sync operations with Premium design
- * 
+ *
  * Displays real-time sync performance, payment processing status, and operational metrics.
  * Provides insights into sync efficiency, error patterns, and system health.
  */
@@ -92,7 +92,7 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
   showId,
   timeRange = '24h',
   refreshInterval = 30,
-  className = ''
+  className = '',
 }) => {
   void timeRange; // Suppress unused variable warning
   const [selectedTab, setSelectedTab] = useState('overview');
@@ -103,10 +103,10 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
   const [syncHistory] = useState<SyncHistory[]>(() => {
     const history: SyncHistory[] = [];
     const now = new Date();
-    
+
     // Generate sample data for the last 24 hours
     for (let i = 0; i < 100; i++) {
-      const timestamp = new Date(now.getTime() - (i * 15 * 60 * 1000)); // Every 15 minutes
+      const timestamp = new Date(now.getTime() - i * 15 * 60 * 1000); // Every 15 minutes
       const hasError = Math.random() <= 0.1;
       history.push({
         timestamp,
@@ -114,16 +114,16 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
         entryId: `entry-${i}`,
         duration: Math.random() * 2000 + 200, // 200-2200ms
         status: Math.random() > 0.1 ? 'success' : 'error',
-        ...(hasError && { errorMessage: 'Network timeout' })
+        ...(hasError && { errorMessage: 'Network timeout' }),
       });
     }
-    
+
     return history.reverse();
   });
 
   // Get entry data from store
-  const entries = useEntryStore((state) => state.entries);
-  const getSyncStatus = useEntryStore((state) => state.getSyncStatus);
+  const entries = useEntryStore(state => state.entries);
+  const getSyncStatus = useEntryStore(state => state.getSyncStatus);
 
   // Filter entries by show if specified
   const filteredEntries = useMemo(() => {
@@ -144,7 +144,7 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
 
     filteredEntries.forEach(entry => {
       const syncStatus = getSyncStatus(entry.id);
-      
+
       switch (syncStatus) {
         case 'synced':
           synced++;
@@ -178,10 +178,11 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
     const successfulSyncs = syncHistory.filter(h => h.status === 'success').length;
     const totalSyncs = syncHistory.length;
     const syncSuccessRate = totalSyncs > 0 ? (successfulSyncs / totalSyncs) * 100 : 100;
-    
-    const avgSyncTime = syncHistory.length > 0 
-      ? syncHistory.reduce((sum, h) => sum + h.duration, 0) / syncHistory.length 
-      : 0;
+
+    const avgSyncTime =
+      syncHistory.length > 0
+        ? syncHistory.reduce((sum, h) => sum + h.duration, 0) / syncHistory.length
+        : 0;
 
     const lastSync = syncHistory.length > 0 ? syncHistory[syncHistory.length - 1].timestamp : null;
 
@@ -198,14 +199,14 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
         pendingPayments,
         completedPayments,
         failedPayments,
-        totalRevenue
+        totalRevenue,
       },
       performanceMetrics: {
-        entriesPerMinute: total > 0 ? (total / 60) : 0, // Simplified calculation
+        entriesPerMinute: total > 0 ? total / 60 : 0, // Simplified calculation
         peakSyncTime: Math.max(...syncHistory.map(h => h.duration), 0),
         offlineTime: 0, // Would be calculated from network status history
-        retryRate: error > 0 ? (error / total) * 100 : 0
-      }
+        retryRate: error > 0 ? (error / total) * 100 : 0,
+      },
     };
   }, [filteredEntries, getSyncStatus, syncHistory]);
 
@@ -213,10 +214,10 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
   const handleRefresh = async () => {
     setIsRefreshing(true);
     setLastRefresh(new Date());
-    
+
     // Simulate refresh delay
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     setIsRefreshing(false);
   };
 
@@ -231,22 +232,25 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
 
   // Chart data
   const syncTrendData = useMemo(() => {
-    const hourly = syncHistory.reduce((acc, item) => {
-      const hour = new Date(item.timestamp).getHours();
-      const key = `${hour}:00`;
-      
-      if (!acc[key]) {
-        acc[key] = { time: key, success: 0, error: 0 };
-      }
-      
-      if (item.status === 'success') {
-        acc[key].success++;
-      } else {
-        acc[key].error++;
-      }
-      
-      return acc;
-    }, {} as Record<string, { time: string; success: number; error: number }>);
+    const hourly = syncHistory.reduce(
+      (acc, item) => {
+        const hour = new Date(item.timestamp).getHours();
+        const key = `${hour}:00`;
+
+        if (!acc[key]) {
+          acc[key] = { time: key, success: 0, error: 0 };
+        }
+
+        if (item.status === 'success') {
+          acc[key].success++;
+        } else {
+          acc[key].error++;
+        }
+
+        return acc;
+      },
+      {} as Record<string, { time: string; success: number; error: number }>
+    );
 
     return Object.values(hourly).slice(-12); // Last 12 hours
   }, [syncHistory]);
@@ -255,13 +259,13 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
     { name: 'Synced', value: metrics.syncedEntries, color: '#34C759' },
     { name: 'Pending', value: metrics.pendingEntries, color: '#FF9500' },
     { name: 'Error', value: metrics.errorEntries, color: '#FF3B30' },
-    { name: 'Conflict', value: metrics.conflictEntries, color: '#FFD700' }
+    { name: 'Conflict', value: metrics.conflictEntries, color: '#FFD700' },
   ];
 
   const paymentStatusData = [
     { name: 'Completed', value: metrics.paymentMetrics.completedPayments, color: '#34C759' },
     { name: 'Pending', value: metrics.paymentMetrics.pendingPayments, color: '#FF9500' },
-    { name: 'Failed', value: metrics.paymentMetrics.failedPayments, color: '#FF3B30' }
+    { name: 'Failed', value: metrics.paymentMetrics.failedPayments, color: '#FF3B30' },
   ];
 
   return (
@@ -275,19 +279,14 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
             {showId && ` for show ${showId}`}
           </p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
             <Wifi className="h-3 w-3 mr-1" />
             Online
           </Badge>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
+
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
@@ -438,11 +437,11 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
               </CardContent>
             </Card>
 
-            <Card className="bg-red-50 border-red-200">
+            <Card className="bg-destructive/10 border-destructive/20">
               <CardContent className="p-4 text-center">
-                <AlertTriangle className="h-8 w-8 text-red-600 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-red-800">{metrics.errorEntries}</p>
-                <p className="text-sm text-red-600">Errors</p>
+                <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-2" />
+                <p className="text-2xl font-bold text-destructive">{metrics.errorEntries}</p>
+                <p className="text-sm text-destructive">Errors</p>
               </CardContent>
             </Card>
 
@@ -521,22 +520,22 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
                     ${metrics.paymentMetrics.totalRevenue.toFixed(2)}
                   </span>
                 </div>
-                
+
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Completed Payments</span>
                   <span className="font-medium">{metrics.paymentMetrics.completedPayments}</span>
                 </div>
-                
+
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Pending Payments</span>
                   <span className="font-medium text-orange-600">
                     {metrics.paymentMetrics.pendingPayments}
                   </span>
                 </div>
-                
+
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Failed Payments</span>
-                  <span className="font-medium text-red-600">
+                  <span className="font-medium text-destructive">
                     {metrics.paymentMetrics.failedPayments}
                   </span>
                 </div>
@@ -603,7 +602,7 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
                     <span className="text-sm font-medium text-green-600">Excellent</span>
                   </div>
                 </div>
-                
+
                 <div className="text-xs text-muted-foreground">
                   Last updated: {lastRefresh.toLocaleTimeString()}
                 </div>

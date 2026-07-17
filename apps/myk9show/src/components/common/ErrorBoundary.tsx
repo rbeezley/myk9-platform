@@ -22,8 +22,7 @@ interface ErrorBoundaryState {
   errorInfo: ErrorInfo | null;
   errorId: string;
   classifiedError?:
-    | import('@/services/error/ErrorClassificationService').ClassifiedError
-    | undefined;
+    import('@/services/error/ErrorClassificationService').ClassifiedError | undefined;
 }
 
 /**
@@ -181,7 +180,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
             <Card className="w-full max-w-md">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-red-600">
+                <CardTitle className="flex items-center gap-2 text-destructive">
                   <AlertTriangle className="h-5 w-5" />
                   Page Error
                 </CardTitle>
@@ -225,9 +224,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
       if (level === 'section') {
         return (
-          <Card className="border-red-200 bg-red-50">
+          <Card className="border-destructive/20 bg-destructive/10">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-red-600 text-base">
+              <CardTitle className="flex items-center gap-2 text-destructive text-base">
                 <AlertTriangle className="h-4 w-4" />
                 Section Unavailable
               </CardTitle>
@@ -258,8 +257,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
       // Component-level error (minimal UI)
       return (
-        <div className="p-3 border border-red-200 bg-red-50 rounded">
-          <div className="flex items-center gap-2 text-red-600 text-sm font-medium">
+        <div className="p-3 border border-destructive/20 bg-destructive/10 rounded">
+          <div className="flex items-center gap-2 text-destructive text-sm font-medium">
             <AlertTriangle className="h-4 w-4" />
             Component Error
           </div>

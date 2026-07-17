@@ -220,14 +220,14 @@ export const RBACTestPage: React.FC = () => {
             <div className="flex items-center gap-2">
               {dbStatus === 'testing' && <Loader2 className="h-4 w-4 animate-spin" />}
               {dbStatus === 'connected' && <CheckCircle className="h-4 w-4 text-green-600" />}
-              {dbStatus === 'error' && <XCircle className="h-4 w-4 text-red-600" />}
+              {dbStatus === 'error' && <XCircle className="h-4 w-4 text-destructive" />}
 
               <span
                 className={`font-medium ${
                   dbStatus === 'connected'
                     ? 'text-green-600'
                     : dbStatus === 'error'
-                      ? 'text-red-600'
+                      ? 'text-destructive'
                       : 'text-yellow-600'
                 }`}
               >
@@ -385,7 +385,7 @@ export const RBACTestPage: React.FC = () => {
                         {result.result ? (
                           <CheckCircle className="h-4 w-4 text-green-600" />
                         ) : (
-                          <XCircle className="h-4 w-4 text-red-600" />
+                          <XCircle className="h-4 w-4 text-destructive" />
                         )}
                         <span className="flex-1">{result.test}</span>
                         {result.details && (

@@ -31,7 +31,7 @@ const PRIORITY_OPTIONS: {
     value: 'urgent',
     label: 'Urgent',
     icon: AlertCircle,
-    className: 'border-red-500/30 text-red-400',
+    className: 'border-destructive/30 text-destructive',
   },
 ];
 
@@ -166,7 +166,11 @@ export function CreateAnnouncementDialog({
             </div>
           </div>
 
-          <FormField label="Expires at (optional)" fieldId="ann-expires" hint="Defaults to show end date. Clear to keep indefinitely.">
+          <FormField
+            label="Expires at (optional)"
+            fieldId="ann-expires"
+            hint="Defaults to show end date. Clear to keep indefinitely."
+          >
             <Input
               id="ann-expires"
               type="datetime-local"

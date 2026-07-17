@@ -14,7 +14,8 @@ interface JudgeAvailabilityCardProps {
 const statusColors: Record<string, string> = {
   available: 'bg-gradient-to-r from-green-500/20 to-green-500/10 text-success border-green-500/30',
   busy: 'bg-gradient-to-r from-yellow-500/20 to-yellow-500/10 text-warning border-yellow-500/30',
-  unavailable: 'bg-gradient-to-r from-red-500/20 to-red-500/10 text-destructive border-red-500/30',
+  unavailable:
+    'bg-gradient-to-r from-red-500/20 to-red-500/10 text-destructive border-destructive/30',
 };
 
 const JudgeAvailabilityCard: React.FC<JudgeAvailabilityCardProps> = ({ personId }) => {

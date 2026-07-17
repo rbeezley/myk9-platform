@@ -129,7 +129,7 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
       <Card className="border-0 bg-gradient-to-br from-gray-50/50 via-white to-slate-50/30 backdrop-blur-xl shadow-lg">
         <CardContent className="p-16 text-center">
           <div className="max-w-md mx-auto space-y-4">
-            <p className="text-red-600 font-medium">Failed to load entries</p>
+            <p className="text-destructive font-medium">Failed to load entries</p>
             <p className="text-muted-foreground text-sm">{error}</p>
           </div>
         </CardContent>

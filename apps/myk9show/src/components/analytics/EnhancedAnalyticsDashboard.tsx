@@ -313,9 +313,9 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
 
       {/* Active Alerts */}
       {alerts.length > 0 && isWidgetEnabled('alerts') && (
-        <Card className="border-l-4 border-l-red-500">
+        <Card className="border-l-4 border-l-destructive">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-600">
+            <CardTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-5 w-5" />
               Active Alerts ({alerts.length})
             </CardTitle>
@@ -419,10 +419,12 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
                         {metrics.successRate > 95 ? (
                           <TrendingUp className="h-3 w-3 text-green-600" />
                         ) : (
-                          <TrendingDown className="h-3 w-3 text-red-600" />
+                          <TrendingDown className="h-3 w-3 text-destructive" />
                         )}
                         <span
-                          className={metrics.successRate > 95 ? 'text-green-600' : 'text-red-600'}
+                          className={
+                            metrics.successRate > 95 ? 'text-green-600' : 'text-destructive'
+                          }
                         >
                           {metrics.successRate > 95 ? 'Excellent' : 'Needs attention'}
                         </span>

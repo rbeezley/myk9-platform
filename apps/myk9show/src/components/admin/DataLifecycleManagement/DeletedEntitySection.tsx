@@ -139,7 +139,7 @@ export function DeletedEntitySection({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="!border-red-200/20 !bg-red-50/10 hover:!bg-red-50/20 !text-red-700 hover:!text-red-800"
+                      className="!border-destructive/20 !bg-destructive/10 hover:!bg-destructive/10 !text-destructive hover:!text-destructive"
                       onClick={() => onDelete(item.id, item.name, config.type)}
                       disabled={isActionLoading}
                     >

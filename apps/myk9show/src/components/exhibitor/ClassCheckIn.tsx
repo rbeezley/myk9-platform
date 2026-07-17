@@ -223,7 +223,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
       case 'checked-in':
         return <CheckCircle2 className="h-6 w-6 text-green-600" />;
       case 'pulled':
-        return <XCircle className="h-6 w-6 text-red-600" />;
+        return <XCircle className="h-6 w-6 text-destructive" />;
       default:
         return <Clock className="h-6 w-6 text-gray-400" />;
     }
@@ -339,7 +339,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
             className={
               entry.checkInStatus === 'checked-in'
                 ? 'bg-green-50 border-green-200'
-                : 'bg-red-50 border-red-200'
+                : 'bg-destructive/10 border-destructive/20'
             }
           >
             <AlertDescription>
@@ -351,7 +351,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
                   </>
                 ) : entry.checkInStatus === 'pulled' ? (
                   <>
-                    <XCircle className="h-5 w-5 text-red-600" />
+                    <XCircle className="h-5 w-5 text-destructive" />
                     <span className="font-medium">You have been pulled from this class</span>
                   </>
                 ) : (
@@ -527,8 +527,8 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
             </DialogDescription>
           </DialogHeader>
 
-          <Alert className="bg-red-50 border-red-200">
-            <AlertTriangle className="h-4 w-4 text-red-600" />
+          <Alert className="bg-destructive/10 border-destructive/20">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
             <AlertDescription>
               <p className="font-medium mb-1">Important:</p>
               <ul className="text-sm space-y-1">

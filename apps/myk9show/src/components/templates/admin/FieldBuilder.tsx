@@ -1,29 +1,27 @@
 import React, { useState } from 'react';
-import { ClassTemplate, FieldSpecification, FieldDataType, FieldSource } from '@/types/template.types';
+import {
+  ClassTemplate,
+  FieldSpecification,
+  FieldDataType,
+  FieldSource,
+} from '@/types/template.types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Settings, 
-  Eye, 
-  EyeOff,
-  AlertCircle
-} from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Plus, Edit, Trash2, Settings, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 interface FieldBuilderProps {
   template: Partial<ClassTemplate>;
@@ -34,7 +32,7 @@ interface FieldBuilderProps {
 export const FieldBuilder: React.FC<FieldBuilderProps> = ({
   template,
   onChange,
-  readOnly = false
+  readOnly = false,
 }) => {
   const [editingField, setEditingField] = useState<FieldSpecification | null>(null);
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
@@ -52,7 +50,7 @@ export const FieldBuilder: React.FC<FieldBuilderProps> = ({
       editable: true,
       displayOrder: fields.length + 1,
       groupName: 'General',
-      columnWidth: 1
+      columnWidth: 1,
     });
     setFieldDialogOpen(true);
   };
@@ -96,8 +94,11 @@ export const FieldBuilder: React.FC<FieldBuilderProps> = ({
     if (newIndex < 0 || newIndex >= fields.length) return;
 
     const updatedFields = [...fields];
-    [updatedFields[index], updatedFields[newIndex]] = [updatedFields[newIndex], updatedFields[index]];
-    
+    [updatedFields[index], updatedFields[newIndex]] = [
+      updatedFields[newIndex],
+      updatedFields[index],
+    ];
+
     // Update display orders
     updatedFields.forEach((field, idx) => {
       field.displayOrder = idx + 1;
@@ -106,12 +107,15 @@ export const FieldBuilder: React.FC<FieldBuilderProps> = ({
     onChange({ fieldSpecifications: updatedFields });
   };
 
-  const groupedFields = fields.reduce((groups, field) => {
-    const group = field.groupName || 'General';
-    if (!groups[group]) groups[group] = [];
-    groups[group].push(field);
-    return groups;
-  }, {} as Record<string, FieldSpecification[]>);
+  const groupedFields = fields.reduce(
+    (groups, field) => {
+      const group = field.groupName || 'General';
+      if (!groups[group]) groups[group] = [];
+      groups[group].push(field);
+      return groups;
+    },
+    {} as Record<string, FieldSpecification[]>
+  );
 
   return (
     <div className="space-y-6">
@@ -179,20 +183,25 @@ export const FieldBuilder: React.FC<FieldBuilderProps> = ({
               {groupFields
                 .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
                 .map((field, index) => (
-                  <div key={field.fieldName} className="flex items-center gap-3 p-3 border rounded-lg">
+                  <div
+                    key={field.fieldName}
+                    className="flex items-center gap-3 p-3 border rounded-lg"
+                  >
                     <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
                       <div>
                         <div className="font-medium">{field.displayName}</div>
                         <div className="text-sm text-muted-foreground">{field.fieldName}</div>
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
                         <Badge variant="outline">{field.dataType}</Badge>
-                        <Badge variant={field.fieldSource === 'rule-based' ? 'default' : 'secondary'}>
+                        <Badge
+                          variant={field.fieldSource === 'rule-based' ? 'default' : 'secondary'}
+                        >
                           {field.fieldSource}
                         </Badge>
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
                         {field.required && <Badge variant="destructive">Required</Badge>}
                         {field.showWhen && (
@@ -208,7 +217,7 @@ export const FieldBuilder: React.FC<FieldBuilderProps> = ({
                           </Badge>
                         )}
                       </div>
-                      
+
                       <div className="flex justify-end gap-1">
                         {!readOnly && (
                           <>
@@ -239,7 +248,7 @@ export const FieldBuilder: React.FC<FieldBuilderProps> = ({
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDeleteField(field.fieldName)}
-                              className="text-red-600 hover:text-red-700"
+                              className="text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -260,7 +269,8 @@ export const FieldBuilder: React.FC<FieldBuilderProps> = ({
             <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No fields defined</h3>
             <p className="text-muted-foreground text-center mb-4">
-              Start by adding field specifications that define what information can be collected for each class.
+              Start by adding field specifications that define what information can be collected for
+              each class.
             </p>
             {!readOnly && (
               <Button onClick={handleAddField}>
@@ -276,11 +286,9 @@ export const FieldBuilder: React.FC<FieldBuilderProps> = ({
       <Dialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editingField?.fieldName ? 'Edit Field' : 'Add Field'}
-            </DialogTitle>
+            <DialogTitle>{editingField?.fieldName ? 'Edit Field' : 'Add Field'}</DialogTitle>
           </DialogHeader>
-          
+
           {editingField && (
             <FieldEditor
               field={editingField}
@@ -311,12 +319,32 @@ const FieldEditor: React.FC<FieldEditorProps> = ({ field, onSave, onCancel }) =>
     onSave(editedField);
   };
 
-  const handleChange = (key: keyof FieldSpecification, value: string | boolean | number | string[]) => {
+  const handleChange = (
+    key: keyof FieldSpecification,
+    value: string | boolean | number | string[]
+  ) => {
     setEditedField(prev => ({ ...prev, [key]: value }));
   };
 
-  const _dataTypes: FieldDataType[] = ['string', 'number', 'boolean', 'date', 'time', 'datetime', 'select', 'multi-select', 'text', 'rich-text'];
-  const fieldSources: FieldSource[] = ['rule-based', 'judge-set', 'admin-set', 'calculated', 'fixed'];
+  const _dataTypes: FieldDataType[] = [
+    'string',
+    'number',
+    'boolean',
+    'date',
+    'time',
+    'datetime',
+    'select',
+    'multi-select',
+    'text',
+    'rich-text',
+  ];
+  const fieldSources: FieldSource[] = [
+    'rule-based',
+    'judge-set',
+    'admin-set',
+    'calculated',
+    'fixed',
+  ];
 
   return (
     <div className="space-y-4">
@@ -325,16 +353,16 @@ const FieldEditor: React.FC<FieldEditorProps> = ({ field, onSave, onCancel }) =>
           <Label>Field Name *</Label>
           <Input
             value={editedField.fieldName || ''}
-            onChange={(e) => handleChange('fieldName', e.target.value)}
+            onChange={e => handleChange('fieldName', e.target.value)}
             placeholder="camelCase identifier"
           />
         </div>
-        
+
         <div className="space-y-2">
           <Label>Display Name *</Label>
           <Input
             value={editedField.displayName || ''}
-            onChange={(e) => handleChange('displayName', e.target.value)}
+            onChange={e => handleChange('displayName', e.target.value)}
             placeholder="Human readable name"
           />
         </div>
@@ -344,7 +372,7 @@ const FieldEditor: React.FC<FieldEditorProps> = ({ field, onSave, onCancel }) =>
         <Label>Description</Label>
         <Textarea
           value={editedField.description || ''}
-          onChange={(e) => handleChange('description', e.target.value)}
+          onChange={e => handleChange('description', e.target.value)}
           placeholder="Help text for users"
           rows={2}
         />
@@ -353,13 +381,18 @@ const FieldEditor: React.FC<FieldEditorProps> = ({ field, onSave, onCancel }) =>
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label>Data Type</Label>
-          <Select value={editedField.dataType || 'string'} onValueChange={(value) => handleChange('dataType', value)}>
+          <Select
+            value={editedField.dataType || 'string'}
+            onValueChange={value => handleChange('dataType', value)}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {_dataTypes.map((type: string) => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
+                <SelectItem key={type} value={type}>
+                  {type}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -367,13 +400,18 @@ const FieldEditor: React.FC<FieldEditorProps> = ({ field, onSave, onCancel }) =>
 
         <div className="space-y-2">
           <Label>Field Source</Label>
-          <Select value={editedField.fieldSource || 'admin-set'} onValueChange={(value) => handleChange('fieldSource', value)}>
+          <Select
+            value={editedField.fieldSource || 'admin-set'}
+            onValueChange={value => handleChange('fieldSource', value)}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {fieldSources.map(source => (
-                <SelectItem key={source} value={source}>{source}</SelectItem>
+                <SelectItem key={source} value={source}>
+                  {source}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -383,7 +421,7 @@ const FieldEditor: React.FC<FieldEditorProps> = ({ field, onSave, onCancel }) =>
           <Label>Group Name</Label>
           <Input
             value={editedField.groupName || ''}
-            onChange={(e) => handleChange('groupName', e.target.value)}
+            onChange={e => handleChange('groupName', e.target.value)}
             placeholder="General"
           />
         </div>
@@ -411,16 +449,16 @@ const FieldEditor: React.FC<FieldEditorProps> = ({ field, onSave, onCancel }) =>
           <Input
             type="number"
             value={editedField.displayOrder || ''}
-            onChange={(e) => handleChange('displayOrder', Number(e.target.value))}
+            onChange={e => handleChange('displayOrder', Number(e.target.value))}
             min="1"
           />
         </div>
 
         <div className="space-y-2">
           <Label>Column Width</Label>
-          <Select 
-            value={String(editedField.columnWidth || '1')} 
-            onValueChange={(value) => handleChange('columnWidth', Number(value))}
+          <Select
+            value={String(editedField.columnWidth || '1')}
+            onValueChange={value => handleChange('columnWidth', Number(value))}
           >
             <SelectTrigger>
               <SelectValue />
@@ -440,7 +478,7 @@ const FieldEditor: React.FC<FieldEditorProps> = ({ field, onSave, onCancel }) =>
           <Label>Options (one per line)</Label>
           <Textarea
             value={editedField.options?.join('\n') || ''}
-            onChange={(e) => handleChange('options', e.target.value.split('\n').filter(Boolean))}
+            onChange={e => handleChange('options', e.target.value.split('\n').filter(Boolean))}
             placeholder="Option 1&#10;Option 2&#10;Option 3"
             rows={4}
           />
@@ -452,7 +490,7 @@ const FieldEditor: React.FC<FieldEditorProps> = ({ field, onSave, onCancel }) =>
           <Label>Default Value</Label>
           <Input
             value={String(editedField.defaultValue || '')}
-            onChange={(e) => handleChange('defaultValue', e.target.value)}
+            onChange={e => handleChange('defaultValue', e.target.value)}
             placeholder="Default value"
           />
         </div>
@@ -461,7 +499,7 @@ const FieldEditor: React.FC<FieldEditorProps> = ({ field, onSave, onCancel }) =>
           <Label>Rule Value</Label>
           <Input
             value={String(editedField.ruleValue || '')}
-            onChange={(e) => handleChange('ruleValue', e.target.value)}
+            onChange={e => handleChange('ruleValue', e.target.value)}
             placeholder="Value set by rules"
           />
         </div>
@@ -473,9 +511,7 @@ const FieldEditor: React.FC<FieldEditorProps> = ({ field, onSave, onCancel }) =>
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button onClick={handleSave}>
-          Save Field
-        </Button>
+        <Button onClick={handleSave}>Save Field</Button>
       </div>
     </div>
   );

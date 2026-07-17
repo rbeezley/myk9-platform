@@ -249,7 +249,7 @@ export function MultiAreaScoresheet({
             areaStatus === 'completed'
               ? 'border-green-500 bg-success/10 '
               : areaStatus === 'failed'
-                ? 'border-red-500 bg-destructive/10 '
+                ? 'border-destructive bg-destructive/10 '
                 : areaStatus === 'active'
                   ? 'border-blue-500 bg-info/10 '
                   : 'border-gray-300'
@@ -523,7 +523,7 @@ export function MultiAreaScoresheet({
           </Button>
 
           <div className="flex items-center space-x-3">
-            {saveError && <span className="text-sm text-red-600">{saveError}</span>}
+            {saveError && <span className="text-sm text-destructive">{saveError}</span>}
             <Button
               onClick={handleSaveClick}
               disabled={!isResultComplete || isSaving}

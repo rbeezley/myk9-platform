@@ -29,7 +29,7 @@ function SecurityIndicator({ level, message, className }: SecurityIndicatorProps
   const colors = {
     secure: 'text-green-600 border-green-200 bg-green-50',
     warning: 'text-yellow-600 border-yellow-200 bg-yellow-50',
-    danger: 'text-red-600 border-red-200 bg-red-50',
+    danger: 'text-destructive border-destructive/20 bg-destructive/10',
   };
 
   const Icon = icons[level];
@@ -302,7 +302,9 @@ export function SecureInput({
         <label className="text-sm font-medium flex items-center gap-2">
           {label}
           {securityLevel === 'high' && (
-            <Shield className={cn('h-3 w-3', hasSecurity ? 'text-green-600' : 'text-red-600')} />
+            <Shield
+              className={cn('h-3 w-3', hasSecurity ? 'text-green-600' : 'text-destructive')}
+            />
           )}
         </label>
       )}
@@ -433,7 +435,7 @@ export function SecureTextarea({
           className={cn(
             'text-gray-500',
             remainingChars < 100 && 'text-yellow-600',
-            remainingChars < 20 && 'text-red-600'
+            remainingChars < 20 && 'text-destructive'
           )}
         >
           {remainingChars} characters remaining

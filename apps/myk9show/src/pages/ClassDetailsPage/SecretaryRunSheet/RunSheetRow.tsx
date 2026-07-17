@@ -54,7 +54,7 @@ export function RunSheetRow({
       className={cn(
         'overflow-hidden rounded-md border bg-card transition-opacity',
         isScored && 'border-green-200',
-        isScratched && 'border-red-200 opacity-60',
+        isScratched && 'border-destructive/20 opacity-60',
         !isScored && !isScratched && (isMine ? 'border-primary/50' : 'border-border')
       )}
     >

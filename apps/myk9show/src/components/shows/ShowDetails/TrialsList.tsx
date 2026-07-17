@@ -73,7 +73,10 @@ const TrialsList: React.FC<TrialsListProps> = ({
                     <DropdownMenuItem onClick={() => onEditTrial(trial)}>
                       <Pencil className="w-4 h-4 mr-2" /> Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onDeleteTrial(trial)} className="text-red-600">
+                    <DropdownMenuItem
+                      onClick={() => onDeleteTrial(trial)}
+                      className="text-destructive"
+                    >
                       <Trash className="w-4 h-4 mr-2" /> Delete
                     </DropdownMenuItem>
                   </DropdownMenuContent>

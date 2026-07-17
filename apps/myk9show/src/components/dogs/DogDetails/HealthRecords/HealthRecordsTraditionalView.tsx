@@ -131,7 +131,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
             return (
               <div
                 key={vacc.id}
-                className={`p-4 border rounded-lg ${isOverdue ? 'border-red-300 bg-destructive/10 ' : isExpiringSoon ? 'border-amber-300 bg-warning/10 ' : ''}`}
+                className={`p-4 border rounded-lg ${isOverdue ? 'border-destructive/20 bg-destructive/10 ' : isExpiringSoon ? 'border-amber-300 bg-warning/10 ' : ''}`}
               >
                 <div className="flex justify-between items-start">
                   <div>
@@ -141,7 +141,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     </p>
                     {vacc.expiration_date && (
                       <p
-                        className={`text-sm ${isOverdue ? 'text-red-600 font-medium' : isExpiringSoon ? 'text-amber-600 font-medium' : 'text-muted-foreground'}`}
+                        className={`text-sm ${isOverdue ? 'text-destructive font-medium' : isExpiringSoon ? 'text-amber-600 font-medium' : 'text-muted-foreground'}`}
                       >
                         {isOverdue ? 'Overdue since' : 'Next Due'}:{' '}
                         {new Date(vacc.expiration_date).toLocaleDateString()}

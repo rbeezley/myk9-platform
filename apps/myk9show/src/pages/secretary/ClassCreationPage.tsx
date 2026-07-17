@@ -346,15 +346,15 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
 
       {/* Validation Errors */}
       {validationErrors.length > 0 && (
-        <Card className="mb-6 border-red-200 bg-red-50">
+        <Card className="mb-6 border-destructive/20 bg-destructive/10">
           <CardContent className="pt-4">
             <div className="flex gap-3">
-              <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
               <div>
-                <h4 className="font-medium text-red-900 mb-2">Please correct the following:</h4>
+                <h4 className="font-medium text-destructive mb-2">Please correct the following:</h4>
                 <ul className="space-y-1">
                   {validationErrors.map((error, index) => (
-                    <li key={index} className="text-sm text-red-700">
+                    <li key={index} className="text-sm text-destructive">
                       • {error}
                     </li>
                   ))}
@@ -522,9 +522,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                 {createdClasses.length} classes have been created for your trial.
               </p>
               <div className="flex gap-4">
-                <Button
-                  onClick={() => startTransition(() => navigate(manageClassesHref))}
-                >
+                <Button onClick={() => startTransition(() => navigate(manageClassesHref))}>
                   Manage Classes
                 </Button>
                 <Button

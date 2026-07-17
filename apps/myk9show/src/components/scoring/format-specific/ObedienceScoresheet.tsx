@@ -1,6 +1,6 @@
 /**
  * Obedience Scoresheet Component
- * 
+ *
  * Specialized scoring interface for Obedience competitions.
  * Handles exercise-based scoring with point deductions.
  */
@@ -43,7 +43,7 @@ const DEFAULT_EXERCISES: Omit<ObedienceExercise, 'pointsAwarded' | 'deductions'>
   { name: 'Heel Free', maxPoints: 40, nonQualifying: false, excused: false },
   { name: 'Recall', maxPoints: 30, nonQualifying: false, excused: false },
   { name: 'Long Sit', maxPoints: 30, nonQualifying: false, excused: false },
-  { name: 'Long Down', maxPoints: 30, nonQualifying: false, excused: false }
+  { name: 'Long Down', maxPoints: 30, nonQualifying: false, excused: false },
 ];
 
 export function ObedienceScoresheet({
@@ -51,7 +51,7 @@ export function ObedienceScoresheet({
   onSave,
   onCancel,
   validationErrors,
-  className
+  className,
 }: ObedienceScoresheetProps) {
   const { user } = useAuthContext();
 
@@ -63,7 +63,7 @@ export function ObedienceScoresheet({
     exercises: DEFAULT_EXERCISES.map(ex => ({
       ...ex,
       pointsAwarded: ex.maxPoints,
-      deductions: []
+      deductions: [],
     })),
     totalScore: 200,
     maximumScore: 200,
@@ -75,7 +75,7 @@ export function ObedienceScoresheet({
     timestamp: new Date(),
     version: 1,
     lastModified: new Date(),
-    syncStatus: 'pending'
+    syncStatus: 'pending',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -87,70 +87,86 @@ export function ObedienceScoresheet({
     const maximumScore = exercises.reduce((sum, ex) => sum + ex.maxPoints, 0);
     const hasNonQualifyingExercise = exercises.some(ex => ex.nonQualifying);
     const isQualifying = totalScore >= (score.qualifyingScore || 170) && !hasNonQualifyingExercise;
-    
+
     return {
       totalScore,
       maximumScore,
       isQualifying,
-      hasNonQualifyingExercise
+      hasNonQualifyingExercise,
     };
   }, [score.exercises, score.qualifyingScore]);
 
   // Update score with automatic calculations
-  const updateScore = useCallback((updates: Partial<ObedienceScore>) => {
-    setScore(prev => {
-      const newScore = { ...prev, ...updates };
-      
-      // Update calculated fields
-      newScore.totalScore = calculations.totalScore;
-      newScore.maximumScore = calculations.maximumScore;
-      newScore.isQualifying = calculations.isQualifying;
-      
-      if (!calculations.isQualifying) {
-        newScore.qualification = 'Not Qualified';
-        if (calculations.hasNonQualifyingExercise) {
-          const nqExercise = newScore.exercises?.find(ex => ex.nonQualifying);
-          newScore.nonQualifyingExercise = nqExercise?.name;
-        }
-      } else {
-        newScore.qualification = 'Qualified';
-        newScore.nonQualifyingExercise = undefined;
-      }
+  const updateScore = useCallback(
+    (updates: Partial<ObedienceScore>) => {
+      setScore(prev => {
+        const newScore = { ...prev, ...updates };
 
-      return newScore;
-    });
-  }, [calculations]);
+        // Update calculated fields
+        newScore.totalScore = calculations.totalScore;
+        newScore.maximumScore = calculations.maximumScore;
+        newScore.isQualifying = calculations.isQualifying;
+
+        if (!calculations.isQualifying) {
+          newScore.qualification = 'Not Qualified';
+          if (calculations.hasNonQualifyingExercise) {
+            const nqExercise = newScore.exercises?.find(ex => ex.nonQualifying);
+            newScore.nonQualifyingExercise = nqExercise?.name;
+          }
+        } else {
+          newScore.qualification = 'Qualified';
+          newScore.nonQualifyingExercise = undefined;
+        }
+
+        return newScore;
+      });
+    },
+    [calculations]
+  );
 
   // Update individual exercise
-  const updateExercise = useCallback((index: number, updates: Partial<ObedienceExercise>) => {
-    const exercises = [...(score.exercises || [])];
-    exercises[index] = { ...exercises[index], ...updates };
-    updateScore({ exercises });
-  }, [score.exercises, updateScore]);
+  const updateExercise = useCallback(
+    (index: number, updates: Partial<ObedienceExercise>) => {
+      const exercises = [...(score.exercises || [])];
+      exercises[index] = { ...exercises[index], ...updates };
+      updateScore({ exercises });
+    },
+    [score.exercises, updateScore]
+  );
 
   // Add deduction to exercise
-  const addDeduction = useCallback((exerciseIndex: number, points: number, reason: string) => {
-    const exercises = [...(score.exercises || [])];
-    const exercise = exercises[exerciseIndex];
-    
-    exercise.deductions.push({ reason, points, description: '' });
-    exercise.pointsAwarded = Math.max(0, exercise.maxPoints - 
-      exercise.deductions.reduce((sum, d) => sum + d.points, 0));
-    
-    updateScore({ exercises });
-  }, [score.exercises, updateScore]);
+  const addDeduction = useCallback(
+    (exerciseIndex: number, points: number, reason: string) => {
+      const exercises = [...(score.exercises || [])];
+      const exercise = exercises[exerciseIndex];
+
+      exercise.deductions.push({ reason, points, description: '' });
+      exercise.pointsAwarded = Math.max(
+        0,
+        exercise.maxPoints - exercise.deductions.reduce((sum, d) => sum + d.points, 0)
+      );
+
+      updateScore({ exercises });
+    },
+    [score.exercises, updateScore]
+  );
 
   // Remove deduction from exercise
-  const removeDeduction = useCallback((exerciseIndex: number, deductionIndex: number) => {
-    const exercises = [...(score.exercises || [])];
-    const exercise = exercises[exerciseIndex];
-    
-    exercise.deductions.splice(deductionIndex, 1);
-    exercise.pointsAwarded = Math.max(0, exercise.maxPoints - 
-      exercise.deductions.reduce((sum, d) => sum + d.points, 0));
-    
-    updateScore({ exercises });
-  }, [score.exercises, updateScore]);
+  const removeDeduction = useCallback(
+    (exerciseIndex: number, deductionIndex: number) => {
+      const exercises = [...(score.exercises || [])];
+      const exercise = exercises[exerciseIndex];
+
+      exercise.deductions.splice(deductionIndex, 1);
+      exercise.pointsAwarded = Math.max(
+        0,
+        exercise.maxPoints - exercise.deductions.reduce((sum, d) => sum + d.points, 0)
+      );
+
+      updateScore({ exercises });
+    },
+    [score.exercises, updateScore]
+  );
 
   const handleSubmit = async () => {
     if (!score.exercises || score.qualification === undefined) {
@@ -198,26 +214,24 @@ export function ObedienceScoresheet({
         <CardContent className="pt-6">
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <div className="text-2xl font-bold text-blue-600">
-                {calculations.totalScore}
-              </div>
+              <div className="text-2xl font-bold text-blue-600">{calculations.totalScore}</div>
               <div className="text-sm text-muted-foreground">Total Score</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">
-                {calculations.maximumScore}
-              </div>
+              <div className="text-2xl font-bold">{calculations.maximumScore}</div>
               <div className="text-sm text-muted-foreground">Maximum Possible</div>
             </div>
             <div>
-              <div className={cn(
-                "text-2xl font-bold",
-                calculations.isQualifying ? "text-green-600" : "text-red-600"
-              )}>
-                {calculations.isQualifying ? "Q" : "NQ"}
+              <div
+                className={cn(
+                  'text-2xl font-bold',
+                  calculations.isQualifying ? 'text-green-600' : 'text-destructive'
+                )}
+              >
+                {calculations.isQualifying ? 'Q' : 'NQ'}
               </div>
               <div className="text-sm text-muted-foreground">
-                {calculations.isQualifying ? "Qualifying" : "Non-Qualifying"}
+                {calculations.isQualifying ? 'Qualifying' : 'Non-Qualifying'}
               </div>
             </div>
           </div>
@@ -233,10 +247,14 @@ export function ObedienceScoresheet({
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">{exercise.name}</CardTitle>
                 <div className="flex items-center space-x-2">
-                  <span className={cn(
-                    "font-bold",
-                    exercise.pointsAwarded === exercise.maxPoints ? "text-green-600" : "text-blue-600"
-                  )}>
+                  <span
+                    className={cn(
+                      'font-bold',
+                      exercise.pointsAwarded === exercise.maxPoints
+                        ? 'text-green-600'
+                        : 'text-blue-600'
+                    )}
+                  >
                     {exercise.pointsAwarded}/{exercise.maxPoints}
                   </span>
                 </div>
@@ -250,18 +268,22 @@ export function ObedienceScoresheet({
                     type="checkbox"
                     id={`nq-${index}`}
                     checked={exercise.nonQualifying || false}
-                    onChange={(e) => updateExercise(index, { nonQualifying: e.target.checked })}
+                    onChange={e => updateExercise(index, { nonQualifying: e.target.checked })}
                   />
-                  <Label htmlFor={`nq-${index}`} className="text-sm">Non-Qualifying</Label>
+                  <Label htmlFor={`nq-${index}`} className="text-sm">
+                    Non-Qualifying
+                  </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
                     id={`excused-${index}`}
                     checked={exercise.excused || false}
-                    onChange={(e) => updateExercise(index, { excused: e.target.checked })}
+                    onChange={e => updateExercise(index, { excused: e.target.checked })}
                   />
-                  <Label htmlFor={`excused-${index}`} className="text-sm">Excused</Label>
+                  <Label htmlFor={`excused-${index}`} className="text-sm">
+                    Excused
+                  </Label>
                 </div>
               </div>
 
@@ -298,8 +320,13 @@ export function ObedienceScoresheet({
                 </div>
 
                 {exercise.deductions.map((deduction, deductionIndex) => (
-                  <div key={deductionIndex} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-2 rounded">
-                    <span className="text-sm">-{deduction.points}pts: {deduction.reason}</span>
+                  <div
+                    key={deductionIndex}
+                    className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-2 rounded"
+                  >
+                    <span className="text-sm">
+                      -{deduction.points}pts: {deduction.reason}
+                    </span>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -313,14 +340,18 @@ export function ObedienceScoresheet({
 
               {/* Manual Score Override */}
               <div className="flex items-center space-x-2">
-                <Label htmlFor={`manual-${index}`} className="text-sm">Manual Score:</Label>
+                <Label htmlFor={`manual-${index}`} className="text-sm">
+                  Manual Score:
+                </Label>
                 <Input
                   id={`manual-${index}`}
                   type="number"
                   min="0"
                   max={exercise.maxPoints}
                   value={exercise.pointsAwarded}
-                  onChange={(e) => updateExercise(index, { pointsAwarded: parseInt(e.target.value) || 0 })}
+                  onChange={e =>
+                    updateExercise(index, { pointsAwarded: parseInt(e.target.value) || 0 })
+                  }
                   className="w-20"
                 />
               </div>
@@ -340,7 +371,7 @@ export function ObedienceScoresheet({
             <select
               className="w-full mt-1 px-3 py-2 border rounded-md"
               value={score.qualification || 'Qualified'}
-              onChange={(e) => updateScore({ qualification: e.target.value as QualificationStatus })}
+              onChange={e => updateScore({ qualification: e.target.value as QualificationStatus })}
             >
               <option value="Qualified">Qualified</option>
               <option value="Not Qualified">Not Qualified</option>
@@ -354,10 +385,9 @@ export function ObedienceScoresheet({
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                {calculations.totalScore < (score.qualifyingScore || 170) 
+                {calculations.totalScore < (score.qualifyingScore || 170)
                   ? `Score below qualifying threshold (${score.qualifyingScore || 170} required)`
-                  : 'Non-qualifying exercise failure'
-                }
+                  : 'Non-qualifying exercise failure'}
               </AlertDescription>
             </Alert>
           )}
@@ -383,10 +413,7 @@ export function ObedienceScoresheet({
         <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={!isComplete || isSubmitting}
-        >
+        <Button onClick={handleSubmit} disabled={!isComplete || isSubmitting}>
           {isSubmitting ? 'Saving...' : 'Save Score'}
         </Button>
       </div>

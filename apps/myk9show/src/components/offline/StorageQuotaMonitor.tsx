@@ -348,7 +348,7 @@ export function StorageQuotaMonitor({
               value={storageInfo.usagePercentage}
               className={cn(
                 'h-3',
-                status.level === 'critical' && 'bg-red-100',
+                status.level === 'critical' && 'bg-destructive/10',
                 status.level === 'warning' && 'bg-orange-100'
               )}
             />

@@ -51,7 +51,7 @@ export default function ExternalResultsSection({
                   label: 'Delete',
                   icon: <span className="w-4 h-4 mr-2">🗑️</span>,
                   onClick: () => result.id && deleteResult(String(result.id)),
-                  className: 'text-red-600',
+                  className: 'text-destructive',
                 },
               ]}
             />

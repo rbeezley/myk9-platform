@@ -217,9 +217,9 @@ export function SubscriptionManager() {
       transition={{ duration: 0.5 }}
     >
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-          <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
-          <p className="text-red-800 text-sm">{error}</p>
+        <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
+          <p className="text-destructive text-sm">{error}</p>
         </div>
       )}
 

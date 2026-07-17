@@ -40,9 +40,7 @@ interface UseResultColumnsParams {
   }) => void;
 }
 
-export function useResultColumns(
-  params: UseResultColumnsParams
-): ColumnDef<ScoringRow, unknown>[] {
+export function useResultColumns(params: UseResultColumnsParams): ColumnDef<ScoringRow, unknown>[] {
   const {
     canEdit,
     isStaff,
@@ -211,7 +209,7 @@ export function useResultColumns(
               variant="ghost"
               size="sm"
               onClick={() => onDeleteEntry?.(item.entryId)}
-              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
               title="Delete entry"
             >
               <Trash2 className="h-4 w-4" />

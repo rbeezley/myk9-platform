@@ -2,14 +2,14 @@ import React, { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { 
-  CheckCircle, 
-  Clock, 
-  AlertTriangle, 
+import {
+  CheckCircle,
+  Clock,
+  AlertTriangle,
   RefreshCw,
   Wifi,
   CreditCard,
-  Users
+  Users,
 } from 'lucide-react';
 // import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator';
 import { useEntryStore } from '@/store/entryStore';
@@ -45,7 +45,7 @@ interface EntryStats {
 
 /**
  * EntrySyncStatusBar - Displays comprehensive sync status for entries with Premium design
- * 
+ *
  * Shows real-time sync status, payment status, and provides quick actions for batch operations.
  * Integrates with entryStore for live updates and supports filtering by show/class/entry IDs.
  */
@@ -57,11 +57,11 @@ export const EntrySyncStatusBar: React.FC<EntrySyncStatusBarProps> = ({
   enableActions = true,
   className = '',
   onRetrySync,
-  onRetryPayment
+  onRetryPayment,
 }) => {
   // Get entries from store
-  const entries = useEntryStore((state) => state.entries);
-  const getSyncStatus = useEntryStore((state) => state.getSyncStatus);
+  const entries = useEntryStore(state => state.entries);
+  const getSyncStatus = useEntryStore(state => state.getSyncStatus);
 
   // Filter entries based on props
   const filteredEntries = useMemo(() => {
@@ -90,12 +90,12 @@ export const EntrySyncStatusBar: React.FC<EntrySyncStatusBarProps> = ({
       conflict: 0,
       paymentPending: 0,
       paymentProcessing: 0,
-      paymentFailed: 0
+      paymentFailed: 0,
     };
 
     filteredEntries.forEach(entry => {
       const syncStatus = getSyncStatus(entry.id);
-      
+
       // Count sync status
       switch (syncStatus) {
         case 'synced':
@@ -132,24 +132,24 @@ export const EntrySyncStatusBar: React.FC<EntrySyncStatusBarProps> = ({
   }, [filteredEntries, getSyncStatus]);
 
   // Get entries with specific issues for batch actions
-  const entriesWithSyncErrors = filteredEntries.filter(entry => 
-    getSyncStatus(entry.id) === 'error'
+  const entriesWithSyncErrors = filteredEntries.filter(
+    entry => getSyncStatus(entry.id) === 'error'
   );
-  const entriesWithConflicts = filteredEntries.filter(entry => 
-    getSyncStatus(entry.id) === 'conflict'
+  const entriesWithConflicts = filteredEntries.filter(
+    entry => getSyncStatus(entry.id) === 'conflict'
   );
-  const entriesWithPaymentIssues = filteredEntries.filter(entry => 
-    entry.registrationData?.paymentStatus === 'pending'
+  const entriesWithPaymentIssues = filteredEntries.filter(
+    entry => entry.registrationData?.paymentStatus === 'pending'
   );
 
   // Calculate sync progress percentage
-  const syncProgress = stats.total > 0 
-    ? Math.round(((stats.synced + stats.error + stats.conflict) / stats.total) * 100)
-    : 100;
+  const syncProgress =
+    stats.total > 0
+      ? Math.round(((stats.synced + stats.error + stats.conflict) / stats.total) * 100)
+      : 100;
 
-  const paymentProgress = stats.total > 0
-    ? Math.round(((stats.total - stats.paymentPending) / stats.total) * 100)
-    : 100;
+  const paymentProgress =
+    stats.total > 0 ? Math.round(((stats.total - stats.paymentPending) / stats.total) * 100) : 100;
 
   // Handle batch retry actions
   const handleRetrySyncErrors = () => {
@@ -167,8 +167,10 @@ export const EntrySyncStatusBar: React.FC<EntrySyncStatusBarProps> = ({
   // Compact view for limited space
   if (compact) {
     return (
-      <div className={`flex items-center gap-3 px-4 py-2 bg-card/50 backdrop-blur-sm 
-                       border border-border/50 rounded-xl shadow-sm ${className}`}>
+      <div
+        className={`flex items-center gap-3 px-4 py-2 bg-card/50 backdrop-blur-sm 
+                       border border-border/50 rounded-xl shadow-sm ${className}`}
+      >
         {/* Entry count */}
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-muted-foreground" />
@@ -190,7 +192,10 @@ export const EntrySyncStatusBar: React.FC<EntrySyncStatusBarProps> = ({
             </Badge>
           )}
           {stats.error > 0 && (
-            <Badge variant="destructive" className="bg-red-50 text-red-700 border-red-200">
+            <Badge
+              variant="destructive"
+              className="bg-destructive/10 text-destructive border-destructive/20"
+            >
               <AlertTriangle className="h-3 w-3 mr-1" />
               {stats.error}
             </Badge>
@@ -219,7 +224,7 @@ export const EntrySyncStatusBar: React.FC<EntrySyncStatusBarProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={handleRetrySyncErrors}
-                className="h-7 w-7 p-0 text-red-600 hover:bg-red-50"
+                className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
               >
                 <RefreshCw className="h-3 w-3" />
               </Button>
@@ -242,8 +247,10 @@ export const EntrySyncStatusBar: React.FC<EntrySyncStatusBarProps> = ({
 
   // Full view with detailed information
   return (
-    <div className={`space-y-4 p-6 bg-card/95 backdrop-blur-sm border border-border/50 
-                     rounded-xl shadow-sm ${className}`}>
+    <div
+      className={`space-y-4 p-6 bg-card/95 backdrop-blur-sm border border-border/50 
+                     rounded-xl shadow-sm ${className}`}
+    >
       {/* Header with title and entry count */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -271,10 +278,7 @@ export const EntrySyncStatusBar: React.FC<EntrySyncStatusBarProps> = ({
             <span className="text-sm font-medium text-foreground">Sync Progress</span>
             <span className="text-sm text-muted-foreground">{syncProgress}%</span>
           </div>
-          <Progress 
-            value={syncProgress} 
-            className="h-2 bg-muted"
-          />
+          <Progress value={syncProgress} className="h-2 bg-muted" />
         </div>
 
         {/* Payment progress bar */}
@@ -284,10 +288,7 @@ export const EntrySyncStatusBar: React.FC<EntrySyncStatusBarProps> = ({
               <span className="text-sm font-medium text-foreground">Payment Progress</span>
               <span className="text-sm text-muted-foreground">{paymentProgress}%</span>
             </div>
-            <Progress 
-              value={paymentProgress} 
-              className="h-2 bg-muted [&>div]:bg-blue-500"
-            />
+            <Progress value={paymentProgress} className="h-2 bg-muted [&>div]:bg-blue-500" />
           </div>
         )}
       </div>
@@ -316,11 +317,11 @@ export const EntrySyncStatusBar: React.FC<EntrySyncStatusBarProps> = ({
 
         {/* Error entries */}
         {stats.error > 0 && (
-          <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <AlertTriangle className="h-5 w-5 text-red-600" />
+          <div className="flex items-center gap-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
             <div>
-              <p className="text-sm font-medium text-red-800">{stats.error}</p>
-              <p className="text-xs text-red-600">Errors</p>
+              <p className="text-sm font-medium text-destructive">{stats.error}</p>
+              <p className="text-xs text-destructive">Errors</p>
             </div>
           </div>
         )}
@@ -392,12 +393,12 @@ export const EntrySyncStatusBar: React.FC<EntrySyncStatusBarProps> = ({
 };
 
 // Convenience components for specific contexts
-export const ShowEntrySyncBar: React.FC<Omit<EntrySyncStatusBarProps, 'showId'> & { showId: string }> = (props) => (
-  <EntrySyncStatusBar {...props} />
-);
+export const ShowEntrySyncBar: React.FC<
+  Omit<EntrySyncStatusBarProps, 'showId'> & { showId: string }
+> = props => <EntrySyncStatusBar {...props} />;
 
-export const ClassEntrySyncBar: React.FC<Omit<EntrySyncStatusBarProps, 'classId'> & { classId: string }> = (props) => (
-  <EntrySyncStatusBar {...props} />
-);
+export const ClassEntrySyncBar: React.FC<
+  Omit<EntrySyncStatusBarProps, 'classId'> & { classId: string }
+> = props => <EntrySyncStatusBar {...props} />;
 
 export default EntrySyncStatusBar;

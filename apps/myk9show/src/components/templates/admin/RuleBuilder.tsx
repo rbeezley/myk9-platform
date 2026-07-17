@@ -5,24 +5,25 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Shield, 
-  AlertTriangle, 
+  Plus,
+  Edit,
+  Trash2,
+  Shield,
+  AlertTriangle,
   CheckCircle,
   XCircle,
-  Info
+  Info,
 } from 'lucide-react';
 
 interface RuleBuilderProps {
@@ -34,7 +35,7 @@ interface RuleBuilderProps {
 export const RuleBuilder: React.FC<RuleBuilderProps> = ({
   template,
   onChange,
-  readOnly = false
+  readOnly = false,
 }) => {
   const [editingRule, setEditingRule] = useState<ValidationRule | null>(null);
   const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
@@ -47,7 +48,7 @@ export const RuleBuilder: React.FC<RuleBuilderProps> = ({
     setEditingRule({
       ruleType: 'prohibited',
       fields: [],
-      message: ''
+      message: '',
     });
     setRuleDialogOpen(true);
   };
@@ -84,10 +85,14 @@ export const RuleBuilder: React.FC<RuleBuilderProps> = ({
 
   const getRuleIcon = (ruleType: string) => {
     switch (ruleType) {
-      case 'prohibited': return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'required': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'conditional': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      default: return <Info className="h-4 w-4 text-blue-500" />;
+      case 'prohibited':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'required':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'conditional':
+        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <Info className="h-4 w-4 text-blue-500" />;
     }
   };
 
@@ -171,7 +176,7 @@ export const RuleBuilder: React.FC<RuleBuilderProps> = ({
                     ruleType: 'prohibited',
                     fields: ['element', 'level'],
                     condition: 'element === "Detective" && level !== undefined',
-                    message: 'Detective class cannot have levels'
+                    message: 'Detective class cannot have levels',
                   };
                   handleSaveRule(rule);
                 }}
@@ -186,7 +191,7 @@ export const RuleBuilder: React.FC<RuleBuilderProps> = ({
                     ruleType: 'required',
                     fields: ['level', 'section'],
                     condition: 'level === "Novice" && !section',
-                    message: 'Novice level requires section A or B'
+                    message: 'Novice level requires section A or B',
                   };
                   handleSaveRule(rule);
                 }}
@@ -201,7 +206,7 @@ export const RuleBuilder: React.FC<RuleBuilderProps> = ({
                     ruleType: 'prohibited',
                     fields: ['level', 'section'],
                     condition: 'level !== "Novice" && section !== undefined',
-                    message: 'Only Novice level has A/B sections'
+                    message: 'Only Novice level has A/B sections',
                   };
                   handleSaveRule(rule);
                 }}
@@ -223,45 +228,43 @@ export const RuleBuilder: React.FC<RuleBuilderProps> = ({
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       {getRuleIcon(rule.ruleType)}
-                      <Badge variant={
-                        rule.ruleType === 'prohibited' ? 'destructive' :
-                        rule.ruleType === 'required' ? 'default' :
-                        rule.ruleType === 'conditional' ? 'secondary' : 'outline'
-                      }>
+                      <Badge
+                        variant={
+                          rule.ruleType === 'prohibited'
+                            ? 'destructive'
+                            : rule.ruleType === 'required'
+                              ? 'default'
+                              : rule.ruleType === 'conditional'
+                                ? 'secondary'
+                                : 'outline'
+                        }
+                      >
                         {rule.ruleType}
                       </Badge>
                       <span className="text-sm text-muted-foreground">
                         Fields: {rule.fields.join(', ')}
                       </span>
                     </div>
-                    
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {getRuleDescription(rule)}
-                    </p>
-                    
+
+                    <p className="text-sm text-muted-foreground mb-2">{getRuleDescription(rule)}</p>
+
                     <p className="font-medium mb-2">{rule.message}</p>
-                    
+
                     {rule.condition && (
-                      <div className="bg-muted p-2 rounded text-sm font-mono">
-                        {rule.condition}
-                      </div>
+                      <div className="bg-muted p-2 rounded text-sm font-mono">{rule.condition}</div>
                     )}
                   </div>
-                  
+
                   {!readOnly && (
                     <div className="flex gap-1 ml-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditRule(rule, index)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => handleEditRule(rule, index)}>
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteRule(index)}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -294,11 +297,9 @@ export const RuleBuilder: React.FC<RuleBuilderProps> = ({
       <Dialog open={ruleDialogOpen} onOpenChange={setRuleDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>
-              {editingRule ? 'Edit Rule' : 'Add Rule'}
-            </DialogTitle>
+            <DialogTitle>{editingRule ? 'Edit Rule' : 'Add Rule'}</DialogTitle>
           </DialogHeader>
-          
+
           {editingRule && (
             <RuleEditor
               rule={editingRule}
@@ -336,7 +337,10 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rule, fields, onSave, onCancel 
   };
 
   const handleFieldsChange = (value: string) => {
-    const selectedFields = value.split(',').map(f => f.trim()).filter(Boolean);
+    const selectedFields = value
+      .split(',')
+      .map(f => f.trim())
+      .filter(Boolean);
     setEditedRule(prev => ({ ...prev, fields: selectedFields }));
   };
 
@@ -344,14 +348,17 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rule, fields, onSave, onCancel 
     { value: 'prohibited', label: 'Prohibited', description: 'Prevent invalid combinations' },
     { value: 'required', label: 'Required', description: 'Ensure fields are provided' },
     { value: 'conditional', label: 'Conditional', description: 'Apply conditional logic' },
-    { value: 'custom', label: 'Custom', description: 'Custom validation expression' }
+    { value: 'custom', label: 'Custom', description: 'Custom validation expression' },
   ];
 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>Rule Type</Label>
-        <Select value={editedRule.ruleType} onValueChange={(value) => handleChange('ruleType', value)}>
+        <Select
+          value={editedRule.ruleType}
+          onValueChange={value => handleChange('ruleType', value)}
+        >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -372,7 +379,7 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rule, fields, onSave, onCancel 
         <Label>Fields (comma-separated)</Label>
         <Input
           value={editedRule.fields.join(', ')}
-          onChange={(e) => handleFieldsChange(e.target.value)}
+          onChange={e => handleFieldsChange(e.target.value)}
           placeholder="element, level, section"
         />
         <div className="text-xs text-muted-foreground">
@@ -384,7 +391,7 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rule, fields, onSave, onCancel 
         <Label>Error Message</Label>
         <Input
           value={editedRule.message || ''}
-          onChange={(e) => handleChange('message', e.target.value)}
+          onChange={e => handleChange('message', e.target.value)}
           placeholder="Error message to show when rule is violated"
         />
       </div>
@@ -393,7 +400,7 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rule, fields, onSave, onCancel 
         <Label>Condition (JavaScript expression)</Label>
         <Textarea
           value={editedRule.condition || ''}
-          onChange={(e) => handleChange('condition', e.target.value)}
+          onChange={e => handleChange('condition', e.target.value)}
           placeholder="element === 'Detective' && level !== undefined"
           rows={3}
         />
@@ -409,10 +416,18 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rule, fields, onSave, onCancel 
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-2 text-xs">
-            <div><code>fieldName === "value"</code> - Field equals specific value</div>
-            <div><code>fieldName !== undefined</code> - Field has any value</div>
-            <div><code>fieldName1 === "value" && fieldName2 !== undefined</code> - Multiple conditions</div>
-            <div><code>["value1", "value2"].includes(fieldName)</code> - Field in list</div>
+            <div>
+              <code>fieldName === "value"</code> - Field equals specific value
+            </div>
+            <div>
+              <code>fieldName !== undefined</code> - Field has any value
+            </div>
+            <div>
+              <code>fieldName1 === "value" && fieldName2 !== undefined</code> - Multiple conditions
+            </div>
+            <div>
+              <code>["value1", "value2"].includes(fieldName)</code> - Field in list
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -423,9 +438,7 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rule, fields, onSave, onCancel 
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button onClick={handleSave}>
-          Save Rule
-        </Button>
+        <Button onClick={handleSave}>Save Rule</Button>
       </div>
     </div>
   );

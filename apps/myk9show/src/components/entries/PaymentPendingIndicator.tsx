@@ -134,9 +134,9 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
     failed: {
       icon: XCircle,
       label: 'Payment Failed',
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
+      color: 'text-destructive',
+      bgColor: 'bg-destructive/10',
+      borderColor: 'border-destructive/20',
       badgeVariant: 'destructive' as const,
       description: 'Payment processing failed',
       showProgress: false,
@@ -331,7 +331,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
               variant="outline"
               size="sm"
               onClick={onCancelPayment}
-              className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+              className="flex-1 text-destructive border-destructive/20 hover:bg-destructive/10"
             >
               Cancel
             </Button>

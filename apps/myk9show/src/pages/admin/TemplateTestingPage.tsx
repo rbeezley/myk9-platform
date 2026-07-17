@@ -309,7 +309,7 @@ export const TemplateTestingPage: React.FC = () => {
                 {testResults.validationPassed ? (
                   <CheckCircle className="h-5 w-5 text-green-600" />
                 ) : (
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
                 )}
                 Test Results
               </CardTitle>
@@ -318,7 +318,7 @@ export const TemplateTestingPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="text-center">
                   <div
-                    className={`text-2xl font-bold ${testResults.validationPassed ? 'text-green-600' : 'text-red-600'}`}
+                    className={`text-2xl font-bold ${testResults.validationPassed ? 'text-green-600' : 'text-destructive'}`}
                   >
                     {testResults.validationPassed ? 'PASS' : 'FAIL'}
                   </div>
@@ -348,11 +348,11 @@ export const TemplateTestingPage: React.FC = () => {
               </div>
 
               {testResults.errors.length > 0 && (
-                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <h4 className="font-medium text-red-900 mb-2">Errors Found:</h4>
+                <div className="mt-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <h4 className="font-medium text-destructive mb-2">Errors Found:</h4>
                   <ul className="space-y-1">
                     {testResults.errors.map((error, index) => (
-                      <li key={index} className="text-sm text-red-700 flex items-start gap-2">
+                      <li key={index} className="text-sm text-destructive flex items-start gap-2">
                         <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                         {error}
                       </li>

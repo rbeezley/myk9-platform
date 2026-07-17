@@ -1,6 +1,6 @@
 /**
  * Unit tests for DualTimerDisplay component
- * 
+ *
  * Tests UI rendering, user interactions, and timer integration
  */
 
@@ -10,7 +10,7 @@ import { DualTimerDisplay } from '@/components/common/DualTimerDisplay';
 
 // Mock the timer hook
 vi.mock('@/hooks/useCountdownTimer', () => ({
-  useCountdownTimer: vi.fn()
+  useCountdownTimer: vi.fn(),
 }));
 
 // Mock the audio hook
@@ -21,8 +21,8 @@ vi.mock('@/hooks/useAudioWarnings', () => ({
     playStart: vi.fn(),
     playStop: vi.fn(),
     playTestSound: vi.fn(),
-    isAudioSupported: true
-  }))
+    isAudioSupported: true,
+  })),
 }));
 
 // Mock the audio context
@@ -34,9 +34,9 @@ vi.mock('@/context/AudioSettingsContext', () => ({
       startSound: true,
       stopSound: true,
       volume: 0.8,
-      soundType: 'chime'
-    }
-  }))
+      soundType: 'chime',
+    },
+  })),
 }));
 
 import { useCountdownTimer } from '@/hooks/useCountdownTimer';
@@ -54,7 +54,7 @@ describe('DualTimerDisplay', () => {
     stop: vi.fn(),
     reset: vi.fn(),
     searchTimeDisplay: '00:00.00',
-    remainingTimeDisplay: '02:00'
+    remainingTimeDisplay: '02:00',
   };
 
   const defaultProps = {
@@ -62,7 +62,7 @@ describe('DualTimerDisplay', () => {
     level: 'Novice' as const,
     onTimeWarning: vi.fn(),
     onTimeExpired: vi.fn(),
-    onSearchTime: vi.fn()
+    onSearchTime: vi.fn(),
   };
 
   beforeEach(() => {
@@ -75,7 +75,7 @@ describe('DualTimerDisplay', () => {
 
     // Check stopwatch display (search time)
     expect(screen.getByText('00:00.00')).toBeInTheDocument();
-    
+
     // Check countdown display (remaining time)
     expect(screen.getByText('02:00')).toBeInTheDocument();
   });
@@ -96,7 +96,7 @@ describe('DualTimerDisplay', () => {
 
     const stopButton = screen.getByRole('button', { name: /stop/i });
     expect(stopButton).toBeInTheDocument();
-    expect(stopButton).toHaveClass('bg-red-600');
+    expect(stopButton).toHaveClass('bg-destructive');
   });
 
   it('should call start function when start button clicked', () => {
@@ -122,7 +122,11 @@ describe('DualTimerDisplay', () => {
 
   it('should call reset function when reset button clicked', () => {
     // Reset is only enabled when searchTime > 0 or timer is running
-    const stoppedWithTimeState = { ...mockTimerState, searchTime: 5000, searchTimeDisplay: '00:05.00' };
+    const stoppedWithTimeState = {
+      ...mockTimerState,
+      searchTime: 5000,
+      searchTimeDisplay: '00:05.00',
+    };
     mockUseCountdownTimer.mockReturnValue(stoppedWithTimeState);
 
     render(<DualTimerDisplay {...defaultProps} />);
@@ -134,11 +138,11 @@ describe('DualTimerDisplay', () => {
   });
 
   it('should show warning state styling when timer is in warning', () => {
-    const warningTimerState = { 
-      ...mockTimerState, 
+    const warningTimerState = {
+      ...mockTimerState,
       isWarning: true,
       remainingTime: 25000, // 25 seconds
-      remainingTimeDisplay: '00:25'
+      remainingTimeDisplay: '00:25',
     };
     mockUseCountdownTimer.mockReturnValue(warningTimerState);
 
@@ -150,11 +154,11 @@ describe('DualTimerDisplay', () => {
   });
 
   it('should show expired state styling when timer is expired', () => {
-    const expiredTimerState = { 
-      ...mockTimerState, 
+    const expiredTimerState = {
+      ...mockTimerState,
       isExpired: true,
       remainingTime: 0,
-      remainingTimeDisplay: '00:00'
+      remainingTimeDisplay: '00:00',
     };
     mockUseCountdownTimer.mockReturnValue(expiredTimerState);
 
@@ -162,15 +166,15 @@ describe('DualTimerDisplay', () => {
 
     // Check that countdown display has expired styling
     const countdownDisplay = screen.getByText('00:00');
-    expect(countdownDisplay).toHaveClass('text-red-400');
+    expect(countdownDisplay).toHaveClass('text-destructive');
   });
 
   it('should display elapsed time correctly', () => {
-    const elapsedTimerState = { 
-      ...mockTimerState, 
+    const elapsedTimerState = {
+      ...mockTimerState,
       searchTime: 75390, // 1:15.39
       isRunning: true,
-      searchTimeDisplay: '01:15.39'
+      searchTimeDisplay: '01:15.39',
     };
     mockUseCountdownTimer.mockReturnValue(elapsedTimerState);
 
@@ -180,11 +184,11 @@ describe('DualTimerDisplay', () => {
   });
 
   it('should display remaining time correctly', () => {
-    const remainingTimerState = { 
-      ...mockTimerState, 
+    const remainingTimerState = {
+      ...mockTimerState,
       remainingTime: 45000, // 45 seconds
       isRunning: true,
-      remainingTimeDisplay: '00:45'
+      remainingTimeDisplay: '00:45',
     };
     mockUseCountdownTimer.mockReturnValue(remainingTimerState);
 
@@ -234,13 +238,13 @@ describe('DualTimerDisplay', () => {
   });
 
   it('should show circular progress indicator', () => {
-    const progressTimerState = { 
-      ...mockTimerState, 
+    const progressTimerState = {
+      ...mockTimerState,
       searchTime: 60000, // 1 minute
       remainingTime: 60000, // 1 minute remaining
       isRunning: true,
       searchTimeDisplay: '01:00.00',
-      remainingTimeDisplay: '01:00'
+      remainingTimeDisplay: '01:00',
     };
     mockUseCountdownTimer.mockReturnValue(progressTimerState);
 
@@ -259,7 +263,7 @@ describe('DualTimerDisplay', () => {
       level: 'Novice',
       onTimeWarning: defaultProps.onTimeWarning,
       onTimeExpired: defaultProps.onTimeExpired,
-      onSearchTime: defaultProps.onSearchTime
+      onSearchTime: defaultProps.onSearchTime,
     });
   });
 });

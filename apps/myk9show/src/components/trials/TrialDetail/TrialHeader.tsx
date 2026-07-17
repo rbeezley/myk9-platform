@@ -55,7 +55,7 @@ export const TrialHeader = ({ trial, onEdit, onDelete, onAddPhoto }: TrialHeader
             <DropdownMenuItem onClick={onEdit} className="text-sm py-2">
               Edit
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-sm py-2 text-red-600" onClick={onDelete}>
+            <DropdownMenuItem className="text-sm py-2 text-destructive" onClick={onDelete}>
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>

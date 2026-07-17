@@ -49,10 +49,10 @@ export const GateStatsCards: React.FC<GateStatsCardsProps> = ({ stats }) => (
       </CardContent>
     </Card>
 
-    <Card className={stats.conflicts > 0 ? 'border-red-200 bg-red-50/50' : ''}>
+    <Card className={stats.conflicts > 0 ? 'border-destructive/20 bg-destructive/10' : ''}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">Conflicts</CardTitle>
-        <AlertTriangle className="h-4 w-4 text-red-500" />
+        <AlertTriangle className="h-4 w-4 text-destructive" />
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{stats.conflicts}</div>
@@ -93,7 +93,7 @@ export const GateEntryRow: React.FC<GateEntryRowProps> = ({
       className={cn(
         'border-b last:border-b-0 p-4 hover:bg-muted/50 transition-colors',
         entry.isUrgent && 'bg-warning/10 border-orange-200',
-        entry.checkInStatus === 'conflict' && 'bg-destructive/10 border-red-200'
+        entry.checkInStatus === 'conflict' && 'bg-destructive/10 border-destructive/20'
       )}
     >
       <div className="flex items-center justify-between">

@@ -199,22 +199,26 @@ test.describe('Armband assignment', () => {
     await expect(dialog).not.toBeVisible();
   });
 
-  // FIXME(MYK9-46): the maintained Heartland seed assigns armbands to every
-  // entry, so no un-assigned "Assign Armband" affordance exists to click. Needs
-  // a rewrite against a fixture with an unassigned entry, or to target the
-  // reassignment affordance. Skipped rather than asserting a control the current
-  // seed never renders.
-  test.fixme('manual Assign Armband dialog opens for an entry', async ({ page }) => {
+  test('manual armband dialog opens from the entry row action menu', async ({ page }) => {
     await signInAsSecretary(page);
     await gotoEntries(page);
 
-    const assignBtn = page.getByRole('button', { name: 'Assign Armband' }).first();
-    await expect(assignBtn).toBeVisible();
-    await assignBtn.click();
+    // The armband action lives in the per-row Actions menu, and its label is
+    // "Assign armband" (unassigned) or "Change armband" (already assigned) —
+    // match both so the test is robust to the seed's armband state.
+    await page
+      .getByRole('button', { name: /Actions for/i })
+      .first()
+      .click();
+    const armbandItem = page
+      .getByRole('menuitem', { name: /(Assign|Change) armband/i })
+      .first();
+    await expect(armbandItem).toBeVisible();
+    await armbandItem.click();
 
+    // The dialog title is "Assign Armband" in both modes (see ArmbandDialog).
     const dialog = page.getByRole('dialog', { name: 'Assign Armband' });
     await expect(dialog).toBeVisible();
-    // Either an input or the Assign button confirms the dialog body rendered.
     await expect(dialog.getByRole('button', { name: /Assign|Cancel/ }).first()).toBeVisible();
 
     // Cancel out (test does not mutate state)

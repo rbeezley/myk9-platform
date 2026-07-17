@@ -1,6 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { chipClasses } from '@/components/base/chipClasses';
+import { StatusBadge } from '@/components/status';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryStatus as CanonicalEntryStatus } from '@/types/entry-lifecycle';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -168,10 +168,6 @@ export const mapStatusToDb = (status: EntryStatus): CanonicalEntryStatus => {
 // outline variant has no hover background).
 const CHIP_TEAL =
   'bg-[color:var(--chip-teal-bg)] text-[color:var(--chip-teal-fg)] hover:bg-[color:var(--chip-teal-bg)]';
-const CHIP_AMBER =
-  'bg-[color:var(--chip-amber-bg)] text-[color:var(--chip-amber-fg)] hover:bg-[color:var(--chip-amber-bg)]';
-const CHIP_STONE =
-  'bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] hover:bg-[color:var(--chip-stone-bg)]';
 const CHIP_BLUE =
   'bg-[color:var(--chip-blue-bg)] text-[color:var(--chip-blue-fg)] hover:bg-[color:var(--chip-blue-bg)]';
 const CHIP_RED =
@@ -182,30 +178,7 @@ const CHIP_BLUE_FG = 'text-[color:var(--chip-blue-fg)]';
  * Get badge component for entry status
  */
 export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
-  switch (status) {
-    case EntryStatus.ACCEPTED:
-      return React.createElement(Badge, { className: CHIP_TEAL }, 'Accepted');
-    case EntryStatus.PENDING:
-      return React.createElement(Badge, { variant: 'secondary' }, 'Pending');
-    case EntryStatus.WAITLIST:
-      return React.createElement(Badge, { className: CHIP_AMBER }, 'Waitlist');
-    case EntryStatus.REJECTED:
-      return React.createElement(Badge, { variant: 'destructive' }, 'Not Accepted');
-    case EntryStatus.CANCELLED:
-      return React.createElement(Badge, { variant: 'outline' }, 'Withdrawn');
-    case EntryStatus.MISSING_INFO:
-      return React.createElement(Badge, { className: CHIP_AMBER }, 'Missing Info');
-    case EntryStatus.SCRATCHED:
-      return React.createElement(Badge, { className: CHIP_STONE }, 'Pulled');
-    case EntryStatus.MOVED:
-      return React.createElement(Badge, { className: CHIP_STONE }, 'Moved');
-    case EntryStatus.COMPLETED:
-      return React.createElement(Badge, { className: CHIP_BLUE }, 'Scored');
-    case EntryStatus.MOVE_UP_REQUESTED:
-      return React.createElement(Badge, { className: CHIP_AMBER }, 'Move-Up Requested');
-    default:
-      return React.createElement(Badge, { variant: 'outline' }, 'Unknown');
-  }
+  return React.createElement(StatusBadge, { family: 'entry', status, variant: 'outline' });
 }
 
 /**
@@ -235,31 +208,5 @@ export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
       );
     default:
       return React.createElement(Badge, { variant: 'outline' }, 'Unknown');
-  }
-}
-
-/**
- * Get Tailwind CSS classes for an entry status badge (string-based, for tables).
- * Accepts raw status strings from DB queries (e.g., 'confirmed', 'pending') and
- * colours via the SAME UI projection the filters/stats/badges use
- * (`mapEntryStatus`), NOT the raw classifier kind. This matters for the owner
- * overrides: `getEntryStatusKind('paid')` is `accepted`, but a paid entry is
- * kept in the PENDING / needs-review lane — colouring it via the kind would tint
- * it success/green on the Trial entries table and Show Details tab while the
- * stats count it pending, recreating the very divergence this PR removes.
- */
-export function getEntryStatusClasses(status: string | null): string {
-  switch (mapEntryStatus(status)) {
-    case EntryStatus.ACCEPTED:
-      return 'bg-success/10 text-success border-success/30';
-    case EntryStatus.PENDING:
-      return 'bg-warning/10 text-warning border-warning/30 ';
-    case EntryStatus.CANCELLED:
-      return 'bg-destructive/10 text-destructive border-destructive/30 ';
-    case EntryStatus.WAITLIST:
-      return 'bg-info/10 text-info border-info/30 ';
-    default:
-      // REJECTED / SCRATCHED / MOVED / COMPLETED / MOVE_UP_REQUESTED — neutral, as before.
-      return chipClasses('stone', { border: true });
   }
 }

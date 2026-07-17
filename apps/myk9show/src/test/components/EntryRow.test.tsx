@@ -24,7 +24,7 @@ describe('EntryRow', () => {
 
   it('renders status badge', () => {
     render(<EntryRow {...baseProps} />);
-    expect(screen.getByText('Checked In')).toBeInTheDocument();
+    expect(screen.getByText('Checked-in')).toBeInTheDocument();
   });
 
   it('shows "YOU" badge when isCurrentUser is true', () => {
@@ -37,9 +37,11 @@ describe('EntryRow', () => {
     expect(container.firstElementChild?.className).toContain('border-l-orange');
   });
 
-  it('applies blue highlight when status is in_ring', () => {
+  it('uses the shared in-progress shape when status is in_ring', () => {
     const { container } = render(<EntryRow {...baseProps} status="in_ring" />);
-    expect(container.firstElementChild?.className).toContain('border-l-primary');
+    const statusIcon = container.querySelector('[data-status="in_ring"]');
+    expect(statusIcon).toHaveAttribute('data-shape', 'in-progress');
+    expect(statusIcon?.className).toContain('text-info');
   });
 
   it('renders result when provided', () => {

@@ -17,11 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
-import {
-  getPaymentMethodDisplay,
-  getEntryStatusBadgeColor,
-  getPaymentStatusBadgeColor,
-} from './ConfirmationStep.helpers';
+import { getPaymentMethodDisplay, getPaymentStatusBadgeColor } from './ConfirmationStep.helpers';
+import { StatusBadge } from '@/components/status';
 import type { ArmbandAssignment } from './ConfirmationStep.types';
 
 interface RegistrationManagementPanelProps {
@@ -102,7 +99,7 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
                   <div>
                     <Label className="text-sm font-medium">Entry Status</Label>
                     <div className="mt-1">
-                      <Badge className={getEntryStatusBadgeColor(entryStatus)}>{entryStatus}</Badge>
+                      <StatusBadge family="entry" status={entryStatus} variant="outline" />
                     </div>
                   </div>
                   <div>

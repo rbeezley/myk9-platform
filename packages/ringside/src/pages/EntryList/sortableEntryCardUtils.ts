@@ -13,6 +13,7 @@
  */
 
 import type { Entry } from '../../stores/entryStore';
+import { getStatusDescriptor } from '@myk9/ui';
 
 // ========================================
 // TYPES
@@ -110,10 +111,14 @@ export function getStatusBorderClass(entry: Entry): StatusBorderClass {
  */
 export function getPlacementEmoji(placement: number): string {
   switch (placement) {
-    case 1: return '🥇';
-    case 2: return '🥈';
-    case 3: return '🥉';
-    default: return '🎖️';
+    case 1:
+      return '🥇';
+    case 2:
+      return '🥈';
+    case 3:
+      return '🥉';
+    default:
+      return '🎖️';
   }
 }
 
@@ -122,10 +127,14 @@ export function getPlacementEmoji(placement: number): string {
  */
 export function getPlacementText(placement: number): string {
   switch (placement) {
-    case 1: return '1st';
-    case 2: return '2nd';
-    case 3: return '3rd';
-    default: return `${placement}th`;
+    case 1:
+      return '1st';
+    case 2:
+      return '2nd';
+    case 3:
+      return '3rd';
+    default:
+      return `${placement}th`;
   }
 }
 
@@ -133,28 +142,14 @@ export function getPlacementText(placement: number): string {
  * Get status icon name and text configuration
  */
 export function getStatusConfig(status: string | null | undefined): StatusConfig {
-  const normalizedStatus = status || 'no-status';
-
-  switch (normalizedStatus) {
-    case 'in-ring':
-      return { iconName: 'target', text: 'In Ring' };
-    case 'completed':
-      return { iconName: 'check', text: 'Completed' };
-    case 'checked-in':
-      return { iconName: 'check', text: 'Checked-in' };
-    case 'conflict':
-      return { iconName: 'alert-triangle', text: 'Conflict' };
-    case 'pulled':
-      return { iconName: 'x-circle', text: 'Pulled' };
-    case 'at-gate':
-      return { iconName: 'star', text: 'At Gate' };
-    case 'come-to-gate':
-      return { iconName: 'bell', text: 'Come to Gate' };
-    case 'no-status':
-      return { iconName: 'circle', text: 'No Status' };
-    default:
-      return { iconName: null, text: normalizedStatus };
-  }
+  const descriptor = getStatusDescriptor('entry', status);
+  const iconName: StatusConfig['iconName'] =
+    descriptor.shape === 'complete'
+      ? 'check'
+      : descriptor.shape === 'needs-attention'
+        ? 'alert-triangle'
+        : 'circle';
+  return { iconName, text: descriptor.label };
 }
 
 /**

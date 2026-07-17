@@ -1,14 +1,17 @@
 // CheckInStatusBadge.tsx
 import { cn } from '@/lib/utils';
 import type { CheckInStatus } from '@myk9/core';
-import { getCheckinStatusConfig } from '@myk9/core';
-import { CHECKIN_ICON_MAP } from './checkin-icon-map';
+import { isExhibitorAllowedStatus } from '@myk9/core';
+import { StatusIcon, getStatusDescriptor } from '@/components/status';
 
 interface CheckInStatusBadgeProps {
   status: CheckInStatus;
   size?: 'sm' | 'md' | undefined;
   onClick?: (() => void) | undefined;
   className?: string | undefined;
+  disabled?: boolean | undefined;
+  compact?: boolean | undefined;
+  audience?: 'staff' | 'exhibitor' | undefined;
 }
 
 export function CheckInStatusBadge({
@@ -16,28 +19,28 @@ export function CheckInStatusBadge({
   size = 'md',
   onClick,
   className,
+  disabled = false,
+  compact = false,
+  audience = 'staff',
 }: CheckInStatusBadgeProps) {
-  const config = getCheckinStatusConfig(status);
-  if (!config) return null;
-
-  const Icon = CHECKIN_ICON_MAP[config.icon];
-  const sizeClasses = size === 'sm' ? 'text-[10px] px-1.5 py-0.5' : 'text-[11px] px-2 py-0.5';
-  const iconSize = size === 'sm' ? 10 : 12;
+  const descriptor = getStatusDescriptor('entry', status);
+  const sizeClasses = size === 'sm' ? 'text-xs px-2 py-1' : 'text-sm px-2.5 py-1';
+  const canChangeForAudience = audience === 'staff' || isExhibitorAllowedStatus(status);
+  const isInteractive = Boolean(onClick) && !disabled && canChangeForAudience;
+  const ariaLabel = isInteractive
+    ? `Status: ${descriptor.label}. Click to change.`
+    : `Status: ${descriptor.label}`;
 
   const badgeContent = (
     <>
-      {Icon && <Icon size={iconSize} className="shrink-0" />}
-      {config.label}
+      <StatusIcon family="entry" status={status} size="sm" decorative />
+      {!compact && <span>{descriptor.label}</span>}
     </>
   );
 
-  const badgeStyle = {
-    backgroundColor: `var(${config.colorVar})`,
-    color: `var(${config.textColorVar})`,
-  };
-
   const sharedClasses = cn(
-    'inline-flex items-center gap-1 font-semibold rounded-md whitespace-nowrap',
+    'inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40',
+    'font-semibold text-foreground whitespace-nowrap',
     // Status changed in place = a 200ms color crossfade (never a snap). The
     // status colors are applied via CSS-var inline styles that change with the
     // status, so transitioning color/background-color animates the swap. Include
@@ -50,16 +53,20 @@ export function CheckInStatusBadge({
     className
   );
 
-  if (onClick) {
+  if (isInteractive) {
     return (
       <button
         type="button"
         onClick={e => {
           e.stopPropagation();
-          onClick();
+          onClick?.();
         }}
-        className={cn(sharedClasses, 'cursor-pointer hover:opacity-80')}
-        style={badgeStyle}
+        className={cn(
+          sharedClasses,
+          'min-h-[44px] cursor-pointer hover:bg-muted/70',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+        )}
+        aria-label={ariaLabel}
       >
         {badgeContent}
       </button>
@@ -67,7 +74,7 @@ export function CheckInStatusBadge({
   }
 
   return (
-    <span className={sharedClasses} style={badgeStyle}>
+    <span className={sharedClasses} aria-label={ariaLabel}>
       {badgeContent}
     </span>
   );

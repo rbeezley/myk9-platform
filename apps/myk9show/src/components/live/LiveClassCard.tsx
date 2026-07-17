@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { DogsAheadBadge } from './DogsAheadBadge';
-import { type ClassDisplayStatus, CLASS_STATUS_CONFIG } from '@/constants/live-status-config';
+import { type ClassDisplayStatus } from '@/constants/live-status-config';
+import { StatusBadge } from '@/components/status';
 
 interface LiveClassCardProps {
   classTitle: string;
@@ -35,7 +36,6 @@ export function LiveClassCard({
   const completed = completedEntries ?? 0;
   const remaining = total - completed;
   const progressPct = total > 0 ? (completed / total) * 100 : 0;
-  const statusConfig = CLASS_STATUS_CONFIG[status];
   const hasProgress = totalEntries !== undefined && completedEntries !== undefined;
 
   return (
@@ -53,9 +53,7 @@ export function LiveClassCard({
           <h3 className="font-semibold text-base">{classTitle}</h3>
           {judgeName && <p className="text-xs text-muted-foreground">Judge: {judgeName}</p>}
         </div>
-        <span className={cn('px-2.5 py-1 rounded-full text-xs font-medium', statusConfig.style)}>
-          {statusConfig.label}
-        </span>
+        <StatusBadge family="class" status={status} className="px-2.5 py-1 text-xs" />
       </div>
 
       {/* Progress bar — only when totals are provided */}

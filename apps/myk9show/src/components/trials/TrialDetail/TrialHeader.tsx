@@ -10,6 +10,7 @@ import {
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import '@/styles/myk9-show-details.css';
+import { StatusBadge, getTrialCompositeStatus } from '@/components/status';
 
 interface TrialHeaderProps {
   trial: Trial;
@@ -19,28 +20,17 @@ interface TrialHeaderProps {
 }
 
 export const TrialHeader = ({ trial, onEdit, onDelete, onAddPhoto }: TrialHeaderProps) => {
-  const getStatusClass = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'upcoming':
-        return 'myk9-show-status-upcoming';
-      case 'in progress':
-        return 'myk9-show-status-in-progress';
-      case 'completed':
-        return 'myk9-show-status-completed';
-      case 'cancelled':
-        return 'myk9-show-status-cancelled';
-      default:
-        return 'myk9-show-status-upcoming';
-    }
-  };
-
   return (
     <div className="p-8">
       {/* Header with Title and Status */}
       <div className="flex justify-between items-start mb-6">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-semibold text-foreground">{trial.showName}</h1>
-          <span className={`myk9-show-status ${getStatusClass(trial.status)}`}>{trial.status}</span>
+          <StatusBadge
+            family="trial"
+            status={getTrialCompositeStatus(trial.status, 1)}
+            variant="outline"
+          />
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

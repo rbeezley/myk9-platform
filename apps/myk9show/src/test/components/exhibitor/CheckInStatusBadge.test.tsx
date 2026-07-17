@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { CheckInStatusBadge } from '@/components/exhibitor/CheckInStatusBadge';
+import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
 import type { CheckInStatus } from '@myk9/core';
 
 describe('CheckInStatusBadge', () => {
@@ -58,7 +58,7 @@ describe('CheckInStatusBadge', () => {
 
   describe('interactive vs read-only', () => {
     it('should render as a button when onClick is provided and status is exhibitor-allowed', () => {
-      render(<CheckInStatusBadge status="checked-in" onClick={vi.fn()} />);
+      render(<CheckInStatusBadge status="checked-in" onClick={vi.fn()} audience="exhibitor" />);
       expect(screen.getByRole('button')).toBeInTheDocument();
     });
 
@@ -68,30 +68,32 @@ describe('CheckInStatusBadge', () => {
     });
 
     it('should render as a span (read-only) for secretary-only statuses even with onClick', () => {
-      render(<CheckInStatusBadge status="in-ring" onClick={vi.fn()} />);
+      render(<CheckInStatusBadge status="in-ring" onClick={vi.fn()} audience="exhibitor" />);
       // "in-ring" is secretary-only → should NOT render as a button
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('should render as a span for come-to-gate (secretary-only)', () => {
-      render(<CheckInStatusBadge status="come-to-gate" onClick={vi.fn()} />);
+      render(<CheckInStatusBadge status="come-to-gate" onClick={vi.fn()} audience="exhibitor" />);
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('should render as a span for completed (secretary-only)', () => {
-      render(<CheckInStatusBadge status="completed" onClick={vi.fn()} />);
+      render(<CheckInStatusBadge status="completed" onClick={vi.fn()} audience="exhibitor" />);
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('should call onClick when interactive badge is clicked', () => {
       const onClick = vi.fn();
-      render(<CheckInStatusBadge status="checked-in" onClick={onClick} />);
+      render(<CheckInStatusBadge status="checked-in" onClick={onClick} audience="exhibitor" />);
       fireEvent.click(screen.getByRole('button'));
       expect(onClick).toHaveBeenCalledOnce();
     });
 
     it('should render as read-only when disabled even with onClick', () => {
-      render(<CheckInStatusBadge status="checked-in" onClick={vi.fn()} disabled />);
+      render(
+        <CheckInStatusBadge status="checked-in" onClick={vi.fn()} disabled audience="exhibitor" />
+      );
       // disabled + onClick → isInteractive=false → isReadOnly=true → renders span
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
@@ -105,22 +107,22 @@ describe('CheckInStatusBadge', () => {
       expect(badge).toHaveClass('my-custom-class');
     });
 
-    it('should have teal colors for checked-in', () => {
+    it('should use the shared active shape for checked-in', () => {
       render(<CheckInStatusBadge status="checked-in" />);
       const badge = screen.getByLabelText('Status: Checked-in');
-      expect(badge).toHaveClass('bg-teal-500/15');
+      expect(badge.querySelector('[data-shape="in-progress"]')).toHaveClass('text-info');
     });
 
-    it('should have amber colors for conflict', () => {
+    it('should use the shared attention shape for conflict', () => {
       render(<CheckInStatusBadge status="conflict" />);
       const badge = screen.getByLabelText('Status: Conflict');
-      expect(badge).toHaveClass('bg-amber-500/15');
+      expect(badge.querySelector('[data-shape="needs-attention"]')).toHaveClass('text-warning');
     });
 
-    it('should have destructive colors for pulled', () => {
+    it('should use the shared terminal shape for pulled', () => {
       render(<CheckInStatusBadge status="pulled" />);
       const badge = screen.getByLabelText('Status: Pulled');
-      expect(badge).toHaveClass('bg-destructive/15');
+      expect(badge.querySelector('[data-shape="complete"]')).toHaveClass('text-muted-foreground');
     });
   });
 
@@ -131,12 +133,12 @@ describe('CheckInStatusBadge', () => {
     });
 
     it('should have aria-label for interactive badge', () => {
-      render(<CheckInStatusBadge status="checked-in" onClick={vi.fn()} />);
+      render(<CheckInStatusBadge status="checked-in" onClick={vi.fn()} audience="exhibitor" />);
       expect(screen.getByLabelText('Status: Checked-in. Click to change.')).toBeInTheDocument();
     });
 
     it('should have min-h-[44px] for interactive badge (touch target)', () => {
-      render(<CheckInStatusBadge status="checked-in" onClick={vi.fn()} />);
+      render(<CheckInStatusBadge status="checked-in" onClick={vi.fn()} audience="exhibitor" />);
       const btn = screen.getByRole('button');
       expect(btn).toHaveClass('min-h-[44px]');
     });

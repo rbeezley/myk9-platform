@@ -10,7 +10,7 @@ import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { cn } from '@/lib/utils';
 import type { CheckInStatus } from '@myk9/core';
 import { CHECKIN_STATUS, EXHIBITOR_ALLOWED_STATUSES, CHECKIN_STATUSES } from '@myk9/core';
-import { CHECKIN_ICON_MAP } from './checkin-icon-map';
+import { StatusIcon, getStatusDescriptor } from '@/components/status';
 
 interface StatusPickerDialogProps {
   open: boolean;
@@ -70,7 +70,7 @@ export function StatusPickerDialog({
         ) : (
           <div className="grid grid-cols-2 gap-2 pt-2">
             {statusConfigs.map(config => {
-              const Icon = CHECKIN_ICON_MAP[config.icon];
+              const descriptor = getStatusDescriptor('entry', config.value);
               const isActive = config.value === currentStatus;
 
               return (
@@ -84,17 +84,11 @@ export function StatusPickerDialog({
                     isActive ? 'ring-2 ring-primary border-primary bg-accent/30' : 'border-border'
                   )}
                 >
-                  <div
-                    className="shrink-0 size-9 rounded-full flex items-center justify-center mt-0.5"
-                    style={{
-                      backgroundColor: `var(${config.colorVar})`,
-                      color: `var(${config.textColorVar})`,
-                    }}
-                  >
-                    {Icon && <Icon size={18} />}
+                  <div className="shrink-0 size-9 rounded-full bg-muted/40 flex items-center justify-center mt-0.5">
+                    <StatusIcon family="entry" status={config.value} decorative size="lg" />
                   </div>
                   <div className="min-w-0">
-                    <div className="font-semibold text-sm">{config.label}</div>
+                    <div className="font-semibold text-sm">{descriptor.label}</div>
                     <div className="text-xs text-muted-foreground leading-tight">
                       {config.description}
                     </div>

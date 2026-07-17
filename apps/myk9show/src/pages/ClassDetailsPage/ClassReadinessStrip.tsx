@@ -21,6 +21,7 @@ import {
   type ClassReadinessClassInput,
   type ClassReadinessEntry,
 } from './classReadiness';
+import { StatusBadge } from '@/components/status';
 
 export interface ClassReadinessStripProps {
   isStaff: boolean;
@@ -139,9 +140,10 @@ export function ClassReadinessStrip({
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Class readiness</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Factual progress for this class. Class status: {summary.classStatus}.
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span>Factual progress for this class.</span>
+            <StatusBadge family="class" status={summary.classStatus} variant="outline" />
+          </div>
         </CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <ReadinessMetric

@@ -1,5 +1,5 @@
 import { Trial } from '../types/trial.types';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge, getTrialCompositeStatus } from '@/components/status';
 
 interface TrialListItemProps {
   trial: Trial;
@@ -25,8 +25,10 @@ export const TrialListItem = ({ trial, isSelected, onSelect }: TrialListItemProp
         {trial.trialNumber}
       </div>
     </div>
-    <Badge className="mt-2 bg-emerald-100 text-emerald-800 border border-emerald-200">
-      {trial.status}
-    </Badge>
+    <StatusBadge
+      family="trial"
+      status={getTrialCompositeStatus(trial.status, 1)}
+      className="mt-2 border border-border bg-muted/40"
+    />
   </div>
 );

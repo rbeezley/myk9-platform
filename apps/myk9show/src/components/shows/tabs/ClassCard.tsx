@@ -1,7 +1,8 @@
 import { cn } from '@/lib/utils';
 import { Users, Clock, Hash } from 'lucide-react';
-import { getClassStatusDisplay, type ClassStatusValue } from '@myk9/core';
+import { type ClassStatusValue } from '@myk9/core';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
+import { StatusBadge } from '@/components/status';
 
 interface ClassInfo {
   id: string;
@@ -33,7 +34,6 @@ interface ClassCardProps {
 const LIVE_STATUSES = new Set(['In Progress', 'Paused']);
 
 export function ClassCard({ classInfo, hideRing, liveData, onClick }: ClassCardProps) {
-  const statusDisplay = getClassStatusDisplay(classInfo.status);
   const isLive = LIVE_STATUSES.has(classInfo.status) && liveData;
   const progressPct =
     isLive && liveData.totalEntries > 0
@@ -67,17 +67,12 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick }: ClassCardP
             {shouldShowSection(classInfo) && <span className="ml-1">{classInfo.section}</span>}
           </p>
         </div>
-        <span
-          className={cn(
-            'px-2 py-0.5 rounded text-xs font-medium shrink-0',
-            statusDisplay.bgClass,
-            statusDisplay.textClass,
-            statusDisplay.darkBgClass,
-            statusDisplay.darkTextClass
-          )}
-        >
-          {statusDisplay.label}
-        </span>
+        <StatusBadge
+          family="class"
+          status={classInfo.status}
+          className="px-2 py-0.5 rounded text-xs font-medium shrink-0"
+          variant="outline"
+        />
       </div>
 
       {/* Judge */}

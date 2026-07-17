@@ -28,6 +28,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { formatTrialDate } from '@myk9/core';
+import { StatusIcon, getStatusDescriptor } from '@myk9/ui';
 
 // ============================================================================
 // Types
@@ -154,10 +155,7 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
 
           {/* Secondary actions */}
           {actionsMenu.showRunOrder && actionsMenu.onRunOrderClick && (
-            <button
-              onClick={handleRunOrder}
-              className={ACTION_MENU_ITEM_CLASS}
-            >
+            <button onClick={handleRunOrder} className={ACTION_MENU_ITEM_CLASS}>
               <ListOrdered className="h-4 w-4" />
               Set Run Order
             </button>
@@ -168,15 +166,14 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
               className={ACTION_MENU_ITEM_CLASS}
               disabled={actionsMenu.isRecalculatingPlacements}
             >
-              <Trophy className={`h-4 w-4 ${actionsMenu.isRecalculatingPlacements ? 'rotating' : ''}`} />
+              <Trophy
+                className={`h-4 w-4 ${actionsMenu.isRecalculatingPlacements ? 'rotating' : ''}`}
+              />
               Recalculate Placements
             </button>
           )}
           {actionsMenu.showClassSettings && actionsMenu.onClassSettingsClick && (
-            <button
-              onClick={handleClassSettings}
-              className={ACTION_MENU_ITEM_CLASS}
-            >
+            <button onClick={handleClassSettings} className={ACTION_MENU_ITEM_CLASS}>
               <Settings className="h-4 w-4" />
               Class Options
             </button>
@@ -228,17 +225,23 @@ export const TrialInfo: React.FC<TrialInfoProps> = ({ trialDate, trialNumber, ju
 
   if (showDate) {
     items.push(
-      <span key="date" className="trial-date-text">{formatTrialDate(trialDate)}</span>
+      <span key="date" className="trial-date-text">
+        {formatTrialDate(trialDate)}
+      </span>
     );
   }
   if (showNumber) {
     items.push(
-      <span key="number" className="trial-number-text">Trial {trialNumber}</span>
+      <span key="number" className="trial-number-text">
+        Trial {trialNumber}
+      </span>
     );
   }
   if (showJudge) {
     items.push(
-      <span key="judge" className="trial-judge-text">Judge: {judgeName}</span>
+      <span key="judge" className="trial-judge-text">
+        Judge: {judgeName}
+      </span>
     );
   }
 
@@ -264,17 +267,9 @@ interface StatusBadgeInfo {
 }
 
 export function getStatusBadge(classStatus?: string): StatusBadgeInfo | null {
-  switch (classStatus) {
-    case 'in_progress':
-      return { text: 'IN PROGRESS', className: 'status-in-progress' };
-    case 'briefing':
-      return { text: 'BRIEFING NOW', className: 'status-briefing' };
-    case 'start_time':
-    case 'setup':
-      return { text: 'UPCOMING', className: 'status-upcoming' };
-    default:
-      return null;
-  }
+  if (!classStatus) return null;
+  const descriptor = getStatusDescriptor('class', classStatus);
+  return { text: descriptor.label.toUpperCase(), className: 'status-neutral' };
 }
 
 interface ClassStatusBadgeProps {
@@ -290,6 +285,7 @@ export const ClassStatusBadge: React.FC<ClassStatusBadgeProps> = ({ classStatus 
     <>
       <span className="trial-separator">•</span>
       <span className={`class-status-badge ${statusBadge.className}`}>
+        <StatusIcon family="class" status={classStatus} size="sm" decorative />
         {statusBadge.text}
       </span>
     </>

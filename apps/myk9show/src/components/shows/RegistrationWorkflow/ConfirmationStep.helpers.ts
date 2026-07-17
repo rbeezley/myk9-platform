@@ -251,40 +251,6 @@ export function getPaymentMethodDisplay(paymentMethod: string): string {
   }
 }
 
-export function getStatusBadgeVariant(
-  status: EntryStatus
-): 'default' | 'secondary' | 'destructive' | 'outline' {
-  switch (status) {
-    case EntryStatus.ACCEPTED:
-      return 'default';
-    case EntryStatus.PENDING:
-      return 'secondary';
-    case EntryStatus.REJECTED:
-      return 'destructive';
-    case EntryStatus.WAITLIST:
-      return 'outline';
-    case EntryStatus.MISSING_INFO:
-      return 'destructive';
-    default:
-      return 'secondary';
-  }
-}
-
-export function getEntryStatusBadgeColor(status: EntryStatus): string {
-  switch (status) {
-    case EntryStatus.ACCEPTED:
-      return 'bg-teal-100 text-teal-800 border-teal-200';
-    case EntryStatus.REJECTED:
-      return 'bg-red-100 text-red-800 border-red-200';
-    case EntryStatus.WAITLIST:
-      return 'bg-amber-100 text-amber-800 border-amber-200';
-    case EntryStatus.MISSING_INFO:
-      return 'bg-orange-100 text-orange-800 border-orange-200';
-    default:
-      return 'bg-gray-100 text-gray-800 border-gray-200';
-  }
-}
-
 export function getPaymentStatusBadgeColor(status: PaymentStatus): string {
   switch (status) {
     case PaymentStatus.PAID_ONLINE:

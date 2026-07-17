@@ -10,9 +10,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { CheckInStatus } from '@myk9/core';
 import { getCheckinStatusConfig } from '@myk9/core';
-import { Circle, Check } from 'lucide-react';
-import { CheckInStatusBadge } from './CheckInStatusBadge';
-import { CHECKIN_ICON_MAP } from '@/components/common/checkin-icon-map';
+import { Check } from 'lucide-react';
+import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
+import { StatusIcon, getStatusDescriptor } from '@/components/status';
 
 /** Status display order in the menu */
 const MENU_ORDER: CheckInStatus[] = ['checked-in', 'at-gate', 'conflict', 'pulled', 'no-status'];
@@ -120,6 +120,7 @@ export function CheckInStatusMenu({
         onClick={() => !disabled && (isOpen ? closeAndRestoreFocus() : openMenu())}
         disabled={disabled}
         className={className}
+        audience="exhibitor"
       />
 
       {/* Disabled reason tooltip */}
@@ -147,7 +148,7 @@ export function CheckInStatusMenu({
             {MENU_ORDER.map((optionStatus, index) => {
               const config = getCheckinStatusConfig(optionStatus);
               if (!config) return null;
-              const Icon = CHECKIN_ICON_MAP[config.icon] ?? Circle;
+              const descriptor = getStatusDescriptor('entry', optionStatus);
               const isActive = optionStatus === status;
 
               return (
@@ -164,9 +165,9 @@ export function CheckInStatusMenu({
                     isActive && 'bg-accent/50'
                   )}
                 >
-                  <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                  <StatusIcon family="entry" status={optionStatus} decorative />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium">{config.label}</div>
+                    <div className="text-sm font-medium">{descriptor.label}</div>
                     <div className="text-xs text-muted-foreground truncate">
                       {config.description}
                     </div>

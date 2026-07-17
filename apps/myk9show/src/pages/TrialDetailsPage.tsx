@@ -35,7 +35,6 @@ import { getEntryManagementHref } from '@/features/entry-operations/entryAttenti
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailHero } from '@/components/common/DetailHero';
-import { getStatusBadge } from '@/components/common/detailHeroUtils';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { ErrorState } from '@/components/common/ErrorState';
 import { DetailPageSkeleton } from '@/components/common/SkeletonLoaders';
@@ -44,6 +43,7 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 // Extracted hooks
 import { useTrialStats, type EntryForStats } from '@/hooks/useTrialStats';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
+import { StatusIcon, getStatusDescriptor, getTrialCompositeStatus } from '@/components/status';
 
 // Public tabs render for every visitor; management tabs are staff-only. The
 // split is load-bearing: useUrlTab validates `?tab=` against the *allowed* list,
@@ -193,7 +193,15 @@ const TrialDetailsPage: React.FC = () => {
     return crumbs;
   }, [parentShow, currentTrial, showId, trialId]);
 
-  const statusBadge = useMemo(() => getStatusBadge(currentTrial?.status), [currentTrial?.status]);
+  const statusBadge = useMemo(() => {
+    if (!currentTrial?.status) return undefined;
+    const status = getTrialCompositeStatus(currentTrial.status, classCount);
+    return {
+      label: getStatusDescriptor('trial', status).label,
+      variant: 'default' as const,
+      icon: <StatusIcon family="trial" status={status} size="sm" decorative />,
+    };
+  }, [classCount, currentTrial?.status]);
 
   // Metadata for DetailHero — must be before early returns (rules of hooks)
   const heroMetadata = useMemo(() => {

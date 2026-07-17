@@ -1,11 +1,7 @@
 import { cn } from '@/lib/utils';
-import {
-  type EntryDisplayStatus,
-  ENTRY_STATUS_LABELS,
-  ENTRY_STATUS_BORDER,
-  ENTRY_STATUS_BADGE,
-} from '@/constants/live-status-config';
+import { type EntryDisplayStatus } from '@/constants/live-status-config';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { StatusBadge } from '@/components/status';
 
 interface EntryRowProps {
   armband: string;
@@ -30,7 +26,7 @@ export function EntryRow({
   time,
   className,
 }: EntryRowProps) {
-  const borderClass = isCurrentUser ? 'border-l-orange-500' : ENTRY_STATUS_BORDER[status];
+  const borderClass = isCurrentUser ? 'border-l-orange-500' : 'border-l-border';
 
   return (
     <div
@@ -38,7 +34,6 @@ export function EntryRow({
         'flex items-center gap-4 rounded-lg border-l-4 bg-card p-3',
         borderClass,
         isCurrentUser && 'bg-orange-500/5',
-        status === 'in_ring' && !isCurrentUser && 'bg-primary/5',
         className
       )}
     >
@@ -76,11 +71,7 @@ export function EntryRow({
             {time && <span className="text-xs text-muted-foreground">{time}</span>}
           </div>
         ) : (
-          <span
-            className={cn('rounded px-2 py-0.5 text-xs font-medium', ENTRY_STATUS_BADGE[status])}
-          >
-            {ENTRY_STATUS_LABELS[status]}
-          </span>
+          <StatusBadge family="entry" status={status} variant="outline" />
         )}
       </div>
     </div>

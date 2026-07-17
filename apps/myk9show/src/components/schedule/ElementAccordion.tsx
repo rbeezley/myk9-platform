@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { CLASS_STATUS, getClassStatusBadgeClasses } from '@myk9/core';
+import { CLASS_STATUS } from '@myk9/core';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import type { ElementSummary } from './schedule-timeline.types';
 import { formatStartTime } from './schedule-timeline.utils';
 import { LevelRow } from './LevelRow';
+import { StatusBadge } from '@/components/status';
 
 interface ElementAccordionProps {
   element: ElementSummary;
@@ -18,7 +19,6 @@ export function ElementAccordion({ element, onNavigateToClass }: ElementAccordio
     : `${element.completedCount}/${element.totalCount}`;
 
   const formattedTime = formatStartTime(element.startTime) ?? 'TBD';
-  const badgeClasses = getClassStatusBadgeClasses(element.status);
 
   const [isOpen, setIsOpen] = useState(isInProgress);
 
@@ -34,9 +34,13 @@ export function ElementAccordion({ element, onNavigateToClass }: ElementAccordio
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">{formattedTime}</span>
-            <span className={`rounded px-1.5 py-0.5 text-[10px] ${badgeClasses}`}>
-              {progressLabel}
-            </span>
+            <StatusBadge
+              family="class"
+              status={element.status}
+              className="rounded px-1.5 py-0.5 text-[10px]"
+              variant="outline"
+              label={progressLabel}
+            />
           </div>
         </CollapsibleTrigger>
 

@@ -11,8 +11,8 @@
  */
 
 import React from 'react';
-import { Circle, Check, AlertTriangle, XCircle, Star, Bell, Target, Clock } from 'lucide-react';
-import { cn } from '@myk9/ui';
+import { AlertTriangle, Clock } from 'lucide-react';
+import { cn, StatusIcon, getStatusDescriptor } from '@myk9/ui';
 import { formatTimeForDisplay } from '@myk9/core';
 import { Entry } from '../../stores/entryStore';
 import {
@@ -20,7 +20,6 @@ import {
   isNonQualifyingResult,
   getPlacementEmoji,
   getPlacementText,
-  getStatusConfig,
   isNationalsCompetition,
   getDisplayTime,
 } from './sortableEntryCardUtils';
@@ -63,7 +62,10 @@ function resultHead(resultText: string | null | undefined): string {
 }
 
 function resultBadgeClass(resultText: string | null | undefined): string {
-  return cn(RESULT_BADGE_BASE, RESULT_BADGE_COLOR[resultHead(resultText)] ?? 'bg-muted text-foreground');
+  return cn(
+    RESULT_BADGE_BASE,
+    RESULT_BADGE_COLOR[resultHead(resultText)] ?? 'bg-muted text-foreground'
+  );
 }
 
 /** Outlined chip used by time / faults / placement (was `.time-badge` etc.). */
@@ -83,10 +85,7 @@ interface PlacementBadgeProps {
   showIcon?: boolean;
 }
 
-export const PlacementBadge: React.FC<PlacementBadgeProps> = ({
-  placement,
-  showIcon = true,
-}) => (
+export const PlacementBadge: React.FC<PlacementBadgeProps> = ({ placement, showIcon = true }) => (
   <span className={PLACEMENT_BADGE}>
     {showIcon && placement <= 4 && (
       <span className="text-lg leading-none">{getPlacementEmoji(placement)}</span>
@@ -111,7 +110,9 @@ export const NationalsResultBadges: React.FC<NationalsResultBadgesProps> = ({ en
         <PlacementBadge placement={entry.placement!} />
       )}
       {entry.showTime !== false && (
-        <span className={TIME_BADGE}>{getDisplayTime(entry.searchTime, entry.resultText, formatTimeForDisplay)}</span>
+        <span className={TIME_BADGE}>
+          {getDisplayTime(entry.searchTime, entry.resultText, formatTimeForDisplay)}
+        </span>
       )}
       {entry.showQualification !== false && (
         <span className={resultBadgeClass(entry.resultText)}>
@@ -145,8 +146,14 @@ export const NationalsResultBadges: React.FC<NationalsResultBadgesProps> = ({ en
     {/* Total Points Row */}
     <div className="flex items-center justify-between rounded-lg border border-border bg-muted px-3 py-2">
       <span className="text-xs font-semibold text-muted-foreground">Total Points</span>
-      <span className={cn('text-base font-bold', (entry.totalPoints || 0) >= 0 ? 'text-status-checked-in' : 'text-red-600')}>
-        {(entry.totalPoints || 0) >= 0 ? '+' : ''}{entry.totalPoints || 0}
+      <span
+        className={cn(
+          'text-base font-bold',
+          (entry.totalPoints || 0) >= 0 ? 'text-status-checked-in' : 'text-red-600'
+        )}
+      >
+        {(entry.totalPoints || 0) >= 0 ? '+' : ''}
+        {entry.totalPoints || 0}
       </span>
     </div>
   </div>
@@ -171,9 +178,7 @@ export const RegularResultBadges: React.FC<RegularResultBadgesProps> = ({ entry 
 
   return (
     <div className="flex w-full flex-wrap items-center gap-2 border-t border-border pt-2">
-      {showPlacement && entry.placement && (
-        <PlacementBadge placement={entry.placement} />
-      )}
+      {showPlacement && entry.placement && <PlacementBadge placement={entry.placement} />}
 
       {entry.showQualification !== false && entry.resultText && (
         <span className={resultBadgeClass(entry.resultText)}>
@@ -225,36 +230,15 @@ interface StatusBadgeContentProps {
   status: string | null | undefined;
 }
 
-const iconStyle = { width: '18px', height: '18px', flexShrink: 0 } as const;
-
 export const StatusBadgeContent: React.FC<StatusBadgeContentProps> = ({ status }) => {
-  const config = getStatusConfig(status);
-
-  const getIcon = () => {
-    switch (config.iconName) {
-      case 'target':
-        return <Target size={18} style={iconStyle} />;
-      case 'check':
-        return <Check size={18} style={iconStyle} />;
-      case 'alert-triangle':
-        return <AlertTriangle size={18} style={iconStyle} />;
-      case 'x-circle':
-        return <XCircle size={18} style={iconStyle} />;
-      case 'star':
-        return <Star size={18} style={iconStyle} />;
-      case 'bell':
-        return <Bell size={18} style={iconStyle} />;
-      case 'circle':
-        return <Circle size={18} style={iconStyle} />;
-      default:
-        return null;
-    }
-  };
+  const descriptor = getStatusDescriptor('entry', status);
 
   return (
     <>
-      {getIcon()}
-      <span className="min-w-0 shrink overflow-hidden text-ellipsis text-[0.6875rem] leading-tight normal-case">{config.text}</span>
+      <StatusIcon family="entry" status={status} size="lg" decorative />
+      <span className="min-w-0 shrink overflow-hidden text-ellipsis text-[0.6875rem] leading-tight normal-case">
+        {descriptor.label}
+      </span>
     </>
   );
 };

@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { formatRingLabel } from '@/utils/ringLabel';
+import { StatusIcon } from '@/components/status';
 
 interface ClassCheckInProps {
   classInfo?: ExhibitorClassInfo;
@@ -218,17 +219,6 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
     }
   };
 
-  const getStatusIcon = () => {
-    switch (entry.checkInStatus) {
-      case 'checked-in':
-        return <CheckCircle2 className="h-6 w-6 text-green-600" />;
-      case 'pulled':
-        return <XCircle className="h-6 w-6 text-destructive" />;
-      default:
-        return <Clock className="h-6 w-6 text-gray-400" />;
-    }
-  };
-
   const isAlreadyCheckedIn =
     entry.checkInStatus === 'checked-in' ||
     entry.checkInStatus === 'pulled' ||
@@ -266,7 +256,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
                 Offline
               </Badge>
             )}
-            {getStatusIcon()}
+            <StatusIcon family="entry" status={entry.checkInStatus} size="lg" />
           </div>
         </div>
       </div>

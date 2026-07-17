@@ -2,8 +2,8 @@ import { startTransition, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ClassCard, type ClassStatus } from '@myk9/ui';
 import { TrialClass } from '../types/trial.types';
-import { Play, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { CLASS_STATUS } from '@myk9/core';
+import { StatusIcon, getStatusDescriptor } from '@/components/status';
 import { useClassEntriesPreview } from '@/hooks/useClassEntriesPreview';
 import { useFavoriteClassesStore } from '@/store/favoriteClassesStore';
 import {
@@ -40,24 +40,6 @@ function mapStatus(status: TrialClass['status']): ClassStatus {
 }
 
 /**
- * Get status icon based on class status
- */
-function getStatusIcon(status: TrialClass['status']) {
-  switch (status) {
-    case CLASS_STATUS.SCHEDULED:
-      return <Clock className="w-3.5 h-3.5" />;
-    case CLASS_STATUS.IN_PROGRESS:
-      return <Play className="w-3.5 h-3.5" />;
-    case CLASS_STATUS.COMPLETED:
-      return <CheckCircle2 className="w-3.5 h-3.5" />;
-    case CLASS_STATUS.CANCELLED:
-      return <XCircle className="w-3.5 h-3.5" />;
-    default:
-      return <Clock className="w-3.5 h-3.5" />;
-  }
-}
-
-/**
  * Format start time for display
  */
 function formatStartTime(startTime: string | undefined): string | undefined {
@@ -89,8 +71,7 @@ export function TrialClassesCards({
   const navigate = useNavigate();
 
   // Favorites store
-  const { loadFavorites, toggleFavorite, isFavorite, justToggled } =
-    useFavoriteClassesStore();
+  const { loadFavorites, toggleFavorite, isFavorite, justToggled } = useFavoriteClassesStore();
 
   // Load favorites when trialId changes
   useEffect(() => {
@@ -100,7 +81,7 @@ export function TrialClassesCards({
   }, [trialId, loadFavorites]);
 
   // Get class IDs for entry preview lookup
-  const classIds = useMemo(() => classes.map((c) => c.id), [classes]);
+  const classIds = useMemo(() => classes.map(c => c.id), [classes]);
   const entryPreviewMap = useClassEntriesPreview(classIds);
 
   // Build class details data for info popover
@@ -129,25 +110,24 @@ export function TrialClassesCards({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {classes.map((classItem) => {
+      {classes.map(classItem => {
         const startTime = formatStartTime(classItem.startTime);
         const entryPreview = entryPreviewMap.get(classItem.id) || [];
         const classDetailsData = getClassDetailsData(classItem);
         const className = `${classItem.element} ${classItem.level} ${classItem.section}`;
 
         return (
-          <ClassDetailsPopover
-            key={classItem.id}
-            data={classDetailsData}
-          >
+          <ClassDetailsPopover key={classItem.id} data={classDetailsData}>
             <div>
               <ClassCard
                 className={className}
                 judgeName={classItem.judgeName || 'TBD'}
                 {...(startTime !== undefined && { plannedStartTime: startTime })}
                 status={mapStatus(classItem.status)}
-                statusLabel={classItem.status}
-                statusIcon={getStatusIcon(classItem.status)}
+                statusLabel={getStatusDescriptor('class', classItem.status).label}
+                statusIcon={
+                  <StatusIcon family="class" status={classItem.status} size="sm" decorative />
+                }
                 entryCount={classItem.entries}
                 completedCount={classItem.completedEntries ?? 0}
                 entries={entryPreview}

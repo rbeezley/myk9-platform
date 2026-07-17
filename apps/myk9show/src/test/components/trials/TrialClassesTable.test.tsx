@@ -287,7 +287,7 @@ describe('TrialClassesTable', () => {
         />
       );
 
-      expect(screen.getByText('Upcoming')).toBeInTheDocument();
+      expect(screen.getByText('Not started')).toBeInTheDocument();
       expect(screen.getByText('Completed')).toBeInTheDocument();
       expect(screen.getByText('In Progress')).toBeInTheDocument();
     });

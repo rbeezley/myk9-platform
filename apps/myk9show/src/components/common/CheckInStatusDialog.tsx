@@ -21,6 +21,7 @@ import {
 import { CheckInStatusIndicator } from './CheckInStatusIndicator';
 import { CheckCircle2, XCircle, Clock, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getStatusDescriptor } from '@/components/status';
 
 interface CheckInStatusDialogProps {
   open: boolean;
@@ -206,7 +207,7 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
                           <div className="font-medium text-sm">
                             {userRole === 'exhibitor'
                               ? (EXHIBITOR_STATUS_LABELS[config.status] ?? config.label)
-                              : config.label}
+                              : getStatusDescriptor('entry', config.status).label}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {userRole === 'exhibitor'

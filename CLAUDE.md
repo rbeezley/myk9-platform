@@ -140,7 +140,7 @@ For bug-fixing methodology (assertion-first testing, seed-data/RBAC survey-first
 
 ## Workflow
 
-Update tracking after completing each task or sprint item: move the corresponding Linear issue (team **MyK9-platform**) to Done, and keep sprint docs and the debt register in sync with actual progress.
+Keep the corresponding Linear issue (team **MyK9-platform**) In Progress throughout implementation and PR review. Move it to Done only after the PR merges, then keep sprint docs and the debt register in sync with the merged state.
 
 **Which review to use, and the Codex second-opinion policy: see [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 4.**
 

@@ -134,11 +134,31 @@ describe('getStatusIcon theming', () => {
     paymentStatus: PaymentStatus;
     token: string;
   }> = [
-    { entryStatus: EntryStatus.COMPLETED, paymentStatus: PaymentStatus.PAID_ONLINE, token: 'text-success' },
-    { entryStatus: EntryStatus.ACCEPTED, paymentStatus: PaymentStatus.PAID_ONLINE, token: 'text-success' },
-    { entryStatus: EntryStatus.REJECTED, paymentStatus: PaymentStatus.PENDING, token: 'text-destructive' },
-    { entryStatus: EntryStatus.PENDING, paymentStatus: PaymentStatus.PENDING, token: 'text-warning' },
-    { entryStatus: EntryStatus.WAITLIST, paymentStatus: PaymentStatus.PAID_ONLINE, token: 'text-primary' },
+    {
+      entryStatus: EntryStatus.COMPLETED,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      token: 'text-success',
+    },
+    {
+      entryStatus: EntryStatus.ACCEPTED,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      token: 'text-info',
+    },
+    {
+      entryStatus: EntryStatus.REJECTED,
+      paymentStatus: PaymentStatus.PENDING,
+      token: 'text-destructive',
+    },
+    {
+      entryStatus: EntryStatus.PENDING,
+      paymentStatus: PaymentStatus.PENDING,
+      token: 'text-warning',
+    },
+    {
+      entryStatus: EntryStatus.WAITLIST,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      token: 'text-warning',
+    },
   ];
 
   it.each(cases)(
@@ -147,10 +167,10 @@ describe('getStatusIcon theming', () => {
       const { container } = render(
         React.createElement(React.Fragment, null, getStatusIcon(entryStatus, paymentStatus))
       );
-      const svg = container.querySelector('svg');
-      expect(svg).not.toBeNull();
-      expect(svg?.getAttribute('class') ?? '').toContain(token);
-      expect(svg?.getAttribute('class') ?? '').not.toMatch(/text-\[#/);
+      const statusIcon = container.querySelector('[data-family="entry"]');
+      expect(statusIcon).not.toBeNull();
+      expect(statusIcon?.getAttribute('class') ?? '').toContain(token);
+      expect(statusIcon?.getAttribute('class') ?? '').not.toMatch(/text-\[#/);
     }
   );
 });

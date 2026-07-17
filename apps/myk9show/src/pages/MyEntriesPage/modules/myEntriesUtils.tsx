@@ -8,7 +8,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
-import { CheckCircle2, XCircle, AlertCircle, Clock } from 'lucide-react';
+import { StatusBadge, StatusIcon } from '@/components/status';
 
 /**
  * Normalize a raw DB check-in status into the dialog's model. Both `null` and
@@ -43,56 +43,25 @@ export function getEntryStatusBadge(
   status: EntryStatus,
   options: StatusBadgeOptions = {}
 ): React.ReactNode {
+  let contextualLabel: string | undefined;
   switch (status) {
-    case EntryStatus.ACCEPTED:
-      return (
-        <Badge className="bg-success/10 text-success border-success/20 border">
-          Accepted
-        </Badge>
-      );
     case EntryStatus.PENDING:
-      return (
-        <Badge className="bg-warning/10 text-warning border-warning/20 border">
-          {options.isPastShow ? 'Review incomplete' : 'Pending Review'}
-        </Badge>
-      );
+      contextualLabel = options.isPastShow ? 'Review incomplete' : 'Pending Review';
+      break;
     case EntryStatus.WAITLIST:
-      return (
-        <Badge className="bg-warning/10 text-warning border-warning/20 border">
-          Waitlist
-        </Badge>
-      );
+      contextualLabel = 'Waitlist';
+      break;
     case EntryStatus.REJECTED:
-      return (
-        <Badge className="bg-destructive/10 text-destructive border-destructive/20 border">
-          Rejected
-        </Badge>
-      );
-    case EntryStatus.CANCELLED:
-      return (
-        <Badge className="bg-muted text-muted-foreground border-border border">
-          Withdrawn
-        </Badge>
-      );
+      contextualLabel = 'Rejected';
+      break;
     case EntryStatus.COMPLETED:
-      return (
-        <Badge className="bg-success/10 text-success border-success/20 border">
-          Scored
-        </Badge>
-      );
+      contextualLabel = 'Scored';
+      break;
     case EntryStatus.MOVE_UP_REQUESTED:
-      return (
-        <Badge className="bg-warning/10 text-warning border-warning/20 border">
-          Move-Up Requested
-        </Badge>
-      );
-    default:
-      return (
-        <Badge className="bg-muted text-muted-foreground border-border border">
-          Unknown
-        </Badge>
-      );
+      contextualLabel = 'Move-Up Requested';
+      break;
   }
+  return <StatusBadge family="entry" status={status} variant="outline" label={contextualLabel} />;
 }
 
 /**
@@ -106,11 +75,7 @@ export function getPaymentStatusBadge(
     case PaymentStatus.PAID_ONLINE:
     case PaymentStatus.PAID_BY_CHECK:
     case PaymentStatus.PAID_BY_CASH:
-      return (
-        <Badge className="bg-success/10 text-success border-success/20 border">
-          Paid
-        </Badge>
-      );
+      return <Badge className="bg-success/10 text-success border-success/20 border">Paid</Badge>;
     case PaymentStatus.PENDING:
       return (
         <Badge className="bg-warning/10 text-warning border-warning/20 border">
@@ -119,9 +84,7 @@ export function getPaymentStatusBadge(
       );
     case PaymentStatus.REFUNDED:
       return (
-        <Badge className="bg-primary/10 text-primary border-primary/20 border">
-          Refunded
-        </Badge>
+        <Badge className="bg-primary/10 text-primary border-primary/20 border">Refunded</Badge>
       );
     case PaymentStatus.PARTIAL_REFUND:
       return (
@@ -130,31 +93,19 @@ export function getPaymentStatusBadge(
         </Badge>
       );
     default:
-      return (
-        <Badge className="bg-muted text-muted-foreground border-border border">
-          Unknown
-        </Badge>
-      );
+      return <Badge className="bg-muted text-muted-foreground border-border border">Unknown</Badge>;
   }
 }
 
 /**
  * Returns an icon representing the combined entry and payment status
  */
-export function getStatusIcon(entryStatus: EntryStatus, paymentStatus: PaymentStatus): React.ReactNode {
-  if (entryStatus === EntryStatus.COMPLETED) {
-    return <CheckCircle2 className="h-5 w-5 text-success" />;
-  }
-  if (entryStatus === EntryStatus.ACCEPTED && paymentStatus !== PaymentStatus.PENDING) {
-    return <CheckCircle2 className="h-5 w-5 text-success" />;
-  }
-  if (entryStatus === EntryStatus.REJECTED || entryStatus === EntryStatus.CANCELLED) {
-    return <XCircle className="h-5 w-5 text-destructive" />;
-  }
-  if (entryStatus === EntryStatus.PENDING || paymentStatus === PaymentStatus.PENDING) {
-    return <AlertCircle className="h-5 w-5 text-warning" />;
-  }
-  return <Clock className="h-5 w-5 text-primary" />;
+export function getStatusIcon(
+  entryStatus: EntryStatus,
+  paymentStatus: PaymentStatus
+): React.ReactNode {
+  void paymentStatus;
+  return <StatusIcon family="entry" status={entryStatus} size="lg" />;
 }
 
 /**

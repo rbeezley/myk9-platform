@@ -14,10 +14,10 @@ describe('CheckInStatusBadge', () => {
     expect(screen.getByText('No Status')).toBeInTheDocument();
   });
 
-  it('renders with correct color CSS variable as inline style', () => {
+  it('renders the shared in-progress shape and semantic status color', () => {
     render(<CheckInStatusBadge status="checked-in" />);
-    const badge = screen.getByText('Checked-in').closest('span');
-    expect(badge).toHaveStyle({ backgroundColor: 'var(--status-checked-in)' });
+    const badge = screen.getByLabelText('Status: Checked-in');
+    expect(badge?.querySelector('[data-shape="in-progress"]')).toHaveClass('text-info');
   });
 
   it('calls onClick when provided and clicked', async () => {
@@ -39,8 +39,8 @@ describe('CheckInStatusBadge', () => {
 
   it('renders small size correctly', () => {
     render(<CheckInStatusBadge status="pulled" size="sm" />);
-    const badge = screen.getByText('Pulled').closest('span');
-    expect(badge?.className).toContain('text-[10px]');
+    const badge = screen.getByLabelText('Status: Pulled');
+    expect(badge?.className).toContain('text-xs');
   });
 
   it('renders all 8 statuses without error', () => {
@@ -58,5 +58,18 @@ describe('CheckInStatusBadge', () => {
       const { unmount } = render(<CheckInStatusBadge status={status} />);
       unmount();
     }
+  });
+
+  it('uses the complete shape for completed and pulled terminal states', () => {
+    const { rerender } = render(<CheckInStatusBadge status="completed" />);
+    expect(
+      screen.getByLabelText('Status: Completed').querySelector('[data-shape]')
+    ).toHaveAttribute('data-shape', 'complete');
+
+    rerender(<CheckInStatusBadge status="pulled" />);
+    expect(screen.getByLabelText('Status: Pulled').querySelector('[data-shape]')).toHaveAttribute(
+      'data-shape',
+      'complete'
+    );
   });
 });

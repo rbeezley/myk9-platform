@@ -53,9 +53,13 @@ describe('TVClassCard', () => {
     expect(screen.getByText(/Smith/)).toBeInTheDocument();
   });
 
-  it('renders status badge "IN PROGRESS"', () => {
-    render(<TVClassCard tvClass={mockClass} />);
+  it('renders class and in-ring statuses through the shared grammar', () => {
+    const { container } = render(<TVClassCard tvClass={mockClass} />);
     expect(screen.getByText('IN PROGRESS')).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-family="class"][data-shape="in-progress"]')
+    ).not.toBeNull();
+    expect(container.querySelector('[data-family="entry"][data-status="in-ring"]')).not.toBeNull();
   });
 
   it('renders progress count "12 / 28"', () => {

@@ -38,6 +38,8 @@ The following review loop migrated the Class Details compact header's final loca
 
 The next standards pass found six other modified status tests still using raw Testing Library render. They now use the application renderer (with router mocks/wrappers adjusted to avoid nesting), and all 74 tests across those 6 files pass. The parallel spec review reported no actionable findings.
 
+The subsequent spec pass removed TV Display's class and in-ring entry presentation maps, removed an unused status-to-Lucide map from the grouped class sidebar, and restored the ringside header's pre-migration status visibility set. Assertion-first ownership, shared-shape, and visibility tests failed before remediation; 19 focused TV/source tests and the new ringside visibility test pass afterward.
+
 The broad myK9Show suite was also started. It exposed three contextual My Entries label regressions, which were fixed and covered by the focused 67-test card suite, then reached the repository's known 60-second hang threshold and was stopped. CI remains the broad-suite gate.
 
 ## Browser sweep

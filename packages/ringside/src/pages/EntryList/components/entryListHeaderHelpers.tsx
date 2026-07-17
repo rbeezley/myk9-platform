@@ -267,7 +267,9 @@ interface StatusBadgeInfo {
 }
 
 export function getStatusBadge(classStatus?: string): StatusBadgeInfo | null {
-  if (!classStatus) return null;
+  if (!classStatus || !['in_progress', 'briefing', 'start_time', 'setup'].includes(classStatus)) {
+    return null;
+  }
   const descriptor = getStatusDescriptor('class', classStatus);
   return { text: descriptor.label.toUpperCase(), className: 'status-neutral' };
 }

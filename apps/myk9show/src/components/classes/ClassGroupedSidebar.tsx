@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { BookOpen, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { BookOpen, Clock } from 'lucide-react';
 import { ClassData } from './types/classTypes';
 import UnifiedSidebar, { SidebarGroup } from '@/components/common/UnifiedSidebar';
 import { shouldShowSection } from './ClassDetailsMain.helpers';
@@ -61,15 +61,16 @@ export const ClassGroupedSidebar: React.FC<ClassGroupedSidebarProps> = ({
       {} as Record<string, ClassData[]>
     );
 
-    // Define status order and icons
+    // Define status order. Group icons are intentionally generic elsewhere;
+    // status presentation belongs to the shared grammar at rendering sites.
     const statusConfig = [
-      { key: 'Scheduled', title: 'Scheduled Classes', icon: Clock },
-      { key: 'In Progress', title: 'In Progress', icon: BookOpen },
-      { key: 'Completed', title: 'Completed', icon: CheckCircle },
-      { key: 'Cancelled', title: 'Cancelled', icon: XCircle },
+      { key: 'Scheduled', title: 'Scheduled Classes' },
+      { key: 'In Progress', title: 'In Progress' },
+      { key: 'Completed', title: 'Completed' },
+      { key: 'Cancelled', title: 'Cancelled' },
     ];
 
-    statusConfig.forEach(({ key, title, icon }) => {
+    statusConfig.forEach(({ key, title }) => {
       if (statusGroups[key] && statusGroups[key].length > 0) {
         const sortedClasses = statusGroups[key].sort(
           (a, b) => new Date(a.trialDate).getTime() - new Date(b.trialDate).getTime()
@@ -78,7 +79,6 @@ export const ClassGroupedSidebar: React.FC<ClassGroupedSidebarProps> = ({
         groups.push({
           id: `status-${key.toLowerCase().replace(' ', '')}`,
           title,
-          icon,
           count: sortedClasses.length,
           items: sortedClasses,
           isExpanded: expandedGroups.has(`status-${key.toLowerCase().replace(' ', '')}`),

@@ -30,8 +30,9 @@
 - [ ] 4.2 Add seeded-drift tests for failed transfers, unrecorded refunds, and missing processing fees; confirm normal pending/self-healing states are not falsely red.
 - [ ] 4.3 Add site-admin role/authorization and gross-versus-net presentation tests with source/formula labels.
 
-## 5. Canonical route consolidation
+## 5. Canonical route consolidation (gated — see design.md go/no-go checkpoint)
 
+- [ ] 5.0 STOP: run the go/no-go checkpoint with the operator. If the enriched surfaces from sections 3–4 already answer the money questions, skip 5.1–5.4, record the no-go decision in MYK9-54, and proceed to section 6.
 - [ ] 5.1 Add the role-aware `/financial` route and scope selector using the shared summary service; default platform, club, or show scope from role and context.
 - [ ] 5.2 Add redirects from legacy financial entry points and preserve supported deep-link query/context and Stripe onboarding return paths.
 - [ ] 5.3 Add route, role-default, redirect, accessibility, and exhibitor single-payment-workflow tests; do not add a new exhibitor dashboard.
@@ -40,7 +41,7 @@
 ## 6. Verification and shipment
 
 - [ ] 6.1 Run focused unit/component/database tests for each changed package and `pnpm typecheck` for the monorepo blast radius.
-- [ ] 6.2 Run `pnpm openspec validate --change "unified-financial-dashboard"` and resolve all artifact/spec coverage findings.
+- [ ] 6.2 Run `npx openspec validate "unified-financial-dashboard"` and resolve all artifact/spec coverage findings.
 - [ ] 6.3 Review the diff for scope creep, RLS/PII exposure, direct online reads in offline core paths, duplicated surfaces, and intent regressions.
 - [ ] 6.4 Update the linked Linear issue and launch-readiness tracking with completed evidence, known operator gates, and intentional non-goals.
 - [ ] 6.5 Open the implementation PR with the OpenSpec change linked, run CI and focused review, and resolve all blocking findings.

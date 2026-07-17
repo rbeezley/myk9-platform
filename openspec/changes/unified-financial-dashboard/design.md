@@ -146,18 +146,30 @@ dashboard request is allowed to block or alter ringside workflows.
    show-level parity against the current Financial Report before changing its source.
 4. Enrich the existing club Payments page and site-admin Payouts page with focused
    component and regression coverage.
-5. Add `/financial`, role defaults, and redirects only after the prior phases pass.
+5. **Go/no-go checkpoint before `/financial`.** Phase 5 (canonical route + redirects)
+   is not assumed scope. After Phases 0–4 ship, evaluate with the operator whether the
+   enriched `/club-admin/payments` and `/admin/payouts` surfaces already answer the
+   money questions. Proceed to `/financial` only if a concrete overlap or navigation
+   problem remains; otherwise close this change at the enriched surfaces and record
+   the decision in MYK9-54.
 6. If rollout must be halted, keep the snapshot columns and RPC backward-compatible,
    stop at the last enriched surface, and leave legacy routes active. Do not remove
    existing reports or payout paths until redirect tests and operator evidence pass.
 
-## Open Questions
+## Resolved Questions
 
-- Should the immutable snapshot live directly on `stripe_orders` or in a linked
-  per-charge snapshot table after the implementation phase confirms existing schema
-  and webhook insert cardinality?
-- Which existing server authorization helper is the canonical predicate for platform
-  scope, and does the club-admin predicate cover treasurer access without broadening
-  club membership permissions?
-- What operator policy should govern best-effort backfill of historical orders that
-  predate the snapshot contract?
+- **Snapshot location:** columns directly on `stripe_orders`. The webhook writes one
+  order row per charge (migration 005 schema; `stripe_payment_intent_id` is UNIQUE),
+  so charge and snapshot cardinality are 1:1 and a linked table adds a join without
+  adding information. Revisit only if a future contract needs multiple snapshots per
+  order.
+- **Authorization predicates:** platform scope uses `is_site_admin()`, club scope uses
+  `is_club_admin(check_club_id)` (both redefined last in migration 156,
+  `SECURITY DEFINER`, `search_path = ''`), and show scope uses
+  `can_manage_show(check_show_id)` (migration 038). "Treasurer" is a club-membership
+  office label (`club-membership-types.ts`), not an RBAC role in `user_roles`, so
+  treasurer access is club-admin access — no permission broadening is needed or
+  permitted by this change.
+- **Historical backfill:** none. The platform is pre-launch with no real users; orders
+  that predate the snapshot contract are marked rate-unverifiable / net-pending and
+  are never backfilled from the current `platform_fee_percent` setting.

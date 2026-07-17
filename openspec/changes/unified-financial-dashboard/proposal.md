@@ -25,8 +25,10 @@ adding parallel workflows.
   reconciliation, transfer identifiers, settlement states, and Stripe link-outs.
 - Enrich the existing `/admin/payouts` surface with gross platform-fee income, net
   income, transfer liability, and actionable reconciliation mismatches.
-- Add a canonical `/financial` route only after the shared service is proven, then
-  redirect overlapping legacy financial entry points into it.
+- Add a canonical `/financial` route only after the shared service is proven AND the
+  design.md go/no-go checkpoint confirms the enriched surfaces leave a real overlap or
+  navigation problem; on a no-go, the change closes at the enriched surfaces and the
+  canonical-route requirement is dropped from the spec sync.
 - Preserve the existing show-scoped Financial Report and its closeout behavior while
   wiring it to the shared source layer where parity is demonstrated.
 

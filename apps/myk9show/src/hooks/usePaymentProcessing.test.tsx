@@ -46,7 +46,9 @@ function createWrapper() {
 
 describe('usePaymentProcessing', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    createPaymentIntentMock.mockReset();
+    calculateEntryFeeMock.mockReset();
+    confirmPaymentMock.mockReset();
   });
 
   describe('createPayment', () => {

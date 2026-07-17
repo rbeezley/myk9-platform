@@ -42,4 +42,14 @@ describe('StatusIcon', () => {
       'not-started'
     );
   });
+
+  it('preserves cancelled trials as a terminal destructive state', () => {
+    render(<StatusIcon family="trial" status="cancelled" />);
+
+    expect(screen.getByRole('img', { name: 'Cancelled' })).toHaveAttribute(
+      'data-shape',
+      'complete'
+    );
+    expect(screen.getByRole('img', { name: 'Cancelled' })).toHaveClass('text-destructive');
+  });
 });

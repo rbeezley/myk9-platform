@@ -141,6 +141,11 @@ describe('getStatusIcon theming', () => {
     },
     {
       entryStatus: EntryStatus.ACCEPTED,
+      paymentStatus: PaymentStatus.PENDING,
+      token: 'text-warning',
+    },
+    {
+      entryStatus: EntryStatus.ACCEPTED,
       paymentStatus: PaymentStatus.PAID_ONLINE,
       token: 'text-info',
     },

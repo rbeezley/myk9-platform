@@ -104,8 +104,11 @@ export function getStatusIcon(
   entryStatus: EntryStatus,
   paymentStatus: PaymentStatus
 ): React.ReactNode {
-  void paymentStatus;
-  return <StatusIcon family="entry" status={entryStatus} size="lg" />;
+  const status =
+    entryStatus === EntryStatus.ACCEPTED && paymentStatus === PaymentStatus.PENDING
+      ? 'pending-payment'
+      : entryStatus;
+  return <StatusIcon family="entry" status={status} size="lg" />;
 }
 
 /**

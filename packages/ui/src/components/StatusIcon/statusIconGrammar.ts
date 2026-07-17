@@ -81,6 +81,7 @@ export const TRIAL_STATUS_VALUES = [
   'not-started',
   'in-progress',
   'completed',
+  'cancelled',
 ] as const;
 
 function descriptor(
@@ -188,6 +189,7 @@ export const TRIAL_STATUS_DESCRIPTORS = {
   'not-started': descriptor('not-started', 'Not started', 'not-started', 'text-muted-foreground'),
   'in-progress': descriptor('in-progress', 'In progress', 'in-progress', 'text-info'),
   completed: descriptor('completed', 'Completed', 'complete', 'text-success'),
+  cancelled: descriptor('cancelled', 'Cancelled', 'complete', 'text-destructive'),
 } satisfies Record<(typeof TRIAL_STATUS_VALUES)[number], StatusDescriptor>;
 
 const STATUS_DESCRIPTORS: Readonly<
@@ -223,6 +225,7 @@ export function getTrialCompositeStatus(
       .toLowerCase()
       .replace(/[\s_]+/g, '-') ?? '';
   if (normalized === 'completed' || normalized === 'complete') return 'completed';
+  if (normalized === 'cancelled' || normalized === 'canceled') return 'cancelled';
   if (normalized === 'in-progress' || normalized === 'inprogress') return 'in-progress';
   return 'not-started';
 }

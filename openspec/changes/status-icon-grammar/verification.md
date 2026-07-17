@@ -11,6 +11,17 @@ Verified 2026-07-16 on the seeded Heartland Scent Work Classic show.
 - Shared UI status grammar tests: 1 file, 3 tests passed.
 - `pnpm openspec validate status-icon-grammar --strict`: passed.
 
+Independent-review hardening was reverified after the initial sweep:
+
+- Focused myK9Show status, schedule, My Entries, ClassCard, and analytics tests: 5 files, 55 tests passed.
+- Shared UI package suite: 18 files, 294 tests passed.
+- Scoring UI package suite: 26 files, 278 tests passed.
+- `pnpm typecheck`: 26/26 tasks passed.
+- `pnpm lint`: 14/14 tasks passed.
+- `pnpm openspec validate status-icon-grammar --strict`: passed.
+
+This review pass added cancelled-trial coverage, restored the accepted/payment-due indicator, routed the schedule timeline through the shared shape grammar, tied coverage to canonical entry/class statuses, and removed the shared component's runtime dependency on mocked icon exports.
+
 The broad myK9Show suite was also started. It exposed three contextual My Entries label regressions, which were fixed and covered by the focused 67-test card suite, then reached the repository's known 60-second hang threshold and was stopped. CI remains the broad-suite gate.
 
 ## Browser sweep

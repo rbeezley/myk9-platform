@@ -51,7 +51,7 @@ describe('ClassCard', () => {
 
   it('renders status badge', () => {
     render(<ClassCard classInfo={baseClass} />);
-    expect(screen.getByText('Scheduled')).toBeInTheDocument();
+    expect(screen.getByText('Not started')).toBeInTheDocument();
   });
 
   it('renders entry count', () => {

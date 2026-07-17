@@ -1,21 +1,42 @@
-import {
-  Circle,
-  CircleCheck,
-  CircleDashed,
-  CircleDot,
-  TriangleAlert,
-  type LucideIcon,
-} from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { getStatusDescriptor, type StatusFamily, type StatusShape } from './statusIconGrammar';
 
-const SHAPE_ICONS: Record<StatusShape, LucideIcon> = {
-  'not-started': CircleDashed,
-  pending: Circle,
-  'in-progress': CircleDot,
-  complete: CircleCheck,
-  'needs-attention': TriangleAlert,
-};
+function StatusGlyph({ shape, className }: { shape: StatusShape; className: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {shape === 'not-started' && <circle cx="12" cy="12" r="9" strokeDasharray="4 3" />}
+      {shape === 'pending' && <circle cx="12" cy="12" r="9" />}
+      {shape === 'in-progress' && (
+        <>
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+        </>
+      )}
+      {shape === 'complete' && (
+        <>
+          <circle cx="12" cy="12" r="9" />
+          <path d="m8 12 2.5 2.5L16 9" />
+        </>
+      )}
+      {shape === 'needs-attention' && (
+        <>
+          <path d="M10.3 4.3 2.8 17.2A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.8L13.7 4.3a2 2 0 0 0-3.4 0Z" />
+          <path d="M12 9v4" />
+          <path d="M12 17h.01" />
+        </>
+      )}
+    </svg>
+  );
+}
 
 export interface StatusIconProps {
   family: StatusFamily;
@@ -39,7 +60,6 @@ export function StatusIcon({
   className,
 }: StatusIconProps) {
   const statusDescriptor = getStatusDescriptor(family, status);
-  const Icon = SHAPE_ICONS[statusDescriptor.shape];
 
   return (
     <span
@@ -51,7 +71,7 @@ export function StatusIcon({
       data-shape={statusDescriptor.shape}
       className={cn('inline-flex shrink-0', statusDescriptor.colorClass, className)}
     >
-      <Icon className={SIZE_CLASSES[size]} aria-hidden="true" />
+      <StatusGlyph shape={statusDescriptor.shape} className={SIZE_CLASSES[size]} />
     </span>
   );
 }

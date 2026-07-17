@@ -1,85 +1,44 @@
 import { render, screen } from '@/test/utils/testUtils';
+import { CLASS_STATUS, type ClassStatusValue } from '@myk9/core';
+import { EntryStatus } from '@/types/show-registration-types';
 import {
   CLASS_STATUS_VALUES,
   ENTRY_STATUS_VALUES,
   STATUS_COLOR_CLASSES,
   TRIAL_STATUS_VALUES,
   getStatusDescriptor,
+  getTrialCompositeStatus,
 } from './statusIconGrammar';
 import { StatusIcon } from './StatusIcon';
 
-const EXPECTED_ENTRY_STATUSES = [
-  'no-status',
-  'draft',
-  'submitted',
-  'paid',
-  'confirmed',
-  'scheduled',
-  'checked-in',
-  'at-gate',
-  'come-to-gate',
-  'in-ring',
-  'competing',
-  'completed',
-  'withdrawn',
-  'not_accepted',
-  'scratched',
-  'absent',
-  'moved',
-  'scratch-requested',
-  'move-up-requested',
-  'pending-payment',
-  'promotion-expired',
-  'pending',
-  'accepted',
-  'waitlist',
-  'missing_info',
-  'conflict',
-  'pulled',
-  'checked_in',
-  'not_checked_in',
-  'at_gate',
-  'in_ring',
-] as const;
-
-const EXPECTED_CLASS_STATUSES = [
-  'Scheduled',
-  'Upcoming',
-  'In Progress',
-  'Completed',
-  'Cancelled',
-  'no-status',
-  'setup',
-  'briefing',
-  'break',
-  'in_progress',
-  'offline-scoring',
-  'completed',
-  'not-started',
-  'in-progress',
-  'not_started',
-  'pending',
-  'paused',
-  'cancelled',
-  'start_time',
-] as const;
-
-const EXPECTED_TRIAL_STATUSES = ['no-classes', 'not-started', 'in-progress', 'completed'] as const;
-
 describe('status icon grammar', () => {
-  it('covers every inventoried entry, class, and trial status', () => {
-    expect(ENTRY_STATUS_VALUES).toEqual(EXPECTED_ENTRY_STATUSES);
-    expect(CLASS_STATUS_VALUES).toEqual(EXPECTED_CLASS_STATUSES);
-    expect(TRIAL_STATUS_VALUES).toEqual(EXPECTED_TRIAL_STATUSES);
-
-    for (const status of EXPECTED_ENTRY_STATUSES) {
+  it('covers every declared and canonical entry, class, and trial status', () => {
+    for (const status of ENTRY_STATUS_VALUES) {
       expect(getStatusDescriptor('entry', status).status).toBe(status);
     }
-    for (const status of EXPECTED_CLASS_STATUSES) {
+    for (const status of Object.values(EntryStatus)) {
+      expect(getStatusDescriptor('entry', status).status).toBe(status);
+    }
+    for (const status of CLASS_STATUS_VALUES) {
       expect(getStatusDescriptor('class', status).status).toBe(status);
     }
-    for (const status of EXPECTED_TRIAL_STATUSES) {
+    for (const status of Object.values(CLASS_STATUS)) {
+      expect(getStatusDescriptor('class', status).status).toBe(status);
+    }
+    for (const status of TRIAL_STATUS_VALUES) {
       expect(getStatusDescriptor('trial', status).status).toBe(status);
+    }
+
+    const trialStatusByCanonicalClassStatus = {
+      [CLASS_STATUS.SCHEDULED]: 'not-started',
+      [CLASS_STATUS.UPCOMING]: 'not-started',
+      [CLASS_STATUS.IN_PROGRESS]: 'in-progress',
+      [CLASS_STATUS.COMPLETED]: 'completed',
+      [CLASS_STATUS.CANCELLED]: 'cancelled',
+    } satisfies Record<ClassStatusValue, (typeof TRIAL_STATUS_VALUES)[number]>;
+
+    for (const [status, expected] of Object.entries(trialStatusByCanonicalClassStatus)) {
+      expect(getTrialCompositeStatus(status, 1)).toBe(expected);
     }
   });
 
@@ -129,10 +88,10 @@ describe('status icon grammar', () => {
     for (const family of ['entry', 'class', 'trial'] as const) {
       const statuses =
         family === 'entry'
-          ? EXPECTED_ENTRY_STATUSES
+          ? ENTRY_STATUS_VALUES
           : family === 'class'
-            ? EXPECTED_CLASS_STATUSES
-            : EXPECTED_TRIAL_STATUSES;
+            ? CLASS_STATUS_VALUES
+            : TRIAL_STATUS_VALUES;
       for (const status of statuses) {
         expect(STATUS_COLOR_CLASSES).toContain(getStatusDescriptor(family, status).colorClass);
       }

@@ -1,0 +1,163 @@
+## Context
+
+The platform currently has three financial entry points with different purposes:
+
+- The show-scoped Financial Report is a printable closeout report and intentionally
+  excludes lifecycle statuses such as withdrawn and scratched.
+- `/club-admin/payments` owns Stripe onboarding and payout history, but not a complete
+  club accounting view.
+- `/admin/payouts` shows platform payout liabilities, but not gross versus net platform
+  fee income or a unified reconciliation feed.
+
+The existing code already contains the fee-book totals projection, payout calculation,
+payout settlement badge resolver, Stripe order records, and operator alerts. The
+design joins those existing sources rather than replacing them. The financial surface
+is an accounting and oversight workflow, not a show-day workflow; ringside data and
+mutations continue through the established replication-backed paths.
+
+The design must preserve the role intent in `docs/INTENT.md`: site admins need calm
+oversight, secretaries need an easy closeout, and club treasurers need an authoritative
+record they can explain. Exhibitors keep the existing payment surface and are not
+given a second dashboard in this change.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- Make one source-grounded financial model available at platform, club, and show
+  scopes, with role-derived authorization.
+- Preserve historical money facts, including the fee rate and Stripe processing fee
+  that applied to each online charge.
+- Include every financially active entry in accounting totals while keeping printable
+  show closeout semantics unchanged.
+- Separate charge verification from club payout settlement, and surface mismatches as
+  actionable attention items.
+- Let a club reconcile a show-level net transfer to Stripe using a copyable transfer id.
+- Roll out through existing `/club-admin/payments` and `/admin/payouts` before
+  consolidating to `/financial`.
+
+**Non-Goals:**
+
+- Rebuilding `/exhibitor/payments` or creating a separate exhibitor financial dashboard.
+- Matching a Stripe transfer to the club's bank statement inside myK9; link out to
+  Stripe for that final hop.
+- Collapsing the deliberately separate fee-calculation implementations that are
+  protected by colocated tests.
+- Adding financial actions to `/at-show` or making show-day operations depend on an
+  online Stripe reconciliation request.
+
+## Decisions
+
+### 1. Use a layered financial model
+
+The entry accounting projection is the primary record of club revenue: entry fees,
+discounts, waived amounts, refunds, and outstanding amounts. Stripe order snapshots
+prove online charge details, while `show_payouts` proves money transferred toward a
+club. These are displayed together but never conflated.
+
+**Alternatives considered:**
+
+- Stripe as the sole source: rejected because checks, cash, waived entries, and the
+  platform's club accounting are not represented there.
+- The printable Financial Report as the sole source: rejected because its lifecycle
+  filters omit financially active withdrawn/scratched records.
+
+### 2. Snapshot historical Stripe facts at charge time
+
+Extend the order data contract with immutable cent-based values for entry subtotal,
+platform fee, applied fee rate, Stripe processing fee, and refunded cents. The webhook
+captures processing fees from the charge balance transaction when available; a missing
+processing-fee value remains explicitly pending rather than being treated as zero.
+Refund handling updates only the refunded amount, never the original charge facts.
+
+This prevents a later platform-fee setting change from rewriting historical income and
+keeps gross platform fees distinct from net income.
+
+**Alternatives considered:**
+
+- Recompute historical fees from today's setting: rejected because it changes history.
+- Estimate Stripe processing fees by percentage: rejected because reconciliation
+  requires the actual balance-transaction fee.
+
+### 3. Expose a scoped, PII-free server projection
+
+Provide a `SECURITY DEFINER` RPC or security-barrier projection that authorizes
+platform, club, and show scope on the server and returns only reconciliation fields.
+Totals are aggregated in SQL for unbounded platform and club datasets; row-level lists
+paginate to completion. The client never reads `stripe_orders` directly to bypass its
+existing RLS contract.
+
+**Alternatives considered:**
+
+- UI-only scope filtering: rejected because hidden rows are not authorization.
+- Client-side loading of all rows: rejected because PostgREST's row cap can silently
+  understate totals.
+
+### 4. Keep charge and settlement states independent
+
+Charge verification uses `Verified`, `Attested`, or `Mismatch`. Settlement reuses the
+existing `resolvePayoutBadge` vocabulary and recognizes `completed` as the successful
+transfer state. A pending or self-healing payout is not mislabeled as a financial
+failure; genuine failures and unresolved mismatches become attention items.
+
+### 5. Enrich before consolidating
+
+Phase 0 establishes the data contract. Phase 1 adds the accounting projection and
+shared service with parity tests. Phase 2 enriches `/club-admin/payments`; Phase 3
+enriches `/admin/payouts`; Phase 4 introduces `/financial` and redirects legacy
+financial entry points. The existing show Financial Report remains the printable
+closeout surface throughout.
+
+This sequencing reduces launch risk and answers the duplication question directly:
+existing surfaces are reused where their concern already lives, and the final new
+route exists only to remove overlapping entry points.
+
+### 6. Treat the dashboard as online oversight, not ringside infrastructure
+
+The Stripe proof layer is online-only and may show an explicit unavailable/stale state
+when disconnected. Show-day scoring, check-in, and other persistent show operations
+must continue using `@myk9/replication` and existing mutation flows. No financial
+dashboard request is allowed to block or alter ringside workflows.
+
+## Risks / Trade-offs
+
+- **[Historical orders lack snapshots]** → Mark them rate-unverifiable or net-pending;
+  never backfill by silently applying today's fee rate.
+- **[Webhook balance-transaction fetch is delayed or fails]** → Persist the charge
+  facts that are known, log the missing processing fee, and display net income as
+  pending until the fee is captured.
+- **[RPC authorization drift]** → Add authorization tests for platform, club, show,
+  and unauthorized callers; return no customer PII.
+- **[Large club/platform datasets]** → Aggregate totals server-side and require
+  complete pagination for detail rows; add indexes based on query plans.
+- **[Users confuse gross fees with club net or platform net income]** → Label the
+  three figures separately, show the formula/source, and preserve the existing calm
+  role-specific language.
+- **[Canonical-route migration breaks saved links]** → Keep explicit redirects and
+  route tests for legacy paths and onboarding return URLs before deleting overlap.
+
+## Migration Plan
+
+1. Add and test immutable order snapshot fields and refund cents; deploy the migration
+   before deploying webhook writes.
+2. Add the scoped RPC/projection, explicit grants, aggregation, and authorization
+   tests. Validate referenced schema rows and columns before any shared database push.
+3. Add the accounting projection and `getFinancialSummary(scope, scopeId)`; prove
+   show-level parity against the current Financial Report before changing its source.
+4. Enrich the existing club Payments page and site-admin Payouts page with focused
+   component and regression coverage.
+5. Add `/financial`, role defaults, and redirects only after the prior phases pass.
+6. If rollout must be halted, keep the snapshot columns and RPC backward-compatible,
+   stop at the last enriched surface, and leave legacy routes active. Do not remove
+   existing reports or payout paths until redirect tests and operator evidence pass.
+
+## Open Questions
+
+- Should the immutable snapshot live directly on `stripe_orders` or in a linked
+  per-charge snapshot table after the implementation phase confirms existing schema
+  and webhook insert cardinality?
+- Which existing server authorization helper is the canonical predicate for platform
+  scope, and does the club-admin predicate cover treasurer access without broadening
+  club membership permissions?
+- What operator policy should govern best-effort backfill of historical orders that
+  predate the snapshot contract?

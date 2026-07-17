@@ -13,6 +13,11 @@ import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdat
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
+import {
+  buildOrderSnapshotFields,
+  deriveEntryFeeFromTotalCents,
+  extractProcessingFeeCents,
+} from '../_shared/orderSnapshot.ts';
 import { loadEntryPaymentLineItemFeesFromStripe } from '../_shared/entryPaymentLineItems.ts';
 import {
   resolveWithdrawalPolicy,
@@ -80,6 +85,57 @@ Deno.serve(
     alertAdmin,
   })
 );
+
+/**
+ * Retrieve Stripe's actual processing fee (cents) for a charge by expanding the
+ * payment intent's latest charge balance transaction. Returns null when the fee
+ * is not yet available (delayed balance-transaction data) or on any retrieve
+ * error — the snapshot then records it as PENDING (never an estimated zero), per
+ * the financial-reconciliation contract. Never throws; a committed payment must
+ * not be disturbed by a missing fee lookup.
+ */
+async function fetchProcessingFeeCents(paymentIntentId: string | null): Promise<number | null> {
+  if (!paymentIntentId) return null;
+  try {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ['latest_charge.balance_transaction'],
+    });
+    const charge = pi.latest_charge;
+    if (!charge || typeof charge === 'string') return null;
+    return extractProcessingFeeCents(charge as { balance_transaction?: string | { fee?: number } });
+  } catch (e) {
+    console.error(`Could not retrieve processing fee for intent ${paymentIntentId}:`, e);
+    return null;
+  }
+}
+
+/**
+ * Log (and, once per intent, alert) when a succeeded charge's Stripe processing
+ * fee could not be captured. Net platform income stays pending until an operator
+ * or a later reconciliation fills it — the missing fee is never treated as zero.
+ */
+async function warnMissingProcessingFee(
+  paymentIntentId: string | null,
+  context: string
+): Promise<void> {
+  console.error(
+    `Processing fee PENDING for ${context} (intent ${paymentIntentId ?? 'unknown'}) — ` +
+      `net income cannot be finalized until the balance-transaction fee is captured.`
+  );
+  await alertAdmin(
+    'Stripe processing fee not captured — net income pending',
+    `<p>The Stripe balance-transaction processing fee for ${context} (payment intent
+     <code>${paymentIntentId ?? 'unknown'}</code>) was not available when the order was
+     recorded. The charge facts are stored; net platform income is marked pending
+     until the fee is captured. This is expected for delayed balance-transaction
+     data and usually self-heals; investigate only if it persists.</p>`,
+    {
+      source: 'stripe-webhook',
+      severity: 'warn',
+      dedupeKey: `processing-fee-pending-${paymentIntentId ?? context}`,
+    }
+  );
+}
 
 async function handleEvent(event: Stripe.Event) {
   console.log(`Processing event: ${event.type}`);
@@ -223,9 +279,16 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
   }
 
   // Idempotent: re-delivery (or a second partial refund) re-applies the same state.
+  // Snapshot contract (MYK9-54): the refund path updates ONLY refunded_cents (the
+  // cumulative amount Stripe reports refunded) — never the original charge facts
+  // (entry subtotal, platform fee, rate, processing fee).
   const { data, error } = await supabase
     .from('stripe_orders')
-    .update({ status: 'refunded', refunded_at: new Date().toISOString() })
+    .update({
+      status: 'refunded',
+      refunded_at: new Date().toISOString(),
+      refunded_cents: charge.amount_refunded ?? 0,
+    })
     .eq('stripe_payment_intent_id', paymentIntentId)
     .select('id, order_type');
 
@@ -901,6 +964,15 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
 
   console.log(`Created ${entryIds.length} entries from cart ${cartId}`);
 
+  // Immutable financial snapshot (MYK9-54): the platform fee on the paid-entry
+  // subtotal at the rate applied at charge time, plus Stripe's actual processing
+  // fee. A missing processing fee stays NULL (pending), never an estimated zero.
+  const snapshotProcessingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
+  const snapshotPlatformFeeCents = calculatePlatformFeeCents(
+    paidEntrySubtotalCents,
+    stampedFeePercent
+  );
+
   // Create stripe_orders record
   const { error: orderError } = await supabase.from('stripe_orders').insert({
     customer_id: stripeCustomer?.id || null,
@@ -909,6 +981,12 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     // Record only the paid-entry service amount. Denied/waitlisted/no-service
     // cart lines are explicit metadata and never masquerade as paid entry_ids.
     amount_cents: paidOrderAmountCents,
+    ...buildOrderSnapshotFields({
+      entrySubtotalCents: paidEntrySubtotalCents,
+      platformFeeCents: snapshotPlatformFeeCents,
+      platformFeeRate: stampedFeePercent,
+      stripeProcessingFeeCents: snapshotProcessingFeeCents,
+    }),
     currency: session.currency || 'usd',
     status: 'succeeded',
     order_type: 'entry',
@@ -992,6 +1070,10 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
        so payment history and reconciliation stay complete.</p>`,
       { source: 'stripe-webhook', dedupeKey: `order-insert-failed-${session.id}` }
     );
+  }
+
+  if (snapshotProcessingFeeCents === null) {
+    await warnMissingProcessingFee(paymentIntentId, `cart ${cartId}`);
   }
 
   if (noServiceLineIds.length > 0) {
@@ -1278,6 +1360,15 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
 
   await resolvePaidWaitlistOffers(paidIds, session.id);
 
+  // Immutable financial snapshot (MYK9-54). Only the charged total is on hand
+  // here, so split it back into entry subtotal + platform fee at the applied
+  // rate; capture Stripe's actual processing fee (NULL = pending, never zero).
+  const linkFeePercent = resolvePlatformFeePercent(
+    freshSession.metadata?.platform_fee_percent ?? Deno.env.get('PLATFORM_FEE_PERCENT')
+  );
+  const linkFeeSplit = deriveEntryFeeFromTotalCents(freshAmountTotalCents ?? 0, linkFeePercent);
+  const linkProcessingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
+
   const { error: orderError } = await supabase.from('stripe_orders').insert({
     // customer_id is a UUID FK to stripe_customers(id) — NOT Stripe's cus_… id.
     // A link payer may have no stripe_customers row at all, so leave it null
@@ -1289,11 +1380,20 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     currency: session.currency || 'usd',
     status: 'succeeded',
     order_type: 'entry',
+    ...buildOrderSnapshotFields({
+      entrySubtotalCents: linkFeeSplit.entrySubtotalCents,
+      platformFeeCents: linkFeeSplit.platformFeeCents,
+      platformFeeRate: linkFeePercent,
+      stripeProcessingFeeCents: linkProcessingFeeCents,
+    }),
     metadata: { entry_payment_link_id: link.id, entry_count: paidIds.length },
     show_id: link.show_id,
     entry_ids: paidIds,
     paid_at: new Date().toISOString(),
   });
+  if (linkProcessingFeeCents === null) {
+    await warnMissingProcessingFee(paymentIntentId, `payment link ${link.id}`);
+  }
   if (orderError && orderError.code !== '23505') {
     console.error('Error creating stripe_orders for payment link:', orderError);
     await alertAdmin(
@@ -1940,22 +2040,31 @@ async function handleOneTimePaymentCompleted(session: Stripe.Checkout.Session) {
     .eq('stripe_customer_id', customerId)
     .single();
 
+  const oneTimeIntentId =
+    typeof session.payment_intent === 'string' ? session.payment_intent : null;
+  // Immutable financial snapshot (MYK9-54). A one-time payment carries no entry
+  // subtotal or platform fee (those stay NULL); capture only Stripe's actual
+  // processing fee. NULL = pending, never an estimated zero.
+  const oneTimeProcessingFeeCents = await fetchProcessingFeeCents(oneTimeIntentId);
+
   // Create stripe_orders record
   const { error: orderError } = await supabase.from('stripe_orders').insert({
     customer_id: stripeCustomer?.id || null,
-    stripe_payment_intent_id:
-      typeof session.payment_intent === 'string' ? session.payment_intent : null,
+    stripe_payment_intent_id: oneTimeIntentId,
     stripe_checkout_session_id: session.id,
     amount_cents: session.amount_total || 0,
     currency: session.currency || 'usd',
     status: 'succeeded',
     order_type: 'payment',
+    ...buildOrderSnapshotFields({ stripeProcessingFeeCents: oneTimeProcessingFeeCents }),
     metadata: session.metadata || {},
     paid_at: new Date().toISOString(),
   });
 
   if (orderError) {
     console.error('Error creating stripe_orders record:', orderError);
+  } else if (oneTimeProcessingFeeCents === null) {
+    await warnMissingProcessingFee(oneTimeIntentId, `one-time payment ${session.id}`);
   }
 
   console.log(`One-time payment completed: ${session.id}`);

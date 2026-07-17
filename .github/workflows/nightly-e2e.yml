@@ -40,11 +40,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # The nightly suite spans secretary, admin, judge, and demo-exhibitor
-      # journeys, so preflight every role the script supports (demo-exhibitor
-      # creds are passed to the run step below but are not preflightable).
+      # journeys, so preflight every role before starting the browser suite.
       - name: Verify E2E auth credentials
         working-directory: apps/myk9show
-        run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts secretary admin judge
+        run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts secretary admin judge exhibitor
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -54,6 +53,8 @@ jobs:
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
           E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
       - name: Build app + packages
         run: pnpm build
@@ -67,7 +68,7 @@ jobs:
 
       - name: Run E2E Nightly
         working-directory: apps/myk9show
-        run: pnpm test:e2e:nightly
+        run: pnpm test:e2e:nightly -- --fail-on-flaky-tests
         env:
           CI: 'true'
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}

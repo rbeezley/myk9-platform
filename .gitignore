@@ -32,6 +32,7 @@ Thumbs.db
 
 # Testing
 coverage/
+.vitest-reports/
 .stryker-tmp/
 reports/mutation/
 playwright-report/

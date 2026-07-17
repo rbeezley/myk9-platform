@@ -134,11 +134,12 @@ export function useBulkActions({
             ? `${successful.length} of ${userIds.length} users deleted — ${ownsDogsBlocked.length} could not be deleted (${details})`
             : `Could not delete: ${details}`;
         setError(message);
-        // When some deletes succeed, onBulkComplete clears the parent selection and
-        // unmounts BulkActionsBar — taking the inline `error` alert with it. A toast
-        // persists past the unmount so the operator still sees why users remained.
+        // Surface via toast in BOTH cases: on partial success onBulkComplete
+        // unmounts BulkActionsBar (taking the inline `error` alert with it), and
+        // on a full block the confirm dialog doesn't render `error` at all — so a
+        // toast is the only surface guaranteed to reach the operator.
+        toast.error(message);
         if (successful.length > 0) {
-          toast.error(message);
           onBulkComplete();
           onUsersDeleted?.(successful.map(r => r.userId));
         }

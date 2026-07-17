@@ -173,7 +173,6 @@ export const ClassManagementPage: React.FC = () => {
   );
 
   const { bulkBusy, handleBulkDelete } = useClassBulkActions({
-    trialId,
     classesById,
   });
 

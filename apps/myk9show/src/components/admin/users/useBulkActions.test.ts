@@ -12,6 +12,9 @@ vi.mock('@/hooks/queries/useUsersQuery', () => ({
   usePermanentDeleteUserMutation: () => ({ mutateAsync: vi.fn() }),
 }));
 
+const toastErrorMock = vi.hoisted(() => vi.fn());
+vi.mock('sonner', () => ({ toast: { error: toastErrorMock, success: vi.fn() } }));
+
 import { useBulkActions } from './useBulkActions';
 
 function selectedUser(id: string, firstName: string): SelectedUser {
@@ -107,6 +110,9 @@ describe('useBulkActions — bulk delete MK001 reason mapping', () => {
     expect(result.current.error).toMatch(/Alice Test: owns registered dogs/);
     expect(result.current.error).toMatch(/Bob Test: owns registered dogs/);
     expect(onUsersDeleted).not.toHaveBeenCalled();
+    // The confirm dialog doesn't render `error`, so a persistent toast is the only
+    // surface that tells the admin why nothing was deleted (Codex round 6).
+    expect(toastErrorMock).toHaveBeenCalledWith(expect.stringMatching(/owns registered dogs/));
   });
 
   it('does not confuse MK001 with the HAS_RELATED_DATA cascade path', async () => {

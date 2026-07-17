@@ -1,12 +1,14 @@
 /**
  * Bulk-delete dispatch for Class Management.
  *
- * DELETE goes through the `deleteClass` service, which delegates to the
- * `soft_delete_class` SECURITY DEFINER RPC — the SAME path single-class delete
- * uses. This is a SOFT delete (class + entries recoverable, atomic). Using
- * `replicatedClassesTable.deleteClass` here would queue a raw hard DELETE that
- * cascade-removes entries irrecoverably and diverges from single-class semantics
- * (Codex review). The RPC is online-only, matching single delete.
+ * DELETE reuses `useDeleteClassMutation` per class — the SAME mutation single-class
+ * delete uses, which delegates to the `soft_delete_class` SECURITY DEFINER RPC
+ * (recoverable, entry-cascading, atomic) AND runs the full onSuccess cache
+ * invalidation (detail removal, lists, statistics, all-trial caches, entry
+ * queries). Dispatching the raw `deleteClass` service directly would skip those
+ * invalidations and leave mounted class-detail/scoring/entry views stale after a
+ * bulk delete (Codex review). Using `replicatedClassesTable.deleteClass` would
+ * queue a raw hard DELETE that cascade-removes entries irrecoverably.
  *
  * Bulk STATUS change was descoped (MYK9-59): a correct one must set
  * `status_source='manual'` plus the per-status timing fields the canonical
@@ -17,14 +19,11 @@
  * toast (design.md decision D3), matching Entry Management's pattern.
  */
 import { useCallback } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { deleteClass } from '@/services/database/classes';
-import { classKeys } from '@/hooks/queries/useClassesDatabase';
+import { useDeleteClassMutation } from '@/hooks/queries/useClassesDatabase';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import type { ClassActionItem } from './classActions';
 
 export interface UseClassBulkActionsOptions {
-  trialId: string | undefined;
   classesById: Map<string, ClassActionItem>;
 }
 
@@ -34,16 +33,9 @@ export interface UseClassBulkActionsResult {
 }
 
 export function useClassBulkActions({
-  trialId,
   classesById,
 }: UseClassBulkActionsOptions): UseClassBulkActionsResult {
-  const queryClient = useQueryClient();
-
-  const invalidate = useCallback(() => {
-    if (trialId) {
-      queryClient.invalidateQueries({ queryKey: classKeys.byTrial(trialId) });
-    }
-  }, [queryClient, trialId]);
+  const deleteClassMutation = useDeleteClassMutation();
 
   const label = useCallback(
     (classId: string) => classesById.get(classId)?.name || 'Untitled Class',
@@ -55,20 +47,15 @@ export function useClassBulkActions({
   const handleBulkDelete = useCallback(
     async (classIds: string[]) => {
       if (classIds.length === 0) return false;
-      try {
-        const outcome = await deleteDispatch.run(classIds, async classId => {
-          // Soft delete via the shared service (soft_delete_class RPC) — same
-          // recoverable, entry-cascading path as single-class delete.
-          const { error } = await deleteClass(classId);
-          if (error) throw error;
-        });
-        // null = latched no-op — treat as not-done so the selection is kept.
-        return outcome !== null && outcome.failed.length === 0;
-      } finally {
-        invalidate();
-      }
+      // Per-class via the shared mutation: soft delete + all cache invalidations,
+      // identical to single-class delete. allSettled isolates per-item failures.
+      const outcome = await deleteDispatch.run(classIds, async classId => {
+        await deleteClassMutation.mutateAsync({ id: classId });
+      });
+      // null = latched no-op — treat as not-done so the selection is kept.
+      return outcome !== null && outcome.failed.length === 0;
     },
-    [deleteDispatch, invalidate]
+    [deleteDispatch, deleteClassMutation]
   );
 
   return {

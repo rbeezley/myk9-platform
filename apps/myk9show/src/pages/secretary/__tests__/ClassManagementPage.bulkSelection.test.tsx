@@ -11,6 +11,9 @@ import { ClassManagementPage } from '../ClassManagementPage';
 const useClassesByTrialQueryMock = vi.hoisted(() => vi.fn());
 const useUpdateClassMutationMock = vi.hoisted(() => vi.fn());
 const useDeleteClassMutationMock = vi.hoisted(() => vi.fn());
+// Bulk delete reuses useDeleteClassMutation.mutateAsync per class — same soft-delete
+// + full cache invalidations as single-class delete.
+const deleteMutateAsyncMock = vi.hoisted(() => vi.fn());
 const useJudgesWithQualificationsMock = vi.hoisted(() => vi.fn());
 const useShowQueryMock = vi.hoisted(() => vi.fn());
 const updateClassMock = vi.hoisted(() => vi.fn());
@@ -106,7 +109,12 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     vi.clearAllMocks();
     useClassesByTrialQueryMock.mockReturnValue({ data: classRows, isLoading: false });
     useUpdateClassMutationMock.mockReturnValue({ mutate: vi.fn(), isPending: false });
-    useDeleteClassMutationMock.mockReturnValue({ mutate: vi.fn(), isPending: false });
+    deleteMutateAsyncMock.mockResolvedValue({ id: 'class-1', name: null });
+    useDeleteClassMutationMock.mockReturnValue({
+      mutate: vi.fn(),
+      mutateAsync: deleteMutateAsyncMock,
+      isPending: false,
+    });
     useJudgesWithQualificationsMock.mockReturnValue({ data: [] });
     useShowQueryMock.mockReturnValue({ data: { id: 'show-1', status: 'published' } });
     updateClassMock.mockResolvedValue('mutation-1');
@@ -194,20 +202,21 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     await user.click(within(dialog).getByRole('button', { name: /delete/i }));
 
     await waitFor(() => {
-      expect(softDeleteClassServiceMock).toHaveBeenCalledWith('class-1');
-      expect(softDeleteClassServiceMock).toHaveBeenCalledWith('class-2');
+      expect(deleteMutateAsyncMock).toHaveBeenCalledWith({ id: 'class-1' });
+      expect(deleteMutateAsyncMock).toHaveBeenCalledWith({ id: 'class-2' });
     });
-    // The raw hard-delete path must NOT be used — it would cascade-delete entries
-    // irrecoverably and diverge from single-class soft-delete semantics.
+    // Reuses the shared delete MUTATION (soft delete + full cache invalidation),
+    // not the replicated table's raw hard DELETE which would cascade-delete
+    // entries irrecoverably and skip the detail/statistics/entry invalidations.
     expect(deleteClassMock).not.toHaveBeenCalled();
   });
 
   it('disables bulk controls while a bulk delete is in flight (in-flight latch)', async () => {
     const resolvers: Array<() => void> = [];
-    softDeleteClassServiceMock.mockImplementation(
+    deleteMutateAsyncMock.mockImplementation(
       () =>
         new Promise(resolve => {
-          resolvers.push(() => resolve({ data: { id: 'class-1', name: null }, error: null }));
+          resolvers.push(() => resolve({ id: 'class-1', name: null }));
         })
     );
 
@@ -223,7 +232,7 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /bulk class actions/i })).toBeDisabled()
     );
-    expect(softDeleteClassServiceMock).toHaveBeenCalledTimes(2);
+    expect(deleteMutateAsyncMock).toHaveBeenCalledTimes(2);
 
     resolvers.forEach(resolve => resolve());
     await waitFor(() => expect(screen.queryByText(/selected/i)).not.toBeInTheDocument());

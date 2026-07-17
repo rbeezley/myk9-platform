@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useEntryDecisionLifecycleEmails } from '@/features/lifecycle-emails';
 import { ListControls } from '@/components/common/ListControls';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useElementWidth } from '@/hooks/useElementWidth';
 import { Button } from '@/components/ui/button';
 
 import { EntryStatsCards } from './EntryStatsCards';
@@ -25,6 +26,7 @@ import {
   type EntryManagementViewMode,
   type EntryWorkMode,
 } from './entryManagementFilters';
+import { shouldUseEntryCards } from './entryManagementResponsive';
 
 import type {
   BulkActionResult,
@@ -210,6 +212,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   );
   const { data: emailStatusMap } = useEmailStatus(registrationIds);
   const isMobileViewport = useMediaQuery('(max-width: 767px)');
+  const { ref: registrationViewRef, width: contentWidth } = useElementWidth<HTMLDivElement>();
+  const useCardsForContent = shouldUseEntryCards(contentWidth, isMobileViewport);
 
   // Resend cooldown state (registrationId -> cooldown expiry timestamp)
   const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
@@ -377,7 +381,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   );
 
   return (
-    <div className="space-y-6">
+    <div ref={registrationViewRef} className="space-y-6">
       {/* Stats Overview */}
       <EntryStatsCards stats={stats} />
 
@@ -423,7 +427,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         entityName="entries"
       />
 
-      {entryViewMode === 'table' && isMobileViewport ? (
+      {entryViewMode === 'table' && useCardsForContent ? (
         enrollmentCardList
       ) : entryViewMode === 'table' ? (
         <EntriesTableView

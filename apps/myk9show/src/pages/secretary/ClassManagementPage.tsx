@@ -245,8 +245,8 @@ export const ClassManagementPage: React.FC = () => {
         : '/secretary/dashboard';
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="manager-content-container mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <div className="manager-page-header mb-6">
         <div className="min-w-0 flex-1">
           <nav
             aria-label="Class management breadcrumb"
@@ -264,7 +264,7 @@ export const ClassManagementPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:shrink-0">
+        <div className="manager-page-actions">
           <Button variant="ghost" asChild className="min-h-[44px] w-full justify-center sm:w-auto">
             <Link to={setupHref}>
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -290,7 +290,7 @@ export const ClassManagementPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="manager-class-stats-grid mb-6">
         <Card>
           <CardContent className="flex items-center p-4">
             <Settings className="h-8 w-8 text-blue-500 mr-3" />
@@ -303,13 +303,7 @@ export const ClassManagementPage: React.FC = () => {
 
         <Card>
           <CardContent className="flex items-center p-4">
-            <StatusIcon
-              family="class"
-              status="not_started"
-              size="lg"
-              className="mr-3"
-              decorative
-            />
+            <StatusIcon family="class" status="not_started" size="lg" className="mr-3" decorative />
             <div>
               <div className="text-2xl font-bold">{lifecycleCounts.not_started}</div>
               <div className="text-sm text-muted-foreground">Not started</div>
@@ -319,13 +313,7 @@ export const ClassManagementPage: React.FC = () => {
 
         <Card>
           <CardContent className="flex items-center p-4">
-            <StatusIcon
-              family="class"
-              status="in_progress"
-              size="lg"
-              className="mr-3"
-              decorative
-            />
+            <StatusIcon family="class" status="in_progress" size="lg" className="mr-3" decorative />
             <div>
               <div className="text-2xl font-bold">{lifecycleCounts.in_progress}</div>
               <div className="text-sm text-muted-foreground">In Progress</div>
@@ -335,13 +323,7 @@ export const ClassManagementPage: React.FC = () => {
 
         <Card>
           <CardContent className="flex items-center p-4">
-            <StatusIcon
-              family="class"
-              status="completed"
-              size="lg"
-              className="mr-3"
-              decorative
-            />
+            <StatusIcon family="class" status="completed" size="lg" className="mr-3" decorative />
             <div>
               <div className="text-2xl font-bold">{lifecycleCounts.completed}</div>
               <div className="text-sm text-muted-foreground">Completed</div>
@@ -413,8 +395,8 @@ export const ClassManagementPage: React.FC = () => {
       {selectedClasses.length > 0 && (
         <Card className="mb-6">
           <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+            <div className="manager-selection-bar">
+              <div className="manager-selection-group">
                 <span className="font-medium">
                   {selectedClasses.length} class{selectedClasses.length !== 1 ? 'es' : ''} selected
                 </span>
@@ -488,8 +470,8 @@ export const ClassManagementPage: React.FC = () => {
                         aria-label={`Select ${cls.name || 'Untitled Class'}`}
                       />
 
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-7 gap-4 items-center">
-                        <div className="md:col-span-2">
+                      <div className="manager-class-row-grid flex-1">
+                        <div className="manager-class-name">
                           <div className="font-medium">{cls.name || 'Untitled Class'}</div>
                           {cls.class_order != null && (
                             <div className="text-sm text-muted-foreground">
@@ -557,6 +539,7 @@ export const ClassManagementPage: React.FC = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="min-h-11 min-w-11"
                                 aria-label={`More actions for ${cls.name || 'Untitled Class'}`}
                               >
                                 <MoreVertical className="h-4 w-4" />

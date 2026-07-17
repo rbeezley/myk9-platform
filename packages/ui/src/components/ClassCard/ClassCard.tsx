@@ -348,8 +348,8 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
             {entries.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2.5 pt-2 mt-1 font-mono text-sm font-medium text-muted-foreground">
                 {inRingEntry && (
-                  <span className="inline-flex items-center text-amber-600 dark:text-amber-500">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 mr-1" />#
+                  <span className="inline-flex items-center">
+                    <StatusIcon family="entry" status="in-ring" size="sm" className="mr-1" />#
                     {inRingEntry.armband}
                   </span>
                 )}

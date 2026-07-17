@@ -55,6 +55,15 @@ describe('StatusIcon', () => {
     );
   });
 
+  it('uses a neutral trial fallback for unknown and missing values', () => {
+    expect(getStatusDescriptor('trial', 'future-status')).toMatchObject({
+      status: 'no-status',
+      label: 'No Status',
+      shape: 'not-started',
+    });
+    expect(getStatusDescriptor('trial', undefined).status).toBe('no-status');
+  });
+
   it('derives badge surfaces from the shared semantic color', () => {
     expect(getStatusSurfaceClasses('entry', 'checked-in')).toBe('bg-info/10 text-info');
     expect(getStatusSurfaceClasses('entry', 'future-status')).toBe(
@@ -71,5 +80,4 @@ describe('StatusIcon', () => {
     );
     expect(screen.getByRole('img', { name: 'Cancelled' })).toHaveClass('text-destructive');
   });
-
 });

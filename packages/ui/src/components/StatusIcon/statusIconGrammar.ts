@@ -95,6 +95,7 @@ export const CLASS_STATUS_VALUES = [
 ] as const;
 
 export const TRIAL_STATUS_VALUES = [
+  'no-status',
   'no-classes',
   'not-started',
   'in-progress',
@@ -228,6 +229,7 @@ export const CLASS_STATUS_DESCRIPTORS = {
 } satisfies Record<(typeof CLASS_STATUS_VALUES)[number], StatusDescriptor>;
 
 export const TRIAL_STATUS_DESCRIPTORS = {
+  'no-status': descriptor('no-status', 'No Status', 'not-started', 'text-muted-foreground'),
   'no-classes': descriptor('no-classes', 'No classes yet', 'not-started', 'text-muted-foreground'),
   'not-started': descriptor('not-started', 'Not started', 'not-started', 'text-muted-foreground'),
   'in-progress': descriptor('in-progress', 'In progress', 'in-progress', 'text-info'),
@@ -246,7 +248,7 @@ const STATUS_DESCRIPTORS: Readonly<
 const FALLBACK_STATUS_BY_FAMILY: Readonly<Record<StatusFamily, string>> = {
   entry: 'no-status',
   class: 'no-status',
-  trial: 'no-classes',
+  trial: 'no-status',
 };
 
 const CLASS_STATUS_ALIASES: Readonly<Record<string, keyof typeof CLASS_STATUS_DESCRIPTORS>> = {

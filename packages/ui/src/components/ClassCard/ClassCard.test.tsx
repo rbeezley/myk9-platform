@@ -84,6 +84,10 @@ describe('ClassCard', () => {
       );
       expect(screen.getByText('#102')).toBeInTheDocument();
       expect(screen.getByText('#105')).toBeInTheDocument();
+      expect(screen.getByRole('img', { name: 'In Ring' })).toHaveAttribute(
+        'data-family',
+        'entry'
+      );
     });
 
     it('should show up to 3 next entries', () => {

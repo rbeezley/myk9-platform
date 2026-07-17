@@ -66,7 +66,7 @@
   "pnpm": {
     "overrides": {
       "eslint-plugin-react-hooks": "7.0.1",
-      "@supabase/supabase-js": "2.108.2",
+      "@supabase/supabase-js": "2.110.2",
       "esbuild": "^0.28.1",
       "qs": "^6.15.2",
       "undici": "^7.16.0",

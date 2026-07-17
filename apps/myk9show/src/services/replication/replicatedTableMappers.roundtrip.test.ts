@@ -19,58 +19,25 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import {
-  ReplicatedArmbandsTable,
-  rowToArmband,
-  type ReplicatedArmband,
-} from './ReplicatedArmbandsTable';
-import { ReplicatedClassesTable, rowToClass } from './ReplicatedClassesTable';
-import { ReplicatedClubsTable, rowToClub, type ReplicatedClub } from './ReplicatedClubsTable';
-import { ReplicatedDogsTable, rowToDog, type ReplicatedDog } from './ReplicatedDogsTable';
-import { ReplicatedShowsTable, rowToShow, type ReplicatedShow } from './ReplicatedShowsTable';
-import { ReplicatedTrialsTable, rowToTrial, type ReplicatedTrial } from './ReplicatedTrialsTable';
-import {
-  ReplicatedJudgeAssignmentsTable,
-  rowToJudgeAssignment,
-  type ReplicatedJudgeAssignment,
-} from './ReplicatedJudgeAssignmentsTable';
+import { rowToArmband } from './ReplicatedArmbandsTable';
+import { rowToClass } from './ReplicatedClassesTable';
+import { rowToClub } from './ReplicatedClubsTable';
+import { rowToDog } from './ReplicatedDogsTable';
+import { rowToShow } from './ReplicatedShowsTable';
+import { rowToTrial } from './ReplicatedTrialsTable';
+import { rowToJudgeAssignment } from './ReplicatedJudgeAssignmentsTable';
 import { rowToWaitlistEntry } from './ReplicatedWaitlistEntriesTable';
-
-// Each Testable* subclass exposes the protected `rebuildUpdatePayload` each
-// table already implements, mirroring TestableEntriesTable in
-// ReplicatedEntriesTable.test.ts — this is the one bit of "modify production
-// code for testability" the harness needs, since `rebuildUpdatePayload` is
-// otherwise only reachable from inside the class hierarchy.
-class TestableArmbandsTable extends ReplicatedArmbandsTable {
-  publicRebuildUpdatePayload(armband: ReplicatedArmband): Record<string, unknown> {
-    return this.rebuildUpdatePayload(armband);
-  }
-}
-class TestableClubsTable extends ReplicatedClubsTable {
-  publicRebuildUpdatePayload(club: ReplicatedClub): Record<string, unknown> {
-    return this.rebuildUpdatePayload(club);
-  }
-}
-class TestableDogsTable extends ReplicatedDogsTable {
-  publicRebuildUpdatePayload(dog: ReplicatedDog): Record<string, unknown> {
-    return this.rebuildUpdatePayload(dog);
-  }
-}
-class TestableShowsTable extends ReplicatedShowsTable {
-  publicRebuildUpdatePayload(show: ReplicatedShow): Record<string, unknown> {
-    return this.rebuildUpdatePayload(show);
-  }
-}
-class TestableTrialsTable extends ReplicatedTrialsTable {
-  publicRebuildUpdatePayload(trial: ReplicatedTrial): Record<string, unknown> {
-    return this.rebuildUpdatePayload(trial);
-  }
-}
-class TestableJudgeAssignmentsTable extends ReplicatedJudgeAssignmentsTable {
-  publicRebuildUpdatePayload(assignment: ReplicatedJudgeAssignment): Record<string, unknown> {
-    return this.rebuildUpdatePayload(assignment);
-  }
-}
+// Testable* subclasses expose each table's protected `rebuildUpdatePayload`;
+// see replicatedTableMappers.fixtures.ts for why they live in a sibling module.
+import {
+  TestableArmbandsTable,
+  TestableClubsTable,
+  TestableDogsTable,
+  TestableShowsTable,
+  TestableTrialsTable,
+  TestableJudgeAssignmentsTable,
+  makeJudgeAssignmentJoinedRow,
+} from './replicatedTableMappers.fixtures';
 
 describe('Replicated*Table mappers — db row -> domain -> db row', () => {
   it('armbands: maps nullable FKs and round-trips core identity fields', () => {
@@ -331,37 +298,7 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
   });
 
   it('judge assignments: maps embedded class/trial enrichment and round-trips writable fields', () => {
-    const row = {
-      id: 'assignment-1',
-      person_id: 'judge-1',
-      show_id: null,
-      trial_id: null,
-      class_id: 'class-1',
-      status: 'confirmed',
-      invited_at: '2026-06-01T10:00:00.000Z',
-      confirmed_at: '2026-06-01T11:00:00.000Z',
-      fee: 100,
-      notes: 'Ring 1',
-      day_capacity_override: 50,
-      classes: {
-        name: 'Novice Container',
-        element: 'Container',
-        level: 'Novice',
-        status: 'scheduled',
-        start_time: '09:00',
-        scored_count: 0,
-        checked_in_count: 0,
-        total_entries_count: 10,
-        trial_id: 'trial-1',
-        trials: {
-          date: '2026-08-01',
-          timezone: 'America/New_York',
-          show_id: 'show-1',
-        },
-      },
-    };
-
-    const domain = rowToJudgeAssignment(row as never);
+    const domain = rowToJudgeAssignment(makeJudgeAssignmentJoinedRow() as never);
     // showId/trialId fall back to the embedded trial when the assignment's
     // own columns are null.
     expect(domain).toMatchObject({

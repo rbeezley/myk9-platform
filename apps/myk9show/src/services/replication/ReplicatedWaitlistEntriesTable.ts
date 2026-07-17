@@ -68,7 +68,7 @@ export interface ReplicatedWaitlistEntry {
 /**
  * Convert database row to app WaitlistEntry type
  */
-function rowToWaitlistEntry(row: WaitlistEntryRow): ReplicatedWaitlistEntry {
+export function rowToWaitlistEntry(row: WaitlistEntryRow): ReplicatedWaitlistEntry {
   return {
     id: String(row.id),
     classId: String(row.class_id),

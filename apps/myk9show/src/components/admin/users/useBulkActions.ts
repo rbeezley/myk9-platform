@@ -149,6 +149,10 @@ export function useBulkActions({
         }
       });
 
+      // null = latched no-op (prior batch in flight) — leave the dialog open,
+      // don't refresh, don't report anything.
+      if (outcome === null) return;
+
       logger.debug('Bulk role action complete', 'admin', {
         action: roleData.action,
         roles: roleData.roles,

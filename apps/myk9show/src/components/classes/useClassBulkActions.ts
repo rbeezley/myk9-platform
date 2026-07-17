@@ -52,7 +52,8 @@ export function useClassBulkActions({
         const outcome = await statusDispatch.run(classIds, async classId => {
           await replicatedClassesTable.updateClass(classId, { classStatus: status });
         });
-        return outcome.failed.length === 0;
+        // null = latched no-op — treat as not-done so the selection is kept.
+        return outcome !== null && outcome.failed.length === 0;
       } finally {
         invalidate();
       }
@@ -67,7 +68,8 @@ export function useClassBulkActions({
         const outcome = await deleteDispatch.run(classIds, async classId => {
           await replicatedClassesTable.deleteClass(classId);
         });
-        return outcome.failed.length === 0;
+        // null = latched no-op — treat as not-done so the selection is kept.
+        return outcome !== null && outcome.failed.length === 0;
       } finally {
         invalidate();
       }

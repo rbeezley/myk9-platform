@@ -11,6 +11,8 @@ interface EntryBulkActionMenuProps {
   ) => BulkActionResult | Promise<BulkActionResult>;
   onBulkCheckIn: (entryIds: string[]) => BulkActionResult | Promise<BulkActionResult>;
   onClear: () => void;
+  /** Disable the menu while a bulk batch is in flight (spec: controls disabled until settle). */
+  disabled?: boolean;
 }
 
 export function EntryBulkActionMenu({
@@ -18,6 +20,7 @@ export function EntryBulkActionMenu({
   onBulkStatusChange,
   onBulkCheckIn,
   onClear,
+  disabled = false,
 }: EntryBulkActionMenuProps) {
   const actions = toBulkActions(
     selectedEntries,
@@ -25,5 +28,5 @@ export function EntryBulkActionMenu({
     entryActions
   );
 
-  return <RowActionMenu actions={actions} size="touch" label="Bulk actions" />;
+  return <RowActionMenu actions={actions} size="touch" label="Bulk actions" disabled={disabled} />;
 }

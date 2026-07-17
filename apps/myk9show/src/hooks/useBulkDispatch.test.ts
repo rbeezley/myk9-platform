@@ -167,8 +167,9 @@ describe('useBulkDispatch', () => {
     await runPromise;
 
     expect((firstOutcome as { succeeded: Item[] }).succeeded).toHaveLength(1);
-    // The overlapping call is dropped (empty outcome) rather than corrupting the first dispatch.
-    expect((secondOutcome as { succeeded: Item[]; failed: unknown[] }).succeeded).toEqual([]);
-    expect((secondOutcome as { succeeded: Item[]; failed: unknown[] }).failed).toEqual([]);
+    // The overlapping call is dropped with a null outcome — distinguishable from a
+    // real empty success, so callers don't treat the latched no-op as "all done"
+    // (which would clear the live selection mid-batch).
+    expect(secondOutcome).toBeNull();
   });
 });

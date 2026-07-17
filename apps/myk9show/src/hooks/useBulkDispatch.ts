@@ -30,12 +30,16 @@ export interface BulkDispatchRunOptions<T> {
 }
 
 export interface UseBulkDispatchResult<T> {
-  /** Dispatches `runItem` across `items` via allSettled, then shows a summary toast. */
+  /**
+   * Dispatches `runItem` across `items` via allSettled, then shows a summary toast.
+   * Returns `null` when a prior batch is still in flight (latched no-op) — callers
+   * MUST treat `null` as "nothing happened": no success handling, no selection clear.
+   */
   run: (
     items: T[],
     runItem: (item: T) => Promise<void>,
     options?: BulkDispatchRunOptions<T>
-  ) => Promise<BulkDispatchOutcome<T>>;
+  ) => Promise<BulkDispatchOutcome<T> | null>;
   /** True while a dispatch (initial or retry) is in flight — disable bulk controls on this. */
   isBusy: boolean;
 }
@@ -126,8 +130,10 @@ export function useBulkDispatch<T>({
       items: T[],
       runItem: (item: T) => Promise<void>,
       options?: BulkDispatchRunOptions<T>
-    ): Promise<BulkDispatchOutcome<T>> => {
-      if (inFlightRef.current) return { succeeded: [], failed: [] };
+    ): Promise<BulkDispatchOutcome<T> | null> => {
+      // Latched no-op: an empty outcome would read as "full success" to callers
+      // (0 failures → clear selection), so return null and let callers do nothing.
+      if (inFlightRef.current) return null;
       inFlightRef.current = true;
       setIsBusy(true);
       try {

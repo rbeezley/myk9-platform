@@ -309,6 +309,9 @@ export function useEntryManagementActions({
                 : undefined,
           }
         );
+        // null = latched no-op (prior batch in flight) — report "not done" so
+        // runBulkAndClear does NOT clear the live selection out from under it.
+        if (outcome === null) return false;
         return outcome.failed.length === 0;
       } catch (err) {
         setError('Failed to update entry statuses');
@@ -332,6 +335,8 @@ export function useEntryManagementActions({
         const outcome = await bulkCheckInDispatch.run(entryIds, async entryId => {
           await updateReplicatedCheckInStatus(entryId, 'checked-in');
         });
+        // null = latched no-op — nothing dispatched, keep selection intact.
+        if (outcome === null) return false;
         if (outcome.succeeded.length > 0) {
           const succeededIds = new Set(outcome.succeeded);
           setEntries(prev =>

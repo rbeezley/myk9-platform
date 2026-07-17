@@ -36,10 +36,14 @@ export function DogsBulkActionsBar({ selectedDogs, onClear }: DogsBulkActionsBar
   const count = selectedDogs.length;
 
   const handleSetStatus = (dog: Dog, status: DogStatus) => {
-    void statusDispatch.run([dog], async d => {
-      await updateDogMutation.mutateAsync({ id: d.id, updates: { status } });
-    });
-    onClear();
+    void (async () => {
+      const outcome = await statusDispatch.run([dog], async d => {
+        await updateDogMutation.mutateAsync({ id: d.id, updates: { status } });
+      });
+      // Clear only on full success — a latched no-op (null) or failure keeps
+      // the selection so the user can retry.
+      if (outcome !== null && outcome.failed.length === 0) onClear();
+    })();
   };
 
   const handleBulkDelete = (dogs: Dog[]) => setPendingDelete(dogs);
@@ -48,12 +52,13 @@ export function DogsBulkActionsBar({ selectedDogs, onClear }: DogsBulkActionsBar
     if (!pendingDelete) return;
     const dogs = pendingDelete;
     setPendingDelete(null);
-    await deleteDispatch.run(dogs, async d => {
+    const outcome = await deleteDispatch.run(dogs, async d => {
       await deleteDogMutation.mutateAsync(
         user?.id ? { id: d.id, deletedBy: user.id } : { id: d.id }
       );
     });
-    onClear();
+    // Clear only on full success — failed items stay selected for retry.
+    if (outcome !== null && outcome.failed.length === 0) onClear();
   };
 
   const actions = toBulkActions(

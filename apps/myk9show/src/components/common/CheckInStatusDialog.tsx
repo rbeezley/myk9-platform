@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   CheckInStatus,
-  CHECK_IN_STATUS_CONFIG,
+  CHECK_IN_STATUS_METADATA,
   EXHIBITOR_STATUS_LABELS,
 } from '@/types/check-in-types';
 import { CheckInStatusIndicator } from './CheckInStatusIndicator';
@@ -42,7 +42,7 @@ interface CheckInStatusDialogProps {
   userRole?: 'exhibitor' | 'judge' | 'secretary' | 'gate_steward';
 }
 
-// exhibitor-show-day-access: the shared CHECK_IN_STATUS_CONFIG descriptions
+// exhibitor-show-day-access: the shared check-in metadata descriptions
 // are third-person staff voice ("Exhibitor has checked in and is ready") —
 // correct for secretary/judge/steward surfaces, wrong when the exhibitor is
 // updating their own status. Overriding wording here (not the shared config)
@@ -58,7 +58,7 @@ const EXHIBITOR_STATUS_DESCRIPTIONS: Partial<Record<CheckInStatus, string>> = {
 
 // The owner-scoped self_checkin_entry RPC permits exhibitors to report their
 // own availability, including a conflict or withdrawal. Staff surfaces retain
-// the operational labels from CHECK_IN_STATUS_CONFIG.
+// the operational labels from the shared status grammar.
 const EXHIBITOR_SELECTABLE_STATUSES: ReadonlySet<CheckInStatus> = new Set([
   'no-status',
   'checked-in',
@@ -85,7 +85,7 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
 
   // Filter available statuses based on user role
   const getAvailableStatuses = () => {
-    const allStatuses = Object.values(CHECK_IN_STATUS_CONFIG).sort(
+    const allStatuses = Object.values(CHECK_IN_STATUS_METADATA).sort(
       (a, b) => a.priority - b.priority
     );
 
@@ -206,7 +206,8 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
                         <div>
                           <div className="font-medium text-sm">
                             {userRole === 'exhibitor'
-                              ? (EXHIBITOR_STATUS_LABELS[config.status] ?? config.label)
+                              ? (EXHIBITOR_STATUS_LABELS[config.status] ??
+                                getStatusDescriptor('entry', config.status).label)
                               : getStatusDescriptor('entry', config.status).label}
                           </div>
                           <div className="text-xs text-muted-foreground">

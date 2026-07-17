@@ -61,11 +61,14 @@ export const CLASS_STATUS_VALUES = [
   'Completed',
   'Cancelled',
   'no-status',
+  'none',
   'setup',
   'briefing',
   'break',
   'in_progress',
   'offline-scoring',
+  'offline',
+  'upcoming',
   'completed',
   'not-started',
   'in-progress',
@@ -74,6 +77,7 @@ export const CLASS_STATUS_VALUES = [
   'paused',
   'cancelled',
   'start_time',
+  'start-time',
 ] as const;
 
 export const TRIAL_STATUS_VALUES = [
@@ -164,6 +168,7 @@ export const CLASS_STATUS_DESCRIPTORS = {
   Completed: descriptor('Completed', 'Completed', 'complete', 'text-success'),
   Cancelled: descriptor('Cancelled', 'Cancelled', 'complete', 'text-destructive'),
   'no-status': descriptor('no-status', 'Not started', 'not-started', 'text-muted-foreground'),
+  none: descriptor('none', 'Not started', 'not-started', 'text-muted-foreground'),
   setup: descriptor('setup', 'Setup', 'not-started', 'text-muted-foreground'),
   briefing: descriptor('briefing', 'Briefing', 'in-progress', 'text-warning'),
   break: descriptor('break', 'Break', 'in-progress', 'text-warning'),
@@ -174,6 +179,8 @@ export const CLASS_STATUS_DESCRIPTORS = {
     'needs-attention',
     'text-warning'
   ),
+  offline: descriptor('offline', 'Offline scoring', 'needs-attention', 'text-warning'),
+  upcoming: descriptor('upcoming', 'Upcoming', 'not-started', 'text-muted-foreground'),
   completed: descriptor('completed', 'Completed', 'complete', 'text-success'),
   'not-started': descriptor('not-started', 'Not started', 'not-started', 'text-muted-foreground'),
   'in-progress': descriptor('in-progress', 'In Progress', 'in-progress', 'text-info'),
@@ -182,6 +189,7 @@ export const CLASS_STATUS_DESCRIPTORS = {
   paused: descriptor('paused', 'Paused', 'needs-attention', 'text-warning'),
   cancelled: descriptor('cancelled', 'Cancelled', 'complete', 'text-destructive'),
   start_time: descriptor('start_time', 'Upcoming', 'not-started', 'text-muted-foreground'),
+  'start-time': descriptor('start-time', 'Upcoming', 'not-started', 'text-muted-foreground'),
 } satisfies Record<(typeof CLASS_STATUS_VALUES)[number], StatusDescriptor>;
 
 export const TRIAL_STATUS_DESCRIPTORS = {

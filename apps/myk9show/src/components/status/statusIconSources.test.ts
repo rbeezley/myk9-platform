@@ -25,6 +25,8 @@ const MIGRATED_RENDERERS = [
   'components/shows/tabs/TrialsTab.tsx',
   'components/trials/TrialDetail/TrialClassesCards.tsx',
   'features/show-map/ShowMapStatusBadge.tsx',
+  'features/at-show/AtShowClassListPage.tsx',
+  'features/at-show/slots/ClassDetailsPopoverSlot.tsx',
   'pages/ClassDetailsPage/ClassReadinessStrip.tsx',
   'pages/ClassDetailsPage/SecretaryRunSheet/RunSheetRow.tsx',
   'pages/TrialDetailsPage.tsx',
@@ -45,6 +47,26 @@ describe('status icon grammar source ownership', () => {
         /CHECKIN_ICON_MAP|STATUS_ICONS|STATUS_BADGE_COLORS|STATUS_CLASS_BY_VALUE|CLASS_STATUS_CONFIG|ENTRY_STATUS_BADGE/
       );
     }
+  });
+
+  it('keeps class and check-in presentation out of local configuration maps', () => {
+    const atShowHelpers = readFileSync(
+      resolve(SOURCE_ROOT, 'features/at-show/slots/atShowChrome.helpers.ts'),
+      'utf8'
+    );
+    const checkInTypes = readFileSync(resolve(SOURCE_ROOT, 'types/check-in-types.ts'), 'utf8');
+    const resultsStatusBadge = readFileSync(
+      resolve(SOURCE_ROOT, 'components/classes/ClassResultsTable/StatusBadge.tsx'),
+      'utf8'
+    );
+
+    expect(atShowHelpers).not.toMatch(
+      /STATUS_LABELS|STATUS_TIERS|CLASS_STATUS_COLOR_TIER|getClassStatusLabel|getClassStatusTier|getClassListStatusTier/
+    );
+    expect(checkInTypes).not.toMatch(
+      /CHECK_IN_STATUS_CONFIG|getCheckInStatusConfig|backgroundColor|borderColor|\bicon\??:/
+    );
+    expect(resultsStatusBadge).not.toContain('variant="default"');
   });
 
   it('keeps the grammar in shared UI and routes ringside status content through it', () => {

@@ -12,12 +12,13 @@ import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, ChevronRight, Clock3, ListChecks } from 'lucide-react';
 import type { CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
+import { getStatusDescriptor } from '@/components/status';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { cn } from '@/lib/utils';
 import { notifications } from '@/lib/notifications';
 import { replicatedEntriesTable } from '@/services/replication';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
-import { EXHIBITOR_STATUS_LABELS, getCheckInStatusConfig } from '@/types/check-in-types';
+import { EXHIBITOR_STATUS_LABELS } from '@/types/check-in-types';
 import { deriveAtShowNextAction, type AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 
 export interface AtShowMyEntriesTodayProps {
@@ -37,7 +38,7 @@ export interface AtShowMyEntriesTodayProps {
 function statusLabel(detail: AtShowEntryDetail): string {
   return (
     EXHIBITOR_STATUS_LABELS[detail.checkInStatus] ??
-    getCheckInStatusConfig(detail.checkInStatus).label
+    getStatusDescriptor('entry', detail.checkInStatus).label
   );
 }
 

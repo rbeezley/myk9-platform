@@ -8,7 +8,7 @@ interface StatusBadgeProps {
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ item }) => {
   if (item.isScored) {
-    return <SharedStatusBadge family="entry" status="completed" variant="default" label="Scored" />;
+    return <SharedStatusBadge family="entry" status="completed" label="Scored" />;
   }
 
   if (item.hasEdits) {

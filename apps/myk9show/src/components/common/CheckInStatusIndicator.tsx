@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { CheckInStatus, getCheckInStatusConfig, requiresAction } from '@/types/check-in-types';
+import { CheckInStatus, getCheckInStatusMetadata, requiresAction } from '@/types/check-in-types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
@@ -41,7 +41,7 @@ export const CheckInStatusIndicator: React.FC<CheckInStatusIndicatorProps> = ({
   className,
   animated = true,
 }) => {
-  const config = getCheckInStatusConfig(status);
+  const metadata = getCheckInStatusMetadata(status);
   const descriptor = getStatusDescriptor('entry', status);
   const sizes = sizeClasses[size];
   const shouldAnimate = animated && requiresAction(status);
@@ -74,7 +74,7 @@ export const CheckInStatusIndicator: React.FC<CheckInStatusIndicatorProps> = ({
         <TooltipContent>
           <div className="space-y-1">
             <p className="font-semibold">{descriptor.label}</p>
-            <p className="text-xs text-muted-foreground">{config.description}</p>
+            <p className="text-xs text-muted-foreground">{metadata.description}</p>
           </div>
         </TooltipContent>
       </Tooltip>
@@ -93,7 +93,7 @@ export const CheckInStatusLegend: React.FC<{
   return (
     <div className={cn('grid grid-cols-2 md:grid-cols-3 gap-3', className)}>
       {statuses.map(status => {
-        const config = getCheckInStatusConfig(status);
+        const descriptor = getStatusDescriptor('entry', status);
         return (
           <div key={status} className="flex items-center gap-2">
             <CheckInStatusIndicator
@@ -102,7 +102,7 @@ export const CheckInStatusLegend: React.FC<{
               showTooltip={false}
               animated={false}
             />
-            <span className="text-sm text-muted-foreground">{config.label}</span>
+            <span className="text-sm text-muted-foreground">{descriptor.label}</span>
           </div>
         );
       })}

@@ -176,6 +176,9 @@ describe('useRBAC — hasPermission cache', () => {
     const { result } = renderHook(() => useRBAC());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
+    // Precondition: not in the initial (empty) cache, so hasPermission is false.
+    expect(result.current.hasPermission('show:create')).toBe(false);
+
     let granted: boolean | undefined;
     await act(async () => {
       granted = await result.current.checkPermission('show:create');
@@ -187,6 +190,9 @@ describe('useRBAC — hasPermission cache', () => {
       'show:create',
       undefined
     );
+    // The awaited check must have populated permissionCache so the synchronous
+    // hasPermission now returns true. Fails if checkPermission stops caching.
+    await waitFor(() => expect(result.current.hasPermission('show:create')).toBe(true));
   });
 });
 

@@ -75,16 +75,19 @@ describe('RoleManager.ensureUserHasRole', () => {
     expect(clearUserCache).not.toHaveBeenCalled();
   });
 
-  it('inactive assignment exists -> reactivates it, returns true', async () => {
+  it('inactive assignment exists -> reactivates it with is_active:true, returns true', async () => {
+    // Share one chainable query for user_roles so both the select and the
+    // reactivation update run through the same captured `.update`/`.eq` mocks.
+    const userRolesQuery = createChainableQuery({
+      data: [{ id: 'ur-1', is_active: false }],
+      error: null,
+    });
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'roles') {
         return createChainableQuery({ data: { id: 'role-1' }, error: null });
       }
       if (table === 'user_roles') {
-        return createChainableQuery({
-          data: [{ id: 'ur-1', is_active: false }],
-          error: null,
-        });
+        return userRolesQuery;
       }
       return createChainableQuery();
     });
@@ -93,6 +96,9 @@ describe('RoleManager.ensureUserHasRole', () => {
     const result = await manager.ensureUserHasRole('user-1', 'secretary');
     expect(result).toBe(true);
     expect(clearUserCache).toHaveBeenCalledWith('user-1');
+    // The reactivation must set is_active:true and target the existing row id.
+    expect(userRolesQuery.update).toHaveBeenCalledWith({ is_active: true });
+    expect(userRolesQuery.eq).toHaveBeenCalledWith('id', 'ur-1');
   });
 
   it('no existing assignment -> grants a new role, returns true', async () => {

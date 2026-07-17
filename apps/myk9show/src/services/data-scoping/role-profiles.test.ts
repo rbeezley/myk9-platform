@@ -119,13 +119,19 @@ describe('applyRoleDataFilter', () => {
     expect(applyRoleDataFilter(data, 'exhibitor', 'templates')).toBe(data);
   });
 
-  it('applies limit when the filter specifies one', () => {
-    const dogs = Array.from({ length: 5 }, (_, i) => ({
-      id: `d${i}`,
-      // admin dogs filter has no where clause, just a limit of 100 (below sample size N/A);
-      // use judge classes filter instead which has no limit — assert admin dogs limit path
-    }));
+  it('caps admin dogs at the filter limit (100) when input exceeds it', () => {
+    // ADMIN_SCOPE.dataFilters.dogs has { limit: 100 } and no where clause.
+    const dogs = Array.from({ length: 150 }, (_, i) => ({ id: `d${i}` }));
     const result = applyRoleDataFilter(dogs, 'admin', 'dogs');
-    expect(result).toHaveLength(5); // limit (100) exceeds sample size, so nothing trimmed
+    expect(result).toHaveLength(100);
+    // Slice keeps the first 100 in order.
+    expect(result[0].id).toBe('d0');
+    expect(result[99].id).toBe('d99');
+  });
+
+  it('does not trim admin dogs when input is below the filter limit', () => {
+    const dogs = Array.from({ length: 5 }, (_, i) => ({ id: `d${i}` }));
+    const result = applyRoleDataFilter(dogs, 'admin', 'dogs');
+    expect(result).toHaveLength(5);
   });
 });

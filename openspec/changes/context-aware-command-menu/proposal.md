@@ -8,9 +8,9 @@ This supports fall 2026 launch readiness by shortening navigation and reducing h
 
 - Make the existing Command Palette context-aware: show current-surface navigation and, after the `MYK9-47` shared action registry exists, the first allowlisted mutation, “Check in selected entries,” only when applicable.
 - Reuse the shared action definitions from `MYK9-47` for row, bulk, and command-menu execution.
-- Improve search grouping and result labels for dogs, people, shows, trials, classes, and entries while preserving permission scoping.
+- Improve search grouping and result labels for dogs, people, shows, and trials while preserving permission scoping; in the first release, class and entry queries navigate to their canonical show-scoped owner lists with a prefilled filter instead of indexing individual records in the palette.
 - Add a small, documented set of optional keyboard shortcuts and keep all actions available by pointer/touch.
-- Preserve recent-search behavior with safe local storage and clear empty/error states.
+- Preserve recent-search behavior with authenticated-user namespacing, account-change clearing, scope revalidation, and clear empty/error states.
 
 ### Non-goals
 

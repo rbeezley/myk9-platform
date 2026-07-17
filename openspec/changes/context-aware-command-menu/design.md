@@ -33,7 +33,7 @@ Alternative considered: add a separate command-center page. Rejected because it 
 
 ### 2. Contextual commands must be narrower than global search
 
-Global navigation and data search can show permitted dogs, people, shows, trials, classes, and entries. Mutating commands appear only when their target, scope, permission, and transition are known. If the user has no selection, the palette must not imply that “selected” actions are available.
+Global navigation and direct data search can show permitted dogs, people, shows, and trials. In the first release, class and entry queries produce show-scoped navigation commands to the canonical Class Management or Entry Management list with a normalized prefilled filter; the palette does not build a second individual class/entry index from potentially partial data. Mutating commands appear only when their target, scope, permission, and transition are known. If the user has no selection, the palette must not imply that “selected” actions are available.
 
 The command provider uses the current show context to prevent cross-show action ambiguity. A result that navigates to another show must say so in its subtitle and land on that show’s canonical surface.
 
@@ -52,7 +52,7 @@ Single-row menus, bulk action bars, and the command palette consume the same typ
 
 The palette searches existing loaded stores and recent results first. It limits rendered results, scores title/name matches ahead of keywords, and does not issue unbounded network requests on each character. If a data source is loading, offline, or unavailable, the palette still offers navigation and local actions and explains the limited result set plainly.
 
-Recent searches remain device-local, validated, and safe to clear. No sensitive result or unauthorized item may be persisted into recent history.
+Recent searches remain device-local, validated, and safe to clear. Their storage key is namespaced by authenticated user; account changes clear in-memory history, and restored items are revalidated against current permissions and show scope before display. Invalid, unauthorized, cross-user, or stale scoped items are removed. No sensitive result or unauthorized item may be persisted into recent history.
 
 ### 5. Offer a small shortcut vocabulary
 
@@ -76,12 +76,11 @@ When a command executes a mutation, the palette closes only according to the act
 1. Inventory current Command Palette commands, AppHeader triggers, shortcut overlay text, data stores, and permission checks.
 2. Add the shared command provider/action adapter types and parity tests.
 3. Add contextual navigation, then add only the allowlisted selected-entry check-in action after the `MYK9-47` registry is available.
-4. Add bounded result/error/loading behavior and recent-search redaction/validation.
+4. Add bounded result/error/loading behavior, user-namespaced recent-search redaction/validation, and filtered owner-list navigation for class/entry queries.
 5. Reconcile shortcut documentation and run role-based browser verification on desktop and tablet.
 
 Rollback removes contextual providers while preserving the existing global palette. No data migration is required.
 
 ## Open Questions
 
-- Should the palette search classes and entries from replicated data in the first version, or navigate to the owner list with a prefilled filter?
 - Which shortcuts are genuinely useful to secretaries, versus useful only to admin/power users?

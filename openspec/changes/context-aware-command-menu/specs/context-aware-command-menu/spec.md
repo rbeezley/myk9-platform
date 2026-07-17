@@ -1,17 +1,17 @@
 ## ADDED Requirements
 
 ### Requirement: The existing command palette provides contextual navigation
-The existing Command Palette SHALL provide permitted navigation and data results for the current user while preserving canonical page ownership. It SHALL identify the target surface and show context in the result label or subtitle when ambiguity exists.
+The existing Command Palette SHALL provide permitted navigation and direct data results for dogs, people, shows, and trials while preserving canonical page ownership. In the first release, class and entry queries SHALL navigate to the canonical show-scoped owner list with a normalized prefilled filter rather than indexing individual class or entry records in the palette. It SHALL identify the target surface and show context in the result label or subtitle when ambiguity exists.
 
 #### Scenario: Secretary searches for a dog
 - **WHEN** a secretary searches for a dog name
 - **THEN** the palette returns permitted dog results from available data
 - **AND** selecting a result navigates to the existing dog profile surface
 
-#### Scenario: Same-named records exist in multiple shows
-- **WHEN** search results contain ambiguous classes, trials, or entries
-- **THEN** each result includes enough show/trial/class context to distinguish it
-- **AND** selecting it opens the canonical owner surface with that context preserved
+#### Scenario: Secretary searches for a class or entry
+- **WHEN** a secretary enters a class or entry search term from a show-scoped context
+- **THEN** the palette offers navigation to the canonical Class Management or Entry Management list with that normalized filter
+- **AND** the destination preserves the current show context without presenting an incomplete individual-record index
 
 ### Requirement: Contextual actions use the shared action contract
 The command palette SHALL expose actions only when the current route, selection, role, permission, and entity state make them valid. The first mutating command SHALL be limited to eligible selected-entry check-in and SHALL depend on the `MYK9-47` shared action registry. It SHALL invoke the same typed action definition and domain handler used by the corresponding row and bulk projections; inline badges SHALL derive options from the same canonical transition rules and handler without owning a parallel mutation path.
@@ -60,6 +60,11 @@ The palette SHALL search bounded loaded/cached data and SHALL not issue an unbou
 - **WHEN** the user opens the palette without connectivity
 - **THEN** cached/local results and navigation remain available
 - **AND** the palette does not introduce a blocking offline modal
+
+#### Scenario: Another user signs in on the same device
+- **WHEN** the authenticated user changes on a shared show tablet
+- **THEN** in-memory recent commands from the prior user are cleared
+- **AND** restored recent commands are loaded only from the current user namespace and revalidated against current permissions and show scope
 
 ### Requirement: Keyboard shortcuts are optional and documented
 The system SHALL support opening, closing, focusing, and navigating the command palette by pointer/touch and keyboard. Shortcuts SHALL be limited to a small documented vocabulary and SHALL be reflected in the keyboard-help overlay.

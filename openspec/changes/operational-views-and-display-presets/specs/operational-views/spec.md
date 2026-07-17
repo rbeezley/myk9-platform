@@ -45,7 +45,7 @@ Supported filter and scope state SHALL serialize to normalized URL parameters wh
 - **AND** no second list is rendered in the Workbench
 
 ### Requirement: Personal saved views are explicit and local
-The system MAY save validated view definitions as personal device-local preferences. A personal saved view SHALL be labeled as personal/local, namespaced by authenticated user and owning surface, and SHALL NOT be presented as a shared workspace view. Restoring a view SHALL revalidate its user, surface, serialization version, and current show scope before applying any filters.
+The system SHALL save validated view definitions as personal device-local preferences. A personal saved view SHALL be labeled as personal/local, namespaced by authenticated user and owning surface, and SHALL NOT be presented as a shared workspace view. Restoring a view SHALL revalidate its user, surface, serialization version, and current show scope before applying any filters.
 
 #### Scenario: Secretary saves a view
 - **WHEN** a secretary saves a supported filter/display combination

@@ -362,10 +362,11 @@ describe('BulkActionsBar', () => {
   });
 
   describe('Bulk Actions Menu', () => {
-    it('renders role management button', () => {
+    it('does not render a role action (bulk role assignment removed — no correct mutation to mirror)', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      expect(screen.getByRole('button', { name: /roles/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /roles/i })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Manage Roles/i)).not.toBeInTheDocument();
     });
 
     it('does not render a status action (no real per-user status mutation exists)', () => {

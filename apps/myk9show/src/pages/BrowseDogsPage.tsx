@@ -58,6 +58,10 @@ const BrowseDogsPage: React.FC = () => {
   // (management-capable roles, not exhibitor-only roster view). No per-action
   // RBAC — see design.md decision D1.
   const canBulkManageDogs = !rbacLoading && !isExhibitorOnly && hasPermission('dog:update');
+  // Delete is a stricter gate than update — secretaries have `dog:update` but not
+  // `dog:delete`. Without this the bulk Delete action would offer an operation the
+  // `soft_delete_dog` RPC rejects per-dog (Codex finding).
+  const canDeleteDogs = !rbacLoading && !isExhibitorOnly && hasPermission('dog:delete');
 
   const dogSelection = useBulkSelection({
     items: filteredDogs,
@@ -227,6 +231,7 @@ const BrowseDogsPage: React.FC = () => {
             <DogsBulkActionsBar
               selectedDogs={dogSelection.selectedItems}
               onClear={dogSelection.clearSelection}
+              canDelete={canDeleteDogs}
             />
           )}
         </>

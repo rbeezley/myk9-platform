@@ -12,6 +12,7 @@
     "askq:prepare-docs": "node scripts/prepare-askq-documents.mjs",
     "openspec": "OPENSPEC_TELEMETRY=0 DO_NOT_TRACK=1 openspec",
     "qa:e2e-map:check": "node scripts/check-e2e-suite-map.js",
+    "qa:role-journey": "pnpm --dir apps/myk9show test:e2e:clean src/test/e2e/qa/roleJourneyVisualQa.spec.ts --project=chromium --workers=1 --timeout=180000 --retries=0",
     "qa:doc-staleness": "node scripts/check-doc-staleness.js",
     "qa:doc-staleness:strict": "node scripts/check-doc-staleness.js --strict",
     "qa:doc-staleness:test": "node --test scripts/check-doc-staleness.test.js",

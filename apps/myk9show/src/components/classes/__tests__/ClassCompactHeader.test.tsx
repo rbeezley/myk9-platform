@@ -43,25 +43,23 @@ describe('ClassCompactHeader', () => {
   });
 
   it('renders status badge with correct variant', () => {
-    const { rerender } = render(
+    const { container, rerender } = render(
       <ClassCompactHeader classData={makeClassData({ status: 'In Progress' })} />
     );
-    const inProgressBadge = screen.getByText('In Progress');
-    expect(inProgressBadge).toBeInTheDocument();
-    // Warning variant has orange styling
-    expect(inProgressBadge.className).toMatch(/orange/);
+    expect(screen.getByText('In Progress')).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-family="class"][data-shape="in-progress"]')
+    ).not.toBeNull();
 
     rerender(<ClassCompactHeader classData={makeClassData({ status: 'Completed' })} />);
-    const completedBadge = screen.getByText('Completed');
-    expect(completedBadge).toBeInTheDocument();
-    // Success variant has green styling
-    expect(completedBadge.className).toMatch(/green/);
+    expect(screen.getByText('Completed')).toBeInTheDocument();
+    expect(container.querySelector('[data-family="class"][data-shape="complete"]')).not.toBeNull();
 
     rerender(<ClassCompactHeader classData={makeClassData({ status: 'Scheduled' })} />);
-    const scheduledBadge = screen.getByText('Scheduled');
-    expect(scheduledBadge).toBeInTheDocument();
-    // Default variant uses muted styling
-    expect(scheduledBadge.className).toMatch(/muted/);
+    expect(screen.getByText('Not started')).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-family="class"][data-shape="not-started"]')
+    ).not.toBeNull();
   });
 
   it('renders section label for Novice level', () => {

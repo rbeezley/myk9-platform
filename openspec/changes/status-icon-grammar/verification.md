@@ -34,6 +34,8 @@ The subsequent clean-review loop removed the scoring navigation's remaining life
 
 The next two-axis review corrected the remaining ringside and scoring lifecycle presentation owners, centralized semantic badge surfaces in the shared grammar, restored compact check-in badge geometry, retained a non-layout-shifting 44px interactive hit area, and raised changed 10–11px status text to the 14px application floor. The ownership, lifecycle, and badge-geometry assertions failed before remediation. Afterward, 46 focused app tests across 5 files, 26 ringside tests across 3 files, and all 296 shared UI tests passed. Typecheck (26/26), lint (14/14), and strict OpenSpec validation remained clean.
 
+The following review loop migrated the Class Details compact header's final local class-status variant map and moved the newly added component tests onto the required application test renderer. The ownership and shared-shape assertions failed before the migration; the focused 47-test app set passed afterward.
+
 The broad myK9Show suite was also started. It exposed three contextual My Entries label regressions, which were fixed and covered by the focused 67-test card suite, then reached the repository's known 60-second hang threshold and was stopped. CI remains the broad-suite gate.
 
 ## Browser sweep

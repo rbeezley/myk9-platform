@@ -1,6 +1,6 @@
 ## 1. Source-grounded data contract
 
-- [ ] 1.1 Confirm the current `stripe_orders`, `show_payouts`, `operator_alerts`, authorization helpers, and Stripe webhook insert/refund paths against the live repository schema and record the verified column/function names.
+- [x] 1.1 Confirm the current `stripe_orders`, `show_payouts`, `operator_alerts`, authorization helpers, and Stripe webhook insert/refund paths against the live repository schema and record the verified column/function names.
 - [ ] 1.2 Write failing source-pin and behavior tests for immutable order snapshots, charge-time fee values, balance-transaction processing fees, and refunded cents.
 - [ ] 1.3 Add the migration for immutable snapshot fields, indexes, explicit grants, and any compatibility/backfill markers; keep the migration reversible and do not rewrite historical facts from current settings.
 - [ ] 1.4 Implement pure TypeScript helpers for snapshot normalization and cent-based platform gross/net calculations; add unit tests for rounding, missing processing fees, refunds, and fee-rate changes.

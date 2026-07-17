@@ -71,7 +71,8 @@ The complete in-scope renderer inventory migrated to the shared grammar is:
   `EntryStatusLine.tsx`, `EntryStatusStepper.tsx`,
   `management/EntryListCard.tsx`, `components/exhibitor/MultiDogSchedule.tsx`,
   `components/live/EntryRow.tsx`, `LiveClassCard.tsx`,
-  `pages/MyEntriesPage/modules/myEntriesUtils.tsx`, and
+  `pages/MyEntriesPage/modules/myEntriesUtils.tsx`,
+  `pages/MyEntriesPage/modules/entryTabDefs.ts`, and
   `pages/scoring/components/ScoringEntryCard.tsx`.
 - Registration and entry-management lifecycle portions:
   `components/shows/ArmbandLookup.tsx`,
@@ -83,6 +84,7 @@ The complete in-scope renderer inventory migrated to the shared grammar is:
 - Schedule, scoring, and operational summaries:
   `components/schedule/ElementAccordion.tsx`, `ElementCard.tsx`,
   `StatusDot.tsx`, `components/scoring/ResultEntryNavigation.tsx`,
+  `components/classes/EntriesStatisticsPanel.tsx`,
   `components/entries/management/EntryStatsCards.tsx`,
   `components/offline-checkin/StatisticsPanel.tsx`,
   `components/judges/JudgeCheckInInterface.tsx`,
@@ -106,6 +108,8 @@ The complete in-scope renderer inventory migrated to the shared grammar is:
   `pages/TVDisplay/TVClassCard.tsx`, and `TVMobileClassCard.tsx`.
 - Shared/ringside renderers: `packages/ui/src/components/ClassCard/ClassCard.tsx`,
   `packages/ringside/src/components/DogCard.tsx`,
+  `pages/EntryList/EntryListPage.tsx`,
+  `pages/EntryList/CombinedEntryListPage.tsx`,
   `pages/EntryList/SortableEntryCard.tsx`,
   `SortableEntryCardComponents.tsx`, and
   `components/entryListHeaderHelpers.tsx`.
@@ -121,6 +125,8 @@ state derivation are `constants/live-status-config.ts`,
 `packages/ringside/src/utils/classStatus.ts`. The unused ringside
 `StatusConfig`/`getStatusConfig` presentation API was also removed from
 `pages/EntryList/sortableEntryCardUtils.ts` and its package exports.
+The unreferenced `components/trials/TrialSidebar.tsx` and its local
+trial-status group icons were deleted rather than preserving a second owner.
 
 The owning grammar and icon component now live in
 `packages/ui/src/components/StatusIcon/`; myK9Show re-exports them from its

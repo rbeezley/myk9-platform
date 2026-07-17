@@ -29,6 +29,7 @@ const REMOVED_DUPLICATES = [
   'components/common/checkin-icon-map.ts',
   'components/offline-checkin/check-in-utils.tsx',
   'components/common/detailHeroUtils.ts',
+  'components/trials/TrialSidebar.tsx',
 ] as const;
 
 const MIGRATED_RENDERERS = [
@@ -37,6 +38,7 @@ const MIGRATED_RENDERERS = [
   'components/common/CheckInStatusIndicator.tsx',
   'components/checkin/CheckInExhibitorCard.tsx',
   'components/checkin/CheckInProgressBar.tsx',
+  'components/classes/EntriesStatisticsPanel.tsx',
   'components/classes/ClassResultsTable/StatusBadge.tsx',
   'components/scoring/ResultEntryNavigation.tsx',
   'components/entries/EntryStatusLine.tsx',
@@ -64,6 +66,7 @@ const MIGRATED_RENDERERS = [
   'pages/ClassDetailsPage/ClassReadinessStrip.tsx',
   'pages/ClassDetailsPage/SecretaryRunSheet/RunSheetRow.tsx',
   'pages/judge/JudgeCheckInDashboard.tsx',
+  'pages/MyEntriesPage/modules/entryTabDefs.ts',
   'pages/secretary/ClassManagementPage.tsx',
   'components/templates/secretary/RunOrderBoard.tsx',
   'components/stewards/GateStewardInterfaceComponents.tsx',
@@ -106,6 +109,28 @@ describe('status icon grammar source ownership', () => {
       /CHECK_IN_STATUS_CONFIG|getCheckInStatusConfig|backgroundColor|borderColor|\bicon\??:/
     );
     expect(resultsStatusBadge).not.toContain('variant="default"');
+  });
+
+  it('keeps lifecycle summary and tab icons on the shared grammar', () => {
+    const entriesStatistics = readFileSync(
+      resolve(SOURCE_ROOT, 'components/classes/EntriesStatisticsPanel.tsx'),
+      'utf8'
+    );
+    const myEntriesTabs = readFileSync(
+      resolve(SOURCE_ROOT, 'pages/MyEntriesPage/modules/entryTabDefs.ts'),
+      'utf8'
+    );
+    const ringsideTabSources = [
+      'packages/ringside/src/pages/EntryList/EntryListPage.tsx',
+      'packages/ringside/src/pages/EntryList/CombinedEntryListPage.tsx',
+    ].map(sourcePath => readFileSync(resolve(WORKSPACE_ROOT, sourcePath), 'utf8'));
+
+    expect(entriesStatistics).not.toMatch(/icon:\s*(?:CheckCircle|Clock)/);
+    expect(myEntriesTabs).not.toMatch(/icon:\s*(?:Clock|CheckCircle|Users|CircleCheck)/);
+    for (const source of ringsideTabSources) {
+      expect(source).not.toMatch(/icon:\s*<(?:Clock|CheckCircle)\b/);
+      expect(source).toContain('StatusIcon');
+    }
   });
 
   it('keeps the grammar in shared UI and routes ringside status content through it', () => {

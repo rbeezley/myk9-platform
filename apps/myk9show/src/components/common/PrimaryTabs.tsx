@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Lock } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import type { LucideIcon } from 'lucide-react';
 export interface PrimaryTabDef {
   id: string;
   label: string;
-  icon?: LucideIcon;
+  icon?: LucideIcon | React.ReactElement;
   /** Neutral count badge shown after the label. */
   count?: number;
   /** Alert-style numeric badge (amber circle) — for unread/attention counts. */
@@ -63,7 +63,7 @@ export function PrimaryTabs({
           )}
         >
           {tabs.map(tab => {
-            const Icon = tab.icon;
+            const icon = tab.icon;
             return (
               <TabsTrigger
                 key={tab.id}
@@ -75,7 +75,10 @@ export function PrimaryTabs({
                   'hover:text-foreground transition-colors whitespace-nowrap'
                 )}
               >
-                {Icon && <Icon className="h-4 w-4" />}
+                {icon &&
+                  (React.isValidElement(icon)
+                    ? icon
+                    : React.createElement(icon as LucideIcon, { className: 'h-4 w-4' }))}
                 <span className="truncate">{tab.label}</span>
                 {tab.locked && (
                   <Lock className="ml-0.5 h-3 w-3 opacity-40" aria-label="Premium feature" />

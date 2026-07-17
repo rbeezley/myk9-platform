@@ -44,6 +44,8 @@ The next spec pass migrated the exhibitor check-in summary and entry lifecycle s
 
 The broad myK9Show suite was also started. It exposed three contextual My Entries label regressions, which were fixed and covered by the focused 67-test card suite, then reached the repository's known 60-second hang threshold and was stopped. CI remains the broad-suite gate.
 
+The sixth two-axis review removed the ringside card's parallel lifecycle border colors, moved Show Desk roster and entry-history status rendering onto the shared descriptors, paired check-in progress and in-ring indicators with shared shapes, and restored the protected 48px ringside-row intent comment. The exhibitor-facing at-show wording remains intentionally role-specific while its badge now uses the shared shape grammar. Assertion-first tests failed on every reported path before remediation. Afterward, 62 focused app tests across 8 files and 19 ringside tests across 2 files passed; typecheck passed 26/26 tasks, lint passed 14/14 tasks, and strict OpenSpec validation passed.
+
 ## Browser sweep
 
 Playwright CLI was run at the 768×1024 tablet viewport in light and dark themes. Entry Management, Class Management, Class Details, and Show Desk all rendered the shared status shapes and semantic colors legibly without clipping the status content.

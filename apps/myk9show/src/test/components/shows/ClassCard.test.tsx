@@ -63,7 +63,7 @@ describe('ClassCard', () => {
       ...baseClass,
       status: 'In Progress' as const,
     };
-    render(
+    const { container } = render(
       <ClassCard
         classInfo={liveClass}
         liveData={{
@@ -77,6 +77,7 @@ describe('ClassCard', () => {
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
     expect(screen.getByText('#205')).toBeInTheDocument();
     expect(screen.getByText('#206')).toBeInTheDocument();
+    expect(container.querySelector('[data-status="in-ring"][data-shape="in-progress"]')).toBeTruthy();
   });
 
   it('does not show live data for scheduled class even if provided', () => {

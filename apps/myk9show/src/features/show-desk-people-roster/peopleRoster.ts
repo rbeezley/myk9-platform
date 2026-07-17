@@ -2,6 +2,7 @@ import { EntryStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@/types/check-in-types';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
 import type { ShowPresence } from '@/features/show-presence/types';
+import { getStatusDescriptor } from '@/components/status';
 
 export type PeopleRosterFilter = 'all' | 'needs-check-in' | 'online';
 
@@ -24,6 +25,7 @@ export interface PeopleRosterClassRow {
   time: string | null;
   ring: string | null;
   statusLabel: string;
+  statusValue: string;
   checkInStatus: CheckInStatus;
   eligibleForCheckIn: boolean;
   ineligibleReason: string | null;
@@ -150,7 +152,7 @@ function checkInEligibility(
 ): { eligible: boolean; reason: string | null } {
   const status = cls.checkInStatus ?? 'no-status';
   if (TERMINAL_CHECK_IN_STATUSES.has(status)) {
-    return { eligible: false, reason: status === 'checked-in' ? 'Checked in' : 'Not active' };
+    return { eligible: false, reason: status === 'checked-in' ? null : 'Not active' };
   }
 
   if (entry.entryStatus !== EntryStatus.ACCEPTED) {
@@ -177,17 +179,22 @@ function checkInEligibility(
   return { eligible: true, reason: null };
 }
 
-function statusLabel(
+function statusPresentation(
   entry: EntryManagementEntry,
   cls: EntryClass,
   eligible: boolean,
   reason: string | null
-): string {
-  if (eligible) return 'Needs check-in';
-  if (reason) return reason;
-  if ((cls.checkInStatus ?? 'no-status') === 'checked-in') return 'Checked in';
-  if (entry.entryStatus === EntryStatus.WAITLIST) return 'Waitlist';
-  return cls.checkInStatus ?? 'No status';
+): { label: string; value: string } {
+  const value =
+    entry.entryStatus === EntryStatus.WAITLIST
+      ? entry.entryStatus
+      : eligible
+        ? 'not_checked_in'
+        : (cls.checkInStatus ?? 'no-status');
+  return {
+    label: reason ?? getStatusDescriptor('entry', value).label,
+    value,
+  };
 }
 
 function buildClassRows(
@@ -200,6 +207,7 @@ function buildClassRows(
       const classId = cls.classId ?? cls.id;
       const info = classesById.get(classId);
       const eligibility = checkInEligibility(entry, cls, info, currentDate);
+      const status = statusPresentation(entry, cls, eligibility.eligible, eligibility.reason);
       return {
         id: `${entry.id}:${classId}`,
         entryId: entry.id,
@@ -209,7 +217,8 @@ function buildClassRows(
         classNumber: cls.number,
         time: info?.time || null,
         ring: info?.ring || null,
-        statusLabel: statusLabel(entry, cls, eligibility.eligible, eligibility.reason),
+        statusLabel: status.label,
+        statusValue: status.value,
         checkInStatus: cls.checkInStatus ?? 'no-status',
         eligibleForCheckIn: eligibility.eligible,
         ineligibleReason: eligibility.reason,

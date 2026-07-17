@@ -328,6 +328,7 @@ export const AtShowClassListPage: React.FC = () => {
                   const status = getEffectiveClassStatus(entry);
                   return (
                     <li key={entry.id}>
+                      {/* INTENT: in-ring gloved taps want ~48px rows — hence min-h-12. */}
                       <button
                         type="button"
                         onClick={() => handleClassClick(entry)}

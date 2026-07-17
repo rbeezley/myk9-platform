@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 import { Users, Clock, Hash } from 'lucide-react';
 import { type ClassStatusValue } from '@myk9/core';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
-import { StatusBadge } from '@/components/status';
+import { StatusBadge, StatusIcon } from '@/components/status';
 
 interface ClassInfo {
   id: string;
@@ -123,7 +123,7 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick }: ClassCardP
           <div className="flex items-center gap-3 text-sm">
             {liveData.inRingArmband && (
               <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <StatusIcon family="entry" status="in-ring" size="sm" decorative />
                 <span className="font-semibold">#{liveData.inRingArmband}</span>
               </div>
             )}

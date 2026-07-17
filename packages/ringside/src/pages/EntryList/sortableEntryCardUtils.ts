@@ -26,13 +26,6 @@ export type StatusBorderClass =
   | 'result-abs'
   | 'result-wd'
   | 'scored'
-  | 'in-ring'
-  | 'checked-in'
-  | 'conflict'
-  | 'pulled'
-  | 'at-gate'
-  | 'come-to-gate'
-  | 'completed'
   | 'no-status';
 
 export interface StatusConfig {
@@ -82,7 +75,7 @@ export function isNonQualifyingResult(result: string | null | undefined): boolea
 }
 
 /**
- * Get status border class based on entry state
+ * Get result-border reinforcement without duplicating entry lifecycle status.
  */
 export function getStatusBorderClass(entry: Entry): StatusBorderClass {
   if (entry.isScored) {
@@ -94,14 +87,6 @@ export function getStatusBorderClass(entry: Entry): StatusBorderClass {
     if (result === 'wd' || result === 'withdrawn') return 'result-wd';
     return 'scored'; // Fallback to generic scored
   }
-
-  if (entry.status === 'in-ring') return 'in-ring';
-  if (entry.status === 'checked-in') return 'checked-in';
-  if (entry.status === 'conflict') return 'conflict';
-  if (entry.status === 'pulled') return 'pulled';
-  if (entry.status === 'at-gate') return 'at-gate';
-  if (entry.status === 'come-to-gate') return 'come-to-gate';
-  if (entry.status === 'completed') return 'completed';
 
   return 'no-status';
 }

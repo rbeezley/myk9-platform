@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { DogsAheadBadge } from './DogsAheadBadge';
 import { type ClassDisplayStatus } from '@/constants/live-status-config';
-import { StatusBadge } from '@/components/status';
+import { StatusBadge, StatusIcon } from '@/components/status';
 
 interface LiveClassCardProps {
   classTitle: string;
@@ -82,7 +82,7 @@ export function LiveClassCard({
         <div className="flex items-center gap-3 text-sm">
           {inRingArmband && (
             <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+              <StatusIcon family="entry" status="in-ring" size="sm" decorative />
               <span className="font-semibold">#{inRingArmband}</span>
             </div>
           )}

@@ -21,9 +21,9 @@
 
 ## 3. Honest dispatch everywhere + surface opt-ins
 
-- [ ] 3.1 Build the shared bulk-outcome helper: `Promise.allSettled` fold, partial-failure summary toast with per-item reasons, retry-failed that re-runs `applicableWhen` and reports newly ineligible items as skipped; in-flight latch via `useRef`
-- [ ] 3.2 Adopt the helper in Entry Management bulk handlers (`handleEnrollmentBulkStatusChange`, `handleEnrollmentBulkCheckIn`) replacing `Promise.all`
-- [ ] 3.3 Admin Users: wire bulk role and bulk status to the real mutations used by single-user actions; delete any action with no real mutation (remove `setTimeout` stubs in `useBulkActions.ts`)
+- [x] 3.1 Build the shared bulk-outcome helper: `Promise.allSettled` fold, partial-failure summary toast with per-item reasons, retry-failed that re-runs `applicableWhen` and reports newly ineligible items as skipped; in-flight latch via `useRef`
+- [x] 3.2 Adopt the helper in Entry Management bulk handlers (`handleEnrollmentBulkStatusChange`, `handleEnrollmentBulkCheckIn`) replacing `Promise.all`
+- [x] 3.3 Admin Users: wire bulk role and bulk status to the real mutations used by single-user actions; delete any action with no real mutation (remove `setTimeout` stubs in `useBulkActions.ts`)
 - [ ] 3.4 Dogs: opt `DogsTableView` into `DataTable` native selection bridged to `useBulkSelection`; add dog `EntityAction` definitions (status change active/retired/deceased via `updateDog`, soft-delete via `useDeleteDogMutation`) + bulk bar
 - [ ] 3.5 People (admin Users surface per design open question): ensure bulk delete reports per-item `MK001` failures with human-readable "owns registered dogs" reason
 - [ ] 3.6 Replace legacy `ThreeDotMenu` on `DogListRow` with `RowActionMenu` (consistency sweep; delete legacy wrappers if no consumers remain)

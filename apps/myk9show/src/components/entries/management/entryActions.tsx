@@ -71,141 +71,148 @@ async function runBulkAndClear(
  * closed/terminal statuses (see `CLOSED_STATUSES`) to avoid corrupting scored
  * or moved-queue entries via a batch write.
  */
-export const entryActions: ReadonlyArray<EntityAction<EntryManagementEntry, EntryActionHandlers>> = [
-  {
-    id: 'edit',
-    label: 'Edit entry',
-    sectionLabel: 'Entry',
-    icon: <PencilLine className="h-4 w-4" />,
-    applicableWhen: (_entry, handlers) => Boolean(handlers.onOpenEditEntry),
-    run: (entry, handlers) => handlers.onOpenEditEntry?.(entry),
-  },
-  {
-    id: 'accept',
-    label: 'Accept entry',
-    sectionLabel: 'Entry',
-    icon: <CheckCircle2 className="h-4 w-4" />,
-    applicableWhen: (entry, handlers) =>
-      Boolean(handlers.onStatusChange) && entry.entryStatus !== EntryStatus.ACCEPTED,
-    run: (entry, handlers) => handlers.onStatusChange?.(entry.id, EntryStatus.ACCEPTED),
-    bulk: {
-      applicableWhen: entry => getEligibleForBulkAction([entry], 'approve').length === 1,
-      label: eligibleCount =>
-        eligibleCount > 0 ? `Accept selected (${eligibleCount})` : 'Accept selected',
-      unavailableReason: 'No selected entries can be accepted',
-      run: (eligible, handlers) =>
-        runBulkAndClear(handlers, () =>
-          handlers.onBulkStatusChange?.(
-            eligible.map(entry => entry.id),
-            EntryStatus.ACCEPTED
-          )
-        ),
+export const entryActions: ReadonlyArray<EntityAction<EntryManagementEntry, EntryActionHandlers>> =
+  [
+    {
+      id: 'edit',
+      label: 'Edit entry',
+      sectionLabel: 'Entry',
+      icon: <PencilLine className="h-4 w-4" />,
+      applicableWhen: (_entry, handlers) => Boolean(handlers.onOpenEditEntry),
+      run: (entry, handlers) => handlers.onOpenEditEntry?.(entry),
     },
-  },
-  {
-    id: 'waitlist',
-    label: 'Move to waitlist',
-    sectionLabel: 'Entry',
-    icon: <Ticket className="h-4 w-4" />,
-    applicableWhen: (entry, handlers) =>
-      Boolean(handlers.onStatusChange) && canMoveToWaitlist(entry.entryStatus),
-    run: (entry, handlers) => handlers.onStatusChange?.(entry.id, EntryStatus.WAITLIST),
-  },
-  {
-    id: 'check-in',
-    label: 'Check in all classes',
-    sectionLabel: 'Show day',
-    icon: <ClipboardCheck className="h-4 w-4" />,
-    applicableWhen: (entry, handlers) =>
-      Boolean(handlers.onCheckInEntry) && canCheckIn(entry.entryStatus),
-    run: (entry, handlers) => handlers.onCheckInEntry?.(entry.id),
-    bulk: {
-      applicableWhen: entry => getEligibleForBulkAction([entry], 'check-in').length === 1,
-      label: eligibleCount =>
-        eligibleCount > 0 ? `Check in selected (${eligibleCount})` : 'Check in selected',
-      unavailableReason: 'Only accepted entries can be checked in',
-      run: (eligible, handlers) =>
-        runBulkAndClear(handlers, () =>
-          handlers.onBulkCheckIn?.(eligible.map(entry => entry.id))
-        ),
+    {
+      id: 'accept',
+      label: 'Accept entry',
+      sectionLabel: 'Entry',
+      icon: <CheckCircle2 className="h-4 w-4" />,
+      applicableWhen: (entry, handlers) =>
+        Boolean(handlers.onStatusChange) && entry.entryStatus !== EntryStatus.ACCEPTED,
+      run: (entry, handlers) => handlers.onStatusChange?.(entry.id, EntryStatus.ACCEPTED),
+      bulk: {
+        applicableWhen: entry => getEligibleForBulkAction([entry], 'approve').length === 1,
+        label: (eligibleCount, selectedCount) =>
+          eligibleCount > 0
+            ? `Accept ${eligibleCount} of ${selectedCount} selected`
+            : 'Accept selected',
+        unavailableReason: 'No selected entries can be accepted',
+        run: (eligible, handlers) =>
+          runBulkAndClear(handlers, () =>
+            handlers.onBulkStatusChange?.(
+              eligible.map(entry => entry.id),
+              EntryStatus.ACCEPTED
+            )
+          ),
+      },
     },
-  },
-  {
-    id: 'armband',
-    label: entry => (entry.armbandNumber ? 'Change armband' : 'Assign armband'),
-    sectionLabel: 'Show day',
-    icon: <PencilLine className="h-4 w-4" />,
-    applicableWhen: (_entry, handlers) => Boolean(handlers.onOpenArmbandDialog),
-    run: (entry, handlers) => handlers.onOpenArmbandDialog?.(entry),
-  },
-  {
-    id: 'comp',
-    label: entry => (entry.comped ? 'Remove comp' : 'Comp entry'),
-    sectionLabel: 'Payment',
-    icon: <DollarSign className="h-4 w-4" />,
-    applicableWhen: (entry, handlers) =>
-      entry.comped ? Boolean(handlers.onUncompEntry) : Boolean(handlers.onOpenCompDialog),
-    run: (entry, handlers) =>
-      entry.comped ? handlers.onUncompEntry?.(entry.id) : handlers.onOpenCompDialog?.(entry),
-  },
-  {
-    id: 'request-payment',
-    label: 'Request payment…',
-    sectionLabel: 'Payment',
-    icon: <CreditCard className="h-4 w-4" />,
-    applicableWhen: (entry, handlers) =>
-      Boolean(handlers.onOpenRequestPayment) && isPaymentRequestable(entry),
-    run: (entry, handlers) => handlers.onOpenRequestPayment?.(entry),
-  },
-  {
-    id: 'refund',
-    label: 'Refund payment…',
-    sectionLabel: 'Payment',
-    icon: <Undo2 className="h-4 w-4" />,
-    applicableWhen: (entry, handlers) =>
-      Boolean(handlers.onOpenRefund) && isStripeRefundable(entry),
-    run: (entry, handlers) => handlers.onOpenRefund?.(entry),
-  },
-  {
-    id: 'resend-email',
-    label: 'Resend confirmation',
-    sectionLabel: 'Communication',
-    icon: <Mail className="h-4 w-4" />,
-    applicableWhen: entry => Boolean(entry.registrationId),
-    disabledWhen: (entry, handlers) =>
-      !handlers.onResendEmail || handlers.isResendDisabled?.(entry.registrationId) === true,
-    run: (entry, handlers) => handlers.onResendEmail?.(entry.registrationId),
-  },
-  {
-    id: 'reject',
-    label: 'Reject entry',
-    sectionLabel: 'Danger',
-    icon: <XCircle className="h-4 w-4" />,
-    variant: 'destructive',
-    applicableWhen: (entry, handlers) =>
-      Boolean(handlers.onStatusChange) && entry.entryStatus !== EntryStatus.REJECTED,
-    run: (entry, handlers) => handlers.onStatusChange?.(entry.id, EntryStatus.REJECTED),
-    bulk: {
-      applicableWhen: entry => getEligibleForBulkAction([entry], 'reject').length === 1,
-      label: eligibleCount =>
-        eligibleCount > 0 ? `Reject selected (${eligibleCount})` : 'Reject selected',
-      unavailableReason: 'No selected entries can be rejected',
-      run: (eligible, handlers) =>
-        runBulkAndClear(handlers, () =>
-          handlers.onBulkStatusChange?.(
-            eligible.map(entry => entry.id),
-            EntryStatus.REJECTED
-          )
-        ),
+    {
+      id: 'waitlist',
+      label: 'Move to waitlist',
+      sectionLabel: 'Entry',
+      icon: <Ticket className="h-4 w-4" />,
+      applicableWhen: (entry, handlers) =>
+        Boolean(handlers.onStatusChange) && canMoveToWaitlist(entry.entryStatus),
+      run: (entry, handlers) => handlers.onStatusChange?.(entry.id, EntryStatus.WAITLIST),
     },
-  },
-  {
-    id: 'remove',
-    label: 'Remove entry',
-    sectionLabel: 'Danger',
-    icon: <Trash2 className="h-4 w-4" />,
-    variant: 'destructive',
-    applicableWhen: (_entry, handlers) => Boolean(handlers.onRemoveEntry),
-    run: (entry, handlers) => handlers.onRemoveEntry?.(entry.id),
-  },
-];
+    {
+      id: 'check-in',
+      label: 'Check in all classes',
+      sectionLabel: 'Show day',
+      icon: <ClipboardCheck className="h-4 w-4" />,
+      applicableWhen: (entry, handlers) =>
+        Boolean(handlers.onCheckInEntry) && canCheckIn(entry.entryStatus),
+      run: (entry, handlers) => handlers.onCheckInEntry?.(entry.id),
+      bulk: {
+        applicableWhen: entry => getEligibleForBulkAction([entry], 'check-in').length === 1,
+        label: (eligibleCount, selectedCount) =>
+          eligibleCount > 0
+            ? `Check in ${eligibleCount} of ${selectedCount} selected`
+            : 'Check in selected',
+        unavailableReason: 'Only accepted entries can be checked in',
+        run: (eligible, handlers) =>
+          runBulkAndClear(handlers, () =>
+            handlers.onBulkCheckIn?.(eligible.map(entry => entry.id))
+          ),
+      },
+    },
+    {
+      id: 'armband',
+      label: entry => (entry.armbandNumber ? 'Change armband' : 'Assign armband'),
+      sectionLabel: 'Show day',
+      icon: <PencilLine className="h-4 w-4" />,
+      applicableWhen: (_entry, handlers) => Boolean(handlers.onOpenArmbandDialog),
+      run: (entry, handlers) => handlers.onOpenArmbandDialog?.(entry),
+    },
+    {
+      id: 'comp',
+      label: entry => (entry.comped ? 'Remove comp' : 'Comp entry'),
+      sectionLabel: 'Payment',
+      icon: <DollarSign className="h-4 w-4" />,
+      applicableWhen: (entry, handlers) =>
+        entry.comped ? Boolean(handlers.onUncompEntry) : Boolean(handlers.onOpenCompDialog),
+      run: (entry, handlers) =>
+        entry.comped ? handlers.onUncompEntry?.(entry.id) : handlers.onOpenCompDialog?.(entry),
+    },
+    {
+      id: 'request-payment',
+      label: 'Request payment…',
+      sectionLabel: 'Payment',
+      icon: <CreditCard className="h-4 w-4" />,
+      applicableWhen: (entry, handlers) =>
+        Boolean(handlers.onOpenRequestPayment) && isPaymentRequestable(entry),
+      run: (entry, handlers) => handlers.onOpenRequestPayment?.(entry),
+    },
+    {
+      id: 'refund',
+      label: 'Refund payment…',
+      sectionLabel: 'Payment',
+      icon: <Undo2 className="h-4 w-4" />,
+      applicableWhen: (entry, handlers) =>
+        Boolean(handlers.onOpenRefund) && isStripeRefundable(entry),
+      run: (entry, handlers) => handlers.onOpenRefund?.(entry),
+    },
+    {
+      id: 'resend-email',
+      label: 'Resend confirmation',
+      sectionLabel: 'Communication',
+      icon: <Mail className="h-4 w-4" />,
+      applicableWhen: entry => Boolean(entry.registrationId),
+      disabledWhen: (entry, handlers) =>
+        !handlers.onResendEmail || handlers.isResendDisabled?.(entry.registrationId) === true,
+      run: (entry, handlers) => handlers.onResendEmail?.(entry.registrationId),
+    },
+    {
+      id: 'reject',
+      label: 'Reject entry',
+      sectionLabel: 'Danger',
+      icon: <XCircle className="h-4 w-4" />,
+      variant: 'destructive',
+      applicableWhen: (entry, handlers) =>
+        Boolean(handlers.onStatusChange) && entry.entryStatus !== EntryStatus.REJECTED,
+      run: (entry, handlers) => handlers.onStatusChange?.(entry.id, EntryStatus.REJECTED),
+      bulk: {
+        applicableWhen: entry => getEligibleForBulkAction([entry], 'reject').length === 1,
+        label: (eligibleCount, selectedCount) =>
+          eligibleCount > 0
+            ? `Reject ${eligibleCount} of ${selectedCount} selected`
+            : 'Reject selected',
+        unavailableReason: 'No selected entries can be rejected',
+        run: (eligible, handlers) =>
+          runBulkAndClear(handlers, () =>
+            handlers.onBulkStatusChange?.(
+              eligible.map(entry => entry.id),
+              EntryStatus.REJECTED
+            )
+          ),
+      },
+    },
+    {
+      id: 'remove',
+      label: 'Remove entry',
+      sectionLabel: 'Danger',
+      icon: <Trash2 className="h-4 w-4" />,
+      variant: 'destructive',
+      applicableWhen: (_entry, handlers) => Boolean(handlers.onRemoveEntry),
+      run: (entry, handlers) => handlers.onRemoveEntry?.(entry.id),
+    },
+  ];

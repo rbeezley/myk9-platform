@@ -1,17 +1,51 @@
 import { useState, useCallback } from 'react';
 import { logger } from '@/services/LoggingService';
+import { supabase } from '@/services/database/supabaseClient';
+import { rbacService } from '@/services/rbac/RBACService';
 import type { UserRole as UserRoleType } from '@/types/user-types';
 import { SelectedUser } from '@/pages/admin/UserManagementPage';
 import {
   useDeleteUserMutation,
   usePermanentDeleteUserMutation,
 } from '@/hooks/queries/useUsersQuery';
-import type {
-  DialogType,
-  BulkRoleData,
-  BulkStatusData,
-  ErrorWithRelatedData,
-} from './BulkActionsBar.types';
+import { useBulkDispatch } from '@/hooks/useBulkDispatch';
+import type { DialogType, BulkRoleData, ErrorWithRelatedData } from './BulkActionsBar.types';
+
+/** Fetches the full `roles` lookup table (id + name) once per bulk-role dispatch. */
+async function fetchRolesTable(): Promise<Array<{ id: string; name: string }>> {
+  const { data, error } = await supabase.from('roles').select('id, name');
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Batch-fetches each user's currently-active role ids (avoids N+1 per selected user). */
+async function fetchActiveRoleIdsByUser(userIds: string[]): Promise<Map<string, Set<string>>> {
+  const map = new Map<string, Set<string>>();
+  if (userIds.length === 0) return map;
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('user_id, role_id')
+    .in('user_id', userIds)
+    .eq('is_active', true);
+  if (error) throw error;
+  (data ?? []).forEach(row => {
+    const set = map.get(row.user_id) ?? new Set<string>();
+    set.add(row.role_id);
+    map.set(row.user_id, set);
+  });
+  return map;
+}
+
+/** Deactivates one user's role assignment — the same write UserDetailsDialog's
+ * single-user role editor performs (`user_roles.is_active = false`). */
+async function deactivateUserRole(userId: string, roleId: string): Promise<void> {
+  const { error } = await supabase
+    .from('user_roles')
+    .update({ is_active: false })
+    .eq('user_id', userId)
+    .eq('role_id', roleId);
+  if (error) throw error;
+}
 
 interface UseBulkActionsOptions {
   selectedUsers: SelectedUser[];
@@ -39,8 +73,9 @@ export function useBulkActions({
     action: 'add',
     roles: [],
   });
-  const [statusData, setStatusData] = useState<BulkStatusData>({
-    action: 'activate',
+
+  const bulkRoleDispatch = useBulkDispatch<SelectedUser>({
+    getLabel: selected => `${selected.user.firstName} ${selected.user.lastName}`,
   });
 
   const closeDialog = useCallback(() => {
@@ -48,9 +83,13 @@ export function useBulkActions({
     setError(null);
     setCascadeData(null);
     setRoleData({ action: 'add', roles: [] });
-    setStatusData({ action: 'activate' });
   }, []);
 
+  // Applies roleData's add/remove/replace action to every selected user, using the
+  // same primitives UserDetailsDialog's single-user role editor uses: ensureUserHasRole
+  // to add, and a direct user_roles.is_active=false write to deactivate. Dispatched via
+  // useBulkDispatch so one user's failure doesn't block the rest and the summary toast
+  // reports per-user reasons.
   const handleBulkRoleAction = useCallback(async () => {
     if (roleData.roles.length === 0) {
       setError('Please select at least one role');
@@ -61,46 +100,75 @@ export function useBulkActions({
     setError(null);
 
     try {
-      // In a real implementation, this would call the appropriate API
-      logger.debug('Bulk role action', 'admin', {
-        action: roleData.action,
-        roles: roleData.roles,
-        userIds: selectedUsers.map(u => u.id),
+      const userIds = selectedUsers.map(u => u.id);
+      const rolesTable = await fetchRolesTable();
+      const roleIdByName = new Map(rolesTable.map(r => [r.name, r.id]));
+      const activeRoleIdsByUser =
+        roleData.action === 'add'
+          ? new Map<string, Set<string>>()
+          : await fetchActiveRoleIdsByUser(userIds);
+
+      const outcome = await bulkRoleDispatch.run(selectedUsers, async selected => {
+        const userId = selected.id;
+
+        if (roleData.action === 'add') {
+          for (const roleName of roleData.roles) {
+            await rbacService.ensureUserHasRole(userId, roleName);
+          }
+          return;
+        }
+
+        const activeRoleIds = activeRoleIdsByUser.get(userId) ?? new Set<string>();
+
+        if (roleData.action === 'remove') {
+          for (const roleName of roleData.roles) {
+            const roleId = roleIdByName.get(roleName);
+            if (roleId && activeRoleIds.has(roleId)) {
+              await deactivateUserRole(userId, roleId);
+            }
+          }
+          return;
+        }
+
+        // replace: selected roles become the user's only active roles
+        const selectedRoleIds = new Set(
+          roleData.roles
+            .map(roleName => roleIdByName.get(roleName))
+            .filter((id): id is string => Boolean(id))
+        );
+        for (const roleId of activeRoleIds) {
+          if (!selectedRoleIds.has(roleId)) {
+            await deactivateUserRole(userId, roleId);
+          }
+        }
+        for (const roleName of roleData.roles) {
+          const roleId = roleIdByName.get(roleName);
+          if (roleId && !activeRoleIds.has(roleId)) {
+            await rbacService.ensureUserHasRole(userId, roleName);
+          }
+        }
       });
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      logger.debug('Bulk role action complete', 'admin', {
+        action: roleData.action,
+        roles: roleData.roles,
+        succeeded: outcome.succeeded.length,
+        failed: outcome.failed.length,
+      });
 
-      closeDialog();
+      if (outcome.failed.length === 0) {
+        closeDialog();
+      } else {
+        setError(`${outcome.failed.length} of ${userIds.length} users failed to update.`);
+      }
       onBulkComplete();
-    } catch {
+    } catch (error) {
+      logger.error('Error in bulk role action', 'admin', {}, error as Error);
       setError('Failed to update user roles. Please try again.');
     } finally {
       setIsProcessing(false);
     }
-  }, [roleData, selectedUsers, closeDialog, onBulkComplete]);
-
-  const handleBulkStatusAction = useCallback(async () => {
-    setIsProcessing(true);
-    setError(null);
-
-    try {
-      logger.debug('Bulk status action', 'admin', {
-        action: statusData.action,
-        userIds: selectedUsers.map(u => u.id),
-      });
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      closeDialog();
-      onBulkComplete();
-    } catch {
-      setError('Failed to update user status. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [statusData, selectedUsers, closeDialog, onBulkComplete]);
+  }, [roleData, selectedUsers, closeDialog, onBulkComplete, bulkRoleDispatch]);
 
   const handleBulkDelete = useCallback(async () => {
     setIsProcessing(true);
@@ -276,16 +344,13 @@ export function useBulkActions({
   return {
     currentDialog,
     setCurrentDialog,
-    isProcessing,
+    isProcessing: isProcessing || bulkRoleDispatch.isBusy,
     error,
     cascadeData,
     roleData,
     setRoleData,
-    statusData,
-    setStatusData,
     closeDialog,
     handleBulkRoleAction,
-    handleBulkStatusAction,
     handleBulkDelete,
     handleCascadeDelete,
     handleBulkPermanentDelete,

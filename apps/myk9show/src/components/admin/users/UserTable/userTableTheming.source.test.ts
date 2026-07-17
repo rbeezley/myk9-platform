@@ -57,9 +57,7 @@ describe('UserFilters / BulkActionsBar status semantics', () => {
     expect(filtersSrc).toContain('bg-success/10 text-success');
   });
 
-  it('bulk status dropdown focus states use semantic tokens', () => {
-    expect(bulkSrc).toContain('focus:bg-success/10 focus:text-success');
-    expect(bulkSrc).toContain('focus:bg-warning/10 focus:text-warning');
-    expect(bulkSrc).toContain('focus:bg-destructive/10 focus:text-destructive');
-  });
+  // The bulk status dropdown (activate/deactivate/suspend) was removed — no
+  // single-user account-status mutation exists for it to call (slice 3,
+  // inline-bulk-actions-and-editable-status). Only Manage Roles remains.
 });

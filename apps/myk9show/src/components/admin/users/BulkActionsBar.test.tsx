@@ -368,10 +368,10 @@ describe('BulkActionsBar', () => {
       expect(screen.getByRole('button', { name: /roles/i })).toBeInTheDocument();
     });
 
-    it('renders status management button', () => {
+    it('does not render a status action (no real per-user status mutation exists)', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      expect(screen.getByRole('button', { name: /status/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^status$/i })).not.toBeInTheDocument();
     });
   });
 

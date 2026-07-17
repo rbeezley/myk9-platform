@@ -9,17 +9,7 @@
  */
 
 import React from 'react';
-import {
-  Users,
-  Shield,
-  Trash2,
-  UserCheck,
-  UserX,
-  UserMinus,
-  AlertCircle,
-  X,
-  ChevronDown,
-} from 'lucide-react';
+import { Users, Shield, Trash2, AlertCircle, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -69,11 +59,8 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     cascadeData,
     roleData,
     setRoleData,
-    statusData,
-    setStatusData,
     closeDialog,
     handleBulkRoleAction,
-    handleBulkStatusAction,
     handleBulkDelete,
     handleCascadeDelete,
     handleBulkPermanentDelete,
@@ -145,54 +132,6 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                   >
                     <Shield className="h-4 w-4 mr-3" />
                     Manage Roles
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Status Management */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild nativeButton>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-10 px-4 rounded-xl border-border/50 bg-background/50 font-[590]
-                               hover:bg-muted/50 transition-all duration-300"
-                  >
-                    <UserCheck className="h-4 w-4 mr-2" />
-                    Status
-                    <ChevronDown className="h-4 w-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="rounded-xl border-border/30 bg-card/95 backdrop-blur-xl shadow-xl">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setStatusData({ action: 'activate' });
-                      setCurrentDialog('status');
-                    }}
-                    className="rounded-lg font-[500] text-sm py-3 focus:bg-success/10 focus:text-success"
-                  >
-                    <UserCheck className="h-4 w-4 mr-3" />
-                    Activate Users
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setStatusData({ action: 'deactivate' });
-                      setCurrentDialog('status');
-                    }}
-                    className="rounded-lg font-[500] text-sm py-3 focus:bg-warning/10 focus:text-warning"
-                  >
-                    <UserX className="h-4 w-4 mr-3" />
-                    Deactivate Users
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setStatusData({ action: 'suspend' });
-                      setCurrentDialog('status');
-                    }}
-                    className="rounded-lg font-[500] text-sm py-3 focus:bg-destructive/10 focus:text-destructive"
-                  >
-                    <UserMinus className="h-4 w-4 mr-3" />
-                    Suspend Users
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -274,64 +213,6 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             </Button>
             <Button onClick={handleBulkRoleAction} disabled={isProcessing}>
               {isProcessing ? 'Processing...' : 'Apply Changes'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Status Change Dialog */}
-      <Dialog open={currentDialog === 'status'} onOpenChange={() => closeDialog()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {statusData.action === 'activate'
-                ? 'Activate Users'
-                : statusData.action === 'deactivate'
-                  ? 'Deactivate Users'
-                  : 'Suspend Users'}
-            </DialogTitle>
-            <DialogDescription>
-              This will {statusData.action} {selectedUsers.length} selected user
-              {selectedUsers.length !== 1 ? 's' : ''}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {statusData.action === 'activate'
-                  ? 'Users will be able to log in and access the system.'
-                  : statusData.action === 'deactivate'
-                    ? 'Users will not be able to log in until reactivated.'
-                    : 'Users will be temporarily suspended and cannot access the system.'}
-              </AlertDescription>
-            </Alert>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleBulkStatusAction}
-              disabled={isProcessing}
-              variant={statusData.action === 'activate' ? 'default' : 'destructive'}
-            >
-              {isProcessing
-                ? 'Processing...'
-                : statusData.action === 'activate'
-                  ? 'Activate Users'
-                  : statusData.action === 'deactivate'
-                    ? 'Deactivate Users'
-                    : 'Suspend Users'}
             </Button>
           </DialogFooter>
         </DialogContent>

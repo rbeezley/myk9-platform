@@ -8,15 +8,13 @@ export interface BulkActionsBarProps {
   onUsersDeleted?: (deletedUserIds: string[]) => void;
 }
 
-export type DialogType = 'role' | 'status' | 'delete' | 'cascadeConfirm' | null;
+// 'status' dialog removed: no single-user account-status mutation exists to mirror
+// (see docs — Manage Roles is the only real per-user admin action beyond delete).
+export type DialogType = 'role' | 'delete' | 'cascadeConfirm' | null;
 
 export interface BulkRoleData {
   action: 'add' | 'remove' | 'replace';
   roles: UserRoleType[];
-}
-
-export interface BulkStatusData {
-  action: 'activate' | 'deactivate' | 'suspend';
 }
 
 export interface RelatedDataDetails {

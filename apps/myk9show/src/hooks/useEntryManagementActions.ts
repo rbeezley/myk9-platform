@@ -7,16 +7,16 @@ import { AuditAction } from '@/types/audit-types';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import {
-  bulkUpdateEntryStatus,
   deleteEntry,
   getEntriesForExport,
   compEntry,
   uncompEntry,
   executeStatusChange,
-  executeBulkStatusChange,
   executeRemoveEntry,
 } from '@/services/database/entries';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
+import { useBulkDispatch } from '@/hooks/useBulkDispatch';
+import { CLOSED_STATUSES } from '@/components/entries/management/bulkActionEligibility';
 import {
   autoAssignArmbands,
   getNextArmbandForShow,
@@ -141,6 +141,24 @@ export function useEntryManagementActions({
     startNumber: '1',
   });
 
+  const bulkStatusDispatch = useBulkDispatch<EntryManagementEntry>({
+    getLabel: entry => `${entry.dogName} (#${entry.entryNumber})`,
+    applicableWhen: entry => !CLOSED_STATUSES.has(entry.entryStatus),
+  });
+  // Dispatched over raw entry ids (not entry objects) — check-in has always accepted
+  // any id it's given, independent of whether the id is present in the currently
+  // loaded local entries snapshot; mirrors the pre-allSettled Promise.all behavior.
+  const bulkCheckInDispatch = useBulkDispatch<string>({
+    getLabel: entryId => {
+      const entry = entriesRef.current.find(e => e.id === entryId);
+      return entry ? `${entry.dogName} (#${entry.entryNumber})` : entryId;
+    },
+    applicableWhen: entryId => {
+      const entry = entriesRef.current.find(e => e.id === entryId);
+      return !entry || (entry.entryStatus === EntryStatus.ACCEPTED && entry.classes.length > 0);
+    },
+  });
+
   const handleStatusChange = useCallback(
     async (entryId: string, newStatus: EntryStatus, withdrawalReason?: string) => {
       const entry = entries.find(e => e.id === entryId);
@@ -237,21 +255,24 @@ export function useEntryManagementActions({
     }
   }, [selectedShowId, autoArmbandDialog, loadEntries, setError]);
 
-  // Handle enrollment-level bulk status change
+  // Handle enrollment-level bulk status change. Each entry is dispatched through
+  // executeStatusChange (the same optimistic-update-with-rollback path the single-entry
+  // handler uses) via useBulkDispatch's Promise.allSettled fold, so one entry's failure
+  // can't roll back or block the others — see design.md decision D3.
   const handleEnrollmentBulkStatusChange = useCallback(
     async (entryIds: string[], status: EntryStatus) => {
+      const targets = entriesRef.current.filter(e => entryIds.includes(e.id));
+      if (targets.length === 0) return false;
       setIsProcessing(true);
       try {
-        const result = await executeBulkStatusChange(
-          { entryIds, status, selectedShowId },
-          {
-            bulkUpdateStatus: bulkUpdateEntryStatus,
-            reloadEntries: loadEntries,
-            patchEntries: setEntries,
-            setError,
-          }
-        );
-        return result.updated;
+        const outcome = await bulkStatusDispatch.run(targets, async entry => {
+          const ok = await executeStatusChange(
+            { entryId: entry.id, newStatus: status, entry, userId: user?.id },
+            { changeSecretaryStatus: changeSecretaryEntryStatus, patchEntries: setEntries }
+          );
+          if (!ok) throw new Error('Failed to update entry status');
+        });
+        return outcome.failed.length === 0;
       } catch (err) {
         setError('Failed to update entry statuses');
         logger.error('Error bulk updating statuses:', 'secretary', {}, err as Error);
@@ -260,29 +281,37 @@ export function useEntryManagementActions({
         setIsProcessing(false);
       }
     },
-    [setEntries, setError, selectedShowId, loadEntries]
+    [bulkStatusDispatch, setEntries, setError, user]
   );
 
-  // Handle enrollment-level bulk check-in
+  // Handle enrollment-level bulk check-in. Only entries that actually succeed get their
+  // local check-in state patched — a partial failure leaves failed entries' local state
+  // untouched (and the selection, owned by the caller, stays intact for retry).
   const handleEnrollmentBulkCheckIn = useCallback(
     async (entryIds: string[]) => {
       if (entryIds.length === 0) return false;
       setIsProcessing(true);
       try {
-        await Promise.all(
-          entryIds.map(entryId => updateReplicatedCheckInStatus(entryId, 'checked-in'))
-        );
-        setEntries(prev =>
-          prev.map(e =>
-            entryIds.includes(e.id)
-              ? {
-                  ...e,
-                  classes: e.classes.map(cls => ({ ...cls, checkInStatus: 'checked-in' as const })),
-                }
-              : e
-          )
-        );
-        return true;
+        const outcome = await bulkCheckInDispatch.run(entryIds, async entryId => {
+          await updateReplicatedCheckInStatus(entryId, 'checked-in');
+        });
+        if (outcome.succeeded.length > 0) {
+          const succeededIds = new Set(outcome.succeeded);
+          setEntries(prev =>
+            prev.map(e =>
+              succeededIds.has(e.id)
+                ? {
+                    ...e,
+                    classes: e.classes.map(cls => ({
+                      ...cls,
+                      checkInStatus: 'checked-in' as const,
+                    })),
+                  }
+                : e
+            )
+          );
+        }
+        return outcome.failed.length === 0;
       } catch (err) {
         setError('Failed to check in entries');
         logger.error('Error bulk checking in entries:', 'secretary', {}, err as Error);
@@ -291,7 +320,7 @@ export function useEntryManagementActions({
         setIsProcessing(false);
       }
     },
-    [setEntries, setError]
+    [bulkCheckInDispatch, setEntries, setError]
   );
 
   const handleEnrollmentPaymentChange = useCallback(

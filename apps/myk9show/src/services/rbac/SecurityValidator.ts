@@ -95,10 +95,13 @@ export class SecurityValidator {
         }
       }
 
-      // Check for high-privilege role assignment (roles with admin permissions)
+      // Check for high-privilege role assignment (roles with admin permissions).
+      // Match on the human permission CODE (e.g. "admin:manage"), not permission_id:
+      // permission_id is the FK UUID to permissions.id and never contains "admin",
+      // so reading it left this guard dead against real data (MYK9-56).
       const rolePermissions = await this.getRolePermissions(targetRole.id);
       const hasAdminPermissions = rolePermissions.some(rp => {
-        return rp.permission_id && rp.permission_id.includes('admin');
+        return rp.permission?.code?.includes('admin') ?? false;
       });
 
       if (hasAdminPermissions) {

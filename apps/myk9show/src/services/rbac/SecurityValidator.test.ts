@@ -109,17 +109,13 @@ describe('SecurityValidator.validatePermissionEscalation', () => {
     expect(result.reason).toMatch(/only site administrators can assign system roles/i);
   });
 
-  // SECURITY NOTE — high-privilege guard is DEAD with realistic data.
-  // The guard at SecurityValidator.ts:100-102 inspects `rp.permission_id`, which
-  // is the FK UUID to permissions.id (see RoleManager.getRolePermissions — it
-  // selects `permission_id` alongside the joined `permissions.code`). The human
-  // permission code (e.g. "admin:manage") lives on `rp.permission.code`, NOT on
-  // `rp.permission_id`. So `permission_id.includes('admin')` can only match if a
-  // random UUID happens to contain the substring "admin" — it never does in prod.
-  // These two tests pin BOTH the realistic (broken) behavior and the only shape
-  // that currently trips the guard, so the test fails the moment the guard is
-  // fixed to read `permission.code` (at which case case #1's expectation flips).
-  it('realistic data: admin permission carried on permission.code with a UUID permission_id -> guard MISSES, escalation allowed (documents dead guard)', async () => {
+  // High-privilege guard (MYK9-56 fix): the guard at SecurityValidator.ts reads the
+  // human permission CODE (e.g. "admin:manage") off `rp.permission.code`, NOT the FK
+  // UUID `rp.permission_id`. RoleManager.getRolePermissions returns permission_id as
+  // the UUID to permissions.id with the code on the joined `permission`. Previously the
+  // guard inspected permission_id and was dead against real data; these tests pin the
+  // fixed behavior against realistic DB shapes.
+  it('realistic data: admin permission on permission.code with a UUID permission_id -> non-admin actor DENIED', async () => {
     const validator = buildValidator({
       checkSiteAdminDirectly: async () => false,
       checkPermission: async () => true,
@@ -144,21 +140,20 @@ describe('SecurityValidator.validatePermissionEscalation', () => {
       'target-1',
       ADMIN_PERMISSION_ROLE.name
     );
-    // Guard reads permission_id (a UUID) -> no "admin" substring -> not denied.
-    expect(result).toEqual({ isValid: true });
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toMatch(/administrative permissions/i);
   });
 
-  it('only trips when the literal permission_id string contains "admin" (current impl behavior)', async () => {
+  it('site admin CAN assign an admin-permissioned role (guard only blocks non-admins)', async () => {
     const validator = buildValidator({
-      checkSiteAdminDirectly: async () => false,
+      checkSiteAdminDirectly: async () => true,
       checkPermission: async () => true,
       roles: [ADMIN_PERMISSION_ROLE],
       rolePermissions: [
         {
-          // Non-realistic legacy shape where permission_id itself is a code string.
-          permission_id: 'admin:manage',
+          permission_id: '3f2504e0-4f89-41d3-9a0c-0305e82c3301',
           permission: {
-            id: 'admin:manage',
+            id: '3f2504e0-4f89-41d3-9a0c-0305e82c3301',
             code: 'admin:manage',
             name: 'Manage admin',
             description: null,
@@ -169,12 +164,41 @@ describe('SecurityValidator.validatePermissionEscalation', () => {
       ],
     });
     const result = await validator.validatePermissionEscalation(
-      'actor-1',
+      'admin-1',
       'target-1',
       ADMIN_PERMISSION_ROLE.name
     );
-    expect(result.isValid).toBe(false);
-    expect(result.reason).toMatch(/administrative permissions/i);
+    expect(result).toEqual({ isValid: true });
+  });
+
+  it('guard keys off code, NOT permission_id: a UUID permission_id that literally contains "admin" but a non-admin code -> allowed', async () => {
+    const validator = buildValidator({
+      checkSiteAdminDirectly: async () => false,
+      checkPermission: async () => true,
+      roles: [REGULAR_ROLE],
+      rolePermissions: [
+        {
+          // Adversarial: the FK id contains the substring "admin", but the actual
+          // permission code is non-admin. The old guard (reading permission_id)
+          // would have wrongly DENIED here; the fixed guard reads code and allows.
+          permission_id: 'admin-0000-0000-0000-000000000000',
+          permission: {
+            id: 'admin-0000-0000-0000-000000000000',
+            code: 'show:manage',
+            name: 'Manage show',
+            description: null,
+            category: null,
+            created_at: null,
+          },
+        },
+      ],
+    });
+    const result = await validator.validatePermissionEscalation(
+      'actor-1',
+      'target-1',
+      REGULAR_ROLE.name
+    );
+    expect(result).toEqual({ isValid: true });
   });
 
   it('non-admin actor assigning an ordinary non-system, non-admin role -> valid', async () => {

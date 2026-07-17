@@ -59,10 +59,10 @@ test.describe('Browse entries', () => {
     await signInAsSecretary(page);
     await gotoEntries(page);
 
-    await page.getByRole('textbox', { name: 'Search entries...' }).fill('Bravo');
+    await page.getByRole('textbox', { name: 'Search entries...' }).fill('Willow');
 
-    // The Bravo dog has at least one entry on the seeded show
-    await expect(page.getByText('Bravo').first()).toBeVisible();
+    // Willow is a dog seeded into the maintained secretary show (Heartland).
+    await expect(page.getByText('Willow').first()).toBeVisible();
 
     await page.getByRole('textbox', { name: 'Search entries...' }).fill('');
   });
@@ -199,12 +199,15 @@ test.describe('Armband assignment', () => {
     await expect(dialog).not.toBeVisible();
   });
 
-  test('manual Assign Armband dialog opens for an entry', async ({ page }) => {
+  // FIXME(MYK9-46): the maintained Heartland seed assigns armbands to every
+  // entry, so no un-assigned "Assign Armband" affordance exists to click. Needs
+  // a rewrite against a fixture with an unassigned entry, or to target the
+  // reassignment affordance. Skipped rather than asserting a control the current
+  // seed never renders.
+  test.fixme('manual Assign Armband dialog opens for an entry', async ({ page }) => {
     await signInAsSecretary(page);
     await gotoEntries(page);
 
-    // The seeded June 2026 show has at least one entry with an Assign Armband
-    // button; failing means the entry-action row regressed.
     const assignBtn = page.getByRole('button', { name: 'Assign Armband' }).first();
     await expect(assignBtn).toBeVisible();
     await assignBtn.click();

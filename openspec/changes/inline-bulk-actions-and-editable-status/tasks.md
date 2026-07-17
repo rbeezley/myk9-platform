@@ -2,13 +2,13 @@
 
 ## 1. Shared typed action layer (no behavior change)
 
-- [ ] 1.1 Confirm `status-icon-grammar` (MYK9-52) merge status; note the `StatusIcon` import path for slice 4 (blocks 4.2 only)
-- [ ] 1.2 Define `EntityAction<T>` type and resolver module (`toRowActions`, `toBulkActions` with `{eligible, selected}` counts) alongside `components/ui/RowActionMenu`
-- [ ] 1.3 Express the entry domain's actions as `EntityAction` definitions, porting `bulkActionEligibility.ts` predicates into `applicableWhen` (keep exports for any external callers)
-- [ ] 1.4 Write characterization tests for current `EntryRowActionMenu` + `EntryBulkActionMenu` (menu items, eligibility narrowing, dispatched handlers) BEFORE refit
-- [ ] 1.5 Refit `EntryRowActionMenu` and `EntryBulkActionMenu` onto the resolver; characterization tests must pass unchanged
-- [ ] 1.6 Unit tests for the resolver: eligibility projection, eligible-of-selected counts, `unavailableReason` on zero-eligible
-- [ ] 1.7 Verify: `cd apps/myk9show && pnpm vitest run src/components/entries/management` + `pnpm typecheck`
+- [x] 1.1 Confirm `status-icon-grammar` (MYK9-52) merge status; note the `StatusIcon` import path for slice 4 (blocks 4.2 only)
+- [x] 1.2 Define `EntityAction<T>` type and resolver module (`toRowActions`, `toBulkActions` with `{eligible, selected}` counts) alongside `components/ui/RowActionMenu`
+- [x] 1.3 Express the entry domain's actions as `EntityAction` definitions, porting `bulkActionEligibility.ts` predicates into `applicableWhen` (keep exports for any external callers)
+- [x] 1.4 Write characterization tests for current `EntryRowActionMenu` + `EntryBulkActionMenu` (menu items, eligibility narrowing, dispatched handlers) BEFORE refit
+- [x] 1.5 Refit `EntryRowActionMenu` and `EntryBulkActionMenu` onto the resolver; characterization tests must pass unchanged
+- [x] 1.6 Unit tests for the resolver: eligibility projection, eligible-of-selected counts, `unavailableReason` on zero-eligible
+- [x] 1.7 Verify: `cd apps/myk9show && pnpm vitest run src/components/entries/management` + `pnpm typecheck`
 
 ## 2. Class Management selection migration
 

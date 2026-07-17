@@ -38,7 +38,7 @@ Introduce `EntityAction<T>`: `{ id, label, icon, variant, applicableWhen(item): 
 - `toRowActions(item, handlers)` → `RowAction[]` for the existing `RowActionMenu` (unchanged component).
 - `toBulkActions(selectedItems, handlers)` → bulk menu items carrying `{ eligible, selected }` counts ("Accept 4 of 6 selected"), disabled with `unavailableReason` when `eligible === 0`.
 
-*Why not reuse `ShowMapAction` directly?* It is node/attention-coupled (nodeId, priority bands, `createsAttention`) — domain baggage the generic layer must not carry. *Why not extend `RowAction`?* `RowAction` is a presentational contract consumed by the menu; eligibility and dispatch belong a layer above, exactly as show-map separates `ShowMapAction` from its execution resolver. `bulkActionEligibility.ts` predicates become the entry domain's `applicableWhen` set, preserving behavior.
+_Why not reuse `ShowMapAction` directly?_ It is node/attention-coupled (nodeId, priority bands, `createsAttention`) — domain baggage the generic layer must not carry. _Why not extend `RowAction`?_ `RowAction` is a presentational contract consumed by the menu; eligibility and dispatch belong a layer above, exactly as show-map separates `ShowMapAction` from its execution resolver. `bulkActionEligibility.ts` predicates become the entry domain's `applicableWhen` set, preserving behavior.
 
 RBAC stays out of the action shape: gating remains route + `canManageShow`, matching the existing grain (alternative — a `permission` field per action — rejected as re-architecting RBAC inside a UI refactor).
 
@@ -48,9 +48,9 @@ Class Management drops its local `useState<string[]>` for `useBulkSelection` wit
 
 ### D3. Dispatch: `Promise.allSettled` + in-flight latch + structured outcome
 
-All bulk handlers run eligible items through `Promise.allSettled` over the *existing single-item mutation* for that domain (entries/check-in stay on `replicatedEntriesTable` paths; class updates via `useUpdateClassMutation`'s seam — verified replication-backed before bulk-driving it). Result folds into `{ succeeded: T[], failed: { item, error }[] }` powering one summary toast: full success, or partial failure listing counts with a "Retry failed" action that re-dispatches only the failed subset. A `useRef` in-flight latch (repo-established pattern) makes double-invocation a no-op and disables bulk controls while busy.
+All bulk handlers run eligible items through `Promise.allSettled` over the _existing single-item mutation_ for that domain (entries/check-in stay on `replicatedEntriesTable` paths; class updates via `useUpdateClassMutation`'s seam — verified replication-backed before bulk-driving it). Result folds into `{ succeeded: T[], failed: { item, error }[] }` powering one summary toast: full success, or partial failure listing counts with a "Retry failed" action that re-dispatches only the failed subset. A `useRef` in-flight latch (repo-established pattern) makes double-invocation a no-op and disables bulk controls while busy.
 
-*Why per-item mutations rather than a batch API?* Non-goal per the issue; per-item keeps offline queueing and conflict resolution on proven replication paths, and per-item outcomes are exactly what honest partial-failure reporting needs. The people `MK001` owns-live-dogs trigger guarantees routine partial failures, so this contract is a correctness requirement, not polish.
+_Why per-item mutations rather than a batch API?_ Non-goal per the issue; per-item keeps offline queueing and conflict resolution on proven replication paths, and per-item outcomes are exactly what honest partial-failure reporting needs. The people `MK001` owns-live-dogs trigger guarantees routine partial failures, so this contract is a correctness requirement, not polish.
 
 ### D4. Admin Users stubs: make honest or delete
 
@@ -62,7 +62,7 @@ The Entry Management status badge becomes a click-to-edit popover listing the fr
 
 ### D6. Undo: inverse transition through the same replicated mutation; history is reference, not mechanism
 
-One shared helper (extracted from the inlined show-map sonner pattern): `showUndoToast({ label, undo, duration })`. Undo for a status change dispatches the *inverse transition* through the same replicated mutation (`updateSecretaryLifecycleStatus` seam), so the DB trigger records the revert as a new history row. Guards:
+One shared helper (extracted from the inlined show-map sonner pattern): `showUndoToast({ label, undo, duration })`. Undo for a status change dispatches the _inverse transition_ through the same replicated mutation (`updateSecretaryLifecycleStatus` seam), so the DB trigger records the revert as a new history row. Guards:
 
 - **Supersession**: before reverting, read current status; if it no longer equals the status our action produced, another actor intervened → toast "Changed by someone else — not undone" instead of reverting.
 - **Offline**: if the original action is still queued locally, the toast says "Queued — will sync" and undo simply enqueues the inverse (both resolve in order), or is withheld where ordering cannot be guaranteed.
@@ -78,7 +78,7 @@ Trial status is derived from class progress (nothing to bulk-set) and trial dele
 ## Risks / Trade-offs
 
 - [Refit regressions in Entry Management, the reference implementation] → refit `EntryRowActionMenu`/`EntryBulkActionMenu` onto `EntityAction` with characterization tests asserting identical menu items, eligibility narrowing, and dispatched mutations before/after.
-- [Class status write seam not replication-backed] → verify `updateClass` path before bulk-driving it; if it is a direct write, route class bulk through the replicated classes table or scope class bulk to statuses with a replicated seam, as an explicit task.
+- [Class status write seam not replication-backed] → VERIFIED (task 2.1): `services/database/classes/reads.ts` `updateClass` is a direct Supabase write. Decision: class bulk status/delete route through `services/replication/ReplicatedClassesTable` (`updateClass` at :516, `deleteClass` at :599), not the direct seam.
 - [Undo races another actor's change] → supersession check compares current status to the status this action produced; mismatch aborts with honest messaging. Last-writer-wins beyond that is accepted (consistent with existing replication conflict policy).
 - [Offline undo ordering] → inverse-through-same-queue keeps ordering within the local queue; where the layer cannot guarantee it, undo is withheld with explicit messaging rather than offered dishonestly.
 - [`StatusIcon` (MYK9-52) slips] → hard dependency, sequenced to merge first; inline editing tasks block on it while selection/dispatch slices proceed independently.

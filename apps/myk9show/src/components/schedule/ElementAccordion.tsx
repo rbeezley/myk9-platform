@@ -37,7 +37,7 @@ export function ElementAccordion({ element, onNavigateToClass }: ElementAccordio
             <StatusBadge
               family="class"
               status={element.status}
-              className="rounded px-1.5 py-0.5 text-[10px]"
+              className="rounded px-1.5 py-0.5 text-xs"
               variant="outline"
               label={progressLabel}
             />

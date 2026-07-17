@@ -6,6 +6,7 @@ export {
   STATUS_COLOR_CLASSES,
   TRIAL_STATUS_VALUES,
   getStatusDescriptor,
+  getStatusSurfaceClasses,
   getTrialCompositeStatus,
   type StatusColorClass,
   type StatusDescriptor,

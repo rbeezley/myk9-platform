@@ -236,7 +236,7 @@ export const StatusBadgeContent: React.FC<StatusBadgeContentProps> = ({ status }
   return (
     <>
       <StatusIcon family="entry" status={status} size="lg" decorative />
-      <span className="min-w-0 shrink overflow-hidden text-ellipsis text-[0.6875rem] leading-tight normal-case">
+      <span className="min-w-0 shrink overflow-hidden text-ellipsis text-xs leading-tight normal-case">
         {descriptor.label}
       </span>
     </>

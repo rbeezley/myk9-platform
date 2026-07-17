@@ -13,6 +13,14 @@ export const STATUS_COLOR_CLASSES = [
 
 export type StatusColorClass = (typeof STATUS_COLOR_CLASSES)[number];
 
+const STATUS_SURFACE_CLASSES: Readonly<Record<StatusColorClass, string>> = {
+  'text-muted-foreground': 'bg-muted text-muted-foreground',
+  'text-warning': 'bg-warning/10 text-warning',
+  'text-info': 'bg-info/10 text-info',
+  'text-success': 'bg-success/10 text-success',
+  'text-destructive': 'bg-destructive/10 text-destructive',
+};
+
 export interface StatusDescriptor {
   readonly status: string;
   readonly label: string;
@@ -233,6 +241,13 @@ export function getStatusDescriptor(
 ): StatusDescriptor {
   const familyDescriptors = STATUS_DESCRIPTORS[family];
   return familyDescriptors[status ?? ''] ?? familyDescriptors[FALLBACK_STATUS_BY_FAMILY[family]]!;
+}
+
+export function getStatusSurfaceClasses(
+  family: StatusFamily,
+  status: string | null | undefined
+): string {
+  return STATUS_SURFACE_CLASSES[getStatusDescriptor(family, status).colorClass];
 }
 
 export function getTrialCompositeStatus(

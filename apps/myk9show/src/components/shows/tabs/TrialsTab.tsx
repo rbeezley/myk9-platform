@@ -82,7 +82,7 @@ const trialColumns: ColumnDef<TrialRow, unknown>[] = [
       <StatusBadge
         family="trial"
         status={getTrialCompositeStatus(row.original.status, row.original.classCount)}
-        className="text-[10px]"
+        className="text-xs"
         variant="outline"
       />
     ),
@@ -204,7 +204,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                     {/* Date element */}
                     {dateParts && (
                       <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl border-2 border-border bg-background">
-                        <span className="text-[10px] font-semibold uppercase leading-none tracking-wide text-muted-foreground">
+                        <span className="text-xs font-semibold uppercase leading-none tracking-wide text-muted-foreground">
                           {dateParts.month}
                         </span>
                         <span className="text-[22px] font-bold leading-tight text-card-foreground">
@@ -223,7 +223,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                         <StatusBadge
                           family="trial"
                           status={trialCompositeStatus}
-                          className="shrink-0 text-[10px]"
+                          className="shrink-0 text-xs"
                           variant="outline"
                         />
                       </div>
@@ -256,7 +256,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                           </span>
                         </div>
                         {showScored && (
-                          <span className="text-[11px] text-muted-foreground">
+                          <span className="text-xs text-muted-foreground">
                             {stats.completedClasses}/{stats.classCount} scored
                           </span>
                         )}

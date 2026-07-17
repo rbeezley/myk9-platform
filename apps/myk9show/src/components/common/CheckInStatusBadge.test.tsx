@@ -41,6 +41,17 @@ describe('CheckInStatusBadge', () => {
     render(<CheckInStatusBadge status="pulled" size="sm" />);
     const badge = screen.getByLabelText('Status: Pulled');
     expect(badge?.className).toContain('text-xs');
+    expect(badge?.className).toContain('px-1.5');
+    expect(badge?.className).toContain('py-0.5');
+  });
+
+  it('preserves compact badge geometry while using shared status presentation', () => {
+    render(<CheckInStatusBadge status="checked-in" onClick={() => {}} />);
+    const badge = screen.getByRole('button');
+
+    expect(badge).toHaveClass('rounded-md', 'px-2', 'py-0.5', 'text-xs');
+    expect(badge).not.toHaveClass('rounded-full', 'min-h-[44px]');
+    expect(badge.className).toContain('bg-info/10');
   });
 
   it('renders all 8 statuses without error', () => {

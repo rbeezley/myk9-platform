@@ -6,6 +6,7 @@ import {
   ENTRY_STATUS_VALUES,
   TRIAL_STATUS_VALUES,
   getStatusDescriptor,
+  getStatusSurfaceClasses,
   getTrialCompositeStatus,
 } from './statusIconGrammar';
 
@@ -41,6 +42,13 @@ describe('StatusIcon', () => {
     expect(screen.getByRole('img', { name: 'No Status' })).toHaveAttribute(
       'data-shape',
       'not-started'
+    );
+  });
+
+  it('derives badge surfaces from the shared semantic color', () => {
+    expect(getStatusSurfaceClasses('entry', 'checked-in')).toBe('bg-info/10 text-info');
+    expect(getStatusSurfaceClasses('entry', 'future-status')).toBe(
+      'bg-muted text-muted-foreground'
     );
   });
 

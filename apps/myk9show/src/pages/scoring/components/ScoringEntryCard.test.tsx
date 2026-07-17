@@ -11,7 +11,7 @@ function makeScoringEntry(overrides: Partial<ScoringEntry> = {}): ScoringEntry {
     armband: 'A1',
     callName: 'Rex',
     breed: 'Border Collie',
-    handler: { id: 'h1', name: 'Pat Handler' },
+    handler: 'Pat Handler' as unknown as ScoringEntry['handler'],
     status: 'completed',
     inRing: false,
     isScored: true,
@@ -22,6 +22,32 @@ function makeScoringEntry(overrides: Partial<ScoringEntry> = {}): ScoringEntry {
 }
 
 describe('ScoringEntryCard placement (scoring view — not the podium)', () => {
+  it('renders entry lifecycle status through the shared grammar', () => {
+    const { container, rerender } = render(
+      <ScoringEntryCard
+        entry={makeScoringEntry({
+          isScored: false,
+          inRing: true,
+          status: 'in-ring',
+          placement: undefined,
+        })}
+      />
+    );
+    expect(container.querySelector('[data-family="entry"][data-status="in-ring"]')).not.toBeNull();
+
+    rerender(
+      <ScoringEntryCard
+        entry={makeScoringEntry({
+          isScored: false,
+          inRing: false,
+          status: 'pulled',
+          placement: undefined,
+        })}
+      />
+    );
+    expect(container.querySelector('[data-family="entry"][data-status="pulled"]')).not.toBeNull();
+  });
+
   it('shows a placement beyond 4th (5th) — the scoring list is not capped at the podium', () => {
     render(<ScoringEntryCard entry={makeScoringEntry({ placement: 5 })} />);
     expect(screen.getByText('5')).toBeInTheDocument();

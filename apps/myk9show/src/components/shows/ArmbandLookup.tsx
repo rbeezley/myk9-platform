@@ -127,7 +127,7 @@ export function ArmbandLookup({ showId }: ArmbandLookupProps) {
                             family="entry"
                             status={entry.entry_status}
                             variant="outline"
-                            className="ml-2 shrink-0 text-[10px]"
+                            className="ml-2 shrink-0 text-xs"
                           />
                         </div>
                         {entry.handler && (

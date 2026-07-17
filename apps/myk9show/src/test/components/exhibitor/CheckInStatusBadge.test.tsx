@@ -137,10 +137,11 @@ describe('CheckInStatusBadge', () => {
       expect(screen.getByLabelText('Status: Checked-in. Click to change.')).toBeInTheDocument();
     });
 
-    it('should have min-h-[44px] for interactive badge (touch target)', () => {
+    it('should preserve a 44px interactive touch target without changing badge geometry', () => {
       render(<CheckInStatusBadge status="checked-in" onClick={vi.fn()} audience="exhibitor" />);
       const btn = screen.getByRole('button');
-      expect(btn).toHaveClass('min-h-[44px]');
+      expect(btn).toHaveClass('before:min-h-11', 'before:min-w-11');
+      expect(btn).not.toHaveClass('min-h-[44px]');
     });
   });
 });

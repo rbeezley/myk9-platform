@@ -2,7 +2,7 @@
 import { cn } from '@/lib/utils';
 import type { CheckInStatus } from '@myk9/core';
 import { isExhibitorAllowedStatus } from '@myk9/core';
-import { StatusIcon, getStatusDescriptor } from '@/components/status';
+import { StatusIcon, getStatusDescriptor, getStatusSurfaceClasses } from '@/components/status';
 
 interface CheckInStatusBadgeProps {
   status: CheckInStatus;
@@ -24,7 +24,7 @@ export function CheckInStatusBadge({
   audience = 'staff',
 }: CheckInStatusBadgeProps) {
   const descriptor = getStatusDescriptor('entry', status);
-  const sizeClasses = size === 'sm' ? 'text-xs px-2 py-1' : 'text-sm px-2.5 py-1';
+  const sizeClasses = size === 'sm' ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-0.5';
   const canChangeForAudience = audience === 'staff' || isExhibitorAllowedStatus(status);
   const isInteractive = Boolean(onClick) && !disabled && canChangeForAudience;
   const ariaLabel = isInteractive
@@ -39,11 +39,11 @@ export function CheckInStatusBadge({
   );
 
   const sharedClasses = cn(
-    'inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40',
-    'font-semibold text-foreground whitespace-nowrap',
+    'inline-flex items-center gap-1 rounded-md font-semibold whitespace-nowrap',
+    getStatusSurfaceClasses('entry', status),
     // Status changed in place = a 200ms color crossfade (never a snap). The
-    // status colors are applied via CSS-var inline styles that change with the
-    // status, so transitioning color/background-color animates the swap. Include
+    // shared semantic surface classes change with the status, so transitioning
+    // color/background-color animates the swap. Include
     // `opacity` in one property list so the interactive (onClick) variant's
     // hover:opacity-80 also transitions — a separate `transition-opacity` there
     // would override `transition-colors` and snap the color change on the very
@@ -63,7 +63,7 @@ export function CheckInStatusBadge({
         }}
         className={cn(
           sharedClasses,
-          'min-h-[44px] cursor-pointer hover:bg-muted/70',
+          "relative cursor-pointer hover:opacity-80 before:absolute before:left-1/2 before:top-1/2 before:min-h-11 before:min-w-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
         )}
         aria-label={ariaLabel}

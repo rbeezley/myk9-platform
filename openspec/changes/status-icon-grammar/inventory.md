@@ -46,8 +46,9 @@ Derived composite values from `deriveTrialCompositeStatus`:
 
 `no-classes`, `not-started`, `in-progress`, `completed`, `cancelled`.
 
-Unknown or missing trial values use the neutral `no-status` fallback; they do
-not imply that the trial has no classes.
+Unknown or missing trial values passed directly to the grammar use the neutral
+`no-status` fallback; composed trial renderers still derive `no-classes`,
+`not-started`, `in-progress`, or `completed` from child classes.
 
 ### Existing renderers and maps
 
@@ -72,6 +73,13 @@ The complete in-scope renderer inventory migrated to the shared grammar is:
   `components/live/EntryRow.tsx`, `LiveClassCard.tsx`,
   `pages/MyEntriesPage/modules/myEntriesUtils.tsx`, and
   `pages/scoring/components/ScoringEntryCard.tsx`.
+- Registration and entry-management lifecycle portions:
+  `components/shows/ArmbandLookup.tsx`,
+  `RegistrationWorkflow/ConfirmationEntryDetails.tsx`,
+  `PaymentStep/SecretaryPaymentManagement.tsx`,
+  `RegistrationManagementPanel.tsx`, and
+  `components/shows/ShowDetails/EntriesTab.tsx`. Payment/refund presentation on
+  these mixed-purpose surfaces remains outside this grammar.
 - Schedule, scoring, and operational summaries:
   `components/schedule/ElementAccordion.tsx`, `ElementCard.tsx`,
   `StatusDot.tsx`, `components/scoring/ResultEntryNavigation.tsx`,

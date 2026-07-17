@@ -90,8 +90,8 @@ describe('status icon grammar', () => {
       shape: 'not-started',
     });
     expect(getStatusDescriptor('trial', undefined)).toMatchObject({
-      status: 'no-classes',
-      label: 'No classes yet',
+      status: 'no-status',
+      label: 'No Status',
       shape: 'not-started',
     });
 

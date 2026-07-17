@@ -153,4 +153,35 @@ describe('ResultEntryNavigation', () => {
       container.querySelector('[data-family="entry"][data-status="completed"]')
     ).not.toBeNull();
   });
+
+  it('preserves completed lifecycle for the current scored entry', () => {
+    const completedCurrent = {
+      ...makeEntry(),
+      navigationStatus: 'completed' as const,
+      isCurrentEntry: true,
+      placement: 1,
+    };
+
+    render(
+      <ResultEntryNavigation
+        entries={[completedCurrent]}
+        classInfo={{
+          element: 'Container',
+          level: 'Novice',
+          judge: 'Judge One',
+          totalEntries: 1,
+        }}
+        onSelectEntry={vi.fn()}
+      />
+    );
+
+    const currentCard = screen.getByText('#101').closest('.myk9-entry-card');
+    expect(currentCard).not.toBeNull();
+    expect(
+      currentCard?.querySelector('[data-family="entry"][data-status="completed"]')
+    ).not.toBeNull();
+    expect(
+      currentCard?.querySelector('[data-family="entry"][data-status="in-progress"]')
+    ).toBeNull();
+  });
 });

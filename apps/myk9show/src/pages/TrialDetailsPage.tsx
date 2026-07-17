@@ -209,9 +209,8 @@ const TrialDetailsPage: React.FC = () => {
   }, [parentShow, currentTrial, showId, trialId]);
 
   const statusBadge = useMemo(() => {
-    if (!currentTrial?.status) return undefined;
     const status = deriveTrialStatusKey({
-      trialStatus: currentTrial.status,
+      trialStatus: currentTrial?.status,
       classCount,
       completedCount: trialClassSummary.completedCount,
       hasStarted: trialClassSummary.kind === 'in-progress',

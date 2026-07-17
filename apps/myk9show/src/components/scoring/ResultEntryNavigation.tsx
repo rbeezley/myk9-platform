@@ -213,9 +213,12 @@ export function ResultEntryNavigation({
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {entries.map(entry => {
-            const navigationStatus = entry.isCurrentEntry
-              ? ('in-progress' as const)
-              : entry.navigationStatus;
+            const navigationStatus =
+              entry.navigationStatus === 'completed'
+                ? entry.navigationStatus
+                : entry.isCurrentEntry
+                  ? ('in-progress' as const)
+                  : entry.navigationStatus;
 
             // Debug logging for entries #107 and #108
             if (['107', '108'].includes(entry.displayInfo.armband)) {

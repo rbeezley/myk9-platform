@@ -130,58 +130,58 @@
                   - generic [ref=e182]: AKC
                 - generic [ref=e183]: Heartland Scent Work Club
                 - generic [ref=e184]:
-                  - generic "1 person here" [ref=e185]:
-                    - generic [ref=e189]: TS
-                  - button "Published show" [ref=e191] [cursor=pointer]:
-                    - generic [ref=e192]:
+                  - generic "1 person here" [ref=e391]:
+                    - generic [ref=e395]: TS
+                  - button "Published show" [ref=e186] [cursor=pointer]:
+                    - generic [ref=e187]:
                       - text: Published show
-                      - img [ref=e193]
-                  - button "More show actions" [ref=e195] [cursor=pointer]:
+                      - img [ref=e188]
+                  - button "More show actions" [ref=e190] [cursor=pointer]:
                     - img
-            - generic [ref=e197]:
-              - generic [ref=e198]:
-                - generic [ref=e199]: Total Entries
-                - generic [ref=e200]: "25"
-                - generic [ref=e201]: Closes Jul 31
-              - generic [ref=e202]:
-                - generic [ref=e203]: Location
-                - generic [ref=e204]: 100 Dog Show Lane, Tulsa, OK 74101
-              - generic [ref=e205]:
-                - generic [ref=e206]: Entry Fee
-                - generic [ref=e207]: $30.00
-                - generic [ref=e208]: "Day of show: $35.00"
-              - generic [ref=e209]:
-                - generic [ref=e210]: Payment Methods
-                - generic [ref=e212]: Card
-          - generic [ref=e213]:
-            - generic [ref=e214]:
-              - img [ref=e216]
-              - generic [ref=e219]:
-                - generic [ref=e220]:
-                  - heading "Premium List" [level=3] [ref=e221]
-                  - generic [ref=e222]:
-                    - img [ref=e223]
+            - generic [ref=e192]:
+              - generic [ref=e193]:
+                - generic [ref=e194]: Total Entries
+                - generic [ref=e195]: "25"
+                - generic [ref=e196]: Closes Jul 31
+              - generic [ref=e197]:
+                - generic [ref=e198]: Location
+                - generic [ref=e199]: 100 Dog Show Lane, Tulsa, OK 74101
+              - generic [ref=e200]:
+                - generic [ref=e201]: Entry Fee
+                - generic [ref=e202]: $30.00
+                - generic [ref=e203]: "Day of show: $35.00"
+              - generic [ref=e204]:
+                - generic [ref=e205]: Payment Methods
+                - generic [ref=e207]: Card
+          - generic [ref=e208]:
+            - generic [ref=e209]:
+              - img [ref=e211]
+              - generic [ref=e214]:
+                - generic [ref=e215]:
+                  - heading "Premium List" [level=3] [ref=e216]
+                  - generic [ref=e217]:
+                    - img [ref=e218]
                     - text: Show data has changed since publish
-                - paragraph [ref=e225]: Premium PDF published July 3, 2026
-              - button "Republish premium" [ref=e226] [cursor=pointer]:
+                - paragraph [ref=e220]: Premium PDF published July 3, 2026
+              - button "Republish premium" [ref=e221] [cursor=pointer]:
                 - img
                 - text: Republish premium
-              - link "Download PDF" [ref=e227] [cursor=pointer]:
+              - link "Download PDF" [ref=e222] [cursor=pointer]:
                 - /url: https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/dededede-0000-0000-0000-000000000010.pdf
-            - generic [ref=e228]:
-              - img [ref=e230]
+            - generic [ref=e223]:
+              - img [ref=e225]
               - generic:
                 - generic:
                   - heading "Public Landing Page" [level=3]
-                  - generic [ref=e233]: Headline
+                  - generic [ref=e228]: Headline
                 - paragraph: http://localhost:5174/shows/dededede-0000-0000-0000-000000000010
-              - button "Copy Link" [ref=e234] [cursor=pointer]:
+              - button "Copy Link" [ref=e229] [cursor=pointer]:
                 - img
                 - text: Copy Link
-          - navigation "Show management sections" [ref=e235]:
-            - generic [ref=e236]:
-              - generic [ref=e237]: Show management section
-              - combobox "Show management section" [ref=e238]:
+          - navigation "Show management sections" [ref=e230]:
+            - generic [ref=e231]:
+              - generic [ref=e232]: Show management section
+              - combobox "Show management section" [ref=e233]:
                 - option "Choose section" [disabled]
                 - option "Class Management" [disabled] [selected]
                 - option "Setup"
@@ -190,127 +190,125 @@
                 - option "Reports"
                 - option "Results & Check-In"
                 - option "Submit Results"
-          - generic [ref=e239]:
-            - generic [ref=e240]:
-              - generic [ref=e241]:
-                - navigation "Class management breadcrumb" [ref=e242]:
-                  - link "Show setup" [ref=e243] [cursor=pointer]:
+          - generic [ref=e234]:
+            - generic [ref=e235]:
+              - generic [ref=e236]:
+                - navigation "Class management breadcrumb" [ref=e237]:
+                  - link "Show setup" [ref=e238] [cursor=pointer]:
                     - /url: /shows/dededede-0000-0000-0000-000000000010/setup
-                  - generic [ref=e244]: /
-                  - generic [ref=e245]: Manage classes
-                - heading "Manage Classes" [level=1] [ref=e246]
-                - paragraph [ref=e247]: Saturday Trial
-              - generic [ref=e248]:
-                - link "Back to Setup" [ref=e249] [cursor=pointer]:
+                  - generic [ref=e239]: /
+                  - generic [ref=e240]: Manage classes
+                - heading "Manage Classes" [level=1] [ref=e241]
+                - paragraph [ref=e242]: Saturday Trial
+              - generic [ref=e243]:
+                - link "Back to Setup" [ref=e244] [cursor=pointer]:
                   - /url: /shows/dededede-0000-0000-0000-000000000010/setup
                   - img
                   - text: Back to Setup
-                - link "Manage Waitlist" [ref=e250] [cursor=pointer]:
+                - link "Manage Waitlist" [ref=e245] [cursor=pointer]:
                   - /url: /shows/dededede-0000-0000-0000-000000000010/entry-management?tab=waitlist&trial=dededede-0000-0000-0000-000000000021
                   - img
                   - text: Manage Waitlist
-                - link "Add Classes" [ref=e251] [cursor=pointer]:
+                - link "Add Classes" [ref=e246] [cursor=pointer]:
                   - /url: /shows/dededede-0000-0000-0000-000000000010/classes/dededede-0000-0000-0000-000000000021/create
                   - img
                   - text: Add Classes
-            - generic [ref=e252]:
-              - generic [ref=e254]:
-                - img [ref=e255]
-                - generic [ref=e258]:
-                  - generic [ref=e259]: "3"
-                  - generic [ref=e260]: Total Classes
-              - generic [ref=e262]:
-                - img [ref=e264]
-                - generic [ref=e266]:
-                  - generic [ref=e267]: "1"
-                  - generic [ref=e268]: Not started
-              - generic [ref=e270]:
-                - img [ref=e272]
-                - generic [ref=e275]:
-                  - generic [ref=e276]: "2"
-                  - generic [ref=e277]: In Progress
-              - generic [ref=e279]:
-                - img [ref=e281]
-                - generic [ref=e284]:
-                  - generic [ref=e285]: "0"
-                  - generic [ref=e286]: Completed
-            - generic [ref=e289]:
-              - generic [ref=e290]:
-                - img [ref=e291]
-                - textbox "Search classes..." [ref=e294]
+            - generic [ref=e247]:
+              - generic [ref=e252]:
+                - generic [ref=e253]: "3"
+                - generic [ref=e254]: Total Classes
+              - generic [ref=e256]:
+                - img [ref=e258]
+                - generic [ref=e260]:
+                  - generic [ref=e261]: "1"
+                  - generic [ref=e262]: Not started
+              - generic [ref=e264]:
+                - img [ref=e266]
+                - generic [ref=e269]:
+                  - generic [ref=e270]: "2"
+                  - generic [ref=e271]: In Progress
+              - generic [ref=e273]:
+                - img [ref=e275]
+                - generic [ref=e278]:
+                  - generic [ref=e279]: "0"
+                  - generic [ref=e280]: Completed
+            - generic [ref=e283]:
+              - generic [ref=e284]:
+                - img [ref=e285]
+                - textbox "Search classes..." [ref=e288]
+              - combobox [ref=e289] [cursor=pointer]:
+                - generic [ref=e290]: all
+                - img [ref=e292]
+              - textbox [ref=e294]: all
               - combobox [ref=e295] [cursor=pointer]:
                 - generic [ref=e296]: all
                 - img [ref=e298]
               - textbox [ref=e300]: all
-              - combobox [ref=e301] [cursor=pointer]:
-                - generic [ref=e302]: all
-                - img [ref=e304]
-              - textbox [ref=e306]: all
-              - button "Clear" [ref=e307] [cursor=pointer]:
+              - button "Clear" [ref=e301] [cursor=pointer]:
                 - img
                 - text: Clear
-              - generic [ref=e308]: Showing 3 of 3 classes
-            - generic [ref=e309]:
-              - generic [ref=e311]:
-                - heading "Classes (3)" [level=3] [ref=e312]
-                - button "Select All Visible" [ref=e313] [cursor=pointer]
-              - generic [ref=e315]:
-                - generic [ref=e317]:
-                  - checkbox "Select Container Novice A" [ref=e318]
-                  - checkbox [ref=e319]
-                  - generic [ref=e320]:
-                    - generic [ref=e322]: Container Novice A
-                    - generic [ref=e323]:
-                      - generic [ref=e324]: Container
-                      - generic [ref=e325]: Novice
-                      - generic [ref=e326]: A
-                    - generic [ref=e327]:
-                      - img [ref=e329]
-                      - generic [ref=e332]: In Progress
-                    - generic [ref=e334]: "Entries: 0"
-                    - generic [ref=e335]:
-                      - combobox "Judge for Container Novice A" [ref=e336] [cursor=pointer]:
-                        - generic [ref=e337]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
-                        - img [ref=e339]
-                      - textbox [ref=e341]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
-                    - button "More actions for Container Novice A" [ref=e343] [cursor=pointer]:
+              - generic [ref=e302]: Showing 3 of 3 classes
+            - generic [ref=e303]:
+              - generic [ref=e305]:
+                - heading "Classes (3)" [level=3] [ref=e306]
+                - button "Select All Visible" [ref=e307] [cursor=pointer]
+              - generic [ref=e309]:
+                - generic [ref=e311]:
+                  - checkbox "Select Container Novice A" [ref=e312]
+                  - checkbox [ref=e313]
+                  - generic [ref=e314]:
+                    - generic [ref=e316]: Container Novice A
+                    - generic [ref=e317]:
+                      - generic [ref=e318]: Container
+                      - generic [ref=e319]: Novice
+                      - generic [ref=e320]: A
+                    - generic [ref=e321]:
+                      - img [ref=e323]
+                      - generic [ref=e326]: In Progress
+                    - generic [ref=e328]: "Entries: 8"
+                    - generic [ref=e329]:
+                      - combobox "Judge for Container Novice A" [ref=e330] [cursor=pointer]:
+                        - generic [ref=e331]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
+                        - img [ref=e333]
+                      - textbox [ref=e335]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
+                    - button "More actions for Container Novice A" [ref=e337] [cursor=pointer]:
                       - img
-                - generic [ref=e345]:
-                  - checkbox "Select Interior Advanced" [ref=e346]
-                  - checkbox [ref=e347]
-                  - generic [ref=e348]:
-                    - generic [ref=e350]: Interior Advanced
-                    - generic [ref=e351]:
-                      - generic [ref=e352]: Interior
-                      - generic [ref=e353]: Advanced
-                    - generic [ref=e354]:
-                      - img [ref=e356]
-                      - generic [ref=e359]: In Progress
-                    - generic [ref=e361]: "Entries: 0"
-                    - generic [ref=e362]:
-                      - combobox "Judge for Interior Advanced" [ref=e363] [cursor=pointer]:
-                        - generic [ref=e364]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
-                        - img [ref=e366]
-                      - textbox [ref=e368]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
-                    - button "More actions for Interior Advanced" [ref=e370] [cursor=pointer]:
+                - generic [ref=e339]:
+                  - checkbox "Select Interior Advanced" [ref=e340]
+                  - checkbox [ref=e341]
+                  - generic [ref=e342]:
+                    - generic [ref=e344]: Interior Advanced
+                    - generic [ref=e345]:
+                      - generic [ref=e346]: Interior
+                      - generic [ref=e347]: Advanced
+                    - generic [ref=e348]:
+                      - img [ref=e350]
+                      - generic [ref=e353]: In Progress
+                    - generic [ref=e355]: "Entries: 4"
+                    - generic [ref=e356]:
+                      - combobox "Judge for Interior Advanced" [ref=e357] [cursor=pointer]:
+                        - generic [ref=e358]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
+                        - img [ref=e360]
+                      - textbox [ref=e362]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
+                    - button "More actions for Interior Advanced" [ref=e364] [cursor=pointer]:
                       - img
-                - generic [ref=e372]:
-                  - checkbox "Select Exterior Excellent" [ref=e373]
-                  - checkbox [ref=e374]
-                  - generic [ref=e375]:
-                    - generic [ref=e377]: Exterior Excellent
-                    - generic [ref=e378]:
-                      - generic [ref=e379]: Exterior
-                      - generic [ref=e380]: Excellent
-                    - generic [ref=e381]:
-                      - img [ref=e383]
-                      - generic [ref=e385]: Not started
-                    - generic [ref=e387]: "Entries: 0"
-                    - generic [ref=e388]:
-                      - combobox "Judge for Exterior Excellent" [ref=e389] [cursor=pointer]:
-                        - generic [ref=e390]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
-                        - img [ref=e392]
-                      - textbox [ref=e394]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
-                    - button "More actions for Exterior Excellent" [ref=e396] [cursor=pointer]:
+                - generic [ref=e366]:
+                  - checkbox "Select Exterior Excellent" [ref=e367]
+                  - checkbox [ref=e368]
+                  - generic [ref=e369]:
+                    - generic [ref=e371]: Exterior Excellent
+                    - generic [ref=e372]:
+                      - generic [ref=e373]: Exterior
+                      - generic [ref=e374]: Excellent
+                    - generic [ref=e375]:
+                      - img [ref=e377]
+                      - generic [ref=e379]: Not started
+                    - generic [ref=e381]: "Entries: 5"
+                    - generic [ref=e382]:
+                      - combobox "Judge for Exterior Excellent" [ref=e383] [cursor=pointer]:
+                        - generic [ref=e384]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
+                        - img [ref=e386]
+                      - textbox [ref=e388]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
+                    - button "More actions for Exterior Excellent" [ref=e390] [cursor=pointer]:
                       - img
   - region "Notifications alt+T"

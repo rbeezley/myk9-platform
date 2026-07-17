@@ -191,1244 +191,856 @@
                 - option "Submit Results"
           - generic [ref=e239]:
             - generic [ref=e240]:
+              - generic:
+                - heading "Entry Management" [level=1]
+                - paragraph: Manage show entries, process payments, and communicate with exhibitors
               - generic [ref=e241]:
-                - heading "Entry Management" [level=1] [ref=e242]
-                - paragraph [ref=e243]: Manage show entries, process payments, and communicate with exhibitors
-              - generic [ref=e244]:
-                - group "Add entries" [ref=e245]:
-                  - button "Enter my own dogs" [ref=e246] [cursor=pointer]:
+                - group "Add entries" [ref=e242]:
+                  - button "Enter my own dogs" [ref=e243] [cursor=pointer]:
                     - img
                     - text: Enter my own dogs
-                  - button "Add mail-in entry" [ref=e247] [cursor=pointer]:
+                  - button "Add mail-in entry" [ref=e244] [cursor=pointer]:
                     - img
                     - text: Add mail-in entry
-                - button "Export Full CSV" [ref=e248] [cursor=pointer]:
+                - button "Export Full CSV" [ref=e245] [cursor=pointer]:
                   - img
                   - text: Export Full CSV
-            - generic [ref=e249]:
-              - tablist [ref=e251]:
-                - tab "Entries" [selected] [ref=e252] [cursor=pointer]:
-                  - generic [ref=e253]: Entries
-                - tab "Move-ups" [ref=e254] [cursor=pointer]:
-                  - generic [ref=e255]: Move-ups
-                - tab "Pulls" [ref=e256] [cursor=pointer]:
-                  - generic [ref=e257]: Pulls
-                - tab "Waitlist" [ref=e258] [cursor=pointer]:
-                  - generic [ref=e259]: Waitlist
-              - tabpanel "Entries" [ref=e260]:
-                - generic [ref=e261]:
-                  - generic [ref=e262]:
-                    - combobox "Trial filter" [ref=e263]:
+            - generic [ref=e246]:
+              - tablist [ref=e248]:
+                - tab "Entries" [selected] [ref=e249] [cursor=pointer]:
+                  - generic [ref=e250]: Entries
+                - tab "Move-ups" [ref=e251] [cursor=pointer]:
+                  - generic [ref=e252]: Move-ups
+                - tab "Pulls" [ref=e253] [cursor=pointer]:
+                  - generic [ref=e254]: Pulls
+                - tab "Waitlist" [ref=e255] [cursor=pointer]:
+                  - generic [ref=e256]: Waitlist
+              - tabpanel "Entries" [ref=e257]:
+                - generic [ref=e258]:
+                  - generic [ref=e259]:
+                    - combobox "Trial filter" [ref=e260]:
                       - option "All Trials" [selected]
                       - option "Saturday Trial · Aug 1, 2026"
                       - option "Sunday Trial · Aug 2, 2026"
-                    - combobox "Class filter" [disabled] [ref=e264]:
+                    - combobox "Class filter" [disabled] [ref=e261]:
                       - option "All Classes" [selected]
-                  - generic [ref=e265]:
-                    - generic [ref=e266]:
-                      - generic [ref=e268]:
-                        - img [ref=e270]
-                        - generic [ref=e275]:
-                          - generic [ref=e277]: Total Entries
-                          - generic [ref=e278]: "25"
-                          - paragraph [ref=e279]: All entries
-                      - generic [ref=e281]:
-                        - img [ref=e283]
-                        - generic [ref=e285]:
-                          - generic [ref=e287]: Pending
-                          - generic [ref=e288]: "15"
-                          - paragraph [ref=e289]: Need review
-                      - generic [ref=e291]:
-                        - img [ref=e293]
-                        - generic [ref=e296]:
-                          - generic [ref=e298]: Accepted
-                          - generic [ref=e299]: "5"
-                          - paragraph [ref=e300]: Confirmed entries
-                      - generic [ref=e302]:
-                        - img [ref=e304]
-                        - generic [ref=e307]:
-                          - generic [ref=e309]: Waitlist
-                          - generic [ref=e310]: "0"
-                          - paragraph [ref=e311]: Waiting for spots
-                      - generic [ref=e313]:
-                        - img [ref=e315]
-                        - generic [ref=e317]:
-                          - generic [ref=e319]: Revenue
-                          - generic [ref=e320]: $270
-                          - paragraph [ref=e321]: Collected entry fees
-                      - generic [ref=e323]:
-                        - img [ref=e325]
-                        - generic [ref=e328]:
-                          - generic [ref=e330]: Outstanding
-                          - generic [ref=e331]: $180
-                          - paragraph [ref=e332]: Balance owed
-                    - group "Quick view presets" [ref=e333]:
-                      - generic [ref=e334]: Quick views
-                      - button "Review" [pressed] [ref=e335] [cursor=pointer]:
+                  - generic [ref=e262]:
+                    - generic [ref=e263]:
+                      - generic [ref=e265]:
+                        - img [ref=e267]
+                        - generic [ref=e272]:
+                          - generic [ref=e274]: Total Entries
+                          - generic [ref=e275]: "25"
+                          - paragraph [ref=e276]: All entries
+                      - generic [ref=e278]:
+                        - img [ref=e280]
+                        - generic [ref=e282]:
+                          - generic [ref=e284]: Pending
+                          - generic [ref=e285]: "14"
+                          - paragraph [ref=e286]: Need review
+                      - generic [ref=e288]:
+                        - img [ref=e290]
+                        - generic [ref=e293]:
+                          - generic [ref=e295]: Accepted
+                          - generic [ref=e296]: "6"
+                          - paragraph [ref=e297]: Confirmed entries
+                      - generic [ref=e299]:
+                        - img [ref=e301]
+                        - generic [ref=e304]:
+                          - generic [ref=e306]: Waitlist
+                          - generic [ref=e307]: "0"
+                          - paragraph [ref=e308]: Waiting for spots
+                      - generic [ref=e310]:
+                        - img [ref=e312]
+                        - generic [ref=e314]:
+                          - generic [ref=e316]: Revenue
+                          - generic [ref=e317]: $270
+                          - paragraph [ref=e318]: Collected entry fees
+                      - generic [ref=e320]:
+                        - img [ref=e322]
+                        - generic [ref=e325]:
+                          - generic [ref=e327]: Outstanding
+                          - generic [ref=e328]: $180
+                          - paragraph [ref=e329]: Balance owed
+                    - group "Quick view presets" [ref=e330]:
+                      - generic [ref=e331]: Quick views
+                      - button "Review" [pressed] [ref=e332] [cursor=pointer]:
                         - img
                         - text: Review
-                      - button "Day-of" [ref=e336] [cursor=pointer]:
+                      - button "Day-of" [ref=e333] [cursor=pointer]:
                         - img
                         - text: Day-of
-                    - generic [ref=e337]:
-                      - generic [ref=e338]:
-                        - generic [ref=e339]:
+                    - generic [ref=e334]:
+                      - generic [ref=e335]:
+                        - generic [ref=e336]:
                           - img
-                          - textbox "Search entries..." [ref=e340]
-                        - generic [ref=e341]:
-                          - button "Attention" [ref=e343] [cursor=pointer]:
+                          - textbox "Search entries..." [ref=e337]
+                        - generic [ref=e338]:
+                          - button "Attention" [ref=e340] [cursor=pointer]:
                             - text: Attention
-                            - img [ref=e344]
-                          - button "Payment" [ref=e347] [cursor=pointer]:
+                            - img [ref=e341]
+                          - button "Payment" [ref=e344] [cursor=pointer]:
                             - text: Payment
-                            - img [ref=e348]
-                        - generic [ref=e350]:
-                          - button "Table view" [ref=e351] [cursor=pointer]:
+                            - img [ref=e345]
+                        - generic [ref=e347]:
+                          - button "Table view" [ref=e348] [cursor=pointer]:
+                            - img [ref=e349]
+                          - button "Cards view" [ref=e351] [cursor=pointer]:
                             - img [ref=e352]
-                          - button "Cards view" [ref=e354] [cursor=pointer]:
-                            - img [ref=e355]
                       - text: 25 entries
-                    - generic [ref=e360]:
-                      - generic [ref=e361]:
-                        - generic [ref=e363]:
-                          - generic [ref=e364]:
-                            - img [ref=e365]
-                            - generic [ref=e368]: Richard Beezley
-                          - generic [ref=e369]:
-                            - generic [ref=e370]:
-                              - generic [ref=e371]: Paid
-                              - generic [ref=e372]: $30.00
-                            - button "Actions" [ref=e373] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e374] [cursor=pointer]:
-                              - img
-                        - generic [ref=e377]:
-                          - generic [ref=e378]:
-                            - heading "Scout" [level=3] [ref=e379]
-                            - generic [ref=e380]: 1 entry
-                          - generic [ref=e383]:
-                            - generic [ref=e384]:
-                              - generic [ref=e385]: Scout
-                              - button "Change armband for Scout" [ref=e386] [cursor=pointer]:
-                                - generic [ref=e387]: "103"
-                                - img [ref=e388]
-                              - button "Edit entry for Scout" [ref=e390] [cursor=pointer]:
-                                - img
-                                - generic [ref=e391]: Edit entry
-                              - button "Remove entry for Scout" [ref=e392] [cursor=pointer]:
-                                - img
-                            - generic [ref=e393]:
-                              - generic [ref=e394]: "Owner: Richard Beezley"
-                              - generic [ref=e395]: "Handler: Richard Beezley"
-                              - generic [ref=e396]: "Fee: $30 (Paid: $30)"
-                              - button "Comp" [ref=e397] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e399]:
-                              - generic [ref=e400]: "Interior Novice B:"
-                              - button "Change entry status for Scout in Interior Novice B" [ref=e402] [cursor=pointer]:
-                                - generic [ref=e403]:
-                                  - img [ref=e405]
-                                  - generic [ref=e407]: Move-up requested
-                                - img [ref=e408]
-                              - button "Change check-in status for Scout in Interior Novice B" [ref=e410] [cursor=pointer]:
-                                - generic [ref=e411]:
-                                  - img [ref=e414]
-                                  - generic [ref=e417]: In Ring
-                                - img [ref=e418]
-                      - generic [ref=e420]:
-                        - generic [ref=e422]:
-                          - generic [ref=e423]:
-                            - img [ref=e424]
-                            - generic [ref=e427]: Test Exhibitor
-                          - generic [ref=e428]:
-                            - generic [ref=e429]:
-                              - generic [ref=e430]: Waived
-                              - generic [ref=e431]: $30.00
-                            - button "Actions" [ref=e432] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e433] [cursor=pointer]:
-                              - img
-                        - generic [ref=e436]:
-                          - generic [ref=e437]:
-                            - heading "Ranger" [level=3] [ref=e438]
-                            - generic [ref=e439]: 1 entry
-                          - generic [ref=e442]:
-                            - generic [ref=e443]:
-                              - generic [ref=e444]: Ranger
-                              - button "Change armband for Ranger" [ref=e445] [cursor=pointer]:
-                                - generic [ref=e446]: "9001"
-                                - img [ref=e447]
-                              - button "Edit entry for Ranger" [ref=e449] [cursor=pointer]:
-                                - img
-                                - generic [ref=e450]: Edit entry
-                              - button "Remove entry for Ranger" [ref=e451] [cursor=pointer]:
-                                - img
-                            - generic [ref=e452]:
-                              - generic [ref=e453]: "Owner: Test Exhibitor"
-                              - generic [ref=e454]: "Handler: Test Exhibitor"
-                              - generic [ref=e455]: "Fee: $30 (Paid: $0)"
-                              - button "Comp" [ref=e456] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e458]:
-                              - generic [ref=e459]: "Interior Advanced:"
-                              - button "Change entry status for Ranger in Interior Advanced" [ref=e461] [cursor=pointer]:
-                                - generic [ref=e462]:
-                                  - img [ref=e464]
-                                  - generic [ref=e467]: Accepted
-                                - img [ref=e468]
-                              - button "Change check-in status for Ranger in Interior Advanced" [ref=e470] [cursor=pointer]:
-                                - generic [ref=e471]:
-                                  - img [ref=e474]
-                                  - generic [ref=e477]: In Ring
-                                - img [ref=e478]
-                      - generic [ref=e480]:
-                        - generic [ref=e482]:
-                          - generic [ref=e483]:
-                            - img [ref=e484]
-                            - generic [ref=e487]: Richard Beezley
-                          - generic [ref=e488]:
-                            - generic [ref=e489]:
-                              - generic [ref=e490]: Paid
-                              - generic [ref=e491]: $30.00
-                            - button "Actions" [ref=e492] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e493] [cursor=pointer]:
-                              - img
-                        - generic [ref=e496]:
-                          - generic [ref=e497]:
-                            - heading "Maple" [level=3] [ref=e498]
-                            - generic [ref=e499]: 1 entry
-                          - generic [ref=e502]:
-                            - generic [ref=e503]:
-                              - generic [ref=e504]: Maple
-                              - button "Change armband for Maple" [ref=e505] [cursor=pointer]:
-                                - generic [ref=e506]: "104"
-                                - img [ref=e507]
-                              - button "Edit entry for Maple" [ref=e509] [cursor=pointer]:
-                                - img
-                                - generic [ref=e510]: Edit entry
-                              - button "Remove entry for Maple" [ref=e511] [cursor=pointer]:
-                                - img
-                            - generic [ref=e512]:
-                              - generic [ref=e513]: "Owner: Richard Beezley"
-                              - generic [ref=e514]: "Handler: Richard Beezley"
-                              - generic [ref=e515]: "Fee: $30 (Paid: $30)"
-                              - button "Comp" [ref=e516] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e518]:
-                              - generic [ref=e519]: "Interior Novice B:"
-                              - button "Change entry status for Maple in Interior Novice B" [ref=e521] [cursor=pointer]:
-                                - generic [ref=e522]:
-                                  - img [ref=e524]
-                                  - generic [ref=e526]: Pending
-                                - img [ref=e527]
-                              - button "Change check-in status for Maple in Interior Novice B" [ref=e529] [cursor=pointer]:
-                                - generic [ref=e530]:
-                                  - img [ref=e533]
-                                  - generic [ref=e535]: No Status
-                                - img [ref=e536]
-                      - generic [ref=e538]:
-                        - generic [ref=e540]:
-                          - generic [ref=e541]:
-                            - img [ref=e542]
-                            - generic [ref=e545]: Test Exhibitor
-                          - generic [ref=e546]:
-                            - generic [ref=e547]:
-                              - generic [ref=e548]: Paid
-                              - generic [ref=e549]: $30.00
-                            - button "Actions" [ref=e550] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e551] [cursor=pointer]:
-                              - img
-                        - generic [ref=e554]:
-                          - generic [ref=e555]:
-                            - heading "Willow" [level=3] [ref=e556]
-                            - generic [ref=e557]: 1 entry
-                          - generic [ref=e560]:
-                            - generic [ref=e561]:
-                              - generic [ref=e562]: Willow
-                              - button "Change armband for Willow" [ref=e563] [cursor=pointer]:
-                                - generic [ref=e564]: "100"
-                                - img [ref=e565]
-                              - button "Edit entry for Willow" [ref=e567] [cursor=pointer]:
-                                - img
-                                - generic [ref=e568]: Edit entry
-                              - button "Remove entry for Willow" [ref=e569] [cursor=pointer]:
-                                - img
-                            - generic [ref=e570]:
-                              - generic [ref=e571]: "Owner: Test Exhibitor"
-                              - generic [ref=e572]: "Handler: Test Exhibitor"
-                              - generic [ref=e573]: "Fee: $30 (Paid: $30)"
-                              - button "Comp" [ref=e574] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e576]:
-                              - generic [ref=e577]: "Interior Advanced:"
-                              - button "Change entry status for Willow in Interior Advanced" [ref=e579] [cursor=pointer]:
-                                - generic [ref=e580]:
-                                  - img [ref=e582]
-                                  - generic [ref=e585]: Accepted
-                                - img [ref=e586]
-                              - button "Change check-in status for Willow in Interior Advanced" [ref=e588] [cursor=pointer]:
-                                - generic [ref=e589]:
-                                  - img [ref=e592]
-                                  - generic [ref=e595]: In Ring
-                                - img [ref=e596]
-                      - generic [ref=e598]:
-                        - generic [ref=e600]:
-                          - generic [ref=e601]:
-                            - img [ref=e602]
-                            - generic [ref=e605]: Test Secretary
-                          - generic [ref=e606]:
-                            - generic [ref=e607]:
-                              - generic [ref=e608]: Paid
-                              - generic [ref=e609]: $30.00
-                            - button "Actions" [ref=e610] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e611] [cursor=pointer]:
-                              - img
-                        - generic [ref=e614]:
-                          - generic [ref=e615]:
-                            - heading "Cooper" [level=3] [ref=e616]
-                            - generic [ref=e617]: 1 entry
-                          - generic [ref=e620]:
-                            - generic [ref=e621]:
-                              - generic [ref=e622]: Cooper
-                              - button "Change armband for Cooper" [ref=e623] [cursor=pointer]:
-                                - generic [ref=e624]: "105"
-                                - img [ref=e625]
-                              - button "Edit entry for Cooper" [ref=e627] [cursor=pointer]:
-                                - img
-                                - generic [ref=e628]: Edit entry
-                              - button "Remove entry for Cooper" [ref=e629] [cursor=pointer]:
-                                - img
-                            - generic [ref=e630]:
-                              - generic [ref=e631]: "Owner: Test Secretary"
-                              - generic [ref=e632]: "Handler: Test Secretary"
-                              - generic [ref=e633]: "Fee: $30 (Paid: $30)"
-                              - button "Comp" [ref=e634] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e636]:
-                              - generic [ref=e637]: "Container Novice A:"
-                              - button "Change entry status for Cooper in Container Novice A" [ref=e639] [cursor=pointer]:
-                                - generic [ref=e640]:
-                                  - img [ref=e642]
-                                  - generic [ref=e645]: Completed
-                                - img [ref=e646]
-                              - button "Change check-in status for Cooper in Container Novice A" [ref=e648] [cursor=pointer]:
-                                - generic [ref=e649]:
-                                  - img [ref=e652]
-                                  - generic [ref=e655]: Completed
-                                - img [ref=e656]
-                      - generic [ref=e658]:
-                        - generic [ref=e660]:
-                          - generic [ref=e661]:
-                            - img [ref=e662]
-                            - generic [ref=e665]: Richard Beezley
-                          - generic [ref=e666]:
-                            - generic [ref=e667]:
-                              - generic [ref=e668]: Paid
-                              - generic [ref=e669]: $30.00
-                            - button "Actions" [ref=e670] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e671] [cursor=pointer]:
-                              - img
-                        - generic [ref=e674]:
-                          - generic [ref=e675]:
-                            - heading "Scout" [level=3] [ref=e676]
-                            - generic [ref=e677]: 1 entry
-                          - generic [ref=e680]:
-                            - generic [ref=e681]:
-                              - generic [ref=e682]: Scout
-                              - button "Change armband for Scout" [ref=e683] [cursor=pointer]:
-                                - generic [ref=e684]: "103"
-                                - img [ref=e685]
-                              - button "Edit entry for Scout" [ref=e687] [cursor=pointer]:
-                                - img
-                                - generic [ref=e688]: Edit entry
-                              - button "Remove entry for Scout" [ref=e689] [cursor=pointer]:
-                                - img
-                            - generic [ref=e690]:
-                              - generic [ref=e691]: "Owner: Richard Beezley"
-                              - generic [ref=e692]: "Handler: Richard Beezley"
-                              - generic [ref=e693]: "Fee: $30 (Paid: $30)"
-                              - button "Comp" [ref=e694] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e696]:
-                              - generic [ref=e697]: "Container Novice A:"
-                              - button "Change entry status for Scout in Container Novice A" [ref=e699] [cursor=pointer]:
-                                - generic [ref=e700]:
-                                  - img [ref=e702]
-                                  - generic [ref=e705]: Completed
-                                - img [ref=e706]
-                              - button "Change check-in status for Scout in Container Novice A" [ref=e708] [cursor=pointer]:
-                                - generic [ref=e709]:
-                                  - img [ref=e712]
-                                  - generic [ref=e715]: Completed
-                                - img [ref=e716]
-                      - generic [ref=e718]:
-                        - generic [ref=e720]:
-                          - generic [ref=e721]:
-                            - img [ref=e722]
-                            - generic [ref=e725]: Test Exhibitor
-                          - generic [ref=e726]:
-                            - generic [ref=e727]:
-                              - generic [ref=e728]: Waived
-                              - generic [ref=e729]: $30.00
-                            - button "Actions" [ref=e730] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e731] [cursor=pointer]:
-                              - img
-                        - generic [ref=e734]:
-                          - generic [ref=e735]:
-                            - heading "Willow" [level=3] [ref=e736]
-                            - generic [ref=e737]: 1 entry
-                          - generic [ref=e740]:
-                            - generic [ref=e741]:
-                              - generic [ref=e742]: Willow
-                              - button "Change armband for Willow" [ref=e743] [cursor=pointer]:
-                                - generic [ref=e744]: "100"
-                                - img [ref=e745]
-                              - button "Edit entry for Willow" [ref=e747] [cursor=pointer]:
-                                - img
-                                - generic [ref=e748]: Edit entry
-                              - button "Remove entry for Willow" [ref=e749] [cursor=pointer]:
-                                - img
-                            - generic [ref=e750]:
-                              - generic [ref=e751]: "Owner: Test Exhibitor"
-                              - generic [ref=e752]: "Handler: Test Exhibitor"
-                              - generic [ref=e753]: "Fee: $30 (Paid: $0)"
-                              - button "Comp" [ref=e754] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e756]:
-                              - generic [ref=e757]: "Container Novice A:"
-                              - button "Change entry status for Willow in Container Novice A" [ref=e759] [cursor=pointer]:
-                                - generic [ref=e760]:
-                                  - img [ref=e762]
-                                  - generic [ref=e765]: Accepted
-                                - img [ref=e766]
-                              - button "Change check-in status for Willow in Container Novice A" [ref=e768] [cursor=pointer]:
-                                - generic [ref=e769]:
-                                  - img [ref=e772]
-                                  - generic [ref=e775]: Completed
-                                - img [ref=e776]
-                      - generic [ref=e778]:
-                        - generic [ref=e780]:
-                          - generic [ref=e781]:
-                            - img [ref=e782]
-                            - generic [ref=e785]: Test Exhibitor
-                          - generic [ref=e786]:
-                            - generic [ref=e787]:
-                              - generic [ref=e788]: Payment Due
-                              - generic [ref=e789]: $30.00
-                            - button "Actions" [ref=e790] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e791] [cursor=pointer]:
-                              - img
-                        - generic [ref=e794]:
-                          - generic [ref=e795]:
-                            - heading "Juniper" [level=3] [ref=e796]
-                            - generic [ref=e797]: 1 entry
-                          - generic [ref=e800]:
-                            - generic [ref=e801]:
-                              - generic [ref=e802]: Juniper
-                              - button "Change armband for Juniper" [ref=e803] [cursor=pointer]:
-                                - generic [ref=e804]: "102"
-                                - img [ref=e805]
-                              - button "Edit entry for Juniper" [ref=e807] [cursor=pointer]:
-                                - img
-                                - generic [ref=e808]: Edit entry
-                              - button "Remove entry for Juniper" [ref=e809] [cursor=pointer]:
-                                - img
-                            - generic [ref=e810]:
-                              - generic [ref=e811]: "Owner: Test Exhibitor"
-                              - generic [ref=e812]: "Handler: Test Exhibitor"
-                              - generic [ref=e813]: "Fee: $30 (Paid: $0)"
-                              - button "Comp" [ref=e814] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e816]:
-                              - generic [ref=e817]: "Exterior Excellent:"
-                              - button "Change entry status for Juniper in Exterior Excellent" [ref=e819] [cursor=pointer]:
-                                - generic [ref=e820]:
-                                  - img [ref=e822]
-                                  - generic [ref=e825]: Not accepted
-                                - img [ref=e826]
-                              - button "Change check-in status for Juniper in Exterior Excellent" [ref=e828] [cursor=pointer]:
-                                - generic [ref=e829]:
-                                  - img [ref=e832]
-                                  - generic [ref=e834]: No Status
-                                - img [ref=e835]
-                      - generic [ref=e837]:
-                        - generic [ref=e839]:
-                          - generic [ref=e840]:
-                            - img [ref=e841]
-                            - generic [ref=e844]: Test Exhibitor
-                          - generic [ref=e845]:
-                            - generic [ref=e846]:
-                              - generic [ref=e847]: Refunded
-                              - generic [ref=e848]: $30.00
-                              - generic [ref=e849]:
-                                - text: $30.00 refunded
-                                - generic [ref=e850]: (7/19/2026)
-                            - button "Actions" [ref=e851] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e852] [cursor=pointer]:
-                              - img
-                        - generic [ref=e855]:
-                          - generic [ref=e856]:
-                            - heading "Ranger" [level=3] [ref=e857]
-                            - generic [ref=e858]: 1 entry
-                          - generic [ref=e861]:
-                            - generic [ref=e862]:
-                              - generic [ref=e863]: Ranger
-                              - button "Change armband for Ranger" [ref=e864] [cursor=pointer]:
-                                - generic [ref=e865]: "9001"
-                                - img [ref=e866]
-                              - button "Edit entry for Ranger" [ref=e868] [cursor=pointer]:
-                                - img
-                                - generic [ref=e869]: Edit entry
-                              - button "Remove entry for Ranger" [ref=e870] [cursor=pointer]:
-                                - img
-                            - generic [ref=e871]:
-                              - generic [ref=e872]: "Owner: Test Exhibitor"
-                              - generic [ref=e873]: "Handler: Test Exhibitor"
-                              - generic [ref=e874]: "Fee: $30 (Paid: $0)"
-                              - button "Comp" [ref=e875] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e877]:
-                              - generic [ref=e878]: "Exterior Excellent:"
-                              - generic [ref=e879]:
-                                - button "Change entry status for Ranger in Exterior Excellent" [ref=e880] [cursor=pointer]:
-                                  - generic [ref=e881]:
-                                    - img [ref=e883]
-                                    - generic [ref=e886]: Withdrawn
-                                  - img [ref=e887]
-                                - generic [ref=e889]: Exhibitor withdrew before the show; full refund issued.
-                              - button "Change check-in status for Ranger in Exterior Excellent" [ref=e890] [cursor=pointer]:
-                                - generic [ref=e891]:
-                                  - img [ref=e894]
-                                  - generic [ref=e896]: No Status
-                                - img [ref=e897]
-                      - generic [ref=e899]:
-                        - generic [ref=e901]:
-                          - generic [ref=e902]:
-                            - img [ref=e903]
-                            - generic [ref=e906]: Test Exhibitor
-                          - generic [ref=e907]:
-                            - generic [ref=e908]:
-                              - generic [ref=e909]: Paid
-                              - generic [ref=e910]: $60.00
-                            - button "Actions" [ref=e911] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e912] [cursor=pointer]:
-                              - img
-                        - generic [ref=e915]:
-                          - generic [ref=e916]:
-                            - heading "Juniper" [level=3] [ref=e917]
-                            - generic [ref=e918]: 2 entries
-                          - generic [ref=e920]:
-                            - generic [ref=e921]:
-                              - generic [ref=e922]:
-                                - generic [ref=e923]: Juniper
-                                - button "Assign" [ref=e924] [cursor=pointer]:
-                                  - img [ref=e925]
-                                  - text: Assign
-                                - button "Edit entry for Juniper" [ref=e928] [cursor=pointer]:
+                    - region "Entry table scroll area" [ref=e357]:
+                      - generic [ref=e359]:
+                        - generic [ref=e361]:
+                          - button "Toggle columns" [ref=e363] [cursor=pointer]:
+                            - img
+                            - text: Columns
+                          - button "Export CSV" [ref=e364] [cursor=pointer]:
+                            - img
+                            - text: Export CSV
+                          - button "Compact density" [ref=e365] [cursor=pointer]:
+                            - img
+                            - text: Compact density
+                          - button "Reset table view" [ref=e366] [cursor=pointer]:
+                            - img
+                            - text: Reset view
+                        - table [ref=e368]:
+                          - rowgroup [ref=e369]:
+                            - row "Select all entries Armband Dog Handler Classes Status Date Review" [ref=e370]:
+                              - columnheader "Select all entries" [ref=e371]:
+                                - checkbox "Select all entries" [ref=e1181]
+                                - checkbox [ref=e1182]
+                              - columnheader "Armband" [ref=e374]:
+                                - button "Armband" [ref=e375] [cursor=pointer]:
+                                  - text: Armband
+                                  - img [ref=e376]
+                              - columnheader "Dog" [ref=e379]:
+                                - button "Dog" [ref=e380] [cursor=pointer]:
+                                  - text: Dog
+                                  - img [ref=e381]
+                              - columnheader "Handler" [ref=e384]:
+                                - button "Handler" [ref=e385] [cursor=pointer]:
+                                  - text: Handler
+                                  - img [ref=e386]
+                              - columnheader "Classes" [ref=e389]:
+                                - button "Classes" [ref=e390] [cursor=pointer]:
+                                  - text: Classes
+                                  - img [ref=e391]
+                              - columnheader "Status" [ref=e394]:
+                                - button "Status" [ref=e395] [cursor=pointer]:
+                                  - text: Status
+                                  - img [ref=e396]
+                              - columnheader "Date" [ref=e399]:
+                                - button "Date" [ref=e400] [cursor=pointer]:
+                                  - text: Date
+                                  - img [ref=e401]
+                              - columnheader "Review" [ref=e404]
+                              - columnheader [ref=e405]
+                          - rowgroup [ref=e406]:
+                            - row "Select Willow 100 Willow 100 Test Exhibitor Container Novice A Accepted Waived Jun 17 Reject Willow Actions for Willow" [ref=e407]:
+                              - cell "Select Willow" [ref=e408]:
+                                - checkbox "Select Willow" [ref=e1183]
+                                - checkbox [ref=e1184]
+                              - cell "100" [ref=e411]:
+                                - generic [ref=e1185]: "100"
+                              - cell "Willow 100" [ref=e413]:
+                                - generic [ref=e1186]:
+                                  - generic [ref=e1187]: Willow
+                                  - generic [ref=e1188]: "100"
+                              - cell "Test Exhibitor" [ref=e417]
+                              - cell "Container Novice A" [ref=e418]:
+                                - generic [ref=e1190]: Container Novice A
+                              - cell "Accepted Waived" [ref=e421]:
+                                - generic [ref=e1191]:
+                                  - generic [ref=e1193]:
+                                    - img [ref=e1195]
+                                    - generic [ref=e1198]: Accepted
+                                  - generic [ref=e1199]: Waived
+                              - cell "Jun 17" [ref=e431]
+                              - cell "Reject Willow" [ref=e432]:
+                                - button "Reject Willow" [ref=e1201] [cursor=pointer]: Reject
+                              - cell "Actions for Willow" [ref=e435]:
+                                - button "Actions for Willow" [ref=e1202] [cursor=pointer]:
+                                  - generic [ref=e1203]: Actions for Willow
                                   - img
-                                  - generic [ref=e929]: Edit entry
-                                - button "Remove entry for Juniper" [ref=e930] [cursor=pointer]:
+                            - row "Select Willow 100 Willow 100 Test Exhibitor Interior Advanced Accepted Paid Jun 17 Reject Willow Actions for Willow" [ref=e438]:
+                              - cell "Select Willow" [ref=e439]:
+                                - checkbox "Select Willow" [ref=e1204]
+                                - checkbox [ref=e1205]
+                              - cell "100" [ref=e442]:
+                                - generic [ref=e1206]: "100"
+                              - cell "Willow 100" [ref=e444]:
+                                - generic [ref=e1207]:
+                                  - generic [ref=e1208]: Willow
+                                  - generic [ref=e1209]: "100"
+                              - cell "Test Exhibitor" [ref=e448]
+                              - cell "Interior Advanced" [ref=e449]:
+                                - generic [ref=e1211]: Interior Advanced
+                              - cell "Accepted Paid" [ref=e452]:
+                                - generic [ref=e1212]:
+                                  - generic [ref=e1214]:
+                                    - img [ref=e1216]
+                                    - generic [ref=e1219]: Accepted
+                                  - generic [ref=e1220]: Paid
+                              - cell "Jun 17" [ref=e462]
+                              - cell "Reject Willow" [ref=e463]:
+                                - button "Reject Willow" [ref=e1222] [cursor=pointer]: Reject
+                              - cell "Actions for Willow" [ref=e466]:
+                                - button "Actions for Willow" [ref=e1223] [cursor=pointer]:
+                                  - generic [ref=e1224]: Actions for Willow
                                   - img
-                              - generic [ref=e931]:
-                                - generic [ref=e932]: "Owner: Test Exhibitor"
-                                - generic [ref=e933]: "Handler: Test Exhibitor"
-                                - generic [ref=e934]: "Fee: $30 (Paid: $30)"
-                                - button "Comp" [ref=e935] [cursor=pointer]:
+                            - row "Select Ranger 9001 Ranger 9001 Test Exhibitor Interior Advanced Accepted Waived Jun 17 Reject Ranger Actions for Ranger" [ref=e469]:
+                              - cell "Select Ranger" [ref=e470]:
+                                - checkbox "Select Ranger" [ref=e1225]
+                                - checkbox [ref=e1226]
+                              - cell "9001" [ref=e473]:
+                                - generic [ref=e1227]: "9001"
+                              - cell "Ranger 9001" [ref=e475]:
+                                - generic [ref=e1228]:
+                                  - generic [ref=e1229]: Ranger
+                                  - generic [ref=e1230]: "9001"
+                              - cell "Test Exhibitor" [ref=e479]
+                              - cell "Interior Advanced" [ref=e480]:
+                                - generic [ref=e1232]: Interior Advanced
+                              - cell "Accepted Waived" [ref=e483]:
+                                - generic [ref=e1233]:
+                                  - generic [ref=e1235]:
+                                    - img [ref=e1237]
+                                    - generic [ref=e1240]: Accepted
+                                  - generic [ref=e1241]: Waived
+                              - cell "Jun 17" [ref=e493]
+                              - cell "Reject Ranger" [ref=e494]:
+                                - button "Reject Ranger" [ref=e1243] [cursor=pointer]: Reject
+                              - cell "Actions for Ranger" [ref=e497]:
+                                - button "Actions for Ranger" [ref=e1244] [cursor=pointer]:
+                                  - generic [ref=e1245]: Actions for Ranger
                                   - img
-                                  - text: Comp
-                              - generic [ref=e937]:
-                                - generic [ref=e938]: "Container Novice A:"
-                                - button "Change entry status for Juniper in Container Novice A" [ref=e940] [cursor=pointer]:
-                                  - generic [ref=e941]:
-                                    - img [ref=e943]
-                                    - generic [ref=e945]: Pending
-                                  - img [ref=e946]
-                                - button "Change check-in status for Juniper in Container Novice A" [ref=e948] [cursor=pointer]:
-                                  - generic [ref=e949]:
-                                    - img [ref=e952]
-                                    - generic [ref=e955]: In Ring
-                                  - img [ref=e956]
-                            - generic [ref=e958]:
-                              - generic [ref=e959]:
-                                - generic [ref=e960]: Juniper
-                                - button "Assign" [ref=e961] [cursor=pointer]:
-                                  - img [ref=e962]
-                                  - text: Assign
-                                - button "Edit entry for Juniper" [ref=e965] [cursor=pointer]:
+                            - row "Select Juniper 102 Juniper 102 Test Exhibitor Exterior Excellent Not accepted Payment Due Jun 17 Accept Juniper Actions for Juniper" [ref=e500]:
+                              - cell "Select Juniper" [ref=e501]:
+                                - checkbox "Select Juniper" [ref=e1246]
+                                - checkbox [ref=e1247]
+                              - cell "102" [ref=e504]:
+                                - generic [ref=e1248]: "102"
+                              - cell "Juniper 102" [ref=e506]:
+                                - generic [ref=e1249]:
+                                  - generic [ref=e1250]: Juniper
+                                  - generic [ref=e1251]: "102"
+                              - cell "Test Exhibitor" [ref=e510]
+                              - cell "Exterior Excellent" [ref=e511]:
+                                - generic [ref=e1253]: Exterior Excellent
+                              - cell "Not accepted Payment Due" [ref=e514]:
+                                - generic [ref=e1254]:
+                                  - generic [ref=e1256]:
+                                    - img [ref=e1258]
+                                    - generic [ref=e1261]: Not accepted
+                                  - generic [ref=e1262]: Payment Due
+                              - cell "Jun 17" [ref=e524]
+                              - cell "Accept Juniper" [ref=e525]:
+                                - button "Accept Juniper" [ref=e1264] [cursor=pointer]: Accept
+                              - cell "Actions for Juniper" [ref=e528]:
+                                - button "Actions for Juniper" [ref=e1265] [cursor=pointer]:
+                                  - generic [ref=e1266]: Actions for Juniper
                                   - img
-                                  - generic [ref=e966]: Edit entry
-                                - button "Remove entry for Juniper" [ref=e967] [cursor=pointer]:
+                            - row "Select Scout 103 Scout 103 Richard Beezley Container Novice A Scored Paid Jun 17 Accept Scout Reject Scout Actions for Scout" [ref=e531]:
+                              - cell "Select Scout" [ref=e532]:
+                                - checkbox "Select Scout" [ref=e1267]
+                                - checkbox [ref=e1268]
+                              - cell "103" [ref=e535]:
+                                - generic [ref=e1269]: "103"
+                              - cell "Scout 103" [ref=e537]:
+                                - generic [ref=e1270]:
+                                  - generic [ref=e1271]: Scout
+                                  - generic [ref=e1272]: "103"
+                              - cell "Richard Beezley" [ref=e541]
+                              - cell "Container Novice A" [ref=e542]:
+                                - generic [ref=e1274]: Container Novice A
+                              - cell "Scored Paid" [ref=e545]:
+                                - generic [ref=e1275]:
+                                  - generic [ref=e1277]:
+                                    - img [ref=e1279]
+                                    - generic [ref=e1282]: Scored
+                                  - generic [ref=e1283]: Paid
+                              - cell "Jun 17" [ref=e555]
+                              - cell "Accept Scout Reject Scout" [ref=e556]:
+                                - generic [ref=e1284]:
+                                  - button "Accept Scout" [ref=e1285] [cursor=pointer]: Accept
+                                  - button "Reject Scout" [ref=e1286] [cursor=pointer]: Reject
+                              - cell "Actions for Scout" [ref=e560]:
+                                - button "Actions for Scout" [ref=e1287] [cursor=pointer]:
+                                  - generic [ref=e1288]: Actions for Scout
                                   - img
-                              - generic [ref=e968]:
-                                - generic [ref=e969]: "Owner: Test Exhibitor"
-                                - generic [ref=e970]: "Handler: Test Exhibitor"
-                                - generic [ref=e971]: "Fee: $30 (Paid: $30)"
-                                - button "Comp" [ref=e972] [cursor=pointer]:
+                            - row "Select Scout 103 Scout 103 Richard Beezley Interior Novice B Move-up requested Approve or decline in Move-ups & pulls Paid Jun 17 Accept Scout Reject Scout Actions for Scout" [ref=e563]:
+                              - cell "Select Scout" [ref=e564]:
+                                - checkbox "Select Scout" [ref=e1289]
+                                - checkbox [ref=e1290]
+                              - cell "103" [ref=e567]:
+                                - generic [ref=e1291]: "103"
+                              - cell "Scout 103" [ref=e569]:
+                                - generic [ref=e1292]:
+                                  - generic [ref=e1293]: Scout
+                                  - generic [ref=e1294]: "103"
+                              - cell "Richard Beezley" [ref=e573]
+                              - cell "Interior Novice B" [ref=e574]:
+                                - generic [ref=e1296]: Interior Novice B
+                              - cell "Move-up requested Approve or decline in Move-ups & pulls Paid" [ref=e577]:
+                                - generic [ref=e1297]:
+                                  - generic [ref=e1298]:
+                                    - generic [ref=e1299]:
+                                      - img [ref=e1301]
+                                      - generic [ref=e1303]: Move-up requested
+                                    - generic [ref=e1304]: Approve or decline in Move-ups & pulls
+                                  - generic [ref=e1305]: Paid
+                              - cell "Jun 17" [ref=e587]
+                              - cell "Accept Scout Reject Scout" [ref=e588]:
+                                - generic [ref=e1306]:
+                                  - button "Accept Scout" [ref=e1307] [cursor=pointer]: Accept
+                                  - button "Reject Scout" [ref=e1308] [cursor=pointer]: Reject
+                              - cell "Actions for Scout" [ref=e592]:
+                                - button "Actions for Scout" [ref=e1309] [cursor=pointer]:
+                                  - generic [ref=e1310]: Actions for Scout
                                   - img
-                                  - text: Comp
-                              - generic [ref=e974]:
-                                - generic [ref=e975]: "Interior Novice B:"
-                                - button "Change entry status for Juniper in Interior Novice B" [ref=e977] [cursor=pointer]:
-                                  - generic [ref=e978]:
-                                    - img [ref=e980]
-                                    - generic [ref=e982]: Pending
-                                  - img [ref=e983]
-                                - button "Change check-in status for Juniper in Interior Novice B" [ref=e985] [cursor=pointer]:
-                                  - generic [ref=e986]:
-                                    - img [ref=e989]
-                                    - generic [ref=e991]: No Status
-                                  - img [ref=e992]
-                      - generic [ref=e994]:
-                        - generic [ref=e996]:
-                          - generic [ref=e997]:
-                            - img [ref=e998]
-                            - generic [ref=e1001]: "Maya RiversConfirmation # MK9-000054"
-                          - generic [ref=e1002]:
-                            - generic [ref=e1003]:
-                              - button "Payment Due" [ref=e1004] [cursor=pointer]:
-                                - generic [ref=e1005]: Payment Due
-                                - img [ref=e1006]
-                              - generic [ref=e1008]: $30.00
-                            - button "Actions" [ref=e1009] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Email Exhibitor" [ref=e1011] [cursor=pointer]:
-                              - img
-                              - text: Email Exhibitor
-                            - button "Collapse" [ref=e1012] [cursor=pointer]:
-                              - img
-                        - generic [ref=e1015]:
-                          - generic [ref=e1016]:
-                            - heading "Juniper Rivers BN SWN" [level=3] [ref=e1017]
-                            - generic [ref=e1018]: 1 entry
-                          - generic [ref=e1021]:
-                            - generic [ref=e1022]:
-                              - generic [ref=e1023]: Juniper Rivers BN SWN
-                              - button "Assign" [ref=e1024] [cursor=pointer]:
-                                - img [ref=e1025]
-                                - text: Assign
-                              - button "Edit entry for Juniper Rivers BN SWN" [ref=e1028] [cursor=pointer]:
-                                - img
-                                - generic [ref=e1029]: Edit entry
-                              - button "Remove entry for Juniper Rivers BN SWN" [ref=e1030] [cursor=pointer]:
-                                - img
-                            - generic [ref=e1031]:
-                              - generic [ref=e1032]: "Owner: Maya Rivers"
-                              - generic [ref=e1033]: "Handler: Maya Rivers"
-                              - generic [ref=e1034]: "Fee: $30 (Paid: $0)"
-                              - button "Comp" [ref=e1035] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e1037]:
-                              - generic [ref=e1038]: "Container Novice A:"
-                              - button "Change entry status for Juniper Rivers BN SWN in Container Novice A" [ref=e1040] [cursor=pointer]:
-                                - generic [ref=e1041]:
-                                  - img [ref=e1043]
-                                  - generic [ref=e1045]: Pending
-                                - img [ref=e1046]
-                              - button "Change check-in status for Juniper Rivers BN SWN in Container Novice A" [ref=e1048] [cursor=pointer]:
-                                - generic [ref=e1049]:
-                                  - img [ref=e1052]
-                                  - generic [ref=e1054]: No Status
-                                - img [ref=e1055]
-                      - generic [ref=e1057]:
-                        - generic [ref=e1059]:
-                          - generic [ref=e1060]:
-                            - img [ref=e1061]
-                            - generic [ref=e1064]: "Richard BeezleyConfirmation # MK9-000055"
-                          - generic [ref=e1065]:
-                            - generic [ref=e1066]:
-                              - button "Payment Due" [ref=e1067] [cursor=pointer]:
-                                - generic [ref=e1068]: Payment Due
-                                - img [ref=e1069]
-                              - generic [ref=e1071]: $150.00
-                            - button "Actions" [ref=e1072] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Email Exhibitor" [ref=e1074] [cursor=pointer]:
-                              - img
-                              - text: Email Exhibitor
-                            - button "Collapse" [ref=e1075] [cursor=pointer]:
-                              - img
-                        - generic [ref=e1078]:
-                          - generic [ref=e1079]:
-                            - heading "Tera" [level=3] [ref=e1080]
-                            - generic [ref=e1081]: 5 entries
-                          - generic [ref=e1083]:
-                            - generic [ref=e1084]:
-                              - generic [ref=e1085]:
-                                - generic [ref=e1086]: Tera
-                                - button "Assign" [ref=e1087] [cursor=pointer]:
-                                  - img [ref=e1088]
-                                  - text: Assign
-                                - button "Edit entry for Tera" [ref=e1091] [cursor=pointer]:
+                            - row "Select Maple 104 Maple 104 Richard Beezley Interior Novice B Accepted Paid Jun 17 Reject Maple Actions for Maple" [ref=e595]:
+                              - cell "Select Maple" [ref=e596]:
+                                - checkbox "Select Maple" [ref=e1311]
+                                - checkbox [ref=e1312]
+                              - cell "104" [ref=e599]:
+                                - generic [ref=e1313]: "104"
+                              - cell "Maple 104" [ref=e601]:
+                                - generic [ref=e1314]:
+                                  - generic [ref=e1315]: Maple
+                                  - generic [ref=e1316]: "104"
+                              - cell "Richard Beezley" [ref=e605]
+                              - cell "Interior Novice B" [ref=e606]:
+                                - generic [ref=e1318]: Interior Novice B
+                              - cell "Accepted Paid" [ref=e609]:
+                                - generic [ref=e1319]:
+                                  - generic [ref=e1321]:
+                                    - img [ref=e1323]
+                                    - generic [ref=e1326]: Accepted
+                                  - generic [ref=e1327]: Paid
+                              - cell "Jun 17" [ref=e619]
+                              - cell "Reject Maple" [ref=e620]:
+                                - button "Reject Maple" [ref=e1329] [cursor=pointer]: Reject
+                              - cell "Actions for Maple" [ref=e623]:
+                                - button "Actions for Maple" [ref=e1330] [cursor=pointer]:
+                                  - generic [ref=e1331]: Actions for Maple
                                   - img
-                                  - generic [ref=e1092]: Edit entry
-                                - button "Remove entry for Tera" [ref=e1093] [cursor=pointer]:
-                                  - img
-                              - generic [ref=e1094]:
-                                - generic [ref=e1095]: "Owner: Richard Beezley"
-                                - generic [ref=e1096]: "Handler: Richard Beezley"
-                                - generic [ref=e1097]: "Fee: $30 (Paid: $0)"
-                                - button "Comp" [ref=e1098] [cursor=pointer]:
-                                  - img
-                                  - text: Comp
-                                - generic [ref=e1099]:
-                                  - 'generic "Email failed: {\"statusCode\":409,\"name\":\"invalid_idempotent_request\",\"message\":\"This idempotency key has been used with this HTTP method and endpoint within the last 24 hours, but the request body was modified and doesn''t match the original request.\"}" [ref=e1100]':
-                                    - img [ref=e1101]
-                                  - button "Resend" [ref=e1103] [cursor=pointer]
-                              - generic [ref=e1105]:
-                                - generic [ref=e1106]: "Interior Advanced:"
-                                - button "Change entry status for Tera in Interior Advanced" [ref=e1108] [cursor=pointer]:
-                                  - generic [ref=e1109]:
-                                    - img [ref=e1111]
-                                    - generic [ref=e1113]: Pending
-                                  - img [ref=e1114]
-                                - button "Change check-in status for Tera in Interior Advanced" [ref=e1116] [cursor=pointer]:
-                                  - generic [ref=e1117]:
-                                    - img [ref=e1120]
-                                    - generic [ref=e1123]: In Ring
-                                  - img [ref=e1124]
-                            - generic [ref=e1126]:
-                              - generic [ref=e1127]:
-                                - generic [ref=e1128]: Tera
-                                - button "Assign" [ref=e1129] [cursor=pointer]:
-                                  - img [ref=e1130]
-                                  - text: Assign
-                                - button "Edit entry for Tera" [ref=e1133] [cursor=pointer]:
-                                  - img
-                                  - generic [ref=e1134]: Edit entry
-                                - button "Remove entry for Tera" [ref=e1135] [cursor=pointer]:
-                                  - img
-                              - generic [ref=e1136]:
-                                - generic [ref=e1137]: "Owner: Richard Beezley"
-                                - generic [ref=e1138]: "Handler: Richard Beezley"
-                                - generic [ref=e1139]: "Fee: $30 (Paid: $0)"
-                                - button "Comp" [ref=e1140] [cursor=pointer]:
-                                  - img
-                                  - text: Comp
-                                - generic [ref=e1141]:
-                                  - 'generic "Email failed: {\"statusCode\":409,\"name\":\"invalid_idempotent_request\",\"message\":\"This idempotency key has been used with this HTTP method and endpoint within the last 24 hours, but the request body was modified and doesn''t match the original request.\"}" [ref=e1142]':
-                                    - img [ref=e1143]
-                                  - button "Resend" [ref=e1145] [cursor=pointer]
-                              - generic [ref=e1147]:
-                                - generic [ref=e1148]: "Container Novice A:"
-                                - button "Change entry status for Tera in Container Novice A" [ref=e1150] [cursor=pointer]:
-                                  - generic [ref=e1151]:
-                                    - img [ref=e1153]
-                                    - generic [ref=e1155]: Pending
-                                  - img [ref=e1156]
-                                - button "Change check-in status for Tera in Container Novice A" [ref=e1158] [cursor=pointer]:
-                                  - generic [ref=e1159]:
-                                    - img [ref=e1162]
-                                    - generic [ref=e1164]: No Status
-                                  - img [ref=e1165]
-                            - generic [ref=e1167]:
-                              - generic [ref=e1168]:
-                                - generic [ref=e1169]: Tera
-                                - button "Assign" [ref=e1170] [cursor=pointer]:
-                                  - img [ref=e1171]
-                                  - text: Assign
-                                - button "Edit entry for Tera" [ref=e1174] [cursor=pointer]:
-                                  - img
-                                  - generic [ref=e1175]: Edit entry
-                                - button "Remove entry for Tera" [ref=e1176] [cursor=pointer]:
-                                  - img
-                              - generic [ref=e1177]:
-                                - generic [ref=e1178]: "Owner: Richard Beezley"
-                                - generic [ref=e1179]: "Handler: Richard Beezley"
-                                - generic [ref=e1180]: "Fee: $30 (Paid: $0)"
-                                - button "Comp" [ref=e1181] [cursor=pointer]:
-                                  - img
-                                  - text: Comp
-                                - generic [ref=e1182]:
-                                  - 'generic "Email failed: {\"statusCode\":409,\"name\":\"invalid_idempotent_request\",\"message\":\"This idempotency key has been used with this HTTP method and endpoint within the last 24 hours, but the request body was modified and doesn''t match the original request.\"}" [ref=e1183]':
-                                    - img [ref=e1184]
-                                  - button "Resend" [ref=e1186] [cursor=pointer]
-                              - generic [ref=e1188]:
-                                - generic [ref=e1189]: "Exterior Excellent:"
-                                - button "Change entry status for Tera in Exterior Excellent" [ref=e1191] [cursor=pointer]:
-                                  - generic [ref=e1192]:
-                                    - img [ref=e1194]
-                                    - generic [ref=e1196]: Pending
-                                  - img [ref=e1197]
-                                - button "Change check-in status for Tera in Exterior Excellent" [ref=e1199] [cursor=pointer]:
-                                  - generic [ref=e1200]:
-                                    - img [ref=e1203]
-                                    - generic [ref=e1205]: No Status
-                                  - img [ref=e1206]
-                            - generic [ref=e1208]:
-                              - generic [ref=e1209]:
-                                - generic [ref=e1210]: Tera
-                                - button "Assign" [ref=e1211] [cursor=pointer]:
-                                  - img [ref=e1212]
-                                  - text: Assign
-                                - button "Edit entry for Tera" [ref=e1215] [cursor=pointer]:
-                                  - img
-                                  - generic [ref=e1216]: Edit entry
-                                - button "Remove entry for Tera" [ref=e1217] [cursor=pointer]:
-                                  - img
-                              - generic [ref=e1218]:
-                                - generic [ref=e1219]: "Owner: Richard Beezley"
-                                - generic [ref=e1220]: "Handler: Richard Beezley"
-                                - generic [ref=e1221]: "Fee: $30 (Paid: $0)"
-                                - button "Comp" [ref=e1222] [cursor=pointer]:
-                                  - img
-                                  - text: Comp
-                                - generic [ref=e1223]:
-                                  - 'generic "Email failed: {\"statusCode\":409,\"name\":\"invalid_idempotent_request\",\"message\":\"This idempotency key has been used with this HTTP method and endpoint within the last 24 hours, but the request body was modified and doesn''t match the original request.\"}" [ref=e1224]':
-                                    - img [ref=e1225]
-                                  - button "Resend" [ref=e1227] [cursor=pointer]
-                              - generic [ref=e1229]:
-                                - generic [ref=e1230]: "Buried Master:"
-                                - button "Change entry status for Tera in Buried Master" [ref=e1232] [cursor=pointer]:
-                                  - generic [ref=e1233]:
-                                    - img [ref=e1235]
-                                    - generic [ref=e1237]: Pending
-                                  - img [ref=e1238]
-                                - button "Change check-in status for Tera in Buried Master" [ref=e1240] [cursor=pointer]:
-                                  - generic [ref=e1241]:
-                                    - img [ref=e1244]
-                                    - generic [ref=e1247]: Checked-in
-                                  - img [ref=e1248]
-                            - generic [ref=e1250]:
-                              - generic [ref=e1251]:
-                                - generic [ref=e1252]: Tera
-                                - button "Assign" [ref=e1253] [cursor=pointer]:
-                                  - img [ref=e1254]
-                                  - text: Assign
-                                - button "Edit entry for Tera" [ref=e1257] [cursor=pointer]:
-                                  - img
-                                  - generic [ref=e1258]: Edit entry
-                                - button "Remove entry for Tera" [ref=e1259] [cursor=pointer]:
-                                  - img
-                              - generic [ref=e1260]:
-                                - generic [ref=e1261]: "Owner: Richard Beezley"
-                                - generic [ref=e1262]: "Handler: Richard Beezley"
-                                - generic [ref=e1263]: "Fee: $30 (Paid: $0)"
-                                - button "Comp" [ref=e1264] [cursor=pointer]:
-                                  - img
-                                  - text: Comp
-                                - generic [ref=e1265]:
-                                  - 'generic "Email failed: {\"statusCode\":409,\"name\":\"invalid_idempotent_request\",\"message\":\"This idempotency key has been used with this HTTP method and endpoint within the last 24 hours, but the request body was modified and doesn''t match the original request.\"}" [ref=e1266]':
-                                    - img [ref=e1267]
-                                  - button "Resend" [ref=e1269] [cursor=pointer]
-                              - generic [ref=e1271]:
-                                - generic [ref=e1272]: "Interior Novice B:"
-                                - button "Change entry status for Tera in Interior Novice B" [ref=e1274] [cursor=pointer]:
-                                  - generic [ref=e1275]:
-                                    - img [ref=e1277]
-                                    - generic [ref=e1279]: Pending
-                                  - img [ref=e1280]
-                                - button "Change check-in status for Tera in Interior Novice B" [ref=e1282] [cursor=pointer]:
-                                  - generic [ref=e1283]:
-                                    - img [ref=e1286]
-                                    - generic [ref=e1288]: No Status
-                                  - img [ref=e1289]
-                      - generic [ref=e1291]:
-                        - generic [ref=e1293]:
-                          - generic [ref=e1294]:
-                            - img [ref=e1295]
-                            - generic [ref=e1298]: Test Exhibitor
-                          - generic [ref=e1299]:
-                            - generic [ref=e1300]:
-                              - generic [ref=e1301]: Refunded
-                              - generic [ref=e1302]: $30.00
-                              - generic [ref=e1303]:
-                                - text: $30.00 refunded
-                                - generic [ref=e1304]: (6/27/2026)
-                            - button "Actions" [ref=e1305] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e1306] [cursor=pointer]:
-                              - img
-                        - generic [ref=e1309]:
-                          - generic [ref=e1310]:
-                            - heading "Willow" [level=3] [ref=e1311]
-                            - generic [ref=e1312]: 1 entry
-                          - generic [ref=e1315]:
-                            - generic [ref=e1316]:
-                              - generic [ref=e1317]: Willow
-                              - button "Change armband for Willow" [ref=e1318] [cursor=pointer]:
-                                - generic [ref=e1319]: "100"
-                                - img [ref=e1320]
-                              - button "Edit entry for Willow" [ref=e1322] [cursor=pointer]:
-                                - img
-                                - generic [ref=e1323]: Edit entry
-                              - button "Remove entry for Willow" [ref=e1324] [cursor=pointer]:
-                                - img
-                            - generic [ref=e1325]:
-                              - generic [ref=e1326]: "Owner: Test Exhibitor"
-                              - generic [ref=e1327]: "Handler: Test Exhibitor"
-                              - generic [ref=e1328]: "Fee: $30 (Paid: $0)"
-                              - button "Comp" [ref=e1329] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e1331]:
-                              - generic [ref=e1332]: "Exterior Excellent:"
-                              - button "Change entry status for Willow in Exterior Excellent" [ref=e1334] [cursor=pointer]:
+                            - row "Select Cooper 105 Cooper 105 Test Secretary Container Novice A Scored Paid Jun 17 Accept Cooper Reject Cooper Actions for Cooper" [ref=e626]:
+                              - cell "Select Cooper" [ref=e627]:
+                                - checkbox "Select Cooper" [ref=e1332]
+                                - checkbox [ref=e1333]
+                              - cell "105" [ref=e630]:
+                                - generic [ref=e1334]: "105"
+                              - cell "Cooper 105" [ref=e632]:
                                 - generic [ref=e1335]:
-                                  - img [ref=e1337]
-                                  - generic [ref=e1339]: Pending
-                                - img [ref=e1340]
-                              - button "Change check-in status for Willow in Exterior Excellent" [ref=e1342] [cursor=pointer]:
-                                - generic [ref=e1343]:
-                                  - img [ref=e1346]
-                                  - generic [ref=e1348]: No Status
-                                - img [ref=e1349]
-                      - generic [ref=e1351]:
-                        - generic [ref=e1353]:
-                          - generic [ref=e1354]:
-                            - img [ref=e1355]
-                            - generic [ref=e1358]: "Test ExhibitorConfirmation # MK9-000056"
-                          - generic [ref=e1359]:
-                            - generic [ref=e1360]:
-                              - button "Paid" [ref=e1361] [cursor=pointer]:
-                                - generic [ref=e1362]: Paid
-                                - img [ref=e1363]
-                              - generic [ref=e1365]: $210.00
-                            - button "Actions" [ref=e1366] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Email Exhibitor" [ref=e1368] [cursor=pointer]:
-                              - img
-                              - text: Email Exhibitor
-                            - button "Collapse" [ref=e1369] [cursor=pointer]:
-                              - img
-                        - generic [ref=e1371]:
-                          - generic [ref=e1372]:
-                            - generic [ref=e1373]:
-                              - heading "Codex Daisy" [level=3] [ref=e1374]
-                              - generic [ref=e1375]: 1 entry
-                            - generic [ref=e1378]:
-                              - generic [ref=e1379]:
-                                - generic [ref=e1380]: Codex Daisy
-                                - button "Assign" [ref=e1381] [cursor=pointer]:
-                                  - img [ref=e1382]
-                                  - text: Assign
-                                - button "Edit entry for Codex Daisy" [ref=e1385] [cursor=pointer]:
+                                  - generic [ref=e1336]: Cooper
+                                  - generic [ref=e1337]: "105"
+                              - cell "Test Secretary" [ref=e636]
+                              - cell "Container Novice A" [ref=e637]:
+                                - generic [ref=e1339]: Container Novice A
+                              - cell "Scored Paid" [ref=e640]:
+                                - generic [ref=e1340]:
+                                  - generic [ref=e1342]:
+                                    - img [ref=e1344]
+                                    - generic [ref=e1347]: Scored
+                                  - generic [ref=e1348]: Paid
+                              - cell "Jun 17" [ref=e650]
+                              - cell "Accept Cooper Reject Cooper" [ref=e651]:
+                                - generic [ref=e1349]:
+                                  - button "Accept Cooper" [ref=e1350] [cursor=pointer]: Accept
+                                  - button "Reject Cooper" [ref=e1351] [cursor=pointer]: Reject
+                              - cell "Actions for Cooper" [ref=e655]:
+                                - button "Actions for Cooper" [ref=e1352] [cursor=pointer]:
+                                  - generic [ref=e1353]: Actions for Cooper
                                   - img
-                                  - generic [ref=e1386]: Edit entry
-                                - button "Remove entry for Codex Daisy" [ref=e1387] [cursor=pointer]:
+                            - row "Select Ranger 9001 Ranger 9001 Test Exhibitor Exterior Excellent Withdrawn · Refunded $30 Refunded Jun 18 Accept Ranger Reject Ranger Actions for Ranger" [ref=e658]:
+                              - cell "Select Ranger" [ref=e659]:
+                                - checkbox "Select Ranger" [ref=e1354]
+                                - checkbox [ref=e1355]
+                              - cell "9001" [ref=e662]:
+                                - generic [ref=e1356]: "9001"
+                              - cell "Ranger 9001" [ref=e664]:
+                                - generic [ref=e1357]:
+                                  - generic [ref=e1358]: Ranger
+                                  - generic [ref=e1359]: "9001"
+                              - cell "Test Exhibitor" [ref=e668]
+                              - cell "Exterior Excellent" [ref=e669]:
+                                - generic [ref=e1361]: Exterior Excellent
+                              - cell "Withdrawn · Refunded $30 Refunded" [ref=e672]:
+                                - generic [ref=e1362]:
+                                  - generic [ref=e1364]:
+                                    - img [ref=e1366]
+                                    - generic [ref=e1369]: Withdrawn · Refunded $30
+                                  - generic [ref=e1370]: Refunded
+                              - cell "Jun 18" [ref=e682]
+                              - cell "Accept Ranger Reject Ranger" [ref=e683]:
+                                - generic [ref=e1371]:
+                                  - button "Accept Ranger" [ref=e1372] [cursor=pointer]: Accept
+                                  - button "Reject Ranger" [ref=e1373] [cursor=pointer]: Reject
+                              - cell "Actions for Ranger" [ref=e687]:
+                                - button "Actions for Ranger" [ref=e1374] [cursor=pointer]:
+                                  - generic [ref=e1375]: Actions for Ranger
                                   - img
-                              - generic [ref=e1388]:
-                                - generic [ref=e1389]: "Owner: Test Exhibitor"
-                                - generic [ref=e1390]: "Handler: Test Exhibitor"
-                                - generic [ref=e1391]: "Fee: $30 (Paid: $30)"
-                                - button "Comp" [ref=e1392] [cursor=pointer]:
+                            - row "Select Juniper 102 Juniper 102 Test Exhibitor Container Novice A Needs review Paid Jun 20 Accept Juniper Reject Juniper Actions for Juniper" [ref=e690]:
+                              - cell "Select Juniper" [ref=e691]:
+                                - checkbox "Select Juniper" [ref=e1376]
+                                - checkbox [ref=e1377]
+                              - cell "102" [ref=e694]:
+                                - generic [ref=e1378]: "102"
+                              - cell "Juniper 102" [ref=e696]:
+                                - generic [ref=e1379]:
+                                  - generic [ref=e1380]: Juniper
+                                  - generic [ref=e1381]: "102"
+                              - cell "Test Exhibitor" [ref=e700]
+                              - cell "Container Novice A" [ref=e701]:
+                                - generic [ref=e1383]: Container Novice A
+                              - cell "Needs review Paid" [ref=e704]:
+                                - generic [ref=e1384]:
+                                  - generic [ref=e1386]:
+                                    - img [ref=e1388]
+                                    - generic [ref=e1390]: Needs review
+                                  - generic [ref=e1391]: Paid
+                              - cell "Jun 20" [ref=e713]
+                              - cell "Accept Juniper Reject Juniper" [ref=e714]:
+                                - generic [ref=e1392]:
+                                  - button "Accept Juniper" [ref=e1393] [cursor=pointer]: Accept
+                                  - button "Reject Juniper" [ref=e1394] [cursor=pointer]: Reject
+                              - cell "Actions for Juniper" [ref=e718]:
+                                - button "Actions for Juniper" [ref=e1395] [cursor=pointer]:
+                                  - generic [ref=e1396]: Actions for Juniper
                                   - img
-                                  - text: Comp
-                              - generic [ref=e1394]:
-                                - generic [ref=e1395]: "Container Novice A:"
-                                - button "Change entry status for Codex Daisy in Container Novice A" [ref=e1397] [cursor=pointer]:
-                                  - generic [ref=e1398]:
-                                    - img [ref=e1400]
-                                    - generic [ref=e1402]: Pending
-                                  - img [ref=e1403]
-                                - button "Change check-in status for Codex Daisy in Container Novice A" [ref=e1405] [cursor=pointer]:
-                                  - generic [ref=e1406]:
+                            - row "Select Juniper 102 Juniper 102 Test Exhibitor Interior Novice B Needs review Paid Jun 20 Accept Juniper Reject Juniper Actions for Juniper" [ref=e721]:
+                              - cell "Select Juniper" [ref=e722]:
+                                - checkbox "Select Juniper" [ref=e1397]
+                                - checkbox [ref=e1398]
+                              - cell "102" [ref=e725]:
+                                - generic [ref=e1399]: "102"
+                              - cell "Juniper 102" [ref=e727]:
+                                - generic [ref=e1400]:
+                                  - generic [ref=e1401]: Juniper
+                                  - generic [ref=e1402]: "102"
+                              - cell "Test Exhibitor" [ref=e731]
+                              - cell "Interior Novice B" [ref=e732]:
+                                - generic [ref=e1404]: Interior Novice B
+                              - cell "Needs review Paid" [ref=e735]:
+                                - generic [ref=e1405]:
+                                  - generic [ref=e1407]:
                                     - img [ref=e1409]
-                                    - generic [ref=e1411]: No Status
-                                  - img [ref=e1412]
-                          - generic [ref=e1414]:
-                            - generic [ref=e1415]:
-                              - heading "Buddy" [level=3] [ref=e1416]
-                              - generic [ref=e1417]: 1 entry
-                            - generic [ref=e1420]:
-                              - generic [ref=e1421]:
-                                - generic [ref=e1422]: Buddy
-                                - button "Assign" [ref=e1423] [cursor=pointer]:
-                                  - img [ref=e1424]
-                                  - text: Assign
-                                - button "Edit entry for Buddy" [ref=e1427] [cursor=pointer]:
+                                    - generic [ref=e1411]: Needs review
+                                  - generic [ref=e1412]: Paid
+                              - cell "Jun 20" [ref=e744]
+                              - cell "Accept Juniper Reject Juniper" [ref=e745]:
+                                - generic [ref=e1413]:
+                                  - button "Accept Juniper" [ref=e1414] [cursor=pointer]: Accept
+                                  - button "Reject Juniper" [ref=e1415] [cursor=pointer]: Reject
+                              - cell "Actions for Juniper" [ref=e749]:
+                                - button "Actions for Juniper" [ref=e1416] [cursor=pointer]:
+                                  - generic [ref=e1417]: Actions for Juniper
                                   - img
-                                  - generic [ref=e1428]: Edit entry
-                                - button "Remove entry for Buddy" [ref=e1429] [cursor=pointer]:
+                            - row "Select Juniper Rivers BN SWN — Juniper Rivers BN SWN 606789BA Maya Rivers Container Novice A Needs review Payment Due Jun 22 Accept Juniper Rivers BN SWN Reject Juniper Rivers BN SWN Actions for Juniper Rivers BN SWN" [ref=e752]:
+                              - cell "Select Juniper Rivers BN SWN" [ref=e753]:
+                                - checkbox "Select Juniper Rivers BN SWN" [ref=e1418]
+                                - checkbox [ref=e1419]
+                              - cell "—" [ref=e756]
+                              - cell "Juniper Rivers BN SWN 606789BA" [ref=e757]:
+                                - generic [ref=e1420]:
+                                  - generic [ref=e1421]: Juniper Rivers BN SWN
+                                  - generic [ref=e1422]: 606789BA
+                              - cell "Maya Rivers" [ref=e761]
+                              - cell "Container Novice A" [ref=e762]:
+                                - generic [ref=e1424]: Container Novice A
+                              - cell "Needs review Payment Due" [ref=e765]:
+                                - generic [ref=e1425]:
+                                  - generic [ref=e1427]:
+                                    - img [ref=e1429]
+                                    - generic [ref=e1431]: Needs review
+                                  - generic [ref=e1432]: Payment Due
+                              - cell "Jun 22" [ref=e774]
+                              - cell "Accept Juniper Rivers BN SWN Reject Juniper Rivers BN SWN" [ref=e775]:
+                                - generic [ref=e1433]:
+                                  - button "Accept Juniper Rivers BN SWN" [ref=e1434] [cursor=pointer]: Accept
+                                  - button "Reject Juniper Rivers BN SWN" [ref=e1435] [cursor=pointer]: Reject
+                              - cell "Actions for Juniper Rivers BN SWN" [ref=e779]:
+                                - button "Actions for Juniper Rivers BN SWN" [ref=e1436] [cursor=pointer]:
+                                  - generic [ref=e1437]: Actions for Juniper Rivers BN SWN
                                   - img
-                              - generic [ref=e1430]:
-                                - generic [ref=e1431]: "Owner: Test Exhibitor"
-                                - generic [ref=e1432]: "Handler: Test Exhibitor"
-                                - generic [ref=e1433]: "Fee: $30 (Paid: $30)"
-                                - button "Comp" [ref=e1434] [cursor=pointer]:
-                                  - img
-                                  - text: Comp
-                              - generic [ref=e1436]:
-                                - generic [ref=e1437]: "Container Novice A:"
-                                - button "Change entry status for Buddy in Container Novice A" [ref=e1439] [cursor=pointer]:
-                                  - generic [ref=e1440]:
-                                    - img [ref=e1442]
-                                    - generic [ref=e1444]: Pending
-                                  - img [ref=e1445]
-                                - button "Change check-in status for Buddy in Container Novice A" [ref=e1447] [cursor=pointer]:
-                                  - generic [ref=e1448]:
+                            - row "Select Tera — Tera 1AAD960F Richard Beezley Exterior Excellent Needs review Payment Due Resend Jun 23 Accept Tera Reject Tera Actions for Tera" [ref=e1438]:
+                              - cell "Select Tera" [ref=e783]:
+                                - checkbox "Select Tera" [ref=e1439]
+                                - checkbox [ref=e1440]
+                              - cell "—" [ref=e786]
+                              - cell "Tera 1AAD960F" [ref=e787]:
+                                - generic [ref=e1441]:
+                                  - generic [ref=e1442]: Tera
+                                  - generic [ref=e1443]: 1AAD960F
+                              - cell "Richard Beezley" [ref=e791]
+                              - cell "Exterior Excellent" [ref=e792]:
+                                - generic [ref=e1445]: Exterior Excellent
+                              - cell "Needs review Payment Due Resend" [ref=e1446]:
+                                - generic [ref=e1447]:
+                                  - generic [ref=e1449]:
                                     - img [ref=e1451]
-                                    - generic [ref=e1453]: No Status
-                                  - img [ref=e1454]
-                      - generic [ref=e1456]:
-                        - generic [ref=e1458]:
-                          - generic [ref=e1459]:
-                            - img [ref=e1460]
-                            - generic [ref=e1463]: Not specified
-                          - generic [ref=e1464]:
-                            - generic [ref=e1465]:
-                              - generic [ref=e1466]: Payment Due
-                              - generic [ref=e1467]: $0.00
-                            - button "Actions" [ref=e1468] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e1469] [cursor=pointer]:
-                              - img
-                        - generic [ref=e1472]:
-                          - generic [ref=e1473]:
-                            - heading "Juniper" [level=3] [ref=e1474]
-                            - generic [ref=e1475]: 1 entry
-                          - generic [ref=e1478]:
-                            - generic [ref=e1479]:
-                              - generic [ref=e1480]: Juniper
-                              - button "Assign" [ref=e1481] [cursor=pointer]:
-                                - img [ref=e1482]
-                                - text: Assign
-                              - button "Edit entry for Juniper" [ref=e1485] [cursor=pointer]:
-                                - img
-                                - generic [ref=e1486]: Edit entry
-                              - button "Remove entry for Juniper" [ref=e1487] [cursor=pointer]:
-                                - img
-                            - generic [ref=e1488]:
-                              - generic [ref=e1489]: "Owner: Test Exhibitor"
-                              - generic [ref=e1490]: "Handler: Not specified"
-                              - generic [ref=e1491]: "Fee: $0 (Paid: $0)"
-                              - button "Comp" [ref=e1492] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e1494]:
-                              - generic [ref=e1495]: "Interior Advanced:"
-                              - button "Change entry status for Juniper in Interior Advanced" [ref=e1497] [cursor=pointer]:
-                                - generic [ref=e1498]:
-                                  - img [ref=e1500]
-                                  - generic [ref=e1502]: Pending
-                                - img [ref=e1503]
-                              - button "Change check-in status for Juniper in Interior Advanced" [ref=e1505] [cursor=pointer]:
-                                - generic [ref=e1506]:
-                                  - img [ref=e1509]
-                                  - generic [ref=e1511]: No Status
-                                - img [ref=e1512]
-                      - generic [ref=e1514]:
-                        - generic [ref=e1516]:
-                          - generic [ref=e1517]:
-                            - img [ref=e1518]
-                            - generic [ref=e1521]: Not specified
-                          - generic [ref=e1522]:
-                            - generic [ref=e1523]:
-                              - generic [ref=e1524]: Paid
-                              - generic [ref=e1525]: $0.00
-                            - button "Actions" [ref=e1526] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e1527] [cursor=pointer]:
-                              - img
-                        - generic [ref=e1530]:
-                          - generic [ref=e1531]:
-                            - heading "Willow" [level=3] [ref=e1532]
-                            - generic [ref=e1533]: 1 entry
-                          - generic [ref=e1536]:
-                            - generic [ref=e1537]:
-                              - generic [ref=e1538]: Willow
-                              - button "Change armband for Willow" [ref=e1539] [cursor=pointer]:
-                                - generic [ref=e1540]: "100"
-                                - img [ref=e1541]
-                              - button "Edit entry for Willow" [ref=e1543] [cursor=pointer]:
-                                - img
-                                - generic [ref=e1544]: Edit entry
-                              - button "Remove entry for Willow" [ref=e1545] [cursor=pointer]:
-                                - img
-                            - generic [ref=e1546]:
-                              - generic [ref=e1547]: "Owner: Test Exhibitor"
-                              - generic [ref=e1548]: "Handler: Not specified"
-                              - generic [ref=e1549]: "Fee: $0 (Paid: $0)"
-                              - button "Comp" [ref=e1550] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e1552]:
-                              - generic [ref=e1553]: "Buried Master:"
-                              - button "Change entry status for Willow in Buried Master" [ref=e1555] [cursor=pointer]:
-                                - generic [ref=e1556]:
-                                  - img [ref=e1558]
-                                  - generic [ref=e1561]: Accepted
-                                - img [ref=e1562]
-                              - button "Change check-in status for Willow in Buried Master" [ref=e1564] [cursor=pointer]:
-                                - generic [ref=e1565]:
-                                  - img [ref=e1568]
-                                  - generic [ref=e1570]: No Status
-                                - img [ref=e1571]
-                      - generic [ref=e1573]:
-                        - generic [ref=e1575]:
-                          - generic [ref=e1576]:
-                            - img [ref=e1577]
-                            - generic [ref=e1580]: Not specified
-                          - generic [ref=e1581]:
-                            - generic [ref=e1582]:
-                              - generic [ref=e1583]: Payment Due
-                              - generic [ref=e1584]: $0.00
-                            - button "Actions" [ref=e1585] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e1586] [cursor=pointer]:
-                              - img
-                        - generic [ref=e1589]:
-                          - generic [ref=e1590]:
-                            - heading "Ranger" [level=3] [ref=e1591]
-                            - generic [ref=e1592]: 1 entry
-                          - generic [ref=e1595]:
-                            - generic [ref=e1596]:
-                              - generic [ref=e1597]: Ranger
-                              - button "Assign" [ref=e1598] [cursor=pointer]:
-                                - img [ref=e1599]
-                                - text: Assign
-                              - button "Edit entry for Ranger" [ref=e1602] [cursor=pointer]:
-                                - img
-                                - generic [ref=e1603]: Edit entry
-                              - button "Remove entry for Ranger" [ref=e1604] [cursor=pointer]:
-                                - img
-                            - generic [ref=e1605]:
-                              - generic [ref=e1606]: "Owner: Test Exhibitor"
-                              - generic [ref=e1607]: "Handler: Not specified"
-                              - generic [ref=e1608]: "Fee: $0 (Paid: $0)"
-                              - button "Comp" [ref=e1609] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e1611]:
-                              - generic [ref=e1612]: "Buried Master:"
-                              - button "Change entry status for Ranger in Buried Master" [ref=e1614] [cursor=pointer]:
-                                - generic [ref=e1615]:
-                                  - img [ref=e1617]
-                                  - generic [ref=e1619]: Pending
-                                - img [ref=e1620]
-                              - button "Change check-in status for Ranger in Buried Master" [ref=e1622] [cursor=pointer]:
-                                - generic [ref=e1623]:
-                                  - img [ref=e1626]
-                                  - generic [ref=e1628]: No Status
-                                - img [ref=e1629]
-                      - generic [ref=e1631]:
-                        - generic [ref=e1633]:
-                          - generic [ref=e1634]:
-                            - img [ref=e1635]
-                            - generic [ref=e1638]: Test Exhibitor
-                          - generic [ref=e1639]:
-                            - generic [ref=e1640]:
-                              - generic [ref=e1641]: Paid
-                              - generic [ref=e1642]: $0.00
-                            - button "Actions" [ref=e1643] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e1644] [cursor=pointer]:
-                              - img
-                        - generic [ref=e1647]:
-                          - generic [ref=e1648]:
-                            - heading "Willow" [level=3] [ref=e1649]
-                            - generic [ref=e1650]: 1 entry
-                          - generic [ref=e1653]:
-                            - generic [ref=e1654]:
-                              - generic [ref=e1655]: Willow
-                              - button "Change armband for Willow" [ref=e1656] [cursor=pointer]:
-                                - generic [ref=e1657]: "100"
-                                - img [ref=e1658]
-                              - button "Edit entry for Willow" [ref=e1660] [cursor=pointer]:
-                                - img
-                                - generic [ref=e1661]: Edit entry
-                              - button "Remove entry for Willow" [ref=e1662] [cursor=pointer]:
-                                - img
-                            - generic [ref=e1663]:
-                              - generic [ref=e1664]: "Owner: Test Exhibitor"
-                              - generic [ref=e1665]: "Handler: Test Exhibitor"
-                              - generic [ref=e1666]: "Fee: $0 (Paid: $0)"
-                              - button "Comp" [ref=e1667] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e1669]:
-                              - generic [ref=e1670]: "Interior Novice B:"
-                              - button "Change entry status for Willow in Interior Novice B" [ref=e1672] [cursor=pointer]:
-                                - generic [ref=e1673]:
-                                  - img [ref=e1675]
-                                  - generic [ref=e1678]: Accepted
-                                - img [ref=e1679]
-                              - button "Change check-in status for Willow in Interior Novice B" [ref=e1681] [cursor=pointer]:
-                                - generic [ref=e1682]:
-                                  - img [ref=e1685]
-                                  - generic [ref=e1687]: No Status
-                                - img [ref=e1688]
-                      - generic [ref=e1690]:
-                        - generic [ref=e1692]:
-                          - generic [ref=e1693]:
-                            - img [ref=e1694]
-                            - generic [ref=e1697]: Test Exhibitor
-                          - generic [ref=e1698]:
-                            - generic [ref=e1699]:
-                              - generic [ref=e1700]: Payment Due
-                              - generic [ref=e1701]: $0.00
-                            - button "Actions" [ref=e1702] [cursor=pointer]:
-                              - text: Actions
-                              - img
-                            - button "Collapse" [ref=e1703] [cursor=pointer]:
-                              - img
-                        - generic [ref=e1706]:
-                          - generic [ref=e1707]:
-                            - heading "Buddy" [level=3] [ref=e1708]
-                            - generic [ref=e1709]: 1 entry
-                          - generic [ref=e1712]:
-                            - generic [ref=e1713]:
-                              - generic [ref=e1714]: Buddy
-                              - button "Assign" [ref=e1715] [cursor=pointer]:
-                                - img [ref=e1716]
-                                - text: Assign
-                              - button "Edit entry for Buddy" [ref=e1719] [cursor=pointer]:
-                                - img
-                                - generic [ref=e1720]: Edit entry
-                              - button "Remove entry for Buddy" [ref=e1721] [cursor=pointer]:
-                                - img
-                            - generic [ref=e1722]:
-                              - generic [ref=e1723]: "Owner: Test Exhibitor"
-                              - generic [ref=e1724]: "Handler: Test Exhibitor"
-                              - generic [ref=e1725]: "Fee: $0 (Paid: $0)"
-                              - button "Comp" [ref=e1726] [cursor=pointer]:
-                                - img
-                                - text: Comp
-                            - generic [ref=e1728]:
-                              - generic [ref=e1729]: "Interior Novice B:"
-                              - button "Change entry status for Buddy in Interior Novice B" [ref=e1731] [cursor=pointer]:
-                                - generic [ref=e1732]:
-                                  - img [ref=e1734]
-                                  - generic [ref=e1736]: Pending
-                                - img [ref=e1737]
-                              - button "Change check-in status for Buddy in Interior Novice B" [ref=e1739] [cursor=pointer]:
-                                - generic [ref=e1740]:
-                                  - img [ref=e1743]
-                                  - generic [ref=e1745]: No Status
-                                - img [ref=e1746]
+                                    - generic [ref=e1453]: Needs review
+                                  - generic [ref=e1454]: Payment Due
+                                  - generic [ref=e1455]:
+                                    - 'generic "Email failed: {\"statusCode\":409,\"name\":\"invalid_idempotent_request\",\"message\":\"This idempotency key has been used with this HTTP method and endpoint within the last 24 hours, but the request body was modified and doesn''t match the original request.\"}" [ref=e1456]':
+                                      - img [ref=e1457]
+                                    - button "Resend" [ref=e1459] [cursor=pointer]
+                              - cell "Jun 23" [ref=e804]
+                              - cell "Accept Tera Reject Tera" [ref=e805]:
+                                - generic [ref=e1460]:
+                                  - button "Accept Tera" [ref=e1461] [cursor=pointer]: Accept
+                                  - button "Reject Tera" [ref=e1462] [cursor=pointer]: Reject
+                              - cell "Actions for Tera" [ref=e809]:
+                                - button "Actions for Tera" [ref=e1463] [cursor=pointer]:
+                                  - generic [ref=e1464]: Actions for Tera
+                                  - img
+                            - row "Select Tera — Tera 7358AADD Richard Beezley Interior Advanced Needs review Payment Due Resend Jun 23 Accept Tera Reject Tera Actions for Tera" [ref=e1465]:
+                              - cell "Select Tera" [ref=e813]:
+                                - checkbox "Select Tera" [ref=e1466]
+                                - checkbox [ref=e1467]
+                              - cell "—" [ref=e816]
+                              - cell "Tera 7358AADD" [ref=e817]:
+                                - generic [ref=e1468]:
+                                  - generic [ref=e1469]: Tera
+                                  - generic [ref=e1470]: 7358AADD
+                              - cell "Richard Beezley" [ref=e821]
+                              - cell "Interior Advanced" [ref=e822]:
+                                - generic [ref=e1472]: Interior Advanced
+                              - cell "Needs review Payment Due Resend" [ref=e1473]:
+                                - generic [ref=e1474]:
+                                  - generic [ref=e1476]:
+                                    - img [ref=e1478]
+                                    - generic [ref=e1480]: Needs review
+                                  - generic [ref=e1481]: Payment Due
+                                  - generic [ref=e1482]:
+                                    - 'generic "Email failed: {\"statusCode\":409,\"name\":\"invalid_idempotent_request\",\"message\":\"This idempotency key has been used with this HTTP method and endpoint within the last 24 hours, but the request body was modified and doesn''t match the original request.\"}" [ref=e1483]':
+                                      - img [ref=e1484]
+                                    - button "Resend" [ref=e1486] [cursor=pointer]
+                              - cell "Jun 23" [ref=e834]
+                              - cell "Accept Tera Reject Tera" [ref=e835]:
+                                - generic [ref=e1487]:
+                                  - button "Accept Tera" [ref=e1488] [cursor=pointer]: Accept
+                                  - button "Reject Tera" [ref=e1489] [cursor=pointer]: Reject
+                              - cell "Actions for Tera" [ref=e839]:
+                                - button "Actions for Tera" [ref=e1490] [cursor=pointer]:
+                                  - generic [ref=e1491]: Actions for Tera
+                                  - img
+                            - row "Select Tera — Tera 82F9A696 Richard Beezley Container Novice A Needs review Payment Due Resend Jun 23 Accept Tera Reject Tera Actions for Tera" [ref=e1492]:
+                              - cell "Select Tera" [ref=e843]:
+                                - checkbox "Select Tera" [ref=e1493]
+                                - checkbox [ref=e1494]
+                              - cell "—" [ref=e846]
+                              - cell "Tera 82F9A696" [ref=e847]:
+                                - generic [ref=e1495]:
+                                  - generic [ref=e1496]: Tera
+                                  - generic [ref=e1497]: 82F9A696
+                              - cell "Richard Beezley" [ref=e851]
+                              - cell "Container Novice A" [ref=e852]:
+                                - generic [ref=e1499]: Container Novice A
+                              - cell "Needs review Payment Due Resend" [ref=e1500]:
+                                - generic [ref=e1501]:
+                                  - generic [ref=e1503]:
+                                    - img [ref=e1505]
+                                    - generic [ref=e1507]: Needs review
+                                  - generic [ref=e1508]: Payment Due
+                                  - generic [ref=e1509]:
+                                    - 'generic "Email failed: {\"statusCode\":409,\"name\":\"invalid_idempotent_request\",\"message\":\"This idempotency key has been used with this HTTP method and endpoint within the last 24 hours, but the request body was modified and doesn''t match the original request.\"}" [ref=e1510]':
+                                      - img [ref=e1511]
+                                    - button "Resend" [ref=e1513] [cursor=pointer]
+                              - cell "Jun 23" [ref=e864]
+                              - cell "Accept Tera Reject Tera" [ref=e865]:
+                                - generic [ref=e1514]:
+                                  - button "Accept Tera" [ref=e1515] [cursor=pointer]: Accept
+                                  - button "Reject Tera" [ref=e1516] [cursor=pointer]: Reject
+                              - cell "Actions for Tera" [ref=e869]:
+                                - button "Actions for Tera" [ref=e1517] [cursor=pointer]:
+                                  - generic [ref=e1518]: Actions for Tera
+                                  - img
+                            - row "Select Tera — Tera CF921A41 Richard Beezley Interior Novice B Needs review Payment Due Resend Jun 23 Accept Tera Reject Tera Actions for Tera" [ref=e1519]:
+                              - cell "Select Tera" [ref=e873]:
+                                - checkbox "Select Tera" [ref=e1520]
+                                - checkbox [ref=e1521]
+                              - cell "—" [ref=e876]
+                              - cell "Tera CF921A41" [ref=e877]:
+                                - generic [ref=e1522]:
+                                  - generic [ref=e1523]: Tera
+                                  - generic [ref=e1524]: CF921A41
+                              - cell "Richard Beezley" [ref=e881]
+                              - cell "Interior Novice B" [ref=e882]:
+                                - generic [ref=e1526]: Interior Novice B
+                              - cell "Needs review Payment Due Resend" [ref=e1527]:
+                                - generic [ref=e1528]:
+                                  - generic [ref=e1530]:
+                                    - img [ref=e1532]
+                                    - generic [ref=e1534]: Needs review
+                                  - generic [ref=e1535]: Payment Due
+                                  - generic [ref=e1536]:
+                                    - 'generic "Email failed: {\"statusCode\":409,\"name\":\"invalid_idempotent_request\",\"message\":\"This idempotency key has been used with this HTTP method and endpoint within the last 24 hours, but the request body was modified and doesn''t match the original request.\"}" [ref=e1537]':
+                                      - img [ref=e1538]
+                                    - button "Resend" [ref=e1540] [cursor=pointer]
+                              - cell "Jun 23" [ref=e894]
+                              - cell "Accept Tera Reject Tera" [ref=e895]:
+                                - generic [ref=e1541]:
+                                  - button "Accept Tera" [ref=e1542] [cursor=pointer]: Accept
+                                  - button "Reject Tera" [ref=e1543] [cursor=pointer]: Reject
+                              - cell "Actions for Tera" [ref=e899]:
+                                - button "Actions for Tera" [ref=e1544] [cursor=pointer]:
+                                  - generic [ref=e1545]: Actions for Tera
+                                  - img
+                            - row "Select Tera — Tera DC112A06 Richard Beezley Buried Master Needs review Payment Due Resend Jun 23 Accept Tera Reject Tera Actions for Tera" [ref=e1546]:
+                              - cell "Select Tera" [ref=e903]:
+                                - checkbox "Select Tera" [ref=e1547]
+                                - checkbox [ref=e1548]
+                              - cell "—" [ref=e906]
+                              - cell "Tera DC112A06" [ref=e907]:
+                                - generic [ref=e1549]:
+                                  - generic [ref=e1550]: Tera
+                                  - generic [ref=e1551]: DC112A06
+                              - cell "Richard Beezley" [ref=e911]
+                              - cell "Buried Master" [ref=e912]:
+                                - generic [ref=e1553]: Buried Master
+                              - cell "Needs review Payment Due Resend" [ref=e1554]:
+                                - generic [ref=e1555]:
+                                  - generic [ref=e1557]:
+                                    - img [ref=e1559]
+                                    - generic [ref=e1561]: Needs review
+                                  - generic [ref=e1562]: Payment Due
+                                  - generic [ref=e1563]:
+                                    - 'generic "Email failed: {\"statusCode\":409,\"name\":\"invalid_idempotent_request\",\"message\":\"This idempotency key has been used with this HTTP method and endpoint within the last 24 hours, but the request body was modified and doesn''t match the original request.\"}" [ref=e1564]':
+                                      - img [ref=e1565]
+                                    - button "Resend" [ref=e1567] [cursor=pointer]
+                              - cell "Jun 23" [ref=e924]
+                              - cell "Accept Tera Reject Tera" [ref=e925]:
+                                - generic [ref=e1568]:
+                                  - button "Accept Tera" [ref=e1569] [cursor=pointer]: Accept
+                                  - button "Reject Tera" [ref=e1570] [cursor=pointer]: Reject
+                              - cell "Actions for Tera" [ref=e929]:
+                                - button "Actions for Tera" [ref=e1571] [cursor=pointer]:
+                                  - generic [ref=e1572]: Actions for Tera
+                                  - img
+                            - row "Select Willow 100 Willow 100 Test Exhibitor Exterior Excellent Needs review · Refunded $30 Refunded — confirm withdrawal or keep entry Refunded Jun 27 Accept Willow Reject Willow Actions for Willow" [ref=e932]:
+                              - cell "Select Willow" [ref=e933]:
+                                - checkbox "Select Willow" [ref=e1573]
+                                - checkbox [ref=e1574]
+                              - cell "100" [ref=e936]:
+                                - generic [ref=e1575]: "100"
+                              - cell "Willow 100" [ref=e938]:
+                                - generic [ref=e1576]:
+                                  - generic [ref=e1577]: Willow
+                                  - generic [ref=e1578]: "100"
+                              - cell "Test Exhibitor" [ref=e942]
+                              - cell "Exterior Excellent" [ref=e943]:
+                                - generic [ref=e1580]: Exterior Excellent
+                              - cell "Needs review · Refunded $30 Refunded — confirm withdrawal or keep entry Refunded" [ref=e946]:
+                                - generic [ref=e1581]:
+                                  - generic [ref=e1582]:
+                                    - generic [ref=e1583]:
+                                      - img [ref=e1585]
+                                      - generic [ref=e1587]: Needs review · Refunded $30
+                                    - generic [ref=e1588]: Refunded — confirm withdrawal or keep entry
+                                  - generic [ref=e1589]: Refunded
+                              - cell "Jun 27" [ref=e956]
+                              - cell "Accept Willow Reject Willow" [ref=e957]:
+                                - generic [ref=e1590]:
+                                  - button "Accept Willow" [ref=e1591] [cursor=pointer]: Accept
+                                  - button "Reject Willow" [ref=e1592] [cursor=pointer]: Reject
+                              - cell "Actions for Willow" [ref=e961]:
+                                - button "Actions for Willow" [ref=e1593] [cursor=pointer]:
+                                  - generic [ref=e1594]: Actions for Willow
+                                  - img
+                            - row "Select Codex Daisy — Codex Daisy 08976A7B Test Exhibitor Container Novice A Needs review Paid Jul 1 Accept Codex Daisy Reject Codex Daisy Actions for Codex Daisy" [ref=e964]:
+                              - cell "Select Codex Daisy" [ref=e965]:
+                                - checkbox "Select Codex Daisy" [ref=e1595]
+                                - checkbox [ref=e1596]
+                              - cell "—" [ref=e968]
+                              - cell "Codex Daisy 08976A7B" [ref=e969]:
+                                - generic [ref=e1597]:
+                                  - generic [ref=e1598]: Codex Daisy
+                                  - generic [ref=e1599]: 08976A7B
+                              - cell "Test Exhibitor" [ref=e973]
+                              - cell "Container Novice A" [ref=e974]:
+                                - generic [ref=e1601]: Container Novice A
+                              - cell "Needs review Paid" [ref=e977]:
+                                - generic [ref=e1602]:
+                                  - generic [ref=e1604]:
+                                    - img [ref=e1606]
+                                    - generic [ref=e1608]: Needs review
+                                  - generic [ref=e1609]: Paid
+                              - cell "Jul 1" [ref=e986]
+                              - cell "Accept Codex Daisy Reject Codex Daisy" [ref=e987]:
+                                - generic [ref=e1610]:
+                                  - button "Accept Codex Daisy" [ref=e1611] [cursor=pointer]: Accept
+                                  - button "Reject Codex Daisy" [ref=e1612] [cursor=pointer]: Reject
+                              - cell "Actions for Codex Daisy" [ref=e991]:
+                                - button "Actions for Codex Daisy" [ref=e1613] [cursor=pointer]:
+                                  - generic [ref=e1614]: Actions for Codex Daisy
+                                  - img
+                            - row "Select Buddy — Buddy F7F4EF49 Test Exhibitor Container Novice A Needs review Paid Jul 1 Accept Buddy Reject Buddy Actions for Buddy" [ref=e994]:
+                              - cell "Select Buddy" [ref=e995]:
+                                - checkbox "Select Buddy" [ref=e1615]
+                                - checkbox [ref=e1616]
+                              - cell "—" [ref=e998]
+                              - cell "Buddy F7F4EF49" [ref=e999]:
+                                - generic [ref=e1617]:
+                                  - generic [ref=e1618]: Buddy
+                                  - generic [ref=e1619]: F7F4EF49
+                              - cell "Test Exhibitor" [ref=e1003]
+                              - cell "Container Novice A" [ref=e1004]:
+                                - generic [ref=e1621]: Container Novice A
+                              - cell "Needs review Paid" [ref=e1007]:
+                                - generic [ref=e1622]:
+                                  - generic [ref=e1624]:
+                                    - img [ref=e1626]
+                                    - generic [ref=e1628]: Needs review
+                                  - generic [ref=e1629]: Paid
+                              - cell "Jul 1" [ref=e1016]
+                              - cell "Accept Buddy Reject Buddy" [ref=e1017]:
+                                - generic [ref=e1630]:
+                                  - button "Accept Buddy" [ref=e1631] [cursor=pointer]: Accept
+                                  - button "Reject Buddy" [ref=e1632] [cursor=pointer]: Reject
+                              - cell "Actions for Buddy" [ref=e1021]:
+                                - button "Actions for Buddy" [ref=e1633] [cursor=pointer]:
+                                  - generic [ref=e1634]: Actions for Buddy
+                                  - img
+                            - row "Select Juniper 102 Juniper 102 Not specified Interior Advanced Needs review Waitlist promotion expired — confirm or release the spot Payment Due Jul 4 Accept Juniper Reject Juniper Actions for Juniper" [ref=e1024]:
+                              - cell "Select Juniper" [ref=e1025]:
+                                - checkbox "Select Juniper" [ref=e1635]
+                                - checkbox [ref=e1636]
+                              - cell "102" [ref=e1028]:
+                                - generic [ref=e1637]: "102"
+                              - cell "Juniper 102" [ref=e1030]:
+                                - generic [ref=e1638]:
+                                  - generic [ref=e1639]: Juniper
+                                  - generic [ref=e1640]: "102"
+                              - cell "Not specified" [ref=e1034]
+                              - cell "Interior Advanced" [ref=e1035]:
+                                - generic [ref=e1642]: Interior Advanced
+                              - cell "Needs review Waitlist promotion expired — confirm or release the spot Payment Due" [ref=e1038]:
+                                - generic [ref=e1643]:
+                                  - generic [ref=e1644]:
+                                    - generic [ref=e1645]:
+                                      - img [ref=e1647]
+                                      - generic [ref=e1649]: Needs review
+                                    - generic [ref=e1650]: Waitlist promotion expired — confirm or release the spot
+                                  - generic [ref=e1651]: Payment Due
+                              - cell "Jul 4" [ref=e1048]
+                              - cell "Accept Juniper Reject Juniper" [ref=e1049]:
+                                - generic [ref=e1652]:
+                                  - button "Accept Juniper" [ref=e1653] [cursor=pointer]: Accept
+                                  - button "Reject Juniper" [ref=e1654] [cursor=pointer]: Reject
+                              - cell "Actions for Juniper" [ref=e1053]:
+                                - button "Actions for Juniper" [ref=e1655] [cursor=pointer]:
+                                  - generic [ref=e1656]: Actions for Juniper
+                                  - img
+                            - row "Select Willow 100 Willow 100 Not specified Buried Master Accepted Paid Jul 13 Reject Willow Actions for Willow" [ref=e1056]:
+                              - cell "Select Willow" [ref=e1057]:
+                                - checkbox "Select Willow" [ref=e1657]
+                                - checkbox [ref=e1658]
+                              - cell "100" [ref=e1060]:
+                                - generic [ref=e1659]: "100"
+                              - cell "Willow 100" [ref=e1062]:
+                                - generic [ref=e1660]:
+                                  - generic [ref=e1661]: Willow
+                                  - generic [ref=e1662]: "100"
+                              - cell "Not specified" [ref=e1066]
+                              - cell "Buried Master" [ref=e1067]:
+                                - generic [ref=e1664]: Buried Master
+                              - cell "Accepted Paid" [ref=e1070]:
+                                - generic [ref=e1665]:
+                                  - generic [ref=e1667]:
+                                    - img [ref=e1669]
+                                    - generic [ref=e1672]: Accepted
+                                  - generic [ref=e1673]: Paid
+                              - cell "Jul 13" [ref=e1080]
+                              - cell "Reject Willow" [ref=e1081]:
+                                - button "Reject Willow" [ref=e1675] [cursor=pointer]: Reject
+                              - cell "Actions for Willow" [ref=e1084]:
+                                - button "Actions for Willow" [ref=e1676] [cursor=pointer]:
+                                  - generic [ref=e1677]: Actions for Willow
+                                  - img
+                            - row "Select Ranger 9001 Ranger 9001 Not specified Buried Master Needs review Waitlist promotion expired — confirm or release the spot Payment Due Jul 13 Accept Ranger Reject Ranger Actions for Ranger" [ref=e1087]:
+                              - cell "Select Ranger" [ref=e1088]:
+                                - checkbox "Select Ranger" [ref=e1678]
+                                - checkbox [ref=e1679]
+                              - cell "9001" [ref=e1091]:
+                                - generic [ref=e1680]: "9001"
+                              - cell "Ranger 9001" [ref=e1093]:
+                                - generic [ref=e1681]:
+                                  - generic [ref=e1682]: Ranger
+                                  - generic [ref=e1683]: "9001"
+                              - cell "Not specified" [ref=e1097]
+                              - cell "Buried Master" [ref=e1098]:
+                                - generic [ref=e1685]: Buried Master
+                              - cell "Needs review Waitlist promotion expired — confirm or release the spot Payment Due" [ref=e1101]:
+                                - generic [ref=e1686]:
+                                  - generic [ref=e1687]:
+                                    - generic [ref=e1688]:
+                                      - img [ref=e1690]
+                                      - generic [ref=e1692]: Needs review
+                                    - generic [ref=e1693]: Waitlist promotion expired — confirm or release the spot
+                                  - generic [ref=e1694]: Payment Due
+                              - cell "Jul 13" [ref=e1111]
+                              - cell "Accept Ranger Reject Ranger" [ref=e1112]:
+                                - generic [ref=e1695]:
+                                  - button "Accept Ranger" [ref=e1696] [cursor=pointer]: Accept
+                                  - button "Reject Ranger" [ref=e1697] [cursor=pointer]: Reject
+                              - cell "Actions for Ranger" [ref=e1116]:
+                                - button "Actions for Ranger" [ref=e1698] [cursor=pointer]:
+                                  - generic [ref=e1699]: Actions for Ranger
+                                  - img
+                            - row "Select Willow 100 Willow 100 Test Exhibitor Interior Novice B Accepted Paid Jul 13 Reject Willow Actions for Willow" [ref=e1119]:
+                              - cell "Select Willow" [ref=e1120]:
+                                - checkbox "Select Willow" [ref=e1700]
+                                - checkbox [ref=e1701]
+                              - cell "100" [ref=e1123]:
+                                - generic [ref=e1702]: "100"
+                              - cell "Willow 100" [ref=e1125]:
+                                - generic [ref=e1703]:
+                                  - generic [ref=e1704]: Willow
+                                  - generic [ref=e1705]: "100"
+                              - cell "Test Exhibitor" [ref=e1129]
+                              - cell "Interior Novice B" [ref=e1130]:
+                                - generic [ref=e1707]: Interior Novice B
+                              - cell "Accepted Paid" [ref=e1133]:
+                                - generic [ref=e1708]:
+                                  - generic [ref=e1710]:
+                                    - img [ref=e1712]
+                                    - generic [ref=e1715]: Accepted
+                                  - generic [ref=e1716]: Paid
+                              - cell "Jul 13" [ref=e1143]
+                              - cell "Reject Willow" [ref=e1144]:
+                                - button "Reject Willow" [ref=e1718] [cursor=pointer]: Reject
+                              - cell "Actions for Willow" [ref=e1147]:
+                                - button "Actions for Willow" [ref=e1719] [cursor=pointer]:
+                                  - generic [ref=e1720]: Actions for Willow
+                                  - img
+                            - row "Select Buddy — Buddy 32A2BEF3 Test Exhibitor Interior Novice B Needs review Waitlist promotion expired — confirm or release the spot Payment Due Jul 13 Accept Buddy Reject Buddy Actions for Buddy" [ref=e1150]:
+                              - cell "Select Buddy" [ref=e1151]:
+                                - checkbox "Select Buddy" [ref=e1721]
+                                - checkbox [ref=e1722]
+                              - cell "—" [ref=e1154]
+                              - cell "Buddy 32A2BEF3" [ref=e1155]:
+                                - generic [ref=e1723]:
+                                  - generic [ref=e1724]: Buddy
+                                  - generic [ref=e1725]: 32A2BEF3
+                              - cell "Test Exhibitor" [ref=e1159]
+                              - cell "Interior Novice B" [ref=e1160]:
+                                - generic [ref=e1727]: Interior Novice B
+                              - cell "Needs review Waitlist promotion expired — confirm or release the spot Payment Due" [ref=e1163]:
+                                - generic [ref=e1728]:
+                                  - generic [ref=e1729]:
+                                    - generic [ref=e1730]:
+                                      - img [ref=e1732]
+                                      - generic [ref=e1734]: Needs review
+                                    - generic [ref=e1735]: Waitlist promotion expired — confirm or release the spot
+                                  - generic [ref=e1736]: Payment Due
+                              - cell "Jul 13" [ref=e1173]
+                              - cell "Accept Buddy Reject Buddy" [ref=e1174]:
+                                - generic [ref=e1737]:
+                                  - button "Accept Buddy" [ref=e1738] [cursor=pointer]: Accept
+                                  - button "Reject Buddy" [ref=e1739] [cursor=pointer]: Reject
+                              - cell "Actions for Buddy" [ref=e1178]:
+                                - button "Actions for Buddy" [ref=e1740] [cursor=pointer]:
+                                  - generic [ref=e1741]: Actions for Buddy
+                                  - img
   - region "Notifications alt+T"

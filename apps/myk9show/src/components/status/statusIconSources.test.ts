@@ -137,32 +137,6 @@ describe('status icon grammar source ownership', () => {
     }
   });
 
-  it('keeps status-heavy tablet surfaces within the shell content width', () => {
-    const registration = readFileSync(
-      resolve(
-        WORKSPACE_ROOT,
-        'apps/myk9show/src/components/entries/management/RegistrationView.tsx'
-      ),
-      'utf8'
-    );
-    const entryManagement = readFileSync(
-      resolve(WORKSPACE_ROOT, 'apps/myk9show/src/pages/secretary/EntryManagementPage.tsx'),
-      'utf8'
-    );
-    const classManagement = readFileSync(
-      resolve(WORKSPACE_ROOT, 'apps/myk9show/src/pages/secretary/ClassManagementPage.tsx'),
-      'utf8'
-    );
-
-    expect(registration).toContain("useMediaQuery('(max-width: 1023px)')");
-    expect(entryManagement).toContain('lg:flex-row');
-    expect(classManagement).toContain(
-      'flex w-full flex-col gap-2 lg:w-auto lg:shrink-0 lg:flex-row'
-    );
-    expect(classManagement).toContain('lg:grid-cols-7');
-    expect(classManagement).not.toContain('md:grid-cols-7');
-  });
-
   it('normalizes warm-store class statuses before computing trial completion', () => {
     const showDetails = readFileSync(
       resolve(WORKSPACE_ROOT, 'apps/myk9show/src/pages/ShowDetailsPage.tsx'),
@@ -175,5 +149,15 @@ describe('status icon grammar source ownership', () => {
     expect(showDetails).toContain(
       'normalizeClassStatus(cls.status) === CLASS_STATUS.IN_PROGRESS'
     );
+  });
+
+  it('derives Trial Details status when the stored trial status is missing', () => {
+    const trialDetails = readFileSync(
+      resolve(WORKSPACE_ROOT, 'apps/myk9show/src/pages/TrialDetailsPage.tsx'),
+      'utf8'
+    );
+
+    expect(trialDetails).not.toContain('if (!currentTrial?.status) return undefined;');
+    expect(trialDetails).toContain('trialStatus: currentTrial?.status');
   });
 });

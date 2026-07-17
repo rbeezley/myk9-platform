@@ -264,8 +264,8 @@ export const ClassManagementPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex w-full flex-col gap-2 lg:w-auto lg:shrink-0 lg:flex-row">
-          <Button variant="ghost" asChild className="min-h-[44px] w-full justify-center lg:w-auto">
+        <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:shrink-0">
+          <Button variant="ghost" asChild className="min-h-[44px] w-full justify-center sm:w-auto">
             <Link to={setupHref}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Setup
@@ -274,14 +274,14 @@ export const ClassManagementPage: React.FC = () => {
           <Button
             variant="outline"
             asChild
-            className="min-h-[44px] w-full justify-center lg:w-auto"
+            className="min-h-[44px] w-full justify-center sm:w-auto"
           >
             <Link to={waitlistHref}>
               <ListOrdered className="h-4 w-4 mr-2" />
               Manage Waitlist
             </Link>
           </Button>
-          <Button asChild className="min-h-[44px] w-full justify-center lg:w-auto">
+          <Button asChild className="min-h-[44px] w-full justify-center sm:w-auto">
             <Link to={createHref}>
               <Plus className="h-4 w-4 mr-2" />
               Add Classes
@@ -290,7 +290,7 @@ export const ClassManagementPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="flex items-center p-4">
             <Settings className="h-8 w-8 text-blue-500 mr-3" />
@@ -488,8 +488,8 @@ export const ClassManagementPage: React.FC = () => {
                         aria-label={`Select ${cls.name || 'Untitled Class'}`}
                       />
 
-                      <div className="grid flex-1 grid-cols-1 items-center gap-4 lg:grid-cols-7">
-                        <div className="lg:col-span-2">
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-7 gap-4 items-center">
+                        <div className="md:col-span-2">
                           <div className="font-medium">{cls.name || 'Untitled Class'}</div>
                           {cls.class_order != null && (
                             <div className="text-sm text-muted-foreground">

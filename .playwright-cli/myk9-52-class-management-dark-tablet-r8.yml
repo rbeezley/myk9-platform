@@ -214,103 +214,101 @@
                   - img
                   - text: Add Classes
             - generic [ref=e252]:
-              - generic [ref=e254]:
-                - img [ref=e255]
-                - generic [ref=e258]:
-                  - generic [ref=e259]: "3"
-                  - generic [ref=e260]: Total Classes
-              - generic [ref=e262]:
-                - img [ref=e264]
-                - generic [ref=e266]:
-                  - generic [ref=e267]: "1"
-                  - generic [ref=e268]: Not started
-              - generic [ref=e270]:
-                - img [ref=e272]
-                - generic [ref=e275]:
-                  - generic [ref=e276]: "2"
-                  - generic [ref=e277]: In Progress
-              - generic [ref=e279]:
-                - img [ref=e281]
-                - generic [ref=e284]:
-                  - generic [ref=e285]: "0"
-                  - generic [ref=e286]: Completed
-            - generic [ref=e289]:
-              - generic [ref=e290]:
-                - img [ref=e291]
-                - textbox "Search classes..." [ref=e294]
-              - combobox [ref=e295] [cursor=pointer]:
-                - generic [ref=e296]: all
-                - img [ref=e298]
-              - textbox [ref=e300]: all
-              - combobox [ref=e301] [cursor=pointer]:
-                - generic [ref=e302]: all
-                - img [ref=e304]
-              - textbox [ref=e306]: all
-              - button "Clear" [ref=e307] [cursor=pointer]:
+              - generic [ref=e257]:
+                - generic [ref=e258]: "3"
+                - generic [ref=e259]: Total Classes
+              - generic [ref=e261]:
+                - img [ref=e263]
+                - generic [ref=e265]:
+                  - generic [ref=e266]: "1"
+                  - generic [ref=e267]: Not started
+              - generic [ref=e269]:
+                - img [ref=e271]
+                - generic [ref=e274]:
+                  - generic [ref=e275]: "2"
+                  - generic [ref=e276]: In Progress
+              - generic [ref=e278]:
+                - img [ref=e280]
+                - generic [ref=e283]:
+                  - generic [ref=e284]: "0"
+                  - generic [ref=e285]: Completed
+            - generic [ref=e288]:
+              - generic [ref=e289]:
+                - img [ref=e290]
+                - textbox "Search classes..." [ref=e293]
+              - combobox [ref=e294] [cursor=pointer]:
+                - generic [ref=e295]: all
+                - img [ref=e297]
+              - textbox [ref=e299]: all
+              - combobox [ref=e300] [cursor=pointer]:
+                - generic [ref=e301]: all
+                - img [ref=e303]
+              - textbox [ref=e305]: all
+              - button "Clear" [ref=e306] [cursor=pointer]:
                 - img
                 - text: Clear
-              - generic [ref=e308]: Showing 3 of 3 classes
-            - generic [ref=e309]:
-              - generic [ref=e311]:
-                - heading "Classes (3)" [level=3] [ref=e312]
-                - button "Select All Visible" [ref=e313] [cursor=pointer]
-              - generic [ref=e315]:
-                - generic [ref=e317]:
-                  - checkbox "Select Container Novice A" [ref=e318]
-                  - checkbox [ref=e319]
-                  - generic [ref=e320]:
-                    - generic [ref=e322]: Container Novice A
-                    - generic [ref=e323]:
-                      - generic [ref=e324]: Container
-                      - generic [ref=e325]: Novice
-                      - generic [ref=e326]: A
-                    - generic [ref=e327]:
-                      - img [ref=e329]
-                      - generic [ref=e332]: In Progress
-                    - generic [ref=e334]: "Entries: 0"
-                    - generic [ref=e335]:
-                      - combobox "Judge for Container Novice A" [ref=e336] [cursor=pointer]:
-                        - generic [ref=e337]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
-                        - img [ref=e339]
-                      - textbox [ref=e341]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
-                    - button "More actions for Container Novice A" [ref=e343] [cursor=pointer]:
+              - generic [ref=e307]: Showing 3 of 3 classes
+            - generic [ref=e308]:
+              - generic [ref=e310]:
+                - heading "Classes (3)" [level=3] [ref=e311]
+                - button "Select All Visible" [ref=e312] [cursor=pointer]
+              - generic [ref=e314]:
+                - generic [ref=e316]:
+                  - checkbox "Select Container Novice A" [ref=e317]
+                  - checkbox [ref=e318]
+                  - generic [ref=e319]:
+                    - generic [ref=e321]: Container Novice A
+                    - generic [ref=e322]:
+                      - generic [ref=e323]: Container
+                      - generic [ref=e324]: Novice
+                      - generic [ref=e325]: A
+                    - generic [ref=e326]:
+                      - img [ref=e328]
+                      - generic [ref=e331]: In Progress
+                    - generic [ref=e333]: "Entries: 8"
+                    - generic [ref=e334]:
+                      - combobox "Judge for Container Novice A" [ref=e335] [cursor=pointer]:
+                        - generic [ref=e336]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
+                        - img [ref=e338]
+                      - textbox [ref=e340]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
+                    - button "More actions for Container Novice A" [ref=e342] [cursor=pointer]:
                       - img
-                - generic [ref=e345]:
-                  - checkbox "Select Interior Advanced" [ref=e346]
-                  - checkbox [ref=e347]
-                  - generic [ref=e348]:
-                    - generic [ref=e350]: Interior Advanced
-                    - generic [ref=e351]:
-                      - generic [ref=e352]: Interior
-                      - generic [ref=e353]: Advanced
-                    - generic [ref=e354]:
-                      - img [ref=e356]
-                      - generic [ref=e359]: In Progress
-                    - generic [ref=e361]: "Entries: 0"
-                    - generic [ref=e362]:
-                      - combobox "Judge for Interior Advanced" [ref=e363] [cursor=pointer]:
-                        - generic [ref=e364]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
-                        - img [ref=e366]
-                      - textbox [ref=e368]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
-                    - button "More actions for Interior Advanced" [ref=e370] [cursor=pointer]:
+                - generic [ref=e344]:
+                  - checkbox "Select Interior Advanced" [ref=e345]
+                  - checkbox [ref=e346]
+                  - generic [ref=e347]:
+                    - generic [ref=e349]: Interior Advanced
+                    - generic [ref=e350]:
+                      - generic [ref=e351]: Interior
+                      - generic [ref=e352]: Advanced
+                    - generic [ref=e353]:
+                      - img [ref=e355]
+                      - generic [ref=e358]: In Progress
+                    - generic [ref=e360]: "Entries: 4"
+                    - generic [ref=e361]:
+                      - combobox "Judge for Interior Advanced" [ref=e362] [cursor=pointer]:
+                        - generic [ref=e363]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
+                        - img [ref=e365]
+                      - textbox [ref=e367]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
+                    - button "More actions for Interior Advanced" [ref=e369] [cursor=pointer]:
                       - img
-                - generic [ref=e372]:
-                  - checkbox "Select Exterior Excellent" [ref=e373]
-                  - checkbox [ref=e374]
-                  - generic [ref=e375]:
-                    - generic [ref=e377]: Exterior Excellent
-                    - generic [ref=e378]:
-                      - generic [ref=e379]: Exterior
-                      - generic [ref=e380]: Excellent
-                    - generic [ref=e381]:
-                      - img [ref=e383]
-                      - generic [ref=e385]: Not started
-                    - generic [ref=e387]: "Entries: 0"
-                    - generic [ref=e388]:
-                      - combobox "Judge for Exterior Excellent" [ref=e389] [cursor=pointer]:
-                        - generic [ref=e390]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
-                        - img [ref=e392]
-                      - textbox [ref=e394]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
-                    - button "More actions for Exterior Excellent" [ref=e396] [cursor=pointer]:
+                - generic [ref=e371]:
+                  - checkbox "Select Exterior Excellent" [ref=e372]
+                  - checkbox [ref=e373]
+                  - generic [ref=e374]:
+                    - generic [ref=e376]: Exterior Excellent
+                    - generic [ref=e377]:
+                      - generic [ref=e378]: Exterior
+                      - generic [ref=e379]: Excellent
+                    - generic [ref=e380]:
+                      - img [ref=e382]
+                      - generic [ref=e384]: Not started
+                    - generic [ref=e386]: "Entries: 5"
+                    - generic [ref=e387]:
+                      - combobox "Judge for Exterior Excellent" [ref=e388] [cursor=pointer]:
+                        - generic [ref=e389]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
+                        - img [ref=e391]
+                      - textbox [ref=e393]: 19f80ef4-d21b-45c7-b28c-09224d9b637a
+                    - button "More actions for Exterior Excellent" [ref=e395] [cursor=pointer]:
                       - img
   - region "Notifications alt+T"

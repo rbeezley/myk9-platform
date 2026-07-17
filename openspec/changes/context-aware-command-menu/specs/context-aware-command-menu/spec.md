@@ -14,12 +14,17 @@ The existing Command Palette SHALL provide permitted navigation and data results
 - **AND** selecting it opens the canonical owner surface with that context preserved
 
 ### Requirement: Contextual actions use the shared action contract
-The command palette SHALL expose actions only when the current route, selection, role, permission, and entity state make them valid. It SHALL invoke the same typed action definitions and domain handlers used by row menus, inline badges, and bulk action bars.
+The command palette SHALL expose actions only when the current route, selection, role, permission, and entity state make them valid. The first mutating command SHALL be limited to eligible selected-entry check-in and SHALL depend on the `MYK9-47` shared action registry. It SHALL invoke the same typed action definition and domain handler used by the corresponding row and bulk projections; inline badges SHALL derive options from the same canonical transition rules and handler without owning a parallel mutation path.
 
 #### Scenario: Selected entries have a check-in action
 - **WHEN** an authorized secretary has selected eligible entries and opens the command palette
-- **THEN** the palette may show a clearly labeled selected-entry check-in action
+- **THEN** the palette shows a clearly labeled “Check in selected entries” action
 - **AND** executing it invokes the existing eligible-subset action handler
+
+#### Scenario: Shared action dependency is unavailable
+- **WHEN** the `MYK9-47` shared selected-entry check-in action is not registered
+- **THEN** the command palette does not expose a replacement mutation command
+- **AND** contextual navigation remains available
 
 #### Scenario: No selection exists
 - **WHEN** no entity is selected

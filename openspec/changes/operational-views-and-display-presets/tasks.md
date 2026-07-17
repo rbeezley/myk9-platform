@@ -2,7 +2,7 @@
 
 - [ ] 1.1 Inventory Entry Management and Class Management filter, scope, grouping, visible-column, and display state; identify which values already serialize to URLs.
 - [ ] 1.2 Define typed operational-view state, preset IDs, serialization version, surface ownership, and allowlisted display options.
-- [ ] 1.3 Define the local preference key/version and invalid-data recovery behavior without adding a database table.
+- [ ] 1.3 Define the authenticated-user/surface preference namespace, serialization version, show-scope revalidation, account-change reset, and invalid-data removal behavior without adding a database table.
 
 ## 2. Entry Management views
 
@@ -14,7 +14,7 @@
 
 - [ ] 3.1 Add curated Class Management lifecycle presets without duplicating class lifecycle derivation.
 - [ ] 3.2 Add allowlisted display presets that preserve identity, status, selection, judge, and row actions.
-- [ ] 3.3 Add personal local save/reapply behavior with invalid-storage and storage-unavailable tests.
+- [ ] 3.3 Add personal local save/reapply behavior with shared-device user isolation, cross-show scope rejection, account-change reset, invalid-storage, and storage-unavailable tests.
 
 ## 4. Workbench routing and UX verification
 

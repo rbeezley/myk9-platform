@@ -16,9 +16,9 @@
 ## 3. Inline state editing
 
 - [ ] 3.1 Extend the existing interactive badge pattern into a shared accessible inline state menu that distinguishes editable buttons from read-only badges and supports keyboard activation/focus transfer.
-- [ ] 3.2 Add typed state-menu adapters that derive permitted values from existing role/transition rules and route note-bearing or complex changes to the existing owner dialog.
+- [ ] 3.2 Add typed field-specific state-menu adapters that project permitted values from the same canonical transition rules, eligibility, and domain handlers used by shared actions; adapters must not own mutation logic and must route note-bearing or complex changes to the existing owner dialog.
 - [ ] 3.3 Add optimistic/pending/error handling at the adapter boundary, preserving the existing replication-backed behavior for core show-day state and quiet background sync.
-- [ ] 3.4 Add component tests for badge semantics, keyboard/touch interaction, permitted values, pending duplicate prevention, optimistic success, rollback/error, and complex-dialog fallback.
+- [ ] 3.4 Add component tests for badge semantics, keyboard/touch interaction, Escape dismissal with focus restoration, permitted values, pending duplicate prevention, optimistic success, rollback/error, and complex-dialog fallback.
 
 ## 4. Migrate Class Management
 
@@ -43,7 +43,7 @@
 
 ## 7. Verification and UX evidence
 
-- [ ] 7.1 Run `pnpm openspec validate --change "inline-bulk-actions-and-editable-status"` and verify every spec scenario has a corresponding test or explicit browser evidence.
+- [ ] 7.1 Run `pnpm openspec validate inline-bulk-actions-and-editable-status --type change --strict --no-interactive` and verify every spec scenario has a corresponding test or explicit browser evidence.
 - [ ] 7.2 Run focused Vitest files for shared selection, action aggregation, inline state menu, Class Management, Entry Management, and check-in behavior.
 - [ ] 7.3 Run `pnpm typecheck`, `pnpm lint`, and `cd apps/myk9show && pnpm test`; stop and report if a runner hangs for more than 60 seconds.
 - [ ] 7.4 Run the targeted secretary/steward Playwright walk at tablet width in connected and offline/queued conditions, covering keyboard focus, filter-scoped selection, inline badge editing, permission differences, and partial failure recovery.

@@ -45,7 +45,7 @@ The first visible view menu contains a short set of curated presets whose filter
 - Classes: Not started, In progress, Completed, All classes.
 - Show Workbench links may open one of these existing views with show/trial/class context.
 
-“Save this view” stores only a validated view definition in a namespaced local preference store. It is device-local and labeled as personal. Shareability comes from the normalized URL, not from pretending a local preference is shared. Cross-device/shared views require a later user-settings/schema design.
+“Save this view” stores only a validated view definition in a local preference key namespaced by authenticated user and owning surface. The stored definition records its serialization version and show scope. Restore revalidates the current user, surface, show, trial, and class before applying state; invalid or cross-show definitions are removed or reset, and account changes clear in-memory saved-view state. It is device-local and labeled as personal. Shareability comes from the normalized URL, not from pretending a local preference is shared. Cross-device/shared views require a later user-settings/schema design.
 
 **Relationship to the existing Quick View presets.** `class-entry-operational-visibility` requires that the existing Quick View presets and enrollment grouping not be replaced. In code these are Entry Management's `EntryWorkMode`/`ViewMode` switches (`useEntryManagementFilters`, `EntryWorkModeSwitch`). Curated presets *extend* this mechanism rather than coexist beside it: a preset is a named, typed combination of the same work-mode/view-mode/filter values, applied through the same normalizer, so there is exactly one preset system. No second preset menu, mode switch, or parallel filter store is added; if a curated preset and an existing work mode would express the same view, the work mode is the preset's definition.
 
@@ -70,7 +70,7 @@ Applying a view is local UI state and must work from already-loaded or replicate
 - **[Risk] URL parameters drift from the actual filters.** → Centralize serialization and add round-trip/invalid-value tests against each surface’s normalizer.
 - **[Risk] Presets become a second navigation system.** → Keep presets inside the owning management page and link to them from the Workbench only when the destination contains the clearing action.
 - **[Risk] A display preset hides information needed for safe work.** → Allowlist columns and keep identity, state, selection, and row actions mandatory.
-- **[Risk] Local saved views appear shared.** → Label them personal/device-only and make shareable URLs the explicit collaboration path.
+- **[Risk] Local saved views appear shared or leak scope on a shared tablet.** → Namespace by authenticated user and surface, revalidate show scope on restore, clear in-memory state on account change, label views personal/device-only, and make shareable URLs the explicit collaboration path.
 - **[Risk] View changes leave stale selection.** → Clear selection on every view identity change and test filter, preset, tab, and scope transitions.
 - **[Trade-off] No cross-device custom views initially.** → Prefer a small complete feature with safe URL sharing over a premature settings schema.
 

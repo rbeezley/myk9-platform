@@ -6,7 +6,7 @@ This supports fall 2026 launch readiness by shortening navigation and reducing h
 
 ## What Changes
 
-- Make the existing Command Palette context-aware: show current-surface navigation, selected-object actions, and bulk actions only when applicable.
+- Make the existing Command Palette context-aware: show current-surface navigation and, after the `MYK9-47` shared action registry exists, the first allowlisted mutation, “Check in selected entries,” only when applicable.
 - Reuse the shared action definitions from `MYK9-47` for row, bulk, and command-menu execution.
 - Improve search grouping and result labels for dogs, people, shows, trials, classes, and entries while preserving permission scoping.
 - Add a small, documented set of optional keyboard shortcuts and keep all actions available by pointer/touch.
@@ -34,4 +34,4 @@ None. Existing RBAC, row-menu, bulk-action, and replication contracts remain aut
 - Affects `apps/myk9show/src/components/common/CommandPalette.tsx`, `AppHeader`, `KeyboardShortcutsOverlay`, `useRecentSearches`, and the shared action registry from `MYK9-47`.
 - Requires bounded data indexing/search behavior so the menu does not render unbounded datasets or stale unauthorized results.
 - Requires focused component, permission, keyboard, navigation, and action-dispatch tests.
-- Is a follow-up to `MYK9-47`, not a replacement or expansion of its initial bulk/inline implementation gate.
+- Is sequenced after the `MYK9-47` shared action registry. Navigation can ship independently, but the initial command mutation cannot ship before that dependency and does not expand beyond eligible selected-entry check-in.

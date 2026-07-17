@@ -27,7 +27,7 @@ The missing piece is contextual authority: the palette does not yet know the cur
 
 Keep `CommandPalette` and `AppHeader` as the host surfaces. Add a typed command provider contract that receives route context, selected entity IDs, current show scope, role/permissions, and the shared action registry. Providers return navigation commands, entity results, and executable actions.
 
-The default groups remain “Navigation,” “Go to,” “Actions,” and “Recent.” Contextual actions are clearly labeled with their target, such as “Check in selected entries” or “Open class run sheet.”
+The default groups remain “Navigation,” “Go to,” “Actions,” and “Recent.” Contextual commands are clearly labeled with their target, such as “Check in selected entries” or “Open class run sheet.”
 
 Alternative considered: add a separate command-center page. Rejected because it duplicates navigation and management ownership.
 
@@ -37,9 +37,16 @@ Global navigation and data search can show permitted dogs, people, shows, trials
 
 The command provider uses the current show context to prevent cross-show action ambiguity. A result that navigates to another show must say so in its subtitle and land on that show’s canonical surface.
 
+The first release has an explicit action boundary:
+
+- Navigation commands, including opening a class run sheet or a filtered owner surface, may ship independently.
+- The only initial mutating command is “Check in selected entries” for an authorized secretary on Entry Management, using eligible-subset behavior.
+- That mutation is blocked until `MYK9-47` provides the shared action registry and handler. If the dependency is unavailable, the command is absent rather than reimplemented locally.
+- Class status, entry status beyond check-in, Trial, Dog, and People mutations remain out of scope until separately specified and approved.
+
 ### 3. Reuse action definitions, never duplicate handlers
 
-Single-row row menus, bulk action bars, inline badge menus, and the command palette consume the same typed action definitions. The command adapter supplies one target or the current selection and delegates to the existing domain handler. The palette does not call Supabase or replicated tables directly.
+Single-row menus, bulk action bars, and the command palette consume the same typed action definitions. The command adapter supplies one target or the current selection and delegates to the existing domain handler. Inline badge menus use a field-specific state-option projection because they render permitted values rather than action-menu commands, but that projection consumes the same canonical transition rules, eligibility, and domain handler. Neither adapter owns mutation logic, and the palette does not call Supabase or replicated tables directly.
 
 ### 4. Search bounded local data and degrade quietly
 
@@ -68,7 +75,7 @@ When a command executes a mutation, the palette closes only according to the act
 
 1. Inventory current Command Palette commands, AppHeader triggers, shortcut overlay text, data stores, and permission checks.
 2. Add the shared command provider/action adapter types and parity tests.
-3. Add contextual navigation and selection-aware actions to the existing palette.
+3. Add contextual navigation, then add only the allowlisted selected-entry check-in action after the `MYK9-47` registry is available.
 4. Add bounded result/error/loading behavior and recent-search redaction/validation.
 5. Reconcile shortcut documentation and run role-based browser verification on desktop and tablet.
 
@@ -76,6 +83,5 @@ Rollback removes contextual providers while preserving the existing global palet
 
 ## Open Questions
 
-- Which command actions are safe enough for the first release: navigation only, or also check-in and selected-entry operations?
 - Should the palette search classes and entries from replicated data in the first version, or navigate to the owner list with a prefilled filter?
 - Which shortcuts are genuinely useful to secretaries, versus useful only to admin/power users?

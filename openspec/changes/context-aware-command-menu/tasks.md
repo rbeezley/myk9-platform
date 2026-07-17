@@ -2,12 +2,12 @@
 
 - [ ] 1.1 Inventory `CommandPalette`, `AppHeader`, `KeyboardShortcutsOverlay`, `useRecentSearches`, current data stores, and permission checks.
 - [ ] 1.2 Define command-provider types for route context, show scope, selection, permissions, result grouping, action eligibility, and target navigation.
-- [ ] 1.3 Add parity tests proving command actions use the same action IDs/handlers as row and bulk actions.
+- [ ] 1.3 Add parity tests proving the selected-entry check-in command uses the same action ID/handler as row and bulk projections and is absent when the `MYK9-47` registry entry is unavailable.
 
 ## 2. Contextual palette behavior
 
 - [ ] 2.1 Add contextual navigation and data-result providers without creating a new command-center route.
-- [ ] 2.2 Add selection-aware action commands for the first approved entry/class/check-in actions.
+- [ ] 2.2 After the `MYK9-47` shared action registry lands, add only the allowlisted “Check in selected entries” mutation; keep class status, other entry status, Trial, Dog, and People mutations out of scope.
 - [ ] 2.3 Add show/trial/class context labels and prevent ambiguous cross-show action targets.
 - [ ] 2.4 Add bounded result limits, loading/empty/error states, offline/local fallback, and recent-search validation/redaction.
 

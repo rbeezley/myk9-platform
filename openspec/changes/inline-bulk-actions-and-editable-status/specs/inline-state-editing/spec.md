@@ -23,6 +23,11 @@ When a status or check-in field is editable for the current role and surface, it
 - **THEN** the same state menu opens
 - **AND** focus moves into the menu with a visible focus treatment
 
+#### Scenario: Badge menu is dismissed by keyboard
+- **WHEN** the user presses Escape while the inline state menu is open
+- **THEN** the menu closes without changing the state
+- **AND** focus returns to the badge that opened the menu
+
 ### Requirement: Inline choices respect domain transitions and permissions
 The inline menu SHALL derive its available values from the existing entity-specific permission and transition rules. It SHALL NOT invent new status values or allow a transition that the canonical mutation path would reject.
 

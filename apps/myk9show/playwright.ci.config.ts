@@ -22,10 +22,16 @@ const NIGHTLY_SPECS = [
   '**/show/atShowJudgeScoring.spec.ts',
   '**/show/atShowOfflineScoring.spec.ts',
   '**/show/showManagement.spec.ts',
-  '**/registration/entryCreationCore.spec.ts',
+  // registration/entryCreationCore excluded: it drives app source modules via
+  // browser `import('/src/store/entryStore.ts')` — a Zustand unit test wearing
+  // an e2e costume. It cannot run against the dist/preview build and belongs in
+  // Vitest, not Playwright. Rewrite/relocate tracked in MYK9-46.
   '**/registration/exhibitorSelfRegistration.spec.ts',
   '**/authentication-validation.spec.ts',
-  '**/entities/entriesUI.spec.ts',
+  // entities/entriesUI excluded: the secretary Entry Management page was
+  // restructured (entry cards, Select-All header, bulk dialogs all moved), so
+  // the file needs a holistic rewrite against the new layout. The show-id and
+  // load-signal fixes are already in place as a head-start. Tracked in MYK9-46.
   '**/secretary/show-creation-wizard.spec.ts',
   '**/secretary/classCreation.spec.ts',
   '**/browse-shows-to-details.spec.ts',

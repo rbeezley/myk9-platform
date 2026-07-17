@@ -73,7 +73,7 @@ export interface ReplicatedShow {
 /**
  * Convert database row to app Show type
  */
-function rowToShow(row: ShowRow): ReplicatedShow {
+export function rowToShow(row: ShowRow): ReplicatedShow {
   const publishedFields = row as Record<string, unknown>;
 
   return {

@@ -78,7 +78,7 @@ export interface ReplicatedClub {
 /**
  * Convert database row to app Club type
  */
-function rowToClub(row: ClubRow): ReplicatedClub {
+export function rowToClub(row: ClubRow): ReplicatedClub {
   return {
     id: String(row.id),
     name: row.name,

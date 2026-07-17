@@ -6,6 +6,14 @@ const webhookSource = readFileSync(
   resolve(__dirname, '../../../supabase/functions/stripe-webhook/index.ts'),
   'utf8'
 );
+// MP-04: the request-level webhook envelope (verify signature, dispatch to
+// the handler, map crashes to a 500) was extracted from index.ts into
+// webhookHandler.ts (MYK9-41). The "await the handler so a crash yields a
+// non-2xx that Stripe retries" invariant now lives there.
+const webhookHandlerSource = readFileSync(
+  resolve(__dirname, '../../../supabase/functions/stripe-webhook/webhookHandler.ts'),
+  'utf8'
+);
 const checkoutSource = readFileSync(
   resolve(__dirname, '../../../supabase/functions/stripe-checkout/index.ts'),
   'utf8'
@@ -37,9 +45,17 @@ const stripeSetupSource = readFileSync(
 
 describe('money-path closeout source contracts', () => {
   it('awaits Stripe webhook handlers so handler crashes return non-2xx for Stripe retry', () => {
-    expect(webhookSource).toContain('await handleEvent(event)');
+    // The dispatch call is awaited inside the try block, so a handler crash
+    // rejects the promise, is caught, and returns a 500 — Stripe then retries.
+    // Removing this await (fire-and-forget dispatch) would let a crash ack 2xx.
+    expect(webhookHandlerSource).toContain('await deps.dispatch(event)');
+    // Guard against re-introducing a fire-and-forget ack that swallows crashes.
+    expect(webhookHandlerSource).not.toContain('EdgeRuntime.waitUntil');
+    expect(webhookHandlerSource).not.toContain('Stripe already received its 200');
+    // index.ts must actually wire the real event handler into that awaited
+    // dispatch slot — otherwise the awaited call above would be a no-op.
+    expect(webhookSource).toContain('dispatch: handleEvent');
     expect(webhookSource).not.toContain('EdgeRuntime.waitUntil');
-    expect(webhookSource).not.toContain('Stripe already received its 200');
   });
 
   it('keeps entry checkout card-only and refuses unpaid fresh sessions', () => {

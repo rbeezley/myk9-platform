@@ -405,7 +405,16 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
                     onQuickStatusUpdate={handleQuickStatusUpdate}
                   />
                 ))}
-                {filteredEntries.length === 0 && <GateEmptyState />}
+                {filteredEntries.length === 0 && (
+                  <GateEmptyState
+                    onReset={() => {
+                      setSearchTerm('');
+                      setStatusFilter('all');
+                      setRingFilter('all');
+                      setSelectedTab('all');
+                    }}
+                  />
+                )}
               </div>
             </CardContent>
           </Card>

@@ -40,6 +40,7 @@ export function ShowStatsSubTab({ showId }: ShowStatsSubTabProps) {
         icon={BarChart3}
         title="No Scored Entries"
         description="Show statistics will appear here once scoring begins."
+        action={null}
       />
     );
   }

@@ -226,6 +226,7 @@ export default function SecretaryMessagesPage() {
             icon={MessageSquare}
             title="Select a conversation"
             description="Choose a conversation from the list to view messages"
+            action={null}
             size="sm"
             className="h-full py-0 justify-center"
           />

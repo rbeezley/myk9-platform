@@ -49,12 +49,8 @@ export {
 // State Components
 export {
   EmptyState,
-  NoDataEmptyState,
-  SearchEmptyState,
   ErrorEmptyState,
   LoadingEmptyState,
-  MaintenanceEmptyState,
-  PermissionEmptyState,
 } from './EmptyState';
 
 // Type Exports
@@ -99,10 +95,7 @@ export type {
 
 export type {
   EmptyStateProps,
-  NoDataEmptyStateProps,
-  SearchEmptyStateProps,
+  EmptyStateAction,
   ErrorEmptyStateProps,
   LoadingEmptyStateProps,
-  MaintenanceEmptyStateProps,
-  PermissionEmptyStateProps,
 } from './EmptyState';

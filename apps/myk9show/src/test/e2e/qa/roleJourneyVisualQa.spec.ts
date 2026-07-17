@@ -27,7 +27,7 @@ import { LIVE_SECRETARY_SHOW_ID, LIVE_REGISTRATION_SHOW_ID } from '../uat/shared
  * run it when changing cross-role UX, layouts, or visual tokens.
  */
 
-test.describe.configure({ mode: 'serial', timeout: 180_000 });
+test.setTimeout(180_000);
 
 const PATH_PARAMS = {
   registrationShowId: LIVE_REGISTRATION_SHOW_ID,
@@ -84,7 +84,12 @@ async function configureViewportAndTheme(
   );
 }
 
-async function assertRouteHealth(page: Page, errors: string[], routeLabel: string) {
+async function assertRouteHealth(
+  page: Page,
+  errors: string[],
+  routeLabel: string,
+  expectedPath: string
+) {
   await expect
     .poll(async () => (await page.locator('body').innerText()).trim().length, {
       message: `${routeLabel}: page did not render meaningful content`,
@@ -93,6 +98,7 @@ async function assertRouteHealth(page: Page, errors: string[], routeLabel: strin
     .toBeGreaterThan(20);
 
   await expect(page).not.toHaveURL(/\/sign-in/);
+  expect(new URL(page.url()).pathname, `${routeLabel}: route path`).toBe(expectedPath);
 
   const overflow = await page.evaluate(() =>
     Math.max(0, document.documentElement.scrollWidth - window.innerWidth)
@@ -163,7 +169,7 @@ async function runScenario(
   for (const route of scenario.routes) {
     const path = resolveRoleJourneyPath(route.pathTemplate, PATH_PARAMS);
     await page.goto(path, { waitUntil: 'domcontentloaded' });
-    await assertRouteHealth(page, errors, `${scenario.id}/${route.id}`);
+    await assertRouteHealth(page, errors, `${scenario.id}/${route.id}`, path);
     errors.length = 0;
   }
 

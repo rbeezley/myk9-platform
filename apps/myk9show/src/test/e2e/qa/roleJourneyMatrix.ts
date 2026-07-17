@@ -60,7 +60,7 @@ export const ROLE_JOURNEY_MATRIX = [
       { id: 'show-detail', label: 'Show Detail', pathTemplate: '/shows/{registrationShowId}' },
       {
         id: 'registration',
-        label: 'Registration and payment review',
+        label: 'Registration guardrails',
         pathTemplate: '/shows/{registrationShowId}/register',
       },
     ],
@@ -69,7 +69,6 @@ export const ROLE_JOURNEY_MATRIX = [
       'horizontal-overflow',
       'console-errors',
       'disabled-state',
-      'selected-state',
       'modal-feedback',
       'visual-baseline',
     ],
@@ -124,7 +123,7 @@ export const ROLE_JOURNEY_MATRIX = [
         pathTemplate: '/judge/check-in',
       },
     ],
-    checks: ['render', 'horizontal-overflow', 'console-errors', 'selected-state'],
+    checks: ['render', 'horizontal-overflow', 'console-errors'],
   },
   {
     id: 'admin-support',

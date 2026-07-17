@@ -128,6 +128,7 @@ async function assertSecretaryStates(page: Page) {
 
   await page.getByRole('tab', { name: 'Entries', exact: true }).click();
   await expect(page.getByText('Total Entries', { exact: true })).toBeVisible();
+  expect(await page.locator(':disabled').count(), 'secretary disabled controls').toBeGreaterThan(0);
 
   await page.goto(`/shows/${LIVE_SECRETARY_SHOW_ID}/show-desk`, {
     waitUntil: 'domcontentloaded',

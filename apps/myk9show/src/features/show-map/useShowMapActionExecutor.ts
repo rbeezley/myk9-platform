@@ -5,6 +5,7 @@ import { queryKeys } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { showUndoToast } from '@/lib/undoToast';
 import { useMessageStore } from '@/store/messageStore';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
@@ -277,11 +278,9 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     },
     onSuccess: (result, { action }) => {
       const undoInput: ShowMapScratchUndoMutationInput = { ...result, classId: action.classId };
-      toast.success('Entry marked pulled', {
-        action: {
-          label: 'Undo',
-          onClick: () => undoScratchMutation.mutate(undoInput),
-        },
+      showUndoToast({
+        message: 'Entry marked pulled',
+        onUndo: () => undoScratchMutation.mutate(undoInput),
       });
       setScratchAction(null);
     },

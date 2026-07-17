@@ -18,9 +18,24 @@ export interface UseBulkDispatchOptions<T> {
   applicableWhen?: (item: T) => boolean;
 }
 
+export interface BulkDispatchRunOptions<T> {
+  /**
+   * Builds an Undo action for the summary toast from the dispatch outcome. Called
+   * once the outcome is known, so it can revert exactly the succeeded subset. Only
+   * attached to the FULL-success toast — on partial failure the "Retry failed"
+   * action is the more useful affordance and takes the single action slot. Return
+   * `undefined` to show no Undo.
+   */
+  buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined;
+}
+
 export interface UseBulkDispatchResult<T> {
   /** Dispatches `runItem` across `items` via allSettled, then shows a summary toast. */
-  run: (items: T[], runItem: (item: T) => Promise<void>) => Promise<BulkDispatchOutcome<T>>;
+  run: (
+    items: T[],
+    runItem: (item: T) => Promise<void>,
+    options?: BulkDispatchRunOptions<T>
+  ) => Promise<BulkDispatchOutcome<T>>;
   /** True while a dispatch (initial or retry) is in flight — disable bulk controls on this. */
   isBusy: boolean;
 }
@@ -40,10 +55,19 @@ export function useBulkDispatch<T>({
   const [isBusy, setIsBusy] = useState(false);
 
   const showSummary = useCallback(
-    (total: number, outcome: BulkDispatchOutcome<T>, runItem: (item: T) => Promise<void>) => {
+    (
+      total: number,
+      outcome: BulkDispatchOutcome<T>,
+      runItem: (item: T) => Promise<void>,
+      buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined
+    ) => {
       const summary = summarizeBulkOutcome(total, outcome, getLabel);
       if (summary.fullSuccess) {
-        toast.success(summary.title);
+        const onUndo = buildUndo?.(outcome);
+        toast.success(
+          summary.title,
+          onUndo ? { action: { label: 'Undo', onClick: onUndo } } : undefined
+        );
         return;
       }
       toast.error(summary.title, {
@@ -98,13 +122,17 @@ export function useBulkDispatch<T>({
   );
 
   const run = useCallback(
-    async (items: T[], runItem: (item: T) => Promise<void>): Promise<BulkDispatchOutcome<T>> => {
+    async (
+      items: T[],
+      runItem: (item: T) => Promise<void>,
+      options?: BulkDispatchRunOptions<T>
+    ): Promise<BulkDispatchOutcome<T>> => {
       if (inFlightRef.current) return { succeeded: [], failed: [] };
       inFlightRef.current = true;
       setIsBusy(true);
       try {
         const outcome = await dispatchBulk(items, runItem);
-        showSummary(items.length, outcome, runItem);
+        showSummary(items.length, outcome, runItem, options?.buildUndo);
         return outcome;
       } finally {
         inFlightRef.current = false;

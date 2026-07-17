@@ -110,6 +110,42 @@ describe('useBulkDispatch', () => {
     expect(runItem).not.toHaveBeenCalled();
   });
 
+  it('attaches an Undo action to the full-success toast when buildUndo is provided', async () => {
+    const onUndo = vi.fn();
+    const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
+
+    await act(async () => {
+      await result.current.run([item('a'), item('b')], async () => undefined, {
+        buildUndo: outcome => (outcome.succeeded.length > 0 ? onUndo : undefined),
+      });
+    });
+
+    const options = vi.mocked(toast.success).mock.calls[0]?.[1] as
+      { action?: { label: string; onClick: () => void } } | undefined;
+    expect(options?.action?.label).toBe('Undo');
+    options?.action?.onClick();
+    expect(onUndo).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT attach Undo to the partial-failure toast (retry keeps the action slot)', async () => {
+    const onUndo = vi.fn();
+    const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
+
+    await act(async () => {
+      await result.current.run(
+        [item('a'), item('b')],
+        async i => {
+          if (i.id === 'b') throw new Error('boom');
+        },
+        { buildUndo: () => onUndo }
+      );
+    });
+
+    // Partial failure surfaces the retry action, never Undo.
+    expect(retryActionFromCall().label).toBe('Retry failed');
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
   it('ignores a second concurrent run while one is already in flight (useRef latch)', async () => {
     let resolveFirst!: () => void;
     const first = new Promise<void>(resolve => {

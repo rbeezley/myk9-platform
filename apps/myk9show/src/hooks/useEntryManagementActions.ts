@@ -16,6 +16,8 @@ import {
 } from '@/services/database/entries';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
+import { useEntryStatusUndo } from '@/hooks/useEntryStatusUndo';
+import { showUndoToast } from '@/lib/undoToast';
 import { CLOSED_STATUSES } from '@/components/entries/management/bulkActionEligibility';
 import {
   autoAssignArmbands,
@@ -141,6 +143,12 @@ export function useEntryManagementActions({
     startNumber: '1',
   });
 
+  const { runSingleUndo, runBulkUndo } = useEntryStatusUndo({
+    entriesRef,
+    setEntries,
+    userId: user?.id,
+  });
+
   const bulkStatusDispatch = useBulkDispatch<EntryManagementEntry>({
     getLabel: entry => `${entry.dogName} (#${entry.entryNumber})`,
     applicableWhen: entry => !CLOSED_STATUSES.has(entry.entryStatus),
@@ -163,12 +171,27 @@ export function useEntryManagementActions({
     async (entryId: string, newStatus: EntryStatus, withdrawalReason?: string) => {
       const entry = entries.find(e => e.id === entryId);
       if (!entry) return false;
-      return executeStatusChange(
+      const priorStatus = entry.entryStatus;
+      const ok = await executeStatusChange(
         { entryId, newStatus, withdrawalReason, entry, userId: user?.id },
         { changeSecretaryStatus: changeSecretaryEntryStatus, patchEntries: setEntries }
       );
+
+      // Offer a time-boxed undo only for simple transitions (design.md D6). A
+      // withdrawal carries a reason (collected in its own dialog) and is left
+      // to that flow; a no-op transition has nothing to undo.
+      if (ok && withdrawalReason === undefined && priorStatus !== newStatus) {
+        showUndoToast({
+          message: 'Status updated',
+          onUndo: () => {
+            void runSingleUndo(entryId, priorStatus, newStatus);
+          },
+        });
+      }
+
+      return ok;
     },
-    [entries, setEntries, user]
+    [entries, setEntries, user, runSingleUndo]
   );
 
   // Handle armband assignment
@@ -263,15 +286,29 @@ export function useEntryManagementActions({
     async (entryIds: string[], status: EntryStatus) => {
       const targets = entriesRef.current.filter(e => entryIds.includes(e.id));
       if (targets.length === 0) return false;
+      // Capture each entry's prior status BEFORE the change so undo can revert
+      // each item to exactly where it started (design.md D6).
+      const priorById = new Map(targets.map(e => [e.id, e.entryStatus]));
       setIsProcessing(true);
       try {
-        const outcome = await bulkStatusDispatch.run(targets, async entry => {
-          const ok = await executeStatusChange(
-            { entryId: entry.id, newStatus: status, entry, userId: user?.id },
-            { changeSecretaryStatus: changeSecretaryEntryStatus, patchEntries: setEntries }
-          );
-          if (!ok) throw new Error('Failed to update entry status');
-        });
+        const outcome = await bulkStatusDispatch.run(
+          targets,
+          async entry => {
+            const ok = await executeStatusChange(
+              { entryId: entry.id, newStatus: status, entry, userId: user?.id },
+              { changeSecretaryStatus: changeSecretaryEntryStatus, patchEntries: setEntries }
+            );
+            if (!ok) throw new Error('Failed to update entry status');
+          },
+          {
+            buildUndo: result =>
+              result.succeeded.length > 0
+                ? () => {
+                    void runBulkUndo(result.succeeded, priorById, status);
+                  }
+                : undefined,
+          }
+        );
         return outcome.failed.length === 0;
       } catch (err) {
         setError('Failed to update entry statuses');
@@ -281,7 +318,7 @@ export function useEntryManagementActions({
         setIsProcessing(false);
       }
     },
-    [bulkStatusDispatch, setEntries, setError, user]
+    [bulkStatusDispatch, setEntries, setError, user, runBulkUndo]
   );
 
   // Handle enrollment-level bulk check-in. Only entries that actually succeed get their

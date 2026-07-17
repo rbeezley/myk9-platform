@@ -32,14 +32,14 @@
 
 ## 4. Inline status editing + undo
 
-- [ ] 4.1 Extract the shared `showUndoToast` helper from the inlined show-map sonner pattern (time-boxed, action button); migrate show-map scratch/move-up undo toasts onto it
+- [x] 4.1 Extract the shared `showUndoToast` helper from the inlined show-map sonner pattern (time-boxed, action button); migrate show-map scratch/move-up undo toasts onto it
 - [ ] 4.2 Inline entry-status edit popover on Entry Management: badge (rendered via `StatusIcon` from MYK9-52) becomes a button opening eligible frequent transitions resolved from entry `EntityAction` definitions; 44px touch targets, focusable items
-- [ ] 4.3 Implement undo dispatch: inverse transition through `updateSecretaryLifecycleStatus` seam with supersession check (current status must equal the status our action produced, else "changed by someone else"); never call `restore_entry_status`
-- [ ] 4.4 Offline honesty: queued-offline messaging; enqueue inverse only where local queue ordering is guaranteed, otherwise withhold undo with explicit messaging
-- [ ] 4.5 Bulk undo: revert succeeded subset item-by-item, each with supersession check
-- [ ] 4.6 Remove routine confirmation dialogs ONLY for undo-covered simple transitions; retain reason/note/complex-input dialogs (reject-with-reason, withdraw/refund)
-- [ ] 4.7 Tests: undo supersession (mismatch aborts), offline-queued behavior, bulk undo subset, window expiry, dialog-retention matrix
-- [ ] 4.8 Verify: `cd apps/myk9show && pnpm vitest run src/hooks src/components/entries` + `pnpm typecheck && pnpm lint`
+- [x] 4.3 Implement undo dispatch: inverse transition through `updateSecretaryLifecycleStatus` seam with supersession check (current status must equal the status our action produced, else "changed by someone else"); never call `restore_entry_status`
+- [x] 4.4 Offline honesty: queued-offline messaging; enqueue inverse only where local queue ordering is guaranteed, otherwise withhold undo with explicit messaging
+- [x] 4.5 Bulk undo: revert succeeded subset item-by-item, each with supersession check
+- [x] 4.6 Remove routine confirmation dialogs ONLY for undo-covered simple transitions; retain reason/note/complex-input dialogs (reject-with-reason, withdraw/refund)
+- [x] 4.7 Tests: undo supersession (mismatch aborts), offline-queued behavior, bulk undo subset, window expiry, dialog-retention matrix
+- [x] 4.8 Verify: `cd apps/myk9show && pnpm vitest run src/hooks src/components/entries` + `pnpm typecheck && pnpm lint`
 
 ## 5. Verification and merge gate
 

@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  resolveAuthPreflightConfig,
-  verifyE2EAuthCredentials,
-} from './e2eAuthPreflight';
+import { resolveAuthPreflightConfig, verifyE2EAuthCredentials } from './e2eAuthPreflight';
 
 describe('e2e auth preflight', () => {
   const baseEnv = {
@@ -13,6 +10,8 @@ describe('e2e auth preflight', () => {
     E2E_SECRETARY_PASSWORD: 'secret-password',
     E2E_ADMIN_EMAIL: 'admin@example.com',
     E2E_ADMIN_PASSWORD: 'admin-password',
+    E2E_DEMO_EXHIBITOR_EMAIL: 'exhibitor@example.com',
+    E2E_DEMO_EXHIBITOR_PASSWORD: 'exhibitor-password',
   };
 
   it('resolves role credentials from env', () => {
@@ -42,6 +41,18 @@ describe('e2e auth preflight', () => {
         ['secretary']
       )
     ).toThrow('Missing E2E auth preflight secret(s) for secretary: E2E_SECRETARY_PASSWORD');
+  });
+
+  it('resolves the canonical exhibitor credentials from env', () => {
+    const config = resolveAuthPreflightConfig(baseEnv, ['exhibitor']);
+
+    expect(config.credentials).toEqual([
+      {
+        role: 'exhibitor',
+        email: 'exhibitor@example.com',
+        password: 'exhibitor-password',
+      },
+    ]);
   });
 
   it('posts a password-grant probe for each configured role', async () => {

@@ -1,4 +1,4 @@
-export type AuthPreflightRole = 'secretary' | 'admin' | 'judge';
+export type AuthPreflightRole = 'secretary' | 'admin' | 'judge' | 'exhibitor';
 
 interface RoleEnv {
   email: string;
@@ -29,6 +29,10 @@ const ROLE_ENV: Record<AuthPreflightRole, RoleEnv> = {
   judge: {
     email: 'E2E_JUDGE_EMAIL',
     password: 'E2E_JUDGE_PASSWORD',
+  },
+  exhibitor: {
+    email: 'E2E_DEMO_EXHIBITOR_EMAIL',
+    password: 'E2E_DEMO_EXHIBITOR_PASSWORD',
   },
 };
 

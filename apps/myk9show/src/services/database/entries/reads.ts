@@ -726,6 +726,7 @@ export const getEntriesByClass = async (classId: string) => {
         replicatedEntriesTable.getEntriesByClass(classId),
         loadDogsMap(),
       ]);
+      const locallyDeletedIds = entries.filter(entry => !isLiveEntry(entry)).map(entry => entry.id);
       const sortedEntries = sortedCopy(
         entries.filter(isLiveEntry),
         compareNumberAscNullsLast(entry => entry.runOrder)
@@ -755,12 +756,15 @@ export const getEntriesByClass = async (classId: string) => {
         }
         return e;
       });
-      return { data: backfilledData, error: null };
+      return { data: backfilledData, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByClass(classId),
     table: 'entries',
     operation: 'select_by_class',
     errorData: [],
+    // A class can be opened before its per-show replica is warm. Verify an
+    // empty local result online while preserving queued local deletions.
+    verifyOnlineWhenEmpty: true,
   });
 };
 

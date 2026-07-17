@@ -98,16 +98,15 @@ export const CheckInStatusLegend: React.FC<{
   return (
     <div className={cn('grid grid-cols-2 md:grid-cols-3 gap-3', className)}>
       {statuses.map(status => {
-        const descriptor = getStatusDescriptor('entry', status);
         return (
           <div key={status} className="flex items-center gap-2">
             <CheckInStatusIndicator
               status={status}
               size="sm"
+              showLabel
               showTooltip={false}
               animated={false}
             />
-            <span className="text-sm text-muted-foreground">{descriptor.label}</span>
           </div>
         );
       })}

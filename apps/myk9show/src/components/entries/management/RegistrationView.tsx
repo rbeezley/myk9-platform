@@ -209,7 +209,9 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     [entries]
   );
   const { data: emailStatusMap } = useEmailStatus(registrationIds);
-  const isMobileViewport = useMediaQuery('(max-width: 767px)');
+  // The desktop sidebar leaves only ~528px of content at a 768px tablet
+  // viewport, so the dense entry table is not usable until the lg shell width.
+  const isMobileViewport = useMediaQuery('(max-width: 1023px)');
 
   // Resend cooldown state (registrationId -> cooldown expiry timestamp)
   const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});

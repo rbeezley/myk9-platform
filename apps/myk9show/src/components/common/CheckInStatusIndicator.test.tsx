@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@/test/utils/testUtils';
-import { CheckInStatusIndicator } from './CheckInStatusIndicator';
+import { CheckInStatusIndicator, CheckInStatusLegend } from './CheckInStatusIndicator';
 import type { CheckInStatus } from '@/types/check-in-types';
 
 describe('CheckInStatusIndicator', () => {
@@ -39,5 +39,14 @@ describe('CheckInStatusIndicator', () => {
       <CheckInStatusIndicator status={rogue} showLabel showTooltip={false} />
     );
     expect(getByText('No Status')).toBeInTheDocument();
+  });
+
+  it('announces each legend status once', () => {
+    const { getAllByText, queryByRole } = render(
+      <CheckInStatusLegend statuses={['checked-in']} />
+    );
+
+    expect(getAllByText('Checked-in')).toHaveLength(1);
+    expect(queryByRole('img', { name: 'Checked-in' })).not.toBeInTheDocument();
   });
 });

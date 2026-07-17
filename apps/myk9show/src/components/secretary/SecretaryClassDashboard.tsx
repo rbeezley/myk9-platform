@@ -47,6 +47,7 @@ import { useClassEffectiveSettings } from '@/hooks/queries/useShowSettingsDataba
 import { msToDisplay } from '@/lib/timeUtils';
 import { formatRingLabel } from '@/utils/ringLabel';
 import { StatusBadge } from '@/components/status';
+import { normalizeSecretaryDashboardClassStatus } from './SecretaryClassDashboard.status';
 
 // Premium styling
 import '@/styles/myk9-show-details.css';
@@ -177,8 +178,7 @@ export function SecretaryClassDashboard({
     judgeAssignment: currentClass?.judge || 'Jane Doe',
     scheduledTime: currentClass?.startTime ? new Date(currentClass.startTime) : new Date(),
     ring: 'Ring 1',
-    status: (currentClass?.status?.toLowerCase() === 'in progress' ? 'in-progress' : 'pending') as
-      'in-progress' | 'pending',
+    status: normalizeSecretaryDashboardClassStatus(currentClass?.status),
   };
   const ringLabel = formatRingLabel(classInfo.ring);
 

@@ -220,7 +220,7 @@ export const CLASS_STATUS_DESCRIPTORS = {
   'not-started': descriptor('not-started', 'Not started', 'not-started', 'text-muted-foreground'),
   'in-progress': descriptor('in-progress', 'In Progress', 'in-progress', 'text-info'),
   not_started: descriptor('not_started', 'Not started', 'not-started', 'text-muted-foreground'),
-  pending: descriptor('pending', 'Pending', 'pending', 'text-warning'),
+  pending: descriptor('pending', 'Not started', 'not-started', 'text-muted-foreground'),
   paused: descriptor('paused', 'Paused', 'needs-attention', 'text-warning'),
   cancelled: descriptor('cancelled', 'Cancelled', 'complete', 'text-destructive'),
   start_time: descriptor('start_time', 'Upcoming', 'not-started', 'text-muted-foreground'),
@@ -249,12 +249,36 @@ const FALLBACK_STATUS_BY_FAMILY: Readonly<Record<StatusFamily, string>> = {
   trial: 'no-classes',
 };
 
+const CLASS_STATUS_ALIASES: Readonly<Record<string, keyof typeof CLASS_STATUS_DESCRIPTORS>> = {
+  scheduled: 'Scheduled',
+  Pending: 'Scheduled',
+  Planned: 'Upcoming',
+  planned: 'Upcoming',
+  Published: 'Upcoming',
+  published: 'Upcoming',
+  check_in: 'In Progress',
+  scoring: 'In Progress',
+  draft: 'Scheduled',
+  accepting_entries: 'Upcoming',
+  closed: 'Upcoming',
+  unpublished: 'Scheduled',
+  'in progress': 'In Progress',
+  InProgress: 'In Progress',
+  inProgress: 'In Progress',
+  Complete: 'Completed',
+  complete: 'Completed',
+  Canceled: 'Cancelled',
+  canceled: 'Cancelled',
+};
+
 export function getStatusDescriptor(
   family: StatusFamily,
   status: string | null | undefined
 ): StatusDescriptor {
   const familyDescriptors = STATUS_DESCRIPTORS[family];
-  return familyDescriptors[status ?? ''] ?? familyDescriptors[FALLBACK_STATUS_BY_FAMILY[family]]!;
+  const descriptorKey =
+    family === 'class' && status ? (CLASS_STATUS_ALIASES[status] ?? status) : (status ?? '');
+  return familyDescriptors[descriptorKey] ?? familyDescriptors[FALLBACK_STATUS_BY_FAMILY[family]]!;
 }
 
 export function getStatusSurfaceClasses(

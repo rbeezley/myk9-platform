@@ -30,6 +30,11 @@ Replicated/ringside aliases that are rendered before normalization:
 `completed`, `not-started`, `in-progress`, `not_started`, `pending`, `paused`,
 `cancelled`, and `start_time`.
 
+Accepted legacy aliases from `LEGACY_STATUS_MAP` are normalized to the same
+shape and semantic color as their canonical value. This includes casing and
+separator variants such as `scheduled`, `in progress`, `InProgress`,
+`inProgress`, `complete`, `canceled`, plus setup/publish workflow spellings.
+
 ### Trial family
 
 Derived composite values from `deriveTrialCompositeStatus`:

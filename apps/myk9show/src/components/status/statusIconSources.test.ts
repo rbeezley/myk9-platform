@@ -45,7 +45,6 @@ const MIGRATED_RENDERERS = [
   'components/live/EntryRow.tsx',
   'components/live/LiveClassCard.tsx',
   'components/schedule/ElementCard.tsx',
-  'components/shows/ShowDetails/TrialsList.tsx',
   'components/shows/tabs/ClassesTab.tsx',
   'components/shows/tabs/ClassCard.tsx',
   'components/shows/tabs/TrialsTab.tsx',
@@ -127,7 +126,7 @@ describe('status icon grammar source ownership', () => {
       resolve(WORKSPACE_ROOT, 'packages/ringside/src'),
     ];
     const forbidden =
-      /\bCHECKIN_STATUS\b|\bgetCheckinStatusConfig\b|\bCheckInStatusConfig\b|\bCLASS_STATUS_DISPLAY\b|\bgetClassStatusDisplay\b|\bgetClassStatusBadgeClasses\b|\bCLASS_DISPLAY_STATUS_LABELS\b|\bgetClassDisplayStatusLabel\b|\bgetFormattedStatus\b|\bgetClassStatusColor\b|\bgetFormattedClassStatus\b|\bBASE_STATUSES\b|\bRING_MANAGEMENT_STATUSES\b|\bSTATUS_PILL_BG\b|\bSTATUS_VARIANT_MAP\b|\bTV_STATUS_CONFIG\b|\bSUMMARY_BORDER_COLOR\b|\bCLASS_LIFECYCLE_LABELS\b|\bCLASS_LIFECYCLE_TONES\b|\bSTATUS_BORDER\b|\bSTAGE_STYLE\b|status\.replace\(\/\[-_\]\/g|h-2\s+w-2\s+rounded-full\s+bg-primary\s+animate-pulse|const\s+statusConfig\s*=\s*\[\s*\{\s*key:\s*'Scheduled',\s*title:[^}]+icon:|function\s+getStatusDisplay\s*\(\s*entry\s*:\s*ScoringEntry|myk9-entry-status-dot|myk9-judge-progress-dot|\.myk9-entry-card\.(?:pending|in-progress|completed)|\.myk9-entry-status-text\.(?:pending|in-progress)|const\s+statusColors\s*:\s*Record<ClassStatus|const\s+statusBadgeColors\s*:\s*Record<ClassStatus|function\s+getStatusColor\s*\(\s*status:\s*(?:CheckInStatus|ClassEntry)/;
+      /\bCHECKIN_STATUS\b|\bgetCheckinStatusConfig\b|\bCheckInStatusConfig\b|\bCLASS_STATUS_DISPLAY\b|\bgetClassStatusDisplay\b|\bgetClassStatusBadgeClasses\b|\bCLASS_DISPLAY_STATUS_LABELS\b|\bgetClassDisplayStatusLabel\b|\bgetFormattedStatus\b|\bgetClassStatusColor\b|\bgetFormattedClassStatus\b|\bBASE_STATUSES\b|\bRING_MANAGEMENT_STATUSES\b|\bSTATUS_PILL_BG\b|\bSTATUS_VARIANT_MAP\b|\bTV_STATUS_CONFIG\b|\bSUMMARY_BORDER_COLOR\b|\bCLASS_LIFECYCLE_LABELS\b|\bCLASS_LIFECYCLE_TONES\b|\bSTATUS_BORDER\b|\bSTAGE_STYLE\b|status\.replace\(\/\[-_\]\/g|h-2\s+w-2\s+rounded-full\s+bg-primary\s+animate-pulse|const\s+statusConfig\s*=\s*\[\s*\{\s*key:\s*'Scheduled',\s*title:[^}]+icon:|function\s+getStatusDisplay\s*\(\s*entry\s*:\s*ScoringEntry|myk9-entry-status-dot|myk9-judge-progress-dot|\.myk9-entry-card\.(?:pending|in-progress|completed)|\.myk9-entry-status-text\.(?:pending|in-progress)|\.myk9-class-status-(?:scheduled|in-progress|completed)|\.myk9-trial-status-(?:upcoming|in-progress|completed)|const\s+statusColors\s*:\s*Record<ClassStatus|const\s+statusBadgeColors\s*:\s*Record<ClassStatus|function\s+getStatusColor\s*\(\s*status:\s*(?:CheckInStatus|ClassEntry)/;
 
     for (const sourcePath of roots.flatMap(productionSources)) {
       if (OUT_OF_SCOPE_STATUS_SOURCE_SEGMENTS.some(segment => sourcePath.includes(segment))) {
@@ -136,5 +135,31 @@ describe('status icon grammar source ownership', () => {
       const source = readFileSync(sourcePath, 'utf8');
       expect(source, sourcePath.replace(`${WORKSPACE_ROOT}/`, '')).not.toMatch(forbidden);
     }
+  });
+
+  it('keeps status-heavy tablet surfaces within the shell content width', () => {
+    const registration = readFileSync(
+      resolve(
+        WORKSPACE_ROOT,
+        'apps/myk9show/src/components/entries/management/RegistrationView.tsx'
+      ),
+      'utf8'
+    );
+    const entryManagement = readFileSync(
+      resolve(WORKSPACE_ROOT, 'apps/myk9show/src/pages/secretary/EntryManagementPage.tsx'),
+      'utf8'
+    );
+    const classManagement = readFileSync(
+      resolve(WORKSPACE_ROOT, 'apps/myk9show/src/pages/secretary/ClassManagementPage.tsx'),
+      'utf8'
+    );
+
+    expect(registration).toContain("useMediaQuery('(max-width: 1023px)')");
+    expect(entryManagement).toContain('lg:flex-row');
+    expect(classManagement).toContain(
+      'flex w-full flex-col gap-2 lg:w-auto lg:shrink-0 lg:flex-row'
+    );
+    expect(classManagement).toContain('lg:grid-cols-7');
+    expect(classManagement).not.toContain('md:grid-cols-7');
   });
 });

@@ -12,10 +12,10 @@ export function ShowMapNodeStatusBadge({ node }: { node: ShowMapNode }) {
         status={deriveTrialStatusKey({
           trialStatus: node.status.value,
           classCount: node.childrenCount,
+          completedCount: node.progress?.completed,
           hasStarted: node.status.kind === 'active',
         })}
         variant="secondary"
-        label={node.status.label}
       />
     );
   }
@@ -31,7 +31,12 @@ export function ShowMapNodeStatusBadge({ node }: { node: ShowMapNode }) {
     );
   }
 
-  const entryStatus = node.status.kind === 'complete' ? 'completed' : node.status.value;
+  const entryStatus =
+    node.status.kind === 'muted'
+      ? 'pulled'
+      : node.status.kind === 'complete'
+        ? 'completed'
+        : node.status.value;
   return (
     <StatusBadge
       family="entry"

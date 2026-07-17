@@ -273,21 +273,6 @@
   white-space: nowrap;
 }
 
-.myk9-trial-status-upcoming {
-  background: rgba(52, 199, 89, 0.1);
-  color: #34c759;
-}
-
-.myk9-trial-status-in-progress {
-  background: rgba(255, 149, 0, 0.1);
-  color: #ff9500;
-}
-
-.myk9-trial-status-completed {
-  background: rgba(88, 86, 214, 0.1);
-  color: #5856d6;
-}
-
 .myk9-trial-actions {
   position: absolute;
   top: 16px;

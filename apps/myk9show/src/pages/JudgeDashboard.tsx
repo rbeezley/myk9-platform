@@ -67,7 +67,7 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
     <div className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       <div className="relative flex items-center gap-4">
-        <StatusIcon family="class" status={judgeClass.status} size="lg" />
+        <StatusIcon family="class" status={judgeClass.status} size="lg" decorative />
         <div>
           <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300">
             {judgeClass.name}

@@ -1,5 +1,10 @@
 import { render, screen } from '@/test/utils/testUtils';
-import { CLASS_STATUS, deriveTrialStatusKey, type ClassStatusValue } from '@myk9/core';
+import {
+  CLASS_STATUS,
+  LEGACY_STATUS_MAP,
+  deriveTrialStatusKey,
+  type ClassStatusValue,
+} from '@myk9/core';
 import { EntryStatus } from '@/types/show-registration-types';
 import { ENTRY_LIFECYCLE_STATUS_VALUES } from '@/types/entry-lifecycle';
 import { CLASS_ENTRY_STATUS_VALUES } from '@/types/entry-refactored-types';
@@ -66,6 +71,15 @@ describe('status icon grammar', () => {
     expect(screen.getAllByRole('img', { name: 'Completed' })).toHaveLength(3);
     for (const icon of screen.getAllByRole('img', { name: 'Completed' })) {
       expect(icon).toHaveAttribute('data-shape', 'complete');
+    }
+  });
+
+  it('gives every accepted legacy class alias the canonical shape and semantic color', () => {
+    for (const [alias, canonical] of Object.entries(LEGACY_STATUS_MAP)) {
+      const actual = getStatusDescriptor('class', alias);
+      const expected = getStatusDescriptor('class', canonical);
+      expect(actual.shape, alias).toBe(expected.shape);
+      expect(actual.colorClass, alias).toBe(expected.colorClass);
     }
   });
 

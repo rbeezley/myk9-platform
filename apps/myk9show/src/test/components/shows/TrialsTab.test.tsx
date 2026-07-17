@@ -131,6 +131,25 @@ describe('TrialsTab', () => {
     );
   });
 
+  it('filters by the same child-derived status shown in each badge', async () => {
+    const trials = [
+      makeTrial({ id: 'derived-complete', name: 'Derived Complete', status: 'Scheduled' }),
+      makeTrial({ id: 'derived-pending', name: 'Derived Pending', status: 'Completed' }),
+    ];
+    const stats = {
+      'derived-complete': { classCount: 2, entryCount: 8, completedClasses: 2 },
+      'derived-pending': { classCount: 2, entryCount: 8, completedClasses: 0 },
+    };
+
+    const { user } = render(
+      <TrialsTab trials={trials} showId="show-1" trialStats={stats} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /Completed \(1\)/ }));
+    expect(screen.getByText('Derived Complete')).toBeInTheDocument();
+    expect(screen.queryByText('Derived Pending')).not.toBeInTheDocument();
+  });
+
   it('hides scored text when completedClasses is 0', () => {
     const trials = [makeTrial({ id: 't1' })];
     const stats = { t1: { classCount: 5, entryCount: 42, completedClasses: 0 } };

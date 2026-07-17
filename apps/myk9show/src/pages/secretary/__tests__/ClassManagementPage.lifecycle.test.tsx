@@ -107,4 +107,11 @@ describe('ClassManagementPage lifecycle chips (2.B)', () => {
     expect(tileCount('In Progress')).toBe('1');
     expect(tileCount('Completed')).toBe('1');
   });
+
+  it('announces summary lifecycle labels once through visible text', () => {
+    renderPage();
+    expect(screen.queryByRole('img', { name: 'Not started' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'In Progress' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Completed' })).not.toBeInTheDocument();
+  });
 });

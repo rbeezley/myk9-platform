@@ -1,6 +1,6 @@
 # Verification evidence
 
-Verified 2026-07-16 on the seeded Heartland Scent Work Classic show.
+Verified 2026-07-17 on the seeded Heartland Scent Work Classic show.
 
 ## Automated checks
 
@@ -48,13 +48,15 @@ The sixth two-axis review removed the ringside card's parallel lifecycle border 
 
 The seventh two-axis review moved trial lifecycle derivation into core so stored trial state and child-class progress cannot disagree, added the persisted `scratch_requested` and `move_up_requested` aliases, fixed icon-only check-in accessibility and duplicate ClassCard announcements, and migrated the last four reported production renderers (pipeline cards, scoring-day summaries, run-order boards, and trial lists). Assertion-first tests failed on every reported path before remediation. Afterward, 39 focused app tests across 6 files, all 363 core tests across 16 files, and all 296 shared UI tests across 18 files passed. Typecheck passed 26/26 tasks, lint passed 14/14 tasks, and strict OpenSpec validation passed.
 
+The eighth two-axis review aligned Trials filtering and Show Map trial badges with child-derived lifecycle progress, normalized the remaining persisted class and entry aliases, removed three legacy CSS status maps and five unused trial renderers, corrected the secretary dashboard's completed/cancelled mapping, and eliminated redundant screen-reader announcements. Tablet layouts now defer dense rows and action groups until the large breakpoint. A cold class-scoped replica also now performs the established guarded online verification, so Class Details can show its authoritative entries without resurrecting queued local deletions. Assertion-first coverage failed on the reported paths before remediation. Afterward, 61 focused app tests across 9 files, all 296 shared UI tests, all 363 core tests, and all 371 ringside tests passed. Typecheck passed 26/26 tasks, lint passed 14/14 tasks, and strict OpenSpec validation passed.
+
 ## Browser sweep
 
 Playwright CLI was run at the 768×1024 tablet viewport in light and dark themes against the authenticated seeded Heartland Scent Work Classic show. Each route was held until its page heading and populated status content were visible, then captured as a full-page screenshot and accessibility snapshot:
 
-- Entry Management: `/shows/dededede-0000-0000-0000-000000000010/entry-management` — `.playwright-cli/myk9-52-entry-management-{light,dark}-tablet-r7.{png,yml}`
-- Class Management: `/shows/dededede-0000-0000-0000-000000000010/classes/dededede-0000-0000-0000-000000000021` — `.playwright-cli/myk9-52-class-management-{light,dark}-tablet-r7.{png,yml}`
-- Class Details: `/shows/dededede-0000-0000-0000-000000000010/trials/dededede-0000-0000-0000-000000000021/classes/dec1a55e-0000-0000-0000-000000000031` — `.playwright-cli/myk9-52-class-details-{light,dark}-tablet-r7.{png,yml}`
-- Show Desk: `/shows/dededede-0000-0000-0000-000000000010/show-desk` — `.playwright-cli/myk9-52-show-desk-{light,dark}-tablet-r7.{png,yml}`
+- Entry Management: `/shows/dededede-0000-0000-0000-000000000010/entry-management` — `.playwright-cli/myk9-52-entry-management-{light,dark}-tablet-r8.{png,yml}`
+- Class Management: `/shows/dededede-0000-0000-0000-000000000010/classes/dededede-0000-0000-0000-000000000021` — `.playwright-cli/myk9-52-class-management-{light,dark}-tablet-r8.{png,yml}`
+- Class Details: `/shows/dededede-0000-0000-0000-000000000010/trials/dededede-0000-0000-0000-000000000021/classes/dec1a55e-0000-0000-0000-000000000031` — `.playwright-cli/myk9-52-class-details-{light,dark}-tablet-r8.{png,yml}`
+- Show Desk: `/shows/dededede-0000-0000-0000-000000000010/show-desk` — `.playwright-cli/myk9-52-show-desk-{light,dark}-tablet-r8.{png,yml}`
 
-The screenshots and snapshots show populated pending/scored entry states, class not-started/in-progress/completed states, class-readiness progress, and Show Desk trial/status controls using the shared grammar in both themes. The only browser console errors were the known Vite HMR websocket conflict from running this worktree on port 5174 while port 24678 was already occupied; no application runtime errors were observed.
+The screenshots and snapshots show populated pending/scored entry states, all 8 seeded Class Details entries with readiness progress, class not-started/in-progress/completed states, and Show Desk trial/status controls using the shared grammar in both themes. Entry Management, Class Management, and Class Details remain readable without clipped titles, actions, status labels, or overlapping controls at the tablet viewport. The only browser console errors were the known Vite HMR websocket conflict from running this worktree on port 5174 while port 24678 was already occupied; no application runtime errors were observed.

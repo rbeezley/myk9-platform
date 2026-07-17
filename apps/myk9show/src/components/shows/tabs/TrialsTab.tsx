@@ -9,7 +9,7 @@ import { StatusFilter, type StatusFilterValue } from '@/components/common/Status
 import { FilterEmptyState } from '@/components/common/FilterEmptyState';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useRBAC } from '@/hooks/useRBAC';
-import { CLASS_STATUS, deriveTrialStatusKey, type ClassStatusValue } from '@myk9/core';
+import { deriveTrialStatusKey, type ClassStatusValue } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatTrialTypeLabel } from '@/types/template.types';
@@ -37,6 +37,15 @@ function getDateParts(dateStr: string): { month: string; day: string } | null {
 }
 
 const EMPTY_STATS: TrialStats = { classCount: 0, entryCount: 0, completedClasses: 0 };
+
+function getTrialDisplayStatus(trial: Trial, trialStats: Record<string, TrialStats>) {
+  const stats = trialStats[trial.id] || EMPTY_STATS;
+  return deriveTrialStatusKey({
+    trialStatus: trial.status,
+    classCount: stats.classCount,
+    completedCount: stats.completedClasses,
+  });
+}
 
 interface TrialRow {
   id: string;
@@ -104,18 +113,18 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   const statusCounts = useMemo(() => {
     let completed = 0;
     for (const trial of trials) {
-      if (trial.status === CLASS_STATUS.COMPLETED) completed++;
+      if (getTrialDisplayStatus(trial, trialStats) === 'completed') completed++;
     }
     return { all: trials.length, pending: trials.length - completed, completed };
-  }, [trials]);
+  }, [trials, trialStats]);
 
   const filteredTrials = useMemo(() => {
     if (statusFilter === 'all') return trials;
     return trials.filter(trial => {
-      const isCompleted = trial.status === CLASS_STATUS.COMPLETED;
+      const isCompleted = getTrialDisplayStatus(trial, trialStats) === 'completed';
       return statusFilter === 'completed' ? isCompleted : !isCompleted;
     });
-  }, [trials, statusFilter]);
+  }, [trials, trialStats, statusFilter]);
 
   const tableData = useMemo<TrialRow[]>(
     () =>

@@ -262,7 +262,7 @@ const EntryManagementPage: React.FC = () => {
   return (
     <div className="container mx-auto space-y-6 p-4 sm:p-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">
             Entry Management
@@ -271,7 +271,7 @@ const EntryManagementPage: React.FC = () => {
             Manage show entries, process payments, and communicate with exhibitors
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap md:w-auto md:justify-end">
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap lg:w-auto lg:justify-end">
           <SecretaryAddEntriesDecision showId={selectedShowId} />
           <Button
             variant="outline"

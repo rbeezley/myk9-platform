@@ -323,9 +323,9 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
 
       {/* Error alert - only show after form has been submitted */}
       {hasSubmitted && saveError && (
-        <Alert className="bg-red-50 border-red-200">
-          <AlertTriangle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-800">{saveError}</AlertDescription>
+        <Alert className="bg-destructive/10 border-destructive/20">
+          <AlertTriangle className="h-4 w-4 text-destructive" />
+          <AlertDescription className="text-destructive">{saveError}</AlertDescription>
         </Alert>
       )}
 

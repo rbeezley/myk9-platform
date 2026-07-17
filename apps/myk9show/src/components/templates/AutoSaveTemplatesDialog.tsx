@@ -12,9 +12,9 @@ interface AutoSaveTemplatesDialogProps {
   onClose: () => void;
 }
 
-export const AutoSaveTemplatesDialog: React.FC<AutoSaveTemplatesDialogProps> = ({ 
-  open, 
-  onClose 
+export const AutoSaveTemplatesDialog: React.FC<AutoSaveTemplatesDialogProps> = ({
+  open,
+  onClose,
 }) => {
   const { templates } = useTemplateStore();
   const [isSaving, setIsSaving] = useState(false);
@@ -27,18 +27,18 @@ export const AutoSaveTemplatesDialog: React.FC<AutoSaveTemplatesDialogProps> = (
   const handleAutoSave = async () => {
     setIsSaving(true);
     setResult(null);
-    
+
     try {
       // Small delay to show loading state
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       const saveResult = autoSaveTemplatesToMockData();
       setResult(saveResult);
     } catch {
       setResult({
         success: false,
         message: 'Unexpected error occurred',
-        templatesCount: 0
+        templatesCount: 0,
       });
     } finally {
       setIsSaving(false);
@@ -59,11 +59,11 @@ export const AutoSaveTemplatesDialog: React.FC<AutoSaveTemplatesDialogProps> = (
             Auto-Save Templates to Mock Data
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           <div className="text-sm text-muted-foreground">
-            This will automatically generate a properly formatted TypeScript file with all your templates.
-            No manual editing required!
+            This will automatically generate a properly formatted TypeScript file with all your
+            templates. No manual editing required!
           </div>
 
           <Card>
@@ -78,7 +78,7 @@ export const AutoSaveTemplatesDialog: React.FC<AutoSaveTemplatesDialogProps> = (
                 {templates.length} templates
               </div>
               <div className="space-y-1 text-sm">
-                {templates.slice(0, 5).map((template) => (
+                {templates.slice(0, 5).map(template => (
                   <div key={template.id} className="flex items-center justify-between">
                     <span>{template.templateName}</span>
                     <span className="text-muted-foreground">
@@ -87,22 +87,26 @@ export const AutoSaveTemplatesDialog: React.FC<AutoSaveTemplatesDialogProps> = (
                   </div>
                 ))}
                 {templates.length > 5 && (
-                  <div className="text-muted-foreground">
-                    ...and {templates.length - 5} more
-                  </div>
+                  <div className="text-muted-foreground">...and {templates.length - 5} more</div>
                 )}
               </div>
             </CardContent>
           </Card>
 
           {result && (
-            <Alert className={result.success ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
+            <Alert
+              className={
+                result.success
+                  ? 'border-green-200 bg-green-50'
+                  : 'border-destructive/20 bg-destructive/10'
+              }
+            >
               {result.success ? (
                 <Check className="h-4 w-4 text-green-600" />
               ) : (
-                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertCircle className="h-4 w-4 text-destructive" />
               )}
-              <AlertDescription className={result.success ? "text-green-800" : "text-red-800"}>
+              <AlertDescription className={result.success ? 'text-green-800' : 'text-destructive'}>
                 {result.message}
               </AlertDescription>
             </Alert>
@@ -114,21 +118,25 @@ export const AutoSaveTemplatesDialog: React.FC<AutoSaveTemplatesDialogProps> = (
               <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                 <li>Exports all templates from localStorage</li>
                 <li>Generates proper TypeScript code with correct enums</li>
-                <li>Downloads a new <code>mockTemplatesWithFields.ts</code> file</li>
-                <li>You replace the existing file in <code>src/data/</code></li>
+                <li>
+                  Downloads a new <code>mockTemplatesWithFields.ts</code> file
+                </li>
+                <li>
+                  You replace the existing file in <code>src/data/</code>
+                </li>
                 <li>Your templates become permanent mock data!</li>
               </ol>
             </div>
           )}
         </div>
-        
+
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={handleClose}>
             {result ? 'Close' : 'Cancel'}
           </Button>
           {!result && (
-            <Button 
-              onClick={handleAutoSave} 
+            <Button
+              onClick={handleAutoSave}
               disabled={isSaving || templates.length === 0}
               className="min-w-32"
             >

@@ -282,8 +282,8 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100">
-                          <Dog className="h-5 w-5 text-red-600" />
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-destructive/10">
+                          <Dog className="h-5 w-5 text-destructive" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">

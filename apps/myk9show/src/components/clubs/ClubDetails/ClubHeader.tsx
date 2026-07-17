@@ -129,7 +129,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
             {canDeleteClub && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onDeleteClub} className="text-red-600">
+                <DropdownMenuItem onClick={onDeleteClub} className="text-destructive">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Club
                 </DropdownMenuItem>

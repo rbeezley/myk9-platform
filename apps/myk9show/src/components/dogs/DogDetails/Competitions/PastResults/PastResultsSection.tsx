@@ -193,7 +193,7 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
                           setResultToDelete({ id: result.id, name: result.show_name });
                           setDeleteDialogOpen(true);
                         },
-                        className: 'text-red-600',
+                        className: 'text-destructive',
                       },
                     ]}
                   />

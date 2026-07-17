@@ -66,7 +66,7 @@ export function StatusBar({
           {/* Online/Offline Status */}
           <div className="flex items-center space-x-2">
             {isOffline ? (
-              <WifiOff className="h-4 w-4 text-red-500" />
+              <WifiOff className="h-4 w-4 text-destructive" />
             ) : (
               <Wifi className="h-4 w-4 text-green-500" />
             )}
@@ -83,7 +83,7 @@ export function StatusBar({
                   'h-2 w-2 rounded-full',
                   syncStatus === 'synced' && 'bg-green-500',
                   syncStatus === 'pending' && 'bg-yellow-500',
-                  syncStatus === 'error' && 'bg-red-500'
+                  syncStatus === 'error' && 'bg-destructive'
                 )}
               />
             )}

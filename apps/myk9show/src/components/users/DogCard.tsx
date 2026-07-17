@@ -92,7 +92,7 @@ const DogCard: React.FC<DogCardProps> = ({
             {onDeleteDog && (
               <DropdownMenuItem
                 onClick={() => onDeleteDog(dog.id)}
-                className="text-red-600 hover:!text-red-600 hover:!bg-red-50 dark:hover:!bg-red-900/50 dark:hover:!text-red-400 focus:!bg-red-50 dark:focus:!bg-red-900/50"
+                className="text-destructive hover:!text-destructive hover:!bg-destructive/10 focus:!bg-destructive/10"
               >
                 <Trash2 className="w-4 h-4 mr-2" /> Delete
               </DropdownMenuItem>

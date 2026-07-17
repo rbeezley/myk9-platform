@@ -211,13 +211,13 @@ export const EntriesStatisticsPanel: React.FC<EntriesStatisticsPanelProps> = ({
           className={cn(
             'p-4 rounded-lg border-l-4',
             statistics.invalidChanges > 0
-              ? 'bg-destructive/10 border-l-red-500 '
+              ? 'bg-destructive/10 border-l-destructive '
               : 'bg-info/10 border-l-blue-500 '
           )}
         >
           <div className="flex items-center space-x-2">
             {statistics.invalidChanges > 0 ? (
-              <AlertCircle className="h-5 w-5 text-red-600" />
+              <AlertCircle className="h-5 w-5 text-destructive" />
             ) : (
               <Edit3 className="h-5 w-5 text-blue-600" />
             )}
@@ -227,7 +227,7 @@ export const EntriesStatisticsPanel: React.FC<EntriesStatisticsPanelProps> = ({
                 ready to save
               </span>
               {statistics.invalidChanges > 0 && (
-                <span className="text-red-600 ml-2">
+                <span className="text-destructive ml-2">
                   &bull; {statistics.invalidChanges} error
                   {statistics.invalidChanges !== 1 ? 's' : ''} need attention
                 </span>

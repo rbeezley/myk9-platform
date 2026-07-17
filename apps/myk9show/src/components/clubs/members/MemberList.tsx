@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useUserStore } from '@/store/userStore';
 import { useClubStore } from '@/store/clubStore';
@@ -35,9 +41,7 @@ export const MemberList: React.FC<MemberListProps> = ({ club, canManageMembers =
   const [isRemoving, setIsRemoving] = useState(false);
 
   // Get member data from people store
-  const members = people.filter(person =>
-    club.memberIds?.includes(person.id.toString())
-  );
+  const members = people.filter(person => club.memberIds?.includes(person.id.toString()));
 
   const handleRemoveMember = async () => {
     if (!memberToRemove) return;
@@ -46,10 +50,12 @@ export const MemberList: React.FC<MemberListProps> = ({ club, canManageMembers =
     try {
       const updatedClub: Club = {
         ...club,
-        memberIds: (club.memberIds || []).filter(id => id !== memberToRemove.id.toString())
+        memberIds: (club.memberIds || []).filter(id => id !== memberToRemove.id.toString()),
       };
       await updateClub(updatedClub);
-      notifications.success(`${memberToRemove.firstName} ${memberToRemove.lastName} removed from club`);
+      notifications.success(
+        `${memberToRemove.firstName} ${memberToRemove.lastName} removed from club`
+      );
     } catch (error) {
       logger.error('Failed to remove member', 'clubs', {}, error as Error);
       notifications.error('Failed to remove member');
@@ -71,11 +77,17 @@ export const MemberList: React.FC<MemberListProps> = ({ club, canManageMembers =
     <>
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {members.map((person) => (
-            <div key={person.id} className="bg-card border border-border rounded-xl p-4 hover:shadow-md transition-all duration-200">
+          {members.map(person => (
+            <div
+              key={person.id}
+              className="bg-card border border-border rounded-xl p-4 hover:shadow-md transition-all duration-200"
+            >
               <div className="flex items-start gap-3">
                 <Avatar className="h-12 w-12 flex-shrink-0">
-                  <AvatarImage src={(person as { avatar?: string }).avatar} alt={`${person.firstName} ${person.lastName}`} />
+                  <AvatarImage
+                    src={(person as { avatar?: string }).avatar}
+                    alt={`${person.firstName} ${person.lastName}`}
+                  />
                   <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                     {getInitials(person.firstName, person.lastName)}
                   </AvatarFallback>
@@ -122,7 +134,7 @@ export const MemberList: React.FC<MemberListProps> = ({ club, canManageMembers =
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => setMemberToRemove(person)}
-                        className="text-red-600 focus:text-red-600"
+                        className="text-destructive focus:text-destructive"
                         disabled={isClubAdmin(person)}
                       >
                         <UserMinus className="mr-2 h-4 w-4" />
@@ -140,7 +152,9 @@ export const MemberList: React.FC<MemberListProps> = ({ club, canManageMembers =
       {/* Remove Member Confirmation Dialog */}
       <DeleteConfirmationDialog
         open={!!memberToRemove}
-        onOpenChange={(open) => { if (!open) setMemberToRemove(null); }}
+        onOpenChange={open => {
+          if (!open) setMemberToRemove(null);
+        }}
         onConfirm={handleRemoveMember}
         entityName={memberToRemove ? `${memberToRemove.firstName} ${memberToRemove.lastName}` : ''}
         entityType="Member"

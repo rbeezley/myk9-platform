@@ -113,7 +113,7 @@ export function EntryTableRow({
         ) : (
           <Badge variant="outline">Empty</Badge>
         )}
-        {validationError && <div className="text-xs text-red-600 mt-1">{validationError}</div>}
+        {validationError && <div className="text-xs text-destructive mt-1">{validationError}</div>}
       </TableCell>
     </TableRow>
   );

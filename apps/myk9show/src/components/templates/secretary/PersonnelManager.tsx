@@ -246,7 +246,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 </Select>
 
                 {currentAssignment?.conflicts && currentAssignment.conflicts.length > 0 && (
-                  <div className="text-sm text-red-600">
+                  <div className="text-sm text-destructive">
                     <AlertTriangle className="h-3 w-3 inline mr-1" />
                     {currentAssignment.conflicts.join(', ')}
                   </div>
@@ -290,7 +290,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             </div>
             <div className="text-center">
               <div
-                className={`text-2xl font-bold ${stats.conflictCount > 0 ? 'text-red-600' : 'text-green-600'}`}
+                className={`text-2xl font-bold ${stats.conflictCount > 0 ? 'text-destructive' : 'text-green-600'}`}
               >
                 {stats.conflictCount}
               </div>
@@ -402,7 +402,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             variant="ghost"
                             size="sm"
                             onClick={() => onPersonnelDelete(person.id)}
-                            className="text-red-600"
+                            className="text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

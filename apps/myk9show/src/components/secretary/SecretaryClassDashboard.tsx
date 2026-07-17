@@ -187,8 +187,7 @@ export function SecretaryClassDashboard({
     scheduledTime: currentClass?.startTime ? new Date(currentClass.startTime) : new Date(),
     ring: 'Ring 1',
     status: (currentClass?.status?.toLowerCase() === 'in progress' ? 'in-progress' : 'pending') as
-      | 'in-progress'
-      | 'pending',
+      'in-progress' | 'pending',
   };
   const ringLabel = formatRingLabel(classInfo.ring);
 
@@ -545,7 +544,7 @@ export function SecretaryClassDashboard({
                       </div>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-red-600 font-medium">Not Qualified:</span>
+                      <span className="text-destructive font-medium">Not Qualified:</span>
                       <div className="px-3 py-1 bg-destructive/10 text-destructive rounded-full text-sm font-medium ">
                         {stats.nqCount}
                       </div>

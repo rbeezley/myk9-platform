@@ -83,7 +83,7 @@ export const InlineEditingToolbar: React.FC<InlineEditingToolbarProps> = ({
               <span className="text-green-600">{changesSummary.valid} valid</span>
             )}
             {changesSummary.invalid > 0 && (
-              <span className="text-red-600">{changesSummary.invalid} invalid</span>
+              <span className="text-destructive">{changesSummary.invalid} invalid</span>
             )}
           </div>
         )}

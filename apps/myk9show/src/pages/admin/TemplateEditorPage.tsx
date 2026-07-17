@@ -361,15 +361,15 @@ export const TemplateEditorPage: React.FC = () => {
 
       {/* Validation Errors */}
       {validationErrors.length > 0 && (
-        <Card className="mb-6 border-red-200 bg-red-50">
+        <Card className="mb-6 border-destructive/20 bg-destructive/10">
           <CardContent className="pt-4">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+              <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
               <div>
-                <h3 className="font-semibold text-red-800 mb-2">
+                <h3 className="font-semibold text-destructive mb-2">
                   Please fix the following errors:
                 </h3>
-                <ul className="list-disc list-inside space-y-1 text-red-700">
+                <ul className="list-disc list-inside space-y-1 text-destructive">
                   {validationErrors.map((error, index) => (
                     <li key={index}>{error}</li>
                   ))}

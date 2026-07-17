@@ -245,7 +245,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                             variant="outline"
                             size="sm"
                             onClick={() => handleRemoveDog(index)}
-                            className="text-red-600 hover:text-red-700"
+                            className="text-destructive hover:text-destructive"
                           >
                             Remove
                           </Button>

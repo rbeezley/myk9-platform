@@ -30,7 +30,7 @@ const BADGE_CLASS: Record<BadgeTier, string> = {
   warning: 'bg-amber-500/15 text-warning ',
   info: 'bg-blue-500/15 text-info ',
   neutral: 'bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)]',
-  destructive: 'bg-red-500/15 text-destructive ',
+  destructive: 'bg-destructive/15 text-destructive ',
   // Solid Ring Green, theme-invariant by design (no dark override on --live).
   // White-on-#4e7c53 measures 4.85:1 — AA for the pill's text-xs label.
   live: 'bg-[var(--live)] text-white ',

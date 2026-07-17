@@ -10,10 +10,7 @@ interface CheckInEntryListProps {
   onEntrySelect: (entry: CheckInEntry) => void;
 }
 
-export const CheckInEntryList: React.FC<CheckInEntryListProps> = ({
-  entries,
-  onEntrySelect,
-}) => {
+export const CheckInEntryList: React.FC<CheckInEntryListProps> = ({ entries, onEntrySelect }) => {
   return (
     <Card>
       <CardHeader>
@@ -21,12 +18,12 @@ export const CheckInEntryList: React.FC<CheckInEntryListProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-2 max-h-96 overflow-y-auto">
-          {entries.map((entry) => (
+          {entries.map(entry => (
             <div
               key={entry.id}
               className={cn(
                 'flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-muted/50',
-                entry.checkInStatus === 'conflict' && 'border-red-200 bg-red-50'
+                entry.checkInStatus === 'conflict' && 'border-destructive/20 bg-destructive/10'
               )}
               onClick={() => onEntrySelect(entry)}
             >

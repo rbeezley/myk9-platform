@@ -117,10 +117,10 @@ describe('CheckInStatusBadge', () => {
       expect(badge).toHaveClass('bg-amber-500/15');
     });
 
-    it('should have red colors for pulled', () => {
+    it('should have destructive colors for pulled', () => {
       render(<CheckInStatusBadge status="pulled" />);
       const badge = screen.getByLabelText('Status: Pulled');
-      expect(badge).toHaveClass('bg-red-500/15');
+      expect(badge).toHaveClass('bg-destructive/15');
     });
   });
 

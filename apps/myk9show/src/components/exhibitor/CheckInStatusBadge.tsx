@@ -28,9 +28,9 @@ const STATUS_COLORS: Record<CheckInStatus, { bg: string; text: string; border: s
     border: 'border-amber-500/30',
   },
   pulled: {
-    bg: 'bg-red-500/15',
+    bg: 'bg-destructive/15',
     text: 'text-destructive ',
-    border: 'border-red-500/30',
+    border: 'border-destructive/30',
   },
   'at-gate': {
     bg: 'bg-violet-500/15',

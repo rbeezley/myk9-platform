@@ -6,14 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
   Settings,
   DollarSign,
   Clock,
@@ -23,7 +24,7 @@ import {
   Trash2,
   FileDown,
   CheckSquare,
-  AlertTriangle
+  AlertTriangle,
 } from 'lucide-react';
 
 interface ClassBatchActionsProps {
@@ -41,17 +42,18 @@ export const ClassBatchActions: React.FC<ClassBatchActionsProps> = ({
   onBatchEdit,
   onBatchCopy,
   onBatchDelete,
-  onExportSelection
+  onExportSelection,
 }) => {
   const [batchEditOpen, setBatchEditOpen] = useState(false);
   const [selectedField, setSelectedField] = useState<string>('');
   const [fieldValue, setFieldValue] = useState<string | number | boolean>('');
 
   // Get editable fields for batch operations
-  const editableFields = availableFields.filter(field => 
-    field.editable && 
-    field.fieldSource !== 'rule-based' &&
-    ['string', 'number', 'boolean', 'select'].includes(field.dataType)
+  const editableFields = availableFields.filter(
+    field =>
+      field.editable &&
+      field.fieldSource !== 'rule-based' &&
+      ['string', 'number', 'boolean', 'select'].includes(field.dataType)
   );
 
   // Get field specification for selected field
@@ -59,7 +61,7 @@ export const ClassBatchActions: React.FC<ClassBatchActionsProps> = ({
 
   const handleBatchEdit = () => {
     if (!selectedField || fieldValue === '') return;
-    
+
     onBatchEdit(selectedField, fieldValue);
     setBatchEditOpen(false);
     setSelectedField('');
@@ -74,19 +76,22 @@ export const ClassBatchActions: React.FC<ClassBatchActionsProps> = ({
   // Get common field values across selected classes
   const getCommonFieldValue = (fieldName: string) => {
     if (selectedClasses.length === 0) return null;
-    
+
     const values = selectedClasses.map(cls => cls.fieldOverrides?.[fieldName]);
     const uniqueValues = Array.from(new Set(values));
-    
+
     return uniqueValues.length === 1 ? uniqueValues[0] : 'Mixed Values';
   };
 
   // Group selected classes by type for summary
-  const classSummary = selectedClasses.reduce((acc, cls) => {
-    const key = `${cls.element}${cls.level ? ` ${cls.level}` : ''}`;
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const classSummary = selectedClasses.reduce(
+    (acc, cls) => {
+      const key = `${cls.element}${cls.level ? ` ${cls.level}` : ''}`;
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
   if (selectedClasses.length === 0) {
     return null;
@@ -124,32 +129,24 @@ export const ClassBatchActions: React.FC<ClassBatchActionsProps> = ({
                 <Edit className="h-4 w-4 mr-1" />
                 Batch Edit
               </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onBatchCopy}
-              >
+
+              <Button variant="outline" size="sm" onClick={onBatchCopy}>
                 <Copy className="h-4 w-4 mr-1" />
                 Copy Settings
               </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onExportSelection}
-              >
+
+              <Button variant="outline" size="sm" onClick={onExportSelection}>
                 <FileDown className="h-4 w-4 mr-1" />
                 Export
               </Button>
-              
+
               <Separator orientation="vertical" className="h-6" />
-              
+
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onBatchDelete}
-                className="text-red-600 hover:text-red-700"
+                className="text-destructive hover:text-destructive"
               >
                 <Trash2 className="h-4 w-4 mr-1" />
                 Remove
@@ -218,7 +215,7 @@ export const ClassBatchActions: React.FC<ClassBatchActionsProps> = ({
           <DialogHeader>
             <DialogTitle>Batch Edit Classes</DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
               Apply the same value to all {selectedClasses.length} selected classes.
@@ -227,10 +224,13 @@ export const ClassBatchActions: React.FC<ClassBatchActionsProps> = ({
             {/* Field Selection */}
             <div className="space-y-2">
               <Label>Field to Edit</Label>
-              <Select value={selectedField} onValueChange={(value) => {
-                setSelectedField(value);
-                setFieldValue('');
-              }}>
+              <Select
+                value={selectedField}
+                onValueChange={value => {
+                  setSelectedField(value);
+                  setFieldValue('');
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Choose a field..." />
                 </SelectTrigger>
@@ -272,7 +272,10 @@ export const ClassBatchActions: React.FC<ClassBatchActionsProps> = ({
                     </SelectContent>
                   </Select>
                 ) : fieldSpec.dataType === 'boolean' ? (
-                  <Select value={String(fieldValue)} onValueChange={(value) => setFieldValue(value === 'true')}>
+                  <Select
+                    value={String(fieldValue)}
+                    onValueChange={value => setFieldValue(value === 'true')}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Choose..." />
                     </SelectTrigger>
@@ -285,18 +288,20 @@ export const ClassBatchActions: React.FC<ClassBatchActionsProps> = ({
                   <Input
                     type={fieldSpec.dataType === 'number' ? 'number' : 'text'}
                     value={String(fieldValue)}
-                    onChange={(e) => setFieldValue(
-                      fieldSpec.dataType === 'number' 
-                        ? parseFloat(e.target.value) || 0
-                        : e.target.value
-                    )}
-                    placeholder={fieldSpec.description || `Enter ${fieldSpec.displayName.toLowerCase()}`}
+                    onChange={e =>
+                      setFieldValue(
+                        fieldSpec.dataType === 'number'
+                          ? parseFloat(e.target.value) || 0
+                          : e.target.value
+                      )
+                    }
+                    placeholder={
+                      fieldSpec.description || `Enter ${fieldSpec.displayName.toLowerCase()}`
+                    }
                   />
                 )}
                 {fieldSpec.description && (
-                  <div className="text-xs text-muted-foreground">
-                    {fieldSpec.description}
-                  </div>
+                  <div className="text-xs text-muted-foreground">{fieldSpec.description}</div>
                 )}
               </div>
             )}
@@ -322,10 +327,7 @@ export const ClassBatchActions: React.FC<ClassBatchActionsProps> = ({
               >
                 Cancel
               </Button>
-              <Button
-                onClick={handleBatchEdit}
-                disabled={!selectedField || fieldValue === ''}
-              >
+              <Button onClick={handleBatchEdit} disabled={!selectedField || fieldValue === ''}>
                 Apply to {selectedClasses.length} Classes
               </Button>
             </div>

@@ -205,9 +205,9 @@ export function ConflictNotifications({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">Critical</p>
-                  <p className="text-2xl font-bold text-red-600">{stats.criticalConflicts}</p>
+                  <p className="text-2xl font-bold text-destructive">{stats.criticalConflicts}</p>
                 </div>
-                <XCircle className="h-8 w-8 text-red-600" />
+                <XCircle className="h-8 w-8 text-destructive" />
               </div>
             </CardContent>
           </Card>

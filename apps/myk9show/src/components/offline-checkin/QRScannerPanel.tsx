@@ -55,9 +55,7 @@ export const QRScannerPanel: React.FC<QRScannerPanelProps> = ({
                 Stop Camera
               </Button>
               {!isScanning ? (
-                <Button onClick={onStartScanning}>
-                  Start Scanning
-                </Button>
+                <Button onClick={onStartScanning}>Start Scanning</Button>
               ) : (
                 <Button onClick={onStopScanning} variant="destructive">
                   Stop Scanning
@@ -89,18 +87,22 @@ export const QRScannerPanel: React.FC<QRScannerPanelProps> = ({
             <Input
               placeholder="Enter armband number or QR data..."
               value={manualEntry}
-              onChange={(e) => onManualEntryChange(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && onManualEntrySubmit()}
+              onChange={e => onManualEntryChange(e.target.value)}
+              onKeyPress={e => e.key === 'Enter' && onManualEntrySubmit()}
             />
-            <Button onClick={onManualEntrySubmit}>
-              Enter
-            </Button>
+            <Button onClick={onManualEntrySubmit}>Enter</Button>
           </div>
         </div>
 
         {/* Scan Result */}
         {scanResult && (
-          <Alert className={scanResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
+          <Alert
+            className={
+              scanResult.success
+                ? 'border-green-200 bg-green-50'
+                : 'border-destructive/20 bg-destructive/10'
+            }
+          >
             <AlertDescription>
               {scanResult.success ? (
                 <div>

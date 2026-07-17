@@ -203,7 +203,7 @@ export default function RegistrationsSection({
     return (
       <div className="flex items-center justify-center py-8">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Error loading registrations</p>
+          <p className="text-destructive mb-4">Error loading registrations</p>
           <Button onClick={() => refetch()} variant="outline">
             Try Again
           </Button>
@@ -259,7 +259,7 @@ export default function RegistrationsSection({
                         setIsDeleteRegistrationDialogOpen(true);
                       },
                       icon: <Trash2 className="w-4 h-4 mr-2" />,
-                      className: 'text-red-600',
+                      className: 'text-destructive',
                     },
                   ]}
                 />

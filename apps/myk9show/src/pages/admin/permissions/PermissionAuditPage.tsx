@@ -45,7 +45,7 @@ function getActionIcon(actionType: string) {
       return <Shield className="h-4 w-4 text-green-600" />;
     case 'revoke_role':
     case 'delete_role':
-      return <Shield className="h-4 w-4 text-red-600" />;
+      return <Shield className="h-4 w-4 text-destructive" />;
     case 'grant_permission':
       return <Settings className="h-4 w-4 text-blue-600" />;
     case 'revoke_permission':
@@ -445,7 +445,9 @@ const PermissionAuditPage: React.FC = () => {
                   <div className="text-center py-8">
                     <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium mb-2">No audit events found</h3>
-                    <p className="text-muted-foreground">No audit events in the selected time range</p>
+                    <p className="text-muted-foreground">
+                      No audit events in the selected time range
+                    </p>
                   </div>
                 }
                 toolbar={({ table }) => (
@@ -478,7 +480,12 @@ const PermissionAuditPage: React.FC = () => {
                       </SelectContent>
                     </Select>
                     <DataTableColumnToggle />
-                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleExport}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={handleExport}
+                    >
                       <Download className="h-3.5 w-3.5 mr-1" />
                       Export
                     </Button>

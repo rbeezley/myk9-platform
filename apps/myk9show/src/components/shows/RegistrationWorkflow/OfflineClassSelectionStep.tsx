@@ -341,13 +341,13 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger>
-            <AlertCircle className="h-4 w-4 text-red-500" />
+            <AlertCircle className="h-4 w-4 text-destructive" />
           </TooltipTrigger>
           <TooltipContent>
             <p>Not eligible</p>
             <div className="mt-1">
               {eligibility.reasons.map((reason: string, idx: number) => (
-                <p key={idx} className="text-xs text-red-600">
+                <p key={idx} className="text-xs text-destructive">
                   {reason}
                 </p>
               ))}

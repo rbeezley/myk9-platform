@@ -6,10 +6,9 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { logger } from '@/services/LoggingService';
 import {
-  RefreshCw, 
-  CheckCircle, 
-  Clock, 
- 
+  RefreshCw,
+  CheckCircle,
+  Clock,
   XCircle,
   Wifi,
   WifiOff,
@@ -17,7 +16,7 @@ import {
   Calendar,
   Users,
   Dog,
-  Trophy
+  Trophy,
 } from 'lucide-react';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import type { SyncStatus } from './SyncStatusIndicator';
@@ -47,7 +46,7 @@ interface SyncStatusPanelProps {
 export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
   className = '',
   showDetailedStats = true,
-  allowManualSync = true
+  allowManualSync = true,
 }) => {
   const globalSync = useGlobalSyncStatus();
 
@@ -64,7 +63,7 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
       synced: 23,
       pending: 2,
       errors: 0,
-      lastSyncAt: new Date(now - 5 * 60 * 1000) // 5 minutes ago
+      lastSyncAt: new Date(now - 5 * 60 * 1000), // 5 minutes ago
     },
     {
       entityType: 'people',
@@ -74,7 +73,7 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
       synced: 150,
       pending: 5,
       errors: 1,
-      lastSyncAt: new Date(now - 2 * 60 * 1000) // 2 minutes ago
+      lastSyncAt: new Date(now - 2 * 60 * 1000), // 2 minutes ago
     },
     {
       entityType: 'dogs',
@@ -84,7 +83,7 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
       synced: 87,
       pending: 2,
       errors: 0,
-      lastSyncAt: new Date(now - 3 * 60 * 1000) // 3 minutes ago
+      lastSyncAt: new Date(now - 3 * 60 * 1000), // 3 minutes ago
     },
     {
       entityType: 'entries',
@@ -94,8 +93,8 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
       synced: 338,
       pending: 3,
       errors: 1,
-      lastSyncAt: new Date(now - 1 * 60 * 1000) // 1 minute ago
-    }
+      lastSyncAt: new Date(now - 1 * 60 * 1000), // 1 minute ago
+    },
   ];
 
   const totalEntities = entityStats.reduce((sum, stat) => sum + stat.total, 0);
@@ -112,17 +111,17 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
 
   const formatLastSync = (date?: Date): string => {
     if (!date) return 'Never';
-    
+
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / (1000 * 60));
-    
+
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
-    
+
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `${diffHours}h ago`;
-    
+
     return date.toLocaleDateString();
   };
 
@@ -141,7 +140,7 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
             <Database className="h-5 w-5" />
             Sync Status
           </CardTitle>
-          
+
           <div className="flex items-center gap-3">
             {/* Network Status */}
             {globalSync.isOnline ? (
@@ -150,7 +149,7 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
                 <span className="text-sm">Online</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1 text-red-600">
+              <div className="flex items-center gap-1 text-destructive">
                 <WifiOff className="h-4 w-4" />
                 <span className="text-sm">Offline</span>
               </div>
@@ -177,7 +176,7 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
             </span>
           </div>
           <Progress value={overallProgress} className="h-2" />
-          
+
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-1">
               <CheckCircle className="h-4 w-4 text-green-600" />
@@ -189,7 +188,7 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
             </div>
             {totalErrors > 0 && (
               <div className="flex items-center gap-1">
-                <XCircle className="h-4 w-4 text-red-600" />
+                <XCircle className="h-4 w-4 text-destructive" />
                 <span>{totalErrors} errors</span>
               </div>
             )}
@@ -226,13 +225,12 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
             <Separator />
             <div className="space-y-3">
               <h4 className="text-sm font-medium">Entity Sync Status</h4>
-              
+
               <div className="space-y-3">
-                {entityStats.map((stat) => {
+                {entityStats.map(stat => {
                   const IconComponent = stat.icon;
-                  const entityStatus: SyncStatus = 
-                    stat.errors > 0 ? 'error' :
-                    stat.pending > 0 ? 'pending' : 'synced';
+                  const entityStatus: SyncStatus =
+                    stat.errors > 0 ? 'error' : stat.pending > 0 ? 'pending' : 'synced';
 
                   return (
                     <div

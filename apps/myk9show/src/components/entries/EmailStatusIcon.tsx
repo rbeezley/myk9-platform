@@ -32,13 +32,13 @@ export function EmailStatusIcon({
       case 'bounced':
         return (
           <span title={`Email bounced${errorMessage ? `: ${errorMessage}` : ''}`}>
-            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <AlertTriangle className="h-4 w-4 text-destructive" />
           </span>
         );
       case 'failed':
         return (
           <span title={`Email failed${errorMessage ? `: ${errorMessage}` : ''}`}>
-            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <AlertTriangle className="h-4 w-4 text-destructive" />
           </span>
         );
       case 'complained':

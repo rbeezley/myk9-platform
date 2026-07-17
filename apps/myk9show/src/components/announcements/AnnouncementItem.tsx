@@ -87,7 +87,7 @@ export function AnnouncementItem({
                   onDelete(announcement.id);
                 }}
                 aria-label="Delete announcement"
-                className="rounded p-1 text-muted-foreground/40 hover:bg-muted hover:text-red-400"
+                className="rounded p-1 text-muted-foreground/40 hover:bg-muted hover:text-destructive"
               >
                 <Trash2 className="h-3 w-3" />
               </button>

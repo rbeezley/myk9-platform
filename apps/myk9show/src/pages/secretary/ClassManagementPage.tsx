@@ -436,7 +436,7 @@ export const ClassManagementPage: React.FC = () => {
                   <Button
                     variant="outline"
                     onClick={handleBulkDelete}
-                    className="text-red-600"
+                    className="text-destructive"
                     disabled={bulkBusy}
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
@@ -585,7 +585,7 @@ export const ClassManagementPage: React.FC = () => {
                               ))}
                               <DropdownMenuItem
                                 onClick={() => handleDelete(cls.id)}
-                                className="text-red-600"
+                                className="text-destructive"
                               >
                                 Delete Class
                               </DropdownMenuItem>

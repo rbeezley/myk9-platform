@@ -1,11 +1,10 @@
 /**
  * Dual Timer Display Component
- * 
+ *
  * Displays both stopwatch (counting up) and countdown (counting down) timers
  * for accurate dog show result timing. Follows the proven UX patterns from
  * the Flutter app with large, touch-friendly controls.
  */
-
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -25,12 +24,12 @@ interface DualTimerDisplayProps {
 
 /**
  * Dual timer display with stopwatch and countdown functionality
- * 
+ *
  * Replicates the proven UX from the Flutter app with large touch targets
  * and clear visual hierarchy for mobile judge use.
- * 
+ *
  * @param props - Timer configuration and callbacks
- * 
+ *
  * @example
  * ```tsx
  * <DualTimerDisplay
@@ -51,20 +50,20 @@ export function DualTimerDisplay({
   onSearchTime,
   className,
   size = 'default',
-  disabled = false
+  disabled = false,
 }: DualTimerDisplayProps) {
   const timer = useCountdownTimer({
     maxTimeMs,
     level,
     onTimeWarning,
     onTimeExpired,
-    onSearchTime
+    onSearchTime,
   });
 
   const isLarge = size === 'large';
 
   return (
-    <div 
+    <div
       data-testid="dual-timer-display"
       className={cn(
         'flex flex-col items-center space-y-4 p-4 bg-gray-800 rounded-lg',
@@ -75,51 +74,44 @@ export function DualTimerDisplay({
       {/* Main Timer Display */}
       <div className="flex flex-col items-center space-y-2">
         {/* Stopwatch (Search Time) */}
-        <div className={cn(
-          'text-center',
-          isLarge ? 'space-y-1' : 'space-y-0.5'
-        )}>
-          <div className={cn(
-            'font-mono font-bold text-white',
-            isLarge ? 'text-5xl md:text-6xl' : 'text-3xl md:text-4xl',
-            timer.isExpired && 'text-red-400',
-            timer.isWarning && !timer.isExpired && 'text-yellow-400'
-          )}>
+        <div className={cn('text-center', isLarge ? 'space-y-1' : 'space-y-0.5')}>
+          <div
+            className={cn(
+              'font-mono font-bold text-white',
+              isLarge ? 'text-5xl md:text-6xl' : 'text-3xl md:text-4xl',
+              timer.isExpired && 'text-destructive',
+              timer.isWarning && !timer.isExpired && 'text-yellow-400'
+            )}
+          >
             {timer.searchTimeDisplay}
           </div>
-          <div className={cn(
-            'text-gray-400 text-sm',
-            isLarge && 'text-base'
-          )}>
-            Search Time
-          </div>
+          <div className={cn('text-gray-400 text-sm', isLarge && 'text-base')}>Search Time</div>
         </div>
 
         {/* Countdown Display */}
         <div className="flex items-center space-x-3">
-          <Timer className={cn(
-            'text-teal-400',
-            isLarge ? 'h-6 w-6' : 'h-5 w-5'
-          )} />
-          <div className={cn(
-            'font-mono font-semibold text-teal-400',
-            isLarge ? 'text-2xl' : 'text-xl',
-            timer.isWarning && !timer.isExpired && 'text-yellow-400',
-            timer.isExpired && 'text-red-400'
-          )}>
+          <Timer className={cn('text-teal-400', isLarge ? 'h-6 w-6' : 'h-5 w-5')} />
+          <div
+            className={cn(
+              'font-mono font-semibold text-teal-400',
+              isLarge ? 'text-2xl' : 'text-xl',
+              timer.isWarning && !timer.isExpired && 'text-yellow-400',
+              timer.isExpired && 'text-destructive'
+            )}
+          >
             {timer.remainingTimeDisplay}
           </div>
-          <div className={cn(
-            'text-gray-400 text-sm',
-            isLarge && 'text-base'
-          )}>
-            Remaining
-          </div>
+          <div className={cn('text-gray-400 text-sm', isLarge && 'text-base')}>Remaining</div>
         </div>
       </div>
 
       {/* Circular Progress Indicator */}
-      <div className="relative" role="progressbar" aria-valuenow={timer.searchTime} aria-valuemax={maxTimeMs}>
+      <div
+        className="relative"
+        role="progressbar"
+        aria-valuenow={timer.searchTime}
+        aria-valuemax={maxTimeMs}
+      >
         <CircularProgress
           current={timer.searchTime}
           max={maxTimeMs}
@@ -128,10 +120,7 @@ export function DualTimerDisplay({
           isExpired={timer.isExpired}
         />
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={cn(
-            'font-mono font-bold text-white',
-            isLarge ? 'text-sm' : 'text-xs'
-          )}>
+          <span className={cn('font-mono font-bold text-white', isLarge ? 'text-sm' : 'text-xs')}>
             {Math.round((timer.searchTime / maxTimeMs) * 100)}%
           </span>
         </div>
@@ -142,7 +131,7 @@ export function DualTimerDisplay({
         {/* Pause/Resume Button (left) */}
         <Button
           variant="outline"
-          size={isLarge ? "lg" : "default"}
+          size={isLarge ? 'lg' : 'default'}
           onClick={timer.isRunning ? timer.stop : timer.start}
           disabled={disabled || timer.isExpired}
           aria-label={timer.isRunning ? 'Pause' : 'Resume'}
@@ -153,46 +142,34 @@ export function DualTimerDisplay({
           )}
         >
           {timer.isRunning ? (
-            <Pause className={cn(
-              'h-5 w-5',
-              isLarge && 'h-6 w-6'
-            )} />
+            <Pause className={cn('h-5 w-5', isLarge && 'h-6 w-6')} />
           ) : (
-            <Play className={cn(
-              'h-5 w-5',
-              isLarge && 'h-6 w-6'
-            )} />
+            <Play className={cn('h-5 w-5', isLarge && 'h-6 w-6')} />
           )}
         </Button>
 
         {/* Start/Stop Button (center) */}
         <Button
-          size={isLarge ? "lg" : "default"}
+          size={isLarge ? 'lg' : 'default'}
           onClick={timer.isRunning ? timer.stop : timer.start}
           disabled={disabled}
           className={cn(
             'min-w-[80px] h-[44px] font-semibold text-white',
             isLarge && 'min-w-[120px] h-[60px] text-lg',
-            timer.isRunning 
-              ? 'bg-red-600 hover:bg-red-700 border-red-500' 
+            timer.isRunning
+              ? 'bg-destructive hover:bg-destructive/90 border-destructive'
               : 'bg-teal-600 hover:bg-teal-700 border-teal-500',
             timer.isExpired && 'bg-gray-600 hover:bg-gray-700 border-gray-500'
           )}
         >
           {timer.isRunning ? (
             <>
-              <Square className={cn(
-                'mr-2 h-4 w-4',
-                isLarge && 'h-5 w-5'
-              )} />
+              <Square className={cn('mr-2 h-4 w-4', isLarge && 'h-5 w-5')} />
               Stop
             </>
           ) : (
             <>
-              <Play className={cn(
-                'mr-2 h-4 w-4',
-                isLarge && 'h-5 w-5'
-              )} />
+              <Play className={cn('mr-2 h-4 w-4', isLarge && 'h-5 w-5')} />
               Start
             </>
           )}
@@ -201,7 +178,7 @@ export function DualTimerDisplay({
         {/* Reset Button (right) */}
         <Button
           variant="outline"
-          size={isLarge ? "lg" : "default"}
+          size={isLarge ? 'lg' : 'default'}
           onClick={timer.reset}
           disabled={disabled || (timer.searchTime === 0 && !timer.isRunning)}
           aria-label="Reset"
@@ -210,41 +187,30 @@ export function DualTimerDisplay({
             isLarge && 'min-w-[60px] h-[60px]'
           )}
         >
-          <RotateCcw className={cn(
-            'h-5 w-5',
-            isLarge && 'h-6 w-6'
-          )} />
+          <RotateCcw className={cn('h-5 w-5', isLarge && 'h-6 w-6')} />
         </Button>
       </div>
 
       {/* Warning/Status Indicators */}
       {(timer.isWarning || timer.isExpired) && (
-        <div className={cn(
-          'flex items-center justify-center space-x-2 px-3 py-2 rounded-md',
-          isLarge && 'px-4 py-3',
-          timer.isExpired 
-            ? 'bg-red-900/50 text-red-200' 
-            : 'bg-yellow-900/50 text-yellow-200'
-        )}>
+        <div
+          className={cn(
+            'flex items-center justify-center space-x-2 px-3 py-2 rounded-md',
+            isLarge && 'px-4 py-3',
+            timer.isExpired
+              ? 'bg-destructive/50 text-destructive'
+              : 'bg-yellow-900/50 text-yellow-200'
+          )}
+        >
           {timer.isExpired ? (
             <>
               <Square className="h-4 w-4" />
-              <span className={cn(
-                'font-semibold',
-                isLarge && 'text-lg'
-              )}>
-                Time Expired
-              </span>
+              <span className={cn('font-semibold', isLarge && 'text-lg')}>Time Expired</span>
             </>
           ) : (
             <>
               <Timer className="h-4 w-4" />
-              <span className={cn(
-                'font-semibold',
-                isLarge && 'text-lg'
-              )}>
-                30 Second Warning
-              </span>
+              <span className={cn('font-semibold', isLarge && 'text-lg')}>30 Second Warning</span>
             </>
           )}
         </div>
@@ -269,7 +235,7 @@ function CircularProgress({ current, max, size, isWarning, isExpired }: Circular
   const circumference = 2 * Math.PI * radius;
   const progress = Math.min(current / max, 1);
   const strokeDasharray = circumference;
-  const strokeDashoffset = circumference - (progress * circumference);
+  const strokeDashoffset = circumference - progress * circumference;
 
   let strokeColor = '#14b8a6'; // teal-500
   if (isExpired) {
@@ -280,11 +246,7 @@ function CircularProgress({ current, max, size, isWarning, isExpired }: Circular
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      <svg
-        width={size}
-        height={size}
-        className="transform -rotate-90"
-      >
+      <svg width={size} height={size} className="transform -rotate-90">
         {/* Background circle */}
         <circle
           cx={size / 2}
@@ -330,7 +292,7 @@ export function CompactTimerDisplay({
   isRunning,
   isWarning,
   isExpired,
-  className
+  className,
 }: CompactTimerProps) {
   // Format times for compact display
   const formatTime = (ms: number) => {
@@ -349,30 +311,31 @@ export function CompactTimerDisplay({
   };
 
   return (
-    <div className={cn(
-      'flex items-center space-x-2 text-sm',
-      className
-    )}>
+    <div className={cn('flex items-center space-x-2 text-sm', className)}>
       {/* Search Time */}
-      <div className={cn(
-        'font-mono font-semibold',
-        isExpired ? 'text-red-400' : isWarning ? 'text-yellow-400' : 'text-white'
-      )}>
+      <div
+        className={cn(
+          'font-mono font-semibold',
+          isExpired ? 'text-destructive' : isWarning ? 'text-yellow-400' : 'text-white'
+        )}
+      >
         {formatTime(searchTime)}
       </div>
-      
+
       {/* Separator */}
       <div className="text-gray-500">|</div>
-      
+
       {/* Remaining Time */}
-      <div className={cn(
-        'font-mono text-teal-400',
-        isWarning && 'text-yellow-400',
-        isExpired && 'text-red-400'
-      )}>
+      <div
+        className={cn(
+          'font-mono text-teal-400',
+          isWarning && 'text-yellow-400',
+          isExpired && 'text-destructive'
+        )}
+      >
         {formatCountdown(remainingTime)}
       </div>
-      
+
       {/* Status Indicator */}
       {isRunning && (
         <div className="flex items-center">

@@ -33,7 +33,7 @@ const ConfirmDeleteDialog: React.FC<ConfirmDeleteDialogProps> = ({
           </button>
           <button
             type="button"
-            className="inline-flex items-center px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+            className="inline-flex items-center px-4 py-2 rounded-lg bg-destructive text-white hover:bg-destructive/90 transition font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-destructive"
             onClick={onConfirm}
           >
             <svg

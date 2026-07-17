@@ -30,7 +30,7 @@ export function SyncStatusIndicator({
   }, []);
 
   const getSyncColor = () => {
-    if (error) return 'text-red-500';
+    if (error) return 'text-destructive';
     if (isSyncing) return 'text-blue-500';
     if (!isOnline) return 'text-orange-500';
     if (queueSize > 0) return 'text-amber-500';
@@ -46,7 +46,7 @@ export function SyncStatusIndicator({
   };
 
   const getNetworkColor = () => {
-    if (!isOnline) return 'text-red-500';
+    if (!isOnline) return 'text-destructive';
     if (networkState.quality === 'excellent') return 'text-teal-500';
     if (networkState.quality === 'good') return 'text-blue-500';
     return 'text-amber-500';
@@ -126,7 +126,7 @@ export function SyncStatusBadge({ className }: { className?: string }) {
   const { isOnline, isSyncing, queueSize, error } = useBackgroundSync();
 
   const getBadgeColor = () => {
-    if (error) return 'bg-red-100 text-red-800 border-red-200';
+    if (error) return 'bg-destructive/10 text-destructive border-destructive/20';
     if (!isOnline) return 'bg-orange-100 text-orange-800 border-orange-200';
     if (isSyncing) return 'bg-blue-100 text-blue-800 border-blue-200';
     if (queueSize > 0) return 'bg-amber-100 text-amber-800 border-amber-200';

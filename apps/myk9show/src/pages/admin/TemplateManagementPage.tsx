@@ -286,10 +286,10 @@ const TemplateManagementPage: React.FC = () => {
 
         {/* Error Display */}
         {error && (
-          <Card className="border-red-200 bg-red-50 mb-6">
+          <Card className="border-destructive/20 bg-destructive/10 mb-6">
             <CardContent className="pt-4">
               <div className="flex justify-between items-center">
-                <p className="text-red-800">{error}</p>
+                <p className="text-destructive">{error}</p>
                 <Button variant="ghost" size="sm" onClick={clearError}>
                   Dismiss
                 </Button>
@@ -426,7 +426,7 @@ const TemplateManagementPage: React.FC = () => {
                   Search: "{filter.searchTerm}"
                   <button
                     onClick={() => handleFilterChange('searchTerm', '')}
-                    className="ml-1 hover:bg-red-100 rounded-full"
+                    className="ml-1 hover:bg-destructive/10 rounded-full"
                   >
                     ×
                   </button>
@@ -437,7 +437,7 @@ const TemplateManagementPage: React.FC = () => {
                   Org: {filter.organization}
                   <button
                     onClick={() => handleFilterChange('organization', undefined)}
-                    className="ml-1 hover:bg-red-100 rounded-full"
+                    className="ml-1 hover:bg-destructive/10 rounded-full"
                   >
                     ×
                   </button>
@@ -448,7 +448,7 @@ const TemplateManagementPage: React.FC = () => {
                   Type: {filter.trialType}
                   <button
                     onClick={() => handleFilterChange('trialType', undefined)}
-                    className="ml-1 hover:bg-red-100 rounded-full"
+                    className="ml-1 hover:bg-destructive/10 rounded-full"
                   >
                     ×
                   </button>
@@ -459,7 +459,7 @@ const TemplateManagementPage: React.FC = () => {
                   Status: {filter.isActive ? 'Active' : 'Inactive'}
                   <button
                     onClick={() => handleFilterChange('isActive', undefined)}
-                    className="ml-1 hover:bg-red-100 rounded-full"
+                    className="ml-1 hover:bg-destructive/10 rounded-full"
                   >
                     ×
                   </button>
@@ -470,7 +470,7 @@ const TemplateManagementPage: React.FC = () => {
                   {filter.isOfficial ? 'Official' : 'Custom'}
                   <button
                     onClick={() => handleFilterChange('isOfficial', undefined)}
-                    className="ml-1 hover:bg-red-100 rounded-full"
+                    className="ml-1 hover:bg-destructive/10 rounded-full"
                   >
                     ×
                   </button>
@@ -522,7 +522,7 @@ const TemplateManagementPage: React.FC = () => {
                             <DropdownMenuSeparator />
                             <DropdownMenuItem asChild>
                               <button
-                                className="flex w-full items-center px-2 py-1.5 text-sm text-red-600 hover:bg-accent hover:text-red-600 cursor-pointer"
+                                className="flex w-full items-center px-2 py-1.5 text-sm text-destructive hover:bg-accent hover:text-destructive cursor-pointer"
                                 onClick={() => {
                                   logger.debug('Delete button clicked', 'templates', {
                                     templateId: template.id,
@@ -620,7 +620,7 @@ const TemplateManagementPage: React.FC = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5 text-red-500" />
+              <Trash2 className="h-5 w-5 text-destructive" />
               Delete Template
             </DialogTitle>
             <DialogDescription>
@@ -629,10 +629,10 @@ const TemplateManagementPage: React.FC = () => {
           </DialogHeader>
 
           <div className="py-4">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <svg className="h-5 w-5 text-destructive" viewBox="0 0 20 20" fill="currentColor">
                     <path
                       fillRule="evenodd"
                       d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
@@ -641,8 +641,10 @@ const TemplateManagementPage: React.FC = () => {
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">This action cannot be undone</h3>
-                  <p className="mt-2 text-sm text-red-700">
+                  <h3 className="text-sm font-medium text-destructive">
+                    This action cannot be undone
+                  </h3>
+                  <p className="mt-2 text-sm text-destructive">
                     This will permanently delete the template and all its configurations. Any shows
                     or classes using this template will not be affected.
                   </p>
@@ -661,7 +663,7 @@ const TemplateManagementPage: React.FC = () => {
             <Button
               variant="destructive"
               onClick={handleConfirmDelete}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-destructive hover:bg-destructive/90"
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Delete Template

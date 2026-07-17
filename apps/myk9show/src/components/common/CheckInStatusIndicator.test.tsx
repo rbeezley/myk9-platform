@@ -15,6 +15,14 @@ describe('CheckInStatusIndicator', () => {
     );
   });
 
+  it('gives an icon-only status an accessible name', () => {
+    const { getByRole } = render(
+      <CheckInStatusIndicator status="checked-in" showTooltip={false} />
+    );
+
+    expect(getByRole('img', { name: 'Checked-in' })).toBeInTheDocument();
+  });
+
   it('renders an unexpected status without throwing (defensive config fallback)', () => {
     // Before the fix, an out-of-union status returned undefined from
     // getCheckInStatusConfig and the component crashed dereferencing

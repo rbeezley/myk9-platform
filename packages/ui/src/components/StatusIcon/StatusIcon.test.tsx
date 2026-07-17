@@ -7,7 +7,6 @@ import {
   TRIAL_STATUS_VALUES,
   getStatusDescriptor,
   getStatusSurfaceClasses,
-  getTrialCompositeStatus,
 } from './statusIconGrammar';
 
 describe('StatusIcon', () => {
@@ -21,6 +20,17 @@ describe('StatusIcon', () => {
     for (const status of TRIAL_STATUS_VALUES) {
       expect(getStatusDescriptor('trial', status).status).toBe(status);
     }
+  });
+
+  it('maps persisted request aliases without falling back', () => {
+    expect(getStatusDescriptor('entry', 'scratch_requested')).toMatchObject({
+      status: 'scratch_requested',
+      shape: 'needs-attention',
+    });
+    expect(getStatusDescriptor('entry', 'move_up_requested')).toMatchObject({
+      status: 'move_up_requested',
+      shape: 'needs-attention',
+    });
   });
 
   it('uses one complete shape across all families', () => {
@@ -62,7 +72,4 @@ describe('StatusIcon', () => {
     expect(screen.getByRole('img', { name: 'Cancelled' })).toHaveClass('text-destructive');
   });
 
-  it('preserves cancellation even when the trial has no classes', () => {
-    expect(getTrialCompositeStatus('Cancelled', 0)).toBe('cancelled');
-  });
 });

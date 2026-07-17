@@ -19,16 +19,15 @@ describe('ClassCard', () => {
   it('should render status label', () => {
     render(<ClassCard {...defaultProps} />);
     expect(screen.getByText('In Progress')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'In Progress' })).toHaveAttribute(
-      'data-family',
-      'class'
-    );
+    expect(screen.queryByRole('img', { name: 'In Progress' })).not.toBeInTheDocument();
+    expect(screen.getByText('In Progress').parentElement?.querySelector('[data-family="class"]'))
+      .toHaveAttribute('aria-hidden', 'true');
   });
 
   it('keeps a cancelled class destructive instead of mapping it to neutral', () => {
-    render(<ClassCard {...defaultProps} status="Cancelled" />);
+    const { container } = render(<ClassCard {...defaultProps} status="Cancelled" />);
     expect(screen.getByText('Cancelled')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Cancelled' })).toHaveClass('text-destructive');
+    expect(container.querySelector('[data-status="Cancelled"]')).toHaveClass('text-destructive');
   });
 
   it('should render judge name when provided', () => {

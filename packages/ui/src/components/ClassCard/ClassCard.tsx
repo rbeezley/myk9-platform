@@ -162,7 +162,7 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                 onStatusClick();
               }}
             >
-              <StatusIcon family="class" status={status} size="sm" />
+              <StatusIcon family="class" status={status} size="sm" decorative />
               <span>
                 {statusDescriptor.label}
                 {statusTime && <span className="ml-1 font-bold">{statusTime}</span>}
@@ -179,7 +179,7 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                 statusJustChanged && 'animate-bounce'
               )}
             >
-              <StatusIcon family="class" status={status} size="sm" />
+              <StatusIcon family="class" status={status} size="sm" decorative />
               <span>
                 {statusDescriptor.label}
                 {statusTime && <span className="ml-1 font-bold">{statusTime}</span>}

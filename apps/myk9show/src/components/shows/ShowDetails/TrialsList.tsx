@@ -1,7 +1,6 @@
 import React, { startTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Plus, Calendar, Hash, Pencil, Trash, MoreVertical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -11,6 +10,8 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import type { Trial } from '@/components/trials/types/trial.types';
+import { deriveTrialStatusKey } from '@myk9/core';
+import { StatusBadge } from '@/components/status';
 
 interface TrialsListProps {
   trials: Trial[];
@@ -53,11 +54,10 @@ const TrialsList: React.FC<TrialsListProps> = ({
 
               {/* Top bar: status badge + 3-dot menu */}
               <div className="absolute top-4 left-0 right-0 flex justify-between items-start px-4 z-10">
-                <Badge
-                  variant={trial.status.toLowerCase() === 'published' ? 'default' : 'secondary'}
-                >
-                  {trial.status}
-                </Badge>
+                <StatusBadge
+                  family="trial"
+                  status={deriveTrialStatusKey({ trialStatus: trial.status, classCount: 1 })}
+                />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button

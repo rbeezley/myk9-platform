@@ -10,7 +10,8 @@ import {
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import '@/styles/myk9-show-details.css';
-import { StatusBadge, getTrialCompositeStatus } from '@/components/status';
+import { deriveTrialStatusKey } from '@myk9/core';
+import { StatusBadge } from '@/components/status';
 
 interface TrialHeaderProps {
   trial: Trial;
@@ -28,7 +29,7 @@ export const TrialHeader = ({ trial, onEdit, onDelete, onAddPhoto }: TrialHeader
           <h1 className="text-2xl font-semibold text-foreground">{trial.showName}</h1>
           <StatusBadge
             family="trial"
-            status={getTrialCompositeStatus(trial.status, 1)}
+            status={deriveTrialStatusKey({ trialStatus: trial.status, classCount: 1 })}
             variant="outline"
           />
         </div>

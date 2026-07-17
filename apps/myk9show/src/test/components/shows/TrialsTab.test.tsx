@@ -20,13 +20,17 @@ vi.mock('@/hooks/useRBAC', () => ({
   }),
 }));
 
-vi.mock('@myk9/core', () => ({
-  CLASS_STATUS: {
-    COMPLETED: 'Completed',
-    IN_PROGRESS: 'In Progress',
-    SCHEDULED: 'Scheduled',
-  },
-}));
+vi.mock('@myk9/core', async () => {
+  const actual = await vi.importActual<typeof import('@myk9/core')>('@myk9/core');
+  return {
+    ...actual,
+    CLASS_STATUS: {
+      COMPLETED: 'Completed',
+      IN_PROGRESS: 'In Progress',
+      SCHEDULED: 'Scheduled',
+    },
+  };
+});
 
 let mockViewMode = 'cards';
 vi.mock('@/hooks/useViewPreference', () => ({
@@ -110,6 +114,21 @@ describe('TrialsTab', () => {
     render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
     expect(screen.getByText('3/5 scored')).toBeInTheDocument();
+  });
+
+  it('derives in-progress from child completion when stored trial status is stale', () => {
+    const trials = [makeTrial({ id: 't1', status: 'Scheduled' })];
+    const stats = { t1: { classCount: 5, entryCount: 42, completedClasses: 3 } };
+
+    const { container } = render(
+      <TrialsTab trials={trials} showId="show-1" trialStats={stats} />
+    );
+
+    expect(screen.getByText('In progress')).toBeInTheDocument();
+    expect(container.querySelector('[data-status="in-progress"]')).toHaveAttribute(
+      'data-shape',
+      'in-progress'
+    );
   });
 
   it('hides scored text when completedClasses is 0', () => {

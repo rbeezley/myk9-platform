@@ -49,7 +49,9 @@ export const ENTRY_STATUS_VALUES = [
   'absent',
   'moved',
   'scratch-requested',
+  'scratch_requested',
   'move-up-requested',
+  'move_up_requested',
   'pending-payment',
   'promotion-expired',
   'pending',
@@ -140,8 +142,20 @@ export const ENTRY_STATUS_DESCRIPTORS = {
     'needs-attention',
     'text-warning'
   ),
+  scratch_requested: descriptor(
+    'scratch_requested',
+    'Scratch requested',
+    'needs-attention',
+    'text-warning'
+  ),
   'move-up-requested': descriptor(
     'move-up-requested',
+    'Move-up requested',
+    'needs-attention',
+    'text-warning'
+  ),
+  move_up_requested: descriptor(
+    'move_up_requested',
     'Move-up requested',
     'needs-attention',
     'text-warning'
@@ -248,20 +262,4 @@ export function getStatusSurfaceClasses(
   status: string | null | undefined
 ): string {
   return STATUS_SURFACE_CLASSES[getStatusDescriptor(family, status).colorClass];
-}
-
-export function getTrialCompositeStatus(
-  classStatus: string | null | undefined,
-  classCount: number
-): (typeof TRIAL_STATUS_VALUES)[number] {
-  const normalized =
-    classStatus
-      ?.trim()
-      .toLowerCase()
-      .replace(/[\s_]+/g, '-') ?? '';
-  if (normalized === 'cancelled' || normalized === 'canceled') return 'cancelled';
-  if (classCount === 0) return 'no-classes';
-  if (normalized === 'completed' || normalized === 'complete') return 'completed';
-  if (normalized === 'in-progress' || normalized === 'inprogress') return 'in-progress';
-  return 'not-started';
 }

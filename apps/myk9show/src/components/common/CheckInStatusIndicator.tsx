@@ -57,7 +57,12 @@ export const CheckInStatusIndicator: React.FC<CheckInStatusIndicatorProps> = ({
       )}
     >
       <div className={cn('relative inline-flex', shouldAnimate && 'animate-pulse')}>
-        <StatusIcon family="entry" status={status} size={sizes.iconSize} decorative />
+        <StatusIcon
+          family="entry"
+          status={status}
+          size={sizes.iconSize}
+          decorative={showLabel}
+        />
       </div>
       {showLabel && <span className={sizes.container}>{descriptor.label}</span>}
     </div>

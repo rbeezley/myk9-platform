@@ -1,5 +1,6 @@
 import { Trial } from '../types/trial.types';
-import { StatusBadge, getTrialCompositeStatus } from '@/components/status';
+import { deriveTrialStatusKey } from '@myk9/core';
+import { StatusBadge } from '@/components/status';
 
 interface TrialListItemProps {
   trial: Trial;
@@ -27,7 +28,7 @@ export const TrialListItem = ({ trial, isSelected, onSelect }: TrialListItemProp
     </div>
     <StatusBadge
       family="trial"
-      status={getTrialCompositeStatus(trial.status, 1)}
+      status={deriveTrialStatusKey({ trialStatus: trial.status, classCount: 1 })}
       className="mt-2 border border-border bg-muted/40"
     />
   </div>

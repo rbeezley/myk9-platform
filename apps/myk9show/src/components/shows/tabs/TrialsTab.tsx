@@ -9,11 +9,11 @@ import { StatusFilter, type StatusFilterValue } from '@/components/common/Status
 import { FilterEmptyState } from '@/components/common/FilterEmptyState';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useRBAC } from '@/hooks/useRBAC';
-import { CLASS_STATUS, type ClassStatusValue } from '@myk9/core';
+import { CLASS_STATUS, deriveTrialStatusKey, type ClassStatusValue } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatTrialTypeLabel } from '@/types/template.types';
-import { StatusBadge, getTrialCompositeStatus } from '@/components/status';
+import { StatusBadge } from '@/components/status';
 
 export interface TrialStats {
   classCount: number;
@@ -81,7 +81,11 @@ const trialColumns: ColumnDef<TrialRow, unknown>[] = [
     cell: ({ row }) => (
       <StatusBadge
         family="trial"
-        status={getTrialCompositeStatus(row.original.status, row.original.classCount)}
+        status={deriveTrialStatusKey({
+          trialStatus: row.original.status,
+          classCount: row.original.classCount,
+          completedCount: row.original.completedClasses,
+        })}
         className="text-xs"
         variant="outline"
       />
@@ -176,7 +180,11 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           {filteredTrials.map(trial => {
             const dateParts = trial.trialDate ? getDateParts(trial.trialDate) : null;
             const stats = trialStats[trial.id] || EMPTY_STATS;
-            const trialCompositeStatus = getTrialCompositeStatus(trial.status, stats.classCount);
+            const trialCompositeStatus = deriveTrialStatusKey({
+              trialStatus: trial.status,
+              classCount: stats.classCount,
+              completedCount: stats.completedClasses,
+            });
             const progressPct =
               stats.classCount > 0 ? (stats.completedClasses / stats.classCount) * 100 : 0;
             const showScored = stats.completedClasses > 0;

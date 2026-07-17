@@ -3,6 +3,7 @@ import { CreatedClass } from '@/types/template.types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/status';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -346,20 +347,7 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
 
                     {/* Status & Conflicts */}
                     <div className="flex flex-col items-end gap-2">
-                      <Badge
-                        variant={
-                          cls.status === 'Completed'
-                            ? 'default'
-                            : cls.status === 'In Progress'
-                              ? 'secondary'
-                              : cls.status === 'Cancelled'
-                                ? 'destructive'
-                                : 'outline'
-                        }
-                        className="text-xs"
-                      >
-                        {cls.status}
-                      </Badge>
+                      <StatusBadge family="class" status={cls.status} className="text-xs" />
 
                       {cls.conflicts.length > 0 && (
                         <div className="flex items-center gap-1 text-destructive">

@@ -68,8 +68,11 @@ export {
 // Trial composite status (one composed line per trial)
 export {
   deriveTrialCompositeStatus,
+  deriveTrialStatusKey,
   type TrialCompositeKind,
   type TrialCompositeStatus,
+  type TrialStatusKey,
+  type TrialStatusSummary,
 } from './helpers/trial-status';
 
 // Time formatting utilities

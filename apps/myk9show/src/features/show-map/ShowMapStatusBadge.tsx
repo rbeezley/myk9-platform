@@ -1,4 +1,5 @@
-import { StatusBadge, getTrialCompositeStatus } from '@/components/status';
+import { deriveTrialStatusKey } from '@myk9/core';
+import { StatusBadge } from '@/components/status';
 import type { ShowMapNode } from './showMapTypes';
 
 export function ShowMapNodeStatusBadge({ node }: { node: ShowMapNode }) {
@@ -8,7 +9,11 @@ export function ShowMapNodeStatusBadge({ node }: { node: ShowMapNode }) {
     return (
       <StatusBadge
         family="trial"
-        status={getTrialCompositeStatus(node.status.value, node.childrenCount)}
+        status={deriveTrialStatusKey({
+          trialStatus: node.status.value,
+          classCount: node.childrenCount,
+          hasStarted: node.status.kind === 'active',
+        })}
         variant="secondary"
         label={node.status.label}
       />

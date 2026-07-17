@@ -1,5 +1,5 @@
 import { render, screen } from '@/test/utils/testUtils';
-import { CLASS_STATUS, type ClassStatusValue } from '@myk9/core';
+import { CLASS_STATUS, deriveTrialStatusKey, type ClassStatusValue } from '@myk9/core';
 import { EntryStatus } from '@/types/show-registration-types';
 import { ENTRY_LIFECYCLE_STATUS_VALUES } from '@/types/entry-lifecycle';
 import { CLASS_ENTRY_STATUS_VALUES } from '@/types/entry-refactored-types';
@@ -10,7 +10,6 @@ import {
   STATUS_COLOR_CLASSES,
   TRIAL_STATUS_VALUES,
   getStatusDescriptor,
-  getTrialCompositeStatus,
 } from './statusIconGrammar';
 import { StatusIcon } from './StatusIcon';
 import { StatusBadge } from './StatusBadge';
@@ -51,7 +50,7 @@ describe('status icon grammar', () => {
     } satisfies Record<ClassStatusValue, (typeof TRIAL_STATUS_VALUES)[number]>;
 
     for (const [status, expected] of Object.entries(trialStatusByCanonicalClassStatus)) {
-      expect(getTrialCompositeStatus(status, 1)).toBe(expected);
+      expect(deriveTrialStatusKey({ trialStatus: status, classCount: 1 })).toBe(expected);
     }
   });
 

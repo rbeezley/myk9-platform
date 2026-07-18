@@ -1,7 +1,34 @@
 # myK9Club — Club Services Design (CRM, Training Courses, Dues)
 
-> **Status:** Draft — awaiting user review
+> **Status:** Approved — deferred until after myK9Show launch (see Timeline)
 > **Date:** 2026-07-18
+
+## Timeline & launch sequencing (decided 2026-07-18)
+
+**This initiative does NOT ship in myK9Show v1.** Agreed sequence:
+
+1. **2026 — launch myK9Show for Scent Work, shows only.** Launch risk is
+   concentrated in the show weekend (scoring, entries, payouts, offline
+   reliability) — that is where all hardening effort has gone, and adding a
+   second product surface pre-launch adds bugs, support load, and test area at
+   the worst moment. Club features have no launch deadline: clubs already run
+   classes on paper/Google Docs and will still be doing so in six months. The
+   pre-launch phase rule applies: consolidate, don't add surface area.
+2. **Early 2027 — build club services (Phases 1–3 below), before broad
+   sports expansion.** Rationale: adding sports widens the same wedge (same
+   buyer, same trial-weekend use); club services **deepen** the relationship
+   with clubs already won — converting myK9Show from a 4–6-weekends-a-year
+   trial tool into a weekly club operating system with year-round revenue
+   between shows. The scent-work club that ran a November trial is the warmest
+   customer for January course enrollment.
+3. **Then sports expansion**, ordered by what live clubs actually request
+   after their first trials ("can you do Barn Hunt?" vs "can members pay dues
+   here?"). Let real pull decide.
+
+Do not run `opsx:propose` for Phase 1 until the show launch is out the door.
+When building starts, each phase becomes its own OpenSpec change
+(cross-linked here per PLAYBOOK § 1); this document remains the umbrella
+design.
 
 ## Decision: not a separate application
 

@@ -1,8 +1,8 @@
 ## 1. Inventory and canonical contracts
 
-- [ ] 1.1 Inventory existing Workbench readiness blocks, entry/class attention classifiers, class readiness helpers, and destination route builders.
-- [ ] 1.2 Identify duplicate attention calculations and confirm the canonical `entry-attention-routing`/`class-operational-readiness` contracts remain authoritative.
-- [ ] 1.3 Inventory existing detail headers/context areas and known relationships for show, trial, class, entry, dog, and person surfaces.
+- [x] 1.1 Inventory existing Workbench readiness blocks, entry/class attention classifiers, class readiness helpers, and destination route builders.
+- [x] 1.2 Identify duplicate attention calculations and confirm the canonical `entry-attention-routing`/`class-operational-readiness` contracts remain authoritative.
+- [x] 1.3 Inventory existing detail headers/context areas and known relationships for show, trial, class, entry, dog, and person surfaces.
 
 ## 2. Attention summary
 

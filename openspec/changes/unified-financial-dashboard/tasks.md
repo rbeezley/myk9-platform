@@ -40,9 +40,9 @@
 
 ## 6. Verification and shipment
 
-- [ ] 6.1 Run focused unit/component/database tests for each changed package and `pnpm typecheck` for the monorepo blast radius.
-- [ ] 6.2 Run `npx openspec validate "unified-financial-dashboard"` and resolve all artifact/spec coverage findings.
-- [ ] 6.3 Review the diff for scope creep, RLS/PII exposure, direct online reads in offline core paths, duplicated surfaces, and intent regressions.
+- [x] 6.1 Run focused unit/component/database tests for each changed package and `pnpm typecheck` for the monorepo blast radius.
+- [x] 6.2 Run `npx openspec validate "unified-financial-dashboard"` and resolve all artifact/spec coverage findings.
+- [x] 6.3 Review the diff for scope creep, RLS/PII exposure, direct online reads in offline core paths, duplicated surfaces, and intent regressions.
 - [ ] 6.4 Update the linked Linear issue and launch-readiness tracking with completed evidence, known operator gates, and intentional non-goals.
 - [ ] 6.5 Open the implementation PR with the OpenSpec change linked, run CI and focused review, and resolve all blocking findings.
 - [ ] 6.6 Merge only after required checks and shared-system/operator gates are accepted; then archive the OpenSpec change with the PR evidence.

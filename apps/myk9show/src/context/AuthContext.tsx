@@ -29,6 +29,7 @@ import {
 } from '../types/auth-types';
 import { ProtectedRouteProps, ConvenienceRouteProps } from './authUtils';
 import { useResetSavedViewsOnAccountChange } from '@/features/operational-views/useResetSavedViewsOnAccountChange';
+import { useResetRecentSearchesOnAccountChange } from '@/hooks/useResetRecentSearchesOnAccountChange';
 import { rbacService } from '@/services/rbac/RBACService';
 import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker';
 import { PermissionWithRole } from '@/types/rbac-types';
@@ -215,6 +216,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // entries whenever the authenticated user id changes (including sign-out)
   // so a shared device never lists/restores another account's saved view.
   useResetSavedViewsOnAccountChange(auth.user?.id);
+
+  // Recent command-palette searches (context-aware-command-menu, design.md
+  // Decision 4) are device-local and namespaced by user id — clear the
+  // PRIOR user's entries whenever the authenticated user id changes so a
+  // shared device never lists/restores another account's recent searches.
+  useResetRecentSearchesOnAccountChange(auth.user?.id);
 
   // Mock user state for development testing
   const [currentMockUser, setCurrentMockUser] = useState<string | null>(() => {

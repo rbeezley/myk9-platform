@@ -37,8 +37,10 @@ export interface PlatformIncomeSummary {
   /** Gross platform-fee income, before Stripe processing costs. */
   grossPlatformFeeCents: number;
   /**
-   * Net platform income. Pending while ANY order's processing fee is uncaptured —
-   * the missing fee is surfaced as pending, never treated as zero.
+   * Net platform income: gross platform fee − captured processing fee −
+   * platform-absorbed refunds. Pending while ANY order's processing fee is
+   * uncaptured — the missing fee is surfaced as pending, never treated as zero.
+   * When available, may be negative if absorbed refunds exceed fee income.
    */
   netPlatformIncome:
     { status: 'available'; netCents: number } | { status: 'pending'; grossCents: number };
@@ -82,17 +84,30 @@ export interface FinancialSummaryDeps {
   fetchSummary?: (args: FinancialScopeArgs) => Promise<FinancialReconciliationSummary>;
 }
 
+// Refund architecture (verified 2026-07-17 against stripe-refund-entry/index.ts
+// and stripe-refund-show/index.ts): BOTH refund functions call
+// stripe.refunds.create WITHOUT `reverse_transfer` and WITHOUT
+// `refund_application_fee`. The customer is repaid the full charge from the
+// PLATFORM balance while the club keeps its transfer, so the platform absorbs
+// the FULL refunded amount (refundedCents) — not merely its fee portion. Net
+// platform income must therefore subtract the entire refundedCents.
+
 /** Derive the platform-income group from server-aggregated reconciliation totals. */
 export function derivePlatformIncome(
   summary: FinancialReconciliationSummary
 ): PlatformIncomeSummary {
   const grossPlatformFeeCents = summary.platformFeeCents;
+  // Platform-absorbed refunds: the full customer refund comes out of the
+  // platform balance (no reverse_transfer / refund_application_fee), so the whole
+  // refundedCents is a platform cost against net income. This can drive net
+  // NEGATIVE (refunds exceeded fee income) — that is economically real and is
+  // reported as-is, never clamped to 0.
   const netPlatformIncome =
     summary.processingFeePendingCount > 0
       ? ({ status: 'pending', grossCents: grossPlatformFeeCents } as const)
       : ({
           status: 'available',
-          netCents: grossPlatformFeeCents - summary.processingFeeCents,
+          netCents: grossPlatformFeeCents - summary.processingFeeCents - summary.refundedCents,
         } as const);
   return {
     onlineCollectedCents: summary.grossChargedCents - summary.refundedCents,

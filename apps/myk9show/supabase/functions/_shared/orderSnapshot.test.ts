@@ -139,13 +139,15 @@ describe('platformNetIncomeCents', () => {
     ).toEqual({ status: 'available', netCents: 380 });
   });
 
-  it('also subtracts a refunded platform fee', () => {
+  it('subtracts the full platform-absorbed refund (can go negative)', () => {
+    // No reverse_transfer / refund_application_fee on either refund path, so the
+    // platform absorbs the whole customer refund — pass the full refund here.
     expect(
       platformNetIncomeCents(
         { platform_fee_cents: 700, stripe_processing_fee_cents: 320 },
-        { refundedPlatformFeeCents: 700 }
+        { absorbedRefundCents: 5250 }
       )
-    ).toEqual({ status: 'available', netCents: -320 });
+    ).toEqual({ status: 'available', netCents: 700 - 320 - 5250 });
   });
 
   it('reports pending net (not zero) when the processing fee is missing', () => {

@@ -80,10 +80,43 @@ function onlineOrder(
 describe('derivePlatformIncome', () => {
   it('reports net income when every processing fee is captured', () => {
     const income = derivePlatformIncome(
-      summaryRow({ platformFeeCents: 250, processingFeeCents: 180, processingFeePendingCount: 0 })
+      summaryRow({
+        platformFeeCents: 250,
+        processingFeeCents: 180,
+        processingFeePendingCount: 0,
+        refundedCents: 0,
+      })
     );
     expect(income.grossPlatformFeeCents).toBe(250);
+    // gross fee − processing − absorbed refunds (0 here).
     expect(income.netPlatformIncome).toEqual({ status: 'available', netCents: 70 });
+  });
+
+  it('subtracts platform-absorbed refunds from net income', () => {
+    const income = derivePlatformIncome(
+      summaryRow({
+        platformFeeCents: 250,
+        processingFeeCents: 180,
+        processingFeePendingCount: 0,
+        refundedCents: 40,
+      })
+    );
+    // 250 − 180 − 40 = 30.
+    expect(income.netPlatformIncome).toEqual({ status: 'available', netCents: 30 });
+  });
+
+  it('lets an absorbed refund drive net negative (not clamped to zero)', () => {
+    const income = derivePlatformIncome(
+      summaryRow({
+        platformFeeCents: 250,
+        processingFeeCents: 180,
+        processingFeePendingCount: 0,
+        // A full make-whole refund the platform ate: exceeds fee income.
+        refundedCents: 5250,
+      })
+    );
+    // 250 − 180 − 5250 = −5180, reported as-is (economically real).
+    expect(income.netPlatformIncome).toEqual({ status: 'available', netCents: -5180 });
   });
 
   it('marks net income pending (never zero) when a processing fee is uncaptured', () => {
@@ -92,6 +125,18 @@ describe('derivePlatformIncome', () => {
     );
     expect(income.netPlatformIncome).toEqual({ status: 'pending', grossCents: 250 });
     expect(income.processingFeePendingCount).toBe(2);
+  });
+
+  it('keeps net pending even when refunds exist (a missing fee still blocks a final net)', () => {
+    const income = derivePlatformIncome(
+      summaryRow({
+        platformFeeCents: 250,
+        processingFeeCents: 180,
+        processingFeePendingCount: 1,
+        refundedCents: 999,
+      })
+    );
+    expect(income.netPlatformIncome).toEqual({ status: 'pending', grossCents: 250 });
   });
 
   it('exposes online collected as gross charged less refunded', () => {

@@ -91,7 +91,27 @@ describe('PlatformIncomeCard', () => {
 
     expect(screen.getByText('Net platform income')).toBeInTheDocument();
     expect(screen.getByText('$85.00')).toBeInTheDocument();
-    expect(screen.getByText(/captured Stripe processing fees/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/captured Stripe processing fees − platform-absorbed refunds/)
+    ).toBeInTheDocument();
+  });
+
+  it('renders a negative net income as-is (absorbed refunds exceeded fee income), not clamped or hidden', () => {
+    overviewState.data = overview({
+      summary: {
+        ...overview().summary,
+        platformIncome: {
+          ...overview().summary.platformIncome,
+          netPlatformIncome: { status: 'available', netCents: -5180 },
+        },
+      },
+    });
+    render(<PlatformIncomeCard />);
+    expect(screen.getByText('Net platform income')).toBeInTheDocument();
+    expect(screen.getByText('$-51.80')).toBeInTheDocument();
+    // Not clamped to zero, not swapped for a pending placeholder.
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pending/)).not.toBeInTheDocument();
   });
 
   it('shows net income as pending — never a fake $0/net — when a processing fee is uncaptured', () => {

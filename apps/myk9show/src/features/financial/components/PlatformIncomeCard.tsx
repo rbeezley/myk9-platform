@@ -69,7 +69,7 @@ function PlatformFigures({ income }: { income: PlatformIncomeSummary }) {
         label="Net platform income"
         value={netFigure.value}
         tone={netFigure.tone}
-        formula="Gross fee income − captured Stripe processing fees"
+        formula="Gross fee income − captured Stripe processing fees − platform-absorbed refunds"
       />
     </div>
   );

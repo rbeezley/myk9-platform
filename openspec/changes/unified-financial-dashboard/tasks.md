@@ -19,10 +19,10 @@
 
 ## 3. Club financial workflow
 
-- [ ] 3.1 Add the club-scoped summary to the existing `/club-admin/payments` surface instead of creating `/club-admin/financial`.
-- [ ] 3.2 Add per-show net, copyable `stripe_transfer_id`, settlement badge, charge-verification badge, and Stripe link-out components with accessible labels and calm error/unavailable states.
-- [ ] 3.3 Add club scope-gating, component, onboarding return-path, and no-duplicate-checkout regression tests.
-- [ ] 3.4 Verify club-admin UX against `docs/INTENT.md` and confirm the offline/unavailable state never claims Stripe verification.
+- [x] 3.1 Add the club-scoped summary to the existing `/club-admin/payments` surface instead of creating `/club-admin/financial`.
+- [x] 3.2 Add per-show net, copyable `stripe_transfer_id`, settlement badge, charge-verification badge, and Stripe link-out components with accessible labels and calm error/unavailable states.
+- [x] 3.3 Add club scope-gating, component, onboarding return-path, and no-duplicate-checkout regression tests.
+- [x] 3.4 Verify club-admin UX against `docs/INTENT.md` and confirm the offline/unavailable state never claims Stripe verification.
 
 ## 4. Platform financial workflow
 

@@ -115,7 +115,14 @@ export type PlatformNetIncome =
 
 /**
  * Platform NET income for one order:
- *   gross platform fee − captured Stripe processing fee − refunded platform fee.
+ *   gross platform fee − captured Stripe processing fee − platform-absorbed refund.
+ *
+ * Refund architecture (verified against stripe-refund-entry / stripe-refund-show):
+ * neither refund path passes `reverse_transfer` or `refund_application_fee`, so
+ * the full customer refund is paid from the PLATFORM balance while the club keeps
+ * its transfer. The platform therefore absorbs the ENTIRE refunded amount on the
+ * order (its `refunded_cents`), not merely the fee portion — pass that full value
+ * as `absorbedRefundCents`. This can legitimately drive net negative.
  *
  * When the Stripe processing fee has not been captured yet the result is
  * `pending` (never treated as zero) so a dashboard can label the pending
@@ -126,15 +133,15 @@ export function platformNetIncomeCents(
     platform_fee_cents: number | null;
     stripe_processing_fee_cents: number | null;
   },
-  reversals: { refundedPlatformFeeCents?: number } = {}
+  reversals: { absorbedRefundCents?: number } = {}
 ): PlatformNetIncome {
   const gross = platformGrossFeeCents(fields);
   if (fields.stripe_processing_fee_cents === null) {
     return { status: 'pending', grossCents: gross };
   }
-  const refundedFee = reversals.refundedPlatformFeeCents ?? 0;
+  const absorbedRefund = reversals.absorbedRefundCents ?? 0;
   return {
     status: 'available',
-    netCents: gross - fields.stripe_processing_fee_cents - refundedFee,
+    netCents: gross - fields.stripe_processing_fee_cents - absorbedRefund,
   };
 }

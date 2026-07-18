@@ -170,7 +170,42 @@ SELECT * INTO r FROM public.record_order_refund_cents('pi_o5', 0, NULL, 5000);
 PERFORM public.test_true(r.fully_refunded, 'refund covering the full amount sets fully_refunded');
 PERFORM public.test_true(r.order_status = 'refunded', 'full refund promotes status to refunded');
 
-RAISE NOTICE '[12] authorization RAISEs rather than returning an empty $0';
+RAISE NOTICE '[12] refund.failed REVERSAL: idempotent, attributed, status re-derived';
+-- pi_o4 is a 10700 order that was FULLY refunded post-hoc and stamped
+-- 'refunded'. Stripe later fails that refund: the customer was never paid, so
+-- the ledger must give the money back and the status must fall back to
+-- 'succeeded' — record_order_refund_cents is monotonic and cannot do this.
+SELECT * INTO r FROM public.reverse_order_refund_cents('pi_o4', 're_failed_1', 10700);
+PERFORM public.test_true(r.reversed, 'first reversal applies');
+PERFORM public.test_eq(r.post_hoc_cents, 0, 'post-hoc refund reversed off the order');
+PERFORM public.test_true(r.order_status = 'succeeded',
+  format('fully-refunded order DEMOTED back to succeeded (got %s)', r.order_status));
+SELECT count(*) INTO n FROM public.stripe_orders o
+ WHERE o.stripe_payment_intent_id = 'pi_o4' AND o.refunded_at IS NULL;
+PERFORM public.test_eq(n, 1, 'refunded_at cleared when no longer fully refunded');
+-- Redelivery of the SAME refund.failed must not subtract a second time.
+SELECT * INTO r FROM public.reverse_order_refund_cents('pi_o4', 're_failed_1', 10700);
+PERFORM public.test_true(NOT r.reversed, 'duplicate refund.failed is a no-op');
+PERFORM public.test_eq(r.post_hoc_cents, 0, 'duplicate reversal does not double-subtract');
+-- A MAKE-WHOLE refund reverses off the make-whole column, not the post-hoc one,
+-- and its id leaves make_whole_refund_ids so the ledger stays truthful.
+-- pi_o3 is seeded with 5350 of make-whole already; book a NEW keyed 1000 on top,
+-- then fail that one. Only the failed refund's own delta may come back off.
+SELECT * INTO r FROM public.record_order_refund_cents('pi_o3', 1000, 're_mw_o3', NULL);
+PERFORM public.test_eq(r.make_whole_cents, 6350, 'keyed make-whole booked before reversal');
+SELECT * INTO r FROM public.reverse_order_refund_cents('pi_o3', 're_mw_o3', 1000);
+PERFORM public.test_eq(r.make_whole_cents, 5350, 'make-whole reversed off its OWN column');
+PERFORM public.test_eq(r.post_hoc_cents,      0, 'post-hoc untouched by a make-whole reversal');
+-- A reversal larger than what was ever booked must not push a column negative
+-- (both money columns carry a >= 0 CHECK).
+SELECT * INTO r FROM public.reverse_order_refund_cents('pi_o9', 're_never_booked', 999999);
+PERFORM public.test_eq(r.post_hoc_cents, 0, 'over-reversal floors at zero, never negative');
+-- Without an idempotency key a reversal is refused outright rather than risking
+-- a repeated subtraction on every redelivery.
+SELECT count(*) INTO n FROM public.reverse_order_refund_cents('pi_o1', NULL, 100);
+PERFORM public.test_eq(n, 0, 'NULL refund id reverses nothing');
+
+RAISE NOTICE '[12b] authorization RAISEs rather than returning an empty $0';
 BEGIN
   SET LOCAL test.authorized = 'off';
   SELECT count(*) INTO n FROM public.financial_reconciliation_summary('platform', NULL, NULL);

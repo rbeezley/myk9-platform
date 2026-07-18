@@ -47,19 +47,23 @@ describe('isDeskAttestedLabel', () => {
 });
 
 describe('resolveOrderChargeVerification', () => {
-  it('is Verified when subtotal + fee ties to the charged amount', () => {
+  it('is Verified when a Stripe snapshot was captured for the order', () => {
     expect(resolveOrderChargeVerification(order({}))).toBe('Verified');
   });
 
-  it('allows a 1-cent rounding tolerance', () => {
-    expect(resolveOrderChargeVerification(order({ amountCents: 5251 }))).toBe('Verified');
+  it('is Attested when the snapshot is missing (legacy / desk-recorded order)', () => {
+    expect(
+      resolveOrderChargeVerification(order({ entrySubtotalCents: null, platformFeeCents: null }))
+    ).toBe('Attested');
+    expect(resolveOrderChargeVerification(order({ platformFeeCents: null }))).toBe('Attested');
+    expect(resolveOrderChargeVerification(order({ entrySubtotalCents: null }))).toBe('Attested');
   });
 
-  // ── ROOT FIX (review finding 2): the tie-out must include the make-whole term.
-  it('VERIFIES a legitimate cart-overflow order instead of flagging it Mismatch', () => {
-    // $93.50 charged gross; only $50.00 of lines accepted (+$3.50 fee); $40.00
-    // returned as a make-whole refund for lines that were never accepted.
-    // Ties out exactly: 9350 == 5000 + 350 + 4000.
+  // ── THE DELETED INFERENCE. Verification is now a FACT ("do we hold a
+  // snapshot?"), never a derived judgement about whether the amounts look right.
+  // The old tie-out fired on rounding residue, legacy rows, partial refunds and
+  // desk refunds alike; these cases pin that it no longer renders a red state.
+  it('does NOT judge amounts: a legitimate cart-overflow order stays Verified', () => {
     expect(
       resolveOrderChargeVerification(
         order({
@@ -72,56 +76,17 @@ describe('resolveOrderChargeVerification', () => {
     ).toBe('Verified');
   });
 
-  it('still MISMATCHES a genuinely-off order (the check stays falsifiable)', () => {
-    // Same overflow shape, but the gross is $1.00 more than the parts explain.
-    // Because make_whole is recorded explicitly rather than derived from
-    // amount − subtotal − fee, this discrepancy cannot be absorbed away.
-    expect(
-      resolveOrderChargeVerification(
-        order({
-          amountCents: 9450,
-          entrySubtotalCents: 5000,
-          platformFeeCents: 350,
-          makeWholeRefundedCents: 4000,
-        })
-      )
-    ).toBe('Mismatch');
+  it('does NOT judge amounts: rounding residue on a split stays Verified', () => {
+    expect(resolveOrderChargeVerification(order({ amountCents: 5251 }))).toBe('Verified');
+    expect(resolveOrderChargeVerification(order({ amountCents: 6000 }))).toBe('Verified');
   });
 
-  it('MISMATCHES when make-whole is claimed but the gross does not include it', () => {
-    // amount == subtotal + fee while make_whole > 0: the money was never charged,
-    // so it could not have been made whole. Under the OLD amount == subtotal + fee
-    // rule this passed silently.
-    expect(
-      resolveOrderChargeVerification(
-        order({
-          amountCents: 5350,
-          entrySubtotalCents: 5000,
-          platformFeeCents: 350,
-          makeWholeRefundedCents: 4000,
-        })
-      )
-    ).toBe('Mismatch');
-  });
-
-  it('does not let a POST-HOC refund affect the charge tie-out', () => {
-    // A post-hoc refund happens AFTER the charge; the gross still equals the
-    // accepted parts, so the order remains Verified.
+  it('does NOT judge amounts: a post-hoc refund leaves the order Verified', () => {
     expect(
       resolveOrderChargeVerification(
         order({ amountCents: 5250, refundedCents: 2000, makeWholeRefundedCents: 0 })
       )
     ).toBe('Verified');
-  });
-
-  it('is Mismatch when amounts do not tie', () => {
-    expect(resolveOrderChargeVerification(order({ amountCents: 6000 }))).toBe('Mismatch');
-  });
-
-  it('is Mismatch when the snapshot is missing', () => {
-    expect(
-      resolveOrderChargeVerification(order({ entrySubtotalCents: null, platformFeeCents: null }))
-    ).toBe('Mismatch');
   });
 });
 
@@ -132,24 +97,33 @@ describe('resolveEntryChargeVerification', () => {
     expect(resolveEntryChargeVerification({ paymentLabel: 'Waived/Comped' })).toBe('Attested');
   });
 
-  it('Verified when an online line ties to its matched order snapshot', () => {
+  it('Verified when an online line has a matched order snapshot', () => {
     expect(
       resolveEntryChargeVerification({ paymentLabel: 'Online', matchedOrder: order({}) })
     ).toBe('Verified');
   });
 
-  it('Mismatch when an online line has no matched order snapshot', () => {
+  it('Attested — never red — when an online line has no matched order snapshot', () => {
     expect(resolveEntryChargeVerification({ paymentLabel: 'Online', matchedOrder: null })).toBe(
-      'Mismatch'
+      'Attested'
     );
   });
 
-  it('Mismatch when an online line ties to a snapshot with wrong amounts', () => {
+  it('Attested when the matched order carries no snapshot columns', () => {
+    expect(
+      resolveEntryChargeVerification({
+        paymentLabel: 'Online',
+        matchedOrder: order({ entrySubtotalCents: null, platformFeeCents: null }),
+      })
+    ).toBe('Attested');
+  });
+
+  it('does NOT judge amounts: an odd-looking online line is still Verified', () => {
     expect(
       resolveEntryChargeVerification({
         paymentLabel: 'Online',
         matchedOrder: order({ amountCents: 9999 }),
       })
-    ).toBe('Mismatch');
+    ).toBe('Verified');
   });
 });

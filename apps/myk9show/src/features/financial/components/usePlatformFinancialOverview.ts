@@ -7,7 +7,6 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   getFinancialSummary,
-  fetchFinancialReconciliationOrders,
   fetchFinancialReconciliationPayouts,
   type FinancialSummary,
 } from '@/features/financial';
@@ -53,18 +52,16 @@ export function usePlatformFinancialOverview() {
   return useQuery({
     queryKey: ['admin', 'platform-financial-overview'],
     queryFn: async (): Promise<PlatformFinancialOverview> => {
-      const [summary, orderPages, payoutPages] = await Promise.all([
+      // ORDER ROWS ARE NO LONGER FETCHED HERE. They existed solely to feed the
+      // deleted inference-based attention categories (see platformAttention.ts).
+      // Every remaining platform figure is either a server-side aggregate on
+      // `summary` (no row cap) or derived from the payout rows below, so walking
+      // every stripe_orders row cross-platform bought nothing.
+      const [summary, payoutPages] = await Promise.all([
         // No entries are passed at platform scope: entry-level lines aren't
         // fetched cross-show here, but platformIncome and the payout-settlement
         // totals are computed entirely server-side and don't need them.
         getFinancialSummary({ scope: 'platform', entries: [] }),
-        fetchAllPages(cursor =>
-          fetchFinancialReconciliationOrders({
-            scope: 'platform',
-            limit: DETAIL_PAGE_LIMIT,
-            cursor,
-          })
-        ),
         fetchAllPages(cursor =>
           fetchFinancialReconciliationPayouts({
             scope: 'platform',
@@ -76,11 +73,10 @@ export function usePlatformFinancialOverview() {
 
       return {
         summary,
-        detailTruncated: orderPages.truncated || payoutPages.truncated,
+        detailTruncated: payoutPages.truncated,
         attention: derivePlatformAttention({
           snapshotMissingCount: summary.chargeVerification.snapshotMissingCount,
           payouts: payoutPages.rows,
-          orders: orderPages.rows,
         }),
       };
     },

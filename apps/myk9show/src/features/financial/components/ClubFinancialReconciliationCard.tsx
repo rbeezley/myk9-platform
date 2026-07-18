@@ -6,7 +6,7 @@
 // INTENT: a treasurer trusts this as an authoritative record they can
 // explain (docs/INTENT.md, Site Admin oversight intent: "I can drill down").
 // When the reconciliation RPC is unavailable, this card MUST show an
-// explicit unavailable state and MUST NOT render any Verified/Mismatch/
+// explicit unavailable state and MUST NOT render any Verified/Attested/
 // settlement badge — a missing fact reads as missing, never as a calm green
 // checkmark it cannot back up.
 import { AlertCircle, ScrollText } from 'lucide-react';

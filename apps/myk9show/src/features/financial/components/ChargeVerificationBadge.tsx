@@ -1,10 +1,12 @@
 // Charge-verification badge (unified-financial-dashboard, MYK9-54, task 3.2).
-// Renders the Verified / Attested / Mismatch vocabulary from
-// chargeVerification.ts. NEVER rendered for an unavailable/offline
-// reconciliation fetch — the calling card must show the explicit
-// "unavailable" state instead (docs/INTENT.md: a treasurer trusts the
-// record, so a missing fact must read as missing, never green).
-import { CheckCircle2, FileCheck, AlertTriangle } from 'lucide-react';
+// Renders the Verified / Attested vocabulary from chargeVerification.ts.
+// NEVER rendered for an unavailable/offline reconciliation fetch — the calling
+// card must show the explicit "unavailable" state instead (docs/INTENT.md: a
+// treasurer trusts the record, so a missing fact must read as missing, never
+// green). Attested is a NEUTRAL state, not a warning: it means "recorded, but we
+// hold no Stripe snapshot", which is the normal shape of a desk payment or a
+// legacy order.
+import { CheckCircle2, FileCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { ClubShowChargeVerification } from '../clubShowReconciliation';
 
@@ -24,21 +26,9 @@ export function ChargeVerificationBadge({ state }: ChargeVerificationBadgeProps)
       </Badge>
     );
   }
-  if (state === 'Mismatch') {
-    return (
-      <Badge
-        aria-label="Charge verification: Mismatch, needs a look"
-        variant="destructive"
-        className="gap-1"
-      >
-        <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
-        Mismatch
-      </Badge>
-    );
-  }
   return (
     <Badge
-      aria-label="Charge verification: Attested, no Stripe trace"
+      aria-label="Charge verification: Attested, no Stripe snapshot on record"
       variant="secondary"
       className="gap-1"
     >

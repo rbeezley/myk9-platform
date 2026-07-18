@@ -322,12 +322,11 @@ describe('getFinancialSummary', () => {
     // Charge verification: check = Attested, online (matched) = Verified.
     expect(result.chargeVerification.attestedCount).toBe(1);
     expect(result.chargeVerification.verifiedCount).toBe(1);
-    expect(result.chargeVerification.mismatchCount).toBe(0);
     // Payout settlement is independent of charge facts.
     expect(result.payoutSettlement.completedCents).toBe(5000);
   });
 
-  it('flags an online entry with no matched order snapshot as a Mismatch', async () => {
+  it('counts an online entry with no matched order snapshot as Attested, never red', async () => {
     const result = await getFinancialSummary(
       {
         scope: 'show',
@@ -343,7 +342,8 @@ describe('getFinancialSummary', () => {
       },
       { fetchSummary: vi.fn().mockResolvedValue(summaryRow({})) }
     );
-    expect(result.chargeVerification.mismatchCount).toBe(1);
+    expect(result.chargeVerification.attestedCount).toBe(1);
+    expect(result.chargeVerification.verifiedCount).toBe(0);
   });
 
   it('surfaces pending-net count from the reconciliation summary', async () => {

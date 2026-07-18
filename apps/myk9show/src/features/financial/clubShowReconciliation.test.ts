@@ -102,8 +102,8 @@ describe('buildClubShowReconciliationRows', () => {
       true
     );
     expect(rows[0].net).toEqual({ status: 'pending' });
-    // Missing snapshot also can't be verified.
-    expect(rows[0].chargeVerification).toBe('Mismatch');
+    // No snapshot on record → Attested, never a claim of Stripe verification.
+    expect(rows[0].chargeVerification).toBe('Attested');
   });
 
   it('a partially refunded show nets the refunded portion out, matching the transfer', () => {
@@ -203,13 +203,23 @@ describe('buildClubShowReconciliationRows', () => {
     expect(rows[0].net).toEqual({ status: 'pending' });
   });
 
-  it('a mismatched order amount marks the whole show Mismatch', () => {
+  it('does NOT judge amounts: an odd gross on a snapshotted order stays Verified', () => {
+    // The amount tie-out inference is gone (see chargeVerification.ts). A gross
+    // that does not equal subtotal + fee can mean rounding residue, a desk-side
+    // refund, or a legacy write — none of which the row can tell apart, so the
+    // treasurer is not shown a red state built on a guess.
+    const rows = buildClubShowReconciliationRows([order({ amountCents: 99999 })], [], true);
+    expect(rows[0].chargeVerification).toBe('Verified');
+  });
+
+  it('one order with no snapshot degrades the WHOLE show to Attested', () => {
+    // INTENT: never imply a Stripe verification the record cannot back up.
     const rows = buildClubShowReconciliationRows(
-      [order({ amountCents: 99999 })], // does not tie to subtotal + fee
+      [order({}), order({ entrySubtotalCents: null, platformFeeCents: null })],
       [],
       true
     );
-    expect(rows[0].chargeVerification).toBe('Mismatch');
+    expect(rows[0].chargeVerification).toBe('Attested');
   });
 
   it('a show with a payout but no orders yet: Attested, net pending, settlement present', () => {

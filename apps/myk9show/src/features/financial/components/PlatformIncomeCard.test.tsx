@@ -46,7 +46,6 @@ function overview(overrides: Partial<PlatformFinancialOverview> = {}): PlatformF
       chargeVerification: {
         verifiedCount: 0,
         attestedCount: 0,
-        mismatchCount: 0,
         pendingNetCount: 0,
         snapshotMissingCount: 0,
       },
@@ -61,8 +60,6 @@ function overview(overrides: Partial<PlatformFinancialOverview> = {}): PlatformF
     },
     attention: {
       failedTransferCount: 0,
-      refundLedgerDriftCount: 0,
-      chargeMismatchCount: 0,
       missingPlatformFeeSnapshotCount: 0,
       totalCount: 0,
     },
@@ -214,20 +211,20 @@ describe('PlatformIncomeCard', () => {
     expect(screen.getByText(/No reconciliation attention items/i)).toBeInTheDocument();
   });
 
-  it('lists only genuine attention categories that have a nonzero count', () => {
+  it('lists only fact-grounded attention categories that have a nonzero count', () => {
     overviewState.data = overview({
       attention: {
         failedTransferCount: 2,
-        refundLedgerDriftCount: 0,
-        chargeMismatchCount: 3,
         missingPlatformFeeSnapshotCount: 1,
-        totalCount: 6,
+        totalCount: 3,
       },
     });
     render(<PlatformIncomeCard />);
     expect(screen.getByText('Failed transfers: 2')).toBeInTheDocument();
-    expect(screen.getByText('Charge mismatches: 3')).toBeInTheDocument();
     expect(screen.getByText('Missing platform-fee snapshots: 1')).toBeInTheDocument();
+    // The inference-based rows are gone from the UI entirely.
+    expect(screen.queryByText(/Charge mismatches/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Refund ledger drift/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Unrecorded refunds/)).not.toBeInTheDocument();
     expect(screen.queryByText(/No reconciliation attention items/i)).not.toBeInTheDocument();
   });

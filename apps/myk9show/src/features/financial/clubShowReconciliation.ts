@@ -10,11 +10,16 @@
 //                        clubNetContributionCents). Independent of payout
 //                        SETTLEMENT timing — a show can be charge-verified
 //                        before its payout settles.
-//   - chargeVerification: aggregated Verified / Attested / Mismatch across
-//                        the show's Stripe orders (every row here already
-//                        came from stripe_orders, so there is no desk/manual
-//                        payment to attest — a show with no online orders at
-//                        all is Attested: no Stripe trace to verify).
+//   - chargeVerification: Verified / Attested across the show's Stripe orders.
+//                        Verified means EVERY order for the show carries a
+//                        Stripe snapshot; if any order has no snapshot (legacy,
+//                        desk-recorded), or the show has no online orders at
+//                        all, the row reads Attested. INTENT: the club card must
+//                        never imply a Stripe verification it cannot back up, so
+//                        the aggregate degrades to Attested rather than up to
+//                        Verified. There is no "Mismatch" — see
+//                        chargeVerification.ts for why the amount-tie-out
+//                        inference was removed.
 //   - settlement:         the existing payout-settlement row (badge label,
 //                        state, copyable stripe_transfer_id), when the club
 //                        has a payout row for that show.
@@ -29,7 +34,7 @@ import type {
 } from './financialReconciliation';
 import { resolvePayoutSettlement, type PayoutSettlementRow } from './payoutSettlement';
 
-export type ClubShowChargeVerification = 'Verified' | 'Attested' | 'Mismatch';
+export type ClubShowChargeVerification = 'Verified' | 'Attested';
 
 /** Never a bare number: a pending processing fee must read as pending, not $0. */
 export type ClubShowNet = { status: 'available'; netCents: number } | { status: 'pending' };
@@ -99,11 +104,13 @@ function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
 
   let netCents = 0;
   let anyPending = false;
-  let anyMismatch = false;
+  let anyUnverified = false;
 
   for (const order of orders) {
     if (order.stripeProcessingFeeCents == null) anyPending = true;
-    if (resolveOrderChargeVerification(order) === 'Mismatch') anyMismatch = true;
+    // Degrade to Attested if ANY order lacks a Stripe snapshot — never claim a
+    // show-wide Stripe verification the record cannot back up.
+    if (resolveOrderChargeVerification(order) === 'Attested') anyUnverified = true;
     // Net-to-club is the entry subtotal (the ACCEPTED, paid lines) MINUS only the
     // POST-HOC refunded portion — see clubNetContributionCents for why that ties
     // to the transfer and why a cart-overflow make-whole refund must NOT reduce
@@ -117,7 +124,7 @@ function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
   }
 
   const net: ClubShowNet = anyPending ? { status: 'pending' } : { status: 'available', netCents };
-  const chargeVerification: ClubShowChargeVerification = anyMismatch ? 'Mismatch' : 'Verified';
+  const chargeVerification: ClubShowChargeVerification = anyUnverified ? 'Attested' : 'Verified';
   return { net, chargeVerification };
 }
 

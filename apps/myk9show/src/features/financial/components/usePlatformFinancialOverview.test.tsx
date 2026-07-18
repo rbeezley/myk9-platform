@@ -2,7 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createTestQueryClient } from '@/test/utils/testUtils';
 import type { FinancialSummary } from '@/features/financial';
-import type { FinancialReconciliationOrder } from '../financialReconciliation';
+import type { FinancialReconciliationPayout } from '../financialReconciliation';
 
 const getFinancialSummary = vi.fn();
 const fetchFinancialReconciliationOrders = vi.fn();
@@ -41,7 +41,6 @@ function summary(overrides: Partial<FinancialSummary> = {}): FinancialSummary {
     chargeVerification: {
       verifiedCount: 0,
       attestedCount: 0,
-      mismatchCount: 0,
       pendingNetCount: 0,
       snapshotMissingCount: 0,
     },
@@ -57,26 +56,19 @@ function summary(overrides: Partial<FinancialSummary> = {}): FinancialSummary {
   };
 }
 
-function orderRow(
-  overrides: Partial<FinancialReconciliationOrder> = {}
-): FinancialReconciliationOrder {
+function payoutRow(
+  overrides: Partial<FinancialReconciliationPayout> = {}
+): FinancialReconciliationPayout {
   return {
-    orderId: 'order-1',
+    payoutId: 'payout-1',
     showId: 'show-1',
-    showName: 'Test Show',
-    status: 'succeeded',
-    orderType: 'entry',
-    amountCents: 5000,
-    entrySubtotalCents: 4500,
-    platformFeeCents: 500,
-    platformFeeRate: 0.1,
-    stripeProcessingFeeCents: 150,
-    refundedCents: 0,
-    makeWholeRefundedCents: 0,
-    stripePaymentIntentId: 'pi_1',
+    status: 'completed',
+    amountCents: 4000,
+    stripeTransferId: 'tr_1',
+    scheduledDate: null,
+    completedAt: '2026-07-02T00:00:00Z',
+    failureReason: null,
     createdAt: '2026-07-01T00:00:00Z',
-    paidAt: '2026-07-01T00:00:00Z',
-    refundedAt: null,
     ...overrides,
   };
 }
@@ -96,22 +88,17 @@ describe('usePlatformFinancialOverview', () => {
         chargeVerification: {
           verifiedCount: 0,
           attestedCount: 0,
-          mismatchCount: 0,
           pendingNetCount: 0,
           snapshotMissingCount: 2,
         },
       })
     );
-    fetchFinancialReconciliationOrders.mockResolvedValue([]);
     fetchFinancialReconciliationPayouts.mockResolvedValue([]);
 
     const { result } = renderHook(() => usePlatformFinancialOverview(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(getFinancialSummary).toHaveBeenCalledWith({ scope: 'platform', entries: [] });
-    expect(fetchFinancialReconciliationOrders).toHaveBeenCalledWith(
-      expect.objectContaining({ scope: 'platform' })
-    );
     expect(fetchFinancialReconciliationPayouts).toHaveBeenCalledWith(
       expect.objectContaining({ scope: 'platform' })
     );
@@ -119,31 +106,44 @@ describe('usePlatformFinancialOverview', () => {
     expect(result.current.data?.detailTruncated).toBe(false);
   });
 
-  it('walks the keyset cursor to completion instead of stopping after one page', async () => {
+  // The order-row walk existed ONLY to feed the deleted inference-based attention
+  // categories. Every remaining platform figure is a server-side aggregate or a
+  // payout-row fact, so scanning stripe_orders cross-platform is pure cost.
+  it('does not walk stripe_orders at all any more', async () => {
     getFinancialSummary.mockResolvedValue(summary());
-    // Page 1 is full (1000 rows) so a cursor exists; page 2 is short and ends it.
-    // The drifting order lives on page 2 and is only seen if pagination works.
-    // It is FULLY refunded (5000 of 5000) while still 'succeeded' — genuine
-    // ledger drift, not the normal partial refund that must stay silent.
-    const fullPage = Array.from({ length: 1000 }, (_, i) => orderRow({ orderId: `o-${i}` }));
-    const lastOfPage1 = fullPage[fullPage.length - 1];
-    fetchFinancialReconciliationOrders
-      .mockResolvedValueOnce(fullPage)
-      .mockResolvedValueOnce([
-        orderRow({ orderId: 'o-drift', amountCents: 5000, refundedCents: 5000 }),
-      ]);
     fetchFinancialReconciliationPayouts.mockResolvedValue([]);
 
     const { result } = renderHook(() => usePlatformFinancialOverview(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(fetchFinancialReconciliationOrders).toHaveBeenCalledTimes(2);
-    expect(fetchFinancialReconciliationOrders).toHaveBeenLastCalledWith(
+    expect(fetchFinancialReconciliationOrders).not.toHaveBeenCalled();
+  });
+
+  it('walks the payout keyset cursor to completion instead of stopping after one page', async () => {
+    getFinancialSummary.mockResolvedValue(summary());
+    // Page 1 is full (1000 rows) so a cursor exists; page 2 is short and ends it.
+    // The genuine failure lives on page 2 and is only seen if pagination works.
+    const fullPage = Array.from({ length: 1000 }, (_, i) => payoutRow({ payoutId: `p-${i}` }));
+    const lastOfPage1 = fullPage[fullPage.length - 1];
+    fetchFinancialReconciliationPayouts.mockResolvedValueOnce(fullPage).mockResolvedValueOnce([
+      payoutRow({
+        payoutId: 'p-failed',
+        showId: 'show-late',
+        status: 'failed',
+        failureReason: 'account_closed',
+      }),
+    ]);
+
+    const { result } = renderHook(() => usePlatformFinancialOverview(), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(fetchFinancialReconciliationPayouts).toHaveBeenCalledTimes(2);
+    expect(fetchFinancialReconciliationPayouts).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        cursor: { createdAt: lastOfPage1.createdAt, id: lastOfPage1.orderId },
+        cursor: { createdAt: lastOfPage1.createdAt, id: lastOfPage1.payoutId },
       })
     );
-    expect(result.current.data?.attention.refundLedgerDriftCount).toBe(1);
+    expect(result.current.data?.attention.failedTransferCount).toBe(1);
     expect(result.current.data?.detailTruncated).toBe(false);
   });
 
@@ -151,37 +151,18 @@ describe('usePlatformFinancialOverview', () => {
     getFinancialSummary.mockResolvedValue(summary());
     // Every page comes back full, so a cursor always exists — the max-pages guard
     // must stop the loop and surface that the counts are a floor.
-    const fullPage = Array.from({ length: 1000 }, (_, i) => orderRow({ orderId: `o-${i}` }));
-    fetchFinancialReconciliationOrders.mockResolvedValue(fullPage);
-    fetchFinancialReconciliationPayouts.mockResolvedValue([]);
+    const fullPage = Array.from({ length: 1000 }, (_, i) => payoutRow({ payoutId: `p-${i}` }));
+    fetchFinancialReconciliationPayouts.mockResolvedValue(fullPage);
 
     const { result } = renderHook(() => usePlatformFinancialOverview(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(fetchFinancialReconciliationOrders).toHaveBeenCalledTimes(50);
+    expect(fetchFinancialReconciliationPayouts).toHaveBeenCalledTimes(50);
     expect(result.current.data?.detailTruncated).toBe(true);
-  });
-
-  it('flags a mismatching order as attention but leaves a pending processing fee calm', async () => {
-    getFinancialSummary.mockResolvedValue(summary());
-    fetchFinancialReconciliationOrders.mockResolvedValue([
-      // Does not tie: 4500 + 400 != 5000 → attention.
-      orderRow({ orderId: 'o-mismatch', amountCents: 5000, platformFeeCents: 400 }),
-      // Ties, but Stripe's processing fee hasn't landed yet → stays calm.
-      orderRow({ orderId: 'o-pending', stripeProcessingFeeCents: null }),
-    ]);
-    fetchFinancialReconciliationPayouts.mockResolvedValue([]);
-
-    const { result } = renderHook(() => usePlatformFinancialOverview(), { wrapper });
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.attention.chargeMismatchCount).toBe(1);
-    expect(result.current.data?.attention.totalCount).toBe(1);
   });
 
   it('surfaces the RPC authorization failure as an error, never a zeroed summary', async () => {
     getFinancialSummary.mockRejectedValue(new Error('not authorized: is_site_admin() = false'));
-    fetchFinancialReconciliationOrders.mockResolvedValue([]);
     fetchFinancialReconciliationPayouts.mockResolvedValue([]);
 
     const { result } = renderHook(() => usePlatformFinancialOverview(), { wrapper });

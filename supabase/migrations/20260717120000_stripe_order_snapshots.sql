@@ -38,7 +38,12 @@ ALTER TABLE public.stripe_orders
   -- must add rather than max — and adding is only safe if a duplicate webhook
   -- delivery of the same refund cannot add twice. This set is the idempotency
   -- key (see the RPC contract below).
-  ADD COLUMN IF NOT EXISTS make_whole_refund_ids text[] NOT NULL DEFAULT '{}';
+  ADD COLUMN IF NOT EXISTS make_whole_refund_ids text[] NOT NULL DEFAULT '{}',
+  -- Stripe refund ids whose amount has already been REVERSED out of the ledger
+  -- after a `refund.failed` webhook. The idempotency key for the reversal path
+  -- (see reverse_order_refund_cents below): a duplicate `refund.failed`
+  -- delivery for the same refund id must not subtract twice.
+  ADD COLUMN IF NOT EXISTS reversed_refund_ids text[] NOT NULL DEFAULT '{}';
 
 -- ── THE REFUND-ATTRIBUTION INVARIANT (do not break) ────────────────────────
 -- `refunded_cents` used to conflate two economically OPPOSITE events, forcing
@@ -242,9 +247,139 @@ REVOKE ALL ON FUNCTION public.record_order_refund_cents(text, integer, text, int
 REVOKE ALL ON FUNCTION public.record_order_refund_cents(text, integer, text, integer) FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.record_order_refund_cents(text, integer, text, integer) TO service_role;
 
+-- ── REFUND LEDGER REVERSAL (refund.failed) ─────────────────────────────────
+-- `stripe.refunds.create` can return a PENDING refund that Stripe later fails.
+-- By then `charge.refunded` has already booked the amount here and may have
+-- stamped `status = 'refunded'` — so reconciliation keeps subtracting a refund
+-- the customer never received, and the club's payout stays docked for money
+-- that never left. `record_order_refund_cents` is deliberately MONOTONIC
+-- (GREATEST / accumulate-once) and therefore structurally cannot lower a value,
+-- so the reversal needs its own explicit path.
+--
+-- IDEMPOTENCY: keyed on the Stripe refund id, consistent with the make-whole
+-- key. The amount is subtracted only when `p_refund_id` is not already in
+-- `reversed_refund_ids`; a second delivery of the same `refund.failed` is a
+-- no-op that still returns the row's current state.
+--
+-- ATTRIBUTION: if the id is in `make_whole_refund_ids`, the amount was booked as
+-- MAKE-WHOLE and is subtracted from that column (and the id removed, so the
+-- ledger's own record of which refunds are live stays truthful). Otherwise it
+-- was booked as POST-HOC (the derived remainder of `charge.amount_refunded`) and
+-- comes off `refunded_cents`. Both are floored at 0: a reversal larger than what
+-- was ever booked (e.g. the failure arriving before the booking) must not push a
+-- money column negative and violate its CHECK constraint.
+--
+-- STATUS: re-derived, not assumed. The order is fully refunded iff
+-- make_whole + post_hoc >= amount_cents; when the reversal drops it below that
+-- line, a 'refunded' order is DEMOTED back to 'succeeded' and `refunded_at` is
+-- cleared. This is the one place the status is allowed to move backwards, and it
+-- only ever moves 'refunded' -> 'succeeded' — a 'failed' or 'cancelled' order is
+-- never resurrected.
+--
+-- ATOMICITY: same SELECT ... FOR UPDATE row-lock discipline as the forward path,
+-- so a reversal racing a booking serializes rather than interleaving.
+--
+-- Callers: the stripe-webhook edge function only (service_role).
+CREATE OR REPLACE FUNCTION public.reverse_order_refund_cents(
+  p_payment_intent_id text,
+  p_refund_id text,
+  p_amount_cents integer
+)
+RETURNS TABLE (
+  order_id uuid,
+  order_status text,
+  order_amount_cents integer,
+  make_whole_cents integer,
+  post_hoc_cents integer,
+  reversed boolean
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_row record;
+  v_amount integer := GREATEST(COALESCE(p_amount_cents, 0), 0);
+  v_make_whole integer;
+  v_post_hoc integer;
+  v_mw_ids text[];
+  v_rev_ids text[];
+  v_did boolean;
+  v_full boolean;
+  v_status text;
+BEGIN
+  IF p_refund_id IS NULL THEN
+    -- Without the idempotency key a reversal cannot be made safe; refuse rather
+    -- than risk subtracting the same amount on every redelivery.
+    RETURN;
+  END IF;
+
+  FOR v_row IN
+    SELECT o.id, o.status, o.amount_cents, o.refunded_at,
+           COALESCE(o.make_whole_refunded_cents, 0) AS mw,
+           COALESCE(o.refunded_cents, 0) AS ph,
+           COALESCE(o.make_whole_refund_ids, '{}'::text[]) AS mw_ids,
+           COALESCE(o.reversed_refund_ids, '{}'::text[]) AS rev_ids
+      FROM public.stripe_orders AS o
+     WHERE o.stripe_payment_intent_id = p_payment_intent_id
+     ORDER BY o.id
+       FOR UPDATE
+  LOOP
+    v_make_whole := v_row.mw;
+    v_post_hoc := v_row.ph;
+    v_mw_ids := v_row.mw_ids;
+    v_rev_ids := v_row.rev_ids;
+    v_did := false;
+
+    IF NOT (p_refund_id = ANY (v_rev_ids)) THEN
+      IF p_refund_id = ANY (v_mw_ids) THEN
+        v_make_whole := GREATEST(v_make_whole - v_amount, 0);
+        v_mw_ids := array_remove(v_mw_ids, p_refund_id);
+      ELSE
+        v_post_hoc := GREATEST(v_post_hoc - v_amount, 0);
+      END IF;
+      v_rev_ids := array_append(v_rev_ids, p_refund_id);
+      v_did := true;
+    END IF;
+
+    v_full := COALESCE(v_row.amount_cents, 0) > 0
+              AND (v_make_whole + v_post_hoc) >= v_row.amount_cents;
+    -- Demote ONLY a 'refunded' order that is no longer fully refunded.
+    v_status := CASE
+                  WHEN v_row.status = 'refunded' AND NOT v_full THEN 'succeeded'
+                  ELSE v_row.status
+                END;
+
+    IF v_did THEN
+      UPDATE public.stripe_orders AS o
+         SET make_whole_refunded_cents = v_make_whole,
+             refunded_cents = v_post_hoc,
+             make_whole_refund_ids = v_mw_ids,
+             reversed_refund_ids = v_rev_ids,
+             status = v_status,
+             refunded_at = CASE WHEN v_full THEN o.refunded_at ELSE NULL END
+       WHERE o.id = v_row.id;
+    END IF;
+
+    order_id := v_row.id;
+    order_status := v_status;
+    order_amount_cents := v_row.amount_cents;
+    make_whole_cents := v_make_whole;
+    post_hoc_cents := v_post_hoc;
+    reversed := v_did;
+    RETURN NEXT;
+  END LOOP;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reverse_order_refund_cents(text, text, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.reverse_order_refund_cents(text, text, integer) FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.reverse_order_refund_cents(text, text, integer) TO service_role;
+
 -- Reversible down path (run manually to roll back — migrations are not
 -- auto-reverted in this project):
 --   DROP FUNCTION IF EXISTS public.record_order_refund_cents(text, integer, text, integer);
+--   DROP FUNCTION IF EXISTS public.reverse_order_refund_cents(text, text, integer);
 --   DROP INDEX IF EXISTS public.idx_stripe_orders_processing_fee_pending;
 --   ALTER TABLE public.stripe_orders
 --     DROP COLUMN IF EXISTS entry_subtotal_cents,
@@ -253,4 +388,5 @@ GRANT EXECUTE ON FUNCTION public.record_order_refund_cents(text, integer, text, 
 --     DROP COLUMN IF EXISTS stripe_processing_fee_cents,
 --     DROP COLUMN IF EXISTS refunded_cents,
 --     DROP COLUMN IF EXISTS make_whole_refunded_cents,
---     DROP COLUMN IF EXISTS make_whole_refund_ids;
+--     DROP COLUMN IF EXISTS make_whole_refund_ids,
+--     DROP COLUMN IF EXISTS reversed_refund_ids;

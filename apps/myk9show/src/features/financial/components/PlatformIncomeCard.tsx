@@ -162,12 +162,6 @@ function AttentionSection({
 
   const items: Array<{ key: string; label: string; count: number }> = [
     { key: 'failed', label: 'Failed transfers', count: attention.failedTransferCount },
-    { key: 'refund', label: 'Refund ledger drift', count: attention.refundLedgerDriftCount },
-    {
-      key: 'mismatch',
-      label: 'Charge mismatches',
-      count: attention.chargeMismatchCount,
-    },
     {
       key: 'fee',
       label: 'Missing platform-fee snapshots',
@@ -183,7 +177,8 @@ function AttentionSection({
           Reconciliation attention
         </CardTitle>
         <CardDescription>
-          Genuine drift only — a normal pending or self-healing payout never appears here.
+          Recorded facts only — a normal pending or self-healing payout never appears here, and no
+          item here is inferred from the numbers.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">

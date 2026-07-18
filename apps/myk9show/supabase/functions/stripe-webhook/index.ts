@@ -208,10 +208,26 @@ async function handleEvent(event: Stripe.Event) {
 }
 
 /**
- * A refund that was created (pending) and LATER failed leaves the entry
- * stamped refunded — customer unpaid, club's payout still docked — with no
- * signal anywhere (round-11 review). Alert-only: the operator clears the
- * entry's refund columns (runbook "Manual reconciliation") and re-issues.
+ * A refund that was created (pending) and LATER failed leaves the ORDER ledger
+ * holding an amount the customer never received: `charge.refunded` already booked
+ * it, and it may have stamped `status = 'refunded'`. Reconciliation then keeps
+ * subtracting a refund that never happened and the club's payout stays docked.
+ *
+ * So this REVERSES that refund's contribution to the order ledger and re-derives
+ * the status, via `reverse_order_refund_cents`. `record_order_refund_cents` is
+ * deliberately monotonic (GREATEST / accumulate-once) and cannot lower a value,
+ * which is why the reversal is an explicit separate path.
+ *
+ * IDEMPOTENT on the Stripe refund id (the same key the make-whole path uses): the
+ * RPC subtracts only when the id is not already in `reversed_refund_ids`, so a
+ * duplicate `refund.failed` delivery cannot double-reverse.
+ *
+ * The ENTRY-level refund columns are still the operator's job — the alert stays,
+ * because the entry stamp and any re-issue are manual.
+ *
+ * NEVER THROWS: a bookkeeping failure must not disturb a committed payment or
+ * make Stripe redeliver indefinitely. A failed reversal is reported in the alert
+ * and the drift stays visible rather than silently "handled".
  */
 async function handleRefundFailed(refund: Stripe.Refund) {
   const entryId = refund.metadata?.entry_id ?? null;
@@ -219,14 +235,52 @@ async function handleRefundFailed(refund: Stripe.Refund) {
     `CRITICAL: refund ${refund.id} (${refund.amount}¢) FAILED after creation` +
       (entryId ? ` for entry ${entryId}` : '')
   );
+
+  const paymentIntentId = extractPaymentIntentId(refund.payment_intent);
+  let ledgerNote =
+    '<p>The order ledger could NOT be corrected automatically: this refund carries no ' +
+    'payment intent, so the reversal had nothing to key on. Clear the order refund ' +
+    'columns by hand.</p>';
+
+  if (paymentIntentId) {
+    try {
+      const { data, error } = await supabase.rpc('reverse_order_refund_cents', {
+        p_payment_intent_id: paymentIntentId,
+        p_refund_id: refund.id,
+        p_amount_cents: refund.amount,
+      });
+      if (error) throw error;
+      const rows = (data ?? []) as Array<{ order_id: string; reversed: boolean }>;
+      const changed = rows.filter(r => r.reversed).length;
+      if (rows.length === 0) {
+        ledgerNote = `<p>The order ledger was NOT corrected: no <code>stripe_orders</code> row
+           matched payment intent <code>${paymentIntentId}</code>. Nothing was booked
+           against an order, so nothing needed reversing — but verify by hand.</p>`;
+      } else if (changed === 0) {
+        ledgerNote = `<p>The order ledger was already corrected for this refund (idempotent
+           redelivery) — no change made.</p>`;
+      } else {
+        ledgerNote = `<p>The order ledger HAS been corrected automatically: this refund's
+           ${(refund.amount / 100).toFixed(2)} USD was reversed out of ${changed}
+           <code>stripe_orders</code> row(s) and the refunded status re-derived, so
+           reconciliation no longer subtracts money the customer never received.</p>`;
+      }
+    } catch (err) {
+      console.error(`Could not reverse failed refund ${refund.id} on the order ledger:`, err);
+      ledgerNote = `<p>The order ledger could NOT be corrected automatically
+         (<code>${err instanceof Error ? err.message : String(err)}</code>). The order still
+         records a refund the customer never received — clear its refund columns by hand.</p>`;
+    }
+  }
+
   await alertAdmin(
     'Stripe refund FAILED after it was issued',
     `<p>Refund <code>${refund.id}</code> for ${(refund.amount / 100).toFixed(2)} USD has
      status <code>failed</code>${entryId ? ` (entry <code>${entryId}</code>)` : ''} —
-     the customer was NOT paid, but the entry was already stamped refunded, so the
-     payout math is docking the club for money that never left.</p>
-     <p>Recovery: clear the entry's refund columns (see the runbook's
-     "Manual reconciliation" section), then re-issue the refund from the entries
+     the customer was NOT paid.</p>
+     ${ledgerNote}
+     <p>Recovery: the ENTRY-level refund columns are still stamped — clear them (see the
+     runbook's "Manual reconciliation" section), then re-issue the refund from the entries
      page. The refund function ignores dead refunds, so re-issuing is safe.</p>`,
     { source: 'stripe-webhook', dedupeKey: `refund-failed-${refund.id}` }
   );

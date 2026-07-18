@@ -78,47 +78,51 @@ export class PaymentService {
     className: string,
     memberDiscount: boolean = false,
     multipleEntryCount: number = 1
-  ): Promise<{ baseFee: number; adjustments: Array<{ type: string; amount: number; description: string }>; totalFee: number }> {
+  ): Promise<{
+    baseFee: number;
+    adjustments: Array<{ type: string; amount: number; description: string }>;
+    totalFee: number;
+  }> {
     try {
       logger.debug('Calculating entry fee (mock)', 'payment', { showId, className });
-      
-      const baseFee = 35.00;
+
+      const baseFee = 35.0;
       const adjustments: Array<{ type: string; amount: number; description: string }> = [];
       let totalFee = baseFee;
 
       // Member discount
       if (memberDiscount) {
-        const discount = 5.00;
+        const discount = 5.0;
         adjustments.push({
           type: 'discount',
           amount: -discount,
-          description: 'Member Discount'
+          description: 'Member Discount',
         });
         totalFee -= discount;
       }
 
       // Multiple entry discount
       if (multipleEntryCount > 1) {
-        const discountPerAdditionalEntry = 3.00;
+        const discountPerAdditionalEntry = 3.0;
         const totalDiscount = discountPerAdditionalEntry * (multipleEntryCount - 1);
         adjustments.push({
           type: 'discount',
           amount: -totalDiscount,
-          description: `Multiple Entry Discount (${multipleEntryCount - 1} additional entries)`
+          description: `Multiple Entry Discount (${multipleEntryCount - 1} additional entries)`,
         });
         totalFee -= totalDiscount;
       }
 
       // Ensure minimum fee
-      totalFee = Math.max(totalFee, 5.00);
+      totalFee = Math.max(totalFee, 5.0);
 
       return { baseFee, adjustments, totalFee };
     } catch (error) {
       logger.error('Failed to calculate entry fee', 'payment', {}, error as Error);
       return {
-        baseFee: 35.00,
+        baseFee: 35.0,
         adjustments: [],
-        totalFee: 35.00
+        totalFee: 35.0,
       };
     }
   }
@@ -132,11 +136,18 @@ export class PaymentService {
     metadata: Record<string, unknown> = {}
   ): Promise<{ paymentId: string; clientSecret?: string } | null> {
     try {
-      logger.debug('Creating payment intent (stub - needs Edge Function)', 'payment', { entryId, userId, amount, currency, description, metadata });
+      logger.debug('Creating payment intent (stub - needs Edge Function)', 'payment', {
+        entryId,
+        userId,
+        amount,
+        currency,
+        description,
+        metadata,
+      });
 
       return {
         paymentId: 'mock_' + Date.now().toString(),
-        clientSecret: 'mock_client_secret_' + Date.now().toString()
+        clientSecret: 'mock_client_secret_' + Date.now().toString(),
       };
     } catch (error) {
       logger.error('Failed to create payment intent', 'payment', {}, error as Error);
@@ -150,7 +161,11 @@ export class PaymentService {
     paymentMethodInfo: PaymentMethodInfo
   ): Promise<boolean> {
     try {
-      logger.info('Payment confirmed (stub - needs Edge Function)', 'payment', { paymentId, transactionId, paymentMethodInfo });
+      logger.info('Payment confirmed (stub - needs Edge Function)', 'payment', {
+        paymentId,
+        transactionId,
+        paymentMethodInfo,
+      });
       return true;
     } catch (error) {
       logger.error('Failed to confirm payment', 'payment', {}, error as Error);
@@ -160,7 +175,10 @@ export class PaymentService {
 
   async failPayment(paymentId: string, errorMessage?: string): Promise<boolean> {
     try {
-      logger.warn('Payment failed (stub - needs Edge Function)', 'payment', { paymentId, errorMessage });
+      logger.warn('Payment failed (stub - needs Edge Function)', 'payment', {
+        paymentId,
+        errorMessage,
+      });
       return true;
     } catch (error) {
       logger.error('Failed to mark payment as failed', 'payment', {}, error as Error);
@@ -168,13 +186,13 @@ export class PaymentService {
     }
   }
 
-  async processRefund(
-    paymentId: string,
-    amount: number,
-    reason: string
-  ): Promise<string | null> {
+  async processRefund(paymentId: string, amount: number, reason: string): Promise<string | null> {
     try {
-      logger.info('Processing refund (stub - needs Edge Function)', 'payment', { paymentId, amount, reason });
+      logger.info('Processing refund (stub - needs Edge Function)', 'payment', {
+        paymentId,
+        amount,
+        reason,
+      });
       return 'mock_refund_' + Date.now().toString();
     } catch (error) {
       logger.error('Failed to process refund', 'payment', {}, error as Error);
@@ -185,12 +203,20 @@ export class PaymentService {
   /**
    * Map a stripe_orders row status string to the PaymentDetails status union.
    */
-  private mapOrderStatus(
-    status: string | null
-  ): PaymentDetails['status'] {
+  private mapOrderStatus(status: string | null): PaymentDetails['status'] {
     switch (status) {
       case 'paid':
       case 'completed':
+      // 'succeeded' is the status stripe_orders ACTUALLY writes for a captured
+      // payment; it was missing here, so every successful payment fell through
+      // to `default` and read as "pending" in payment history. A PARTIALLY
+      // refunded order also stays 'succeeded' by the refund-attribution
+      // invariant (migration 20260717120000 — only a FULL refund flips the
+      // status), so it lands here too and reads as completed rather than
+      // pending. A distinct "partially refunded" display state would be more
+      // informative, but the PaymentDetails['status'] union has no such member
+      // and adding one is out of scope for this fix.
+      case 'succeeded':
         return 'completed';
       case 'pending':
         return 'pending';
@@ -283,7 +309,7 @@ export class PaymentService {
         return [];
       }
 
-      return (data ?? []).map((order) => this.mapOrderToPaymentDetails(order, userId));
+      return (data ?? []).map(order => this.mapOrderToPaymentDetails(order, userId));
     } catch (error) {
       logger.error('Failed to load payment history', 'payment', {}, error as Error);
       return [];

@@ -103,7 +103,7 @@ describe('ClubFinancialReconciliationCard', () => {
     expect(transferred).not.toHaveTextContent('$100.00');
   });
 
-  it('Attested row: shows the Attested badge, not Mismatch or Verified', () => {
+  it('Attested row: shows the Attested badge, not Verified', () => {
     mockedHook.mockReturnValue({
       rows: [row({ chargeVerification: 'Attested', settlement: null })],
       isLoading: false,
@@ -117,16 +117,24 @@ describe('ClubFinancialReconciliationCard', () => {
     expect(screen.queryByText('Mismatch')).not.toBeInTheDocument();
   });
 
-  it('Mismatch row: shows the destructive Mismatch badge', () => {
-    mockedHook.mockReturnValue({
-      rows: [row({ chargeVerification: 'Mismatch' })],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" payoutsEnabled payoutHistory={[]} />);
-
-    expect(screen.getByText('Mismatch')).toBeInTheDocument();
+  // The destructive "Mismatch" badge is GONE: it was driven by an amount tie-out
+  // inference that false-reds on rounding residue, legacy rows, partial refunds
+  // and desk refunds. The card now only ever says Verified or Attested.
+  it('never renders a Mismatch badge for either remaining state', () => {
+    for (const state of ['Verified', 'Attested'] as const) {
+      mockedHook.mockReturnValue({
+        rows: [row({ chargeVerification: state })],
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      const view = render(
+        <ClubFinancialReconciliationCard clubId="club-1" payoutsEnabled payoutHistory={[]} />
+      );
+      expect(screen.getByText(state)).toBeInTheDocument();
+      expect(screen.queryByText('Mismatch')).not.toBeInTheDocument();
+      view.unmount();
+    }
   });
 
   it('pending net: renders a "Net pending" pill, never $0 or a bare number', () => {

@@ -1,8 +1,8 @@
 ## 1. Inventory and shared contract
 
 - [x] 1.1 Inventory `CommandPalette`, `AppHeader`, `KeyboardShortcutsOverlay`, `useRecentSearches`, current data stores, and permission checks.
-- [ ] 1.2 Define command-provider types for route context, show scope, selection, permissions, result grouping, action eligibility, target navigation, and authenticated-user recent-history namespaces.
-- [ ] 1.3 Add parity tests proving the selected-entry check-in command uses the same action ID/handler as row and bulk projections and is absent when the `MYK9-47` registry entry is unavailable.
+- [x] 1.2 Define command-provider types for route context, show scope, selection, permissions, result grouping, action eligibility, target navigation, and authenticated-user recent-history namespaces.
+- [x] 1.3 Add parity tests proving the selected-entry check-in command uses the same action ID/handler as row and bulk projections and is absent when the `MYK9-47` registry entry is unavailable.
 
 ## 2. Contextual palette behavior
 

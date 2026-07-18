@@ -1,9 +1,9 @@
 /**
  * Payment Service
  *
- * Read methods query the stripe_orders / stripe_customers Supabase tables.
- * Write methods (create, confirm, fail, refund) remain stubs — they require
- * server-side Edge Functions that talk to the Stripe API.
+ * Read-only: queries the stripe_orders / stripe_customers Supabase tables
+ * (webhook-written state). All money movement goes through the stripe-*
+ * edge functions — this service must never grow client-side write paths.
  */
 
 import { logger } from '@/services/LoggingService';
@@ -73,114 +73,11 @@ export class PaymentService {
     return PaymentService.instance;
   }
 
-  async calculateEntryFee(
-    showId: string,
-    className: string,
-    memberDiscount: boolean = false,
-    multipleEntryCount: number = 1
-  ): Promise<{ baseFee: number; adjustments: Array<{ type: string; amount: number; description: string }>; totalFee: number }> {
-    try {
-      logger.debug('Calculating entry fee (mock)', 'payment', { showId, className });
-      
-      const baseFee = 35.00;
-      const adjustments: Array<{ type: string; amount: number; description: string }> = [];
-      let totalFee = baseFee;
-
-      // Member discount
-      if (memberDiscount) {
-        const discount = 5.00;
-        adjustments.push({
-          type: 'discount',
-          amount: -discount,
-          description: 'Member Discount'
-        });
-        totalFee -= discount;
-      }
-
-      // Multiple entry discount
-      if (multipleEntryCount > 1) {
-        const discountPerAdditionalEntry = 3.00;
-        const totalDiscount = discountPerAdditionalEntry * (multipleEntryCount - 1);
-        adjustments.push({
-          type: 'discount',
-          amount: -totalDiscount,
-          description: `Multiple Entry Discount (${multipleEntryCount - 1} additional entries)`
-        });
-        totalFee -= totalDiscount;
-      }
-
-      // Ensure minimum fee
-      totalFee = Math.max(totalFee, 5.00);
-
-      return { baseFee, adjustments, totalFee };
-    } catch (error) {
-      logger.error('Failed to calculate entry fee', 'payment', {}, error as Error);
-      return {
-        baseFee: 35.00,
-        adjustments: [],
-        totalFee: 35.00
-      };
-    }
-  }
-
-  async createPaymentIntent(
-    entryId: string,
-    userId: string,
-    amount: number,
-    currency: string = 'usd',
-    description: string,
-    metadata: Record<string, unknown> = {}
-  ): Promise<{ paymentId: string; clientSecret?: string } | null> {
-    try {
-      logger.debug('Creating payment intent (stub - needs Edge Function)', 'payment', { entryId, userId, amount, currency, description, metadata });
-
-      return {
-        paymentId: 'mock_' + Date.now().toString(),
-        clientSecret: 'mock_client_secret_' + Date.now().toString()
-      };
-    } catch (error) {
-      logger.error('Failed to create payment intent', 'payment', {}, error as Error);
-      return null;
-    }
-  }
-
-  async confirmPayment(
-    paymentId: string,
-    transactionId: string,
-    paymentMethodInfo: PaymentMethodInfo
-  ): Promise<boolean> {
-    try {
-      logger.info('Payment confirmed (stub - needs Edge Function)', 'payment', { paymentId, transactionId, paymentMethodInfo });
-      return true;
-    } catch (error) {
-      logger.error('Failed to confirm payment', 'payment', {}, error as Error);
-      return false;
-    }
-  }
-
-  async failPayment(paymentId: string, errorMessage?: string): Promise<boolean> {
-    try {
-      logger.warn('Payment failed (stub - needs Edge Function)', 'payment', { paymentId, errorMessage });
-      return true;
-    } catch (error) {
-      logger.error('Failed to mark payment as failed', 'payment', {}, error as Error);
-      return false;
-    }
-  }
-
-  async processRefund(
-    paymentId: string,
-    amount: number,
-    reason: string
-  ): Promise<string | null> {
-    try {
-      logger.info('Processing refund (stub - needs Edge Function)', 'payment', { paymentId, amount, reason });
-      return 'mock_refund_' + Date.now().toString();
-    } catch (error) {
-      logger.error('Failed to process refund', 'payment', {}, error as Error);
-      return null;
-    }
-  }
+  // MP-25: the mock write-path stubs (createPaymentIntent, confirmPayment,
+  // failPayment, processRefund, calculateEntryFee) were deleted — they faked
+  // success and would silently swallow real money operations if ever wired.
+  // All real money movement goes through the stripe-* edge functions; this
+  // service only READS webhook-written payment state.
 
   /**
    * Map a stripe_orders row status string to the PaymentDetails status union.
@@ -317,28 +214,30 @@ export class PaymentService {
         return emptySummary;
       }
 
-      let totalAmount = 0;
-      let paidAmount = 0;
-      let pendingAmount = 0;
-      let refundedAmount = 0;
+      // Accumulate in integer cents and divide once — summing binary-float
+      // dollars drifts by a penny on large shows (MP-26).
+      let totalCents = 0;
+      let paidCents = 0;
+      let pendingCents = 0;
+      let refundedCents = 0;
       let paidCount = 0;
 
       for (const order of data) {
-        const amount = order.amount_cents / 100;
-        totalAmount += amount;
+        const cents = order.amount_cents;
+        totalCents += cents;
 
         const status = this.mapOrderStatus(order.status);
         switch (status) {
           case 'completed':
-            paidAmount += amount;
+            paidCents += cents;
             paidCount++;
             break;
           case 'pending':
           case 'processing':
-            pendingAmount += amount;
+            pendingCents += cents;
             break;
           case 'refunded':
-            refundedAmount += amount;
+            refundedCents += cents;
             break;
           // failed / cancelled are not counted toward any bucket
         }
@@ -346,10 +245,10 @@ export class PaymentService {
 
       return {
         totalEntries: data.length,
-        totalAmount,
-        paidAmount,
-        pendingAmount,
-        refundedAmount,
+        totalAmount: totalCents / 100,
+        paidAmount: paidCents / 100,
+        pendingAmount: pendingCents / 100,
+        refundedAmount: refundedCents / 100,
         completionRate: data.length > 0 ? paidCount / data.length : 0,
       };
     } catch (error) {

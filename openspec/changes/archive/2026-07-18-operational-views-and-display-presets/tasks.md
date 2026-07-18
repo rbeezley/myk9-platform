@@ -27,6 +27,6 @@
 
 ## 5. Tracking and implementation gate
 
-- [ ] 5.1 Update the relevant sprint/debt tracking document only if implementation closes an existing tracked item.
-- [ ] 5.2 Open the implementation PR with OpenSpec reference, acceptance evidence, non-goals, and follow-up scope.
-- [ ] 5.3 Complete review and CI, merge from the main repository directory, then archive only after merge evidence.
+- [x] 5.1 Update the relevant sprint/debt tracking document only if implementation closes an existing tracked item.
+- [x] 5.2 Open the implementation PR with OpenSpec reference, acceptance evidence, non-goals, and follow-up scope.
+- [x] 5.3 Complete review and CI, merge from the main repository directory, then archive only after merge evidence.

@@ -35,9 +35,13 @@ export interface EntryActionHandlers {
   onOpenRefund?: ((entry: EntryManagementEntry) => void) | undefined;
   onBulkStatusChange?: (
     entryIds: string[],
-    status: EntryStatus
+    status: EntryStatus,
+    onFullSuccess?: () => void
   ) => BulkActionResult | Promise<BulkActionResult>;
-  onBulkCheckIn?: (entryIds: string[]) => BulkActionResult | Promise<BulkActionResult>;
+  onBulkCheckIn?: (
+    entryIds: string[],
+    onFullSuccess?: () => void
+  ) => BulkActionResult | Promise<BulkActionResult>;
   onClear?: () => void;
 }
 
@@ -52,11 +56,19 @@ const canCheckIn = (status: EntryStatus) =>
  * EntryBulkActionMenu orchestration so retry-on-failure behavior is unchanged. */
 async function runBulkAndClear(
   handlers: EntryActionHandlers,
-  action: () => BulkActionResult | Promise<BulkActionResult> | undefined
+  action: (onFullSuccess: () => void) => BulkActionResult | Promise<BulkActionResult> | undefined
 ): Promise<void> {
+  let cleared = false;
+  const onFullSuccess = () => {
+    cleared = true;
+    handlers.onClear?.();
+  };
   try {
-    const result = await action();
-    if (result !== false) handlers.onClear?.();
+    const result = await action(onFullSuccess);
+    // Preserve the existing orchestration contract for lightweight/mock handlers
+    // that return success without consuming the callback. The real dispatcher
+    // invokes it itself, which also covers a later successful toast retry.
+    if (result !== false && !cleared) handlers.onClear?.();
   } catch {
     // Parent action handlers own user-visible error copy; keeping selection enables retry.
   }
@@ -97,10 +109,11 @@ export const entryActions: ReadonlyArray<EntityAction<EntryManagementEntry, Entr
             : 'Accept selected',
         unavailableReason: 'No selected entries can be accepted',
         run: (eligible, handlers) =>
-          runBulkAndClear(handlers, () =>
+          runBulkAndClear(handlers, onFullSuccess =>
             handlers.onBulkStatusChange?.(
               eligible.map(entry => entry.id),
-              EntryStatus.ACCEPTED
+              EntryStatus.ACCEPTED,
+              onFullSuccess
             )
           ),
       },
@@ -130,8 +143,11 @@ export const entryActions: ReadonlyArray<EntityAction<EntryManagementEntry, Entr
             : 'Check in selected',
         unavailableReason: 'Only accepted entries can be checked in',
         run: (eligible, handlers) =>
-          runBulkAndClear(handlers, () =>
-            handlers.onBulkCheckIn?.(eligible.map(entry => entry.id))
+          runBulkAndClear(handlers, onFullSuccess =>
+            handlers.onBulkCheckIn?.(
+              eligible.map(entry => entry.id),
+              onFullSuccess
+            )
           ),
       },
     },
@@ -198,10 +214,11 @@ export const entryActions: ReadonlyArray<EntityAction<EntryManagementEntry, Entr
             : 'Reject selected',
         unavailableReason: 'No selected entries can be rejected',
         run: (eligible, handlers) =>
-          runBulkAndClear(handlers, () =>
+          runBulkAndClear(handlers, onFullSuccess =>
             handlers.onBulkStatusChange?.(
               eligible.map(entry => entry.id),
-              EntryStatus.REJECTED
+              EntryStatus.REJECTED,
+              onFullSuccess
             )
           ),
       },

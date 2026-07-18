@@ -7,9 +7,13 @@ interface EntryBulkActionMenuProps {
   selectedEntries: EntryManagementEntry[];
   onBulkStatusChange: (
     entryIds: string[],
-    status: EntryStatus
+    status: EntryStatus,
+    onFullSuccess?: () => void
   ) => BulkActionResult | Promise<BulkActionResult>;
-  onBulkCheckIn: (entryIds: string[]) => BulkActionResult | Promise<BulkActionResult>;
+  onBulkCheckIn: (
+    entryIds: string[],
+    onFullSuccess?: () => void
+  ) => BulkActionResult | Promise<BulkActionResult>;
   onClear: () => void;
   /** Disable the menu while a bulk batch is in flight (spec: controls disabled until settle). */
   disabled?: boolean;

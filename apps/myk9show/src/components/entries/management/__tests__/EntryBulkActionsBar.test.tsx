@@ -70,7 +70,11 @@ describe('EntryBulkActionsBar', () => {
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /accept 1 of 2 selected/i }));
 
-    expect(onBulkStatusChange).toHaveBeenCalledWith(['p'], EntryStatus.ACCEPTED);
+    expect(onBulkStatusChange).toHaveBeenCalledWith(
+      ['p'],
+      EntryStatus.ACCEPTED,
+      expect.any(Function)
+    );
     expect(onClear).toHaveBeenCalledTimes(1);
   });
 
@@ -81,7 +85,11 @@ describe('EntryBulkActionsBar', () => {
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /accept 1 of 1 selected/i }));
 
-    expect(onBulkStatusChange).toHaveBeenCalledWith(['p'], EntryStatus.ACCEPTED);
+    expect(onBulkStatusChange).toHaveBeenCalledWith(
+      ['p'],
+      EntryStatus.ACCEPTED,
+      expect.any(Function)
+    );
     expect(onClear).not.toHaveBeenCalled();
   });
 
@@ -93,7 +101,7 @@ describe('EntryBulkActionsBar', () => {
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /check in 1 of 2 selected/i }));
 
-    expect(onBulkCheckIn).toHaveBeenCalledWith(['acc']);
+    expect(onBulkCheckIn).toHaveBeenCalledWith(['acc'], expect.any(Function));
   });
 
   it('waits to clear selection until an async check-in action succeeds', async () => {
@@ -104,7 +112,7 @@ describe('EntryBulkActionsBar', () => {
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /check in 1 of 1 selected/i }));
 
-    expect(onBulkCheckIn).toHaveBeenCalledWith(['acc']);
+    expect(onBulkCheckIn).toHaveBeenCalledWith(['acc'], expect.any(Function));
     expect(onClear).not.toHaveBeenCalled();
 
     checkIn.resolve(true);

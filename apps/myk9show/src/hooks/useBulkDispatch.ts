@@ -19,6 +19,8 @@ export interface UseBulkDispatchOptions<T> {
 }
 
 export interface BulkDispatchRunOptions<T> {
+  /** Called when this run or a retry of its failed subset fully succeeds. */
+  onFullSuccess?: (() => void) | undefined;
   /**
    * Builds an Undo action for the summary toast from the dispatch outcome. Called
    * once the outcome is known, so it can revert exactly the succeeded subset. Only
@@ -72,10 +74,12 @@ export function useBulkDispatch<T>({
       outcome: BulkDispatchOutcome<T>,
       runItem: (item: T) => Promise<void>,
       buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined,
+      onFullSuccess?: () => void,
       runApplicableWhen?: (item: T) => boolean
     ) => {
       const summary = summarizeBulkOutcome(total, outcome, getLabel);
       if (summary.fullSuccess) {
+        onFullSuccess?.();
         const onUndo = buildUndo?.(outcome);
         toast.success(
           summary.title,
@@ -92,7 +96,8 @@ export function useBulkDispatch<T>({
               outcome.failed.map(({ item }) => item),
               runItem,
               runApplicableWhen,
-              buildUndo
+              buildUndo,
+              onFullSuccess
             );
           },
         },
@@ -107,7 +112,8 @@ export function useBulkDispatch<T>({
       failedItems: T[],
       runItem: (item: T) => Promise<void>,
       runApplicableWhen?: (item: T) => boolean,
-      buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined
+      buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined,
+      onFullSuccess?: () => void
     ): Promise<void> => {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
@@ -138,6 +144,7 @@ export function useBulkDispatch<T>({
             { succeeded: outcome.succeeded, failed: outcome.failed },
             runItem,
             buildUndo,
+            onFullSuccess,
             runApplicableWhen
           );
         }
@@ -162,7 +169,14 @@ export function useBulkDispatch<T>({
       setIsBusy(true);
       try {
         const outcome = await dispatchBulk(items, runItem);
-        showSummary(items.length, outcome, runItem, options?.buildUndo, options?.applicableWhen);
+        showSummary(
+          items.length,
+          outcome,
+          runItem,
+          options?.buildUndo,
+          options?.onFullSuccess,
+          options?.applicableWhen
+        );
         return outcome;
       } finally {
         inFlightRef.current = false;

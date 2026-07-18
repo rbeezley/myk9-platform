@@ -1,4 +1,3 @@
-import type { UserRole as UserRoleType } from '@/types/user-types';
 import { SelectedUser } from '@/pages/admin/UserManagementPage';
 
 export interface BulkActionsBarProps {
@@ -8,16 +7,11 @@ export interface BulkActionsBarProps {
   onUsersDeleted?: (deletedUserIds: string[]) => void;
 }
 
-export type DialogType = 'role' | 'status' | 'delete' | 'cascadeConfirm' | null;
-
-export interface BulkRoleData {
-  action: 'add' | 'remove' | 'replace';
-  roles: UserRoleType[];
-}
-
-export interface BulkStatusData {
-  action: 'activate' | 'deactivate' | 'suspend';
-}
+// 'status' and 'role' dialogs removed: no correct single-user mutation exists to
+// mirror in bulk (account-status has no per-user mutation; role assignment needs a
+// club-scope selector + canonical value mapping = a distinct feature). Bulk delete
+// is the only real bulk action.
+export type DialogType = 'delete' | 'cascadeConfirm' | null;
 
 export interface RelatedDataDetails {
   entryCount: number;

@@ -916,7 +916,9 @@ describe('ReplicatedDogsTable', () => {
         const result = await dogsTable.sync('owner-123');
 
         expect(result.success).toBe(false);
-        expect(result.error).toContain('Connection failed');
+        expect(result.error).toBe(
+          "We couldn't refresh saved show data. You can keep using the saved copy while we try again."
+        );
         expect(logger.error).toHaveBeenCalled();
       });
     });

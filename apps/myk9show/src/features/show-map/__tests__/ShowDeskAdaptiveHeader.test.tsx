@@ -5,6 +5,19 @@ import { ShowDeskAdaptiveHeader } from '../ShowDeskAdaptiveHeader';
 import type { ShowMapAction } from '../showMapActions';
 import type { ShowMapActionGroup } from '../showMapActionGroups';
 import type { ShowDeskShowStatus } from '../showDeskStatus';
+import type { ShowDeskPendingSignal } from '../showDeskPendingSignals';
+
+function makeSignal(overrides: Partial<ShowDeskPendingSignal>): ShowDeskPendingSignal {
+  return {
+    id: 'entries-waiting-review',
+    count: 1,
+    priority: 'highest',
+    label: '1 pending entry',
+    href: null,
+    scope: { kind: 'show', showId: 'show-1' },
+    ...overrides,
+  };
+}
 
 function makeAction(overrides: Partial<ShowMapAction> = {}): ShowMapAction {
   return {
@@ -224,24 +237,19 @@ describe('ShowDeskAdaptiveHeader', () => {
 
   it('renders a chip per pending signal with its label', () => {
     const signals = [
-      {
-        id: 'entries-waiting-review' as const,
-        count: 5,
-        priority: 'highest' as const,
-        label: '5 pending entries',
-      },
-      {
-        id: 'entries-waiting-checkin' as const,
+      makeSignal({ id: 'entries-waiting-review', count: 5, label: '5 pending entries' }),
+      makeSignal({
+        id: 'entries-waiting-checkin',
         count: 2,
-        priority: 'high' as const,
+        priority: 'high',
         label: '2 entries waiting for check-in',
-      },
-      {
-        id: 'classes-needing-signature' as const,
+      }),
+      makeSignal({
+        id: 'classes-needing-signature',
         count: 1,
-        priority: 'high' as const,
+        priority: 'high',
         label: '1 class needs judge signature',
-      },
+      }),
     ];
     const { getByText, getByTestId } = render(
       <ShowDeskAdaptiveHeader {...baseProps} pendingSignals={signals} />
@@ -257,14 +265,7 @@ describe('ShowDeskAdaptiveHeader', () => {
     // Regression: chips started life as px-3 py-1 text-xs which is well under the
     // 44x44px minimum from docs/INTENT.md. They are filter shortcuts and need to be
     // tappable on tablet before B2 mounts them.
-    const signals = [
-      {
-        id: 'entries-waiting-review' as const,
-        count: 1,
-        priority: 'highest' as const,
-        label: '1 pending entry',
-      },
-    ];
+    const signals = [makeSignal({})];
     const onSelectPendingSignal = vi.fn();
     const { container } = render(
       <ShowDeskAdaptiveHeader
@@ -280,14 +281,7 @@ describe('ShowDeskAdaptiveHeader', () => {
 
   it('invokes onSelectPendingSignal when a chip is clicked', async () => {
     const onSelectPendingSignal = vi.fn();
-    const signals = [
-      {
-        id: 'entries-waiting-review' as const,
-        count: 5,
-        priority: 'highest' as const,
-        label: '5 pending entries',
-      },
-    ];
+    const signals = [makeSignal({ count: 5, label: '5 pending entries' })];
     const { user, getByText } = render(
       <ShowDeskAdaptiveHeader
         {...baseProps}

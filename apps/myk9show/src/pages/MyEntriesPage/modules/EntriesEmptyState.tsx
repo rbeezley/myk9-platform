@@ -10,9 +10,8 @@
  */
 
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { Calendar } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/common/EmptyState';
 import { EMPTY_STATE_BY_TAB } from './emptyStates';
 import type { EntryTabFilter } from './my-entries-types';
 
@@ -37,28 +36,22 @@ export const EntriesEmptyState: React.FC<EntriesEmptyStateProps> = ({
     : null;
 
   return (
-    <div className="myk9-entries-card text-center">
-      <div className="bg-muted/50 rounded-full p-6 mb-4 inline-block">
-        <Calendar className="h-12 w-12 text-muted-foreground" />
-      </div>
-      <h3 className="text-lg font-semibold mb-2">{content.heading}</h3>
-      <p className="text-muted-foreground mb-6 max-w-sm mx-auto text-base">{content.body}</p>
-      {isTabSwitchCta ? (
-        <Button
-          onClick={() => targetTab && onSwitchTab(targetTab)}
-          className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 min-h-[44px]"
-        >
-          {content.cta.label}
-        </Button>
-      ) : (
-        <Button
-          asChild
-          className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 min-h-[44px]"
-        >
-          <Link to={content.cta.to}>{content.cta.label}</Link>
-        </Button>
-      )}
-    </div>
+    <EmptyState
+      icon={Calendar}
+      title={content.heading}
+      description={content.body}
+      action={
+        isTabSwitchCta
+          ? {
+              label: content.cta.label,
+              onClick: () => {
+                if (targetTab) onSwitchTab(targetTab);
+              },
+            }
+          : { label: content.cta.label, href: content.cta.to }
+      }
+      size="sm"
+    />
   );
 };
 

@@ -7,10 +7,11 @@ loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
 
 const isA11ySmoke = process.env.PLAYWRIGHT_A11Y === 'true';
-const isNightly = process.env.PLAYWRIGHT_NIGHTLY === 'true';
+const isRegression =
+  process.env.PLAYWRIGHT_REGRESSION === 'true' || process.env.PLAYWRIGHT_NIGHTLY === 'true';
 
-// Nightly: curated ~20-spec journey suite, run on a schedule outside CI's PR gate.
-const NIGHTLY_SPECS = [
+// Regression: curated journey suite, run separately from the read-only health gate.
+const REGRESSION_SPECS = [
   '**/uat/secretary/critical-path.spec.ts',
   '**/uat/secretary/disposable-entry.spec.ts',
   '**/uat/secretary/evidence.spec.ts',
@@ -18,15 +19,18 @@ const NIGHTLY_SPECS = [
   // payment/* specs are excluded: both are aspirational mock-based suites
   // asserting features that don't exist (PayPal, chargebacks, payment plans)
   // and fail unconditionally. Real payment journeys are tracked in MYK9-42.
-  '**/scoring/scoringWorkflow.spec.ts',
   '**/show/atShowJudgeScoring.spec.ts',
   '**/show/atShowOfflineScoring.spec.ts',
-  '**/show/showManagement.spec.ts',
+  // scoring/scoringWorkflow and show/showManagement are obsolete candidate
+  // suites; current coverage lives in focused scoring and management specs
+  // tracked in docs/qa/e2e-suite-map.md.
   // registration/entryCreationCore excluded: it drives app source modules via
   // browser `import('/src/store/entryStore.ts')` — a Zustand unit test wearing
   // an e2e costume. It cannot run against the dist/preview build and belongs in
   // Vitest, not Playwright. Rewrite/relocate tracked in MYK9-46.
-  '**/registration/exhibitorSelfRegistration.spec.ts',
+  // exhibitorSelfRegistration depends on a separately seeded show whose entry
+  // window is open; the default Heartland fixture is currently closed. Keep it
+  // in the maintained inventory, but not in Nightly until that fixture exists.
   '**/authentication-validation.spec.ts',
   // entities/entriesUI excluded: the secretary Entry Management page was
   // restructured (entry cards, Select-All header, bulk dialogs all moved), so
@@ -42,8 +46,8 @@ const NIGHTLY_SPECS = [
 
 // PR Smoke: 3 stable specs — connectivity, secretary regression proof, and the
 // secretary critical-path UAT suite. Verified green under this config before
-// promotion (2026-07-16). atShowOfflineScoring stays nightly-only (depends on
-// staging seed data); payment specs are excluded entirely (see NIGHTLY_SPECS).
+// promotion (2026-07-16). atShowOfflineScoring stays regression-only (depends on
+// staging seed data); payment specs are excluded entirely (see REGRESSION_SPECS).
 const PR_SMOKE_SPECS = [
   '**/simple-connectivity.spec.ts',
   '**/uat/secretary/qa-regression-proof.spec.ts',
@@ -56,14 +60,18 @@ const PR_SMOKE_SPECS = [
  * Runs E2E tests against a built preview of the app.
  * Chromium only to keep CI fast.
  *
- * Mode precedence: a11y > nightly > pr-smoke.
+ * Mode precedence: a11y > regression > pr-smoke.
  *
  * Run with: npx playwright test --config=playwright.ci.config.ts
- * Nightly:  PLAYWRIGHT_NIGHTLY=true npx playwright test --config=playwright.ci.config.ts
+ * Regression: PLAYWRIGHT_REGRESSION=true npx playwright test --config=playwright.ci.config.ts
  */
 export default defineConfig({
   testDir: './src/test/e2e',
-  testMatch: isA11ySmoke ? ['**/a11y-smoke.spec.ts'] : isNightly ? NIGHTLY_SPECS : PR_SMOKE_SPECS,
+  testMatch: isA11ySmoke
+    ? ['**/a11y-smoke.spec.ts']
+    : isRegression
+      ? REGRESSION_SPECS
+      : PR_SMOKE_SPECS,
   grep: isA11ySmoke ? /has no serious\/critical violations/ : undefined,
   fullyParallel: false,
   forbidOnly: true,

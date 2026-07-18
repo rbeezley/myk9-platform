@@ -78,22 +78,21 @@ export function resolvePartialPayment(
 
 /**
  * Resolve a refund form into the payment write, or `null` when the entered
- * amount is not a positive number. A full refund (or a "partial" that covers
- * the whole paid amount) lands as REFUNDED; a smaller partial as PARTIAL_REFUND.
- * Notes are prefixed with the human-readable method label.
+ * amount is not positive or exceeds the amount paid. Refund status follows
+ * the amount itself so an editable full-refund dialog cannot record a smaller
+ * refund as REFUNDED. Notes are prefixed with the human-readable method label.
  */
 export function resolveRefund(
   amountStr: string,
   paidDollars: number,
-  isPartial: boolean,
   method: RefundDialog['method'],
   notes: string
 ): { status: PaymentStatus; amount: number; notes: string | null } | null {
   const amount = parseFloat(amountStr);
   if (isNaN(amount) || amount <= 0) return null;
+  if (amount > paidDollars) return null;
 
-  const status =
-    !isPartial || amount >= paidDollars ? PaymentStatus.REFUNDED : PaymentStatus.PARTIAL_REFUND;
+  const status = amount === paidDollars ? PaymentStatus.REFUNDED : PaymentStatus.PARTIAL_REFUND;
   const methodLabel = REFUND_METHODS.find(m => m.value === method)?.label ?? method;
   const combined = [methodLabel, notes.trim()].filter(Boolean).join(': ');
   return { status, amount, notes: combined || null };

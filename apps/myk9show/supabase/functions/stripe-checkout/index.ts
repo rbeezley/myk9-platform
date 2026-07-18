@@ -47,16 +47,18 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
 }
 
 // CORS response helper
-let _corsHeaders: Record<string, string> = getCorsHeaders(null);
-
-function corsResponse(body: string | object | null, status = 200) {
+function corsResponse(
+  corsHeaders: Record<string, string>,
+  body: string | object | null,
+  status = 200
+) {
   if (status === 204) {
-    return new Response(null, { status, headers: _corsHeaders });
+    return new Response(null, { status, headers: corsHeaders });
   }
 
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ..._corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
 
@@ -97,21 +99,21 @@ function isAllowedRedirectUrl(url: string): boolean {
 }
 
 Deno.serve(async req => {
-  _corsHeaders = getCorsHeaders(req.headers.get('origin'));
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   try {
     if (req.method === 'OPTIONS') {
-      return corsResponse({}, 204);
+      return corsResponse(corsHeaders, {}, 204);
     }
 
     if (req.method !== 'POST') {
-      return corsResponse({ error: 'Method not allowed' }, 405);
+      return corsResponse(corsHeaders, { error: 'Method not allowed' }, 405);
     }
 
     // Authenticate user
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return corsResponse({ error: 'Missing Authorization header' }, 401);
+      return corsResponse(corsHeaders, { error: 'Missing Authorization header' }, 401);
     }
 
     const token = authHeader.replace('Bearer ', '');
@@ -122,7 +124,7 @@ Deno.serve(async req => {
 
     if (authError || !user) {
       console.error('Authentication failed:', authError);
-      return corsResponse({ error: 'Authentication failed' }, 401);
+      return corsResponse(corsHeaders, { error: 'Authentication failed' }, 401);
     }
 
     // Parse request
@@ -131,6 +133,7 @@ Deno.serve(async req => {
 
     if (!mode || !success_url || !cancel_url) {
       return corsResponse(
+        corsHeaders,
         { error: 'Missing required parameters: mode, success_url, cancel_url' },
         400
       );
@@ -138,7 +141,7 @@ Deno.serve(async req => {
 
     // Validate redirect URLs against allowed origins (prevent open redirect)
     if (!isAllowedRedirectUrl(success_url) || !isAllowedRedirectUrl(cancel_url)) {
-      return corsResponse({ error: 'Invalid redirect URL origin' }, 400);
+      return corsResponse(corsHeaders, { error: 'Invalid redirect URL origin' }, 400);
     }
 
     // Get or create person record for this auth user
@@ -150,13 +153,17 @@ Deno.serve(async req => {
 
     if (personError || !person) {
       console.error('Person not found for auth user:', personError);
-      return corsResponse({ error: 'User profile not found. Please complete registration.' }, 404);
+      return corsResponse(
+        corsHeaders,
+        { error: 'User profile not found. Please complete registration.' },
+        404
+      );
     }
 
     // Get or create Stripe customer
     const customerId = await getOrCreateStripeCustomer(user, person.id);
     if (!customerId) {
-      return corsResponse({ error: 'Failed to create payment profile' }, 500);
+      return corsResponse(corsHeaders, { error: 'Failed to create payment profile' }, 500);
     }
 
     // Handle different checkout modes.
@@ -165,6 +172,7 @@ Deno.serve(async req => {
     // escapes the catch and surfaces to the browser as an opaque network error.
     if (mode === 'entry') {
       return await handleEntryCheckout(
+        corsHeaders,
         body as EntryCheckoutRequest,
         user.id,
         customerId,
@@ -173,6 +181,7 @@ Deno.serve(async req => {
       );
     } else if (mode === 'subscription') {
       return await handleSubscriptionCheckout(
+        corsHeaders,
         body as SubscriptionCheckoutRequest,
         customerId,
         success_url,
@@ -184,10 +193,14 @@ Deno.serve(async req => {
     // day a one-time price exists. Re-add WITH an allowlist if ever needed
     // (round-13 review).
 
-    return corsResponse({ error: 'Invalid checkout mode' }, 400);
+    return corsResponse(corsHeaders, { error: 'Invalid checkout mode' }, 400);
   } catch (error: unknown) {
     console.error('Checkout error:', error);
-    return corsResponse({ error: error instanceof Error ? error.message : 'Unknown error' }, 500);
+    return corsResponse(
+      corsHeaders,
+      { error: error instanceof Error ? error.message : 'Unknown error' },
+      500
+    );
   }
 });
 
@@ -308,6 +321,7 @@ function isStripeResourceMissing(error: unknown): boolean {
  * Handle entry cart checkout
  */
 async function handleEntryCheckout(
+  corsHeaders: Record<string, string>,
   request: EntryCheckoutRequest,
   authUserId: string,
   customerId: string,
@@ -317,7 +331,7 @@ async function handleEntryCheckout(
   const { cart_id } = request;
 
   if (!cart_id) {
-    return corsResponse({ error: 'Missing cart_id for entry checkout' }, 400);
+    return corsResponse(corsHeaders, { error: 'Missing cart_id for entry checkout' }, 400);
   }
 
   // Fetch cart with items and verify ownership
@@ -352,12 +366,12 @@ async function handleEntryCheckout(
 
   if (cartError || !cart) {
     console.error('Cart not found:', cartError);
-    return corsResponse({ error: 'Cart not found or expired' }, 404);
+    return corsResponse(corsHeaders, { error: 'Cart not found or expired' }, 404);
   }
 
   // Verify ownership
   if (cart.exhibitor.auth_user_id !== authUserId) {
-    return corsResponse({ error: 'Unauthorized access to cart' }, 403);
+    return corsResponse(corsHeaders, { error: 'Unauthorized access to cart' }, 403);
   }
 
   // My Shows can send exhibitors back to /cart after the cart timer has
@@ -382,7 +396,11 @@ async function handleEntryCheckout(
 
     if (recoverError || !recovered) {
       console.error(`Could not recover cart ${cart_id}:`, recoverError);
-      return corsResponse({ error: 'Could not recover this cart. Please try again.' }, 409);
+      return corsResponse(
+        corsHeaders,
+        { error: 'Could not recover this cart. Please try again.' },
+        409
+      );
     }
 
     cart.status = 'active';
@@ -425,14 +443,22 @@ async function handleEntryCheckout(
       `Show fee lookup failed for cart ${cart_id} (show ${cart.show_id}):`,
       showFeesError
     );
-    return corsResponse({ error: 'Could not verify entry fees. Please try again.' }, 500);
+    return corsResponse(
+      corsHeaders,
+      { error: 'Could not verify entry fees. Please try again.' },
+      500
+    );
   }
 
   // Server-side online-entry gate: the UI enforces this, but any direct API
   // call to stripe-checkout bypasses the UI. Fail closed on each condition.
   const entryStatuses = ['published', 'accepting_entries'];
   if (!entryStatuses.includes(showFees.status)) {
-    return corsResponse({ error: 'Online entries are not currently open for this show.' }, 403);
+    return corsResponse(
+      corsHeaders,
+      { error: 'Online entries are not currently open for this show.' },
+      403
+    );
   }
 
   // Entry window is anchored to the show's local calendar day, not a UTC
@@ -468,10 +494,14 @@ async function handleEntryCheckout(
     ? calendarDateInTz(new Date(showFees.entry_close_date as string), 'UTC')
     : null;
   if (openDay && todayLocal < openDay) {
-    return corsResponse({ error: 'Online entry has not opened yet for this show.' }, 403);
+    return corsResponse(
+      corsHeaders,
+      { error: 'Online entry has not opened yet for this show.' },
+      403
+    );
   }
   if (closeDay && todayLocal > closeDay) {
-    return corsResponse({ error: 'Online entry has closed for this show.' }, 403);
+    return corsResponse(corsHeaders, { error: 'Online entry has closed for this show.' }, 403);
   }
   {
     const connectPayoutsEnabled = showFees.club_id
@@ -485,6 +515,7 @@ async function handleEntryCheckout(
       : false;
     if (!connectPayoutsEnabled) {
       return corsResponse(
+        corsHeaders,
         { error: "This club's payment account is not set up to receive online entry fees." },
         403
       );
@@ -544,6 +575,7 @@ async function handleEntryCheckout(
       }
     }
     return corsResponse(
+      corsHeaders,
       {
         error: 'Entry fees were updated to current show pricing — review your cart and try again.',
       },
@@ -571,7 +603,7 @@ async function handleEntryCheckout(
   );
 
   if (lineItems.length === 0) {
-    return corsResponse({ error: 'Cart is empty' }, 400);
+    return corsResponse(corsHeaders, { error: 'Cart is empty' }, 400);
   }
 
   // Calculate platform fee (if applicable). Item fees are verified equal to
@@ -614,6 +646,7 @@ async function handleEntryCheckout(
           `Cart ${cart_id} session ${existing.id} already paid — webhook processing, no new session`
         );
         return corsResponse(
+          corsHeaders,
           {
             error:
               'Your payment for this cart is already processing. Give it a few seconds, then check My Entries.',
@@ -624,7 +657,7 @@ async function handleEntryCheckout(
       if (existing.status === 'open') {
         if (existing.amount_total === subtotal + platformFeeCents && existing.url) {
           console.log(`Reusing open checkout session ${existing.id} for cart ${cart_id}`);
-          return corsResponse({ sessionId: existing.id, url: existing.url });
+          return corsResponse(corsHeaders, { sessionId: existing.id, url: existing.url });
         }
         await stripe.checkout.sessions.expire(existing.id);
         console.log(`Expired stale checkout session ${existing.id} (cart ${cart_id} changed)`);
@@ -698,6 +731,7 @@ async function handleEntryCheckout(
       console.error(`CRITICAL: could not expire orphaned session ${session.id}:`, expireErr);
     }
     return corsResponse(
+      corsHeaders,
       { error: 'Your cart changed while checkout was starting. Please try again.' },
       409
     );
@@ -714,17 +748,18 @@ async function handleEntryCheckout(
     } catch (expireErr) {
       console.error(`CRITICAL: could not expire orphaned session ${session.id}:`, expireErr);
     }
-    return corsResponse({ error: 'Could not start checkout. Please try again.' }, 500);
+    return corsResponse(corsHeaders, { error: 'Could not start checkout. Please try again.' }, 500);
   }
 
   console.log(`Created entry checkout session ${session.id} for cart ${cart_id}`);
-  return corsResponse({ sessionId: session.id, url: session.url });
+  return corsResponse(corsHeaders, { sessionId: session.id, url: session.url });
 }
 
 /**
  * Handle subscription checkout
  */
 async function handleSubscriptionCheckout(
+  corsHeaders: Record<string, string>,
   request: SubscriptionCheckoutRequest,
   customerId: string,
   successUrl: string,
@@ -733,12 +768,12 @@ async function handleSubscriptionCheckout(
   const { price_id } = request;
 
   if (!price_id) {
-    return corsResponse({ error: 'Missing price_id for subscription checkout' }, 400);
+    return corsResponse(corsHeaders, { error: 'Missing price_id for subscription checkout' }, 400);
   }
 
   // Validate price_id against allowlist (SA-024)
   if (!VALID_PRICE_IDS.has(price_id)) {
-    return corsResponse({ error: 'Invalid price_id' }, 400);
+    return corsResponse(corsHeaders, { error: 'Invalid price_id' }, 400);
   }
 
   // Pre-flight: reject if the customer already has an active subscription.
@@ -752,6 +787,7 @@ async function handleSubscriptionCheckout(
   });
   if (existingActive.data.length > 0) {
     return corsResponse(
+      corsHeaders,
       {
         error: 'You already have an active subscription. Visit your account settings to manage it.',
       },
@@ -771,5 +807,5 @@ async function handleSubscriptionCheckout(
   });
 
   console.log(`Created subscription checkout session ${session.id}`);
-  return corsResponse({ sessionId: session.id, url: session.url });
+  return corsResponse(corsHeaders, { sessionId: session.id, url: session.url });
 }

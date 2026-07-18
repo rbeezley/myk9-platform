@@ -422,3 +422,31 @@ export function platformNetIncomeCents(
     netCents: gross - fields.stripe_processing_fee_cents - absorbedRefund,
   };
 }
+
+/**
+ * Metadata key stamped on a Stripe refund the platform issues to MAKE THE
+ * CUSTOMER WHOLE for lines that were never accepted (cart overflow /
+ * payment-link make-whole).
+ *
+ * Why it lives on the STRIPE OBJECT and not only in our ledger: the
+ * `charge.refunded` sweep can arrive BEFORE the writer that issued the refund
+ * books its own row, and the ledger upsert deliberately never overwrites `kind`
+ * (so a redelivery cannot relabel history). Without a marker Stripe carries on
+ * every delivery, whichever event lands first decides the kind — and a
+ * make-whole refund booked as `post_hoc` is permanently counted as a platform
+ * loss and can understate the club payout.
+ */
+export const MAKE_WHOLE_METADATA_KEY = 'myk9_make_whole';
+
+export type OrderRefundKind = 'make_whole' | 'post_hoc';
+
+/**
+ * Decide a refund's kind from the Stripe object. Defaults to `post_hoc`: an
+ * ordinary refund (secretary-issued, dashboard, show cancellation) IS a real
+ * platform loss, and only the platform's own make-whole writers stamp the key.
+ */
+export function refundKindFromMetadata(refund: {
+  metadata?: Record<string, string> | null;
+}): OrderRefundKind {
+  return refund?.metadata?.[MAKE_WHOLE_METADATA_KEY] === 'true' ? 'make_whole' : 'post_hoc';
+}

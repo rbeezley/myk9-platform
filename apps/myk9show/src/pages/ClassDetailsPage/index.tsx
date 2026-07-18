@@ -46,6 +46,8 @@ import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
+import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
+import { buildClassDetailsRelatedLinks } from './classDetailsRelatedLinks';
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -288,6 +290,13 @@ const ClassDetailsPage: React.FC = () => {
 
   const className = formatClassTitle(currentClass) || 'Class';
 
+  const relatedLinks = buildClassDetailsRelatedLinks({
+    isStaff,
+    showId: parentShow?.id,
+    trialId: trialId || currentClass.trialId,
+    classId,
+  });
+
   return (
     // INTENT: per-show presence boundary so edit-awareness works on the staff
     // entry/results edit here (no-op until features.showEditAwareness is on, and
@@ -301,6 +310,8 @@ const ClassDetailsPage: React.FC = () => {
           parentTrial={parentTrial}
           actions={headerActions}
         />
+
+        <RelatedContextLinks items={relatedLinks} />
 
         {!isStaff && (
           <ExhibitorClassCallout classId={classId} releasedRows={releasedResults.rawEntries} />

@@ -223,4 +223,65 @@ describe('EntriesTableView selection column', () => {
     expect(screen.getByText('Paid')).toBeInTheDocument();
     expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
   });
+
+  // Task 3.2 — a display density preset (Design Decision 3) is a bounded
+  // layout choice: identity, status, selection, and the row action menu must
+  // remain rendered in EVERY density.
+  // Spec scenario "Show-day display is selected": armband, dog, class, and
+  // check-in information receive PRIORITY, while identity, current status,
+  // selection controls, and row action menus remain rendered.
+  it('show-day preset leads with armband/dog/classes/status, adds a visible check-in action, and keeps selection + row actions + status', () => {
+    render(
+      <EntriesTableView
+        entries={entries}
+        selection={makeSelection()}
+        displayPreset="show-day"
+        {...makeActionProps()}
+      />
+    );
+
+    // PRIORITY column order: armband, dog, classes, status lead (after select).
+    const headers = screen.getAllByRole('columnheader').map(header => header.textContent?.trim());
+    expect(headers.slice(1, 5)).toEqual(['Armband', 'Dog', 'Classes', 'Status']);
+    // De-emphasized columns are still present (nothing hidden).
+    expect(headers).toContain('Handler');
+    expect(headers).toContain('Date');
+
+    // Check-in gets a visible per-row quick action.
+    expect(screen.getByRole('button', { name: /check in willow/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /check in ranger/i })).toBeInTheDocument();
+
+    // Binding constraint: identity, selection, and row action menus remain.
+    expect(screen.getByText('Willow')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /select all entries/i })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /select willow/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /actions for/i })).toHaveLength(entries.length);
+  });
+
+  it('show-day check-in quick action fires onCheckInEntry for the row', async () => {
+    const onCheckInEntry = vi.fn();
+    const { user } = render(
+      <EntriesTableView entries={entries} displayPreset="show-day" onCheckInEntry={onCheckInEntry} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /check in willow/i }));
+    expect(onCheckInEntry).toHaveBeenCalledWith('e1');
+  });
+
+  it('keeps row identity, selection, and the row action menu in compact density', () => {
+    render(
+      <EntriesTableView
+        entries={entries}
+        selection={makeSelection()}
+        density="compact"
+        {...makeActionProps()}
+      />
+    );
+
+    expect(screen.getByText('Willow')).toBeInTheDocument();
+    expect(screen.getByText('Ranger')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /select all entries/i })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /select willow/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /actions for/i })).toHaveLength(entries.length);
+  });
 });

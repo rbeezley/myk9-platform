@@ -51,6 +51,7 @@ export function JudgeStatsSubTab({ showId }: JudgeStatsSubTabProps) {
         icon={Scale}
         title="No Judge Assignments"
         description="Judge statistics will appear here once judges are assigned to classes."
+        action={null}
       />
     );
   }
@@ -88,6 +89,7 @@ export function JudgeStatsSubTab({ showId }: JudgeStatsSubTabProps) {
           icon={Scale}
           title="No Scored Entries"
           description="Statistics will appear once scoring begins for this judge's classes."
+          action={null}
           size="sm"
         />
       )}

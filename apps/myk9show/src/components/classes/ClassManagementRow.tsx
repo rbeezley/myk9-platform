@@ -1,0 +1,170 @@
+import React from 'react';
+import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/status';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ListOrdered } from 'lucide-react';
+import { RowActionMenu, toRowActions, type RowAction } from '@/components/ui/RowActionMenu';
+import { classActions } from '@/components/classes/classActions';
+import { deriveClassLifecycleValue, shouldShowClassLifecycle } from '@/lib/status/classLifecycle';
+import type { OperationalViewDensity } from '@/features/operational-views/operationalViews';
+
+export type DbClassRow = {
+  id: string;
+  name: string | null;
+  element: string | null;
+  level: string | null;
+  section: string | null;
+  status: string | null;
+  class_order: number | null;
+  max_entries: number | null;
+  entries: Array<{ id: string }> | undefined;
+  judge_assignments?: Array<{ person_id: string | null }> | null;
+};
+
+export const UNASSIGNED_JUDGE_VALUE = 'TBD';
+
+interface ClassManagementRowProps {
+  cls: DbClassRow;
+  selected: boolean;
+  showId: string | undefined;
+  showStatus: string | undefined;
+  availableJudges: Array<{ id: string; name: string }>;
+  onToggleSelect: () => void;
+  onViewWaitlist: () => void;
+  onStatusChange: (classId: string, status: string) => void;
+  onJudgeChange: (classId: string, judgeId: string) => void;
+  onDelete: (classId: string) => void;
+  /**
+   * Display density (Design Decision 3) — controls padding/spacing only.
+   * Selection checkbox, status chip, judge assignment, and the row action
+   * menu are always rendered regardless of this value.
+   */
+  density?: OperationalViewDensity;
+}
+
+export const ClassManagementRow: React.FC<ClassManagementRowProps> = ({
+  cls,
+  selected,
+  showId,
+  showStatus,
+  availableJudges,
+  onToggleSelect,
+  onViewWaitlist,
+  onStatusChange,
+  onJudgeChange,
+  onDelete,
+  density = 'comfortable',
+}) => {
+  const entryCount = cls.entries?.length ?? 0;
+  const maxEntries = cls.max_entries ?? 0;
+  const isCompact = density === 'compact';
+  return (
+    <div
+      data-class-id={cls.id}
+      className={`border rounded-lg transition-all ${isCompact ? 'p-2' : 'p-4'} ${
+        selected ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
+      }`}
+    >
+      <div className="flex items-center gap-4">
+        <Checkbox
+          checked={selected}
+          onCheckedChange={() => onToggleSelect()}
+          aria-label={`Select ${cls.name || 'Untitled Class'}`}
+        />
+
+        <div className="manager-class-row-grid flex-1">
+          <div className="manager-class-name">
+            <div className="font-medium">{cls.name || 'Untitled Class'}</div>
+            {cls.class_order != null && (
+              <div className="text-sm text-muted-foreground">Order: {cls.class_order}</div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-1">
+            {cls.element && <Badge variant="outline">{cls.element}</Badge>}
+            {cls.level && <Badge variant="secondary">{cls.level}</Badge>}
+            {cls.section && <Badge variant="outline">{cls.section}</Badge>}
+          </div>
+
+          {(() => {
+            // Derived lifecycle chip: one label per stage
+            // ("Not started" / "In Progress" / "Completed"),
+            // never the raw enum ("in_progress") or "No Status".
+            // Draft/unpublished shows render no chip at all
+            // (UX walk remediation 2.B).
+            if (!shouldShowClassLifecycle(showStatus)) return null;
+            const lifecycleValue = deriveClassLifecycleValue(cls.status);
+            return (
+              <StatusBadge
+                family="class"
+                status={lifecycleValue}
+                className="rounded-full bg-muted/40 px-2 py-1 text-xs font-medium"
+              />
+            );
+          })()}
+
+          <div className="text-sm text-muted-foreground">
+            <div>
+              Entries: {entryCount}
+              {maxEntries > 0 ? `/${maxEntries}` : ''}
+            </div>
+          </div>
+
+          <div>
+            <Select
+              value={cls.judge_assignments?.[0]?.person_id ?? UNASSIGNED_JUDGE_VALUE}
+              onValueChange={judgeId => onJudgeChange(cls.id, judgeId)}
+              disabled={!showId || availableJudges.length === 0}
+            >
+              <SelectTrigger
+                className="w-full"
+                aria-label={`Judge for ${cls.name || 'Untitled Class'}`}
+              >
+                <SelectValue placeholder="Assign judge" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNASSIGNED_JUDGE_VALUE}>Unassigned</SelectItem>
+                {availableJudges.map(judge => (
+                  <SelectItem key={judge.id} value={judge.id}>
+                    {judge.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex gap-1">
+            <RowActionMenu
+              align="end"
+              label={`More actions for ${cls.name || 'Untitled Class'}`}
+              actions={[
+                {
+                  id: 'view-waitlist',
+                  label: 'View waitlist',
+                  icon: <ListOrdered className="h-4 w-4" />,
+                  onSelect: () => onViewWaitlist(),
+                } as RowAction,
+                // Status + delete resolve from the SAME shared catalog
+                // the bulk bar uses (toRowActions), so row and bulk
+                // eligibility/handlers can't diverge. Row delete keeps
+                // its confirm() via handleDelete.
+                ...toRowActions(
+                  { id: cls.id, name: cls.name, status: cls.status },
+                  { onStatusChange, onDelete },
+                  classActions
+                ),
+              ]}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

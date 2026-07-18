@@ -1,13 +1,14 @@
 # Nightly QA History
 
-Track scheduled Nightly outcomes here until a more automated report exists. Keep entries short, evidence-backed, and tied to `docs/qa/findings.md` when failures repeat.
+Track scheduled Nightly Health outcomes here until a more automated report exists. Keep entries short, evidence-backed, and tied to `docs/qa/findings.md` when failures repeat. Stateful Playwright Regression runs are recorded separately when manually dispatched or re-enabled against an isolated/resettable E2E target.
 
 ## Entry Template
 
 ```markdown
 ### YYYY-MM-DD
 
-- **Playwright command:** pass | fail | skipped
+- **Nightly health Playwright:** pass | fail | skipped
+- **Stateful Playwright Regression:** pass | fail | skipped | not run
 - **Route sweep:** pass | fail | partial | skipped
 - **Active specs:** passed/total
 - **Failures:** spec or route, trace/screenshot path, finding id

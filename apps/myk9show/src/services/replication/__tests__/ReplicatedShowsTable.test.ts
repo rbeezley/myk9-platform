@@ -986,7 +986,9 @@ describe('ReplicatedShowsTable', () => {
       const result = await table.sync(TEST_CLUB_ID);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Network error');
+      expect(result.error).toBe(
+        "We couldn't refresh saved show data. You can keep using the saved copy while we try again."
+      );
     });
 
     it('should filter by club_id during sync', async () => {

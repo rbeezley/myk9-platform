@@ -156,9 +156,10 @@ export function SubscriptionManager() {
 
   const openCustomerPortal = async () => {
     try {
+      // MP-27: the edge function derives the Stripe customer from the
+      // authenticated user — no customer id crosses the wire.
       const { data, error } = await supabase.functions.invoke('stripe-customer-portal', {
         body: {
-          customerId: subscription?.stripeCustomerId,
           returnUrl: window.location.origin + '/pricing-page',
         },
       });

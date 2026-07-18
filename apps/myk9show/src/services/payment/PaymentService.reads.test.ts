@@ -357,6 +357,14 @@ describe('PaymentService read methods', () => {
 
       expect(result?.userId).toBe('cust-1');
     });
+
+    it('returns null and logs when the query builder throws', async () => {
+      mocks.from.mockImplementation(() => {
+        throw new Error('connection reset');
+      });
+
+      await expect(service.checkPaymentStatus('order-1')).resolves.toBeNull();
+    });
   });
 
   describe('generateReceipt', () => {
@@ -443,6 +451,14 @@ describe('PaymentService read methods', () => {
       const receipt = await service.generateReceipt('order-12345678');
 
       expect(receipt?.paidAt).toEqual(new Date('2026-07-01T00:00:00.000Z'));
+    });
+
+    it('returns null and logs when the query builder throws', async () => {
+      mocks.from.mockImplementation(() => {
+        throw new Error('connection reset');
+      });
+
+      await expect(service.generateReceipt('order-1')).resolves.toBeNull();
     });
   });
 });

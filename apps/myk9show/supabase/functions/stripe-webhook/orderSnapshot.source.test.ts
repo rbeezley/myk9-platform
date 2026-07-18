@@ -33,9 +33,14 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(webhookSource).toContain("expand: ['latest_charge.balance_transaction']");
   });
 
-  it('spreads snapshot fields into all THREE stripe_orders inserts', () => {
+  it('spreads snapshot fields into EVERY stripe_orders insert', () => {
+    // Was three sites; `handleOneTimePaymentCompleted` was deleted on main by the
+    // Stripe money-path audit (#1381), leaving the cart and payment-link inserts.
+    // The count is pinned so a NEW insert site cannot be added without a snapshot.
+    const inserts = webhookSource.match(/\.from\('stripe_orders'\)\s*\.insert\(/g) ?? [];
     const spreads = webhookSource.match(/\.\.\.buildOrderSnapshotFields\(/g) ?? [];
-    expect(spreads.length).toBe(3);
+    expect(spreads.length).toBe(2);
+    expect(spreads.length).toBe(inserts.length);
   });
 
   it('never rewrites the immutable charge facts in the refund path', () => {
@@ -70,7 +75,12 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(body).toMatch(/for \(const refund of refunds\)/);
     expect(body).toMatch(/refundId:\s*refund\.id/);
     expect(body).toMatch(/amountCents:\s*refund\.amount \?\? 0/);
-    expect(body).toMatch(/kind:\s*'post_hoc'/);
+    // The kind is READ OFF THE STRIPE OBJECT, never hardcoded: this sweep can
+    // beat the make-whole writer, and the ledger upsert never overwrites `kind`,
+    // so hardcoding 'post_hoc' booked make-whole money as a permanent platform
+    // loss (Codex round-7 finding).
+    expect(body).toMatch(/kind:\s*refundKindFromMetadata\(refund\)/);
+    expect(body).not.toMatch(/kind:\s*'post_hoc'/);
     expect(body).not.toMatch(/chargeTotalCents/);
     expect(body).not.toMatch(/amountCents:\s*charge\.amount_refunded/);
   });

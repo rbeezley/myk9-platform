@@ -4,14 +4,33 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { getEffectivePaymentStatus } from '@/utils/entryManagementUtils';
 import { matchesOperationalAttentionFilter } from '@/features/entry-operations/attentionClassification';
 import {
-  ENTRY_WORK_MODE_PRESETS,
   type EntryAttentionFilter,
   type EntryPaymentFilter,
   type EntryManagementViewMode,
+  type EntryDisplayPreset,
   type EntryWorkMode,
+  type OperationalViewDensity,
   isEntryPaymentFilter,
   normalizeEntryManagementSearchParams,
 } from '@/components/entries/management/entryManagementFilters';
+import {
+  type EntryManagementOperationalView,
+  type EntryManagementPresetId,
+} from '@/features/operational-views/operationalViews';
+import {
+  writeAttentionFilter,
+  writePaymentFilter,
+  writeWorkMode,
+  writePreset,
+  writeView,
+  writeEntryViewMode,
+  writeDensity,
+  writeDisplayPreset,
+  writeRosterView,
+  writeTrialFilter,
+  writeClassFilter,
+  writeShowScopeReset,
+} from '@/components/entries/management/entryViewParamWriters';
 
 interface TabCounts {
   all: number;
@@ -52,6 +71,21 @@ interface UseEntryManagementFiltersReturn {
   setWorkMode: (mode: EntryWorkMode) => void;
   entryViewMode: EntryManagementViewMode;
   setEntryViewMode: (view: EntryManagementViewMode) => void;
+  /** Display density (Design Decision 3) — layout only, never hides identity/status/selection/actions. */
+  density: OperationalViewDensity;
+  setDensity: (density: OperationalViewDensity) => void;
+  /** Display preset (spec "Show-day display is selected") — show-day prioritizes armband/check-in; layout only. */
+  displayPreset: EntryDisplayPreset;
+  setDisplayPreset: (preset: EntryDisplayPreset) => void;
+  /**
+   * Apply a curated Entry Management preset (Design Decision 2). Writes
+   * attention/payment/mode/view together through the same normalized URL
+   * path as `setWorkMode` — presets extend, not duplicate, the existing
+   * work-mode mechanism (there is exactly one preset system).
+   */
+  applyPreset: (presetId: EntryManagementPresetId) => void;
+  /** Apply a full restored/saved view (Design Decision 1 adapter — same URL path as `applyPreset`). */
+  applyView: (view: EntryManagementOperationalView) => void;
 
   // Trial/class filters
   trialFilter: string | null;
@@ -101,6 +135,8 @@ export function useEntryManagementFilters({
   const paymentFilter = normalized.payment;
   const workMode = normalized.mode;
   const entryViewMode = normalized.view;
+  const density = normalized.density;
+  const displayPreset = normalized.display;
   const selectedTab = attentionFilter;
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
 
@@ -122,16 +158,7 @@ export function useEntryManagementFilters({
 
   const setAttentionFilter = useCallback(
     (filter: EntryAttentionFilter) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (filter === 'all') next.delete('attention');
-          else next.set('attention', filter);
-          next.delete('entryTab');
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeAttentionFilter(prev, filter), { replace: true });
     },
     [setSearchParams]
   );
@@ -141,54 +168,56 @@ export function useEntryManagementFilters({
   const setPaymentFilter = useCallback(
     (payment: string) => {
       const normalizedPayment: EntryPaymentFilter = isEntryPaymentFilter(payment) ? payment : 'all';
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (normalizedPayment === 'all') next.delete('payment');
-          else next.set('payment', normalizedPayment);
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writePaymentFilter(prev, normalizedPayment), { replace: true });
     },
     [setSearchParams]
   );
 
   const setWorkMode = useCallback(
     (mode: EntryWorkMode) => {
-      const preset = ENTRY_WORK_MODE_PRESETS[mode];
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (mode === 'review') next.delete('mode');
-          else next.set('mode', mode);
-          if (preset.attention === 'all') next.delete('attention');
-          else next.set('attention', preset.attention);
-          if (preset.view === 'table') next.delete('view');
-          else next.set('view', preset.view);
-          if (preset.payment === 'all') next.delete('payment');
-          else next.set('payment', preset.payment);
-          next.delete('entryTab');
-          next.delete('tab');
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeWorkMode(prev, mode), { replace: true });
+    },
+    [setSearchParams]
+  );
+
+  const applyPreset = useCallback(
+    (presetId: EntryManagementPresetId) => {
+      setSearchParams(prev => writePreset(prev, presetId), { replace: true });
+    },
+    [setSearchParams]
+  );
+
+  /**
+   * Apply a full (curated preset or restored saved) view, including display
+   * settings — used by `SavedViewsControl`'s reapply action so a restored
+   * view goes through the same normalized-URL path as every other filter
+   * change (design.md Decision 1: surfaces own the adapter, never a second
+   * state path).
+   */
+  const applyView = useCallback(
+    (view: EntryManagementOperationalView) => {
+      setSearchParams(prev => writeView(prev, view), { replace: true });
     },
     [setSearchParams]
   );
 
   const setEntryViewMode = useCallback(
     (view: EntryManagementViewMode) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (view === 'table') next.delete('view');
-          else next.set('view', view);
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeEntryViewMode(prev, view), { replace: true });
+    },
+    [setSearchParams]
+  );
+
+  const setDensity = useCallback(
+    (value: OperationalViewDensity) => {
+      setSearchParams(prev => writeDensity(prev, value), { replace: true });
+    },
+    [setSearchParams]
+  );
+
+  const setDisplayPreset = useCallback(
+    (value: EntryDisplayPreset) => {
+      setSearchParams(prev => writeDisplayPreset(prev, value), { replace: true });
     },
     [setSearchParams]
   );
@@ -202,55 +231,21 @@ export function useEntryManagementFilters({
 
   const setRosterView = useCallback(
     (on: boolean) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (on) next.set('roster', '1');
-          else next.delete('roster');
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeRosterView(prev, on), { replace: true });
     },
     [setSearchParams]
   );
 
   const setTrialFilter = useCallback(
     (id: string | null) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (id) {
-            next.set('trial', id);
-          } else {
-            next.delete('trial');
-            // Roster is meaningless without a trial — drop it too.
-            next.delete('roster');
-          }
-          // Always clear class when trial changes
-          next.delete('class');
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeTrialFilter(prev, id), { replace: true });
     },
     [setSearchParams]
   );
 
   const setClassFilter = useCallback(
     (id: string | null) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (id) {
-            next.set('class', id);
-          } else {
-            next.delete('class');
-          }
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeClassFilter(prev, id), { replace: true });
     },
     [setSearchParams]
   );
@@ -268,16 +263,7 @@ export function useEntryManagementFilters({
 
     if (prevShowIdRef.current !== showId) {
       prevShowIdRef.current = showId;
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          next.delete('trial');
-          next.delete('class');
-          next.delete('roster');
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeShowScopeReset(prev), { replace: true });
     }
   }, [showId, setSearchParams]);
 
@@ -378,6 +364,12 @@ export function useEntryManagementFilters({
     setWorkMode,
     entryViewMode,
     setEntryViewMode,
+    density,
+    setDensity,
+    displayPreset,
+    setDisplayPreset,
+    applyPreset,
+    applyView,
     trialFilter,
     setTrialFilter,
     classFilter,

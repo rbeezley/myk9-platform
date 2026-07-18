@@ -334,11 +334,13 @@ GRANT EXECUTE ON FUNCTION public.record_order_refund_cents(text, text, integer, 
 -- subtraction, so it cannot be undone by a redelivered booking event and it can
 -- never drive a money column negative.
 --
--- It only ever touches a row that EXISTS and belongs to this payment intent — it
--- never invents one. An out-of-order `refund.failed` arriving BEFORE the booking
--- event therefore reverses nothing; the later booking upserts the row as
--- succeeded, which is correct, and the redelivered failure (Stripe retries for
--- three days) settles it. `p_amount_cents` is accepted for call-site symmetry
+-- An out-of-order `refund.failed` arriving BEFORE the booking event writes a
+-- TOMBSTONE row (state='failed') rather than doing nothing. An earlier version
+-- of this comment claimed a redelivered failure would settle it; that was WRONG —
+-- Stripe redelivers only on a non-2xx response and this webhook always returns
+-- 200, so the failure is delivered exactly once and doing nothing loses it
+-- permanently, leaving a phantom refund on the order. `p_amount_cents` is
+-- accepted for the tombstone amount, call-site symmetry
 -- and audit logging only: the amount already lives on the ledger row, and taking
 -- it from the event is precisely how the old path could subtract the wrong
 -- number.
@@ -376,12 +378,36 @@ BEGIN
     WHERE o.stripe_payment_intent_id = p_payment_intent_id
       FOR UPDATE;
 
-  UPDATE public.stripe_order_refunds AS r
+  -- TOMBSTONE on out-of-order arrival. A `refund.failed` can arrive BEFORE the
+  -- event that books the refund. Doing nothing here loses the failure PERMANENTLY:
+  -- Stripe redelivers only on a non-2xx response, and the webhook catches,
+  -- alerts, and returns 200 — so the failure is consumed exactly once. The later
+  -- booking would then insert the refund as 'succeeded' and the order would
+  -- forever report money returned that the customer never received.
+  --
+  -- So record the failure even with no row to flip. `state` is never overwritten
+  -- by the booking upsert, so this tombstone is authoritative: a later booking
+  -- fills in amount/kind/order_id but CANNOT resurrect it. amount_cents is left
+  -- 0 when unknown — a failed row contributes nothing to either total, and the
+  -- booking supplies the real amount for audit.
+  INSERT INTO public.stripe_order_refunds AS r (
+    stripe_refund_id, stripe_payment_intent_id, order_id,
+    amount_cents, kind, state
+  )
+  VALUES (
+    p_refund_id, p_payment_intent_id,
+    (SELECT o.id FROM public.stripe_orders o
+      WHERE o.stripe_payment_intent_id = p_payment_intent_id
+      ORDER BY o.id LIMIT 1),
+    COALESCE(GREATEST(p_amount_cents, 0), 0), 'post_hoc', 'failed'
+  )
+  ON CONFLICT (stripe_refund_id) DO UPDATE
      SET state = 'failed',
          updated_at = now()
-   WHERE r.stripe_refund_id = p_refund_id
-     AND r.stripe_payment_intent_id = p_payment_intent_id
-     AND r.state <> 'failed';
+   -- The intent guard is load-bearing: a refund id must never be failed through
+   -- the WRONG payment intent, or one order's failure corrupts another's ledger.
+   WHERE r.state <> 'failed'
+     AND r.stripe_payment_intent_id = p_payment_intent_id;
   GET DIAGNOSTICS v_flipped = ROW_COUNT;
   v_did := v_flipped > 0;
 

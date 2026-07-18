@@ -127,7 +127,9 @@ function mockPostgrestEntriesRead(data: unknown[]) {
     select: vi.fn(() => query),
     eq: vi.fn(() => query),
     is: vi.fn(() => query),
-    order: vi.fn(() => Promise.resolve({ data, error: null })),
+    order: vi.fn(() =>
+      Promise.resolve({ data: data as unknown[] | null, error: null as unknown | null })
+    ),
   };
 
   mocks.supabaseFrom.mockReturnValue(query);
@@ -386,7 +388,7 @@ describe('secretary entry read replication', () => {
 
     expect(result.error).toBeNull();
     expect(result.data).toHaveLength(1);
-    expect(result.data[0]).toEqual(
+    expect(result.data![0]).toEqual(
       expect.objectContaining({
         id: 'entry-1',
         registration: null,
@@ -425,7 +427,7 @@ describe('secretary entry read replication', () => {
 
     const result = await getEntriesForShow('show-1');
 
-    expect(result.data.map(entry => entry.id)).toEqual([
+    expect(result.data!.map(entry => entry.id)).toEqual([
       'entry-earlier-created',
       'entry-later-created',
     ]);
@@ -448,7 +450,7 @@ describe('secretary entry read replication', () => {
 
     const result = await getEntriesForShow('show-1');
 
-    expect(result.data[0]?.dog).toEqual({
+    expect(result.data![0]?.dog).toEqual({
       id: 'dog-missing',
       name: 'Scout',
       call_name: 'Scout',
@@ -475,7 +477,7 @@ describe('secretary entry read replication', () => {
     expect(mocks.supabaseFrom).toHaveBeenCalledWith('entries');
     expect(result.error).toBeNull();
     expect(result.data).toHaveLength(1);
-    expect(result.data[0]).toMatchObject({ id: 'entry-from-postgrest' });
+    expect(result.data![0]).toMatchObject({ id: 'entry-from-postgrest' });
   });
 
   it('trusts replication when store is warm but all entries are deleted (does not hit PostgREST)', async () => {
@@ -528,5 +530,27 @@ describe('secretary entry read replication', () => {
       ],
       error: null,
     });
+  });
+
+  it('returns retryable plain-English copy when the PostgREST fallback times out', async () => {
+    mocks.getEntriesByShow.mockRejectedValueOnce(new Error('replicated entries unavailable'));
+    const query = mockPostgrestEntriesRead([]);
+    query.order.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: '57014',
+        message: 'canceling statement due to statement timeout',
+      },
+    });
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(result.data).toBeNull();
+    expect(result.error).toEqual(
+      expect.objectContaining({
+        message: "We couldn't load entries for this show. Please retry.",
+      })
+    );
+    expect(result.error?.message).not.toMatch(/statement timeout|supabase/i);
   });
 });

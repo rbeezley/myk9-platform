@@ -223,12 +223,21 @@ SELECT count(*) INTO n FROM public.reverse_order_refund_cents('pi_o1', NULL, 100
 PERFORM public.test_eq(n, 0, 'C: NULL refund id reverses nothing');
 
 -- (D) reverse a refund this ledger NEVER booked. The old path applied it anyway
---     (debiting post_hoc, floored at 0) and permanently burned the key.
-SELECT count(*) INTO n FROM public.reverse_order_refund_cents('pi_o9', 're_never_booked', 999999);
-PERFORM public.test_eq(n, 0, 'D: an order with no ledger rows is not touched at all');
+--     (debiting post_hoc, floored at 0) and permanently burned the key. It now
+--     writes a TOMBSTONE instead: the failure is delivered exactly once (Stripe
+--     redelivers only on a non-2xx and this webhook returns 200), so discarding
+--     it would let a later booking record a refund the customer never received.
 SELECT count(*) INTO n FROM public.stripe_order_refunds f
  WHERE f.stripe_refund_id = 're_never_booked';
-PERFORM public.test_eq(n, 0, 'D: a reversal never INVENTS a ledger row');
+PERFORM public.test_eq(n, 0, 'D: no row before the failure arrives');
+PERFORM public.reverse_order_refund_cents('pi_o9', 're_never_booked', 999999);
+SELECT f.state INTO bad FROM public.stripe_order_refunds f
+ WHERE f.stripe_refund_id = 're_never_booked';
+PERFORM public.test_true(bad = 'failed', 'D: an unbooked failure is TOMBSTONED, not discarded');
+-- ...and the tombstone contributes nothing to the money columns.
+SELECT o.refunded_cents INTO n FROM public.stripe_orders o
+ WHERE o.stripe_payment_intent_id = 'pi_o9';
+PERFORM public.test_eq(n, 0, 'D: a tombstone adds nothing to the totals');
 -- Cross-intent: a real refund id must not be reversed through the wrong intent.
 SELECT count(*) INTO n FROM public.reverse_order_refund_cents('pi_o1', 're_f1', 10700);
 PERFORM public.test_eq(n, 1, 'D: wrong-intent reversal still recomputes its own order');
@@ -236,17 +245,21 @@ SELECT f.state INTO bad FROM public.stripe_order_refunds f WHERE f.stripe_refund
 PERFORM public.test_true(bad = 'succeeded', 'D: an unrelated refund row is untouched');
 
 -- (E) refund.failed arriving BEFORE the booking event (Stripe guarantees no
---     ordering). It must reverse nothing, the later booking is honest, and the
---     redelivered failure settles it.
-SELECT count(*) INTO n FROM public.reverse_order_refund_cents('pi_o6', 're_ooo', 3000);
-PERFORM public.test_eq(n, 0, 'E: out-of-order failure before booking changes nothing');
-SELECT * INTO r FROM public.record_order_refund_cents('pi_o6', 're_ooo', 3000, 'post_hoc');
-PERFORM public.test_eq(r.post_hoc_cents, 3000, 'E: the later booking is honest');
-PERFORM public.test_true(r.order_status = 'refunded', 'E: booking promotes to refunded');
+--     ordering). THE FAILURE MUST SURVIVE ON ITS OWN. Stripe redelivers only on
+--     a non-2xx response and the webhook always returns 200, so the failure is
+--     delivered EXACTLY ONCE — a previous version of this block "proved" the
+--     case by manually calling reverse() a second time, which encoded the
+--     assumption instead of testing it. There is no second call here.
 SELECT * INTO r FROM public.reverse_order_refund_cents('pi_o6', 're_ooo', 3000);
-PERFORM public.test_true(r.reversed, 'E: the redelivered failure settles it');
-PERFORM public.test_eq(r.post_hoc_cents, 0, 'E: totals fall back to zero');
-PERFORM public.test_true(r.order_status = 'succeeded', 'E: and the status demotes');
+PERFORM public.test_true(r.reversed, 'E: an out-of-order failure records a TOMBSTONE');
+SELECT state INTO bad FROM public.stripe_order_refunds WHERE stripe_refund_id = 're_ooo';
+PERFORM public.test_true(bad = 'failed', 'E: the tombstone is state=failed');
+-- The booking now arrives. It must NOT resurrect the failed refund.
+SELECT * INTO r FROM public.record_order_refund_cents('pi_o6', 're_ooo', 3000, 'post_hoc');
+PERFORM public.test_eq(r.post_hoc_cents, 0, 'E: the later booking CANNOT resurrect it');
+PERFORM public.test_true(r.order_status <> 'refunded', 'E: no phantom refund on the order');
+SELECT state INTO bad FROM public.stripe_order_refunds WHERE stripe_refund_id = 're_ooo';
+PERFORM public.test_true(bad = 'failed', 'E: failed stays terminal after the booking');
 
 -- (F) a failed refund's row is RETAINED, not deleted, so the history stays
 --     auditable and the terminal state survives every redelivery.

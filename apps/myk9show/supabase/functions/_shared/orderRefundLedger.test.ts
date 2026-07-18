@@ -4,8 +4,35 @@ import {
   failOrderRefund,
   resolveOrderStatusAfterRefund,
   upsertOrderRefund,
+  refundKindFromMetadata,
+  MAKE_WHOLE_METADATA_KEY,
   type OrderRefundLedgerRow,
 } from './orderSnapshot';
+
+describe('refundKindFromMetadata — race-proof attribution (Codex round-7)', () => {
+  it('reads make_whole off the Stripe object, so the sweep cannot mislabel it', () => {
+    // The `charge.refunded` sweep may run BEFORE the make-whole writer books its
+    // row. Because the ledger upsert never overwrites `kind`, whoever lands first
+    // decides it — so the kind must be knowable from the Stripe object itself.
+    // Assuming 'post_hoc' here booked make-whole money as a permanent platform
+    // loss and could understate the club payout.
+    expect(refundKindFromMetadata({ metadata: { [MAKE_WHOLE_METADATA_KEY]: 'true' } })).toBe(
+      'make_whole'
+    );
+  });
+
+  it('defaults an ordinary refund to post_hoc (a real platform loss)', () => {
+    expect(refundKindFromMetadata({ metadata: { type: 'entry_refund' } })).toBe('post_hoc');
+    expect(refundKindFromMetadata({ metadata: null })).toBe('post_hoc');
+    expect(refundKindFromMetadata({})).toBe('post_hoc');
+  });
+
+  it('does not treat a non-"true" value as make-whole', () => {
+    expect(refundKindFromMetadata({ metadata: { [MAKE_WHOLE_METADATA_KEY]: 'false' } })).toBe(
+      'post_hoc'
+    );
+  });
+});
 
 // Pure mirror of the refund LEDGER (`public.stripe_order_refunds` + the
 // `recompute_order_refund_totals` recompute, migration 20260717120000). The DB is
@@ -207,4 +234,3 @@ describe('resolveOrderStatusAfterRefund: status = refunded IFF fully refunded', 
     ).toEqual({ status: 'succeeded', fullyRefunded: false, refundedAt: 'clear' });
   });
 });
-

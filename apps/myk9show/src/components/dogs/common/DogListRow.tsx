@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { Dog } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
 import { Badge } from '../../ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../../ui/avatar';
-import { PawPrint } from 'lucide-react';
-import ThreeDotMenu from '../../common/ThreeDotMenu';
+import { Eye, Pencil, PawPrint } from 'lucide-react';
+import { RowActionMenu, toRowActions, type RowAction } from '@/components/ui/RowActionMenu';
+import { dogActions } from './dogActions';
 
 interface DogListRowProps {
   dog: Dog;
@@ -26,6 +27,21 @@ const DogListRow: React.FC<DogListRowProps> = ({
   getOrganizationBadgeColor,
 }) => {
   const owner = owners.find(o => o.id === dog.ownerId);
+
+  // View/Edit stay page-supplied callbacks (outside the shared status/delete
+  // catalog); Delete resolves from `dogActions` so row and bulk delete can't
+  // diverge (design.md decision D1). Status-change actions self-hide here
+  // (`onSetStatus` isn't wired at this call site) — this row menu doesn't yet
+  // offer status changes, only the DogsTableView bulk bar does.
+  const actions: RowAction[] = useMemo(
+    () => [
+      { id: 'view', label: 'View', icon: <Eye />, onSelect: onView },
+      { id: 'edit', label: 'Edit Profile', icon: <Pencil />, onSelect: onEdit },
+      ...toRowActions(dog, { onDelete: () => onDelete() }, dogActions),
+    ],
+    [dog, onView, onEdit, onDelete]
+  );
+
   return (
     <div className="flex items-center bg-card rounded-lg shadow-sm border px-4 py-3 mb-2">
       {/* Photo */}
@@ -88,7 +104,7 @@ const DogListRow: React.FC<DogListRowProps> = ({
       </div>
       {/* Actions */}
       <div className="flex-shrink-0 ml-4">
-        <ThreeDotMenu onView={onView} onEdit={onEdit} onDelete={onDelete} />
+        <RowActionMenu actions={actions} label="More actions" size="touch" />
       </div>
     </div>
   );

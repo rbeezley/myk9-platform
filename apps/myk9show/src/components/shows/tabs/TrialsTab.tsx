@@ -6,7 +6,7 @@ import { Calendar, Plus } from 'lucide-react';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
-import { FilterEmptyState } from '@/components/common/FilterEmptyState';
+import { EmptyState } from '@/components/common/EmptyState';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useRBAC } from '@/hooks/useRBAC';
 import { deriveTrialStatusKey, type ClassStatusValue } from '@myk9/core';
@@ -174,24 +174,25 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
       </div>
 
       {trials.length === 0 ? (
-        <div className="py-16 text-center">
-          <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
-          <h3 className="text-lg font-medium text-foreground">No Trials</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            No trials have been created for this show yet.
-          </p>
-          {canManage && (
-            <Button variant="outline" className="mt-4 gap-1.5" onClick={openWizard}>
-              <Plus className="h-4 w-4" />
-              New Trial
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          icon={Calendar}
+          title="No Trials"
+          description="No trials have been created for this show yet."
+          action={canManage ? { label: 'New Trial', onClick: openWizard, icon: Plus } : null}
+        />
       ) : filteredTrials.length === 0 && trials.length > 0 ? (
-        <FilterEmptyState
-          noun="trials"
-          statusFilter={statusFilter}
-          onReset={() => setStatusFilter('all')}
+        <EmptyState
+          icon={Calendar}
+          variant="filter"
+          size="sm"
+          title={
+            statusFilter === 'pending'
+              ? 'All trials completed!'
+              : statusFilter === 'completed'
+                ? 'No trials completed yet.'
+                : 'No trials match the current filter.'
+          }
+          action={{ label: 'Show all trials', onClick: () => setStatusFilter('all') }}
         />
       ) : viewMode === 'cards' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

@@ -17,6 +17,8 @@ import {
   buildOrderSnapshotFields,
   extractProcessingFeeCents,
   resolveAcceptedEntrySnapshot,
+  refundKindFromMetadata,
+  MAKE_WHOLE_METADATA_KEY,
 } from '../_shared/orderSnapshot.ts';
 import { loadEntryPaymentLineItemFeesFromStripe } from '../_shared/entryPaymentLineItems.ts';
 import {
@@ -492,7 +494,12 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
       const rows = await recordOrderRefundCents(intentIdForLedger, {
         refundId: refund.id,
         amountCents: refund.amount ?? 0,
-        kind: 'post_hoc',
+        // Read the kind off the Stripe object rather than assuming post_hoc.
+        // A make-whole auto-refund stamps MAKE_WHOLE_METADATA_KEY at creation,
+        // so this sweep attributes it correctly even when it wins the race
+        // against that writer. Assuming 'post_hoc' here booked make-whole money
+        // as a permanent platform loss (Codex round-7 finding).
+        kind: refundKindFromMetadata(refund),
       });
       if (rows === null) {
         recordedRows = null;
@@ -765,7 +772,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   } else if (session.mode === 'subscription') {
     await handleSubscriptionCheckoutCompleted(session);
   } else if (session.mode === 'payment') {
-    await handleOneTimePaymentCompleted(session);
+    // MP-24: nothing client-facing can create a bare mode:'payment' session
+    // anymore (stripe-checkout removed that mode) and the old handler here
+    // recorded the UNVERIFIED payload amount_total into stripe_orders. If one
+    // ever arrives it is unexpected — log loudly instead of recording it.
+    console.error(
+      `Unexpected untyped one-time payment session ${session.id} — no handler records it; investigate its origin`
+    );
   }
 }
 
@@ -1881,6 +1894,13 @@ async function issueEntryPaymentAutoRefund(input: {
         amount: input.amountCents,
         metadata: {
           type: 'entry_payment_request_auto_refund',
+          // RACE-PROOF ATTRIBUTION: `charge.refunded` can arrive BEFORE this
+          // writer books its own ledger row, and the ledger upsert deliberately
+          // never overwrites `kind`. Without a marker ON THE STRIPE OBJECT the
+          // sweep would book this make-whole refund as 'post_hoc' and it would
+          // stay a permanent (wrong) platform loss. Stripe carries this metadata
+          // on every delivery, so the kind is knowable regardless of order.
+          [MAKE_WHOLE_METADATA_KEY]: 'true',
           checkout_session_id: input.session.id,
           entry_payment_link_id: input.linkId ?? '',
           reason: input.reason,
@@ -2062,6 +2082,8 @@ async function issueCartOverflowAutoRefund(input: {
         amount: input.decision.amountCents,
         metadata: {
           type: 'entry_cart_overflow_auto_refund',
+          // Race-proof attribution — see MAKE_WHOLE_METADATA_KEY.
+          [MAKE_WHOLE_METADATA_KEY]: 'true',
           checkout_session_id: input.session.id,
           reason: input.decision.reason,
           invalid_cart_item_ids: JSON.stringify(input.invalidCartItemIds),
@@ -2334,49 +2356,6 @@ async function handleSubscriptionCheckoutCompleted(session: Stripe.Checkout.Sess
       : (session.subscription as { id?: string } | null)?.id;
 
   await syncSubscriptionFromStripe(customerId, subscriptionId ?? undefined);
-}
-
-/**
- * Handle one-time payment completion
- */
-async function handleOneTimePaymentCompleted(session: Stripe.Checkout.Session) {
-  const customerId = session.customer as string;
-
-  // Get stripe_customers record
-  const { data: stripeCustomer } = await supabase
-    .from('stripe_customers')
-    .select('id')
-    .eq('stripe_customer_id', customerId)
-    .single();
-
-  const oneTimeIntentId =
-    typeof session.payment_intent === 'string' ? session.payment_intent : null;
-  // Immutable financial snapshot (MYK9-54). A one-time payment carries no entry
-  // subtotal or platform fee (those stay NULL); capture only Stripe's actual
-  // processing fee. NULL = pending, never an estimated zero.
-  const oneTimeProcessingFeeCents = await fetchProcessingFeeCents(oneTimeIntentId);
-
-  // Create stripe_orders record
-  const { error: orderError } = await supabase.from('stripe_orders').insert({
-    customer_id: stripeCustomer?.id || null,
-    stripe_payment_intent_id: oneTimeIntentId,
-    stripe_checkout_session_id: session.id,
-    amount_cents: session.amount_total || 0,
-    currency: session.currency || 'usd',
-    status: 'succeeded',
-    order_type: 'payment',
-    ...buildOrderSnapshotFields({ stripeProcessingFeeCents: oneTimeProcessingFeeCents }),
-    metadata: session.metadata || {},
-    paid_at: new Date().toISOString(),
-  });
-
-  if (orderError) {
-    console.error('Error creating stripe_orders record:', orderError);
-  } else if (oneTimeProcessingFeeCents === null) {
-    await warnMissingProcessingFee(oneTimeIntentId, `one-time payment ${session.id}`);
-  }
-
-  console.log(`One-time payment completed: ${session.id}`);
 }
 
 /**

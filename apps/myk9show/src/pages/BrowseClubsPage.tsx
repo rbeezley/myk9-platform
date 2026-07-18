@@ -157,7 +157,7 @@ const BrowseClubsPage: React.FC = () => {
           action={
             canCreateClub
               ? { label: 'New Club', onClick: () => setShowCreateClubPanel(true), icon: Plus }
-              : undefined
+              : null
           }
         />
       );
@@ -170,6 +170,7 @@ const BrowseClubsPage: React.FC = () => {
           title="No clubs match your filters"
           description="Try adjusting your search or filter criteria."
           action={{ label: 'Clear Filters', onClick: clearAllFilters }}
+          variant="filter"
         />
       );
     }

@@ -97,6 +97,21 @@ describe('useEntryManagementData', () => {
     expect(mocks.getEntriesForShow).toHaveBeenCalledWith('show-1');
   });
 
+  it('surfaces a retryable plain-English message when entries cannot be loaded', async () => {
+    mocks.getEntriesForShow.mockResolvedValue({
+      data: null,
+      error: new Error("We couldn't load entries for this show. Please retry."),
+    });
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.loadError).toBe("We couldn't load entries for this show. Please retry.");
+    expect(result.current.entries).toEqual([]);
+  });
+
   it('requests replication sync when the selected show loads from an empty idle entries replica', async () => {
     mocks.syncStatus = {
       isSyncing: false,

@@ -79,6 +79,82 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### QA-CLUB-TABS-038
+
+- **Status:** open
+- **Severity:** blocker
+- **Role:** club-admin, admin
+- **Surface:** `/clubs/dededede-0000-0000-0000-000000000001` club profile tabs and statistic cards
+- **Suite category:** manual-debug
+- **Pattern:** silent-no-op
+- **Detected by:** Playwright
+- **Evidence:** Authenticated Chromium walk on 2026-07-18: clicking `Past Shows`, `About`, `Members`, `Branding`, or `Active Members` left `Upcoming Shows` selected and its panel visible. The exact replay is documented in `docs/qa/club-pages-audit-2026-07-18.md`.
+- **User impact:** Club admins cannot reach the profile's About, Members, or Branding panels from the visible controls.
+- **Intent check:** Harms the club-admin workflow by making routine club management feel unreliable and hidden.
+- **Fix owner:** Club profile `PrimaryTabs` state wiring and stat-card tab-change handler.
+- **Proof required:** Add a Chromium replay that clicks every profile tab and both stat cards, asserting the selected tab and panel content after each click.
+- **Notes:** Confirmed at desktop viewport; the 375px profile pass had no page-level overflow.
+
+### QA-CLUB-ROLE-SCOPE-039
+
+- **Status:** open
+- **Severity:** high
+- **Role:** club-admin, admin
+- **Surface:** `/club-admin/members` My Club sidebar links
+- **Suite category:** manual-debug
+- **Pattern:** role-scope-empty
+- **Detected by:** Playwright
+- **Evidence:** The authenticated sidebar generated `Club Profile` and `Our Shows` links with club ID `49791e78-50b0-4393-adb1-ee0d8be591fc`; opening Club Profile fell back to `/clubs`, while the valid seeded Heartland club used ID `dededede-0000-0000-0000-000000000001`. Replay is documented in `docs/qa/club-pages-audit-2026-07-18.md`.
+- **User impact:** A club admin cannot reliably open their own club from navigation.
+- **Intent check:** Harms the club-admin expectation that the software already knows which club they manage.
+- **Fix owner:** Auth scope/club assignment projection and shared sidebar club-link builder.
+- **Proof required:** Sign in with the canonical club-admin account, assert both My Club links target the scoped club, and open each destination successfully.
+
+### QA-CLUB-PUBLIC-040
+
+- **Status:** open
+- **Severity:** high
+- **Role:** public
+- **Surface:** `/clubs` and `/clubs/:id`
+- **Suite category:** manual-debug
+- **Pattern:** public-replication-bootstrap
+- **Detected by:** Playwright
+- **Evidence:** Fresh guest browser saw `0 clubs` and `No clubs yet` at `/clubs`, while authenticated Browse Clubs showed 4 clubs. Direct guest navigation to the valid Heartland club URL rendered only `/` and `/` beneath the public header. Replay is documented in `docs/qa/club-pages-audit-2026-07-18.md`.
+- **User impact:** Public visitors cannot browse clubs or view a valid club detail page.
+- **Intent check:** Harms public trust and makes the club directory appear empty or broken.
+- **Fix owner:** Guest-safe club replication bootstrap and club-detail terminal states; confirm the existing public RLS contract without changing it unless evidence proves otherwise.
+- **Proof required:** Guest Chromium replay of the seeded public list and detail routes with a non-empty result plus a clear error state for an invalid ID.
+
+### QA-CLUB-PAYMENTS-041
+
+- **Status:** open
+- **Severity:** high
+- **Role:** club-admin
+- **Surface:** `/club-admin/payments` payment setup checklist
+- **Suite category:** manual-debug
+- **Pattern:** silent-no-op
+- **Detected by:** Playwright
+- **Evidence:** With no connected Stripe account, normal browser pointer clicks on `Connect payment account` and `Not now` left the visible state unchanged; DOM `.click()` changed the state. The button was the element at the pointer coordinate. Replay is documented in `docs/qa/club-pages-audit-2026-07-18.md`.
+- **User impact:** A treasurer may be unable to start or cancel the payment-account setup flow and receives no feedback.
+- **Intent check:** Harms the club treasurer's need for a calm, obvious setup flow before leaving for Stripe.
+- **Fix owner:** `ClubPaymentsCard` interaction path and shared Button/event handling.
+- **Proof required:** Headed/manual replay plus Playwright assertion that pointer activation opens the checklist, closes it with `Not now`, and does not start Stripe without an explicit `Continue to Stripe` click.
+
+### QA-CLUB-CONTACT-042
+
+- **Status:** open
+- **Severity:** medium
+- **Role:** public, club-admin
+- **Surface:** `/clubs/:id` Club options menu
+- **Suite category:** manual-debug
+- **Pattern:** validation-visible-mismatch
+- **Detected by:** Playwright
+- **Evidence:** Heartland Scent Work Club has no phone value, but `Club options` still exposes `Call Club`; clicking it produces no usable destination or feedback. Replay is documented in `docs/qa/club-pages-audit-2026-07-18.md`.
+- **User impact:** Users see a contact action that cannot work.
+- **Intent check:** Harms calm, trustworthy club discovery by exposing a dead action.
+- **Fix owner:** Club profile header contact-action guards and empty-contact copy.
+- **Proof required:** Verify the action is absent when phone is blank and remains callable when a valid phone is present.
+
 ### QA-INFRA-OCC-STORM-037
 
 - **Status:** open

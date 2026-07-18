@@ -179,4 +179,110 @@ describe('ShowDeskPanel', () => {
       '/shows/show-1/results-control'
     );
   });
+
+  it('navigates the payment-due chip to its Entry Management href, not a local filter', async () => {
+    const { user } = render(
+      <>
+        <ShowDeskPanel
+          show={show}
+          trials={[futureTrial]}
+          classes={[
+            {
+              id: 'class-1',
+              trialId: 'trial-1',
+              name: 'Container Novice A',
+              status: 'Not Started',
+            },
+          ]}
+          entries={[
+            {
+              id: 'entry-payment-due',
+              class_id: 'class-1',
+              entry_status: 'accepted',
+              check_in_status: 'checked-in',
+              payment_status: 'pending',
+            },
+          ]}
+          canManageShow
+          scopeNow={new Date('2026-05-28T15:00:00.000Z')}
+        />
+        <LocationProbe />
+      </>,
+      { initialRoute: '/shows/show-1/show-desk' }
+    );
+
+    await user.click(screen.getByRole('button', { name: /payment due/i }));
+
+    expect(screen.getByTestId('current-location')).toHaveTextContent(
+      '/shows/show-1/entry-management'
+    );
+    expect(screen.getByTestId('current-location')).toHaveTextContent('payment=pending');
+  });
+
+  it('keeps the entries-waiting-checkin chip as a local Show Map filter, not a navigation', async () => {
+    const { user } = render(
+      <>
+        <ShowDeskPanel
+          show={show}
+          trials={[futureTrial]}
+          classes={[
+            {
+              id: 'class-1',
+              trialId: 'trial-1',
+              name: 'Container Novice A',
+              status: 'Not Started',
+            },
+          ]}
+          entries={[
+            {
+              id: 'entry-checkin',
+              class_id: 'class-1',
+              entry_status: 'accepted',
+              check_in_status: null,
+            },
+          ]}
+          canManageShow
+          scopeNow={new Date('2026-05-28T15:00:00.000Z')}
+        />
+        <LocationProbe />
+      </>,
+      { initialRoute: '/shows/show-1/show-desk' }
+    );
+
+    const before = screen.getByTestId('current-location').textContent;
+    await user.click(screen.getByRole('button', { name: /waiting for check-in/i }));
+
+    // Clicking the check-in chip sets a local Show Map filter — it must not
+    // navigate away from the Show Desk route the way payment-due does.
+    expect(screen.getByTestId('current-location').textContent).toBe(before);
+  });
+
+  it('hides staff pending signals and their click handler when canManageShow is false', () => {
+    render(
+      <ShowDeskPanel
+        show={show}
+        trials={[futureTrial]}
+        classes={[
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Not Started',
+          },
+        ]}
+        entries={[
+          {
+            id: 'entry-1',
+            class_id: 'class-1',
+            entry_status: 'submitted',
+            check_in_status: null,
+          },
+        ]}
+        canManageShow={false}
+        scopeNow={new Date('2026-05-28T15:00:00.000Z')}
+      />
+    );
+
+    expect(screen.queryByTestId('show-desk-pending-signals')).toBeNull();
+  });
 });

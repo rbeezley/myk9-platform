@@ -10,7 +10,6 @@ import { Search, Plus } from 'lucide-react';
 import { useRBAC } from '@/hooks/useRBAC';
 import { getClassDisplayStatus, type ClassStatusValue, type ClassDisplayStatus } from '@myk9/core';
 import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
-import { FilterEmptyState } from '@/components/common/FilterEmptyState';
 import { formatEntryDate } from '@/lib/format/dates';
 import { compareLevels } from '@/utils/schedule-summary';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
@@ -252,6 +251,16 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
         icon={Search}
         title="No classes scheduled"
         description="Classes for this show haven't been set up yet."
+        action={
+          canManage
+            ? {
+                label: 'New Class',
+                onClick: () =>
+                  navigate(`/secretary/create-show/wizard?showId=${showId}&mode=add-classes`),
+                icon: Plus,
+              }
+            : null
+        }
       />
     );
   }
@@ -299,10 +308,18 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
       </div>
 
       {filteredClasses.length === 0 && classes.length > 0 ? (
-        <FilterEmptyState
-          noun="classes"
-          statusFilter={statusFilter}
-          onReset={() => setStatusFilter('all')}
+        <EmptyState
+          icon={Search}
+          variant="filter"
+          size="sm"
+          title={
+            statusFilter === 'pending'
+              ? 'All classes completed!'
+              : statusFilter === 'completed'
+                ? 'No classes completed yet.'
+                : 'No classes match the current filter.'
+          }
+          action={{ label: 'Show all classes', onClick: () => setStatusFilter('all') }}
         />
       ) : viewMode === 'table' ? (
         <DataTable

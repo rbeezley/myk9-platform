@@ -17,6 +17,12 @@
     "qa:doc-staleness:strict": "node scripts/check-doc-staleness.js --strict",
     "qa:doc-staleness:test": "node --test scripts/check-doc-staleness.test.js",
     "qa:nightly:prepare": "bash scripts/qa/run-nightly-isolated.sh",
+    "qa:nightly:health": "bash scripts/qa/run-nightly-health.sh",
+    "qa:playwright:regression": "bash scripts/qa/run-playwright-regression.sh",
+    "qa:isolated-e2e:prepare": "tsx scripts/qa/isolated-e2e-lifecycle.ts prepare",
+    "qa:isolated-e2e:reset": "tsx scripts/qa/isolated-e2e-lifecycle.ts reset",
+    "qa:isolated-e2e:stop": "tsx scripts/qa/isolated-e2e-lifecycle.ts stop",
+    "qa:isolated-e2e:test": "vitest run scripts/qa/isolated-e2e-*.test.ts",
     "qa:discovery:crud": "pnpm --dir apps/myk9show test:e2e:clean src/test/e2e/entities/dogCRUD.spec.ts src/test/e2e/entities/clubCRUD.spec.ts src/test/e2e/entities/peopleCRUD.spec.ts src/test/e2e/entities/classCRUD.spec.ts src/test/e2e/entities/trialCRUD.spec.ts src/test/e2e/entities/showCRUD.spec.ts --project=chromium --workers=1 --timeout=90000 --retries=0",
     "qa:discovery:crud:full": "pnpm --dir apps/myk9show test:e2e:clean src/test/e2e/entities/dogCRUD.spec.ts src/test/e2e/entities/clubCRUD.spec.ts src/test/e2e/entities/peopleCRUD.spec.ts src/test/e2e/entities/classCRUD.spec.ts src/test/e2e/entities/trialCRUD.spec.ts src/test/e2e/entities/showCRUD.spec.ts --project=chromium --workers=1 --timeout=90000 --retries=0",
     "qa:db-drift:enum": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/db-drift/enum-check-drift.ts",
@@ -67,7 +73,7 @@
   "pnpm": {
     "overrides": {
       "eslint-plugin-react-hooks": "7.0.1",
-      "@supabase/supabase-js": "2.108.2",
+      "@supabase/supabase-js": "2.110.2",
       "esbuild": "^0.28.1",
       "qs": "^6.15.2",
       "undici": "^7.16.0",

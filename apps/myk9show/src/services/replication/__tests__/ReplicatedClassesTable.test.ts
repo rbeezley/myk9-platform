@@ -298,7 +298,9 @@ describe('ReplicatedClassesTable', () => {
         const result = await classesTable.sync('trial-1');
 
         expect(result.success).toBe(false);
-        expect(result.error).toContain('Supabase query failed');
+        expect(result.error).toBe(
+          "We couldn't refresh saved show data. You can keep using the saved copy while we try again."
+        );
       });
 
       it('should handle network errors gracefully', async () => {
@@ -889,8 +891,9 @@ describe('ReplicatedClassesTable', () => {
       const result = await classesTable.sync('trial-1');
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Supabase query failed');
-      expect(result.error).toContain('Connection refused');
+      expect(result.error).toBe(
+        "We couldn't refresh saved show data. You can keep using the saved copy while we try again."
+      );
     });
 
     it('should handle thrown exceptions', async () => {

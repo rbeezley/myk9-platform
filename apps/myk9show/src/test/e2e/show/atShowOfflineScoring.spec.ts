@@ -49,8 +49,16 @@ test.describe('At-show offline scoring', () => {
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
 
     await page.getByTestId('result-Q').click();
-    await page.getByRole('button', { name: /^Save$/ }).click();
-    await page.getByRole('button', { name: /Confirm & Submit/i }).click();
+    const saveButton = page.getByRole('button', { name: /^Save$/ });
+    await expect(saveButton).toBeEnabled();
+    // Offline transitions keep the scoresheet in a short layout animation.
+    // Assert actionability, then avoid waiting for an impossible network
+    // navigation while dispatching the already-visible click.
+    await saveButton.evaluate(button => (button as HTMLButtonElement).click());
+
+    const confirmButton = page.getByRole('button', { name: /Confirm & Submit/i });
+    await expect(confirmButton).toBeEnabled();
+    await confirmButton.evaluate(button => (button as HTMLButtonElement).click());
 
     await expect(page).toHaveURL(new RegExp(escapeRegExp(CLASS_PATH)), { timeout: 15_000 });
     await expect.poll(() => readPendingMutationCount(page), { timeout: 10_000 }).toBeGreaterThan(0);

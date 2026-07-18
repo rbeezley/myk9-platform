@@ -1,18 +1,14 @@
-# Nightly E2E — full myK9Show Playwright suite (beyond the 2-spec PR smoke in
-# ci.yml's e2e-myk9show job). Runs on a schedule so broader E2E coverage
-# doesn't slow down every PR, while still catching regressions daily.
+# Playwright Regression — stateful curated myK9Show suite (beyond the 2-spec PR
+# smoke in ci.yml). This is intentionally separate from the read-only nightly
+# health workflow because these journeys can create or mutate E2E data.
 #
-# Manual dispatch: use "Run workflow" in the Actions tab to trigger on demand
-# (e.g. to verify a fix before waiting for the next scheduled run).
+# Manual dispatch only until the workflow target is an isolated/resettable E2E
+# database. Do not turn on a schedule while it points at shared staging.
 #
-# Gated on the MYK9SHOW_SMOKE_CI_ENABLED repository variable since this job
-# exercises the shared Supabase project, same as the PR smoke job. Schedule
-# events have no PR context, so the `if:` only checks the repo variable.
-name: Nightly E2E
+# Gated separately from the read-only smoke variable.
+name: Playwright Regression
 
 on:
-  schedule:
-    - cron: '0 6 * * *'
   workflow_dispatch: {}
 
 env:
@@ -20,14 +16,18 @@ env:
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
 jobs:
-  e2e-myk9show-nightly:
-    name: E2E Nightly
+  playwright-regression:
+    name: Stateful Playwright Regression
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    if: vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true'
+    timeout-minutes: 90
+    if: vars.MYK9SHOW_REGRESSION_CI_ENABLED == 'true'
 
     steps:
       - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
 
       - uses: pnpm/action-setup@v6
 
@@ -39,14 +39,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # The nightly suite spans secretary, admin, judge, and demo-exhibitor
+      - name: Prepare isolated Supabase target
+        run: pnpm qa:isolated-e2e:prepare
+        env:
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+          MYK9_E2E_APPROVED_PROJECT_REFS: local
+          MYK9_E2E_SUPABASE_PROJECT_REF: local
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
+      # The regression suite spans secretary, admin, judge, and demo-exhibitor
       # journeys, so preflight every role before starting the browser suite.
       - name: Verify E2E auth credentials
         working-directory: apps/myk9show
         run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts secretary admin judge exhibitor
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
           E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
@@ -60,19 +70,16 @@ jobs:
         run: pnpm build
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Install Playwright browser
         run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
 
-      - name: Run E2E Nightly
-        working-directory: apps/myk9show
-        run: pnpm test:e2e:nightly -- --fail-on-flaky-tests
+      - name: Run Playwright Regression
+        run: pnpm qa:playwright:regression
         env:
           CI: 'true'
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
           E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
           E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
@@ -82,10 +89,48 @@ jobs:
           E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
-      - name: Upload E2E nightly report
+      - name: Preserve first regression report
+        if: always()
+        run: |
+          if [ -d apps/myk9show/playwright-report-ci ]; then
+            cp -R apps/myk9show/playwright-report-ci apps/myk9show/playwright-report-ci-first
+          fi
+
+      - name: Reset isolated target
+        if: success()
+        run: pnpm qa:isolated-e2e:reset
+        env:
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
+      - name: Run Playwright Regression Again
+        if: success()
+        run: pnpm qa:playwright:regression
+        env:
+          CI: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
+      - name: Upload Playwright regression reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: myk9show-nightly-e2e-report
-          path: apps/myk9show/playwright-report-ci/
+          name: myk9show-playwright-regression-report
+          path: |
+            apps/myk9show/playwright-report-ci/
+            apps/myk9show/playwright-report-ci-first/
           retention-days: 7
+
+      - name: Stop isolated Supabase target
+        if: always()
+        run: pnpm qa:isolated-e2e:stop

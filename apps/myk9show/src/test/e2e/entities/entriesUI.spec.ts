@@ -12,8 +12,8 @@ import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
  * Walks the canonical `/shows/:showId/entry-management` surface as the
  * secretary role against the maintained Heartland seed. Card-only assertions
  * explicitly switch to Cards view; table-only row-action and selection coverage
- * stays on desktop/table projects; the mobile-chrome project skips those tests
- * because it renders enrollment cards instead.
+ * stays on desktop projects; mobile-chrome and tablet skip those tests because
+ * they render enrollment cards instead.
  */
 
 test.describe.configure({ mode: 'serial' });

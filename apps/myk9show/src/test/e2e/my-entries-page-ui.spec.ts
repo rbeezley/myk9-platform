@@ -210,6 +210,9 @@ test.describe('My Shows Page - Current Status', () => {
   });
 });
 
+// Empty-state behavior is covered at the component layer in
+// FirstRunZeroState.test.tsx; this canonical E2E exhibitor fixture intentionally
+// has entries and no no-entry browser fixture is provisioned.
 test.describe('My Shows Page - Context-Aware Messaging', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);

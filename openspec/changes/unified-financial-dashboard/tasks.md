@@ -5,9 +5,9 @@
 - [x] 1.3 Add the migration for immutable snapshot fields, indexes, explicit grants, and any compatibility/backfill markers; keep the migration reversible and do not rewrite historical facts from current settings.
 - [x] 1.4 Implement pure TypeScript helpers for snapshot normalization and cent-based platform gross/net calculations; add unit tests for rounding, missing processing fees, refunds, and fee-rate changes.
 - [x] 1.5 Populate snapshots at every Stripe order creation path and update only refunded cents in the refund path; add handler-level tests for duplicate delivery and delayed balance-transaction data.
-- [ ] 1.6 Add the PII-free scoped reconciliation RPC or security-barrier projection with server-side aggregation, explicit authorization, and complete pagination for detail rows.
-- [ ] 1.7 Add authorization, no-PII, and greater-than-1000-row aggregation tests for platform, club, show, and unauthorized callers.
-- [ ] 1.8 Run local migration/source-pin/type checks and document the shared-system approval gate for any staging migration or function deployment.
+- [x] 1.6 Add the PII-free scoped reconciliation RPC or security-barrier projection with server-side aggregation, explicit authorization, and complete pagination for detail rows.
+- [x] 1.7 Add authorization, no-PII, and greater-than-1000-row aggregation tests for platform, club, show, and unauthorized callers.
+- [x] 1.8 Run local migration/source-pin/type checks and document the shared-system approval gate for any staging migration or function deployment.
 
 ## 2. Accounting projection and shared service
 

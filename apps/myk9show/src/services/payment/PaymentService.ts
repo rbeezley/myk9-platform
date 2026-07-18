@@ -82,9 +82,7 @@ export class PaymentService {
   /**
    * Map a stripe_orders row status string to the PaymentDetails status union.
    */
-  private mapOrderStatus(
-    status: string | null
-  ): PaymentDetails['status'] {
+  private mapOrderStatus(status: string | null): PaymentDetails['status'] {
     switch (status) {
       case 'paid':
       case 'completed':
@@ -180,7 +178,7 @@ export class PaymentService {
         return [];
       }
 
-      return (data ?? []).map((order) => this.mapOrderToPaymentDetails(order, userId));
+      return (data ?? []).map(order => this.mapOrderToPaymentDetails(order, userId));
     } catch (error) {
       logger.error('Failed to load payment history', 'payment', {}, error as Error);
       return [];
@@ -326,16 +324,6 @@ export class PaymentService {
     } catch (error) {
       logger.error('Failed to generate receipt', 'payment', {}, error as Error);
       return null;
-    }
-  }
-
-  async testPaymentService(): Promise<boolean> {
-    try {
-      logger.debug('Payment service test (mock)', 'payment');
-      return true;
-    } catch (error) {
-      logger.error('Payment service test failed', 'payment', {}, error as Error);
-      return false;
     }
   }
 }

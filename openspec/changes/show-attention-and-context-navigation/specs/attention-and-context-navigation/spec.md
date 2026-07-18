@@ -48,6 +48,11 @@ Attention summaries SHALL use the same typed predicates and scope as their linke
 - **THEN** the summary shows a compact loading/partial state
 - **AND** it does not report confident zero attention items
 
+#### Scenario: Source data is stale
+- **WHEN** counts derive from replicated data that has not recently synced
+- **THEN** the summary and its destination reflect the same loaded dataset so counts still agree
+- **AND** the surface's existing staleness/partial indicators are preserved rather than presenting the counts as fresh
+
 ### Requirement: Related context links stay inside existing surfaces
 Existing detail surfaces SHALL provide compact related-context links only when the related ID, authorized route, and show scope are known. The links SHALL navigate to canonical owner surfaces and SHALL NOT create a graph page or relationship editor.
 

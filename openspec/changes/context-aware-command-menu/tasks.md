@@ -15,6 +15,7 @@
 
 - [ ] 3.1 Reconcile the supported shortcut vocabulary between `AppHeader`, the palette, and `KeyboardShortcutsOverlay`: register all shortcuts in `useKeyboardShortcuts` and derive palette badges and overlay entries from that registry; remove display-only badges.
 - [ ] 3.2 Add component tests for pointer/touch opening, keyboard focus, Escape/close, result selection, permission suppression, and shortcut help.
+- [ ] 3.3 Add dispatch-failure tests for the check-in command: failed mutation surfaces plain-language retry/recovery feedback, no duplicate dispatch occurs, and the palette/target row does not claim an unaccepted durable state.
 
 ## 4. Verification and implementation gate
 

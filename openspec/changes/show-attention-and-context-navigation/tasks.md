@@ -12,7 +12,7 @@
 
 ## 3. Related context navigation
 
-- [ ] 3.1 Add compact authorized related links to Class Details and Entry Management using existing route helpers.
+- [ ] 3.1 Add compact authorized related links to Class Details, Entry Management, and the Show Desk panel using existing route helpers.
 - [ ] 3.2 Add only loaded/known dog/person/trial/show links; do not introduce a graph, relationship editor, or decorative global fetch.
 - [ ] 3.3 Add cross-show scope and permission tests for related links and target omission.
 

@@ -52,6 +52,11 @@ The Entry Management and Class Management view headers SHALL provide a copy-link
 - **THEN** the copied URL contains only normalized, supported parameters for that surface
 - **AND** opening the URL reproduces the same filters, scope, and display state for an authorized user
 
+#### Scenario: Clipboard access is unavailable
+- **WHEN** the browser clipboard API is unavailable or the copy attempt fails
+- **THEN** the surface offers the normalized URL for manual copying (for example, a selectable field)
+- **AND** the failure does not interrupt the current view or selection state
+
 #### Scenario: Copied link is opened by a user without access
 - **WHEN** a copied view URL is opened by a user who lacks access to the show or surface
 - **THEN** the existing authorization boundary applies

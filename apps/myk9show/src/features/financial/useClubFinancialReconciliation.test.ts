@@ -35,6 +35,7 @@ function makeOrder(
   return {
     orderId: 'o1',
     showId: 'show-1',
+    showName: 'Show 1',
     status: 'succeeded',
     orderType: 'entry',
     amountCents: 10700,
@@ -53,11 +54,15 @@ function makeOrder(
 }
 
 describe('useClubFinancialReconciliation', () => {
-  it('composes orders + payouts into per-show rows, borrowing show names from payout history', async () => {
+  // Show names now come from the authorized RPC projection, NOT borrowed from
+  // payout history (review finding 5): a show with orders but no payout row yet
+  // is a normal pre-settlement state, and borrowing left it labelled "Show".
+  it('composes orders + payouts into per-show rows, naming shows from the RPC projection', async () => {
     mockedOrders.mockResolvedValue([
       {
         orderId: 'o1',
         showId: 'show-1',
+        showName: 'Cedar Valley Classic',
         status: 'succeeded',
         orderType: 'entry',
         amountCents: 10700,

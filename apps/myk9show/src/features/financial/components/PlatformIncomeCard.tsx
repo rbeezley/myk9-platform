@@ -42,16 +42,19 @@ function Figure({ label, value, formula, tone = 'default' }: FigureProps) {
 }
 
 function PlatformFigures({ income }: { income: PlatformIncomeSummary }) {
-  const netFigure =
-    income.netPlatformIncome.status === 'available'
-      ? {
-          value: formatCents(income.netPlatformIncome.netCents),
-          tone: 'default' as const,
-        }
-      : {
-          value: `Pending (${income.processingFeePendingCount})`,
-          tone: 'pending' as const,
-        };
+  const { availableCents, pendingResidualCents, pendingOrderCount } = income.netPlatformIncome;
+
+  // The net figure is ALWAYS a real number now. It used to read "Pending" the
+  // moment a single order's Stripe balance transaction was delayed, which — since
+  // nothing retries the fee capture — would have disabled the headline number for
+  // good. The orders whose processing cost is still unknown are named in the
+  // note below instead of silently disappearing into a zero.
+  const pendingNote =
+    pendingOrderCount > 0
+      ? ` Excludes ${pendingOrderCount} order${pendingOrderCount === 1 ? '' : 's'} ` +
+        `whose Stripe processing fee is not captured yet ` +
+        `(up to ${formatCents(pendingResidualCents)} of fee income still to net out).`
+      : '';
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -71,12 +74,37 @@ function PlatformFigures({ income }: { income: PlatformIncomeSummary }) {
           accepted entries are — and the two now arrive as separate explicit
           columns, so neither figure re-derives the split. */}
       <Figure
-        label="Net platform income"
-        value={netFigure.value}
-        tone={netFigure.tone}
-        formula="Gross fee income − captured Stripe processing fees − post-hoc refunds the platform absorbed"
+        label={pendingOrderCount > 0 ? 'Net platform income so far' : 'Net platform income'}
+        value={formatCents(availableCents)}
+        formula={
+          'Fee income − captured Stripe processing fees − post-hoc refunds the platform absorbed, ' +
+          'over the orders whose processing fee is captured.' +
+          pendingNote
+        }
       />
     </div>
+  );
+}
+
+/** One-time (non-entry) charges, net of refunds. Kept as its own figure so this
+ *  money is visible without ever entering entry accounting — and so a
+ *  fully-refunded one-time payment stops reading at full gross. */
+function NonEntryCharges({ income }: { income: PlatformIncomeSummary }) {
+  const { orderCount, grossCents, refundedCents, makeWholeRefundedCents, netCents } =
+    income.nonEntry;
+  if (orderCount === 0) return null;
+  const refundedTotal = refundedCents + makeWholeRefundedCents;
+
+  return (
+    <Figure
+      label="One-time payments (net)"
+      value={formatCents(netCents)}
+      formula={
+        `${orderCount} non-entry charge${orderCount === 1 ? '' : 's'} totalling ` +
+        `${formatCents(grossCents)} gross, less ${formatCents(refundedTotal)} refunded. ` +
+        'Reported separately — never counted as entry collections or fee income.'
+      }
+    />
   );
 }
 
@@ -134,7 +162,7 @@ function AttentionSection({
 
   const items: Array<{ key: string; label: string; count: number }> = [
     { key: 'failed', label: 'Failed transfers', count: attention.failedTransferCount },
-    { key: 'refund', label: 'Unrecorded refunds', count: attention.unrecordedRefundCount },
+    { key: 'refund', label: 'Refund ledger drift', count: attention.refundLedgerDriftCount },
     {
       key: 'mismatch',
       label: 'Charge mismatches',
@@ -204,6 +232,7 @@ export function PlatformIncomeCard() {
   return (
     <div className="space-y-4">
       <PlatformFigures income={data.summary.platformIncome} />
+      <NonEntryCharges income={data.summary.platformIncome} />
       <OutstandingLiability payoutSettlement={data.summary.payoutSettlement} />
       <AttentionSection attention={data.attention} detailTruncated={data.detailTruncated} />
     </div>

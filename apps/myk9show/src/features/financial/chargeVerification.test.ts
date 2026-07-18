@@ -10,6 +10,7 @@ function order(overrides: Partial<FinancialReconciliationOrder>): FinancialRecon
   return {
     orderId: 'order-1',
     showId: 'show-1',
+    showName: 'Show 1',
     status: 'succeeded',
     orderType: 'entry',
     amountCents: 5250,

@@ -20,7 +20,13 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
   it('imports the pure snapshot helpers', () => {
     expect(webhookSource).toContain('buildOrderSnapshotFields');
     expect(webhookSource).toContain('extractProcessingFeeCents');
-    expect(webhookSource).toContain('deriveEntryFeeFromTotalCents');
+    // The payment-link snapshot is built from the ACCEPTED entries, never
+    // back-derived from the gross session total (review finding 2): deriving it
+    // from the total made `amount == subtotal + fee` true by construction, so a
+    // make-whole refund guaranteed a false Mismatch and the tie-out was a
+    // tautology on that path.
+    expect(webhookSource).toContain('resolveAcceptedEntrySnapshot');
+    expect(webhookSource).not.toContain('deriveEntryFeeFromTotalCents');
   });
 
   it('fetches the charge balance transaction to capture the processing fee', () => {
@@ -70,13 +76,19 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     const start = webhookSource.indexOf('async function handleChargeRefunded');
     const end = webhookSource.indexOf('\nasync function', start + 1);
     const body = webhookSource.slice(start, end);
-    const guard = body.indexOf('if (!refundRecorded) {');
-    const statusStamp = body.indexOf("status: 'refunded'");
-    expect(guard).toBeGreaterThan(-1);
-    // The guard must return BEFORE the status transition, or the order reads
+    // The ledger write returns null when the amount did not persist; the handler
+    // must bail out THERE rather than continuing. Otherwise the order reads
     // refunded with 0 refunded cents and the drift is invisible to attention
-    // logic (review finding 5).
-    expect(guard).toBeLessThan(statusStamp);
+    // logic precisely because the status already says refunded (finding 5).
+    const guard = body.indexOf('if (recordedRows === null) {');
+    expect(guard).toBeGreaterThan(-1);
+    expect(body).toContain('deliberately NOT marking the order refunded');
+
+    // And there must be NO blanket status stamp in this handler: the status
+    // transition happens atomically inside record_order_refund_cents, which
+    // stamps 'refunded' IFF fully refunded. A blanket update here would mark a
+    // PARTIALLY refunded order as fully refunded (finding 1).
+    expect(body).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
   });
 
   it('uses the ATOMIC SQL compare-and-set, not a read-then-write JS max', () => {
@@ -108,8 +120,15 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     // transfer, so it must never land in refunded_cents as a platform loss.
     expect(body).toMatch(/makeWholeCents:\s*refund\.amount/);
     expect(body).not.toContain('chargeTotalCents');
-    // Fail closed: the status stamp is gated on the ledger write.
-    expect(body).toContain("input.decision.reason === 'full_make_whole' && refundRecorded");
+    // Idempotency key: the make-whole delta is keyed on the Stripe refund id so
+    // duplicate delivery cannot double-add it (review finding 3).
+    expect(body).toMatch(/makeWholeRefundId:\s*refund\.id/);
+    // Fail closed: an unwritten refund leaves the order looking collected in
+    // full, so it must alert rather than continue silently (finding 5).
+    expect(body).toContain('recordedRows === null || recordedRows.length === 0');
+    // No status stamp here — record_order_refund_cents owns the transition and
+    // stamps 'refunded' IFF fully refunded.
+    expect(body).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
   });
 
   it('records the payment-link make-whole auto-refund as MAKE-WHOLE too', () => {
@@ -119,7 +138,9 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(body).toContain('recordOrderRefundCents(input.paymentIntentId, {');
     expect(body).toMatch(/makeWholeCents:\s*refund\.amount/);
     expect(body).not.toContain('chargeTotalCents');
-    expect(body).toContain("input.reason === 'full_make_whole' && refundRecorded");
+    expect(body).toMatch(/makeWholeRefundId:\s*refund\.id/);
+    expect(body).toContain('recordedRows === null || recordedRows.length === 0');
+    expect(body).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
   });
 
   it('tolerates delayed balance-transaction data by alerting pending, not zeroing', () => {
@@ -175,7 +196,7 @@ describe('stripe_order_snapshots migration (source-pinned)', () => {
     expect(migrationSource).toContain("SET search_path = ''");
     expect(migrationSource).toMatch(/REVOKE ALL ON FUNCTION public\.record_order_refund_cents/);
     expect(migrationSource).toMatch(
-      /GRANT EXECUTE ON FUNCTION public\.record_order_refund_cents\(text, integer, integer\) TO service_role/
+      /GRANT EXECUTE ON FUNCTION public\.record_order_refund_cents\(text, integer, text, integer\) TO service_role/
     );
     // No client role may execute a money write.
     expect(migrationSource).not.toMatch(

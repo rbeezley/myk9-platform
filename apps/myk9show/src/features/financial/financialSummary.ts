@@ -30,6 +30,29 @@ import {
   type FinancialScopeArgs,
 } from './financialReconciliation';
 
+/**
+ * Net platform income, reported as an available figure PLUS a separately
+ * labeled pending residual rather than one latched status.
+ */
+export interface NetPlatformIncome {
+  /**
+   * Net over the orders whose Stripe processing fee IS captured:
+   * (gross fee − pending-fee gross) − captured processing fees −
+   * (post-hoc refunds − pending-fee refunds). May be negative when absorbed
+   * refunds exceed fee income — that is economically real and never clamped.
+   */
+  availableCents: number;
+  /**
+   * Fee income booked on the orders whose processing cost is NOT yet known,
+   * less the post-hoc refunds already recorded against them. EXCLUDED from
+   * availableCents — the eventual contribution of these orders is at most this,
+   * since their processing fees will subtract from it.
+   */
+  pendingResidualCents: number;
+  /** How many orders that residual covers. Zero = the net is complete. */
+  pendingOrderCount: number;
+}
+
 /** Platform income: gross fee income kept explicitly distinct from net. */
 export interface PlatformIncomeSummary {
   /** Online money actually retained: gross charged less BOTH kinds of refund
@@ -38,13 +61,20 @@ export interface PlatformIncomeSummary {
   /** Gross platform-fee income, before Stripe processing costs. */
   grossPlatformFeeCents: number;
   /**
-   * Net platform income: gross platform fee − captured processing fee −
-   * POST-HOC platform-absorbed refunds. Pending while ANY order's processing fee
-   * is uncaptured — the missing fee is surfaced as pending, never treated as zero.
-   * When available, may be negative if absorbed refunds exceed fee income.
+   * Net platform income, split into a REPORTABLE part and a visibly-excluded
+   * pending residual.
+   *
+   * The whole figure used to latch to "pending" scope-wide the moment ANY single
+   * order's Stripe balance transaction was delayed. Nothing retries the fee
+   * capture, so the first delayed fee in platform history permanently disabled
+   * the headline number — the calm-oversight equivalent of a false red.
+   *
+   * So the net is now reported over exactly the orders whose processing fee IS
+   * captured, and the rest is carried alongside as a labeled residual. The
+   * residual is never added into `availableCents` and never treated as zero: it
+   * is money whose processing cost is simply not known yet.
    */
-  netPlatformIncome:
-    { status: 'available'; netCents: number } | { status: 'pending'; grossCents: number };
+  netPlatformIncome: NetPlatformIncome;
   processingFeePendingCount: number;
   /** POST-HOC refunds — the platform's real absorbed loss. Subtracted from net. */
   refundedCents: number;
@@ -53,6 +83,20 @@ export interface PlatformIncomeSummary {
   makeWholeRefundedCents: number;
   /** Legacy orders missing either snapshot column (rate-unverifiable). */
   snapshotMissingCount: number;
+  /** One-time (non-entry) charges, reported as their OWN population and never
+   *  mixed into entry accounting. Net subtracts both refund kinds, so a
+   *  fully-refunded one-time payment reads as $0 net instead of full gross. */
+  nonEntry: NonEntryChargeTotals;
+}
+
+/** Non-entry ('payment' / legacy null order_type) charge totals. */
+export interface NonEntryChargeTotals {
+  orderCount: number;
+  grossCents: number;
+  refundedCents: number;
+  makeWholeRefundedCents: number;
+  /** gross − refunded − make-whole: the money actually still held. */
+  netCents: number;
 }
 
 /** Payout settlement totals, independent of charge verification. */
@@ -128,13 +172,25 @@ export function derivePlatformIncome(
   // (see the refund-architecture note above). This can still drive net NEGATIVE
   // (post-hoc refunds exceeded fee income) — that is economically real and is
   // reported as-is, never clamped to 0.
-  const netPlatformIncome =
-    summary.processingFeePendingCount > 0
-      ? ({ status: 'pending', grossCents: grossPlatformFeeCents } as const)
-      : ({
-          status: 'available',
-          netCents: grossPlatformFeeCents - summary.processingFeeCents - summary.refundedCents,
-        } as const);
+  //
+  // PENDING-FEE SCOPE (review finding 2). This used to be
+  // `processingFeePendingCount > 0 ? pending : available` — a SCOPE-WIDE latch.
+  // One delayed balance transaction made the entire platform net income read
+  // "pending", and because nothing retries the fee capture, the first delayed fee
+  // in platform history would have disabled the headline number permanently.
+  //
+  // Instead: net over exactly the orders whose fee IS captured (their fee income
+  // and their refunds are what the server's pendingFee* totals let us remove),
+  // with the remainder carried as a labeled residual. The residual is EXCLUDED,
+  // never folded in and never assumed zero, so the available figure can only
+  // understate — it can never overstate what the platform has actually netted.
+  const capturedGrossFeeCents = grossPlatformFeeCents - summary.pendingFeePlatformFeeCents;
+  const capturedRefundedCents = summary.refundedCents - summary.pendingFeeRefundedCents;
+  const netPlatformIncome: NetPlatformIncome = {
+    availableCents: capturedGrossFeeCents - summary.processingFeeCents - capturedRefundedCents,
+    pendingResidualCents: summary.pendingFeePlatformFeeCents - summary.pendingFeeRefundedCents,
+    pendingOrderCount: summary.processingFeePendingCount,
+  };
   return {
     // BOTH refunds subtracted here on purpose: a make-whole refund DOES reduce the
     // money the platform ends up holding, even though it is not a platform loss.
@@ -146,6 +202,19 @@ export function derivePlatformIncome(
     refundedCents: summary.refundedCents,
     makeWholeRefundedCents: summary.makeWholeRefundedCents,
     snapshotMissingCount: summary.snapshotMissingCount,
+    // Non-entry money is reported net of BOTH refund kinds (review finding 3):
+    // the gross-only figure reported a fully-refunded one-time payment at full
+    // gross forever, because the entry refund SUMs never covered this population.
+    nonEntry: {
+      orderCount: summary.nonEntryOrderCount,
+      grossCents: summary.nonEntryGrossCents,
+      refundedCents: summary.nonEntryRefundedCents,
+      makeWholeRefundedCents: summary.nonEntryMakeWholeRefundedCents,
+      netCents:
+        summary.nonEntryGrossCents -
+        summary.nonEntryRefundedCents -
+        summary.nonEntryMakeWholeRefundedCents,
+    },
   };
 }
 

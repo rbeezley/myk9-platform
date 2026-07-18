@@ -26,11 +26,22 @@ function overview(overrides: Partial<PlatformFinancialOverview> = {}): PlatformF
       platformIncome: {
         onlineCollectedCents: 100000,
         grossPlatformFeeCents: 10000,
-        netPlatformIncome: { status: 'available', netCents: 8500 },
+        netPlatformIncome: {
+          availableCents: 8500,
+          pendingResidualCents: 0,
+          pendingOrderCount: 0,
+        },
         processingFeePendingCount: 0,
         refundedCents: 2000,
         makeWholeRefundedCents: 0,
         snapshotMissingCount: 0,
+        nonEntry: {
+          orderCount: 0,
+          grossCents: 0,
+          refundedCents: 0,
+          makeWholeRefundedCents: 0,
+          netCents: 0,
+        },
       },
       chargeVerification: {
         verifiedCount: 0,
@@ -50,7 +61,7 @@ function overview(overrides: Partial<PlatformFinancialOverview> = {}): PlatformF
     },
     attention: {
       failedTransferCount: 0,
-      unrecordedRefundCount: 0,
+      refundLedgerDriftCount: 0,
       chargeMismatchCount: 0,
       missingPlatformFeeSnapshotCount: 0,
       totalCount: 0,
@@ -107,7 +118,11 @@ describe('PlatformIncomeCard', () => {
         ...overview().summary,
         platformIncome: {
           ...overview().summary.platformIncome,
-          netPlatformIncome: { status: 'available', netCents: -5180 },
+          netPlatformIncome: {
+            availableCents: -5180,
+            pendingResidualCents: 0,
+            pendingOrderCount: 0,
+          },
         },
       },
     });
@@ -119,20 +134,71 @@ describe('PlatformIncomeCard', () => {
     expect(screen.queryByText(/Pending/)).not.toBeInTheDocument();
   });
 
-  it('shows net income as pending — never a fake $0/net — when a processing fee is uncaptured', () => {
+  // ── ROOT FIX (review finding 2). This used to assert the whole figure read
+  // "Pending (4)". One uncaptured fee latched the platform-wide net forever,
+  // because nothing retries the fee capture. It must now show a real net over
+  // the captured orders AND name the excluded residual.
+  it('shows an available net plus a labeled pending residual when a processing fee is uncaptured', () => {
     overviewState.data = overview({
       summary: {
         ...overview().summary,
         platformIncome: {
           ...overview().summary.platformIncome,
-          netPlatformIncome: { status: 'pending', grossCents: 10000 },
+          netPlatformIncome: {
+            availableCents: 8500,
+            pendingResidualCents: 1200,
+            pendingOrderCount: 4,
+          },
           processingFeePendingCount: 4,
         },
       },
     });
     render(<PlatformIncomeCard />);
-    expect(screen.getByText('Pending (4)')).toBeInTheDocument();
-    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+
+    // The headline is a real number, not a "Pending" placeholder.
+    expect(screen.getByText('Net platform income so far')).toBeInTheDocument();
+    expect(screen.getByText('$85.00')).toBeInTheDocument();
+    // ...and the excluded part is stated explicitly, never silently zeroed.
+    expect(
+      screen.getByText(/Excludes 4 orders whose Stripe processing fee is not captured yet/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/up to \$12\.00 of fee income still to net out/)).toBeInTheDocument();
+  });
+
+  it('drops the "so far" qualifier and the residual note when nothing is pending', () => {
+    overviewState.data = overview();
+    render(<PlatformIncomeCard />);
+    expect(screen.getByText('Net platform income')).toBeInTheDocument();
+    expect(screen.queryByText(/Excludes/)).not.toBeInTheDocument();
+  });
+
+  // ── ROOT FIX (review finding 3): non-entry refunds are visible.
+  it('shows one-time (non-entry) payments NET of refunds, as their own figure', () => {
+    overviewState.data = overview({
+      summary: {
+        ...overview().summary,
+        platformIncome: {
+          ...overview().summary.platformIncome,
+          nonEntry: {
+            orderCount: 3,
+            grossCents: 7500,
+            refundedCents: 4000,
+            makeWholeRefundedCents: 250,
+            netCents: 3250,
+          },
+        },
+      },
+    });
+    render(<PlatformIncomeCard />);
+    expect(screen.getByText('One-time payments (net)')).toBeInTheDocument();
+    expect(screen.getByText('$32.50')).toBeInTheDocument();
+    expect(screen.getByText(/\$75\.00 gross, less \$42\.50 refunded/)).toBeInTheDocument();
+  });
+
+  it('omits the one-time payments figure entirely when there are none', () => {
+    overviewState.data = overview();
+    render(<PlatformIncomeCard />);
+    expect(screen.queryByText('One-time payments (net)')).not.toBeInTheDocument();
   });
 
   it('shows outstanding transfer liability as its own figure, separate from income', () => {
@@ -152,7 +218,7 @@ describe('PlatformIncomeCard', () => {
     overviewState.data = overview({
       attention: {
         failedTransferCount: 2,
-        unrecordedRefundCount: 0,
+        refundLedgerDriftCount: 0,
         chargeMismatchCount: 3,
         missingPlatformFeeSnapshotCount: 1,
         totalCount: 6,

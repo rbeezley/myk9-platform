@@ -25,11 +25,18 @@ function summary(overrides: Partial<FinancialSummary> = {}): FinancialSummary {
     platformIncome: {
       onlineCollectedCents: 0,
       grossPlatformFeeCents: 0,
-      netPlatformIncome: { status: 'available', netCents: 0 },
+      netPlatformIncome: { availableCents: 0, pendingResidualCents: 0, pendingOrderCount: 0 },
       processingFeePendingCount: 0,
       refundedCents: 0,
       makeWholeRefundedCents: 0,
       snapshotMissingCount: 0,
+      nonEntry: {
+        orderCount: 0,
+        grossCents: 0,
+        refundedCents: 0,
+        makeWholeRefundedCents: 0,
+        netCents: 0,
+      },
     },
     chargeVerification: {
       verifiedCount: 0,
@@ -56,6 +63,7 @@ function orderRow(
   return {
     orderId: 'order-1',
     showId: 'show-1',
+    showName: 'Test Show',
     status: 'succeeded',
     orderType: 'entry',
     amountCents: 5000,
@@ -114,12 +122,16 @@ describe('usePlatformFinancialOverview', () => {
   it('walks the keyset cursor to completion instead of stopping after one page', async () => {
     getFinancialSummary.mockResolvedValue(summary());
     // Page 1 is full (1000 rows) so a cursor exists; page 2 is short and ends it.
-    // The unrecorded refund lives on page 2 and is only seen if pagination works.
+    // The drifting order lives on page 2 and is only seen if pagination works.
+    // It is FULLY refunded (5000 of 5000) while still 'succeeded' — genuine
+    // ledger drift, not the normal partial refund that must stay silent.
     const fullPage = Array.from({ length: 1000 }, (_, i) => orderRow({ orderId: `o-${i}` }));
     const lastOfPage1 = fullPage[fullPage.length - 1];
     fetchFinancialReconciliationOrders
       .mockResolvedValueOnce(fullPage)
-      .mockResolvedValueOnce([orderRow({ orderId: 'o-drift', refundedCents: 500 })]);
+      .mockResolvedValueOnce([
+        orderRow({ orderId: 'o-drift', amountCents: 5000, refundedCents: 5000 }),
+      ]);
     fetchFinancialReconciliationPayouts.mockResolvedValue([]);
 
     const { result } = renderHook(() => usePlatformFinancialOverview(), { wrapper });
@@ -131,7 +143,7 @@ describe('usePlatformFinancialOverview', () => {
         cursor: { createdAt: lastOfPage1.createdAt, id: lastOfPage1.orderId },
       })
     );
-    expect(result.current.data?.attention.unrecordedRefundCount).toBe(1);
+    expect(result.current.data?.attention.refundLedgerDriftCount).toBe(1);
     expect(result.current.data?.detailTruncated).toBe(false);
   });
 

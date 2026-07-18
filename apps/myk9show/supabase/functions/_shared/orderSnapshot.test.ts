@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildOrderSnapshotFields,
-  deriveEntryFeeFromTotalCents,
   extractProcessingFeeCents,
+  ORDER_TIE_OUT_TOLERANCE_CENTS,
+  orderTieOutDeltaCents,
   platformGrossFeeCents,
   platformNetIncomeCents,
+  resolveAcceptedEntrySnapshot,
   resolveOrderRefundSplit,
+  resolveOrderStatusAfterRefund,
 } from './orderSnapshot';
+import { decideEntryPaymentAutoRefund } from './entryPaymentAutoRefund';
 import { decideCartOverflowRefund } from './cartOverflowRefund';
 
 // ── The collection + attribution invariant, end to end ─────────────────────
@@ -37,12 +41,16 @@ function simulateCartOrder(input: {
 
   // The invariant: amount_cents is the GROSS charge, never pre-netted.
   const amountCents = input.sessionAmountTotalCents;
-  let split = { makeWholeCents: 0, postHocCents: 0 };
+  let split = { makeWholeCents: 0, postHocCents: 0, makeWholeRefundIds: [] as string[] };
 
   // issueCartOverflowAutoRefund records the refund it issues, as MAKE-WHOLE:
-  // those lines were never accepted.
+  // those lines were never accepted. The Stripe refund id is the delta's
+  // idempotency key.
   if (decision.action === 'refund') {
-    split = resolveOrderRefundSplit(split, { makeWholeCents: decision.amountCents });
+    split = resolveOrderRefundSplit(split, {
+      makeWholeCents: decision.amountCents,
+      makeWholeRefundId: 're_overflow',
+    });
   }
 
   return {
@@ -61,9 +69,13 @@ function simulateCartOrder(input: {
       return split;
     },
     /** A make-whole writer landing late (out-of-order delivery). */
-    deliverMakeWhole(makeWholeCents: number) {
-      split = resolveOrderRefundSplit(split, { makeWholeCents });
+    deliverMakeWhole(makeWholeCents: number, makeWholeRefundId = 're_overflow') {
+      split = resolveOrderRefundSplit(split, { makeWholeCents, makeWholeRefundId });
       return split;
+    },
+    /** The status the RPC would stamp for the current amounts. */
+    get status() {
+      return resolveOrderStatusAfterRefund({ status: 'succeeded', amountCents }, split).status;
     },
     get collectedCents() {
       return amountCents - split.makeWholeCents - split.postHocCents;
@@ -173,10 +185,16 @@ describe('collection invariant: collected = amount − make_whole − post_hoc',
 });
 
 describe('resolveOrderRefundSplit (mirrors record_order_refund_cents)', () => {
+  const mw = (cents: number, id: string | null = null) => ({
+    makeWholeCents: cents,
+    makeWholeRefundId: id,
+  });
+
   it('routes a make-whole refund to make_whole ONLY, never post-hoc', () => {
-    expect(resolveOrderRefundSplit({}, { makeWholeCents: 2500 })).toEqual({
+    expect(resolveOrderRefundSplit({}, mw(2500, 're_1'))).toEqual({
       makeWholeCents: 2500,
       postHocCents: 0,
+      makeWholeRefundIds: ['re_1'],
     });
   });
 
@@ -184,62 +202,91 @@ describe('resolveOrderRefundSplit (mirrors record_order_refund_cents)', () => {
     expect(resolveOrderRefundSplit({}, { chargeTotalCents: 3000 })).toEqual({
       makeWholeCents: 0,
       postHocCents: 3000,
+      makeWholeRefundIds: [],
     });
   });
 
   it('derives post-hoc as total − make_whole, so make-whole is never double counted', () => {
-    const afterMakeWhole = resolveOrderRefundSplit({}, { makeWholeCents: 1000 });
+    const afterMakeWhole = resolveOrderRefundSplit({}, mw(1000, 're_1'));
     // Stripe reports ONE cumulative total covering both kinds.
     const afterCharge = resolveOrderRefundSplit(afterMakeWhole, { chargeTotalCents: 3500 });
-    expect(afterCharge).toEqual({ makeWholeCents: 1000, postHocCents: 2500 });
+    expect(afterCharge).toMatchObject({ makeWholeCents: 1000, postHocCents: 2500 });
   });
 
-  it('is idempotent under duplicate webhook delivery', () => {
-    const first = resolveOrderRefundSplit({}, { makeWholeCents: 1000 });
+  it('ACCUMULATES two make-whole refunds on one intent instead of taking their max', () => {
+    // Finding 3: callers pass ONE refund's amount. Under the old cumulative
+    // contract 300 then 200 stored max(300,200)=300, and the cumulative
+    // charge.refunded of 500 misbooked the missing 200 as a platform loss.
+    const first = resolveOrderRefundSplit({}, mw(300, 're_1'));
+    const second = resolveOrderRefundSplit(first, mw(200, 're_2'));
+    expect(second).toEqual({
+      makeWholeCents: 500,
+      postHocCents: 0,
+      makeWholeRefundIds: ['re_1', 're_2'],
+    });
+    const afterCharge = resolveOrderRefundSplit(second, { chargeTotalCents: 500 });
+    expect(afterCharge).toMatchObject({ makeWholeCents: 500, postHocCents: 0 });
+  });
+
+  it('is idempotent under duplicate webhook delivery (same refund id never adds twice)', () => {
+    const first = resolveOrderRefundSplit({}, mw(1000, 're_1'));
     const second = resolveOrderRefundSplit(first, { chargeTotalCents: 3500 });
     const dupCharge = resolveOrderRefundSplit(second, { chargeTotalCents: 3500 });
-    const dupMakeWhole = resolveOrderRefundSplit(dupCharge, { makeWholeCents: 1000 });
+    const dupMakeWhole = resolveOrderRefundSplit(dupCharge, mw(1000, 're_1'));
     expect(dupCharge).toEqual(second);
     expect(dupMakeWhole).toEqual(second);
   });
 
-  it('converges under OUT-OF-ORDER delivery: charge.refunded before its make-whole writer', () => {
+  it('converges under OUT-OF-ORDER delivery: charge.refunded before its make-whole writers', () => {
     // charge.refunded lands first — provisionally booked as post-hoc.
-    const provisional = resolveOrderRefundSplit({}, { chargeTotalCents: 2500 });
-    expect(provisional).toEqual({ makeWholeCents: 0, postHocCents: 2500 });
-    // The make-whole writer catches up: REATTRIBUTED, not added on top.
-    const settled = resolveOrderRefundSplit(provisional, { makeWholeCents: 2500 });
-    expect(settled).toEqual({ makeWholeCents: 2500, postHocCents: 0 });
+    const provisional = resolveOrderRefundSplit({}, { chargeTotalCents: 500 });
+    expect(provisional).toMatchObject({ makeWholeCents: 0, postHocCents: 500 });
+    // Both make-whole writers catch up: REATTRIBUTED, not added on top.
+    const one = resolveOrderRefundSplit(provisional, mw(300, 're_1'));
+    expect(one).toMatchObject({ makeWholeCents: 300, postHocCents: 200 });
+    const two = resolveOrderRefundSplit(one, mw(200, 're_2'));
+    expect(two).toMatchObject({ makeWholeCents: 500, postHocCents: 0 });
+    // Replaying the whole sequence changes nothing.
+    const replay = resolveOrderRefundSplit(
+      resolveOrderRefundSplit(two, { chargeTotalCents: 500 }),
+      mw(300, 're_1')
+    );
+    expect(replay).toEqual(two);
   });
 
   it('never lowers a recorded value when a stale/smaller delivery arrives', () => {
-    const stored = { makeWholeCents: 1000, postHocCents: 2500 };
+    const stored = { makeWholeCents: 1000, postHocCents: 2500, makeWholeRefundIds: ['re_1'] };
     // Stale cumulative totals and a zero make-whole must not roll anything back.
     expect(resolveOrderRefundSplit(stored, { chargeTotalCents: 1 })).toEqual(stored);
     expect(resolveOrderRefundSplit(stored, { chargeTotalCents: 0 })).toEqual(stored);
-    expect(resolveOrderRefundSplit(stored, { makeWholeCents: 0 })).toEqual(stored);
-    expect(resolveOrderRefundSplit(stored, { makeWholeCents: 500 })).toEqual(stored);
+    expect(resolveOrderRefundSplit(stored, mw(0, 're_2'))).toEqual(stored);
+    expect(resolveOrderRefundSplit(stored, mw(1000, 're_1'))).toEqual(stored);
+  });
+
+  it('falls back to a monotonic max when no refund id is supplied (cannot dedupe)', () => {
+    const stored = { makeWholeCents: 1000, postHocCents: 0, makeWholeRefundIds: [] };
+    expect(resolveOrderRefundSplit(stored, mw(500))).toMatchObject({ makeWholeCents: 1000 });
+    expect(resolveOrderRefundSplit(stored, mw(1500))).toMatchObject({ makeWholeCents: 1500 });
   });
 
   it('keeps post-hoc >= 0 when a make-whole exceeds the last-seen charge total', () => {
     // The make-whole writer ran but charge.refunded never arrived.
-    expect(resolveOrderRefundSplit({ postHocCents: 100 }, { makeWholeCents: 5000 })).toEqual({
+    expect(resolveOrderRefundSplit({ postHocCents: 100 }, mw(5000, 're_1'))).toMatchObject({
       makeWholeCents: 5000,
       postHocCents: 0,
     });
   });
 
   it('treats null/undefined/invalid/negative as 0 rather than corrupting money math', () => {
-    expect(resolveOrderRefundSplit({}, {})).toEqual({ makeWholeCents: 0, postHocCents: 0 });
-    expect(resolveOrderRefundSplit({ makeWholeCents: null, postHocCents: undefined }, {})).toEqual({
+    expect(resolveOrderRefundSplit({}, {})).toMatchObject({ makeWholeCents: 0, postHocCents: 0 });
+    expect(
+      resolveOrderRefundSplit({ makeWholeCents: null, postHocCents: undefined }, {})
+    ).toMatchObject({ makeWholeCents: 0, postHocCents: 0 });
+    expect(resolveOrderRefundSplit({}, { chargeTotalCents: Number.NaN })).toMatchObject({
       makeWholeCents: 0,
       postHocCents: 0,
     });
-    expect(resolveOrderRefundSplit({}, { chargeTotalCents: Number.NaN })).toEqual({
-      makeWholeCents: 0,
-      postHocCents: 0,
-    });
-    expect(resolveOrderRefundSplit({}, { makeWholeCents: -100 })).toEqual({
+    expect(resolveOrderRefundSplit({}, mw(-100, 're_1'))).toMatchObject({
       makeWholeCents: 0,
       postHocCents: 0,
     });
@@ -250,36 +297,161 @@ describe('resolveOrderRefundSplit (mirrors record_order_refund_cents)', () => {
   });
 });
 
-describe('deriveEntryFeeFromTotalCents', () => {
-  it('splits a total back into subtotal and fee at the applied rate', () => {
-    // subtotal 10000 + 7% fee 700 = total 10700 -> back to 10000 / 700
-    expect(deriveEntryFeeFromTotalCents(10700, 7)).toEqual({
-      entrySubtotalCents: 10000,
-      platformFeeCents: 700,
+describe('resolveOrderStatusAfterRefund: status = refunded IFF fully refunded', () => {
+  it('marks a FULL in-app refund refunded (the flow that used to stay succeeded)', () => {
+    // stripe-refund-entry refunds the whole charge; charge.refunded reports the
+    // cumulative total. Before finding 1 this path recorded cents and returned
+    // early, leaving refunded_cents > 0 on a 'succeeded' order forever.
+    const split = resolveOrderRefundSplit({}, { chargeTotalCents: 10700 });
+    expect(
+      resolveOrderStatusAfterRefund({ status: 'succeeded', amountCents: 10700 }, split)
+    ).toEqual({ status: 'refunded', fullyRefunded: true });
+  });
+
+  it('leaves a PARTIAL refund succeeded — which is NOT drift', () => {
+    const split = resolveOrderRefundSplit({}, { chargeTotalCents: 4000 });
+    expect(
+      resolveOrderStatusAfterRefund({ status: 'succeeded', amountCents: 10700 }, split)
+    ).toEqual({ status: 'succeeded', fullyRefunded: false });
+    // The amount is still recorded, so reconciliation reads the columns.
+    expect(split.postHocCents).toBe(4000);
+  });
+
+  it('flips exactly once when a second partial completes the refund', () => {
+    const partial = resolveOrderRefundSplit({}, { chargeTotalCents: 4000 });
+    const completed = resolveOrderRefundSplit(partial, { chargeTotalCents: 10700 });
+    expect(
+      resolveOrderStatusAfterRefund({ status: 'succeeded', amountCents: 10700 }, completed).status
+    ).toBe('refunded');
+  });
+
+  it('counts make-whole toward FULL, so a fully make-whole order reads refunded', () => {
+    const split = resolveOrderRefundSplit({}, { makeWholeCents: 5000, makeWholeRefundId: 're_1' });
+    expect(
+      resolveOrderStatusAfterRefund({ status: 'succeeded', amountCents: 5000 }, split)
+    ).toEqual({ status: 'refunded', fullyRefunded: true });
+  });
+
+  it('promotes ONLY succeeded, and never demotes', () => {
+    const full = { makeWholeCents: 0, postHocCents: 1000 };
+    expect(
+      resolveOrderStatusAfterRefund({ status: 'failed', amountCents: 1000 }, full).status
+    ).toBe('failed');
+    expect(
+      resolveOrderStatusAfterRefund({ status: 'refunded', amountCents: 1000 }, full).status
+    ).toBe('refunded');
+    // A refunded order that somehow reads partial is not demoted either.
+    expect(
+      resolveOrderStatusAfterRefund(
+        { status: 'refunded', amountCents: 1000 },
+        { makeWholeCents: 0, postHocCents: 1 }
+      ).status
+    ).toBe('refunded');
+  });
+
+  it('never marks a zero/unknown-amount order refunded', () => {
+    expect(
+      resolveOrderStatusAfterRefund(
+        { status: 'succeeded', amountCents: null },
+        { makeWholeCents: 0, postHocCents: 0 }
+      )
+    ).toEqual({ status: 'succeeded', fullyRefunded: false });
+  });
+});
+
+describe('payment-link snapshot: derived from ACCEPTED entries (finding 2)', () => {
+  // Session: 3 entries at 1000¢ + 7% platform fee 210¢ = 3210¢ charged.
+  // Only e1 and e2 are accepted; e3 was already paid, so its share is refunded.
+  const entryFeesById = new Map([
+    ['e1', 1000],
+    ['e2', 1000],
+    ['e3', 1000],
+  ]);
+  const sessionTotal = 3210;
+
+  it('excludes never-accepted lines from the subtotal and the platform fee', () => {
+    const snapshot = resolveAcceptedEntrySnapshot(['e1', 'e2'], entryFeesById, 7);
+    expect(snapshot).toEqual({
+      status: 'derived',
+      entrySubtotalCents: 2000,
+      platformFeeCents: 140,
+      missingFeeEntryIds: [],
+    });
+    // The old total-derived split billed the platform fee on all three lines.
+    expect(snapshot.platformFeeCents).toBeLessThan(210);
+  });
+
+  it('ties out against the actual make-whole refund when some lines are invalid', () => {
+    const snapshot = resolveAcceptedEntrySnapshot(['e1', 'e2'], entryFeesById, 7);
+    const decision = decideEntryPaymentAutoRefund({
+      paymentIntentId: 'pi_1',
+      sessionAmountTotalCents: sessionTotal,
+      validPaidEntryIds: ['e1', 'e2'],
+      invalidEntryIds: ['e3'],
+      entryFeesById,
+    });
+    expect(decision).toMatchObject({ action: 'refund', reason: 'partial_invalid_entries' });
+    const makeWhole = decision.action === 'refund' ? decision.amountCents : 0;
+    const delta = orderTieOutDeltaCents({
+      amount_cents: sessionTotal,
+      entry_subtotal_cents: snapshot.entrySubtotalCents,
+      platform_fee_cents: snapshot.platformFeeCents,
+      make_whole_refunded_cents: makeWhole,
+    });
+    expect(Math.abs(delta ?? Number.NaN)).toBeLessThanOrEqual(ORDER_TIE_OUT_TOLERANCE_CENTS);
+  });
+
+  it('is NOT a tautology: a bogus subtotal fails the tie-out', () => {
+    // The old derivation made amount == subtotal + fee true by construction, so
+    // no order could ever fail. This one can.
+    const delta = orderTieOutDeltaCents({
+      amount_cents: sessionTotal,
+      entry_subtotal_cents: 3000,
+      platform_fee_cents: 210,
+      make_whole_refunded_cents: 1070,
+    });
+    expect(Math.abs(delta ?? 0)).toBeGreaterThan(ORDER_TIE_OUT_TOLERANCE_CENTS);
+  });
+
+  it('ties out exactly when nothing was refunded', () => {
+    const snapshot = resolveAcceptedEntrySnapshot(['e1', 'e2', 'e3'], entryFeesById, 7);
+    expect(snapshot.entrySubtotalCents).toBe(3000);
+    expect(snapshot.platformFeeCents).toBe(210);
+    expect(
+      orderTieOutDeltaCents({
+        amount_cents: sessionTotal,
+        entry_subtotal_cents: snapshot.entrySubtotalCents,
+        platform_fee_cents: snapshot.platformFeeCents,
+        make_whole_refunded_cents: 0,
+      })
+    ).toBe(0);
+  });
+
+  it('reports UNVERIFIABLE (NULL columns) rather than guessing a missing fee', () => {
+    expect(resolveAcceptedEntrySnapshot(['e1', 'e9'], entryFeesById, 7)).toEqual({
+      status: 'unverifiable',
+      entrySubtotalCents: null,
+      platformFeeCents: null,
+      missingFeeEntryIds: ['e9'],
     });
   });
 
-  it('returns the full total as subtotal with 0 fee when the rate is 0', () => {
-    expect(deriveEntryFeeFromTotalCents(10000, 0)).toEqual({
-      entrySubtotalCents: 10000,
-      platformFeeCents: 0,
-    });
-  });
-
-  it('returns zeros for a non-positive total', () => {
-    expect(deriveEntryFeeFromTotalCents(0, 7)).toEqual({
+  it('records a known ZERO when nothing was accepted (whole charge is make-whole)', () => {
+    expect(resolveAcceptedEntrySnapshot([], entryFeesById, 7)).toMatchObject({
+      status: 'derived',
       entrySubtotalCents: 0,
       platformFeeCents: 0,
     });
-    expect(deriveEntryFeeFromTotalCents(null, 7)).toEqual({
-      entrySubtotalCents: 0,
-      platformFeeCents: 0,
-    });
   });
 
-  it('conserves the total (subtotal + fee === total)', () => {
-    const { entrySubtotalCents, platformFeeCents } = deriveEntryFeeFromTotalCents(12345, 7);
-    expect(entrySubtotalCents + platformFeeCents).toBe(12345);
+  it('returns null (not checkable) for legacy rows with NULL snapshot columns', () => {
+    expect(
+      orderTieOutDeltaCents({
+        amount_cents: 1000,
+        entry_subtotal_cents: null,
+        platform_fee_cents: null,
+      })
+    ).toBeNull();
   });
 });
 

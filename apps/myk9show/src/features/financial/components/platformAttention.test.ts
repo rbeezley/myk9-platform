@@ -12,6 +12,7 @@ function order(
   return {
     orderId: 'order-1',
     showId: 'show-1',
+    showName: 'Show 1',
     status: 'succeeded',
     orderType: 'entry',
     amountCents: 5000,
@@ -129,14 +130,59 @@ describe('derivePlatformAttention — genuine drift', () => {
     expect(attention.totalCount).toBe(0);
   });
 
-  it('flags an unrecorded refund: refundedCents > 0 but status never flipped to refunded', () => {
+  // ── UN-PINNED (review finding 1). This case USED to assert
+  // `unrecordedRefundCount === 1` for a 'succeeded' order carrying a partial
+  // post-hoc refund — i.e. the most ordinary refund the product performs. That
+  // assertion pinned the false red AS INTENDED BEHAVIOR, so no test could ever
+  // have caught it. It is replaced by its inverse in the calm-states block below,
+  // plus the genuine self-contradiction cases here.
+  it('flags an order marked refunded whose refund ledger never recorded the money', () => {
+    // status = 'refunded' means fully refunded (webhook refund-attribution
+    // invariant), so a zero recorded total is a lost ledger write.
     const attention = derivePlatformAttention({
       snapshotMissingCount: 0,
       payouts: [],
-      orders: [order({ status: 'succeeded', refundedCents: 1500 })],
+      orders: [order({ status: 'refunded', amountCents: 5000, refundedCents: 0 })],
     });
-    expect(attention.unrecordedRefundCount).toBe(1);
+    expect(attention.refundLedgerDriftCount).toBe(1);
     expect(attention.totalCount).toBe(1);
+  });
+
+  it('flags an order marked refunded that is only PARTIALLY recorded as refunded', () => {
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 0,
+      payouts: [],
+      orders: [order({ status: 'refunded', amountCents: 5000, refundedCents: 1500 })],
+    });
+    expect(attention.refundLedgerDriftCount).toBe(1);
+  });
+
+  it('flags a FULLY refunded order whose status was never flipped', () => {
+    // The genuine drift the old rule was aiming at, now expressed so it cannot
+    // fire on a partial: the refunds account for the ENTIRE charge, so the
+    // status write was lost.
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 0,
+      payouts: [],
+      orders: [order({ status: 'succeeded', amountCents: 5000, refundedCents: 5000 })],
+    });
+    expect(attention.refundLedgerDriftCount).toBe(1);
+  });
+
+  it('flags recorded refunds that EXCEED the amount charged', () => {
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 0,
+      payouts: [],
+      orders: [
+        order({
+          status: 'succeeded',
+          amountCents: 5000,
+          refundedCents: 4000,
+          makeWholeRefundedCents: 2000,
+        }),
+      ],
+    });
+    expect(attention.refundLedgerDriftCount).toBe(1);
   });
 
   it('flags legacy orders with a permanently missing platform-fee snapshot', () => {
@@ -172,7 +218,8 @@ describe('derivePlatformAttention — genuine drift', () => {
       snapshotMissingCount: 2,
       payouts: [payout({ status: 'failed', failureReason: 'account_closed' })],
       orders: [
-        order({ status: 'succeeded', refundedCents: 500 }),
+        // Fully refunded (5000 of 5000) but still 'succeeded' — genuine drift.
+        order({ status: 'succeeded', amountCents: 5000, refundedCents: 5000 }),
         order({
           orderId: 'order-2',
           amountCents: 9000,
@@ -182,7 +229,7 @@ describe('derivePlatformAttention — genuine drift', () => {
       ],
     });
     expect(attention.failedTransferCount).toBe(1);
-    expect(attention.unrecordedRefundCount).toBe(1);
+    expect(attention.refundLedgerDriftCount).toBe(1);
     expect(attention.chargeMismatchCount).toBe(1);
     expect(attention.missingPlatformFeeSnapshotCount).toBe(2);
     expect(attention.totalCount).toBe(5);
@@ -221,14 +268,69 @@ describe('derivePlatformAttention — calm pending / self-healing states are NOT
     expect(attention.totalCount).toBe(0);
   });
 
-  it('a refunded order whose status IS flipped to refunded is not an unrecorded refund', () => {
+  // ── ROOT FIX (review finding 1): a NORMAL refund is never attention. The old
+  // rule (refundedCents > 0 && status !== 'refunded') fired on the single most
+  // common in-app refund flow — a partial refund, which legitimately leaves the
+  // order 'succeeded' — producing a permanent false red on the calm-oversight
+  // surface. These four cases are the ordinary shapes of the app and Stripe
+  // dashboard refund paths; all must stay silent.
+  it('a NORMAL FULL refund (status flipped, whole amount recorded) is not attention', () => {
     const attention = derivePlatformAttention({
       snapshotMissingCount: 0,
       payouts: [],
-      orders: [order({ status: 'refunded', refundedCents: 1500 })],
+      orders: [order({ status: 'refunded', amountCents: 5000, refundedCents: 5000 })],
     });
-    expect(attention.unrecordedRefundCount).toBe(0);
+    expect(attention.refundLedgerDriftCount).toBe(0);
     expect(attention.totalCount).toBe(0);
+  });
+
+  it('a NORMAL PARTIAL refund (order stays succeeded) is not attention', () => {
+    // THE regression this fix exists for. $15.00 refunded on a $50.00 order: the
+    // order is correctly still 'succeeded' because it is not fully refunded.
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 0,
+      payouts: [],
+      orders: [order({ status: 'succeeded', amountCents: 5000, refundedCents: 1500 })],
+    });
+    expect(attention.refundLedgerDriftCount).toBe(0);
+    expect(attention.totalCount).toBe(0);
+  });
+
+  it('a partial refund plus a cart-overflow make-whole refund is not attention', () => {
+    // 1200 post-hoc + 4000 make-whole against a 9350 charge: still not full.
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 0,
+      payouts: [],
+      orders: [
+        order({
+          status: 'succeeded',
+          amountCents: 9350,
+          entrySubtotalCents: 5000,
+          platformFeeCents: 350,
+          refundedCents: 1200,
+          makeWholeRefundedCents: 4000,
+        }),
+      ],
+    });
+    expect(attention.refundLedgerDriftCount).toBe(0);
+  });
+
+  it('a make-whole-only refund never implies a status flip', () => {
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 0,
+      payouts: [],
+      orders: [
+        order({
+          status: 'succeeded',
+          amountCents: 4000,
+          entrySubtotalCents: 0,
+          platformFeeCents: 0,
+          refundedCents: 0,
+          makeWholeRefundedCents: 4000,
+        }),
+      ],
+    });
+    expect(attention.refundLedgerDriftCount).toBe(0);
   });
 
   it('an order with a not-yet-captured processing fee (pending, needs manual backfill) is not attention', () => {

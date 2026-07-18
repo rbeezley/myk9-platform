@@ -293,13 +293,17 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           )}
         </CardContent>
       </Card>
-      {enabled && (
-        <ClubFinancialReconciliationCard
-          clubId={clubId}
-          payoutsEnabled={enabled}
-          payoutHistory={payoutHistory.data}
-        />
-      )}
+      {/* Rendered regardless of `enabled`. A club can have paid orders and money
+          pending settlement BEFORE Stripe onboarding finishes — gating the whole
+          card on payouts_enabled hid charge verification and net-to-club exactly
+          when settlement was pending and the treasurer most wanted to see it.
+          `payoutsEnabled` governs the payout BADGE WORDING inside the card
+          (Scheduled vs Waiting for account), not whether it renders at all. */}
+      <ClubFinancialReconciliationCard
+        clubId={clubId}
+        payoutsEnabled={enabled}
+        payoutHistory={payoutHistory.data}
+      />
     </div>
   );
 }

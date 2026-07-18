@@ -33,9 +33,20 @@
 -- pending count, refunded, snapshot_missing) covers exactly one population:
 -- status IN ('succeeded','refunded') AND order_type = 'entry'.
 -- Non-entry orders are NOT silently dropped — they are reported as their own
--- clearly labeled pair (non_entry_order_count / non_entry_gross_cents) so the
--- money is still visible, just never mixed into entry accounting. Legacy rows
+-- clearly labeled group (non_entry_order_count / non_entry_gross_cents plus
+-- non_entry_refunded_cents / non_entry_make_whole_refunded_cents) so the money
+-- is still visible, just never mixed into entry accounting. Legacy rows
 -- with a NULL order_type fall into the non-entry bucket by the same rule.
+--
+-- NON-ENTRY REFUNDS (review finding 3). non_entry_gross_cents alone reported a
+-- fully-refunded one-time payment at its FULL gross forever: the refund SUMs
+-- covered entry orders only, so refunded non-entry money was recorded and
+-- subtracted nowhere. Both refund columns are therefore SUMmed over the
+-- non-entry population too, on exactly the same explicit-column basis as the
+-- entry side, so a consumer can report a non-entry net
+-- (gross − refunded − make_whole) without deriving anything. The two
+-- populations stay separate — a non-entry refund is never mixed into the entry
+-- refund totals.
 -- The orders DETAIL function applies the IDENTICAL predicate, so detail rows and
 -- the aggregates always describe the same population.
 --
@@ -168,13 +179,32 @@ RETURNS TABLE (
   platform_fee_cents           bigint,
   processing_fee_cents         bigint,  -- SUM of CAPTURED fees only (NULLs excluded)
   processing_fee_pending_count bigint,  -- orders whose fee is not yet captured (pending, not zero)
+  -- PENDING-FEE RESIDUAL (review finding 2). Net platform income used to latch to
+  -- "pending" SCOPE-WIDE the moment ANY single order's balance transaction was
+  -- delayed — and nothing retries the fee capture, so the first delayed fee in
+  -- platform history permanently disabled the headline number. These two sums
+  -- restrict the entry totals to exactly the orders whose processing fee is NOT
+  -- captured, so a consumer can report an HONEST net over the orders that ARE
+  -- captured plus a separately labeled pending residual:
+  --   available net    = (platform_fee − pending_fee_platform_fee)
+  --                      − processing_fee
+  --                      − (refunded − pending_fee_refunded)
+  --   pending residual = pending_fee_platform_fee − pending_fee_refunded
+  -- The residual is EXCLUDED from the available net, never silently treated as
+  -- zero and never added in as if it had already netted out.
+  pending_fee_platform_fee_cents bigint,
+  pending_fee_refunded_cents     bigint,
   refunded_cents               bigint,  -- POST-HOC refunds: the loss the PLATFORM absorbed (see REFUND SPLIT)
   make_whole_refunded_cents    bigint,  -- cart-overflow make-whole: returned, but NOT a platform loss
   snapshot_missing_count       bigint,  -- legacy ENTRY orders missing EITHER snapshot column
   -- Non-entry charges (order_type <> 'entry' or NULL) — reported separately so
   -- one-time 'payment' money is visible but never counted as entry collections.
+  -- Their refunds are reported too (see NON-ENTRY REFUNDS in the header): without
+  -- them a fully-refunded one-time payment reads at full gross forever.
   non_entry_order_count        bigint,
   non_entry_gross_cents        bigint,
+  non_entry_refunded_cents     bigint,
+  non_entry_make_whole_refunded_cents bigint,
   -- Payout settlement side (show_payouts) — kept independent of charge facts
   payout_count                 bigint,
   payout_completed_cents       bigint,
@@ -272,6 +302,15 @@ BEGIN
     -- pending COUNT below surfaces them so net income can be labeled pending.
     (SELECT COALESCE(SUM(so.stripe_processing_fee_cents), 0)    FROM scoped_orders so),
     (SELECT count(*) FROM scoped_orders so WHERE so.stripe_processing_fee_cents IS NULL),
+    -- Pending-fee residual inputs: the SAME two entry figures, restricted to the
+    -- orders whose processing fee is NOT captured. Subtracting these from the
+    -- scope-wide totals yields a net over exactly the captured-fee orders, which
+    -- is what stops one delayed balance transaction from latching the whole
+    -- headline figure to "pending" forever (review finding 2).
+    (SELECT COALESCE(SUM(so.platform_fee_cents), 0) FROM scoped_orders so
+      WHERE so.stripe_processing_fee_cents IS NULL),
+    (SELECT COALESCE(SUM(so.refunded_cents), 0)     FROM scoped_orders so
+      WHERE so.stripe_processing_fee_cents IS NULL),
     -- POST-HOC refunds — read DIRECTLY from the explicit column, never derived.
     -- This is the platform's real absorbed loss (see REFUND SPLIT in the header).
     (SELECT COALESCE(SUM(so.refunded_cents), 0)                 FROM scoped_orders so),
@@ -288,6 +327,12 @@ BEGIN
       WHERE so.platform_fee_cents IS NULL OR so.entry_subtotal_cents IS NULL),
     (SELECT count(*)                                            FROM scoped_non_entry ne),
     (SELECT COALESCE(SUM(ne.amount_cents), 0)                   FROM scoped_non_entry ne),
+    -- Non-entry refunds, same explicit-column basis as the entry side. Without
+    -- these a fully-refunded one-time payment reported its full gross forever
+    -- (review finding 3). Kept in the non-entry population, never merged into the
+    -- entry refund totals above.
+    (SELECT COALESCE(SUM(ne.refunded_cents), 0)                 FROM scoped_non_entry ne),
+    (SELECT COALESCE(SUM(ne.make_whole_refunded_cents), 0)      FROM scoped_non_entry ne),
     (SELECT count(*)                                            FROM scoped_payouts sp),
     (SELECT COALESCE(SUM(sp.amount_cents), 0) FROM scoped_payouts sp WHERE sp.status = 'completed'),
     (SELECT COALESCE(SUM(sp.amount_cents), 0) FROM scoped_payouts sp WHERE sp.status IN ('pending', 'processing')),
@@ -320,6 +365,13 @@ CREATE OR REPLACE FUNCTION public.financial_reconciliation_orders(
 RETURNS TABLE (
   order_id                    uuid,
   show_id                     uuid,
+  -- The show's display name (review finding 5). NOT PII — it is the public show
+  -- title already rendered on every public show page — and it stays scoped by the
+  -- same authorized predicate as the row it travels with. Carried here because a
+  -- show can have paid orders and NO payout row yet (a normal pre-settlement
+  -- state), and borrowing names from payout history alone left those shows
+  -- labeled with the generic fallback "Show".
+  show_name                   text,
   status                      text,
   order_type                  text,
   amount_cents                integer,
@@ -349,12 +401,19 @@ BEGIN
   PERFORM public._financial_reconciliation_authorize(p_scope, p_club_id, p_show_id);
 
   RETURN QUERY
-  SELECT o.id, o.show_id, o.status, o.order_type, o.amount_cents,
+  -- s.name is alias-qualified for the same reason every summary aggregate is:
+  -- `show_name` is a RETURNS TABLE output variable here.
+  SELECT o.id, o.show_id, sh.name, o.status, o.order_type, o.amount_cents,
          o.entry_subtotal_cents, o.platform_fee_cents, o.platform_fee_rate,
          o.stripe_processing_fee_cents, o.refunded_cents, o.make_whole_refunded_cents,
          o.stripe_payment_intent_id,
          o.created_at, o.paid_at, o.refunded_at
   FROM public.stripe_orders o
+  -- LEFT so an order with a null/dangling show_id still returns its charge facts;
+  -- the name is simply NULL and the client falls back to its generic label.
+  -- Alias `sh`, not `s`: the club-scope predicate below uses its own `s` and a
+  -- same-named outer alias would shadow confusingly.
+  LEFT JOIN public.shows sh ON sh.id = o.show_id
   -- IDENTICAL population to the summary's scoped_orders CTE: without this
   -- predicate, failed/pending/cancelled and non-entry orders would enter
   -- client-side grouping and per-show net math and disagree with the aggregates.

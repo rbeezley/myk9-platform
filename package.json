@@ -34,6 +34,7 @@
     "qa:go-live:phase3:test": "vitest run scripts/go-live/phase-3-stripe-cutover.test.ts",
     "qa:go-live:phase4": "tsx scripts/go-live/phase-4-evidence-pass.ts",
     "qa:go-live:phase4:test": "vitest run scripts/go-live/phase-4-evidence-pass.test.ts",
+    "qa:sql:financial": "bash scripts/qa/run-financial-sql-tests.sh",
     "qa:rls-smoke": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/rls-smoke/rls-recursion-smoke.ts",
     "qa:rls-smoke:test": "vitest run scripts/qa/rls-smoke/*.test.ts",
     "test:mutation": "tsx scripts/qa/mutation/run-mutation-targets.ts",

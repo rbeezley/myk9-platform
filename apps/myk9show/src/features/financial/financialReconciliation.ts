@@ -51,6 +51,13 @@ export interface FinancialReconciliationSummary {
   processingFeeCents: number;
   /** Orders whose Stripe processing fee is not yet captured (net income pending). */
   processingFeePendingCount: number;
+  /** Platform-fee income booked on the orders whose processing fee is NOT yet
+   *  captured. Subtracting it from platformFeeCents leaves the fee income of
+   *  exactly the orders that CAN be netted, which is what lets net income report
+   *  an available figure instead of latching scope-wide to "pending". */
+  pendingFeePlatformFeeCents: number;
+  /** Post-hoc refunds recorded on those same not-yet-captured orders. */
+  pendingFeeRefundedCents: number;
   /** POST-HOC refunds only: the entry WAS accepted, the club kept its transfer,
    *  and the platform repaid the customer from its own balance. This IS a real
    *  platform loss and is what net platform income subtracts. Read directly from
@@ -68,6 +75,13 @@ export interface FinancialReconciliationSummary {
    *  entry/fee figures above. */
   nonEntryOrderCount: number;
   nonEntryGrossCents: number;
+  /** Post-hoc refunds on non-entry orders. Reported so a fully-refunded one-time
+   *  payment stops reading at full gross forever — the refund SUMs above cover
+   *  entry orders ONLY, so without this the money was recorded and subtracted
+   *  nowhere. Kept in the non-entry population, never mixed into the entry side. */
+  nonEntryRefundedCents: number;
+  /** Make-whole refunds on non-entry orders, same separation. */
+  nonEntryMakeWholeRefundedCents: number;
   // Payout settlement (show_payouts) — independent of charge facts
   payoutCount: number;
   payoutCompletedCents: number;
@@ -85,6 +99,9 @@ export interface FinancialReconciliationSummary {
 export interface FinancialReconciliationOrder {
   orderId: string;
   showId: string | null;
+  /** The show's display name, resolved server-side inside the authorized scope.
+   *  Not PII (it is the public show title). Null when the order has no show. */
+  showName: string | null;
   status: string;
   orderType: string | null;
   amountCents: number;
@@ -158,11 +175,15 @@ interface SummaryRow {
   platform_fee_cents: number | string;
   processing_fee_cents: number | string;
   processing_fee_pending_count: number | string;
+  pending_fee_platform_fee_cents: number | string;
+  pending_fee_refunded_cents: number | string;
   refunded_cents: number | string;
   make_whole_refunded_cents: number | string;
   snapshot_missing_count: number | string;
   non_entry_order_count: number | string;
   non_entry_gross_cents: number | string;
+  non_entry_refunded_cents: number | string;
+  non_entry_make_whole_refunded_cents: number | string;
   payout_count: number | string;
   payout_completed_cents: number | string;
   payout_pending_cents: number | string;
@@ -173,6 +194,7 @@ interface SummaryRow {
 interface OrderRow {
   order_id: string;
   show_id: string | null;
+  show_name: string | null;
   status: string;
   order_type: string | null;
   amount_cents: number | string;
@@ -208,11 +230,15 @@ export function mapSummaryRow(row: SummaryRow): FinancialReconciliationSummary {
     platformFeeCents: toNum(row.platform_fee_cents),
     processingFeeCents: toNum(row.processing_fee_cents),
     processingFeePendingCount: toNum(row.processing_fee_pending_count),
+    pendingFeePlatformFeeCents: toNum(row.pending_fee_platform_fee_cents),
+    pendingFeeRefundedCents: toNum(row.pending_fee_refunded_cents),
     refundedCents: toNum(row.refunded_cents),
     makeWholeRefundedCents: toNum(row.make_whole_refunded_cents),
     snapshotMissingCount: toNum(row.snapshot_missing_count),
     nonEntryOrderCount: toNum(row.non_entry_order_count),
     nonEntryGrossCents: toNum(row.non_entry_gross_cents),
+    nonEntryRefundedCents: toNum(row.non_entry_refunded_cents),
+    nonEntryMakeWholeRefundedCents: toNum(row.non_entry_make_whole_refunded_cents),
     payoutCount: toNum(row.payout_count),
     payoutCompletedCents: toNum(row.payout_completed_cents),
     payoutPendingCents: toNum(row.payout_pending_cents),
@@ -225,6 +251,7 @@ export function mapOrderRow(row: OrderRow): FinancialReconciliationOrder {
   return {
     orderId: row.order_id,
     showId: row.show_id,
+    showName: row.show_name ?? null,
     status: row.status,
     orderType: row.order_type,
     amountCents: toNum(row.amount_cents),
@@ -277,11 +304,15 @@ const EMPTY_SUMMARY_ROW: SummaryRow = {
   platform_fee_cents: 0,
   processing_fee_cents: 0,
   processing_fee_pending_count: 0,
+  pending_fee_platform_fee_cents: 0,
+  pending_fee_refunded_cents: 0,
   refunded_cents: 0,
   make_whole_refunded_cents: 0,
   snapshot_missing_count: 0,
   non_entry_order_count: 0,
   non_entry_gross_cents: 0,
+  non_entry_refunded_cents: 0,
+  non_entry_make_whole_refunded_cents: 0,
   payout_count: 0,
   payout_completed_cents: 0,
   payout_pending_cents: 0,

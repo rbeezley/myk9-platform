@@ -29,24 +29,39 @@ export interface UseClubFinancialReconciliationResult {
 }
 
 /**
- * Build show names for the reconciliation rows from the club's EXISTING
- * payout-history query (ShowPayoutRow), which already carries `show.name`.
- * The reconciliation payout's `payoutId` is the same `show_payouts.id` the
- * history rows key on, so matching by id safely recovers the show name
- * without a second raw read.
+ * Resolve a display name for every show in the reconciliation rows.
+ *
+ * Names USED to be borrowed from payout history alone. That left a show with
+ * paid orders but NO payout row yet — a normal pre-settlement state this view
+ * explicitly supports — labeled with the generic fallback "Show". So the primary
+ * source is now the order rows themselves: the orders RPC returns the show name
+ * from inside its own authorized scope (not PII, no extra client read).
+ *
+ * Payout history stays as a secondary source, which still covers the inverse
+ * case: a show with a payout row but no order rows in this page set. The
+ * reconciliation payout's `payoutId` is the same `show_payouts.id` the history
+ * rows key on, so matching by id is safe.
  */
-function showNamesFromHistory(
-  history: ShowPayoutRow[] | undefined,
-  reconciliationPayouts: Array<{ payoutId: string; showId: string | null }>
+function resolveShowNames(
+  orders: Array<{ showId: string | null; showName: string | null }>,
+  reconciliationPayouts: Array<{ payoutId: string; showId: string | null }>,
+  history: ShowPayoutRow[] | undefined
 ): Map<string, string> {
   const names = new Map<string, string>();
-  if (!history || history.length === 0) return names;
-  const nameById = new Map(history.map(row => [row.id, row.show?.name]));
-  for (const payout of reconciliationPayouts) {
-    if (!payout.showId) continue;
-    const name = nameById.get(payout.payoutId);
-    if (name) names.set(payout.showId, name);
+
+  for (const order of orders) {
+    if (order.showId && order.showName) names.set(order.showId, order.showName);
   }
+
+  if (history && history.length > 0) {
+    const nameById = new Map(history.map(row => [row.id, row.show?.name]));
+    for (const payout of reconciliationPayouts) {
+      if (!payout.showId || names.has(payout.showId)) continue;
+      const name = nameById.get(payout.payoutId);
+      if (name) names.set(payout.showId, name);
+    }
+  }
+
   return names;
 }
 
@@ -130,7 +145,7 @@ export function useClubFinancialReconciliation(
     if (!ordersQuery.data && !payoutsQuery.data) return [];
     const orders = ordersQuery.data ?? [];
     const payouts = payoutsQuery.data ?? [];
-    const showNames = showNamesFromHistory(payoutHistory, payouts);
+    const showNames = resolveShowNames(orders, payouts, payoutHistory);
     return buildClubShowReconciliationRows(orders, payouts, payoutsEnabled, showNames);
   }, [ordersQuery.data, payoutsQuery.data, payoutHistory, payoutsEnabled]);
 

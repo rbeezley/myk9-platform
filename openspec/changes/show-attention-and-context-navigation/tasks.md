@@ -18,7 +18,7 @@
 
 ## 4. Verification and implementation gate
 
-- [ ] 4.1 Run focused classifier, route-builder, Workbench, Class Details, and Entry Management tests plus `pnpm openspec validate show-attention-and-context-navigation --type change --strict --no-interactive`.
-- [ ] 4.2 Run `pnpm typecheck`, `pnpm lint`, and the relevant myK9Show test suite.
-- [ ] 4.3 Run secretary/steward tablet browser verification for attention routing, count agreement, offline/cached states, role gating, and related links.
+- [x] 4.1 Run focused classifier, route-builder, Workbench, Class Details, and Entry Management tests plus `pnpm openspec validate show-attention-and-context-navigation --type change --strict --no-interactive`.
+- [x] 4.2 Run `pnpm typecheck`, `pnpm lint`, and the relevant myK9Show test suite.
+- [x] 4.3 Run secretary/steward tablet browser verification for attention routing, count agreement, offline/cached states, role gating, and related links.
 - [ ] 4.4 Open the PR with no-new-surface evidence, review, CI, browser evidence, and merge evidence before archive.

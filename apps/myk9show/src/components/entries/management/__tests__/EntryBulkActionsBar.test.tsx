@@ -68,7 +68,7 @@ describe('EntryBulkActionsBar', () => {
       entry('done', EntryStatus.COMPLETED), // ineligible — excluded
     ]);
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /accept selected/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /accept 1 of 2 selected/i }));
 
     expect(onBulkStatusChange).toHaveBeenCalledWith(['p'], EntryStatus.ACCEPTED);
     expect(onClear).toHaveBeenCalledTimes(1);
@@ -79,7 +79,7 @@ describe('EntryBulkActionsBar', () => {
     onBulkStatusChange.mockResolvedValue(false);
 
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /accept selected/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /accept 1 of 1 selected/i }));
 
     expect(onBulkStatusChange).toHaveBeenCalledWith(['p'], EntryStatus.ACCEPTED);
     expect(onClear).not.toHaveBeenCalled();
@@ -91,7 +91,7 @@ describe('EntryBulkActionsBar', () => {
       entry('pend', EntryStatus.PENDING), // not accepted — excluded from check-in
     ]);
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /check in selected/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /check in 1 of 2 selected/i }));
 
     expect(onBulkCheckIn).toHaveBeenCalledWith(['acc']);
   });
@@ -102,7 +102,7 @@ describe('EntryBulkActionsBar', () => {
     onBulkCheckIn.mockReturnValue(checkIn.promise);
 
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /check in selected/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /check in 1 of 1 selected/i }));
 
     expect(onBulkCheckIn).toHaveBeenCalledWith(['acc']);
     expect(onClear).not.toHaveBeenCalled();
@@ -138,7 +138,7 @@ describe('EntryBulkActionsBar', () => {
     ]);
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));
     expect(
-      await screen.findByRole('menuitem', { name: /accept selected \(2\)/i })
+      await screen.findByRole('menuitem', { name: /accept 2 of 3 selected/i })
     ).toBeInTheDocument();
   });
 });

@@ -35,7 +35,6 @@ import { EnrollmentRefundDialog } from './EnrollmentRefundDialog';
 import { EnrollmentEmailDialog } from './EnrollmentEmailDialog';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 
-
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   group,
   onStatusChange,
@@ -121,7 +120,6 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     const result = resolveRefund(
       refundDialog.amount,
       paidDollars,
-      refundDialog.isPartial,
       refundDialog.method,
       refundDialog.notes
     );

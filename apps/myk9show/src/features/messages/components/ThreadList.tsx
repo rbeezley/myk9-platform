@@ -15,6 +15,7 @@ export function ThreadList({ threads, activeThreadId, onSelectThread }: ThreadLi
       <EmptyState
         icon={MessageSquare}
         title="No conversations yet"
+        action={null}
         size="sm"
         className="h-full py-0 justify-center"
       />

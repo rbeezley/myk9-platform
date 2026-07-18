@@ -73,6 +73,30 @@ export function buildEntryDecisionLifecycleEmailIdempotencyKey({
   });
 }
 
+/**
+ * A fresh decision prompt (opened right after an Accept/Waitlist) is stale if the
+ * secretary then Undoes that status change — sending its email would announce a
+ * decision that no longer holds. Returns true when the entry's CURRENT status no
+ * longer matches what the prompt represents (the same supersession principle the
+ * bulk/undo path uses). Ready-job reviews and corrections intentionally reference
+ * a prior decision, so they are exempt.
+ */
+export function isDecisionEmailSuperseded(
+  prompt: Pick<DecisionEmailPrompt, 'entry' | 'stepType' | 'jobId' | 'correctionForJobId'>,
+  entries: EntryManagementEntry[]
+): boolean {
+  if (prompt.jobId || prompt.correctionForJobId) return false;
+  const expected =
+    prompt.stepType === 'accepted'
+      ? EntryStatus.ACCEPTED
+      : prompt.stepType === 'waitlisted'
+        ? EntryStatus.WAITLIST
+        : undefined;
+  if (!expected) return false;
+  const current = entries.find(entry => entry.id === prompt.entry.id)?.entryStatus;
+  return current !== undefined && current !== expected;
+}
+
 export function useEntryDecisionLifecycleEmails({
   showId,
   showName,
@@ -204,6 +228,14 @@ export function useEntryDecisionLifecycleEmails({
         amountDue: Math.max(0, prompt.entry.totalFee - prompt.entry.paidAmount),
       }}
       onNotNow={values => {
+        // Saving a superseded fresh decision for later would persist a sendable
+        // job for a decision that was undone — same hazard as sending it now.
+        // (Exempt for jobId/correction prompts, per isDecisionEmailSuperseded.)
+        if (isDecisionEmailSuperseded(prompt, entries)) {
+          toast.error('Entry status changed since this prompt opened — email not saved.');
+          setPrompt(null);
+          return;
+        }
         if (prompt.jobId) {
           void updateReadyLifecycleEmailJob({
             supabase: lifecycleClient,
@@ -234,6 +266,11 @@ export function useEntryDecisionLifecycleEmails({
         setPrompt(null);
       }}
       onSend={async values => {
+        if (isDecisionEmailSuperseded(prompt, entries)) {
+          toast.error('Entry status changed since this prompt opened — email not sent.');
+          setPrompt(null);
+          return;
+        }
         setIsSending(true);
         try {
           const jobId = prompt.jobId ?? (await saveReadyJob(prompt, values));

@@ -1,12 +1,53 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
-import { type ColumnDef } from '@tanstack/react-table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { type ColumnDef, type DisplayColumnDef } from '@tanstack/react-table';
 import { getDogDisplayName, getDogBreedLabel, type Dog, type DogStatus } from '@/types/dog-types';
-import { DataTable } from '@/components/ui/data-table';
+import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
+
+/** Minimal selection surface (a subset of `useBulkSelection`) for the select column —
+ * mirrors `EntriesTableSelection` (design.md decision D2: DataTable opt-in bridged
+ * to the shared selection hook rather than DataTable's own uncontrolled selection
+ * state, so the bulk bar contract is identical across surfaces). */
+export interface DogsTableSelection {
+  isSelected: (dog: Dog) => boolean;
+  toggleItem: (dog: Dog) => void;
+  isAllSelected: boolean;
+  isPartiallySelected: boolean;
+  toggleAll: () => void;
+}
 
 interface DogsTableViewProps {
   dogs: Dog[];
+  /** When provided, renders a leading checkbox select column wired to this selection. */
+  selection?: DogsTableSelection | undefined;
+}
+
+function buildSelectColumn(selection: DogsTableSelection): DisplayColumnDef<Dog, unknown> {
+  return {
+    id: '_select',
+    header: () => (
+      <Checkbox
+        checked={selection.isAllSelected}
+        indeterminate={selection.isPartiallySelected}
+        onCheckedChange={() => selection.toggleAll()}
+        aria-label="Select all dogs"
+      />
+    ),
+    cell: ({ row }) => (
+      <span className="flex items-center" onClick={e => e.stopPropagation()} role="presentation">
+        <Checkbox
+          checked={selection.isSelected(row.original)}
+          onCheckedChange={() => selection.toggleItem(row.original)}
+          aria-label={`Select ${getDogDisplayName(row.original)}`}
+        />
+      </span>
+    ),
+    enableSorting: false,
+    enableHiding: false,
+    meta: { interactive: true, exportDisabled: true } satisfies DataTableColumnMeta,
+  };
 }
 
 function getStatusBadge(status: DogStatus | undefined) {
@@ -105,18 +146,26 @@ const columns: ColumnDef<Dog>[] = [
   {
     accessorKey: 'status',
     header: 'Status',
-    meta: { exportHeader: 'Status', exportValue: (dog: unknown) => (dog as Dog).status || 'active' },
+    meta: {
+      exportHeader: 'Status',
+      exportValue: (dog: unknown) => (dog as Dog).status || 'active',
+    },
     cell: ({ row }) => getStatusBadge(row.original.status),
   },
 ];
 
-export const DogsTableView: React.FC<DogsTableViewProps> = ({ dogs }) => {
+export const DogsTableView: React.FC<DogsTableViewProps> = ({ dogs, selection }) => {
   const navigate = useNavigate();
+
+  const allColumns = useMemo(
+    () => (selection ? [buildSelectColumn(selection), ...columns] : columns),
+    [selection]
+  );
 
   return (
     <DataTable
       tableId="dogsBrowse"
-      columns={columns}
+      columns={allColumns}
       data={dogs}
       // Page-level ListControls owns search; table keeps only its Columns control.
       showSearch={false}

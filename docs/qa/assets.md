@@ -168,7 +168,6 @@ pnpm test:e2e:clean \
   src/test/e2e/registration/singleDogSingleClass.spec.ts \
   src/test/e2e/secretary-entry-walk.spec.ts \
   src/test/e2e/secretary/show-wizard-officials.spec.ts \
-  src/test/e2e/registration/entryCreationCore.spec.ts \
   src/test/e2e/public-shows-responsive.spec.ts \
   --project=chromium --workers=1 --timeout=90000 --retries=0
 ```

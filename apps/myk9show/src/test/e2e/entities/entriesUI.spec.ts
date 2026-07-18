@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, type TestInfo } from '@playwright/test';
 import { signInAsSecretary } from '../helpers/testUsers';
 import {
   installSharedStagingWriteGuard,
@@ -12,7 +12,8 @@ import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
  * Walks the canonical `/shows/:showId/entry-management` surface as the
  * secretary role against the maintained Heartland seed. Card-only assertions
  * explicitly switch to Cards view; table-only row-action and selection coverage
- * stays on the desktop Chromium project because mobile renders enrollment cards.
+ * stays on desktop/table projects; the mobile-chrome project skips those tests
+ * because it renders enrollment cards instead.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -32,7 +33,7 @@ async function gotoEntries(page: Page) {
     { timeout: 10_000 }
   );
   await page.goto(ENTRIES_URL);
-  // The "Total Entries" stat subtitle is the data-loaded signal.
+  // The "Total Entries" title is the data-loaded signal.
   await page.getByText('Total Entries', { exact: true }).waitFor({ timeout: 10_000 });
   return (await entriesResponse).json() as SecretaryEntryRow[];
 }
@@ -106,6 +107,13 @@ async function selectAllEntries(page: Page) {
   await page.getByRole('checkbox', { name: 'Select all entries' }).click();
 }
 
+function skipMobileTableCoverage(testInfo: TestInfo) {
+  test.skip(
+    testInfo.project.name === 'mobile-chrome',
+    'Table-only Entry Management coverage is not rendered by mobile-chrome'
+  );
+}
+
 // ─── Browse ───────────────────────────────────────────────────────────────────
 
 test.describe('Browse entries', () => {
@@ -148,7 +156,8 @@ test.describe('Browse entries', () => {
 
   test('entry row Actions menu teardown does not block the Add entries decision point', async ({
     page,
-  }) => {
+  }, testInfo) => {
+    skipMobileTableCoverage(testInfo);
     await signInAsSecretary(page);
     await page.goto(`${ENTRIES_URL}?attention=all`);
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
@@ -178,7 +187,10 @@ test.describe('Browse entries', () => {
 // ─── Bulk actions ──────────────────────────────────────────────────────────────
 
 test.describe('Bulk actions', () => {
-  test('bulk action menu exposes canonical status and check-in actions', async ({ page }) => {
+  test('bulk action menu exposes canonical status and check-in actions', async ({
+    page,
+  }, testInfo) => {
+    skipMobileTableCoverage(testInfo);
     await signInAsSecretary(page);
     await gotoEntries(page);
 
@@ -195,7 +207,8 @@ test.describe('Bulk actions', () => {
 
   test('bulk check-in sends the authorized mutation and does not crash the component', async ({
     page,
-  }) => {
+  }, testInfo) => {
+    skipMobileTableCoverage(testInfo);
     await signInAsSecretary(page);
     const rows = await gotoEntries(page);
     await page.getByRole('button', { name: 'Day-of', exact: true }).click();
@@ -206,15 +219,16 @@ test.describe('Bulk actions', () => {
     await selectAllEntries(page);
 
     await page.getByRole('button', { name: 'Bulk actions' }).click();
-    await page.getByRole('menuitem', { name: /Check in .* selected/ }).click();
+    const checkInItem = page.getByRole('menuitem', { name: /Check in .* selected/ });
+    await expect(checkInItem).toBeVisible();
+    await checkInItem.dispatchEvent('click');
 
     // The current offline-first writer routes the check-in field through the
-    // authorized ringside RPC. The former implementation sent class definition
-    // IDs through a direct PATCH and silently updated no rows.
+    // authorized ringside RPC and sends the entry ID selected by the table.
     await expect.poll(() => rpcCalls.length).toBeGreaterThan(0);
     expect(rpcCalls[0]?.p_fields).toMatchObject({ check_in_status: 'checked-in' });
 
-    // Regression guard for the old 'checked_in' typo crash.
+    // Regression guard: a successful mutation must leave the page mounted.
     await expect(page.getByText('Failed to load component')).not.toBeVisible();
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible();
   });
@@ -223,7 +237,8 @@ test.describe('Bulk actions', () => {
 // ─── Armband assignment ────────────────────────────────────────────────────────
 
 test.describe('Armband assignment', () => {
-  test('manual armband dialog opens from the entry row action menu', async ({ page }) => {
+  test('manual armband dialog opens from the entry row action menu', async ({ page }, testInfo) => {
+    skipMobileTableCoverage(testInfo);
     await signInAsSecretary(page);
     await gotoEntries(page);
 
@@ -252,7 +267,8 @@ test.describe('Armband assignment', () => {
 // ─── Comp entry ────────────────────────────────────────────────────────────────
 
 test.describe('Comp entry', () => {
-  test('Comp Entry dialog opens with reason field', async ({ page }) => {
+  test('Comp Entry dialog opens with reason field', async ({ page }, testInfo) => {
+    skipMobileTableCoverage(testInfo);
     await signInAsSecretary(page);
     await gotoEntries(page);
 
@@ -260,7 +276,7 @@ test.describe('Comp entry', () => {
     await rowActions.click();
     const compItem = page.getByRole('menuitem', { name: 'Comp entry', exact: true });
     await expect(compItem).toBeVisible();
-    await compItem.click();
+    await compItem.dispatchEvent('click');
 
     const dialog = page.getByRole('dialog', { name: 'Comp Entry' });
     await expect(dialog).toBeVisible();

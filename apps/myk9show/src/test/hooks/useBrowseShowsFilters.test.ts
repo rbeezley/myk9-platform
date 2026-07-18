@@ -150,6 +150,11 @@ describe('useBrowseShowsFilters — date range filter', () => {
     const now = new Date();
     const midNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 15);
     const midMonthAfter = new Date(now.getFullYear(), now.getMonth() + 2, 15);
+    const nextMonthPrefix = `${midNextMonth.getFullYear()}-${String(midNextMonth.getMonth() + 1).padStart(2, '0')}`;
+    const impossibleNextMonthShow = makeShow({
+      id: 'impossible-next-month',
+      startDate: `${nextMonthPrefix}-32`,
+    });
 
     const shows = [
       makeShow({ id: 'this-month', startDate: isoDate(now), endDate: isoDate(now) }),
@@ -163,6 +168,7 @@ describe('useBrowseShowsFilters — date range filter', () => {
         startDate: isoDate(midMonthAfter),
         endDate: isoDate(midMonthAfter),
       }),
+      impossibleNextMonthShow,
     ];
 
     const { result } = renderHook(() =>

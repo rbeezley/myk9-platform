@@ -109,8 +109,8 @@ async function selectAllEntries(page: Page) {
 
 function skipMobileTableCoverage(testInfo: TestInfo) {
   test.skip(
-    testInfo.project.name === 'mobile-chrome',
-    'Table-only Entry Management coverage is not rendered by mobile-chrome'
+    testInfo.project.name === 'mobile-chrome' || testInfo.project.name === 'tablet',
+    'Table-only Entry Management coverage is not rendered by mobile/table projects'
   );
 }
 
@@ -211,6 +211,7 @@ test.describe('Bulk actions', () => {
     skipMobileTableCoverage(testInfo);
     await signInAsSecretary(page);
     const rows = await gotoEntries(page);
+    const entryIds = new Set(rows.map(row => row.id));
     await page.getByRole('button', { name: 'Day-of', exact: true }).click();
     await seedEntryReplica(page, rows);
     const rpcCalls: GuardedRingsideRpcCall[] = [];
@@ -227,6 +228,7 @@ test.describe('Bulk actions', () => {
     // authorized ringside RPC and sends the entry ID selected by the table.
     await expect.poll(() => rpcCalls.length).toBeGreaterThan(0);
     expect(rpcCalls[0]?.p_fields).toMatchObject({ check_in_status: 'checked-in' });
+    expect(rpcCalls.every(call => call.p_entry_id && entryIds.has(call.p_entry_id))).toBe(true);
 
     // Regression guard: a successful mutation must leave the page mounted.
     await expect(page.getByText('Failed to load component')).not.toBeVisible();

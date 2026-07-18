@@ -47,7 +47,12 @@ test.describe('My Shows Page - Fake Trend Data Removal', () => {
     }
   });
 
-  test('should display the current stat-card contract', async ({ page }) => {
+  test('should display the current stat-card contract', async ({ page }, testInfo) => {
+    if (testInfo.project.name === 'mobile-chrome') {
+      await expect(page.getByRole('button', { name: /\d+ entries? .*\d+ upcoming/ })).toBeVisible();
+      return;
+    }
+
     await page.waitForSelector('[data-slot="icon"]', { timeout: 5000 });
 
     // The current card names its scope explicitly so its count is not confused

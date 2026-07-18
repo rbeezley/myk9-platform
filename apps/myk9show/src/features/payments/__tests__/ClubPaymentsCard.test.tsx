@@ -83,6 +83,21 @@ describe('ClubPaymentsCard', () => {
     expect(mockedStartOnboarding).not.toHaveBeenCalled();
   });
 
+  it('Not now closes the checklist without starting Stripe onboarding', async () => {
+    mockAccountState(null);
+    const user = userEvent.setup();
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /connect payment account/i }));
+    const notNow = screen.getByRole('button', { name: 'Not now' });
+    notNow.focus();
+    await user.keyboard('{Enter}');
+
+    expect(screen.queryByText(/before you start/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /connect payment account/i })).toBeInTheDocument();
+    expect(mockedStartOnboarding).not.toHaveBeenCalled();
+  });
+
   it('Continue to Stripe calls the onboard function with the club id and return path', async () => {
     mockAccountState(null);
     mockedStartOnboarding.mockResolvedValue('https://connect.stripe.com/setup/x');

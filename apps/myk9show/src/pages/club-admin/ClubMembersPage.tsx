@@ -17,10 +17,10 @@ import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { PageTransition } from '@/components/common/PageTransition';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { Users, Plus, Shield, Search, AlertTriangle } from 'lucide-react';
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { ScopeType, UserRole } from '@/types/auth-types';
+import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
 import {
   OFFICER_POSITION_ORDER,
   type MembershipType,
@@ -51,8 +51,8 @@ const CLUB_MEMBERS_TABS: PrimaryTabDef[] = [
 
 const ClubMembersPage: React.FC = () => {
   const queryClient = useQueryClient();
-  const { userWithRoles } = useAuthContext();
-  const { clubs, loadClubs } = useClubStore();
+  const clubContext = useCurrentValidatedClubContext();
+  const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
   const { people, loadUsers } = useUserStore();
 
   const [selectedTab, setSelectedTab] = useState('members');
@@ -60,22 +60,15 @@ const ClubMembersPage: React.FC = () => {
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAssignOfficer, setShowAssignOfficer] = useState(false);
 
-  // Detect club from auth scopes
-  const clubId = useMemo(
-    () =>
-      userWithRoles?.scopes?.find(
-        s => s.scopeType === ScopeType.CLUB && s.roleId === UserRole.CLUB_ADMIN
-      )?.scopeId,
-    [userWithRoles?.scopes]
-  );
+  const clubId = clubContext.status === 'ready' ? clubContext.clubId : undefined;
+  const clubName = clubContext.status === 'ready' ? clubContext.clubName : 'Club';
 
-  const club = useMemo(() => clubs.find(c => c.id === clubId), [clubs, clubId]);
-
-  // Load clubs and people on mount
+  // Load the narrow public club replica and people on mount. Cached club data
+  // does not validate this page until the current-session freshness check wins.
   useEffect(() => {
-    loadClubs();
+    void ensureClubsReady();
     loadUsers();
-  }, [loadClubs, loadUsers]);
+  }, [ensureClubsReady, loadUsers]);
 
   // Queries
   const membersQuery = useQuery({
@@ -214,16 +207,23 @@ const ClubMembersPage: React.FC = () => {
 
   const existingMemberPersonIds = useMemo(() => new Set(members.map(m => m.personId)), [members]);
 
-  // No club found state
-  if (!clubId) {
+  if (clubContext.status !== 'ready') {
+    const message =
+      clubContext.status === 'ambiguous'
+        ? 'More than one club is linked to your account. Ask an administrator to correct the club access before managing members.'
+        : clubContext.status === 'missing'
+          ? 'Your club access needs to be configured before you can manage members.'
+          : 'We could not verify your club access yet. Check your connection and try again.';
+
     return (
       <PageTransition>
         <div className="flex items-center justify-center min-h-[60vh]">
           <Card className="bg-gradient-to-br from-card to-card/80 border-border/50 backdrop-blur-xl">
-            <CardContent className="pt-6 text-center">
-              <p className="text-muted-foreground">
-                No club admin scope found. You need club admin permissions to manage members.
-              </p>
+            <CardContent className="flex flex-col items-center gap-4 pt-6 text-center">
+              <p className="max-w-md text-muted-foreground">{message}</p>
+              {(clubContext.status === 'unavailable' || clubContext.status === 'loading') && (
+                <Button onClick={() => void ensureClubsReady({ force: true })}>Try again</Button>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -274,8 +274,6 @@ const ClubMembersPage: React.FC = () => {
       </PageTransition>
     );
   }
-
-  const clubName = club?.name ?? 'Club';
 
   return (
     <PageTransition>

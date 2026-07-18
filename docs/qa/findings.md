@@ -77,53 +77,70 @@ Copy this block for each new finding.
 - **Notes:** optional context, linked PR, migration number, or deferral reason
 ```
 
-## Open Findings
+## Closed Findings
 
 ### QA-CLUB-TABS-038
 
-- **Status:** open
+- **Status:** fixed (2026-07-18 — MYK9-62)
 - **Severity:** blocker
 - **Role:** club-admin, admin
 - **Surface:** `/clubs/dededede-0000-0000-0000-000000000001` club profile tabs and statistic cards
 - **Suite category:** manual-debug
 - **Pattern:** silent-no-op
 - **Detected by:** Playwright
-- **Evidence:** Authenticated Chromium walk on 2026-07-18: clicking `Past Shows`, `About`, `Members`, `Branding`, or `Active Members` left `Upcoming Shows` selected and its panel visible. The exact replay is documented in `docs/qa/club-pages-audit-2026-07-18.md`.
+- **Evidence:** Assertion-first Vitest coverage plus the read-only Chromium replay in `apps/myk9show/src/test/e2e/club-surface-integrity.spec.ts`: all four non-default tabs and both stat cards updated the selected trigger, panel, and `?tab=` state; the suite passed 5/5 on desktop and included a 375px pass.
 - **User impact:** Club admins cannot reach the profile's About, Members, or Branding panels from the visible controls.
 - **Intent check:** Harms the club-admin workflow by making routine club management feel unreliable and hidden.
 - **Fix owner:** Club profile `PrimaryTabs` state wiring and stat-card tab-change handler.
-- **Proof required:** Add a Chromium replay that clicks every profile tab and both stat cards, asserting the selected tab and panel content after each click.
-- **Notes:** Confirmed at desktop viewport; the 375px profile pass had no page-level overflow.
+- **Proof required:** Satisfied by the named Vitest files and the MYK9-62 Chromium replay (`5 passed`, `--retries=0`).
+- **Notes:** The shared Tabs primitive remained unchanged; the defect was local profile state wiring/stat-card composition.
 
 ### QA-CLUB-ROLE-SCOPE-039
 
-- **Status:** open
+- **Status:** fixed (2026-07-18 — client guard; data cleanup separate)
 - **Severity:** high
 - **Role:** club-admin, admin
 - **Surface:** `/club-admin/members` My Club sidebar links
 - **Suite category:** manual-debug
 - **Pattern:** role-scope-empty
 - **Detected by:** Playwright
-- **Evidence:** The authenticated sidebar generated `Club Profile` and `Our Shows` links with club ID `49791e78-50b0-4393-adb1-ee0d8be591fc`; opening Club Profile fell back to `/clubs`, while the valid seeded Heartland club used ID `dededede-0000-0000-0000-000000000001`. Replay is documented in `docs/qa/club-pages-audit-2026-07-18.md`.
+- **Evidence:** The authenticated Chromium replay now proves the seeded account never emits a dead `My Club` link: it shows explicit multiple-club access guidance when validation is ambiguous. The selector tests also prove stale scopes are ignored, duplicate IDs are deduplicated, and no first-club fallback occurs.
 - **User impact:** A club admin cannot reliably open their own club from navigation.
 - **Intent check:** Harms the club-admin expectation that the software already knows which club they manage.
 - **Fix owner:** Auth scope/club assignment projection and shared sidebar club-link builder.
-- **Proof required:** Sign in with the canonical club-admin account, assert both My Club links target the scoped club, and open each destination successfully.
+- **Proof required:** Satisfied for client behavior by `unifiedSidebarConfig.test.ts`, `useValidatedClubContext.test.tsx`, and the MYK9-62 Chromium replay. The underlying seeded account still has stale/ambiguous scopes and needs a separately approved data-cleanup issue; this change made no shared-data mutation.
 
 ### QA-CLUB-PUBLIC-040
 
-- **Status:** open
+- **Status:** fixed (2026-07-18 — MYK9-62)
 - **Severity:** high
 - **Role:** public
 - **Surface:** `/clubs` and `/clubs/:id`
 - **Suite category:** manual-debug
 - **Pattern:** public-replication-bootstrap
 - **Detected by:** Playwright
-- **Evidence:** Fresh guest browser saw `0 clubs` and `No clubs yet` at `/clubs`, while authenticated Browse Clubs showed 4 clubs. Direct guest navigation to the valid Heartland club URL rendered only `/` and `/` beneath the public header. Replay is documented in `docs/qa/club-pages-audit-2026-07-18.md`.
+- **Evidence:** The read-only Chromium replay reached the seeded guest list, valid detail route, and explicit invalid-ID not-found state; the 375px re-walk also passed with no horizontal overflow. Store tests cover empty-success, cache-first, offline, rejection, timeout, requested-ID refresh, deduplication, and sanitized logging.
 - **User impact:** Public visitors cannot browse clubs or view a valid club detail page.
 - **Intent check:** Harms public trust and makes the club directory appear empty or broken.
 - **Fix owner:** Guest-safe club replication bootstrap and club-detail terminal states; confirm the existing public RLS contract without changing it unless evidence proves otherwise.
-- **Proof required:** Guest Chromium replay of the seeded public list and detail routes with a non-empty result plus a clear error state for an invalid ID.
+- **Proof required:** Satisfied by `club-surface-integrity.spec.ts` (`5 passed`, `--retries=0`) and the named Vitest readiness/page files. The existing `clubs_select USING (true)` policy and table-specific `replicatedClubsTable.sync()` path were retained.
+
+### QA-CLUB-CONTACT-042
+
+- **Status:** fixed (2026-07-18 — MYK9-62)
+- **Severity:** medium
+- **Role:** public, club-admin
+- **Surface:** `/clubs/:id` Club options menu
+- **Suite category:** manual-debug
+- **Pattern:** validation-visible-mismatch
+- **Detected by:** Playwright
+- **Evidence:** `ClubHeader.test.tsx` and `contactDestinations.test.ts` prove blank/unsafe values omit actions while valid partial data remains callable. The read-only Chromium replay opens the seeded options menu and confirms `Email Club` is present while `Call Club` is absent.
+- **User impact:** Users see a contact action that cannot work.
+- **Intent check:** Harms calm, trustworthy club discovery by exposing a dead action.
+- **Fix owner:** Club profile header contact-action guards and empty-contact copy.
+- **Proof required:** Satisfied by the focused component/helper tests and the MYK9-62 Chromium replay (`5 passed`, `--retries=0`).
+
+## Open Findings
 
 ### QA-CLUB-PAYMENTS-041
 
@@ -138,22 +155,7 @@ Copy this block for each new finding.
 - **User impact:** A treasurer may be unable to start or cancel the payment-account setup flow and receives no feedback.
 - **Intent check:** Harms the club treasurer's need for a calm, obvious setup flow before leaving for Stripe.
 - **Fix owner:** `ClubPaymentsCard` interaction path and shared Button/event handling.
-- **Proof required:** Headed/manual replay plus Playwright assertion that pointer activation opens the checklist, closes it with `Not now`, and does not start Stripe without an explicit `Continue to Stripe` click.
-
-### QA-CLUB-CONTACT-042
-
-- **Status:** open
-- **Severity:** medium
-- **Role:** public, club-admin
-- **Surface:** `/clubs/:id` Club options menu
-- **Suite category:** manual-debug
-- **Pattern:** validation-visible-mismatch
-- **Detected by:** Playwright
-- **Evidence:** Heartland Scent Work Club has no phone value, but `Club options` still exposes `Call Club`; clicking it produces no usable destination or feedback. Replay is documented in `docs/qa/club-pages-audit-2026-07-18.md`.
-- **User impact:** Users see a contact action that cannot work.
-- **Intent check:** Harms calm, trustworthy club discovery by exposing a dead action.
-- **Fix owner:** Club profile header contact-action guards and empty-contact copy.
-- **Proof required:** Verify the action is absent when phone is blank and remains callable when a valid phone is present.
+- **Proof required:** Headed/manual replay against a club with no connected Stripe account plus Playwright assertion that pointer activation opens the checklist, closes it with `Not now`, and does not start Stripe without an explicit `Continue to Stripe` click. The current seeded account is context-ambiguous, so the browser suite could only prove the page fails closed; unit coverage is green.
 
 ### QA-INFRA-OCC-STORM-037
 

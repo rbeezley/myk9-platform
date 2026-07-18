@@ -69,6 +69,21 @@ The authenticated walk used the canonical `e2e-admin@test.myk9.com` account, whi
 - The landing page's `For clubs & secretaries` content and `Club / secretary` waitlist option rendered; the waitlist was not submitted.
 - The Vite HMR WebSocket error on port `24678` was observed on every page and treated as local dev-server noise, not a club-product finding.
 
+## MYK9-62 verification — 2026-07-18
+
+Implementation branch `codex/myk9-62-club-workflows` completed the client-side repair pass without changing shared data, Stripe onboarding, or the shared Tabs/Button primitives.
+
+- Focused Vitest acceptance set: **108 passed** across club readiness, validated context, browse/detail terminal states, tabs/stat cards, contact actions, sidebar links, and payment checklist state transitions.
+- TypeScript and lint: `pnpm --filter @myk9/show typecheck` and `pnpm --filter @myk9/show lint` passed.
+- Read-only Chromium replay: `pnpm --dir apps/myk9show test:e2e:clean src/test/e2e/club-surface-integrity.spec.ts --project=chromium --workers=1 --retries=0` — **5 passed**. This covered guest browse/detail/not-found, every profile tab, both statistic cards, seeded-account navigation fail-closed behavior, payment-page fail-closed behavior, contact-menu integrity, and a 375px overflow/runtime pass.
+- `pnpm qa:e2e-map:check`: passed; the new suite is classified as Feature Audit.
+
+The required read-only staging inventory found the canonical `e2e-admin@test.myk9.com` `club_admin` role and its role-permission links, plus seven active club scopes. Those scopes point at deleted test clubs and three non-deleted E2E test clubs; none points at the seeded Heartland club. The client now treats that as ambiguous/missing access and emits no actionable `My Club` link. Shared role-scope cleanup is intentionally separate and was not performed.
+
+The existing public `clubs_select` policy remains `USING (true)`. Guest readiness uses only `replicatedClubsTable.sync()` against the replicated `clubs` table, preserving the existing RLS and offline cache boundary.
+
+Payment checklist component tests are green, but the live seeded account has ambiguous club context, so the browser re-walk could only prove the payment page fails closed rather than exercise the no-account checklist state. `QA-CLUB-PAYMENTS-041` remains open for a headed replay with an explicitly provisioned read-only no-account fixture.
+
 ## Recommended implementation order
 
 1. Repair club profile tab state and stat-card navigation.

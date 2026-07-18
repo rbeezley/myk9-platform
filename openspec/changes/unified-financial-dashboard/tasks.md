@@ -26,9 +26,9 @@
 
 ## 4. Platform financial workflow
 
-- [ ] 4.1 Add platform-scope online collected, gross platform-fee income, net platform income, outstanding transfer liability, and mismatch attention data to `/admin/payouts`.
-- [ ] 4.2 Add seeded-drift tests for failed transfers, unrecorded refunds, and missing processing fees; confirm normal pending/self-healing states are not falsely red.
-- [ ] 4.3 Add site-admin role/authorization and gross-versus-net presentation tests with source/formula labels.
+- [x] 4.1 Add platform-scope online collected, gross platform-fee income, net platform income, outstanding transfer liability, and mismatch attention data to `/admin/payouts`.
+- [x] 4.2 Add seeded-drift tests for failed transfers, unrecorded refunds, and missing processing fees; confirm normal pending/self-healing states are not falsely red.
+- [x] 4.3 Add site-admin role/authorization and gross-versus-net presentation tests with source/formula labels.
 
 ## 5. Canonical route consolidation (gated — see design.md go/no-go checkpoint)
 

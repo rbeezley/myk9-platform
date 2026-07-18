@@ -21,9 +21,9 @@
 
 - [x] 4.0 Add the copy-link affordance to the Entry Management and Class Management view headers; verify copied URLs round-trip through each surface's normalizer.
 - [x] 4.1 Add only deep links from existing Workbench readiness surfaces to the canonical filtered destination; do not render a second list.
-- [ ] 4.2 Add component tests proving presets expose clearing actions, preserve permissions, and clear selection.
-- [ ] 4.3 Run focused Vitest files, `pnpm openspec validate operational-views-and-display-presets --type change --strict --no-interactive`, `pnpm typecheck`, and `pnpm lint`.
-- [ ] 4.4 Run secretary/steward tablet browser verification for preset selection, refresh/back navigation, URL sharing, offline/cached data, and readability.
+- [x] 4.2 Add component tests proving presets expose clearing actions, preserve permissions, and clear selection.
+- [x] 4.3 Run focused Vitest files, `pnpm openspec validate operational-views-and-display-presets --type change --strict --no-interactive`, `pnpm typecheck`, and `pnpm lint`.
+- [x] 4.4 Run secretary/steward tablet browser verification for preset selection, refresh/back navigation, URL sharing, offline/cached data, and readability.
 
 ## 5. Tracking and implementation gate
 

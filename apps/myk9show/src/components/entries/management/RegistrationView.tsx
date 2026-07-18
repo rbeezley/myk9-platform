@@ -4,31 +4,26 @@ import { toast } from 'sonner';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
 import { supabase } from '@/lib/supabase';
 import { useEntryDecisionLifecycleEmails } from '@/features/lifecycle-emails';
-import { ListControls } from '@/components/common/ListControls';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useElementWidth } from '@/hooks/useElementWidth';
-import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Search, Users } from 'lucide-react';
 
 import { EntryStatsCards } from './EntryStatsCards';
-import { EnrollmentCard } from './EnrollmentCard';
+import { EnrollmentCardList } from './EnrollmentCardList';
 import { EntriesTableView } from './EntriesTableView';
 import { EntryBulkActionsBar } from './EntryBulkActionsBar';
-import { EntryWorkModeSwitch } from './EntryWorkModeSwitch';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import {
-  ENTRY_MANAGEMENT_FILTERS,
   ENTRY_WORK_MODE_PRESETS,
-  ENTRY_VIEW_MODES,
   getEntryManagementEmptyStateMessage,
   type EntryAttentionFilter,
   type EntryManagementViewMode,
   type EntryWorkMode,
 } from './entryManagementFilters';
 import { shouldUseEntryCards } from './entryManagementResponsive';
-import { EntryManagementViewControls } from './EntryManagementViewControls';
+import { RegistrationViewControls } from './RegistrationViewControls';
 import type {
   EntryDisplayPreset,
   EntryManagementOperationalView,
@@ -46,7 +41,6 @@ import type { CheckInStatus } from '@myk9/core';
 
 /** Stable identity so useBulkSelection's memoized selectors don't churn each render. */
 const getEntryId = (entry: EntryManagementEntry) => entry.id;
-const ENROLLMENT_CARD_PAGE_SIZE = 25;
 
 interface RegistrationViewProps {
   /** Entry stats for the stats cards */
@@ -223,22 +217,10 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       selection.toggleAll,
     ]
   );
-  const enrollmentGroupKeys = useMemo(
-    () => enrollmentGroups.map(group => group.groupKey),
-    [enrollmentGroups]
-  );
-  const [enrollmentPage, setEnrollmentPage] = useState(() => ({
-    groupKeys: enrollmentGroupKeys,
-    pageIndex: 0,
-  }));
-  const resetEnrollmentPage = () =>
-    setEnrollmentPage({ groupKeys: enrollmentGroupKeys, pageIndex: 0 });
-
   // Clear selection on attention-filter change (avoids carrying a selection into a different
   // status bucket). Done in the handler, not an effect, per the no-setState-in-effect rule.
   const handleAttentionFilterChange = (filter: EntryAttentionFilter) => {
     selection.clearSelection();
-    resetEnrollmentPage();
     setAttentionFilter(filter);
   };
 
@@ -254,7 +236,6 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     }
 
     selection.clearSelection();
-    resetEnrollmentPage();
     setWorkMode(mode);
   };
 
@@ -263,7 +244,6 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   // Design Decision 4: applying a preset clears the active selection.
   const handleApplyPreset = (presetId: EntryManagementPresetId) => {
     selection.clearSelection();
-    resetEnrollmentPage();
     applyPreset(presetId);
   };
 
@@ -316,7 +296,6 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
 
   const handleApplyView = (view: EntryManagementOperationalView) => {
     selection.clearSelection();
-    resetEnrollmentPage();
     applyView(view);
   };
 
@@ -367,109 +346,30 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       size="sm"
     />
   );
-  const enrollmentPageCount = Math.max(
-    1,
-    Math.ceil(enrollmentGroups.length / ENROLLMENT_CARD_PAGE_SIZE)
-  );
-  const isSameEnrollmentGroupSet =
-    enrollmentPage.groupKeys.length === enrollmentGroupKeys.length &&
-    enrollmentPage.groupKeys.every((groupKey, index) => groupKey === enrollmentGroupKeys[index]);
-  const currentEnrollmentPageIndex = isSameEnrollmentGroupSet
-    ? Math.min(enrollmentPage.pageIndex, enrollmentPageCount - 1)
-    : 0;
-  const enrollmentPageStart = currentEnrollmentPageIndex * ENROLLMENT_CARD_PAGE_SIZE;
-  const visibleEnrollmentGroups = enrollmentGroups.slice(
-    enrollmentPageStart,
-    enrollmentPageStart + ENROLLMENT_CARD_PAGE_SIZE
-  );
   const enrollmentCardList = (
-    <div className="space-y-3">
-      {enrollmentGroups.length > 0 ? (
-        <>
-          {visibleEnrollmentGroups.map(group => (
-            <EnrollmentCard
-              key={group.groupKey}
-              group={group}
-              onStatusChange={handleStatusChangeWithDecisionPrompt}
-              onEntryRefunded={onRefresh}
-              onCheckInStatusChange={onCheckInStatusChange}
-              onOpenEditEntry={onOpenEditEntry}
-              onOpenArmbandDialog={onOpenArmbandDialog}
-              onCompEntry={(entryId: string) => {
-                const entry = group.entries.find(e => e.id === entryId);
-                if (entry) onOpenCompDialog(entry);
-              }}
-              onUncompEntry={onUncompEntry}
-              onRemoveEntry={onRemoveEntry}
-              onBulkStatusChange={onBulkStatusChange}
-              onBulkCheckIn={onBulkCheckIn}
-              onPaymentStatusChange={onPaymentStatusChange}
-              emailStatusMap={emailStatusMap}
-              onResendEmail={handleResendEmail}
-              isResendDisabled={isResendDisabled}
-              onSendDecisionEmail={onSendDecisionEmail}
-              lastDecisionEmailedAt={
-                group.enrollmentId ? lastEmailedMap[group.enrollmentId] : undefined
-              }
-              lifecycleDecisionEmailStatusMap={lifecycleEmails.statusMap}
-              onReviewLifecycleEmail={lifecycleEmails.reviewReadyEmail}
-              onPrepareCorrectionEmail={lifecycleEmails.prepareCorrectionEmail}
-            />
-          ))}
-          {enrollmentPageCount > 1 && (
-            <nav
-              className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-              aria-label="Enrollment card pagination"
-            >
-              <p className="text-sm text-muted-foreground">
-                Showing {enrollmentPageStart + 1}–
-                {Math.min(enrollmentPageStart + ENROLLMENT_CARD_PAGE_SIZE, enrollmentGroups.length)}{' '}
-                of {enrollmentGroups.length} enrollments
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-11 flex-1 sm:flex-none"
-                  onClick={() =>
-                    setEnrollmentPage({
-                      groupKeys: enrollmentGroupKeys,
-                      pageIndex: currentEnrollmentPageIndex - 1,
-                    })
-                  }
-                  disabled={currentEnrollmentPageIndex === 0}
-                  aria-label="Go to previous enrollment page"
-                >
-                  Previous
-                </Button>
-                <span className="whitespace-nowrap text-sm text-muted-foreground">
-                  Page {currentEnrollmentPageIndex + 1} of {enrollmentPageCount}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-11 flex-1 sm:flex-none"
-                  onClick={() =>
-                    setEnrollmentPage({
-                      groupKeys: enrollmentGroupKeys,
-                      pageIndex: currentEnrollmentPageIndex + 1,
-                    })
-                  }
-                  disabled={currentEnrollmentPageIndex === enrollmentPageCount - 1}
-                  aria-label="Go to next enrollment page"
-                >
-                  Next
-                </Button>
-              </div>
-            </nav>
-          )}
-        </>
-      ) : (
-        <div className="rounded-lg border border-dashed border-border/70 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
-          {emptyStateContent}
-        </div>
-      )}
-    </div>
+    <EnrollmentCardList
+      enrollmentGroups={enrollmentGroups}
+      emptyStateContent={emptyStateContent}
+      onStatusChange={handleStatusChangeWithDecisionPrompt}
+      onEntryRefunded={onRefresh}
+      onCheckInStatusChange={onCheckInStatusChange}
+      onOpenEditEntry={onOpenEditEntry}
+      onOpenArmbandDialog={onOpenArmbandDialog}
+      onOpenCompDialog={onOpenCompDialog}
+      onUncompEntry={onUncompEntry}
+      onRemoveEntry={onRemoveEntry}
+      onBulkStatusChange={onBulkStatusChange}
+      onBulkCheckIn={onBulkCheckIn}
+      onPaymentStatusChange={onPaymentStatusChange}
+      emailStatusMap={emailStatusMap}
+      onResendEmail={handleResendEmail}
+      isResendDisabled={isResendDisabled}
+      onSendDecisionEmail={onSendDecisionEmail}
+      lastEmailedMap={lastEmailedMap}
+      lifecycleDecisionEmailStatusMap={lifecycleEmails.statusMap}
+      onReviewLifecycleEmail={lifecycleEmails.reviewReadyEmail}
+      onPrepareCorrectionEmail={lifecycleEmails.prepareCorrectionEmail}
+    />
   );
 
   return (
@@ -477,15 +377,11 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       {/* Stats Overview */}
       <EntryStatsCards stats={stats} />
 
-      <EntryWorkModeSwitch
-        value={workMode}
-        onChange={handleWorkModeChange}
+      <RegistrationViewControls
+        workMode={workMode}
+        onWorkModeChange={handleWorkModeChange}
         activeExtraPresetId={activeExtraPresetId}
         onSelectExtraPreset={handleApplyPreset}
-      />
-
-      {/* Display density + personal saved views (tasks.md 3.2/3.3) */}
-      <EntryManagementViewControls
         density={density}
         onDensityChange={setDensity}
         displayPreset={displayPreset}
@@ -494,43 +390,23 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         showId={showId}
         trialFilter={trialFilter}
         classFilter={classFilter}
-        attentionFilter={attentionFilter}
-        paymentFilter={paymentFilter}
-        workMode={workMode}
-        entryViewMode={entryViewMode}
         onApplyView={handleApplyView}
-      />
-
-      {/* Search, filters, and view mode */}
-      <ListControls
-        search={searchTerm}
+        searchTerm={searchTerm}
         onSearchChange={value => {
-          resetEnrollmentPage();
           setSearchTerm(value);
         }}
-        searchPlaceholder="Search entries..."
-        filters={ENTRY_MANAGEMENT_FILTERS}
-        filterValues={{
-          attention: attentionFilter === 'all' ? '' : attentionFilter,
-          payment: paymentFilter === 'all' ? '' : paymentFilter,
-        }}
-        onFilterChange={(key, value) => {
-          if (key === 'attention') {
-            handleAttentionFilterChange((value || 'all') as EntryAttentionFilter);
-          }
-          if (key === 'payment') {
-            selection.clearSelection();
-            resetEnrollmentPage();
-            setPaymentFilter(value || 'all');
-          }
-        }}
-        viewMode={entryViewMode}
-        onViewModeChange={mode => {
+        attentionFilter={attentionFilter}
+        paymentFilter={paymentFilter}
+        onAttentionFilterChange={handleAttentionFilterChange}
+        onPaymentFilterChange={value => {
           selection.clearSelection();
-          resetEnrollmentPage();
+          setPaymentFilter(value || 'all');
+        }}
+        entryViewMode={entryViewMode}
+        onEntryViewModeChange={mode => {
+          selection.clearSelection();
           setEntryViewMode(mode as EntryManagementViewMode);
         }}
-        viewModes={ENTRY_VIEW_MODES}
         resultsShowing={filteredEntries.length}
         resultsTotal={entries.length}
         filtered={
@@ -539,7 +415,6 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           paymentFilter !== 'all' ||
           attentionFilter !== 'all'
         }
-        entityName="entries"
       />
 
       {entryViewMode === 'table' && useCardsForContent ? (

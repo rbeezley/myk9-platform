@@ -4,7 +4,6 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { getEffectivePaymentStatus } from '@/utils/entryManagementUtils';
 import { matchesOperationalAttentionFilter } from '@/features/entry-operations/attentionClassification';
 import {
-  ENTRY_WORK_MODE_PRESETS,
   type EntryAttentionFilter,
   type EntryPaymentFilter,
   type EntryManagementViewMode,
@@ -15,10 +14,23 @@ import {
   normalizeEntryManagementSearchParams,
 } from '@/components/entries/management/entryManagementFilters';
 import {
-  ENTRY_MANAGEMENT_PRESETS,
   type EntryManagementOperationalView,
   type EntryManagementPresetId,
 } from '@/features/operational-views/operationalViews';
+import {
+  writeAttentionFilter,
+  writePaymentFilter,
+  writeWorkMode,
+  writePreset,
+  writeView,
+  writeEntryViewMode,
+  writeDensity,
+  writeDisplayPreset,
+  writeRosterView,
+  writeTrialFilter,
+  writeClassFilter,
+  writeShowScopeReset,
+} from '@/components/entries/management/entryViewParamWriters';
 
 interface TabCounts {
   all: number;
@@ -146,16 +158,7 @@ export function useEntryManagementFilters({
 
   const setAttentionFilter = useCallback(
     (filter: EntryAttentionFilter) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (filter === 'all') next.delete('attention');
-          else next.set('attention', filter);
-          next.delete('entryTab');
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeAttentionFilter(prev, filter), { replace: true });
     },
     [setSearchParams]
   );
@@ -165,63 +168,21 @@ export function useEntryManagementFilters({
   const setPaymentFilter = useCallback(
     (payment: string) => {
       const normalizedPayment: EntryPaymentFilter = isEntryPaymentFilter(payment) ? payment : 'all';
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (normalizedPayment === 'all') next.delete('payment');
-          else next.set('payment', normalizedPayment);
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writePaymentFilter(prev, normalizedPayment), { replace: true });
     },
     [setSearchParams]
   );
 
   const setWorkMode = useCallback(
     (mode: EntryWorkMode) => {
-      const preset = ENTRY_WORK_MODE_PRESETS[mode];
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (mode === 'review') next.delete('mode');
-          else next.set('mode', mode);
-          if (preset.attention === 'all') next.delete('attention');
-          else next.set('attention', preset.attention);
-          if (preset.view === 'table') next.delete('view');
-          else next.set('view', preset.view);
-          if (preset.payment === 'all') next.delete('payment');
-          else next.set('payment', preset.payment);
-          next.delete('entryTab');
-          next.delete('tab');
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeWorkMode(prev, mode), { replace: true });
     },
     [setSearchParams]
   );
 
   const applyPreset = useCallback(
     (presetId: EntryManagementPresetId) => {
-      const { filters } = ENTRY_MANAGEMENT_PRESETS[presetId].build();
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (filters.attention === 'all') next.delete('attention');
-          else next.set('attention', filters.attention);
-          if (filters.payment === 'all') next.delete('payment');
-          else next.set('payment', filters.payment);
-          if (filters.mode === 'review') next.delete('mode');
-          else next.set('mode', filters.mode);
-          if (filters.view === 'table') next.delete('view');
-          else next.set('view', filters.view);
-          next.delete('entryTab');
-          next.delete('tab');
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writePreset(prev, presetId), { replace: true });
     },
     [setSearchParams]
   );
@@ -235,72 +196,28 @@ export function useEntryManagementFilters({
    */
   const applyView = useCallback(
     (view: EntryManagementOperationalView) => {
-      const { filters, display } = view;
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (filters.attention === 'all') next.delete('attention');
-          else next.set('attention', filters.attention);
-          if (filters.payment === 'all') next.delete('payment');
-          else next.set('payment', filters.payment);
-          if (filters.mode === 'review') next.delete('mode');
-          else next.set('mode', filters.mode);
-          if (filters.view === 'table') next.delete('view');
-          else next.set('view', filters.view);
-          const density = display?.density ?? 'comfortable';
-          if (density === 'comfortable') next.delete('density');
-          else next.set('density', density);
-          next.delete('entryTab');
-          next.delete('tab');
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeView(prev, view), { replace: true });
     },
     [setSearchParams]
   );
 
   const setEntryViewMode = useCallback(
     (view: EntryManagementViewMode) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (view === 'table') next.delete('view');
-          else next.set('view', view);
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeEntryViewMode(prev, view), { replace: true });
     },
     [setSearchParams]
   );
 
   const setDensity = useCallback(
     (value: OperationalViewDensity) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (value === 'comfortable') next.delete('density');
-          else next.set('density', value);
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeDensity(prev, value), { replace: true });
     },
     [setSearchParams]
   );
 
   const setDisplayPreset = useCallback(
     (value: EntryDisplayPreset) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (value === 'standard') next.delete('display');
-          else next.set('display', value);
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeDisplayPreset(prev, value), { replace: true });
     },
     [setSearchParams]
   );
@@ -314,55 +231,21 @@ export function useEntryManagementFilters({
 
   const setRosterView = useCallback(
     (on: boolean) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (on) next.set('roster', '1');
-          else next.delete('roster');
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeRosterView(prev, on), { replace: true });
     },
     [setSearchParams]
   );
 
   const setTrialFilter = useCallback(
     (id: string | null) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (id) {
-            next.set('trial', id);
-          } else {
-            next.delete('trial');
-            // Roster is meaningless without a trial — drop it too.
-            next.delete('roster');
-          }
-          // Always clear class when trial changes
-          next.delete('class');
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeTrialFilter(prev, id), { replace: true });
     },
     [setSearchParams]
   );
 
   const setClassFilter = useCallback(
     (id: string | null) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (id) {
-            next.set('class', id);
-          } else {
-            next.delete('class');
-          }
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeClassFilter(prev, id), { replace: true });
     },
     [setSearchParams]
   );
@@ -380,16 +263,7 @@ export function useEntryManagementFilters({
 
     if (prevShowIdRef.current !== showId) {
       prevShowIdRef.current = showId;
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          next.delete('trial');
-          next.delete('class');
-          next.delete('roster');
-          return next;
-        },
-        { replace: true }
-      );
+      setSearchParams(prev => writeShowScopeReset(prev), { replace: true });
     }
   }, [showId, setSearchParams]);
 

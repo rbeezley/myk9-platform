@@ -125,6 +125,25 @@ describe('financial reconciliation RPC — SQL-side aggregation (source-pinned)'
     expect(migrationSource).toMatch(/FROM scoped_payouts sp/);
   });
 
+  it('splits refunds into the total returned vs the post-hoc share the platform absorbed', () => {
+    // A cart-overflow make-whole refund returns money for lines that were never
+    // accepted: no platform fee was earned and no club transfer was made, so it
+    // is NOT a platform loss. Only post_hoc_refunded_cents may reduce net income.
+    expect(migrationSource).toContain('post_hoc_refunded_cents');
+    // The clamps must be PER ORDER — inside the SUM, not applied to the SUMs.
+    expect(migrationSource).toMatch(/SUM\(\s*CASE/);
+    expect(migrationSource).toMatch(
+      /so\.amount_cents - so\.entry_subtotal_cents - so\.platform_fee_cents/
+    );
+    expect(migrationSource).toMatch(/GREATEST\(/);
+    // Documented conservative handling of legacy rows with no snapshot.
+    expect(migrationSource).toMatch(
+      /WHEN so\.entry_subtotal_cents IS NULL OR so\.platform_fee_cents IS NULL/
+    );
+    // ...and the raw total is still reported alongside it (online collected).
+    expect(migrationSource).toMatch(/SUM\(so\.refunded_cents\)/);
+  });
+
   it('keeps charge facts and payout settlement as separate totals', () => {
     // Two independent CTEs — charges never conflated with transfers.
     expect(migrationSource).toContain('scoped_orders');

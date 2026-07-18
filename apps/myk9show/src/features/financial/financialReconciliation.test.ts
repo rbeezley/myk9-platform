@@ -11,6 +11,7 @@ vi.mock('@/lib/supabase', () => ({
 }));
 
 import {
+  derivePostHocRefundedCents,
   fetchFinancialReconciliationOrders,
   fetchFinancialReconciliationPayouts,
   fetchFinancialReconciliationSummary,
@@ -33,7 +34,8 @@ describe('mapSummaryRow', () => {
       platform_fee_cents: '700',
       processing_fee_cents: '320',
       processing_fee_pending_count: '1',
-      refunded_cents: '0',
+      refunded_cents: '4025',
+      post_hoc_refunded_cents: '25',
       snapshot_missing_count: '2',
       non_entry_order_count: '4',
       non_entry_gross_cents: '2500',
@@ -57,6 +59,76 @@ describe('mapSummaryRow', () => {
     expect(summary.payoutFailedCents).toBe(1200);
     expect(summary.payoutPendingCents).toBe(0);
     expect(summary.payoutFailedCount).toBe(1);
+    // The two refund figures are mapped SEPARATELY: the total returned to
+    // customers vs the share the platform actually absorbed.
+    expect(summary.refundedCents).toBe(4025);
+    expect(summary.postHocRefundedCents).toBe(25);
+  });
+});
+
+describe('derivePostHocRefundedCents', () => {
+  const base = { amountCents: 5250, entrySubtotalCents: 5000, platformFeeCents: 250 };
+
+  it('treats a normal (no-overflow) order refund as fully post-hoc', () => {
+    // amount = subtotal + fee, so overflow = 0 and the whole refund is a loss.
+    expect(derivePostHocRefundedCents({ ...base, refundedCents: 40 })).toBe(40);
+  });
+
+  it('excludes a pure cart-overflow make-whole refund entirely', () => {
+    // Charged 9250 gross; only 5000 of lines were accepted (+250 fee). The 4000
+    // overflow was refunded — no fee earned, no transfer made, so 0 absorbed.
+    expect(
+      derivePostHocRefundedCents({
+        amountCents: 9250,
+        entrySubtotalCents: 5000,
+        platformFeeCents: 250,
+        refundedCents: 4000,
+      })
+    ).toBe(0);
+  });
+
+  it('counts only the post-hoc share when an order has both refund kinds', () => {
+    // 4000 make-whole + 25 post-hoc on the accepted entry.
+    expect(
+      derivePostHocRefundedCents({
+        amountCents: 9250,
+        entrySubtotalCents: 5000,
+        platformFeeCents: 250,
+        refundedCents: 4025,
+      })
+    ).toBe(25);
+  });
+
+  it('never returns a negative when the refund is smaller than the overflow', () => {
+    expect(
+      derivePostHocRefundedCents({
+        amountCents: 9250,
+        entrySubtotalCents: 5000,
+        platformFeeCents: 250,
+        refundedCents: 1000,
+      })
+    ).toBe(0);
+  });
+
+  it('attributes the FULL refund to the platform for a NULL-snapshot legacy order', () => {
+    // Overflow is underivable without a snapshot; the conservative documented
+    // choice is to treat the whole refund as absorbed (may understate net).
+    expect(
+      derivePostHocRefundedCents({
+        amountCents: 9250,
+        entrySubtotalCents: null,
+        platformFeeCents: 250,
+        refundedCents: 4000,
+      })
+    ).toBe(4000);
+    expect(
+      derivePostHocRefundedCents({
+        amountCents: 9250,
+        entrySubtotalCents: 5000,
+        platformFeeCents: null,
+        refundedCents: 4000,
+      })
+    ).toBe(4000);
   });
 });
 

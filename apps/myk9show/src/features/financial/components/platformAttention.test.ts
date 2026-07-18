@@ -158,9 +158,11 @@ describe('derivePlatformAttention — calm pending / self-healing states are NOT
     expect(attention.totalCount).toBe(0);
   });
 
-  it('an order with a not-yet-captured processing fee (pending, self-healing) is not attention', () => {
+  it('an order with a not-yet-captured processing fee (pending, needs manual backfill) is not attention', () => {
     // processingFeePendingCount is surfaced through the PlatformIncomeSummary as a
     // calm "pending" net-income state, not through snapshotMissingCount/attention.
+    // Calm, but NOT self-healing: nothing retries the fee capture, so clearing it
+    // takes a manual backfill. It still never renders red.
     const attention = derivePlatformAttention({
       snapshotMissingCount: 0,
       payouts: [],

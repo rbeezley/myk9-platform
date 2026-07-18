@@ -38,14 +38,17 @@ export interface PlatformIncomeSummary {
   grossPlatformFeeCents: number;
   /**
    * Net platform income: gross platform fee − captured processing fee −
-   * platform-absorbed refunds. Pending while ANY order's processing fee is
-   * uncaptured — the missing fee is surfaced as pending, never treated as zero.
+   * POST-HOC platform-absorbed refunds. Pending while ANY order's processing fee
+   * is uncaptured — the missing fee is surfaced as pending, never treated as zero.
    * When available, may be negative if absorbed refunds exceed fee income.
    */
   netPlatformIncome:
     { status: 'available'; netCents: number } | { status: 'pending'; grossCents: number };
   processingFeePendingCount: number;
+  /** Total returned to customers (post-hoc AND cart-overflow make-whole). */
   refundedCents: number;
+  /** The portion of refundedCents the platform actually lost — see below. */
+  postHocRefundedCents: number;
   /** Legacy orders with no platform-fee snapshot (rate-unverifiable). */
   snapshotMissingCount: number;
 }
@@ -94,32 +97,51 @@ export interface FinancialSummaryDeps {
 // stripe.refunds.create WITHOUT `reverse_transfer` and WITHOUT
 // `refund_application_fee`. The customer is repaid the full charge from the
 // PLATFORM balance while the club keeps its transfer, so the platform absorbs
-// the FULL refunded amount (refundedCents) — not merely its fee portion. Net
-// platform income must therefore subtract the entire refundedCents.
+// the FULL refunded amount of a POST-HOC refund — not merely its fee portion.
+//
+// But refundedCents is the cumulative total of EVERY refund on an order, and that
+// includes cart-overflow "make-whole" auto-refunds for lines that were denied /
+// waitlisted / never served. The platform earned NO fee on those lines
+// (platform_fee_cents is computed on entry_subtotal_cents, i.e. paid lines only)
+// and no club transfer was ever made for them, so returning that money is not a
+// platform loss — it is money collected and handed straight back. Subtracting it
+// makes net income read falsely negative.
+//
+// The reconciliation RPC therefore splits the total server-side and exposes
+// postHocRefundedCents = per-order max(0, refunded − max(0, amount − subtotal −
+// fee)). Net platform income subtracts THAT, never the raw refundedCents.
+// onlineCollectedCents still uses the full refundedCents: a make-whole refund
+// genuinely does reduce money collected.
 
 /** Derive the platform-income group from server-aggregated reconciliation totals. */
 export function derivePlatformIncome(
   summary: FinancialReconciliationSummary
 ): PlatformIncomeSummary {
   const grossPlatformFeeCents = summary.platformFeeCents;
-  // Platform-absorbed refunds: the full customer refund comes out of the
-  // platform balance (no reverse_transfer / refund_application_fee), so the whole
-  // refundedCents is a platform cost against net income. This can drive net
-  // NEGATIVE (refunds exceeded fee income) — that is economically real and is
+  // Platform-absorbed refunds: a POST-HOC refund comes out of the platform
+  // balance in full (no reverse_transfer / refund_application_fee) while the club
+  // keeps its transfer, so postHocRefundedCents is a real platform cost against
+  // net income. Cart-overflow make-whole refunds are deliberately NOT subtracted
+  // (see the refund-architecture note above). This can still drive net NEGATIVE
+  // (post-hoc refunds exceeded fee income) — that is economically real and is
   // reported as-is, never clamped to 0.
   const netPlatformIncome =
     summary.processingFeePendingCount > 0
       ? ({ status: 'pending', grossCents: grossPlatformFeeCents } as const)
       : ({
           status: 'available',
-          netCents: grossPlatformFeeCents - summary.processingFeeCents - summary.refundedCents,
+          netCents:
+            grossPlatformFeeCents - summary.processingFeeCents - summary.postHocRefundedCents,
         } as const);
   return {
+    // Full refundedCents here on purpose: a make-whole refund DOES reduce the
+    // money the platform is holding, even though it is not a platform loss.
     onlineCollectedCents: summary.grossChargedCents - summary.refundedCents,
     grossPlatformFeeCents,
     netPlatformIncome,
     processingFeePendingCount: summary.processingFeePendingCount,
     refundedCents: summary.refundedCents,
+    postHocRefundedCents: summary.postHocRefundedCents,
     snapshotMissingCount: summary.snapshotMissingCount,
   };
 }

@@ -65,11 +65,15 @@ function PlatformFigures({ income }: { income: PlatformIncomeSummary }) {
         value={formatCents(income.grossPlatformFeeCents)}
         formula="Sum of the platform-fee snapshot on each online order"
       />
+      {/* Cart-overflow make-whole refunds are excluded from the net formula on
+          purpose: the platform earned no fee and made no transfer on those
+          lines, so returning that money is not a loss. Only post-hoc refunds on
+          accepted entries are. */}
       <Figure
         label="Net platform income"
         value={netFigure.value}
         tone={netFigure.tone}
-        formula="Gross fee income − captured Stripe processing fees − platform-absorbed refunds"
+        formula="Gross fee income − captured Stripe processing fees − post-hoc refunds the platform absorbed"
       />
     </div>
   );

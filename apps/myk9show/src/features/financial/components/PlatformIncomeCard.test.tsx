@@ -29,6 +29,7 @@ function overview(overrides: Partial<PlatformFinancialOverview> = {}): PlatformF
         netPlatformIncome: { status: 'available', netCents: 8500 },
         processingFeePendingCount: 0,
         refundedCents: 2000,
+        postHocRefundedCents: 2000,
         snapshotMissingCount: 0,
       },
       chargeVerification: {
@@ -96,7 +97,7 @@ describe('PlatformIncomeCard', () => {
     expect(screen.getByText('Net platform income')).toBeInTheDocument();
     expect(screen.getByText('$85.00')).toBeInTheDocument();
     expect(
-      screen.getByText(/captured Stripe processing fees − platform-absorbed refunds/)
+      screen.getByText(/captured Stripe processing fees − post-hoc refunds the platform absorbed/)
     ).toBeInTheDocument();
   });
 

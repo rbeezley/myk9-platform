@@ -39,6 +39,38 @@
 -- The orders DETAIL function applies the IDENTICAL predicate, so detail rows and
 -- the aggregates always describe the same population.
 --
+-- REFUND SPLIT (refunded_cents vs post_hoc_refunded_cents).
+-- stripe_orders.refunded_cents is the single cumulative record of EVERY refund on
+-- an order, and that lumps together two economically opposite events:
+--
+--   1. CART-OVERFLOW MAKE-WHOLE. The customer was charged for cart lines that
+--      were then denied / waitlisted / given no service. amount_cents is the
+--      GROSS charge, while entry_subtotal_cents (and the platform_fee_cents
+--      computed on it) cover only the ACCEPTED, paid lines. The platform never
+--      earned a fee on the overflow portion and no club transfer was made for it,
+--      so returning it is NOT a platform loss — it is money collected and handed
+--      straight back.
+--   2. POST-HOC REFUND. The entry was accepted, the club kept its transfer, and
+--      the platform repays the customer from the PLATFORM balance while keeping
+--      its fee. This IS a real platform loss.
+--
+-- Both are derivable from columns already stored, per order:
+--   overflow_portion  = max(0, amount_cents − entry_subtotal_cents − platform_fee_cents)
+--   post_hoc_absorbed = max(0, refunded_cents − overflow_portion)
+-- The max(0, ...) clamps are applied PER ORDER, before aggregation — a max over
+-- the SUMs would let one order's overflow cancel another's post-hoc loss.
+-- For a normal order amount = subtotal + fee, so overflow_portion = 0 and
+-- post_hoc_absorbed = refunded_cents (behavior unchanged).
+--
+-- NULL-SNAPSHOT ORDERS (legacy / unsnapshotted: entry_subtotal_cents or
+-- platform_fee_cents IS NULL). Overflow CANNOT be derived for these — coalescing
+-- the NULLs to 0 would make overflow_portion = amount_cents and silently exclude
+-- the entire refund from the platform's loss, overstating net income on exactly
+-- the rows we know least about. Documented conservative choice: attribute the
+-- FULL refunded_cents to post_hoc_refunded_cents for such orders. That may
+-- UNDERSTATE net platform income, which is the safe direction, and those orders
+-- are already surfaced separately via snapshot_missing_count.
+--
 -- Pattern mirrors resolve_operator_alert (20260709130000): SECURITY DEFINER,
 -- SET search_path = '', REVOKE ALL FROM PUBLIC, GRANT EXECUTE TO authenticated.
 --
@@ -47,6 +79,20 @@
 --
 -- New migration only; rollback = a follow-up migration that DROPs these
 -- functions. No table or column is changed here.
+
+-- -----------------------------------------------------------------------------
+-- RE-RUNNABILITY. `CREATE OR REPLACE FUNCTION` CANNOT change the return type of
+-- an existing function ("cannot change return type of existing function / Row
+-- type defined by OUT parameters is different") — and these RETURNS TABLE
+-- signatures do evolve. Drop first so the migration is safely re-runnable and a
+-- signature change never wedges an apply. Verified by executing this file twice
+-- against a scratch Postgres: without these DROPs the second apply FAILS.
+-- The GRANT/REVOKE statements below re-establish privileges after each create.
+-- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.financial_reconciliation_summary(text, uuid, uuid);
+DROP FUNCTION IF EXISTS public.financial_reconciliation_orders(text, uuid, uuid, integer, timestamptz, uuid);
+DROP FUNCTION IF EXISTS public.financial_reconciliation_payouts(text, uuid, uuid, integer, timestamptz, uuid);
+DROP FUNCTION IF EXISTS public._financial_reconciliation_authorize(text, uuid, uuid);
 
 -- -----------------------------------------------------------------------------
 -- 0. Shared scope authorization. Internal to the reconciliation functions
@@ -116,7 +162,8 @@ RETURNS TABLE (
   platform_fee_cents           bigint,
   processing_fee_cents         bigint,  -- SUM of CAPTURED fees only (NULLs excluded)
   processing_fee_pending_count bigint,  -- orders whose fee is not yet captured (pending, not zero)
-  refunded_cents               bigint,
+  refunded_cents               bigint,  -- TOTAL returned to customers (incl. cart-overflow make-whole)
+  post_hoc_refunded_cents      bigint,  -- refunds the PLATFORM actually absorbed (see REFUND SPLIT below)
   snapshot_missing_count       bigint,  -- legacy ENTRY orders with no platform-fee snapshot
   -- Non-entry charges (order_type <> 'entry' or NULL) — reported separately so
   -- one-time 'payment' money is visible but never counted as entry collections.
@@ -191,6 +238,25 @@ BEGIN
     (SELECT COALESCE(SUM(so.stripe_processing_fee_cents), 0)    FROM scoped_orders so),
     (SELECT count(*) FROM scoped_orders so WHERE so.stripe_processing_fee_cents IS NULL),
     (SELECT COALESCE(SUM(so.refunded_cents), 0)                 FROM scoped_orders so),
+    -- Post-hoc absorbed refunds (see REFUND SPLIT in the header). The per-order
+    -- GREATEST(0, ...) clamps sit INSIDE the SUM so one order's cart-overflow
+    -- make-whole can never cancel another order's real post-hoc loss. Orders with
+    -- a NULL subtotal/fee snapshot cannot have overflow derived, so their FULL
+    -- refund is attributed to the platform (conservative: may understate net).
+    (SELECT COALESCE(SUM(
+       CASE
+         WHEN so.entry_subtotal_cents IS NULL OR so.platform_fee_cents IS NULL
+           THEN COALESCE(so.refunded_cents, 0)
+         ELSE GREATEST(
+                COALESCE(so.refunded_cents, 0)
+                  - GREATEST(
+                      so.amount_cents - so.entry_subtotal_cents - so.platform_fee_cents,
+                      0
+                    ),
+                0
+              )
+       END
+     ), 0)                                                      FROM scoped_orders so),
     (SELECT count(*) FROM scoped_orders so WHERE so.platform_fee_cents IS NULL),
     (SELECT count(*)                                            FROM scoped_non_entry ne),
     (SELECT COALESCE(SUM(ne.amount_cents), 0)                   FROM scoped_non_entry ne),

@@ -32,20 +32,57 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(spreads.length).toBe(3);
   });
 
-  it('updates ONLY refunded_cents in the refund path (no charge-fact rewrite)', () => {
+  it('never rewrites the immutable charge facts in the refund path', () => {
     const start = webhookSource.indexOf('async function handleChargeRefunded');
     const end = webhookSource.indexOf('\nasync function', start + 1);
     const body = webhookSource.slice(start, end);
-    expect(body).toContain('refunded_cents: charge.amount_refunded');
     // The refund path must not touch the immutable charge facts.
     expect(body).not.toContain('platform_fee_cents');
     expect(body).not.toContain('entry_subtotal_cents');
     expect(body).not.toContain('stripe_processing_fee_cents');
   });
 
+  it('records the cumulative refund for EVERY refund source, before any early return', () => {
+    const start = webhookSource.indexOf('async function handleChargeRefunded');
+    const end = webhookSource.indexOf('\nasync function', start + 1);
+    const body = webhookSource.slice(start, end);
+    const ledgerWrite = body.indexOf('recordCumulativeRefundedCents(');
+    const appRefundEarlyReturn = body.indexOf('if (allFromAppRefund) {');
+    expect(ledgerWrite).toBeGreaterThan(-1);
+    // App-originated refunds (per-entry, auto-refund, show refund) return early;
+    // the refund must already be recorded by then or reconciliation understates it.
+    expect(ledgerWrite).toBeLessThan(appRefundEarlyReturn);
+    expect(body).toContain('charge.amount_refunded ?? 0');
+  });
+
+  it('keeps amount_cents GROSS at the cart insert (no pre-netted overflow refund)', () => {
+    // Collection invariant: pre-netting the overflow refund out of amount_cents
+    // AND recording it in refunded_cents double-subtracts it (review finding A).
+    expect(webhookSource).toContain('amount_cents: freshTotalCents');
+    // Word-boundary: metadata.paid_amount_cents legitimately carries the
+    // paid-only figure; the amount_cents COLUMN must not.
+    expect(webhookSource).not.toMatch(/\bamount_cents: paidOrderAmountCents/);
+  });
+
+  it('records the cart-overflow auto-refund it issues itself', () => {
+    const start = webhookSource.indexOf('async function issueCartOverflowAutoRefund');
+    const end = webhookSource.indexOf('\nasync function', start + 1);
+    const body = webhookSource.slice(start, end);
+    expect(body).toContain('recordCumulativeRefundedCents(input.paymentIntentId!, refund.amount)');
+  });
+
   it('tolerates delayed balance-transaction data by alerting pending, not zeroing', () => {
     expect(webhookSource).toContain('warnMissingProcessingFee');
     expect(webhookSource).toContain('net income cannot be finalized');
+  });
+
+  it('does NOT claim the pending processing fee self-heals (nothing retries it)', () => {
+    const start = webhookSource.indexOf('async function warnMissingProcessingFee');
+    const end = webhookSource.indexOf('\nasync function', start + 1);
+    const body = webhookSource.slice(start, end);
+    expect(body).not.toMatch(/self-heals/);
+    expect(body).toContain('MANUAL BACKFILL REQUIRED');
+    expect(body).toContain('does NOT resolve on its own');
   });
 });
 

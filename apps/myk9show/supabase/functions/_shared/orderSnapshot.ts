@@ -15,6 +15,30 @@
 // A missing processing fee is PENDING (null), never an estimated zero: net
 // income cannot be finalized until Stripe's actual balance-transaction fee is
 // captured.
+//
+// ── THE COLLECTION INVARIANT (do not break) ────────────────────────────────
+//   stripe_orders.amount_cents   = the GROSS amount the customer was actually
+//                                  charged for this order (Stripe's
+//                                  session.amount_total / payment intent
+//                                  amount). It is NEVER pre-netted by a refund.
+//   stripe_orders.refunded_cents = the CUMULATIVE amount returned to the
+//                                  customer on that charge, from ANY source:
+//                                  per-entry app refunds, cart-overflow /
+//                                  payment-link make-whole auto-refunds, bulk
+//                                  show-cancellation refunds, and Stripe
+//                                  dashboard refunds alike.
+// Therefore  collected = amount_cents − refunded_cents  subtracts a refund
+// EXACTLY ONCE. Pre-netting a refund out of amount_cents *and* recording it in
+// refunded_cents double-subtracts it and can drive a fully-refunded order
+// negative (MYK9-54 review finding A).
+//
+// The snapshot fields (entry_subtotal_cents / platform_fee_cents) are a
+// different measure and intentionally do NOT have to sum to amount_cents: they
+// describe the services actually rendered (paid entries only) and the fee
+// earned on them, whereas amount_cents/refunded_cents describe cash movement.
+// A cart with overflow lines charges for lines it then refunds, so
+// amount_cents > entry_subtotal_cents + platform_fee_cents by the refunded
+// share. That gap is the refund, and it is reported by refunded_cents.
 
 export interface OrderSnapshotInput {
   entrySubtotalCents?: number | null;
@@ -62,6 +86,28 @@ export function buildOrderSnapshotFields(input: OrderSnapshotInput): OrderSnapsh
     stripe_processing_fee_cents: toCentsOrNull(input.stripeProcessingFeeCents),
     refunded_cents: toCentsOrNull(input.refundedCents) ?? 0,
   };
+}
+
+/**
+ * Reconcile a cumulative refunded total onto an order, enforcing the collection
+ * invariant documented at the top of this module.
+ *
+ * Stripe's `charge.amount_refunded` is CUMULATIVE and only ever grows, so the
+ * resolved value is monotonic: it never lowers an already-recorded total. That
+ * makes every writer safe and order-independent —
+ *   - a duplicate `charge.refunded` delivery re-applies the same value (no-op),
+ *   - an out-of-order delivery (partial refund event arriving after the second
+ *     partial) cannot roll the total back,
+ *   - the cart-overflow auto-refund writer and the `charge.refunded` handler
+ *     can race without either clobbering the other's larger total.
+ *
+ * Non-finite / negative inputs clamp to 0 rather than corrupting money math.
+ */
+export function resolveCumulativeRefundedCents(
+  existingCents: number | null | undefined,
+  incomingCents: number | null | undefined
+): number {
+  return Math.max(toCentsOrNull(existingCents) ?? 0, toCentsOrNull(incomingCents) ?? 0);
 }
 
 /**
@@ -120,9 +166,21 @@ export type PlatformNetIncome =
  * Refund architecture (verified against stripe-refund-entry / stripe-refund-show):
  * neither refund path passes `reverse_transfer` or `refund_application_fee`, so
  * the full customer refund is paid from the PLATFORM balance while the club keeps
- * its transfer. The platform therefore absorbs the ENTIRE refunded amount on the
- * order (its `refunded_cents`), not merely the fee portion — pass that full value
- * as `absorbedRefundCents`. This can legitimately drive net negative.
+ * its transfer. The platform therefore absorbs the ENTIRE amount of such a refund,
+ * not merely the fee portion.
+ *
+ * CALLER CONTRACT: `absorbedRefundCents` must be the POST-HOC absorbed amount, NOT
+ * the order's raw `refunded_cents`. That column is the cumulative record of every
+ * refund and also includes cart-overflow "make-whole" auto-refunds for lines that
+ * were denied / waitlisted / never served. The platform earned no fee on those
+ * lines (`platform_fee_cents` covers `entry_subtotal_cents`, i.e. paid lines only)
+ * and made no club transfer for them, so that money is collected-and-returned, not
+ * a loss. Passing the raw total makes net income read falsely negative. Derive it
+ * per order as:
+ *   overflowPortion   = max(0, amount_cents − entry_subtotal_cents − platform_fee_cents)
+ *   absorbedRefund    = max(0, refunded_cents − overflowPortion)
+ * For a normal order (amount = subtotal + fee) this equals `refunded_cents`.
+ * A genuine post-hoc refund can legitimately drive net negative.
  *
  * When the Stripe processing fee has not been captured yet the result is
  * `pending` (never treated as zero) so a dashboard can label the pending

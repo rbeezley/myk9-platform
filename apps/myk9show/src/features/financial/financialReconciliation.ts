@@ -51,7 +51,17 @@ export interface FinancialReconciliationSummary {
   processingFeeCents: number;
   /** Orders whose Stripe processing fee is not yet captured (net income pending). */
   processingFeePendingCount: number;
+  /** TOTAL returned to customers, including cart-overflow make-whole refunds.
+   *  Correct for "online collected" (money really did leave), but NOT the
+   *  platform's loss — use postHocRefundedCents for net income. */
   refundedCents: number;
+  /** The portion of refundedCents the PLATFORM actually absorbed: post-hoc
+   *  refunds on accepted entries (club kept its transfer, platform repaid the
+   *  customer). Excludes cart-overflow make-whole refunds, on which the platform
+   *  never earned a fee and never made a transfer. Server-derived per order as
+   *  max(0, refunded − max(0, amount − subtotal − fee)); NULL-snapshot legacy
+   *  orders conservatively attribute their full refund here. */
+  postHocRefundedCents: number;
   /** Legacy entry orders with no platform-fee snapshot (rate-unverifiable). */
   snapshotMissingCount: number;
   /** Succeeded/refunded charges that are NOT entry orders (one-time 'payment',
@@ -86,6 +96,41 @@ export interface FinancialReconciliationOrder {
   createdAt: string;
   paidAt: string | null;
   refundedAt: string | null;
+}
+
+/**
+ * Split one order's cumulative `refundedCents` into the part the PLATFORM
+ * actually absorbed. Mirrors the per-order expression the reconciliation summary
+ * RPC aggregates (migration 20260717130000) — the SQL is the authority for the
+ * dashboard totals; this is the same rule for a single detail row.
+ *
+ *   overflowPortion = max(0, amount − entrySubtotal − platformFee)
+ *   postHocAbsorbed = max(0, refunded − overflowPortion)
+ *
+ * The overflow portion is a cart-overflow "make-whole" auto-refund for lines that
+ * were denied / waitlisted / never served: no platform fee was earned and no club
+ * transfer was made on them, so handing that money back is NOT a platform loss.
+ * A post-hoc refund on an ACCEPTED entry is: the club keeps its transfer and the
+ * platform repays the customer from its own balance.
+ *
+ * Legacy rows with no snapshot (`entrySubtotalCents` or `platformFeeCents` null)
+ * cannot have overflow derived — coalescing to 0 would make the overflow the whole
+ * charge and hide the entire refund. Conservative documented choice: attribute the
+ * FULL refund to the platform (may understate net income, the safe direction).
+ */
+export function derivePostHocRefundedCents(order: {
+  amountCents: number;
+  entrySubtotalCents: number | null;
+  platformFeeCents: number | null;
+  refundedCents: number;
+}): number {
+  const refunded = Math.max(0, order.refundedCents);
+  if (order.entrySubtotalCents == null || order.platformFeeCents == null) return refunded;
+  const overflowPortion = Math.max(
+    0,
+    order.amountCents - order.entrySubtotalCents - order.platformFeeCents
+  );
+  return Math.max(0, refunded - overflowPortion);
 }
 
 /** One PII-free payout settlement row, carrying the copyable transfer id. */
@@ -141,6 +186,7 @@ interface SummaryRow {
   processing_fee_cents: number | string;
   processing_fee_pending_count: number | string;
   refunded_cents: number | string;
+  post_hoc_refunded_cents: number | string;
   snapshot_missing_count: number | string;
   non_entry_order_count: number | string;
   non_entry_gross_cents: number | string;
@@ -189,6 +235,7 @@ export function mapSummaryRow(row: SummaryRow): FinancialReconciliationSummary {
     processingFeeCents: toNum(row.processing_fee_cents),
     processingFeePendingCount: toNum(row.processing_fee_pending_count),
     refundedCents: toNum(row.refunded_cents),
+    postHocRefundedCents: toNum(row.post_hoc_refunded_cents),
     snapshotMissingCount: toNum(row.snapshot_missing_count),
     nonEntryOrderCount: toNum(row.non_entry_order_count),
     nonEntryGrossCents: toNum(row.non_entry_gross_cents),
@@ -256,6 +303,7 @@ const EMPTY_SUMMARY_ROW: SummaryRow = {
   processing_fee_cents: 0,
   processing_fee_pending_count: 0,
   refunded_cents: 0,
+  post_hoc_refunded_cents: 0,
   snapshot_missing_count: 0,
   non_entry_order_count: 0,
   non_entry_gross_cents: 0,

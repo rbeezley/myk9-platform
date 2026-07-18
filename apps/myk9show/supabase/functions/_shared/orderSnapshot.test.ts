@@ -5,7 +5,174 @@ import {
   extractProcessingFeeCents,
   platformGrossFeeCents,
   platformNetIncomeCents,
+  resolveCumulativeRefundedCents,
 } from './orderSnapshot';
+import { decideCartOverflowRefund } from './cartOverflowRefund';
+
+// ── The collection invariant, end to end ───────────────────────────────────
+// Models exactly what the webhook writes for a cart checkout and asserts that
+// `collected = amount_cents − refunded_cents` subtracts each refund EXACTLY
+// once. Regression cover for MYK9-54 review finding A, where amount_cents was
+// pre-netted by the cart-overflow refund AND the same refund landed in
+// refunded_cents, so a fully-invalid cart reported negative collections.
+
+/** What the webhook persists on `stripe_orders` for one cart checkout. */
+function simulateCartOrder(input: {
+  sessionAmountTotalCents: number;
+  paidLineIds: string[];
+  noServiceLineIds: string[];
+  lineAmountsById: Map<string, number>;
+}) {
+  const decision = decideCartOverflowRefund({
+    paymentIntentId: 'pi_test',
+    sessionAmountTotalCents: input.sessionAmountTotalCents,
+    paidLineIds: input.paidLineIds,
+    noServiceLineIds: input.noServiceLineIds,
+    lineAmountsById: input.lineAmountsById,
+  });
+
+  // The invariant: amount_cents is the GROSS charge, never pre-netted.
+  const amountCents = input.sessionAmountTotalCents;
+  let refundedCents = 0;
+
+  // issueCartOverflowAutoRefund records the refund it issues.
+  if (decision.action === 'refund') {
+    refundedCents = resolveCumulativeRefundedCents(refundedCents, decision.amountCents);
+  }
+
+  return {
+    decision,
+    amountCents,
+    refundedCents,
+    /** A later charge.refunded delivery, whose amount_refunded is cumulative. */
+    deliverChargeRefunded(chargeAmountRefundedCents: number) {
+      refundedCents = resolveCumulativeRefundedCents(refundedCents, chargeAmountRefundedCents);
+      return refundedCents;
+    },
+    get collectedCents() {
+      return amountCents - refundedCents;
+    },
+  };
+}
+
+describe('collection invariant: collected = amount_cents − refunded_cents', () => {
+  it('a fully-invalid cart (every line overflows) nets to ZERO collected, never negative', () => {
+    const order = simulateCartOrder({
+      sessionAmountTotalCents: 5000,
+      paidLineIds: [],
+      noServiceLineIds: ['item-1', 'item-2'],
+      lineAmountsById: new Map([
+        ['item-1', 2500],
+        ['item-2', 2500],
+      ]),
+    });
+
+    expect(order.decision).toMatchObject({ action: 'refund', reason: 'full_make_whole' });
+    expect(order.amountCents).toBe(5000);
+    expect(order.refundedCents).toBe(5000);
+    expect(order.collectedCents).toBe(0);
+
+    // The charge.refunded delivery for that same refund must not re-subtract it.
+    order.deliverChargeRefunded(5000);
+    expect(order.collectedCents).toBe(0);
+    expect(order.collectedCents).toBeGreaterThanOrEqual(0);
+  });
+
+  it('a partial overflow refund is subtracted EXACTLY once', () => {
+    // 4 lines at 1000¢; 1 overflows. Session total 4000¢.
+    const order = simulateCartOrder({
+      sessionAmountTotalCents: 4000,
+      paidLineIds: ['e1', 'e2', 'e3'],
+      noServiceLineIds: ['item-4'],
+      lineAmountsById: new Map([
+        ['e1', 1000],
+        ['e2', 1000],
+        ['e3', 1000],
+        ['item-4', 1000],
+      ]),
+    });
+
+    expect(order.decision).toMatchObject({
+      action: 'refund',
+      amountCents: 1000,
+      paidAmountCents: 3000,
+      reason: 'partial_no_service_lines',
+    });
+    expect(order.amountCents).toBe(4000);
+    expect(order.refundedCents).toBe(1000);
+    // Exactly the three paid lines' worth — not 2000 (double-subtracted).
+    expect(order.collectedCents).toBe(3000);
+
+    order.deliverChargeRefunded(1000);
+    expect(order.collectedCents).toBe(3000);
+  });
+
+  it('a cart with no overflow collects the full charge', () => {
+    const order = simulateCartOrder({
+      sessionAmountTotalCents: 3000,
+      paidLineIds: ['e1', 'e2'],
+      noServiceLineIds: [],
+      lineAmountsById: new Map([
+        ['e1', 1500],
+        ['e2', 1500],
+      ]),
+    });
+
+    expect(order.decision.action).toBe('none');
+    expect(order.refundedCents).toBe(0);
+    expect(order.collectedCents).toBe(3000);
+  });
+
+  it('a later genuine refund still subtracts, on top of the overflow refund', () => {
+    const order = simulateCartOrder({
+      sessionAmountTotalCents: 4000,
+      paidLineIds: ['e1', 'e2', 'e3'],
+      noServiceLineIds: ['item-4'],
+      lineAmountsById: new Map([
+        ['e1', 1000],
+        ['e2', 1000],
+        ['e3', 1000],
+        ['item-4', 1000],
+      ]),
+    });
+
+    // Exhibitor later withdraws e1: Stripe's cumulative amount_refunded is 2000.
+    order.deliverChargeRefunded(2000);
+    expect(order.collectedCents).toBe(2000);
+  });
+});
+
+describe('resolveCumulativeRefundedCents', () => {
+  it('is idempotent under duplicate webhook delivery', () => {
+    const first = resolveCumulativeRefundedCents(0, 2500);
+    const redelivered = resolveCumulativeRefundedCents(first, 2500);
+    const redeliveredAgain = resolveCumulativeRefundedCents(redelivered, 2500);
+    expect(first).toBe(2500);
+    expect(redelivered).toBe(2500);
+    expect(redeliveredAgain).toBe(2500);
+  });
+
+  it('is monotonic: an out-of-order older delivery cannot roll the total back', () => {
+    // Second partial refund lands first (cumulative 3000), then the first
+    // partial's event (cumulative 1000) arrives late.
+    expect(resolveCumulativeRefundedCents(3000, 1000)).toBe(3000);
+  });
+
+  it('raises the total when a further refund is issued', () => {
+    expect(resolveCumulativeRefundedCents(1000, 3000)).toBe(3000);
+  });
+
+  it('treats null/undefined/invalid as 0 rather than corrupting money math', () => {
+    expect(resolveCumulativeRefundedCents(null, undefined)).toBe(0);
+    expect(resolveCumulativeRefundedCents(undefined, 500)).toBe(500);
+    expect(resolveCumulativeRefundedCents(500, Number.NaN)).toBe(500);
+    expect(resolveCumulativeRefundedCents(-100, -200)).toBe(0);
+  });
+
+  it('rounds fractional cents to integers', () => {
+    expect(resolveCumulativeRefundedCents(0, 1000.4)).toBe(1000);
+  });
+});
 
 describe('deriveEntryFeeFromTotalCents', () => {
   it('splits a total back into subtotal and fee at the applied rate', () => {

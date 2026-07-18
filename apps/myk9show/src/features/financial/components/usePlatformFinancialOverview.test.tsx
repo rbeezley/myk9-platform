@@ -28,6 +28,7 @@ function summary(overrides: Partial<FinancialSummary> = {}): FinancialSummary {
       netPlatformIncome: { status: 'available', netCents: 0 },
       processingFeePendingCount: 0,
       refundedCents: 0,
+      postHocRefundedCents: 0,
       snapshotMissingCount: 0,
     },
     chargeVerification: {

@@ -47,6 +47,7 @@ function summaryRow(
     processingFeeCents: 180,
     processingFeePendingCount: 0,
     refundedCents: 0,
+    postHocRefundedCents: 0,
     snapshotMissingCount: 0,
     nonEntryOrderCount: 0,
     nonEntryGrossCents: 0,
@@ -96,27 +97,63 @@ describe('derivePlatformIncome', () => {
     expect(income.netPlatformIncome).toEqual({ status: 'available', netCents: 70 });
   });
 
-  it('subtracts platform-absorbed refunds from net income', () => {
+  it('subtracts POST-HOC platform-absorbed refunds from net income', () => {
     const income = derivePlatformIncome(
       summaryRow({
         platformFeeCents: 250,
         processingFeeCents: 180,
         processingFeePendingCount: 0,
         refundedCents: 40,
+        postHocRefundedCents: 40,
       })
     );
     // 250 − 180 − 40 = 30.
     expect(income.netPlatformIncome).toEqual({ status: 'available', netCents: 30 });
   });
 
-  it('lets an absorbed refund drive net negative (not clamped to zero)', () => {
+  it('does NOT subtract a cart-overflow make-whole refund from net income', () => {
+    // The whole refund was overflow: the platform earned no fee and made no
+    // transfer on those lines, so net income is untouched at 250 − 180 = 70.
     const income = derivePlatformIncome(
       summaryRow({
         platformFeeCents: 250,
         processingFeeCents: 180,
         processingFeePendingCount: 0,
-        // A full make-whole refund the platform ate: exceeds fee income.
+        refundedCents: 4000,
+        postHocRefundedCents: 0,
+      })
+    );
+    expect(income.netPlatformIncome).toEqual({ status: 'available', netCents: 70 });
+    // ...but the money DID leave, so collections still drop by the full refund.
+    expect(income.onlineCollectedCents).toBe(5250 - 4000);
+    expect(income.refundedCents).toBe(4000);
+    expect(income.postHocRefundedCents).toBe(0);
+  });
+
+  it('subtracts only the post-hoc share when an order has both refund kinds', () => {
+    const income = derivePlatformIncome(
+      summaryRow({
+        platformFeeCents: 250,
+        processingFeeCents: 180,
+        processingFeePendingCount: 0,
+        refundedCents: 4025, // 4000 make-whole + 25 post-hoc
+        postHocRefundedCents: 25,
+      })
+    );
+    // 250 − 180 − 25 = 45 (NOT 250 − 180 − 4025 = −3955).
+    expect(income.netPlatformIncome).toEqual({ status: 'available', netCents: 45 });
+    expect(income.onlineCollectedCents).toBe(5250 - 4025);
+  });
+
+  it('lets a post-hoc absorbed refund drive net negative (not clamped to zero)', () => {
+    const income = derivePlatformIncome(
+      summaryRow({
+        platformFeeCents: 250,
+        processingFeeCents: 180,
+        processingFeePendingCount: 0,
+        // A full post-hoc refund on an accepted entry: exceeds fee income.
         refundedCents: 5250,
+        postHocRefundedCents: 5250,
       })
     );
     // 250 − 180 − 5250 = −5180, reported as-is (economically real).
@@ -138,6 +175,20 @@ describe('derivePlatformIncome', () => {
         processingFeeCents: 180,
         processingFeePendingCount: 1,
         refundedCents: 999,
+        postHocRefundedCents: 999,
+      })
+    );
+    expect(income.netPlatformIncome).toEqual({ status: 'pending', grossCents: 250 });
+  });
+
+  it('keeps net pending even when the whole refund was cart overflow (pending still wins)', () => {
+    const income = derivePlatformIncome(
+      summaryRow({
+        platformFeeCents: 250,
+        processingFeeCents: 180,
+        processingFeePendingCount: 1,
+        refundedCents: 4000,
+        postHocRefundedCents: 0,
       })
     );
     expect(income.netPlatformIncome).toEqual({ status: 'pending', grossCents: 250 });

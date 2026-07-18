@@ -29,9 +29,11 @@
 //     platform_fee_cents IS NULL — permanently rate-unverifiable, pre-dates the
 //     snapshot contract). This is NOT a missing PROCESSING fee, and it is
 //     DIFFERENTLY calm than processingFeePendingCount, which is a newly-charged
-//     order whose Stripe balance-transaction fee simply hasn't arrived yet and
-//     self-heals once the webhook/backfill runs — that count stays part of the
-//     calm "pending" net income state and is NEVER counted as attention here.
+//     order whose Stripe balance-transaction fee simply hasn't been captured. That
+//     count stays part of the calm "pending" net income state and is NEVER counted
+//     as attention here — but note it does NOT self-heal: nothing retries the fee
+//     capture, so clearing it requires a manual backfill. It is calm because a
+//     pending net figure is honest, not because it fixes itself.
 //
 // Note the two snapshot buckets are disjoint by construction: an order with a
 // null subtotal/fee is counted ONLY by missingPlatformFeeSnapshotCount (server

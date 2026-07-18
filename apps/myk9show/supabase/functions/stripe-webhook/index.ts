@@ -17,6 +17,7 @@ import {
   buildOrderSnapshotFields,
   deriveEntryFeeFromTotalCents,
   extractProcessingFeeCents,
+  resolveCumulativeRefundedCents,
 } from '../_shared/orderSnapshot.ts';
 import { loadEntryPaymentLineItemFeesFromStripe } from '../_shared/entryPaymentLineItems.ts';
 import {
@@ -111,8 +112,15 @@ async function fetchProcessingFeeCents(paymentIntentId: string | null): Promise<
 
 /**
  * Log (and, once per intent, alert) when a succeeded charge's Stripe processing
- * fee could not be captured. Net platform income stays pending until an operator
- * or a later reconciliation fills it — the missing fee is never treated as zero.
+ * fee could not be captured. The missing fee is recorded as NULL (pending),
+ * never treated as zero.
+ *
+ * NOT self-healing — verified, do not soften this. Nothing retries: no later
+ * webhook event re-reads the balance transaction, there is no backfill job, and
+ * no reconciliation action writes stripe_processing_fee_cents. The order's net
+ * platform income stays pending FOREVER until an operator fills the fee in by
+ * hand. The alert below must therefore ask for manual action; if a real
+ * backfill path is ever added, update this comment and the alert together.
  */
 async function warnMissingProcessingFee(
   paymentIntentId: string | null,
@@ -120,15 +128,21 @@ async function warnMissingProcessingFee(
 ): Promise<void> {
   console.error(
     `Processing fee PENDING for ${context} (intent ${paymentIntentId ?? 'unknown'}) — ` +
-      `net income cannot be finalized until the balance-transaction fee is captured.`
+      `net income cannot be finalized until the balance-transaction fee is captured. ` +
+      `Nothing retries this automatically; it needs a manual backfill.`
   );
   await alertAdmin(
-    'Stripe processing fee not captured — net income pending',
+    'Stripe processing fee not captured — MANUAL BACKFILL REQUIRED',
     `<p>The Stripe balance-transaction processing fee for ${context} (payment intent
      <code>${paymentIntentId ?? 'unknown'}</code>) was not available when the order was
-     recorded. The charge facts are stored; net platform income is marked pending
-     until the fee is captured. This is expected for delayed balance-transaction
-     data and usually self-heals; investigate only if it persists.</p>`,
+     recorded (usually delayed balance-transaction data). The charge facts are stored
+     and net platform income is marked pending.</p>
+     <p><strong>This does NOT resolve on its own.</strong> No webhook, job, or
+     reconciliation run ever retries the fee lookup — the order stays pending
+     indefinitely until someone acts.</p>
+     <p>Recovery: read the fee from the payment intent's latest charge balance
+     transaction in the Stripe dashboard, then set
+     <code>stripe_orders.stripe_processing_fee_cents</code> for that payment intent.</p>`,
     {
       source: 'stripe-webhook',
       severity: 'warn',
@@ -250,12 +264,80 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
  * log loudly for manual entry-level reconciliation. Refunds from
  * app-originated refunds carry metadata and were already recorded.
  */
+/**
+ * Record a charge's CUMULATIVE refunded total onto every order for its payment
+ * intent, enforcing the collection invariant (see _shared/orderSnapshot.ts):
+ * `collected = amount_cents − refunded_cents`, refund subtracted exactly once.
+ *
+ * This is the single writer of `refunded_cents` for the whole refund story, and
+ * it runs for EVERY refund source — per-entry app refunds, make-whole
+ * auto-refunds, bulk show-cancellation refunds, and dashboard refunds alike.
+ * Before this, app-originated refunds returned early and never recorded a
+ * refund at all, so reconciliation silently understated refunds on exactly the
+ * refunds the app itself issued.
+ *
+ * The write is monotonic (`resolveCumulativeRefundedCents`), so re-delivery,
+ * out-of-order partial refunds, and a race with the cart-overflow writer are
+ * all idempotent. Never throws: a committed payment must not be disturbed by a
+ * bookkeeping failure.
+ */
+async function recordCumulativeRefundedCents(
+  paymentIntentId: string,
+  chargeAmountRefundedCents: number
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('stripe_orders')
+    .select('id, refunded_cents')
+    .eq('stripe_payment_intent_id', paymentIntentId);
+
+  if (error) {
+    console.error(`Could not read orders to record refund for ${paymentIntentId}:`, error);
+    return;
+  }
+
+  for (const order of (data ?? []) as Array<{ id: string; refunded_cents: number | null }>) {
+    const next = resolveCumulativeRefundedCents(order.refunded_cents, chargeAmountRefundedCents);
+    if (next === (order.refunded_cents ?? 0)) continue;
+
+    const { error: updateError } = await supabase
+      .from('stripe_orders')
+      .update({ refunded_cents: next })
+      .eq('id', order.id);
+
+    if (updateError) {
+      console.error(`Could not record refunded_cents on order ${order.id}:`, updateError);
+      await alertAdmin(
+        'Refund not recorded on the order — reconciliation understated',
+        `<p>Refund total ${(next / 100).toFixed(2)} USD for payment intent
+         <code>${paymentIntentId}</code> could not be written to
+         <code>stripe_orders.refunded_cents</code> (order <code>${order.id}</code>):</p>
+         <pre>${updateError.message}</pre>
+         <p>Until it is set by hand, reconciliation reports this order as collected
+         in full.</p>`,
+        {
+          source: 'stripe-webhook',
+          dedupeKey: `refunded-cents-write-failed-${order.id}`,
+        }
+      );
+    }
+  }
+}
+
 async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
   const refunds = charge.refunds?.data ?? [];
   // Skip only when EVERY refund came from an app flow (.some would let an app
   // refund mask a later dashboard refund on the same charge — review finding
   // #3). Mixed charges fall through to the RECONCILE log below.
   const allFromAppRefund = allRefundsAppOriginated(refunds);
+
+  // COLLECTION INVARIANT: record the refund BEFORE any early return, for every
+  // refund source. Whether the refund needs an operator alert (below) is a
+  // separate question from whether the money came back (always true here).
+  const intentIdForLedger = extractPaymentIntentId(charge.payment_intent);
+  if (intentIdForLedger) {
+    await recordCumulativeRefundedCents(intentIdForLedger, charge.amount_refunded ?? 0);
+  }
+
   if (allFromAppRefund) {
     const showRefundId = findShowRefundId(refunds);
     if (showRefundId) {
@@ -279,15 +361,16 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
   }
 
   // Idempotent: re-delivery (or a second partial refund) re-applies the same state.
-  // Snapshot contract (MYK9-54): the refund path updates ONLY refunded_cents (the
-  // cumulative amount Stripe reports refunded) — never the original charge facts
-  // (entry subtotal, platform fee, rate, processing fee).
+  // Snapshot contract (MYK9-54): the refund path never rewrites the original
+  // charge facts (entry subtotal, platform fee, rate, processing fee). The
+  // cumulative refunded_cents was already written above by
+  // recordCumulativeRefundedCents (monotonic, all refund sources); this update
+  // only stamps the dashboard-refund status transition.
   const { data, error } = await supabase
     .from('stripe_orders')
     .update({
       status: 'refunded',
       refunded_at: new Date().toISOString(),
-      refunded_cents: charge.amount_refunded ?? 0,
     })
     .eq('stripe_payment_intent_id', paymentIntentId)
     .select('id, order_type');
@@ -978,9 +1061,17 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     customer_id: stripeCustomer?.id || null,
     stripe_payment_intent_id: paymentIntentId,
     stripe_checkout_session_id: session.id,
-    // Record only the paid-entry service amount. Denied/waitlisted/no-service
-    // cart lines are explicit metadata and never masquerade as paid entry_ids.
-    amount_cents: paidOrderAmountCents,
+    // COLLECTION INVARIANT (see _shared/orderSnapshot.ts): amount_cents is the
+    // GROSS amount the customer was actually charged — the full session total,
+    // NOT pre-netted by the cart-overflow auto-refund. The overflow share is
+    // recorded as a refund in refunded_cents (by issueCartOverflowAutoRefund
+    // and/or the charge.refunded handler), so collected = amount_cents −
+    // refunded_cents subtracts it EXACTLY ONCE. Pre-netting here as well made a
+    // fully-invalid cart report NEGATIVE collections (review finding A).
+    // Denied/waitlisted/no-service cart lines remain explicit metadata and never
+    // masquerade as paid entry_ids; the paid-only service amount lives in
+    // metadata.paid_amount_cents and in entry_subtotal_cents below.
+    amount_cents: freshTotalCents,
     ...buildOrderSnapshotFields({
       entrySubtotalCents: paidEntrySubtotalCents,
       platformFeeCents: snapshotPlatformFeeCents,
@@ -1795,6 +1886,15 @@ async function issueCartOverflowAutoRefund(input: {
        <code>${input.invalidCartItemIds.join(', ')}</code>.</p>`,
       { source: 'stripe-webhook', dedupeKey: `cart-overflow-refund-issued-${refund.id}` }
     );
+
+    // COLLECTION INVARIANT: amount_cents on the order we just inserted is the
+    // GROSS charge, so this refund must be recorded to keep
+    // `collected = amount_cents − refunded_cents` right. Write it here rather
+    // than waiting for charge.refunded: that handler treats this refund as
+    // app-originated, and a missed/late delivery would leave the order looking
+    // collected in full. The write is monotonic, so the later charge.refunded
+    // delivery is a no-op (or raises the total if another refund followed).
+    await recordCumulativeRefundedCents(input.paymentIntentId!, refund.amount);
 
     if (input.decision.reason === 'full_make_whole') {
       const { error: orderUpdateError } = await supabase

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildClubShowReconciliationRows } from './clubShowReconciliation';
+import {
+  buildClubShowReconciliationRows,
+  clubNetContributionCents,
+} from './clubShowReconciliation';
 import type {
   FinancialReconciliationOrder,
   FinancialReconciliationPayout,
@@ -40,6 +43,27 @@ function payout(overrides: Partial<FinancialReconciliationPayout>): FinancialRec
   };
 }
 
+describe('clubNetContributionCents', () => {
+  it('is the entry subtotal when nothing was refunded', () => {
+    expect(clubNetContributionCents(10000, 0)).toBe(10000);
+  });
+
+  it('subtracts a partial refund cent-for-cent', () => {
+    expect(clubNetContributionCents(10000, 2500)).toBe(7500);
+  });
+
+  it('is zero for a full entry-fee refund', () => {
+    expect(clubNetContributionCents(10000, 10000)).toBe(0);
+  });
+
+  it('floors at zero when a show-level refund also returned the platform fee', () => {
+    // stripe-refund-show refunds entry fees + platform fee, so refundedCents
+    // can exceed the entry subtotal. The club's share bottoms out at 0 — it is
+    // never negative, matching calculateShowPayoutCents.
+    expect(clubNetContributionCents(10000, 10700)).toBe(0);
+  });
+});
+
 describe('buildClubShowReconciliationRows', () => {
   it('a fully verified show with a completed payout: available net, Verified, settled', () => {
     const rows = buildClubShowReconciliationRows(
@@ -78,6 +102,55 @@ describe('buildClubShowReconciliationRows', () => {
     expect(rows[0].net).toEqual({ status: 'pending' });
     // Missing snapshot also can't be verified.
     expect(rows[0].chargeVerification).toBe('Mismatch');
+  });
+
+  it('a partially refunded show nets the refunded portion out, matching the transfer', () => {
+    // $100 entry subtotal, $25 refunded before the transfer → the payout cron
+    // transfers $75, so the treasurer must read $75 here, not the original $100.
+    const rows = buildClubShowReconciliationRows(
+      [order({ refundedCents: 2500, refundedAt: '2026-07-02T00:00:00Z' })],
+      [payout({ amountCents: 7500 })],
+      true
+    );
+    expect(rows[0].net).toEqual({ status: 'available', netCents: 7500 });
+    expect(rows[0].settlement?.amountCents).toBe(7500);
+  });
+
+  it('a fully refunded show nets to $0, not the original entry revenue', () => {
+    const rows = buildClubShowReconciliationRows(
+      [
+        order({
+          status: 'refunded',
+          refundedCents: 10000,
+          refundedAt: '2026-07-02T00:00:00Z',
+        }),
+      ],
+      [payout({ amountCents: 0 })],
+      true
+    );
+    expect(rows[0].net).toEqual({ status: 'available', netCents: 0 });
+  });
+
+  it('refunds across several orders net out independently, then sum', () => {
+    const rows = buildClubShowReconciliationRows(
+      [
+        order({ orderId: 'o1', refundedCents: 2500 }), // 10000 - 2500 = 7500
+        order({ orderId: 'o2', refundedCents: 0 }), // 10000
+        order({ orderId: 'o3', refundedCents: 10700 }), // floors at 0
+      ],
+      [],
+      true
+    );
+    expect(rows[0].net).toEqual({ status: 'available', netCents: 17500 });
+  });
+
+  it('pending still wins over a refund: an uncaptured processing fee is never a number', () => {
+    const rows = buildClubShowReconciliationRows(
+      [order({ refundedCents: 2500, stripeProcessingFeeCents: null })],
+      [],
+      true
+    );
+    expect(rows[0].net).toEqual({ status: 'pending' });
   });
 
   it('a mismatched order amount marks the whole show Mismatch', () => {

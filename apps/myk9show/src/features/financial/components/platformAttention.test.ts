@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { derivePlatformAttention } from './platformAttention';
+import { resolveOrderChargeVerification } from '../chargeVerification';
 import type {
   FinancialReconciliationOrder,
   FinancialReconciliationPayout,
@@ -71,20 +72,47 @@ describe('derivePlatformAttention — genuine drift', () => {
       payouts: [],
       orders: [],
     });
-    expect(attention.missingProcessingFeeCount).toBe(3);
+    expect(attention.missingPlatformFeeSnapshotCount).toBe(3);
     expect(attention.totalCount).toBe(3);
   });
 
-  it('sums all three genuine categories together', () => {
+  it('flags a charge mismatch the club view also labels Mismatch (same helper)', () => {
+    // amount 5000 but subtotal + fee = 4500 + 400 = 4900 → does not tie.
+    const mismatching = order({
+      amountCents: 5000,
+      entrySubtotalCents: 4500,
+      platformFeeCents: 400,
+    });
+    expect(resolveOrderChargeVerification(mismatching)).toBe('Mismatch');
+
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 0,
+      payouts: [],
+      orders: [mismatching],
+    });
+    expect(attention.chargeMismatchCount).toBe(1);
+    expect(attention.totalCount).toBe(1);
+  });
+
+  it('sums all four genuine categories together', () => {
     const attention = derivePlatformAttention({
       snapshotMissingCount: 2,
       payouts: [payout({ status: 'failed', failureReason: 'account_closed' })],
-      orders: [order({ status: 'succeeded', refundedCents: 500 })],
+      orders: [
+        order({ status: 'succeeded', refundedCents: 500 }),
+        order({
+          orderId: 'order-2',
+          amountCents: 9000,
+          entrySubtotalCents: 4500,
+          platformFeeCents: 500,
+        }),
+      ],
     });
     expect(attention.failedTransferCount).toBe(1);
     expect(attention.unrecordedRefundCount).toBe(1);
-    expect(attention.missingProcessingFeeCount).toBe(2);
-    expect(attention.totalCount).toBe(4);
+    expect(attention.chargeMismatchCount).toBe(1);
+    expect(attention.missingPlatformFeeSnapshotCount).toBe(2);
+    expect(attention.totalCount).toBe(5);
   });
 });
 
@@ -138,7 +166,29 @@ describe('derivePlatformAttention — calm pending / self-healing states are NOT
       payouts: [],
       orders: [order({ stripeProcessingFeeCents: null, refundedCents: 0 })],
     });
+    expect(attention.chargeMismatchCount).toBe(0);
     expect(attention.totalCount).toBe(0);
+  });
+
+  it('a tying order (subtotal + fee == amount) is not a charge mismatch', () => {
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 0,
+      payouts: [],
+      orders: [order({ amountCents: 5000, entrySubtotalCents: 4500, platformFeeCents: 500 })],
+    });
+    expect(attention.chargeMismatchCount).toBe(0);
+    expect(attention.totalCount).toBe(0);
+  });
+
+  it('an order with a null snapshot is counted once (server snapshot bucket), not also as a mismatch', () => {
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 1,
+      payouts: [],
+      orders: [order({ entrySubtotalCents: null, platformFeeCents: null })],
+    });
+    expect(attention.chargeMismatchCount).toBe(0);
+    expect(attention.missingPlatformFeeSnapshotCount).toBe(1);
+    expect(attention.totalCount).toBe(1);
   });
 
   it('no orders, no payouts, no missing snapshots produces zero attention', () => {

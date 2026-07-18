@@ -10,6 +10,8 @@ import { cacheStrategies } from '@/lib/queryClient';
 import {
   fetchFinancialReconciliationOrders,
   fetchFinancialReconciliationPayouts,
+  nextCursor,
+  type FinancialPageCursor,
 } from './financialReconciliation';
 import {
   buildClubShowReconciliationRows,
@@ -48,6 +50,41 @@ function showNamesFromHistory(
   return names;
 }
 
+/** Rows per keyset page. Kept well under the RPC's own cap so a page that comes
+ *  back short is a reliable "exhausted" signal. */
+const PAGE_SIZE = 500;
+/** Hard stop so a cursor bug can never spin forever. 500 x 200 = 100,000 detail
+ *  rows — far beyond any real club — so hitting it means something is wrong. */
+const MAX_PAGES = 200;
+
+/**
+ * Drain a keyset-paginated detail fetcher to completion.
+ *
+ * A money total assembled from a partial read is worse than no total: it looks
+ * authoritative and is quietly short. So if the page cap is ever reached with a
+ * cursor still outstanding we THROW rather than return what we have — the hook
+ * turns that into `isError`, and the surface renders its explicit "unavailable"
+ * state instead of an understated net.
+ */
+async function fetchAllPages<T extends { createdAt: string; orderId?: string; payoutId?: string }>(
+  fetchPage: (args: { limit: number; cursor: FinancialPageCursor | null }) => Promise<T[]>
+): Promise<T[]> {
+  const all: T[] = [];
+  let cursor: FinancialPageCursor | null = null;
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const rows: T[] = await fetchPage({ limit: PAGE_SIZE, cursor });
+    all.push(...rows);
+    cursor = nextCursor(rows, PAGE_SIZE);
+    if (!cursor) return all;
+  }
+
+  throw new Error(
+    `Financial reconciliation paging exceeded ${MAX_PAGES} pages (${all.length} rows) ` +
+      `without exhausting the cursor — refusing to report a truncated total.`
+  );
+}
+
 /**
  * Club-scoped per-show reconciliation: net-to-club, charge verification, and
  * payout settlement (including the copyable stripe_transfer_id). `payoutHistory`
@@ -62,7 +99,14 @@ export function useClubFinancialReconciliation(
   const ordersQuery = useQuery({
     queryKey: ['club-financial-reconciliation-orders', clubId],
     queryFn: () =>
-      fetchFinancialReconciliationOrders({ scope: 'club', clubId: clubId ?? null, limit: 1000 }),
+      fetchAllPages(({ limit, cursor }) =>
+        fetchFinancialReconciliationOrders({
+          scope: 'club',
+          clubId: clubId ?? null,
+          limit,
+          cursor,
+        })
+      ),
     enabled: !!clubId,
     ...cacheStrategies.moderate,
   });
@@ -70,7 +114,14 @@ export function useClubFinancialReconciliation(
   const payoutsQuery = useQuery({
     queryKey: ['club-financial-reconciliation-payouts', clubId],
     queryFn: () =>
-      fetchFinancialReconciliationPayouts({ scope: 'club', clubId: clubId ?? null, limit: 1000 }),
+      fetchAllPages(({ limit, cursor }) =>
+        fetchFinancialReconciliationPayouts({
+          scope: 'club',
+          clubId: clubId ?? null,
+          limit,
+          cursor,
+        })
+      ),
     enabled: !!clubId,
     ...cacheStrategies.moderate,
   });

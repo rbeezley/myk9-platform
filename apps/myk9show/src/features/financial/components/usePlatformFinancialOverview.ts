@@ -11,40 +11,76 @@ import {
   fetchFinancialReconciliationPayouts,
   type FinancialSummary,
 } from '@/features/financial';
+import { nextCursor, type FinancialPageCursor } from '../financialReconciliation';
 import { derivePlatformAttention, type PlatformAttentionSummary } from './platformAttention';
 
 export interface PlatformFinancialOverview {
   summary: FinancialSummary;
   attention: PlatformAttentionSummary;
+  /**
+   * True when the keyset walk hit MAX_DETAIL_PAGES before exhausting the rows, so
+   * the attention COUNTS below are a floor, not a total. Surfaced in the UI —
+   * never silently truncated. (Dollar totals in `summary` are unaffected: they
+   * come from server-side SQL aggregation with no row cap.)
+   */
+  detailTruncated: boolean;
 }
 
-// A single page is used for attention-item detection. The dollar TOTALS in
-// `summary` are always complete (server-side SQL aggregation with no row cap —
-// see financial_reconciliation_summary); only the attention-item COUNT/drill-down
-// below could under-count past this page on a very large platform dataset. The
-// platform is pre-launch with no real users yet, so one page is sufficient today;
-// revisit with full keyset pagination (nextCursor) if volume grows.
+// Detail rows are walked to completion via the keyset cursor (design.md, task
+// 1.7) so attention counts can't under-report past the first page. The cap is a
+// safety valve against an unbounded loop only; hitting it sets detailTruncated.
 const DETAIL_PAGE_LIMIT = 1000;
+const MAX_DETAIL_PAGES = 50;
+
+/** Walk a keyset-paginated detail endpoint to completion. */
+async function fetchAllPages<T extends { createdAt: string; orderId?: string; payoutId?: string }>(
+  fetchPage: (cursor: FinancialPageCursor | null) => Promise<T[]>
+): Promise<{ rows: T[]; truncated: boolean }> {
+  const rows: T[] = [];
+  let cursor: FinancialPageCursor | null = null;
+
+  for (let page = 0; page < MAX_DETAIL_PAGES; page += 1) {
+    const batch: T[] = await fetchPage(cursor);
+    rows.push(...batch);
+    cursor = nextCursor(batch, DETAIL_PAGE_LIMIT);
+    if (!cursor) return { rows, truncated: false };
+  }
+
+  return { rows, truncated: true };
+}
 
 export function usePlatformFinancialOverview() {
   return useQuery({
     queryKey: ['admin', 'platform-financial-overview'],
     queryFn: async (): Promise<PlatformFinancialOverview> => {
-      const [summary, orders, payouts] = await Promise.all([
+      const [summary, orderPages, payoutPages] = await Promise.all([
         // No entries are passed at platform scope: entry-level lines aren't
         // fetched cross-show here, but platformIncome and the payout-settlement
         // totals are computed entirely server-side and don't need them.
         getFinancialSummary({ scope: 'platform', entries: [] }),
-        fetchFinancialReconciliationOrders({ scope: 'platform', limit: DETAIL_PAGE_LIMIT }),
-        fetchFinancialReconciliationPayouts({ scope: 'platform', limit: DETAIL_PAGE_LIMIT }),
+        fetchAllPages(cursor =>
+          fetchFinancialReconciliationOrders({
+            scope: 'platform',
+            limit: DETAIL_PAGE_LIMIT,
+            cursor,
+          })
+        ),
+        fetchAllPages(cursor =>
+          fetchFinancialReconciliationPayouts({
+            scope: 'platform',
+            limit: DETAIL_PAGE_LIMIT,
+            cursor,
+          })
+        ),
       ]);
 
       return {
         summary,
+        detailTruncated: orderPages.truncated || payoutPages.truncated,
         attention: derivePlatformAttention({
           snapshotMissingCount: summary.chargeVerification.snapshotMissingCount,
-          payouts,
-          orders,
+          payouts: payoutPages.rows,
+          orders: orderPages.rows,
         }),
       };
     },

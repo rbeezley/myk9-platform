@@ -18,23 +18,38 @@
 //     data-integrity drift, not a timing artifact — there is no "pending" state
 //     for this field the way there is for processing fees.
 //
-//   - missingProcessingFeeCount: legacy orders with NO platform-fee snapshot at
-//     all (snapshotMissingCount — permanently rate-unverifiable, pre-dates the
-//     snapshot contract). This is DIFFERENTLY calm than
-//     processingFeePendingCount, which is a newly-charged order whose Stripe
-//     balance-transaction fee simply hasn't arrived yet and self-heals once the
-//     webhook/backfill runs — that count stays part of the calm "pending" net
-//     income state and is NEVER counted as attention here.
+//   - chargeMismatchCount: entry orders whose snapshot IS present but does not
+//     tie — amount_cents != entry_subtotal + platform_fee beyond the rounding
+//     tolerance. Classified with the SAME resolveOrderChargeVerification helper
+//     the club treasurer view uses, so /admin/payouts and /club-admin/payments
+//     can never disagree about whether a given order is a "Mismatch".
+//
+//   - missingPlatformFeeSnapshotCount: legacy entry orders with NO platform-fee
+//     snapshot at all (the RPC's snapshot_missing_count = count(*) WHERE
+//     platform_fee_cents IS NULL — permanently rate-unverifiable, pre-dates the
+//     snapshot contract). This is NOT a missing PROCESSING fee, and it is
+//     DIFFERENTLY calm than processingFeePendingCount, which is a newly-charged
+//     order whose Stripe balance-transaction fee simply hasn't arrived yet and
+//     self-heals once the webhook/backfill runs — that count stays part of the
+//     calm "pending" net income state and is NEVER counted as attention here.
+//
+// Note the two snapshot buckets are disjoint by construction: an order with a
+// null subtotal/fee is counted ONLY by missingPlatformFeeSnapshotCount (server
+// side), never also as a charge mismatch, so nothing is double-reported.
 import type {
   FinancialReconciliationOrder,
   FinancialReconciliationPayout,
 } from '../financialReconciliation';
+import { resolveOrderChargeVerification } from '../chargeVerification';
 import { summarizePayoutSettlement } from '../payoutSettlement';
 
 export interface PlatformAttentionSummary {
   failedTransferCount: number;
   unrecordedRefundCount: number;
-  missingProcessingFeeCount: number;
+  /** Entry orders whose present snapshot does not tie to the charged amount. */
+  chargeMismatchCount: number;
+  /** Entry orders with no platform-fee snapshot at all (rate-unverifiable). */
+  missingPlatformFeeSnapshotCount: number;
   totalCount: number;
 }
 
@@ -60,12 +75,27 @@ export function derivePlatformAttention({
     order => order.refundedCents > 0 && order.status !== 'refunded'
   ).length;
 
-  const missingProcessingFeeCount = snapshotMissingCount;
+  // Reuse the club view's rule verbatim. Orders with a null subtotal/fee are
+  // already counted by the server's snapshot_missing_count, so they are skipped
+  // here rather than double-counted as a mismatch.
+  const chargeMismatchCount = orders.filter(
+    order =>
+      order.entrySubtotalCents != null &&
+      order.platformFeeCents != null &&
+      resolveOrderChargeVerification(order) === 'Mismatch'
+  ).length;
+
+  const missingPlatformFeeSnapshotCount = snapshotMissingCount;
 
   return {
     failedTransferCount,
     unrecordedRefundCount,
-    missingProcessingFeeCount,
-    totalCount: failedTransferCount + unrecordedRefundCount + missingProcessingFeeCount,
+    chargeMismatchCount,
+    missingPlatformFeeSnapshotCount,
+    totalCount:
+      failedTransferCount +
+      unrecordedRefundCount +
+      chargeMismatchCount +
+      missingPlatformFeeSnapshotCount,
   };
 }

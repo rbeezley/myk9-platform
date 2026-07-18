@@ -96,10 +96,33 @@ describe('financial reconciliation RPC — SQL-side aggregation (source-pinned)'
   // property that makes the >1000-row case correct.
   it('aggregates totals with SUM/count in the summary function body', () => {
     expect(migrationSource).toContain(`FUNCTION public.${summaryFn}(`);
-    expect(migrationSource).toMatch(/SUM\(amount_cents\)/);
-    expect(migrationSource).toMatch(/SUM\(platform_fee_cents\)/);
-    expect(migrationSource).toMatch(/SUM\(entry_subtotal_cents\)/);
+    expect(migrationSource).toMatch(/SUM\(so\.amount_cents\)/);
+    expect(migrationSource).toMatch(/SUM\(so\.platform_fee_cents\)/);
+    expect(migrationSource).toMatch(/SUM\(so\.entry_subtotal_cents\)/);
     expect(migrationSource).toMatch(/count\(\*\)/);
+  });
+
+  // REGRESSION PIN (found by executing the migration against a real Postgres,
+  // not by reading it): the RETURNS TABLE output columns become PL/pgSQL
+  // variables, and entry_subtotal_cents / platform_fee_cents / refunded_cents
+  // collide with the CTE column of the same name. An UNQUALIFIED reference
+  // raises `column reference "..." is ambiguous` at RUNTIME on every call — the
+  // function still CREATEs fine, so neither a source pin nor a successful
+  // migration apply catches it. Every aggregate must stay alias-qualified.
+  it('alias-qualifies every aggregate so no column collides with an output variable', () => {
+    for (const collidingColumn of [
+      'entry_subtotal_cents',
+      'platform_fee_cents',
+      'refunded_cents',
+      'amount_cents',
+    ]) {
+      // No bare SUM(<col>) — it must always be SUM(<alias>.<col>).
+      expect(migrationSource).not.toMatch(new RegExp(`SUM\\(${collidingColumn}\\)`));
+    }
+    // And the aggregate FROMs must actually bind those aliases.
+    expect(migrationSource).toMatch(/FROM scoped_orders so/);
+    expect(migrationSource).toMatch(/FROM scoped_non_entry ne/);
+    expect(migrationSource).toMatch(/FROM scoped_payouts sp/);
   });
 
   it('keeps charge facts and payout settlement as separate totals', () => {
@@ -113,7 +136,58 @@ describe('financial reconciliation RPC — SQL-side aggregation (source-pinned)'
   it('surfaces a pending processing fee as a COUNT, not a zeroed SUM', () => {
     // NULL fees are excluded from the captured-fee SUM and counted separately.
     expect(migrationSource).toContain('processing_fee_pending_count');
-    expect(migrationSource).toMatch(/WHERE stripe_processing_fee_cents IS NULL/);
+    expect(migrationSource).toMatch(/WHERE so\.stripe_processing_fee_cents IS NULL/);
+  });
+
+  it('scopes entry/fee accounting to ENTRY orders only', () => {
+    // Review finding 1: one-time 'payment' orders carry a real amount and a real
+    // processing fee but NO platform-fee snapshot. Folding them in would count
+    // them as entry collections AND subtract their processing cost from fee
+    // income they never contributed to. The entry CTE must filter order_type.
+    expect(migrationSource).toMatch(
+      /scoped_orders AS \(\s*SELECT \* FROM scoped_charges WHERE order_type = 'entry'/
+    );
+  });
+
+  it('reports non-entry charges as a SEPARATE labeled total, never dropped', () => {
+    expect(migrationSource).toContain('non_entry_order_count');
+    expect(migrationSource).toContain('non_entry_gross_cents');
+    expect(migrationSource).toMatch(/scoped_non_entry AS \(/);
+    // Legacy NULL order_type falls into the non-entry bucket (IS DISTINCT FROM).
+    expect(migrationSource).toMatch(/order_type IS DISTINCT FROM 'entry'/);
+  });
+
+  it('sums FAILED payouts as their own total, not merged into pending', () => {
+    // Review finding 2: a failed transfer is still money owed to the club, so it
+    // must have an amount — a bare count understates outstanding liability.
+    expect(migrationSource).toContain('payout_failed_cents');
+    expect(migrationSource).toMatch(
+      /SUM\(sp\.amount_cents\), 0\) FROM scoped_payouts sp WHERE sp\.status = 'failed'/
+    );
+    // ...and must NOT be folded into the pending sum.
+    expect(migrationSource).toMatch(
+      /SUM\(sp\.amount_cents\), 0\) FROM scoped_payouts sp WHERE sp\.status IN \('pending', 'processing'\)/
+    );
+    expect(migrationSource).not.toMatch(/WHERE status IN \([^)]*'pending'[^)]*'failed'/);
+  });
+});
+
+describe('financial reconciliation RPC — detail/aggregate agreement (source-pinned)', () => {
+  it('orders detail applies the SAME status + order_type predicate as the summary', () => {
+    // Review finding 3: without these, failed/pending/cancelled and non-entry
+    // rows enter client-side grouping and disagree with the aggregates.
+    const statusPredicates = migrationSource.match(/status IN \('succeeded', 'refunded'\)/g) ?? [];
+    expect(statusPredicates.length).toBe(2); // summary CTE + orders detail
+    const entryPredicates = migrationSource.match(/order_type = 'entry'/g) ?? [];
+    // Summary CTE + orders detail (the header comment documents it a third time).
+    expect(entryPredicates.length).toBeGreaterThanOrEqual(2);
+    // The detail function specifically must carry both.
+    const ordersFnBody = migrationSource.slice(
+      migrationSource.indexOf(`FUNCTION public.${ordersFn}(`),
+      migrationSource.indexOf(`REVOKE ALL ON FUNCTION public.${ordersFn}`)
+    );
+    expect(ordersFnBody).toContain("o.status IN ('succeeded', 'refunded')");
+    expect(ordersFnBody).toContain("o.order_type = 'entry'");
   });
 });
 

@@ -22,6 +22,23 @@
 --      (show_payouts). A pending processing fee (NULL) surfaces as a pending
 --      COUNT, never folded into the captured-fee SUM as a zero.
 --
+-- ORDER-TYPE SCOPING (deliberate decision, MYK9-54 review finding 1).
+-- stripe_orders holds more than show entries: handleOneTimePaymentCompleted
+-- writes order_type = 'payment' rows that carry a REAL amount_cents and a REAL
+-- stripe_processing_fee_cents but NO platform-fee snapshot. Folding those into
+-- the entry figures would (a) count them as online ENTRY collections and (b)
+-- subtract their Stripe processing cost from platform fee income they never
+-- contributed to, understating net platform income. So EVERY entry/fee figure
+-- below (gross_charged, entry_subtotal, platform_fee, processing_fee + its
+-- pending count, refunded, snapshot_missing) covers exactly one population:
+-- status IN ('succeeded','refunded') AND order_type = 'entry'.
+-- Non-entry orders are NOT silently dropped — they are reported as their own
+-- clearly labeled pair (non_entry_order_count / non_entry_gross_cents) so the
+-- money is still visible, just never mixed into entry accounting. Legacy rows
+-- with a NULL order_type fall into the non-entry bucket by the same rule.
+-- The orders DETAIL function applies the IDENTICAL predicate, so detail rows and
+-- the aggregates always describe the same population.
+--
 -- Pattern mirrors resolve_operator_alert (20260709130000): SECURITY DEFINER,
 -- SET search_path = '', REVOKE ALL FROM PUBLIC, GRANT EXECUTE TO authenticated.
 --
@@ -92,7 +109,7 @@ CREATE OR REPLACE FUNCTION public.financial_reconciliation_summary(
   p_show_id uuid DEFAULT NULL
 )
 RETURNS TABLE (
-  -- Charge verification side (stripe_orders)
+  -- Charge verification side (stripe_orders, ENTRY orders only — see header)
   order_count                  bigint,
   gross_charged_cents          bigint,
   entry_subtotal_cents         bigint,
@@ -100,11 +117,19 @@ RETURNS TABLE (
   processing_fee_cents         bigint,  -- SUM of CAPTURED fees only (NULLs excluded)
   processing_fee_pending_count bigint,  -- orders whose fee is not yet captured (pending, not zero)
   refunded_cents               bigint,
-  snapshot_missing_count       bigint,  -- legacy orders with no platform-fee snapshot
+  snapshot_missing_count       bigint,  -- legacy ENTRY orders with no platform-fee snapshot
+  -- Non-entry charges (order_type <> 'entry' or NULL) — reported separately so
+  -- one-time 'payment' money is visible but never counted as entry collections.
+  non_entry_order_count        bigint,
+  non_entry_gross_cents        bigint,
   -- Payout settlement side (show_payouts) — kept independent of charge facts
   payout_count                 bigint,
   payout_completed_cents       bigint,
   payout_pending_cents         bigint,
+  -- A FAILED transfer is still money owed to the club: its amount is reported
+  -- as its own labeled total (never merged into payout_pending_cents) so the
+  -- UI can present outstanding liability = pending + failed.
+  payout_failed_cents          bigint,
   payout_failed_count          bigint
 )
 LANGUAGE plpgsql
@@ -116,8 +141,9 @@ BEGIN
   PERFORM public._financial_reconciliation_authorize(p_scope, p_club_id, p_show_id);
 
   RETURN QUERY
-  WITH scoped_orders AS (
-    SELECT o.amount_cents,
+  WITH scoped_charges AS (
+    SELECT o.order_type,
+           o.amount_cents,
            o.entry_subtotal_cents,
            o.platform_fee_cents,
            o.stripe_processing_fee_cents,
@@ -131,6 +157,13 @@ BEGIN
               SELECT s.id FROM public.shows s WHERE s.club_id = p_club_id))
       )
   ),
+  -- Entry accounting covers ENTRY orders only (see ORDER-TYPE SCOPING header).
+  scoped_orders AS (
+    SELECT * FROM scoped_charges WHERE order_type = 'entry'
+  ),
+  scoped_non_entry AS (
+    SELECT * FROM scoped_charges WHERE order_type IS DISTINCT FROM 'entry'
+  ),
   scoped_payouts AS (
     SELECT sp.amount_cents, sp.status
     FROM public.show_payouts sp
@@ -141,21 +174,33 @@ BEGIN
               SELECT s.id FROM public.shows s WHERE s.club_id = p_club_id))
       )
   )
+  -- EVERY column reference below is qualified with a CTE alias (so_/ne_/sp_).
+  -- This is REQUIRED, not style: the RETURNS TABLE output columns above become
+  -- PL/pgSQL variables, and several of them (entry_subtotal_cents,
+  -- platform_fee_cents, refunded_cents) share a name with a CTE column. An
+  -- unqualified reference raises "column reference ... is ambiguous" at RUNTIME
+  -- on every call — a failure no source-pin test or CREATE FUNCTION check can
+  -- catch. Keep every reference alias-qualified.
   SELECT
-    (SELECT count(*)                                        FROM scoped_orders),
-    (SELECT COALESCE(SUM(amount_cents), 0)                  FROM scoped_orders),
-    (SELECT COALESCE(SUM(entry_subtotal_cents), 0)          FROM scoped_orders),
-    (SELECT COALESCE(SUM(platform_fee_cents), 0)            FROM scoped_orders),
+    (SELECT count(*)                                            FROM scoped_orders so),
+    (SELECT COALESCE(SUM(so.amount_cents), 0)                   FROM scoped_orders so),
+    (SELECT COALESCE(SUM(so.entry_subtotal_cents), 0)           FROM scoped_orders so),
+    (SELECT COALESCE(SUM(so.platform_fee_cents), 0)             FROM scoped_orders so),
     -- NULL processing fees are pending, NOT zero: SUM ignores them here and the
     -- pending COUNT below surfaces them so net income can be labeled pending.
-    (SELECT COALESCE(SUM(stripe_processing_fee_cents), 0)   FROM scoped_orders),
-    (SELECT count(*) FROM scoped_orders WHERE stripe_processing_fee_cents IS NULL),
-    (SELECT COALESCE(SUM(refunded_cents), 0)                FROM scoped_orders),
-    (SELECT count(*) FROM scoped_orders WHERE platform_fee_cents IS NULL),
-    (SELECT count(*)                                        FROM scoped_payouts),
-    (SELECT COALESCE(SUM(amount_cents), 0) FROM scoped_payouts WHERE status = 'completed'),
-    (SELECT COALESCE(SUM(amount_cents), 0) FROM scoped_payouts WHERE status IN ('pending', 'processing')),
-    (SELECT count(*) FROM scoped_payouts WHERE status = 'failed');
+    (SELECT COALESCE(SUM(so.stripe_processing_fee_cents), 0)    FROM scoped_orders so),
+    (SELECT count(*) FROM scoped_orders so WHERE so.stripe_processing_fee_cents IS NULL),
+    (SELECT COALESCE(SUM(so.refunded_cents), 0)                 FROM scoped_orders so),
+    (SELECT count(*) FROM scoped_orders so WHERE so.platform_fee_cents IS NULL),
+    (SELECT count(*)                                            FROM scoped_non_entry ne),
+    (SELECT COALESCE(SUM(ne.amount_cents), 0)                   FROM scoped_non_entry ne),
+    (SELECT count(*)                                            FROM scoped_payouts sp),
+    (SELECT COALESCE(SUM(sp.amount_cents), 0) FROM scoped_payouts sp WHERE sp.status = 'completed'),
+    (SELECT COALESCE(SUM(sp.amount_cents), 0) FROM scoped_payouts sp WHERE sp.status IN ('pending', 'processing')),
+    -- Failed transfers are still owed to the club: summed separately, not merged
+    -- into payout_pending_cents.
+    (SELECT COALESCE(SUM(sp.amount_cents), 0) FROM scoped_payouts sp WHERE sp.status = 'failed'),
+    (SELECT count(*) FROM scoped_payouts sp WHERE sp.status = 'failed');
 END;
 $$;
 
@@ -207,7 +252,12 @@ BEGIN
          o.stripe_processing_fee_cents, o.refunded_cents, o.stripe_payment_intent_id,
          o.created_at, o.paid_at, o.refunded_at
   FROM public.stripe_orders o
-  WHERE (
+  -- IDENTICAL population to the summary's scoped_orders CTE: without this
+  -- predicate, failed/pending/cancelled and non-entry orders would enter
+  -- client-side grouping and per-show net math and disagree with the aggregates.
+  WHERE o.status IN ('succeeded', 'refunded')
+    AND o.order_type = 'entry'
+    AND (
       p_scope = 'platform'
       OR (p_scope = 'show' AND o.show_id = p_show_id)
       OR (p_scope = 'club' AND o.show_id IN (

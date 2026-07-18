@@ -42,15 +42,19 @@ function overview(overrides: Partial<PlatformFinancialOverview> = {}): PlatformF
         payoutCount: 2,
         completedCents: 50000,
         pendingCents: 30000,
+        failedCents: 0,
         failedCount: 0,
+        outstandingCents: 30000,
       },
     },
     attention: {
       failedTransferCount: 0,
       unrecordedRefundCount: 0,
-      missingProcessingFeeCount: 0,
+      chargeMismatchCount: 0,
+      missingPlatformFeeSnapshotCount: 0,
       totalCount: 0,
     },
+    detailTruncated: false,
     ...overrides,
   };
 }
@@ -148,14 +152,22 @@ describe('PlatformIncomeCard', () => {
       attention: {
         failedTransferCount: 2,
         unrecordedRefundCount: 0,
-        missingProcessingFeeCount: 1,
-        totalCount: 3,
+        chargeMismatchCount: 3,
+        missingPlatformFeeSnapshotCount: 1,
+        totalCount: 6,
       },
     });
     render(<PlatformIncomeCard />);
     expect(screen.getByText('Failed transfers: 2')).toBeInTheDocument();
-    expect(screen.getByText('Missing processing-fee snapshots: 1')).toBeInTheDocument();
+    expect(screen.getByText('Charge mismatches: 3')).toBeInTheDocument();
+    expect(screen.getByText('Missing platform-fee snapshots: 1')).toBeInTheDocument();
     expect(screen.queryByText(/Unrecorded refunds/)).not.toBeInTheDocument();
     expect(screen.queryByText(/No reconciliation attention items/i)).not.toBeInTheDocument();
+  });
+
+  it('warns that counts are a floor when the detail walk was truncated', () => {
+    overviewState.data = overview({ detailTruncated: true });
+    render(<PlatformIncomeCard />);
+    expect(screen.getByText(/Showing a partial scan/i)).toBeInTheDocument();
   });
 });

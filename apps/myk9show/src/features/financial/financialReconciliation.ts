@@ -40,7 +40,9 @@ export interface FinancialScopeArgs {
 /** Server-aggregated reconciliation totals. Charge facts and payout settlement
  *  are kept as separate figures — never a single conflated number. */
 export interface FinancialReconciliationSummary {
-  // Charge verification (stripe_orders)
+  // Charge verification (stripe_orders) — ENTRY orders only. One-time 'payment'
+  // orders carry no platform-fee snapshot and are deliberately excluded from
+  // every entry/fee figure; they surface in the nonEntry* pair below.
   orderCount: number;
   grossChargedCents: number;
   entrySubtotalCents: number;
@@ -50,12 +52,20 @@ export interface FinancialReconciliationSummary {
   /** Orders whose Stripe processing fee is not yet captured (net income pending). */
   processingFeePendingCount: number;
   refundedCents: number;
-  /** Legacy orders with no platform-fee snapshot (rate-unverifiable). */
+  /** Legacy entry orders with no platform-fee snapshot (rate-unverifiable). */
   snapshotMissingCount: number;
+  /** Succeeded/refunded charges that are NOT entry orders (one-time 'payment',
+   *  or legacy NULL order_type). Reported separately, never folded into the
+   *  entry/fee figures above. */
+  nonEntryOrderCount: number;
+  nonEntryGrossCents: number;
   // Payout settlement (show_payouts) — independent of charge facts
   payoutCount: number;
   payoutCompletedCents: number;
   payoutPendingCents: number;
+  /** Failed transfers are still money owed to the club — kept as its own total,
+   *  never merged into payoutPendingCents. Outstanding = pending + failed. */
+  payoutFailedCents: number;
   payoutFailedCount: number;
 }
 
@@ -132,9 +142,12 @@ interface SummaryRow {
   processing_fee_pending_count: number | string;
   refunded_cents: number | string;
   snapshot_missing_count: number | string;
+  non_entry_order_count: number | string;
+  non_entry_gross_cents: number | string;
   payout_count: number | string;
   payout_completed_cents: number | string;
   payout_pending_cents: number | string;
+  payout_failed_cents: number | string;
   payout_failed_count: number | string;
 }
 
@@ -177,9 +190,12 @@ export function mapSummaryRow(row: SummaryRow): FinancialReconciliationSummary {
     processingFeePendingCount: toNum(row.processing_fee_pending_count),
     refundedCents: toNum(row.refunded_cents),
     snapshotMissingCount: toNum(row.snapshot_missing_count),
+    nonEntryOrderCount: toNum(row.non_entry_order_count),
+    nonEntryGrossCents: toNum(row.non_entry_gross_cents),
     payoutCount: toNum(row.payout_count),
     payoutCompletedCents: toNum(row.payout_completed_cents),
     payoutPendingCents: toNum(row.payout_pending_cents),
+    payoutFailedCents: toNum(row.payout_failed_cents),
     payoutFailedCount: toNum(row.payout_failed_count),
   };
 }
@@ -241,9 +257,12 @@ const EMPTY_SUMMARY_ROW: SummaryRow = {
   processing_fee_pending_count: 0,
   refunded_cents: 0,
   snapshot_missing_count: 0,
+  non_entry_order_count: 0,
+  non_entry_gross_cents: 0,
   payout_count: 0,
   payout_completed_cents: 0,
   payout_pending_cents: 0,
+  payout_failed_cents: 0,
   payout_failed_count: 0,
 };
 

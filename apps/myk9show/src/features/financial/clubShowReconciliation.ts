@@ -6,9 +6,10 @@
 // treasurer sees one row per show with:
 //   - net:               the club's net entry-fee transfer for that show
 //                        (entry subtotal, i.e. charged amount less the
-//                        platform's fee). Independent of payout SETTLEMENT
-//                        timing — a show can be charge-verified before its
-//                        payout settles.
+//                        platform's fee, less any refunded portion — see
+//                        clubNetContributionCents). Independent of payout
+//                        SETTLEMENT timing — a show can be charge-verified
+//                        before its payout settles.
 //   - chargeVerification: aggregated Verified / Attested / Mismatch across
 //                        the show's Stripe orders (every row here already
 //                        came from stripe_orders, so there is no desk/manual
@@ -44,6 +45,38 @@ export interface ClubShowReconciliationRow {
   orderCount: number;
 }
 
+/**
+ * One order's contribution to the club's net entry money for a show:
+ *
+ *     max(0, entrySubtotalCents - refundedCents)
+ *
+ * WHY THIS EXACT FORMULA — it is the same arithmetic the payout cron uses to
+ * decide what to transfer, so the treasurer can read the net and the
+ * "Transferred:" figure beside it as the same number. `calculateShowPayoutCents`
+ * (supabase/functions/_shared/payoutCalc.ts) sums
+ * `max(0, entryFeeCents - refundCents)` over the show's online entries, and
+ * cron-process-payouts recomputes that at transfer time — so a refund issued
+ * BEFORE the transfer shrinks the transfer by exactly the refunded amount.
+ *
+ * The floor at 0 is not defensive padding, it is required: a SHOW-level refund
+ * (stripe-refund-show) refunds the full remaining charge — entry fees AND the
+ * platform fee — so `refundedCents` can legitimately exceed `entrySubtotalCents`.
+ * The club's share bottoms out at zero; the platform absorbs the fee portion.
+ * (A per-ENTRY refund is capped at the entry fee by validateRefund, so it never
+ * overshoots.)
+ *
+ * Refunds accepted AFTER the transfer are absorbed by the platform and do not
+ * claw back the club's money — but refunds are rejected once the payout is
+ * `processing` or `completed` (validateRefund: payout_in_progress /
+ * payout_already_sent), so a settled show cannot drift below its transfer here.
+ */
+export function clubNetContributionCents(
+  entrySubtotalCents: number,
+  refundedCents: number
+): number {
+  return Math.max(0, entrySubtotalCents - refundedCents);
+}
+
 /** Aggregate one show's orders into its net-to-club figure and charge state. */
 function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
   net: ClubShowNet;
@@ -63,12 +96,13 @@ function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
     if (order.stripeProcessingFeeCents == null) anyPending = true;
     if (resolveOrderChargeVerification(order) === 'Mismatch') anyMismatch = true;
     // Net-to-club is the entry subtotal (charged amount less the platform's
-    // own fee); when the snapshot is missing, treat that order as pending
-    // too rather than assuming $0 for it.
+    // own fee) MINUS the refunded portion — see clubNetContributionCents for
+    // why that ties to the transfer. When the snapshot is missing, treat that
+    // order as pending rather than assuming $0 for it.
     if (order.entrySubtotalCents == null) {
       anyPending = true;
     } else {
-      netCents += order.entrySubtotalCents;
+      netCents += clubNetContributionCents(order.entrySubtotalCents, order.refundedCents);
     }
   }
 

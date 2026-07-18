@@ -81,25 +81,47 @@ function OutstandingLiability({ payoutSettlement }: { payoutSettlement: PayoutSe
       <CardHeader className="pb-2">
         <CardDescription>Outstanding transfer liability</CardDescription>
         <CardTitle className="text-2xl tabular-nums text-primary">
-          {formatCents(payoutSettlement.pendingCents)}
+          {formatCents(payoutSettlement.outstandingCents)}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-xs text-muted-foreground">
-          Source: pending + processing Stripe transfers not yet completed.
+          Source: pending + processing Stripe transfers not yet completed
+          {payoutSettlement.failedCents > 0
+            ? `, plus ${formatCents(payoutSettlement.failedCents)} in ${payoutSettlement.failedCount} failed transfer(s) still owed`
+            : ''}
+          .
         </p>
       </CardContent>
     </Card>
   );
 }
 
-function AttentionSection({ attention }: { attention: PlatformAttentionSummary }) {
+function TruncationNote() {
+  return (
+    <p className="text-xs text-muted-foreground">
+      Showing a partial scan: more reconciliation rows exist than this view walked, so these counts
+      are a minimum.
+    </p>
+  );
+}
+
+function AttentionSection({
+  attention,
+  detailTruncated,
+}: {
+  attention: PlatformAttentionSummary;
+  detailTruncated: boolean;
+}) {
   if (attention.totalCount === 0) {
     return (
       <Card>
         <CardContent className="py-6 flex items-center gap-3 text-muted-foreground">
           <ShieldCheck className="h-5 w-5 text-success" />
-          <p className="text-sm">No reconciliation attention items. Everything ties out.</p>
+          <div>
+            <p className="text-sm">No reconciliation attention items. Everything ties out.</p>
+            {detailTruncated ? <TruncationNote /> : null}
+          </div>
         </CardContent>
       </Card>
     );
@@ -109,9 +131,14 @@ function AttentionSection({ attention }: { attention: PlatformAttentionSummary }
     { key: 'failed', label: 'Failed transfers', count: attention.failedTransferCount },
     { key: 'refund', label: 'Unrecorded refunds', count: attention.unrecordedRefundCount },
     {
+      key: 'mismatch',
+      label: 'Charge mismatches',
+      count: attention.chargeMismatchCount,
+    },
+    {
       key: 'fee',
-      label: 'Missing processing-fee snapshots',
-      count: attention.missingProcessingFeeCount,
+      label: 'Missing platform-fee snapshots',
+      count: attention.missingPlatformFeeSnapshotCount,
     },
   ].filter(item => item.count > 0);
 
@@ -126,12 +153,15 @@ function AttentionSection({ attention }: { attention: PlatformAttentionSummary }
           Genuine drift only — a normal pending or self-healing payout never appears here.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-wrap gap-2">
-        {items.map(item => (
-          <Badge key={item.key} variant="destructive">
-            {item.label}: {item.count}
-          </Badge>
-        ))}
+      <CardContent className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          {items.map(item => (
+            <Badge key={item.key} variant="destructive">
+              {item.label}: {item.count}
+            </Badge>
+          ))}
+        </div>
+        {detailTruncated ? <TruncationNote /> : null}
       </CardContent>
     </Card>
   );
@@ -170,7 +200,7 @@ export function PlatformIncomeCard() {
     <div className="space-y-4">
       <PlatformFigures income={data.summary.platformIncome} />
       <OutstandingLiability payoutSettlement={data.summary.payoutSettlement} />
-      <AttentionSection attention={data.attention} />
+      <AttentionSection attention={data.attention} detailTruncated={data.detailTruncated} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  derivePayoutSettlement,
   derivePlatformIncome,
   getFinancialSummary,
   type FinancialSummaryDeps,
@@ -47,9 +48,12 @@ function summaryRow(
     processingFeePendingCount: 0,
     refundedCents: 0,
     snapshotMissingCount: 0,
+    nonEntryOrderCount: 0,
+    nonEntryGrossCents: 0,
     payoutCount: 1,
     payoutCompletedCents: 5000,
     payoutPendingCents: 0,
+    payoutFailedCents: 0,
     payoutFailedCount: 0,
     ...overrides,
   };
@@ -218,5 +222,25 @@ describe('getFinancialSummary', () => {
     await expect(
       getFinancialSummary({ scope: 'club', clubId: 'other-club', entries: [] }, deps)
     ).rejects.toThrow('permission denied');
+  });
+});
+
+describe('derivePayoutSettlement', () => {
+  it('includes FAILED transfers in outstanding liability, kept separate from pending', () => {
+    const result = derivePayoutSettlement(
+      summaryRow({ payoutPendingCents: 3000, payoutFailedCents: 1200, payoutFailedCount: 1 })
+    );
+    // A failed transfer has not settled — it is still owed to the club.
+    expect(result.outstandingCents).toBe(4200);
+    // ...but it is never merged INTO pending: both stay individually labeled.
+    expect(result.pendingCents).toBe(3000);
+    expect(result.failedCents).toBe(1200);
+    expect(result.failedCount).toBe(1);
+  });
+
+  it('reports outstanding = pending when nothing failed', () => {
+    const result = derivePayoutSettlement(summaryRow({ payoutPendingCents: 500 }));
+    expect(result.outstandingCents).toBe(500);
+    expect(result.failedCents).toBe(0);
   });
 });

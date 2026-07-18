@@ -55,7 +55,12 @@ export interface PayoutSettlementTotals {
   payoutCount: number;
   completedCents: number;
   pendingCents: number;
+  /** Failed transfers are still owed to the club — kept separate from pending. */
+  failedCents: number;
   failedCount: number;
+  /** Total transfer liability still outstanding: pending + failed. A failed
+   *  transfer has NOT settled, so omitting it understates what is owed. */
+  outstandingCents: number;
 }
 
 export interface FinancialSummary {
@@ -119,6 +124,22 @@ export function derivePlatformIncome(
   };
 }
 
+/** Derive the payout-settlement group. Outstanding liability includes FAILED
+ *  transfers: a failed transfer is money still owed to the club, so counting only
+ *  pending would understate the platform's outstanding obligation. */
+export function derivePayoutSettlement(
+  summary: FinancialReconciliationSummary
+): PayoutSettlementTotals {
+  return {
+    payoutCount: summary.payoutCount,
+    completedCents: summary.payoutCompletedCents,
+    pendingCents: summary.payoutPendingCents,
+    failedCents: summary.payoutFailedCents,
+    failedCount: summary.payoutFailedCount,
+    outstandingCents: summary.payoutPendingCents + summary.payoutFailedCents,
+  };
+}
+
 /** Aggregate charge-verification counts from entries + server reconciliation totals. */
 export function deriveChargeVerification(
   entryAccounting: EntryAccountingProjection,
@@ -164,11 +185,6 @@ export async function getFinancialSummary(
       reconciliation,
       matchedOrdersByEntryId
     ),
-    payoutSettlement: {
-      payoutCount: reconciliation.payoutCount,
-      completedCents: reconciliation.payoutCompletedCents,
-      pendingCents: reconciliation.payoutPendingCents,
-      failedCount: reconciliation.payoutFailedCount,
-    },
+    payoutSettlement: derivePayoutSettlement(reconciliation),
   };
 }

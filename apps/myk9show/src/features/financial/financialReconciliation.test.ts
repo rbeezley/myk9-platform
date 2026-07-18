@@ -35,10 +35,13 @@ describe('mapSummaryRow', () => {
       processing_fee_pending_count: '1',
       refunded_cents: '0',
       snapshot_missing_count: '2',
+      non_entry_order_count: '4',
+      non_entry_gross_cents: '2500',
       payout_count: '1',
       payout_completed_cents: '9500',
       payout_pending_cents: '0',
-      payout_failed_count: '0',
+      payout_failed_cents: '1200',
+      payout_failed_count: '1',
     });
     expect(summary.orderCount).toBe(3);
     expect(summary.grossChargedCents).toBe(10700);
@@ -47,6 +50,13 @@ describe('mapSummaryRow', () => {
     expect(summary.processingFeeCents).toBe(320);
     expect(summary.processingFeePendingCount).toBe(1);
     expect(summary.payoutCompletedCents).toBe(9500);
+    // Non-entry charges are their own labeled pair, never folded into entry totals.
+    expect(summary.nonEntryOrderCount).toBe(4);
+    expect(summary.nonEntryGrossCents).toBe(2500);
+    // A failed transfer keeps its amount, separate from pending.
+    expect(summary.payoutFailedCents).toBe(1200);
+    expect(summary.payoutPendingCents).toBe(0);
+    expect(summary.payoutFailedCount).toBe(1);
   });
 });
 

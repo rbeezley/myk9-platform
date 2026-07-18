@@ -19,7 +19,7 @@ import { postgrestGetSecretaryEntriesForShow } from './secretaryPostgrest';
 import { logger } from '@/services/LoggingService';
 import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 import { isRawEntryInEntryManagementPendingBucket } from '@/utils/entryCountSelectors';
-
+import { SECRETARY_ENTRIES_READ_ERROR } from './secretaryReadErrors';
 export type { PendingEntry, SecretaryEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 
 function toPendingEntry(row: Record<string, unknown>): PendingEntry {
@@ -103,7 +103,7 @@ export const getEntriesForShow = async (showId: string) => {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'get_entries_for_show');
     logQuery('entries', 'get_entries_for_show', duration, dbError.message);
-    return { data: [], error: dbError };
+    return { data: null, error: { ...dbError, message: SECRETARY_ENTRIES_READ_ERROR } };
   }
 };
 

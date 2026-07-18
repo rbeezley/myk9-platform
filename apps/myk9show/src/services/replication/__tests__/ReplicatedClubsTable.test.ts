@@ -731,7 +731,9 @@ describe('ReplicatedClubsTable', () => {
       const result = await table.sync();
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Network error');
+      expect(result.error).toBe(
+        "We couldn't refresh saved show data. You can keep using the saved copy while we try again."
+      );
     });
 
     it('should exclude soft-deleted clubs during sync', async () => {

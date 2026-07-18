@@ -4,6 +4,11 @@ import { computeShowDeskPendingSignals } from '../showDeskPendingSignals';
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ShowMapClassInput } from '../showMapTypes';
+import {
+  classifyRawEntryAttention,
+  matchesOperationalAttentionFilter,
+} from '@/features/entry-operations/attentionClassification';
+import { normalizeEntryManagementSearchParams } from '@/components/entries/management/entryManagementFilters';
 
 const show = {
   id: 'show-1',
@@ -58,6 +63,7 @@ describe('computeShowDeskPendingSignals', () => {
     ]);
     expect(
       computeShowDeskPendingSignals({
+        showId: 'show-1',
         tree: t,
         entries: [{ entry_status: 'accepted', check_in_status: 'checked-in' }],
       })
@@ -83,6 +89,7 @@ describe('computeShowDeskPendingSignals', () => {
     // the review signal — missing/null check_in_status now legitimately counts as
     // waiting-for-check-in (see the null/undefined test below).
     const signals = computeShowDeskPendingSignals({
+      showId: 'show-1',
       tree: t,
       entries: [
         { entry_status: 'submitted', check_in_status: 'checked-in' },
@@ -110,6 +117,7 @@ describe('computeShowDeskPendingSignals', () => {
       },
     ]);
     const signals = computeShowDeskPendingSignals({
+      showId: 'show-1',
       tree: t,
       entries: [{ entry_status: 'accepted', check_in_status: 'no-status' }],
     });
@@ -136,6 +144,7 @@ describe('computeShowDeskPendingSignals', () => {
       },
     ]);
     const signals = computeShowDeskPendingSignals({
+      showId: 'show-1',
       tree: t,
       entries: [
         { entry_status: 'accepted', check_in_status: null },
@@ -163,6 +172,7 @@ describe('computeShowDeskPendingSignals', () => {
       },
     ]);
     const signals = computeShowDeskPendingSignals({
+      showId: 'show-1',
       tree: t,
       entries: [
         { entry_status: 'submitted', check_in_status: null },
@@ -191,7 +201,7 @@ describe('computeShowDeskPendingSignals', () => {
       ],
       [completedClass]
     );
-    const signals = computeShowDeskPendingSignals({ tree: t, entries: [] });
+    const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: [] });
     expect(signals.some(s => s.id === 'classes-needing-signature')).toBe(true);
   });
 
@@ -209,7 +219,7 @@ describe('computeShowDeskPendingSignals', () => {
       ],
       [completedClass]
     );
-    const signals = computeShowDeskPendingSignals({ tree: t, entries: [] });
+    const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: [] });
     expect(signals.some(s => s.id === 'results-pending-closeout')).toBe(true);
   });
 
@@ -227,6 +237,7 @@ describe('computeShowDeskPendingSignals', () => {
       [completedClass]
     );
     const signals = computeShowDeskPendingSignals({
+      showId: 'show-1',
       tree: t,
       entries: [
         { entry_status: 'submitted' },
@@ -234,5 +245,174 @@ describe('computeShowDeskPendingSignals', () => {
       ],
     });
     expect(signals.map(s => s.priority)).toEqual(['highest', 'high', 'high']);
+  });
+
+  describe('route/count agreement', () => {
+    it('waiting-review count matches the pending destination filter, hrefs round-trip, and non-actionable signals stay null', () => {
+      const rawEntries = [
+        { entry_status: 'submitted', check_in_status: 'checked-in' },
+        { entry_status: 'pending', check_in_status: 'checked-in' },
+        { entry_status: 'missing_info', check_in_status: 'checked-in' },
+        { entry_status: 'accepted', check_in_status: 'checked-in', payment_status: 'paid' },
+      ];
+      const t = tree(
+        rawEntries.map((e, i) => ({
+          id: `e${i}`,
+          class_id: 'class-active',
+          dog: { call_name: `Dog${i}` },
+          ...e,
+        }))
+      );
+      const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: rawEntries });
+
+      const review = signals.find(s => s.id === 'entries-waiting-review');
+      expect(review).toBeDefined();
+      const destinationCount = rawEntries.filter(entry =>
+        matchesOperationalAttentionFilter({ rawEntryStatus: entry.entry_status }, 'pending')
+      ).length;
+      expect(review?.count).toBe(destinationCount);
+      expect(review?.href).toBeTruthy();
+
+      const params = new URLSearchParams(review!.href!.split('?')[1]);
+      const normalized = normalizeEntryManagementSearchParams(params);
+      expect(normalized.attention).toBe('pending');
+      expect(normalized.mode).toBe('review');
+    });
+
+    it('payment-due count matches accepted entries with pending effective payment status, and href round-trips', () => {
+      const rawEntries = [
+        { entry_status: 'accepted', check_in_status: 'checked-in', payment_status: 'pending' },
+        { entry_status: 'accepted', check_in_status: 'checked-in', payment_status: 'paid_online' },
+        { entry_status: 'submitted', check_in_status: 'checked-in', payment_status: 'pending' },
+        {
+          entry_status: 'accepted',
+          check_in_status: 'checked-in',
+          payment_status: 'paid_online',
+          registration: { payment_status: 'pending' },
+        },
+      ];
+      const t = tree(
+        rawEntries.map((e, i) => ({
+          id: `e${i}`,
+          class_id: 'class-active',
+          dog: { call_name: `Dog${i}` },
+          ...e,
+        }))
+      );
+      const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: rawEntries });
+
+      const paymentDue = signals.find(s => s.id === 'entries-payment-due');
+      expect(paymentDue).toBeDefined();
+      // Same predicate the Entry Management payment filter uses.
+      const destinationCount = rawEntries.filter(entry =>
+        classifyRawEntryAttention(entry).includes('payment_due')
+      ).length;
+      expect(destinationCount).toBe(2);
+      expect(paymentDue?.count).toBe(destinationCount);
+      expect(paymentDue?.priority).toBe('high');
+      expect(paymentDue?.href).toBeTruthy();
+
+      const params = new URLSearchParams(paymentDue!.href!.split('?')[1]);
+      const normalized = normalizeEntryManagementSearchParams(params);
+      expect(normalized.attention).toBe('accepted');
+      expect(normalized.payment).toBe('pending');
+      expect(normalized.mode).toBe('review');
+    });
+
+    it('check-in count matches accepted/confirmed entries not yet checked in, and href round-trips to day-of mode', () => {
+      const rawEntries = [
+        { entry_status: 'accepted', check_in_status: null },
+        { entry_status: 'confirmed' },
+        { entry_status: 'accepted', check_in_status: 'checked-in' },
+        // multi-class enrollment: two rows for the same underlying entry both count.
+        { entry_status: 'accepted', check_in_status: 'no-status' },
+      ];
+      const t = tree(
+        rawEntries.map((e, i) => ({
+          id: `e${i}`,
+          class_id: 'class-active',
+          dog: { call_name: `Dog${i}` },
+          ...e,
+        }))
+      );
+      const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: rawEntries });
+
+      const checkIn = signals.find(s => s.id === 'entries-waiting-checkin');
+      expect(checkIn).toBeDefined();
+      expect(checkIn?.count).toBe(3);
+      expect(checkIn?.href).toBeTruthy();
+
+      const params = new URLSearchParams(checkIn!.href!.split('?')[1]);
+      const normalized = normalizeEntryManagementSearchParams(params);
+      expect(normalized.attention).toBe('accepted');
+      expect(normalized.mode).toBe('day-of');
+    });
+
+    it('excludes terminal/pulled entries from waiting-review and payment-due counts', () => {
+      const rawEntries = [
+        { entry_status: 'scratched', check_in_status: 'checked-in', payment_status: 'pending' },
+        { entry_status: 'cancelled', check_in_status: 'checked-in', payment_status: 'pending' },
+        { entry_status: 'completed', check_in_status: 'checked-in', payment_status: 'pending' },
+      ];
+      const t = tree(
+        rawEntries.map((e, i) => ({
+          id: `e${i}`,
+          class_id: 'class-active',
+          dog: { call_name: `Dog${i}` },
+          ...e,
+        }))
+      );
+      const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: rawEntries });
+
+      expect(signals.find(s => s.id === 'entries-waiting-review')).toBeUndefined();
+      expect(signals.find(s => s.id === 'entries-payment-due')).toBeUndefined();
+    });
+
+    it('classes-needing-signature and results-pending-closeout are non-actionable (href null) since no verified matching-unit destination exists', () => {
+      const t = tree(
+        [
+          {
+            id: 'e1',
+            class_id: 'class-complete',
+            dog: { call_name: 'Bella' },
+            entry_status: 'accepted',
+            is_scored: true,
+            judge_signature_timestamp: '2026-05-17T14:00:00Z',
+          },
+        ],
+        [completedClass]
+      );
+      const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: [] });
+      const closeout = signals.find(s => s.id === 'results-pending-closeout');
+      expect(closeout).toBeDefined();
+      expect(closeout?.href).toBeNull();
+    });
+
+    it('yields no fabricated signals or counts for an empty/partial entries array (pure-function loading behavior)', () => {
+      const t = tree([], []);
+      const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: [] });
+      expect(signals).toEqual([]);
+    });
+
+    it('every actionable signal carries a show scope matching the input showId', () => {
+      const t = tree([
+        {
+          id: 'e1',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          entry_status: 'submitted',
+        },
+      ]);
+      const signals = computeShowDeskPendingSignals({
+        showId: 'show-42',
+        tree: t,
+        entries: [{ entry_status: 'submitted', check_in_status: 'checked-in' }],
+      });
+      expect(signals.length).toBeGreaterThan(0);
+      for (const signal of signals) {
+        expect(signal.scope).toEqual({ kind: 'show', showId: 'show-42' });
+      }
+      expect(signals[0]?.href).toContain('/shows/show-42/entry-management');
+    });
   });
 });

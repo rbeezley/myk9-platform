@@ -84,8 +84,9 @@ Staff-only attention signals are not rendered for exhibitors or anonymous visito
 
 Rollback removes the summary and related links while leaving canonical owner pages, classifiers, and routes intact. No database migration is required.
 
-## Open Questions
+## Open Questions — resolved (2026-07-18 inventory)
 
-- Which existing Workbench block is the least duplicative host for the first attention summary?
-- Which two related links are most useful on Entry Management without adding header clutter?
-- Should the first release include person/dog links from entries only when the target is already in the loaded projection?
+- **Host for the attention summary:** the existing Show Desk pending-signals path (`features/show-map/showDeskPendingSignals.ts` rendered via `ShowDeskPanel`/`ShowDeskAdaptiveHeader`). It already models id/count/label/priority and reuses the canonical pending-bucket selector; the change extends each signal with a typed destination href built from `entryAttentionRoutes` helpers and adds a payment-due signal from `classifyRawEntryAttention`. No new block is created. Setup-phase orientation already has `SetupReadinessSignal` (which carries `href`) and is left as-is.
+- **Entry Management related links:** parent show and, when a class filter is active, the class's Class Details page — rendered as a compact related-context line near the existing `FilterBreadcrumb`, not a new header.
+- **Dog/person links:** first release links dog/person from entry rows only when the target ID is already present in the loaded projection; no fetch is added to decorate links.
+- **Check-in count unit:** `countEntriesWaitingCheckIn` (run-order-eligible, not yet checked in; INTENT comment preserved) stays the count predicate. Its destination is the day-of Entry Management view, whose visible unit is accepted entries with a check-in action column — the count-agreement test asserts the signal count equals the destination rows whose check-in state is still pending, i.e. predicate-level agreement on the same fixed dataset. The two per-class readiness check-in tiles in `classReadiness.ts` are a different unit (eligible/checked-in progress) and are intentionally not merged.

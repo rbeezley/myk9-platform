@@ -451,7 +451,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   } else if (session.mode === 'subscription') {
     await handleSubscriptionCheckoutCompleted(session);
   } else if (session.mode === 'payment') {
-    await handleOneTimePaymentCompleted(session);
+    // MP-24: nothing client-facing can create a bare mode:'payment' session
+    // anymore (stripe-checkout removed that mode) and the old handler here
+    // recorded the UNVERIFIED payload amount_total into stripe_orders. If one
+    // ever arrives it is unexpected — log loudly instead of recording it.
+    console.error(
+      `Unexpected untyped one-time payment session ${session.id} — no handler records it; investigate its origin`
+    );
   }
 }
 
@@ -1925,40 +1931,6 @@ async function handleSubscriptionCheckoutCompleted(session: Stripe.Checkout.Sess
       : (session.subscription as { id?: string } | null)?.id;
 
   await syncSubscriptionFromStripe(customerId, subscriptionId ?? undefined);
-}
-
-/**
- * Handle one-time payment completion
- */
-async function handleOneTimePaymentCompleted(session: Stripe.Checkout.Session) {
-  const customerId = session.customer as string;
-
-  // Get stripe_customers record
-  const { data: stripeCustomer } = await supabase
-    .from('stripe_customers')
-    .select('id')
-    .eq('stripe_customer_id', customerId)
-    .single();
-
-  // Create stripe_orders record
-  const { error: orderError } = await supabase.from('stripe_orders').insert({
-    customer_id: stripeCustomer?.id || null,
-    stripe_payment_intent_id:
-      typeof session.payment_intent === 'string' ? session.payment_intent : null,
-    stripe_checkout_session_id: session.id,
-    amount_cents: session.amount_total || 0,
-    currency: session.currency || 'usd',
-    status: 'succeeded',
-    order_type: 'payment',
-    metadata: session.metadata || {},
-    paid_at: new Date().toISOString(),
-  });
-
-  if (orderError) {
-    console.error('Error creating stripe_orders record:', orderError);
-  }
-
-  console.log(`One-time payment completed: ${session.id}`);
 }
 
 /**

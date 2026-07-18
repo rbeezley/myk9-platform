@@ -11,11 +11,11 @@
 
 ## 2. Accounting projection and shared service
 
-- [ ] 2.1 Implement the cent-based accounting projection for every financially active entry, including paid-then-withdrawn, refunded, waived, cash, and check records.
-- [ ] 2.2 Implement `getFinancialSummary(scope, scopeId)` on the scoped projection without raw client reads that bypass RLS; return separate entry accounting, platform income, charge-verification, and payout-settlement data.
-- [ ] 2.3 Add tests for `Verified`, `Attested`, `Mismatch`, pending-net, and payout settlement states using the existing payout badge vocabulary.
-- [ ] 2.4 Add a show-level parity test proving overlapping totals match the existing printable Financial Report before changing its data source.
-- [ ] 2.5 Wire the existing Financial Report page/hook layer to the shared source only after parity tests pass; keep the renderer synchronous and pure.
+- [x] 2.1 Implement the cent-based accounting projection for every financially active entry, including paid-then-withdrawn, refunded, waived, cash, and check records.
+- [x] 2.2 Implement `getFinancialSummary(scope, scopeId)` on the scoped projection without raw client reads that bypass RLS; return separate entry accounting, platform income, charge-verification, and payout-settlement data.
+- [x] 2.3 Add tests for `Verified`, `Attested`, `Mismatch`, pending-net, and payout settlement states using the existing payout badge vocabulary.
+- [x] 2.4 Add a show-level parity test proving overlapping totals match the existing printable Financial Report before changing its data source.
+- [x] 2.5 Wire the existing Financial Report page/hook layer to the shared source only after parity tests pass; keep the renderer synchronous and pure.
 
 ## 3. Club financial workflow
 

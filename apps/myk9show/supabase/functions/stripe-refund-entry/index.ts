@@ -236,37 +236,6 @@ Deno.serve(async req => {
       );
     }
 
-    // MP-18: re-check payout state now that we hold the lock. The pre-lock
-    // read above races the payout cron (it could claim, transfer, and release
-    // in the gap); once completed, the next cron run early-returns without a
-    // reconcile pass, so a refund landing here would be a silent platform
-    // loss. Mirrors the per-intent in-lock re-check in stripe-refund-show.
-    const { data: payoutInLock, error: payoutInLockError } = await supabase
-      .from('show_payouts')
-      .select('status')
-      .eq('show_id', show.id)
-      .neq('status', 'failed')
-      .maybeSingle();
-    if (payoutInLockError) {
-      await moneyLock.release();
-      console.error(`In-lock payout state read failed for show ${show.id}:`, payoutInLockError);
-      return corsResponse(
-        corsHeaders,
-        { error: 'Could not verify the show’s payout state — try again in a moment.' },
-        500
-      );
-    }
-    if (payoutInLock?.status === 'completed' || payoutInLock?.status === 'processing') {
-      await moneyLock.release();
-      return corsResponse(
-        corsHeaders,
-        {
-          error: payoutInLock.status === 'completed' ? 'payout_already_sent' : 'payout_in_progress',
-        },
-        422
-      );
-    }
-
     // One refund per entry. The idempotency key covers fast retries, but
     // Stripe keys expire (~24h) — a retry after that (e.g. the entry-update
     // below failed, so payment_status never flipped to 'refunded') would
@@ -279,6 +248,38 @@ Deno.serve(async req => {
     // from replaying the cached failure (same lesson as the cron's per-row
     // key); refunds.list remains the at-most-one-live-refund authority.
     try {
+      // MP-18: re-check payout state now that we hold the lock. The pre-lock
+      // read above races the payout cron (it could claim, transfer, and
+      // release in the gap); once completed, the next cron run early-returns
+      // without a reconcile pass, so a refund landing here would be a silent
+      // platform loss. Mirrors the per-intent in-lock re-check in
+      // stripe-refund-show. Lives inside the try so a THROWN query failure
+      // still releases the lock via the finally (Codex P2).
+      const { data: payoutInLock, error: payoutInLockError } = await supabase
+        .from('show_payouts')
+        .select('status')
+        .eq('show_id', show.id)
+        .neq('status', 'failed')
+        .maybeSingle();
+      if (payoutInLockError) {
+        console.error(`In-lock payout state read failed for show ${show.id}:`, payoutInLockError);
+        return corsResponse(
+          corsHeaders,
+          { error: 'Could not verify the show’s payout state — try again in a moment.' },
+          500
+        );
+      }
+      if (payoutInLock?.status === 'completed' || payoutInLock?.status === 'processing') {
+        return corsResponse(
+          corsHeaders,
+          {
+            error:
+              payoutInLock.status === 'completed' ? 'payout_already_sent' : 'payout_in_progress',
+          },
+          422
+        );
+      }
+
       const prior = await stripe.refunds.list({
         payment_intent: entry.stripe_payment_intent_id!,
         limit: 100,

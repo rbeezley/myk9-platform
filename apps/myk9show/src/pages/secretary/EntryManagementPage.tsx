@@ -36,7 +36,9 @@ import { PullManagementTab } from '@/components/entries/PullManagementTab';
 import { groupEntriesByEnrollment, type EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { normalizeEntryManagementSearchParams } from '@/components/entries/management/entryManagementFilters';
+import { buildEntryManagementRelatedLinks } from '@/components/entries/management/entryManagementRelatedLinks';
 import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
+import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
 
 const PAGE_TABS: PrimaryTabDef[] = [
   { id: 'entries', label: 'Entries' },
@@ -406,6 +408,20 @@ const EntryManagementPage: React.FC = () => {
                 className={breadcrumbClassName}
                 onClearTrial={() => setTrialFilter(null)}
                 onClearClass={() => setClassFilter(null)}
+              />
+
+              {/* Related context: Trial/Class Details for the active scope.
+                  This page is already staff-gated above, so isStaff is true
+                  whenever this renders. */}
+              <RelatedContextLinks
+                items={buildEntryManagementRelatedLinks({
+                  isStaff: true,
+                  showId: selectedShowId,
+                  trialFilter,
+                  classFilter,
+                  loadedTrialClassIds: trialClassIds,
+                })}
+                className="px-4"
               />
 
               {/* Trial scope controls (List/Roster toggle + "Score this class"

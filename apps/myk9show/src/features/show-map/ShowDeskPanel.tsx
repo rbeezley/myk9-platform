@@ -22,6 +22,8 @@ import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
 import { buildMoveUpTargets } from './buildMoveUpTargets';
 import { getTrialRegistry } from '@/features/registries';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
+import { getClassManagementHref } from '@/components/classes/classManagementFilters';
+import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import ShowMapTab from './ShowMapTab';
@@ -184,8 +186,8 @@ export default function ShowDeskPanel({
     [scopeNow, show, trials, tree]
   );
   const pendingSignals = useMemo(
-    () => computeShowDeskPendingSignals({ tree, entries }),
-    [entries, tree]
+    () => computeShowDeskPendingSignals({ showId: show.id, tree, entries }),
+    [entries, show.id, tree]
   );
   // Reuse the existing pending-signal computation as the source of truth for
   // "N entries waiting" — no second counter, no risk of the two going out of
@@ -205,6 +207,29 @@ export default function ShowDeskPanel({
   const moveUpCurrentClass = moveUpAction?.classId
     ? tree.nodesById[`class:${moveUpAction.classId}`]
     : undefined;
+
+  // Related context links: Entry Management is always reachable; Class
+  // Management only when a current/first trial id is already loaded in
+  // `trials` (no fetch added to decorate the panel).
+  const relatedLinks = useMemo(() => {
+    if (!canManageShow) return [];
+    const items = [
+      {
+        key: 'entry-management',
+        label: 'Entry Management',
+        href: getEntryManagementHref({ showId: show.id }),
+      },
+    ];
+    const currentTrialId = trials[0]?.id;
+    if (currentTrialId) {
+      items.push({
+        key: 'class-management',
+        label: 'Class Management',
+        href: getClassManagementHref({ showId: show.id, trialId: currentTrialId }),
+      });
+    }
+    return items;
+  }, [canManageShow, show.id, trials]);
 
   // Resolve each action's execution shape so the header can dispatch them.
   const startAction = useCallback(
@@ -263,6 +288,7 @@ export default function ShowDeskPanel({
           entries and readiness links remain available here.
         </div>
       )}
+      <RelatedContextLinks items={relatedLinks} />
       <ShowDeskAdaptiveHeader
         showStatus={desk.status}
         statusSummary={desk.summary}

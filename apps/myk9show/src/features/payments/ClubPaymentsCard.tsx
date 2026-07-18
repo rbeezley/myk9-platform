@@ -12,6 +12,7 @@ import {
   startConnectOnboarding,
 } from './useClubStripeAccount';
 import { resolvePayoutBadge } from './payoutBadge';
+import { ClubFinancialReconciliationCard } from '@/features/financial/components/ClubFinancialReconciliationCard';
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -89,204 +90,216 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
   const inReview = !!account && account.onboarding_complete && !account.payouts_enabled;
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Landmark className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-            <CardTitle>Bank account</CardTitle>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Landmark className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+              <CardTitle>Bank account</CardTitle>
+            </div>
+            {enabled && (
+              <Badge className="shrink-0 bg-success text-success-foreground hover:bg-success">
+                <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                Payouts enabled
+              </Badge>
+            )}
+            {inReview && (
+              <Badge variant="secondary" className="shrink-0">
+                <Clock className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                Under review by Stripe
+              </Badge>
+            )}
           </div>
-          {enabled && (
-            <Badge className="shrink-0 bg-success text-success-foreground hover:bg-success">
-              <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-              Payouts enabled
-            </Badge>
+          <CardDescription>
+            {enabled
+              ? 'Entry fees from your shows are deposited to your club’s bank account automatically after each show.'
+              : 'Connect your club’s bank account so entry fees can be deposited automatically after each show.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {accountQuery.isLoading && (
+            <div className="space-y-2">
+              <Skeleton className="h-9 w-56" />
+              <Skeleton className="h-4 w-72" />
+            </div>
           )}
-          {inReview && (
-            <Badge variant="secondary" className="shrink-0">
-              <Clock className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-              Under review by Stripe
-            </Badge>
+
+          {accountQuery.isError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" aria-hidden="true" />
+              <AlertDescription>
+                Couldn&apos;t load your payment account status.{' '}
+                <Button
+                  variant="link"
+                  className="inline-flex min-h-[44px] items-center p-0"
+                  onClick={() => accountQuery.refetch()}
+                >
+                  Try again
+                </Button>
+              </AlertDescription>
+            </Alert>
           )}
-        </div>
-        <CardDescription>
-          {enabled
-            ? 'Entry fees from your shows are deposited to your club’s bank account automatically after each show.'
-            : 'Connect your club’s bank account so entry fees can be deposited automatically after each show.'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {accountQuery.isLoading && (
-          <div className="space-y-2">
-            <Skeleton className="h-9 w-56" />
-            <Skeleton className="h-4 w-72" />
-          </div>
-        )}
 
-        {accountQuery.isError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" aria-hidden="true" />
-            <AlertDescription>
-              Couldn&apos;t load your payment account status.{' '}
-              <Button
-                variant="link"
-                className="inline-flex min-h-[44px] items-center p-0"
-                onClick={() => accountQuery.refetch()}
-              >
-                Try again
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
+          {connectError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" aria-hidden="true" />
+              <AlertDescription>
+                {connectError}{' '}
+                <Button
+                  variant="link"
+                  className="inline-flex min-h-[44px] items-center p-0"
+                  onClick={handleContinueToStripe}
+                >
+                  Try again
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
-        {connectError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" aria-hidden="true" />
-            <AlertDescription>
-              {connectError}{' '}
-              <Button
-                variant="link"
-                className="inline-flex min-h-[44px] items-center p-0"
-                onClick={handleContinueToStripe}
-              >
-                Try again
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
+          {!accountQuery.isLoading && !accountQuery.isError && (
+            <>
+              {enabled &&
+                !payoutHistory.isLoading &&
+                !payoutHistory.isError &&
+                (payoutHistory.data?.length ?? 0) === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    You&apos;re all set. Payouts appear here after your first show closes.
+                  </p>
+                )}
 
-        {!accountQuery.isLoading && !accountQuery.isError && (
-          <>
-            {enabled &&
-              !payoutHistory.isLoading &&
-              !payoutHistory.isError &&
-              (payoutHistory.data?.length ?? 0) === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  You&apos;re all set. Payouts appear here after your first show closes.
-                </p>
+              {enabled && payoutHistory.isError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                  <AlertDescription>
+                    Couldn&apos;t load your payout history.{' '}
+                    <Button
+                      variant="link"
+                      className="inline-flex min-h-[44px] items-center p-0"
+                      onClick={() => payoutHistory.refetch()}
+                    >
+                      Try again
+                    </Button>
+                  </AlertDescription>
+                </Alert>
               )}
 
-            {enabled && payoutHistory.isError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                <AlertDescription>
-                  Couldn&apos;t load your payout history.{' '}
-                  <Button
-                    variant="link"
-                    className="inline-flex min-h-[44px] items-center p-0"
-                    onClick={() => payoutHistory.refetch()}
-                  >
-                    Try again
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            )}
+              {enabled && (payoutHistory.data?.length ?? 0) > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Show payouts</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Amounts shown are deposited to your club&apos;s bank account.
+                  </p>
+                  <ul className="divide-y rounded-lg border">
+                    {payoutHistory.data!.map(payout => {
+                      const badge = resolvePayoutBadge(payout, enabled);
+                      const isPaid = !!payout.completed_at;
+                      const dateLabel = isPaid ? 'Paid' : 'Started';
+                      const dateValue = new Date(
+                        payout.completed_at ?? payout.created_at
+                      ).toLocaleDateString();
+                      return (
+                        <li
+                          key={payout.id}
+                          className="flex items-center justify-between gap-2 px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                              {payout.show?.name ?? 'Show'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {dateLabel} {dateValue}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="text-sm font-semibold tabular-nums">
+                              {formatPayoutAmount(payout.amount_cents)}
+                            </span>
+                            <Badge variant={badge.variant} className={badge.className}>
+                              {badge.label}
+                            </Badge>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
 
-            {enabled && (payoutHistory.data?.length ?? 0) > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">Show payouts</h4>
-                <p className="text-xs text-muted-foreground">
-                  Amounts shown are deposited to your club&apos;s bank account.
-                </p>
-                <ul className="divide-y rounded-lg border">
-                  {payoutHistory.data!.map(payout => {
-                    const badge = resolvePayoutBadge(payout, enabled);
-                    const isPaid = !!payout.completed_at;
-                    const dateLabel = isPaid ? 'Paid' : 'Started';
-                    const dateValue = new Date(
-                      payout.completed_at ?? payout.created_at
-                    ).toLocaleDateString();
-                    return (
-                      <li key={payout.id} className="flex items-center justify-between gap-2 px-3 py-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">
-                            {payout.show?.name ?? 'Show'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {dateLabel} {dateValue}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <span className="text-sm font-semibold tabular-nums">
-                            {formatPayoutAmount(payout.amount_cents)}
-                          </span>
-                          <Badge variant={badge.variant} className={badge.className}>
-                            {badge.label}
-                          </Badge>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-
-            {inReview && (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Stripe is verifying your club&apos;s details. This usually finishes within a
-                  day or two, and we&apos;ll enable payouts automatically the moment it clears.
-                  If Stripe asked you for more information, you can add it here.
-                </p>
-                {/* Stripe can pause a submitted account with "actions required"
+              {inReview && (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Stripe is verifying your club&apos;s details. This usually finishes within a day
+                    or two, and we&apos;ll enable payouts automatically the moment it clears. If
+                    Stripe asked you for more information, you can add it here.
+                  </p>
+                  {/* Stripe can pause a submitted account with "actions required"
                     (missing address/DOB/etc.) — the resume link is the only way
                     the treasurer can un-stick it. Resuming is harmless when
                     nothing is due: Stripe just confirms they're all set.
                     2026-06-10 walkthrough finding. */}
-                <Button variant="outline" onClick={handleContinueToStripe}>
-                  Add missing information
-                </Button>
-              </div>
-            )}
-
-            {onboardingIncomplete && (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Your setup with Stripe isn&apos;t finished yet. You can pick up right where you
-                  left off.
-                </p>
-                <Button onClick={handleContinueToStripe}>Finish setting up</Button>
-              </div>
-            )}
-
-            {notConnected && !showChecklist && (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  No bank account is connected yet, so your club can&apos;t receive entry fees.
-                  Connecting takes about 10 minutes.
-                </p>
-                <Button onClick={() => setShowChecklist(true)}>Connect payment account</Button>
-              </div>
-            )}
-
-            {notConnected && showChecklist && (
-              <div className="space-y-4 rounded-lg border p-4">
-                <div>
-                  <h4 className="font-medium">Before you start, have these four things ready:</h4>
-                  <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
-                    {CHECKLIST_ITEMS.map(item => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Stripe is required by federal banking law to verify the identity of the person
-                  opening the account. myK9Show never sees or stores this information.
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  This takes about 10 minutes. You can safely stop and resume later.
-                </p>
-                <div className="flex gap-2">
-                  <Button onClick={handleContinueToStripe}>Continue to Stripe</Button>
-                  <Button variant="ghost" onClick={() => setShowChecklist(false)}>
-                    Not now
+                  <Button variant="outline" onClick={handleContinueToStripe}>
+                    Add missing information
                   </Button>
                 </div>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+              )}
+
+              {onboardingIncomplete && (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Your setup with Stripe isn&apos;t finished yet. You can pick up right where you
+                    left off.
+                  </p>
+                  <Button onClick={handleContinueToStripe}>Finish setting up</Button>
+                </div>
+              )}
+
+              {notConnected && !showChecklist && (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    No bank account is connected yet, so your club can&apos;t receive entry fees.
+                    Connecting takes about 10 minutes.
+                  </p>
+                  <Button onClick={() => setShowChecklist(true)}>Connect payment account</Button>
+                </div>
+              )}
+
+              {notConnected && showChecklist && (
+                <div className="space-y-4 rounded-lg border p-4">
+                  <div>
+                    <h4 className="font-medium">Before you start, have these four things ready:</h4>
+                    <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
+                      {CHECKLIST_ITEMS.map(item => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Stripe is required by federal banking law to verify the identity of the person
+                    opening the account. myK9Show never sees or stores this information.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    This takes about 10 minutes. You can safely stop and resume later.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button onClick={handleContinueToStripe}>Continue to Stripe</Button>
+                    <Button variant="ghost" onClick={() => setShowChecklist(false)}>
+                      Not now
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+      {enabled && (
+        <ClubFinancialReconciliationCard
+          clubId={clubId}
+          payoutsEnabled={enabled}
+          payoutHistory={payoutHistory.data}
+        />
+      )}
+    </div>
   );
 }

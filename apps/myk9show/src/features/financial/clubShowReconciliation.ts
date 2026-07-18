@@ -1,0 +1,142 @@
+// Club-scoped per-show reconciliation rows (unified-financial-dashboard,
+// MYK9-54, task 3.2). Pure TypeScript only — no React, no supabase.
+//
+// Groups the club-scoped reconciliation ORDER rows (stripe_orders, charge
+// facts) and PAYOUT rows (show_payouts, settlement facts) by show so the
+// treasurer sees one row per show with:
+//   - net:               the club's net entry-fee transfer for that show
+//                        (entry subtotal, i.e. charged amount less the
+//                        platform's fee). Independent of payout SETTLEMENT
+//                        timing — a show can be charge-verified before its
+//                        payout settles.
+//   - chargeVerification: aggregated Verified / Attested / Mismatch across
+//                        the show's Stripe orders (every row here already
+//                        came from stripe_orders, so there is no desk/manual
+//                        payment to attest — a show with no online orders at
+//                        all is Attested: no Stripe trace to verify).
+//   - settlement:         the existing payout-settlement row (badge label,
+//                        state, copyable stripe_transfer_id), when the club
+//                        has a payout row for that show.
+//
+// A show's net is PENDING (never $0, never silently "Verified") whenever any
+// of its orders has an uncaptured Stripe processing fee — the same
+// null-means-pending contract as derivePlatformIncome in financialSummary.ts.
+import { resolveOrderChargeVerification } from './chargeVerification';
+import type {
+  FinancialReconciliationOrder,
+  FinancialReconciliationPayout,
+} from './financialReconciliation';
+import { resolvePayoutSettlement, type PayoutSettlementRow } from './payoutSettlement';
+
+export type ClubShowChargeVerification = 'Verified' | 'Attested' | 'Mismatch';
+
+/** Never a bare number: a pending processing fee must read as pending, not $0. */
+export type ClubShowNet = { status: 'available'; netCents: number } | { status: 'pending' };
+
+export interface ClubShowReconciliationRow {
+  showId: string;
+  /** Falls back to a generic label when no show name is known for this id. */
+  showName: string;
+  net: ClubShowNet;
+  chargeVerification: ClubShowChargeVerification;
+  /** Null when the club has no payout row yet for this show. */
+  settlement: PayoutSettlementRow | null;
+  orderCount: number;
+}
+
+/** Aggregate one show's orders into its net-to-club figure and charge state. */
+function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
+  net: ClubShowNet;
+  chargeVerification: ClubShowChargeVerification;
+} {
+  if (orders.length === 0) {
+    // No Stripe trace at all for this show — Attested, and net is unknown
+    // rather than a misleading $0.
+    return { net: { status: 'pending' }, chargeVerification: 'Attested' };
+  }
+
+  let netCents = 0;
+  let anyPending = false;
+  let anyMismatch = false;
+
+  for (const order of orders) {
+    if (order.stripeProcessingFeeCents == null) anyPending = true;
+    if (resolveOrderChargeVerification(order) === 'Mismatch') anyMismatch = true;
+    // Net-to-club is the entry subtotal (charged amount less the platform's
+    // own fee); when the snapshot is missing, treat that order as pending
+    // too rather than assuming $0 for it.
+    if (order.entrySubtotalCents == null) {
+      anyPending = true;
+    } else {
+      netCents += order.entrySubtotalCents;
+    }
+  }
+
+  const net: ClubShowNet = anyPending ? { status: 'pending' } : { status: 'available', netCents };
+  const chargeVerification: ClubShowChargeVerification = anyMismatch ? 'Mismatch' : 'Verified';
+  return { net, chargeVerification };
+}
+
+/**
+ * Build one reconciliation row per show the club has EITHER a Stripe order OR
+ * a payout row for, sorted by most recent activity first.
+ */
+export function buildClubShowReconciliationRows(
+  orders: FinancialReconciliationOrder[],
+  payouts: FinancialReconciliationPayout[],
+  payoutsEnabled: boolean,
+  showNamesById: Map<string, string> = new Map()
+): ClubShowReconciliationRow[] {
+  const ordersByShow = new Map<string, FinancialReconciliationOrder[]>();
+  for (const order of orders) {
+    if (!order.showId) continue;
+    const list = ordersByShow.get(order.showId) ?? [];
+    list.push(order);
+    ordersByShow.set(order.showId, list);
+  }
+
+  const payoutByShow = new Map<string, FinancialReconciliationPayout>();
+  for (const payout of payouts) {
+    if (!payout.showId) continue;
+    // A club has at most one payout per show; keep the most recently created.
+    const existing = payoutByShow.get(payout.showId);
+    if (!existing || payout.createdAt > existing.createdAt) {
+      payoutByShow.set(payout.showId, payout);
+    }
+  }
+
+  const showIds = new Set<string>([...ordersByShow.keys(), ...payoutByShow.keys()]);
+
+  const rows: ClubShowReconciliationRow[] = [];
+  for (const showId of showIds) {
+    const showOrders = ordersByShow.get(showId) ?? [];
+    const { net, chargeVerification } = aggregateShowOrders(showOrders);
+    const payout = payoutByShow.get(showId);
+    const settlement = payout ? resolvePayoutSettlement(payout, payoutsEnabled) : null;
+
+    rows.push({
+      showId,
+      showName: showNamesById.get(showId) ?? 'Show',
+      net,
+      chargeVerification,
+      settlement,
+      orderCount: showOrders.length,
+    });
+  }
+
+  // Most recently active show first: prefer the payout's createdAt, fall back
+  // to the latest order's createdAt.
+  rows.sort((a, b) => {
+    const aTime =
+      payoutByShow.get(a.showId)?.createdAt ??
+      ordersByShow.get(a.showId)?.slice(-1)[0]?.createdAt ??
+      '';
+    const bTime =
+      payoutByShow.get(b.showId)?.createdAt ??
+      ordersByShow.get(b.showId)?.slice(-1)[0]?.createdAt ??
+      '';
+    return bTime.localeCompare(aTime);
+  });
+
+  return rows;
+}

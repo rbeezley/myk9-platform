@@ -29,7 +29,7 @@ export interface UseClassBulkActionsOptions {
 
 export interface UseClassBulkActionsResult {
   bulkBusy: boolean;
-  handleBulkDelete: (classIds: string[]) => Promise<boolean>;
+  handleBulkDelete: (classIds: string[], onFullSuccess?: () => void) => Promise<boolean>;
 }
 
 export function useClassBulkActions({
@@ -45,13 +45,17 @@ export function useClassBulkActions({
   const deleteDispatch = useBulkDispatch<string>({ getLabel: label });
 
   const handleBulkDelete = useCallback(
-    async (classIds: string[]) => {
+    async (classIds: string[], onFullSuccess?: () => void) => {
       if (classIds.length === 0) return false;
       // Per-class via the shared mutation: soft delete + all cache invalidations,
       // identical to single-class delete. allSettled isolates per-item failures.
-      const outcome = await deleteDispatch.run(classIds, async classId => {
-        await deleteClassMutation.mutateAsync({ id: classId });
-      });
+      const outcome = await deleteDispatch.run(
+        classIds,
+        async classId => {
+          await deleteClassMutation.mutateAsync({ id: classId });
+        },
+        { onFullSuccess }
+      );
       // null = latched no-op — treat as not-done so the selection is kept.
       return outcome !== null && outcome.failed.length === 0;
     },

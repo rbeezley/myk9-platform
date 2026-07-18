@@ -92,7 +92,7 @@ describe('useBulkActions — bulk delete MK001 reason mapping', () => {
     expect(result.current.error).not.toMatch(/people_owns_dogs_guard/);
     // The unblocked user still deletes — a partial failure isn't a full abort.
     expect(onUsersDeleted).toHaveBeenCalledWith(['u1']);
-    expect(onBulkComplete).toHaveBeenCalled();
+    expect(onBulkComplete).toHaveBeenCalledWith(['u1']);
   });
 
   it('reports every blocked person when the whole batch is owns-dogs blocked', async () => {
@@ -153,5 +153,30 @@ describe('useBulkActions — bulk delete MK001 reason mapping', () => {
     ]);
     expect(result.current.error).toMatch(/Bob Test: owns registered dogs/);
     expect(result.current.error).not.toMatch(/MK001/);
+  });
+
+  it('reports only cascade successes so MK001 users remain selected', async () => {
+    let cascadeConfirmed = false;
+    deleteUserMutateAsync.mockImplementation(({ id }: { id: string }) => {
+      if (!cascadeConfirmed && id === 'u1') return Promise.reject(hasRelatedDataError(2, 1));
+      if (!cascadeConfirmed && id === 'u2') return Promise.reject(mk001Error());
+      return Promise.resolve();
+    });
+    const onBulkComplete = vi.fn();
+    const selectedUsers = [selectedUser('u1', 'Alice'), selectedUser('u2', 'Bob')];
+    const { result } = renderHook(() => useBulkActions({ selectedUsers, onBulkComplete }));
+
+    await act(async () => {
+      await result.current.handleBulkDelete();
+    });
+    expect(result.current.currentDialog).toBe('cascadeConfirm');
+
+    cascadeConfirmed = true;
+    await act(async () => {
+      await result.current.handleCascadeDelete();
+    });
+
+    expect(onBulkComplete).toHaveBeenCalledWith(['u1']);
+    expect(onBulkComplete).not.toHaveBeenCalledWith(['u1', 'u2']);
   });
 });

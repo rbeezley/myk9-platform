@@ -58,12 +58,13 @@ export function DogsBulkActionsBar({
     void (async () => {
       // One dispatch for the whole eligible subset — a per-dog call would trip
       // the in-flight latch and only update the first dog.
-      const outcome = await statusDispatch.run(
+      await statusDispatch.run(
         dogs,
         async d => {
           await updateDogMutation.mutateAsync({ id: d.id, updates: { status } });
         },
         {
+          onFullSuccess: onClear,
           // On retry, re-read the dog's CURRENT status from the freshest snapshot
           // and skip any already in the target status (e.g. another user set it
           // meanwhile) rather than re-writing it.
@@ -73,9 +74,6 @@ export function DogsBulkActionsBar({
           },
         }
       );
-      // Clear only on full success — a latched no-op (null) or failure keeps
-      // the selection so the user can retry.
-      if (outcome !== null && outcome.failed.length === 0) onClear();
     })();
   };
 
@@ -85,13 +83,15 @@ export function DogsBulkActionsBar({
     if (!pendingDelete) return;
     const dogs = pendingDelete;
     setPendingDelete(null);
-    const outcome = await deleteDispatch.run(dogs, async d => {
-      await deleteDogMutation.mutateAsync(
-        user?.id ? { id: d.id, deletedBy: user.id } : { id: d.id }
-      );
-    });
-    // Clear only on full success — failed items stay selected for retry.
-    if (outcome !== null && outcome.failed.length === 0) onClear();
+    await deleteDispatch.run(
+      dogs,
+      async d => {
+        await deleteDogMutation.mutateAsync(
+          user?.id ? { id: d.id, deletedBy: user.id } : { id: d.id }
+        );
+      },
+      { onFullSuccess: onClear }
+    );
   };
 
   const actions = toBulkActions(

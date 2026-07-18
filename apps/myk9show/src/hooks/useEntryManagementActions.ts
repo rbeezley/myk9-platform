@@ -283,7 +283,7 @@ export function useEntryManagementActions({
   // handler uses) via useBulkDispatch's Promise.allSettled fold, so one entry's failure
   // can't roll back or block the others — see design.md decision D3.
   const handleEnrollmentBulkStatusChange = useCallback(
-    async (entryIds: string[], status: EntryStatus) => {
+    async (entryIds: string[], status: EntryStatus, onFullSuccess?: () => void) => {
       const targets = entriesRef.current.filter(e => entryIds.includes(e.id));
       if (targets.length === 0) return false;
       // Capture each entry's prior status BEFORE the change so undo can revert
@@ -307,6 +307,7 @@ export function useEntryManagementActions({
                     void runBulkUndo(result.succeeded, priorById, status);
                   }
                 : undefined,
+            onFullSuccess,
             applicableWhen: entry => {
               const fresh = entriesRef.current.find(e => e.id === entry.id) ?? entry;
               // Retry ONLY if no other actor has touched this entry since our first
@@ -337,13 +338,17 @@ export function useEntryManagementActions({
   // local check-in state patched — a partial failure leaves failed entries' local state
   // untouched (and the selection, owned by the caller, stays intact for retry).
   const handleEnrollmentBulkCheckIn = useCallback(
-    async (entryIds: string[]) => {
+    async (entryIds: string[], onFullSuccess?: () => void) => {
       if (entryIds.length === 0) return false;
       setIsProcessing(true);
       try {
-        const outcome = await bulkCheckInDispatch.run(entryIds, async entryId => {
-          await updateReplicatedCheckInStatus(entryId, 'checked-in');
-        });
+        const outcome = await bulkCheckInDispatch.run(
+          entryIds,
+          async entryId => {
+            await updateReplicatedCheckInStatus(entryId, 'checked-in');
+          },
+          { onFullSuccess }
+        );
         // null = latched no-op — nothing dispatched, keep selection intact.
         if (outcome === null) return false;
         if (outcome.succeeded.length > 0) {

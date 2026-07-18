@@ -3,7 +3,8 @@ import { SelectedUser } from '@/pages/admin/UserManagementPage';
 export interface BulkActionsBarProps {
   selectedUsers: SelectedUser[];
   onClearSelection: () => void;
-  onBulkComplete: () => void;
+  /** Removes only the users confirmed deleted; blocked users remain selected. */
+  onBulkComplete: (deletedUserIds?: string[]) => void;
   onUsersDeleted?: (deletedUserIds: string[]) => void;
 }
 

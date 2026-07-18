@@ -2,23 +2,32 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import ClubMembersPage from './ClubMembersPage';
 
-const loadClubs = vi.fn();
-const loadUsers = vi.fn();
+const { loadClubs, ensureClubsReady, loadUsers } = vi.hoisted(() => ({
+  loadClubs: vi.fn(),
+  ensureClubsReady: vi.fn(() => Promise.resolve({ status: 'fresh', clubs: [] })),
+  loadUsers: vi.fn(),
+}));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
+    getUserRoles: () => ['club_admin'],
     userWithRoles: {
       scopes: [{ scopeType: 'club', roleId: 'club_admin', scopeId: 'club-1' }],
     },
   }),
 }));
 
-vi.mock('@/store/clubStore', () => ({
-  useClubStore: () => ({
+vi.mock('@/store/clubStore', () => {
+  const state = {
     clubs: [{ id: 'club-1', name: 'Heartland Club' }],
+    clubReadiness: 'fresh',
+    ensureClubsReady,
     loadClubs,
-  }),
-}));
+  };
+  return {
+    useClubStore: (selector: (value: typeof state) => unknown) => selector(state),
+  };
+});
 
 vi.mock('@/store/userStore', () => ({
   useUserStore: () => ({

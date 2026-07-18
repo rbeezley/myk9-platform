@@ -1,4 +1,4 @@
-import { useState, startTransition, useMemo, useCallback } from 'react';
+import { useState, startTransition, useMemo, useCallback, useEffect } from 'react';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { useNavigate } from 'react-router-dom';
 import { useClubStore } from '@/store/clubStore';
@@ -119,6 +119,14 @@ export function useClubDetailsState(selectedClub: Club | null) {
       }),
     });
   }, [userWithRoles, selectedClub, hasPermission]);
+
+  const visibleActiveTab = !canEditBranding && activeTab === 'branding' ? 'upcoming' : activeTab;
+
+  useEffect(() => {
+    if (!canEditBranding && activeTab === 'branding') {
+      setActiveTab('upcoming');
+    }
+  }, [activeTab, canEditBranding, setActiveTab]);
 
   // Get shows for this club from the show store (club store doesn't populate shows)
   const now = useMemo(() => new Date(), []);
@@ -430,7 +438,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
 
   return {
     // Tab
-    activeTab,
+    activeTab: visibleActiveTab,
     setActiveTab,
     // Shows (from show store, not club model)
     upcomingShows: clubShows.upcoming,

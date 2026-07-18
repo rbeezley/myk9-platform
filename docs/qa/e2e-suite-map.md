@@ -187,54 +187,55 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 
 ## Feature Audit
 
-| Spec                                                                        | Feature                                                                                         |
-| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `apps/myk9show/src/test/e2e/a11y-smoke.spec.ts`                             | Public landing-page accessibility smoke.                                                        |
-| `apps/myk9show/src/test/e2e/browse-clubs-page.spec.ts`                      | Public club browse/detail.                                                                      |
-| `apps/myk9show/src/test/e2e/classes-page-ui.spec.ts`                        | Classes page UI.                                                                                |
-| `apps/myk9show/src/test/e2e/club-admin/clubAdminJourney.spec.ts`            | Club-admin membership, officer, and payments journey.                                           |
-| `apps/myk9show/src/test/e2e/entry-intent-sign-in-redirect.spec.ts`          | Signed-out entry intent sign-in redirect.                                                       |
-| `apps/myk9show/src/test/e2e/exhibitor/postPaymentLifecycle.spec.ts`         | Exhibitor post-payment and secretary withdrawal/refund lifecycle audit.                         |
-| `apps/myk9show/src/test/e2e/entities/classCRUD.spec.ts`                     | Class CRUD.                                                                                     |
-| `apps/myk9show/src/test/e2e/entities/classesUI.spec.ts`                     | Classes UI.                                                                                     |
-| `apps/myk9show/src/test/e2e/entities/clubCRUD.spec.ts`                      | Club CRUD.                                                                                      |
-| `apps/myk9show/src/test/e2e/entities/clubsUI.spec.ts`                       | Clubs UI.                                                                                       |
-| `apps/myk9show/src/test/e2e/entities/dogCreationWorkflow.spec.ts`           | Dog creation workflow.                                                                          |
-| `apps/myk9show/src/test/e2e/entities/dogCRUD.spec.ts`                       | Dog CRUD.                                                                                       |
-| `apps/myk9show/src/test/e2e/entities/dogsUI.spec.ts`                        | Dogs UI.                                                                                        |
-| `apps/myk9show/src/test/e2e/entities/entriesUI.spec.ts`                     | Entry management UI.                                                                            |
-| `apps/myk9show/src/test/e2e/entities/peopleCRUD.spec.ts`                    | People CRUD.                                                                                    |
-| `apps/myk9show/src/test/e2e/entities/peopleUI.spec.ts`                      | People UI.                                                                                      |
-| `apps/myk9show/src/test/e2e/entities/phase2ShowDayRewalk.spec.ts`           | Phase 2 show-day re-walk.                                                                       |
-| `apps/myk9show/src/test/e2e/judge/judgeJourney.spec.ts`                     | Judge assignments, stats, check-in, and results dashboard audit.                                |
-| `apps/myk9show/src/test/e2e/entities/registrationUI.spec.ts`                | Registration wizard UI.                                                                         |
-| `apps/myk9show/src/test/e2e/registration/wizardVisualQA.spec.ts`            | Registration wizard visual and responsive baselines.                                            |
-| `apps/myk9show/src/test/e2e/entities/reportsUI.spec.ts`                     | Reports UI.                                                                                     |
-| `apps/myk9show/src/test/e2e/entities/secretaryEntryCreationUI.spec.ts`      | Secretary entry creation.                                                                       |
-| `apps/myk9show/src/test/e2e/entities/secretaryShowWorkbenchUI.spec.ts`      | Secretary show workbench.                                                                       |
-| `apps/myk9show/src/test/e2e/secretary/entryApprovalAndWaitlistGate.spec.ts` | Secretary approval, move-up, and waitlist decision gate audit.                                  |
-| `apps/myk9show/src/test/e2e/entities/showCRUD.spec.ts`                      | Show CRUD.                                                                                      |
-| `apps/myk9show/src/test/e2e/entities/showsUI.spec.ts`                       | Shows UI.                                                                                       |
-| `apps/myk9show/src/test/e2e/shell-integrity-responsive.spec.ts`             | Responsive shell interaction integrity.                                                         |
-| `apps/myk9show/src/test/e2e/entities/showWizardUI.spec.ts`                  | Show wizard UI.                                                                                 |
-| `apps/myk9show/src/test/e2e/entities/trialCRUD.spec.ts`                     | Trial CRUD.                                                                                     |
-| `apps/myk9show/src/test/e2e/entities/trialsUI.spec.ts`                      | Trials UI.                                                                                      |
-| `apps/myk9show/src/test/e2e/my-entries-page-ui.spec.ts`                     | Exhibitor entries page.                                                                         |
-| `apps/myk9show/src/test/e2e/people-page-ui.spec.ts`                         | People page UI.                                                                                 |
-| `apps/myk9show/src/test/e2e/real-auth-browse-shows.spec.ts`                 | Authenticated browse shows.                                                                     |
-| `apps/myk9show/src/test/e2e/qa/roleJourneyVisualQa.spec.ts`                 | MYK9-17 role/viewport/theme visual QA matrix.                                                   |
-| `apps/myk9show/src/test/e2e/show-creation-wizard-detailed.spec.ts`          | Detailed show wizard.                                                                           |
-| `apps/myk9show/src/test/e2e/show-details-sidebar-navigation.spec.ts`        | Show details navigation.                                                                        |
-| `apps/myk9show/src/test/e2e/show/atShowJudgeScoring.spec.ts`                | At-show judge scoring authorization path.                                                       |
-| `apps/myk9show/src/test/e2e/show/atShowMultiDeviceOfflineSync.spec.ts`      | At-show two-device offline sync-merge audit with guarded writes.                                |
-| `apps/myk9show/src/test/e2e/show/atShowOfflineScoring.spec.ts`              | At-show offline scoring round-trip.                                                             |
-| `apps/myk9show/src/test/e2e/show/phase4CrossRoleSeams.spec.ts`              | Phase 4 fixture-backed cross-role seam audit.                                                   |
-| `apps/myk9show/src/test/e2e/show/showConflictSurfacing.spec.ts`             | Show replication conflict surfacing.                                                            |
-| `apps/myk9show/src/test/e2e/show-live-sync.spec.ts`                         | Show live-sync live Realtime smoke (data/Realtime-dependent; run when touching show live-sync). |
-| `apps/myk9show/src/test/e2e/show-presence.spec.ts`                          | Show presence live Realtime smoke (data/Realtime-dependent; run when touching show presence).   |
-| `apps/myk9show/src/test/e2e/shows-page-ui-improvements.spec.ts`             | Shows page UI improvements.                                                                     |
-| `apps/myk9show/src/test/e2e/trials-page-ui.spec.ts`                         | Trials page UI.                                                                                 |
-| `apps/myk9show/src/test/e2e/user-creation-validation.spec.ts`               | User creation validation.                                                                       |
+| Spec                                                                        | Feature                                                                                                 |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `apps/myk9show/src/test/e2e/a11y-smoke.spec.ts`                             | Public landing-page accessibility smoke.                                                                |
+| `apps/myk9show/src/test/e2e/browse-clubs-page.spec.ts`                      | Public club browse/detail.                                                                              |
+| `apps/myk9show/src/test/e2e/classes-page-ui.spec.ts`                        | Classes page UI.                                                                                        |
+| `apps/myk9show/src/test/e2e/club-admin/clubAdminJourney.spec.ts`            | Club-admin membership, officer, and payments journey.                                                   |
+| `apps/myk9show/src/test/e2e/club-surface-integrity.spec.ts`                 | Read-only MYK9-62 club browse/detail, tabs, validated navigation, payment checklist, and 375px re-walk. |
+| `apps/myk9show/src/test/e2e/entry-intent-sign-in-redirect.spec.ts`          | Signed-out entry intent sign-in redirect.                                                               |
+| `apps/myk9show/src/test/e2e/exhibitor/postPaymentLifecycle.spec.ts`         | Exhibitor post-payment and secretary withdrawal/refund lifecycle audit.                                 |
+| `apps/myk9show/src/test/e2e/entities/classCRUD.spec.ts`                     | Class CRUD.                                                                                             |
+| `apps/myk9show/src/test/e2e/entities/classesUI.spec.ts`                     | Classes UI.                                                                                             |
+| `apps/myk9show/src/test/e2e/entities/clubCRUD.spec.ts`                      | Club CRUD.                                                                                              |
+| `apps/myk9show/src/test/e2e/entities/clubsUI.spec.ts`                       | Clubs UI.                                                                                               |
+| `apps/myk9show/src/test/e2e/entities/dogCreationWorkflow.spec.ts`           | Dog creation workflow.                                                                                  |
+| `apps/myk9show/src/test/e2e/entities/dogCRUD.spec.ts`                       | Dog CRUD.                                                                                               |
+| `apps/myk9show/src/test/e2e/entities/dogsUI.spec.ts`                        | Dogs UI.                                                                                                |
+| `apps/myk9show/src/test/e2e/entities/entriesUI.spec.ts`                     | Entry management UI.                                                                                    |
+| `apps/myk9show/src/test/e2e/entities/peopleCRUD.spec.ts`                    | People CRUD.                                                                                            |
+| `apps/myk9show/src/test/e2e/entities/peopleUI.spec.ts`                      | People UI.                                                                                              |
+| `apps/myk9show/src/test/e2e/entities/phase2ShowDayRewalk.spec.ts`           | Phase 2 show-day re-walk.                                                                               |
+| `apps/myk9show/src/test/e2e/judge/judgeJourney.spec.ts`                     | Judge assignments, stats, check-in, and results dashboard audit.                                        |
+| `apps/myk9show/src/test/e2e/entities/registrationUI.spec.ts`                | Registration wizard UI.                                                                                 |
+| `apps/myk9show/src/test/e2e/registration/wizardVisualQA.spec.ts`            | Registration wizard visual and responsive baselines.                                                    |
+| `apps/myk9show/src/test/e2e/entities/reportsUI.spec.ts`                     | Reports UI.                                                                                             |
+| `apps/myk9show/src/test/e2e/entities/secretaryEntryCreationUI.spec.ts`      | Secretary entry creation.                                                                               |
+| `apps/myk9show/src/test/e2e/entities/secretaryShowWorkbenchUI.spec.ts`      | Secretary show workbench.                                                                               |
+| `apps/myk9show/src/test/e2e/secretary/entryApprovalAndWaitlistGate.spec.ts` | Secretary approval, move-up, and waitlist decision gate audit.                                          |
+| `apps/myk9show/src/test/e2e/entities/showCRUD.spec.ts`                      | Show CRUD.                                                                                              |
+| `apps/myk9show/src/test/e2e/entities/showsUI.spec.ts`                       | Shows UI.                                                                                               |
+| `apps/myk9show/src/test/e2e/shell-integrity-responsive.spec.ts`             | Responsive shell interaction integrity.                                                                 |
+| `apps/myk9show/src/test/e2e/entities/showWizardUI.spec.ts`                  | Show wizard UI.                                                                                         |
+| `apps/myk9show/src/test/e2e/entities/trialCRUD.spec.ts`                     | Trial CRUD.                                                                                             |
+| `apps/myk9show/src/test/e2e/entities/trialsUI.spec.ts`                      | Trials UI.                                                                                              |
+| `apps/myk9show/src/test/e2e/my-entries-page-ui.spec.ts`                     | Exhibitor entries page.                                                                                 |
+| `apps/myk9show/src/test/e2e/people-page-ui.spec.ts`                         | People page UI.                                                                                         |
+| `apps/myk9show/src/test/e2e/real-auth-browse-shows.spec.ts`                 | Authenticated browse shows.                                                                             |
+| `apps/myk9show/src/test/e2e/qa/roleJourneyVisualQa.spec.ts`                 | MYK9-17 role/viewport/theme visual QA matrix.                                                           |
+| `apps/myk9show/src/test/e2e/show-creation-wizard-detailed.spec.ts`          | Detailed show wizard.                                                                                   |
+| `apps/myk9show/src/test/e2e/show-details-sidebar-navigation.spec.ts`        | Show details navigation.                                                                                |
+| `apps/myk9show/src/test/e2e/show/atShowJudgeScoring.spec.ts`                | At-show judge scoring authorization path.                                                               |
+| `apps/myk9show/src/test/e2e/show/atShowMultiDeviceOfflineSync.spec.ts`      | At-show two-device offline sync-merge audit with guarded writes.                                        |
+| `apps/myk9show/src/test/e2e/show/atShowOfflineScoring.spec.ts`              | At-show offline scoring round-trip.                                                                     |
+| `apps/myk9show/src/test/e2e/show/phase4CrossRoleSeams.spec.ts`              | Phase 4 fixture-backed cross-role seam audit.                                                           |
+| `apps/myk9show/src/test/e2e/show/showConflictSurfacing.spec.ts`             | Show replication conflict surfacing.                                                                    |
+| `apps/myk9show/src/test/e2e/show-live-sync.spec.ts`                         | Show live-sync live Realtime smoke (data/Realtime-dependent; run when touching show live-sync).         |
+| `apps/myk9show/src/test/e2e/show-presence.spec.ts`                          | Show presence live Realtime smoke (data/Realtime-dependent; run when touching show presence).           |
+| `apps/myk9show/src/test/e2e/shows-page-ui-improvements.spec.ts`             | Shows page UI improvements.                                                                             |
+| `apps/myk9show/src/test/e2e/trials-page-ui.spec.ts`                         | Trials page UI.                                                                                         |
+| `apps/myk9show/src/test/e2e/user-creation-validation.spec.ts`               | User creation validation.                                                                               |
 
 ## Manual Debug
 

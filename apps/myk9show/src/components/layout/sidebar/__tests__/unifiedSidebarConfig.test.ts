@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildUnifiedSidebarConfig } from '../unifiedSidebarConfig';
 import type { NextShowContext } from '../unifiedSidebarConfig';
+import type { ClubContext } from '../unifiedSidebarConfig';
 import { UserRole } from '@/types/auth-types';
 
 describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
@@ -110,6 +111,28 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     const item = group?.items.find(i => i.title === 'Dashboard');
     expect(item?.href).toBe('/club-admin/members');
     expect(config.dashboardHref).toBe('/club-admin/members');
+  });
+
+  it('club admin gets My Club links only from a validated live-club context', () => {
+    const clubContext: ClubContext = { clubId: 'club-1', clubName: 'Heartland Club' };
+    const config = buildUnifiedSidebarConfig([UserRole.CLUB_ADMIN], clubContext);
+    const group = config.groups.find(g => g.title === 'My Club');
+
+    expect(group?.items.map(item => item.href)).toEqual([
+      '/shows?club=club-1',
+      '/club-admin/members',
+      '/club-admin/payments',
+      '/clubs/club-1',
+    ]);
+    expect(group?.items.find(item => item.title === 'Club Profile')?.description).toBe(
+      'Club details and settings'
+    );
+  });
+
+  it('club admin gets no actionable My Club links without validated context', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.CLUB_ADMIN]);
+
+    expect(config.groups.find(g => g.title === 'My Club')).toBeUndefined();
   });
 
   it('manage omits show link when no nextShow provided', () => {

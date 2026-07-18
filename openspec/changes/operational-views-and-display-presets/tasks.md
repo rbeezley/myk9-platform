@@ -6,14 +6,14 @@
 
 ## 2. Entry Management views
 
-- [ ] 2.1 Add curated Entry Management presets for review, payment due, check-in, and all entries using the existing URL normalizer.
-- [ ] 2.2 Add normalized URL round-trip and invalid-parameter tests for show, trial, class, payment, attention, mode, view, roster, and search context.
-- [ ] 2.3 Clear shared row selection whenever Entry Management view identity changes.
+- [x] 2.1 Add curated Entry Management presets for review, payment due, check-in, and all entries using the existing URL normalizer.
+- [x] 2.2 Add normalized URL round-trip and invalid-parameter tests for show, trial, class, payment, attention, mode, view, roster, and search context.
+- [x] 2.3 Clear shared row selection whenever Entry Management view identity changes.
 
 ## 3. Class Management and display presets
 
-- [ ] 3.0 Move Class Management search/status/element filter state to normalized URL parameters via a `normalizeClassManagementSearchParams` helper mirroring the Entry Management pattern.
-- [ ] 3.1 Add curated Class Management lifecycle presets without duplicating class lifecycle derivation.
+- [x] 3.0 Move Class Management search/status/element filter state to normalized URL parameters via a `normalizeClassManagementSearchParams` helper mirroring the Entry Management pattern.
+- [x] 3.1 Add curated Class Management lifecycle presets without duplicating class lifecycle derivation.
 - [ ] 3.2 Add allowlisted display presets that preserve identity, status, selection, judge, and row actions.
 - [ ] 3.3 Add personal local save/reapply behavior with shared-device user isolation, cross-show scope rejection, account-change reset, invalid-storage, and storage-unavailable tests.
 

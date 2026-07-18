@@ -219,6 +219,52 @@ describe('useEntryManagementFilters — trial/class filters', () => {
     expect(params.get('entryTab')).toBeNull();
   });
 
+  it('applyPreset("payment-due") sets attention/payment/mode/view together through the normalizer', () => {
+    let latestSearch = '';
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
+      {
+        wrapper: createWrapper('/?view=cards&mode=day-of', search => (latestSearch = search)),
+      }
+    );
+
+    act(() => {
+      result.current.applyPreset('payment-due');
+    });
+
+    const params = new URLSearchParams(latestSearch);
+    expect(result.current.attentionFilter).toBe('accepted');
+    expect(result.current.paymentFilter).toBe('pending');
+    expect(result.current.workMode).toBe('review');
+    expect(result.current.entryViewMode).toBe('table');
+    expect(params.get('attention')).toBe('accepted');
+    expect(params.get('payment')).toBe('pending');
+    expect(params.get('mode')).toBeNull();
+    expect(params.get('view')).toBeNull();
+  });
+
+  it('applyPreset("all-entries") clears attention/payment filters back to defaults', () => {
+    let latestSearch = '';
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
+      {
+        wrapper: createWrapper('/?attention=pending&payment=pending', search => {
+          latestSearch = search;
+        }),
+      }
+    );
+
+    act(() => {
+      result.current.applyPreset('all-entries');
+    });
+
+    const params = new URLSearchParams(latestSearch);
+    expect(result.current.attentionFilter).toBe('all');
+    expect(result.current.paymentFilter).toBe('all');
+    expect(params.has('attention')).toBe(false);
+    expect(params.has('payment')).toBe(false);
+  });
+
   it('initializes trialFilter and classFilter as null', () => {
     const { result } = renderHook(
       () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),

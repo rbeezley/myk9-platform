@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -8,6 +8,8 @@ import {
   classKeys,
 } from '@/hooks/queries/useClassesDatabase';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { useClassManagementFilters } from '@/hooks/useClassManagementFilters';
+import type { ClassManagementStatusFilter } from '@/components/classes/classManagementFilters';
 import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
 import { useClassBulkActions } from '@/components/classes/useClassBulkActions';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
@@ -18,7 +20,7 @@ import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualif
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTrialStore } from '@/store/trialStore';
-import { CLASS_STATUS, matchesAny } from '@myk9/core';
+import { matchesAny } from '@myk9/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusIcon } from '@/components/status';
@@ -71,12 +73,22 @@ export const ClassManagementPage: React.FC = () => {
     },
   });
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [elementFilter, setElementFilter] = useState<string>('all');
+  const {
+    search: searchTerm,
+    setSearch: setSearchTerm,
+    status: statusFilter,
+    setStatus: setStatusFilter,
+    element: elementFilter,
+    setElement: setElementFilter,
+    clearFilters,
+  } = useClassManagementFilters();
 
   const allClasses = useMemo(() => (rawClasses as DbClassRow[]) ?? [], [rawClasses]);
 
+  // Status filtering reuses the same lifecycle derivation the summary tiles
+  // use (`deriveClassLifecycleValue`) — the URL `status` param is the
+  // lifecycle bucket (not_started/in_progress/completed/all), not the raw
+  // per-org class status string. No second status mapping is defined here.
   const filteredClasses = useMemo(
     () =>
       allClasses.filter(cls => {
@@ -84,7 +96,8 @@ export const ClassManagementPage: React.FC = () => {
           [cls.name ?? '', cls.element ?? '', cls.level ?? ''],
           searchTerm
         );
-        const matchesStatus = statusFilter === 'all' || cls.status === statusFilter;
+        const matchesStatus =
+          statusFilter === 'all' || deriveClassLifecycleValue(cls.status) === statusFilter;
         const matchesElement = elementFilter === 'all' || cls.element === elementFilter;
         return matchesSearch && matchesStatus && matchesElement;
       }),
@@ -96,7 +109,6 @@ export const ClassManagementPage: React.FC = () => {
       Array.from(new Set(allClasses.map(c => c.element).filter((e): e is string => !!e))).sort(),
     [allClasses]
   );
-  const statuses = Object.values(CLASS_STATUS);
   // Honest lifecycle counts: derive each class's canonical stage
   // ("Not started" / "In Progress" / "Completed") so the summary tiles agree
   // with the chip labels below (UX walk remediation 2.B) instead of matching
@@ -133,6 +145,10 @@ export const ClassManagementPage: React.FC = () => {
     items: filteredClasses,
     getItemId: getClassId,
     pruneToItems: true,
+    // Clear bulk selection whenever the view identity (status/search/element)
+    // changes, so a secretary who narrows or widens the filter never applies a
+    // bulk action to rows they can no longer see (Design Decision 4).
+    resetKey: `${statusFilter}|${searchTerm}|${elementFilter}`,
   });
 
   const classesById = useMemo(
@@ -217,8 +233,27 @@ export const ClassManagementPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="manager-class-stats-grid mb-6">
-        <Card>
+      {/*
+        The summary tiles ARE the curated Class Management presets
+        (not-started / in-progress / completed / all-classes from
+        CLASS_MANAGEMENT_PRESETS) — clicking one applies the matching
+        lifecycle status filter through the same URL-backed state as the
+        status Select below. One preset system, not a second menu.
+      */}
+      <div className="manager-class-stats-grid mb-6" role="group" aria-label="Class lifecycle presets">
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-pressed={statusFilter === 'all'}
+          onClick={() => setStatusFilter('all')}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setStatusFilter('all');
+            }
+          }}
+          className={`cursor-pointer transition-colors ${statusFilter === 'all' ? 'border-primary ring-1 ring-primary' : ''}`}
+        >
           <CardContent className="flex items-center p-4">
             <Settings className="h-8 w-8 text-blue-500 mr-3" />
             <div>
@@ -228,7 +263,19 @@ export const ClassManagementPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-pressed={statusFilter === 'not_started'}
+          onClick={() => setStatusFilter('not_started')}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setStatusFilter('not_started');
+            }
+          }}
+          className={`cursor-pointer transition-colors ${statusFilter === 'not_started' ? 'border-primary ring-1 ring-primary' : ''}`}
+        >
           <CardContent className="flex items-center p-4">
             <StatusIcon family="class" status="not_started" size="lg" className="mr-3" decorative />
             <div>
@@ -238,7 +285,19 @@ export const ClassManagementPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-pressed={statusFilter === 'in_progress'}
+          onClick={() => setStatusFilter('in_progress')}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setStatusFilter('in_progress');
+            }
+          }}
+          className={`cursor-pointer transition-colors ${statusFilter === 'in_progress' ? 'border-primary ring-1 ring-primary' : ''}`}
+        >
           <CardContent className="flex items-center p-4">
             <StatusIcon family="class" status="in_progress" size="lg" className="mr-3" decorative />
             <div>
@@ -248,7 +307,19 @@ export const ClassManagementPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-pressed={statusFilter === 'completed'}
+          onClick={() => setStatusFilter('completed')}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setStatusFilter('completed');
+            }
+          }}
+          className={`cursor-pointer transition-colors ${statusFilter === 'completed' ? 'border-primary ring-1 ring-primary' : ''}`}
+        >
           <CardContent className="flex items-center p-4">
             <StatusIcon family="class" status="completed" size="lg" className="mr-3" decorative />
             <div>
@@ -272,17 +343,18 @@ export const ClassManagementPage: React.FC = () => {
               />
             </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select
+              value={statusFilter}
+              onValueChange={value => setStatusFilter(value as ClassManagementStatusFilter)}
+            >
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                {statuses.map(status => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
+                <SelectItem value="not_started">Not started</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
               </SelectContent>
             </Select>
 
@@ -300,14 +372,7 @@ export const ClassManagementPage: React.FC = () => {
               </SelectContent>
             </Select>
 
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm('');
-                setStatusFilter('');
-                setElementFilter('');
-              }}
-            >
+            <Button variant="outline" onClick={clearFilters}>
               <Filter className="h-4 w-4 mr-2" />
               Clear
             </Button>
@@ -382,14 +447,7 @@ export const ClassManagementPage: React.FC = () => {
                   </Link>
                 </Button>
               ) : (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setStatusFilter('');
-                    setElementFilter('');
-                  }}
-                >
+                <Button variant="outline" onClick={clearFilters}>
                   Clear Filters
                 </Button>
               )}

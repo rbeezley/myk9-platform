@@ -28,6 +28,7 @@ import {
   type EntryWorkMode,
 } from './entryManagementFilters';
 import { shouldUseEntryCards } from './entryManagementResponsive';
+import type { EntryManagementPresetId } from '@/features/operational-views/operationalViews';
 
 import type {
   BulkActionResult,
@@ -56,9 +57,18 @@ interface RegistrationViewProps {
   /** Work mode preset state */
   workMode: EntryWorkMode;
   setWorkMode: (mode: EntryWorkMode) => void;
+  /** Apply a curated Entry Management preset (Design Decision 2). */
+  applyPreset: (presetId: EntryManagementPresetId) => void;
   /** Entry list view mode */
   entryViewMode: EntryManagementViewMode;
   setEntryViewMode: (view: EntryManagementViewMode) => void;
+  /**
+   * Current trial/class scope (URL-backed on the page). Used only to derive
+   * the selection reset key (Design Decision 4) — a scope change is a view
+   * identity change even though attention/payment/mode/view stay the same.
+   */
+  trialFilter?: string | null;
+  classFilter?: string | null;
   /** Filtered entries to display */
   filteredEntries: EntryManagementEntry[];
   /** Selected show id, used for canonical add-entry links. */
@@ -130,8 +140,11 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   setAttentionFilter,
   workMode,
   setWorkMode,
+  applyPreset,
   entryViewMode,
   setEntryViewMode,
+  trialFilter = null,
+  classFilter = null,
   filteredEntries,
   showId,
   showName,
@@ -156,12 +169,18 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
 }) => {
   // Multi-select for the table view (lifted here so the bulk bar can clear it and
   // select-all spans the full filtered set, not just the current page).
+  // Selection reset key (Design Decision 4): clears the whole selection
+  // whenever what the secretary is looking at changes — a preset apply,
+  // a filter change, or a trial/class scope change — even if a coincidental
+  // filtered-entries overlap would otherwise leave a stale id selected.
+  const viewIdentityKey = `${attentionFilter}|${paymentFilter}|${workMode}|${entryViewMode}|${trialFilter ?? ''}|${classFilter ?? ''}`;
   const selection = useBulkSelection({
     items: filteredEntries,
     getItemId: getEntryId,
     // Drop selections for entries filtered out (search/payment/trial/class/tab) so
     // they can't resurface and be bulk-edited when a filter is later removed.
     pruneToItems: true,
+    resetKey: viewIdentityKey,
   });
   const tableSelection = useMemo(
     () => ({
@@ -213,6 +232,30 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     resetEnrollmentPage();
     setWorkMode(mode);
   };
+
+  // "Payment due" / "All entries" — the two curated presets not already
+  // expressed by a work mode (see EntryWorkModeSwitch's EXTRA_PRESETS).
+  // Design Decision 4: applying a preset clears the active selection.
+  const handleApplyPreset = (presetId: EntryManagementPresetId) => {
+    selection.clearSelection();
+    resetEnrollmentPage();
+    applyPreset(presetId);
+  };
+
+  // Which (if any) of the non-work-mode curated presets matches the current
+  // filter state, for the extra preset buttons' pressed state.
+  const activeExtraPresetId: EntryManagementPresetId | null =
+    workMode === 'review' &&
+    entryViewMode === 'table' &&
+    attentionFilter === 'accepted' &&
+    paymentFilter === PaymentStatus.PENDING
+      ? 'payment-due'
+      : workMode === 'review' &&
+          entryViewMode === 'table' &&
+          attentionFilter === 'all' &&
+          paymentFilter === 'all'
+        ? 'all-entries'
+        : null;
 
   // Email status tracking (self-contained)
   const registrationIds = useMemo(
@@ -403,7 +446,12 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       {/* Stats Overview */}
       <EntryStatsCards stats={stats} />
 
-      <EntryWorkModeSwitch value={workMode} onChange={handleWorkModeChange} />
+      <EntryWorkModeSwitch
+        value={workMode}
+        onChange={handleWorkModeChange}
+        activeExtraPresetId={activeExtraPresetId}
+        onSelectExtraPreset={handleApplyPreset}
+      />
 
       {/* Search, filters, and view mode */}
       <ListControls
@@ -423,6 +471,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             handleAttentionFilterChange((value || 'all') as EntryAttentionFilter);
           }
           if (key === 'payment') {
+            selection.clearSelection();
             resetEnrollmentPage();
             setPaymentFilter(value || 'all');
           }

@@ -119,6 +119,7 @@ function renderView(
     setAttentionFilter: vi.fn(),
     workMode: 'review' as EntryWorkMode,
     setWorkMode: vi.fn(),
+    applyPreset: vi.fn(),
     entryViewMode,
     setEntryViewMode: vi.fn(),
     filteredEntries: [],

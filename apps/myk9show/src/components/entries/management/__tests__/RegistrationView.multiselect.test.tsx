@@ -54,8 +54,11 @@ function renderView(overrides: Record<string, unknown> = {}) {
     setAttentionFilter,
     workMode: 'review' as const,
     setWorkMode: vi.fn(),
+    applyPreset: vi.fn(),
     entryViewMode: 'table' as const,
     setEntryViewMode: vi.fn(),
+    trialFilter: null as string | null,
+    classFilter: null as string | null,
     filteredEntries,
     entries: filteredEntries,
     onBulkStatusChange,
@@ -75,7 +78,13 @@ function renderView(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
   const utils = render(<RegistrationView {...props} />);
-  return { ...utils, onBulkStatusChange, setAttentionFilter };
+  return {
+    ...utils,
+    onBulkStatusChange,
+    setAttentionFilter,
+    rerenderView: (next: Partial<typeof props>) =>
+      utils.rerender(<RegistrationView {...props} {...next} />),
+  };
 }
 
 describe('RegistrationView multi-select wiring', () => {
@@ -108,6 +117,50 @@ describe('RegistrationView multi-select wiring', () => {
     await user.click(screen.getByRole('button', { name: /accepted/i }));
 
     expect(setAttentionFilter).toHaveBeenCalledWith('accepted');
+    expect(screen.queryByRole('region', { name: /bulk entry actions/i })).not.toBeInTheDocument();
+  });
+
+  it('applying a curated preset (Payment due) clears the selection and calls applyPreset', async () => {
+    const applyPreset = vi.fn();
+    const { user } = renderView({ applyPreset });
+    await user.click(screen.getByRole('checkbox', { name: /select willow/i }));
+
+    expect(screen.getByRole('region', { name: /bulk entry actions/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Payment due' }));
+
+    expect(applyPreset).toHaveBeenCalledWith('payment-due');
+    expect(screen.queryByRole('region', { name: /bulk entry actions/i })).not.toBeInTheDocument();
+  });
+
+  it('changing the payment filter clears the selection (Design Decision 4)', async () => {
+    const { user, rerenderView } = renderView();
+    await user.click(screen.getByRole('checkbox', { name: /select willow/i }));
+    expect(screen.getByRole('region', { name: /bulk entry actions/i })).toBeInTheDocument();
+
+    // Simulates the URL-driven paymentFilter prop change a real payment
+    // filter click would produce (RegistrationView derives the selection
+    // reset key from this prop, not from clicking a specific control).
+    rerenderView({ paymentFilter: 'pending' });
+
+    expect(screen.queryByRole('region', { name: /bulk entry actions/i })).not.toBeInTheDocument();
+  });
+
+  it('a trial/class scope change clears the selection even when the id stays in the filtered set', async () => {
+    const { user, rerenderView } = renderView({
+      trialFilter: 'trial-1',
+      classFilter: null,
+      hasActiveScopeFilters: true,
+    });
+
+    await user.click(screen.getByRole('checkbox', { name: /select willow/i }));
+    expect(screen.getByRole('region', { name: /bulk entry actions/i })).toBeInTheDocument();
+
+    // Same two entries stay in the filtered set, but the trial scope changed —
+    // the selection must still clear (a stale id can't silently ride along
+    // into a different scope).
+    rerenderView({ trialFilter: 'trial-2' });
+
     expect(screen.queryByRole('region', { name: /bulk entry actions/i })).not.toBeInTheDocument();
   });
 });

@@ -12,6 +12,10 @@ import {
   isEntryPaymentFilter,
   normalizeEntryManagementSearchParams,
 } from '@/components/entries/management/entryManagementFilters';
+import {
+  ENTRY_MANAGEMENT_PRESETS,
+  type EntryManagementPresetId,
+} from '@/features/operational-views/operationalViews';
 
 interface TabCounts {
   all: number;
@@ -52,6 +56,13 @@ interface UseEntryManagementFiltersReturn {
   setWorkMode: (mode: EntryWorkMode) => void;
   entryViewMode: EntryManagementViewMode;
   setEntryViewMode: (view: EntryManagementViewMode) => void;
+  /**
+   * Apply a curated Entry Management preset (Design Decision 2). Writes
+   * attention/payment/mode/view together through the same normalized URL
+   * path as `setWorkMode` — presets extend, not duplicate, the existing
+   * work-mode mechanism (there is exactly one preset system).
+   */
+  applyPreset: (presetId: EntryManagementPresetId) => void;
 
   // Trial/class filters
   trialFilter: string | null;
@@ -168,6 +179,30 @@ export function useEntryManagementFilters({
           else next.set('view', preset.view);
           if (preset.payment === 'all') next.delete('payment');
           else next.set('payment', preset.payment);
+          next.delete('entryTab');
+          next.delete('tab');
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const applyPreset = useCallback(
+    (presetId: EntryManagementPresetId) => {
+      const { filters } = ENTRY_MANAGEMENT_PRESETS[presetId].build();
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (filters.attention === 'all') next.delete('attention');
+          else next.set('attention', filters.attention);
+          if (filters.payment === 'all') next.delete('payment');
+          else next.set('payment', filters.payment);
+          if (filters.mode === 'review') next.delete('mode');
+          else next.set('mode', filters.mode);
+          if (filters.view === 'table') next.delete('view');
+          else next.set('view', filters.view);
           next.delete('entryTab');
           next.delete('tab');
           return next;
@@ -378,6 +413,7 @@ export function useEntryManagementFilters({
     setWorkMode,
     entryViewMode,
     setEntryViewMode,
+    applyPreset,
     trialFilter,
     setTrialFilter,
     classFilter,

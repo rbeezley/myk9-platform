@@ -131,6 +131,7 @@ const EntryManagementPage: React.FC = () => {
     setWorkMode,
     entryViewMode,
     setEntryViewMode,
+    applyPreset,
     trialFilter,
     classFilter,
     viewMode,
@@ -413,6 +414,9 @@ const EntryManagementPage: React.FC = () => {
                   setAttentionFilter={setAttentionFilter}
                   workMode={workMode}
                   setWorkMode={setWorkMode}
+                  applyPreset={applyPreset}
+                  trialFilter={trialFilter}
+                  classFilter={classFilter}
                   entryViewMode={entryViewMode}
                   setEntryViewMode={setEntryViewMode}
                   filteredEntries={filteredEntries}

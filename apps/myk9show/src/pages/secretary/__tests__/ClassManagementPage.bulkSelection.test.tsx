@@ -150,7 +150,10 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     expect(header).toHaveAttribute('data-indeterminate');
   });
 
-  it('prunes a selected row from the count once it is filtered out', async () => {
+  it('clears the entire selection when a filter change alters the view identity (Design Decision 4)', async () => {
+    // Stronger than pruning: changing the view (search/status/element) clears
+    // ALL selection via useBulkSelection's resetKey, so a bulk action can never
+    // apply to rows the secretary can no longer see.
     const { user } = renderPage();
     await user.click(
       within(rowFor('Container Novice A')).getByRole('checkbox', { name: /select container/i })
@@ -162,8 +165,11 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
 
     await user.type(screen.getByPlaceholderText('Search classes...'), 'Interior');
 
-    expect(screen.getByText('1 class selected')).toBeInTheDocument();
+    expect(screen.queryByText(/selected/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Container Novice A')).not.toBeInTheDocument();
+    expect(
+      within(rowFor('Interior Novice A')).getByRole('checkbox', { name: /select interior/i })
+    ).not.toBeChecked();
   });
 
   it('offers only bulk Delete — bulk status change is descoped (MYK9-59)', async () => {

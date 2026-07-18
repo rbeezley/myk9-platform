@@ -90,9 +90,13 @@ interface RegistrationViewProps {
   /** Bulk enrollment-level action handlers */
   onBulkStatusChange: (
     entryIds: string[],
-    status: EntryStatus
+    status: EntryStatus,
+    onFullSuccess?: () => void
   ) => BulkActionResult | Promise<BulkActionResult>;
-  onBulkCheckIn: (entryIds: string[]) => BulkActionResult | Promise<BulkActionResult>;
+  onBulkCheckIn: (
+    entryIds: string[],
+    onFullSuccess?: () => void
+  ) => BulkActionResult | Promise<BulkActionResult>;
   /** True while a bulk batch is in flight — disables the bulk bar controls. */
   bulkBusy?: boolean;
   onPaymentStatusChange: (

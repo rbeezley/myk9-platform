@@ -61,7 +61,7 @@ describe('ClassBulkActionsBar', () => {
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: /delete/i }));
 
-    expect(onBulkDelete).toHaveBeenCalledWith(['1']);
+    expect(onBulkDelete).toHaveBeenCalledWith(['1'], expect.any(Function));
   });
 
   it('disables the bulk menu trigger while busy', () => {

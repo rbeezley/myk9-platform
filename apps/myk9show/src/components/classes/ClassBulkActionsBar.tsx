@@ -15,7 +15,7 @@ import { classActions, type ClassActionItem, type ClassActionHandlers } from './
 interface ClassBulkActionsBarProps {
   selectedClasses: ClassActionItem[];
   bulkBusy: boolean;
-  onBulkDelete: (classIds: string[]) => Promise<boolean>;
+  onBulkDelete: (classIds: string[], onFullSuccess?: () => void) => Promise<boolean>;
   onClear: () => void;
 }
 
@@ -79,9 +79,7 @@ export function ClassBulkActionsBar({
         onConfirm={() => {
           const ids = confirmDeleteIds ?? [];
           setConfirmDeleteIds(null);
-          void onBulkDelete(ids).then(fullSuccess => {
-            if (fullSuccess) onClear();
-          });
+          void onBulkDelete(ids, onClear);
         }}
         entityName={`${confirmDeleteIds?.length ?? 0} class${(confirmDeleteIds?.length ?? 0) === 1 ? '' : 'es'}`}
         entityType="Class"

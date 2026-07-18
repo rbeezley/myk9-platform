@@ -148,6 +148,7 @@ describe('useBulkDispatch', () => {
 
   it('preserves Undo when a retry of the failed subset fully succeeds', async () => {
     const onUndo = vi.fn();
+    const onFullSuccess = vi.fn();
     let attempt = 0;
     const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
 
@@ -158,7 +159,10 @@ describe('useBulkDispatch', () => {
           // 'b' fails the first time, succeeds on retry.
           if (i.id === 'b' && attempt++ === 0) throw new Error('boom');
         },
-        { buildUndo: outcome => (outcome.succeeded.length > 0 ? onUndo : undefined) }
+        {
+          buildUndo: outcome => (outcome.succeeded.length > 0 ? onUndo : undefined),
+          onFullSuccess,
+        }
       );
     });
 
@@ -170,11 +174,23 @@ describe('useBulkDispatch', () => {
 
     // The retry fully succeeded → success toast WITH an Undo for the retried item.
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(onFullSuccess).toHaveBeenCalledTimes(1);
     const options = vi.mocked(toast.success).mock.calls[0]?.[1] as
       { action?: { label: string; onClick: () => void } } | undefined;
     expect(options?.action?.label).toBe('Undo');
     options?.action?.onClick();
     expect(onUndo).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onFullSuccess for an initially successful batch', async () => {
+    const onFullSuccess = vi.fn();
+    const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
+
+    await act(async () => {
+      await result.current.run([item('a')], async () => undefined, { onFullSuccess });
+    });
+
+    expect(onFullSuccess).toHaveBeenCalledTimes(1);
   });
 
   it('ignores a second concurrent run while one is already in flight (useRef latch)', async () => {

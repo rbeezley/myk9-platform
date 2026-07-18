@@ -10,7 +10,7 @@ import type { DialogType, ErrorWithRelatedData } from './BulkActionsBar.types';
 
 interface UseBulkActionsOptions {
   selectedUsers: SelectedUser[];
-  onBulkComplete: () => void;
+  onBulkComplete: (deletedUserIds?: string[]) => void;
   onUsersDeleted?: ((deletedUserIds: string[]) => void) | undefined;
 }
 
@@ -106,6 +106,13 @@ export function useBulkActions({
           })),
         });
 
+        // Some users may already have been deleted before the cascade prompt
+        // opened. Remove only those successes from the live selection; users
+        // awaiting cascade or blocked by MK001 stay visible and selected.
+        if (successful.length > 0) {
+          onUsersDeleted?.(successful.map(r => r.userId));
+        }
+
         if (ownsDogsBlocked.length > 0) {
           const details = ownsDogsBlocked
             .map(r => `${labelFor(r.userId)}: owns registered dogs`)
@@ -134,14 +141,14 @@ export function useBulkActions({
             ? `${successful.length} of ${userIds.length} users deleted — ${ownsDogsBlocked.length} could not be deleted (${details})`
             : `Could not delete: ${details}`;
         setError(message);
-        // Surface via toast in BOTH cases: on partial success onBulkComplete
-        // unmounts BulkActionsBar (taking the inline `error` alert with it), and
-        // on a full block the confirm dialog doesn't render `error` at all — so a
-        // toast is the only surface guaranteed to reach the operator.
+        // Surface via toast in BOTH cases: the ownership result is no longer
+        // inside the closed confirmation dialog, and the remaining selected
+        // users need a durable explanation before the operator resolves ownership.
         toast.error(message);
         if (successful.length > 0) {
-          onBulkComplete();
-          onUsersDeleted?.(successful.map(r => r.userId));
+          const successfulUserIds = successful.map(r => r.userId);
+          onBulkComplete(successfulUserIds);
+          onUsersDeleted?.(successfulUserIds);
         }
         setIsProcessing(false);
         return;
@@ -154,8 +161,9 @@ export function useBulkActions({
       });
 
       closeDialog();
-      onBulkComplete();
-      onUsersDeleted?.(successful.map(r => r.userId));
+      const successfulUserIds = successful.map(r => r.userId);
+      onBulkComplete(successfulUserIds);
+      onUsersDeleted?.(successfulUserIds);
     } catch (error) {
       logger.error(
         'Error deleting users',
@@ -193,7 +201,7 @@ export function useBulkActions({
         userIds: deletedUserIds,
       });
 
-      onBulkComplete();
+      onBulkComplete(deletedUserIds);
       onUsersDeleted?.(deletedUserIds);
 
       // If any users were owns-dogs blocked, keep the operator informed rather
@@ -261,7 +269,7 @@ export function useBulkActions({
         closeDialog();
       }
 
-      onBulkComplete();
+      onBulkComplete(succeeded);
     } finally {
       setIsProcessing(false);
     }

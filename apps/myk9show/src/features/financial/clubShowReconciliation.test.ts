@@ -20,6 +20,7 @@ function order(overrides: Partial<FinancialReconciliationOrder>): FinancialRecon
     platformFeeRate: 0.07,
     stripeProcessingFeeCents: 320,
     refundedCents: 0,
+    makeWholeRefundedCents: 0,
     stripePaymentIntentId: 'pi_123',
     createdAt: '2026-07-01T00:00:00Z',
     paidAt: '2026-07-01T00:00:00Z',
@@ -114,6 +115,54 @@ describe('buildClubShowReconciliationRows', () => {
     );
     expect(rows[0].net).toEqual({ status: 'available', netCents: 7500 });
     expect(rows[0].settlement?.amountCents).toBe(7500);
+  });
+
+  // ── ROOT FIX (review finding 1): a make-whole refund must NOT reduce club net.
+  it('a cart-overflow show nets the FULL accepted subtotal, matching the transfer', () => {
+    // $90.00 charged gross; only $50.00 of lines were accepted (+$3.50 fee);
+    // $40.00 returned as make-whole for lines the club never served. The club is
+    // owed the full $50.00 accepted subtotal — the overflow money was never part
+    // of its entry fees and no transfer was made on it. The old conflated
+    // refundedCents produced $10.00 here, double-penalizing the club.
+    const rows = buildClubShowReconciliationRows(
+      [
+        order({
+          amountCents: 9350,
+          entrySubtotalCents: 5000,
+          platformFeeCents: 350,
+          refundedCents: 0,
+          makeWholeRefundedCents: 4000,
+        }),
+      ],
+      [payout({ amountCents: 5000 })],
+      true
+    );
+    expect(rows[0].net).toEqual({ status: 'available', netCents: 5000 });
+    // Net and the transfer beside it must read as the SAME number.
+    expect(rows[0].settlement?.amountCents).toBe(5000);
+    // ...and a legitimate overflow order is not a mismatch.
+    expect(rows[0].chargeVerification).toBe('Verified');
+  });
+
+  it('separates a make-whole refund from a post-hoc one on the same order', () => {
+    // $50.00 accepted, $40.00 make-whole (club unaffected), $25.00 post-hoc
+    // refund on the accepted entry (does shrink the transfer): 5000 − 2500.
+    const rows = buildClubShowReconciliationRows(
+      [
+        order({
+          amountCents: 9350,
+          entrySubtotalCents: 5000,
+          platformFeeCents: 350,
+          refundedCents: 2500,
+          makeWholeRefundedCents: 4000,
+          refundedAt: '2026-07-02T00:00:00Z',
+        }),
+      ],
+      [payout({ amountCents: 2500 })],
+      true
+    );
+    expect(rows[0].net).toEqual({ status: 'available', netCents: 2500 });
+    expect(rows[0].settlement?.amountCents).toBe(2500);
   });
 
   it('a fully refunded show nets to $0, not the original entry revenue', () => {

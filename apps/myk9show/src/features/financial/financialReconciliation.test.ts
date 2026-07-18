@@ -11,7 +11,6 @@ vi.mock('@/lib/supabase', () => ({
 }));
 
 import {
-  derivePostHocRefundedCents,
   fetchFinancialReconciliationOrders,
   fetchFinancialReconciliationPayouts,
   fetchFinancialReconciliationSummary,
@@ -34,8 +33,8 @@ describe('mapSummaryRow', () => {
       platform_fee_cents: '700',
       processing_fee_cents: '320',
       processing_fee_pending_count: '1',
-      refunded_cents: '4025',
-      post_hoc_refunded_cents: '25',
+      refunded_cents: '25',
+      make_whole_refunded_cents: '4000',
       snapshot_missing_count: '2',
       non_entry_order_count: '4',
       non_entry_gross_cents: '2500',
@@ -59,78 +58,75 @@ describe('mapSummaryRow', () => {
     expect(summary.payoutFailedCents).toBe(1200);
     expect(summary.payoutPendingCents).toBe(0);
     expect(summary.payoutFailedCount).toBe(1);
-    // The two refund figures are mapped SEPARATELY: the total returned to
-    // customers vs the share the platform actually absorbed.
-    expect(summary.refundedCents).toBe(4025);
-    expect(summary.postHocRefundedCents).toBe(25);
+    // The two refund kinds arrive as SEPARATE explicit columns and are mapped
+    // separately: refundedCents is POST-HOC only (a real platform loss), while
+    // the cart-overflow make-whole total is its own field. Neither is derived.
+    expect(summary.refundedCents).toBe(25);
+    expect(summary.makeWholeRefundedCents).toBe(4000);
   });
 });
 
-describe('derivePostHocRefundedCents', () => {
-  const base = { amountCents: 5250, entrySubtotalCents: 5000, platformFeeCents: 250 };
-
-  it('treats a normal (no-overflow) order refund as fully post-hoc', () => {
-    // amount = subtotal + fee, so overflow = 0 and the whole refund is a loss.
-    expect(derivePostHocRefundedCents({ ...base, refundedCents: 40 })).toBe(40);
+describe('refund split — explicit columns, never derived', () => {
+  // The old client-side derivePostHocRefundedCents helper (post-hoc =
+  // max(0, refunded − max(0, amount − subtotal − fee))) is GONE on purpose: that
+  // derivation was an identity for a well-formed order, which made the charge
+  // tie-out tautological. Both refund kinds are now recorded explicitly at write
+  // time, so the client only maps them.
+  it('maps a pure cart-overflow order with zero post-hoc loss', () => {
+    const summary = mapSummaryRow({
+      ...ZERO_SUMMARY_ROW,
+      gross_charged_cents: '9250',
+      entry_subtotal_cents: '5000',
+      platform_fee_cents: '250',
+      refunded_cents: '0',
+      make_whole_refunded_cents: '4000',
+    });
+    expect(summary.refundedCents).toBe(0);
+    expect(summary.makeWholeRefundedCents).toBe(4000);
+    // Ties out: 9250 == 5000 + 250 + 4000.
+    expect(
+      summary.entrySubtotalCents + summary.platformFeeCents + summary.makeWholeRefundedCents
+    ).toBe(summary.grossChargedCents);
   });
 
-  it('excludes a pure cart-overflow make-whole refund entirely', () => {
-    // Charged 9250 gross; only 5000 of lines were accepted (+250 fee). The 4000
-    // overflow was refunded — no fee earned, no transfer made, so 0 absorbed.
-    expect(
-      derivePostHocRefundedCents({
-        amountCents: 9250,
-        entrySubtotalCents: 5000,
-        platformFeeCents: 250,
-        refundedCents: 4000,
-      })
-    ).toBe(0);
+  it('maps an order carrying BOTH refund kinds without conflating them', () => {
+    const summary = mapSummaryRow({
+      ...ZERO_SUMMARY_ROW,
+      gross_charged_cents: '9250',
+      entry_subtotal_cents: '5000',
+      platform_fee_cents: '250',
+      refunded_cents: '25',
+      make_whole_refunded_cents: '4000',
+    });
+    expect(summary.refundedCents).toBe(25);
+    expect(summary.makeWholeRefundedCents).toBe(4000);
   });
 
-  it('counts only the post-hoc share when an order has both refund kinds', () => {
-    // 4000 make-whole + 25 post-hoc on the accepted entry.
-    expect(
-      derivePostHocRefundedCents({
-        amountCents: 9250,
-        entrySubtotalCents: 5000,
-        platformFeeCents: 250,
-        refundedCents: 4025,
-      })
-    ).toBe(25);
-  });
-
-  it('never returns a negative when the refund is smaller than the overflow', () => {
-    expect(
-      derivePostHocRefundedCents({
-        amountCents: 9250,
-        entrySubtotalCents: 5000,
-        platformFeeCents: 250,
-        refundedCents: 1000,
-      })
-    ).toBe(0);
-  });
-
-  it('attributes the FULL refund to the platform for a NULL-snapshot legacy order', () => {
-    // Overflow is underivable without a snapshot; the conservative documented
-    // choice is to treat the whole refund as absorbed (may understate net).
-    expect(
-      derivePostHocRefundedCents({
-        amountCents: 9250,
-        entrySubtotalCents: null,
-        platformFeeCents: 250,
-        refundedCents: 4000,
-      })
-    ).toBe(4000);
-    expect(
-      derivePostHocRefundedCents({
-        amountCents: 9250,
-        entrySubtotalCents: 5000,
-        platformFeeCents: null,
-        refundedCents: 4000,
-      })
-    ).toBe(4000);
+  it('defaults both refund totals to 0 rather than NaN when absent', () => {
+    const summary = mapSummaryRow(ZERO_SUMMARY_ROW);
+    expect(summary.refundedCents).toBe(0);
+    expect(summary.makeWholeRefundedCents).toBe(0);
   });
 });
+
+const ZERO_SUMMARY_ROW = {
+  order_count: '0',
+  gross_charged_cents: '0',
+  entry_subtotal_cents: '0',
+  platform_fee_cents: '0',
+  processing_fee_cents: '0',
+  processing_fee_pending_count: '0',
+  refunded_cents: '0',
+  make_whole_refunded_cents: '0',
+  snapshot_missing_count: '0',
+  non_entry_order_count: '0',
+  non_entry_gross_cents: '0',
+  payout_count: '0',
+  payout_completed_cents: '0',
+  payout_pending_cents: '0',
+  payout_failed_cents: '0',
+  payout_failed_count: '0',
+};
 
 describe('mapOrderRow', () => {
   it('preserves NULL processing fee as pending (never 0) and maps ids', () => {
@@ -145,6 +141,7 @@ describe('mapOrderRow', () => {
       platform_fee_rate: '7.00',
       stripe_processing_fee_cents: null,
       refunded_cents: 0,
+      make_whole_refunded_cents: 0,
       stripe_payment_intent_id: 'pi_123',
       created_at: '2026-07-01T00:00:00Z',
       paid_at: '2026-07-01T00:01:00Z',
@@ -154,6 +151,33 @@ describe('mapOrderRow', () => {
     expect(order.platformFeeRate).toBe(7);
     expect(order.stripePaymentIntentId).toBe('pi_123');
     expect(order.refundedCents).toBe(0);
+    expect(order.makeWholeRefundedCents).toBe(0);
+  });
+
+  it('carries the make-whole refund through so the row tie-out stays checkable', () => {
+    // Without this column on the detail row, a per-row tie-out could only be
+    // written as amount == subtotal + fee — the tautology this split removes.
+    const order = mapOrderRow({
+      order_id: 'o2',
+      show_id: 's1',
+      status: 'succeeded',
+      order_type: 'entry',
+      amount_cents: '9350',
+      entry_subtotal_cents: '5000',
+      platform_fee_cents: '350',
+      platform_fee_rate: '7.00',
+      stripe_processing_fee_cents: '300',
+      refunded_cents: '0',
+      make_whole_refunded_cents: '4000',
+      stripe_payment_intent_id: 'pi_overflow',
+      created_at: '2026-07-01T00:00:00Z',
+      paid_at: '2026-07-01T00:01:00Z',
+      refunded_at: null,
+    });
+    expect(order.makeWholeRefundedCents).toBe(4000);
+    expect(order.entrySubtotalCents! + order.platformFeeCents! + order.makeWholeRefundedCents).toBe(
+      order.amountCents
+    );
   });
 });
 

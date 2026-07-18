@@ -5,16 +5,20 @@ import {
   extractProcessingFeeCents,
   platformGrossFeeCents,
   platformNetIncomeCents,
-  resolveCumulativeRefundedCents,
+  resolveOrderRefundSplit,
 } from './orderSnapshot';
 import { decideCartOverflowRefund } from './cartOverflowRefund';
 
-// ── The collection invariant, end to end ───────────────────────────────────
+// ── The collection + attribution invariant, end to end ─────────────────────
 // Models exactly what the webhook writes for a cart checkout and asserts that
-// `collected = amount_cents − refunded_cents` subtracts each refund EXACTLY
-// once. Regression cover for MYK9-54 review finding A, where amount_cents was
-// pre-netted by the cart-overflow refund AND the same refund landed in
-// refunded_cents, so a fully-invalid cart reported negative collections.
+// `collected = amount_cents − make_whole_refunded_cents − refunded_cents`
+// subtracts each refund EXACTLY once, AND that each refund lands in the column
+// matching its economics. Regression cover for MYK9-54 review finding A (where
+// amount_cents was pre-netted AND the same refund landed in refunded_cents, so
+// a fully-invalid cart reported negative collections) and for the conflation
+// root fix (make-whole refunds must never read as platform losses).
+//
+// The JS mirrors `record_order_refund_cents`; the DB is the authority.
 
 /** What the webhook persists on `stripe_orders` for one cart checkout. */
 function simulateCartOrder(input: {
@@ -33,29 +37,41 @@ function simulateCartOrder(input: {
 
   // The invariant: amount_cents is the GROSS charge, never pre-netted.
   const amountCents = input.sessionAmountTotalCents;
-  let refundedCents = 0;
+  let split = { makeWholeCents: 0, postHocCents: 0 };
 
-  // issueCartOverflowAutoRefund records the refund it issues.
+  // issueCartOverflowAutoRefund records the refund it issues, as MAKE-WHOLE:
+  // those lines were never accepted.
   if (decision.action === 'refund') {
-    refundedCents = resolveCumulativeRefundedCents(refundedCents, decision.amountCents);
+    split = resolveOrderRefundSplit(split, { makeWholeCents: decision.amountCents });
   }
 
   return {
     decision,
     amountCents,
-    refundedCents,
-    /** A later charge.refunded delivery, whose amount_refunded is cumulative. */
+    get makeWholeCents() {
+      return split.makeWholeCents;
+    },
+    get postHocCents() {
+      return split.postHocCents;
+    },
+    /** A later charge.refunded delivery, whose amount_refunded is cumulative
+     *  across BOTH refund kinds. */
     deliverChargeRefunded(chargeAmountRefundedCents: number) {
-      refundedCents = resolveCumulativeRefundedCents(refundedCents, chargeAmountRefundedCents);
-      return refundedCents;
+      split = resolveOrderRefundSplit(split, { chargeTotalCents: chargeAmountRefundedCents });
+      return split;
+    },
+    /** A make-whole writer landing late (out-of-order delivery). */
+    deliverMakeWhole(makeWholeCents: number) {
+      split = resolveOrderRefundSplit(split, { makeWholeCents });
+      return split;
     },
     get collectedCents() {
-      return amountCents - refundedCents;
+      return amountCents - split.makeWholeCents - split.postHocCents;
     },
   };
 }
 
-describe('collection invariant: collected = amount_cents − refunded_cents', () => {
+describe('collection invariant: collected = amount − make_whole − post_hoc', () => {
   it('a fully-invalid cart (every line overflows) nets to ZERO collected, never negative', () => {
     const order = simulateCartOrder({
       sessionAmountTotalCents: 5000,
@@ -69,11 +85,16 @@ describe('collection invariant: collected = amount_cents − refunded_cents', ()
 
     expect(order.decision).toMatchObject({ action: 'refund', reason: 'full_make_whole' });
     expect(order.amountCents).toBe(5000);
-    expect(order.refundedCents).toBe(5000);
+    // Attribution: entirely make-whole. NOT a platform loss.
+    expect(order.makeWholeCents).toBe(5000);
+    expect(order.postHocCents).toBe(0);
     expect(order.collectedCents).toBe(0);
 
-    // The charge.refunded delivery for that same refund must not re-subtract it.
+    // The charge.refunded delivery for that same refund must not re-subtract it,
+    // nor reattribute it as a post-hoc loss.
     order.deliverChargeRefunded(5000);
+    expect(order.makeWholeCents).toBe(5000);
+    expect(order.postHocCents).toBe(0);
     expect(order.collectedCents).toBe(0);
     expect(order.collectedCents).toBeGreaterThanOrEqual(0);
   });
@@ -99,11 +120,14 @@ describe('collection invariant: collected = amount_cents − refunded_cents', ()
       reason: 'partial_no_service_lines',
     });
     expect(order.amountCents).toBe(4000);
-    expect(order.refundedCents).toBe(1000);
+    expect(order.makeWholeCents).toBe(1000);
+    expect(order.postHocCents).toBe(0);
     // Exactly the three paid lines' worth — not 2000 (double-subtracted).
     expect(order.collectedCents).toBe(3000);
 
     order.deliverChargeRefunded(1000);
+    expect(order.makeWholeCents).toBe(1000);
+    expect(order.postHocCents).toBe(0);
     expect(order.collectedCents).toBe(3000);
   });
 
@@ -119,7 +143,8 @@ describe('collection invariant: collected = amount_cents − refunded_cents', ()
     });
 
     expect(order.decision.action).toBe('none');
-    expect(order.refundedCents).toBe(0);
+    expect(order.makeWholeCents).toBe(0);
+    expect(order.postHocCents).toBe(0);
     expect(order.collectedCents).toBe(3000);
   });
 
@@ -136,41 +161,92 @@ describe('collection invariant: collected = amount_cents − refunded_cents', ()
       ]),
     });
 
-    // Exhibitor later withdraws e1: Stripe's cumulative amount_refunded is 2000.
+    // Exhibitor later withdraws e1: Stripe's cumulative amount_refunded is 2000
+    // — 1000 make-whole (already recorded) + 1000 genuine post-hoc.
     order.deliverChargeRefunded(2000);
+    // An order carrying BOTH kinds attributes each correctly. Only the 1000
+    // post-hoc portion is a platform loss; the make-whole 1000 is not.
+    expect(order.makeWholeCents).toBe(1000);
+    expect(order.postHocCents).toBe(1000);
     expect(order.collectedCents).toBe(2000);
   });
 });
 
-describe('resolveCumulativeRefundedCents', () => {
+describe('resolveOrderRefundSplit (mirrors record_order_refund_cents)', () => {
+  it('routes a make-whole refund to make_whole ONLY, never post-hoc', () => {
+    expect(resolveOrderRefundSplit({}, { makeWholeCents: 2500 })).toEqual({
+      makeWholeCents: 2500,
+      postHocCents: 0,
+    });
+  });
+
+  it('routes a post-hoc charge total to refunded_cents ONLY', () => {
+    expect(resolveOrderRefundSplit({}, { chargeTotalCents: 3000 })).toEqual({
+      makeWholeCents: 0,
+      postHocCents: 3000,
+    });
+  });
+
+  it('derives post-hoc as total − make_whole, so make-whole is never double counted', () => {
+    const afterMakeWhole = resolveOrderRefundSplit({}, { makeWholeCents: 1000 });
+    // Stripe reports ONE cumulative total covering both kinds.
+    const afterCharge = resolveOrderRefundSplit(afterMakeWhole, { chargeTotalCents: 3500 });
+    expect(afterCharge).toEqual({ makeWholeCents: 1000, postHocCents: 2500 });
+  });
+
   it('is idempotent under duplicate webhook delivery', () => {
-    const first = resolveCumulativeRefundedCents(0, 2500);
-    const redelivered = resolveCumulativeRefundedCents(first, 2500);
-    const redeliveredAgain = resolveCumulativeRefundedCents(redelivered, 2500);
-    expect(first).toBe(2500);
-    expect(redelivered).toBe(2500);
-    expect(redeliveredAgain).toBe(2500);
+    const first = resolveOrderRefundSplit({}, { makeWholeCents: 1000 });
+    const second = resolveOrderRefundSplit(first, { chargeTotalCents: 3500 });
+    const dupCharge = resolveOrderRefundSplit(second, { chargeTotalCents: 3500 });
+    const dupMakeWhole = resolveOrderRefundSplit(dupCharge, { makeWholeCents: 1000 });
+    expect(dupCharge).toEqual(second);
+    expect(dupMakeWhole).toEqual(second);
   });
 
-  it('is monotonic: an out-of-order older delivery cannot roll the total back', () => {
-    // Second partial refund lands first (cumulative 3000), then the first
-    // partial's event (cumulative 1000) arrives late.
-    expect(resolveCumulativeRefundedCents(3000, 1000)).toBe(3000);
+  it('converges under OUT-OF-ORDER delivery: charge.refunded before its make-whole writer', () => {
+    // charge.refunded lands first — provisionally booked as post-hoc.
+    const provisional = resolveOrderRefundSplit({}, { chargeTotalCents: 2500 });
+    expect(provisional).toEqual({ makeWholeCents: 0, postHocCents: 2500 });
+    // The make-whole writer catches up: REATTRIBUTED, not added on top.
+    const settled = resolveOrderRefundSplit(provisional, { makeWholeCents: 2500 });
+    expect(settled).toEqual({ makeWholeCents: 2500, postHocCents: 0 });
   });
 
-  it('raises the total when a further refund is issued', () => {
-    expect(resolveCumulativeRefundedCents(1000, 3000)).toBe(3000);
+  it('never lowers a recorded value when a stale/smaller delivery arrives', () => {
+    const stored = { makeWholeCents: 1000, postHocCents: 2500 };
+    // Stale cumulative totals and a zero make-whole must not roll anything back.
+    expect(resolveOrderRefundSplit(stored, { chargeTotalCents: 1 })).toEqual(stored);
+    expect(resolveOrderRefundSplit(stored, { chargeTotalCents: 0 })).toEqual(stored);
+    expect(resolveOrderRefundSplit(stored, { makeWholeCents: 0 })).toEqual(stored);
+    expect(resolveOrderRefundSplit(stored, { makeWholeCents: 500 })).toEqual(stored);
   });
 
-  it('treats null/undefined/invalid as 0 rather than corrupting money math', () => {
-    expect(resolveCumulativeRefundedCents(null, undefined)).toBe(0);
-    expect(resolveCumulativeRefundedCents(undefined, 500)).toBe(500);
-    expect(resolveCumulativeRefundedCents(500, Number.NaN)).toBe(500);
-    expect(resolveCumulativeRefundedCents(-100, -200)).toBe(0);
+  it('keeps post-hoc >= 0 when a make-whole exceeds the last-seen charge total', () => {
+    // The make-whole writer ran but charge.refunded never arrived.
+    expect(resolveOrderRefundSplit({ postHocCents: 100 }, { makeWholeCents: 5000 })).toEqual({
+      makeWholeCents: 5000,
+      postHocCents: 0,
+    });
+  });
+
+  it('treats null/undefined/invalid/negative as 0 rather than corrupting money math', () => {
+    expect(resolveOrderRefundSplit({}, {})).toEqual({ makeWholeCents: 0, postHocCents: 0 });
+    expect(resolveOrderRefundSplit({ makeWholeCents: null, postHocCents: undefined }, {})).toEqual({
+      makeWholeCents: 0,
+      postHocCents: 0,
+    });
+    expect(resolveOrderRefundSplit({}, { chargeTotalCents: Number.NaN })).toEqual({
+      makeWholeCents: 0,
+      postHocCents: 0,
+    });
+    expect(resolveOrderRefundSplit({}, { makeWholeCents: -100 })).toEqual({
+      makeWholeCents: 0,
+      postHocCents: 0,
+    });
   });
 
   it('rounds fractional cents to integers', () => {
-    expect(resolveCumulativeRefundedCents(0, 1000.4)).toBe(1000);
+    expect(resolveOrderRefundSplit({}, { chargeTotalCents: 1000.4 }).postHocCents).toBe(1000);
   });
 });
 
@@ -223,7 +299,24 @@ describe('buildOrderSnapshotFields', () => {
       platform_fee_rate: 7,
       stripe_processing_fee_cents: 320,
       refunded_cents: 0,
+      make_whole_refunded_cents: 0,
     });
+  });
+
+  it('keeps the two refund columns independent at insert time', () => {
+    const fields = buildOrderSnapshotFields({
+      refundedCents: 250,
+      makeWholeRefundedCents: 1000,
+    });
+    expect(fields.refunded_cents).toBe(250);
+    expect(fields.make_whole_refunded_cents).toBe(1000);
+  });
+
+  it('defaults make_whole_refunded_cents to 0 and never NULL', () => {
+    expect(buildOrderSnapshotFields({}).make_whole_refunded_cents).toBe(0);
+    expect(
+      buildOrderSnapshotFields({ makeWholeRefundedCents: null }).make_whole_refunded_cents
+    ).toBe(0);
   });
 
   it('rounds fractional cents to the nearest integer', () => {

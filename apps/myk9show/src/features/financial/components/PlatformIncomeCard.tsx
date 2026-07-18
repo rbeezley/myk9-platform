@@ -58,7 +58,7 @@ function PlatformFigures({ income }: { income: PlatformIncomeSummary }) {
       <Figure
         label="Online collected"
         value={formatCents(income.onlineCollectedCents)}
-        formula="Gross charged − refunded"
+        formula="Gross charged − post-hoc refunds − cart-overflow make-whole refunds"
       />
       <Figure
         label="Gross platform-fee income"
@@ -68,7 +68,8 @@ function PlatformFigures({ income }: { income: PlatformIncomeSummary }) {
       {/* Cart-overflow make-whole refunds are excluded from the net formula on
           purpose: the platform earned no fee and made no transfer on those
           lines, so returning that money is not a loss. Only post-hoc refunds on
-          accepted entries are. */}
+          accepted entries are — and the two now arrive as separate explicit
+          columns, so neither figure re-derives the split. */}
       <Figure
         label="Net platform income"
         value={netFigure.value}
@@ -92,7 +93,7 @@ function OutstandingLiability({ payoutSettlement }: { payoutSettlement: PayoutSe
         <p className="text-xs text-muted-foreground">
           Source: pending + processing Stripe transfers not yet completed
           {payoutSettlement.failedCents > 0
-            ? `, plus ${formatCents(payoutSettlement.failedCents)} in ${payoutSettlement.failedCount} failed transfer(s) still owed`
+            ? `, plus ${formatCents(payoutSettlement.failedCents)} in ${payoutSettlement.failedCount} failed transfer(s) still owed (retried failures excluded)`
             : ''}
           .
         </p>

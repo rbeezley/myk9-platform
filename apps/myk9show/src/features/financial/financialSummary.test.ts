@@ -47,7 +47,7 @@ function summaryRow(
     processingFeeCents: 180,
     processingFeePendingCount: 0,
     refundedCents: 0,
-    postHocRefundedCents: 0,
+    makeWholeRefundedCents: 0,
     snapshotMissingCount: 0,
     nonEntryOrderCount: 0,
     nonEntryGrossCents: 0,
@@ -74,6 +74,7 @@ function onlineOrder(
     platformFeeRate: 5,
     stripeProcessingFeeCents: 180,
     refundedCents: 0,
+    makeWholeRefundedCents: 0,
     stripePaymentIntentId: 'pi_1',
     createdAt: '2026-07-17T00:00:00Z',
     paidAt: '2026-07-17T00:00:00Z',
@@ -103,8 +104,8 @@ describe('derivePlatformIncome', () => {
         platformFeeCents: 250,
         processingFeeCents: 180,
         processingFeePendingCount: 0,
+        // refundedCents IS the post-hoc total now — read from its own column.
         refundedCents: 40,
-        postHocRefundedCents: 40,
       })
     );
     // 250 − 180 − 40 = 30.
@@ -119,15 +120,15 @@ describe('derivePlatformIncome', () => {
         platformFeeCents: 250,
         processingFeeCents: 180,
         processingFeePendingCount: 0,
-        refundedCents: 4000,
-        postHocRefundedCents: 0,
+        refundedCents: 0,
+        makeWholeRefundedCents: 4000,
       })
     );
     expect(income.netPlatformIncome).toEqual({ status: 'available', netCents: 70 });
     // ...but the money DID leave, so collections still drop by the full refund.
     expect(income.onlineCollectedCents).toBe(5250 - 4000);
-    expect(income.refundedCents).toBe(4000);
-    expect(income.postHocRefundedCents).toBe(0);
+    expect(income.refundedCents).toBe(0);
+    expect(income.makeWholeRefundedCents).toBe(4000);
   });
 
   it('subtracts only the post-hoc share when an order has both refund kinds', () => {
@@ -136,13 +137,14 @@ describe('derivePlatformIncome', () => {
         platformFeeCents: 250,
         processingFeeCents: 180,
         processingFeePendingCount: 0,
-        refundedCents: 4025, // 4000 make-whole + 25 post-hoc
-        postHocRefundedCents: 25,
+        refundedCents: 25, // post-hoc on the accepted entry
+        makeWholeRefundedCents: 4000, // never-accepted cart overflow
       })
     );
     // 250 − 180 − 25 = 45 (NOT 250 − 180 − 4025 = −3955).
     expect(income.netPlatformIncome).toEqual({ status: 'available', netCents: 45 });
-    expect(income.onlineCollectedCents).toBe(5250 - 4025);
+    // Collected subtracts BOTH: 5250 − 25 − 4000 = 1225.
+    expect(income.onlineCollectedCents).toBe(1225);
   });
 
   it('lets a post-hoc absorbed refund drive net negative (not clamped to zero)', () => {
@@ -153,7 +155,6 @@ describe('derivePlatformIncome', () => {
         processingFeePendingCount: 0,
         // A full post-hoc refund on an accepted entry: exceeds fee income.
         refundedCents: 5250,
-        postHocRefundedCents: 5250,
       })
     );
     // 250 − 180 − 5250 = −5180, reported as-is (economically real).
@@ -175,7 +176,6 @@ describe('derivePlatformIncome', () => {
         processingFeeCents: 180,
         processingFeePendingCount: 1,
         refundedCents: 999,
-        postHocRefundedCents: 999,
       })
     );
     expect(income.netPlatformIncome).toEqual({ status: 'pending', grossCents: 250 });
@@ -187,18 +187,26 @@ describe('derivePlatformIncome', () => {
         platformFeeCents: 250,
         processingFeeCents: 180,
         processingFeePendingCount: 1,
-        refundedCents: 4000,
-        postHocRefundedCents: 0,
+        refundedCents: 0,
+        makeWholeRefundedCents: 4000,
       })
     );
     expect(income.netPlatformIncome).toEqual({ status: 'pending', grossCents: 250 });
   });
 
-  it('exposes online collected as gross charged less refunded', () => {
+  it('subtracts BOTH refund kinds from online collected (both really left)', () => {
+    // Net income excludes make-whole, but COLLECTED must not: that money was
+    // charged and handed back, so the platform is not holding it either way.
     const income = derivePlatformIncome(
-      summaryRow({ grossChargedCents: 5250, refundedCents: 1000 })
+      summaryRow({ grossChargedCents: 5250, refundedCents: 1000, makeWholeRefundedCents: 0 })
     );
     expect(income.onlineCollectedCents).toBe(4250);
+
+    const withBoth = derivePlatformIncome(
+      summaryRow({ grossChargedCents: 9350, refundedCents: 25, makeWholeRefundedCents: 4000 })
+    );
+    // 9350 − 25 − 4000 = 5325.
+    expect(withBoth.onlineCollectedCents).toBe(5325);
   });
 });
 

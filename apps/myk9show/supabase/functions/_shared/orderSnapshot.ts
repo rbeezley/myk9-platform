@@ -16,29 +16,42 @@
 // income cannot be finalized until Stripe's actual balance-transaction fee is
 // captured.
 //
-// ── THE COLLECTION INVARIANT (do not break) ────────────────────────────────
-//   stripe_orders.amount_cents   = the GROSS amount the customer was actually
-//                                  charged for this order (Stripe's
-//                                  session.amount_total / payment intent
-//                                  amount). It is NEVER pre-netted by a refund.
-//   stripe_orders.refunded_cents = the CUMULATIVE amount returned to the
-//                                  customer on that charge, from ANY source:
-//                                  per-entry app refunds, cart-overflow /
-//                                  payment-link make-whole auto-refunds, bulk
-//                                  show-cancellation refunds, and Stripe
-//                                  dashboard refunds alike.
-// Therefore  collected = amount_cents − refunded_cents  subtracts a refund
-// EXACTLY ONCE. Pre-netting a refund out of amount_cents *and* recording it in
-// refunded_cents double-subtracts it and can drive a fully-refunded order
-// negative (MYK9-54 review finding A).
+// ── THE COLLECTION / ATTRIBUTION INVARIANT (do not break) ──────────────────
+//   stripe_orders.amount_cents = the GROSS amount the customer was actually
+//                                charged for this order (Stripe's
+//                                session.amount_total / payment intent
+//                                amount). It is NEVER pre-netted by a refund.
 //
-// The snapshot fields (entry_subtotal_cents / platform_fee_cents) are a
-// different measure and intentionally do NOT have to sum to amount_cents: they
-// describe the services actually rendered (paid entries only) and the fee
-// earned on them, whereas amount_cents/refunded_cents describe cash movement.
-// A cart with overflow lines charges for lines it then refunds, so
-// amount_cents > entry_subtotal_cents + platform_fee_cents by the refunded
-// share. That gap is the refund, and it is reported by refunded_cents.
+// Refunds split across TWO columns because they are economically OPPOSITE
+// events. A single conflated column forced every consumer to re-derive the
+// split as amount − subtotal − fee, and that derivation is unsound: it makes
+// charge verification tautological, so an overflow order can never
+// independently fail a tie-out. The split is now recorded EXPLICITLY at write
+// time by whichever writer issues the refund.
+//
+//   make_whole_refunded_cents = returned for lines NEVER accepted (cart
+//                               overflow / payment-link make-whole). The
+//                               platform earned no fee and no club transfer
+//                               occurred → NOT a platform loss.
+//   refunded_cents            = POST-HOC refunds only (the entry WAS accepted,
+//                               the club kept its transfer, the platform repays
+//                               from its own balance) → a real platform loss.
+//
+//   collected = amount_cents − make_whole_refunded_cents − refunded_cents
+//   ties out  = amount_cents == entry_subtotal_cents
+//                             + platform_fee_cents
+//                             + make_whole_refunded_cents
+//
+// Each refund is subtracted EXACTLY ONCE. Pre-netting a refund out of
+// amount_cents *and* recording it in a refund column double-subtracts it and
+// can drive a fully-refunded order negative (MYK9-54 review finding A).
+//
+// The snapshot fields (entry_subtotal_cents / platform_fee_cents) describe the
+// services actually rendered (paid entries only) and the fee earned on them,
+// whereas amount_cents and the refund columns describe cash movement. A cart
+// with overflow lines charges for lines it then refunds, so
+// amount_cents > entry_subtotal_cents + platform_fee_cents by exactly
+// make_whole_refunded_cents — which is now the tie-out above, not a guess.
 
 export interface OrderSnapshotInput {
   entrySubtotalCents?: number | null;
@@ -46,7 +59,10 @@ export interface OrderSnapshotInput {
   platformFeeRate?: number | null;
   /** Null/undefined => pending (balance transaction not yet available). */
   stripeProcessingFeeCents?: number | null;
+  /** POST-HOC refunds only. */
   refundedCents?: number | null;
+  /** Make-whole refunds only (lines never accepted). */
+  makeWholeRefundedCents?: number | null;
 }
 
 /** Column-shaped snapshot ready to spread into a `stripe_orders` insert. */
@@ -56,6 +72,7 @@ export interface OrderSnapshotFields {
   platform_fee_rate: number | null;
   stripe_processing_fee_cents: number | null;
   refunded_cents: number;
+  make_whole_refunded_cents: number;
 }
 
 /** Coerce to a non-negative integer cent value, or null when absent/invalid. */
@@ -72,7 +89,7 @@ function toCentsOrNull(value: number | null | undefined): number | null {
  * - Cent fields round to integers and clamp negatives to 0.
  * - `stripe_processing_fee_cents` stays NULL when the fee is not yet known — a
  *   missing processing fee is explicitly pending, NEVER coerced to 0.
- * - `refunded_cents` defaults to 0 (an unrefunded order), never NULL.
+ * - both refund columns default to 0 (an unrefunded order), never NULL.
  * - `platform_fee_rate` is preserved as-is when finite, else NULL.
  */
 export function buildOrderSnapshotFields(input: OrderSnapshotInput): OrderSnapshotFields {
@@ -85,29 +102,66 @@ export function buildOrderSnapshotFields(input: OrderSnapshotInput): OrderSnapsh
     // an absent value into 0.
     stripe_processing_fee_cents: toCentsOrNull(input.stripeProcessingFeeCents),
     refunded_cents: toCentsOrNull(input.refundedCents) ?? 0,
+    make_whole_refunded_cents: toCentsOrNull(input.makeWholeRefundedCents) ?? 0,
   };
 }
 
+// NOTE: `resolveCumulativeRefundedCents` (a single-column monotonic max) was
+// REMOVED here. It could only maintain one conflated refund total, which is the
+// bug this module now fixes. Use `resolveOrderRefundSplit` below — reintroducing
+// a single-column helper would re-merge the two economically opposite refund
+// kinds and make charge verification tautological again.
+
+export interface OrderRefundSplit {
+  makeWholeCents: number;
+  postHocCents: number;
+}
+
 /**
- * Reconcile a cumulative refunded total onto an order, enforcing the collection
- * invariant documented at the top of this module.
+ * Pure mirror of the `record_order_refund_cents` SQL (migration
+ * 20260717120000). The DATABASE is the authority — this exists so the
+ * attribution algebra is unit-testable without a Postgres round trip. Keep the
+ * two in lockstep; if you change one, change the other.
  *
- * Stripe's `charge.amount_refunded` is CUMULATIVE and only ever grows, so the
- * resolved value is monotonic: it never lowers an already-recorded total. That
- * makes every writer safe and order-independent —
- *   - a duplicate `charge.refunded` delivery re-applies the same value (no-op),
- *   - an out-of-order delivery (partial refund event arriving after the second
- *     partial) cannot roll the total back,
- *   - the cart-overflow auto-refund writer and the `charge.refunded` handler
- *     can race without either clobbering the other's larger total.
+ * THE ATTRIBUTION PROBLEM: `charge.refunded` fires for BOTH kinds of refund and
+ * Stripe reports a single CUMULATIVE `charge.amount_refunded`. Treating that
+ * total as post-hoc would double count every make-whole refund, since the
+ * make-whole writer already recorded its own amount.
  *
- * Non-finite / negative inputs clamp to 0 rather than corrupting money math.
+ * THE RULE: the cumulative charge total is the TOTAL across both columns, and
+ * the post-hoc part is DERIVED as total − make_whole:
+ *   newMakeWhole = max(storedMakeWhole, incomingMakeWhole)
+ *   newTotal     = max(storedMakeWhole + storedPostHoc, incomingChargeTotal,
+ *                      newMakeWhole)
+ *   newPostHoc   = newTotal − newMakeWhole
+ *
+ * The stored total is recoverable as the sum of the two columns, so no extra
+ * bookkeeping column is needed. Both inputs are monotonic and newPostHoc is a
+ * pure function of them, so the row CONVERGES to the same values under any
+ * delivery order:
+ *   - a duplicate delivery re-applies identical values (no-op),
+ *   - an out-of-order `charge.refunded` landing before its make-whole writer is
+ *     provisionally booked as post-hoc, then REATTRIBUTED (not double counted)
+ *     when the make-whole writer catches up,
+ *   - neither column can be lowered by a stale/smaller delivery,
+ *   - seeding newTotal with newMakeWhole keeps total >= makeWhole, so postHoc
+ *     can never go negative even if `charge.refunded` never arrives.
+ *
+ * Pass `incomingChargeTotalCents: null` from a make-whole writer, which knows
+ * its own refund amount but not the charge-wide cumulative total.
  */
-export function resolveCumulativeRefundedCents(
-  existingCents: number | null | undefined,
-  incomingCents: number | null | undefined
-): number {
-  return Math.max(toCentsOrNull(existingCents) ?? 0, toCentsOrNull(incomingCents) ?? 0);
+export function resolveOrderRefundSplit(
+  stored: { makeWholeCents?: number | null; postHocCents?: number | null },
+  incoming: { makeWholeCents?: number | null; chargeTotalCents?: number | null }
+): OrderRefundSplit {
+  const storedMakeWhole = toCentsOrNull(stored.makeWholeCents) ?? 0;
+  const storedPostHoc = toCentsOrNull(stored.postHocCents) ?? 0;
+  const incomingMakeWhole = toCentsOrNull(incoming.makeWholeCents) ?? 0;
+  const incomingChargeTotal = toCentsOrNull(incoming.chargeTotalCents) ?? 0;
+
+  const makeWholeCents = Math.max(storedMakeWhole, incomingMakeWhole);
+  const totalCents = Math.max(storedMakeWhole + storedPostHoc, incomingChargeTotal, makeWholeCents);
+  return { makeWholeCents, postHocCents: totalCents - makeWholeCents };
 }
 
 /**
@@ -169,18 +223,23 @@ export type PlatformNetIncome =
  * its transfer. The platform therefore absorbs the ENTIRE amount of such a refund,
  * not merely the fee portion.
  *
- * CALLER CONTRACT: `absorbedRefundCents` must be the POST-HOC absorbed amount, NOT
- * the order's raw `refunded_cents`. That column is the cumulative record of every
- * refund and also includes cart-overflow "make-whole" auto-refunds for lines that
- * were denied / waitlisted / never served. The platform earned no fee on those
+ * CALLER CONTRACT: `absorbedRefundCents` is the POST-HOC absorbed amount, which is
+ * now simply the order's `refunded_cents` column — pass it directly.
+ *
+ * Do NOT re-derive the split as
+ *   overflowPortion = max(0, amount_cents − entry_subtotal_cents − platform_fee_cents)
+ * as an earlier revision of this file instructed. That derivation was unsound: it
+ * ASSUMES the tie-out it is supposed to check, which makes charge verification
+ * tautological — an overflow order could never independently fail. Make-whole
+ * refunds are recorded explicitly at write time in `make_whole_refunded_cents`
+ * (see the attribution invariant at the top of this module), so the two kinds no
+ * longer have to be teased apart after the fact.
+ *
+ * Make-whole refunds must NOT be passed here: the platform earned no fee on those
  * lines (`platform_fee_cents` covers `entry_subtotal_cents`, i.e. paid lines only)
  * and made no club transfer for them, so that money is collected-and-returned, not
- * a loss. Passing the raw total makes net income read falsely negative. Derive it
- * per order as:
- *   overflowPortion   = max(0, amount_cents − entry_subtotal_cents − platform_fee_cents)
- *   absorbedRefund    = max(0, refunded_cents − overflowPortion)
- * For a normal order (amount = subtotal + fee) this equals `refunded_cents`.
- * A genuine post-hoc refund can legitimately drive net negative.
+ * a loss. Including it makes net income read falsely negative. A genuine post-hoc
+ * refund can legitimately drive net negative.
  *
  * When the Stripe processing fee has not been captured yet the result is
  * `pending` (never treated as zero) so a dashboard can label the pending

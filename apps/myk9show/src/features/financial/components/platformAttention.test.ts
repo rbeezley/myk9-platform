@@ -20,6 +20,7 @@ function order(
     platformFeeRate: 0.1,
     stripeProcessingFeeCents: 150,
     refundedCents: 0,
+    makeWholeRefundedCents: 0,
     stripePaymentIntentId: 'pi_1',
     createdAt: '2026-07-01T00:00:00Z',
     paidAt: '2026-07-01T00:00:00Z',
@@ -54,6 +55,78 @@ describe('derivePlatformAttention — genuine drift', () => {
     });
     expect(attention.failedTransferCount).toBe(1);
     expect(attention.totalCount).toBe(1);
+  });
+
+  // ── ROOT FIX (review finding 3): a retried failure is history, not an open item.
+  it('does NOT flag a failed transfer that was RETRIED and completed', () => {
+    // cron-process-payouts leaves the failed row and INSERTs a new row for the
+    // retry, so the show holds both. show_payouts_one_live_per_show guarantees at
+    // most one non-failed row per show, so the presence of ANY live row means the
+    // failure was superseded. Without this the show would show a permanent
+    // attention item even though the club has been paid.
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 0,
+      payouts: [
+        payout({
+          payoutId: 'p-failed',
+          showId: 'show-1',
+          status: 'failed',
+          failureReason: 'account_closed',
+          createdAt: '2026-07-01T00:00:00Z',
+        }),
+        payout({
+          payoutId: 'p-retry',
+          showId: 'show-1',
+          status: 'completed',
+          createdAt: '2026-07-02T00:00:00Z',
+        }),
+      ],
+      orders: [],
+    });
+    expect(attention.failedTransferCount).toBe(0);
+    expect(attention.totalCount).toBe(0);
+  });
+
+  it('still flags a failed transfer whose show has NO live payout row', () => {
+    // Another show's retry must not silence this show's genuine failure.
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 0,
+      payouts: [
+        payout({
+          payoutId: 'p-failed-1',
+          showId: 'show-1',
+          status: 'failed',
+          failureReason: 'account_closed',
+        }),
+        payout({ payoutId: 'p-retry-1', showId: 'show-1', status: 'completed' }),
+        payout({
+          payoutId: 'p-failed-2',
+          showId: 'show-2',
+          status: 'failed',
+          failureReason: 'account_closed',
+        }),
+      ],
+      orders: [],
+    });
+    expect(attention.failedTransferCount).toBe(1);
+  });
+
+  it('does not flag a legitimate cart-overflow order as a charge mismatch', () => {
+    // 9350 == 5000 + 350 + 4000 ties out once make-whole is in the check.
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 0,
+      payouts: [],
+      orders: [
+        order({
+          amountCents: 9350,
+          entrySubtotalCents: 5000,
+          platformFeeCents: 350,
+          makeWholeRefundedCents: 4000,
+        }),
+      ],
+    });
+    expect(attention.chargeMismatchCount).toBe(0);
+    expect(attention.totalCount).toBe(0);
   });
 
   it('flags an unrecorded refund: refundedCents > 0 but status never flipped to refunded', () => {

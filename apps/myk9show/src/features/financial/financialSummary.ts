@@ -32,7 +32,8 @@ import {
 
 /** Platform income: gross fee income kept explicitly distinct from net. */
 export interface PlatformIncomeSummary {
-  /** Online money collected: gross charged less refunded. */
+  /** Online money actually retained: gross charged less BOTH kinds of refund
+   *  (post-hoc and cart-overflow make-whole) — both really did leave. */
   onlineCollectedCents: number;
   /** Gross platform-fee income, before Stripe processing costs. */
   grossPlatformFeeCents: number;
@@ -45,11 +46,12 @@ export interface PlatformIncomeSummary {
   netPlatformIncome:
     { status: 'available'; netCents: number } | { status: 'pending'; grossCents: number };
   processingFeePendingCount: number;
-  /** Total returned to customers (post-hoc AND cart-overflow make-whole). */
+  /** POST-HOC refunds — the platform's real absorbed loss. Subtracted from net. */
   refundedCents: number;
-  /** The portion of refundedCents the platform actually lost — see below. */
-  postHocRefundedCents: number;
-  /** Legacy orders with no platform-fee snapshot (rate-unverifiable). */
+  /** Cart-overflow make-whole refunds — returned to the customer but NOT a
+   *  platform loss, so never subtracted from net income. */
+  makeWholeRefundedCents: number;
+  /** Legacy orders missing either snapshot column (rate-unverifiable). */
   snapshotMissingCount: number;
 }
 
@@ -99,19 +101,19 @@ export interface FinancialSummaryDeps {
 // PLATFORM balance while the club keeps its transfer, so the platform absorbs
 // the FULL refunded amount of a POST-HOC refund — not merely its fee portion.
 //
-// But refundedCents is the cumulative total of EVERY refund on an order, and that
-// includes cart-overflow "make-whole" auto-refunds for lines that were denied /
-// waitlisted / never served. The platform earned NO fee on those lines
+// Cart-overflow "make-whole" auto-refunds (lines denied / waitlisted / never
+// served) are the OPPOSITE case: the platform earned NO fee on those lines
 // (platform_fee_cents is computed on entry_subtotal_cents, i.e. paid lines only)
 // and no club transfer was ever made for them, so returning that money is not a
 // platform loss — it is money collected and handed straight back. Subtracting it
-// makes net income read falsely negative.
+// would make net income read falsely negative.
 //
-// The reconciliation RPC therefore splits the total server-side and exposes
-// postHocRefundedCents = per-order max(0, refunded − max(0, amount − subtotal −
-// fee)). Net platform income subtracts THAT, never the raw refundedCents.
-// onlineCollectedCents still uses the full refundedCents: a make-whole refund
-// genuinely does reduce money collected.
+// The two are recorded in SEPARATE explicit columns at write time (migration
+// 20260717120000) and surface as separate summary totals, so nothing is derived
+// here:
+//   netPlatformIncome    subtracts refundedCents (post-hoc) ONLY.
+//   onlineCollectedCents subtracts BOTH — a make-whole refund genuinely does
+//                        reduce the money the platform ends up holding.
 
 /** Derive the platform-income group from server-aggregated reconciliation totals. */
 export function derivePlatformIncome(
@@ -120,7 +122,8 @@ export function derivePlatformIncome(
   const grossPlatformFeeCents = summary.platformFeeCents;
   // Platform-absorbed refunds: a POST-HOC refund comes out of the platform
   // balance in full (no reverse_transfer / refund_application_fee) while the club
-  // keeps its transfer, so postHocRefundedCents is a real platform cost against
+  // keeps its transfer, so summary.refundedCents — which is now the POST-HOC
+  // total, read straight from its own column — is a real platform cost against
   // net income. Cart-overflow make-whole refunds are deliberately NOT subtracted
   // (see the refund-architecture note above). This can still drive net NEGATIVE
   // (post-hoc refunds exceeded fee income) — that is economically real and is
@@ -130,25 +133,27 @@ export function derivePlatformIncome(
       ? ({ status: 'pending', grossCents: grossPlatformFeeCents } as const)
       : ({
           status: 'available',
-          netCents:
-            grossPlatformFeeCents - summary.processingFeeCents - summary.postHocRefundedCents,
+          netCents: grossPlatformFeeCents - summary.processingFeeCents - summary.refundedCents,
         } as const);
   return {
-    // Full refundedCents here on purpose: a make-whole refund DOES reduce the
-    // money the platform is holding, even though it is not a platform loss.
-    onlineCollectedCents: summary.grossChargedCents - summary.refundedCents,
+    // BOTH refunds subtracted here on purpose: a make-whole refund DOES reduce the
+    // money the platform ends up holding, even though it is not a platform loss.
+    onlineCollectedCents:
+      summary.grossChargedCents - summary.refundedCents - summary.makeWholeRefundedCents,
     grossPlatformFeeCents,
     netPlatformIncome,
     processingFeePendingCount: summary.processingFeePendingCount,
     refundedCents: summary.refundedCents,
-    postHocRefundedCents: summary.postHocRefundedCents,
+    makeWholeRefundedCents: summary.makeWholeRefundedCents,
     snapshotMissingCount: summary.snapshotMissingCount,
   };
 }
 
 /** Derive the payout-settlement group. Outstanding liability includes FAILED
  *  transfers: a failed transfer is money still owed to the club, so counting only
- *  pending would understate the platform's outstanding obligation. */
+ *  pending would understate the platform's outstanding obligation. The server
+ *  already excludes failures SUPERSEDED by a retry row (the show has a live
+ *  payout), so an already-retried-and-paid show is not double-counted here. */
 export function derivePayoutSettlement(
   summary: FinancialReconciliationSummary
 ): PayoutSettlementTotals {

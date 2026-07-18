@@ -39,37 +39,43 @@
 -- The orders DETAIL function applies the IDENTICAL predicate, so detail rows and
 -- the aggregates always describe the same population.
 --
--- REFUND SPLIT (refunded_cents vs post_hoc_refunded_cents).
--- stripe_orders.refunded_cents is the single cumulative record of EVERY refund on
--- an order, and that lumps together two economically opposite events:
+-- REFUND SPLIT (refunded_cents vs make_whole_refunded_cents) — EXPLICIT COLUMNS.
+-- Two economically OPPOSITE refund events used to share one conflated
+-- `refunded_cents` column, forcing every consumer to RE-DERIVE the split as
+-- `amount − entry_subtotal − platform_fee`. That derivation was unsound: it is an
+-- identity for a well-formed order, so a cart-overflow order could never
+-- independently FAIL a tie-out check, and charge verification was tautological.
 --
---   1. CART-OVERFLOW MAKE-WHOLE. The customer was charged for cart lines that
---      were then denied / waitlisted / given no service. amount_cents is the
---      GROSS charge, while entry_subtotal_cents (and the platform_fee_cents
---      computed on it) cover only the ACCEPTED, paid lines. The platform never
---      earned a fee on the overflow portion and no club transfer was made for it,
---      so returning it is NOT a platform loss — it is money collected and handed
---      straight back.
---   2. POST-HOC REFUND. The entry was accepted, the club kept its transfer, and
---      the platform repays the customer from the PLATFORM balance while keeping
---      its fee. This IS a real platform loss.
+-- Migration 20260717120000 therefore records the split EXPLICITLY at write time:
 --
--- Both are derivable from columns already stored, per order:
---   overflow_portion  = max(0, amount_cents − entry_subtotal_cents − platform_fee_cents)
---   post_hoc_absorbed = max(0, refunded_cents − overflow_portion)
--- The max(0, ...) clamps are applied PER ORDER, before aggregation — a max over
--- the SUMs would let one order's overflow cancel another's post-hoc loss.
--- For a normal order amount = subtotal + fee, so overflow_portion = 0 and
--- post_hoc_absorbed = refunded_cents (behavior unchanged).
+--   amount_cents              GROSS amount the customer was charged.
+--   make_whole_refunded_cents Returned for lines that were NEVER accepted (cart
+--                             overflow / payment-link make-whole). The platform
+--                             earned no fee and no club transfer occurred, so
+--                             this is NOT a platform loss — money collected and
+--                             handed straight back.
+--   refunded_cents            POST-HOC refunds only: the entry WAS accepted, the
+--                             club kept its transfer, and the platform repays the
+--                             customer from its own balance. A REAL platform loss.
 --
--- NULL-SNAPSHOT ORDERS (legacy / unsnapshotted: entry_subtotal_cents or
--- platform_fee_cents IS NULL). Overflow CANNOT be derived for these — coalescing
--- the NULLs to 0 would make overflow_portion = amount_cents and silently exclude
--- the entire refund from the platform's loss, overstating net income on exactly
--- the rows we know least about. Documented conservative choice: attribute the
--- FULL refunded_cents to post_hoc_refunded_cents for such orders. That may
--- UNDERSTATE net platform income, which is the safe direction, and those orders
--- are already surfaced separately via snapshot_missing_count.
+--   collected = amount_cents − make_whole_refunded_cents − refunded_cents
+--   ties out  = amount_cents == entry_subtotal_cents + platform_fee_cents
+--                             + make_whole_refunded_cents
+--
+-- So this function READS BOTH COLUMNS DIRECTLY and derives nothing. There is no
+-- post_hoc_refunded_cents output any more: `refunded_cents` IS the post-hoc total,
+-- and `make_whole_refunded_cents` is its own SUMmed total. Consumers subtract
+-- refunded_cents from net platform income and BOTH columns from money collected.
+-- Because the two columns are recorded independently rather than derived from the
+-- tie-out, the tie-out above is now a genuine, falsifiable check.
+--
+-- NULL-SNAPSHOT ORDERS need no special refund handling for the same reason: both
+-- refund columns are NOT NULL DEFAULT 0 and are recorded independently of the
+-- (possibly NULL) subtotal/fee snapshot, so a legacy row's refunds attribute
+-- correctly without any derivation. Those rows are still surfaced separately via
+-- snapshot_missing_count, which counts a NULL in EITHER snapshot column — the
+-- same "missing" definition the snapshot contract and the client resolver use
+-- (an order with only one of the two is equally rate-unverifiable).
 --
 -- Pattern mirrors resolve_operator_alert (20260709130000): SECURITY DEFINER,
 -- SET search_path = '', REVOKE ALL FROM PUBLIC, GRANT EXECUTE TO authenticated.
@@ -162,9 +168,9 @@ RETURNS TABLE (
   platform_fee_cents           bigint,
   processing_fee_cents         bigint,  -- SUM of CAPTURED fees only (NULLs excluded)
   processing_fee_pending_count bigint,  -- orders whose fee is not yet captured (pending, not zero)
-  refunded_cents               bigint,  -- TOTAL returned to customers (incl. cart-overflow make-whole)
-  post_hoc_refunded_cents      bigint,  -- refunds the PLATFORM actually absorbed (see REFUND SPLIT below)
-  snapshot_missing_count       bigint,  -- legacy ENTRY orders with no platform-fee snapshot
+  refunded_cents               bigint,  -- POST-HOC refunds: the loss the PLATFORM absorbed (see REFUND SPLIT)
+  make_whole_refunded_cents    bigint,  -- cart-overflow make-whole: returned, but NOT a platform loss
+  snapshot_missing_count       bigint,  -- legacy ENTRY orders missing EITHER snapshot column
   -- Non-entry charges (order_type <> 'entry' or NULL) — reported separately so
   -- one-time 'payment' money is visible but never counted as entry collections.
   non_entry_order_count        bigint,
@@ -173,9 +179,10 @@ RETURNS TABLE (
   payout_count                 bigint,
   payout_completed_cents       bigint,
   payout_pending_cents         bigint,
-  -- A FAILED transfer is still money owed to the club: its amount is reported
-  -- as its own labeled total (never merged into payout_pending_cents) so the
-  -- UI can present outstanding liability = pending + failed.
+  -- A failed transfer is money still owed to the club ONLY while it has not been
+  -- retried — see the SUPERSEDED FAILED PAYOUTS note in the body. Reported as its
+  -- own labeled total (never merged into payout_pending_cents) so the UI can
+  -- present outstanding liability = pending + genuinely-outstanding failed.
   payout_failed_cents          bigint,
   payout_failed_count          bigint
 )
@@ -194,7 +201,8 @@ BEGIN
            o.entry_subtotal_cents,
            o.platform_fee_cents,
            o.stripe_processing_fee_cents,
-           o.refunded_cents
+           o.refunded_cents,
+           o.make_whole_refunded_cents
     FROM public.stripe_orders o
     WHERE o.status IN ('succeeded', 'refunded')
       AND (
@@ -211,8 +219,34 @@ BEGIN
   scoped_non_entry AS (
     SELECT * FROM scoped_charges WHERE order_type IS DISTINCT FROM 'entry'
   ),
+  -- SUPERSEDED FAILED PAYOUTS (review finding 3). cron-process-payouts does NOT
+  -- update a failed row on retry: it leaves the failed row in place and INSERTs a
+  -- new one. So a show can carry an old `failed` row AND a later
+  -- pending/processing/completed row. Summing EVERY failed row would keep an
+  -- already-retried-and-paid show counting as outstanding liability forever and
+  -- report a historical, resolved failure as a permanent attention item.
+  --
+  -- The unique index `show_payouts_one_live_per_show` is
+  -- `(show_id) WHERE status <> 'failed'`, so a show has AT MOST ONE non-failed
+  -- ("live") payout row. A failed row is therefore genuinely outstanding if and
+  -- only if its show has NO live row — the existence of any live row means the
+  -- transfer was retried and that live row already carries the liability (as
+  -- pending/processing, or as settled when completed). `has_live_payout` below
+  -- encodes exactly that rule; the failed aggregates filter on it so a retried
+  -- failure is neither double-counted nor reported as attention.
+  --
+  -- The EXISTS probes the FULL show_payouts table, not the scoped set: liveness is
+  -- a property of the show, and every payout for a show is inside the same scope
+  -- anyway (scope filters by show_id / club_id), so this cannot leak cross-scope
+  -- amounts — it only reads a boolean.
   scoped_payouts AS (
-    SELECT sp.amount_cents, sp.status
+    SELECT sp.amount_cents,
+           sp.status,
+           EXISTS (
+             SELECT 1 FROM public.show_payouts live
+             WHERE live.show_id = sp.show_id
+               AND live.status <> 'failed'
+           ) AS has_live_payout
     FROM public.show_payouts sp
     WHERE (
         p_scope = 'platform'
@@ -224,7 +258,8 @@ BEGIN
   -- EVERY column reference below is qualified with a CTE alias (so_/ne_/sp_).
   -- This is REQUIRED, not style: the RETURNS TABLE output columns above become
   -- PL/pgSQL variables, and several of them (entry_subtotal_cents,
-  -- platform_fee_cents, refunded_cents) share a name with a CTE column. An
+  -- platform_fee_cents, refunded_cents, make_whole_refunded_cents) share a name
+  -- with a CTE column. An
   -- unqualified reference raises "column reference ... is ambiguous" at RUNTIME
   -- on every call — a failure no source-pin test or CREATE FUNCTION check can
   -- catch. Keep every reference alias-qualified.
@@ -237,36 +272,32 @@ BEGIN
     -- pending COUNT below surfaces them so net income can be labeled pending.
     (SELECT COALESCE(SUM(so.stripe_processing_fee_cents), 0)    FROM scoped_orders so),
     (SELECT count(*) FROM scoped_orders so WHERE so.stripe_processing_fee_cents IS NULL),
+    -- POST-HOC refunds — read DIRECTLY from the explicit column, never derived.
+    -- This is the platform's real absorbed loss (see REFUND SPLIT in the header).
     (SELECT COALESCE(SUM(so.refunded_cents), 0)                 FROM scoped_orders so),
-    -- Post-hoc absorbed refunds (see REFUND SPLIT in the header). The per-order
-    -- GREATEST(0, ...) clamps sit INSIDE the SUM so one order's cart-overflow
-    -- make-whole can never cancel another order's real post-hoc loss. Orders with
-    -- a NULL subtotal/fee snapshot cannot have overflow derived, so their FULL
-    -- refund is attributed to the platform (conservative: may understate net).
-    (SELECT COALESCE(SUM(
-       CASE
-         WHEN so.entry_subtotal_cents IS NULL OR so.platform_fee_cents IS NULL
-           THEN COALESCE(so.refunded_cents, 0)
-         ELSE GREATEST(
-                COALESCE(so.refunded_cents, 0)
-                  - GREATEST(
-                      so.amount_cents - so.entry_subtotal_cents - so.platform_fee_cents,
-                      0
-                    ),
-                0
-              )
-       END
-     ), 0)                                                      FROM scoped_orders so),
-    (SELECT count(*) FROM scoped_orders so WHERE so.platform_fee_cents IS NULL),
+    -- Cart-overflow make-whole refunds — also read directly. Money returned to the
+    -- customer, but NOT a platform loss: no fee was earned and no transfer made on
+    -- those lines. Consumers subtract it from "collected", never from net income.
+    (SELECT COALESCE(SUM(so.make_whole_refunded_cents), 0)      FROM scoped_orders so),
+    -- Snapshot missing = EITHER snapshot column is NULL (review finding 6). The
+    -- snapshot contract and the client-side charge-verification resolver both
+    -- treat a null entry_subtotal_cents OR a null platform_fee_cents as missing
+    -- (an order with only one of the two cannot tie out either), so counting only
+    -- platform_fee_cents would under-report rate-unverifiable orders.
+    (SELECT count(*) FROM scoped_orders so
+      WHERE so.platform_fee_cents IS NULL OR so.entry_subtotal_cents IS NULL),
     (SELECT count(*)                                            FROM scoped_non_entry ne),
     (SELECT COALESCE(SUM(ne.amount_cents), 0)                   FROM scoped_non_entry ne),
     (SELECT count(*)                                            FROM scoped_payouts sp),
     (SELECT COALESCE(SUM(sp.amount_cents), 0) FROM scoped_payouts sp WHERE sp.status = 'completed'),
     (SELECT COALESCE(SUM(sp.amount_cents), 0) FROM scoped_payouts sp WHERE sp.status IN ('pending', 'processing')),
-    -- Failed transfers are still owed to the club: summed separately, not merged
-    -- into payout_pending_cents.
-    (SELECT COALESCE(SUM(sp.amount_cents), 0) FROM scoped_payouts sp WHERE sp.status = 'failed'),
-    (SELECT count(*) FROM scoped_payouts sp WHERE sp.status = 'failed');
+    -- Failed transfers are still owed to the club — but ONLY when not superseded
+    -- by a retry (see SUPERSEDED FAILED PAYOUTS above). Summed separately, never
+    -- merged into payout_pending_cents.
+    (SELECT COALESCE(SUM(sp.amount_cents), 0) FROM scoped_payouts sp
+      WHERE sp.status = 'failed' AND NOT sp.has_live_payout),
+    (SELECT count(*) FROM scoped_payouts sp
+      WHERE sp.status = 'failed' AND NOT sp.has_live_payout);
 END;
 $$;
 
@@ -296,7 +327,12 @@ RETURNS TABLE (
   platform_fee_cents          integer,
   platform_fee_rate           numeric,
   stripe_processing_fee_cents integer,
+  -- Both refund columns travel with the detail row: a per-row tie-out check needs
+  -- make_whole_refunded_cents (amount == subtotal + fee + make_whole), and per-row
+  -- net-to-club needs the post-hoc refunded_cents. Deriving either client-side
+  -- would reintroduce the tautology this split exists to remove.
   refunded_cents              integer,
+  make_whole_refunded_cents   integer,
   stripe_payment_intent_id    text,
   created_at                  timestamptz,
   paid_at                     timestamptz,
@@ -315,7 +351,8 @@ BEGIN
   RETURN QUERY
   SELECT o.id, o.show_id, o.status, o.order_type, o.amount_cents,
          o.entry_subtotal_cents, o.platform_fee_cents, o.platform_fee_rate,
-         o.stripe_processing_fee_cents, o.refunded_cents, o.stripe_payment_intent_id,
+         o.stripe_processing_fee_cents, o.refunded_cents, o.make_whole_refunded_cents,
+         o.stripe_payment_intent_id,
          o.created_at, o.paid_at, o.refunded_at
   FROM public.stripe_orders o
   -- IDENTICAL population to the summary's scoped_orders CTE: without this

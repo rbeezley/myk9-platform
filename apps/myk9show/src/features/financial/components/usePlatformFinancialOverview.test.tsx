@@ -28,7 +28,7 @@ function summary(overrides: Partial<FinancialSummary> = {}): FinancialSummary {
       netPlatformIncome: { status: 'available', netCents: 0 },
       processingFeePendingCount: 0,
       refundedCents: 0,
-      postHocRefundedCents: 0,
+      makeWholeRefundedCents: 0,
       snapshotMissingCount: 0,
     },
     chargeVerification: {
@@ -64,6 +64,7 @@ function orderRow(
     platformFeeRate: 0.1,
     stripeProcessingFeeCents: 150,
     refundedCents: 0,
+    makeWholeRefundedCents: 0,
     stripePaymentIntentId: 'pi_1',
     createdAt: '2026-07-01T00:00:00Z',
     paidAt: '2026-07-01T00:00:00Z',

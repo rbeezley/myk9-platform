@@ -17,7 +17,6 @@ import {
   buildOrderSnapshotFields,
   deriveEntryFeeFromTotalCents,
   extractProcessingFeeCents,
-  resolveCumulativeRefundedCents,
 } from '../_shared/orderSnapshot.ts';
 import { loadEntryPaymentLineItemFeesFromStripe } from '../_shared/entryPaymentLineItems.ts';
 import {
@@ -265,62 +264,79 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
  * app-originated refunds carry metadata and were already recorded.
  */
 /**
- * Record a charge's CUMULATIVE refunded total onto every order for its payment
- * intent, enforcing the collection invariant (see _shared/orderSnapshot.ts):
- * `collected = amount_cents − refunded_cents`, refund subtracted exactly once.
+ * Record a refund onto every order for a payment intent, ATOMICALLY, splitting
+ * it between the two economically-opposite refund columns (see the attribution
+ * invariant in _shared/orderSnapshot.ts):
+ *   collected = amount_cents − make_whole_refunded_cents − refunded_cents
  *
- * This is the single writer of `refunded_cents` for the whole refund story, and
- * it runs for EVERY refund source — per-entry app refunds, make-whole
+ * This is the single writer of both refund columns for the whole refund story,
+ * and it runs for EVERY refund source — per-entry app refunds, make-whole
  * auto-refunds, bulk show-cancellation refunds, and dashboard refunds alike.
  * Before this, app-originated refunds returned early and never recorded a
- * refund at all, so reconciliation silently understated refunds on exactly the
- * refunds the app itself issued.
+ * refund at all, so reconciliation silently understated exactly the refunds the
+ * app itself issued.
  *
- * The write is monotonic (`resolveCumulativeRefundedCents`), so re-delivery,
- * out-of-order partial refunds, and a race with the cart-overflow writer are
- * all idempotent. Never throws: a committed payment must not be disturbed by a
- * bookkeeping failure.
+ * ATOMICITY (MYK9-54 review finding 4): the compare-and-set happens in SQL,
+ * inside `record_order_refund_cents`. The previous read-then-JS-max-then-write
+ * was NOT atomic — Stripe permits concurrent and out-of-order delivery, so two
+ * deliveries could both read 0 and the smaller write would clobber the larger.
+ * The RPC does the GREATEST under the row lock instead.
+ *
+ * ATTRIBUTION: pass `makeWholeCents` from a make-whole writer (which knows its
+ * own amount but not the charge-wide total), and `chargeTotalCents` from
+ * `charge.refunded` (Stripe's cumulative total across BOTH kinds). The RPC
+ * derives the post-hoc part as total − make_whole, so a make-whole refund is
+ * never double counted as a post-hoc loss regardless of delivery order.
+ *
+ * Returns whether the amount was PERSISTED. Callers must not stamp a status of
+ * 'refunded' on a false return (finding 5) — that would hide the drift from
+ * reconciliation behind a status that already reads refunded. Never throws: a
+ * committed payment must not be disturbed by a bookkeeping failure.
  */
-async function recordCumulativeRefundedCents(
+async function recordOrderRefundCents(
   paymentIntentId: string,
-  chargeAmountRefundedCents: number
-): Promise<void> {
-  const { data, error } = await supabase
-    .from('stripe_orders')
-    .select('id, refunded_cents')
-    .eq('stripe_payment_intent_id', paymentIntentId);
+  amounts: { makeWholeCents?: number; chargeTotalCents?: number }
+): Promise<boolean> {
+  const makeWhole = Math.max(0, Math.round(amounts.makeWholeCents ?? 0));
+  const chargeTotal =
+    amounts.chargeTotalCents === undefined
+      ? null
+      : Math.max(0, Math.round(amounts.chargeTotalCents));
+
+  const { data, error } = await supabase.rpc('record_order_refund_cents', {
+    p_payment_intent_id: paymentIntentId,
+    p_make_whole_cents: makeWhole,
+    p_charge_total_refunded_cents: chargeTotal,
+  });
 
   if (error) {
-    console.error(`Could not read orders to record refund for ${paymentIntentId}:`, error);
-    return;
+    console.error(`Could not record refund for ${paymentIntentId}:`, error);
+    await alertAdmin(
+      'Refund not recorded on the order — reconciliation understated',
+      `<p>A refund for payment intent <code>${paymentIntentId}</code>
+       (make-whole ${(makeWhole / 100).toFixed(2)} USD, charge total
+       ${chargeTotal === null ? 'n/a' : (chargeTotal / 100).toFixed(2) + ' USD'})
+       could not be written to <code>stripe_orders</code>:</p>
+       <pre>${error.message}</pre>
+       <p>The order was deliberately NOT marked refunded, so reconciliation still
+       reports it as collected and the drift stays visible. Until the refund
+       columns are set by hand, this order overstates collections.</p>`,
+      {
+        source: 'stripe-webhook',
+        dedupeKey: `refund-write-failed-${paymentIntentId}`,
+      }
+    );
+    return false;
   }
 
-  for (const order of (data ?? []) as Array<{ id: string; refunded_cents: number | null }>) {
-    const next = resolveCumulativeRefundedCents(order.refunded_cents, chargeAmountRefundedCents);
-    if (next === (order.refunded_cents ?? 0)) continue;
-
-    const { error: updateError } = await supabase
-      .from('stripe_orders')
-      .update({ refunded_cents: next })
-      .eq('id', order.id);
-
-    if (updateError) {
-      console.error(`Could not record refunded_cents on order ${order.id}:`, updateError);
-      await alertAdmin(
-        'Refund not recorded on the order — reconciliation understated',
-        `<p>Refund total ${(next / 100).toFixed(2)} USD for payment intent
-         <code>${paymentIntentId}</code> could not be written to
-         <code>stripe_orders.refunded_cents</code> (order <code>${order.id}</code>):</p>
-         <pre>${updateError.message}</pre>
-         <p>Until it is set by hand, reconciliation reports this order as collected
-         in full.</p>`,
-        {
-          source: 'stripe-webhook',
-          dedupeKey: `refunded-cents-write-failed-${order.id}`,
-        }
-      );
-    }
+  const rows = (data ?? []) as Array<{ order_id: string }>;
+  if (rows.length === 0) {
+    // No order matched. Not a write failure, but nothing was persisted either,
+    // so the caller must not claim the order is refunded.
+    console.error(`Refund for ${paymentIntentId} matched no stripe_orders row`);
+    return false;
   }
+  return true;
 }
 
 async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
@@ -333,9 +349,18 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
   // COLLECTION INVARIANT: record the refund BEFORE any early return, for every
   // refund source. Whether the refund needs an operator alert (below) is a
   // separate question from whether the money came back (always true here).
+  //
+  // ATTRIBUTION: `charge.refunded` fires for BOTH make-whole and post-hoc
+  // refunds, and Stripe reports ONE cumulative `amount_refunded` covering both.
+  // It is therefore passed as the charge TOTAL, never as a post-hoc amount —
+  // the RPC derives post-hoc as total − make_whole so a make-whole refund the
+  // auto-refund writer already recorded is not double counted as a loss.
   const intentIdForLedger = extractPaymentIntentId(charge.payment_intent);
+  let refundRecorded = false;
   if (intentIdForLedger) {
-    await recordCumulativeRefundedCents(intentIdForLedger, charge.amount_refunded ?? 0);
+    refundRecorded = await recordOrderRefundCents(intentIdForLedger, {
+      chargeTotalCents: charge.amount_refunded ?? 0,
+    });
   }
 
   if (allFromAppRefund) {
@@ -360,12 +385,27 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
     return;
   }
 
+  // FAIL CLOSED (MYK9-54 review finding 5): only stamp 'refunded' when the
+  // amount actually PERSISTED. Stamping it after a failed ledger write leaves an
+  // order that reads refunded with 0 refunded cents — invisible to attention
+  // logic precisely because the status already says refunded. Leaving the status
+  // alone preserves the drift so reconciliation can still see it. The write
+  // failure was already alerted inside recordOrderRefundCents; return quietly
+  // rather than throwing, so a committed payment is never disturbed.
+  if (!refundRecorded) {
+    console.error(
+      `charge.refunded for ${paymentIntentId}: refund amount not persisted — ` +
+        `deliberately NOT marking the order refunded so the drift stays visible`
+    );
+    return;
+  }
+
   // Idempotent: re-delivery (or a second partial refund) re-applies the same state.
   // Snapshot contract (MYK9-54): the refund path never rewrites the original
   // charge facts (entry subtotal, platform fee, rate, processing fee). The
-  // cumulative refunded_cents was already written above by
-  // recordCumulativeRefundedCents (monotonic, all refund sources); this update
-  // only stamps the dashboard-refund status transition.
+  // refund columns were already written above by recordOrderRefundCents
+  // (atomic + monotonic, all refund sources); this update only stamps the
+  // dashboard-refund status transition.
   const { data, error } = await supabase
     .from('stripe_orders')
     .update({
@@ -1720,7 +1760,19 @@ async function issueEntryPaymentAutoRefund(input: {
        }.</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-refund-issued-${refund.id}` }
     );
-    if (input.reason === 'full_make_whole') {
+
+    // COLLECTION INVARIANT + ATTRIBUTION: a payment-link auto-refund returns
+    // money for entries that were never accepted (no link record / invalid
+    // entries), so it is a MAKE-WHOLE refund, not a platform loss. Record it
+    // here rather than waiting for charge.refunded: that handler treats this
+    // refund as app-originated and a missed delivery would leave the order
+    // looking collected in full.
+    const refundRecorded = await recordOrderRefundCents(input.paymentIntentId, {
+      makeWholeCents: refund.amount,
+    });
+
+    // FAIL CLOSED (finding 5): only stamp 'refunded' when the amount persisted.
+    if (input.reason === 'full_make_whole' && refundRecorded) {
       const { error: orderUpdateError } = await supabase
         .from('stripe_orders')
         .update({ status: 'refunded', refunded_at: new Date().toISOString() })
@@ -1889,14 +1941,23 @@ async function issueCartOverflowAutoRefund(input: {
 
     // COLLECTION INVARIANT: amount_cents on the order we just inserted is the
     // GROSS charge, so this refund must be recorded to keep
-    // `collected = amount_cents − refunded_cents` right. Write it here rather
-    // than waiting for charge.refunded: that handler treats this refund as
-    // app-originated, and a missed/late delivery would leave the order looking
-    // collected in full. The write is monotonic, so the later charge.refunded
-    // delivery is a no-op (or raises the total if another refund followed).
-    await recordCumulativeRefundedCents(input.paymentIntentId!, refund.amount);
+    // `collected = amount_cents − make_whole_refunded_cents − refunded_cents`
+    // right. Write it here rather than waiting for charge.refunded: that handler
+    // treats this refund as app-originated, and a missed/late delivery would
+    // leave the order looking collected in full.
+    //
+    // ATTRIBUTION: cart overflow refunds lines that were NEVER accepted, so this
+    // is a MAKE-WHOLE refund, not a platform loss — the platform earned no fee
+    // and made no club transfer on those lines. Recorded as makeWholeCents so
+    // the later cumulative charge.refunded delivery nets it out of the post-hoc
+    // figure instead of double counting it.
+    const refundRecorded = await recordOrderRefundCents(input.paymentIntentId!, {
+      makeWholeCents: refund.amount,
+    });
 
-    if (input.decision.reason === 'full_make_whole') {
+    // FAIL CLOSED (finding 5): don't stamp 'refunded' when the amount did not
+    // persist — that hides the drift behind a status that already reads refunded.
+    if (input.decision.reason === 'full_make_whole' && refundRecorded) {
       const { error: orderUpdateError } = await supabase
         .from('stripe_orders')
         .update({ status: 'refunded', refunded_at: new Date().toISOString() })

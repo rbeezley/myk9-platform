@@ -6,7 +6,7 @@
 // treasurer sees one row per show with:
 //   - net:               the club's net entry-fee transfer for that show
 //                        (entry subtotal, i.e. charged amount less the
-//                        platform's fee, less any refunded portion — see
+//                        platform's fee, less any POST-HOC refunded portion — see
 //                        clubNetContributionCents). Independent of payout
 //                        SETTLEMENT timing — a show can be charge-verified
 //                        before its payout settles.
@@ -48,7 +48,16 @@ export interface ClubShowReconciliationRow {
 /**
  * One order's contribution to the club's net entry money for a show:
  *
- *     max(0, entrySubtotalCents - refundedCents)
+ *     max(0, entrySubtotalCents - postHocRefundedCents)
+ *
+ * ONLY THE POST-HOC REFUND IS SUBTRACTED. `refundedCents` used to conflate
+ * post-hoc refunds with cart-overflow MAKE-WHOLE refunds, which double-penalized
+ * the club: a $50.00 accepted subtotal on a cart with a $40.00 overflow refund
+ * reported $10.00 net when the club is owed the full $50.00 — the overflow money
+ * was never part of the club's entry fees, never transferred, and returning it
+ * costs the club nothing. With the explicit split (migration 20260717120000)
+ * `refundedCents` IS the post-hoc total, so the make-whole portion is correctly
+ * out of this formula.
  *
  * WHY THIS EXACT FORMULA — it is the same arithmetic the payout cron uses to
  * decide what to transfer, so the treasurer can read the net and the
@@ -72,9 +81,9 @@ export interface ClubShowReconciliationRow {
  */
 export function clubNetContributionCents(
   entrySubtotalCents: number,
-  refundedCents: number
+  postHocRefundedCents: number
 ): number {
-  return Math.max(0, entrySubtotalCents - refundedCents);
+  return Math.max(0, entrySubtotalCents - postHocRefundedCents);
 }
 
 /** Aggregate one show's orders into its net-to-club figure and charge state. */
@@ -95,10 +104,11 @@ function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
   for (const order of orders) {
     if (order.stripeProcessingFeeCents == null) anyPending = true;
     if (resolveOrderChargeVerification(order) === 'Mismatch') anyMismatch = true;
-    // Net-to-club is the entry subtotal (charged amount less the platform's
-    // own fee) MINUS the refunded portion — see clubNetContributionCents for
-    // why that ties to the transfer. When the snapshot is missing, treat that
-    // order as pending rather than assuming $0 for it.
+    // Net-to-club is the entry subtotal (the ACCEPTED, paid lines) MINUS only the
+    // POST-HOC refunded portion — see clubNetContributionCents for why that ties
+    // to the transfer and why a cart-overflow make-whole refund must NOT reduce
+    // it. When the snapshot is missing, treat that order as pending rather than
+    // assuming $0 for it.
     if (order.entrySubtotalCents == null) {
       anyPending = true;
     } else {

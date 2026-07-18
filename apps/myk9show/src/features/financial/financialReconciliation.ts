@@ -51,18 +51,17 @@ export interface FinancialReconciliationSummary {
   processingFeeCents: number;
   /** Orders whose Stripe processing fee is not yet captured (net income pending). */
   processingFeePendingCount: number;
-  /** TOTAL returned to customers, including cart-overflow make-whole refunds.
-   *  Correct for "online collected" (money really did leave), but NOT the
-   *  platform's loss — use postHocRefundedCents for net income. */
+  /** POST-HOC refunds only: the entry WAS accepted, the club kept its transfer,
+   *  and the platform repaid the customer from its own balance. This IS a real
+   *  platform loss and is what net platform income subtracts. Read directly from
+   *  the explicit `stripe_orders.refunded_cents` column — never derived. */
   refundedCents: number;
-  /** The portion of refundedCents the PLATFORM actually absorbed: post-hoc
-   *  refunds on accepted entries (club kept its transfer, platform repaid the
-   *  customer). Excludes cart-overflow make-whole refunds, on which the platform
-   *  never earned a fee and never made a transfer. Server-derived per order as
-   *  max(0, refunded − max(0, amount − subtotal − fee)); NULL-snapshot legacy
-   *  orders conservatively attribute their full refund here. */
-  postHocRefundedCents: number;
-  /** Legacy entry orders with no platform-fee snapshot (rate-unverifiable). */
+  /** Cart-overflow make-whole refunds: money returned for lines that were NEVER
+   *  accepted. The platform earned no fee and made no club transfer on them, so
+   *  this is NOT a platform loss — it is money collected and handed straight
+   *  back. Subtract it from "collected", never from net income. */
+  makeWholeRefundedCents: number;
+  /** Legacy entry orders missing EITHER snapshot column (rate-unverifiable). */
   snapshotMissingCount: number;
   /** Succeeded/refunded charges that are NOT entry orders (one-time 'payment',
    *  or legacy NULL order_type). Reported separately, never folded into the
@@ -73,8 +72,11 @@ export interface FinancialReconciliationSummary {
   payoutCount: number;
   payoutCompletedCents: number;
   payoutPendingCents: number;
-  /** Failed transfers are still money owed to the club — kept as its own total,
-   *  never merged into payoutPendingCents. Outstanding = pending + failed. */
+  /** Failed transfers that have NOT been retried (the show has no live payout
+   *  row) — money genuinely still owed. Kept as its own total, never merged into
+   *  payoutPendingCents. Outstanding = pending + failed. A failure superseded by
+   *  a later retry row is excluded server-side, so a retried-and-paid show never
+   *  keeps counting as liability. */
   payoutFailedCents: number;
   payoutFailedCount: number;
 }
@@ -91,46 +93,17 @@ export interface FinancialReconciliationOrder {
   platformFeeRate: number | null;
   /** Null = processing fee pending (not yet captured), never zero. */
   stripeProcessingFeeCents: number | null;
+  /** POST-HOC refund on this order — a real platform loss. */
   refundedCents: number;
+  /** Cart-overflow make-whole refund on this order — returned to the customer but
+   *  NOT a platform loss. Required for the per-row tie-out
+   *  (amount == subtotal + fee + makeWhole); deriving it instead would make that
+   *  check an identity that no overflow order could ever fail. */
+  makeWholeRefundedCents: number;
   stripePaymentIntentId: string | null;
   createdAt: string;
   paidAt: string | null;
   refundedAt: string | null;
-}
-
-/**
- * Split one order's cumulative `refundedCents` into the part the PLATFORM
- * actually absorbed. Mirrors the per-order expression the reconciliation summary
- * RPC aggregates (migration 20260717130000) — the SQL is the authority for the
- * dashboard totals; this is the same rule for a single detail row.
- *
- *   overflowPortion = max(0, amount − entrySubtotal − platformFee)
- *   postHocAbsorbed = max(0, refunded − overflowPortion)
- *
- * The overflow portion is a cart-overflow "make-whole" auto-refund for lines that
- * were denied / waitlisted / never served: no platform fee was earned and no club
- * transfer was made on them, so handing that money back is NOT a platform loss.
- * A post-hoc refund on an ACCEPTED entry is: the club keeps its transfer and the
- * platform repays the customer from its own balance.
- *
- * Legacy rows with no snapshot (`entrySubtotalCents` or `platformFeeCents` null)
- * cannot have overflow derived — coalescing to 0 would make the overflow the whole
- * charge and hide the entire refund. Conservative documented choice: attribute the
- * FULL refund to the platform (may understate net income, the safe direction).
- */
-export function derivePostHocRefundedCents(order: {
-  amountCents: number;
-  entrySubtotalCents: number | null;
-  platformFeeCents: number | null;
-  refundedCents: number;
-}): number {
-  const refunded = Math.max(0, order.refundedCents);
-  if (order.entrySubtotalCents == null || order.platformFeeCents == null) return refunded;
-  const overflowPortion = Math.max(
-    0,
-    order.amountCents - order.entrySubtotalCents - order.platformFeeCents
-  );
-  return Math.max(0, refunded - overflowPortion);
 }
 
 /** One PII-free payout settlement row, carrying the copyable transfer id. */
@@ -186,7 +159,7 @@ interface SummaryRow {
   processing_fee_cents: number | string;
   processing_fee_pending_count: number | string;
   refunded_cents: number | string;
-  post_hoc_refunded_cents: number | string;
+  make_whole_refunded_cents: number | string;
   snapshot_missing_count: number | string;
   non_entry_order_count: number | string;
   non_entry_gross_cents: number | string;
@@ -208,6 +181,7 @@ interface OrderRow {
   platform_fee_rate: number | string | null;
   stripe_processing_fee_cents: number | string | null;
   refunded_cents: number | string;
+  make_whole_refunded_cents: number | string;
   stripe_payment_intent_id: string | null;
   created_at: string;
   paid_at: string | null;
@@ -235,7 +209,7 @@ export function mapSummaryRow(row: SummaryRow): FinancialReconciliationSummary {
     processingFeeCents: toNum(row.processing_fee_cents),
     processingFeePendingCount: toNum(row.processing_fee_pending_count),
     refundedCents: toNum(row.refunded_cents),
-    postHocRefundedCents: toNum(row.post_hoc_refunded_cents),
+    makeWholeRefundedCents: toNum(row.make_whole_refunded_cents),
     snapshotMissingCount: toNum(row.snapshot_missing_count),
     nonEntryOrderCount: toNum(row.non_entry_order_count),
     nonEntryGrossCents: toNum(row.non_entry_gross_cents),
@@ -259,6 +233,7 @@ export function mapOrderRow(row: OrderRow): FinancialReconciliationOrder {
     platformFeeRate: toNumOrNull(row.platform_fee_rate),
     stripeProcessingFeeCents: toNumOrNull(row.stripe_processing_fee_cents),
     refundedCents: toNum(row.refunded_cents),
+    makeWholeRefundedCents: toNum(row.make_whole_refunded_cents),
     stripePaymentIntentId: row.stripe_payment_intent_id,
     createdAt: row.created_at,
     paidAt: row.paid_at,
@@ -303,7 +278,7 @@ const EMPTY_SUMMARY_ROW: SummaryRow = {
   processing_fee_cents: 0,
   processing_fee_pending_count: 0,
   refunded_cents: 0,
-  post_hoc_refunded_cents: 0,
+  make_whole_refunded_cents: 0,
   snapshot_missing_count: 0,
   non_entry_order_count: 0,
   non_entry_gross_cents: 0,

@@ -30,21 +30,36 @@ export function isDeskAttestedLabel(paymentLabel: string): boolean {
 
 type OrderChargeFacts = Pick<
   FinancialReconciliationOrder,
-  'entrySubtotalCents' | 'platformFeeCents' | 'amountCents'
+  'entrySubtotalCents' | 'platformFeeCents' | 'amountCents' | 'makeWholeRefundedCents'
 >;
 
 /**
- * Verify one online order snapshot: its entry subtotal plus platform fee must tie
- * to the charged amount (within a 1-cent rounding tolerance). A missing snapshot
- * (null subtotal or fee) is a Mismatch, not a silent pass.
+ * Verify one online order snapshot against the refund-attribution invariant
+ * (migration 20260717120000):
+ *
+ *   amount_cents == entry_subtotal_cents + platform_fee_cents + make_whole_refunded_cents
+ *
+ * WHY make-whole BELONGS IN THE TIE-OUT. `amountCents` is the GROSS charge,
+ * covering cart lines that may never have been accepted; `entrySubtotalCents` and
+ * the `platformFeeCents` computed on it cover only the ACCEPTED lines. The
+ * difference is exactly the cart-overflow make-whole refund. Requiring
+ * `amount == subtotal + fee` therefore marked EVERY legitimate overflow order a
+ * Mismatch — a false positive on a perfectly reconciled charge.
+ *
+ * WHY THIS IS NOT TAUTOLOGICAL. `makeWholeRefundedCents` is recorded EXPLICITLY at
+ * write time by the refund path, not derived from `amount − subtotal − fee`. So an
+ * order whose gross does not equal its parts still FAILS: the check remains
+ * falsifiable, which is the entire point of the explicit split.
+ *
+ * A missing snapshot (null subtotal or fee) is a Mismatch, not a silent pass.
  */
 export function resolveOrderChargeVerification(
   order: OrderChargeFacts,
   toleranceCents = 1
 ): 'Verified' | 'Mismatch' {
-  const { entrySubtotalCents, platformFeeCents, amountCents } = order;
+  const { entrySubtotalCents, platformFeeCents, amountCents, makeWholeRefundedCents } = order;
   if (entrySubtotalCents == null || platformFeeCents == null) return 'Mismatch';
-  const expected = entrySubtotalCents + platformFeeCents;
+  const expected = entrySubtotalCents + platformFeeCents + (makeWholeRefundedCents ?? 0);
   return Math.abs(expected - amountCents) <= toleranceCents ? 'Verified' : 'Mismatch';
 }
 

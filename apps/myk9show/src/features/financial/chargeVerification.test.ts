@@ -18,6 +18,7 @@ function order(overrides: Partial<FinancialReconciliationOrder>): FinancialRecon
     platformFeeRate: 5,
     stripeProcessingFeeCents: 180,
     refundedCents: 0,
+    makeWholeRefundedCents: 0,
     stripePaymentIntentId: 'pi_1',
     createdAt: '2026-07-17T00:00:00Z',
     paidAt: '2026-07-17T00:00:00Z',
@@ -51,6 +52,65 @@ describe('resolveOrderChargeVerification', () => {
 
   it('allows a 1-cent rounding tolerance', () => {
     expect(resolveOrderChargeVerification(order({ amountCents: 5251 }))).toBe('Verified');
+  });
+
+  // ── ROOT FIX (review finding 2): the tie-out must include the make-whole term.
+  it('VERIFIES a legitimate cart-overflow order instead of flagging it Mismatch', () => {
+    // $93.50 charged gross; only $50.00 of lines accepted (+$3.50 fee); $40.00
+    // returned as a make-whole refund for lines that were never accepted.
+    // Ties out exactly: 9350 == 5000 + 350 + 4000.
+    expect(
+      resolveOrderChargeVerification(
+        order({
+          amountCents: 9350,
+          entrySubtotalCents: 5000,
+          platformFeeCents: 350,
+          makeWholeRefundedCents: 4000,
+        })
+      )
+    ).toBe('Verified');
+  });
+
+  it('still MISMATCHES a genuinely-off order (the check stays falsifiable)', () => {
+    // Same overflow shape, but the gross is $1.00 more than the parts explain.
+    // Because make_whole is recorded explicitly rather than derived from
+    // amount − subtotal − fee, this discrepancy cannot be absorbed away.
+    expect(
+      resolveOrderChargeVerification(
+        order({
+          amountCents: 9450,
+          entrySubtotalCents: 5000,
+          platformFeeCents: 350,
+          makeWholeRefundedCents: 4000,
+        })
+      )
+    ).toBe('Mismatch');
+  });
+
+  it('MISMATCHES when make-whole is claimed but the gross does not include it', () => {
+    // amount == subtotal + fee while make_whole > 0: the money was never charged,
+    // so it could not have been made whole. Under the OLD amount == subtotal + fee
+    // rule this passed silently.
+    expect(
+      resolveOrderChargeVerification(
+        order({
+          amountCents: 5350,
+          entrySubtotalCents: 5000,
+          platformFeeCents: 350,
+          makeWholeRefundedCents: 4000,
+        })
+      )
+    ).toBe('Mismatch');
+  });
+
+  it('does not let a POST-HOC refund affect the charge tie-out', () => {
+    // A post-hoc refund happens AFTER the charge; the gross still equals the
+    // accepted parts, so the order remains Verified.
+    expect(
+      resolveOrderChargeVerification(
+        order({ amountCents: 5250, refundedCents: 2000, makeWholeRefundedCents: 0 })
+      )
+    ).toBe('Verified');
   });
 
   it('is Mismatch when amounts do not tie', () => {

@@ -29,7 +29,7 @@ function overview(overrides: Partial<PlatformFinancialOverview> = {}): PlatformF
         netPlatformIncome: { status: 'available', netCents: 8500 },
         processingFeePendingCount: 0,
         refundedCents: 2000,
-        postHocRefundedCents: 2000,
+        makeWholeRefundedCents: 0,
         snapshotMissingCount: 0,
       },
       chargeVerification: {
@@ -88,7 +88,7 @@ describe('PlatformIncomeCard', () => {
 
     expect(screen.getByText('Online collected')).toBeInTheDocument();
     expect(screen.getByText('$1000.00')).toBeInTheDocument();
-    expect(screen.getByText(/Gross charged − refunded/)).toBeInTheDocument();
+    expect(screen.getByText(/Gross charged − post-hoc refunds/)).toBeInTheDocument();
 
     expect(screen.getByText('Gross platform-fee income')).toBeInTheDocument();
     expect(screen.getByText('$100.00')).toBeInTheDocument();

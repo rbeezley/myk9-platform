@@ -125,23 +125,45 @@ describe('financial reconciliation RPC — SQL-side aggregation (source-pinned)'
     expect(migrationSource).toMatch(/FROM scoped_payouts sp/);
   });
 
-  it('splits refunds into the total returned vs the post-hoc share the platform absorbed', () => {
+  it('reports both refund kinds as SEPARATE explicit sums, never re-derived', () => {
     // A cart-overflow make-whole refund returns money for lines that were never
     // accepted: no platform fee was earned and no club transfer was made, so it
-    // is NOT a platform loss. Only post_hoc_refunded_cents may reduce net income.
-    expect(migrationSource).toContain('post_hoc_refunded_cents');
-    // The clamps must be PER ORDER — inside the SUM, not applied to the SUMs.
-    expect(migrationSource).toMatch(/SUM\(\s*CASE/);
-    expect(migrationSource).toMatch(
+    // is NOT a platform loss. Only refunded_cents (POST-HOC) may reduce net income.
+    // Both come straight from their own columns.
+    expect(migrationSource).toMatch(/SUM\(so\.refunded_cents\)/);
+    expect(migrationSource).toMatch(/SUM\(so\.make_whole_refunded_cents\)/);
+    expect(migrationSource).toContain('make_whole_refunded_cents    bigint');
+  });
+
+  it('no longer DERIVES the split from amount − subtotal − fee (the tautology)', () => {
+    // ROOT FIX: re-deriving overflow as amount − subtotal − fee is an identity for
+    // a well-formed order, so an overflow order could never independently fail a
+    // tie-out and charge verification was tautological. That expression, and the
+    // post_hoc_refunded_cents output it fed, must be GONE.
+    // No post_hoc_refunded_cents OUTPUT COLUMN any more (the header still
+    // explains, in prose, why it was removed — that is intentional history).
+    expect(migrationSource).not.toMatch(/^\s*post_hoc_refunded_cents\s+bigint/m);
+    expect(migrationSource).not.toMatch(
       /so\.amount_cents - so\.entry_subtotal_cents - so\.platform_fee_cents/
     );
-    expect(migrationSource).toMatch(/GREATEST\(/);
-    // Documented conservative handling of legacy rows with no snapshot.
+    // And no CASE-based per-order refund derivation feeding a SUM.
+    expect(migrationSource).not.toMatch(/SUM\(\s*CASE/);
+  });
+
+  it('counts a snapshot as missing when EITHER column is null', () => {
+    // Review finding 6: the snapshot contract and the client resolver both treat a
+    // null entry_subtotal_cents OR a null platform_fee_cents as missing, so
+    // counting only platform_fee_cents under-reported rate-unverifiable orders.
     expect(migrationSource).toMatch(
-      /WHEN so\.entry_subtotal_cents IS NULL OR so\.platform_fee_cents IS NULL/
+      /WHERE so\.platform_fee_cents IS NULL OR so\.entry_subtotal_cents IS NULL/
     );
-    // ...and the raw total is still reported alongside it (online collected).
-    expect(migrationSource).toMatch(/SUM\(so\.refunded_cents\)/);
+  });
+
+  it('exposes make_whole_refunded_cents on the orders detail row too', () => {
+    // A per-row tie-out (amount == subtotal + fee + make_whole) needs it; deriving
+    // it client-side would reintroduce the same tautology.
+    expect(migrationSource).toMatch(/make_whole_refunded_cents   integer/);
+    expect(migrationSource).toMatch(/o\.make_whole_refunded_cents/);
   });
 
   it('keeps charge facts and payout settlement as separate totals', () => {
@@ -181,13 +203,33 @@ describe('financial reconciliation RPC — SQL-side aggregation (source-pinned)'
     // must have an amount — a bare count understates outstanding liability.
     expect(migrationSource).toContain('payout_failed_cents');
     expect(migrationSource).toMatch(
-      /SUM\(sp\.amount_cents\), 0\) FROM scoped_payouts sp WHERE sp\.status = 'failed'/
+      /SUM\(sp\.amount_cents\), 0\) FROM scoped_payouts sp\s*\n\s*WHERE sp\.status = 'failed'/
     );
     // ...and must NOT be folded into the pending sum.
     expect(migrationSource).toMatch(
       /SUM\(sp\.amount_cents\), 0\) FROM scoped_payouts sp WHERE sp\.status IN \('pending', 'processing'\)/
     );
     expect(migrationSource).not.toMatch(/WHERE status IN \([^)]*'pending'[^)]*'failed'/);
+  });
+
+  it('excludes SUPERSEDED failed payouts (a failure already retried) from liability', () => {
+    // Review finding 3: cron-process-payouts leaves the failed row in place and
+    // INSERTs a new row for the retry, so a show can hold an old 'failed' row AND
+    // a later completed/pending one. Summing every failed row kept an
+    // already-retried-and-paid show counting as outstanding liability forever.
+    // The unique index show_payouts_one_live_per_show is
+    // `(show_id) WHERE status <> 'failed'`, so a show has AT MOST ONE non-failed
+    // ("live") row — a failed row is genuinely outstanding only with NO live row.
+    expect(migrationSource).toMatch(/has_live_payout/);
+    expect(migrationSource).toMatch(/EXISTS \(\s*\n\s*SELECT 1 FROM public\.show_payouts live/);
+    expect(migrationSource).toMatch(/live\.show_id = sp\.show_id/);
+    expect(migrationSource).toMatch(/live\.status <> 'failed'/);
+    // BOTH failed aggregates must apply the rule — amount and count alike.
+    const guarded =
+      migrationSource.match(/WHERE sp\.status = 'failed' AND NOT sp\.has_live_payout/g) ?? [];
+    expect(guarded.length).toBe(2);
+    // The rule must be documented, not silently applied.
+    expect(migrationSource).toContain('show_payouts_one_live_per_show');
   });
 });
 

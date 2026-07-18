@@ -31,6 +31,7 @@ const ERROR_MESSAGES: Record<string, string> = {
     'This show’s entry fees were already paid out to the club — settle refunds with the club directly.',
   payout_in_progress: 'A payout to the club is in flight — try again after it completes.',
   show_not_cancelled: 'Mark the show cancelled before refunding all entries.',
+  refund_failed: 'The bulk refund could not be completed. Re-run it — completed refunds are never repeated.',
 };
 
 export function useShowRefundAll() {

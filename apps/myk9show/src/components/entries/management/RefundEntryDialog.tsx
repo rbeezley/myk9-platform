@@ -36,6 +36,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   money_operation_in_progress:
     'Another payout or refund is already running for this show. Try again in a moment.',
   money_lock_failed: 'We could not safely reserve this refund. Try again in a moment.',
+  refund_failed: 'The refund could not be completed. Check the entry and try again.',
 };
 
 /** Minimal shape required by RefundEntryDialog — a subset of EntryManagementEntry. */

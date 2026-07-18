@@ -11,11 +11,8 @@ import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
 import { useClassBulkActions } from '@/components/classes/useClassBulkActions';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
-import {
-  deriveClassLifecycleValue,
-  shouldShowClassLifecycle,
-  type ClassLifecycleValue,
-} from '@/lib/status/classLifecycle';
+import { deriveClassLifecycleValue, type ClassLifecycleValue } from '@/lib/status/classLifecycle';
+import { ClassManagementRow, type DbClassRow } from '@/components/classes/ClassManagementRow';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
@@ -24,8 +21,7 @@ import { useTrialStore } from '@/store/trialStore';
 import { CLASS_STATUS, matchesAny } from '@myk9/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { StatusBadge, StatusIcon } from '@/components/status';
+import { StatusIcon } from '@/components/status';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -36,23 +32,6 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Plus, Search, Filter, Settings, ListOrdered } from 'lucide-react';
-import { RowActionMenu, toRowActions, type RowAction } from '@/components/ui/RowActionMenu';
-import { classActions } from '@/components/classes/classActions';
-
-type DbClassRow = {
-  id: string;
-  name: string | null;
-  element: string | null;
-  level: string | null;
-  section: string | null;
-  status: string | null;
-  class_order: number | null;
-  max_entries: number | null;
-  entries: Array<{ id: string }> | undefined;
-  judge_assignments?: Array<{ person_id: string | null }> | null;
-};
-
-const UNASSIGNED_JUDGE_VALUE = 'TBD';
 
 export const ClassManagementPage: React.FC = () => {
   const {
@@ -370,117 +349,21 @@ export const ClassManagementPage: React.FC = () => {
             </div>
           ) : filteredClasses.length > 0 ? (
             <div className="space-y-2">
-              {filteredClasses.map(cls => {
-                const entryCount = cls.entries?.length ?? 0;
-                const maxEntries = cls.max_entries ?? 0;
-                return (
-                  <div
-                    key={cls.id}
-                    data-class-id={cls.id}
-                    className={`border rounded-lg p-4 transition-all ${
-                      selection.isSelected(cls)
-                        ? 'ring-2 ring-primary bg-primary/5'
-                        : 'hover:bg-muted/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <Checkbox
-                        checked={selection.isSelected(cls)}
-                        onCheckedChange={() => selection.toggleItem(cls)}
-                        aria-label={`Select ${cls.name || 'Untitled Class'}`}
-                      />
-
-                      <div className="manager-class-row-grid flex-1">
-                        <div className="manager-class-name">
-                          <div className="font-medium">{cls.name || 'Untitled Class'}</div>
-                          {cls.class_order != null && (
-                            <div className="text-sm text-muted-foreground">
-                              Order: {cls.class_order}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap gap-1">
-                          {cls.element && <Badge variant="outline">{cls.element}</Badge>}
-                          {cls.level && <Badge variant="secondary">{cls.level}</Badge>}
-                          {cls.section && <Badge variant="outline">{cls.section}</Badge>}
-                        </div>
-
-                        {(() => {
-                          // Derived lifecycle chip: one label per stage
-                          // ("Not started" / "In Progress" / "Completed"),
-                          // never the raw enum ("in_progress") or "No Status".
-                          // Draft/unpublished shows render no chip at all
-                          // (UX walk remediation 2.B).
-                          if (!shouldShowClassLifecycle(showStatus)) return null;
-                          const lifecycleValue = deriveClassLifecycleValue(cls.status);
-                          return (
-                            <StatusBadge
-                              family="class"
-                              status={lifecycleValue}
-                              className="rounded-full bg-muted/40 px-2 py-1 text-xs font-medium"
-                            />
-                          );
-                        })()}
-
-                        <div className="text-sm text-muted-foreground">
-                          <div>
-                            Entries: {entryCount}
-                            {maxEntries > 0 ? `/${maxEntries}` : ''}
-                          </div>
-                        </div>
-
-                        <div>
-                          <Select
-                            value={cls.judge_assignments?.[0]?.person_id ?? UNASSIGNED_JUDGE_VALUE}
-                            onValueChange={judgeId => handleJudgeChange(cls.id, judgeId)}
-                            disabled={!showId || availableJudges.length === 0}
-                          >
-                            <SelectTrigger
-                              className="w-full"
-                              aria-label={`Judge for ${cls.name || 'Untitled Class'}`}
-                            >
-                              <SelectValue placeholder="Assign judge" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={UNASSIGNED_JUDGE_VALUE}>Unassigned</SelectItem>
-                              {availableJudges.map(judge => (
-                                <SelectItem key={judge.id} value={judge.id}>
-                                  {judge.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="flex gap-1">
-                          <RowActionMenu
-                            align="end"
-                            label={`More actions for ${cls.name || 'Untitled Class'}`}
-                            actions={[
-                              {
-                                id: 'view-waitlist',
-                                label: 'View waitlist',
-                                icon: <ListOrdered className="h-4 w-4" />,
-                                onSelect: () => navigate(waitlistHref),
-                              } as RowAction,
-                              // Status + delete resolve from the SAME shared catalog
-                              // the bulk bar uses (toRowActions), so row and bulk
-                              // eligibility/handlers can't diverge. Row delete keeps
-                              // its confirm() via handleDelete.
-                              ...toRowActions(
-                                { id: cls.id, name: cls.name, status: cls.status },
-                                { onStatusChange: handleStatusChange, onDelete: handleDelete },
-                                classActions
-                              ),
-                            ]}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {filteredClasses.map(cls => (
+                <ClassManagementRow
+                  key={cls.id}
+                  cls={cls}
+                  selected={selection.isSelected(cls)}
+                  showId={showId}
+                  showStatus={showStatus}
+                  availableJudges={availableJudges}
+                  onToggleSelect={() => selection.toggleItem(cls)}
+                  onViewWaitlist={() => navigate(waitlistHref)}
+                  onStatusChange={handleStatusChange}
+                  onJudgeChange={handleJudgeChange}
+                  onDelete={handleDelete}
+                />
+              ))}
             </div>
           ) : (
             <div className="text-center py-12">

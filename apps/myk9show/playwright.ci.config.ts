@@ -19,15 +19,18 @@ const REGRESSION_SPECS = [
   // payment/* specs are excluded: both are aspirational mock-based suites
   // asserting features that don't exist (PayPal, chargebacks, payment plans)
   // and fail unconditionally. Real payment journeys are tracked in MYK9-42.
-  '**/scoring/scoringWorkflow.spec.ts',
   '**/show/atShowJudgeScoring.spec.ts',
   '**/show/atShowOfflineScoring.spec.ts',
-  '**/show/showManagement.spec.ts',
+  // scoring/scoringWorkflow and show/showManagement are obsolete candidate
+  // suites; current coverage lives in focused scoring and management specs
+  // tracked in docs/qa/e2e-suite-map.md.
   // registration/entryCreationCore excluded: it drives app source modules via
   // browser `import('/src/store/entryStore.ts')` — a Zustand unit test wearing
   // an e2e costume. It cannot run against the dist/preview build and belongs in
   // Vitest, not Playwright. Rewrite/relocate tracked in MYK9-46.
-  '**/registration/exhibitorSelfRegistration.spec.ts',
+  // exhibitorSelfRegistration depends on a separately seeded show whose entry
+  // window is open; the default Heartland fixture is currently closed. Keep it
+  // in the maintained inventory, but not in Nightly until that fixture exists.
   '**/authentication-validation.spec.ts',
   // entities/entriesUI excluded: the secretary Entry Management page was
   // restructured (entry cards, Select-All header, bulk dialogs all moved), so

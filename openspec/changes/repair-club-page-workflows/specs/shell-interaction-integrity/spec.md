@@ -8,6 +8,11 @@ The system SHALL construct the `My Club` navigation group from a role-scoped clu
 - **THEN** the shell SHALL label the context with that club's live name
 - **AND** `Our Shows` and `Club Profile` SHALL link to the canonical existing routes using that validated club ID
 
+#### Scenario: Multiple live scopes are ambiguous
+- **WHEN** more than one distinct club-admin scope matches the refreshed live club set
+- **THEN** the shell SHALL omit actionable `My Club` destinations and show ambiguous-access guidance on the existing destination page
+- **AND** it SHALL NOT choose a club by role order or add a duplicate selection surface
+
 #### Scenario: Scoped club is unresolved while clubs load
 - **WHEN** club readiness has not settled
 - **THEN** the shell SHALL keep the `My Club` destinations non-actionable

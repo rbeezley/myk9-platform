@@ -95,6 +95,16 @@ The system SHALL treat a club-admin role scope as actionable only after its club
 - **THEN** the shell and existing club-admin pages SHALL use that club's ID and name consistently
 - **AND** `My Club` links SHALL target the canonical existing routes for that club
 
+#### Scenario: One live scope and one stale scope exist
+- **WHEN** a club administrator has multiple distinct scopes but exactly one matches a loaded live club
+- **THEN** the shell and existing club-admin pages SHALL use the sole live club context
+- **AND** the stale scope SHALL NOT replace or invalidate that sole live match
+
+#### Scenario: Multiple live club scopes exist
+- **WHEN** more than one distinct club-admin scope matches a loaded live club
+- **THEN** club-scoped navigation SHALL remain non-actionable and the existing destination SHALL show plain-English ambiguous-access guidance
+- **AND** the system SHALL NOT select the first club or create a club switcher in this change
+
 #### Scenario: Club data is still loading
 - **WHEN** a scoped club administrator opens the shell before club readiness settles
 - **THEN** club-scoped navigation SHALL remain non-actionable until validation completes

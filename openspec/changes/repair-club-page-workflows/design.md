@@ -40,9 +40,9 @@ The repair SHALL update the existing profile, browse/detail, members, and paymen
 
 ### 2. Introduce one validated club-context selector
 
-A pure selector, consumed through a small hook where React state is needed, SHALL combine the current user's `club-admin` role scope with the current replicated clubs. It returns a club context only when the scoped club ID exactly matches a loaded club. `UnifiedAppLayout`, `unifiedSidebarConfig`, and club-admin members/payments entry points SHALL consume this result rather than reconstructing context independently.
+A pure selector, consumed through a small hook where React state is needed, SHALL combine all of the current user's `club-admin` role scopes with the current replicated clubs. It deduplicates identical scope IDs and returns a club context only when exactly one distinct scoped club ID matches a loaded live club. One live match remains usable when other scopes are stale; zero live matches produce missing/stale guidance, and more than one live match is ambiguous and remains non-actionable until the role assignments are corrected. `UnifiedAppLayout`, `unifiedSidebarConfig`, and club-admin members/payments entry points SHALL consume this result rather than reconstructing context independently.
 
-While club data is still loading, scoped navigation remains non-actionable. When loading settles and the scope is missing or stale, the shell omits dead `My Club` links and direct club-admin pages show plain-English access-configuration guidance. The system MUST NOT silently select the first club.
+While club data is still loading, scoped navigation remains non-actionable. When loading settles and the scope is missing, stale, or ambiguous, the shell omits dead `My Club` links and direct club-admin pages show plain-English access-configuration guidance. The system MUST NOT silently select the first club.
 
 Before changing seed or role-assignment data, implementation SHALL inventory the related club row, role row, permission mappings, and user-role scope assignment in one read-only pass. A shared database correction is a separate approval-gated operation; the client guard is required regardless.
 

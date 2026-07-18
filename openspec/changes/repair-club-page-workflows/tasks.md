@@ -8,10 +8,10 @@
 
 ## 2. Validated Club-Admin Context
 
-- [ ] 2.1 [EXPANDED] Add a pure validated-club-context selector with focused tests for valid, loading, missing, stale, multiple-club, and populated-but-not-refreshed inputs, including proof that it never falls back to the first club.
+- [ ] 2.1 [EXPANDED] Add a pure validated-club-context selector that deduplicates scope IDs and has focused tests for one valid scope, one live plus one stale scope, duplicate scopes for one club, zero live scopes, multiple distinct live scopes, loading, and populated-but-not-refreshed inputs; prove it never falls back to the first club when context is ambiguous.
 - [ ] 2.2 [EXPANDED] Add the smallest hook/state adapter needed to combine role scope with replication-backed club readiness, preserving existing authorization boundaries and keeping online context non-actionable until the current-session freshness check settles.
 - [ ] 2.3 Update `UnifiedAppLayout` and `unifiedSidebarConfig` to build `My Club` labels and destinations only from validated context, with focused shell/sidebar tests proving unchecked scope IDs never become links.
-- [ ] 2.4 [EXPANDED] Update the existing club-admin members and payments entry points to use the same context, render access-configuration guidance when validation settles without a live club, and render retryable access-verification guidance without trusting cache when freshness fails or times out.
+- [ ] 2.4 [EXPANDED] Update the existing club-admin members and payments entry points to use the same context, render access-configuration guidance when validation settles without exactly one live club, distinguish ambiguous multiple-live-scope guidance, and render retryable access-verification guidance without trusting cache when freshness fails or times out.
 
 ## 3. Public Club Replica Readiness
 
@@ -35,7 +35,7 @@
 
 ## 6. Browser and App Verification
 
-- [ ] 6.1 [EXPANDED] Add a dedicated read-only `apps/myk9show/src/test/e2e/club-surface-integrity.spec.ts` covering guest `/clubs`, valid/invalid `/clubs/:id`, authenticated profile tabs/stat cards, validated `My Club` navigation, and the payment checklist; use pointer/keyboard actions, do not activate `Continue to Stripe` or any database mutation, and fail closed if the seeded read-only role/club context is unavailable.
+- [ ] 6.1 [EXPANDED] Add a dedicated read-only `apps/myk9show/src/test/e2e/club-surface-integrity.spec.ts` covering guest `/clubs`, valid/invalid `/clubs/:id`, authenticated profile tabs/stat cards, validated `My Club` navigation, and the payment checklist; use pointer/keyboard actions, do not activate `Continue to Stripe` or any database mutation, fail closed if the seeded read-only role/club context is unavailable, and classify the new suite in `docs/qa/e2e-suite-map.md` in the same change.
 - [ ] 6.2 Re-walk the five findings at desktop and 375px widths, check console/runtime errors and horizontal overflow, and capture evidence for each acceptance scenario.
 - [ ] 6.3 [ADDED] Verify failed public club synchronization emits one sanitized event through the existing logging service while guest-facing copy excludes internal error details.
 - [ ] 6.4 [EXPANDED] Run `pnpm --dir apps/myk9show exec vitest run src/store/clubStore.readiness.test.ts src/hooks/__tests__/useValidatedClubContext.test.tsx src/hooks/__tests__/useBrowseClubsData.test.tsx src/pages/__tests__/BrowseClubsPage.test.tsx src/pages/__tests__/ClubDetailPage.test.tsx src/components/clubs/ClubDetails/__tests__/ClubDetails.interactions.test.tsx src/components/clubs/ClubDetails/__tests__/contactDestinations.test.ts src/components/clubs/ClubDetails/__tests__/ClubHeader.test.tsx src/components/layout/sidebar/__tests__/unifiedSidebarConfig.test.ts src/features/payments/__tests__/ClubPaymentsCard.test.tsx`; stop and report if the runner hangs for more than 60 seconds.

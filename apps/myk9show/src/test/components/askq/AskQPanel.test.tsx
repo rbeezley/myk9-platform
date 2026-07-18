@@ -22,6 +22,7 @@ describe('AskQPanel', () => {
     // `parseSSEStream` is overridden by the deferred skeleton test. Clear-only
     // resets let that implementation leak when Vitest shuffles test order.
     vi.clearAllMocks();
+    vi.mocked(askqService.sendAskQQuery).mockReset();
     vi.mocked(askqService.parseSSEStream).mockReset();
     useAskQPanelStore.getState().close();
   });
@@ -214,10 +215,9 @@ describe('AskQPanel', () => {
     act(() => useAskQPanelStore.getState().open());
     const { user } = render(<AskQPanel />, { initialRoute: '/at-show/show-1' });
 
-    await user.type(
-      screen.getByPlaceholderText('Ask about rules, your results, or the app...'),
-      'Schedule?'
-    );
+    const input = screen.getByPlaceholderText('Ask about rules, your results, or the app...');
+    fireEvent.change(input, { target: { value: 'Schedule?' } });
+    expect(input).toHaveValue('Schedule?');
     await user.click(screen.getByRole('button', { name: 'Send query' }));
 
     await waitFor(() => {

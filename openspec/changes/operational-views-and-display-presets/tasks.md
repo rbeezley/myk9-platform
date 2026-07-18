@@ -1,8 +1,8 @@
 ## 1. Inventory and contracts
 
-- [ ] 1.1 Inventory Entry Management and Class Management filter, scope, grouping, visible-column, and display state; identify which values already serialize to URLs.
-- [ ] 1.2 Define typed operational-view state, preset IDs, serialization version, surface ownership, and allowlisted display options.
-- [ ] 1.3 Define the authenticated-user/surface preference namespace, serialization version, show-scope revalidation, account-change reset, and invalid-data removal behavior without adding a database table.
+- [x] 1.1 Inventory Entry Management and Class Management filter, scope, grouping, visible-column, and display state; identify which values already serialize to URLs.
+- [x] 1.2 Define typed operational-view state, preset IDs, serialization version, surface ownership, and allowlisted display options.
+- [x] 1.3 Define the authenticated-user/surface preference namespace, serialization version, show-scope revalidation, account-change reset, and invalid-data removal behavior without adding a database table.
 
 ## 2. Entry Management views
 

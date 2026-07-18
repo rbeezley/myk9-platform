@@ -7,7 +7,7 @@
 ## 2. Attention summary
 
 - [x] 2.1 Add a typed attention summary model containing reason, count, label, destination, scope, and staff-visibility requirements.
-- [ ] 2.2 Add the summary to the existing Workbench/readiness host without rendering row-level management controls.
+- [x] 2.2 Add the summary to the existing Workbench/readiness host without rendering row-level management controls.
 - [x] 2.3 Add route/count agreement tests for payment, review, check-in, class readiness, multi-class enrollment, loading, and partial data.
 
 ## 3. Related context navigation

@@ -189,6 +189,15 @@ export default function ShowDeskPanel({
     () => computeShowDeskPendingSignals({ showId: show.id, tree, entries }),
     [entries, show.id, tree]
   );
+  // Pending signals surface staff-only operational counts (entry review,
+  // check-in, payment, judge signature, closeout). Design Decision 5: staff
+  // signals are not rendered for non-staff viewers — gate the chip row and
+  // its click handler at the component boundary rather than assuming every
+  // caller only mounts this panel for staff.
+  const staffPendingSignals = useMemo(
+    () => (canManageShow ? pendingSignals : []),
+    [canManageShow, pendingSignals]
+  );
   // Reuse the existing pending-signal computation as the source of truth for
   // "N entries waiting" — no second counter, no risk of the two going out of
   // sync. The "Manage entries" button surfaces this count and deep-links to
@@ -246,6 +255,12 @@ export default function ShowDeskPanel({
   // Entry review belongs to Entries Management; closeout belongs to Results &
   // Check-In. The Show Map attention lens stays a fallback for signals that
   // are genuinely represented in the tree.
+  //
+  // Payment-due is the one signal Show Desk has no clearing tooling for at
+  // all (no payment UI here), so unlike the review/check-in chips — which
+  // set a local Show Map filter because Show Desk offers bulk approve as a
+  // partial clearing path — it always navigates straight to its typed
+  // Entry Management href.
   const { setFilter } = state;
   const handlePendingSignal = useCallback(
     (signalId: ShowDeskPendingSignalId) => {
@@ -257,9 +272,14 @@ export default function ShowDeskPanel({
         navigateTo(`/shows/${show.id}/results-control`);
         return;
       }
+      if (signalId === 'entries-payment-due') {
+        const href = pendingSignals.find(signal => signal.id === signalId)?.href;
+        if (href) navigateTo(href);
+        return;
+      }
       setFilter('needs-attention');
     },
-    [navigateTo, openEntryManagement, setFilter, show.id]
+    [navigateTo, openEntryManagement, pendingSignals, setFilter, show.id]
   );
 
   return (
@@ -295,11 +315,11 @@ export default function ShowDeskPanel({
         guidanceAction={guidanceAction}
         upNextGroups={upNextGroups}
         runningNow={runningNowItems}
-        pendingSignals={pendingSignals}
+        pendingSignals={staffPendingSignals}
         onStartAction={startAction}
         onDismissGuidance={dismissGuidanceAction}
         onSelectRunning={selectRunningNowClass}
-        onSelectPendingSignal={handlePendingSignal}
+        onSelectPendingSignal={canManageShow ? handlePendingSignal : undefined}
         onBulkApproveGroup={canManageShow ? handleBulkApproveGroup : undefined}
         onOpenEntryManagement={canManageShow ? openEntryManagement : undefined}
         reviewQueueCount={pendingReviewCount}

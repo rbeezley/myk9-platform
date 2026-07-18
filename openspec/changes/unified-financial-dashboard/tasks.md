@@ -32,11 +32,11 @@
 
 ## 5. Canonical route consolidation (gated — see design.md go/no-go checkpoint)
 
-- [ ] 5.0 STOP: run the go/no-go checkpoint with the operator. If the enriched surfaces from sections 3–4 already answer the money questions, skip 5.1–5.4, record the no-go decision in MYK9-54, and proceed to section 6.
-- [ ] 5.1 Add the role-aware `/financial` route and scope selector using the shared summary service; default platform, club, or show scope from role and context.
-- [ ] 5.2 Add redirects from legacy financial entry points and preserve supported deep-link query/context and Stripe onboarding return paths.
-- [ ] 5.3 Add route, role-default, redirect, accessibility, and exhibitor single-payment-workflow tests; do not add a new exhibitor dashboard.
-- [ ] 5.4 Re-walk the existing secretary, club-admin, site-admin, and exhibitor payment journeys and record evidence for the launch-readiness gate.
+- [x] 5.0 GO/NO-GO = **NO-GO** (operator decision, 2026-07-17). The enriched `/club-admin/payments` and `/admin/payouts` surfaces answer the club and platform money questions in-place; the scopes are role-separated (club sees club, admin sees platform), not overlapping, so a new `/financial` route would fragment rather than consolidate — against the "consolidate, don't duplicate / one concern, one page" phase. Canonical-route requirement is dropped from the spec sync. 5.1–5.4 skipped; proceed to section 6.
+- [~] 5.1 SKIPPED (no-go): canonical `/financial` route not built.
+- [~] 5.2 SKIPPED (no-go): no legacy redirects needed — existing routes remain canonical.
+- [~] 5.3 SKIPPED (no-go): no new route to test; `/exhibitor/payments` stays the single exhibitor payment surface.
+- [~] 5.4 SKIPPED (no-go): no route consolidation to re-walk; enriched-surface journeys covered by §3/§4 component tests.
 
 ## 6. Verification and shipment
 

@@ -48,7 +48,7 @@ export default function CheckoutSuccessPage() {
     orderId?: string;
     showName?: string;
     showId?: string;
-    totalAmount?: number;
+    totalAmountCents?: number;
     entryIds?: string[];
     checkoutOutcome?: 'paid_entries' | 'full_overflow_refund';
     refundAmount?: number;
@@ -98,7 +98,7 @@ export default function CheckoutSuccessPage() {
             ...(result.orderId !== undefined && { orderId: result.orderId }),
             ...(result.showName !== undefined && { showName: result.showName }),
             ...(result.showId !== undefined && { showId: result.showId }),
-            ...(result.totalAmount !== undefined && { totalAmount: result.totalAmount }),
+            ...(result.totalAmountCents !== undefined && { totalAmountCents: result.totalAmountCents }),
             ...(result.entryIds !== undefined && { entryIds: result.entryIds }),
             ...(result.checkoutOutcome !== undefined && {
               checkoutOutcome: result.checkoutOutcome,
@@ -288,14 +288,14 @@ export default function CheckoutSuccessPage() {
             )}
 
             {/* Order Summary */}
-            {orderDetails?.totalAmount !== undefined && (
+            {orderDetails?.totalAmountCents !== undefined && (
               <Alert className="bg-muted/50">
                 <Receipt className="h-4 w-4" />
                 <AlertDescription>
                   <div className="flex justify-between items-center">
                     <span>Order Total</span>
                     <span className="font-semibold">
-                      {orderDetails.totalAmount ? formatCurrency(orderDetails.totalAmount) : '—'}
+                      {orderDetails.totalAmountCents ? formatCurrency(orderDetails.totalAmountCents) : '—'}
                     </span>
                   </div>
                 </AlertDescription>

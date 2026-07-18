@@ -105,26 +105,39 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
       compedCount: 0,
     };
 
+    // Accumulate in integer cents — summing binary-float dollars drifts by a
+    // penny on large shows, and a reconciliation total that disagrees with
+    // Stripe by $0.01 erodes trust (MP-26). Divide once at the end.
+    const toCents = (dollars: number) => Math.round(dollars * 100);
     for (const e of entries) {
-      acc.totalFees += e.entryFee;
-      acc.totalDiscounts += e.discountAmount;
+      const feeCents = toCents(e.entryFee);
+      const discountCents = toCents(e.discountAmount);
+      acc.totalFees += feeCents;
+      acc.totalDiscounts += discountCents;
 
       if (e.comped) {
         acc.compedCount++;
-        acc.totalComped += e.entryFee;
+        acc.totalComped += feeCents;
       } else if (e.paymentStatus === 'paid') {
         acc.paidCount++;
-        acc.paidAmount += e.entryFee - e.discountAmount;
+        acc.paidAmount += feeCents - discountCents;
       } else if (e.paymentStatus === 'pending') {
         acc.pendingCount++;
-        acc.pendingAmount += e.entryFee - e.discountAmount;
+        acc.pendingAmount += feeCents - discountCents;
       } else if (e.paymentStatus === 'refunded') {
         acc.refundedCount++;
-        acc.refundedAmount += e.entryFee;
+        acc.refundedAmount += feeCents;
       }
     }
 
     acc.netAmount = acc.totalFees - acc.totalDiscounts - acc.totalComped;
+    acc.totalFees /= 100;
+    acc.totalDiscounts /= 100;
+    acc.totalComped /= 100;
+    acc.netAmount /= 100;
+    acc.paidAmount /= 100;
+    acc.pendingAmount /= 100;
+    acc.refundedAmount /= 100;
     return acc;
   }, [entries]);
 

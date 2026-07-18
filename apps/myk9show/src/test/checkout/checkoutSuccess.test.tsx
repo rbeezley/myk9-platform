@@ -99,7 +99,7 @@ describe('verifyCheckoutSession', () => {
     expect(result.success).toBe(true);
     expect(result.confirmationNumber).toBe('MK9-000042');
     expect(result.showName).toBe('Spring Invitational');
-    expect(result.totalAmount).toBe(7500);
+    expect(result.totalAmountCents).toBe(7500);
   });
 
   it('falls back to the payment intent id when no enrollment is linked (online cart path)', async () => {

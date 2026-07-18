@@ -47,17 +47,23 @@ test.describe('My Shows Page - Fake Trend Data Removal', () => {
     }
   });
 
-  // SKIP(MYK9-46): stat cards were consolidated into a single "Current entries"
-  // summary button; the four-title assertion asserts the pre-redesign layout.
-  // Needs a page-owner to define the current stat-card contract before rewrite.
-  test.skip('should display meaningful stat card titles', async ({ page }) => {
+  test('should display the current stat-card contract', async ({ page }, testInfo) => {
+    if (testInfo.project.name === 'mobile-chrome') {
+      await expect(page.getByRole('button', { name: /\d+ entries? .*\d+ upcoming/ })).toBeVisible();
+      return;
+    }
+
     await page.waitForSelector('[data-slot="icon"]', { timeout: 5000 });
 
-    // Verify meaningful stat card titles
-    await expect(page.locator('text=Entries')).toBeVisible();
-    await expect(page.locator('text=Upcoming Shows')).toBeVisible();
-    await expect(page.locator('text=Past Shows')).toBeVisible();
-    await expect(page.locator('text=Current Fees')).toBeVisible();
+    // The current card names its scope explicitly so its count is not confused
+    // with the all-time "All entries" list below it.
+    await expect(page.getByRole('button', { name: /^Current entries:/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Upcoming Shows?:/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Past Shows?:/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Current Fees:/ })).toBeVisible();
+
+    const currentEntriesCard = page.getByRole('button', { name: /^Current entries:/ });
+    await expect(currentEntriesCard).toHaveAccessibleName(/Upcoming \+ in review/);
   });
 
   test('should show real contextual information in stat cards', async ({ page }) => {
@@ -93,13 +99,9 @@ test.describe('My Shows Page - Enter a Show CTA', () => {
     await expect(page).toHaveURL(/\/shows$/);
   });
 
-  // SKIP(MYK9-46): asserts a "MY DOGS" label that now resolves ambiguously after
-  // the nav/section rename; needs the current dog-affordance contract defined.
-  test.skip('should display dog management affordances alongside Enter a Show', async ({
-    page,
-  }) => {
-    await expect(page.getByText('MY DOGS')).toBeVisible();
-    await expect(page.getByRole('button', { name: /New Dog/i })).toBeVisible();
+  test('should display dog management affordances alongside Enter a Show', async ({ page }) => {
+    await expect(page.getByText('My Dogs', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New Dog', exact: true })).toBeVisible();
   });
 });
 
@@ -109,31 +111,14 @@ test.describe('My Shows Page - Tab Structure', () => {
     await navigateToMyShows(page);
   });
 
-  // SKIP(MYK9-46): tab structure/counts changed in the redesign; the exact-count
-  // assertion pins the old tab set. Needs the current tab contract defined.
-  test.skip('should render all tabs without redundant counts', async ({ page }) => {
+  test('should render the current tabs with scoped counts', async ({ page }) => {
     const tabList = page.locator('[role="tablist"]');
     await expect(tabList).toBeVisible();
 
-    // Tabs should have simple labels without "(X)" counts
-    const allTab = page.locator('[role="tab"]:has-text("All")');
-    const pendingTab = page.locator('[role="tab"]:has-text("Pending")');
-    const acceptedTab = page.locator('[role="tab"]:has-text("Accepted")');
-    const waitlistTab = page.locator('[role="tab"]:has-text("Waitlist")');
-    const upcomingTab = page.locator('[role="tab"]:has-text("Upcoming")');
-
-    await expect(allTab).toBeVisible();
-    await expect(pendingTab).toBeVisible();
-    await expect(acceptedTab).toBeVisible();
-    await expect(waitlistTab).toBeVisible();
-    await expect(upcomingTab).toBeVisible();
-
-    // Verify tabs don't have redundant counts (like "All (5)")
-    const allTabText = await allTab.textContent();
-    expect(allTabText).toBe('All');
-
-    const pendingTabText = await pendingTab.textContent();
-    expect(pendingTabText).toBe('Pending');
+    for (const label of ['All', 'Pending', 'Accepted', 'Waitlist', 'Upcoming', 'Completed']) {
+      const tab = page.getByRole('tab', { name: new RegExp(`^${label}\\s*\\d+$`) });
+      await expect(tab).toBeVisible();
+    }
   });
 
   test('should have scrollable tab container', async ({ page }) => {
@@ -142,15 +127,13 @@ test.describe('My Shows Page - Tab Structure', () => {
   });
 
   test('tabs should switch content when clicked', async ({ page }) => {
-    // Click on Pending tab
-    const pendingTab = page.locator('[role="tab"]:has-text("Pending")');
+    const pendingTab = page.getByRole('tab', { name: /^Pending\s*\d+$/ });
     await pendingTab.click();
 
     // Tab should be selected
     await expect(pendingTab).toHaveAttribute('aria-selected', 'true');
 
-    // Click on Accepted tab
-    const acceptedTab = page.locator('[role="tab"]:has-text("Accepted")');
+    const acceptedTab = page.getByRole('tab', { name: /^Accepted\s*\d+$/ });
     await acceptedTab.click();
 
     await expect(acceptedTab).toHaveAttribute('aria-selected', 'true');
@@ -170,9 +153,9 @@ test.describe('My Shows Page - Mobile Tab Usability', () => {
     await expect(tabList).toBeVisible();
 
     // All tabs should be present even if scrolled
-    const tabs = ['All', 'Pending', 'Accepted', 'Waitlist', 'Upcoming'];
+    const tabs = ['All', 'Pending', 'Accepted', 'Waitlist', 'Upcoming', 'Completed'];
     for (const tabName of tabs) {
-      const tab = page.locator(`[role="tab"]:has-text("${tabName}")`);
+      const tab = page.getByRole('tab', { name: new RegExp(`^${tabName}\\s*\\d+$`) });
       // Scroll into view if needed
       await tab.scrollIntoViewIfNeeded();
       await expect(tab).toBeVisible();
@@ -227,42 +210,9 @@ test.describe('My Shows Page - Current Status', () => {
   });
 });
 
-test.describe('My Shows Page - Empty State', () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-    await navigateToMyShows(page);
-  });
-
-  // SKIP(MYK9-46): asserts the empty-state message, but the seeded demo exhibitor
-  // has 13 entries — this needs a dedicated no-entries fixture account to exercise.
-  test.skip('should display helpful empty state message when no entries', async ({ page }) => {
-    // Wait for content to load
-    await page.waitForTimeout(500);
-
-    // Check if empty state is shown
-    const emptyState = page.locator("text=/no entries found|haven't entered any shows/i");
-    const entryCards = page.getByRole('button', { name: /Edit Entry/i });
-
-    const cardCount = await entryCards.count();
-    if (cardCount === 0) {
-      // If no entries, empty state should be visible
-      await expect(emptyState.first()).toBeVisible();
-    }
-  });
-
-  test('should have Browse All Shows button in empty state', async ({ page }) => {
-    await page.waitForTimeout(500);
-
-    const entryCards = page.locator('.myk9-entries-card');
-    const cardCount = await entryCards.count();
-
-    if (cardCount === 0) {
-      const browseButton = page.getByRole('button', { name: /Browse All Shows|Enter a Show/i });
-      await expect(browseButton).toBeVisible();
-    }
-  });
-});
-
+// Empty-state behavior is covered at the component layer in
+// FirstRunZeroState.test.tsx; this canonical E2E exhibitor fixture intentionally
+// has entries and no no-entry browser fixture is provisioned.
 test.describe('My Shows Page - Context-Aware Messaging', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);

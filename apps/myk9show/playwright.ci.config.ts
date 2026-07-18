@@ -24,18 +24,11 @@ const REGRESSION_SPECS = [
   // scoring/scoringWorkflow and show/showManagement are obsolete candidate
   // suites; current coverage lives in focused scoring and management specs
   // tracked in docs/qa/e2e-suite-map.md.
-  // registration/entryCreationCore excluded: it drives app source modules via
-  // browser `import('/src/store/entryStore.ts')` — a Zustand unit test wearing
-  // an e2e costume. It cannot run against the dist/preview build and belongs in
-  // Vitest, not Playwright. Rewrite/relocate tracked in MYK9-46.
   // exhibitorSelfRegistration depends on a separately seeded show whose entry
   // window is open; the default Heartland fixture is currently closed. Keep it
   // in the maintained inventory, but not in Nightly until that fixture exists.
   '**/authentication-validation.spec.ts',
-  // entities/entriesUI excluded: the secretary Entry Management page was
-  // restructured (entry cards, Select-All header, bulk dialogs all moved), so
-  // the file needs a holistic rewrite against the new layout. The show-id and
-  // load-signal fixes are already in place as a head-start. Tracked in MYK9-46.
+  '**/entities/entriesUI.spec.ts',
   '**/secretary/show-creation-wizard.spec.ts',
   '**/secretary/classCreation.spec.ts',
   '**/browse-shows-to-details.spec.ts',

@@ -136,6 +136,7 @@ These specs are in the current scheduled Nightly routine. Do not add to this tab
 | `apps/myk9show/src/test/services/entries/entryLimitChecker.waitlists.test.ts`      | Entry limit and waitlist service scenarios.                    |
 | `apps/myk9show/src/hooks/useInfiniteScroll.performanceCaching.test.ts`             | Registration large-result caching, prefetch, and cache bounds. |
 | `apps/myk9show/src/test/unit/entryStore.multiClass.test.ts`                        | Multi-class entry store scenarios converted from E2E.          |
+| `apps/myk9show/src/test/unit/entryStore.test.ts`                                   | Core entry store workflow and audit trail.                     |
 
 ### Playwright
 
@@ -146,7 +147,6 @@ These specs are in the current scheduled Nightly routine. Do not add to this tab
 | `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`                | Current public, secretary, exhibitor, and judge route smoke. |
 | `apps/myk9show/src/test/e2e/public-shows-responsive.spec.ts`             | Public Browse Shows mobile layout and touch targets.         |
 | `apps/myk9show/src/test/e2e/route-health-by-role.spec.ts`                | Route-health sweep: 6 role groups, console/network/overflow. |
-| `apps/myk9show/src/test/e2e/registration/entryCreationCore.spec.ts`      | Core entry store workflow and audit trail.                   |
 | `apps/myk9show/src/test/e2e/registration/index.spec.ts`                  | Maintained registration spec inventory guard.                |
 | `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts` | Stable secretary existing-user registration guard.           |
 | `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts`      | Secretary mail-in person, dog, and dog-registration path.    |

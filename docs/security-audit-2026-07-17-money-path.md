@@ -6,12 +6,12 @@
 
 ## Summary
 
-| Severity | Count |
-|----------|-------|
-| CRITICAL | 0 |
-| HIGH | 0 |
-| MEDIUM | 5 |
-| LOW | 10 |
+| Severity  | Count                     |
+| --------- | ------------------------- |
+| CRITICAL  | 0                         |
+| HIGH      | 0                         |
+| MEDIUM    | 5                         |
+| LOW       | 10                        |
 | **Total** | **15** (+3 informational) |
 
 Auto-fixable: 9 of 15 findings.
@@ -20,19 +20,19 @@ Auto-fixable: 9 of 15 findings.
 
 ## End-to-end map (client → edge fn → DB)
 
-| Flow | Client entry point | Edge function |
-|---|---|---|
-| Premium subscription checkout | `lib/stripe.ts:7` (PricingPage, landing Pricing) | `stripe-checkout` |
-| Entry cart checkout | `lib/stripe.ts:45` (CartPage) | `stripe-checkout` |
-| Single entry refund (secretary) | `RefundEntryDialog.tsx:139` | `stripe-refund-entry` |
-| Bulk show-cancellation refund | `features/payments/useShowRefundAll.ts:39` | `stripe-refund-show` |
-| Mail-in payment link | `RequestPaymentDialog.tsx:74` | `stripe-payment-link` |
-| Waitlist offer payment (secretary + exhibitor) | `useWaitlistManagementData.ts:226`, `useMyWaitlistEntries.ts:144` | `stripe-payment-link` |
-| Decline waitlist offer | `useMyWaitlistEntries.ts:162` | `decline-waitlist-offer` |
-| Club bank onboarding | `useClubStripeAccount.ts:139` | `stripe-connect-onboard` |
-| Manage subscription | `SubscriptionManager.tsx:159` | `stripe-customer-portal` |
-| Payment success verification | `lib/stripe.ts:91` polls webhook-written `stripe_orders` | (DB read only) |
-| Nightly payouts / waitlist expiry | (cron, Vault-secret-authenticated) | `cron-process-payouts`, `cron-waitlist-expiration` |
+| Flow                                           | Client entry point                                                | Edge function                                      |
+| ---------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------- |
+| Premium subscription checkout                  | `lib/stripe.ts:7` (PricingPage, landing Pricing)                  | `stripe-checkout`                                  |
+| Entry cart checkout                            | `lib/stripe.ts:45` (CartPage)                                     | `stripe-checkout`                                  |
+| Single entry refund (secretary)                | `RefundEntryDialog.tsx:139`                                       | `stripe-refund-entry`                              |
+| Bulk show-cancellation refund                  | `features/payments/useShowRefundAll.ts:39`                        | `stripe-refund-show`                               |
+| Mail-in payment link                           | `RequestPaymentDialog.tsx:74`                                     | `stripe-payment-link`                              |
+| Waitlist offer payment (secretary + exhibitor) | `useWaitlistManagementData.ts:226`, `useMyWaitlistEntries.ts:144` | `stripe-payment-link`                              |
+| Decline waitlist offer                         | `useMyWaitlistEntries.ts:162`                                     | `decline-waitlist-offer`                           |
+| Club bank onboarding                           | `useClubStripeAccount.ts:139`                                     | `stripe-connect-onboard`                           |
+| Manage subscription                            | `SubscriptionManager.tsx:159`                                     | `stripe-customer-portal`                           |
+| Payment success verification                   | `lib/stripe.ts:91` polls webhook-written `stripe_orders`          | (DB read only)                                     |
+| Nightly payouts / waitlist expiry              | (cron, Vault-secret-authenticated)                                | `cron-process-payouts`, `cron-waitlist-expiration` |
 
 `stripe-upgrade-subscription` has no client caller. All Stripe UI is hosted-redirect; `@stripe/stripe-js` is not a dependency. Charges land in the platform account (separate charges + transfers, verified in code); payouts are later `transfers.create` from the nightly cron.
 
@@ -43,12 +43,14 @@ Auto-fixable: 9 of 15 findings.
 **Category:** RLS Policy Integrity
 **Location:** `supabase/migrations/054_registrations_table.sql:70` (policy `registrations_update_own`, survives the 130 rename to `enrollments`, never dropped)
 **Evidence:**
+
 ```sql
 CREATE POLICY registrations_update_own ON registrations
   FOR UPDATE USING (
     handler_id IN (SELECT id FROM people WHERE auth_user_id = auth.uid())
   );
 ```
+
 Only `payment_status` has a column write-guard (`110_restrict_payment_status_column.sql`). `paid_amount` (167), `total_amount`/`discount_amount` (132), `refund_amount`/`refund_notes`/`refunded_at` (176), `payment_reference` (054) have no guard.
 **Risk:** an exhibitor can `PATCH` their own enrollment via PostgREST and set `paid_amount = 9999` / forge `payment_reference`. Secretary reconciliation reads these directly (`useEntryManagementData.ts:145-146`, `secretaryReadReplication.ts:213-214`) — a forged "paid" appears in staff financial views. Not money-movement: payouts/refunds key exclusively on trigger-guarded `entries.*` columns, so no funds can be extracted — but staff can be misled into treating unpaid as paid.
 **Fix:** new migration adding a `BEFORE INSERT OR UPDATE` trigger on `public.enrollments` (mirror the `trg_restrict_entry_refund_columns` pattern, `SECURITY DEFINER SET search_path=''`) blocking non-service-role/non-staff writes to the seven money columns.
@@ -60,13 +62,15 @@ Only `payment_status` has a column write-guard (`110_restrict_payment_status_col
 
 **Category:** Payment Security
 **Location:** `apps/myk9show/supabase/functions/stripe-webhook/index.ts:696-762` (cart claim) and `:792-862` (creation loop)
-**Evidence:** the cart is claimed (`active → submitted`) *before* the per-item `create_online_paid_entry` loop. The Stripe-retry duplicate check only tests `entries WHERE stripe_payment_intent_id = X LIMIT 1`:
+**Evidence:** the cart is claimed (`active → submitted`) _before_ the per-item `create_online_paid_entry` loop. The Stripe-retry duplicate check only tests `entries WHERE stripe_payment_intent_id = X LIMIT 1`:
+
 ```ts
 if (!intentEntries || intentEntries.length === 0) { /* duplicate-charge alert */ }
 ...
 console.log(`Cart ${cartId} already processed (duplicate event delivery) — skipping`);
 ```
-**Risk:** if the isolate is hard-killed (CPU/wall-clock eviction — no throw, so no alert) after creating entry 1 of 5, Stripe's retry finds ≥1 entry, logs "already processed," and returns 200. Items 2–5 are paid for but never become entries, waitlist rows, or refunds — silently. Per-item DB *errors* are handled (auto-refund of failed lines); only the hard-kill window is exposed.
+
+**Risk:** if the isolate is hard-killed (CPU/wall-clock eviction — no throw, so no alert) after creating entry 1 of 5, Stripe's retry finds ≥1 entry, logs "already processed," and returns 200. Items 2–5 are paid for but never become entries, waitlist rows, or refunds — silently. Per-item DB _errors_ are handled (auto-refund of failed lines); only the hard-kill window is exposed.
 **Fix:** on the already-claimed path, compare the entry count for the intent against `cart.items.length`; on shortfall, alert (or resume creation idempotently keyed on `(payment_intent, cart_item_id)`).
 **Auto-fixable:** No (recovery-semantics design choice: alert vs resume)
 
@@ -87,7 +91,7 @@ console.log(`Cart ${cartId} already processed (duplicate event delivery) — ski
 
 **Category:** Payment Security
 **Location:** `apps/myk9show/supabase/functions/stripe-refund-entry/index.ts:160` (payout read) vs `:216` (lock acquired later); never re-checked inside the lock
-**Evidence:** verified ordering — `show_payouts` status read at line 161, `acquireShowMoneyLock` at line 216. `stripe-refund-show` already re-checks payout state *inside* the lock per intent (`stripe-refund-show/index.ts:195`).
+**Evidence:** verified ordering — `show_payouts` status read at line 161, `acquireShowMoneyLock` at line 216. `stripe-refund-show` already re-checks payout state _inside_ the lock per intent (`stripe-refund-show/index.ts:195`).
 **Risk:** narrow TOCTOU: refund reads payout `pending`, stalls; payout cron takes the lock, recomputes, transfers, completes; refund resumes, takes the now-free lock, refunds anyway. Next cron sees `completed` and early-returns — no reconcile alert. The club keeps money that was also refunded to the customer; the platform silently eats it. Window is milliseconds, but the loss is silent.
 **Fix:** repeat the `show_payouts` read + `validateRefund` payout checks after the lock is acquired, mirroring `refundIntent`'s per-intent re-check.
 **Auto-fixable:** Yes
@@ -111,7 +115,7 @@ console.log(`Cart ${cartId} already processed (duplicate event delivery) — ski
 
 ### [LOW] MP-21: `already_stamped_elsewhere` treats any pre-existing stamp as covering the refund just created
 
-**Location:** `stripe-refund-entry/index.ts:336-348`, `_shared/entryRefundStampGuard.ts:63-66`. If an operator manually stamped only `refund_amount` (runbook-noncompliant state) and a UI refund later creates a *fresh* Stripe refund, the stamp UPDATE zero-rows, the re-read sees the old stamp, and the function returns 200 — the new refund has no accounting record and no alert. Fix: only return success on that branch when the refund was *reused* (`existingRefund` non-null); otherwise fall through to `record_failure`/alert. **Auto-fixable:** No (state-model judgment)
+**Location:** `stripe-refund-entry/index.ts:336-348`, `_shared/entryRefundStampGuard.ts:63-66`. If an operator manually stamped only `refund_amount` (runbook-noncompliant state) and a UI refund later creates a _fresh_ Stripe refund, the stamp UPDATE zero-rows, the re-read sees the old stamp, and the function returns 200 — the new refund has no accounting record and no alert. Fix: only return success on that branch when the refund was _reused_ (`existingRefund` non-null); otherwise fall through to `record_failure`/alert. **Auto-fixable:** No (state-model judgment)
 
 ### [LOW] MP-22: mutable module-global CORS headers race across concurrent requests
 
@@ -157,7 +161,7 @@ console.log(`Cart ${cartId} already processed (duplicate event delivery) — ski
 
 **Server-side pricing, no client-trusted amounts anywhere.** Cart items explicitly distrusted and re-priced with heal + 409 on drift (`stripe-checkout/index.ts:408-552`); webhook fresh-retrieves the session and re-verifies `amount_total` against authoritative pricing + the stamped fee rate before creating entries (`stripe-webhook/index.ts:561-683`, `_shared/freshSessionGate.ts`); subscription price ids allowlisted both ends; platform fee bounds-clamped 0–20%, integer-cents math throughout; no float money in DB (integer cents / NUMERIC only) or edge functions.
 
-**Auth on every function.** JWT via `getUser(token)` in all five client-facing stripe fns; webhook uses `constructEventAsync` failing closed on missing secret; authorization evaluated *as the caller* via anon-key clients calling canonical SQL predicates (`is_show_secretary`, `is_club_admin`, `is_site_admin`) — role rows, not JWT claims; club-A-secretary-cannot-touch-club-B verified, clubless-show `is_club_admin(NULL)` hole explicitly closed; bulk refund additionally requires `shows.status='cancelled'`. Cron endpoints: constant-time SHA-256 secret comparison, fail-closed on missing header *and* missing env, Vault side raises on missing secret.
+**Auth on every function.** JWT via `getUser(token)` in all five client-facing stripe fns; webhook uses `constructEventAsync` failing closed on missing secret; authorization evaluated _as the caller_ via anon-key clients calling canonical SQL predicates (`is_show_secretary`, `is_club_admin`, `is_site_admin`) — role rows, not JWT claims; club-A-secretary-cannot-touch-club-B verified, clubless-show `is_club_admin(NULL)` hole explicitly closed; bulk refund additionally requires `shows.status='cancelled'`. Cron endpoints: constant-time SHA-256 secret comparison, fail-closed on missing header _and_ missing env, Vault side raises on missing secret.
 
 **Idempotency and races.** Cart claim latch + `stripe_orders` UNIQUEs (session id, payment intent id) + payment-link status latch with same-intent recognition + per-entry `.eq('payment_status','pending')` CAS guards; refund idempotency keys with attempt counters; per-show money lock (service-role-only, FORCE RLS, TTL steal) serializes refund-entry / refund-show / payout cron; `show_payouts` partial unique one-live-per-show + status-CAS claim + post-claim recompute + `transfers.list(transfer_group)` as at-most-one-transfer authority + reconcile-mismatch alerts; stale `processing` payouts auto-fail after 24h and retries reconcile instead of re-paying; async payment methods handled (unpaid sessions skipped via fresh-retrieve; cart checkout card-only).
 
@@ -169,17 +173,25 @@ console.log(`Cart ${cartId} already processed (duplicate event delivery) — ski
 
 **Recovery/observability.** Every paid-but-broken state (dashboard refunds, unmatched refunds, failed refunds, disputes, unstamped bulk refunds, payout reconcile mismatches, live/test mode mismatches) produces a persisted, deduped `operator_alerts` row before email.
 
+## Remediation Progress — 2026-07-17
+
+Fixed same-day as atomic `security: MP-NNN` commits on `claude/stripe-payment-review-1f7f04` (typecheck, lint, and all colocated tests green): **MP-15** (new migration `20260717120000` — trigger guard on enrollments money columns; passed migration-auditor), **MP-18** (in-lock payout re-check in stripe-refund-entry), **MP-19** (ref latches on landing Subscribe + CartPage checkout), **MP-20** (generic `refund_failed` bodies + client error-map entries), **MP-22** (request-scoped CORS threading across all seven stripe fns), **MP-24** (dead branch deleted; unexpected sessions log loudly), **MP-25** (mock stubs, usePaymentProcessing, CartPreviewPanel, and their tests deleted; PaymentService now read-only), **MP-26** (integer-cents accumulation; `totalAmountCents` rename), **MP-27** (portal customer derived from JWT; body id dropped), **MP-28** (new migration `20260717121000` — search_path re-pin).
+
+**Deployment note:** merging does not deploy — the two migrations need `supabase db push` and the edited edge functions (`stripe-refund-entry`, `stripe-refund-show`, `stripe-checkout`, `stripe-payment-link`, `stripe-connect-onboard`, `stripe-upgrade-subscription`, `stripe-customer-portal`, `stripe-webhook`) need `supabase functions deploy --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`.
+
+**Still open (need product decisions):** MP-16 (cart-webhook retry recovery: alert vs resume), MP-17 (which fee value is authoritative for payment-link entries), MP-21 (stamp-guard success only on reused refunds), MP-23 (subscription duplicate-checkout idempotency), MP-29 (policy 0-cent refund error code).
+
 ## Categories Checked
 
-| Category | Files Examined | Findings | Skipped |
-|----------|---------------|----------|---------|
-| RLS Policy Integrity (money tables) | ~40 migrations | 2 (MP-15, MP-28) | non-money tables |
-| Edge Function Auth | 12 fns + _shared | 1 (MP-22) | non-payment fns (covered 07-11) |
-| RBAC & Privilege Escalation (money scope) | predicates + policies | 0 | general RBAC (covered 07-11) |
-| Client Auth Patterns (money UI) | ~25 files | 1 (MP-19) | non-payment routes |
-| Data Exposure (payment data) | views + queries | 1 (MP-20) | — |
-| Payment Security | all stripe surfaces | 8 (MP-16,17,18,21,23,24,25,29) | — |
-| Input Validation (money inputs) | request bodies + amounts | 1 (MP-26/27 hygiene) | — |
+| Category                                  | Files Examined           | Findings                       | Skipped                         |
+| ----------------------------------------- | ------------------------ | ------------------------------ | ------------------------------- |
+| RLS Policy Integrity (money tables)       | ~40 migrations           | 2 (MP-15, MP-28)               | non-money tables                |
+| Edge Function Auth                        | 12 fns + _shared         | 1 (MP-22)                      | non-payment fns (covered 07-11) |
+| RBAC & Privilege Escalation (money scope) | predicates + policies    | 0                              | general RBAC (covered 07-11)    |
+| Client Auth Patterns (money UI)           | ~25 files                | 1 (MP-19)                      | non-payment routes              |
+| Data Exposure (payment data)              | views + queries          | 1 (MP-20)                      | —                               |
+| Payment Security                          | all stripe surfaces      | 8 (MP-16,17,18,21,23,24,25,29) | —                               |
+| Input Validation (money inputs)           | request bodies + amounts | 1 (MP-26/27 hygiene)           | —                               |
 
 ## Previous Audit Comparison (vs 2026-07-03 money-path audit)
 

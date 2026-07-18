@@ -245,7 +245,7 @@ Supabase Cloud (myk9-platform)
 
 ### Vercel
 
-After the full GitHub Actions CI workflow passes on `main`, the CI-gated production workflow deploys the exact merge SHA to the myK9Show and guides Vercel projects. Vercel Git deployments from `main` are disabled, while PR previews remain enabled. The project root directories point at `apps/myk9show/` and `apps/docs/`. Turborepo remote caching (via `TURBO_TOKEN`) speeds up CI builds by reusing previous build artifacts.
+During pre-launch, successful merges to `main` update the myK9Show Vercel project automatically, while PR previews remain enabled. Before real users are onboarded, the launch-ready CI-gated workflow will deploy exact validated SHAs to protected staging and production environments. The project root directories point at `apps/myk9show/` and `apps/docs/`. Turborepo remote caching (via `TURBO_TOKEN`) speeds up CI builds by reusing previous build artifacts.
 
 ### Edge Functions
 

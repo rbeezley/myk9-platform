@@ -107,12 +107,19 @@ export interface DerivePlatformAttentionInput {
  */
 export function isRefundLedgerDrift(order: FinancialReconciliationOrder): boolean {
   const refundedTotal = order.refundedCents + order.makeWholeRefundedCents;
+  // More returned than was ever charged — impossible, always drift.
   if (refundedTotal > order.amountCents) return true;
-  if (order.status === 'refunded') return refundedTotal < order.amountCents;
-  // Not marked refunded: only a FULL post-hoc refund contradicts that status.
-  // `refundedCents > 0` keeps a hypothetical all-make-whole order (no post-hoc
-  // refund ever occurred, so no status flip is implied) out of the count.
-  return order.refundedCents > 0 && refundedTotal === order.amountCents;
+
+  // Otherwise drift is exactly a violation of the documented status invariant
+  // (see 20260717120000_stripe_order_snapshots.sql):
+  //     status = 'refunded'  IFF  make_whole + post_hoc >= amount_cents
+  // Keying on the invariant rather than on `refundedCents > 0` matters: an order
+  // refunded ENTIRELY via make-whole must still be stamped 'refunded', so
+  // requiring a post-hoc component would silently hide a lost or hand-edited
+  // status update on exactly those orders (Codex round-4 finding).
+  // A PARTIAL refund on a 'succeeded' order is NORMAL and must never be drift.
+  const shouldBeRefunded = refundedTotal > 0 && refundedTotal === order.amountCents;
+  return (order.status === 'refunded') !== shouldBeRefunded;
 }
 
 export function derivePlatformAttention({

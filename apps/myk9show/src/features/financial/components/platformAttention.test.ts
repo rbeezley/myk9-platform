@@ -169,6 +169,42 @@ describe('derivePlatformAttention — genuine drift', () => {
     expect(attention.refundLedgerDriftCount).toBe(1);
   });
 
+  it('flags a fully MAKE-WHOLE refunded order whose status was never flipped', () => {
+    // Codex round-4 finding: the status invariant is
+    //   status='refunded' IFF make_whole + post_hoc >= amount_cents
+    // so an order refunded ENTIRELY via make-whole must still be stamped. Keying
+    // the rule on a post-hoc component would hide a lost status update here.
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 0,
+      payouts: [],
+      orders: [
+        order({
+          status: 'succeeded',
+          amountCents: 5000,
+          refundedCents: 0,
+          makeWholeRefundedCents: 5000,
+        }),
+      ],
+    });
+    expect(attention.refundLedgerDriftCount).toBe(1);
+  });
+
+  it('does NOT flag that same make-whole order once its status IS flipped', () => {
+    const attention = derivePlatformAttention({
+      snapshotMissingCount: 0,
+      payouts: [],
+      orders: [
+        order({
+          status: 'refunded',
+          amountCents: 5000,
+          refundedCents: 0,
+          makeWholeRefundedCents: 5000,
+        }),
+      ],
+    });
+    expect(attention.refundLedgerDriftCount).toBe(0);
+  });
+
   it('flags recorded refunds that EXCEED the amount charged', () => {
     const attention = derivePlatformAttention({
       snapshotMissingCount: 0,
@@ -315,7 +351,11 @@ describe('derivePlatformAttention — calm pending / self-healing states are NOT
     expect(attention.refundLedgerDriftCount).toBe(0);
   });
 
-  it('a make-whole-only refund never implies a status flip', () => {
+  it('a PARTIAL make-whole refund does not imply a status flip', () => {
+    // Only a refund covering the ENTIRE charge implies status='refunded'. A cart
+    // where some lines overflowed but others were accepted stays 'succeeded'
+    // with a non-zero make-whole column — normal, not drift.
+    // (A FULL make-whole refund IS drift when unstamped — covered above.)
     const attention = derivePlatformAttention({
       snapshotMissingCount: 0,
       payouts: [],
@@ -323,10 +363,10 @@ describe('derivePlatformAttention — calm pending / self-healing states are NOT
         order({
           status: 'succeeded',
           amountCents: 4000,
-          entrySubtotalCents: 0,
-          platformFeeCents: 0,
+          entrySubtotalCents: 1400,
+          platformFeeCents: 100,
           refundedCents: 0,
-          makeWholeRefundedCents: 4000,
+          makeWholeRefundedCents: 2500,
         }),
       ],
     });

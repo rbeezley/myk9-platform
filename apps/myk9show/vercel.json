@@ -2,11 +2,6 @@
   "buildCommand": "cd ../.. && npx turbo build --filter=@myk9/show",
   "outputDirectory": "dist",
   "framework": "vite",
-  "git": {
-    "deploymentEnabled": {
-      "main": false
-    }
-  },
   "rewrites": [
     {
       "source": "/shows/:id",

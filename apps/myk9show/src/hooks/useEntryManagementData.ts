@@ -4,7 +4,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { logger } from '@/services/LoggingService';
 import { getSecretaryShows, getShowById } from '@/services/database/shows';
-import { getEntriesForShow } from '@/services/database/entries';
+import { getEntriesForShow, SECRETARY_ENTRIES_READ_ERROR } from '@/services/database/entries';
 import type { CheckInStatus } from '@myk9/core';
 import type {
   EntryManagementEntry,
@@ -218,7 +218,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       const { data, error: queryError } = await getEntriesForShow(showId);
 
       if (queryError) {
-        setLoadError('Failed to load entries');
+        setLoadError(SECRETARY_ENTRIES_READ_ERROR);
         logger.error('Error loading entries:', 'secretary', {}, queryError as Error);
         return;
       }
@@ -234,7 +234,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
 
       setEntries(transformedEntries);
     } catch (err) {
-      setLoadError('Failed to load entries');
+      setLoadError(SECRETARY_ENTRIES_READ_ERROR);
       logger.error('Error loading entries:', 'secretary', {}, err as Error);
     } finally {
       setIsLoading(false);

@@ -336,10 +336,16 @@ export function useNetworkQuality(): NetworkQuality | null {
       };
 
       updateQuality();
+      if (typeof connection.addEventListener !== 'function') {
+        return undefined;
+      }
+
       connection.addEventListener('change', updateQuality);
 
       return () => {
-        connection.removeEventListener('change', updateQuality);
+        if (typeof connection.removeEventListener === 'function') {
+          connection.removeEventListener('change', updateQuality);
+        }
       };
     }
     return undefined;

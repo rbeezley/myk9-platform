@@ -17,7 +17,7 @@ export type BulkEntryAction = 'approve' | 'reject' | 'check-in';
  * must never touch these — re-approving a `completed` (scored) entry or a
  * `move-up-requested` entry would corrupt closed records / the move-up queue.
  */
-const CLOSED_STATUSES: ReadonlySet<EntryStatus> = new Set([
+export const CLOSED_STATUSES: ReadonlySet<EntryStatus> = new Set([
   EntryStatus.COMPLETED,
   EntryStatus.SCRATCHED,
   EntryStatus.MOVED,

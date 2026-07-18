@@ -429,6 +429,7 @@ const EntryManagementPage: React.FC = () => {
                   entries={entries}
                   onBulkStatusChange={handleEnrollmentBulkStatusChange}
                   onBulkCheckIn={handleEnrollmentBulkCheckIn}
+                  bulkBusy={isProcessing}
                   onPaymentStatusChange={handleEnrollmentPaymentChange}
                   onStatusChange={handleStatusChange}
                   onCheckInStatusChange={handleCheckInStatusChange}

@@ -20,6 +20,8 @@ interface EntryBulkActionsBarProps {
   ) => BulkActionResult | Promise<BulkActionResult>;
   onBulkCheckIn: (entryIds: string[]) => BulkActionResult | Promise<BulkActionResult>;
   onClear: () => void;
+  /** True while a bulk batch is in flight — disables the bulk controls until it settles. */
+  busy?: boolean;
 }
 
 export function EntryBulkActionsBar({
@@ -27,6 +29,7 @@ export function EntryBulkActionsBar({
   onBulkStatusChange,
   onBulkCheckIn,
   onClear,
+  busy = false,
 }: EntryBulkActionsBarProps) {
   if (selectedEntries.length === 0) return null;
 
@@ -43,7 +46,7 @@ export function EntryBulkActionsBar({
           <span className="text-sm font-medium">
             {count} entr{count === 1 ? 'y' : 'ies'} selected
           </span>
-          <Button variant="ghost" size="sm" onClick={onClear}>
+          <Button variant="ghost" size="sm" onClick={onClear} disabled={busy}>
             Clear
           </Button>
         </div>
@@ -52,6 +55,7 @@ export function EntryBulkActionsBar({
           onBulkStatusChange={onBulkStatusChange}
           onBulkCheckIn={onBulkCheckIn}
           onClear={onClear}
+          disabled={busy}
         />
       </div>
     </div>

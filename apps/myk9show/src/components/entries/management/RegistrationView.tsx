@@ -73,6 +73,8 @@ interface RegistrationViewProps {
     status: EntryStatus
   ) => BulkActionResult | Promise<BulkActionResult>;
   onBulkCheckIn: (entryIds: string[]) => BulkActionResult | Promise<BulkActionResult>;
+  /** True while a bulk batch is in flight — disables the bulk bar controls. */
+  bulkBusy?: boolean;
   onPaymentStatusChange: (
     enrollmentId: string,
     status: PaymentStatus,
@@ -136,6 +138,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   entries,
   onBulkStatusChange,
   onBulkCheckIn,
+  bulkBusy = false,
   onPaymentStatusChange,
   onStatusChange,
   onCheckInStatusChange,
@@ -475,6 +478,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           onBulkStatusChange={onBulkStatusChange}
           onBulkCheckIn={onBulkCheckIn}
           onClear={selection.clearSelection}
+          busy={bulkBusy}
         />
       )}
 

@@ -91,7 +91,7 @@ describe('RegistrationView multi-select wiring', () => {
     expect(within(bar).getByText('2 entries selected')).toBeInTheDocument();
 
     await user.click(within(bar).getByRole('button', { name: /bulk actions/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /accept selected/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /accept 2 of 2 selected/i }));
 
     expect(onBulkStatusChange).toHaveBeenCalledWith(['e1', 'e2'], EntryStatus.ACCEPTED);
     // Selection clears after the action — bar goes away.

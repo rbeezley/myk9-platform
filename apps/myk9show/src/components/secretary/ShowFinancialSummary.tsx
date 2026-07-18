@@ -26,7 +26,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Download, DollarSign, Users, Tag, Gift, Search, ChevronDown } from 'lucide-react';
 import { getEntriesByShowForFinancials } from '@/services/database/entries';
 import { paymentStatusColors } from '@/lib/financial-constants';
-import type { ShowFinancialEntryRow, TrialSubtotal } from './financialSummaryTypes';
+import type { ShowFinancialEntryRow } from './financialSummaryTypes';
+import { computeShowFinancialSummary } from './showFinancialSummaryCalc';
 
 interface ShowFinancialSummaryProps {
   showId: string;
@@ -79,90 +80,10 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
     [rawEntries]
   );
 
-  // Single-pass: compute summary, trial subtotals, and trial options together
-  const { summary, trialSubtotals, trialOptions } = useMemo(() => {
-    const acc = {
-      totalEntries: entries.length,
-      totalFees: 0,
-      totalDiscounts: 0,
-      totalComped: 0,
-      netAmount: 0,
-      paidCount: 0,
-      paidAmount: 0,
-      pendingCount: 0,
-      pendingAmount: 0,
-      refundedCount: 0,
-      refundedAmount: 0,
-      compedCount: 0,
-    };
-    const subtotalMap = new Map<string, TrialSubtotal>();
-
-    // Accumulate in integer cents — summing binary-float dollars drifts by a
-    // penny on large shows (MP-26). Divide once at the end.
-    const toCents = (dollars: number) => Math.round(dollars * 100);
-    for (const e of entries) {
-      const feeCents = toCents(e.entryFee);
-      const discountCents = toCents(e.discountAmount);
-      acc.totalFees += feeCents;
-      acc.totalDiscounts += discountCents;
-
-      if (e.comped) {
-        acc.compedCount++;
-        acc.totalComped += feeCents;
-      } else if (e.paymentStatus === 'paid') {
-        acc.paidCount++;
-        acc.paidAmount += feeCents - discountCents;
-      } else if (e.paymentStatus === 'pending') {
-        acc.pendingCount++;
-        acc.pendingAmount += feeCents - discountCents;
-      } else if (e.paymentStatus === 'refunded') {
-        acc.refundedCount++;
-        acc.refundedAmount += feeCents;
-      }
-
-      let sub = subtotalMap.get(e.trialId);
-      if (!sub) {
-        sub = {
-          trialId: e.trialId,
-          trialName: e.trialName,
-          entryCount: 0,
-          totalFees: 0,
-          totalDiscounts: 0,
-          totalComped: 0,
-          netAmount: 0,
-        };
-        subtotalMap.set(e.trialId, sub);
-      }
-      sub.entryCount++;
-      sub.totalFees += feeCents;
-      sub.totalDiscounts += discountCents;
-      if (e.comped) sub.totalComped += feeCents;
-    }
-
-    acc.netAmount = acc.totalFees - acc.totalDiscounts - acc.totalComped;
-    acc.totalFees /= 100;
-    acc.totalDiscounts /= 100;
-    acc.totalComped /= 100;
-    acc.netAmount /= 100;
-    acc.paidAmount /= 100;
-    acc.pendingAmount /= 100;
-    acc.refundedAmount /= 100;
-
-    const subtotals: TrialSubtotal[] = [];
-    const options: [string, string][] = [];
-    for (const sub of subtotalMap.values()) {
-      sub.netAmount = (sub.totalFees - sub.totalDiscounts - sub.totalComped) / 100;
-      sub.totalFees /= 100;
-      sub.totalDiscounts /= 100;
-      sub.totalComped /= 100;
-      subtotals.push(sub);
-      options.push([sub.trialId, sub.trialName]);
-    }
-    subtotals.sort((a, b) => a.trialName.localeCompare(b.trialName));
-    options.sort((a, b) => a[1].localeCompare(b[1]));
-
-    return { summary: acc, trialSubtotals: subtotals, trialOptions: options };
-  }, [entries]);
+  const { summary, trialSubtotals, trialOptions } = useMemo(
+    () => computeShowFinancialSummary(entries),
+    [entries]
+  );
 
   const filteredEntries = useMemo(() => {
     let result = entries;

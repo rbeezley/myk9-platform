@@ -53,7 +53,16 @@ function parseLocalShowDate(value: string | undefined): Date | null {
     return null;
   }
 
-  return new Date(year, month - 1, day);
+  const parsedDate = new Date(year, month - 1, day);
+  if (
+    parsedDate.getFullYear() !== year ||
+    parsedDate.getMonth() !== month - 1 ||
+    parsedDate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsedDate;
 }
 
 interface UseBrowseShowsFiltersProps {

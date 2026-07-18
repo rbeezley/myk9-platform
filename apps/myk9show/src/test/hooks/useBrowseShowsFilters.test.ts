@@ -58,10 +58,15 @@ describe('useBrowseShowsFilters — upcoming filter (UTC/local boundary regressi
       startDate: undefined,
       endDate: undefined,
     } as unknown as Show;
+    const impossibleDateShow = makeShow({
+      id: 'impossible-date',
+      startDate: '2099-02-31',
+      endDate: '2099-02-31',
+    });
 
     const { result } = renderHook(() =>
       useBrowseShowsFilters({
-        shows: [ANCHOR, malformedShow],
+        shows: [ANCHOR, malformedShow, impossibleDateShow],
         entries: [],
         userContext: null,
         selectedTab: 'all',

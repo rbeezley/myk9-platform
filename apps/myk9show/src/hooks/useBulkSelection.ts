@@ -11,6 +11,14 @@ export interface UseBulkSelectionOptions<T> {
    * selected and become bulk-editable by accident).
    */
   pruneToItems?: boolean;
+  /**
+   * Opaque identity string for the current "view" (filters, preset, scope).
+   * When this value changes between renders, the whole selection is cleared —
+   * not just pruned. Design Decision 4 (operational-views-and-display-presets):
+   * changing what view a secretary is looking at must not leave a stale
+   * selection that a bulk action could silently apply to. Omit to disable.
+   */
+  resetKey?: string;
 }
 
 export function useBulkSelection<T>({
@@ -18,13 +26,30 @@ export function useBulkSelection<T>({
   getItemId,
   onSelectionChange,
   pruneToItems = false,
+  resetKey,
 }: UseBulkSelectionOptions<T>) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Clear the whole selection when the view identity changes, during render
+  // (the adjust-state-during-render pattern — not a useEffect, which the repo
+  // lints against). Converges: after clearing, prevResetKey matches
+  // resetKey, so this branch is skipped on the next render.
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  const viewIdentityChanged = resetKey !== undefined && resetKey !== prevResetKey;
+  if (viewIdentityChanged) {
+    setPrevResetKey(resetKey);
+    if (selectedIds.size > 0) {
+      setSelectedIds(new Set());
+    }
+  }
 
   // Prune stale selections during render (the adjust-state-during-render pattern —
   // not a useEffect, which the repo lints against). Converges: after pruning,
   // every selected id is present, so this branch is skipped on the next render.
-  if (pruneToItems && selectedIds.size > 0) {
+  // Skipped when the view identity just changed above — that already clears
+  // the whole selection, and `selectedIds` here would still be this render's
+  // stale (pre-clear) value, which would otherwise clobber the clear.
+  if (!viewIdentityChanged && pruneToItems && selectedIds.size > 0) {
     const presentIds = new Set(items.map(getItemId));
     let hasStale = false;
     for (const id of selectedIds) {

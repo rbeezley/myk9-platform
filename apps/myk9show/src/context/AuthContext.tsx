@@ -28,6 +28,7 @@ import {
   USER_ROLE_HIERARCHY,
 } from '../types/auth-types';
 import { ProtectedRouteProps, ConvenienceRouteProps } from './authUtils';
+import { useResetSavedViewsOnAccountChange } from '@/features/operational-views/useResetSavedViewsOnAccountChange';
 import { rbacService } from '@/services/rbac/RBACService';
 import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker';
 import { PermissionWithRole } from '@/types/rbac-types';
@@ -208,6 +209,12 @@ function delay(ms: number): Promise<void> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
+
+  // Personal saved views (operational-views-and-display-presets, tasks.md
+  // 3.3) are device-local and namespaced by user id — clear the PRIOR user's
+  // entries whenever the authenticated user id changes (including sign-out)
+  // so a shared device never lists/restores another account's saved view.
+  useResetSavedViewsOnAccountChange(auth.user?.id);
 
   // Mock user state for development testing
   const [currentMockUser, setCurrentMockUser] = useState<string | null>(() => {

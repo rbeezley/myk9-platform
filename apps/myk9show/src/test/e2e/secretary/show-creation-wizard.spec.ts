@@ -101,6 +101,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     });
 
     await selectFirstChairman(page);
+    await selectFirstSecretary(page);
 
     await page.getByRole('button', { name: /^Next$/ }).click();
     await expect(page.getByText('Step 2 of 4', { exact: true })).toBeVisible();
@@ -151,11 +152,19 @@ async function selectFirstShowToClone(page: Page) {
 }
 
 async function selectFirstChairman(page: Page) {
-  const chairmanTrigger = page.getByRole('button', { name: /Show Chairman/i });
-  await expect(chairmanTrigger).toBeVisible();
-  await chairmanTrigger.click();
+  await selectFirstOfficial(page, 'Show Chairman', 'Search show chairman…');
+}
 
-  const search = page.getByPlaceholder('Search show chairman…');
+async function selectFirstSecretary(page: Page) {
+  await selectFirstOfficial(page, 'Show Secretary', 'Search show secretary…');
+}
+
+async function selectFirstOfficial(page: Page, label: string, searchPlaceholder: string) {
+  const trigger = page.getByRole('button', { name: new RegExp(label, 'i') });
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+
+  const search = page.getByPlaceholder(searchPlaceholder);
   await expect(search).toBeVisible();
 
   const popover = page.getByRole('dialog').filter({ has: search });

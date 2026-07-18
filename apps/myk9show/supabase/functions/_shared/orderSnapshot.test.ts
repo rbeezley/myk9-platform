@@ -7,8 +7,10 @@ import {
   platformGrossFeeCents,
   platformNetIncomeCents,
   resolveAcceptedEntrySnapshot,
-  resolveOrderRefundSplit,
+  deriveOrderRefundTotals,
   resolveOrderStatusAfterRefund,
+  upsertOrderRefund,
+  type OrderRefundLedgerRow,
 } from './orderSnapshot';
 import { decideEntryPaymentAutoRefund } from './entryPaymentAutoRefund';
 import { decideCartOverflowRefund } from './cartOverflowRefund';
@@ -22,7 +24,8 @@ import { decideCartOverflowRefund } from './cartOverflowRefund';
 // a fully-invalid cart reported negative collections) and for the conflation
 // root fix (make-whole refunds must never read as platform losses).
 //
-// The JS mirrors `record_order_refund_cents`; the DB is the authority.
+// The JS mirrors the refund LEDGER (`stripe_order_refunds` + the recompute); the
+// DB is the authority.
 
 /** What the webhook persists on `stripe_orders` for one cart checkout. */
 function simulateCartOrder(input: {
@@ -41,15 +44,16 @@ function simulateCartOrder(input: {
 
   // The invariant: amount_cents is the GROSS charge, never pre-netted.
   const amountCents = input.sessionAmountTotalCents;
-  let split = { makeWholeCents: 0, postHocCents: 0, makeWholeRefundIds: [] as string[] };
+  let ledger: OrderRefundLedgerRow[] = [];
 
-  // issueCartOverflowAutoRefund records the refund it issues, as MAKE-WHOLE:
-  // those lines were never accepted. The Stripe refund id is the delta's
-  // idempotency key.
+  // issueCartOverflowAutoRefund books the refund it issues as MAKE-WHOLE at
+  // creation time: those lines were never accepted. The Stripe refund id is the
+  // ledger primary key.
   if (decision.action === 'refund') {
-    split = resolveOrderRefundSplit(split, {
-      makeWholeCents: decision.amountCents,
-      makeWholeRefundId: 're_overflow',
+    ledger = upsertOrderRefund(ledger, {
+      refundId: 're_overflow',
+      amountCents: decision.amountCents,
+      kind: 'make_whole',
     });
   }
 
@@ -57,28 +61,42 @@ function simulateCartOrder(input: {
     decision,
     amountCents,
     get makeWholeCents() {
-      return split.makeWholeCents;
+      return deriveOrderRefundTotals(ledger).makeWholeCents;
     },
     get postHocCents() {
-      return split.postHocCents;
+      return deriveOrderRefundTotals(ledger).postHocCents;
     },
-    /** A later charge.refunded delivery, whose amount_refunded is cumulative
-     *  across BOTH refund kinds. */
-    deliverChargeRefunded(chargeAmountRefundedCents: number) {
-      split = resolveOrderRefundSplit(split, { chargeTotalCents: chargeAmountRefundedCents });
-      return split;
+    /** The charge.refunded sweep, which books every refund object it sees as
+     *  post_hoc — an already-booked make-whole refund keeps its kind. */
+    deliverChargeRefunded(refunds: Array<{ id: string; amount: number }>) {
+      for (const refund of refunds) {
+        ledger = upsertOrderRefund(ledger, {
+          refundId: refund.id,
+          amountCents: refund.amount,
+          kind: 'post_hoc',
+        });
+      }
+      return deriveOrderRefundTotals(ledger);
     },
     /** A make-whole writer landing late (out-of-order delivery). */
-    deliverMakeWhole(makeWholeCents: number, makeWholeRefundId = 're_overflow') {
-      split = resolveOrderRefundSplit(split, { makeWholeCents, makeWholeRefundId });
-      return split;
+    deliverMakeWhole(makeWholeCents: number, refundId = 're_overflow') {
+      ledger = upsertOrderRefund(ledger, {
+        refundId,
+        amountCents: makeWholeCents,
+        kind: 'make_whole',
+      });
+      return deriveOrderRefundTotals(ledger);
     },
-    /** The status the RPC would stamp for the current amounts. */
+    /** The status the recompute would stamp for the current ledger. */
     get status() {
-      return resolveOrderStatusAfterRefund({ status: 'succeeded', amountCents }, split).status;
+      return resolveOrderStatusAfterRefund(
+        { status: 'succeeded', amountCents },
+        deriveOrderRefundTotals(ledger)
+      ).status;
     },
     get collectedCents() {
-      return amountCents - split.makeWholeCents - split.postHocCents;
+      const totals = deriveOrderRefundTotals(ledger);
+      return amountCents - totals.makeWholeCents - totals.postHocCents;
     },
   };
 }
@@ -102,9 +120,9 @@ describe('collection invariant: collected = amount − make_whole − post_hoc',
     expect(order.postHocCents).toBe(0);
     expect(order.collectedCents).toBe(0);
 
-    // The charge.refunded delivery for that same refund must not re-subtract it,
-    // nor reattribute it as a post-hoc loss.
-    order.deliverChargeRefunded(5000);
+    // The charge.refunded sweep sees that same refund object and books it as
+    // post_hoc; the upsert must not re-subtract it nor demote its kind.
+    order.deliverChargeRefunded([{ id: 're_overflow', amount: 5000 }]);
     expect(order.makeWholeCents).toBe(5000);
     expect(order.postHocCents).toBe(0);
     expect(order.collectedCents).toBe(0);
@@ -137,7 +155,7 @@ describe('collection invariant: collected = amount − make_whole − post_hoc',
     // Exactly the three paid lines' worth — not 2000 (double-subtracted).
     expect(order.collectedCents).toBe(3000);
 
-    order.deliverChargeRefunded(1000);
+    order.deliverChargeRefunded([{ id: 're_overflow', amount: 1000 }]);
     expect(order.makeWholeCents).toBe(1000);
     expect(order.postHocCents).toBe(0);
     expect(order.collectedCents).toBe(3000);
@@ -173,189 +191,17 @@ describe('collection invariant: collected = amount − make_whole − post_hoc',
       ]),
     });
 
-    // Exhibitor later withdraws e1: Stripe's cumulative amount_refunded is 2000
-    // — 1000 make-whole (already recorded) + 1000 genuine post-hoc.
-    order.deliverChargeRefunded(2000);
+    // Exhibitor later withdraws e1: the charge now carries TWO refund objects —
+    // the make-whole one already booked, plus a genuine post-hoc 1000.
+    order.deliverChargeRefunded([
+      { id: 're_overflow', amount: 1000 },
+      { id: 're_withdrawal', amount: 1000 },
+    ]);
     // An order carrying BOTH kinds attributes each correctly. Only the 1000
     // post-hoc portion is a platform loss; the make-whole 1000 is not.
     expect(order.makeWholeCents).toBe(1000);
     expect(order.postHocCents).toBe(1000);
     expect(order.collectedCents).toBe(2000);
-  });
-});
-
-describe('resolveOrderRefundSplit (mirrors record_order_refund_cents)', () => {
-  const mw = (cents: number, id: string | null = null) => ({
-    makeWholeCents: cents,
-    makeWholeRefundId: id,
-  });
-
-  it('routes a make-whole refund to make_whole ONLY, never post-hoc', () => {
-    expect(resolveOrderRefundSplit({}, mw(2500, 're_1'))).toEqual({
-      makeWholeCents: 2500,
-      postHocCents: 0,
-      makeWholeRefundIds: ['re_1'],
-    });
-  });
-
-  it('routes a post-hoc charge total to refunded_cents ONLY', () => {
-    expect(resolveOrderRefundSplit({}, { chargeTotalCents: 3000 })).toEqual({
-      makeWholeCents: 0,
-      postHocCents: 3000,
-      makeWholeRefundIds: [],
-    });
-  });
-
-  it('derives post-hoc as total − make_whole, so make-whole is never double counted', () => {
-    const afterMakeWhole = resolveOrderRefundSplit({}, mw(1000, 're_1'));
-    // Stripe reports ONE cumulative total covering both kinds.
-    const afterCharge = resolveOrderRefundSplit(afterMakeWhole, { chargeTotalCents: 3500 });
-    expect(afterCharge).toMatchObject({ makeWholeCents: 1000, postHocCents: 2500 });
-  });
-
-  it('ACCUMULATES two make-whole refunds on one intent instead of taking their max', () => {
-    // Finding 3: callers pass ONE refund's amount. Under the old cumulative
-    // contract 300 then 200 stored max(300,200)=300, and the cumulative
-    // charge.refunded of 500 misbooked the missing 200 as a platform loss.
-    const first = resolveOrderRefundSplit({}, mw(300, 're_1'));
-    const second = resolveOrderRefundSplit(first, mw(200, 're_2'));
-    expect(second).toEqual({
-      makeWholeCents: 500,
-      postHocCents: 0,
-      makeWholeRefundIds: ['re_1', 're_2'],
-    });
-    const afterCharge = resolveOrderRefundSplit(second, { chargeTotalCents: 500 });
-    expect(afterCharge).toMatchObject({ makeWholeCents: 500, postHocCents: 0 });
-  });
-
-  it('is idempotent under duplicate webhook delivery (same refund id never adds twice)', () => {
-    const first = resolveOrderRefundSplit({}, mw(1000, 're_1'));
-    const second = resolveOrderRefundSplit(first, { chargeTotalCents: 3500 });
-    const dupCharge = resolveOrderRefundSplit(second, { chargeTotalCents: 3500 });
-    const dupMakeWhole = resolveOrderRefundSplit(dupCharge, mw(1000, 're_1'));
-    expect(dupCharge).toEqual(second);
-    expect(dupMakeWhole).toEqual(second);
-  });
-
-  it('converges under OUT-OF-ORDER delivery: charge.refunded before its make-whole writers', () => {
-    // charge.refunded lands first — provisionally booked as post-hoc.
-    const provisional = resolveOrderRefundSplit({}, { chargeTotalCents: 500 });
-    expect(provisional).toMatchObject({ makeWholeCents: 0, postHocCents: 500 });
-    // Both make-whole writers catch up: REATTRIBUTED, not added on top.
-    const one = resolveOrderRefundSplit(provisional, mw(300, 're_1'));
-    expect(one).toMatchObject({ makeWholeCents: 300, postHocCents: 200 });
-    const two = resolveOrderRefundSplit(one, mw(200, 're_2'));
-    expect(two).toMatchObject({ makeWholeCents: 500, postHocCents: 0 });
-    // Replaying the whole sequence changes nothing.
-    const replay = resolveOrderRefundSplit(
-      resolveOrderRefundSplit(two, { chargeTotalCents: 500 }),
-      mw(300, 're_1')
-    );
-    expect(replay).toEqual(two);
-  });
-
-  it('never lowers a recorded value when a stale/smaller delivery arrives', () => {
-    const stored = { makeWholeCents: 1000, postHocCents: 2500, makeWholeRefundIds: ['re_1'] };
-    // Stale cumulative totals and a zero make-whole must not roll anything back.
-    expect(resolveOrderRefundSplit(stored, { chargeTotalCents: 1 })).toEqual(stored);
-    expect(resolveOrderRefundSplit(stored, { chargeTotalCents: 0 })).toEqual(stored);
-    expect(resolveOrderRefundSplit(stored, mw(0, 're_2'))).toEqual(stored);
-    expect(resolveOrderRefundSplit(stored, mw(1000, 're_1'))).toEqual(stored);
-  });
-
-  it('falls back to a monotonic max when no refund id is supplied (cannot dedupe)', () => {
-    const stored = { makeWholeCents: 1000, postHocCents: 0, makeWholeRefundIds: [] };
-    expect(resolveOrderRefundSplit(stored, mw(500))).toMatchObject({ makeWholeCents: 1000 });
-    expect(resolveOrderRefundSplit(stored, mw(1500))).toMatchObject({ makeWholeCents: 1500 });
-  });
-
-  it('keeps post-hoc >= 0 when a make-whole exceeds the last-seen charge total', () => {
-    // The make-whole writer ran but charge.refunded never arrived.
-    expect(resolveOrderRefundSplit({ postHocCents: 100 }, mw(5000, 're_1'))).toMatchObject({
-      makeWholeCents: 5000,
-      postHocCents: 0,
-    });
-  });
-
-  it('treats null/undefined/invalid/negative as 0 rather than corrupting money math', () => {
-    expect(resolveOrderRefundSplit({}, {})).toMatchObject({ makeWholeCents: 0, postHocCents: 0 });
-    expect(
-      resolveOrderRefundSplit({ makeWholeCents: null, postHocCents: undefined }, {})
-    ).toMatchObject({ makeWholeCents: 0, postHocCents: 0 });
-    expect(resolveOrderRefundSplit({}, { chargeTotalCents: Number.NaN })).toMatchObject({
-      makeWholeCents: 0,
-      postHocCents: 0,
-    });
-    expect(resolveOrderRefundSplit({}, mw(-100, 're_1'))).toMatchObject({
-      makeWholeCents: 0,
-      postHocCents: 0,
-    });
-  });
-
-  it('rounds fractional cents to integers', () => {
-    expect(resolveOrderRefundSplit({}, { chargeTotalCents: 1000.4 }).postHocCents).toBe(1000);
-  });
-});
-
-describe('resolveOrderStatusAfterRefund: status = refunded IFF fully refunded', () => {
-  it('marks a FULL in-app refund refunded (the flow that used to stay succeeded)', () => {
-    // stripe-refund-entry refunds the whole charge; charge.refunded reports the
-    // cumulative total. Before finding 1 this path recorded cents and returned
-    // early, leaving refunded_cents > 0 on a 'succeeded' order forever.
-    const split = resolveOrderRefundSplit({}, { chargeTotalCents: 10700 });
-    expect(
-      resolveOrderStatusAfterRefund({ status: 'succeeded', amountCents: 10700 }, split)
-    ).toEqual({ status: 'refunded', fullyRefunded: true });
-  });
-
-  it('leaves a PARTIAL refund succeeded — which is NOT drift', () => {
-    const split = resolveOrderRefundSplit({}, { chargeTotalCents: 4000 });
-    expect(
-      resolveOrderStatusAfterRefund({ status: 'succeeded', amountCents: 10700 }, split)
-    ).toEqual({ status: 'succeeded', fullyRefunded: false });
-    // The amount is still recorded, so reconciliation reads the columns.
-    expect(split.postHocCents).toBe(4000);
-  });
-
-  it('flips exactly once when a second partial completes the refund', () => {
-    const partial = resolveOrderRefundSplit({}, { chargeTotalCents: 4000 });
-    const completed = resolveOrderRefundSplit(partial, { chargeTotalCents: 10700 });
-    expect(
-      resolveOrderStatusAfterRefund({ status: 'succeeded', amountCents: 10700 }, completed).status
-    ).toBe('refunded');
-  });
-
-  it('counts make-whole toward FULL, so a fully make-whole order reads refunded', () => {
-    const split = resolveOrderRefundSplit({}, { makeWholeCents: 5000, makeWholeRefundId: 're_1' });
-    expect(
-      resolveOrderStatusAfterRefund({ status: 'succeeded', amountCents: 5000 }, split)
-    ).toEqual({ status: 'refunded', fullyRefunded: true });
-  });
-
-  it('promotes ONLY succeeded, and never demotes', () => {
-    const full = { makeWholeCents: 0, postHocCents: 1000 };
-    expect(
-      resolveOrderStatusAfterRefund({ status: 'failed', amountCents: 1000 }, full).status
-    ).toBe('failed');
-    expect(
-      resolveOrderStatusAfterRefund({ status: 'refunded', amountCents: 1000 }, full).status
-    ).toBe('refunded');
-    // A refunded order that somehow reads partial is not demoted either.
-    expect(
-      resolveOrderStatusAfterRefund(
-        { status: 'refunded', amountCents: 1000 },
-        { makeWholeCents: 0, postHocCents: 1 }
-      ).status
-    ).toBe('refunded');
-  });
-
-  it('never marks a zero/unknown-amount order refunded', () => {
-    expect(
-      resolveOrderStatusAfterRefund(
-        { status: 'succeeded', amountCents: null },
-        { makeWholeCents: 0, postHocCents: 0 }
-      )
-    ).toEqual({ status: 'succeeded', fullyRefunded: false });
   });
 });
 

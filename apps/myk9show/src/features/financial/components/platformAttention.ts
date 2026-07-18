@@ -80,9 +80,26 @@ export function derivePlatformAttention({
   const showsWithLivePayout = new Set(
     payouts.filter(p => p.status !== 'failed' && p.showId).map(p => p.showId as string)
   );
-  const outstandingPayouts = payouts.filter(
-    p => !(p.status === 'failed' && p.showId && showsWithLivePayout.has(p.showId))
-  );
+
+  // REPEATED failures: show_payouts_one_live_per_show only bounds NON-failed
+  // rows, so a show that fails, retries, and fails AGAIN holds two failed rows
+  // and neither is superseded by a live row. Counting both would report the same
+  // owed money once per retry attempt. Keep only the latest attempt per show —
+  // the same rule the reconciliation RPC applies server-side, so the two views
+  // cannot disagree.
+  const latestFailedIdByShow = new Map<string, FinancialReconciliationPayout>();
+  for (const p of payouts) {
+    if (p.status !== 'failed' || !p.showId) continue;
+    const current = latestFailedIdByShow.get(p.showId);
+    if (!current || p.createdAt > current.createdAt) latestFailedIdByShow.set(p.showId, p);
+  }
+
+  const outstandingPayouts = payouts.filter(p => {
+    if (p.status !== 'failed') return true;
+    if (!p.showId) return true;
+    if (showsWithLivePayout.has(p.showId)) return false; // superseded by a retry
+    return latestFailedIdByShow.get(p.showId)?.payoutId === p.payoutId;
+  });
 
   // payoutsEnabled only changes the DISPLAY LABEL for a 'pending' status
   // (Scheduled vs Waiting for account) — it never changes which bucket a row

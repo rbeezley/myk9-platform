@@ -55,11 +55,16 @@ VALUES
 
 -- Payouts. s1 has a failed row SUPERSEDED by a live completed row; s2 has a
 -- failed row with NO live row (genuinely outstanding); s3 is another club.
-INSERT INTO public.show_payouts (show_id, amount_cents, status) VALUES
-  ('11111111-1111-1111-1111-111111111111', 5000, 'failed'),
-  ('11111111-1111-1111-1111-111111111111', 9000, 'completed'),
-  ('22222222-2222-2222-2222-222222222222', 3000, 'failed'),
-  ('33333333-3333-3333-3333-333333333333', 7000, 'pending');
+INSERT INTO public.show_payouts (show_id, amount_cents, status, created_at) VALUES
+  ('11111111-1111-1111-1111-111111111111', 5000, 'failed',    '2026-07-01T00:00:00Z'),
+  ('11111111-1111-1111-1111-111111111111', 9000, 'completed', '2026-07-02T00:00:00Z'),
+  -- s2 failed TWICE with no live row: the cron leaves the old failed row and
+  -- inserts a new one per retry, and the live-row unique index only bounds
+  -- NON-failed rows, so neither is superseded. Only the LATEST attempt is the
+  -- outstanding liability — summing both would count the same owed money twice.
+  ('22222222-2222-2222-2222-222222222222', 2500, 'failed',    '2026-07-01T00:00:00Z'),
+  ('22222222-2222-2222-2222-222222222222', 3000, 'failed',    '2026-07-03T00:00:00Z'),
+  ('33333333-3333-3333-3333-333333333333', 7000, 'pending',   '2026-07-01T00:00:00Z');
 
 -- ── Assertions ─────────────────────────────────────────────────────────────
 DO $$
@@ -114,13 +119,19 @@ PERFORM public.test_eq(s.payout_failed_cents,     0, 's1 superseded failed exclu
 PERFORM public.test_eq(s.payout_failed_count,     0, 's1 superseded failed count');
 -- show s2: failed 3000 with NO live row -> genuinely outstanding.
 SELECT * INTO s FROM public.financial_reconciliation_summary('show', NULL, s2);
-PERFORM public.test_eq(s.payout_failed_cents, 3000, 's2 unsuperseded failed included');
-PERFORM public.test_eq(s.payout_failed_count,    1, 's2 unsuperseded failed count');
+-- s2 holds TWO failed attempts (2500 then 3000) and no live row. Only the LATEST
+-- counts: 3000, not 5500. Summing every historical attempt would report the same
+-- owed money once per retry (Codex round-6 finding).
+PERFORM public.test_eq(s.payout_failed_cents, 3000, 's2 only the LATEST failed attempt counts');
+PERFORM public.test_eq(s.payout_failed_count,    1, 's2 repeated failures counted once');
+PERFORM public.test_eq(s.payout_count,           2, 's2 both attempts still visible in payout_count');
 
 RAISE NOTICE '[8] club scope rolls up its shows and excludes other clubs';
 SELECT * INTO s FROM public.financial_reconciliation_summary('club', ca, NULL);
 PERFORM public.test_eq(s.order_count, 7, 'club order_count (O10 belongs to club b)');
-PERFORM public.test_eq(s.payout_count, 3, 'club payout_count (s1 x2 + s2)');
+-- s1 holds 2 rows and s2 holds 2 (both failed attempts stay visible in the raw
+-- count; only the LATEST counts toward the failed LIABILITY, asserted next).
+PERFORM public.test_eq(s.payout_count, 4, 'club payout_count (s1 x2 + s2 x2)');
 PERFORM public.test_eq(s.payout_failed_cents, 3000, 'club failed = s2 only');
 SELECT * INTO s FROM public.financial_reconciliation_summary('platform', NULL, NULL);
 PERFORM public.test_eq(s.order_count, 8, 'platform order_count includes O10');
@@ -142,68 +153,120 @@ RAISE NOTICE '[10] detail rows describe the same population as the aggregates';
 SELECT count(*) INTO n FROM public.financial_reconciliation_orders('show', NULL, s1, 1000);
 PERFORM public.test_eq(n, 7, 'detail row count == summary order_count');
 
-RAISE NOTICE '[11] atomic refund RPC: monotonic, duplicate-safe, reattributing';
--- Signature: (payment_intent, make_whole_cents, make_whole_refund_id, charge_total).
+RAISE NOTICE '[11] refund LEDGER: one row per Stripe refund, totals DERIVED';
+-- Signature: (payment_intent, refund_id, amount_cents, kind).
 -- pi_o1 is a 10700 order; refunds stay below that so it is not fully refunded yet.
-SELECT * INTO r FROM public.record_order_refund_cents('pi_o1', 0, NULL, 1000);
+SELECT * INTO r FROM public.record_order_refund_cents('pi_o1', 're_a', 1000, 'post_hoc');
 PERFORM public.test_eq(r.post_hoc_cents,  1000, 'first delivery books post-hoc');
 PERFORM public.test_eq(r.make_whole_cents,   0, 'first delivery make_whole');
 PERFORM public.test_true(NOT r.fully_refunded, 'partial refund is not fully_refunded');
-SELECT * INTO r FROM public.record_order_refund_cents('pi_o1', 0, NULL, 1000);
-PERFORM public.test_eq(r.post_hoc_cents, 1000, 'duplicate delivery is a no-op');
-SELECT * INTO r FROM public.record_order_refund_cents('pi_o1', 0, NULL, 400);
-PERFORM public.test_eq(r.post_hoc_cents, 1000, 'stale SMALLER delivery cannot lower');
--- Out-of-order make-whole writer: total holds, the split is REATTRIBUTED.
-SELECT * INTO r FROM public.record_order_refund_cents('pi_o1', 600, 're_mw_a', 1000);
-PERFORM public.test_eq(r.make_whole_cents, 600, 'keyed make_whole applied');
-PERFORM public.test_eq(r.post_hoc_cents,   400, 'post-hoc reattributed, not double counted');
--- Same refund id redelivered: deduped by make_whole_refund_ids, never additive.
-SELECT * INTO r FROM public.record_order_refund_cents('pi_o1', 600, 're_mw_a', 1000);
-PERFORM public.test_eq(r.make_whole_cents, 600, 'duplicate KEYED make-whole is deduped');
-PERFORM public.test_eq(r.post_hoc_cents,   400, 'duplicate keyed delivery leaves post-hoc');
--- make_whole exceeding the known total must not drive post-hoc negative.
-SELECT * INTO r FROM public.record_order_refund_cents('pi_o1', 2000, NULL, NULL);
-PERFORM public.test_eq(r.make_whole_cents, 2000, 'unkeyed make_whole is a monotonic max');
-PERFORM public.test_eq(r.post_hoc_cents,      0, 'post-hoc floored at zero, never negative');
--- Full refund promotes succeeded -> refunded exactly once (one-way).
-SELECT * INTO r FROM public.record_order_refund_cents('pi_o5', 0, NULL, 5000);
+-- DUPLICATE BOOKING: an upsert of the same primary key, so the totals cannot move.
+SELECT * INTO r FROM public.record_order_refund_cents('pi_o1', 're_a', 1000, 'post_hoc');
+PERFORM public.test_eq(r.post_hoc_cents, 1000, 'duplicate booking is a no-op (PK upsert)');
+-- Two DISTINCT refunds are two rows and simply SUM — no cumulative-total guess.
+SELECT * INTO r FROM public.record_order_refund_cents('pi_o1', 're_b', 600, 'make_whole');
+PERFORM public.test_eq(r.make_whole_cents, 600, 'make-whole booked to its own column');
+PERFORM public.test_eq(r.post_hoc_cents,  1000, 'post-hoc untouched by a make-whole booking');
+-- KIND PRECEDENCE: the later charge.refunded sweep books every refund it sees as
+-- post_hoc. It must NOT demote a refund the make-whole writer already claimed.
+SELECT * INTO r FROM public.record_order_refund_cents('pi_o1', 're_b', 600, 'post_hoc');
+PERFORM public.test_eq(r.make_whole_cents, 600, 'kind is never overwritten by a redelivery');
+PERFORM public.test_eq(r.post_hoc_cents,  1000, 'post-hoc not inflated by the re-sweep');
+-- A refund id is REQUIRED: there is no unkeyed/legacy path left to abuse.
+SELECT count(*) INTO n FROM public.record_order_refund_cents('pi_o1', NULL, 2000, 'make_whole');
+PERFORM public.test_eq(n, 0, 'NULL refund id books nothing');
+SELECT o.make_whole_refunded_cents INTO n FROM public.stripe_orders o
+ WHERE o.stripe_payment_intent_id = 'pi_o1';
+PERFORM public.test_eq(n, 600, 'the refused unkeyed call changed nothing');
+-- Full refund promotes succeeded -> refunded.
+SELECT * INTO r FROM public.record_order_refund_cents('pi_o5', 're_c', 5000, 'post_hoc');
 PERFORM public.test_true(r.fully_refunded, 'refund covering the full amount sets fully_refunded');
 PERFORM public.test_true(r.order_status = 'refunded', 'full refund promotes status to refunded');
 
-RAISE NOTICE '[12] refund.failed REVERSAL: idempotent, attributed, status re-derived';
--- pi_o4 is a 10700 order that was FULLY refunded post-hoc and stamped
--- 'refunded'. Stripe later fails that refund: the customer was never paid, so
--- the ledger must give the money back and the status must fall back to
--- 'succeeded' — record_order_refund_cents is monotonic and cannot do this.
-SELECT * INTO r FROM public.reverse_order_refund_cents('pi_o4', 're_failed_1', 10700);
-PERFORM public.test_true(r.reversed, 'first reversal applies');
-PERFORM public.test_eq(r.post_hoc_cents, 0, 'post-hoc refund reversed off the order');
+RAISE NOTICE '[12] ADVERSARIAL replay: the four sequences that broke the counters';
+
+-- (A) reverse then REDELIVERED booking. Under the old monotonic counters:
+--     charge.refunded(10700) -> post_hoc 10700; refund.failed -> 0; the
+--     redelivered charge.refunded re-booked 10700 and silently UNDID the
+--     reversal. Now `failed` is a terminal STATE on the row, so it stays.
+SELECT * INTO r FROM public.record_order_refund_cents('pi_o4', 're_f1', 10700, 'post_hoc');
+PERFORM public.test_eq(r.post_hoc_cents, 10700, 'A: refund booked');
+SELECT * INTO r FROM public.reverse_order_refund_cents('pi_o4', 're_f1', 10700);
+PERFORM public.test_true(r.reversed, 'A: first reversal applies');
+PERFORM public.test_eq(r.post_hoc_cents, 0, 'A: failed refund no longer counts');
 PERFORM public.test_true(r.order_status = 'succeeded',
-  format('fully-refunded order DEMOTED back to succeeded (got %s)', r.order_status));
-SELECT count(*) INTO n FROM public.stripe_orders o
- WHERE o.stripe_payment_intent_id = 'pi_o4' AND o.refunded_at IS NULL;
-PERFORM public.test_eq(n, 1, 'refunded_at cleared when no longer fully refunded');
--- Redelivery of the SAME refund.failed must not subtract a second time.
-SELECT * INTO r FROM public.reverse_order_refund_cents('pi_o4', 're_failed_1', 10700);
-PERFORM public.test_true(NOT r.reversed, 'duplicate refund.failed is a no-op');
-PERFORM public.test_eq(r.post_hoc_cents, 0, 'duplicate reversal does not double-subtract');
--- A MAKE-WHOLE refund reverses off the make-whole column, not the post-hoc one,
--- and its id leaves make_whole_refund_ids so the ledger stays truthful.
--- pi_o3 is seeded with 5350 of make-whole already; book a NEW keyed 1000 on top,
--- then fail that one. Only the failed refund's own delta may come back off.
-SELECT * INTO r FROM public.record_order_refund_cents('pi_o3', 1000, 're_mw_o3', NULL);
-PERFORM public.test_eq(r.make_whole_cents, 6350, 'keyed make-whole booked before reversal');
-SELECT * INTO r FROM public.reverse_order_refund_cents('pi_o3', 're_mw_o3', 1000);
-PERFORM public.test_eq(r.make_whole_cents, 5350, 'make-whole reversed off its OWN column');
-PERFORM public.test_eq(r.post_hoc_cents,      0, 'post-hoc untouched by a make-whole reversal');
--- A reversal larger than what was ever booked must not push a column negative
--- (both money columns carry a >= 0 CHECK).
-SELECT * INTO r FROM public.reverse_order_refund_cents('pi_o9', 're_never_booked', 999999);
-PERFORM public.test_eq(r.post_hoc_cents, 0, 'over-reversal floors at zero, never negative');
--- Without an idempotency key a reversal is refused outright rather than risking
--- a repeated subtraction on every redelivery.
+  format('A: fully-refunded order DEMOTED back to succeeded (got %s)', r.order_status));
+SELECT * INTO r FROM public.record_order_refund_cents('pi_o4', 're_f1', 10700, 'post_hoc');
+PERFORM public.test_eq(r.post_hoc_cents, 0, 'A: REDELIVERED booking must STAY reversed');
+PERFORM public.test_true(r.order_status = 'succeeded', 'A: redelivery does not re-promote');
+-- Duplicate reversal: nothing left to flip, totals unchanged.
+SELECT * INTO r FROM public.reverse_order_refund_cents('pi_o4', 're_f1', 10700);
+PERFORM public.test_true(NOT r.reversed, 'A: duplicate refund.failed is a no-op');
+PERFORM public.test_eq(r.post_hoc_cents, 0, 'A: duplicate reversal does not double-subtract');
+
+-- (B) make-whole reverse then RE-BOOK. The old reversal deleted the refund id
+--     from make_whole_refund_ids — destroying the very dedupe key — so the
+--     redelivered booking added the amount right back.
+SELECT * INTO r FROM public.record_order_refund_cents('pi_o3', 're_mw_o3', 500, 'make_whole');
+PERFORM public.test_eq(r.make_whole_cents, 500, 'B: make-whole booked');
+SELECT * INTO r FROM public.reverse_order_refund_cents('pi_o3', 're_mw_o3', 500);
+PERFORM public.test_true(r.reversed, 'B: make-whole reversal applies');
+PERFORM public.test_eq(r.make_whole_cents, 0, 'B: failed make-whole no longer counts');
+PERFORM public.test_eq(r.post_hoc_cents,   0, 'B: post-hoc untouched by a make-whole failure');
+SELECT * INTO r FROM public.record_order_refund_cents('pi_o3', 're_mw_o3', 500, 'make_whole');
+PERFORM public.test_eq(r.make_whole_cents, 0, 'B: RE-BOOK after reversal must stay reversed');
+
+-- (C) the unkeyed make-whole path that debited the wrong column and burned the
+--     reversal key is GONE: a NULL id books nothing (asserted in [11]) and a
+--     reversal without an id flips nothing.
 SELECT count(*) INTO n FROM public.reverse_order_refund_cents('pi_o1', NULL, 100);
-PERFORM public.test_eq(n, 0, 'NULL refund id reverses nothing');
+PERFORM public.test_eq(n, 0, 'C: NULL refund id reverses nothing');
+
+-- (D) reverse a refund this ledger NEVER booked. The old path applied it anyway
+--     (debiting post_hoc, floored at 0) and permanently burned the key.
+SELECT count(*) INTO n FROM public.reverse_order_refund_cents('pi_o9', 're_never_booked', 999999);
+PERFORM public.test_eq(n, 0, 'D: an order with no ledger rows is not touched at all');
+SELECT count(*) INTO n FROM public.stripe_order_refunds f
+ WHERE f.stripe_refund_id = 're_never_booked';
+PERFORM public.test_eq(n, 0, 'D: a reversal never INVENTS a ledger row');
+-- Cross-intent: a real refund id must not be reversed through the wrong intent.
+SELECT count(*) INTO n FROM public.reverse_order_refund_cents('pi_o1', 're_f1', 10700);
+PERFORM public.test_eq(n, 1, 'D: wrong-intent reversal still recomputes its own order');
+SELECT f.state INTO bad FROM public.stripe_order_refunds f WHERE f.stripe_refund_id = 're_a';
+PERFORM public.test_true(bad = 'succeeded', 'D: an unrelated refund row is untouched');
+
+-- (E) refund.failed arriving BEFORE the booking event (Stripe guarantees no
+--     ordering). It must reverse nothing, the later booking is honest, and the
+--     redelivered failure settles it.
+SELECT count(*) INTO n FROM public.reverse_order_refund_cents('pi_o6', 're_ooo', 3000);
+PERFORM public.test_eq(n, 0, 'E: out-of-order failure before booking changes nothing');
+SELECT * INTO r FROM public.record_order_refund_cents('pi_o6', 're_ooo', 3000, 'post_hoc');
+PERFORM public.test_eq(r.post_hoc_cents, 3000, 'E: the later booking is honest');
+PERFORM public.test_true(r.order_status = 'refunded', 'E: booking promotes to refunded');
+SELECT * INTO r FROM public.reverse_order_refund_cents('pi_o6', 're_ooo', 3000);
+PERFORM public.test_true(r.reversed, 'E: the redelivered failure settles it');
+PERFORM public.test_eq(r.post_hoc_cents, 0, 'E: totals fall back to zero');
+PERFORM public.test_true(r.order_status = 'succeeded', 'E: and the status demotes');
+
+-- (F) a failed refund's row is RETAINED, not deleted, so the history stays
+--     auditable and the terminal state survives every redelivery.
+SELECT count(*) INTO n FROM public.stripe_order_refunds f WHERE f.state = 'failed';
+PERFORM public.test_true(n >= 3, format('F: failed rows retained for audit (got %s)', n));
+
+-- (G) refunded_at is DERIVED from the same condition as the status, so it is set
+--     IFF fully refunded and can never be cleared out from under a full refund
+--     nor left dangling on a partial one (the old reversal cleared it on orders
+--     that were never full).
+SELECT * INTO r FROM public.record_order_refund_cents('pi_o2', 're_partial', 1000, 'post_hoc');
+PERFORM public.test_true(NOT r.fully_refunded, 'G: a 1000 refund on 21400 is partial');
+SELECT count(*) INTO n
+  FROM public.stripe_orders o
+  JOIN (SELECT DISTINCT f.order_id AS oid FROM public.stripe_order_refunds f
+         WHERE f.order_id IS NOT NULL) led ON led.oid = o.id
+ WHERE (o.refunded_at IS NOT NULL)
+   <> (COALESCE(o.amount_cents, 0) > 0
+       AND o.make_whole_refunded_cents + o.refunded_cents >= o.amount_cents);
+PERFORM public.test_eq(n, 0, 'G: refunded_at IS NOT NULL IFF fully refunded, on every order');
 
 RAISE NOTICE '[12b] authorization RAISEs rather than returning an empty $0';
 BEGIN

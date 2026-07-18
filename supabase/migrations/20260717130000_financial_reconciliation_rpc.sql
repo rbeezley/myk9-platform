@@ -276,7 +276,19 @@ BEGIN
              SELECT 1 FROM public.show_payouts live
              WHERE live.show_id = sp.show_id
                AND live.status <> 'failed'
-           ) AS has_live_payout
+           ) AS has_live_payout,
+           -- REPEATED failures: the live-row unique index only bounds NON-failed
+           -- rows, so a show that fails, retries, and fails again holds TWO
+           -- failed rows and `has_live_payout` is false for BOTH. Summing every
+           -- historical attempt would count the same owed money once per retry.
+           -- Only the LATEST failed attempt per show represents the outstanding
+           -- liability; earlier attempts are superseded history.
+           NOT EXISTS (
+             SELECT 1 FROM public.show_payouts newer
+             WHERE newer.show_id = sp.show_id
+               AND newer.status = 'failed'
+               AND (newer.created_at, newer.id) > (sp.created_at, sp.id)
+           ) AS is_latest_failed
     FROM public.show_payouts sp
     WHERE (
         p_scope = 'platform'
@@ -340,9 +352,9 @@ BEGIN
     -- by a retry (see SUPERSEDED FAILED PAYOUTS above). Summed separately, never
     -- merged into payout_pending_cents.
     (SELECT COALESCE(SUM(sp.amount_cents), 0) FROM scoped_payouts sp
-      WHERE sp.status = 'failed' AND NOT sp.has_live_payout),
+      WHERE sp.status = 'failed' AND NOT sp.has_live_payout AND sp.is_latest_failed),
     (SELECT count(*) FROM scoped_payouts sp
-      WHERE sp.status = 'failed' AND NOT sp.has_live_payout);
+      WHERE sp.status = 'failed' AND NOT sp.has_live_payout AND sp.is_latest_failed);
 END;
 $$;
 

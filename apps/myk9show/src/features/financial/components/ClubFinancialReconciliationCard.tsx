@@ -119,17 +119,24 @@ export function ClubFinancialReconciliationCard({
                   )}
                 </div>
                 {row.settlement && (
-                  // Settled TRANSFER amount — the actual money moved to the club's
-                  // bank, distinct from the entry-fee `net` above. Showing both,
-                  // with the copyable transfer id, is the reconciliation view: the
-                  // treasurer ties this figure to what Stripe reports for tr_….
+                  // The transfer amount, distinct from the entry-fee `net` above.
+                  // Showing both, with the copyable transfer id, is the
+                  // reconciliation view: the treasurer ties this figure to what
+                  // Stripe reports for tr_….
+                  //
+                  // INTENT: the wording must never claim money moved that has not.
+                  // A pending/processing/failed payout still HAS an amount, but it
+                  // is scheduled or owed — not transferred. Only a settled payout
+                  // ('Paid') may be labelled "Transferred" (Codex round-6 finding).
                   <p className="text-xs text-muted-foreground">
-                    Transferred:{' '}
+                    {row.settlement.state === 'settled' ? 'Transferred: ' : 'To transfer: '}
                     <span
                       className="font-medium tabular-nums text-foreground"
-                      aria-label={`Settled transfer amount ${formatCents(
-                        row.settlement.amountCents
-                      )}`}
+                      aria-label={
+                        row.settlement.state === 'settled'
+                          ? `Settled transfer amount ${formatCents(row.settlement.amountCents)}`
+                          : `Amount awaiting transfer ${formatCents(row.settlement.amountCents)}, not yet sent`
+                      }
                     >
                       {formatCents(row.settlement.amountCents)}
                     </span>

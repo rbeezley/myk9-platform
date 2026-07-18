@@ -48,7 +48,7 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(body).not.toContain('stripe_processing_fee_cents');
   });
 
-  it('records the cumulative refund for EVERY refund source, before any early return', () => {
+  it('records the refunds for EVERY refund source, before any early return', () => {
     const start = webhookSource.indexOf('async function handleChargeRefunded');
     const end = webhookSource.indexOf('\nasync function', start + 1);
     const body = webhookSource.slice(start, end);
@@ -56,20 +56,50 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     const appRefundEarlyReturn = body.indexOf('if (allFromAppRefund) {');
     expect(ledgerWrite).toBeGreaterThan(-1);
     // App-originated refunds (per-entry, auto-refund, show refund) return early;
-    // the refund must already be recorded by then or reconciliation understates it.
+    // the refunds must already be recorded by then or reconciliation understates.
     expect(ledgerWrite).toBeLessThan(appRefundEarlyReturn);
-    expect(body).toContain('charge.amount_refunded ?? 0');
   });
 
-  it('passes charge.amount_refunded as the CHARGE TOTAL, never as a post-hoc amount', () => {
+  it('books ONE LEDGER ROW PER REFUND, never a guess from the cumulative total', () => {
     const start = webhookSource.indexOf('async function handleChargeRefunded');
     const end = webhookSource.indexOf('\nasync function', start + 1);
     const body = webhookSource.slice(start, end);
-    // charge.refunded fires for BOTH refund kinds and Stripe reports ONE
-    // cumulative total. Booking it as post-hoc would double count every
-    // make-whole refund the auto-refund writers already recorded.
-    expect(body).toMatch(/chargeTotalCents:\s*charge\.amount_refunded \?\? 0/);
-    expect(body).not.toMatch(/makeWholeCents:\s*charge\.amount_refunded/);
+    // `charge.amount_refunded` is a CUMULATIVE total across both refund kinds;
+    // deriving the split from it is what forced the monotonic counters. Stripe
+    // carries the individual refunds on charge.refunds.data.
+    expect(body).toMatch(/for \(const refund of refunds\)/);
+    expect(body).toMatch(/refundId:\s*refund\.id/);
+    expect(body).toMatch(/amountCents:\s*refund\.amount \?\? 0/);
+    expect(body).toMatch(/kind:\s*'post_hoc'/);
+    expect(body).not.toMatch(/chargeTotalCents/);
+    expect(body).not.toMatch(/amountCents:\s*charge\.amount_refunded/);
+  });
+
+  it('expands the refund list when the payload lacks it, and NEVER throws on failure', () => {
+    const start = webhookSource.indexOf('async function resolveChargeRefunds');
+    const end = webhookSource.indexOf('\nasync function', start + 1);
+    const body = webhookSource.slice(start, end);
+    expect(body).toContain('stripe.refunds.list');
+    // A bookkeeping failure must not disturb a committed payment: return null,
+    // let the caller alert, and leave the ledger untouched.
+    expect(body).toContain('return null');
+    expect(body).not.toContain('throw');
+    const handler = webhookSource.slice(
+      webhookSource.indexOf('async function handleChargeRefunded'),
+      webhookSource.indexOf(
+        '\nasync function',
+        webhookSource.indexOf('async function handleChargeRefunded') + 1
+      )
+    );
+    expect(handler).toContain('resolvedRefunds === null');
+    expect(handler).toContain('order ledger NOT updated');
+  });
+
+  it('skips refunds Stripe already reports as failed/canceled', () => {
+    const start = webhookSource.indexOf('async function handleChargeRefunded');
+    const end = webhookSource.indexOf('\nasync function', start + 1);
+    const body = webhookSource.slice(start, end);
+    expect(body).toMatch(/refund\.status === 'failed' \|\| refund\.status === 'canceled'/);
   });
 
   it('FAILS CLOSED: does not stamp refunded when the amount did not persist', () => {
@@ -118,11 +148,12 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(body).toContain('recordOrderRefundCents(input.paymentIntentId!, {');
     // Cart overflow refunds lines NEVER accepted: no fee earned, no club
     // transfer, so it must never land in refunded_cents as a platform loss.
-    expect(body).toMatch(/makeWholeCents:\s*refund\.amount/);
+    expect(body).toMatch(/kind:\s*'make_whole'/);
+    expect(body).toMatch(/amountCents:\s*refund\.amount/);
     expect(body).not.toContain('chargeTotalCents');
-    // Idempotency key: the make-whole delta is keyed on the Stripe refund id so
-    // duplicate delivery cannot double-add it (review finding 3).
-    expect(body).toMatch(/makeWholeRefundId:\s*refund\.id/);
+    // The Stripe refund id is the ledger PRIMARY KEY, so a duplicate delivery is
+    // an upsert of the same row rather than a second add.
+    expect(body).toMatch(/refundId:\s*refund\.id/);
     // Fail closed: an unwritten refund leaves the order looking collected in
     // full, so it must alert rather than continue silently (finding 5).
     expect(body).toContain('recordedRows === null || recordedRows.length === 0');
@@ -136,9 +167,10 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     const end = webhookSource.indexOf('\nasync function', start + 1);
     const body = webhookSource.slice(start, end);
     expect(body).toContain('recordOrderRefundCents(input.paymentIntentId, {');
-    expect(body).toMatch(/makeWholeCents:\s*refund\.amount/);
+    expect(body).toMatch(/kind:\s*'make_whole'/);
+    expect(body).toMatch(/amountCents:\s*refund\.amount/);
     expect(body).not.toContain('chargeTotalCents');
-    expect(body).toMatch(/makeWholeRefundId:\s*refund\.id/);
+    expect(body).toMatch(/refundId:\s*refund\.id/);
     expect(body).toContain('recordedRows === null || recordedRows.length === 0');
     expect(body).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
   });
@@ -188,15 +220,43 @@ describe('stripe_order_snapshots migration (source-pinned)', () => {
     expect(migrationSource).toMatch(/POST-HOC refunds only/);
   });
 
-  it('exposes the ATOMIC refund RPC, service_role only, with a locked search_path', () => {
-    expect(migrationSource).toContain(
-      'CREATE OR REPLACE FUNCTION public.record_order_refund_cents'
+  it('creates the per-refund LEDGER keyed on the Stripe refund id', () => {
+    expect(migrationSource).toContain('CREATE TABLE IF NOT EXISTS public.stripe_order_refunds');
+    expect(migrationSource).toMatch(/stripe_refund_id text PRIMARY KEY/);
+    expect(migrationSource).toMatch(
+      /kind text NOT NULL CHECK \(kind IN \('make_whole', 'post_hoc'\)\)/
     );
+    expect(migrationSource).toMatch(/state text NOT NULL DEFAULT 'succeeded'/);
+    // The array columns the counters used as idempotency keys are gone; the
+    // ledger primary key replaces both.
+    expect(migrationSource).toContain('DROP COLUMN IF EXISTS make_whole_refund_ids');
+    expect(migrationSource).toContain('DROP COLUMN IF EXISTS reversed_refund_ids');
+  });
+
+  it('locks the money ledger down: RLS FORCEd, service_role only, no client grants', () => {
+    expect(migrationSource).toContain(
+      'ALTER TABLE public.stripe_order_refunds ENABLE ROW LEVEL SECURITY'
+    );
+    expect(migrationSource).toContain(
+      'ALTER TABLE public.stripe_order_refunds FORCE ROW LEVEL SECURITY'
+    );
+    expect(migrationSource).toContain(
+      'REVOKE ALL ON public.stripe_order_refunds FROM anon, authenticated'
+    );
+    expect(migrationSource).toContain('GRANT ALL ON public.stripe_order_refunds TO service_role');
+    expect(migrationSource).not.toMatch(
+      /GRANT[^;]*ON public\.stripe_order_refunds[^;]*TO (anon|authenticated)/
+    );
+  });
+
+  it('exposes the refund RPCs, service_role only, with a locked search_path', () => {
+    expect(migrationSource).toContain('CREATE FUNCTION public.record_order_refund_cents');
+    expect(migrationSource).toContain('CREATE FUNCTION public.recompute_order_refund_totals');
     expect(migrationSource).toContain('SECURITY DEFINER');
     expect(migrationSource).toContain("SET search_path = ''");
     expect(migrationSource).toMatch(/REVOKE ALL ON FUNCTION public\.record_order_refund_cents/);
     expect(migrationSource).toMatch(
-      /GRANT EXECUTE ON FUNCTION public\.record_order_refund_cents\(text, integer, text, integer\) TO service_role/
+      /GRANT EXECUTE ON FUNCTION public\.record_order_refund_cents\(text, text, integer, text\)\s*\n?\s*TO service_role/
     );
     // No client role may execute a money write.
     expect(migrationSource).not.toMatch(
@@ -204,11 +264,31 @@ describe('stripe_order_snapshots migration (source-pinned)', () => {
     );
   });
 
-  it('does the monotonic compare IN SQL via GREATEST, not in the caller', () => {
-    // Read-then-write in JS is not atomic: concurrent deliveries can both read 0
-    // and the smaller write clobbers the larger (review finding 4).
-    expect(migrationSource).toContain('GREATEST');
+  it('DERIVES the two columns from the ledger instead of incrementing counters', () => {
+    // Monotonic counters cannot represent "this refund was un-done", which is how
+    // a redelivered charge.refunded silently undid a refund.failed reversal.
+    expect(migrationSource).toMatch(
+      /FILTER \(WHERE f\.kind = 'make_whole' AND f\.state = 'succeeded'\)/
+    );
+    expect(migrationSource).toMatch(
+      /FILTER \(WHERE f\.kind = 'post_hoc' AND f\.state = 'succeeded'\)/
+    );
     expect(migrationSource).toMatch(/UPDATE public\.stripe_orders AS o/);
+    // The reversal is a STATE CHANGE, never a subtraction.
+    expect(migrationSource).toMatch(/SET state = 'failed'/);
+    expect(migrationSource).toContain('FAILED IS TERMINAL');
+  });
+
+  it('is RE-RUNNABLE: drops BOTH the old and the new RPC signatures first', () => {
+    for (const sig of [
+      'DROP FUNCTION IF EXISTS public.record_order_refund_cents(text, integer, integer)',
+      'DROP FUNCTION IF EXISTS public.record_order_refund_cents(text, integer, text, integer)',
+      'DROP FUNCTION IF EXISTS public.record_order_refund_cents(text, text, integer, text)',
+      'DROP FUNCTION IF EXISTS public.reverse_order_refund_cents(text, text, integer)',
+      'DROP FUNCTION IF EXISTS public.recompute_order_refund_totals(text)',
+    ]) {
+      expect(migrationSource).toContain(sig);
+    }
   });
 
   it('declares explicit read-only client grants and service-role write access', () => {

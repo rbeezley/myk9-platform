@@ -63,11 +63,11 @@ import { calculatePlatformFeeCents } from './platformFee.ts';
 // column; that pair is NORMAL, not drift. Reconciliation must read the refund
 // COLUMNS, never `status <> 'refunded'`, to decide whether money came back.
 //
-// The transition is stamped in ONE place — the `record_order_refund_cents` RPC —
-// which every refund source funnels through, so status and amounts cannot
-// disagree. Before this, the app's own per-entry and show refunds recorded cents
-// and returned early without ever stamping the status, so the most common refund
-// flow in the system left refunded_cents > 0 on a 'succeeded' order.
+// The transition is stamped in ONE place — `recompute_order_refund_totals`, which
+// both refund RPCs funnel through — so status and amounts cannot disagree. It is
+// RE-DERIVED from the refund ledger on every event, so it DEMOTES ('refunded' ->
+// 'succeeded') when a refund fails just as readily as it promotes. `refunded_at`
+// is derived from the same condition, so the two can never drift apart.
 
 export interface OrderSnapshotInput {
   entrySubtotalCents?: number | null;
@@ -122,117 +122,126 @@ export function buildOrderSnapshotFields(input: OrderSnapshotInput): OrderSnapsh
   };
 }
 
-// NOTE: `resolveCumulativeRefundedCents` (a single-column monotonic max) was
-// REMOVED here. It could only maintain one conflated refund total, which is the
-// bug this module now fixes. Use `resolveOrderRefundSplit` below — reintroducing
-// a single-column helper would re-merge the two economically opposite refund
-// kinds and make charge verification tautological again.
+// NOTE: `resolveCumulativeRefundedCents` (a single conflated monotonic max) and
+// `resolveOrderRefundSplit` (two monotonic counters mutated by a GREATEST
+// forward path and a subtractive reversal path) were both REMOVED here. Counters
+// cannot represent "this refund was UN-done", so the forward and reverse paths
+// fought each other under Stripe's duplicate / out-of-order redelivery. Use the
+// LEDGER helpers below: one row per Stripe refund, totals DERIVED. Do not
+// reintroduce a counter-mutating helper.
 
-export interface OrderRefundSplit {
+export type OrderRefundKind = 'make_whole' | 'post_hoc';
+export type OrderRefundState = 'succeeded' | 'failed';
+
+/** One row of `public.stripe_order_refunds` — one Stripe refund. */
+export interface OrderRefundLedgerRow {
+  /** Stripe refund id. The PRIMARY KEY: idempotency BY CONSTRUCTION. */
+  refundId: string;
+  amountCents: number;
+  kind: OrderRefundKind;
+  state: OrderRefundState;
+}
+
+export interface OrderRefundTotals {
   makeWholeCents: number;
   postHocCents: number;
-  /** Make-whole refund ids accumulated so far (the idempotency ledger). */
-  makeWholeRefundIds: string[];
 }
 
 /**
- * Pure mirror of the `record_order_refund_cents` SQL (migration
+ * Pure mirror of the `record_order_refund_cents` upsert (migration
  * 20260717120000). The DATABASE is the authority — this exists so the
- * attribution algebra is unit-testable without a Postgres round trip. Keep the
- * two in lockstep; if you change one, change the other.
+ * precedence rules are unit-testable without a Postgres round trip. Keep the two
+ * in lockstep; if you change one, change the other.
  *
- * THE ATTRIBUTION PROBLEM: `charge.refunded` fires for BOTH kinds of refund and
- * Stripe reports a single CUMULATIVE `charge.amount_refunded`. Treating that
- * total as post-hoc would double count every make-whole refund, since the
- * make-whole writer already recorded its own amount.
- *
- * CALLER PRECONDITION (MYK9-54 review finding 3): `incoming.makeWholeCents` is
- * ONE Stripe refund's amount — a DELTA, not a cumulative make-whole total — and
- * `incoming.makeWholeRefundId` is that refund's Stripe id. The old contract
- * documented a cumulative total while both callers passed a single
- * `refund.amount`, so two make-whole refunds on one intent (300 then 200) stored
- * max(300, 200) = 300 and the later cumulative `charge.refunded` (500) misbooked
- * the missing 200 as a POST-HOC platform loss.
- *
- * THE RULE: the cumulative charge total is the TOTAL across both columns, and
- * the post-hoc part is DERIVED as total − make_whole:
- *   newMakeWhole = storedMakeWhole + delta, applied ONCE per refund id
- *   newTotal     = max(storedMakeWhole + storedPostHoc, incomingChargeTotal,
- *                      newMakeWhole)
- *   newPostHoc   = newTotal − newMakeWhole
- *
- * Adding is only sound because the refund id makes it idempotent: a delta whose
- * id is already in the ledger is skipped. A null refund id falls back to the
- * monotonic max (never double counts, but cannot accumulate a second make-whole
- * either) — callers must pass the id.
- *
- * The stored total is recoverable as the sum of the two columns, so no extra
- * bookkeeping column is needed. Both quantities grow monotonically and
- * newPostHoc is a pure function of them, so the row CONVERGES to the same values
- * under any delivery order:
- *   - a duplicate delivery re-applies identical values (no-op),
- *   - an out-of-order `charge.refunded` landing before its make-whole writer is
- *     provisionally booked as post-hoc, then REATTRIBUTED (not double counted)
- *     when the make-whole writer catches up,
- *   - neither column can be lowered by a stale/smaller delivery,
- *   - seeding newTotal with newMakeWhole keeps total >= makeWhole, so postHoc
- *     can never go negative even if `charge.refunded` never arrives.
- *
- * Pass `incomingChargeTotalCents: null` from a make-whole writer, which knows
- * its own refund amount but not the charge-wide cumulative total.
+ * A redelivery is an upsert of the SAME row, so it is a no-op on the totals.
+ * Two precedence rules, matching the SQL `ON CONFLICT ... DO UPDATE`:
+ *   - `kind` is NEVER overwritten. The make-whole writers book their own refund
+ *     id with kind='make_whole' at creation time, and the later `charge.refunded`
+ *     delivery — which cannot tell the kinds apart — must not demote it.
+ *   - `state` is NEVER overwritten. FAILED IS TERMINAL: a redelivered success
+ *     event for a refund Stripe already failed must not resurrect it. Stripe only
+ *     moves a refund succeeded -> failed, never back, so the `failed` row is the
+ *     newer truth no matter which delivery arrives last.
  */
-export function resolveOrderRefundSplit(
-  stored: {
-    makeWholeCents?: number | null;
-    postHocCents?: number | null;
-    makeWholeRefundIds?: string[] | null;
-  },
-  incoming: {
-    makeWholeCents?: number | null;
-    makeWholeRefundId?: string | null;
-    chargeTotalCents?: number | null;
+export function upsertOrderRefund(
+  ledger: readonly OrderRefundLedgerRow[],
+  incoming: { refundId: string; amountCents?: number | null; kind?: OrderRefundKind }
+): OrderRefundLedgerRow[] {
+  const amountCents = toCentsOrNull(incoming.amountCents) ?? 0;
+  const existing = ledger.find(row => row.refundId === incoming.refundId);
+  if (!existing) {
+    return [
+      ...ledger,
+      {
+        refundId: incoming.refundId,
+        amountCents,
+        kind: incoming.kind ?? 'post_hoc',
+        state: 'succeeded',
+      },
+    ];
   }
-): OrderRefundSplit {
-  const storedMakeWhole = toCentsOrNull(stored.makeWholeCents) ?? 0;
-  const storedPostHoc = toCentsOrNull(stored.postHocCents) ?? 0;
-  const storedIds = stored.makeWholeRefundIds ?? [];
-  const delta = toCentsOrNull(incoming.makeWholeCents) ?? 0;
-  const refundId = incoming.makeWholeRefundId ?? null;
-  const incomingChargeTotal = toCentsOrNull(incoming.chargeTotalCents) ?? 0;
-
-  let makeWholeCents = storedMakeWhole;
-  let makeWholeRefundIds = storedIds;
-  if (delta > 0) {
-    if (refundId === null) {
-      // Unkeyed fallback: cannot dedupe, so max instead of add.
-      makeWholeCents = Math.max(storedMakeWhole, delta);
-    } else if (!storedIds.includes(refundId)) {
-      makeWholeCents = storedMakeWhole + delta;
-      makeWholeRefundIds = [...storedIds, refundId];
-    }
-  }
-
-  const totalCents = Math.max(storedMakeWhole + storedPostHoc, incomingChargeTotal, makeWholeCents);
-  return { makeWholeCents, postHocCents: totalCents - makeWholeCents, makeWholeRefundIds };
+  return ledger.map(row =>
+    row.refundId === incoming.refundId
+      ? // kind and state are carried forward, never rewritten.
+        { ...row, amountCents }
+      : row
+  );
 }
 
 /**
- * Pure mirror of the status transition the RPC stamps. `status = 'refunded'` IFF
- * the order is FULLY refunded; a partial refund stays 'succeeded' with non-zero
- * refund columns (which is NORMAL, not drift). Only 'succeeded' is promoted, so
- * a 'failed' or already-'refunded' order is left alone and the transition is
- * one-way.
+ * Pure mirror of `reverse_order_refund_cents`: a failed refund is a STATE CHANGE
+ * on an EXISTING row, never a subtraction, and never an invented row. An
+ * out-of-order `refund.failed` arriving before the booking event therefore
+ * changes nothing — Stripe redelivers for three days and the later failure
+ * settles it.
+ */
+export function failOrderRefund(
+  ledger: readonly OrderRefundLedgerRow[],
+  refundId: string
+): OrderRefundLedgerRow[] {
+  return ledger.map(row => (row.refundId === refundId ? { ...row, state: 'failed' } : row));
+}
+
+/**
+ * Pure mirror of `recompute_order_refund_totals`. The derived cache columns:
+ *   make_whole_refunded_cents = SUM(amount) WHERE kind='make_whole' AND succeeded
+ *   refunded_cents            = SUM(amount) WHERE kind='post_hoc'   AND succeeded
+ * Recomputation is idempotent and ORDER INDEPENDENT — that is the whole point.
+ */
+export function deriveOrderRefundTotals(
+  ledger: readonly OrderRefundLedgerRow[]
+): OrderRefundTotals {
+  let makeWholeCents = 0;
+  let postHocCents = 0;
+  for (const row of ledger) {
+    if (row.state !== 'succeeded') continue;
+    if (row.kind === 'make_whole') makeWholeCents += row.amountCents;
+    else postHocCents += row.amountCents;
+  }
+  return { makeWholeCents, postHocCents };
+}
+
+/**
+ * Pure mirror of the status/`refunded_at` transition the recompute stamps.
+ *   status = 'refunded'      IFF make_whole + post_hoc >= amount_cents
+ *   refunded_at IS NOT NULL  IFF the same condition
+ *
+ * Because it is RE-DERIVED (not accumulated) it can now correctly DEMOTE as well
+ * as promote: when a refund fails, a 'refunded' order falls back to 'succeeded'.
+ * Only that pair ever moves — a 'failed', 'pending' or 'cancelled' order is never
+ * rewritten. A partial refund stays 'succeeded' with non-zero refund columns,
+ * which is NORMAL, not drift.
  */
 export function resolveOrderStatusAfterRefund(
   order: { status: string; amountCents: number | null },
-  refunds: { makeWholeCents: number; postHocCents: number }
-): { status: string; fullyRefunded: boolean } {
+  refunds: OrderRefundTotals
+): { status: string; fullyRefunded: boolean; refundedAt: 'set' | 'clear' } {
   const amount = order.amountCents ?? 0;
   const fullyRefunded = amount > 0 && refunds.makeWholeCents + refunds.postHocCents >= amount;
-  return {
-    status: fullyRefunded && order.status === 'succeeded' ? 'refunded' : order.status,
-    fullyRefunded,
-  };
+  let status = order.status;
+  if (fullyRefunded && order.status === 'succeeded') status = 'refunded';
+  else if (!fullyRefunded && order.status === 'refunded') status = 'succeeded';
+  return { status, fullyRefunded, refundedAt: fullyRefunded ? 'set' : 'clear' };
 }
 
 export interface AcceptedEntrySnapshot {

@@ -37,15 +37,17 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   };
 }
 
-let _corsHeaders: Record<string, string> = getCorsHeaders(null);
-
-function corsResponse(body: string | object | null, status = 200) {
+function corsResponse(
+  corsHeaders: Record<string, string>,
+  body: string | object | null,
+  status = 200
+) {
   if (status === 204) {
-    return new Response(null, { status, headers: _corsHeaders });
+    return new Response(null, { status, headers: corsHeaders });
   }
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ..._corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
 
@@ -64,21 +66,21 @@ interface UpgradeRequest {
 }
 
 Deno.serve(async req => {
-  _corsHeaders = getCorsHeaders(req.headers.get('origin'));
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   try {
     if (req.method === 'OPTIONS') {
-      return corsResponse({}, 204);
+      return corsResponse(corsHeaders, {}, 204);
     }
 
     if (req.method !== 'POST') {
-      return corsResponse({ error: 'Method not allowed' }, 405);
+      return corsResponse(corsHeaders, { error: 'Method not allowed' }, 405);
     }
 
     // Authenticate user
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return corsResponse({ error: 'Missing Authorization header' }, 401);
+      return corsResponse(corsHeaders, { error: 'Missing Authorization header' }, 401);
     }
 
     const token = authHeader.replace('Bearer ', '');
@@ -89,7 +91,7 @@ Deno.serve(async req => {
 
     if (authError || !user) {
       console.error('Authentication failed:', authError);
-      return corsResponse({ error: 'Authentication failed' }, 401);
+      return corsResponse(corsHeaders, { error: 'Authentication failed' }, 401);
     }
 
     // Parse request
@@ -97,12 +99,16 @@ Deno.serve(async req => {
     const { subscriptionId, newPlanId } = body;
 
     if (!subscriptionId || !newPlanId) {
-      return corsResponse({ error: 'Missing required parameters: subscriptionId, newPlanId' }, 400);
+      return corsResponse(
+        corsHeaders,
+        { error: 'Missing required parameters: subscriptionId, newPlanId' },
+        400
+      );
     }
 
     // Validate price ID against allowlist
     if (!VALID_PRICE_IDS.has(newPlanId)) {
-      return corsResponse({ error: 'Invalid plan' }, 400);
+      return corsResponse(corsHeaders, { error: 'Invalid plan' }, 400);
     }
 
     // Look up subscription and verify ownership
@@ -114,7 +120,7 @@ Deno.serve(async req => {
       .single();
 
     if (subError || !sub) {
-      return corsResponse({ error: 'Subscription not found' }, 404);
+      return corsResponse(corsHeaders, { error: 'Subscription not found' }, 404);
     }
 
     const { data: customer, error: customerError } = await supabase
@@ -124,7 +130,7 @@ Deno.serve(async req => {
       .single();
 
     if (customerError || !customer) {
-      return corsResponse({ error: 'Subscription not found' }, 404);
+      return corsResponse(corsHeaders, { error: 'Subscription not found' }, 404);
     }
 
     const { data: person, error: personError } = await supabase
@@ -135,7 +141,7 @@ Deno.serve(async req => {
       .single();
 
     if (personError || !person) {
-      return corsResponse({ error: 'Not authorized' }, 403);
+      return corsResponse(corsHeaders, { error: 'Not authorized' }, 403);
     }
 
     // Retrieve Stripe subscription to get the current item ID
@@ -143,7 +149,7 @@ Deno.serve(async req => {
     const currentItem = stripeSubscription.items.data[0];
 
     if (!currentItem) {
-      return corsResponse({ error: 'Subscription has no items' }, 400);
+      return corsResponse(corsHeaders, { error: 'Subscription has no items' }, 400);
     }
 
     // Update subscription with new price (prorated immediately)
@@ -160,10 +166,11 @@ Deno.serve(async req => {
     // The stripe-webhook handler will process the customer.subscription.updated
     // event and sync the new plan to stripe_subscriptions + exhibitor_profiles
 
-    return corsResponse({ success: true });
+    return corsResponse(corsHeaders, { success: true });
   } catch (error: unknown) {
     console.error('Upgrade subscription error:', error);
     return corsResponse(
+      corsHeaders,
       {
         error: error instanceof Error ? error.message : 'Unknown error',
       },

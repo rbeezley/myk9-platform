@@ -31,9 +31,9 @@ pnpm test:e2e:clean \
   --project=chromium --workers=1
 ```
 
-### Nightly
+### Nightly health
 
-Nightly has three phases: deterministic Vitest registration service/store checks, stable Playwright smoke, then an agent/browser route-health sweep.
+Nightly health is the scheduled, read-only routine: deterministic Vitest registration service/store checks followed by the committed Playwright route-health sweep. It does not create entries, score dogs, submit results, or exercise other stateful workflows.
 
 Scheduled Nightly runs must be isolated from the primary checkout:
 
@@ -43,7 +43,13 @@ pnpm qa:nightly:prepare
 
 Run the phases below from the generated detached `origin/main` worktree, using the generated `.qa-nightly.env` values for `PLAYWRIGHT_PORT`, `PLAYWRIGHT_BASE_URL`, and `PLAYWRIGHT_HMR_PORT`. Dirty local WIP in the primary checkout does not block Nightly once this isolated baseline exists. Abort only if the isolated `origin/main` baseline cannot be prepared, dependencies cannot bootstrap, the app cannot bind the generated port, or the global 30-minute wall-clock budget is exceeded.
 
-Phase 1 runs promoted registration service/store checks that used to be stale Playwright wrappers:
+Run both health phases with:
+
+```bash
+pnpm qa:nightly:health
+```
+
+The command runs the promoted registration service/store checks that used to be stale Playwright wrappers:
 
 ```bash
 cd apps/myk9show
@@ -54,35 +60,21 @@ npx vitest run \
   src/hooks/useInfiniteScroll.performanceCaching.test.ts
 ```
 
-Phase 2 runs stable Chromium checks. Wave 1 repairs on 2026-05-12, follow-up repairs on 2026-05-13, and the cross-role plus online-entry repairs on 2026-05-14 promoted the following stable checks. Last verified with retries disabled on 2026-06-18 (Lane 3.2): `50 passed (2.9m)`. Prior: 2026-05-23 `44 passed (2.4m)` (6 additional specs promoted since then).
+### Separate Playwright regression
+
+The broader curated Playwright suite is a separate, stateful regression routine. It is manual-only until it has an isolated/resettable E2E database; do not point it at shared staging on an unattended schedule.
+
+Run it only after the target and shared-system approval are confirmed:
 
 ```bash
-cd apps/myk9show
-pnpm test:e2e:clean \
-  src/test/e2e/simple-connectivity.spec.ts \
-  src/test/e2e/basic/registrationSmoke.spec.ts \
-  src/test/e2e/browse-shows-to-details.spec.ts \
-  src/test/e2e/cross-role-workflows.spec.ts \
-  src/test/e2e/uat/secretary/qa-regression-proof.spec.ts \
-  src/test/e2e/uat/secretary/critical-path.spec.ts \
-  src/test/e2e/uat/secretary/disposable-entry.spec.ts \
-  src/test/e2e/uat/secretary/evidence.spec.ts \
-  src/test/e2e/secretary/show-creation-wizard.spec.ts \
-  src/test/e2e/secretary/classCreation.spec.ts \
-  src/test/e2e/registration/secretaryExistingUsers.spec.ts \
-  src/test/e2e/registration/secretaryNewUsers.spec.ts \
-  src/test/e2e/registration/index.spec.ts \
-  src/test/e2e/registration/singleDogSingleClass.spec.ts \
-  src/test/e2e/registration/exhibitorSelfRegistration.spec.ts \
-  src/test/e2e/secretary-entry-walk.spec.ts \
-  src/test/e2e/secretary/show-wizard-officials.spec.ts \
-  src/test/e2e/registration/entryCreationCore.spec.ts \
-  src/test/e2e/public-shows-responsive.spec.ts \
-  src/test/e2e/route-health-by-role.spec.ts \
-  --project=chromium --workers=1 --timeout=90000 --retries=0
+MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true \
+MYK9_PLAYWRIGHT_REGRESSION_TARGET=isolated \
+pnpm qa:playwright:regression
 ```
 
-Phase 3 is the committed route-health sweep spec (promoted 2026-06-06):
+The command uses the curated regression spec list in `apps/myk9show/playwright.ci.config.ts`, with one worker, zero retries, and `--fail-on-flaky-tests`. Wave 1 repairs on 2026-05-12, follow-up repairs on 2026-05-13, and the cross-role plus online-entry repairs on 2026-05-14 promoted the current list. Last verified with retries disabled on 2026-06-18 (Lane 3.2): `50 passed (2.9m)`. Prior: 2026-05-23 `44 passed (2.4m)` (6 additional specs promoted since then).
+
+The health command's Playwright phase is the committed route-health sweep spec (promoted 2026-06-06):
 
 ```bash
 cd apps/myk9show

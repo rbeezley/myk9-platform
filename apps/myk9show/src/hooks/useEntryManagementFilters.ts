@@ -8,6 +8,7 @@ import {
   type EntryAttentionFilter,
   type EntryPaymentFilter,
   type EntryManagementViewMode,
+  type EntryDisplayPreset,
   type EntryWorkMode,
   type OperationalViewDensity,
   isEntryPaymentFilter,
@@ -61,6 +62,9 @@ interface UseEntryManagementFiltersReturn {
   /** Display density (Design Decision 3) — layout only, never hides identity/status/selection/actions. */
   density: OperationalViewDensity;
   setDensity: (density: OperationalViewDensity) => void;
+  /** Display preset (spec "Show-day display is selected") — show-day prioritizes armband/check-in; layout only. */
+  displayPreset: EntryDisplayPreset;
+  setDisplayPreset: (preset: EntryDisplayPreset) => void;
   /**
    * Apply a curated Entry Management preset (Design Decision 2). Writes
    * attention/payment/mode/view together through the same normalized URL
@@ -120,6 +124,7 @@ export function useEntryManagementFilters({
   const workMode = normalized.mode;
   const entryViewMode = normalized.view;
   const density = normalized.density;
+  const displayPreset = normalized.display;
   const selectedTab = attentionFilter;
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
 
@@ -277,6 +282,21 @@ export function useEntryManagementFilters({
           const next = new URLSearchParams(prev);
           if (value === 'comfortable') next.delete('density');
           else next.set('density', value);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const setDisplayPreset = useCallback(
+    (value: EntryDisplayPreset) => {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (value === 'standard') next.delete('display');
+          else next.set('display', value);
           return next;
         },
         { replace: true }
@@ -472,6 +492,8 @@ export function useEntryManagementFilters({
     setEntryViewMode,
     density,
     setDensity,
+    displayPreset,
+    setDisplayPreset,
     applyPreset,
     applyView,
     trialFilter,

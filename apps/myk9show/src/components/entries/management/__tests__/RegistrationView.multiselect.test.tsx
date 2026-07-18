@@ -58,6 +58,8 @@ function renderView(overrides: Record<string, unknown> = {}) {
     applyView: vi.fn(),
     density: 'comfortable' as const,
     setDensity: vi.fn(),
+    displayPreset: 'standard' as const,
+    setDisplayPreset: vi.fn(),
     entryViewMode: 'table' as const,
     setEntryViewMode: vi.fn(),
     trialFilter: null as string | null,

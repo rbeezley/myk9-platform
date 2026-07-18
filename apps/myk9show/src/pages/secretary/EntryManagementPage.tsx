@@ -143,6 +143,8 @@ const EntryManagementPage: React.FC = () => {
     setEntryViewMode,
     density,
     setDensity,
+    displayPreset,
+    setDisplayPreset,
     applyPreset,
     applyView,
     trialFilter,
@@ -432,6 +434,8 @@ const EntryManagementPage: React.FC = () => {
                   applyView={applyView}
                   density={density}
                   setDensity={setDensity}
+                  displayPreset={displayPreset}
+                  setDisplayPreset={setDisplayPreset}
                   trialFilter={trialFilter}
                   classFilter={classFilter}
                   entryViewMode={entryViewMode}

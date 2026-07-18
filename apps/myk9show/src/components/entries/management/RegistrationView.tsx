@@ -30,6 +30,7 @@ import {
 import { shouldUseEntryCards } from './entryManagementResponsive';
 import { EntryManagementViewControls } from './EntryManagementViewControls';
 import type {
+  EntryDisplayPreset,
   EntryManagementOperationalView,
   EntryManagementPresetId,
   OperationalViewDensity,
@@ -69,6 +70,9 @@ interface RegistrationViewProps {
   /** Display density (Design Decision 3) — layout only, never hides identity/status/selection/actions. */
   density: OperationalViewDensity;
   setDensity: (density: OperationalViewDensity) => void;
+  /** Display preset (spec "Show-day display is selected") — show-day prioritizes armband/check-in. */
+  displayPreset: EntryDisplayPreset;
+  setDisplayPreset: (preset: EntryDisplayPreset) => void;
   /** Entry list view mode */
   entryViewMode: EntryManagementViewMode;
   setEntryViewMode: (view: EntryManagementViewMode) => void;
@@ -156,6 +160,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   applyView,
   density,
   setDensity,
+  displayPreset,
+  setDisplayPreset,
   entryViewMode,
   setEntryViewMode,
   trialFilter = null,
@@ -482,6 +488,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       <EntryManagementViewControls
         density={density}
         onDensityChange={setDensity}
+        displayPreset={displayPreset}
+        onDisplayPresetChange={setDisplayPreset}
         userId={currentUserId}
         showId={showId}
         trialFilter={trialFilter}
@@ -554,6 +562,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           emptyState={emptyStateContent}
           showReviewActions={workMode === 'review'}
           density={density}
+          displayPreset={displayPreset}
           lifecycleDecisionEmailStatusMap={lifecycleEmails.statusMap}
           onReviewLifecycleEmail={lifecycleEmails.reviewReadyEmail}
           onPrepareCorrectionEmail={lifecycleEmails.prepareCorrectionEmail}

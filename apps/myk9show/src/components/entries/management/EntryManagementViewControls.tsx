@@ -4,9 +4,11 @@
  * — keeps `RegistrationView.tsx` from growing past its size budget.
  */
 import { DensityControl } from '@/features/operational-views/DensityControl';
+import { EntryDisplayPresetControl } from '@/features/operational-views/EntryDisplayPresetControl';
 import { SavedViewsControl } from '@/features/operational-views/SavedViewsControl';
 import {
   OPERATIONAL_VIEW_SERIALIZATION_VERSION,
+  type EntryDisplayPreset,
   type EntryManagementOperationalView,
   type OperationalViewDensity,
 } from '@/features/operational-views/operationalViews';
@@ -21,6 +23,8 @@ import {
 interface EntryManagementViewControlsProps {
   density: OperationalViewDensity;
   onDensityChange: (density: OperationalViewDensity) => void;
+  displayPreset: EntryDisplayPreset;
+  onDisplayPresetChange: (preset: EntryDisplayPreset) => void;
   userId: string | null | undefined;
   showId: string | undefined;
   trialFilter: string | null;
@@ -37,6 +41,8 @@ interface EntryManagementViewControlsProps {
 export function EntryManagementViewControls({
   density,
   onDensityChange,
+  displayPreset,
+  onDisplayPresetChange,
   userId,
   showId,
   trialFilter,
@@ -49,6 +55,7 @@ export function EntryManagementViewControls({
 }: EntryManagementViewControlsProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
+      <EntryDisplayPresetControl preset={displayPreset} onChange={onDisplayPresetChange} />
       <DensityControl density={density} onChange={onDensityChange} />
       {showId && (
         <SavedViewsControl<EntryManagementOperationalView>

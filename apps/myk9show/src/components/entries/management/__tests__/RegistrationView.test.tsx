@@ -123,6 +123,8 @@ function renderView(
     applyView: vi.fn(),
     density: 'comfortable' as const,
     setDensity: vi.fn(),
+    displayPreset: 'standard' as const,
+    setDisplayPreset: vi.fn(),
     entryViewMode,
     setEntryViewMode: vi.fn(),
     filteredEntries: [],

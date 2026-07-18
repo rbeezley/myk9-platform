@@ -12,6 +12,7 @@ import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { EntryStatus } from '@/types/show-registration-types';
 import { EntryRowActionMenu, type EntryRowActionMenuProps } from './EntryRowActionMenu';
+import { applyShowDayColumnOrder, buildCheckInColumn } from './entriesTableShowDay';
 import { RequestPaymentDialog } from './RequestPaymentDialog';
 import { RefundEntryDialog } from './RefundEntryDialog';
 import {
@@ -58,6 +59,15 @@ interface EntriesTableViewProps {
   showReviewActions?: boolean | undefined;
   /** Surface-level display density (Design Decision 3) — row identity/status/selection/actions are unaffected. */
   density?: TableDensity | undefined;
+  /**
+   * Display preset (spec "Show-day display is selected"). `show-day`
+   * prioritizes armband, dog, class, and check-in information: armband/dog/
+   * classes/status columns lead, a visible per-row Check in action is added
+   * (when `onCheckInEntry` is provided), and handler/date trail. Nothing is
+   * hidden — identity, status, selection, and the row action menu always
+   * remain rendered.
+   */
+  displayPreset?: 'standard' | 'show-day' | undefined;
 }
 
 function buildSelectColumn(
@@ -145,7 +155,8 @@ function buildColumns(
       ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
     onPrepareCorrectionEmail:
       ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
-  }
+  },
+  showDay?: boolean
 ): ColumnDef<EntryManagementEntry, unknown>[] {
   const columns: ColumnDef<EntryManagementEntry, unknown>[] = [
     {
@@ -280,6 +291,13 @@ function buildColumns(
     },
   ];
 
+  if (showDay) {
+    applyShowDayColumnOrder(columns);
+    if (actionHandlers?.onCheckInEntry) {
+      columns.push(buildCheckInColumn(actionHandlers.onCheckInEntry));
+    }
+  }
+
   if (showReviewActions && actionHandlers?.onStatusChange) {
     columns.push(buildReviewActionsColumn(actionHandlers.onStatusChange));
   }
@@ -324,7 +342,11 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   emptyState,
   showReviewActions = false,
   density,
+  displayPreset = 'standard',
 }) => {
+  // Show-day forces compact density (spec: compact + column emphasis).
+  const effectiveDensity: TableDensity | undefined =
+    displayPreset === 'show-day' ? 'compact' : density;
   const [requestPaymentEntry, setRequestPaymentEntry] = useState<EntryManagementEntry | null>(null);
   const openRequestPayment = useCallback(
     (entry: EntryManagementEntry) => setRequestPaymentEntry(entry),
@@ -371,7 +393,8 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
         statusMap: lifecycleDecisionEmailStatusMap,
         onReviewLifecycleEmail,
         onPrepareCorrectionEmail,
-      }
+      },
+      displayPreset === 'show-day'
     );
     return selection ? [buildSelectColumn(selection), ...dataColumns] : dataColumns;
   }, [
@@ -392,6 +415,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
     lifecycleDecisionEmailStatusMap,
     onReviewLifecycleEmail,
     onPrepareCorrectionEmail,
+    displayPreset,
   ]);
 
   return (
@@ -411,7 +435,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
             showSearch={false}
             emptyState={emptyState}
             noResultsMessage={emptyState}
-            {...(density !== undefined ? { density } : {})}
+            {...(effectiveDensity !== undefined ? { density: effectiveDensity } : {})}
             {...(onEntryClick !== undefined ? { onRowClick: onEntryClick } : {})}
           />
         </div>

@@ -278,4 +278,31 @@ describe('entryManagementFilters', () => {
       expect(twice.density).toBe('compact');
     });
   });
+
+  // Spec scenario "Show-day display is selected" — display preset round-trip
+  // + invalid-value fallback.
+  describe('display preset round-trip and invalid values', () => {
+    it('defaults display to standard and drops it from the URL', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams(''));
+      expect(result.display).toBe('standard');
+      expect(result.params.has('display')).toBe(false);
+    });
+
+    it('preserves a supported ?display=show-day and round-trips idempotently', () => {
+      const input = new URLSearchParams('display=show-day');
+      const once = normalizeEntryManagementSearchParams(input);
+      expect(once.display).toBe('show-day');
+      expect(once.params.get('display')).toBe('show-day');
+
+      const twice = normalizeEntryManagementSearchParams(once.params);
+      expect(twice.display).toBe('show-day');
+      expect(twice.params.toString()).toBe(once.params.toString());
+    });
+
+    it('normalizes an invalid ?display= to the standard default and drops the param', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams('display=night'));
+      expect(result.display).toBe('standard');
+      expect(result.params.has('display')).toBe(false);
+    });
+  });
 });

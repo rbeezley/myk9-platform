@@ -2,11 +2,13 @@ import type { FilterDefinition } from '@/components/common/FilterChips';
 import type { ViewMode } from '@/components/common/ViewToggle';
 import { PaymentStatus } from '@/types/show-registration-types';
 import {
+  isEntryDisplayPreset,
   isOperationalViewDensity,
+  type EntryDisplayPreset,
   type OperationalViewDensity,
 } from '@/features/operational-views/operationalViews';
 
-export type { OperationalViewDensity };
+export type { EntryDisplayPreset, OperationalViewDensity };
 
 export const ENTRY_ATTENTION_FILTER_VALUES = [
   'all',
@@ -168,6 +170,7 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
   mode: EntryWorkMode;
   view: EntryManagementViewMode;
   density: OperationalViewDensity;
+  display: EntryDisplayPreset;
 } {
   const params = new URLSearchParams(searchParams);
   const rawEntryTab = params.get('entryTab');
@@ -187,6 +190,8 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
   const view = isEntryManagementViewMode(rawView) ? rawView : 'table';
   const rawDensity = params.get('density');
   const density = isOperationalViewDensity(rawDensity) ? rawDensity : 'comfortable';
+  const rawDisplay = params.get('display');
+  const display = isEntryDisplayPreset(rawDisplay) ? rawDisplay : 'standard';
 
   params.delete('entryTab');
 
@@ -217,12 +222,15 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
   if (density === 'comfortable') params.delete('density');
   else params.set('density', density);
 
+  if (display === 'standard') params.delete('display');
+  else params.set('display', display);
+
   // Invariant: the Roster view is trial-scoped. An orphaned `roster` (e.g. left
   // behind when the trial was cleared on another tab) would otherwise make the
   // next trial selection jump straight into Roster without the explicit toggle.
   if (!params.get('trial')) params.delete('roster');
 
-  return { params, attention, payment, mode, view, density };
+  return { params, attention, payment, mode, view, density, display };
 }
 
 export function getEntryManagementEmptyStateMessage({

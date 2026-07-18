@@ -115,6 +115,23 @@ export function isOperationalViewDensity(
 }
 
 /**
+ * Entry Management display presets (spec scenario "Show-day display is
+ * selected"). `show-day` = compact density + PRIORITY for armband, dog,
+ * class, and check-in information (column emphasis/reordering from the
+ * ENTRY_MANAGEMENT_OPTIONAL_COLUMN_VALUES allowlist: armband + checkIn) —
+ * nothing is hidden; identity, current status, selection controls, and the
+ * row action menu are always retained (Design Decision 3).
+ */
+export const ENTRY_DISPLAY_PRESET_VALUES = ['standard', 'show-day'] as const;
+export type EntryDisplayPreset = (typeof ENTRY_DISPLAY_PRESET_VALUES)[number];
+
+export function isEntryDisplayPreset(
+  value: string | null | undefined
+): value is EntryDisplayPreset {
+  return ENTRY_DISPLAY_PRESET_VALUES.includes(value as EntryDisplayPreset);
+}
+
+/**
  * Columns a display preset MAY prioritize/hide. Identity, current state,
  * selection controls, and the row action menu are always retained by the
  * surface regardless of this allowlist (Design Decision 3) — they are not

@@ -57,15 +57,17 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   };
 }
 
-let _corsHeaders: Record<string, string> = getCorsHeaders(null);
-
-function corsResponse(body: string | object | null, status = 200) {
+function corsResponse(
+  corsHeaders: Record<string, string>,
+  body: string | object | null,
+  status = 200
+) {
   if (status === 204) {
-    return new Response(null, { status, headers: _corsHeaders });
+    return new Response(null, { status, headers: corsHeaders });
   }
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ..._corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
 
@@ -120,11 +122,12 @@ interface OfferedWaitlistRow {
 }
 
 Deno.serve(async req => {
-  _corsHeaders = getCorsHeaders(req.headers.get('origin'));
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   try {
-    if (req.method === 'OPTIONS') return corsResponse({}, 204);
-    if (req.method !== 'POST') return corsResponse({ error: 'Method not allowed' }, 405);
+    if (req.method === 'OPTIONS') return corsResponse(corsHeaders, {}, 204);
+    if (req.method !== 'POST')
+      return corsResponse(corsHeaders, { error: 'Method not allowed' }, 405);
 
     const isInternalCall = await secretMatches(req.headers.get('x-function-secret'));
 
@@ -133,7 +136,8 @@ Deno.serve(async req => {
     const authHeader = req.headers.get('Authorization');
     let userId: string | null = null;
     if (!isInternalCall) {
-      if (!authHeader) return corsResponse({ error: 'Missing Authorization header' }, 401);
+      if (!authHeader)
+        return corsResponse(corsHeaders, { error: 'Missing Authorization header' }, 401);
       const token = authHeader.replace('Bearer ', '');
       const {
         data: { user },
@@ -141,7 +145,7 @@ Deno.serve(async req => {
       } = await supabase.auth.getUser(token);
       if (authError || !user) {
         console.error('Authentication failed:', authError);
-        return corsResponse({ error: 'Authentication failed' }, 401);
+        return corsResponse(corsHeaders, { error: 'Authentication failed' }, 401);
       }
       userId = user.id;
     }
@@ -149,15 +153,19 @@ Deno.serve(async req => {
     const body: PaymentLinkRequest = await req.json();
     const { entry_ids, success_url, cancel_url } = body;
     if (!Array.isArray(entry_ids) || entry_ids.length === 0) {
-      return corsResponse({ error: 'Missing required parameter: entry_ids' }, 400);
+      return corsResponse(corsHeaders, { error: 'Missing required parameter: entry_ids' }, 400);
     }
     if (!success_url || !cancel_url) {
-      return corsResponse({ error: 'Missing required parameters: success_url, cancel_url' }, 400);
+      return corsResponse(
+        corsHeaders,
+        { error: 'Missing required parameters: success_url, cancel_url' },
+        400
+      );
     }
     // The link is shareable to an unauthenticated payer — the redirect targets
     // must be public-safe routes (Task 3a). Open-redirect guard here.
     if (!isAllowedRedirectUrl(success_url) || !isAllowedRedirectUrl(cancel_url)) {
-      return corsResponse({ error: 'Invalid redirect URL' }, 400);
+      return corsResponse(corsHeaders, { error: 'Invalid redirect URL' }, 400);
     }
 
     // Load the entries with everything needed to price authoritatively.
@@ -177,17 +185,17 @@ Deno.serve(async req => {
 
     if (entriesError) {
       console.error('Entry lookup failed:', entriesError);
-      return corsResponse({ error: 'Could not load entries' }, 500);
+      return corsResponse(corsHeaders, { error: 'Could not load entries' }, 500);
     }
     const entries = (entriesData ?? []) as unknown as EntryRow[];
     if (entries.length !== entry_ids.length) {
-      return corsResponse({ error: 'One or more entries were not found' }, 404);
+      return corsResponse(corsHeaders, { error: 'One or more entries were not found' }, 404);
     }
 
     // One link, one show — keeps authz + the club payout account unambiguous.
     const showIds = new Set(entries.map(e => e.show?.id).filter(Boolean));
     if (showIds.size !== 1 || !entries[0].show) {
-      return corsResponse({ error: 'All entries must belong to the same show' }, 400);
+      return corsResponse(corsHeaders, { error: 'All entries must belong to the same show' }, 400);
     }
     const show = entries[0].show;
 
@@ -219,10 +227,14 @@ Deno.serve(async req => {
           .maybeSingle();
         if (exhibitorError) {
           console.error('Could not load exhibitor profile for waitlist payment:', exhibitorError);
-          return corsResponse({ error: 'Could not verify this waitlist offer' }, 500);
+          return corsResponse(corsHeaders, { error: 'Could not verify this waitlist offer' }, 500);
         }
         if (!exhibitorProfile) {
-          return corsResponse({ error: 'Not authorized to request payment for this show' }, 403);
+          return corsResponse(
+            corsHeaders,
+            { error: 'Not authorized to request payment for this show' },
+            403
+          );
         }
 
         const { data: activeOffers, error: offersError } = await supabase
@@ -234,7 +246,7 @@ Deno.serve(async req => {
           .gt('offer_expires_at', new Date().toISOString());
         if (offersError) {
           console.error('Could not load active waitlist offers:', offersError);
-          return corsResponse({ error: 'Could not verify this waitlist offer' }, 500);
+          return corsResponse(corsHeaders, { error: 'Could not verify this waitlist offer' }, 500);
         }
 
         const activeOfferEntryIds = new Set(
@@ -243,9 +255,13 @@ Deno.serve(async req => {
             .filter((entryId): entryId is string => Boolean(entryId))
         );
         if (activeOfferEntryIds.size !== entry_ids.length) {
-          return corsResponse({
-            error: 'Not authorized to request payment for these waitlist offers',
-          }, 403);
+          return corsResponse(
+            corsHeaders,
+            {
+              error: 'Not authorized to request payment for these waitlist offers',
+            },
+            403
+          );
         }
       }
     }
@@ -254,7 +270,11 @@ Deno.serve(async req => {
     // the platform account and is transferred out by cron-process-payouts; no
     // payout account = the money would be stuck).
     if (!show.club_id) {
-      return corsResponse({ error: 'This show is not linked to a club payment account.' }, 403);
+      return corsResponse(
+        corsHeaders,
+        { error: 'This show is not linked to a club payment account.' },
+        403
+      );
     }
     const { data: connect } = await supabase
       .from('club_stripe_accounts')
@@ -264,6 +284,7 @@ Deno.serve(async req => {
       .maybeSingle();
     if (connect?.payouts_enabled !== true) {
       return corsResponse(
+        corsHeaders,
         { error: "This club's payment account is not set up to receive online entry fees." },
         403
       );
@@ -275,6 +296,7 @@ Deno.serve(async req => {
     const alreadyPaid = entries.filter(e => e.payment_status !== 'pending');
     if (alreadyPaid.length > 0) {
       return corsResponse(
+        corsHeaders,
         { error: 'One or more entries are already paid or not awaiting payment' },
         422
       );
@@ -285,6 +307,7 @@ Deno.serve(async req => {
     const inactive = entries.filter(e => INACTIVE_ENTRY_STATUSES.has(e.entry_status ?? ''));
     if (inactive.length > 0) {
       return corsResponse(
+        corsHeaders,
         { error: 'One or more entries are withdrawn, scratched, or no longer active' },
         422
       );
@@ -327,6 +350,7 @@ Deno.serve(async req => {
     if (priorLinksError) {
       console.error('Could not load existing payment links:', priorLinksError);
       return corsResponse(
+        corsHeaders,
         { error: 'Could not check an existing payment link. Please try again.' },
         503
       );
@@ -347,6 +371,7 @@ Deno.serve(async req => {
       } catch (err) {
         console.log(`Could not inspect prior session ${prior.stripe_checkout_session_id}:`, err);
         return corsResponse(
+          corsHeaders,
           { error: 'Could not verify an existing payment link. Please try again.' },
           503
         );
@@ -354,7 +379,7 @@ Deno.serve(async req => {
       const justCompleted =
         'A payment for one of these entries just completed — refresh to see it before requesting again.';
       if (priorPaymentStatus === 'paid') {
-        return corsResponse({ error: justCompleted }, 409);
+        return corsResponse(corsHeaders, { error: justCompleted }, 409);
       }
       if (priorStatus && priorStatus !== 'open') {
         await supabase
@@ -365,6 +390,7 @@ Deno.serve(async req => {
       }
       if (priorStatus !== 'open') {
         return corsResponse(
+          corsHeaders,
           { error: 'Could not verify an existing payment link. Please try again.' },
           503
         );
@@ -388,12 +414,13 @@ Deno.serve(async req => {
             recheckError
           );
           return corsResponse(
+            corsHeaders,
             { error: 'Could not safely replace an existing payment link. Please try again.' },
             503
           );
         }
         if (recheckPaymentStatus === 'paid') {
-          return corsResponse({ error: justCompleted }, 409);
+          return corsResponse(corsHeaders, { error: justCompleted }, 409);
         }
         if (recheckStatus && recheckStatus !== 'open') {
           await supabase
@@ -407,6 +434,7 @@ Deno.serve(async req => {
           err
         );
         return corsResponse(
+          corsHeaders,
           { error: 'Could not safely replace an existing payment link. Please try again.' },
           503
         );
@@ -443,7 +471,10 @@ Deno.serve(async req => {
         );
       }
     } catch (err) {
-      console.log('Could not resolve withdrawal policy for custom_text — skipping disclosure:', err);
+      console.log(
+        'Could not resolve withdrawal policy for custom_text — skipping disclosure:',
+        err
+      );
     }
 
     const sessionParams = buildEntryPaymentLinkSession({
@@ -478,7 +509,11 @@ Deno.serve(async req => {
       } catch (expireErr) {
         console.error(`CRITICAL: could not expire orphaned session ${session.id}:`, expireErr);
       }
-      return corsResponse({ error: 'Could not create the payment link. Please try again.' }, 500);
+      return corsResponse(
+        corsHeaders,
+        { error: 'Could not create the payment link. Please try again.' },
+        500
+      );
     }
 
     console.log(
@@ -489,7 +524,7 @@ Deno.serve(async req => {
     // Return the exact breakdown so the dialog can disclose entry fee + platform
     // fee = total (fee-on-top) without re-deriving fee math on the client.
     const platformFeeCents = calculatePlatformFeeCents(amountCents, platformFeePercent);
-    return corsResponse({
+    return corsResponse(corsHeaders, {
       url: session.url,
       session_id: session.id,
       subtotal_cents: amountCents,
@@ -499,6 +534,6 @@ Deno.serve(async req => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('stripe-payment-link error:', message);
-    return corsResponse({ error: message }, 500);
+    return corsResponse(corsHeaders, { error: message }, 500);
   }
 });

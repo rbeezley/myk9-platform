@@ -84,7 +84,7 @@ describe('CheckoutSuccessPage split checkout summary', () => {
       orderId: 'order-1',
       showId: 'show-1',
       showName: 'Summer Show',
-      totalAmount: 2500,
+      totalAmountCents: 2500,
       entryIds: ['entry-1'],
       confirmationNumber: 'pi_123',
     });
@@ -170,7 +170,7 @@ describe('CheckoutSuccessPage split checkout summary', () => {
       orderId: 'order-2',
       showId: 'show-1',
       showName: 'Summer Show',
-      totalAmount: 2500,
+      totalAmountCents: 2500,
       entryIds: ['entry-1'],
       confirmationNumber: 'pi_456',
     });

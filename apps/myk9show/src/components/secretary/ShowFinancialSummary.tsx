@@ -26,7 +26,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Download, DollarSign, Users, Tag, Gift, Search, ChevronDown } from 'lucide-react';
 import { getEntriesByShowForFinancials } from '@/services/database/entries';
 import { paymentStatusColors } from '@/lib/financial-constants';
-import type { ShowFinancialEntryRow, TrialSubtotal } from './financialSummaryTypes';
+import type { ShowFinancialEntryRow } from './financialSummaryTypes';
+import { computeShowFinancialSummary } from './showFinancialSummaryCalc';
 
 interface ShowFinancialSummaryProps {
   showId: string;
@@ -79,75 +80,10 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
     [rawEntries]
   );
 
-  // Single-pass: compute summary, trial subtotals, and trial options together
-  const { summary, trialSubtotals, trialOptions } = useMemo(() => {
-    const acc = {
-      totalEntries: entries.length,
-      totalFees: 0,
-      totalDiscounts: 0,
-      totalComped: 0,
-      netAmount: 0,
-      paidCount: 0,
-      paidAmount: 0,
-      pendingCount: 0,
-      pendingAmount: 0,
-      refundedCount: 0,
-      refundedAmount: 0,
-      compedCount: 0,
-    };
-    const subtotalMap = new Map<string, TrialSubtotal>();
-
-    for (const e of entries) {
-      acc.totalFees += e.entryFee;
-      acc.totalDiscounts += e.discountAmount;
-
-      if (e.comped) {
-        acc.compedCount++;
-        acc.totalComped += e.entryFee;
-      } else if (e.paymentStatus === 'paid') {
-        acc.paidCount++;
-        acc.paidAmount += e.entryFee - e.discountAmount;
-      } else if (e.paymentStatus === 'pending') {
-        acc.pendingCount++;
-        acc.pendingAmount += e.entryFee - e.discountAmount;
-      } else if (e.paymentStatus === 'refunded') {
-        acc.refundedCount++;
-        acc.refundedAmount += e.entryFee;
-      }
-
-      let sub = subtotalMap.get(e.trialId);
-      if (!sub) {
-        sub = {
-          trialId: e.trialId,
-          trialName: e.trialName,
-          entryCount: 0,
-          totalFees: 0,
-          totalDiscounts: 0,
-          totalComped: 0,
-          netAmount: 0,
-        };
-        subtotalMap.set(e.trialId, sub);
-      }
-      sub.entryCount++;
-      sub.totalFees += e.entryFee;
-      sub.totalDiscounts += e.discountAmount;
-      if (e.comped) sub.totalComped += e.entryFee;
-    }
-
-    acc.netAmount = acc.totalFees - acc.totalDiscounts - acc.totalComped;
-
-    const subtotals: TrialSubtotal[] = [];
-    const options: [string, string][] = [];
-    for (const sub of subtotalMap.values()) {
-      sub.netAmount = sub.totalFees - sub.totalDiscounts - sub.totalComped;
-      subtotals.push(sub);
-      options.push([sub.trialId, sub.trialName]);
-    }
-    subtotals.sort((a, b) => a.trialName.localeCompare(b.trialName));
-    options.sort((a, b) => a[1].localeCompare(b[1]));
-
-    return { summary: acc, trialSubtotals: subtotals, trialOptions: options };
-  }, [entries]);
+  const { summary, trialSubtotals, trialOptions } = useMemo(
+    () => computeShowFinancialSummary(entries),
+    [entries]
+  );
 
   const filteredEntries = useMemo(() => {
     let result = entries;

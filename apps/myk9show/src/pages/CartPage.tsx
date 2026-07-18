@@ -5,7 +5,7 @@
  * modify entries, and proceed to checkout.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye, Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -65,6 +65,11 @@ export default function CartPage() {
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  // Imperative in-flight latch: the disabled={isCheckingOut} prop lags one
+  // render, so two clicks in the same frame would start two checkout
+  // sessions. Deliberately NOT released on the successful redirect path —
+  // the page is navigating away to Stripe.
+  const checkoutInFlightRef = useRef(false);
   const [cancelNoticeDismissed, setCancelNoticeDismissed] = useState(false);
 
   // Reading the Stripe cancel return param is purely informational — the cart
@@ -136,7 +141,13 @@ export default function CartPage() {
     setShowClearDialog(false);
   };
 
+  const stopCheckingOut = () => {
+    checkoutInFlightRef.current = false;
+    setIsCheckingOut(false);
+  };
+
   const handleCheckout = async () => {
+    if (checkoutInFlightRef.current) return;
     if (!cart?.id) {
       setError('No cart found. Please add items to your cart.');
       return;
@@ -154,6 +165,7 @@ export default function CartPage() {
       return;
     }
 
+    checkoutInFlightRef.current = true;
     setIsCheckingOut(true);
     setError(null);
 
@@ -169,14 +181,14 @@ export default function CartPage() {
             blockedItems.length === 1 ? 'it' : 'them'
           } to continue.`
         );
-        setIsCheckingOut(false);
+        stopCheckingOut();
         return;
       }
 
       const splitResult = await checkoutWithWaitlist(profile.id, splitDecision.waitlistItemIds);
 
       if (!splitResult) {
-        setIsCheckingOut(false);
+        stopCheckingOut();
         return;
       }
 
@@ -188,7 +200,7 @@ export default function CartPage() {
           setError(
             'Your wait list request was saved, but we could not refresh the cart for payment. Please reload the cart before trying again.'
           );
-          setIsCheckingOut(false);
+          stopCheckingOut();
           return;
         }
       }
@@ -206,7 +218,7 @@ export default function CartPage() {
       }
 
       if (splitResult.confirmed.length === 0) {
-        setIsCheckingOut(false);
+        stopCheckingOut();
         navigate(
           splitCheckoutId
             ? `/checkout/success?waitlist=1&split=${encodeURIComponent(splitCheckoutId)}`
@@ -220,7 +232,7 @@ export default function CartPage() {
       // If we get here, the redirect didn't happen (shouldn't normally occur)
     } catch (_err) {
       setError('Something went wrong starting checkout. Please try again.');
-      setIsCheckingOut(false);
+      stopCheckingOut();
     }
   };
 

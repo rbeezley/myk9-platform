@@ -39,15 +39,17 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   };
 }
 
-let _corsHeaders: Record<string, string> = getCorsHeaders(null);
-
-function corsResponse(body: string | object | null, status = 200) {
+function corsResponse(
+  corsHeaders: Record<string, string>,
+  body: string | object | null,
+  status = 200
+) {
   if (status === 204) {
-    return new Response(null, { status, headers: _corsHeaders });
+    return new Response(null, { status, headers: corsHeaders });
   }
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ..._corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
 
@@ -65,20 +67,20 @@ function buildRedirectUrl(requestOrigin: string | null, path: string): string | 
 }
 
 Deno.serve(async req => {
-  _corsHeaders = getCorsHeaders(req.headers.get('origin'));
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   try {
     if (req.method === 'OPTIONS') {
-      return corsResponse({}, 204);
+      return corsResponse(corsHeaders, {}, 204);
     }
     if (req.method !== 'POST') {
-      return corsResponse({ error: 'Method not allowed' }, 405);
+      return corsResponse(corsHeaders, { error: 'Method not allowed' }, 405);
     }
 
     // Authenticate the caller
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return corsResponse({ error: 'Missing Authorization header' }, 401);
+      return corsResponse(corsHeaders, { error: 'Missing Authorization header' }, 401);
     }
     const token = authHeader.replace('Bearer ', '');
     const {
@@ -87,13 +89,17 @@ Deno.serve(async req => {
     } = await supabase.auth.getUser(token);
     if (authError || !user) {
       console.error('Authentication failed:', authError);
-      return corsResponse({ error: 'Authentication failed' }, 401);
+      return corsResponse(corsHeaders, { error: 'Authentication failed' }, 401);
     }
 
     const body: OnboardRequest = await req.json();
     const { club_id, return_path } = body;
     if (!club_id || !return_path) {
-      return corsResponse({ error: 'Missing required parameters: club_id, return_path' }, 400);
+      return corsResponse(
+        corsHeaders,
+        { error: 'Missing required parameters: club_id, return_path' },
+        400
+      );
     }
 
     // Verify the caller is a club admin for this club (or site admin) using
@@ -108,10 +114,10 @@ Deno.serve(async req => {
     );
     if (clubAdminError) {
       console.error('Authorization check failed:', clubAdminError);
-      return corsResponse({ error: 'Authorization check failed' }, 500);
+      return corsResponse(corsHeaders, { error: 'Authorization check failed' }, 500);
     }
     if (isClubAdmin !== true && isSiteAdmin !== true) {
-      return corsResponse({ error: 'Not authorized for this club' }, 403);
+      return corsResponse(corsHeaders, { error: 'Not authorized for this club' }, 403);
     }
 
     // Redirect URLs must land back on an allowed origin
@@ -119,7 +125,7 @@ Deno.serve(async req => {
     const returnUrl = buildRedirectUrl(requestOrigin, `${return_path}?connect=return`);
     const refreshUrl = buildRedirectUrl(requestOrigin, `${return_path}?connect=refresh`);
     if (!returnUrl || !refreshUrl) {
-      return corsResponse({ error: 'Invalid return path or origin' }, 400);
+      return corsResponse(corsHeaders, { error: 'Invalid return path or origin' }, 400);
     }
 
     // Reuse the club's existing Express account or create one.
@@ -172,7 +178,7 @@ Deno.serve(async req => {
         } catch (delErr) {
           console.error(`Could not clean up orphaned account ${stripeAccountId}:`, delErr);
         }
-        return corsResponse({ error: 'Failed to save payment account' }, 500);
+        return corsResponse(corsHeaders, { error: 'Failed to save payment account' }, 500);
       }
     }
 
@@ -184,10 +190,10 @@ Deno.serve(async req => {
     });
 
     console.log(`Onboarding link created for club ${club_id} (${stripeAccountId})`);
-    return corsResponse({ url: accountLink.url });
+    return corsResponse(corsHeaders, { url: accountLink.url });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('stripe-connect-onboard error:', message);
-    return corsResponse({ error: message }, 500);
+    return corsResponse(corsHeaders, { error: message }, 500);
   }
 });

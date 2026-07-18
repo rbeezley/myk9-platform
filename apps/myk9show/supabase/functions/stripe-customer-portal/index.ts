@@ -38,20 +38,21 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   };
 }
 
-let _corsHeaders: Record<string, string> = getCorsHeaders(null);
-
-function corsResponse(body: string | object | null, status = 200) {
+function corsResponse(
+  corsHeaders: Record<string, string>,
+  body: string | object | null,
+  status = 200
+) {
   if (status === 204) {
-    return new Response(null, { status, headers: _corsHeaders });
+    return new Response(null, { status, headers: corsHeaders });
   }
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ..._corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
 
 interface PortalRequest {
-  customerId: string; // Supabase UUID (stripe_customers.id)
   returnUrl: string;
 }
 
@@ -65,21 +66,21 @@ function isAllowedRedirectUrl(url: string): boolean {
 }
 
 Deno.serve(async req => {
-  _corsHeaders = getCorsHeaders(req.headers.get('origin'));
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   try {
     if (req.method === 'OPTIONS') {
-      return corsResponse({}, 204);
+      return corsResponse(corsHeaders, {}, 204);
     }
 
     if (req.method !== 'POST') {
-      return corsResponse({ error: 'Method not allowed' }, 405);
+      return corsResponse(corsHeaders, { error: 'Method not allowed' }, 405);
     }
 
     // Authenticate user
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return corsResponse({ error: 'Missing Authorization header' }, 401);
+      return corsResponse(corsHeaders, { error: 'Missing Authorization header' }, 401);
     }
 
     const token = authHeader.replace('Bearer ', '');
@@ -90,44 +91,45 @@ Deno.serve(async req => {
 
     if (authError || !user) {
       console.error('Authentication failed:', authError);
-      return corsResponse({ error: 'Authentication failed' }, 401);
+      return corsResponse(corsHeaders, { error: 'Authentication failed' }, 401);
     }
 
     // Parse request
     const body: PortalRequest = await req.json();
-    const { customerId, returnUrl } = body;
+    const { returnUrl } = body;
 
-    if (!customerId || !returnUrl) {
-      return corsResponse({ error: 'Missing required parameters: customerId, returnUrl' }, 400);
+    if (!returnUrl) {
+      return corsResponse(corsHeaders, { error: 'Missing required parameter: returnUrl' }, 400);
     }
 
     // Validate return URL against allowed origins (prevent open redirect)
     if (!isAllowedRedirectUrl(returnUrl)) {
-      return corsResponse({ error: 'Invalid return URL origin' }, 400);
+      return corsResponse(corsHeaders, { error: 'Invalid return URL origin' }, 400);
     }
 
-    // Look up the Stripe customer ID and verify ownership
-    const { data: customer, error: customerError } = await supabase
-      .from('stripe_customers')
-      .select('stripe_customer_id, person_id')
-      .eq('id', customerId)
-      .eq('livemode', stripeLivemode)
-      .single();
-
-    if (customerError || !customer) {
-      return corsResponse({ error: 'Customer not found' }, 404);
-    }
-
-    // Verify the authenticated user owns this customer record
+    // MP-27: derive the customer from the authenticated user instead of
+    // accepting an id in the body — the old flow re-verified ownership, but
+    // accepting the id at all was needless attack surface (UUID probing via
+    // 404-vs-403).
     const { data: person, error: personError } = await supabase
       .from('people')
       .select('id')
-      .eq('id', customer.person_id)
       .eq('auth_user_id', user.id)
       .single();
 
     if (personError || !person) {
-      return corsResponse({ error: 'Not authorized' }, 403);
+      return corsResponse(corsHeaders, { error: 'Customer not found' }, 404);
+    }
+
+    const { data: customer, error: customerError } = await supabase
+      .from('stripe_customers')
+      .select('stripe_customer_id')
+      .eq('person_id', person.id)
+      .eq('livemode', stripeLivemode)
+      .maybeSingle();
+
+    if (customerError || !customer) {
+      return corsResponse(corsHeaders, { error: 'Customer not found' }, 404);
     }
 
     // Create Stripe Billing Portal session
@@ -136,10 +138,11 @@ Deno.serve(async req => {
       return_url: returnUrl,
     });
 
-    return corsResponse({ url: session.url });
+    return corsResponse(corsHeaders, { url: session.url });
   } catch (error: unknown) {
     console.error('Customer portal error:', error);
     return corsResponse(
+      corsHeaders,
       {
         error: error instanceof Error ? error.message : 'Unknown error',
       },

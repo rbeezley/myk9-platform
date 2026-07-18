@@ -95,7 +95,7 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
   entryIds?: string[];
   showId?: string;
   showName?: string;
-  totalAmount?: number;
+  totalAmountCents?: number;
   refundAmount?: number;
   refundStatus?: 'issued' | 'processing';
   confirmationNumber?: string;
@@ -169,7 +169,7 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
     entryIds: order.entry_ids || [],
     ...(order.show_id != null && { showId: order.show_id }),
     ...(order.shows && { showName: (order.shows as { name: string }).name }),
-    ...(order.amount_cents != null && { totalAmount: order.amount_cents }),
+    ...(order.amount_cents != null && { totalAmountCents: order.amount_cents }),
     ...(confirmationNumber && { confirmationNumber }),
   };
 }

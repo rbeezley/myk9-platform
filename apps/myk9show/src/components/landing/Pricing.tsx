@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -55,6 +55,10 @@ const tiers = [
 export default function Pricing() {
   const { user } = useAuthContext();
   const navigate = useNavigate();
+  // Imperative in-flight latch (same as PricingPage): state-based disabling
+  // lags within the same sync callback, so a double-click would start two
+  // live subscription checkout sessions.
+  const checkoutInFlightRef = useRef(false);
 
   const handleSubscribe = useCallback(
     async (priceId: string) => {
@@ -63,11 +67,15 @@ export default function Pricing() {
         return;
       }
 
+      if (checkoutInFlightRef.current) return;
+      checkoutInFlightRef.current = true;
       try {
         await createCheckoutSession(priceId, 'subscription');
       } catch (error) {
         toast.error('Something went wrong. Please try again.');
         logger.error('Failed to create checkout session:', 'landing', {}, error as Error);
+      } finally {
+        checkoutInFlightRef.current = false;
       }
     },
     [user, navigate]

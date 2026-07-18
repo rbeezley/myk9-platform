@@ -2,6 +2,7 @@ import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ShowWorkbenchClassSummary } from './showWorkbenchTypes';
 import { classifyPremiumPublishState } from './premiumPublishState';
+import { getClassManagementHref } from '@/components/classes/classManagementFilters';
 
 export type SetupReadinessSignalId =
   | 'show-details-missing'
@@ -65,9 +66,12 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
   const showId = input.show.id;
   const firstTrialId = input.trials[0]?.id;
   // Classes and judges are managed per trial; until a trial exists, the
-  // Trials tab is the right starting point for both.
+  // Trials tab is the right starting point for both. Route through the
+  // canonical Class Management href builder (not a hand-assembled path) so
+  // this link stays consistent with the surface's own normalizer even though
+  // neither signal maps to a curated status filter today.
   const classWorkHref = firstTrialId
-    ? `/shows/${showId}/classes/${firstTrialId}`
+    ? getClassManagementHref({ showId, trialId: firstTrialId })
     : `/shows/${showId}?tab=trials`;
   if (!showDetailsComplete(input.show)) {
     signals.push({

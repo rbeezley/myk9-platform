@@ -23,8 +23,8 @@ import { useTrialStore } from '@/store/trialStore';
 import { matchesAny } from '@myk9/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { StatusIcon } from '@/components/status';
 import { Input } from '@/components/ui/input';
+import { ClassLifecyclePresetTiles } from '@/components/classes/ClassLifecyclePresetTiles';
 import {
   Select,
   SelectContent,
@@ -34,6 +34,11 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Plus, Search, Filter, Settings, ListOrdered } from 'lucide-react';
+import { getClassManagementHref } from '@/components/classes/classManagementFilters';
+import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
+import { ClassManagementViewControls } from '@/components/classes/ClassManagementViewControls';
+import type { ClassManagementOperationalView } from '@/features/operational-views/operationalViews';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 export const ClassManagementPage: React.FC = () => {
   const {
@@ -73,6 +78,7 @@ export const ClassManagementPage: React.FC = () => {
     },
   });
 
+  const { user } = useAuthContext();
   const {
     search: searchTerm,
     setSearch: setSearchTerm,
@@ -80,6 +86,9 @@ export const ClassManagementPage: React.FC = () => {
     setStatus: setStatusFilter,
     element: elementFilter,
     setElement: setElementFilter,
+    density,
+    setDensity,
+    applyView,
     clearFilters,
   } = useClassManagementFilters();
 
@@ -147,7 +156,10 @@ export const ClassManagementPage: React.FC = () => {
     pruneToItems: true,
     // Clear bulk selection whenever the view identity (status/search/element)
     // changes, so a secretary who narrows or widens the filter never applies a
-    // bulk action to rows they can no longer see (Design Decision 4).
+    // bulk action to rows they can no longer see (Design Decision 4). `density`
+    // is deliberately excluded — it never changes which rows are visible, only
+    // how tightly they're laid out, so it must not clear an in-progress
+    // selection (see RegistrationView.tsx for the mirrored Entry Management note).
     resetKey: `${statusFilter}|${searchTerm}|${elementFilter}`,
   });
 
@@ -169,6 +181,11 @@ export const ClassManagementPage: React.FC = () => {
     assignJudgeMutation.mutate({ classId, judgeId });
   };
 
+  const handleApplyView = (view: ClassManagementOperationalView) => {
+    selection.clearSelection();
+    applyView(view);
+  };
+
   const handleDelete = (classId: string) => {
     if (confirm('Are you sure you want to delete this class?')) {
       deleteClassMutation.mutate({ id: classId });
@@ -186,6 +203,19 @@ export const ClassManagementPage: React.FC = () => {
       : trialId
         ? `/trials/${trialId}/classes/create`
         : '/secretary/dashboard';
+  // Copy-link href: built from the canonical href builder (never a
+  // hand-assembled query string) so a copied URL only ever carries
+  // normalized, supported Class Management params.
+  const copyLinkHref =
+    showId && trialId
+      ? getClassManagementHref({
+          showId,
+          trialId,
+          status: statusFilter,
+          search: searchTerm,
+          element: elementFilter,
+        })
+      : null;
 
   return (
     <div className="manager-content-container mx-auto max-w-7xl px-4 py-6 sm:px-6">
@@ -208,6 +238,7 @@ export const ClassManagementPage: React.FC = () => {
         </div>
 
         <div className="manager-page-actions">
+          {copyLinkHref && <CopyViewLinkButton href={copyLinkHref} label="Copy view link" />}
           <Button variant="ghost" asChild className="min-h-[44px] w-full justify-center sm:w-auto">
             <Link to={setupHref}>
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -233,102 +264,12 @@ export const ClassManagementPage: React.FC = () => {
         </div>
       </div>
 
-      {/*
-        The summary tiles ARE the curated Class Management presets
-        (not-started / in-progress / completed / all-classes from
-        CLASS_MANAGEMENT_PRESETS) — clicking one applies the matching
-        lifecycle status filter through the same URL-backed state as the
-        status Select below. One preset system, not a second menu.
-      */}
-      <div className="manager-class-stats-grid mb-6" role="group" aria-label="Class lifecycle presets">
-        <Card
-          role="button"
-          tabIndex={0}
-          aria-pressed={statusFilter === 'all'}
-          onClick={() => setStatusFilter('all')}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setStatusFilter('all');
-            }
-          }}
-          className={`cursor-pointer transition-colors ${statusFilter === 'all' ? 'border-primary ring-1 ring-primary' : ''}`}
-        >
-          <CardContent className="flex items-center p-4">
-            <Settings className="h-8 w-8 text-blue-500 mr-3" />
-            <div>
-              <div className="text-2xl font-bold">{allClasses.length}</div>
-              <div className="text-sm text-muted-foreground">Total Classes</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          role="button"
-          tabIndex={0}
-          aria-pressed={statusFilter === 'not_started'}
-          onClick={() => setStatusFilter('not_started')}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setStatusFilter('not_started');
-            }
-          }}
-          className={`cursor-pointer transition-colors ${statusFilter === 'not_started' ? 'border-primary ring-1 ring-primary' : ''}`}
-        >
-          <CardContent className="flex items-center p-4">
-            <StatusIcon family="class" status="not_started" size="lg" className="mr-3" decorative />
-            <div>
-              <div className="text-2xl font-bold">{lifecycleCounts.not_started}</div>
-              <div className="text-sm text-muted-foreground">Not started</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          role="button"
-          tabIndex={0}
-          aria-pressed={statusFilter === 'in_progress'}
-          onClick={() => setStatusFilter('in_progress')}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setStatusFilter('in_progress');
-            }
-          }}
-          className={`cursor-pointer transition-colors ${statusFilter === 'in_progress' ? 'border-primary ring-1 ring-primary' : ''}`}
-        >
-          <CardContent className="flex items-center p-4">
-            <StatusIcon family="class" status="in_progress" size="lg" className="mr-3" decorative />
-            <div>
-              <div className="text-2xl font-bold">{lifecycleCounts.in_progress}</div>
-              <div className="text-sm text-muted-foreground">In Progress</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          role="button"
-          tabIndex={0}
-          aria-pressed={statusFilter === 'completed'}
-          onClick={() => setStatusFilter('completed')}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setStatusFilter('completed');
-            }
-          }}
-          className={`cursor-pointer transition-colors ${statusFilter === 'completed' ? 'border-primary ring-1 ring-primary' : ''}`}
-        >
-          <CardContent className="flex items-center p-4">
-            <StatusIcon family="class" status="completed" size="lg" className="mr-3" decorative />
-            <div>
-              <div className="text-2xl font-bold">{lifecycleCounts.completed}</div>
-              <div className="text-sm text-muted-foreground">Completed</div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <ClassLifecyclePresetTiles
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        totalClasses={allClasses.length}
+        lifecycleCounts={lifecycleCounts}
+      />
 
       <Card className="mb-6">
         <CardContent className="pt-6">
@@ -381,6 +322,18 @@ export const ClassManagementPage: React.FC = () => {
               Showing {filteredClasses.length} of {allClasses.length} classes
             </div>
           </div>
+
+          {/* Display density + personal saved views (tasks.md 3.2/3.3) */}
+          <ClassManagementViewControls
+            density={density}
+            onDensityChange={setDensity}
+            userId={user?.id}
+            showId={showId}
+            trialId={trialId}
+            statusFilter={statusFilter}
+            searchTerm={searchTerm}
+            onApplyView={handleApplyView}
+          />
         </CardContent>
       </Card>
 
@@ -427,6 +380,7 @@ export const ClassManagementPage: React.FC = () => {
                   onStatusChange={handleStatusChange}
                   onJudgeChange={handleJudgeChange}
                   onDelete={handleDelete}
+                  density={density}
                 />
               ))}
             </div>

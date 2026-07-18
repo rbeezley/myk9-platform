@@ -1,6 +1,12 @@
 import type { FilterDefinition } from '@/components/common/FilterChips';
 import type { ViewMode } from '@/components/common/ViewToggle';
 import { PaymentStatus } from '@/types/show-registration-types';
+import {
+  isOperationalViewDensity,
+  type OperationalViewDensity,
+} from '@/features/operational-views/operationalViews';
+
+export type { OperationalViewDensity };
 
 export const ENTRY_ATTENTION_FILTER_VALUES = [
   'all',
@@ -161,6 +167,7 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
   payment: EntryPaymentFilter;
   mode: EntryWorkMode;
   view: EntryManagementViewMode;
+  density: OperationalViewDensity;
 } {
   const params = new URLSearchParams(searchParams);
   const rawEntryTab = params.get('entryTab');
@@ -178,6 +185,8 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
   const mode = isEntryWorkMode(rawMode) ? rawMode : 'review';
   const rawView = params.get('view');
   const view = isEntryManagementViewMode(rawView) ? rawView : 'table';
+  const rawDensity = params.get('density');
+  const density = isOperationalViewDensity(rawDensity) ? rawDensity : 'comfortable';
 
   params.delete('entryTab');
 
@@ -205,12 +214,15 @@ export function normalizeEntryManagementSearchParams(searchParams: URLSearchPara
   if (view === 'table') params.delete('view');
   else params.set('view', view);
 
+  if (density === 'comfortable') params.delete('density');
+  else params.set('density', density);
+
   // Invariant: the Roster view is trial-scoped. An orphaned `roster` (e.g. left
   // behind when the trial was cleared on another tab) would otherwise make the
   // next trial selection jump straight into Roster without the explicit toggle.
   if (!params.get('trial')) params.delete('roster');
 
-  return { params, attention, payment, mode, view };
+  return { params, attention, payment, mode, view, density };
 }
 
 export function getEntryManagementEmptyStateMessage({

@@ -15,12 +15,12 @@
 - [x] 3.0 Move Class Management search/status/element filter state to normalized URL parameters via a `normalizeClassManagementSearchParams` helper mirroring the Entry Management pattern.
 - [x] 3.1 Add curated Class Management lifecycle presets without duplicating class lifecycle derivation.
 - [ ] 3.2 Add allowlisted display presets that preserve identity, status, selection, judge, and row actions.
-- [ ] 3.3 Add personal local save/reapply behavior with shared-device user isolation, cross-show scope rejection, account-change reset, invalid-storage, and storage-unavailable tests.
+- [x] 3.3 Add personal local save/reapply behavior with shared-device user isolation, cross-show scope rejection, account-change reset, invalid-storage, and storage-unavailable tests.
 
 ## 4. Workbench routing and UX verification
 
-- [ ] 4.0 Add the copy-link affordance to the Entry Management and Class Management view headers; verify copied URLs round-trip through each surface's normalizer.
-- [ ] 4.1 Add only deep links from existing Workbench readiness surfaces to the canonical filtered destination; do not render a second list.
+- [x] 4.0 Add the copy-link affordance to the Entry Management and Class Management view headers; verify copied URLs round-trip through each surface's normalizer.
+- [x] 4.1 Add only deep links from existing Workbench readiness surfaces to the canonical filtered destination; do not render a second list.
 - [ ] 4.2 Add component tests proving presets expose clearing actions, preserve permissions, and clear selection.
 - [ ] 4.3 Run focused Vitest files, `pnpm openspec validate operational-views-and-display-presets --type change --strict --no-interactive`, `pnpm typecheck`, and `pnpm lint`.
 - [ ] 4.4 Run secretary/steward tablet browser verification for preset selection, refresh/back navigation, URL sharing, offline/cached data, and readability.

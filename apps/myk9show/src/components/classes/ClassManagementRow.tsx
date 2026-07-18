@@ -13,6 +13,7 @@ import { ListOrdered } from 'lucide-react';
 import { RowActionMenu, toRowActions, type RowAction } from '@/components/ui/RowActionMenu';
 import { classActions } from '@/components/classes/classActions';
 import { deriveClassLifecycleValue, shouldShowClassLifecycle } from '@/lib/status/classLifecycle';
+import type { OperationalViewDensity } from '@/features/operational-views/operationalViews';
 
 export type DbClassRow = {
   id: string;
@@ -40,6 +41,12 @@ interface ClassManagementRowProps {
   onStatusChange: (classId: string, status: string) => void;
   onJudgeChange: (classId: string, judgeId: string) => void;
   onDelete: (classId: string) => void;
+  /**
+   * Display density (Design Decision 3) — controls padding/spacing only.
+   * Selection checkbox, status chip, judge assignment, and the row action
+   * menu are always rendered regardless of this value.
+   */
+  density?: OperationalViewDensity;
 }
 
 export const ClassManagementRow: React.FC<ClassManagementRowProps> = ({
@@ -53,13 +60,15 @@ export const ClassManagementRow: React.FC<ClassManagementRowProps> = ({
   onStatusChange,
   onJudgeChange,
   onDelete,
+  density = 'comfortable',
 }) => {
   const entryCount = cls.entries?.length ?? 0;
   const maxEntries = cls.max_entries ?? 0;
+  const isCompact = density === 'compact';
   return (
     <div
       data-class-id={cls.id}
-      className={`border rounded-lg p-4 transition-all ${
+      className={`border rounded-lg transition-all ${isCompact ? 'p-2' : 'p-4'} ${
         selected ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
       }`}
     >

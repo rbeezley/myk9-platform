@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import {
   normalizeClassManagementSearchParams,
   type ClassManagementStatusFilter,
+  type OperationalViewDensity,
 } from '@/components/classes/classManagementFilters';
+import type { ClassManagementOperationalView } from '@/features/operational-views/operationalViews';
 
 interface UseClassManagementFiltersReturn {
   search: string;
@@ -12,6 +14,10 @@ interface UseClassManagementFiltersReturn {
   setStatus: (value: ClassManagementStatusFilter) => void;
   element: string;
   setElement: (value: string) => void;
+  density: OperationalViewDensity;
+  setDensity: (value: OperationalViewDensity) => void;
+  /** Apply a full restored/saved view in one URL update (Design Decision 1 adapter). */
+  applyView: (view: ClassManagementOperationalView) => void;
   clearFilters: () => void;
 }
 
@@ -79,6 +85,42 @@ export function useClassManagementFilters(): UseClassManagementFiltersReturn {
     [setSearchParams]
   );
 
+  const setDensity = useCallback(
+    (value: OperationalViewDensity) => {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (value === 'comfortable') next.delete('density');
+          else next.set('density', value);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const applyView = useCallback(
+    (view: ClassManagementOperationalView) => {
+      const { filters, display } = view;
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (filters.status === 'all') next.delete('status');
+          else next.set('status', filters.status);
+          if (filters.search === '') next.delete('search');
+          else next.set('search', filters.search);
+          const density = display?.density ?? 'comfortable';
+          if (density === 'comfortable') next.delete('density');
+          else next.set('density', density);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
   const clearFilters = useCallback(() => {
     setSearchParams(
       prev => {
@@ -99,6 +141,9 @@ export function useClassManagementFilters(): UseClassManagementFiltersReturn {
     setStatus,
     element: normalized.element,
     setElement,
+    density: normalized.density,
+    setDensity,
+    applyView,
     clearFilters,
   };
 }

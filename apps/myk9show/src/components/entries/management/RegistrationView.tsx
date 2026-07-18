@@ -28,7 +28,12 @@ import {
   type EntryWorkMode,
 } from './entryManagementFilters';
 import { shouldUseEntryCards } from './entryManagementResponsive';
-import type { EntryManagementPresetId } from '@/features/operational-views/operationalViews';
+import { EntryManagementViewControls } from './EntryManagementViewControls';
+import type {
+  EntryManagementOperationalView,
+  EntryManagementPresetId,
+  OperationalViewDensity,
+} from '@/features/operational-views/operationalViews';
 
 import type {
   BulkActionResult,
@@ -59,6 +64,11 @@ interface RegistrationViewProps {
   setWorkMode: (mode: EntryWorkMode) => void;
   /** Apply a curated Entry Management preset (Design Decision 2). */
   applyPreset: (presetId: EntryManagementPresetId) => void;
+  /** Apply a full restored/saved view (Design Decision 1 adapter). */
+  applyView: (view: EntryManagementOperationalView) => void;
+  /** Display density (Design Decision 3) — layout only, never hides identity/status/selection/actions. */
+  density: OperationalViewDensity;
+  setDensity: (density: OperationalViewDensity) => void;
   /** Entry list view mode */
   entryViewMode: EntryManagementViewMode;
   setEntryViewMode: (view: EntryManagementViewMode) => void;
@@ -73,6 +83,8 @@ interface RegistrationViewProps {
   filteredEntries: EntryManagementEntry[];
   /** Selected show id, used for canonical add-entry links. */
   showId?: string | undefined;
+  /** Authenticated user id, threaded from the page (already read via `useEntryManagementData`) rather than a second `useAuthContext` subscription here. */
+  currentUserId?: string | undefined;
   /** Selected show name, used in reviewed lifecycle email previews. */
   showName?: string | undefined;
   /** All entries (for looking up entry by id in comp handler) */
@@ -141,12 +153,16 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   workMode,
   setWorkMode,
   applyPreset,
+  applyView,
+  density,
+  setDensity,
   entryViewMode,
   setEntryViewMode,
   trialFilter = null,
   classFilter = null,
   filteredEntries,
   showId,
+  currentUserId,
   showName,
   entries,
   onBulkStatusChange,
@@ -173,6 +189,9 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   // whenever what the secretary is looking at changes — a preset apply,
   // a filter change, or a trial/class scope change — even if a coincidental
   // filtered-entries overlap would otherwise leave a stale id selected.
+  //
+  // `density` is deliberately EXCLUDED: it's display-only (row set/membership
+  // is unchanged), so changing it must not clear an in-progress selection.
   const viewIdentityKey = `${attentionFilter}|${paymentFilter}|${workMode}|${entryViewMode}|${trialFilter ?? ''}|${classFilter ?? ''}`;
   const selection = useBulkSelection({
     items: filteredEntries,
@@ -287,6 +306,12 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       });
       toast.error('Failed to resend email');
     }
+  };
+
+  const handleApplyView = (view: EntryManagementOperationalView) => {
+    selection.clearSelection();
+    resetEnrollmentPage();
+    applyView(view);
   };
 
   const isResendDisabled = (registrationId: string) =>
@@ -453,6 +478,21 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         onSelectExtraPreset={handleApplyPreset}
       />
 
+      {/* Display density + personal saved views (tasks.md 3.2/3.3) */}
+      <EntryManagementViewControls
+        density={density}
+        onDensityChange={setDensity}
+        userId={currentUserId}
+        showId={showId}
+        trialFilter={trialFilter}
+        classFilter={classFilter}
+        attentionFilter={attentionFilter}
+        paymentFilter={paymentFilter}
+        workMode={workMode}
+        entryViewMode={entryViewMode}
+        onApplyView={handleApplyView}
+      />
+
       {/* Search, filters, and view mode */}
       <ListControls
         search={searchTerm}
@@ -513,6 +553,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           selection={tableSelection}
           emptyState={emptyStateContent}
           showReviewActions={workMode === 'review'}
+          density={density}
           lifecycleDecisionEmailStatusMap={lifecycleEmails.statusMap}
           onReviewLifecycleEmail={lifecycleEmails.reviewReadyEmail}
           onPrepareCorrectionEmail={lifecycleEmails.prepareCorrectionEmail}

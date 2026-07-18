@@ -249,4 +249,33 @@ describe('entryManagementFilters', () => {
     expect(result.view).toBe('table');
     expect(result.params.toString()).toBe('');
   });
+
+  // Task 3.2 — display-preset density round-trip + invalid-value fallback.
+  describe('density round-trip and invalid values', () => {
+    it('defaults density to comfortable and drops it from the URL', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams(''));
+      expect(result.density).toBe('comfortable');
+      expect(result.params.has('density')).toBe(false);
+    });
+
+    it('preserves a supported ?density=compact', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams('density=compact'));
+      expect(result.density).toBe('compact');
+      expect(result.params.get('density')).toBe('compact');
+    });
+
+    it('normalizes an invalid ?density= to the comfortable default and drops the param', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams('density=roomy'));
+      expect(result.density).toBe('comfortable');
+      expect(result.params.has('density')).toBe(false);
+    });
+
+    it('round-trips idempotently alongside other filters', () => {
+      const input = new URLSearchParams('attention=accepted&density=compact');
+      const once = normalizeEntryManagementSearchParams(input);
+      const twice = normalizeEntryManagementSearchParams(once.params);
+      expect(twice.params.toString()).toBe(once.params.toString());
+      expect(twice.density).toBe('compact');
+    });
+  });
 });

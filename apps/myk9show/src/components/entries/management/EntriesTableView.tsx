@@ -3,7 +3,7 @@ import { type ColumnDef, type DisplayColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
+import { DataTable, type DataTableColumnMeta, type TableDensity } from '@/components/ui/data-table';
 import { getEffectivePaymentStatus, getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
@@ -56,6 +56,8 @@ interface EntriesTableViewProps {
   emptyState?: React.ReactNode;
   /** Review-mode fast path: visible row Accept/Reject buttons. */
   showReviewActions?: boolean | undefined;
+  /** Surface-level display density (Design Decision 3) — row identity/status/selection/actions are unaffected. */
+  density?: TableDensity | undefined;
 }
 
 function buildSelectColumn(
@@ -321,6 +323,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   selection,
   emptyState,
   showReviewActions = false,
+  density,
 }) => {
   const [requestPaymentEntry, setRequestPaymentEntry] = useState<EntryManagementEntry | null>(null);
   const openRequestPayment = useCallback(
@@ -408,6 +411,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
             showSearch={false}
             emptyState={emptyState}
             noResultsMessage={emptyState}
+            {...(density !== undefined ? { density } : {})}
             {...(onEntryClick !== undefined ? { onRowClick: onEntryClick } : {})}
           />
         </div>

@@ -223,4 +223,24 @@ describe('EntriesTableView selection column', () => {
     expect(screen.getByText('Paid')).toBeInTheDocument();
     expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
   });
+
+  // Task 3.2 — a display density preset (Design Decision 3) is a bounded
+  // layout choice: identity, status, selection, and the row action menu must
+  // remain rendered in EVERY density.
+  it('keeps row identity, selection, and the row action menu in compact density', () => {
+    render(
+      <EntriesTableView
+        entries={entries}
+        selection={makeSelection()}
+        density="compact"
+        {...makeActionProps()}
+      />
+    );
+
+    expect(screen.getByText('Willow')).toBeInTheDocument();
+    expect(screen.getByText('Ranger')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /select all entries/i })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /select willow/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /actions for/i })).toHaveLength(entries.length);
+  });
 });

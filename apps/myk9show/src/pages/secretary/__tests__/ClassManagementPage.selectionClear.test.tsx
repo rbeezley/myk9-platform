@@ -1,10 +1,9 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { createTestQueryClient } from '@/test/utils/testUtils';
+import { Route, Routes } from 'react-router-dom';
+import { render } from '@/test/utils/testUtils';
 import { ClassManagementPage } from '../ClassManagementPage';
 
 const classes = [
@@ -37,18 +36,14 @@ vi.mock('@/store/trialStore', () => ({
 }));
 
 function renderPage(initialRoute: string) {
-  const queryClient = createTestQueryClient();
   return {
-    user: userEvent.setup(),
     ...render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[initialRoute]}>
-          <Routes>
-            <Route path="/trials/:trialId/classes" element={<ClassManagementPage />} />
-          </Routes>
-        </MemoryRouter>
-      </QueryClientProvider>
+      <Routes>
+        <Route path="/trials/:trialId/classes" element={<ClassManagementPage />} />
+      </Routes>,
+      { initialRoute }
     ),
+    user: userEvent.setup(),
   };
 }
 

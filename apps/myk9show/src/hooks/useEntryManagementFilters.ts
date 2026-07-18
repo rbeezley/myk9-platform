@@ -9,11 +9,13 @@ import {
   type EntryPaymentFilter,
   type EntryManagementViewMode,
   type EntryWorkMode,
+  type OperationalViewDensity,
   isEntryPaymentFilter,
   normalizeEntryManagementSearchParams,
 } from '@/components/entries/management/entryManagementFilters';
 import {
   ENTRY_MANAGEMENT_PRESETS,
+  type EntryManagementOperationalView,
   type EntryManagementPresetId,
 } from '@/features/operational-views/operationalViews';
 
@@ -56,6 +58,9 @@ interface UseEntryManagementFiltersReturn {
   setWorkMode: (mode: EntryWorkMode) => void;
   entryViewMode: EntryManagementViewMode;
   setEntryViewMode: (view: EntryManagementViewMode) => void;
+  /** Display density (Design Decision 3) — layout only, never hides identity/status/selection/actions. */
+  density: OperationalViewDensity;
+  setDensity: (density: OperationalViewDensity) => void;
   /**
    * Apply a curated Entry Management preset (Design Decision 2). Writes
    * attention/payment/mode/view together through the same normalized URL
@@ -63,6 +68,8 @@ interface UseEntryManagementFiltersReturn {
    * work-mode mechanism (there is exactly one preset system).
    */
   applyPreset: (presetId: EntryManagementPresetId) => void;
+  /** Apply a full restored/saved view (Design Decision 1 adapter — same URL path as `applyPreset`). */
+  applyView: (view: EntryManagementOperationalView) => void;
 
   // Trial/class filters
   trialFilter: string | null;
@@ -112,6 +119,7 @@ export function useEntryManagementFilters({
   const paymentFilter = normalized.payment;
   const workMode = normalized.mode;
   const entryViewMode = normalized.view;
+  const density = normalized.density;
   const selectedTab = attentionFilter;
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
 
@@ -213,6 +221,40 @@ export function useEntryManagementFilters({
     [setSearchParams]
   );
 
+  /**
+   * Apply a full (curated preset or restored saved) view, including display
+   * settings — used by `SavedViewsControl`'s reapply action so a restored
+   * view goes through the same normalized-URL path as every other filter
+   * change (design.md Decision 1: surfaces own the adapter, never a second
+   * state path).
+   */
+  const applyView = useCallback(
+    (view: EntryManagementOperationalView) => {
+      const { filters, display } = view;
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (filters.attention === 'all') next.delete('attention');
+          else next.set('attention', filters.attention);
+          if (filters.payment === 'all') next.delete('payment');
+          else next.set('payment', filters.payment);
+          if (filters.mode === 'review') next.delete('mode');
+          else next.set('mode', filters.mode);
+          if (filters.view === 'table') next.delete('view');
+          else next.set('view', filters.view);
+          const density = display?.density ?? 'comfortable';
+          if (density === 'comfortable') next.delete('density');
+          else next.set('density', density);
+          next.delete('entryTab');
+          next.delete('tab');
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
   const setEntryViewMode = useCallback(
     (view: EntryManagementViewMode) => {
       setSearchParams(
@@ -220,6 +262,21 @@ export function useEntryManagementFilters({
           const next = new URLSearchParams(prev);
           if (view === 'table') next.delete('view');
           else next.set('view', view);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const setDensity = useCallback(
+    (value: OperationalViewDensity) => {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (value === 'comfortable') next.delete('density');
+          else next.set('density', value);
           return next;
         },
         { replace: true }
@@ -413,7 +470,10 @@ export function useEntryManagementFilters({
     setWorkMode,
     entryViewMode,
     setEntryViewMode,
+    density,
+    setDensity,
     applyPreset,
+    applyView,
     trialFilter,
     setTrialFilter,
     classFilter,

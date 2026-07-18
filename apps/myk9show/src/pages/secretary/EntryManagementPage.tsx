@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
@@ -35,6 +35,8 @@ import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
 import { PullManagementTab } from '@/components/entries/PullManagementTab';
 import { groupEntriesByEnrollment, type EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { normalizeEntryManagementSearchParams } from '@/components/entries/management/entryManagementFilters';
+import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
 
 const PAGE_TABS: PrimaryTabDef[] = [
   { id: 'entries', label: 'Entries' },
@@ -56,6 +58,14 @@ const EntryManagementPage: React.FC = () => {
     'entries'
   );
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  // Copy-link href: built from the normalizer's own output (never raw
+  // `location.search`) so a copied URL only ever carries normalized,
+  // supported Entry Management params and round-trips cleanly on paste.
+  const copyLinkHref = `${location.pathname}?${normalizeEntryManagementSearchParams(searchParams).params.toString()}`.replace(
+    /\?$/,
+    ''
+  );
   // Read the trial param directly so the trial's class list can be fetched
   // before useEntryManagementFilters (which consumes the class ids to filter the
   // entry list in place).
@@ -131,7 +141,10 @@ const EntryManagementPage: React.FC = () => {
     setWorkMode,
     entryViewMode,
     setEntryViewMode,
+    density,
+    setDensity,
     applyPreset,
+    applyView,
     trialFilter,
     classFilter,
     viewMode,
@@ -273,6 +286,7 @@ const EntryManagementPage: React.FC = () => {
           </p>
         </div>
         <div className="manager-page-actions">
+          <CopyViewLinkButton href={copyLinkHref} label="Copy view link" />
           <SecretaryAddEntriesDecision showId={selectedShowId} />
           <Button
             variant="outline"
@@ -415,6 +429,9 @@ const EntryManagementPage: React.FC = () => {
                   workMode={workMode}
                   setWorkMode={setWorkMode}
                   applyPreset={applyPreset}
+                  applyView={applyView}
+                  density={density}
+                  setDensity={setDensity}
                   trialFilter={trialFilter}
                   classFilter={classFilter}
                   entryViewMode={entryViewMode}
@@ -429,6 +446,7 @@ const EntryManagementPage: React.FC = () => {
                     setClassFilter(null);
                   }}
                   showId={selectedShowId}
+                  currentUserId={user?.id}
                   showName={selectedShow?.name ?? undefined}
                   entries={entries}
                   onBulkStatusChange={handleEnrollmentBulkStatusChange}

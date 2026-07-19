@@ -9,6 +9,7 @@ import {
   useCommandMenuContextStore,
 } from '@/features/command-menu/commandMenuContextStore';
 import type { CommandMenuContext } from '@/features/command-menu/commandMenuTypes';
+import { getShortcutKeysForCommand } from '@/components/layout/appShortcuts';
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn(),
@@ -230,5 +231,142 @@ describe('CommandPalette bounded results', () => {
 
     const rendered = screen.getAllByText(/^Rover \d+$/);
     expect(rendered).toHaveLength(5);
+  });
+});
+
+describe('CommandPalette shortcut badges (task 3.1)', () => {
+  it('every palette command with a shortcut badge resolves to a real, registered shortcut', () => {
+    // Guards against provenance drift: every id the palette assigns a
+    // `shortcutProp(...)` call to must exist in the canonical appShortcuts.ts
+    // table, and the check-in mutation (no keyboard shortcut) must not.
+    const paletteCommandIds = [
+      'nav-dogs',
+      'nav-people',
+      'nav-shows',
+      'nav-clubs',
+      'add-dog',
+      'add-person',
+      'add-show',
+    ];
+
+    for (const commandId of paletteCommandIds) {
+      expect(getShortcutKeysForCommand(commandId)).toBeDefined();
+    }
+    expect(getShortcutKeysForCommand('check-in')).toBeUndefined();
+  });
+
+  it('renders the registered key badges next to their commands', () => {
+    mockAuth([UserRole.SECRETARY], [PERMISSIONS.USER_CREATE, PERMISSIONS.SHOW_CREATE]);
+
+    render(<CommandPalette open onOpenChange={vi.fn()} />);
+
+    // Each shortcut renders as separate <Kbd> key segments (e.g. "G D" -> "G", "D").
+    expect(screen.getAllByText('G').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('C').length).toBeGreaterThan(0);
+  });
+});
+
+describe('CommandPalette keyboard and selection behavior (task 3.2)', () => {
+  it('closes on Escape', async () => {
+    mockAuth([UserRole.EXHIBITOR]);
+    const onOpenChange = vi.fn();
+
+    const { user } = render(<CommandPalette open onOpenChange={onOpenChange} />);
+
+    await user.keyboard('{Escape}');
+
+    expect(onOpenChange).toHaveBeenCalledWith(false, expect.anything());
+  });
+
+  it('navigating to a static navigation result closes the palette', () => {
+    mockAuth([UserRole.EXHIBITOR]);
+    const onOpenChange = vi.fn();
+
+    render(<CommandPalette open onOpenChange={onOpenChange} />);
+
+    fireEvent.click(screen.getByText('Dogs'));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('selecting a data result (a dog) closes the palette', () => {
+    mockAuth([UserRole.EXHIBITOR]);
+    mockDogs = [{ id: 'dog-1', name: 'Rover', registrations: [] }];
+    const onOpenChange = vi.fn();
+
+    render(<CommandPalette open onOpenChange={onOpenChange} />);
+
+    fireEvent.click(screen.getByText('Rover'));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+});
+
+describe('CommandPalette shortcuts-help footer (task 3.1/3.2)', () => {
+  it('clicking the "All shortcuts" footer button closes the palette and opens the overlay', () => {
+    mockAuth([UserRole.EXHIBITOR]);
+    const onOpenChange = vi.fn();
+    const onShowShortcuts = vi.fn();
+
+    render(
+      <CommandPalette open onOpenChange={onOpenChange} onShowShortcuts={onShowShortcuts} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /all shortcuts/i }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onShowShortcuts).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides the footer hint entirely when no onShowShortcuts handler is provided', () => {
+    mockAuth([UserRole.EXHIBITOR]);
+
+    render(<CommandPalette open onOpenChange={vi.fn()} />);
+
+    expect(screen.queryByText('All shortcuts')).not.toBeInTheDocument();
+  });
+
+  it('typing "?" into the palette search input does not trigger the shortcuts handler', async () => {
+    mockAuth([UserRole.EXHIBITOR]);
+    const onShowShortcuts = vi.fn();
+
+    const { user } = render(
+      <CommandPalette open onOpenChange={vi.fn()} onShowShortcuts={onShowShortcuts} />
+    );
+
+    const input = screen.getByPlaceholderText(/search dogs, people, shows/i);
+    input.focus();
+    await user.keyboard('?');
+
+    expect(onShowShortcuts).not.toHaveBeenCalled();
+    expect((input as HTMLInputElement).value).toBe('?');
+  });
+});
+
+describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
+  it('exhibitor: no Users nav, no people data, no Add New User action', () => {
+    mockAuth([UserRole.EXHIBITOR]);
+    render(<CommandPalette open onOpenChange={vi.fn()} />);
+
+    expect(screen.queryByText('Users')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add New User')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add New Show')).not.toBeInTheDocument();
+  });
+
+  it('secretary without USER_CREATE/SHOW_CREATE: browses people but cannot create users/shows', () => {
+    mockAuth([UserRole.SECRETARY]);
+    render(<CommandPalette open onOpenChange={vi.fn()} />);
+
+    expect(screen.getByText('Users')).toBeInTheDocument();
+    expect(screen.queryByText('Add New User')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add New Show')).not.toBeInTheDocument();
+  });
+
+  it('site admin: sees every gated surface', () => {
+    mockAuth([UserRole.SITE_ADMIN], [PERMISSIONS.USER_READ]);
+    render(<CommandPalette open onOpenChange={vi.fn()} />);
+
+    expect(screen.getByText('Users')).toBeInTheDocument();
+    expect(screen.getByText('Add New User')).toBeInTheDocument();
   });
 });

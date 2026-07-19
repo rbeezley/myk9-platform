@@ -86,6 +86,55 @@ describe('buildCheckInCommand', () => {
     expect(runBulkCheckIn).toHaveBeenCalledTimes(1);
     expect(runBulkCheckIn).toHaveBeenCalledWith(['e1', 'e3']);
   });
+
+  // Task 3.3 — dispatch-failure behavior. `ctx.runBulkCheckIn` is the page's
+  // real `handleEnrollmentBulkCheckIn` (via `useBulkDispatch`, tested
+  // separately in useBulkDispatch.test.ts), which already owns
+  // plain-language failure feedback (toast.error with a "Retry failed"
+  // action) and in-flight dedup (useRef latch). The command layer's job is
+  // just to propagate/settle without swallowing that signal, and to stop
+  // offering the command at all while busy — asserted here.
+  it('propagates a rejected runBulkCheckIn without throwing synchronously and without swallowing the failure', async () => {
+    const runBulkCheckIn = vi.fn().mockRejectedValue(new Error('check-in failed'));
+    const ctx = baseCtx({ runBulkCheckIn });
+    const command = buildCheckInCommand(ctx, entryActions);
+    expect(command).not.toBeNull();
+
+    // Calling run() must not throw synchronously — it hands back the
+    // rejected promise for the caller (the palette adapter) to await.
+    let result: void | Promise<unknown> | undefined;
+    expect(() => {
+      result = command?.run?.();
+    }).not.toThrow();
+
+    await expect(result).rejects.toThrow('check-in failed');
+    expect(runBulkCheckIn).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not swallow a failure-shaped (non-throwing) result — it is returned as-is to the caller', async () => {
+    const failureResult = { succeeded: [], failed: [{ item: 'e1', reason: 'network error' }] };
+    const runBulkCheckIn = vi.fn().mockResolvedValue(failureResult);
+    const ctx = baseCtx({ runBulkCheckIn });
+    const command = buildCheckInCommand(ctx, entryActions);
+
+    const result = await command?.run?.();
+
+    // run() is a thin passthrough (`() => ctx.runBulkCheckIn(eligibleIds)`) —
+    // it does not intercept, unwrap, or reshape runBulkCheckIn's resolved
+    // value, so the failure shape reaches the caller (the palette adapter)
+    // unaltered.
+    expect(result).toBe(failureResult);
+    expect(runBulkCheckIn).toHaveBeenCalledWith(['e1']);
+  });
+
+  it('a busy context yields no command at all — the palette cannot dispatch a second time while one is in flight', () => {
+    const runBulkCheckIn = vi.fn();
+    const notBusy = buildCheckInCommand(baseCtx({ runBulkCheckIn, busy: false }), entryActions);
+    expect(notBusy).not.toBeNull();
+
+    const whileBusy = buildCheckInCommand(baseCtx({ runBulkCheckIn, busy: true }), entryActions);
+    expect(whileBusy).toBeNull();
+  });
 });
 
 describe('commandMenuContextStore', () => {

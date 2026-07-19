@@ -13,10 +13,16 @@ import { getDogDisplayName } from '@/types/dog-types';
 import { PERMISSIONS, UserRole } from '@/types/auth-types';
 import { useCommandMenuCommands } from '@/features/command-menu/useCommandMenuCommands';
 import { adaptCommandMenuCommand, type CommandAction } from '@/features/command-menu/commandPaletteAdapter';
+import { getShortcutKeysForCommand } from '@/components/layout/appShortcuts';
 
 interface CommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Opens the keyboard-shortcuts overlay. When provided, the footer renders
+   * an "All shortcuts" button (pointer-primary — the `?` shortcut is
+   * suppressed while the palette's input is focused, so a button is the
+   * honest affordance here). When absent, the footer segment is hidden. */
+  onShowShortcuts?: () => void;
 }
 
 const MAX_DATA_RESULTS = 5;
@@ -26,6 +32,16 @@ const groupHeadingClass =
 
 const itemClass =
   'flex items-center px-2 py-2 text-sm rounded-sm cursor-pointer hover:bg-muted aria-selected:bg-muted text-foreground';
+
+/** Spreadable `{ shortcut }` for a `CommandAction`, or `{}` when the
+ * given command has no registered shortcut in `appShortcuts.ts` — kept as a
+ * spread (rather than `shortcut: string | undefined`) because
+ * `exactOptionalPropertyTypes` forbids assigning `undefined` to an optional
+ * property. */
+function shortcutProp(commandId: string): { shortcut: string } | Record<string, never> {
+  const keys = getShortcutKeysForCommand(commandId);
+  return keys ? { shortcut: keys } : {};
+}
 
 function ShortcutBadge({ keys }: { keys: string }) {
   return (
@@ -37,7 +53,7 @@ function ShortcutBadge({ keys }: { keys: string }) {
   );
 }
 
-export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
+export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandPaletteProps) {
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
   const { userWithRoles, hasPermission } = useAuthContext();
@@ -80,7 +96,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['dogs', 'pets', 'animals'],
         category: 'navigation' as const,
-        shortcut: 'G D',
+        ...shortcutProp('nav-dogs'),
       },
       {
         id: 'nav-people',
@@ -94,7 +110,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['people', 'contacts', 'owners'],
         category: 'navigation' as const,
-        shortcut: 'G P',
+        ...shortcutProp('nav-people'),
       },
       {
         id: 'nav-shows',
@@ -108,7 +124,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['shows', 'events', 'competitions'],
         category: 'navigation' as const,
-        shortcut: 'G S',
+        ...shortcutProp('nav-shows'),
       },
       {
         id: 'nav-clubs',
@@ -122,7 +138,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['clubs', 'organizations'],
         category: 'navigation' as const,
-        shortcut: 'G C',
+        ...shortcutProp('nav-clubs'),
       },
     ],
     [navigate, onOpenChange]
@@ -226,7 +242,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['add', 'new', 'create', 'dog'],
         category: 'actions',
-        shortcut: 'C D',
+        ...shortcutProp('add-dog'),
       },
     ];
 
@@ -242,7 +258,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['add', 'new', 'create', 'person', 'contact'],
         category: 'actions',
-        shortcut: 'C P',
+        ...shortcutProp('add-person'),
       });
     }
 
@@ -258,7 +274,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['add', 'new', 'create', 'show', 'event'],
         category: 'actions',
-        shortcut: 'C S',
+        ...shortcutProp('add-show'),
       });
     }
 
@@ -462,10 +478,19 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
               <Kbd size="sm">esc</Kbd>
               Close
             </span>
-            <span className="ml-auto flex items-center gap-1">
-              <Kbd size="sm">?</Kbd>
-              All shortcuts
-            </span>
+            {onShowShortcuts && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenChange(false);
+                  onShowShortcuts();
+                }}
+                className="ml-auto flex items-center gap-1 rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Kbd size="sm">?</Kbd>
+                All shortcuts
+              </button>
+            )}
           </div>
         </Command>
       </DialogContent>

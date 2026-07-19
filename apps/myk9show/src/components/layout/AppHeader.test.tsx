@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import AppHeader from './AppHeader';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { APP_SHORTCUTS } from '@/components/layout/appShortcuts';
 
 vi.mock('@/hooks/useTheme', () => ({
   useTheme: () => ({ theme: 'light', toggleTheme: vi.fn() }),
@@ -46,7 +48,7 @@ vi.mock('@/components/notifications/NotificationBell', () => ({
 }));
 
 vi.mock('@/components/common/CommandPalette', () => ({
-  CommandPalette: () => null,
+  CommandPalette: ({ open }: { open: boolean }) => (open ? <div>Palette open</div> : null),
 }));
 
 vi.mock('@/components/common/KeyboardShortcutsOverlay', () => ({
@@ -85,5 +87,51 @@ describe('AppHeader onboarding shell', () => {
     expect(screen.queryByRole('button', { name: /notifications/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /switch to dark mode/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /askq assistant/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('AppHeader command palette pointer opening (task 3.2)', () => {
+  it('opens the command palette on a pointer click of the desktop search trigger', () => {
+    render(<AppHeader />);
+
+    expect(screen.queryByText('Palette open')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Search...'));
+
+    expect(screen.getByText('Palette open')).toBeInTheDocument();
+  });
+
+  it('opens the command palette on a pointer click of the mobile search button', () => {
+    render(<AppHeader />);
+
+    fireEvent.click(screen.getByLabelText('Search', { exact: true }));
+
+    expect(screen.getByText('Palette open')).toBeInTheDocument();
+  });
+});
+
+describe('AppHeader keyboard shortcut registration (task 3.1)', () => {
+  it('registers exactly the canonical shortcut table with useKeyboardShortcuts', () => {
+    render(<AppHeader />);
+
+    const lastCall = vi.mocked(useKeyboardShortcuts).mock.calls.at(-1);
+    expect(lastCall).toBeDefined();
+    const registered = lastCall![0];
+
+    expect(registered.map(s => s.id).sort()).toEqual(
+      APP_SHORTCUTS.map(s => s.id).sort()
+    );
+    // Every registered shortcut is bound to a real, callable action — no
+    // display-only entries.
+    for (const shortcut of registered) {
+      expect(typeof shortcut.action).toBe('function');
+    }
+  });
+
+  it('registers no shortcuts on the onboarding route', () => {
+    render(<AppHeader />, { initialRoute: '/onboarding' });
+
+    const lastCall = vi.mocked(useKeyboardShortcuts).mock.calls.at(-1);
+    expect(lastCall![0]).toEqual([]);
   });
 });

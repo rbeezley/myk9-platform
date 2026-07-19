@@ -47,6 +47,6 @@
       (dialog gating, dispatch, runner semantics) and by service-call parity with the
       shipped single-user ManageUserRolesDialog (identical rbacService assign/revoke
       shapes). Follow up if a site_admin seed login is ever added.
-- [ ] 3.4 PR, CI green, Codex second-opinion review, merge to main (gate for archive).
-- [ ] 3.5 Linear MYK9-58 Done on merge; archive with `archive-summary.md` (PR URL + merge
+- [x] 3.4 PR, CI green, Codex second-opinion review, merge to main (gate for archive).
+- [x] 3.5 Linear MYK9-58 Done on merge; archive with `archive-summary.md` (PR URL + merge
       evidence), fill any TBD Purpose, stage both halves of the archive move.

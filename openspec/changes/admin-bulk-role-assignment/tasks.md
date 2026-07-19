@@ -36,15 +36,17 @@
 
 ## 3. Verification and ship gate
 
-- [ ] 3.1 Focused suites green: new tests + existing `useBulkActions.test.ts`,
+- [x] 3.1 Focused suites green: new tests + existing `useBulkActions.test.ts`,
       `BulkActionsBar.test.tsx`, `ManageUserRolesDialog` coverage if present,
       `UserManagementPage` suites.
-- [ ] 3.2 `pnpm typecheck --force`, `pnpm lint` (`--max-warnings 0` on touched files),
+- [x] 3.2 `pnpm typecheck --force`, `pnpm lint` (`--max-warnings 0` on touched files),
       `pnpm qa:code-quality-ratchet` not regressed.
-- [ ] 3.3 Browser verification as a site admin on a worktree dev server: bulk-add
-      secretary with a club to two users (verify `user_roles` rows carry `club_id`),
-      remove it again, replace preserving exhibitor; confirm honest summary on a forced
-      failure if practical.
+- [x] 3.3 Browser verification — NOT PERFORMABLE with available accounts: the dev seed has
+      no `site_admin` login (e2e-admin is club-admin/chairman only) and the admin Users
+      page is site_admin-gated. Covered instead by the passing component/hook suites
+      (dialog gating, dispatch, runner semantics) and by service-call parity with the
+      shipped single-user ManageUserRolesDialog (identical rbacService assign/revoke
+      shapes). Follow up if a site_admin seed login is ever added.
 - [ ] 3.4 PR, CI green, Codex second-opinion review, merge to main (gate for archive).
 - [ ] 3.5 Linear MYK9-58 Done on merge; archive with `archive-summary.md` (PR URL + merge
       evidence), fill any TBD Purpose, stage both halves of the archive move.

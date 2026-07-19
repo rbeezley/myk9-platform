@@ -328,7 +328,7 @@ const ClassDetailsPage: React.FC = () => {
           error={dbRawEntries.length > 0 ? null : entriesError}
         />
 
-        {isStaff ? (
+        {isStaff && !entriesLoading && (!entriesError || dbRawEntries.length > 0) ? (
           <SecretaryRunSheet
             currentClass={currentClass}
             dbRawEntries={dbRawEntries}
@@ -338,7 +338,7 @@ const ClassDetailsPage: React.FC = () => {
             organization={parentShow?.organization ?? null}
             parentShowId={parentShow?.id ?? null}
           />
-        ) : (
+        ) : !isStaff ? (
           <ClassDetailsMain
             classData={currentClass}
             classEntries={exhibitorClassEntries}
@@ -351,7 +351,7 @@ const ClassDetailsPage: React.FC = () => {
             }}
             onDeleteEntry={handleDeleteEntry}
           />
-        )}
+        ) : null}
 
         {/* Dialogs */}
         <ClassEditPanel

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard, Trophy, ListChecks, ClipboardList, Medal, ListTree } from 'lucide-react';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
@@ -15,10 +14,10 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS, normalizeClassStatus } from '@myk9/core';
-import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
-import { getEntriesForShow } from '@/services/database/entries';
-import { queryKeys } from '@/lib/queryClient';
-import type { SecretaryEntry } from '@/services/database/entries';
+import {
+  useEntriesByShowQuery,
+  useSecretaryShowEntriesQuery,
+} from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { ShowPublicLanding } from '@/components/shows/ShowDetails/ShowPublicLanding';
@@ -97,15 +96,7 @@ const ShowDetailsPage: React.FC = () => {
     isSuccess: secretaryEntriesLoaded,
     isError: secretaryEntriesIsError,
     refetch: refetchSecretaryEntries,
-  } = useQuery<SecretaryEntry[]>({
-    queryKey: queryKeys.showEntries(id ?? ''),
-    queryFn: async () => {
-      const result = await getEntriesForShow(id ?? '');
-      if (result.error) throw result.error;
-      return (result.data ?? []) as unknown as SecretaryEntry[];
-    },
-    enabled: Boolean(id && canManageShow),
-  });
+  } = useSecretaryShowEntriesQuery(id ?? '', Boolean(id && canManageShow));
   const entryDataState: 'ready' | 'loading' | 'error' = !canManageShow
     ? 'ready'
     : secretaryEntriesLoaded

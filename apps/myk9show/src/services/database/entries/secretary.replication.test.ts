@@ -278,6 +278,13 @@ describe('secretary entry read replication', () => {
         paymentMethod: 'online',
         entryFee: 45,
         checkInStatus: 'checked-in',
+        isScored: true,
+        resultStatus: 'qualified',
+        searchTimeSeconds: 41.25,
+        totalFaults: 0,
+        finalPlacement: '1',
+        judgeNotes: 'Clean search',
+        scoringCompletedAt: '2026-06-01T10:45:00.000Z',
         jumpHeight: '12',
         runOrder: 7,
         specialRequests: 'Crate near ring',
@@ -377,6 +384,22 @@ describe('secretary entry read replication', () => {
         },
       }),
     ]);
+  });
+
+  it('preserves the scoring fields used by every secretary class-count surface', async () => {
+    const result = await getEntriesForShow('show-1');
+
+    expect(result.data?.[0]).toEqual(
+      expect.objectContaining({
+        is_scored: true,
+        result_status: 'qualified',
+        search_time_seconds: 41.25,
+        total_faults: 0,
+        final_placement: 1,
+        judge_notes: 'Clean search',
+        scoring_completed_at: '2026-06-01T10:45:00.000Z',
+      })
+    );
   });
 
   it('keeps the replicated secretary table usable when online metadata is unavailable', async () => {

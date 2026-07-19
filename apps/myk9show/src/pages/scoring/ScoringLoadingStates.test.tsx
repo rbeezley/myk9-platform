@@ -3,6 +3,8 @@ import type { ReactElement } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 
+const useSecretaryShowEntriesQueryMock = vi.hoisted(() => vi.fn());
+
 vi.mock('./useScoringBreadcrumb', () => ({
   useScoringBreadcrumb: () => ({
     isLoading: false,
@@ -15,6 +17,10 @@ vi.mock('./useScoringBreadcrumb', () => ({
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'user-1' } }),
+}));
+
+vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
+  useSecretaryShowEntriesQuery: useSecretaryShowEntriesQueryMock,
 }));
 
 vi.mock('@/hooks/useOptimisticScoring', () => ({
@@ -92,6 +98,7 @@ import { ScoresheetPage } from './ScoresheetPage';
 import { PaperScoresheetPage } from './PaperScoresheetPage';
 import { ScoringEntryListPage } from './ScoringEntryListPage';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 
 const never = () => new Promise<never>(() => {});
 
@@ -106,6 +113,38 @@ const renderRoute = (path: string, element: ReactElement, initialRoute: string) 
 describe('scoring route loading states', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useSecretaryShowEntriesQueryMock.mockReturnValue({
+      data: Array.from({ length: 8 }, (_, index) => ({
+        id: `entry-${index + 1}`,
+        show_id: 'show-1',
+        trial_id: 'trial-1',
+        class_id: 'class-1',
+        dog_id: `dog-${index + 1}`,
+        handler_id: `handler-${index + 1}`,
+        armband: String(101 + index),
+        handler: `Handler ${index + 1}`,
+        entry_status: 'accepted',
+        check_in_status: 'checked-in',
+        is_in_ring: false,
+        is_scored: index < 3,
+        result_status: index < 3 ? 'qualified' : 'pending',
+        search_time_seconds: index < 3 ? 20 + index : null,
+        total_faults: 0,
+        run_order: index + 1,
+        dog: {
+          id: `dog-${index + 1}`,
+          name: `Dog ${index + 1}`,
+          call_name: `Dog ${index + 1}`,
+          breed: 'Beagle',
+          owner: null,
+        },
+      })),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([]);
   });
 
   it('uses a skeleton, not a spinner, while the live scoresheet loads', () => {
@@ -188,5 +227,70 @@ describe('scoring route loading states', () => {
     expect(
       screen.queryByRole('status', { name: 'Loading scoring entries' })
     ).not.toBeInTheDocument();
+  });
+
+  it('derives the scoring list total from the canonical show entry rows', async () => {
+    vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue({
+      id: 'class-1',
+      name: 'Container Novice A',
+      trialId: 'trial-1',
+    } as never);
+
+    renderRoute(
+      '/scoring/classes/:classId/entries',
+      <ScoringEntryListPage />,
+      '/scoring/classes/class-1/entries'
+    );
+
+    expect(await screen.findByText('8 Entries')).toBeInTheDocument();
+  });
+
+  it('shows an error instead of a false zero when canonical scoring rows are unavailable', async () => {
+    vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue({
+      id: 'class-1',
+      name: 'Container Novice A',
+      trialId: 'trial-1',
+    } as never);
+    useSecretaryShowEntriesQueryMock.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: true,
+      error: new Error('Offline with no cached entries'),
+      refetch: vi.fn(),
+    });
+
+    renderRoute(
+      '/scoring/classes/:classId/entries',
+      <ScoringEntryListPage />,
+      '/scoring/classes/class-1/entries'
+    );
+
+    expect(await screen.findByText('Offline with no cached entries')).toBeInTheDocument();
+    expect(screen.queryByText('0 Entries')).not.toBeInTheDocument();
+  });
+
+  it('keeps cached scoring rows visible when a background refresh fails', async () => {
+    vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue({
+      id: 'class-1',
+      name: 'Container Novice A',
+      trialId: 'trial-1',
+    } as never);
+    const cachedEntries = useSecretaryShowEntriesQueryMock().data;
+    useSecretaryShowEntriesQueryMock.mockReturnValue({
+      data: cachedEntries,
+      isLoading: false,
+      isError: true,
+      error: new Error('Refresh failed'),
+      refetch: vi.fn(),
+    });
+
+    renderRoute(
+      '/scoring/classes/:classId/entries',
+      <ScoringEntryListPage />,
+      '/scoring/classes/class-1/entries'
+    );
+
+    expect(await screen.findByText('8 Entries')).toBeInTheDocument();
+    expect(screen.queryByText('Refresh failed')).not.toBeInTheDocument();
   });
 });

@@ -46,6 +46,14 @@ function entry(overrides: Partial<SecretaryEntry> = {}): SecretaryEntry {
     jump_height: null,
     run_order: null,
     is_in_ring: null,
+    is_scored: null,
+    result_status: null,
+    search_time_seconds: null,
+    total_faults: null,
+    final_placement: null,
+    judge_notes: null,
+    disqualification_reason: null,
+    scoring_completed_at: null,
     check_in_status: 'no-status',
     withdrawal_reason: null,
     payment_method: 'online',
@@ -161,7 +169,9 @@ describe('ShowDeskPeopleRoster', () => {
     expect(screen.getByText('Poppy')).toBeInTheDocument();
     expect(screen.getByText(/Container Novice A - 9:00 AM/i)).toBeInTheDocument();
     expect(screen.getByText('114')).toBeInTheDocument();
-    expect(container.querySelector('[data-status="not_checked_in"][data-shape="not-started"]')).toBeTruthy();
+    expect(
+      container.querySelector('[data-status="not_checked_in"][data-shape="not-started"]')
+    ).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: /alice martin/i }));
     expect(screen.queryByText('Poppy')).not.toBeInTheDocument();

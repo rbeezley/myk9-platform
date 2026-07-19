@@ -5,7 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
-import { getEntriesForShow } from '@/services/database/entries';
+import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { JudgeHospitalityCard } from '@/features/show-workbench/JudgeHospitalityCard';
@@ -24,7 +24,6 @@ import {
 import { ShowDeskPeopleRoster } from '@/features/show-desk-people-roster/ShowDeskPeopleRoster';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import { useQuery } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/queryClient';
 import {
   listShowIncidentCloseout,
   showIncidentCloseoutQueryKey,
@@ -43,7 +42,6 @@ import type { ShowDayReconciliationEntry } from '@/features/show-workbench/showD
 import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { isValidUUID } from '@/utils/validation';
-import type { SecretaryEntry } from '@/services/database/entries';
 import type { IncidentEntryOption } from '@/features/show-workbench/showIncidents';
 
 const ShowDeskPanel = lazy(() => import('@/features/show-map/ShowDeskPanel'));
@@ -111,15 +109,7 @@ export function ShowWorkbenchShowDeskPage() {
     isError: showEntriesIsError,
     error: showEntriesError,
     refetch: refetchShowEntries,
-  } = useQuery<SecretaryEntry[]>({
-    queryKey: queryKeys.showEntries(showId ?? ''),
-    queryFn: async () => {
-      const result = await getEntriesForShow(showId ?? '');
-      if (result.error) throw result.error;
-      return (result.data ?? []) as unknown as SecretaryEntry[];
-    },
-    enabled: Boolean(showId),
-  });
+  } = useSecretaryShowEntriesQuery(showId ?? '', Boolean(showId));
   const showMapEntries = showEntries as unknown as ShowMapEntryInput[];
   const reconciliationEntries = showEntries as unknown as ShowDayReconciliationEntry[];
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
@@ -155,7 +145,9 @@ export function ShowWorkbenchShowDeskPage() {
           time: cls.startTime || '',
           status: cls.status || CLASS_STATUS.SCHEDULED,
           entryCount: showEntries.filter(entry => entry.class_id === cls.id).length,
-          scoredCount: cls.completedEntries ?? 0,
+          scoredCount: showEntries.filter(
+            entry => entry.class_id === cls.id && entry.is_scored === true
+          ).length,
           trialDate: trial.trialDate || '',
           timezone: trial.timezone ?? null,
           trialNumber: trial.trialNumber || '',
@@ -372,7 +364,7 @@ export function ShowWorkbenchShowDeskPage() {
     return <LoadingSkeleton variant="cards" count={2} />;
   }
 
-  if (showEntriesIsError) {
+  if (showEntriesIsError && showEntries.length === 0) {
     return (
       <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
         <p className="font-medium text-destructive">Couldn't load show entries.</p>

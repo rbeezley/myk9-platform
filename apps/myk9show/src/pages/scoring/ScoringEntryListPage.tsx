@@ -31,15 +31,18 @@ import { ScoringEntryListLoadingSkeleton } from '@/components/scoring/ScoringLoa
 // Replication
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import type { CheckInStatus } from '@myk9/core';
-import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
-import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import {
+  replicatedClassesTable,
+  type ReplicatedClass,
+} from '@/services/replication/ReplicatedClassesTable';
 
 // Local components and types
 import { SortableScoringEntryCard } from './components/ScoringEntryCard';
-import type { ScoringEntry, ClassInfo } from './types';
-import { toScoringEntry, toClassInfo, calculatePlacements } from './types';
+import type { ScoringEntry } from './types';
+import { secretaryEntryToScoringEntry, toClassInfo, calculatePlacements } from './types';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { useScoringBreadcrumb } from './useScoringBreadcrumb';
+import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 
 /**
  * Main scoring entry list page
@@ -48,62 +51,80 @@ export function ScoringEntryListPage() {
   const { classId } = useParams<{ classId: string }>();
   const navigate = useNavigate();
   const breadcrumb = useScoringBreadcrumb(classId);
+  const showEntriesQuery = useSecretaryShowEntriesQuery(
+    breadcrumb.showId ?? '',
+    Boolean(classId && breadcrumb.showId)
+  );
 
   // Data state
   const [entries, setEntries] = useState<ScoringEntry[]>([]);
-  const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [replicatedClass, setReplicatedClass] = useState<ReplicatedClass | null>(null);
+  const [isClassLoading, setIsClassLoading] = useState(true);
+  const [classError, setClassError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Manual order state for drag-and-drop
   const [manualOrder, setManualOrder] = useState<ScoringEntry[]>([]);
   const isDraggingRef = useRef(false);
 
-  // Load entries with dog data from replicated tables
-  const loadEntriesWithDogs = async (cId: string): Promise<ScoringEntry[]> => {
-    const rawEntries = await replicatedEntriesTable.getEntriesByClass(cId);
-    const dogsMap = new Map();
-    for (const entry of rawEntries) {
-      if (entry.dogId && !dogsMap.has(entry.dogId)) {
-        const dog = await replicatedDogsTable.get(entry.dogId);
-        if (dog) dogsMap.set(entry.dogId, dog);
-      }
-    }
-    const scoringEntries = rawEntries.map((entry, index) => {
-      const dog = entry.dogId ? dogsMap.get(entry.dogId) : null;
-      return toScoringEntry(entry, dog, index);
-    });
-    return calculatePlacements(scoringEntries);
-  };
-
-  // Load data from replicated tables
+  // Load the class identity from replication. Entry rows come from the shared
+  // show-scoped query below so scoring cannot disagree with Show Desk.
   useEffect(() => {
-    async function loadData() {
+    async function loadClass() {
       if (!classId) return;
 
-      setIsLoading(true);
-      setError(null);
+      setIsClassLoading(true);
+      setClassError(null);
 
       try {
         const cls = await replicatedClassesTable.getClassById(classId);
         if (!cls) {
-          setError('Class not found');
+          setClassError('Class not found');
           return;
         }
-
-        const scoringEntries = await loadEntriesWithDogs(classId);
-        setEntries(scoringEntries);
-        setClassInfo(toClassInfo(cls, scoringEntries.length));
+        setReplicatedClass(cls);
       } catch (err) {
         logger.error('Failed to load scoring data:', 'pages', {}, err as Error);
-        setError(err instanceof Error ? err.message : 'Failed to load data');
+        setClassError(err instanceof Error ? err.message : 'Failed to load data');
       } finally {
-        setIsLoading(false);
+        setIsClassLoading(false);
       }
     }
 
-    loadData();
+    loadClass();
   }, [classId]);
+
+  const canonicalClassEntries = useMemo(
+    () =>
+      calculatePlacements(
+        (showEntriesQuery.data ?? [])
+          .filter(entry => entry.class_id === classId)
+          .map(secretaryEntryToScoringEntry)
+      ),
+    [classId, showEntriesQuery.data]
+  );
+
+  useEffect(() => {
+    setEntries(canonicalClassEntries);
+  }, [canonicalClassEntries]);
+
+  const classInfo = useMemo(
+    () => (replicatedClass ? toClassInfo(replicatedClass, entries.length) : null),
+    [entries.length, replicatedClass]
+  );
+  const entriesError =
+    showEntriesQuery.isError && (showEntriesQuery.data?.length ?? 0) === 0
+      ? showEntriesQuery.error instanceof Error
+        ? showEntriesQuery.error.message
+        : "We couldn't load entries for this show. Please retry."
+      : !breadcrumb.isLoading && !breadcrumb.showId
+        ? "We couldn't determine this class's show."
+        : null;
+  const error = classError ?? entriesError;
+  const isLoading =
+    isClassLoading ||
+    breadcrumb.isLoading ||
+    (Boolean(breadcrumb.showId) && showEntriesQuery.isLoading);
 
   // Use the entry list filters hook
   const {
@@ -165,8 +186,7 @@ export function ScoringEntryListPage() {
         checkInStatus: 'checked-in' as CheckInStatus,
         check_in_status: 'checked-in' as CheckInStatus,
       });
-      // Reload entries with dog data
-      setEntries(await loadEntriesWithDogs(classId!));
+      await showEntriesQuery.refetch();
     } catch (err) {
       logger.error('Failed to reset score', 'scoring', {}, err as Error);
     }
@@ -174,20 +194,20 @@ export function ScoringEntryListPage() {
 
   // Refresh data
   const handleRefresh = async () => {
-    if (!classId) return;
-    setIsLoading(true);
+    if (!classId || !breadcrumb.showId) return;
+    setIsRefreshing(true);
     try {
       // Trigger sync then reload with dog data.
       // The entries adapter scopes by `show_id` (see ReplicatedEntriesTable.sync),
       // so it must be passed the SHOW id, not the classId — passing classId filtered
       // `.eq('show_id', classId)` and matched zero rows. Falls back to '' (a global
       // entries sync) only if the breadcrumb hierarchy hasn't resolved yet.
-      await replicatedEntriesTable.sync(breadcrumb.showId ?? '');
-      setEntries(await loadEntriesWithDogs(classId));
+      await replicatedEntriesTable.sync(breadcrumb.showId);
+      await showEntriesQuery.refetch();
     } catch (err) {
       logger.error('Refresh failed:', 'pages', {}, err as Error);
     } finally {
-      setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -255,10 +275,10 @@ export function ScoringEntryListPage() {
             variant="outline"
             size="icon"
             onClick={handleRefresh}
-            disabled={isLoading}
+            disabled={isRefreshing}
             aria-label="Refresh"
           >
-            <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+            <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
           </Button>
         </div>
 

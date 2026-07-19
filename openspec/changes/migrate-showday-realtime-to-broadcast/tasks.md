@@ -37,8 +37,8 @@
 
 ## 7. Shipping and Tracking
 
-- [ ] 7.1 With owner approval, commit and push the feature branch, open the PR using the repository template, and record `Tracked in openspec change: migrate-showday-realtime-to-broadcast`.
-- [ ] 7.2 Run required CI and second-opinion migration/security review; resolve actionable findings before merge.
+- [x] 7.1 With owner approval, commit and push the feature branch, open the PR using the repository template, and record `Tracked in openspec change: migrate-showday-realtime-to-broadcast`.
+- [ ] 7.2 Run required CI and second-opinion migration/security review; resolve actionable findings before merge. Independent review approved after one high-severity notification-repeat fix; CI remains pending.
 - [ ] 7.3 After approved staging DB push, record publication/trigger/policy membership, two-context live-delivery evidence, and the repeatable before/after Realtime load observation.
 - [ ] 7.4 After merge and evidence completion, post the implementation/test/PR/risk summary to MYK9-25, move it to Done, archive the OpenSpec change, and clean up the branch/worktree.
 

@@ -4,7 +4,7 @@
 
 | Dimension | Status |
 |-----------|--------|
-| Completeness | 19/23 tasks complete; four shared-system shipping gates remain |
+| Completeness | 20/23 tasks complete; three shared-system shipping gates remain |
 | Correctness | 6/6 requirements and 15/15 scenarios covered locally |
 | Coherence | Design decisions followed; no contradictory transport or data-authority path found |
 
@@ -44,11 +44,10 @@
 
 ## Critical gates before archive
 
-1. With owner approval, commit/push and open the PR.
-2. Run required CI and resolve actionable results.
-3. With owner approval after the client deploy, push the migration to staging
+1. Run required CI and resolve actionable results.
+2. With owner approval after the client deploy, push the migration to staging
    and record two-context delivery plus before/after load evidence.
-4. Merge, update MYK9-25, archive the change, and clean up the branch/worktree.
+3. Merge, update MYK9-25, archive the change, and clean up the branch/worktree.
 
 ## Warnings
 
@@ -59,5 +58,6 @@
 ## Final assessment
 
 Local implementation verification passes with no requirement, scenario,
-security, or design-coherence issue. The change is ready for the owner-approved
-shipping gates, but not ready to archive until those four tasks complete.
+security, or design-coherence issue. Independent PR review is approved after
+one notification-repeat fix. The change is not ready to archive until the three
+remaining CI, staging-evidence, and post-merge tracking gates complete.

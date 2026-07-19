@@ -20,6 +20,7 @@ import { logger } from '@/services/LoggingService';
 import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 import { isRawEntryInEntryManagementPendingBucket } from '@/utils/entryCountSelectors';
 import { SECRETARY_ENTRIES_READ_ERROR } from './secretaryReadErrors';
+import { hydrateSecretaryEntriesForShow } from './secretaryReadHydration';
 export type { PendingEntry, SecretaryEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 
 function toPendingEntry(row: Record<string, unknown>): PendingEntry {
@@ -65,9 +66,6 @@ export const getPendingEntries = async (showIdFilter?: string): Promise<PendingE
   return (data ?? []).map(toPendingEntry).filter(isRawEntryInEntryManagementPendingBucket);
 };
 
-/**
- * Get all entries for a show (for secretary management)
- */
 export const getEntriesForShow = async (showId: string) => {
   const startTime = Date.now();
 
@@ -77,31 +75,13 @@ export const getEntriesForShow = async (showId: string) => {
       logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
       return { data: result.data, error: null };
     }
-    // Cold store: hydrate this show directly through the authenticated result
-    // view before attempting the legacy fallback. The app-wide sync provider
-    // intentionally has no show scope, so a secretary landing directly on
-    // Entry Management cannot rely on it to populate this replica first.
+    // Hydrate directly; the app-wide sync provider has no show scope.
     logger.warn('Secretary entries replication cold; hydrating scoped replica', 'database', {
       showId,
       operation: 'get_entries_for_show',
     });
-
-    try {
-      const syncResult = await replicatedEntriesTable.sync(showId);
-      if (syncResult?.success) {
-        const hydrated = await getReplicatedSecretaryEntriesForShow(showId);
-        if (!hydrated.isColdStore) {
-          logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
-          return { data: hydrated.data, error: null };
-        }
-      }
-    } catch (error) {
-      logger.warn('Secretary entries scoped replica hydration failed', 'database', {
-        showId,
-        operation: 'get_entries_for_show',
-        error,
-      });
-    }
+    const hydratedData = await hydrateSecretaryEntriesForShow(showId, startTime);
+    if (hydratedData) return { data: hydratedData, error: null };
   } catch (error) {
     const replicationError = error instanceof Error ? error : new Error(String(error));
     logger.warn(

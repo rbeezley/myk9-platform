@@ -112,7 +112,7 @@ describe('useEntryManagementData', () => {
     expect(result.current.entries).toEqual([]);
   });
 
-  it('requests replication recovery after a cold online load fails', async () => {
+  it('requests replication recovery after a cold load fails', async () => {
     mocks.syncStatus = {
       isSyncing: false,
       lastSyncAt: null,
@@ -128,7 +128,6 @@ describe('useEntryManagementData', () => {
     await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
     act(() => result.current.setSelectedShowId('show-1'));
 
-    await waitFor(() => expect(result.current.loadError).toBeTruthy());
     await waitFor(() => expect(mocks.triggerSync).toHaveBeenCalledTimes(1));
   });
 

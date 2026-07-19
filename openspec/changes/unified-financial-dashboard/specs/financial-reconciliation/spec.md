@@ -76,6 +76,48 @@ client response bounded by the PostgREST row limit.
 - **WHEN** a caller opens reconciliation details
 - **THEN** the client can load every authorized page without changing the aggregate totals
 
+#### Scenario: A charge has more than one hundred refunds
+
+- **WHEN** Stripe returns multiple refund-list pages for one charge
+- **THEN** the webhook evaluates every page before deriving the order refund ledger
+
+### Requirement: Refund reconciliation follows terminal Stripe status
+
+The system SHALL count a Stripe refund in financial totals only after it succeeds,
+SHALL preserve failed or canceled refunds as terminal audit records that contribute no
+money, and SHALL reconcile later status changes idempotently regardless of webhook
+delivery order.
+
+#### Scenario: Refund is pending or requires action
+
+- **WHEN** a charge payload contains a refund whose status is `pending` or
+  `requires_action`
+- **THEN** the refund remains unbooked until a later `refund.updated` reports a
+  terminal outcome
+
+#### Scenario: Pending refund later succeeds
+
+- **WHEN** `refund.updated` changes an in-flight refund to `succeeded`
+- **THEN** the refund is booked once and duplicate delivery does not change totals
+
+#### Scenario: Refund later fails or is canceled
+
+- **WHEN** `refund.updated` or `refund.failed` reports `failed` or `canceled`
+- **THEN** its retained audit row contributes nothing to derived refund totals and a
+  later stale success delivery cannot resurrect it
+
+#### Scenario: Fully refunded order is not locally succeeded
+
+- **WHEN** refund facts cover a local order whose status is `pending` or `processing`
+- **THEN** the order keeps its status, `refunded_at` stays null, and reconciliation
+  still includes its gross, fee, and refund facts so the money nets correctly
+
+#### Scenario: Failed audit row receives stale redelivery
+
+- **WHEN** a terminally failed refund row receives a stale booking with a different
+  amount
+- **THEN** its recorded terminal amount, kind, and state remain unchanged
+
 ### Requirement: Charge verification and payout settlement remain separate
 
 The system SHALL expose independent charge-verification and club-payout-settlement

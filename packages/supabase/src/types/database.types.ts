@@ -7268,14 +7268,20 @@ export type Database = {
           currency: string | null
           customer_id: string | null
           enrollment_id: string | null
+          entry_subtotal_cents: number | null
           entry_ids: string[] | null
           id: string
+          make_whole_refunded_cents: number
           metadata: Json | null
           order_type: string | null
           paid_at: string | null
+          platform_fee_cents: number | null
+          platform_fee_rate: number | null
           refunded_at: string | null
+          refunded_cents: number
           show_id: string | null
           status: string | null
+          stripe_processing_fee_cents: number | null
           stripe_checkout_session_id: string | null
           stripe_payment_intent_id: string | null
           updated_at: string | null
@@ -7286,14 +7292,20 @@ export type Database = {
           currency?: string | null
           customer_id?: string | null
           enrollment_id?: string | null
+          entry_subtotal_cents?: number | null
           entry_ids?: string[] | null
           id?: string
+          make_whole_refunded_cents?: number
           metadata?: Json | null
           order_type?: string | null
           paid_at?: string | null
+          platform_fee_cents?: number | null
+          platform_fee_rate?: number | null
           refunded_at?: string | null
+          refunded_cents?: number
           show_id?: string | null
           status?: string | null
+          stripe_processing_fee_cents?: number | null
           stripe_checkout_session_id?: string | null
           stripe_payment_intent_id?: string | null
           updated_at?: string | null
@@ -7304,14 +7316,20 @@ export type Database = {
           currency?: string | null
           customer_id?: string | null
           enrollment_id?: string | null
+          entry_subtotal_cents?: number | null
           entry_ids?: string[] | null
           id?: string
+          make_whole_refunded_cents?: number
           metadata?: Json | null
           order_type?: string | null
           paid_at?: string | null
+          platform_fee_cents?: number | null
+          platform_fee_rate?: number | null
           refunded_at?: string | null
+          refunded_cents?: number
           show_id?: string | null
           status?: string | null
+          stripe_processing_fee_cents?: number | null
           stripe_checkout_session_id?: string | null
           stripe_payment_intent_id?: string | null
           updated_at?: string | null

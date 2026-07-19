@@ -83,9 +83,13 @@ export class PaymentService {
    * Map a stripe_orders row status string to the PaymentDetails status union.
    */
   private mapOrderStatus(status: string | null): PaymentDetails['status'] {
+    // 'succeeded' is the status stripe_orders actually writes for a captured
+    // payment. A partially refunded order also stays succeeded, so both cases
+    // remain completed in the existing PaymentDetails status vocabulary.
     switch (status) {
       case 'paid':
       case 'completed':
+      case 'succeeded':
         return 'completed';
       case 'pending':
         return 'pending';
@@ -225,9 +229,16 @@ export class PaymentService {
         totalCents += cents;
 
         const status = this.mapOrderStatus(order.status);
+        const storedRefundCents = Math.max(
+          0,
+          (order.refunded_cents ?? 0) + (order.make_whole_refunded_cents ?? 0)
+        );
+        const refundCents =
+          status === 'refunded' && storedRefundCents === 0 ? cents : storedRefundCents;
         switch (status) {
           case 'completed':
-            paidCents += cents;
+            paidCents += Math.max(0, cents - refundCents);
+            refundedCents += refundCents;
             paidCount++;
             break;
           case 'pending':
@@ -235,7 +246,8 @@ export class PaymentService {
             pendingCents += cents;
             break;
           case 'refunded':
-            refundedCents += cents;
+            paidCents += Math.max(0, cents - refundCents);
+            refundedCents += refundCents;
             break;
           // failed / cancelled are not counted toward any bucket
         }

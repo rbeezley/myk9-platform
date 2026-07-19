@@ -35,6 +35,7 @@ import {
   type LedgerRow,
   type PayoutStatus,
 } from '@/features/payments/payoutLedger';
+import { PlatformIncomeCard } from '@/features/financial/components/PlatformIncomeCard';
 import { getPayoutStatusPresentation } from './adminStatusPresentation';
 
 function formatCents(cents: number): string {
@@ -248,6 +249,11 @@ export default function PayoutLedgerPage() {
       </div>
 
       <PlatformFeeCard />
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">Platform income</h2>
+        <PlatformIncomeCard />
+      </section>
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Payout ledger</h2>

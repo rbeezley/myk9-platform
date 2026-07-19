@@ -84,7 +84,9 @@ describe('stripe-webhook entry_payment_request branch', () => {
     expect(source).toContain('payment_intent: input.paymentIntentId');
     expect(source).toContain('amount: input.amountCents');
     expect(source).toContain('entry_payment_request_auto_refund');
-    expect(source).toContain("status: 'refunded'");
+    expect(source).toContain('reconcileCreatedMakeWholeRefund');
+    expect(source).toContain('resolveRefundLedgerAction(refund.status)');
+    expect(source).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
     expect(source).toContain('allFromAppRefund');
   });
 

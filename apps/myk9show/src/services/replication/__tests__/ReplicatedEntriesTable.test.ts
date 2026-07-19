@@ -53,6 +53,12 @@ describe('ReplicatedEntriesTable', () => {
   beforeEach(async () => {
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
+    // Writes now hydrate cold cache misses via supabase.from() (see
+    // getOrHydrateEntry), so every test in this file can reach it — not just
+    // the ones that mean to. Reset it fresh so a leftover mockReturnValue(Once)
+    // from an earlier test never leaks into an unrelated test under
+    // --sequence.shuffle (each test that needs a real response sets its own).
+    vi.mocked(supabase.from).mockReset();
 
     table = new ReplicatedEntriesTable();
   });
@@ -1848,10 +1854,16 @@ describe('ReplicatedEntriesTable', () => {
       version: 7,
     };
 
+    // Resets before queuing: a test whose code path never calls supabase.from()
+    // (e.g. the deleted-entry short-circuit below) would otherwise leave its
+    // queued mockReturnValueOnce unconsumed, and FIFO ordering would hand it to
+    // whichever later test calls supabase.from() next instead of that test's
+    // own freshly-queued mock.
     function mockViewSingleRowFetch(result: { data: unknown; error: unknown }) {
       const maybeSingle = vi.fn(async () => result);
       const eq = vi.fn(() => ({ maybeSingle }));
       const select = vi.fn(() => ({ eq }));
+      vi.mocked(supabase.from).mockReset();
       vi.mocked(supabase.from).mockReturnValueOnce(fromAny({ select }));
       return { select, eq, maybeSingle };
     }
@@ -1917,6 +1929,7 @@ describe('ReplicatedEntriesTable', () => {
       const maybeSingle = vi.fn(() => pendingFetch);
       const eq = vi.fn(() => ({ maybeSingle }));
       const select = vi.fn(() => ({ eq }));
+      vi.mocked(supabase.from).mockReset();
       vi.mocked(supabase.from).mockReturnValueOnce(fromAny({ select }));
 
       const writePromise = table.updateCheckInStatus('entry-race', 'checked-in');

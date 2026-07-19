@@ -8,11 +8,11 @@ export interface BulkActionsBarProps {
   onUsersDeleted?: (deletedUserIds: string[]) => void;
 }
 
-// 'status' and 'role' dialogs removed: no correct single-user mutation exists to
-// mirror in bulk (account-status has no per-user mutation; role assignment needs a
-// club-scope selector + canonical value mapping = a distinct feature). Bulk delete
-// is the only real bulk action.
-export type DialogType = 'delete' | 'cascadeConfirm' | null;
+// 'status' dialog removed: no correct per-user account-status mutation exists to
+// mirror in bulk. 'role' was removed in MYK9-47 (broken canonical values, ignored
+// ensureUserHasRole result, no club scope) and rebuilt correctly in MYK9-58 —
+// see BulkRoleDialog.tsx and useBulkActions.handleBulkRoleChange.
+export type DialogType = 'delete' | 'cascadeConfirm' | 'role' | null;
 
 export interface RelatedDataDetails {
   entryCount: number;

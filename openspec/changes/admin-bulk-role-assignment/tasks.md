@@ -11,12 +11,12 @@
 
 ## 2. Bulk role dialog + dispatch
 
-- [ ] 2.1 New `components/admin/users/BulkRoleDialog.tsx` per design: mode
+- [x] 2.1 New `components/admin/users/BulkRoleDialog.tsx` per design: mode
       Add/Remove/Replace, role checkboxes from shared constants (locked roles disabled in
       add, absent in remove), club badge+Select block (same `clubs-list` query as the
       single-user dialog) required when any selected role is club-scoped, Replace-mode
       destructive copy.
-- [ ] 2.2 `useBulkActions.ts`: add `handleBulkRoleChange(users, config)` dispatching
+- [x] 2.2 `useBulkActions.ts`: add `handleBulkRoleChange(users, config)` dispatching
       per-user via `useBulkDispatch` — pre-dispatch validation of selected role names
       against `rbacService.getAllRoles()` (unknown → reject batch with visible error, no
       dispatch); Add via `ensureUserHasRole` (+`{clubId}` per chosen club for scoped
@@ -25,10 +25,10 @@
       active assignments) → add. Per-user invalidation of `['user-roles', id]` and
       `['user-role-assignments', id]` inside the runner. Retry `applicableWhen`: user
       still in the current admin list.
-- [ ] 2.3 `BulkActionsBar.tsx`: add the "Change roles" button + `'role'` dialog type,
+- [x] 2.3 `BulkActionsBar.tsx`: add the "Change roles" button + `'role'` dialog type,
       render `BulkRoleDialog`, wire `onBulkComplete`/selection-clear on full success
       (matching delete). Keep the file under 500 lines.
-- [ ] 2.4 Component/hook tests proving: canonical values dispatched (no admin/handler
+- [x] 2.4 Component/hook tests proving: canonical values dispatched (no admin/handler
       possible); scoped role without a club cannot submit; scoped grants carry `clubId`;
       `ensureUserHasRole` false → user reported skipped, thrown error → failed, summary
       honest on partial failure; Replace validates before revoking and preserves

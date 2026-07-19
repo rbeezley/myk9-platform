@@ -25,6 +25,8 @@ const element: ElementSummary = {
       status: CLASS_STATUS.SCHEDULED,
       entryCount: 5,
       startTime: '09:00:00',
+      judgeId: 'judge-1',
+      judgeName: 'Jane Doe',
     },
   ],
   completedCount: 0,
@@ -55,6 +57,26 @@ describe('ElementCard schedule-editing gate', () => {
   it('renders the inline editor when canEditSchedule is true', () => {
     render(<ElementCard {...baseProps} canEditSchedule />);
     expect(screen.getByRole('button', { name: /edit start time/i })).toBeInTheDocument();
+  });
+
+  it('shows the assigned judge on the class card', () => {
+    render(<ElementCard {...baseProps} canEditSchedule />);
+    expect(screen.getByText(/Judge Jane Doe/)).toBeInTheDocument();
+  });
+
+  it('shows Cancelled instead of a time editor for a cancelled single-level class', () => {
+    const cancelled: ElementSummary = {
+      ...element,
+      status: CLASS_STATUS.CANCELLED,
+      levels: [{ ...element.levels[0]!, status: CLASS_STATUS.CANCELLED }],
+      totalCount: 0,
+    };
+
+    render(<ElementCard {...baseProps} element={cancelled} canEditSchedule />);
+
+    expect(screen.getAllByText('Cancelled')).not.toHaveLength(0);
+    expect(screen.queryByRole('button', { name: /edit start time/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('9:00 AM')).not.toBeInTheDocument();
   });
 
   it('lists each level time on read-only cards when levels start at different times', () => {
@@ -177,5 +199,37 @@ describe('ElementCard schedule-editing gate', () => {
     const list = screen.getByTestId('per-level-times');
     expect(list).toHaveTextContent('Advanced: Cancelled');
     expect(list).not.toHaveTextContent('1:30 PM');
+  });
+
+  it('shows per-level rows when a cancelled level shares the active level time', () => {
+    const cancelledSameTime: ElementSummary = {
+      ...element,
+      levelRange: 'Novice–Advanced',
+      levels: [
+        {
+          classId: 'class-1',
+          className: 'Container Novice',
+          level: 'Novice',
+          status: CLASS_STATUS.SCHEDULED,
+          entryCount: 5,
+          startTime: '09:00:00',
+        },
+        {
+          classId: 'class-2',
+          className: 'Container Advanced',
+          level: 'Advanced',
+          status: CLASS_STATUS.CANCELLED,
+          entryCount: 3,
+          startTime: '09:00:00',
+        },
+      ],
+      totalCount: 2,
+    };
+    render(<ElementCard {...baseProps} element={cancelledSameTime} />);
+    // Identical times normally collapse to one aggregate line, but a
+    // cancelled level must still surface its own Cancelled row.
+    const list = screen.getByTestId('per-level-times');
+    expect(list).toHaveTextContent('Novice: 9:00 AM');
+    expect(list).toHaveTextContent('Advanced: Cancelled');
   });
 });

@@ -44,6 +44,7 @@ function getElementDestination(
 export function TrialSpine({ trial, showId, canEditSchedule = false }: TrialSpineProps) {
   const formattedStartTime = formatStartTime(trial.plannedStartTime);
   const trialHref = getShowMapTrialHref(showId, trial.trialId);
+  const trialLevels = trial.elements.flatMap(element => element.levels);
 
   const trialLabel = trial.trialNumber
     ? /^\d+$/.test(trial.trialNumber)
@@ -55,7 +56,7 @@ export function TrialSpine({ trial, showId, canEditSchedule = false }: TrialSpin
     <div>
       <Link
         to={trialHref}
-        className="mb-2 block w-fit rounded-sm text-xs uppercase tracking-wide text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mb-2 flex min-h-11 w-fit items-center rounded-sm text-xs uppercase tracking-wide text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {trialLabel}
         {formattedStartTime && ` · ${formattedStartTime}`}
@@ -94,6 +95,7 @@ export function TrialSpine({ trial, showId, canEditSchedule = false }: TrialSpin
                     showId={showId}
                     trialId={trial.trialId}
                     canEditSchedule={canEditSchedule}
+                    trialLevels={trialLevels}
                   />
                 </div>
               </div>

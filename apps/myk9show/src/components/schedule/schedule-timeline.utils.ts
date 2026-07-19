@@ -122,6 +122,14 @@ interface ClassRowLike {
   status: string;
   totalEntriesCount: number;
   startTime: string | null;
+  judgePersonId: string | null;
+  judgeFirstName: string | null;
+  judgeLastName: string | null;
+}
+
+function getJudgeName(row: ClassRowLike): string | null {
+  const name = [row.judgeFirstName, row.judgeLastName].filter(Boolean).join(' ').trim();
+  return name || null;
 }
 
 function buildElementSummary(elementName: string, classes: ClassRowLike[]): ElementSummary {
@@ -133,6 +141,8 @@ function buildElementSummary(elementName: string, classes: ClassRowLike[]): Elem
     status: normalizeClassStatus(c.status),
     entryCount: c.totalEntriesCount,
     startTime: c.startTime,
+    judgeId: c.judgePersonId,
+    judgeName: getJudgeName(c),
   }));
 
   // Sort by progression order

@@ -13,6 +13,9 @@ export interface TimelineClassRow {
   startTime: string | null;
   status: string; // raw DB status, needs normalizeClassStatus()
   totalEntriesCount: number;
+  judgePersonId: string | null;
+  judgeFirstName: string | null;
+  judgeLastName: string | null;
 }
 
 /** Raw row from the trial timeline query (trial detail) */
@@ -53,6 +56,9 @@ export interface LevelDetail {
   entryCount: number;
   /** This level-class's own start time (raw DB value), for inline editing. */
   startTime: string | null;
+  /** Assigned judge metadata, retained per class for display and conflict checks. */
+  judgeId?: string | null | undefined;
+  judgeName?: string | null | undefined;
 }
 
 /** A single trial's timeline data */

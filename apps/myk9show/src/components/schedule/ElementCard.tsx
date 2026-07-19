@@ -32,6 +32,14 @@ interface ElementCardProps {
    * consumer that forgets the prop gets the safe read-only card.
    */
   canEditSchedule?: boolean | undefined;
+  /** All class levels in the trial, used for judge/time conflict validation. */
+  trialLevels?: readonly LevelDetail[] | undefined;
+}
+
+function judgeSummary(levels: readonly LevelDetail[]): string {
+  const names = [...new Set(levels.map(level => level.judgeName).filter(Boolean))];
+  if (names.length === 0) return 'Judge unassigned';
+  return `${names.length === 1 ? 'Judge' : 'Judges'} ${names.join(', ')}`;
 }
 
 function ElementTitleRow({ element }: { element: ElementSummary }) {
@@ -56,6 +64,7 @@ export function ElementCard({
   showId,
   trialId,
   canEditSchedule = false,
+  trialLevels = element.levels,
 }: ElementCardProps) {
   if (!canEditSchedule) {
     // Read-only surfaces (exhibitor/public show overview): the whole card is
@@ -63,10 +72,22 @@ export function ElementCard({
     // level's own time — element.startTime is only the earliest, and hiding
     // the later class times would misinform exhibitors planning their day.
     const distinctLevelTimes = new Set(element.levels.map(level => level.startTime ?? ''));
-    const showPerLevelTimes = element.levels.length > 1 && distinctLevelTimes.size > 1;
+    // Per-level rows also render when any level is cancelled — the aggregate
+    // badge ignores cancelled levels, so a cancelled class sharing the active
+    // levels' time would otherwise present as scheduled with no signal.
+    const hasCancelledLevel = element.levels.some(level => level.status === CLASS_STATUS.CANCELLED);
+    const showPerLevelTimes =
+      element.levels.length > 1 && (distinctLevelTimes.size > 1 || hasCancelledLevel);
     const summaryParts = [
-      ...(showPerLevelTimes ? [] : [formatStartTime(element.startTime) ?? 'Start Time: TBD']),
+      ...(showPerLevelTimes
+        ? []
+        : [
+            element.status === CLASS_STATUS.CANCELLED
+              ? 'Cancelled'
+              : (formatStartTime(element.startTime) ?? 'Start Time: TBD'),
+          ]),
       ...(element.levelRange ? [element.levelRange] : []),
+      judgeSummary(element.levels),
       ...(typeof entryCount === 'number'
         ? [`${entryCount} ${entryCount === 1 ? 'entry' : 'entries'}`]
         : []),
@@ -77,7 +98,7 @@ export function ElementCard({
         to={href}
         aria-label={ariaLabel}
         title={ariaLabel}
-        className="block w-full rounded-md border border-border bg-card p-2 text-left transition-colors hover:bg-accent"
+        className="block min-h-11 w-full rounded-md border border-border bg-card p-2 text-left transition-colors hover:bg-accent"
       >
         <ElementTitleRow element={element} />
         {summaryParts.length > 0 && (
@@ -103,6 +124,13 @@ export function ElementCard({
   }
 
   const hasMultipleLevels = element.levels.length > 1;
+  const details = [
+    ...(element.levelRange ? [element.levelRange] : []),
+    judgeSummary(element.levels),
+    ...(typeof entryCount === 'number'
+      ? [`${entryCount} ${entryCount === 1 ? 'entry' : 'entries'}`]
+      : []),
+  ];
 
   return (
     <div className="w-full rounded-md border border-border bg-card p-2 transition-colors hover:bg-accent">
@@ -112,28 +140,44 @@ export function ElementCard({
         to={href}
         aria-label={ariaLabel}
         title={ariaLabel}
-        className="block rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex min-h-11 flex-col justify-center rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <ElementTitleRow element={element} />
-        {(element.levelRange || typeof entryCount === 'number') && (
+        {details.length > 0 && (
           <div className="mt-0.5 text-xs text-muted-foreground">
-            {element.levelRange}
-            {typeof entryCount === 'number' &&
-              ` · ${entryCount} ${entryCount === 1 ? 'entry' : 'entries'}`}
+            {details.join(' · ')}
           </div>
         )}
       </Link>
       <div className="flex flex-col">
-        {element.levels.map(level => (
-          <ClassStartTimeEditor
-            key={level.classId}
-            classId={level.classId}
-            startTime={level.startTime}
-            showId={showId}
-            trialId={trialId}
-            label={hasMultipleLevels ? levelRowLabel(level, element.levels) : undefined}
-          />
-        ))}
+        {element.levels.map(level => {
+          const label = hasMultipleLevels ? levelRowLabel(level, element.levels) : undefined;
+          if (level.status === CLASS_STATUS.CANCELLED) {
+            return (
+              <div
+                key={level.classId}
+                className="flex min-h-11 items-center px-1 text-xs text-muted-foreground"
+              >
+                {label && <span>{label}:&nbsp;</span>}
+                <span>Cancelled</span>
+              </div>
+            );
+          }
+
+          return (
+            <ClassStartTimeEditor
+              key={level.classId}
+              classId={level.classId}
+              startTime={level.startTime}
+              showId={showId}
+              trialId={trialId}
+              judgeId={level.judgeId}
+              judgeName={level.judgeName}
+              trialLevels={trialLevels}
+              label={label}
+            />
+          );
+        })}
       </div>
     </div>
   );

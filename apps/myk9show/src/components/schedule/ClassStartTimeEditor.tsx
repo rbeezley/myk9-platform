@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Check, Pencil, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { notifications } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
 import { formatStartTime } from './schedule-timeline.utils';
+import type { LevelDetail } from './schedule-timeline.types';
 
 interface ClassStartTimeEditorProps {
   classId: string;
@@ -16,6 +17,13 @@ interface ClassStartTimeEditorProps {
   startTime: string | null;
   showId: string;
   trialId: string;
+  judgeId?: string | null | undefined;
+  judgeName?: string | null | undefined;
+  /** Every level in the trial, used to prevent double-booking one judge. */
+  trialLevels?: readonly Pick<
+    LevelDetail,
+    'classId' | 'className' | 'startTime' | 'judgeId' | 'judgeName'
+  >[];
   /** Shown before the time when an element aggregates more than one level (e.g. "Novice"). */
   label?: string | undefined;
   className?: string | undefined;
@@ -46,6 +54,9 @@ export function ClassStartTimeEditor({
   startTime,
   showId,
   trialId,
+  judgeId,
+  judgeName,
+  trialLevels = [],
   label,
   className,
 }: ClassStartTimeEditorProps) {
@@ -55,6 +66,10 @@ export function ClassStartTimeEditor({
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const inputId = useId();
+
+  useEffect(() => {
+    setSavedStartTime(startTime);
+  }, [startTime]);
 
   const displayTime = formatStartTime(savedStartTime) ?? 'TBD';
 
@@ -70,8 +85,24 @@ export function ClassStartTimeEditor({
   }
 
   async function save() {
-    if (!/^\d{2}:\d{2}$/.test(draft)) {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft)) {
       setError('Enter a valid time, like 9:00 AM.');
+      return;
+    }
+
+    const conflict = judgeId
+      ? trialLevels.find(
+          level =>
+            level.classId !== classId &&
+            level.judgeId === judgeId &&
+            toTimeInputValue(level.startTime) === draft
+        )
+      : undefined;
+    if (conflict) {
+      const formattedTime = formatStartTime(`${draft}:00`) ?? draft;
+      setError(
+        `${judgeName ?? conflict.judgeName ?? 'This judge'} is already assigned to ${conflict.className} at ${formattedTime}. Choose another time.`
+      );
       return;
     }
     setIsSaving(true);
@@ -112,7 +143,10 @@ export function ClassStartTimeEditor({
           id={inputId}
           type="time"
           value={draft}
-          onChange={e => setDraft(e.target.value)}
+          onChange={e => {
+            setDraft(e.target.value);
+            setError(null);
+          }}
           onKeyDown={handleKeyDown}
           autoFocus
           disabled={isSaving}

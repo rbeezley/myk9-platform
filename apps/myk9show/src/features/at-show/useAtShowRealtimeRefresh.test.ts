@@ -8,49 +8,34 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-type ChangeHandler = (payload: unknown) => void;
+import {
+  subscribeToShowChanges,
+  type ShowChangeListener,
+} from '@/features/show-live-sync/showChangeSignal';
 
-const handlers: { entries: ChangeHandler[]; classes: ChangeHandler[] } = {
-  entries: [],
-  classes: [],
-};
-// Mirrors the real client: removing the channel detaches its handlers.
-const removeChannel = vi.fn((_channel?: unknown) => {
-  handlers.entries = [];
-  handlers.classes = [];
-});
-
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    channel: vi.fn(() => {
-      interface FakeChannel {
-        on: (_event: string, config: { table: string }, handler: ChangeHandler) => FakeChannel;
-        subscribe: () => FakeChannel;
-      }
-      const channel: FakeChannel = {
-        on: (_event: string, config: { table: string }, handler: ChangeHandler): typeof channel => {
-          if (config.table === 'entries') handlers.entries.push(handler);
-          if (config.table === 'classes') handlers.classes.push(handler);
-          return channel;
-        },
-        subscribe: () => channel,
-      };
-      return channel;
-    }),
-    removeChannel: (channel: unknown) => removeChannel(channel),
-  },
+vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
+  subscribeToShowChanges: vi.fn(),
 }));
 
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 
 const SHOW = 'show-1';
+let changeHandler: ShowChangeListener | undefined;
+let unsubscribe: ReturnType<typeof subscribeToShowChanges>;
+
+const emitChange = () => changeHandler?.({ table: 'entries' });
 
 describe('useAtShowRealtimeRefresh', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    handlers.entries = [];
-    handlers.classes = [];
-    removeChannel.mockClear();
+    changeHandler = undefined;
+    unsubscribe = vi.fn(() => {
+      changeHandler = undefined;
+    });
+    vi.mocked(subscribeToShowChanges).mockImplementation((_showId, handler) => {
+      changeHandler = handler;
+      return unsubscribe;
+    });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -60,9 +45,10 @@ describe('useAtShowRealtimeRefresh', () => {
   it('coalesces a burst of entry updates into one debounced forceSync refresh', async () => {
     const refresh = vi.fn(() => Promise.resolve());
     renderHook(() => useAtShowRealtimeRefresh(SHOW, refresh));
+    expect(subscribeToShowChanges).toHaveBeenCalledWith(SHOW, expect.any(Function));
 
     act(() => {
-      for (let i = 0; i < 5; i++) handlers.entries.forEach(h => h({}));
+      for (let i = 0; i < 5; i++) emitChange();
     });
     expect(refresh).not.toHaveBeenCalled();
 
@@ -78,7 +64,7 @@ describe('useAtShowRealtimeRefresh', () => {
     const refresh = vi.fn(() => Promise.resolve());
     renderHook(() => useAtShowRealtimeRefresh(SHOW, refresh));
 
-    act(() => handlers.classes.forEach(h => h({})));
+    act(emitChange);
     await act(async () => {
       vi.advanceTimersByTime(1500);
       await Promise.resolve();
@@ -107,7 +93,7 @@ describe('useAtShowRealtimeRefresh', () => {
     renderHook(() => useAtShowRealtimeRefresh(SHOW, refresh));
 
     // First nudge starts a refresh that hangs.
-    act(() => handlers.entries.forEach(h => h({})));
+    act(emitChange);
     await act(async () => {
       vi.advanceTimersByTime(1500);
       await Promise.resolve();
@@ -116,7 +102,7 @@ describe('useAtShowRealtimeRefresh', () => {
 
     // Three more nudges while in flight → exactly ONE queued follow-up.
     for (let i = 0; i < 3; i++) {
-      act(() => handlers.entries.forEach(h => h({})));
+      act(emitChange);
       await act(async () => {
         vi.advanceTimersByTime(1500);
         await Promise.resolve();
@@ -136,11 +122,11 @@ describe('useAtShowRealtimeRefresh', () => {
     const refresh = vi.fn(() => Promise.resolve());
     const { unmount } = renderHook(() => useAtShowRealtimeRefresh(SHOW, refresh));
     unmount();
-    expect(removeChannel).toHaveBeenCalledTimes(1);
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
 
     // Channel handlers were detached and the document listener removed, so
     // neither a realtime event nor a foreground return can refresh anymore.
-    act(() => handlers.entries.forEach(h => h({})));
+    act(emitChange);
     document.dispatchEvent(new Event('visibilitychange'));
     await act(async () => {
       vi.advanceTimersByTime(3000);
@@ -152,7 +138,6 @@ describe('useAtShowRealtimeRefresh', () => {
   it('does nothing without a showId', () => {
     const refresh = vi.fn(() => Promise.resolve());
     renderHook(() => useAtShowRealtimeRefresh(undefined, refresh));
-    expect(handlers.entries.length).toBe(0);
-    expect(handlers.classes.length).toBe(0);
+    expect(subscribeToShowChanges).not.toHaveBeenCalled();
   });
 });

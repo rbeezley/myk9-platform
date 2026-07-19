@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -7,6 +7,7 @@ import { useNotificationDelivery } from '@/hooks/useNotificationDelivery';
 import { useShowDayData } from '@/hooks/queries/useShowDayData';
 import { useShowStore } from '@/store/showStore';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
+import { subscribeToShowChanges } from '@/features/show-live-sync/showChangeSignal';
 import {
   buildYourTurnPayload,
   buildClassStartingPayload,
@@ -19,6 +20,7 @@ import type { ClassContext } from '@/utils/conflictDetection';
 import type { ShowEntry } from '@/store/entry-store-types';
 
 const DEDUP_WINDOW_MS = 60_000;
+const REFRESH_DEBOUNCE_MS = 400;
 
 interface EntryRow {
   id: string;
@@ -40,9 +42,9 @@ interface ClassRow {
   results_released_at: string | null;
 }
 
-interface RealtimePayload<T> {
-  new: T;
-  old: T;
+interface NotificationSnapshot {
+  entries: unknown[];
+  classes: unknown[];
 }
 
 function isRevealableResult(
@@ -68,50 +70,39 @@ function buildResultsActionUrl(
   return `/classes/${classId}`;
 }
 
-/**
- * Core notification monitor hook.
- *
- * Subscribes to Supabase realtime channels for entries and classes across
- * all active shows. Computes run order, detects conflicts across classes,
- * and fires in-app notifications through the delivery pipeline.
- *
- * Mount once inside the AuthProvider tree (e.g. App.tsx).
- */
 export function useNotificationMonitor(): void {
   const { userWithRoles, user } = useAuthContext();
-  const preferences = useNotificationStore(s => s.preferences);
+  const preferences = useNotificationStore(state => state.preferences);
   const { deliver } = useNotificationDelivery();
-  // --- Show IDs (same pattern as useAnnouncementSubscription) ---
   const { activeShows } = useShowDayData();
-  const selectedShowId = useShowStore(s => s.selectedShowId);
+  const selectedShowId = useShowStore(state => state.selectedShowId);
+
   const showIdsKey = useMemo(() => {
-    const ids = new Set(activeShows.map(s => s.showId));
+    const ids = new Set(activeShows.map(show => show.showId));
     if (selectedShowId) ids.add(selectedShowId);
     return [...ids].sort().join(',');
   }, [activeShows, selectedShowId]);
   const showIds = useMemo(() => (showIdsKey ? showIdsKey.split(',') : []), [showIdsKey]);
 
-  // --- User's dogs ---
   const dogsQuery = useDogsByOwnerQuery(
     userWithRoles?.databaseUserId ?? '',
-    !!userWithRoles?.databaseUserId
+    Boolean(userWithRoles?.databaseUserId)
   );
-  const dogIdsKey = useMemo(() => {
-    const dogs = dogsQuery.data ?? [];
-    return dogs
-      .map(d => (d as { id: string }).id)
-      .sort()
-      .join(',');
-  }, [dogsQuery.data]);
+  const dogIdsKey = useMemo(
+    () =>
+      (dogsQuery.data ?? [])
+        .map(dog => (dog as { id: string }).id)
+        .sort()
+        .join(','),
+    [dogsQuery.data]
+  );
   const userDogIds = useMemo(() => new Set(dogIdsKey ? dogIdsKey.split(',') : []), [dogIdsKey]);
 
-  // --- Fetch entries + classes for context ---
-  const showEntriesQuery = useQuery({
+  const snapshotQuery = useQuery({
     queryKey: ['notification-monitor', 'entries', showIds],
-    queryFn: async () => {
+    queryFn: async (): Promise<NotificationSnapshot> => {
       if (showIds.length === 0) return { entries: [], classes: [] };
 
-      // Fetch classes for these shows via trials
       const { data: classRows, error: classError } = await supabase
         .from('classes')
         .select(
@@ -121,10 +112,9 @@ export function useNotificationMonitor(): void {
         .in('trial.show_id', showIds);
       if (classError) throw classError;
 
-      const classIds = (classRows ?? []).map((c: { id: string }) => c.id);
+      const classIds = (classRows ?? []).map((row: { id: string }) => row.id);
       if (classIds.length === 0) return { entries: [], classes: classRows ?? [] };
 
-      // Fetch entries for those classes
       const { data: entryRows, error: entryError } = await supabase
         .from('view_authenticated_entry_results')
         .select(
@@ -141,171 +131,31 @@ export function useNotificationMonitor(): void {
     refetchInterval: 30_000,
   });
 
-  // --- Dedup state ---
   const lastYourTurnAlert = useRef<Map<string, number>>(new Map());
   const notifiedClassStarting = useRef<Set<string>>(new Set());
   const notifiedResultsPosted = useRef<Set<string>>(new Set());
+  const classContextRef = useRef<Map<string, ClassContext>>(new Map());
+  const dogNameMap = useRef<Map<string, string>>(new Map());
+  const entryResultStatusMapRef = useRef<Map<string, string | null>>(new Map());
 
-  // Stable refs for callbacks — updated via useLayoutEffect so they are
-  // always current before any effect fires, without violating the lint rule
-  // that forbids mutating refs during render.
   const deliverRef = useRef(deliver);
   const preferencesRef = useRef(preferences);
   const userDogIdsRef = useRef(userDogIds);
-
   useLayoutEffect(() => {
     deliverRef.current = deliver;
     preferencesRef.current = preferences;
     userDogIdsRef.current = userDogIds;
   });
 
-  // --- Build class context map and dog name map ---
-  const classContextRef = useRef<Map<string, ClassContext>>(new Map());
-  const dogNameMap = useRef<Map<string, string>>(new Map());
-  const entryResultStatusMapRef = useRef<Map<string, string | null>>(new Map());
-  const classResultsReleasedAtMapRef = useRef<Map<string, string | null>>(new Map());
-
-  useEffect(() => {
-    const data = showEntriesQuery.data;
-    if (!data) return;
-
-    const { entries, classes } = data;
-    const newCtx = new Map<string, ClassContext>();
-    const newDogNames = new Map<string, string>();
-    const newEntryResultStatuses = new Map<string, string | null>();
-    const newClassResultsReleasedAt = new Map<string, string | null>();
-
-    // Build class lookup
-    const classLookup = new Map<
-      string,
-      {
-        name: string;
-        status: string;
-        isScoringFinalized: boolean;
-        resultsReleasedAt: string | null;
-      }
-    >();
-    for (const cls of classes) {
-      const c = cls as unknown as ClassRow;
-      classLookup.set(c.id, {
-        name: c.name,
-        status: c.status ?? '',
-        isScoringFinalized: c.is_scoring_finalized,
-        resultsReleasedAt: c.results_released_at,
-      });
-      newClassResultsReleasedAt.set(c.id, c.results_released_at);
-    }
-
-    // Group entries by class and build dog name map
-    const entriesByClass = new Map<string, ShowEntry[]>();
-    for (const raw of entries) {
-      const entry = raw as unknown as EntryRow;
-      if (entry.dog_id && entry.dog_call_name) {
-        newDogNames.set(entry.dog_id, entry.dog_call_name);
-      }
-      newEntryResultStatuses.set(entry.id, entry.result_status);
-
-      const mapped: ShowEntry = {
-        id: entry.id,
-        dogId: entry.dog_id,
-        classId: entry.class_id,
-        showId: entry.show_id,
-        checkInStatus: (entry.check_in_status as ShowEntry['checkInStatus']) ?? undefined,
-        status: 'confirmed',
-        registrationData: {
-          submittedAt: '',
-          handler: '',
-          entryFee: 0,
-          paymentStatus: 'pending',
-          armband: entry.armband ?? undefined,
-        },
-        // competitionData is used by runOrderUtils/conflictDetection as a
-        // scored-vs-unscored flag. Populate a minimal object when is_scored
-        // is true; leave undefined otherwise.
-        competitionData: entry.is_scored ? { recordedBy: '', recordedAt: '' } : undefined,
-        statusHistory: [],
-        createdAt: '',
-        updatedAt: '',
-      };
-
-      const existing = entriesByClass.get(entry.class_id) ?? [];
-      existing.push(mapped);
-      entriesByClass.set(entry.class_id, existing);
-    }
-
-    // Build class contexts
-    for (const [classId, classEntries] of entriesByClass) {
-      const cls = classLookup.get(classId);
-      newCtx.set(classId, {
-        classId,
-        className: cls?.name ?? classId,
-        status: cls?.status ?? '',
-        entries: classEntries,
-      });
-    }
-
-    classContextRef.current = newCtx;
-    dogNameMap.current = newDogNames;
-    entryResultStatusMapRef.current = newEntryResultStatuses;
-    classResultsReleasedAtMapRef.current = newClassResultsReleasedAt;
-
-    // Catch-up pass: fire missed notifications for classes already in progress
-    // or already finalized when the app opens mid-show.
-    for (const [classId, ctx] of newCtx) {
-      const cls = classLookup.get(classId);
-      if (!cls) continue;
-
-      if (cls.status === 'In Progress' && !notifiedClassStarting.current.has(classId)) {
-        notifiedClassStarting.current.add(classId);
-        const userEntries = ctx.entries.filter(e => userDogIdsRef.current.has(e.dogId));
-        if (userEntries.length > 0) {
-          const payload = buildClassStartingPayload({ className: ctx.className });
-          payload.actionUrl = `/classes/${classId}`;
-          deliverRef.current(payload);
-
-          for (const entry of userEntries) {
-            if (!entry.checkInStatus || entry.checkInStatus === 'no-status') {
-              const dogName = newDogNames.get(entry.dogId) ?? 'Your dog';
-              const reminder = buildCheckInReminderPayload({ dogName, className: ctx.className });
-              reminder.actionUrl = `/classes/${classId}`;
-              deliverRef.current(reminder);
-            }
-          }
-        }
-      }
-
-      if (cls.isScoringFinalized && !notifiedResultsPosted.current.has(classId)) {
-        notifiedResultsPosted.current.add(classId);
-        const userEntries = ctx.entries.filter(e => userDogIdsRef.current.has(e.dogId));
-        const userDogNames = userEntries.map(e => newDogNames.get(e.dogId) ?? 'Your dog');
-        if (userDogNames.length > 0) {
-          const resultsPayload = buildResultsPostedPayload({
-            dogName: userDogNames.join(', '),
-            className: ctx.className,
-          });
-          resultsPayload.actionUrl = buildResultsActionUrl(
-            classId,
-            userEntries,
-            newEntryResultStatuses,
-            cls.resultsReleasedAt
-          );
-          deliverRef.current(resultsPayload);
-        }
-      }
-    }
-  }, [showEntriesQuery.data]);
-
-  // --- Push gating ---
   const sendPush = useCallback(
     async (payload: unknown) => {
-      if (!user?.id) return;
-      if (document.visibilityState === 'visible') return;
+      if (!user?.id || document.visibilityState === 'visible') return;
       try {
         await supabase.functions.invoke('send-push-notification', {
           body: { user_id: user.id, payload },
         });
       } catch {
-        /* non-fatal */
+        // Push is best-effort; the in-app notification already exists.
       }
     },
     [user]
@@ -315,185 +165,200 @@ export function useNotificationMonitor(): void {
     sendPushRef.current = sendPush;
   });
 
-  // --- Entry change handler ---
-  const handleEntryChange = useCallback(
-    (payload: RealtimePayload<EntryRow>) => {
-      const newEntry = payload.new;
-      if (newEntry?.id) {
-        entryResultStatusMapRef.current.set(newEntry.id, newEntry.result_status);
-      }
-      if (!newEntry || newEntry.check_in_status !== 'in-ring') return;
+  const notifyUpcomingDogs = useCallback((classId: string, inRingEntryId: string) => {
+    const context = classContextRef.current.get(classId);
+    if (!context) return;
 
-      const cls = classContextRef.current.get(newEntry.class_id);
-      if (!cls) return;
+    const runOrder = getRunOrder(context.entries);
+    const inRingIndex = runOrder.findIndex(entry => entry.id === inRingEntryId);
+    if (inRingIndex === -1) return;
 
-      const runOrder = getRunOrder(cls.entries);
-      const inRingIndex = runOrder.findIndex(e => e.id === newEntry.id);
-      if (inRingIndex === -1) return;
+    const leadDogs = preferencesRef.current.leadDogs;
+    const allClasses = [...classContextRef.current.values()];
+    const lastIndex = Math.min(runOrder.length - 1, inRingIndex + leadDogs);
 
-      const leadDogs = preferencesRef.current.leadDogs;
-      const allClasses = [...classContextRef.current.values()];
+    for (let index = inRingIndex + 1; index <= lastIndex; index += 1) {
+      const entry = runOrder[index];
+      if (!userDogIdsRef.current.has(entry.dogId)) continue;
 
-      // Check next N entries after the in-ring dog
-      for (let i = inRingIndex + 1; i <= inRingIndex + leadDogs && i < runOrder.length; i++) {
-        const entry = runOrder[i];
-        if (!userDogIdsRef.current.has(entry.dogId)) continue;
+      const now = Date.now();
+      const lastAlerted = lastYourTurnAlert.current.get(entry.id);
+      if (lastAlerted && now - lastAlerted < DEDUP_WINDOW_MS) continue;
+      lastYourTurnAlert.current.set(entry.id, now);
 
-        // Dedup: skip if alerted within 60s
-        const now = Date.now();
-        const lastAlerted = lastYourTurnAlert.current.get(entry.id);
-        if (lastAlerted && now - lastAlerted < DEDUP_WINDOW_MS) continue;
-        lastYourTurnAlert.current.set(entry.id, now);
-
-        const dogsAhead = i - inRingIndex;
-        const dogName = dogNameMap.current.get(entry.dogId) ?? 'Your dog';
-
-        // Detect conflicts in other classes
-        const conflicts = detectConflicts(entry.dogId, cls.classId, allClasses, leadDogs);
-
-        const notificationPayload = buildYourTurnPayload({
-          dogName,
-          className: cls.className,
-          dogsAhead,
-          armband: entry.registrationData?.armband ?? null,
-          ...(conflicts.length > 0 ? { conflicts } : {}),
-        });
-        notificationPayload.actionUrl = `/classes/${cls.classId}`;
-
-        deliverRef.current(notificationPayload);
-
-        // Push if backgrounded
-        if (preferencesRef.current.pushEnabled) {
-          sendPushRef.current(notificationPayload);
-        }
-      }
-    },
-    [] // refs handle all mutable state
-  );
-
-  // --- Class change handler ---
-  const handleClassChange = useCallback((payload: RealtimePayload<ClassRow>) => {
-    const newClass = payload.new;
-    const oldClass = payload.old;
-    if (!newClass) return;
-    classResultsReleasedAtMapRef.current.set(newClass.id, newClass.results_released_at);
-
-    const cls = classContextRef.current.get(newClass.id);
-    if (!cls) return;
-
-    // Class starting: status changed to In Progress
-    if (
-      newClass.status === 'In Progress' &&
-      oldClass?.status !== 'In Progress' &&
-      !notifiedClassStarting.current.has(newClass.id)
-    ) {
-      notifiedClassStarting.current.add(newClass.id);
-
-      const userEntries = cls.entries.filter(e => userDogIdsRef.current.has(e.dogId));
-      if (userEntries.length === 0) return;
-
-      // Always send one class_starting notification
-      const classStartingPayload = buildClassStartingPayload({ className: cls.className });
-      classStartingPayload.actionUrl = `/classes/${cls.classId}`;
-      deliverRef.current(classStartingPayload);
-
-      // Additionally send per-dog check_in_reminder for unchecked dogs
-      for (const entry of userEntries) {
-        if (!entry.checkInStatus || entry.checkInStatus === 'no-status') {
-          const dogName = dogNameMap.current.get(entry.dogId) ?? 'Your dog';
-          const reminderPayload = buildCheckInReminderPayload({
-            dogName,
-            className: cls.className,
-          });
-          reminderPayload.actionUrl = `/classes/${cls.classId}`;
-          deliverRef.current(reminderPayload);
-        }
-      }
-    }
-
-    // Results posted: scoring finalized
-    if (
-      newClass.is_scoring_finalized &&
-      !oldClass?.is_scoring_finalized &&
-      !notifiedResultsPosted.current.has(newClass.id)
-    ) {
-      notifiedResultsPosted.current.add(newClass.id);
-
-      // One notification per class — join all user dog names
-      const userEntries = cls.entries.filter(e => userDogIdsRef.current.has(e.dogId));
-      const userDogNames = userEntries.map(e => dogNameMap.current.get(e.dogId) ?? 'Your dog');
-      if (userDogNames.length > 0) {
-        const resultsPayload = buildResultsPostedPayload({
-          dogName: userDogNames.join(', '),
-          className: cls.className,
-        });
-        resultsPayload.actionUrl = buildResultsActionUrl(
-          newClass.id,
-          userEntries,
-          entryResultStatusMapRef.current,
-          newClass.results_released_at ??
-            classResultsReleasedAtMapRef.current.get(newClass.id) ??
-            null
-        );
-        deliverRef.current(resultsPayload);
-      }
+      const conflicts = detectConflicts(entry.dogId, context.classId, allClasses, leadDogs);
+      const notification = buildYourTurnPayload({
+        dogName: dogNameMap.current.get(entry.dogId) ?? 'Your dog',
+        className: context.className,
+        dogsAhead: index - inRingIndex,
+        armband: entry.registrationData?.armband ?? null,
+        ...(conflicts.length > 0 ? { conflicts } : {}),
+      });
+      notification.actionUrl = `/classes/${context.classId}`;
+      deliverRef.current(notification);
+      if (preferencesRef.current.pushEnabled) void sendPushRef.current(notification);
     }
   }, []);
 
-  // --- Realtime subscriptions ---
-  useEffect(() => {
-    // Early returns
-    if (!preferences.enabled) return;
-    if (!userWithRoles) return;
-    if (showIds.length === 0) return;
-    if (userDogIds.size === 0) return;
+  const processSnapshot = useCallback(
+    (snapshot: NotificationSnapshot) => {
+      const classLookup = new Map<string, ClassRow>();
+      const entriesByClass = new Map<string, ShowEntry[]>();
+      const nextDogNames = new Map<string, string>();
+      const nextResultStatuses = new Map<string, string | null>();
 
-    const channels: ReturnType<typeof supabase.channel>[] = [];
+      for (const rawClass of snapshot.classes) {
+        const classRow = rawClass as ClassRow;
+        classLookup.set(classRow.id, classRow);
+      }
 
-    // Per-show entries channels (filtered by show_id)
-    for (const showId of showIds) {
-      const entriesChannel = supabase.channel(`notif-entries:${showId}`);
-      entriesChannel
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'entries',
-            filter: `show_id=eq.${showId}`,
+      for (const rawEntry of snapshot.entries) {
+        const row = rawEntry as EntryRow;
+        if (row.dog_id && row.dog_call_name) nextDogNames.set(row.dog_id, row.dog_call_name);
+        nextResultStatuses.set(row.id, row.result_status);
+
+        const mapped: ShowEntry = {
+          id: row.id,
+          dogId: row.dog_id,
+          classId: row.class_id,
+          showId: row.show_id,
+          checkInStatus: (row.check_in_status as ShowEntry['checkInStatus']) ?? undefined,
+          status: 'confirmed',
+          registrationData: {
+            submittedAt: '',
+            handler: '',
+            entryFee: 0,
+            paymentStatus: 'pending',
+            armband: row.armband ?? undefined,
           },
-          p => {
-            const typed = p as unknown as { new: EntryRow; old: EntryRow };
-            handleEntryChange({ new: typed.new, old: typed.old });
+          competitionData: row.is_scored ? { recordedBy: '', recordedAt: '' } : undefined,
+          statusHistory: [],
+          createdAt: '',
+          updatedAt: '',
+        };
+        const classEntries = entriesByClass.get(row.class_id) ?? [];
+        classEntries.push(mapped);
+        entriesByClass.set(row.class_id, classEntries);
+      }
+
+      const nextContexts = new Map<string, ClassContext>();
+      for (const [classId, entries] of entriesByClass) {
+        const classRow = classLookup.get(classId);
+        nextContexts.set(classId, {
+          classId,
+          className: classRow?.name ?? classId,
+          status: classRow?.status ?? '',
+          entries,
+        });
+      }
+
+      classContextRef.current = nextContexts;
+      dogNameMap.current = nextDogNames;
+      entryResultStatusMapRef.current = nextResultStatuses;
+
+      for (const [classId, context] of nextContexts) {
+        const classRow = classLookup.get(classId);
+        if (!classRow) continue;
+        const userEntries = context.entries.filter(entry => userDogIdsRef.current.has(entry.dogId));
+
+        if (
+          classRow.status === 'In Progress' &&
+          !notifiedClassStarting.current.has(classId) &&
+          userEntries.length > 0
+        ) {
+          notifiedClassStarting.current.add(classId);
+          const starting = buildClassStartingPayload({ className: context.className });
+          starting.actionUrl = `/classes/${classId}`;
+          deliverRef.current(starting);
+
+          for (const entry of userEntries) {
+            if (!entry.checkInStatus || entry.checkInStatus === 'no-status') {
+              const reminder = buildCheckInReminderPayload({
+                dogName: nextDogNames.get(entry.dogId) ?? 'Your dog',
+                className: context.className,
+              });
+              reminder.actionUrl = `/classes/${classId}`;
+              deliverRef.current(reminder);
+            }
           }
-        )
-        .subscribe();
-      channels.push(entriesChannel);
+        }
+
+        if (
+          classRow.is_scoring_finalized &&
+          !notifiedResultsPosted.current.has(classId) &&
+          userEntries.length > 0
+        ) {
+          notifiedResultsPosted.current.add(classId);
+          const results = buildResultsPostedPayload({
+            dogName: userEntries
+              .map(entry => nextDogNames.get(entry.dogId) ?? 'Your dog')
+              .join(', '),
+            className: context.className,
+          });
+          results.actionUrl = buildResultsActionUrl(
+            classId,
+            userEntries,
+            nextResultStatuses,
+            classRow.results_released_at
+          );
+          deliverRef.current(results);
+        }
+
+        const inRingEntry = context.entries.find(entry => entry.checkInStatus === 'in-ring');
+        if (inRingEntry) notifyUpcomingDogs(classId, inRingEntry.id);
+      }
+    },
+    [notifyUpcomingDogs]
+  );
+
+  useEffect(() => {
+    if (snapshotQuery.data) processSnapshot(snapshotQuery.data);
+  }, [snapshotQuery.data, processSnapshot]);
+
+  const refetchSnapshot = snapshotQuery.refetch;
+  useEffect(() => {
+    if (!preferences.enabled || !userWithRoles || showIds.length === 0 || userDogIds.size === 0) {
+      return undefined;
     }
 
-    // Single classes channel (no show-level filter available — classes don't
-    // have a direct show_id column). classContextRef gate in the handler
-    // ensures only relevant classes trigger notifications.
-    const classesChannel = supabase.channel('notif-classes');
-    classesChannel
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'classes' }, p => {
-        const typed = p as unknown as { new: ClassRow; old: ClassRow };
-        handleClassChange({ new: typed.new, old: typed.old });
-      })
-      .subscribe();
-    channels.push(classesChannel);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let inFlight = false;
+    let pending = false;
+    let disposed = false;
 
-    return () => {
-      for (const channel of channels) {
-        supabase.removeChannel(channel);
+    const refresh = async (): Promise<void> => {
+      if (inFlight) {
+        pending = true;
+        return;
+      }
+      inFlight = true;
+      try {
+        const result = await refetchSnapshot();
+        if (!disposed && result.data) processSnapshot(result.data);
+      } catch {
+        // The 30-second query poll and next signal repair a transient failure.
+      } finally {
+        inFlight = false;
+        if (!disposed && pending) {
+          pending = false;
+          void refresh();
+        }
       }
     };
-  }, [
-    preferences.enabled,
-    userWithRoles,
-    showIds,
-    userDogIds,
-    handleEntryChange,
-    handleClassChange,
-  ]);
+
+    const nudge = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        void refresh();
+      }, REFRESH_DEBOUNCE_MS);
+    };
+
+    const unsubscribes = showIds.map(showId => subscribeToShowChanges(showId, nudge));
+    return () => {
+      disposed = true;
+      if (timer) clearTimeout(timer);
+      for (const unsubscribe of unsubscribes) unsubscribe();
+    };
+  }, [preferences.enabled, userWithRoles, showIds, userDogIds, refetchSnapshot, processSnapshot]);
 }

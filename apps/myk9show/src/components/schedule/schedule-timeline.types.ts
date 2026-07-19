@@ -45,6 +45,9 @@ export interface ElementSummary {
 /** Individual level detail within an element */
 export interface LevelDetail {
   classId: string;
+  /** Full class name (e.g. "Container Novice A") — disambiguates sectioned
+   * classes that share a level (Novice A vs Novice B, ASCA base vs Level C). */
+  className: string;
   level: string;
   status: ClassStatusValue;
   entryCount: number;

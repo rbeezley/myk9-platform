@@ -117,6 +117,7 @@ export function formatLevelRange(levels: string[]): string {
 
 interface ClassRowLike {
   classId: string;
+  className: string;
   level: string | null;
   status: string;
   totalEntriesCount: number;
@@ -127,6 +128,7 @@ function buildElementSummary(elementName: string, classes: ClassRowLike[]): Elem
   // Build level details with normalized statuses
   const levelDetails: LevelDetail[] = classes.map(c => ({
     classId: c.classId,
+    className: c.className,
     level: c.level ?? elementName,
     status: normalizeClassStatus(c.status),
     entryCount: c.totalEntriesCount,

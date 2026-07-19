@@ -25,6 +25,7 @@ function makeLevelDetail(
     entryCount: 0,
     startTime: null,
     ...overrides,
+    className: overrides.className ?? `Class ${overrides.level}`,
   };
 }
 

@@ -22,6 +22,7 @@ const mockData: DayTimelineData[] = [
             levels: [
               {
                 classId: 'class-container-novice',
+                className: 'Container Novice',
                 level: 'Novice',
                 status: CLASS_STATUS.COMPLETED,
                 entryCount: 5,
@@ -29,6 +30,7 @@ const mockData: DayTimelineData[] = [
               },
               {
                 classId: 'class-container-master',
+                className: 'Container Master',
                 level: 'Master',
                 status: CLASS_STATUS.COMPLETED,
                 entryCount: 3,
@@ -46,6 +48,7 @@ const mockData: DayTimelineData[] = [
             levels: [
               {
                 classId: 'class-buried-novice',
+                className: 'Buried Novice',
                 level: 'Novice',
                 status: CLASS_STATUS.IN_PROGRESS,
                 entryCount: 4,

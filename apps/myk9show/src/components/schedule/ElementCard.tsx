@@ -1,8 +1,20 @@
 import { Link } from 'react-router-dom';
+import { CLASS_STATUS } from '@myk9/core';
 import { StatusBadge } from '@/components/status';
-import type { ElementSummary } from './schedule-timeline.types';
+import type { ElementSummary, LevelDetail } from './schedule-timeline.types';
 import { formatStartTime } from './schedule-timeline.utils';
 import { ClassStartTimeEditor } from './ClassStartTimeEditor';
+
+/**
+ * Display label for one level row. The bare level ("Novice") is ambiguous when
+ * sectioned classes share it (Novice A vs Novice B, ASCA base vs Level C) —
+ * fall back to the full class name whenever another level in the element
+ * carries the same level string.
+ */
+function levelRowLabel(level: LevelDetail, levels: readonly LevelDetail[]): string {
+  const duplicated = levels.filter(l => l.level === level.level).length > 1;
+  return duplicated ? level.className : level.level;
+}
 
 interface ElementCardProps {
   element: ElementSummary;
@@ -75,7 +87,13 @@ export function ElementCard({
           <ul className="mt-0.5 text-xs text-muted-foreground" data-testid="per-level-times">
             {element.levels.map(level => (
               <li key={level.classId}>
-                {level.level}: {formatStartTime(level.startTime) ?? 'TBD'}
+                {/* A canceled class must not advertise a start time — the
+                    aggregate badge ignores canceled levels, so this row is
+                    the only honest signal. */}
+                {levelRowLabel(level, element.levels)}:{' '}
+                {level.status === CLASS_STATUS.CANCELLED
+                  ? 'Cancelled'
+                  : (formatStartTime(level.startTime) ?? 'TBD')}
               </li>
             ))}
           </ul>
@@ -113,7 +131,7 @@ export function ElementCard({
             startTime={level.startTime}
             showId={showId}
             trialId={trialId}
-            label={hasMultipleLevels ? level.level : undefined}
+            label={hasMultipleLevels ? levelRowLabel(level, element.levels) : undefined}
           />
         ))}
       </div>

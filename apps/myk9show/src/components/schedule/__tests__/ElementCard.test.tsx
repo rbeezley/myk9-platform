@@ -20,6 +20,7 @@ const element: ElementSummary = {
   levels: [
     {
       classId: 'class-1',
+      className: 'Container Novice',
       level: 'Novice',
       status: CLASS_STATUS.SCHEDULED,
       entryCount: 5,
@@ -63,6 +64,7 @@ describe('ElementCard schedule-editing gate', () => {
       levels: [
         {
           classId: 'class-1',
+          className: 'Container Novice',
           level: 'Novice',
           status: CLASS_STATUS.SCHEDULED,
           entryCount: 5,
@@ -70,6 +72,7 @@ describe('ElementCard schedule-editing gate', () => {
         },
         {
           classId: 'class-2',
+          className: 'Container Advanced',
           level: 'Advanced',
           status: CLASS_STATUS.SCHEDULED,
           entryCount: 3,
@@ -92,6 +95,7 @@ describe('ElementCard schedule-editing gate', () => {
       levels: [
         {
           classId: 'class-1',
+          className: 'Container Novice',
           level: 'Novice',
           status: CLASS_STATUS.SCHEDULED,
           entryCount: 5,
@@ -99,6 +103,7 @@ describe('ElementCard schedule-editing gate', () => {
         },
         {
           classId: 'class-2',
+          className: 'Container Advanced',
           level: 'Advanced',
           status: CLASS_STATUS.SCHEDULED,
           entryCount: 3,
@@ -110,5 +115,67 @@ describe('ElementCard schedule-editing gate', () => {
     render(<ElementCard {...baseProps} element={sameTime} />);
     expect(screen.queryByTestId('per-level-times')).not.toBeInTheDocument();
     expect(screen.getByText(/9:00 AM/)).toBeInTheDocument();
+  });
+
+  it('disambiguates sectioned levels sharing the same level label', () => {
+    const sectioned: ElementSummary = {
+      ...element,
+      levelRange: 'Novice',
+      levels: [
+        {
+          classId: 'class-1',
+          className: 'Container Novice A',
+          level: 'Novice',
+          status: CLASS_STATUS.SCHEDULED,
+          entryCount: 5,
+          startTime: '09:00:00',
+        },
+        {
+          classId: 'class-2',
+          className: 'Container Novice B',
+          level: 'Novice',
+          status: CLASS_STATUS.SCHEDULED,
+          entryCount: 3,
+          startTime: '13:30:00',
+        },
+      ],
+      totalCount: 2,
+    };
+    render(<ElementCard {...baseProps} element={sectioned} entryCount={8} />);
+    const list = screen.getByTestId('per-level-times');
+    expect(list).toHaveTextContent('Container Novice A: 9:00 AM');
+    expect(list).toHaveTextContent('Container Novice B: 1:30 PM');
+    expect(list).not.toHaveTextContent('Novice: 9:00 AM');
+    expect(list).not.toHaveTextContent('Novice: 1:30 PM');
+  });
+
+  it('shows Cancelled instead of a start time for a cancelled level', () => {
+    const withCancelled: ElementSummary = {
+      ...element,
+      levelRange: 'Novice–Advanced',
+      levels: [
+        {
+          classId: 'class-1',
+          className: 'Container Novice',
+          level: 'Novice',
+          status: CLASS_STATUS.SCHEDULED,
+          entryCount: 5,
+          startTime: '09:00:00',
+        },
+        {
+          classId: 'class-2',
+          className: 'Container Advanced',
+          level: 'Advanced',
+          status: CLASS_STATUS.CANCELLED,
+          entryCount: 3,
+          startTime: '13:30:00',
+        },
+      ],
+      totalCount: 2,
+    };
+    render(<ElementCard {...baseProps} element={withCancelled} entryCount={8} />);
+    const list = screen.getByTestId('per-level-times');
+    expect(list).toHaveTextContent('Advanced: Cancelled');
+    expect(list).not.toHaveTextContent('1:30 PM');
   });
 });

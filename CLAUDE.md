@@ -140,7 +140,15 @@ For bug-fixing methodology (assertion-first testing, seed-data/RBAC survey-first
 
 ## Workflow
 
-Keep the corresponding Linear issue (team **MyK9-platform**) In Progress throughout implementation and PR review. Move it to Done only after the PR merges, then keep sprint docs and the debt register in sync with the merged state.
+Set the corresponding Linear issue (team **MyK9-platform**) to In Progress when starting work on it, and keep it there throughout implementation and PR review. When implementation finishes, post a comment on the issue with:
+
+- **What changed** — summary of the implementation
+- **Tests/checks run** — what was executed and the result
+- **Branch or PR link**
+- **Risks or remaining work**
+- **Whether the acceptance criteria passed**
+
+Move the issue to Done only after the PR merges, then keep sprint docs and the debt register in sync with the merged state.
 
 **Which review to use, and the Codex second-opinion policy: see [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 4.**
 

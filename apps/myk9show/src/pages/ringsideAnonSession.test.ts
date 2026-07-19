@@ -7,10 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  startAnonymousRingsideSession,
-  endAnonymousRingsideSession,
-} from './ringsideAnonSession';
+import { startAnonymousRingsideSession, endAnonymousRingsideSession } from './ringsideAnonSession';
 
 const getSession = vi.fn();
 const signInAnonymously = vi.fn();
@@ -81,9 +78,14 @@ describe('startAnonymousRingsideSession', () => {
   it('signs in anonymously, validates, then refreshes so the JWT carries the claim', async () => {
     getSession.mockResolvedValue(noSession);
 
-    const result = await startAnonymousRingsideSession('jh3k9');
+    const result = await startAnonymousRingsideSession('jh3k9', {
+      captchaToken: 'turnstile-token',
+      requireCaptcha: true,
+    });
 
-    expect(signInAnonymously).toHaveBeenCalledTimes(1);
+    expect(signInAnonymously).toHaveBeenCalledWith({
+      options: { captchaToken: 'turnstile-token' },
+    });
     expect(validatePasscode).toHaveBeenCalledWith('jh3k9');
     expect(refreshSession).toHaveBeenCalledTimes(1);
     expect(signOut).not.toHaveBeenCalled();
@@ -122,6 +124,18 @@ describe('startAnonymousRingsideSession', () => {
 
     expect(signInAnonymously).not.toHaveBeenCalled();
     expect(refreshSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed before creating an anonymous user when CAPTCHA is required but missing', async () => {
+    getSession.mockResolvedValue(noSession);
+
+    const result = await startAnonymousRingsideSession('jh3k9', {
+      requireCaptcha: true,
+    });
+
+    expect(signInAnonymously).not.toHaveBeenCalled();
+    expect(validatePasscode).not.toHaveBeenCalled();
+    expect(result).toEqual({ ok: false, kind: 'session', message: expect.any(String) });
   });
 
   it('refuses to clobber a real account session (auth-restore race guard)', async () => {

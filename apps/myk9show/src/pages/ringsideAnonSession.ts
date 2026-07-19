@@ -37,11 +37,16 @@ const SESSION_ERROR =
 
 /** A passcode result, plus the one failure mode unique to the anon-session flow. */
 export type AnonRingsideResult =
-  | ValidatePasscodeResult
-  | { ok: false; kind: 'session'; message: string };
+  ValidatePasscodeResult | { ok: false; kind: 'session'; message: string };
+
+export interface AnonymousRingsideSessionOptions {
+  captchaToken?: string;
+  requireCaptcha?: boolean;
+}
 
 export async function startAnonymousRingsideSession(
-  passcode: string
+  passcode: string,
+  options: AnonymousRingsideSessionOptions = {}
 ): Promise<AnonRingsideResult> {
   // 1. Ensure an anonymous session exists. Reuse one if the device already has
   //    it (e.g. after a reload) rather than minting another orphan anon user.
@@ -59,7 +64,14 @@ export async function startAnonymousRingsideSession(
     return { ok: false, kind: 'session', message: SESSION_ERROR };
   }
   if (!current?.is_anonymous) {
-    const { error } = await supabase.auth.signInAnonymously();
+    if (options.requireCaptcha && !options.captchaToken) {
+      return { ok: false, kind: 'session', message: SESSION_ERROR };
+    }
+    const { error } = options.captchaToken
+      ? await supabase.auth.signInAnonymously({
+          options: { captchaToken: options.captchaToken },
+        })
+      : await supabase.auth.signInAnonymously();
     if (error) return { ok: false, kind: 'session', message: SESSION_ERROR };
   }
 

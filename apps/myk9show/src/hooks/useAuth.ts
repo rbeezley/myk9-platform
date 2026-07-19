@@ -147,7 +147,8 @@ export function useAuth() {
     async (
       email: string,
       password: string,
-      metadata?: { firstName?: string; lastName?: string; roles?: string[] }
+      metadata?: { firstName?: string; lastName?: string; roles?: string[] },
+      captchaToken?: string
     ) => {
       const { error } = await supabase.auth.signUp({
         email,
@@ -158,6 +159,7 @@ export function useAuth() {
             last_name: metadata?.lastName || 'Name',
             ...(metadata?.roles?.length ? { intended_roles: metadata.roles } : {}),
           },
+          ...(captchaToken ? { captchaToken } : {}),
         },
       });
 
@@ -180,10 +182,11 @@ export function useAuth() {
    * @param {string} email - The address that registered but hasn't confirmed
    * @throws {AuthError} If the resend fails (e.g. rate-limited or unknown email)
    */
-  const resendConfirmationEmail = useCallback(async (email: string) => {
+  const resendConfirmationEmail = useCallback(async (email: string, captchaToken?: string) => {
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email,
+      ...(captchaToken ? { options: { captchaToken } } : {}),
     });
     if (error) {
       throw error;
@@ -196,7 +199,7 @@ export function useAuth() {
    * @param {string} password - User's password
    * @throws {AuthError} If authentication fails
    */
-  const signIn = useCallback(async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string, captchaToken?: string) => {
     setLoading(true);
 
     try {
@@ -204,6 +207,7 @@ export function useAuth() {
         supabase.auth.signInWithPassword({
           email,
           password,
+          ...(captchaToken ? { options: { captchaToken } } : {}),
         }),
         SIGN_IN_TIMEOUT_MS,
         'Sign-in request timed out. Check your connection and try again.'
@@ -253,9 +257,10 @@ export function useAuth() {
    * @param {string} email - The email address to send the reset link to
    * @throws {AuthError} If the operation fails
    */
-  const resetPassword = useCallback(async (email: string) => {
+  const resetPassword = useCallback(async (email: string, captchaToken?: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/callback`,
+      ...(captchaToken ? { captchaToken } : {}),
     });
     if (error) {
       throw error;

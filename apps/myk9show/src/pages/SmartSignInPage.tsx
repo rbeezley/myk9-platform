@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Mail, Pencil } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -16,6 +16,11 @@ import { validatePasscode } from './validatePasscode';
 import { startAnonymousRingsideSession } from './ringsideAnonSession';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import type { UserRole as RingsideRole } from '@myk9/ringside';
+import {
+  TurnstileChallenge,
+  type TurnstileChallengeHandle,
+} from '@/components/security/TurnstileChallenge';
+import { getTurnstileSiteKey } from '@/config/turnstile';
 
 const INVALID_COPY =
   'That doesn’t look like an email or a show passcode. Passcodes are 5 characters and start with a letter — for example, aa260.';
@@ -60,6 +65,9 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   const [googleLoading, setGoogleLoading] = useState(false);
   const [pending, setPending] = useState<PendingPasscode | null>(null);
   const [isJoining, setIsJoining] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileChallengeHandle>(null);
+  const submissionPendingRef = useRef(false);
 
   const navigate = useNavigate();
   const { user, firstName, signIn, signInWithGoogle, loading: authLoading } = useAuthContext();
@@ -67,7 +75,16 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
 
   const isLoading = loading || authLoading;
   const kind = useMemo(() => classifyCredential(credential), [credential]);
-  const canContinue = passcodeOnly ? kind === 'passcode' : kind === 'email' || kind === 'passcode';
+  const turnstileSiteKey = getTurnstileSiteKey();
+  const captchaRequired = turnstileSiteKey.length > 0;
+  // Supabase verifies CAPTCHA when it creates an anonymous Auth user. A reused
+  // anonymous session was already admitted through that boundary, so it can be
+  // refreshed/re-stamped without consuming an unverified second token.
+  const anonymousPasscodeNeedsCaptcha = captchaRequired && kind === 'passcode' && !user;
+  const validCredential = passcodeOnly
+    ? kind === 'passcode'
+    : kind === 'email' || kind === 'passcode';
+  const canContinue = validCredential && (!anonymousPasscodeNeedsCaptcha || !!captchaToken);
   const signInReturnTo = useMemo(() => getSignInReturnTo(searchParams), [searchParams]);
   const entryShowId = useMemo(() => getShowEntryRedirectShowId(signInReturnTo), [signInReturnTo]);
   const { data: entryShow } = useShowQuery(entryShowId ?? '');
@@ -116,10 +133,12 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
     // Also wait out `authLoading`: until auth restore resolves, `user` is null
     // even for a returning account, which would misroute a passcode into the
     // account-less anon-session branch and clobber the real session.
-    if (isLoading) return;
+    if (isLoading || submissionPendingRef.current || !canContinue) return;
     setError('');
 
     if (kind === 'email' && !passcodeOnly) {
+      turnstileRef.current?.reset();
+      setCaptchaToken(null);
       setStep('password');
       return;
     }
@@ -129,9 +148,10 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
     }
 
     setLoading(true);
+    submissionPendingRef.current = true;
     try {
       const normalizedCredential = normalizeCredential(credential);
-      if (user) {
+      if (user && user.is_anonymous !== true) {
         // Signed-in account: validate only (no anon session — Locked Decision #8
         // keeps the account session untouched), then confirm before expanding
         // role (Phase 1c §2.2). DB access stays auth.uid()-based.
@@ -150,7 +170,18 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
         // Account-less: mint an anonymous session stamped with the ringside
         // claim (Phase C/D) so the DB admits this device's offline reads/writes,
         // then keep the UI role + presence identity in the client grant.
-        const result = await startAnonymousRingsideSession(normalizedCredential);
+        let result;
+        try {
+          result =
+            captchaRequired && !user
+              ? await startAnonymousRingsideSession(normalizedCredential, {
+                  ...(captchaToken ? { captchaToken } : {}),
+                  requireCaptcha: true,
+                })
+              : await startAnonymousRingsideSession(normalizedCredential);
+        } finally {
+          if (captchaRequired) turnstileRef.current?.reset();
+        }
         if (!result.ok) {
           setError(result.message);
           return;
@@ -167,20 +198,29 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
         navigate(`/at-show/${result.showId}`);
       }
     } finally {
+      submissionPendingRef.current = false;
       setLoading(false);
     }
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading || submissionPendingRef.current || (captchaRequired && !captchaToken)) return;
+    submissionPendingRef.current = true;
     setLoading(true);
     setError('');
     try {
-      await signIn(normalizeCredential(credential), password);
+      await signIn(
+        normalizeCredential(credential),
+        password,
+        captchaRequired ? (captchaToken ?? undefined) : undefined
+      );
       navigate(signInReturnTo);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
+      if (captchaRequired) turnstileRef.current?.reset();
+      submissionPendingRef.current = false;
       setLoading(false);
     }
   };
@@ -198,6 +238,8 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   };
 
   const editCredential = () => {
+    turnstileRef.current?.reset();
+    setCaptchaToken(null);
     setStep('input');
     setPassword('');
     setError('');
@@ -318,6 +360,15 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
                 </div>
               )}
 
+              {anonymousPasscodeNeedsCaptcha && (
+                <TurnstileChallenge
+                  ref={turnstileRef}
+                  siteKey={turnstileSiteKey}
+                  action="ringside_login"
+                  onTokenChange={setCaptchaToken}
+                />
+              )}
+
               <button
                 type="submit"
                 data-testid="continue-button"
@@ -357,6 +408,14 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
               </button>
             </div>
             <form onSubmit={handlePasswordSubmit}>
+              {captchaRequired && (
+                <TurnstileChallenge
+                  ref={turnstileRef}
+                  siteKey={turnstileSiteKey}
+                  action="password_login"
+                  onTokenChange={setCaptchaToken}
+                />
+              )}
               <PasswordSubForm
                 password={password}
                 onPasswordChange={setPassword}
@@ -364,6 +423,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
                 onToggleShowPassword={() => setShowPassword(prev => !prev)}
                 isLoading={isLoading}
                 error={error}
+                submitDisabled={captchaRequired && !captchaToken}
               />
             </form>
           </>

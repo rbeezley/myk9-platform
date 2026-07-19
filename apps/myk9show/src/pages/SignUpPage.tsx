@@ -1,9 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';
 import { notifications } from '@/lib/notifications';
+import {
+  TurnstileChallenge,
+  type TurnstileChallengeHandle,
+} from '@/components/security/TurnstileChallenge';
+import { getTurnstileSiteKey } from '@/config/turnstile';
 
 /** Seconds to disable the resend button, aligned with Supabase's email rate limit. */
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -19,15 +24,25 @@ const SignUp: React.FC = () => {
   const [emailSent, setEmailSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { signUp, resendConfirmationEmail, signInWithGoogle, loading: authLoading } =
-    useAuthContext();
+  const {
+    signUp,
+    resendConfirmationEmail,
+    signInWithGoogle,
+    loading: authLoading,
+  } = useAuthContext();
   const [googleLoading, setGoogleLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['exhibitor']);
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileChallengeHandle>(null);
+  const submissionPendingRef = useRef(false);
+  const resendPendingRef = useRef(false);
 
   const isLoading = loading || authLoading;
+  const turnstileSiteKey = getTurnstileSiteKey();
+  const captchaRequired = turnstileSiteKey.length > 0;
 
   // Tick the resend cooldown down to zero. setState lives inside the interval
   // callback with a functional updater, so it doesn't trip the repo's
@@ -42,10 +57,16 @@ const SignUp: React.FC = () => {
   }, [isCoolingDown]);
 
   const handleResend = async () => {
-    if (resending || resendCooldown > 0) return;
+    if (resending || resendPendingRef.current || resendCooldown > 0) return;
+    resendPendingRef.current = true;
     setResending(true);
     try {
-      await resendConfirmationEmail(email);
+      if (captchaRequired) {
+        if (!captchaToken) return;
+        await resendConfirmationEmail(email, captchaToken);
+      } else {
+        await resendConfirmationEmail(email);
+      }
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
       notifications.success('Confirmation email resent', {
         description: `We sent another link to ${email}.`,
@@ -55,6 +76,8 @@ const SignUp: React.FC = () => {
         err instanceof Error ? err.message : 'Could not resend the email. Please try again.'
       );
     } finally {
+      if (captchaRequired) turnstileRef.current?.reset();
+      resendPendingRef.current = false;
       setResending(false);
     }
   };
@@ -72,6 +95,7 @@ const SignUp: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading || submissionPendingRef.current) return;
     setError('');
 
     // Validation
@@ -90,18 +114,28 @@ const SignUp: React.FC = () => {
       return;
     }
 
+    if (captchaRequired && !captchaToken) return;
+
+    submissionPendingRef.current = true;
     setLoading(true);
 
     try {
-      await signUp(email, password, {
+      const metadata = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         roles: selectedRoles,
-      });
+      };
+      if (captchaRequired) {
+        await signUp(email, password, metadata, captchaToken ?? undefined);
+      } else {
+        await signUp(email, password, metadata);
+      }
       setEmailSent(true);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An unknown error occurred');
     } finally {
+      if (captchaRequired) turnstileRef.current?.reset();
+      submissionPendingRef.current = false;
       setLoading(false);
     }
   };
@@ -127,10 +161,18 @@ const SignUp: React.FC = () => {
           <p className="text-sm text-muted-foreground mb-4">
             Didn&apos;t receive it? Check your spam folder, or resend the email below.
           </p>
+          {captchaRequired && (
+            <TurnstileChallenge
+              ref={turnstileRef}
+              siteKey={turnstileSiteKey}
+              action="resend_confirmation"
+              onTokenChange={setCaptchaToken}
+            />
+          )}
           <button
             type="button"
             onClick={handleResend}
-            disabled={resending || resendCooldown > 0}
+            disabled={resending || resendCooldown > 0 || (captchaRequired && !captchaToken)}
             className="w-full mb-6 px-4 py-2 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-accent disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-ring transition"
           >
             {resending
@@ -356,9 +398,18 @@ const SignUp: React.FC = () => {
 
           {error && <div className="text-destructive mb-4 text-center">{error}</div>}
 
+          {captchaRequired && (
+            <TurnstileChallenge
+              ref={turnstileRef}
+              siteKey={turnstileSiteKey}
+              action="email_signup"
+              onTokenChange={setCaptchaToken}
+            />
+          )}
+
           <button
             type="submit"
-            disabled={isLoading || !agreedToTerms}
+            disabled={isLoading || !agreedToTerms || (captchaRequired && !captchaToken)}
             className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 dark:bg-primary/90 dark:text-white dark:hover:bg-primary/80"
           >
             {isLoading ? (

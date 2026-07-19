@@ -47,7 +47,7 @@
 - [x] 3.3 Browser verification on a worktree dev server: bulk-start two scheduled classes
       (label shows eligible count, statuses flip, toast summary), row status change while
       offline queues instead of failing, retry path sane.
-- [ ] 3.4 PR, CI green, Codex second-opinion review, merge to main (gate for archive).
-- [ ] 3.5 Linear MYK9-59 Done on merge; archive change with `archive-summary.md`
+- [x] 3.4 PR, CI green, Codex second-opinion review, merge to main (gate for archive).
+- [x] 3.5 Linear MYK9-59 Done on merge; archive change with `archive-summary.md`
       (PR URL + merge evidence), fill any TBD Purpose in promoted specs, stage both halves
       of the archive move.

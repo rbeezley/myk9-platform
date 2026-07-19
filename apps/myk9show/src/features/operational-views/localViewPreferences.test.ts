@@ -65,6 +65,19 @@ describe('save/restore round trip', () => {
     const restored = restoreLocalView(storage, 'user-1', 'class-management', showScope);
     expect(restored).toMatchObject({ filters: classView.filters });
   });
+
+  it('restores the saved trial and class scope when the current entry view is unscoped', () => {
+    const storage = createMemoryStorage();
+    const scopedShow = { showId: 'show-1', trialId: 'trial-1', classId: 'class-1' };
+
+    saveLocalView(storage, 'user-1', scopedShow, entryView);
+
+    const restored = restoreLocalView(storage, 'user-1', 'entry-management', {
+      showId: 'show-1',
+    });
+
+    expect(restored?.scope).toEqual(scopedShow);
+  });
 });
 
 describe('cross-show rejection', () => {

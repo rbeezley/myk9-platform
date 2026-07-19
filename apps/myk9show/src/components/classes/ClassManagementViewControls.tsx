@@ -47,6 +47,7 @@ export function ClassManagementViewControls({
           buildCurrentView={() => ({
             surface: 'class-management',
             version: OPERATIONAL_VIEW_SERIALIZATION_VERSION,
+            scope: { showId, trialId },
             filters: { status: statusFilter, search: searchTerm },
             display: { density },
           })}

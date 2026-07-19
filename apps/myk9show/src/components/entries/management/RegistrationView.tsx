@@ -14,6 +14,7 @@ import { EnrollmentCardList } from './EnrollmentCardList';
 import { EntriesTableView } from './EntriesTableView';
 import { EntryBulkActionsBar } from './EntryBulkActionsBar';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { useRegisterEntryManagementCommandContext } from '@/features/command-menu/useRegisterEntryManagementCommandContext';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import {
   ENTRY_WORK_MODE_PRESETS,
@@ -138,11 +139,6 @@ interface RegistrationViewProps {
     amountDue?: number
   ) => Promise<void>;
   lastEmailedMap?: Record<string, string>;
-  /** Reports the current multi-select bar selection to the owner page — used
-   * to register the command-menu context (selectedEntryIds/eligibleCheckInIds
-   * for "Check in selected entries", task 2.2/2.4). Optional so this view can
-   * still be used/tested without a command-menu-aware parent. */
-  onSelectionChange?: (selectedEntries: EntryManagementEntry[]) => void;
 }
 
 /**
@@ -191,7 +187,6 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   hasActiveScopeFilters,
   onSendDecisionEmail,
   lastEmailedMap = {},
-  onSelectionChange,
 }) => {
   // Multi-select for the table view (lifted here so the bulk bar can clear it and
   // select-all spans the full filtered set, not just the current page).
@@ -210,7 +205,14 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     // they can't resurface and be bulk-edited when a filter is later removed.
     pruneToItems: true,
     resetKey: viewIdentityKey,
-    ...(onSelectionChange ? { onSelectionChange } : {}),
+  });
+  useRegisterEntryManagementCommandContext({
+    showId,
+    trialId: trialFilter,
+    selectedEntries: selection.selectedItems,
+    runBulkCheckIn: onBulkCheckIn,
+    clearSelection: selection.clearSelection,
+    busy: bulkBusy,
   });
   const tableSelection = useMemo(
     () => ({

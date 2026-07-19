@@ -71,6 +71,11 @@ export function EntryManagementViewControls({
           buildCurrentView={() => ({
             surface: 'entry-management',
             version: OPERATIONAL_VIEW_SERIALIZATION_VERSION,
+            scope: {
+              showId,
+              ...(trialFilter ? { trialId: trialFilter } : {}),
+              ...(classFilter ? { classId: classFilter } : {}),
+            },
             filters: {
               attention: attentionFilter,
               payment: isEntryPaymentFilter(paymentFilter) ? paymentFilter : 'all',

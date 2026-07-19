@@ -228,7 +228,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
 
     const { queryClient } = renderPage(cachedEntries);
 
-    expect(screen.getByTestId('panel-class-entry-counts')).toHaveTextContent('8');
+    expect(await screen.findByTestId('panel-class-entry-counts')).toHaveTextContent('8');
     void queryClient.invalidateQueries({ queryKey: queryKeys.showEntries('show-1') });
 
     await waitFor(() => expect(getEntriesForShowMock).toHaveBeenCalled());

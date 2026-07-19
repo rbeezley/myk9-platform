@@ -126,10 +126,9 @@ function renderPage(initialEntries?: unknown[]) {
   });
   if (initialEntries) {
     queryClient.setQueryData(queryKeys.showEntries('show-1'), initialEntries);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.showEntries('show-1') });
   }
 
-  return render(
+  const result = render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={['/shows/show-1/show-desk']}>
         <Routes>
@@ -138,6 +137,8 @@ function renderPage(initialEntries?: unknown[]) {
       </MemoryRouter>
     </QueryClientProvider>
   );
+
+  return { ...result, queryClient };
 }
 
 describe('ShowWorkbenchShowDeskPage', () => {
@@ -225,7 +226,10 @@ describe('ShowWorkbenchShowDeskPage', () => {
     }));
     getEntriesForShowMock.mockResolvedValue({ data: null, error: new Error('Refresh failed') });
 
-    renderPage(cachedEntries);
+    const { queryClient } = renderPage(cachedEntries);
+
+    expect(screen.getByTestId('panel-class-entry-counts')).toHaveTextContent('8');
+    void queryClient.invalidateQueries({ queryKey: queryKeys.showEntries('show-1') });
 
     await waitFor(() => expect(getEntriesForShowMock).toHaveBeenCalled());
     expect(screen.getByTestId('show-desk-panel')).toBeInTheDocument();

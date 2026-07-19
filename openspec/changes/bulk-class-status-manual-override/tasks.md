@@ -2,14 +2,14 @@
 
 ## 1. Canonical manual-status helper
 
-- [ ] 1.1 Create `apps/myk9show/src/services/show-day/classStatusMutations.ts` with
+- [x] 1.1 Create `apps/myk9show/src/services/show-day/classStatusMutations.ts` with
       `applyManualClassStatus(classId, targetStatus)` per the design's per-status payload
       table (statusSource `'manual'` always; timing fields per status; no `isCompleted`
       writes), preserving the existing intent comments about `statusSource` and
       `reopenedAfterCloseoutAt` verbatim from `showMapActionMutations.ts`.
-- [ ] 1.2 Convert `markShowMapClassStarted` / `markShowMapClassComplete` in
+- [x] 1.2 Convert `markShowMapClassStarted` / `markShowMapClassComplete` in
       `features/show-map/showMapActionMutations.ts` into thin delegates to the helper.
-- [ ] 1.3 Unit tests for the helper: one test per target status asserting the exact
+- [x] 1.3 Unit tests for the helper: one test per target status asserting the exact
       `replicatedClassesTable.updateClass` payload (statusSource, timing fields present or
       nulled, reopen stamp cleared only on Completed), plus a test that Show Map delegates
       unchanged behavior (update `showMapActionMutations.test.ts` expectations — no

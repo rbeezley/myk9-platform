@@ -7,11 +7,8 @@ import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu
 import { Button } from '@/components/ui/button';
 import { CommandPalette } from '@/components/common/CommandPalette';
 import { KeyboardShortcutsOverlay } from '@/components/common/KeyboardShortcutsOverlay';
-import {
-  useKeyboardShortcuts,
-  getShortcutDisplays,
-  type ShortcutDefinition,
-} from '@/hooks/useKeyboardShortcuts';
+import { useKeyboardShortcuts, getShortcutDisplays } from '@/hooks/useKeyboardShortcuts';
+import { buildAppShortcuts } from '@/components/layout/appShortcuts';
 import { useCartItemCount, useCartStore } from '@/store/cartStore';
 import { useActiveCartItemCount } from '@/hooks/queries/useActiveCartItemCount';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
@@ -92,79 +89,25 @@ const AppHeader: React.FC = () => {
   const cartItemCount = storeCartLoaded ? storeCartItemCount : queryCartItemCount;
 
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
+  // Shared by the `?` keyboard shortcut and the palette footer's
+  // "All shortcuts" button — closes the palette (if open) first so only one
+  // dialog is ever shown at once.
+  const openShortcutsOverlay = useCallback(() => {
+    setCommandPaletteOpen(false);
+    setShortcutsOverlayOpen(true);
+  }, []);
 
-  // Central keyboard shortcuts — independent of nav UI
-  const shortcuts: ShortcutDefinition[] = useMemo(
+  // Central keyboard shortcuts — independent of nav UI. Bound from the
+  // canonical shortcut table (appShortcuts.ts) so the palette's badges and
+  // the shortcuts overlay can never advertise a shortcut that isn't actually
+  // registered here.
+  const shortcuts = useMemo(
     () =>
-      isOnboardingRoute
-        ? []
-        : [
-            {
-              id: 'command-palette',
-              label: 'Open command palette',
-              keys: 'Meta+K',
-              category: 'general',
-              action: openCommandPalette,
-              global: true,
-            },
-            {
-              id: 'shortcuts-overlay',
-              label: 'Show keyboard shortcuts',
-              keys: '?',
-              category: 'general',
-              action: () => setShortcutsOverlayOpen(true),
-            },
-            {
-              id: 'go-dogs',
-              label: 'Go to Dogs',
-              keys: 'G D',
-              category: 'navigation',
-              action: () => navigate('/dogs'),
-            },
-            {
-              id: 'go-people',
-              label: 'Go to People',
-              keys: 'G P',
-              category: 'navigation',
-              action: () => navigate('/people'),
-            },
-            {
-              id: 'go-shows',
-              label: 'Go to Shows',
-              keys: 'G S',
-              category: 'navigation',
-              action: () => navigate('/shows'),
-            },
-            {
-              id: 'go-clubs',
-              label: 'Go to Clubs',
-              keys: 'G C',
-              category: 'navigation',
-              action: () => navigate('/clubs'),
-            },
-            {
-              id: 'create-dog',
-              label: 'Create Dog',
-              keys: 'C D',
-              category: 'actions',
-              action: () => navigate('/dogs?add=true'),
-            },
-            {
-              id: 'create-person',
-              label: 'Create Person',
-              keys: 'C P',
-              category: 'actions',
-              action: () => navigate('/people?add=true'),
-            },
-            {
-              id: 'create-show',
-              label: 'New Show',
-              keys: 'C S',
-              category: 'actions',
-              action: () => navigate('/?wizard=true'),
-            },
-          ],
-    [isOnboardingRoute, navigate, openCommandPalette]
+      buildAppShortcuts(
+        { openCommandPalette, openShortcutsOverlay, navigate },
+        { isOnboardingRoute }
+      ),
+    [isOnboardingRoute, navigate, openCommandPalette, openShortcutsOverlay]
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -357,7 +300,11 @@ const AppHeader: React.FC = () => {
       </div>
 
       {/* Command Palette */}
-      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        onShowShortcuts={openShortcutsOverlay}
+      />
 
       {/* Keyboard Shortcuts Overlay */}
       <KeyboardShortcutsOverlay

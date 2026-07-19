@@ -83,6 +83,10 @@ When a command executes a mutation, the palette closes only according to the act
 
 Rollback removes contextual providers while preserving the existing global palette. No data migration is required.
 
-## Open Questions
+## Open Questions — resolved (2026-07-18 inventory)
 
-- Which shortcuts are genuinely useful to secretaries, versus useful only to admin/power users?
+- **Shortcut vocabulary:** no new shortcuts. The first release keeps exactly what AppHeader already registers (Meta+K open palette, `?` help, `G D/G P/G S/G C` navigation, `C D/C P/C S` create) and fixes provenance: palette badges derive from the registered `ShortcutDefinition`s instead of hardcoded strings. Secretaries get pointer/touch parity everywhere; the power-user question is deferred until real usage data exists.
+- **Context plumbing (inventory finding: the palette has zero context awareness today):** a small Zustand registration store, `features/command-menu/commandMenuContext.ts`. Owner surfaces (Entry Management first) register `{ surface, showId, trialId?, selectedEntryIds, eligibleCheckInIds, runBulkCheckIn }` on mount and unregister on unmount; the palette reads the store. Mutation logic stays in the page's existing `useEntryManagementActions` chain (including the `useBulkDispatch` in-flight latch) — the palette invokes the registered handler, satisfying handler-parity by construction.
+- **Recent searches:** adopt the MYK9-48 device-local pattern — key namespaced by version + authenticated userId + context, restore-time validation, account-change clearing via the `useResetSavedViewsOnAccountChange` idiom. The legacy global `myK9Show_recentSearches` key is dropped (pre-launch, no migration shim).
+- **Dead code:** `hooks/useCommandPalette.ts` has zero callers and duplicates AppHeader's Meta+K listener; it is deleted in this change rather than left as a second toggle path.
+- **Trials in "Go to":** trial results come from the loaded show store rows (trials are nested in loaded show data where available) — no new fetch; if trial rows are not loaded, trial results are simply absent.

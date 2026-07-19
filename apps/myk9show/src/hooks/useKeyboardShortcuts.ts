@@ -98,6 +98,9 @@ export function useKeyboardShortcuts(shortcuts: ShortcutDefinition[]) {
 
         if (parsed.type === 'single') {
           if (e.key === parsed.key && !e.metaKey && !e.ctrlKey && !e.altKey) {
+            // Single printable keys must never fire while an input is
+            // focused — even for `global` shortcuts — or typing that
+            // character into any text field would be swallowed.
             if (inputFocused) continue;
             e.preventDefault();
             shortcut.action();

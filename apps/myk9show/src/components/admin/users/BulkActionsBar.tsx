@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { Users, Trash2, AlertCircle, X } from 'lucide-react';
+import { Users, Trash2, AlertCircle, X, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,6 +24,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { AdminDeleteUserDialog } from './AdminDeleteUserDialog';
+import { BulkRoleDialog } from './BulkRoleDialog';
 import type { BulkActionsBarProps } from './BulkActionsBar.types';
 import { useBulkActions } from './useBulkActions';
 
@@ -44,7 +45,10 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     handleBulkDelete,
     handleCascadeDelete,
     handleBulkPermanentDelete,
-  } = useBulkActions({ selectedUsers, onBulkComplete, onUsersDeleted });
+    handleBulkRoleChange,
+    isRoleProcessing,
+    roleError,
+  } = useBulkActions({ selectedUsers, onBulkComplete, onUsersDeleted, onClearSelection });
 
   if (selectedUsers.length === 0) {
     return null;
@@ -90,6 +94,17 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Change roles */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentDialog('role')}
+                className="h-10 px-4 rounded-xl font-[590]"
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                Change roles
+              </Button>
+
               {/* Delete */}
               <Button
                 variant="outline"
@@ -268,6 +283,16 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Change Roles Dialog */}
+      <BulkRoleDialog
+        open={currentDialog === 'role'}
+        onOpenChange={() => closeDialog()}
+        selectedUsers={selectedUsers}
+        isProcessing={isRoleProcessing}
+        error={roleError}
+        onSubmit={handleBulkRoleChange}
+      />
     </>
   );
 };

@@ -23,31 +23,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { rbacService } from '@/services/rbac/RBACService';
-import { UserRole } from '@/types/auth-types';
+import {
+  CLUB_SCOPED_ROLES,
+  LOCKED_ROLES,
+  MANAGEABLE_ROLES,
+  ROLE_LABELS,
+} from '@/services/rbac/roleUiConstants';
 import type { User } from '@/types/user-types';
-
-// Roles that must be scoped to a club
-const CLUB_SCOPED_ROLES = new Set<string>([UserRole.SECRETARY, UserRole.CLUB_ADMIN]);
-
-const ROLE_LABELS: Record<string, string> = {
-  site_admin: 'Site Admin',
-  secretary: 'Secretary',
-  club_admin: 'Club Admin',
-  judge: 'Judge',
-  exhibitor: 'Exhibitor',
-  steward: 'Steward',
-  chairman: 'Chairman',
-};
-
-const MANAGEABLE_ROLES = [
-  UserRole.SITE_ADMIN,
-  UserRole.SECRETARY,
-  UserRole.CLUB_ADMIN,
-  UserRole.JUDGE,
-  UserRole.EXHIBITOR,
-  UserRole.STEWARD,
-  UserRole.CHAIRMAN,
-];
 
 interface CurrentRoleAssignment {
   userRoleId: string;
@@ -135,9 +117,6 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
   const clubName = (clubId: string) => clubs.find(c => c.id === clubId)?.name ?? clubId;
 
   const isChecked = (roleName: string) => roleState.has(roleName);
-
-  // Roles that are permanently assigned and cannot be removed
-  const LOCKED_ROLES = new Set<string>([UserRole.EXHIBITOR]);
 
   const handleToggle = (roleName: string, checked: boolean) => {
     setRoleState(prev => {

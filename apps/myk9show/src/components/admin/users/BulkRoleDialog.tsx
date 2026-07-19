@@ -68,15 +68,20 @@ export const BulkRoleDialog: React.FC<BulkRoleDialogProps> = ({
   const [clubIds, setClubIds] = useState<string[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const { data: clubs = [] } = useQuery<{ id: string; name: string }[]>({
+  const {
+    data: clubs = [],
+    isLoading: clubsLoading,
+    error: clubsError,
+    refetch: refetchClubs,
+  } = useQuery<{ id: string; name: string }[]>({
     queryKey: ['clubs-list'],
     queryFn: async () => {
-      const { data, error: clubsError } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('clubs')
         .select('id, name')
         .is('deleted_at', null)
         .order('name');
-      if (clubsError) throw clubsError;
+      if (fetchError) throw fetchError;
       return data as { id: string; name: string }[];
     },
     enabled: open,
@@ -127,6 +132,11 @@ export const BulkRoleDialog: React.FC<BulkRoleDialogProps> = ({
 
   const clubName = (clubId: string) => clubs.find(c => c.id === clubId)?.name ?? clubId;
   const availableToAdd = clubs.filter(c => !clubIds.includes(c.id));
+
+  // A scoped role needs the clubs list to be usable — block Apply while it's
+  // still loading or failed, so the operator sees the real problem instead of
+  // the misleading "select at least one club".
+  const clubsUnavailable = requiresClub && (clubsLoading || !!clubsError);
 
   const handleSubmit = () => {
     setLocalError(null);
@@ -217,6 +227,18 @@ export const BulkRoleDialog: React.FC<BulkRoleDialogProps> = ({
           {requiresClub && (
             <div className="space-y-2">
               <Label>Clubs (applies to club-scoped roles selected above)</Label>
+              {clubsError ? (
+                <Alert variant="destructive">
+                  <AlertDescription className="flex items-center justify-between gap-2">
+                    <span>Could not load clubs.</span>
+                    <Button variant="outline" size="sm" onClick={() => void refetchClubs()}>
+                      Retry
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : clubsLoading ? (
+                <p className="text-xs text-muted-foreground">Loading clubs…</p>
+              ) : null}
               {clubIds.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {clubIds.map(clubId => (
@@ -258,7 +280,7 @@ export const BulkRoleDialog: React.FC<BulkRoleDialogProps> = ({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isProcessing}>
+          <Button onClick={handleSubmit} disabled={isProcessing || clubsUnavailable}>
             {isProcessing ? 'Applying…' : 'Apply'}
           </Button>
         </DialogFooter>

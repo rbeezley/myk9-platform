@@ -8,6 +8,7 @@ import {
   usePermanentDeleteUserMutation,
 } from '@/hooks/queries/useUsersQuery';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
+import { queryKeys } from '@/lib/queryClient';
 import { rbacService } from '@/services/rbac/RBACService';
 import type { BulkRoleSubmitConfig } from './BulkRoleDialog';
 import { applyBulkRoleChangeToUser } from './bulkRoleRunner';
@@ -17,6 +18,8 @@ interface UseBulkActionsOptions {
   selectedUsers: SelectedUser[];
   onBulkComplete: (deletedUserIds?: string[]) => void;
   onUsersDeleted?: ((deletedUserIds: string[]) => void) | undefined;
+  /** Clears the page's selection — invoked when a role batch fully succeeds. */
+  onClearSelection?: (() => void) | undefined;
 }
 
 function labelForUser(user: SelectedUser): string {
@@ -27,6 +30,7 @@ export function useBulkActions({
   selectedUsers,
   onBulkComplete,
   onUsersDeleted,
+  onClearSelection,
 }: UseBulkActionsOptions) {
   const queryClient = useQueryClient();
   const deleteUserMutation = useDeleteUserMutation();
@@ -334,8 +338,17 @@ export function useBulkActions({
             });
           },
           {
+            // Runs on initial full success AND when a toast-driven retry of the
+            // failed subset fully succeeds (useBulkDispatch calls it in both
+            // paths) — so the list refresh and selection clear live HERE, not in
+            // the dialog submit path. `onBulkComplete()` with no ids is a no-op
+            // on UserManagementPage (it only removes deleted ids), so the admin
+            // list is refreshed by invalidating the users query family and the
+            // stuck selection is cleared explicitly.
             onFullSuccess: () => {
               setCurrentDialog(null);
+              void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+              onClearSelection?.();
               onBulkComplete();
             },
             applicableWhen: user =>
@@ -348,6 +361,12 @@ export function useBulkActions({
         // happened, so leave the dialog open and don't touch selection.
         if (outcome === null) return;
         if (outcome.failed.length > 0) {
+          // Partial success still changed the succeeded users' roles — refresh
+          // the admin list so their role chips aren't stale while the failure
+          // stays visible for retry (full success refreshes via onFullSuccess).
+          if (outcome.succeeded.length > 0) {
+            void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+          }
           setRoleError(
             `${outcome.succeeded.length} of ${selectedUsers.length} users updated — ${outcome.failed.length} failed.`
           );
@@ -360,7 +379,7 @@ export function useBulkActions({
         setIsRoleProcessing(false);
       }
     },
-    [selectedUsers, roleDispatch, queryClient, onBulkComplete]
+    [selectedUsers, roleDispatch, queryClient, onBulkComplete, onClearSelection]
   );
 
   return {

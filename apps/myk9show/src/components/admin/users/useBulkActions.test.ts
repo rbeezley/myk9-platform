@@ -324,6 +324,54 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
     expect(result.current.roleError).toBeNull();
   });
 
+  it('replace repairs a user missing the locked exhibitor role (ensures it after revoke+add)', async () => {
+    getAllRolesMock.mockResolvedValue([role('judge'), role('exhibitor')]);
+    // User has NO exhibitor assignment at all — only judge.
+    activeAssignmentsMock.mockResolvedValue({
+      data: [{ id: 'ur1', role_id: 'r-judge', club_id: null, roles: { name: 'judge' } }],
+      error: null,
+    });
+    ensureUserHasRoleMock.mockResolvedValue(true);
+    revokeRoleMock.mockResolvedValue(true);
+    const selectedUsers = [selectedUser('u1', 'Alice')];
+    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
+
+    await act(async () => {
+      await result.current.handleBulkRoleChange(
+        baseConfig({ mode: 'replace', roleNames: ['judge'], clubIds: [] })
+      );
+    });
+
+    // Replace never offers exhibitor in the UI, so it's absent from roleNames —
+    // the runner must still end the user with exhibitor ensured (unscoped).
+    expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'exhibitor');
+    expect(result.current.roleError).toBeNull();
+  });
+
+  it('full success invalidates the users query family and clears the selection (list refresh, MYK9-58 Codex fix 1)', async () => {
+    getAllRolesMock.mockResolvedValue([role('exhibitor')]);
+    ensureUserHasRoleMock.mockResolvedValue(true);
+    const onClearSelection = vi.fn();
+    const onBulkComplete = vi.fn();
+    const selectedUsers = [selectedUser('u1', 'Alice')];
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
+    const wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) =>
+      React.createElement(QueryClientProvider, { client }, children);
+    const { result } = renderHook(
+      () => useBulkActions({ selectedUsers, onBulkComplete, onClearSelection }),
+      { wrapper }
+    );
+
+    await act(async () => {
+      await result.current.handleBulkRoleChange(baseConfig());
+    });
+
+    expect(onClearSelection).toHaveBeenCalledOnce();
+    expect(onBulkComplete).toHaveBeenCalledOnce();
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['users'] });
+  });
+
   it('retry skips a user no longer present in the current selection', async () => {
     getAllRolesMock.mockResolvedValue([role('exhibitor')]);
     ensureUserHasRoleMock.mockRejectedValue(new Error('transient'));

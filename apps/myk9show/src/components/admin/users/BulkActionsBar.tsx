@@ -48,7 +48,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     handleBulkRoleChange,
     isRoleProcessing,
     roleError,
-  } = useBulkActions({ selectedUsers, onBulkComplete, onUsersDeleted });
+  } = useBulkActions({ selectedUsers, onBulkComplete, onUsersDeleted, onClearSelection });
 
   if (selectedUsers.length === 0) {
     return null;

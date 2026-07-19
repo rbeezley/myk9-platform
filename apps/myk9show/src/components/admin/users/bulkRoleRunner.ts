@@ -91,6 +91,15 @@ async function replaceRolesForUser(userId: string, roleNames: string[], clubIds:
   }
 
   await addRolesToUser(userId, roleNames, clubIds);
+
+  // Locked roles (exhibitor) are hidden in the Replace UI, so they never appear
+  // in `roleNames` — mirror the single-user dialog's repair behavior (it forces
+  // LOCKED_ROLES into the effective set) by ensuring every locked role after the
+  // revoke phase. A user missing exhibitor gets it back; `false` (already
+  // assigned, the normal case) is a no-op.
+  for (const lockedRole of LOCKED_ROLES) {
+    await rbacService.ensureUserHasRole(userId, lockedRole);
+  }
 }
 
 /** Applies one bulk role-change config to a single user. Throws on real failures. */

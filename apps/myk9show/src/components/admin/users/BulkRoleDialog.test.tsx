@@ -18,20 +18,13 @@ import { UserRole } from '@/types/auth-types';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
 import { BulkRoleDialog } from './BulkRoleDialog';
 
+const clubsQueryMock = vi.hoisted(() => vi.fn());
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: vi.fn(() => ({
       select: vi.fn(() => ({
         is: vi.fn(() => ({
-          order: vi.fn(() =>
-            Promise.resolve({
-              data: [
-                { id: 'club-1', name: 'Alpha Club' },
-                { id: 'club-2', name: 'Beta Club' },
-              ],
-              error: null,
-            })
-          ),
+          order: vi.fn(() => clubsQueryMock()),
         })),
       })),
     })),
@@ -77,6 +70,13 @@ function renderDialog(overrides: Partial<React.ComponentProps<typeof BulkRoleDia
 describe('BulkRoleDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clubsQueryMock.mockResolvedValue({
+      data: [
+        { id: 'club-1', name: 'Alpha Club' },
+        { id: 'club-2', name: 'Beta Club' },
+      ],
+      error: null,
+    });
   });
 
   it('renders exactly the canonical manageable role list — no admin/handler', () => {
@@ -112,10 +112,12 @@ describe('BulkRoleDialog', () => {
     expect(screen.queryByRole('checkbox', { name: /Exhibitor/ })).not.toBeInTheDocument();
   });
 
-  it('blocks submit when a club-scoped role is selected without a club', () => {
+  it('blocks submit when a club-scoped role is selected without a club', async () => {
     const { onSubmit } = renderDialog();
 
     fireEvent.click(screen.getByRole('checkbox', { name: /^Secretary$/ }));
+    // Wait for the clubs query to settle — Apply is disabled while it loads.
+    expect(await screen.findByText(/add a club/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /apply/i }));
 
     expect(onSubmit).not.toHaveBeenCalled();
@@ -142,5 +144,42 @@ describe('BulkRoleDialog', () => {
       roleNames: ['judge'],
       clubIds: [],
     });
+  });
+
+  it('shows a retryable error and disables Apply when the clubs query fails and a scoped role is selected', async () => {
+    clubsQueryMock.mockRejectedValue(new Error('network down'));
+    const { onSubmit } = renderDialog();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Secretary$/ }));
+
+    // Retryable error state instead of the misleading "select at least one club".
+    expect(await screen.findByText(/could not load clubs/i)).toBeInTheDocument();
+    const retryButton = screen.getByRole('button', { name: /retry/i });
+    expect(retryButton).toBeInTheDocument();
+
+    // Apply is disabled — nothing can be submitted while clubs are unavailable.
+    const applyButton = screen.getByRole('button', { name: /apply/i });
+    expect(applyButton).toBeDisabled();
+    fireEvent.click(applyButton);
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    // Retry refetches; once clubs load, the picker appears and Apply re-enables.
+    clubsQueryMock.mockResolvedValue({
+      data: [{ id: 'club-1', name: 'Alpha Club' }],
+      error: null,
+    });
+    fireEvent.click(retryButton);
+    expect(await screen.findByText(/add a club/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /apply/i })).not.toBeDisabled();
+  });
+
+  it('still submits an unscoped role when the clubs query fails (clubs are irrelevant)', async () => {
+    clubsQueryMock.mockRejectedValue(new Error('network down'));
+    const { onSubmit } = renderDialog();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Judge$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /apply/i }));
+
+    expect(onSubmit).toHaveBeenCalledWith({ mode: 'add', roleNames: ['judge'], clubIds: [] });
   });
 });

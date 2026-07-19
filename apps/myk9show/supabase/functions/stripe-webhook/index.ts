@@ -13,6 +13,13 @@ import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdat
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
+import {
+  buildOrderSnapshotFields,
+  extractProcessingFeeCents,
+  resolveAcceptedEntrySnapshot,
+  refundKindFromMetadata,
+  MAKE_WHOLE_METADATA_KEY,
+} from '../_shared/orderSnapshot.ts';
 import { loadEntryPaymentLineItemFeesFromStripe } from '../_shared/entryPaymentLineItems.ts';
 import {
   resolveWithdrawalPolicy,
@@ -81,6 +88,70 @@ Deno.serve(
   })
 );
 
+/**
+ * Retrieve Stripe's actual processing fee (cents) for a charge by expanding the
+ * payment intent's latest charge balance transaction. Returns null when the fee
+ * is not yet available (delayed balance-transaction data) or on any retrieve
+ * error — the snapshot then records it as PENDING (never an estimated zero), per
+ * the financial-reconciliation contract. Never throws; a committed payment must
+ * not be disturbed by a missing fee lookup.
+ */
+async function fetchProcessingFeeCents(paymentIntentId: string | null): Promise<number | null> {
+  if (!paymentIntentId) return null;
+  try {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ['latest_charge.balance_transaction'],
+    });
+    const charge = pi.latest_charge;
+    if (!charge || typeof charge === 'string') return null;
+    return extractProcessingFeeCents(charge as { balance_transaction?: string | { fee?: number } });
+  } catch (e) {
+    console.error(`Could not retrieve processing fee for intent ${paymentIntentId}:`, e);
+    return null;
+  }
+}
+
+/**
+ * Log (and, once per intent, alert) when a succeeded charge's Stripe processing
+ * fee could not be captured. The missing fee is recorded as NULL (pending),
+ * never treated as zero.
+ *
+ * NOT self-healing — verified, do not soften this. Nothing retries: no later
+ * webhook event re-reads the balance transaction, there is no backfill job, and
+ * no reconciliation action writes stripe_processing_fee_cents. The order's net
+ * platform income stays pending FOREVER until an operator fills the fee in by
+ * hand. The alert below must therefore ask for manual action; if a real
+ * backfill path is ever added, update this comment and the alert together.
+ */
+async function warnMissingProcessingFee(
+  paymentIntentId: string | null,
+  context: string
+): Promise<void> {
+  console.error(
+    `Processing fee PENDING for ${context} (intent ${paymentIntentId ?? 'unknown'}) — ` +
+      `net income cannot be finalized until the balance-transaction fee is captured. ` +
+      `Nothing retries this automatically; it needs a manual backfill.`
+  );
+  await alertAdmin(
+    'Stripe processing fee not captured — MANUAL BACKFILL REQUIRED',
+    `<p>The Stripe balance-transaction processing fee for ${context} (payment intent
+     <code>${paymentIntentId ?? 'unknown'}</code>) was not available when the order was
+     recorded (usually delayed balance-transaction data). The charge facts are stored
+     and net platform income is marked pending.</p>
+     <p><strong>This does NOT resolve on its own.</strong> No webhook, job, or
+     reconciliation run ever retries the fee lookup — the order stays pending
+     indefinitely until someone acts.</p>
+     <p>Recovery: read the fee from the payment intent's latest charge balance
+     transaction in the Stripe dashboard, then set
+     <code>stripe_orders.stripe_processing_fee_cents</code> for that payment intent.</p>`,
+    {
+      source: 'stripe-webhook',
+      severity: 'warn',
+      dedupeKey: `processing-fee-pending-${paymentIntentId ?? context}`,
+    }
+  );
+}
+
 async function handleEvent(event: Stripe.Event) {
   console.log(`Processing event: ${event.type}`);
 
@@ -139,10 +210,28 @@ async function handleEvent(event: Stripe.Event) {
 }
 
 /**
- * A refund that was created (pending) and LATER failed leaves the entry
- * stamped refunded — customer unpaid, club's payout still docked — with no
- * signal anywhere (round-11 review). Alert-only: the operator clears the
- * entry's refund columns (runbook "Manual reconciliation") and re-issues.
+ * A refund that was created (pending) and LATER failed leaves the ORDER ledger
+ * holding an amount the customer never received: `charge.refunded` already booked
+ * it, and it may have stamped `status = 'refunded'`. Reconciliation then keeps
+ * subtracting a refund that never happened and the club's payout stays docked.
+ *
+ * So this flips that refund's LEDGER ROW to `state = 'failed'` and re-derives the
+ * order totals and status, via `reverse_order_refund_cents`. A failed refund is a
+ * STATE CHANGE, never a subtraction: nothing can be double-subtracted, no column
+ * can be driven negative, and a redelivered `charge.refunded` for the same refund
+ * cannot resurrect it (failed is TERMINAL).
+ *
+ * IDEMPOTENT by construction — the refund id is the ledger primary key, so a
+ * duplicate `refund.failed` delivery re-flips an already-failed row and the
+ * recomputed totals are identical. A failure arriving BEFORE its booking event
+ * matches no row and correctly changes nothing; Stripe's redelivery settles it.
+ *
+ * The ENTRY-level refund columns are still the operator's job — the alert stays,
+ * because the entry stamp and any re-issue are manual.
+ *
+ * NEVER THROWS: a bookkeeping failure must not disturb a committed payment or
+ * make Stripe redeliver indefinitely. A failed reversal is reported in the alert
+ * and the drift stays visible rather than silently "handled".
  */
 async function handleRefundFailed(refund: Stripe.Refund) {
   const entryId = refund.metadata?.entry_id ?? null;
@@ -150,14 +239,52 @@ async function handleRefundFailed(refund: Stripe.Refund) {
     `CRITICAL: refund ${refund.id} (${refund.amount}¢) FAILED after creation` +
       (entryId ? ` for entry ${entryId}` : '')
   );
+
+  const paymentIntentId = extractPaymentIntentId(refund.payment_intent);
+  let ledgerNote =
+    '<p>The order ledger could NOT be corrected automatically: this refund carries no ' +
+    'payment intent, so the reversal had nothing to key on. Clear the order refund ' +
+    'columns by hand.</p>';
+
+  if (paymentIntentId) {
+    try {
+      const { data, error } = await supabase.rpc('reverse_order_refund_cents', {
+        p_payment_intent_id: paymentIntentId,
+        p_refund_id: refund.id,
+        p_amount_cents: refund.amount,
+      });
+      if (error) throw error;
+      const rows = (data ?? []) as Array<{ order_id: string; reversed: boolean }>;
+      const changed = rows.filter(r => r.reversed).length;
+      if (rows.length === 0) {
+        ledgerNote = `<p>The order ledger was NOT corrected: no <code>stripe_orders</code> row
+           matched payment intent <code>${paymentIntentId}</code>. Nothing was booked
+           against an order, so nothing needed reversing — but verify by hand.</p>`;
+      } else if (changed === 0) {
+        ledgerNote = `<p>The order ledger was already corrected for this refund (idempotent
+           redelivery) — no change made.</p>`;
+      } else {
+        ledgerNote = `<p>The order ledger HAS been corrected automatically: this refund's
+           ${(refund.amount / 100).toFixed(2)} USD was reversed out of ${changed}
+           <code>stripe_orders</code> row(s) and the refunded status re-derived, so
+           reconciliation no longer subtracts money the customer never received.</p>`;
+      }
+    } catch (err) {
+      console.error(`Could not reverse failed refund ${refund.id} on the order ledger:`, err);
+      ledgerNote = `<p>The order ledger could NOT be corrected automatically
+         (<code>${err instanceof Error ? err.message : String(err)}</code>). The order still
+         records a refund the customer never received — clear its refund columns by hand.</p>`;
+    }
+  }
+
   await alertAdmin(
     'Stripe refund FAILED after it was issued',
     `<p>Refund <code>${refund.id}</code> for ${(refund.amount / 100).toFixed(2)} USD has
      status <code>failed</code>${entryId ? ` (entry <code>${entryId}</code>)` : ''} —
-     the customer was NOT paid, but the entry was already stamped refunded, so the
-     payout math is docking the club for money that never left.</p>
-     <p>Recovery: clear the entry's refund columns (see the runbook's
-     "Manual reconciliation" section), then re-issue the refund from the entries
+     the customer was NOT paid.</p>
+     ${ledgerNote}
+     <p>Recovery: the ENTRY-level refund columns are still stamped — clear them (see the
+     runbook's "Manual reconciliation" section), then re-issue the refund from the entries
      page. The refund function ignores dead refunds, so re-issuing is safe.</p>`,
     { source: 'stripe-webhook', dedupeKey: `refund-failed-${refund.id}` }
   );
@@ -194,12 +321,194 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
  * log loudly for manual entry-level reconciliation. Refunds from
  * app-originated refunds carry metadata and were already recorded.
  */
+/**
+ * Record a refund onto every order for a payment intent, ATOMICALLY, splitting
+ * it between the two economically-opposite refund columns (see the attribution
+ * invariant in _shared/orderSnapshot.ts):
+ *   collected = amount_cents − make_whole_refunded_cents − refunded_cents
+ *
+ * This is the single writer of both refund columns for the whole refund story,
+ * and it runs for EVERY refund source — per-entry app refunds, make-whole
+ * auto-refunds, bulk show-cancellation refunds, and dashboard refunds alike.
+ * Before this, app-originated refunds returned early and never recorded a
+ * refund at all, so reconciliation silently understated exactly the refunds the
+ * app itself issued.
+ *
+ * LEDGER MODEL (MYK9-54 rework): each Stripe refund is ONE ROW in
+ * `stripe_order_refunds`, keyed on the Stripe refund id, and the two order
+ * columns are RECOMPUTED from those rows. Idempotency is a property of the
+ * PRIMARY KEY rather than of an algorithm, so a duplicate or out-of-order
+ * delivery is an upsert of the same row and the totals are unchanged. The
+ * previous monotonic counters could not represent "this refund was un-done" and
+ * a redelivered `charge.refunded` silently undid a `refund.failed` reversal.
+ *
+ * ATTRIBUTION: `kind` is recorded per refund at booking time — 'make_whole' from
+ * the make-whole writers (which know their own refund's id), 'post_hoc' from the
+ * `charge.refunded` sweep. The upsert never overwrites `kind`, so a make-whole
+ * refund the auto-refund writer already booked is never demoted to a post-hoc
+ * platform loss by a later delivery, whatever the ordering.
+ *
+ * NEVER pass `charge.amount_refunded`: it is a CUMULATIVE total across both
+ * refund kinds, and guessing the split from it is exactly what forced the
+ * monotonic hack. Stripe carries the individual refunds on `charge.refunds.data`.
+ *
+ * STATUS (MYK9-54 review finding 1): the recompute also owns the
+ * status/`refunded_at` transition — `status = 'refunded'` IFF the order is FULLY
+ * refunded — so callers must NOT stamp it themselves. Because it is re-derived
+ * rather than accumulated it now DEMOTES as well as promotes.
+ *
+ * Returns the affected order rows, or null when nothing was PERSISTED. Callers
+ * must treat null as "the refund is not recorded" and leave the drift visible
+ * (finding 5). Never throws: a committed payment must not be disturbed by a
+ * bookkeeping failure.
+ */
+interface RecordedRefundRow {
+  order_id: string;
+  order_type: string | null;
+  order_status: string;
+  order_amount_cents: number | null;
+  make_whole_cents: number;
+  post_hoc_cents: number;
+  fully_refunded: boolean;
+}
+
+async function recordOrderRefundCents(
+  paymentIntentId: string,
+  refund: {
+    /** Stripe refund id — the ledger PRIMARY KEY. */
+    refundId: string;
+    amountCents: number;
+    kind: 'make_whole' | 'post_hoc';
+  }
+): Promise<RecordedRefundRow[] | null> {
+  const amountCents = Math.max(0, Math.round(refund.amountCents ?? 0));
+
+  const { data, error } = await supabase.rpc('record_order_refund_cents', {
+    p_payment_intent_id: paymentIntentId,
+    p_refund_id: refund.refundId,
+    p_amount_cents: amountCents,
+    p_kind: refund.kind,
+  });
+
+  if (error) {
+    console.error(`Could not record refund ${refund.refundId} for ${paymentIntentId}:`, error);
+    await alertAdmin(
+      'Refund not recorded on the order — reconciliation understated',
+      `<p>Refund <code>${refund.refundId}</code> for payment intent
+       <code>${paymentIntentId}</code> (${(amountCents / 100).toFixed(2)} USD,
+       kind <code>${refund.kind}</code>) could not be written to
+       <code>stripe_order_refunds</code>:</p>
+       <pre>${error.message}</pre>
+       <p>The order was deliberately NOT marked refunded, so reconciliation still
+       reports it as collected and the drift stays visible. Until the refund
+       columns are set by hand, this order overstates collections.</p>`,
+      {
+        source: 'stripe-webhook',
+        dedupeKey: `refund-write-failed-${refund.refundId}`,
+      }
+    );
+    return null;
+  }
+
+  const rows = (data ?? []) as RecordedRefundRow[];
+  if (rows.length === 0) {
+    // No order matched. Not a write failure, but nothing was persisted either,
+    // so the caller must not claim the order is refunded — an EMPTY array says
+    // "the write ran and matched nothing", which the caller reports differently
+    // from the null write failure above.
+    console.error(`Refund for ${paymentIntentId} matched no stripe_orders row`);
+  }
+  return rows;
+}
+
+/**
+ * Resolve the INDIVIDUAL refunds on a charge. `charge.refunds` may be absent or
+ * paginated on the event payload, and `charge.amount_refunded` is only a
+ * cumulative total — useless for a per-refund ledger. Fall back to a list call.
+ *
+ * NEVER THROWS (existing hard requirement): a bookkeeping failure must not
+ * disturb a committed payment or make Stripe redeliver indefinitely. On failure
+ * it returns null; the caller alerts and leaves the ledger untouched.
+ */
+async function resolveChargeRefunds(charge: Stripe.Charge): Promise<Stripe.Refund[] | null> {
+  const embedded = charge.refunds?.data ?? [];
+  const complete = charge.refunds != null && charge.refunds.has_more !== true;
+  if (complete && (embedded.length > 0 || (charge.amount_refunded ?? 0) === 0)) {
+    return embedded;
+  }
+  try {
+    const listed = await stripe.refunds.list({ charge: charge.id, limit: 100 });
+    return listed.data;
+  } catch (err) {
+    console.error(`Could not expand refunds for charge ${charge.id}:`, err);
+    return null;
+  }
+}
+
 async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
-  const refunds = charge.refunds?.data ?? [];
+  const intentIdForLedger = extractPaymentIntentId(charge.payment_intent);
+
+  const resolvedRefunds = await resolveChargeRefunds(charge);
+  if (resolvedRefunds === null) {
+    // Ledger deliberately untouched — booking a guessed split from the
+    // cumulative `amount_refunded` is the unsound shortcut this rework removed.
+    await alertAdmin(
+      'Refund list unavailable — order ledger NOT updated',
+      `<p>Charge <code>${charge.id}</code> reported
+       ${((charge.amount_refunded ?? 0) / 100).toFixed(2)} USD refunded, but its
+       individual refunds could not be retrieved from Stripe, so nothing was
+       written to <code>stripe_order_refunds</code>.</p>
+       <p>The order still reports the full amount as collected; the drift stays
+       visible. Stripe will redeliver this event, which self-corrects once the
+       list call succeeds.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `refund-list-failed-${charge.id}` }
+    );
+    return;
+  }
+  const refunds = resolvedRefunds;
+
   // Skip only when EVERY refund came from an app flow (.some would let an app
   // refund mask a later dashboard refund on the same charge — review finding
   // #3). Mixed charges fall through to the RECONCILE log below.
   const allFromAppRefund = allRefundsAppOriginated(refunds);
+
+  // COLLECTION INVARIANT: record the refunds BEFORE any early return, for every
+  // refund source. Whether a refund needs an operator alert (below) is a
+  // separate question from whether the money came back (always true here).
+  //
+  // ATTRIBUTION: one ledger row PER STRIPE REFUND, keyed on its id. Booked as
+  // 'post_hoc' here because this handler cannot tell the kinds apart; the
+  // make-whole writers book their own refund id as 'make_whole' at creation
+  // time and the upsert never overwrites `kind`, so an already-booked
+  // make-whole refund keeps its kind no matter which delivery lands first.
+  //
+  // A refund Stripe already reports as failed/canceled is skipped: it never
+  // moved money, and `refund.failed` owns the terminal state flip.
+  let recordedRows: RecordedRefundRow[] | null = null;
+  if (intentIdForLedger) {
+    // Empty until a refund books rows; an all-skipped charge is "ran, matched
+    // nothing", not a write failure.
+    recordedRows = [];
+    for (const refund of refunds) {
+      if (refund.status === 'failed' || refund.status === 'canceled') continue;
+      const rows = await recordOrderRefundCents(intentIdForLedger, {
+        refundId: refund.id,
+        amountCents: refund.amount ?? 0,
+        // Read the kind off the Stripe object rather than assuming post_hoc.
+        // A make-whole auto-refund stamps MAKE_WHOLE_METADATA_KEY at creation,
+        // so this sweep attributes it correctly even when it wins the race
+        // against that writer. Assuming 'post_hoc' here booked make-whole money
+        // as a permanent platform loss (Codex round-7 finding).
+        kind: refundKindFromMetadata(refund),
+      });
+      if (rows === null) {
+        recordedRows = null;
+        break;
+      }
+      recordedRows = rows;
+    }
+  }
+
   if (allFromAppRefund) {
     const showRefundId = findShowRefundId(refunds);
     if (showRefundId) {
@@ -222,18 +531,30 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
     return;
   }
 
-  // Idempotent: re-delivery (or a second partial refund) re-applies the same state.
-  const { data, error } = await supabase
-    .from('stripe_orders')
-    .update({ status: 'refunded', refunded_at: new Date().toISOString() })
-    .eq('stripe_payment_intent_id', paymentIntentId)
-    .select('id, order_type');
-
-  if (error) {
-    console.error(`Error marking order refunded for ${paymentIntentId}:`, error);
+  // FAIL CLOSED (MYK9-54 review finding 5): only stamp 'refunded' when the
+  // amount actually PERSISTED. Stamping it after a failed ledger write leaves an
+  // order that reads refunded with 0 refunded cents — invisible to attention
+  // logic precisely because the status already says refunded. Leaving the status
+  // alone preserves the drift so reconciliation can still see it. The write
+  // failure was already alerted inside recordOrderRefundCents; return quietly
+  // rather than throwing, so a committed payment is never disturbed.
+  if (recordedRows === null) {
+    console.error(
+      `charge.refunded for ${paymentIntentId}: refund amount not persisted — ` +
+        `deliberately NOT marking the order refunded so the drift stays visible`
+    );
     return;
   }
-  if (!data || data.length === 0) {
+
+  // Idempotent: re-delivery (or a second partial refund) re-applies the same state.
+  // Snapshot contract (MYK9-54): the refund path never rewrites the original
+  // charge facts (entry subtotal, platform fee, rate, processing fee). The
+  // refund columns AND the status transition were both written above by
+  // recordOrderRefundCents (atomic, all refund sources) — a separate blanket
+  // `status = 'refunded'` here would have stamped a PARTIALLY refunded order as
+  // fully refunded, so the rows it returned are used for reporting only.
+  const data = recordedRows.map(row => ({ id: row.order_id, order_type: row.order_type }));
+  if (data.length === 0) {
     console.error(`charge.refunded for ${paymentIntentId} matched no order — alerting`);
     const alert = buildUnmatchedRefundAlert({
       paymentIntentId,
@@ -907,14 +1228,37 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
 
   console.log(`Created ${entryIds.length} entries from cart ${cartId}`);
 
+  // Immutable financial snapshot (MYK9-54): the platform fee on the paid-entry
+  // subtotal at the rate applied at charge time, plus Stripe's actual processing
+  // fee. A missing processing fee stays NULL (pending), never an estimated zero.
+  const snapshotProcessingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
+  const snapshotPlatformFeeCents = calculatePlatformFeeCents(
+    paidEntrySubtotalCents,
+    stampedFeePercent
+  );
+
   // Create stripe_orders record
   const { error: orderError } = await supabase.from('stripe_orders').insert({
     customer_id: stripeCustomer?.id || null,
     stripe_payment_intent_id: paymentIntentId,
     stripe_checkout_session_id: session.id,
-    // Record only the paid-entry service amount. Denied/waitlisted/no-service
-    // cart lines are explicit metadata and never masquerade as paid entry_ids.
-    amount_cents: paidOrderAmountCents,
+    // COLLECTION INVARIANT (see _shared/orderSnapshot.ts): amount_cents is the
+    // GROSS amount the customer was actually charged — the full session total,
+    // NOT pre-netted by the cart-overflow auto-refund. The overflow share is
+    // recorded as a refund in refunded_cents (by issueCartOverflowAutoRefund
+    // and/or the charge.refunded handler), so collected = amount_cents −
+    // refunded_cents subtracts it EXACTLY ONCE. Pre-netting here as well made a
+    // fully-invalid cart report NEGATIVE collections (review finding A).
+    // Denied/waitlisted/no-service cart lines remain explicit metadata and never
+    // masquerade as paid entry_ids; the paid-only service amount lives in
+    // metadata.paid_amount_cents and in entry_subtotal_cents below.
+    amount_cents: freshTotalCents,
+    ...buildOrderSnapshotFields({
+      entrySubtotalCents: paidEntrySubtotalCents,
+      platformFeeCents: snapshotPlatformFeeCents,
+      platformFeeRate: stampedFeePercent,
+      stripeProcessingFeeCents: snapshotProcessingFeeCents,
+    }),
     currency: session.currency || 'usd',
     status: 'succeeded',
     order_type: 'entry',
@@ -998,6 +1342,10 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
        so payment history and reconciliation stay complete.</p>`,
       { source: 'stripe-webhook', dedupeKey: `order-insert-failed-${session.id}` }
     );
+  }
+
+  if (snapshotProcessingFeeCents === null) {
+    await warnMissingProcessingFee(paymentIntentId, `cart ${cartId}`);
   }
 
   if (noServiceLineIds.length > 0) {
@@ -1228,14 +1576,11 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     }
   }
 
-  const hasPotentialInvalidEntries =
-    result.missingEntryIds.length > 0 ||
-    result.inactiveEntryIds.length > 0 ||
-    result.alreadyPaidEntryIds.length > 0 ||
-    noOpPatchIds.length > 0;
-  const entryFeesById = hasPotentialInvalidEntries
-    ? await loadEntryPaymentLineItemFees(session.id)
-    : new Map<string, number>();
+  // Loaded UNCONDITIONALLY (MYK9-54 review finding 2): these authoritative
+  // per-entry line-item fees are what the financial snapshot below is built
+  // from, not just the refund amount. Deriving the snapshot from the session
+  // total instead overstated the platform fee on every partial-invalid order.
+  const entryFeesById = await loadEntryPaymentLineItemFees(session.id);
   const updateOutcome = reconcileEntryPaymentUpdateOutcome({
     plannedPatchIds,
     updatedEntryIds,
@@ -1284,6 +1629,35 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
 
   await resolvePaidWaitlistOffers(paidIds, session.id);
 
+  // Immutable financial snapshot (MYK9-54 review finding 2). Built from the
+  // ACCEPTED entries and their authoritative Checkout line-item fees — the same
+  // way the cart path uses paidEntrySubtotalCents — NOT by back-deriving the
+  // split from the session total. The session total includes lines that were
+  // never accepted (missing/inactive/already-paid entries, auto-refunded below),
+  // so deriving from it overstated platform_fee_cents on every partial-invalid
+  // order AND forced `amount == subtotal + fee` to hold by construction, which
+  // made the tie-out `amount == subtotal + fee + make_whole` fail by exactly the
+  // refund. Capture Stripe's actual processing fee (NULL = pending, never zero).
+  const linkFeePercent = resolvePlatformFeePercent(
+    freshSession.metadata?.platform_fee_percent ?? Deno.env.get('PLATFORM_FEE_PERCENT')
+  );
+  const linkFeeSplit = resolveAcceptedEntrySnapshot(paidIds, entryFeesById, linkFeePercent);
+  if (linkFeeSplit.status === 'unverifiable') {
+    // Columns stay NULL (rate-unverifiable), never a guessed number that would
+    // silently enter platform income reporting.
+    await alertAdmin(
+      'Payment-link order recorded without a fee snapshot',
+      `<p>Session <code>${session.id}</code> was PAID, but Stripe reported no
+       line-item fee for accepted entries
+       <code>${linkFeeSplit.missingFeeEntryIds.join(', ')}</code>.</p>
+       <p><code>entry_subtotal_cents</code> / <code>platform_fee_cents</code> were
+       left NULL rather than estimated, so this order reports as
+       rate-unverifiable in reconciliation until the values are set by hand.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-fee-unverifiable-${session.id}` }
+    );
+  }
+  const linkProcessingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
+
   const { error: orderError } = await supabase.from('stripe_orders').insert({
     // customer_id is a UUID FK to stripe_customers(id) — NOT Stripe's cus_… id.
     // A link payer may have no stripe_customers row at all, so leave it null
@@ -1295,11 +1669,20 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     currency: session.currency || 'usd',
     status: 'succeeded',
     order_type: 'entry',
+    ...buildOrderSnapshotFields({
+      entrySubtotalCents: linkFeeSplit.entrySubtotalCents,
+      platformFeeCents: linkFeeSplit.platformFeeCents,
+      platformFeeRate: linkFeePercent,
+      stripeProcessingFeeCents: linkProcessingFeeCents,
+    }),
     metadata: { entry_payment_link_id: link.id, entry_count: paidIds.length },
     show_id: link.show_id,
     entry_ids: paidIds,
     paid_at: new Date().toISOString(),
   });
+  if (linkProcessingFeeCents === null) {
+    await warnMissingProcessingFee(paymentIntentId, `payment link ${link.id}`);
+  }
   if (orderError && orderError.code !== '23505') {
     console.error('Error creating stripe_orders for payment link:', orderError);
     await alertAdmin(
@@ -1511,6 +1894,13 @@ async function issueEntryPaymentAutoRefund(input: {
         amount: input.amountCents,
         metadata: {
           type: 'entry_payment_request_auto_refund',
+          // RACE-PROOF ATTRIBUTION: `charge.refunded` can arrive BEFORE this
+          // writer books its own ledger row, and the ledger upsert deliberately
+          // never overwrites `kind`. Without a marker ON THE STRIPE OBJECT the
+          // sweep would book this make-whole refund as 'post_hoc' and it would
+          // stay a permanent (wrong) platform loss. Stripe carries this metadata
+          // on every delivery, so the kind is knowable regardless of order.
+          [MAKE_WHOLE_METADATA_KEY]: 'true',
           checkout_session_id: input.session.id,
           entry_payment_link_id: input.linkId ?? '',
           reason: input.reason,
@@ -1535,27 +1925,42 @@ async function issueEntryPaymentAutoRefund(input: {
        }.</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-refund-issued-${refund.id}` }
     );
-    if (input.reason === 'full_make_whole') {
-      const { error: orderUpdateError } = await supabase
-        .from('stripe_orders')
-        .update({ status: 'refunded', refunded_at: new Date().toISOString() })
-        .eq('stripe_checkout_session_id', input.session.id);
-      if (orderUpdateError) {
-        console.error(
-          `CRITICAL: auto-refund ${refund.id} succeeded but stripe_orders update failed:`,
-          orderUpdateError
-        );
-        await alertAdmin(
-          'Payment link auto-refund issued but order not marked refunded',
-          `<p>Auto-refund <code>${refund.id}</code> succeeded for session
-           <code>${input.session.id}</code>, but updating <code>stripe_orders</code>
-           failed:</p><pre>${orderUpdateError.message}</pre>`,
-          {
-            source: 'stripe-webhook',
-            dedupeKey: `payment-link-refund-order-update-failed-${refund.id}`,
-          }
-        );
-      }
+
+    // COLLECTION INVARIANT + ATTRIBUTION: a payment-link auto-refund returns
+    // money for entries that were never accepted (no link record / invalid
+    // entries), so it is a MAKE-WHOLE refund, not a platform loss. Record it
+    // here rather than waiting for charge.refunded: that handler treats this
+    // refund as app-originated and a missed delivery would leave the order
+    // looking collected in full.
+    //
+    // The Stripe refund id is the ledger PRIMARY KEY, so a duplicate delivery is
+    // an upsert of the same row and two make-whole refunds on one intent are two
+    // rows that simply sum. Booking `kind: 'make_whole'` HERE, at creation time,
+    // is what lets the later `charge.refunded` sweep leave the kind alone. The
+    // recompute owns the status transition — 'refunded' IFF FULLY refunded — so
+    // there is deliberately no status update here.
+    const recordedRows = await recordOrderRefundCents(input.paymentIntentId, {
+      refundId: refund.id,
+      amountCents: refund.amount,
+      kind: 'make_whole',
+    });
+
+    // FAIL CLOSED (finding 5): a failed or unmatched ledger write leaves the
+    // order looking collected in full. Alert instead of silently continuing.
+    if (recordedRows === null || recordedRows.length === 0) {
+      await alertAdmin(
+        'Payment link auto-refund issued but not recorded on the order',
+        `<p>Auto-refund <code>${refund.id}</code> succeeded for session
+         <code>${input.session.id}</code> (payment intent
+         <code>${input.paymentIntentId}</code>), but the refund could not be
+         written to <code>stripe_orders</code>.</p>
+         <p>The order still reports the full amount as collected. Set
+         <code>make_whole_refunded_cents</code> by hand to clear the drift.</p>`,
+        {
+          source: 'stripe-webhook',
+          dedupeKey: `payment-link-refund-order-update-failed-${refund.id}`,
+        }
+      );
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -1677,6 +2082,8 @@ async function issueCartOverflowAutoRefund(input: {
         amount: input.decision.amountCents,
         metadata: {
           type: 'entry_cart_overflow_auto_refund',
+          // Race-proof attribution — see MAKE_WHOLE_METADATA_KEY.
+          [MAKE_WHOLE_METADATA_KEY]: 'true',
           checkout_session_id: input.session.id,
           reason: input.decision.reason,
           invalid_cart_item_ids: JSON.stringify(input.invalidCartItemIds),
@@ -1702,27 +2109,45 @@ async function issueCartOverflowAutoRefund(input: {
       { source: 'stripe-webhook', dedupeKey: `cart-overflow-refund-issued-${refund.id}` }
     );
 
-    if (input.decision.reason === 'full_make_whole') {
-      const { error: orderUpdateError } = await supabase
-        .from('stripe_orders')
-        .update({ status: 'refunded', refunded_at: new Date().toISOString() })
-        .eq('stripe_checkout_session_id', input.session.id);
-      if (orderUpdateError) {
-        console.error(
-          `CRITICAL: cart overflow refund ${refund.id} succeeded but stripe_orders update failed:`,
-          orderUpdateError
-        );
-        await alertAdmin(
-          'Cart overflow auto-refund issued but order not marked refunded',
-          `<p>Auto-refund <code>${refund.id}</code> succeeded for session
-           <code>${input.session.id}</code>, but updating <code>stripe_orders</code>
-           failed:</p><pre>${orderUpdateError.message}</pre>`,
-          {
-            source: 'stripe-webhook',
-            dedupeKey: `cart-overflow-refund-order-update-failed-${refund.id}`,
-          }
-        );
-      }
+    // COLLECTION INVARIANT: amount_cents on the order we just inserted is the
+    // GROSS charge, so this refund must be recorded to keep
+    // `collected = amount_cents − make_whole_refunded_cents − refunded_cents`
+    // right. Write it here rather than waiting for charge.refunded: that handler
+    // treats this refund as app-originated, and a missed/late delivery would
+    // leave the order looking collected in full.
+    //
+    // ATTRIBUTION: cart overflow refunds lines that were NEVER accepted, so this
+    // is a MAKE-WHOLE refund, not a platform loss — the platform earned no fee
+    // and made no club transfer on those lines. Recorded as makeWholeCents so
+    // the later cumulative charge.refunded delivery nets it out of the post-hoc
+    // figure instead of double counting it.
+    //
+    // The Stripe refund id is the ledger PRIMARY KEY (a duplicate delivery is an
+    // upsert of the same row), `kind: 'make_whole'` is booked HERE at creation
+    // time so the later charge.refunded sweep cannot demote it to a post-hoc
+    // loss, and the recompute owns the status transition ('refunded' IFF FULLY
+    // refunded), so no status is stamped here.
+    const recordedRows = await recordOrderRefundCents(input.paymentIntentId!, {
+      refundId: refund.id,
+      amountCents: refund.amount,
+      kind: 'make_whole',
+    });
+
+    // FAIL CLOSED (finding 5): don't leave a refunded charge reading as collected
+    // in full without saying so.
+    if (recordedRows === null || recordedRows.length === 0) {
+      await alertAdmin(
+        'Cart overflow auto-refund issued but not recorded on the order',
+        `<p>Auto-refund <code>${refund.id}</code> succeeded for session
+         <code>${input.session.id}</code>, but the refund could not be written to
+         <code>stripe_orders</code>.</p>
+         <p>The order still reports the full amount as collected. Set
+         <code>make_whole_refunded_cents</code> by hand to clear the drift.</p>`,
+        {
+          source: 'stripe-webhook',
+          dedupeKey: `cart-overflow-refund-order-update-failed-${refund.id}`,
+        }
+      );
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

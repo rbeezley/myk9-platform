@@ -14,6 +14,12 @@ vi.mock('@/features/payments/usePlatformPayoutLedger', () => ({
   usePlatformPayoutLedger: () => ledgerState,
 }));
 
+// PlatformIncomeCard has its own colocated tests (features/financial/components) —
+// stub it here so this page's tests aren't exercising the shared financial RPC.
+vi.mock('@/features/financial/components/PlatformIncomeCard', () => ({
+  PlatformIncomeCard: () => <div data-testid="platform-income-card-stub" />,
+}));
+
 import PayoutLedgerPage from './PayoutLedgerPage';
 
 const row: LedgerRow = {
@@ -41,6 +47,12 @@ describe('PayoutLedgerPage', () => {
     render(<PayoutLedgerPage />);
     expect(screen.getByText('Platform Fee')).toBeInTheDocument();
     expect(screen.getByText('7%')).toBeInTheDocument();
+  });
+
+  it('renders the platform income section above the payout ledger', () => {
+    render(<PayoutLedgerPage />);
+    expect(screen.getByText('Platform income')).toBeInTheDocument();
+    expect(screen.getByTestId('platform-income-card-stub')).toBeInTheDocument();
   });
 
   it('renders ledger rows + summary from the hook data', () => {

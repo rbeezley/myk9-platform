@@ -141,6 +141,29 @@ jobs:
       - name: Doc staleness check
         run: pnpm qa:doc-staleness:strict
 
+  # Executable SQL tests for the financial migrations. Every other test for
+  # supabase/migrations reads the files as TEXT, which cannot catch invalid SQL,
+  # a runtime-only ambiguous column reference, or a non-re-runnable migration.
+  # This job applies the real migrations twice to a throwaway cluster and runs
+  # accounting assertions. Uses the runner's preinstalled Postgres — no service
+  # container and no network database. Fast (<1 min) and independent, so it runs
+  # in parallel with the other test jobs.
+  sql-tests:
+    name: SQL tests (financial migrations)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Financial migration SQL tests
+        # REQUIRE=1 so a runner image without Postgres fails loudly instead of
+        # skipping to a silent green.
+        env:
+          MYK9_SQL_TEST_REQUIRE: '1'
+        run: bash scripts/qa/run-financial-sql-tests.sh
+
   # Packages run through turbo so the remote cache provides affected-only
   # behaviour: a PR touching only myK9Show turns these into cache hits.
   # Runs in parallel with quality and test-show — no needs: quality.
@@ -279,7 +302,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    needs: [test-packages, test-show, test-show-coverage-gate]
+    needs: [test-packages, test-show, test-show-coverage-gate, sql-tests]
     if: always() && (github.event_name == 'push' || github.event.pull_request.draft == false)
 
     steps:

@@ -86,6 +86,16 @@ export class PaymentService {
     switch (status) {
       case 'paid':
       case 'completed':
+      // 'succeeded' is the status stripe_orders ACTUALLY writes for a captured
+      // payment; it was missing here, so every successful payment fell through
+      // to `default` and read as "pending" in payment history. A PARTIALLY
+      // refunded order also stays 'succeeded' by the refund-attribution
+      // invariant (migration 20260717120000 — only a FULL refund flips the
+      // status), so it lands here too and reads as completed rather than
+      // pending. A distinct "partially refunded" display state would be more
+      // informative, but the PaymentDetails['status'] union has no such member
+      // and adding one is out of scope for this fix.
+      case 'succeeded':
         return 'completed';
       case 'pending':
         return 'pending';

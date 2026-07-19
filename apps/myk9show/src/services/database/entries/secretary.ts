@@ -77,12 +77,31 @@ export const getEntriesForShow = async (showId: string) => {
       logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
       return { data: result.data, error: null };
     }
-    // Cold store: zero raw rows for this show (never synced in at-show context).
-    // Fall through to PostgREST so entry management agrees with the attention strip.
-    logger.warn('Secretary entries replication cold; falling back to PostGREST', 'database', {
+    // Cold store: hydrate this show directly through the authenticated result
+    // view before attempting the legacy fallback. The app-wide sync provider
+    // intentionally has no show scope, so a secretary landing directly on
+    // Entry Management cannot rely on it to populate this replica first.
+    logger.warn('Secretary entries replication cold; hydrating scoped replica', 'database', {
       showId,
       operation: 'get_entries_for_show',
     });
+
+    try {
+      const syncResult = await replicatedEntriesTable.sync(showId);
+      if (syncResult?.success) {
+        const hydrated = await getReplicatedSecretaryEntriesForShow(showId);
+        if (!hydrated.isColdStore) {
+          logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
+          return { data: hydrated.data, error: null };
+        }
+      }
+    } catch (error) {
+      logger.warn('Secretary entries scoped replica hydration failed', 'database', {
+        showId,
+        operation: 'get_entries_for_show',
+        error,
+      });
+    }
   } catch (error) {
     const replicationError = error instanceof Error ? error : new Error(String(error));
     logger.warn(

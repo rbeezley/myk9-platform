@@ -2,11 +2,11 @@
 
 ## 1. Shared role vocabulary
 
-- [ ] 1.1 Create `apps/myk9show/src/services/rbac/roleUiConstants.ts` exporting
+- [x] 1.1 Create `apps/myk9show/src/services/rbac/roleUiConstants.ts` exporting
       `MANAGEABLE_ROLES`, `CLUB_SCOPED_ROLES`, `LOCKED_ROLES`, `ROLE_LABELS` (moved
       verbatim from `ManageUserRolesDialog.tsx`); switch `ManageUserRolesDialog` to import
       them. No behavior change to the single-user dialog.
-- [ ] 1.2 Test pinning the shared constants: manageable set equals the canonical seven
+- [x] 1.2 Test pinning the shared constants: manageable set equals the canonical seven
       role names, club-scoped = secretary + club_admin, locked = exhibitor.
 
 ## 2. Bulk role dialog + dispatch

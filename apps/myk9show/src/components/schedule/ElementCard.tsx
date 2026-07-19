@@ -47,8 +47,18 @@ export function ElementCard({
 }: ElementCardProps) {
   if (!canEditSchedule) {
     // Read-only surfaces (exhibitor/public show overview): the whole card is
-    // the Link and the start time is plain text.
-    const formattedTime = formatStartTime(element.startTime) ?? 'Start Time: TBD';
+    // the Link and start times are plain text. Multi-level elements list each
+    // level's own time — element.startTime is only the earliest, and hiding
+    // the later class times would misinform exhibitors planning their day.
+    const distinctLevelTimes = new Set(element.levels.map(level => level.startTime ?? ''));
+    const showPerLevelTimes = element.levels.length > 1 && distinctLevelTimes.size > 1;
+    const summaryParts = [
+      ...(showPerLevelTimes ? [] : [formatStartTime(element.startTime) ?? 'Start Time: TBD']),
+      ...(element.levelRange ? [element.levelRange] : []),
+      ...(typeof entryCount === 'number'
+        ? [`${entryCount} ${entryCount === 1 ? 'entry' : 'entries'}`]
+        : []),
+    ];
 
     return (
       <Link
@@ -58,12 +68,18 @@ export function ElementCard({
         className="block w-full rounded-md border border-border bg-card p-2 text-left transition-colors hover:bg-accent"
       >
         <ElementTitleRow element={element} />
-        <div className="mt-0.5 text-xs text-muted-foreground">
-          {formattedTime}
-          {element.levelRange && ` · ${element.levelRange}`}
-          {typeof entryCount === 'number' &&
-            ` · ${entryCount} ${entryCount === 1 ? 'entry' : 'entries'}`}
-        </div>
+        {summaryParts.length > 0 && (
+          <div className="mt-0.5 text-xs text-muted-foreground">{summaryParts.join(' · ')}</div>
+        )}
+        {showPerLevelTimes && (
+          <ul className="mt-0.5 text-xs text-muted-foreground" data-testid="per-level-times">
+            {element.levels.map(level => (
+              <li key={level.classId}>
+                {level.level}: {formatStartTime(level.startTime) ?? 'TBD'}
+              </li>
+            ))}
+          </ul>
+        )}
       </Link>
     );
   }

@@ -55,4 +55,60 @@ describe('ElementCard schedule-editing gate', () => {
     render(<ElementCard {...baseProps} canEditSchedule />);
     expect(screen.getByRole('button', { name: /edit start time/i })).toBeInTheDocument();
   });
+
+  it('lists each level time on read-only cards when levels start at different times', () => {
+    const multiLevel: ElementSummary = {
+      ...element,
+      levelRange: 'Novice–Advanced',
+      levels: [
+        {
+          classId: 'class-1',
+          level: 'Novice',
+          status: CLASS_STATUS.SCHEDULED,
+          entryCount: 5,
+          startTime: '09:00:00',
+        },
+        {
+          classId: 'class-2',
+          level: 'Advanced',
+          status: CLASS_STATUS.SCHEDULED,
+          entryCount: 3,
+          startTime: '13:30:00',
+        },
+      ],
+      totalCount: 2,
+    };
+    render(<ElementCard {...baseProps} element={multiLevel} entryCount={8} />);
+    const list = screen.getByTestId('per-level-times');
+    expect(list).toHaveTextContent('Novice: 9:00 AM');
+    expect(list).toHaveTextContent('Advanced: 1:30 PM');
+    // The aggregate earliest time is dropped in favor of the per-level list.
+    expect(screen.queryByText(/^9:00 AM ·/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the single aggregate time on read-only cards when all levels share it', () => {
+    const sameTime: ElementSummary = {
+      ...element,
+      levels: [
+        {
+          classId: 'class-1',
+          level: 'Novice',
+          status: CLASS_STATUS.SCHEDULED,
+          entryCount: 5,
+          startTime: '09:00:00',
+        },
+        {
+          classId: 'class-2',
+          level: 'Advanced',
+          status: CLASS_STATUS.SCHEDULED,
+          entryCount: 3,
+          startTime: '09:00:00',
+        },
+      ],
+      totalCount: 2,
+    };
+    render(<ElementCard {...baseProps} element={sameTime} />);
+    expect(screen.queryByTestId('per-level-times')).not.toBeInTheDocument();
+    expect(screen.getByText(/9:00 AM/)).toBeInTheDocument();
+  });
 });

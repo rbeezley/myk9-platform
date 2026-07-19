@@ -19,18 +19,38 @@ const mockData: DayTimelineData[] = [
             startTime: '08:00:00',
             levelRange: 'Novice–Master',
             status: CLASS_STATUS.COMPLETED,
-            levels: [],
-            completedCount: 0,
-            totalCount: 0,
+            levels: [
+              {
+                classId: 'class-container-novice',
+                level: 'Novice',
+                status: CLASS_STATUS.COMPLETED,
+                entryCount: 5,
+              },
+              {
+                classId: 'class-container-master',
+                level: 'Master',
+                status: CLASS_STATUS.COMPLETED,
+                entryCount: 3,
+              },
+            ],
+            completedCount: 2,
+            totalCount: 2,
           },
           {
             element: 'Buried',
             startTime: '09:30:00',
             levelRange: 'Novice–Master',
             status: CLASS_STATUS.IN_PROGRESS,
-            levels: [],
+            levels: [
+              {
+                classId: 'class-buried-novice',
+                level: 'Novice',
+                status: CLASS_STATUS.IN_PROGRESS,
+                entryCount: 4,
+              },
+            ],
             completedCount: 0,
-            totalCount: 0,
+            totalCount: 1,
           },
         ],
       },
@@ -97,12 +117,32 @@ describe('ScheduleTimeline', () => {
     expect(screen.getByText('Buried')).toBeInTheDocument();
   });
 
-  it('labels element cards as links to trial details', () => {
+  it('labels element cards as links to the class, not the trial', () => {
     renderWithRouter(<ScheduleTimeline showId="show-1" />);
-    expect(
-      screen.getByRole('button', { name: /open trial details for container/i })
-    ).toBeInTheDocument();
-    expect(screen.getAllByText('Opens trial details')).toHaveLength(2);
+    const containerLink = screen.getByRole('link', { name: /open container novice/i });
+    expect(containerLink).toBeInTheDocument();
+    expect(containerLink).toHaveAttribute(
+      'href',
+      '/shows/show-1/trials/t1/classes/class-container-novice'
+    );
+
+    const buriedLink = screen.getByRole('link', { name: /open buried novice/i });
+    expect(buriedLink).toHaveAttribute(
+      'href',
+      '/shows/show-1/trials/t1/classes/class-buried-novice'
+    );
+  });
+
+  it('links the trial heading to the trial details page', () => {
+    renderWithRouter(<ScheduleTimeline showId="show-1" />);
+    const trialLink = screen.getByRole('link', { name: /trial 1/i });
+    expect(trialLink).toHaveAttribute('href', '/shows/show-1/trials/t1');
+  });
+
+  it('shows the summed entry count on the element card', () => {
+    renderWithRouter(<ScheduleTimeline showId="show-1" />);
+    expect(screen.getByText(/8 entries/)).toBeInTheDocument();
+    expect(screen.getByText(/4 entries/)).toBeInTheDocument();
   });
 
   it('renders status badges', () => {
@@ -118,9 +158,14 @@ describe('ScheduleTimeline', () => {
     expect(levelTexts.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('navigates to trial detail on element card click', async () => {
+  it('navigates to the class, not the trial, on element card click', async () => {
     const user = userEvent.setup();
     renderWithRouter(<ScheduleTimeline showId="show-1" />);
-    await user.click(screen.getByText('Container'));
+    const containerLink = screen.getByRole('link', { name: /open container novice/i });
+    await user.click(containerLink);
+    expect(containerLink).toHaveAttribute(
+      'href',
+      '/shows/show-1/trials/t1/classes/class-container-novice'
+    );
   });
 });

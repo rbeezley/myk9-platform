@@ -7,9 +7,24 @@
  * show-scoped grant (assertion-first on setGrant's {showId, role}).
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, userEvent } from '@/test/utils/testUtils';
+import { forwardRef, useImperativeHandle } from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { fireEvent, render, screen, waitFor, userEvent } from '@/test/utils/testUtils';
 import SmartSignInPage from './SmartSignInPage';
+
+vi.mock('@/components/security/TurnstileChallenge', () => ({
+  TurnstileChallenge: forwardRef(function MockTurnstileChallenge(
+    props: { onTokenChange: (token: string | null) => void },
+    ref
+  ) {
+    useImperativeHandle(ref, () => ({ reset: () => props.onTokenChange(null) }));
+    return (
+      <button type="button" onClick={() => props.onTokenChange('turnstile-token')}>
+        Complete security check
+      </button>
+    );
+  }),
+}));
 
 const navigateSpy = vi.fn();
 vi.mock('react-router-dom', async importOriginal => {
@@ -40,7 +55,7 @@ vi.mock('./ringsideAnonSession', () => ({
   startAnonymousRingsideSession: (...args: unknown[]) => startAnonymousRingsideSessionMock(...args),
 }));
 
-let mockUser: { id: string } | null = null;
+let mockUser: { id: string; is_anonymous?: boolean } | null = null;
 const signInMock = vi.fn();
 const signInWithGoogleMock = vi.fn();
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -62,6 +77,10 @@ describe('SmartSignInPage', () => {
     signInWithGoogleMock.mockReset();
     useShowQueryMock.mockReset();
     useShowQueryMock.mockReturnValue({ data: undefined });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('disables Continue until the input is a valid email or passcode', async () => {
@@ -129,6 +148,43 @@ describe('SmartSignInPage', () => {
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/shows/show-1/register'));
   });
 
+  it('passes a fresh Turnstile token into password sign-in when configured', async () => {
+    vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key');
+    signInMock.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'jane@example.com');
+    await user.click(screen.getByTestId('continue-button'));
+    await user.type(await screen.findByTestId('password-input'), 'password');
+    expect(screen.getByTestId('sign-in-button')).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Complete security check' }));
+    expect(screen.getByTestId('sign-in-button')).toBeEnabled();
+    await user.click(screen.getByTestId('sign-in-button'));
+
+    await waitFor(() =>
+      expect(signInMock).toHaveBeenCalledWith('jane@example.com', 'password', 'turnstile-token')
+    );
+  });
+
+  it('does not reuse one Turnstile token for simultaneous password submissions', async () => {
+    vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key');
+    signInMock.mockReturnValue(new Promise(() => undefined));
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'jane@example.com');
+    await user.click(screen.getByTestId('continue-button'));
+    await user.type(await screen.findByTestId('password-input'), 'password');
+    await user.click(screen.getByRole('button', { name: 'Complete security check' }));
+    const form = screen.getByTestId('sign-in-button').closest('form');
+    fireEvent.submit(form!);
+    fireEvent.submit(form!);
+
+    expect(signInMock).toHaveBeenCalledTimes(1);
+  });
+
   it('passes redirectTo into Google sign-in from the first step', async () => {
     const user = userEvent.setup();
     signInWithGoogleMock.mockResolvedValue(undefined);
@@ -167,6 +223,54 @@ describe('SmartSignInPage', () => {
     );
     expect(setGrantSpy.mock.calls[0]?.[0]).not.toHaveProperty('name');
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-x'));
+  });
+
+  it('requires Turnstile before creating an anonymous ringside session when configured', async () => {
+    vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key');
+    startAnonymousRingsideSessionMock.mockResolvedValue({
+      ok: true,
+      role: 'judge',
+      showId: 'show-x',
+      showName: 'Spring Trial',
+    });
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'j9f3b');
+    expect(screen.getByTestId('continue-button')).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Complete security check' }));
+    expect(screen.getByTestId('continue-button')).toBeEnabled();
+    await user.click(screen.getByTestId('continue-button'));
+
+    await waitFor(() =>
+      expect(startAnonymousRingsideSessionMock).toHaveBeenCalledWith('j9f3b', {
+        captchaToken: 'turnstile-token',
+        requireCaptcha: true,
+      })
+    );
+  });
+
+  it('reuses an existing anonymous session through the stamped-session orchestrator', async () => {
+    vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key');
+    mockUser = { id: 'anon-1', is_anonymous: true };
+    startAnonymousRingsideSessionMock.mockResolvedValue({
+      ok: true,
+      role: 'judge',
+      showId: 'show-x',
+      showName: 'Spring Trial',
+    });
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'j9f3b');
+    expect(
+      screen.queryByRole('button', { name: 'Complete security check' })
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('continue-button'));
+
+    await waitFor(() => expect(startAnonymousRingsideSessionMock).toHaveBeenCalledWith('j9f3b'));
+    expect(validatePasscodeMock).not.toHaveBeenCalled();
   });
 
   it('passes the optional typed name into the anonymous grant', async () => {

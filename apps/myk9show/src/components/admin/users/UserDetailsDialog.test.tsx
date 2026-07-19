@@ -2,8 +2,8 @@
  * Tests for UserDetailsDialog — Security tab (password reset actions)
  */
 
-import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import React, { forwardRef, useImperativeHandle } from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { UserDetailsDialog } from './UserDetailsDialog';
@@ -16,6 +16,20 @@ import type { User } from '@/types/user-types';
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn(),
+}));
+
+vi.mock('@/components/security/TurnstileChallenge', () => ({
+  TurnstileChallenge: forwardRef(function MockTurnstileChallenge(
+    props: { onTokenChange: (token: string | null) => void },
+    ref
+  ) {
+    useImperativeHandle(ref, () => ({ reset: () => props.onTokenChange(null) }));
+    return (
+      <button type="button" onClick={() => props.onTokenChange('turnstile-token')}>
+        Complete security check
+      </button>
+    );
+  }),
 }));
 
 // Mute sonner toasts in tests — just spy on them
@@ -116,6 +130,10 @@ describe('UserDetailsDialog — Security tab', () => {
     }));
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   describe('visibility', () => {
     it('does not show the Security tab for non-admin users', () => {
       mockUseAuthContext.mockReturnValue(makeAuthContext(false));
@@ -156,6 +174,25 @@ describe('UserDetailsDialog — Security tab', () => {
           expect.objectContaining({ redirectTo: expect.stringContaining('/auth/callback') })
         );
         expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('jane.doe@example.com'));
+      });
+    });
+
+    it('requires and forwards Turnstile verification when CAPTCHA is configured', async () => {
+      vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key');
+      mockSupabase.auth.resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
+
+      renderWithClient(<UserDetailsDialog {...defaultProps} />);
+      fireEvent.click(screen.getByRole('tab', { name: /security/i }));
+      expect(screen.getByTestId('send-reset-email-btn')).toBeDisabled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Complete security check' }));
+      fireEvent.click(screen.getByTestId('send-reset-email-btn'));
+
+      await waitFor(() => {
+        expect(mockSupabase.auth.resetPasswordForEmail).toHaveBeenCalledWith(
+          'jane.doe@example.com',
+          expect.objectContaining({ captchaToken: 'turnstile-token' })
+        );
       });
     });
 

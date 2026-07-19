@@ -23,6 +23,8 @@ export interface PasswordSubFormProps {
   submitLabel?: string;
   /** Submit button label while loading (default "Signing in..."). */
   loadingLabel?: string;
+  /** Additional submit gate, such as a pending CAPTCHA challenge. */
+  submitDisabled?: boolean;
 }
 
 export const PasswordSubForm: React.FC<PasswordSubFormProps> = ({
@@ -34,6 +36,7 @@ export const PasswordSubForm: React.FC<PasswordSubFormProps> = ({
   error,
   submitLabel = 'Sign in',
   loadingLabel = 'Signing in...',
+  submitDisabled = false,
 }) => {
   return (
     <>
@@ -70,7 +73,7 @@ export const PasswordSubForm: React.FC<PasswordSubFormProps> = ({
       <button
         type="submit"
         data-testid="sign-in-button"
-        disabled={isLoading}
+        disabled={isLoading || submitDisabled}
         className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-white transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary/90 dark:text-white dark:hover:bg-primary/80"
       >
         {isLoading ? (

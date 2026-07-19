@@ -1,8 +1,23 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { forwardRef, useImperativeHandle } from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import SignUpPage from '@/pages/SignUpPage';
+
+vi.mock('@/components/security/TurnstileChallenge', () => ({
+  TurnstileChallenge: forwardRef(function MockTurnstileChallenge(
+    props: { onTokenChange: (token: string | null) => void },
+    ref
+  ) {
+    useImperativeHandle(ref, () => ({ reset: () => props.onTokenChange(null) }));
+    return (
+      <button type="button" onClick={() => props.onTokenChange('turnstile-token')}>
+        Complete security check
+      </button>
+    );
+  }),
+}));
 
 const mockSignUp = vi.fn();
 const mockSignInWithGoogle = vi.fn();
@@ -29,6 +44,10 @@ describe('SignUpPage', () => {
     mockSignUp.mockReset();
     mockSignInWithGoogle.mockReset();
     mockResendConfirmationEmail.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('renders a Continue with Google button', () => {
@@ -175,6 +194,65 @@ describe('SignUpPage', () => {
     });
   });
 
+  it('requires and forwards Turnstile verification for email signup when configured', async () => {
+    vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key');
+    const user = userEvent.setup();
+    mockSignUp.mockResolvedValue(undefined);
+
+    render(
+      <MemoryRouter>
+        <SignUpPage />
+      </MemoryRouter>
+    );
+
+    await user.type(screen.getByLabelText(/first name/i), 'Pat');
+    await user.type(screen.getByLabelText(/last name/i), 'Morgan');
+    await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
+    await user.type(screen.getByLabelText(/^password$/i), 'password123');
+    await user.type(screen.getByLabelText(/confirm password/i), 'password123');
+    await user.click(screen.getByLabelText(/i agree to the/i));
+    expect(screen.getByRole('button', { name: /sign up/i })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Complete security check' }));
+    await user.click(screen.getByRole('button', { name: /sign up/i }));
+
+    expect(mockSignUp).toHaveBeenCalledWith(
+      'pat@example.com',
+      'password123',
+      {
+        firstName: 'Pat',
+        lastName: 'Morgan',
+        roles: ['exhibitor'],
+      },
+      'turnstile-token'
+    );
+  });
+
+  it('does not reuse one Turnstile token for simultaneous signup submissions', async () => {
+    vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key');
+    mockSignUp.mockReturnValue(new Promise(() => undefined));
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter>
+        <SignUpPage />
+      </MemoryRouter>
+    );
+
+    await user.type(screen.getByLabelText(/first name/i), 'Pat');
+    await user.type(screen.getByLabelText(/last name/i), 'Morgan');
+    await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
+    await user.type(screen.getByLabelText(/^password$/i), 'password123');
+    await user.type(screen.getByLabelText(/confirm password/i), 'password123');
+    await user.click(screen.getByLabelText(/i agree to the/i));
+    await user.click(screen.getByRole('button', { name: 'Complete security check' }));
+    const form = screen.getByRole('button', { name: /sign up/i }).closest('form');
+    fireEvent.submit(form!);
+    fireEvent.submit(form!);
+
+    expect(mockSignUp).toHaveBeenCalledTimes(1);
+  });
+
   describe('resend confirmation email', () => {
     /** Fill the form with a valid exhibitor signup and submit to reach the "Check your email" screen. */
     async function reachConfirmationScreen(user: ReturnType<typeof userEvent.setup>) {
@@ -223,6 +301,39 @@ describe('SignUpPage', () => {
 
       const button = screen.getByRole('button', { name: /resend email in \d+s/i });
       expect(button).toBeDisabled();
+    });
+
+    it('requires a fresh Turnstile token for confirmation resend when configured', async () => {
+      vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key');
+      const user = userEvent.setup();
+      mockSignUp.mockResolvedValue(undefined);
+      mockResendConfirmationEmail.mockResolvedValue(undefined);
+
+      render(
+        <MemoryRouter>
+          <SignUpPage />
+        </MemoryRouter>
+      );
+
+      await user.type(screen.getByLabelText(/first name/i), 'Pat');
+      await user.type(screen.getByLabelText(/last name/i), 'Morgan');
+      await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
+      await user.type(screen.getByLabelText(/^password$/i), 'password123');
+      await user.type(screen.getByLabelText(/confirm password/i), 'password123');
+      await user.click(screen.getByLabelText(/i agree to the/i));
+      await user.click(screen.getByRole('button', { name: 'Complete security check' }));
+      await user.click(screen.getByRole('button', { name: /sign up/i }));
+
+      expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
+      const resend = screen.getByRole('button', { name: /resend email/i });
+      expect(resend).toBeDisabled();
+      await user.click(screen.getByRole('button', { name: 'Complete security check' }));
+      await user.click(resend);
+
+      expect(mockResendConfirmationEmail).toHaveBeenCalledWith(
+        'pat@example.com',
+        'turnstile-token'
+      );
     });
   });
 });

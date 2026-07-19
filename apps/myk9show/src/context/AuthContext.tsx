@@ -71,16 +71,17 @@ export interface AuthContextType {
   user: User | null;
   userWithRoles: UserWithRoles | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, captchaToken?: string) => Promise<void>;
   signUp: (
     email: string,
     password: string,
-    metadata?: { firstName?: string; lastName?: string; roles?: string[] }
+    metadata?: { firstName?: string; lastName?: string; roles?: string[] },
+    captchaToken?: string
   ) => Promise<void>;
-  resendConfirmationEmail: (email: string) => Promise<void>;
+  resendConfirmationEmail: (email: string, captchaToken?: string) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithGoogle: (redirectTo?: string) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  resetPassword: (email: string, captchaToken?: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   updateProfile: (updates: {
     email?: string;

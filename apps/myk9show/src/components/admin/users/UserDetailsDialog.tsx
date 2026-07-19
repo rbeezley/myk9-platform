@@ -25,9 +25,6 @@ import {
   AlertCircle,
   History,
   Settings,
-  KeyRound,
-  Copy,
-  Check,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -44,14 +41,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/services/database/supabaseClient';
 import { rbacService } from '@/services/rbac/RBACService';
-import { toast } from 'sonner';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { UserSecurityActions } from './UserSecurityActions';
 
 import { User } from '@/types/user-types';
 import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { commonValidations } from '@/lib/validation';
-import { friendlyDbError } from '@/utils/friendlyDbError';
 import { z } from 'zod';
 import { format } from 'date-fns';
 
@@ -89,12 +85,6 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [newClub, setNewClub] = useState('');
-
-  // Security section state
-  const [resetEmailPending, setResetEmailPending] = useState(false);
-  const [resetLinkPending, setResetLinkPending] = useState(false);
-  const [generatedResetLink, setGeneratedResetLink] = useState<string | null>(null);
-  const [linkCopied, setLinkCopied] = useState(false);
 
   const { isAdmin } = useAuthContext();
 
@@ -160,59 +150,6 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
     form.reset(getInitialFormData());
     setGeneralError(null);
   }
-
-  // Send password reset email to target user via public auth API
-  const handleSendResetEmail = async () => {
-    const email = user.email;
-    if (!email) return;
-    setResetEmailPending(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      });
-      if (error) throw error;
-      toast.success(`Password reset email sent to ${email}`);
-    } catch (err) {
-      logger.error('Failed to send reset email:', 'admin', { email }, err as Error);
-      toast.error(friendlyDbError(err, 'Failed to send password reset email. Please try again.'));
-    } finally {
-      setResetEmailPending(false);
-    }
-  };
-
-  // Generate a one-time password recovery link via the admin edge function
-  const handleGenerateResetLink = async () => {
-    const email = user.email;
-    if (!email) return;
-    setResetLinkPending(true);
-    setGeneratedResetLink(null);
-    try {
-      const { data, error } = await supabase.functions.invoke('admin-generate-reset-link', {
-        body: { targetEmail: email },
-      });
-      if (error) throw error;
-      if (!data?.link) throw new Error('No link returned from server');
-      setGeneratedResetLink(data.link as string);
-      toast.success('Reset link generated successfully');
-    } catch (err) {
-      logger.error('Failed to generate reset link:', 'admin', { email }, err as Error);
-      toast.error(friendlyDbError(err, 'Failed to generate reset link. Please try again.'));
-    } finally {
-      setResetLinkPending(false);
-    }
-  };
-
-  // Copy generated link to clipboard
-  const handleCopyLink = async () => {
-    if (!generatedResetLink) return;
-    try {
-      await navigator.clipboard.writeText(generatedResetLink);
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    } catch {
-      toast.error('Failed to copy to clipboard');
-    }
-  };
 
   // Handle form submission
   const handleSave = form.handleSubmit(async (validatedData: UserFormData) => {
@@ -677,94 +614,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
               {/* Security Tab — site_admin only */}
               {isAdmin && (
                 <TabsContent value="security" className="space-y-6">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                      <KeyRound className="h-5 w-5" />
-                      Account Actions
-                    </h3>
-
-                    <p className="text-sm text-muted-foreground">
-                      Administrative password actions for{' '}
-                      <span className="font-medium">{user.email}</span>
-                    </p>
-
-                    <Separator />
-
-                    {/* Action 1: Send Password Reset Email */}
-                    <div className="space-y-2 p-4 border rounded">
-                      <div>
-                        <Label className="font-medium">Send Password Reset Email</Label>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Sends a password reset link to the user&apos;s email address. Use this
-                          when the user can receive email normally.
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSendResetEmail}
-                        disabled={resetEmailPending || !user.email}
-                        data-testid="send-reset-email-btn"
-                      >
-                        <Mail className="h-4 w-4 mr-2" />
-                        {resetEmailPending ? 'Sending…' : 'Send Reset Email'}
-                      </Button>
-                    </div>
-
-                    <Separator />
-
-                    {/* Action 2: Generate Reset Link */}
-                    <div className="space-y-3 p-4 border rounded">
-                      <div>
-                        <Label className="font-medium">Generate Reset Link</Label>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Generates a one-time password recovery link you can copy and share
-                          directly with the user. Use this when email delivery is unreliable.
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleGenerateResetLink}
-                        disabled={resetLinkPending || !user.email}
-                        data-testid="generate-reset-link-btn"
-                      >
-                        <KeyRound className="h-4 w-4 mr-2" />
-                        {resetLinkPending ? 'Generating…' : 'Generate Reset Link'}
-                      </Button>
-
-                      {generatedResetLink && (
-                        <div className="space-y-2 mt-2">
-                          <Label className="text-sm font-medium">Generated Link</Label>
-                          <div className="flex gap-2">
-                            <Input
-                              readOnly
-                              value={generatedResetLink}
-                              className="font-mono text-xs"
-                              data-testid="reset-link-input"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleCopyLink}
-                              data-testid="copy-reset-link-btn"
-                              aria-label="Copy reset link"
-                            >
-                              {linkCopied ? (
-                                <Check className="h-4 w-4" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            This link expires after use or after a short time. Do not share it
-                            publicly.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <UserSecurityActions email={user.email} />
                 </TabsContent>
               )}
 

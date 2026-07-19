@@ -108,13 +108,14 @@ describe('useAuth', () => {
       const { result } = renderHook(() => useAuth());
 
       await act(async () => {
-        await result.current.signUp('test@example.com', 'password123');
+        await result.current.signUp('test@example.com', 'password123', undefined, 'captcha-token');
       });
 
       expect(mockSupabase.auth.signUp).toHaveBeenCalledWith(
         expect.objectContaining({
           email: 'test@example.com',
           password: 'password123',
+          options: expect.objectContaining({ captchaToken: 'captcha-token' }),
         })
       );
     });
@@ -177,12 +178,13 @@ describe('useAuth', () => {
       const { result } = renderHook(() => useAuth());
 
       await act(async () => {
-        await result.current.resendConfirmationEmail('test@example.com');
+        await result.current.resendConfirmationEmail('test@example.com', 'captcha-token');
       });
 
       expect(mockSupabase.auth.resend).toHaveBeenCalledWith({
         type: 'signup',
         email: 'test@example.com',
+        options: { captchaToken: 'captcha-token' },
       });
     });
 
@@ -208,12 +210,13 @@ describe('useAuth', () => {
       const { result } = renderHook(() => useAuth());
 
       await act(async () => {
-        await result.current.signIn('test@example.com', 'password');
+        await result.current.signIn('test@example.com', 'password', 'captcha-token');
       });
 
       expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalledWith({
         email: 'test@example.com',
         password: 'password',
+        options: { captchaToken: 'captcha-token' },
       });
     });
 
@@ -303,11 +306,12 @@ describe('useAuth', () => {
       const { result } = renderHook(() => useAuth());
 
       await act(async () => {
-        await result.current.resetPassword('test@example.com');
+        await result.current.resetPassword('test@example.com', 'captcha-token');
       });
 
       expect(mockSupabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('test@example.com', {
         redirectTo: `${window.location.origin}/auth/callback`,
+        captchaToken: 'captcha-token',
       });
     });
 

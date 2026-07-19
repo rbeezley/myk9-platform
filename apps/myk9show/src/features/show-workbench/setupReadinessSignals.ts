@@ -1,7 +1,13 @@
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ShowWorkbenchClassSummary } from './showWorkbenchTypes';
-import { classifyPremiumPublishState } from './premiumPublishState';
+import { classifyPremiumPublishState, type PremiumPublishStateInput } from './premiumPublishState';
+import {
+  isShowListingLive,
+  LANDING_CARD_ANCHOR,
+  PREMIUM_CARD_ANCHOR,
+  SHOW_STATUS_CONTROL_ANCHOR,
+} from './publishReadiness';
 import { getClassManagementHref } from '@/components/classes/classManagementFilters';
 
 export type SetupReadinessSignalId =
@@ -9,7 +15,9 @@ export type SetupReadinessSignalId =
   | 'no-trials'
   | 'no-classes'
   | 'judges-missing'
-  | 'exhibitor-materials-unpublished';
+  | 'show-not-visible'
+  | 'exhibitor-materials-unpublished'
+  | 'landing-content-unpublished';
 
 export interface SetupReadinessSignal {
   id: SetupReadinessSignalId;
@@ -32,6 +40,12 @@ export interface SetupReadinessInput {
   trials: SyncableTrial[];
   classes: ShowWorkbenchClassSummary[];
   judges: unknown[];
+  /**
+   * Fresher premium-publish columns fetched directly (usePublishInfo). The
+   * replicated show row doesn't carry published_premium_url/at, so without
+   * this override a published premium would always read as unpublished.
+   */
+  premiumInfo?: PremiumPublishStateInput;
 }
 
 function hasText(value: string | null | undefined): boolean {
@@ -93,18 +107,32 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
   if (!judgesAssigned(input)) {
     signals.push({ id: 'judges-missing', label: 'Judges not assigned', href: classWorkHref });
   }
-  const premiumState = classifyPremiumPublishState(input.show);
+  if (!isShowListingLive(input.show.status)) {
+    signals.push({
+      id: 'show-not-visible',
+      label: 'Show not visible to exhibitors',
+      href: `#${SHOW_STATUS_CONTROL_ANCHOR}`,
+    });
+  }
+  const premiumState = classifyPremiumPublishState(input.premiumInfo ?? input.show);
   if (premiumState === 'published-stale') {
     signals.push({
       id: 'exhibitor-materials-unpublished',
-      label: 'Exhibitor info changed since publish',
-      href: `#${SETUP_PUBLISH_ANCHOR}`,
+      label: 'Premium changed since publish',
+      href: `#${PREMIUM_CARD_ANCHOR}`,
     });
   } else if (premiumState === 'unpublished') {
     signals.push({
       id: 'exhibitor-materials-unpublished',
-      label: 'Exhibitor info not published yet',
-      href: `#${SETUP_PUBLISH_ANCHOR}`,
+      label: 'Premium not published yet',
+      href: `#${PREMIUM_CARD_ANCHOR}`,
+    });
+  }
+  if (!input.show.experienceIsPublished) {
+    signals.push({
+      id: 'landing-content-unpublished',
+      label: 'Landing page not published',
+      href: `#${LANDING_CARD_ANCHOR}`,
     });
   }
   return signals;

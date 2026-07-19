@@ -1,8 +1,13 @@
 import type { Show } from '@/types/show-types';
-import { SETUP_PUBLISH_ANCHOR } from './setupReadinessSignals';
 import { classifyPremiumPublishState, type PremiumPublishStateInput } from './premiumPublishState';
 
 export const SHOW_STATUS_CONTROL_ANCHOR = 'show-status-control';
+// Distinct anchors for the two cards inside the shared #setup-publish row
+// (see SETUP_PUBLISH_ANCHOR in setupReadinessSignals.ts). Each checklist item
+// must land on the exact control it fixes, not just "somewhere in the row" —
+// rendered on PremiumDownloadCard / LandingPageCard themselves.
+export const PREMIUM_CARD_ANCHOR = 'setup-publish-premium';
+export const LANDING_CARD_ANCHOR = 'setup-publish-landing';
 
 export type PublishReadinessItemId = 'show-visibility' | 'premium-pdf' | 'landing-content';
 
@@ -16,7 +21,7 @@ export interface PublishReadinessItem {
   isReady: boolean;
 }
 
-function isShowListingLive(status: string | null | undefined): boolean {
+export function isShowListingLive(status: string | null | undefined): boolean {
   return ['published', 'upcoming', 'in_progress', 'completed'].includes(
     (status ?? '').toLowerCase()
   );
@@ -62,7 +67,7 @@ export function buildPublishReadinessItems(
         : premiumPublished
           ? 'Republish premium PDF'
           : 'Publish premium PDF',
-      href: `#${SETUP_PUBLISH_ANCHOR}`,
+      href: `#${PREMIUM_CARD_ANCHOR}`,
       isReady: premiumCurrent,
     },
     {
@@ -75,7 +80,7 @@ export function buildPublishReadinessItems(
         ? 'The public landing page is using the saved exhibitor copy and show style.'
         : 'Publishing the premium list also snapshots the exhibitor-facing landing content.',
       actionLabel: landingPublished ? 'View landing actions' : 'Publish landing content',
-      href: `#${SETUP_PUBLISH_ANCHOR}`,
+      href: `#${LANDING_CARD_ANCHOR}`,
       isReady: landingPublished,
     },
   ];

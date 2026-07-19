@@ -36,15 +36,34 @@ describe('SetupAdaptiveHeader', () => {
         signals={[
           {
             id: 'exhibitor-materials-unpublished',
-            label: 'Exhibitor info not published yet',
-            href: '#setup-publish',
+            label: 'Premium not published yet',
+            href: '#setup-publish-premium',
+          },
+          {
+            id: 'landing-content-unpublished',
+            label: 'Landing page not published',
+            href: '#setup-publish-landing',
           },
         ]}
       />
     );
+    expect(screen.getByRole('link', { name: 'Premium not published yet' })).toHaveAttribute(
+      'href',
+      '#setup-publish-premium'
+    );
+    expect(screen.getByRole('link', { name: 'Landing page not published' })).toHaveAttribute(
+      'href',
+      '#setup-publish-landing'
+    );
+  });
+
+  it('mentions the landing page in the calm ready-state summary', () => {
+    render(<SetupAdaptiveHeader signals={[]} />);
     expect(
-      screen.getByRole('link', { name: 'Exhibitor info not published yet' })
-    ).toHaveAttribute('href', '#setup-publish');
+      screen.getByText(
+        'Show details, trials, classes, judges, the premium list, and the landing page are all live.'
+      )
+    ).toBeInTheDocument();
   });
 
   it('uses singular vs plural copy correctly', () => {

@@ -13,6 +13,7 @@ function show(overrides: Partial<Show> = {}): Show {
     endDate: '2026-06-02',
     location: 'Louisville, KY',
     clubName: 'Calm Canine Club',
+    status: 'published',
     publishedPremiumUrl: 'https://example.com/premium.pdf',
     publishedPremiumAt: '2026-05-01T00:00:00Z',
     experienceIsPublished: true,
@@ -144,25 +145,21 @@ describe('computeSetupReadinessSignals', () => {
     expect(signals.find(s => s.id === 'judges-missing')).toBeUndefined();
   });
 
-  it('emits exhibitor-materials-unpublished when premium AND experience are both unset', () => {
+  it('emits show-not-visible pointing at the show-status control when the show is draft', () => {
     const signals = computeSetupReadinessSignals({
-      show: show({
-        publishedPremiumUrl: '',
-        publishedPremiumAt: '',
-        experienceIsPublished: false,
-      }),
+      show: show({ status: 'draft' }),
       trials: [trial()],
       classes: [cls()],
       judges: ['j1'],
     });
     expect(signals).toContainEqual({
-      id: 'exhibitor-materials-unpublished',
-      label: 'Exhibitor info not published yet',
-      href: '#setup-publish',
+      id: 'show-not-visible',
+      label: 'Show not visible to exhibitors',
+      href: '#show-status-control',
     });
   });
 
-  it('still requires premium PDF when landing content is published', () => {
+  it('emits the premium signal pointing at the premium card when premium is unset', () => {
     const signals = computeSetupReadinessSignals({
       show: show({
         publishedPremiumUrl: '',
@@ -175,9 +172,26 @@ describe('computeSetupReadinessSignals', () => {
     });
     expect(signals).toContainEqual({
       id: 'exhibitor-materials-unpublished',
-      label: 'Exhibitor info not published yet',
-      href: '#setup-publish',
+      label: 'Premium not published yet',
+      href: '#setup-publish-premium',
     });
+  });
+
+  it('emits a landing-content signal pointing at the landing card when unpublished', () => {
+    const signals = computeSetupReadinessSignals({
+      show: show({ experienceIsPublished: false }),
+      trials: [trial()],
+      classes: [cls()],
+      judges: ['j1'],
+    });
+    expect(signals).toContainEqual({
+      id: 'landing-content-unpublished',
+      label: 'Landing page not published',
+      href: '#setup-publish-landing',
+    });
+    // Landing content is a distinct task from the premium PDF: it must not
+    // ride on the premium signal's anchor.
+    expect(signals.find(s => s.id === 'exhibitor-materials-unpublished')).toBeUndefined();
   });
 
   it('emits a republish signal when published premium data is stale', () => {
@@ -195,9 +209,39 @@ describe('computeSetupReadinessSignals', () => {
 
     expect(signals).toContainEqual({
       id: 'exhibitor-materials-unpublished',
-      label: 'Exhibitor info changed since publish',
-      href: '#setup-publish',
+      label: 'Premium changed since publish',
+      href: '#setup-publish-premium',
     });
+  });
+
+  it('reads premium state from the premiumInfo override when the show row lacks it', () => {
+    const signals = computeSetupReadinessSignals({
+      show: show({ publishedPremiumUrl: '', publishedPremiumAt: '' }),
+      trials: [trial()],
+      classes: [cls()],
+      judges: ['j1'],
+      premiumInfo: {
+        publishedPremiumUrl: 'https://example.com/premium.pdf',
+        publishedPremiumAt: '2026-05-01T00:00:00Z',
+        updatedAt: '2026-05-01T00:00:00Z',
+      },
+    });
+    expect(signals.find(s => s.id === 'exhibitor-materials-unpublished')).toBeUndefined();
+  });
+
+  it('gives every open signal its own distinct destination', () => {
+    const signals = computeSetupReadinessSignals({
+      show: show({
+        status: 'draft',
+        publishedPremiumUrl: '',
+        publishedPremiumAt: '',
+        experienceIsPublished: false,
+      }),
+      trials: [trial()],
+      classes: [cls()],
+      judges: ['j1'],
+    });
+    expect(new Set(signals.map(s => s.href)).size).toBe(signals.length);
   });
 });
 

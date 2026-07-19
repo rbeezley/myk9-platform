@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Show } from '@/types/show-types';
-import { SETUP_PUBLISH_ANCHOR } from '../setupReadinessSignals';
-import { SHOW_STATUS_CONTROL_ANCHOR, buildPublishReadinessItems } from '../publishReadiness';
+import {
+  LANDING_CARD_ANCHOR,
+  PREMIUM_CARD_ANCHOR,
+  SHOW_STATUS_CONTROL_ANCHOR,
+  buildPublishReadinessItems,
+} from '../publishReadiness';
 
 function show(overrides: Partial<Show> = {}): Show {
   return {
@@ -47,8 +51,10 @@ describe('buildPublishReadinessItems', () => {
       'Landing page content is not published yet',
     ]);
     expect(items[0]?.href).toBe(`#${SHOW_STATUS_CONTROL_ANCHOR}`);
-    expect(items[1]?.href).toBe(`#${SETUP_PUBLISH_ANCHOR}`);
-    expect(items[2]?.href).toBe(`#${SETUP_PUBLISH_ANCHOR}`);
+    expect(items[1]?.href).toBe(`#${PREMIUM_CARD_ANCHOR}`);
+    expect(items[2]?.href).toBe(`#${LANDING_CARD_ANCHOR}`);
+    // Every item must land on its own control, not a shared broad anchor.
+    expect(new Set(items.map(item => item.href)).size).toBe(3);
   });
 
   it('marks each state ready independently', () => {

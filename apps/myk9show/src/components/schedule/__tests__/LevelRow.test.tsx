@@ -10,6 +10,7 @@ const level = (status: ClassStatusValue): LevelDetail => ({
   level: 'Novice',
   status,
   entryCount: 3,
+  startTime: null,
 });
 
 describe('LevelRow', () => {

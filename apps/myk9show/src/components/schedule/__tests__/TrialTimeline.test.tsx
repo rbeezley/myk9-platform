@@ -17,8 +17,8 @@ const mockData: JudgeTimelineData[] = [
         levelRange: 'Novice–Master',
         status: CLASS_STATUS.COMPLETED,
         levels: [
-          { classId: 'c1', level: 'Novice', status: CLASS_STATUS.COMPLETED, entryCount: 12 },
-          { classId: 'c2', level: 'Advanced', status: CLASS_STATUS.COMPLETED, entryCount: 8 },
+          { classId: 'c1', level: 'Novice', status: CLASS_STATUS.COMPLETED, entryCount: 12, startTime: null },
+          { classId: 'c2', level: 'Advanced', status: CLASS_STATUS.COMPLETED, entryCount: 8, startTime: null },
         ],
         completedCount: 2,
         totalCount: 2,
@@ -29,8 +29,8 @@ const mockData: JudgeTimelineData[] = [
         levelRange: 'Nov–Adv',
         status: CLASS_STATUS.IN_PROGRESS,
         levels: [
-          { classId: 'c3', level: 'Novice', status: CLASS_STATUS.COMPLETED, entryCount: 10 },
-          { classId: 'c4', level: 'Advanced', status: CLASS_STATUS.IN_PROGRESS, entryCount: 8 },
+          { classId: 'c3', level: 'Novice', status: CLASS_STATUS.COMPLETED, entryCount: 10, startTime: null },
+          { classId: 'c4', level: 'Advanced', status: CLASS_STATUS.IN_PROGRESS, entryCount: 8, startTime: null },
         ],
         completedCount: 1,
         totalCount: 2,

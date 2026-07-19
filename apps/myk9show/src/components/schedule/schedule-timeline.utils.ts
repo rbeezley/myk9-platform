@@ -130,6 +130,7 @@ function buildElementSummary(elementName: string, classes: ClassRowLike[]): Elem
     level: c.level ?? elementName,
     status: normalizeClassStatus(c.status),
     entryCount: c.totalEntriesCount,
+    startTime: c.startTime,
   }));
 
   // Sort by progression order

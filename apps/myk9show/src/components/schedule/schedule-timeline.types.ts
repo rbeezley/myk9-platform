@@ -48,6 +48,8 @@ export interface LevelDetail {
   level: string;
   status: ClassStatusValue;
   entryCount: number;
+  /** This level-class's own start time (raw DB value), for inline editing. */
+  startTime: string | null;
 }
 
 /** A single trial's timeline data */

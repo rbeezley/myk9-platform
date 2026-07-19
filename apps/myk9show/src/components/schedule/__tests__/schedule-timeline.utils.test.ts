@@ -23,6 +23,7 @@ function makeLevelDetail(
   return {
     classId: 'cls-1',
     entryCount: 0,
+    startTime: null,
     ...overrides,
   };
 }

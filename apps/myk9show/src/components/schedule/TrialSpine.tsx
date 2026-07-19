@@ -89,6 +89,8 @@ export function TrialSpine({ trial, showId }: TrialSpineProps) {
                     href={href}
                     ariaLabel={ariaLabel}
                     entryCount={entryCount}
+                    showId={showId}
+                    trialId={trial.trialId}
                   />
                 </div>
               </div>

@@ -1,10 +1,16 @@
-import { renderHook, act } from '@testing-library/react';
 import React from 'react';
+import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  subscribeToShowChanges,
+  type ShowChangeListener,
+  type ShowChangeStatusListener,
+} from '@/features/show-live-sync/showChangeSignal';
 import { useTVRealtime } from '../useTVRealtime';
-import { supabase } from '@/services/database/supabaseClient';
 
-vi.mock('@/services/database/supabaseClient');
+vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
+  subscribeToShowChanges: vi.fn(),
+}));
 
 function makeWrapper() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -16,51 +22,66 @@ function makeWrapper() {
 }
 
 describe('useTVRealtime', () => {
-  let mockChannel: {
-    on: ReturnType<typeof vi.fn>;
-    subscribe: ReturnType<typeof vi.fn>;
-  };
-  let subscribeCallback: ((status: string) => void) | null;
+  let changeHandler: ShowChangeListener | undefined;
+  let statusHandler: ShowChangeStatusListener | undefined;
+  let unsubscribe: ReturnType<typeof subscribeToShowChanges>;
 
   beforeEach(() => {
-    subscribeCallback = null;
-    mockChannel = {
-      on: vi.fn().mockReturnThis(),
-      subscribe: vi.fn((cb?: (status: string) => void) => {
-        if (cb) subscribeCallback = cb;
-        return mockChannel;
-      }),
-    };
-    vi.mocked(supabase.channel).mockReturnValue(mockChannel as never);
-    vi.mocked(supabase.removeChannel).mockResolvedValue('ok' as never);
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    changeHandler = undefined;
+    statusHandler = undefined;
+    unsubscribe = vi.fn();
+    vi.mocked(subscribeToShowChanges).mockImplementation((_showId, onChange, onStatus) => {
+      changeHandler = onChange;
+      statusHandler = onStatus;
+      return unsubscribe;
+    });
   });
 
-  it('creates a channel on mount', () => {
-    const { Wrapper } = makeWrapper();
+  afterEach(() => vi.useRealTimers());
+
+  it('subscribes through the shared show channel and invalidates on a signal', () => {
+    const { Wrapper, qc } = makeWrapper();
+    const invalidate = vi.spyOn(qc, 'invalidateQueries');
     renderHook(() => useTVRealtime('show-1'), { wrapper: Wrapper });
-    expect(supabase.channel).toHaveBeenCalledWith('tv:show-1');
+
+    expect(subscribeToShowChanges).toHaveBeenCalledWith(
+      'show-1',
+      expect.any(Function),
+      expect.any(Function)
+    );
+    act(() => changeHandler?.({ table: 'entries' }));
+    expect(invalidate).toHaveBeenCalledTimes(2);
   });
 
-  it('removes channel on unmount', () => {
+  it('reports connected when subscribed and polls after a channel error', () => {
+    const { Wrapper, qc } = makeWrapper();
+    const invalidate = vi.spyOn(qc, 'invalidateQueries');
+    const { result } = renderHook(() => useTVRealtime('show-1'), { wrapper: Wrapper });
+
+    act(() => statusHandler?.('SUBSCRIBED'));
+    expect(result.current.isConnected).toBe(true);
+
+    invalidate.mockClear();
+    act(() => {
+      statusHandler?.('CHANNEL_ERROR');
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(result.current.isConnected).toBe(false);
+    expect(invalidate).toHaveBeenCalledTimes(2);
+  });
+
+  it('unsubscribes on unmount', () => {
     const { Wrapper } = makeWrapper();
     const { unmount } = renderHook(() => useTVRealtime('show-1'), { wrapper: Wrapper });
     unmount();
-    expect(supabase.removeChannel).toHaveBeenCalled();
-  });
-
-  it('reports connected when subscribed', () => {
-    const { Wrapper } = makeWrapper();
-    const { result } = renderHook(() => useTVRealtime('show-1'), { wrapper: Wrapper });
-    expect(result.current.isConnected).toBe(false);
-    act(() => {
-      subscribeCallback?.('SUBSCRIBED');
-    });
-    expect(result.current.isConnected).toBe(true);
+    expect(unsubscribe).toHaveBeenCalledOnce();
   });
 
   it('does nothing when showId is empty', () => {
     const { Wrapper } = makeWrapper();
     renderHook(() => useTVRealtime(''), { wrapper: Wrapper });
-    expect(supabase.channel).not.toHaveBeenCalled();
+    expect(subscribeToShowChanges).not.toHaveBeenCalled();
   });
 });

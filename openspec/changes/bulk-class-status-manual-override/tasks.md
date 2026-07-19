@@ -40,11 +40,11 @@
 
 ## 3. Verification and ship gate
 
-- [ ] 3.1 Run focused suites: `pnpm vitest run` on the touched test files; then
+- [x] 3.1 Run focused suites: `pnpm vitest run` on the touched test files; then
       `cd apps/myk9show && pnpm test` for the affected shards.
-- [ ] 3.2 `pnpm typecheck` and `pnpm lint` (eslint `--max-warnings 0`) clean;
+- [x] 3.2 `pnpm typecheck` and `pnpm lint` (eslint `--max-warnings 0`) clean;
       `pnpm qa:code-quality-ratchet` not regressed (no file pushed over 500 lines).
-- [ ] 3.3 Browser verification on a worktree dev server: bulk-start two scheduled classes
+- [x] 3.3 Browser verification on a worktree dev server: bulk-start two scheduled classes
       (label shows eligible count, statuses flip, toast summary), row status change while
       offline queues instead of failing, retry path sane.
 - [ ] 3.4 PR, CI green, Codex second-opinion review, merge to main (gate for archive).

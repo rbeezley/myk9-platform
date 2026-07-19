@@ -1907,6 +1907,30 @@ describe('ReplicatedEntriesTable', () => {
       expect(maybeSingle).not.toHaveBeenCalled();
     });
 
+    it('does not resurrect an entry deleted while its hydration fetch was in flight', async () => {
+      // The delete lands AFTER the _deletedIds pre-check but BEFORE the fetch
+      // resolves — the race the resurrection guard must still win.
+      let resolveFetch: (value: { data: unknown; error: unknown }) => void;
+      const pendingFetch = new Promise<{ data: unknown; error: unknown }>(resolve => {
+        resolveFetch = resolve;
+      });
+      const maybeSingle = vi.fn(() => pendingFetch);
+      const eq = vi.fn(() => ({ maybeSingle }));
+      const select = vi.fn(() => ({ eq }));
+      vi.mocked(supabase.from).mockReturnValueOnce(fromAny({ select }));
+
+      const writePromise = table.updateCheckInStatus('entry-race', 'checked-in');
+      // Attach the rejection assertion immediately so Node never sees an
+      // unhandled-rejection window while the awaits below run.
+      const assertion = expect(writePromise).rejects.toThrow('Entry entry-race not found');
+      await Promise.resolve(); // let the fetch start
+      await table.deleteEntry('entry-race');
+      resolveFetch!({ data: { ...serverRow, id: 'entry-race' }, error: null });
+
+      await assertion;
+      expect(await table.get('entry-race')).toBeNull();
+    });
+
     it('hydrates updateEntry writes too (day-of scratch path)', async () => {
       mockViewSingleRowFetch({ data: serverRow, error: null });
 

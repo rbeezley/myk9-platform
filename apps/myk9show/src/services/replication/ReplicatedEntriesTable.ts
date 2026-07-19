@@ -225,7 +225,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           .eq('id', entryId)
           .maybeSingle();
 
-        if (!error && data) {
+        // Re-check after the await: a deleteEntry() for this id may have landed
+        // while the fetch was in flight, and must still win the race.
+        if (!error && data && !this._deletedIds.has(entryId)) {
           const row = data as unknown as EntryRow;
           const hydrated = rowToEntry(row);
           const serverVersion = (row as Record<string, unknown>).version as number | undefined;

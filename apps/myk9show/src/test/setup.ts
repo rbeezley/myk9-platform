@@ -25,10 +25,6 @@ vi.mock('@/services/database/supabaseClient', () => ({
   checkDatabaseConnection: vi.fn().mockResolvedValue({ connected: true, latency: 1 }),
   getCurrentUser: vi.fn().mockResolvedValue({ user: null, error: null }),
   signOut: vi.fn().mockResolvedValue({ error: null }),
-  createRealtimeSubscription: vi.fn().mockReturnValue({
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
-  }),
   logQuery: vi.fn(),
   createDatabaseError: vi.fn((err: unknown, table?: string, operation?: string) => ({
     name: 'DatabaseError',

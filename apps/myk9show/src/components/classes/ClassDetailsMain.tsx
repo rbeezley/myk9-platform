@@ -37,7 +37,7 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   onDeleteEntry,
   onOpenRequirements,
 }) => {
-  useCheckInStatusSubscription(classData?.id);
+  useCheckInStatusSubscription(parentShow?.id, classData?.id);
 
   // Check if this is a Scent Work show
   const isScentWork = isScentWorkShow(parentShow);

@@ -4,7 +4,6 @@ export { EventEmitter } from './eventEmitter';
 export { SyncConflictResolver } from './SyncConflictResolver';
 export { SyncQueue } from './SyncQueue';
 export { QueueManager } from './queueManager';
-export { RealtimeManager } from './realtimeManager';
 export { NetworkMonitor } from './networkMonitor';
 
 // Performance optimization services

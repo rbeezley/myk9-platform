@@ -1,71 +1,52 @@
 import { renderHook } from '@testing-library/react';
-import { useCheckInStatusSubscription } from './useCheckInStatusSubscription';
-import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
+import {
+  subscribeToShowChanges,
+  type ShowChangeListener,
+} from '@/features/show-live-sync/showChangeSignal';
+import { useCheckInStatusSubscription } from './useCheckInStatusSubscription';
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    channel: vi.fn(),
-  },
+vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
+  subscribeToShowChanges: vi.fn(),
 }));
-
-vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: vi.fn(),
-}));
+vi.mock('@tanstack/react-query', () => ({ useQueryClient: vi.fn() }));
 
 describe('useCheckInStatusSubscription', () => {
-  const mockChannel = {
-    on: vi.fn().mockReturnThis(),
-    subscribe: vi.fn().mockResolvedValue('SUBSCRIBED'),
-  };
-  const mockRemoveChannel = vi.fn();
-  const mockInvalidateQueries = vi.fn();
+  const invalidateQueries = vi.fn();
+  const unsubscribe = vi.fn();
+  let changeHandler: ShowChangeListener | undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (supabase.channel as ReturnType<typeof vi.fn>).mockReturnValue(mockChannel);
-    (supabase as unknown as { removeChannel: ReturnType<typeof vi.fn> }).removeChannel =
-      mockRemoveChannel;
-    (useQueryClient as ReturnType<typeof vi.fn>).mockReturnValue({
-      invalidateQueries: mockInvalidateQueries,
+    changeHandler = undefined;
+    vi.mocked(useQueryClient).mockReturnValue({ invalidateQueries } as never);
+    vi.mocked(subscribeToShowChanges).mockImplementation((_showId, handler) => {
+      changeHandler = handler;
+      return unsubscribe;
     });
   });
 
-  it('subscribes to the correct channel on mount', () => {
-    renderHook(() => useCheckInStatusSubscription('class-123'));
-    expect(supabase.channel).toHaveBeenCalledWith('checkin:class-123');
-    expect(mockChannel.on).toHaveBeenCalledWith(
-      'postgres_changes',
-      expect.objectContaining({
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'entries',
-        filter: 'class_id=eq.class-123',
-      }),
-      expect.any(Function)
-    );
-    expect(mockChannel.subscribe).toHaveBeenCalled();
-  });
+  it('invalidates the class entries query from the parent show signal', () => {
+    renderHook(() => useCheckInStatusSubscription('show-1', 'class-123'));
 
-  it('does not subscribe when classId is undefined', () => {
-    renderHook(() => useCheckInStatusSubscription(undefined));
-    expect(supabase.channel).not.toHaveBeenCalled();
-  });
-
-  it('cleans up channel on unmount', () => {
-    const { unmount } = renderHook(() => useCheckInStatusSubscription('class-123'));
-    unmount();
-    expect(mockRemoveChannel).toHaveBeenCalledWith(mockChannel);
-  });
-
-  it('invalidates queries when a change event fires', () => {
-    renderHook(() => useCheckInStatusSubscription('class-123'));
-    // Get the callback passed to .on()
-    const onCallback = mockChannel.on.mock.calls[0][2];
-    // Simulate a Postgres change event
-    onCallback({ new: { id: 'entry-1', check_in_status: 'checked-in' } });
-    expect(mockInvalidateQueries).toHaveBeenCalledWith({
+    expect(subscribeToShowChanges).toHaveBeenCalledWith('show-1', expect.any(Function));
+    changeHandler?.({ table: 'entries' });
+    expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: ['classes', 'class-123', 'entries'],
     });
+  });
+
+  it('does not subscribe without both show and class IDs', () => {
+    renderHook(() => useCheckInStatusSubscription(undefined, 'class-123'));
+    renderHook(() => useCheckInStatusSubscription('show-1', undefined));
+
+    expect(subscribeToShowChanges).not.toHaveBeenCalled();
+  });
+
+  it('unsubscribes on unmount', () => {
+    const { unmount } = renderHook(() => useCheckInStatusSubscription('show-1', 'class-123'));
+    unmount();
+
+    expect(unsubscribe).toHaveBeenCalledOnce();
   });
 });

@@ -117,9 +117,6 @@ export {
   type UseFavoriteClassesReturn,
 } from './pages/ClassList';
 
-// Realtime class hook (PR E1d — already-DI'd; no RingsideProvider needed)
-export { useClassRealtime } from './pages/ClassList';
-
 // ── Pages: EntryList (PR E2a + E2b) ──────────────────────────────────────
 // E2a moved pure helpers + state hooks. E2b moved `useEntryListData` (the
 // React Query data orchestrator) using the direct-arg DI pattern from

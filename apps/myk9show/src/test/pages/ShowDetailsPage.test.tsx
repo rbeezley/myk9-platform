@@ -69,6 +69,13 @@ vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
     isError: mockShowEntriesError,
     refetch: refetchShowEntriesMock,
   }),
+  useSecretaryShowEntriesQuery: () => ({
+    data: mockShowEntries,
+    isLoading: mockShowEntriesLoading,
+    isSuccess: !mockShowEntriesLoading && !mockShowEntriesError,
+    isError: mockShowEntriesError,
+    refetch: refetchShowEntriesMock,
+  }),
 }));
 
 vi.mock('@/services/database/entries', async () => {
@@ -746,6 +753,7 @@ describe('ShowDetailsPage', () => {
       { id: 'replicated-entry-1', show_id: 'show-1', class_id: 'class-1' },
       { id: 'replicated-entry-2', show_id: 'show-1', class_id: 'class-1' },
     ];
+    mockShowEntriesError = true;
     mockTrials = [
       {
         id: 'trial-1',
@@ -758,7 +766,6 @@ describe('ShowDetailsPage', () => {
     mockTrialClasses = {
       'trial-1': [{ id: 'class-1', element: 'Container', level: 'Novice' }],
     };
-    getEntriesForShowMock.mockRejectedValue(new Error('offline'));
 
     renderPage('show-1', '', '?tab=map');
 

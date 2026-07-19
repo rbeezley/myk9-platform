@@ -55,6 +55,22 @@ const PRIORITY_ORDER: Record<ShowDeskPendingSignalPriority, number> = {
   medium: 2,
 };
 
+/**
+ * How each chip behaves when clicked, mirroring ShowDeskPanel's
+ * handlePendingSignal routing: 'navigate' chips leave Show Desk for the
+ * canonical owner page; 'filter' chips apply a local Show Map lens. The
+ * header renders a distinct affordance per kind (arrow vs filter icon) so
+ * visually similar chips stop implying identical behavior (MYK9-64 F3).
+ */
+export const SHOW_DESK_SIGNAL_INTERACTION: Record<ShowDeskPendingSignalId, 'navigate' | 'filter'> =
+  {
+    'entries-waiting-review': 'navigate',
+    'entries-waiting-checkin': 'filter',
+    'entries-payment-due': 'navigate',
+    'classes-needing-signature': 'filter',
+    'results-pending-closeout': 'navigate',
+  };
+
 function lower(value: string | null | undefined): string {
   return (value ?? '').toLowerCase();
 }
@@ -67,10 +83,7 @@ function countEntriesWaitingReview(entries: readonly EntryLike[]): number {
 // checked in at the gate. Pre-acceptance states (submitted, draft, pending) and
 // terminal states (scratched, no-show, withdrawn) are excluded — they'd either
 // double-count against waiting-for-review or shouldn't show at the gate at all.
-const RUN_ORDER_ELIGIBLE_ENTRY_STATUSES: ReadonlySet<string> = new Set([
-  'accepted',
-  'confirmed',
-]);
+const RUN_ORDER_ELIGIBLE_ENTRY_STATUSES: ReadonlySet<string> = new Set(['accepted', 'confirmed']);
 
 function countEntriesWaitingCheckIn(entries: readonly EntryLike[]): number {
   // INTENT: Treat missing / null / empty / 'no-status' all as "not yet checked in".
@@ -120,7 +133,9 @@ export function computeShowDeskPendingSignals({
       id: 'entries-waiting-review',
       count: waitingReview,
       priority: 'highest',
-      label: `${waitingReview} pending ${waitingReview === 1 ? 'entry' : 'entries'}`,
+      // Verb-first: the chip is the single route to pending-review work
+      // (MYK9-64 F1/F3) — it names the action, not just the count.
+      label: `Review ${waitingReview} ${waitingReview === 1 ? 'entry' : 'entries'}`,
       href: getEntryManagementHref({ showId, attention: 'pending', mode: 'review' }),
       scope,
     });
@@ -132,7 +147,7 @@ export function computeShowDeskPendingSignals({
       id: 'entries-waiting-checkin',
       count: waitingCheckIn,
       priority: 'high',
-      label: `${waitingCheckIn} ${waitingCheckIn === 1 ? 'entry' : 'entries'} waiting for check-in`,
+      label: `Check in ${waitingCheckIn} ${waitingCheckIn === 1 ? 'entry' : 'entries'}`,
       href: getEntryManagementHref({ showId, attention: 'accepted', mode: 'day-of' }),
       scope,
     });
@@ -144,7 +159,7 @@ export function computeShowDeskPendingSignals({
       id: 'entries-payment-due',
       count: paymentDue,
       priority: 'high',
-      label: `${paymentDue} ${paymentDue === 1 ? 'entry' : 'entries'} with payment due`,
+      label: `Resolve ${paymentDue} ${paymentDue === 1 ? 'payment' : 'payments'}`,
       href: getEntryManagementHref({
         showId,
         attention: 'accepted',
@@ -183,9 +198,7 @@ export function computeShowDeskPendingSignals({
       id: 'results-pending-closeout',
       count: pendingCloseout,
       priority: 'medium',
-      label: `${pendingCloseout} ${
-        pendingCloseout === 1 ? 'result' : 'results'
-      } pending closeout`,
+      label: `Close out ${pendingCloseout} ${pendingCloseout === 1 ? 'result' : 'results'}`,
       href: null,
       scope,
     });

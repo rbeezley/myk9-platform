@@ -136,7 +136,10 @@ describe('ShowDeskPanel', () => {
       { initialRoute: '/secretary/show-map/show-1' }
     );
 
-    await user.click(screen.getByTestId('open-entry-management'));
+    // The verb-first chip is the single route to pending-review work — the
+    // old duplicate "Manage entries (N)" button is gone (MYK9-64 F1).
+    expect(screen.queryByTestId('open-entry-management')).toBeNull();
+    await user.click(screen.getByRole('button', { name: /review 1 entry/i }));
 
     expect(screen.getByTestId('current-location')).toHaveTextContent(
       '/shows/show-1/entry-management?mode=review&attention=pending'
@@ -173,7 +176,7 @@ describe('ShowDeskPanel', () => {
       { initialRoute: '/shows/show-1/show-desk' }
     );
 
-    await user.click(screen.getByRole('button', { name: /1 result pending closeout/i }));
+    await user.click(screen.getByRole('button', { name: /close out 1 result/i }));
 
     expect(screen.getByTestId('current-location')).toHaveTextContent(
       '/shows/show-1/results-control'
@@ -211,7 +214,7 @@ describe('ShowDeskPanel', () => {
       { initialRoute: '/shows/show-1/show-desk' }
     );
 
-    await user.click(screen.getByRole('button', { name: /payment due/i }));
+    await user.click(screen.getByRole('button', { name: /resolve 1 payment/i }));
 
     expect(screen.getByTestId('current-location')).toHaveTextContent(
       '/shows/show-1/entry-management'
@@ -250,7 +253,7 @@ describe('ShowDeskPanel', () => {
     );
 
     const before = screen.getByTestId('current-location').textContent;
-    await user.click(screen.getByRole('button', { name: /waiting for check-in/i }));
+    await user.click(screen.getByRole('button', { name: /check in 1 entry/i }));
 
     // Clicking the check-in chip sets a local Show Map filter — it must not
     // navigate away from the Show Desk route the way payment-due does.
@@ -284,5 +287,60 @@ describe('ShowDeskPanel', () => {
     );
 
     expect(screen.queryByTestId('show-desk-pending-signals')).toBeNull();
+  });
+
+  it('lists only Class Management in related links — Entry Management already has its primary routes (MYK9-64 F2)', () => {
+    render(
+      <ShowDeskPanel
+        show={show}
+        trials={[futureTrial]}
+        classes={[
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Not Started',
+          },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={new Date('2026-05-28T15:00:00.000Z')}
+      />
+    );
+
+    const related = screen.getByRole('navigation', { name: /related context/i });
+    expect(within(related).getByRole('link', { name: /class management/i })).toBeInTheDocument();
+    expect(within(related).queryByRole('link', { name: /entry management/i })).toBeNull();
+  });
+
+  it('navigates a running-now card straight to Class Details (MYK9-64 F4)', async () => {
+    const { user } = render(
+      <>
+        <ShowDeskPanel
+          show={show}
+          trials={[futureTrial]}
+          classes={[
+            {
+              id: 'class-1',
+              trialId: 'trial-1',
+              name: 'Container Novice A',
+              status: 'In Progress',
+            },
+          ]}
+          entries={[]}
+          canManageShow
+          scopeNow={new Date('2026-05-28T15:00:00.000Z')}
+        />
+        <LocationProbe />
+      </>,
+      { initialRoute: '/shows/show-1/show-desk' }
+    );
+
+    const running = screen.getByRole('region', { name: /running now/i });
+    await user.click(within(running).getByText('Container Novice A'));
+
+    expect(screen.getByTestId('current-location')).toHaveTextContent(
+      '/shows/show-1/trials/trial-1/classes/class-1'
+    );
   });
 });

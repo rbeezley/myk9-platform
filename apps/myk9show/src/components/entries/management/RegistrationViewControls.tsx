@@ -5,6 +5,9 @@
  * handlers) to keep that file under its size budget — this component stays a
  * thin, stateless wiring layer over the same controls it replaces inline.
  */
+import { SlidersHorizontal } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ListControls } from '@/components/common/ListControls';
 import { EntryWorkModeSwitch } from './EntryWorkModeSwitch';
 import { EntryManagementViewControls } from './EntryManagementViewControls';
@@ -79,29 +82,49 @@ export function RegistrationViewControls({
 }: RegistrationViewControlsProps) {
   return (
     <>
-      <EntryWorkModeSwitch
-        value={workMode}
-        onChange={onWorkModeChange}
-        activeExtraPresetId={activeExtraPresetId}
-        onSelectExtraPreset={onSelectExtraPreset}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <EntryWorkModeSwitch
+          value={workMode}
+          onChange={onWorkModeChange}
+          activeExtraPresetId={activeExtraPresetId}
+          onSelectExtraPreset={onSelectExtraPreset}
+        />
 
-      {/* Display density + personal saved views (tasks.md 3.2/3.3) */}
-      <EntryManagementViewControls
-        density={density}
-        onDensityChange={onDensityChange}
-        displayPreset={displayPreset}
-        onDisplayPresetChange={onDisplayPresetChange}
-        userId={userId}
-        showId={showId}
-        trialFilter={trialFilter}
-        classFilter={classFilter}
-        attentionFilter={attentionFilter}
-        paymentFilter={paymentFilter}
-        workMode={workMode}
-        entryViewMode={entryViewMode}
-        onApplyView={onApplyView}
-      />
+        {/* Power controls (display preset, density, saved views) live behind
+            one disclosure so the primary field stays quick views + search
+            (MYK9-64 F5). They remain fully keyboard/touch reachable here. */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-[44px]"
+              data-testid="entry-view-options-trigger"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              View options
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-auto max-w-[min(90vw,22rem)] p-4">
+            <EntryManagementViewControls
+              density={density}
+              onDensityChange={onDensityChange}
+              displayPreset={displayPreset}
+              onDisplayPresetChange={onDisplayPresetChange}
+              userId={userId}
+              showId={showId}
+              trialFilter={trialFilter}
+              classFilter={classFilter}
+              attentionFilter={attentionFilter}
+              paymentFilter={paymentFilter}
+              workMode={workMode}
+              entryViewMode={entryViewMode}
+              onApplyView={onApplyView}
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
 
       {/* Search, filters, and view mode */}
       <ListControls

@@ -67,6 +67,8 @@ describe('getRunningNowItems', () => {
         nodeId: 'class:class-now',
         label: 'Interior Novice A',
         ringLabel: 'Ring 1',
+        // Class Details href — the Running Now card's primary destination.
+        href: '/shows/show-1/trials/trial-1/classes/class-now',
         judgeName: 'Judge A',
         startTime: '9:00',
         percentScored: 25,

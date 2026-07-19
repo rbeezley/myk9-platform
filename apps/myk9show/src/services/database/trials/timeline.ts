@@ -19,6 +19,9 @@ export interface ShowScheduleTimelineRow {
   startTime: string | null;
   status: string;
   totalEntriesCount: number;
+  judgePersonId: string | null;
+  judgeFirstName: string | null;
+  judgeLastName: string | null;
 }
 
 export interface TrialTimelineRow {
@@ -79,6 +82,7 @@ function mapClassToShowScheduleTimelineRow(
   cls: ReplicatedClass,
   entryCountsMap: Map<string, number>
 ): ShowScheduleTimelineRow {
+  const judgeName = getJudgeNameParts(cls);
   return {
     trialId: trial.id,
     trialDate: trial.date,
@@ -91,6 +95,9 @@ function mapClassToShowScheduleTimelineRow(
     startTime: cls.startTime ?? null,
     status: cls.classStatus ?? 'no-status',
     totalEntriesCount: cls.totalEntriesCount ?? entryCountsMap.get(cls.id) ?? 0,
+    judgePersonId: cls.judgeId ?? null,
+    judgeFirstName: judgeName.firstName,
+    judgeLastName: judgeName.lastName,
   };
 }
 
@@ -132,7 +139,14 @@ async function postgrestGetShowScheduleTimelineRows(
         start_time,
         status,
         total_entries_count,
-        deleted_at
+        deleted_at,
+        judge_assignments (
+          person_id,
+          people!inner (
+            first_name,
+            last_name
+          )
+        )
       )
     `
     )
@@ -153,9 +167,14 @@ async function postgrestGetShowScheduleTimelineRows(
         status: string | null;
         total_entries_count: number | null;
         deleted_at: string | null;
+        judge_assignments: Array<{
+          person_id: string;
+          people: { first_name: string; last_name: string };
+        }> | null;
       }> | null) ?? [];
 
     for (const cls of classes.filter(c => c.deleted_at === null)) {
+      const assignment = cls.judge_assignments?.[0];
       rows.push({
         trialId: trial.id,
         trialDate: trial.date,
@@ -168,6 +187,9 @@ async function postgrestGetShowScheduleTimelineRows(
         startTime: cls.start_time,
         status: cls.status ?? 'no-status',
         totalEntriesCount: cls.total_entries_count ?? 0,
+        judgePersonId: assignment?.person_id ?? null,
+        judgeFirstName: assignment?.people.first_name ?? null,
+        judgeLastName: assignment?.people.last_name ?? null,
       });
     }
   }

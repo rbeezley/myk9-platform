@@ -9,8 +9,8 @@ import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { PhaseShell } from '@/features/show-workbench/PhaseShell';
-import { PublishReadinessBlock } from '@/features/show-workbench/PublishReadinessBlock';
 import { SetupAdaptiveHeader } from '@/features/show-workbench/SetupAdaptiveHeader';
+import { usePublishInfo } from '@/features/premium/usePublishInfo';
 import { computeSetupReadinessSignals } from '@/features/show-workbench/setupReadinessSignals';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
@@ -28,6 +28,9 @@ export function ShowWorkbenchSetupPage() {
   );
   const { data: showEntries = [] } = useEntriesByShowQuery(showId || '', !!showId);
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
+  // The replicated show row doesn't carry published_premium_url/at; fetch
+  // those columns directly so the premium signal matches the premium card.
+  const { data: publishInfo } = usePublishInfo(showId);
 
   const associatedTrials = useMemo(
     () =>
@@ -76,9 +79,19 @@ export function ShowWorkbenchSetupPage() {
             trials: associatedTrials,
             classes: showClasses,
             judges: showJudgeRoster,
+            ...(publishInfo
+              ? {
+                  premiumInfo: {
+                    publishedPremiumUrl: publishInfo.publishedUrl,
+                    publishedPremiumAt: publishInfo.publishedAt,
+                    updatedAt: publishInfo.updatedAt,
+                    experienceIsPublished: publishInfo.experienceIsPublished,
+                  },
+                }
+              : {}),
           })
         : [],
-    [associatedTrials, currentShow, showClasses, showJudgeRoster]
+    [associatedTrials, currentShow, publishInfo, showClasses, showJudgeRoster]
   );
 
   const effectiveJudges = useMemo(
@@ -97,14 +110,14 @@ export function ShowWorkbenchSetupPage() {
       <div className="space-y-6">
         {/* The publish cards render once at the show level — in
             ShowDetailsPage, the PARENT route that hosts this page via
-            <Outlet>. Because the parent stays mounted, that #setup-publish
-            anchor is in the same document while /shows/:id/setup is active,
-            so the premium-list chip below resolves to it. */}
+            <Outlet>. Because the parent stays mounted, the per-card anchors
+            (#setup-publish-premium / #setup-publish-landing) are in the same
+            document while /shows/:id/setup is active, so the chips below
+            resolve to them. */}
         <SetupAdaptiveHeader signals={setupSignals} />
-        <PublishReadinessBlock show={currentShow} />
         <div className="setup-detail-grid">
           <div className="space-y-6">
-            <ScheduleSummary showId={currentShow.id} />
+            <ScheduleSummary showId={currentShow.id} canEditSchedule />
             <VenueMap location={currentShow.location} />
           </div>
           <div className="space-y-6">

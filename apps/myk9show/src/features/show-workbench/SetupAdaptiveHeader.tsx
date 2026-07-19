@@ -36,7 +36,7 @@ export function SetupAdaptiveHeader({ signals }: SetupAdaptiveHeaderProps) {
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {ready
-                ? 'Show details, trials, classes, judges, and the premium list are in place.'
+                ? 'Show details, trials, classes, judges, the premium list, and the landing page are all live.'
                 : `${signals.length} ${signals.length === 1 ? 'item' : 'items'} left. Tap one to fix it.`}
             </p>
           </div>

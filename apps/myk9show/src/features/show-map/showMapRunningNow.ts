@@ -5,6 +5,8 @@ export interface ShowMapRunningNowItem {
   nodeId: string;
   label: string;
   ringLabel: string;
+  /** Class Details href from the class node — the card's primary destination. */
+  href?: string | undefined;
   judgeName?: string | undefined;
   startTime?: string | undefined;
   progressLabel?: string | undefined;
@@ -41,6 +43,7 @@ export function getRunningNowItems(
       nodeId: node.id,
       label: node.label,
       ringLabel: node.ringLabel ?? 'Now',
+      ...(node.href ? { href: node.href } : {}),
       ...(node.judgeName ? { judgeName: node.judgeName } : {}),
       ...(node.startTime ? { startTime: node.startTime } : {}),
       ...(node.progress ? { progressLabel: node.progress.label } : {}),

@@ -46,7 +46,10 @@ const completedClass: ShowMapClassInput = {
   status: 'Completed',
 };
 
-function tree(entries: Array<Record<string, unknown>>, classes: ShowMapClassInput[] = [activeClass]) {
+function tree(
+  entries: Array<Record<string, unknown>>,
+  classes: ShowMapClassInput[] = [activeClass]
+) {
   return buildShowMapTree({ show, trials: [trial], classes, entries });
 }
 
@@ -103,7 +106,7 @@ describe('computeShowDeskPendingSignals', () => {
       count: 2,
       priority: 'highest',
     });
-    expect(signals[0]?.label).toContain('2 pending entries');
+    expect(signals[0]?.label).toContain('Review 2 entries');
   });
 
   it('emits a high-priority signal when entries are waiting for check-in', () => {
@@ -127,7 +130,7 @@ describe('computeShowDeskPendingSignals', () => {
       count: 1,
       priority: 'high',
     });
-    expect(signals[0]?.label).toContain('1 entry waiting for check-in');
+    expect(signals[0]?.label).toContain('Check in 1 entry');
   });
 
   it('counts null and undefined check_in_status as waiting for accepted entries (real DB rows)', () => {
@@ -263,7 +266,11 @@ describe('computeShowDeskPendingSignals', () => {
           ...e,
         }))
       );
-      const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: rawEntries });
+      const signals = computeShowDeskPendingSignals({
+        showId: 'show-1',
+        tree: t,
+        entries: rawEntries,
+      });
 
       const review = signals.find(s => s.id === 'entries-waiting-review');
       expect(review).toBeDefined();
@@ -299,7 +306,11 @@ describe('computeShowDeskPendingSignals', () => {
           ...e,
         }))
       );
-      const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: rawEntries });
+      const signals = computeShowDeskPendingSignals({
+        showId: 'show-1',
+        tree: t,
+        entries: rawEntries,
+      });
 
       const paymentDue = signals.find(s => s.id === 'entries-payment-due');
       expect(paymentDue).toBeDefined();
@@ -335,7 +346,11 @@ describe('computeShowDeskPendingSignals', () => {
           ...e,
         }))
       );
-      const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: rawEntries });
+      const signals = computeShowDeskPendingSignals({
+        showId: 'show-1',
+        tree: t,
+        entries: rawEntries,
+      });
 
       const checkIn = signals.find(s => s.id === 'entries-waiting-checkin');
       expect(checkIn).toBeDefined();
@@ -362,7 +377,11 @@ describe('computeShowDeskPendingSignals', () => {
           ...e,
         }))
       );
-      const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: rawEntries });
+      const signals = computeShowDeskPendingSignals({
+        showId: 'show-1',
+        tree: t,
+        entries: rawEntries,
+      });
 
       expect(signals.find(s => s.id === 'entries-waiting-review')).toBeUndefined();
       expect(signals.find(s => s.id === 'entries-payment-due')).toBeUndefined();

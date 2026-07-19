@@ -3,6 +3,7 @@
  * 3.2/3.3). Thin adapter over the shared `DensityControl`/`SavedViewsControl`
  * — keeps `RegistrationView.tsx` from growing past its size budget.
  */
+import type { ReactNode } from 'react';
 import { DensityControl } from '@/features/operational-views/DensityControl';
 import { EntryDisplayPresetControl } from '@/features/operational-views/EntryDisplayPresetControl';
 import { SavedViewsControl } from '@/features/operational-views/SavedViewsControl';
@@ -53,40 +54,58 @@ export function EntryManagementViewControls({
   entryViewMode,
   onApplyView,
 }: EntryManagementViewControlsProps) {
+  // Rendered inside the "View options" popover (MYK9-64 F5): stacked with
+  // section labels so each control reads as a named setting, not a mystery
+  // segmented bar competing with the work queue.
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <EntryDisplayPresetControl preset={displayPreset} onChange={onDisplayPresetChange} />
-      <DensityControl density={density} onChange={onDensityChange} />
+    <div className="flex flex-col gap-3">
+      <LabeledControl label="Display">
+        <EntryDisplayPresetControl preset={displayPreset} onChange={onDisplayPresetChange} />
+      </LabeledControl>
+      <LabeledControl label="Row density">
+        <DensityControl density={density} onChange={onDensityChange} />
+      </LabeledControl>
       {showId && (
-        <SavedViewsControl<EntryManagementOperationalView>
-          surface="entry-management"
-          userId={userId}
-          showScope={
-            {
-              showId,
-              ...(trialFilter ? { trialId: trialFilter } : {}),
-              ...(classFilter ? { classId: classFilter } : {}),
-            } satisfies SavedViewShowScope
-          }
-          buildCurrentView={() => ({
-            surface: 'entry-management',
-            version: OPERATIONAL_VIEW_SERIALIZATION_VERSION,
-            scope: {
-              showId,
-              ...(trialFilter ? { trialId: trialFilter } : {}),
-              ...(classFilter ? { classId: classFilter } : {}),
-            },
-            filters: {
-              attention: attentionFilter,
-              payment: isEntryPaymentFilter(paymentFilter) ? paymentFilter : 'all',
-              mode: workMode,
-              view: entryViewMode,
-            },
-            display: { density },
-          })}
-          onApply={onApplyView}
-        />
+        <LabeledControl label="Saved views">
+          <SavedViewsControl<EntryManagementOperationalView>
+            surface="entry-management"
+            userId={userId}
+            showScope={
+              {
+                showId,
+                ...(trialFilter ? { trialId: trialFilter } : {}),
+                ...(classFilter ? { classId: classFilter } : {}),
+              } satisfies SavedViewShowScope
+            }
+            buildCurrentView={() => ({
+              surface: 'entry-management',
+              version: OPERATIONAL_VIEW_SERIALIZATION_VERSION,
+              scope: {
+                showId,
+                ...(trialFilter ? { trialId: trialFilter } : {}),
+                ...(classFilter ? { classId: classFilter } : {}),
+              },
+              filters: {
+                attention: attentionFilter,
+                payment: isEntryPaymentFilter(paymentFilter) ? paymentFilter : 'all',
+                mode: workMode,
+                view: entryViewMode,
+              },
+              display: { density },
+            })}
+            onApply={onApplyView}
+          />
+        </LabeledControl>
       )}
+    </div>
+  );
+}
+
+function LabeledControl({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {children}
     </div>
   );
 }

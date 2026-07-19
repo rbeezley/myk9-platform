@@ -198,14 +198,6 @@ export default function ShowDeskPanel({
     () => (canManageShow ? pendingSignals : []),
     [canManageShow, pendingSignals]
   );
-  // Reuse the existing pending-signal computation as the source of truth for
-  // "N entries waiting" — no second counter, no risk of the two going out of
-  // sync. The "Manage entries" button surfaces this count and deep-links to
-  // Entries Management, which owns the show-wide bulk operations.
-  const pendingReviewCount = useMemo(
-    () => pendingSignals.find(s => s.id === 'entries-waiting-review')?.count ?? 0,
-    [pendingSignals]
-  );
   // A show's trials always share one registry (scoping §7) — resolve once from the
   // first trial so move-up recognizes UKC/ASCA-only levels (Superior/Elite, Open).
   const registryId = useMemo(() => getTrialRegistry(trials[0]).id, [trials]);
@@ -217,27 +209,22 @@ export default function ShowDeskPanel({
     ? tree.nodesById[`class:${moveUpAction.classId}`]
     : undefined;
 
-  // Related context links: Entry Management is always reachable; Class
-  // Management only when a current/first trial id is already loaded in
-  // `trials` (no fetch added to decorate the panel).
+  // Related context links: Class Management only, and only when a
+  // current/first trial id is already loaded in `trials` (no fetch added to
+  // decorate the panel). Entry Management is deliberately NOT listed here —
+  // it is already a primary section in the show nav and the destination of
+  // the "Review N entries" chip; a third route was pure noise (MYK9-64 F2).
   const relatedLinks = useMemo(() => {
     if (!canManageShow) return [];
-    const items = [
-      {
-        key: 'entry-management',
-        label: 'Entry Management',
-        href: getEntryManagementHref({ showId: show.id }),
-      },
-    ];
     const currentTrialId = trials[0]?.id;
-    if (currentTrialId) {
-      items.push({
+    if (!currentTrialId) return [];
+    return [
+      {
         key: 'class-management',
         label: 'Class Management',
         href: getClassManagementHref({ showId: show.id, trialId: currentTrialId }),
-      });
-    }
-    return items;
+      },
+    ];
   }, [canManageShow, show.id, trials]);
 
   // Resolve each action's execution shape so the header can dispatch them.
@@ -318,11 +305,10 @@ export default function ShowDeskPanel({
         pendingSignals={staffPendingSignals}
         onStartAction={startAction}
         onDismissGuidance={dismissGuidanceAction}
+        onOpenRunning={navigateTo}
         onSelectRunning={selectRunningNowClass}
         onSelectPendingSignal={canManageShow ? handlePendingSignal : undefined}
         onBulkApproveGroup={canManageShow ? handleBulkApproveGroup : undefined}
-        onOpenEntryManagement={canManageShow ? openEntryManagement : undefined}
-        reviewQueueCount={pendingReviewCount}
       />
       {canManageShow && reorderMode.active && (
         <ShowMapReorderBanner

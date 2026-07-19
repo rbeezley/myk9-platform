@@ -26,29 +26,48 @@ export interface ClassActionHandlers {
   onStatusChange?: ((classId: string, status: string) => void) | undefined;
   onDelete?: ((classId: string) => void) | undefined;
   onBulkDelete?: ((classIds: string[]) => boolean | Promise<boolean> | undefined) | undefined;
+  onBulkStatusChange?:
+    | ((
+        classIds: string[],
+        status: string,
+        onFullSuccess?: () => void
+      ) => boolean | Promise<boolean> | undefined)
+    | undefined;
   onClear?: () => void;
 }
 
 const STATUS_VALUES = Object.values(CLASS_STATUS);
 
+/** Runs a bulk handler and clears the selection on success — callback-aware,
+ * mirroring entryActions: the dispatcher invokes `onFullSuccess` itself on full
+ * success of the INITIAL run OR a later toast retry (useBulkDispatch forwards it
+ * into retry summaries), so a retry that finally succeeds still clears. The
+ * `cleared` latch prevents double-clearing when the handler both consumed the
+ * callback and resolved non-`false`; the fallback covers lightweight handlers
+ * that report success without consuming the callback. */
 async function runBulkAndClear(
   handlers: ClassActionHandlers,
-  action: () => boolean | Promise<boolean> | undefined
+  action: (onFullSuccess: () => void) => boolean | Promise<boolean> | undefined
 ): Promise<void> {
+  let cleared = false;
+  const onFullSuccess = () => {
+    cleared = true;
+    handlers.onClear?.();
+  };
   try {
-    const result = await action();
-    if (result !== false) handlers.onClear?.();
+    const result = await action(onFullSuccess);
+    if (result !== false && !cleared) handlers.onClear?.();
   } catch {
     // Parent handler owns user-visible error copy; keep selection so retry is possible.
   }
 }
 
-// Status transitions are ROW-only. Bulk status change was descoped (MYK9-59):
-// a correct bulk status change must set `status_source='manual'` and the
-// per-status timing fields the canonical show-map path uses (markClassStarted/
-// markClassComplete), or the server's class-status derivation silently overwrites
-// it — that's a distinct feature, out of scope for this bulk-actions change. Bulk
-// DELETE (below) stays; the bulk bar therefore offers delete only.
+// Status transitions carry a `bulk` block (MYK9-59): bulk status change now
+// routes through `applyManualClassStatus` (via `onBulkStatusChange`, dispatched
+// in `useClassBulkActions.ts`) — the same canonical replicated mutation the row
+// path and Show Map use, so `status_source='manual'` and the per-status timing
+// fields are always set. Bulk eligibility matches the row's: not already in the
+// target status.
 const statusActions: Array<EntityAction<ClassActionItem, ClassActionHandlers>> = STATUS_VALUES.map(
   status => ({
     id: `set-status-${status}`,
@@ -56,6 +75,21 @@ const statusActions: Array<EntityAction<ClassActionItem, ClassActionHandlers>> =
     sectionLabel: 'Status',
     applicableWhen: (item, handlers) => Boolean(handlers.onStatusChange) && item.status !== status,
     run: (item, handlers) => handlers.onStatusChange?.(item.id, status),
+    bulk: {
+      applicableWhen: (item, handlers) =>
+        Boolean(handlers.onBulkStatusChange) && item.status !== status,
+      label: (eligibleCount, selectedCount) =>
+        eligibleCount > 0 ? `Mark ${eligibleCount} of ${selectedCount} ${status}` : `Mark ${status}`,
+      unavailableReason: `No selected classes can be marked ${status}`,
+      run: (eligible, handlers) =>
+        runBulkAndClear(handlers, onFullSuccess =>
+          handlers.onBulkStatusChange?.(
+            eligible.map(item => item.id),
+            status,
+            onFullSuccess
+          )
+        ),
+    },
   })
 );
 

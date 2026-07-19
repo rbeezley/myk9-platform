@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   useClassesByTrialQuery,
-  useUpdateClassMutation,
   useDeleteClassMutation,
   classKeys,
 } from '@/hooks/queries/useClassesDatabase';
@@ -18,6 +17,10 @@ import { ClassManagementRow, type DbClassRow } from '@/components/classes/ClassM
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
+import {
+  applyManualClassStatus,
+  type ManualClassStatus,
+} from '@/services/show-day/classStatusMutations';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTrialStore } from '@/store/trialStore';
 import { matchesAny } from '@myk9/core';
@@ -58,7 +61,6 @@ export const ClassManagementPage: React.FC = () => {
   const { data: judges = [] } = useJudgesWithQualifications();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const updateClassMutation = useUpdateClassMutation();
   const deleteClassMutation = useDeleteClassMutation();
   const assignJudgeMutation = useMutation({
     mutationFn: ({ classId, judgeId }: { classId: string; judgeId: string }) => {
@@ -169,12 +171,25 @@ export const ClassManagementPage: React.FC = () => {
     [allClasses]
   );
 
-  const { bulkBusy, handleBulkDelete } = useClassBulkActions({
+  const { bulkBusy, handleBulkDelete, handleBulkStatusChange } = useClassBulkActions({
     classesById,
   });
 
-  const handleStatusChange = (classId: string, newStatus: string) => {
-    updateClassMutation.mutate({ id: classId, updates: { status: newStatus } });
+  // Routed through `applyManualClassStatus` (MYK9-59) instead of the direct
+  // PostgREST write — the same replicated mutation the
+  // bulk path and Show Map use, so `status_source: 'manual'` and the
+  // per-status timing fields are always set and the write queues offline.
+  // The old row mutation's onSuccess invalidation doesn't run for this path,
+  // so invalidate the whole classKeys family here — the old mutation also
+  // refreshed lists and the detail cache, and consumers like
+  // JudgeClassInterface/useClassStoreCompat read those.
+  const handleStatusChange = async (classId: string, newStatus: string) => {
+    try {
+      await applyManualClassStatus(classId, newStatus as ManualClassStatus);
+      queryClient.invalidateQueries({ queryKey: classKeys.all });
+    } catch {
+      toast.error('Failed to update class status. Please try again.');
+    }
   };
 
   const handleJudgeChange = (classId: string, judgeId: string) => {
@@ -341,6 +356,7 @@ export const ClassManagementPage: React.FC = () => {
         selectedClasses={selection.selectedItems}
         bulkBusy={bulkBusy}
         onBulkDelete={handleBulkDelete}
+        onBulkStatusChange={handleBulkStatusChange}
         onClear={selection.clearSelection}
       />
 

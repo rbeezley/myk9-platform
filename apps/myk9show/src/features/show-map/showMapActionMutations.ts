@@ -7,6 +7,7 @@ import {
   replicatedEntriesTable,
   replicatedTrialsTable,
 } from '@/services/replication';
+import { applyManualClassStatus } from '@/services/show-day/classStatusMutations';
 import {
   updateReplicatedCheckInStatus,
   updateReplicatedDayOfScratch,
@@ -81,29 +82,11 @@ export async function bulkApproveShowMapEntries(entryIds: string[]): Promise<(st
 }
 
 export async function markShowMapClassStarted(classId: string): Promise<void> {
-  // status_source: 'manual' rides the SAME replicated payload so the server
-  // derivation won't overwrite this secretary decision on later recompute.
-  await replicatedClassesTable.updateClass(classId, {
-    classStatus: CLASS_STATUS.IN_PROGRESS,
-    statusSource: 'manual',
-    actual_start_time: new Date().toISOString(),
-    isCompleted: false,
-  });
+  await applyManualClassStatus(classId, CLASS_STATUS.IN_PROGRESS);
 }
 
 export async function markShowMapClassComplete(classId: string): Promise<void> {
-  // status_source: 'manual' rides the SAME replicated payload so the server
-  // derivation won't overwrite this secretary decision on later recompute.
-  // reopenedAfterCloseoutAt: null clears any server reopen stamp — a manual
-  // completion is the secretary resolving that reopen, so the attention reason
-  // must go with it. (markShowMapClassStarted deliberately does NOT clear it.)
-  await replicatedClassesTable.updateClass(classId, {
-    classStatus: CLASS_STATUS.COMPLETED,
-    statusSource: 'manual',
-    reopenedAfterCloseoutAt: null,
-    actual_end_time: new Date().toISOString(),
-    isCompleted: true,
-  });
+  await applyManualClassStatus(classId, CLASS_STATUS.COMPLETED);
 }
 
 export interface ShowMapScratchUndoInput {

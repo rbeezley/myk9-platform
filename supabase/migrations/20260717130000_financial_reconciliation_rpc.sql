@@ -31,7 +31,10 @@
 -- contributed to, understating net platform income. So EVERY entry/fee figure
 -- below (gross_charged, entry_subtotal, platform_fee, processing_fee + its
 -- pending count, refunded, snapshot_missing) covers exactly one population:
--- status IN ('succeeded','refunded') AND order_type = 'entry'.
+-- (status IN ('succeeded','refunded') OR recorded refund cents > 0)
+-- AND order_type = 'entry'. A refund-bearing pending/processing row is already
+-- financially active; excluding it would make its gross, fee, and refund all
+-- disappear instead of netting together.
 -- Non-entry orders are NOT silently dropped — they are reported as their own
 -- clearly labeled group (non_entry_order_count / non_entry_gross_cents plus
 -- non_entry_refunded_cents / non_entry_make_whole_refunded_cents) so the money
@@ -57,7 +60,7 @@
 -- identity for a well-formed order, so a cart-overflow order could never
 -- independently FAIL a tie-out check, and charge verification was tautological.
 --
--- Migration 20260717120000 therefore records the split EXPLICITLY at write time:
+-- Migration 20260717122000 therefore records the split EXPLICITLY at write time:
 --
 --   amount_cents              GROSS amount the customer was charged.
 --   make_whole_refunded_cents Returned for lines that were NEVER accepted (cart
@@ -234,7 +237,11 @@ BEGIN
            o.refunded_cents,
            o.make_whole_refunded_cents
     FROM public.stripe_orders o
-    WHERE o.status IN ('succeeded', 'refunded')
+    WHERE (
+        o.status IN ('succeeded', 'refunded')
+        OR o.refunded_cents > 0
+        OR o.make_whole_refunded_cents > 0
+      )
       AND (
         p_scope = 'platform'
         OR (p_scope = 'show' AND o.show_id = p_show_id)
@@ -429,7 +436,11 @@ BEGIN
   -- IDENTICAL population to the summary's scoped_orders CTE: without this
   -- predicate, failed/pending/cancelled and non-entry orders would enter
   -- client-side grouping and per-show net math and disagree with the aggregates.
-  WHERE o.status IN ('succeeded', 'refunded')
+  WHERE (
+      o.status IN ('succeeded', 'refunded')
+      OR o.refunded_cents > 0
+      OR o.make_whole_refunded_cents > 0
+    )
     AND o.order_type = 'entry'
     AND (
       p_scope = 'platform'

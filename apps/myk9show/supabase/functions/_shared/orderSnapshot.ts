@@ -64,10 +64,10 @@ import { calculatePlatformFeeCents } from './platformFee.ts';
 // COLUMNS, never `status <> 'refunded'`, to decide whether money came back.
 //
 // The transition is stamped in ONE place — `recompute_order_refund_totals`, which
-// both refund RPCs funnel through — so status and amounts cannot disagree. It is
-// RE-DERIVED from the refund ledger on every event, so it DEMOTES ('refunded' ->
-// 'succeeded') when a refund fails just as readily as it promotes. `refunded_at`
-// is derived from the same condition, so the two can never drift apart.
+// both refund RPCs funnel through. It is RE-DERIVED from the refund ledger on
+// every terminal event, so it DEMOTES ('refunded' -> 'succeeded') when a refund
+// fails just as readily as it promotes. `refunded_at` follows the derived status;
+// pending/processing/failed/cancelled orders retain their status and no timestamp.
 
 export interface OrderSnapshotInput {
   entrySubtotalCents?: number | null;
@@ -120,128 +120,6 @@ export function buildOrderSnapshotFields(input: OrderSnapshotInput): OrderSnapsh
     refunded_cents: toCentsOrNull(input.refundedCents) ?? 0,
     make_whole_refunded_cents: toCentsOrNull(input.makeWholeRefundedCents) ?? 0,
   };
-}
-
-// NOTE: `resolveCumulativeRefundedCents` (a single conflated monotonic max) and
-// `resolveOrderRefundSplit` (two monotonic counters mutated by a GREATEST
-// forward path and a subtractive reversal path) were both REMOVED here. Counters
-// cannot represent "this refund was UN-done", so the forward and reverse paths
-// fought each other under Stripe's duplicate / out-of-order redelivery. Use the
-// LEDGER helpers below: one row per Stripe refund, totals DERIVED. Do not
-// reintroduce a counter-mutating helper.
-
-export type OrderRefundKind = 'make_whole' | 'post_hoc';
-export type OrderRefundState = 'succeeded' | 'failed';
-
-/** One row of `public.stripe_order_refunds` — one Stripe refund. */
-export interface OrderRefundLedgerRow {
-  /** Stripe refund id. The PRIMARY KEY: idempotency BY CONSTRUCTION. */
-  refundId: string;
-  amountCents: number;
-  kind: OrderRefundKind;
-  state: OrderRefundState;
-}
-
-export interface OrderRefundTotals {
-  makeWholeCents: number;
-  postHocCents: number;
-}
-
-/**
- * Pure mirror of the `record_order_refund_cents` upsert (migration
- * 20260717120000). The DATABASE is the authority — this exists so the
- * precedence rules are unit-testable without a Postgres round trip. Keep the two
- * in lockstep; if you change one, change the other.
- *
- * A redelivery is an upsert of the SAME row, so it is a no-op on the totals.
- * Two precedence rules, matching the SQL `ON CONFLICT ... DO UPDATE`:
- *   - `kind` is NEVER overwritten. The make-whole writers book their own refund
- *     id with kind='make_whole' at creation time, and the later `charge.refunded`
- *     delivery — which cannot tell the kinds apart — must not demote it.
- *   - `state` is NEVER overwritten. FAILED IS TERMINAL: a redelivered success
- *     event for a refund Stripe already failed must not resurrect it. Stripe only
- *     moves a refund succeeded -> failed, never back, so the `failed` row is the
- *     newer truth no matter which delivery arrives last.
- */
-export function upsertOrderRefund(
-  ledger: readonly OrderRefundLedgerRow[],
-  incoming: { refundId: string; amountCents?: number | null; kind?: OrderRefundKind }
-): OrderRefundLedgerRow[] {
-  const amountCents = toCentsOrNull(incoming.amountCents) ?? 0;
-  const existing = ledger.find(row => row.refundId === incoming.refundId);
-  if (!existing) {
-    return [
-      ...ledger,
-      {
-        refundId: incoming.refundId,
-        amountCents,
-        kind: incoming.kind ?? 'post_hoc',
-        state: 'succeeded',
-      },
-    ];
-  }
-  return ledger.map(row =>
-    row.refundId === incoming.refundId
-      ? // kind and state are carried forward, never rewritten.
-        { ...row, amountCents }
-      : row
-  );
-}
-
-/**
- * Pure mirror of `reverse_order_refund_cents`: a failed refund is a STATE CHANGE
- * on an EXISTING row, never a subtraction, and never an invented row. An
- * out-of-order `refund.failed` arriving before the booking event therefore
- * changes nothing — Stripe redelivers for three days and the later failure
- * settles it.
- */
-export function failOrderRefund(
-  ledger: readonly OrderRefundLedgerRow[],
-  refundId: string
-): OrderRefundLedgerRow[] {
-  return ledger.map(row => (row.refundId === refundId ? { ...row, state: 'failed' } : row));
-}
-
-/**
- * Pure mirror of `recompute_order_refund_totals`. The derived cache columns:
- *   make_whole_refunded_cents = SUM(amount) WHERE kind='make_whole' AND succeeded
- *   refunded_cents            = SUM(amount) WHERE kind='post_hoc'   AND succeeded
- * Recomputation is idempotent and ORDER INDEPENDENT — that is the whole point.
- */
-export function deriveOrderRefundTotals(
-  ledger: readonly OrderRefundLedgerRow[]
-): OrderRefundTotals {
-  let makeWholeCents = 0;
-  let postHocCents = 0;
-  for (const row of ledger) {
-    if (row.state !== 'succeeded') continue;
-    if (row.kind === 'make_whole') makeWholeCents += row.amountCents;
-    else postHocCents += row.amountCents;
-  }
-  return { makeWholeCents, postHocCents };
-}
-
-/**
- * Pure mirror of the status/`refunded_at` transition the recompute stamps.
- *   status = 'refunded'      IFF make_whole + post_hoc >= amount_cents
- *   refunded_at IS NOT NULL  IFF the same condition
- *
- * Because it is RE-DERIVED (not accumulated) it can now correctly DEMOTE as well
- * as promote: when a refund fails, a 'refunded' order falls back to 'succeeded'.
- * Only that pair ever moves — a 'failed', 'pending' or 'cancelled' order is never
- * rewritten. A partial refund stays 'succeeded' with non-zero refund columns,
- * which is NORMAL, not drift.
- */
-export function resolveOrderStatusAfterRefund(
-  order: { status: string; amountCents: number | null },
-  refunds: OrderRefundTotals
-): { status: string; fullyRefunded: boolean; refundedAt: 'set' | 'clear' } {
-  const amount = order.amountCents ?? 0;
-  const fullyRefunded = amount > 0 && refunds.makeWholeCents + refunds.postHocCents >= amount;
-  let status = order.status;
-  if (fullyRefunded && order.status === 'succeeded') status = 'refunded';
-  else if (!fullyRefunded && order.status === 'refunded') status = 'succeeded';
-  return { status, fullyRefunded, refundedAt: fullyRefunded ? 'set' : 'clear' };
 }
 
 export interface AcceptedEntrySnapshot {

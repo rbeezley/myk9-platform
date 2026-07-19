@@ -75,6 +75,8 @@ DECLARE
   bad      text;
   s1 CONSTANT uuid := '11111111-1111-1111-1111-111111111111';
   s2 CONSTANT uuid := '22222222-2222-2222-2222-222222222222';
+  s4 CONSTANT uuid := '44444444-4444-4444-4444-444444444444';
+  s5 CONSTANT uuid := '55555555-5555-5555-5555-555555555555';
   ca CONSTANT uuid := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 BEGIN
 
@@ -266,20 +268,94 @@ PERFORM public.test_true(bad = 'failed', 'E: failed stays terminal after the boo
 SELECT count(*) INTO n FROM public.stripe_order_refunds f WHERE f.state = 'failed';
 PERFORM public.test_true(n >= 3, format('F: failed rows retained for audit (got %s)', n));
 
--- (G) refunded_at is DERIVED from the same condition as the status, so it is set
---     IFF fully refunded and can never be cleared out from under a full refund
---     nor left dangling on a partial one (the old reversal cleared it on orders
---     that were never full).
+-- (G) refunded_at follows the derived STATUS, so it can never disagree with
+--     status='refunded'. Pending/processing coverage is exercised in [12a].
 SELECT * INTO r FROM public.record_order_refund_cents('pi_o2', 're_partial', 1000, 'post_hoc');
 PERFORM public.test_true(NOT r.fully_refunded, 'G: a 1000 refund on 21400 is partial');
 SELECT count(*) INTO n
-  FROM public.stripe_orders o
+ FROM public.stripe_orders o
   JOIN (SELECT DISTINCT f.order_id AS oid FROM public.stripe_order_refunds f
          WHERE f.order_id IS NOT NULL) led ON led.oid = o.id
  WHERE (o.refunded_at IS NOT NULL)
-   <> (COALESCE(o.amount_cents, 0) > 0
-       AND o.make_whole_refunded_cents + o.refunded_cents >= o.amount_cents);
-PERFORM public.test_eq(n, 0, 'G: refunded_at IS NOT NULL IFF fully refunded, on every order');
+   <> (o.status = 'refunded');
+PERFORM public.test_eq(n, 0, 'G: refunded_at IS NOT NULL IFF status is refunded');
+
+RAISE NOTICE '[12a] MYK9-63 non-succeeded refund invariant and audit hygiene';
+INSERT INTO public.shows (id, name, club_id)
+VALUES
+  (s4, 'Refund Status Fixture', ca),
+  (s5, 'Refund Before Order Fixture', ca);
+
+-- A succeeded refund can arrive before checkout creates stripe_orders. The
+-- retained ledger row starts unattached; the later order INSERT must attach it
+-- and recompute without depending on another Stripe delivery.
+PERFORM public.record_order_refund_cents(
+  'pi_refund_before_order', 're_before_order', 500, 'post_hoc');
+SELECT count(*) INTO n FROM public.stripe_order_refunds f
+ WHERE f.stripe_refund_id = 're_before_order' AND f.order_id IS NULL;
+PERFORM public.test_eq(n, 1, 'refund-before-order fact is retained unattached');
+
+INSERT INTO public.stripe_orders
+  (stripe_payment_intent_id, show_id, status, order_type, amount_cents,
+   entry_subtotal_cents, platform_fee_cents, platform_fee_rate,
+   stripe_processing_fee_cents, refunded_cents, make_whole_refunded_cents, created_at)
+VALUES
+  ('pi_refund_before_order', s5, 'succeeded', 'entry',
+   500, 450, 50, 11.11, 25, 0, 0, '2026-07-11');
+SELECT concat_ws(':', o.status, o.refunded_cents, o.refunded_at IS NOT NULL,
+                 f.order_id = o.id) INTO bad
+  FROM public.stripe_orders o
+  JOIN public.stripe_order_refunds f
+    ON f.stripe_payment_intent_id = o.stripe_payment_intent_id
+ WHERE o.stripe_payment_intent_id = 'pi_refund_before_order';
+PERFORM public.test_true(bad = 'refunded:500:t:t',
+  format('later order insert attaches and recomputes refund (got %s)', bad));
+
+DELETE FROM public.stripe_orders
+ WHERE stripe_payment_intent_id = 'pi_refund_before_order';
+SELECT concat_ws(':', f.stripe_payment_intent_id, f.order_id IS NULL, f.state)
+  INTO bad
+  FROM public.stripe_order_refunds f
+ WHERE f.stripe_refund_id = 're_before_order';
+PERFORM public.test_true(bad = 'pi_refund_before_order:t:succeeded',
+  format('order deletion detaches but retains refund audit fact (got %s)', bad));
+
+INSERT INTO public.stripe_orders
+  (stripe_payment_intent_id, show_id, status, order_type, amount_cents,
+   entry_subtotal_cents, platform_fee_cents, platform_fee_rate,
+   stripe_processing_fee_cents, refunded_cents, make_whole_refunded_cents, created_at)
+VALUES
+  ('pi_pending_refund', s4, 'pending', 'entry',
+   2000, 1800, 200, 11.11, 75, 0, 0, '2026-07-11');
+
+SELECT * INTO r FROM public.record_order_refund_cents(
+  'pi_pending_refund', 're_pending_full', 2000, 'post_hoc');
+PERFORM public.test_true(r.fully_refunded, 'pending order refund facts cover the full amount');
+PERFORM public.test_true(r.order_status = 'pending', 'refund recompute does not promote pending');
+SELECT count(*) INTO n FROM public.stripe_orders o
+ WHERE o.stripe_payment_intent_id = 'pi_pending_refund'
+   AND o.refunded_at IS NULL;
+PERFORM public.test_eq(n, 1, 'pending order never receives refunded_at');
+
+SELECT * INTO s FROM public.financial_reconciliation_summary('show', NULL, s4);
+PERFORM public.test_eq(s.order_count, 1, 'refund-bearing pending order remains visible');
+PERFORM public.test_eq(s.gross_charged_cents, 2000, 'pending order gross remains visible');
+PERFORM public.test_eq(s.platform_fee_cents, 200, 'pending order fee remains visible');
+PERFORM public.test_eq(s.refunded_cents, 2000, 'pending order refund nets against gross');
+SELECT count(*) INTO n
+  FROM public.financial_reconciliation_orders('show', NULL, s4, 100) f;
+PERFORM public.test_eq(n, 1, 'detail and summary include the same refund-bearing order');
+
+-- A terminal audit row is immutable under a stale success redelivery. Its
+-- amount/kind/state are recorded facts, not inputs for the booking path to rewrite.
+PERFORM public.reverse_order_refund_cents(
+  'pi_pending_refund', 're_terminal', 300, 'make_whole', 'canceled');
+PERFORM public.record_order_refund_cents(
+  'pi_pending_refund', 're_terminal', 99999, 'post_hoc');
+SELECT concat_ws(':', f.stripe_payment_intent_id, f.amount_cents, f.kind, f.state) INTO bad
+  FROM public.stripe_order_refunds f WHERE f.stripe_refund_id = 're_terminal';
+PERFORM public.test_true(bad = 'pi_pending_refund:300:make_whole:canceled',
+  format('terminal audit facts survive stale booking (got %s)', bad));
 
 RAISE NOTICE '[12b] authorization RAISEs rather than returning an empty $0';
 BEGIN

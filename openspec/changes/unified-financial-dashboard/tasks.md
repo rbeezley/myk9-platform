@@ -46,3 +46,22 @@
 - [ ] 6.4 Update the linked Linear issue and launch-readiness tracking with completed evidence, known operator gates, and intentional non-goals.
 - [ ] 6.5 Open the implementation PR with the OpenSpec change linked, run CI and focused review, and resolve all blocking findings.
 - [ ] 6.6 Merge only after required checks and shared-system/operator gates are accepted; then archive the OpenSpec change with the PR evidence.
+
+## 7. MYK9-63 pre-merge refund-ledger follow-ups
+
+- [x] 7.1 Add failing executable Postgres assertions for non-succeeded fully refunded orders, terminal audit-row immutability, and reconciliation inclusion of refund-bearing orders outside the normal succeeded/refunded status pair.
+- [x] 7.2 Make `refunded_at` follow the derived order status, preserve terminal failed-row amount/kind/state on stale booking, and replace the unreachable multi-order tie-break with the `stripe_payment_intent_id` uniqueness contract.
+- [x] 7.3 Add a behavior-tested Stripe refund-status decision: book only `succeeded`, defer `pending`/`requires_action`, and terminally fail `failed`/`canceled` from both charge reconciliation and `refund.updated`/`refund.failed` delivery.
+- [x] 7.4 Drain every `stripe.refunds.list` page with `has_more` and `starting_after`; cover multi-page, exact-boundary, API-failure, and invalid empty-page responses without guessing from cumulative charge totals.
+- [x] 7.5 Update `getShowPaymentSummary` to subtract and report partial refunds from the stored refund columns while preserving legacy fully-refunded fallback behavior; add value-sensitive unit assertions.
+- [x] 7.6 Remove or narrow refund-ledger source/mirror tests whose assertions are superseded by executable SQL and behavior coverage; retain only contracts that cannot be imported or executed safely.
+- [x] 7.7 Record the operator-gated Stripe destination requirement for `refund.updated`; do not mutate the destination or deploy the webhook/migrations without confirmation.
+- [ ] 7.8 Run the financial SQL harness, focused refund/payment tests, edge-function type checks, monorepo typecheck/lint, and OpenSpec validation; review the diff for money, authz, migration re-runnability, and deployment-order regressions.
+  - Completed locally: SQL harness, 725 focused tests, monorepo typecheck/lint, OpenSpec validation, diff/migration review.
+  - Remaining evidence: direct Deno edge-function type check (Deno is not installed in this workspace) or the equivalent CI edge bundle after push.
+
+## Validation Profile
+
+- Risk: high
+- Validation: full
+- Rationale: MYK9-63 changes payment webhooks, a money-table migration, reconciliation totals, and audit-history semantics before either migration is deployed.

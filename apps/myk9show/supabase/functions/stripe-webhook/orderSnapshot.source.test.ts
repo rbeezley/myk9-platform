@@ -11,7 +11,7 @@ const webhookSource = readFileSync(resolve(__dirname, 'index.ts'), 'utf8');
 const migrationSource = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260717120000_stripe_order_snapshots.sql'
+    '../../../../../supabase/migrations/20260717122000_stripe_order_snapshots.sql'
   ),
   'utf8'
 );
@@ -105,11 +105,48 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(handler).toContain('order ledger NOT updated');
   });
 
-  it('skips refunds Stripe already reports as failed/canceled', () => {
+  it('uses the shared lifecycle decision and books only succeeded refunds', () => {
     const start = webhookSource.indexOf('async function handleChargeRefunded');
     const end = webhookSource.indexOf('\nasync function', start + 1);
     const body = webhookSource.slice(start, end);
-    expect(body).toMatch(/refund\.status === 'failed' \|\| refund\.status === 'canceled'/);
+    expect(body).toContain('resolveRefundLedgerAction(refund.status)');
+    expect(body).toContain("if (action === 'defer') continue");
+    expect(body).toContain("if (action === 'fail' || action === 'cancel')");
+    expect(body).toContain('sawSucceededRefund = true');
+  });
+
+  it('alerts when refund.updated succeeds before its order exists', () => {
+    const start = webhookSource.indexOf('async function handleRefundUpdated');
+    const end = webhookSource.indexOf('\nasync function', start + 1);
+    const body = webhookSource.slice(start, end);
+    expect(body).toContain('const rows = await recordOrderRefundCents');
+    expect(body).toContain('rows?.length === 0');
+    expect(body).toContain('Succeeded refund arrived before its order');
+  });
+
+  it('gates newly created auto-refunds on Stripe status before booking', () => {
+    const helperStart = webhookSource.indexOf(
+      'async function reconcileCreatedMakeWholeRefund'
+    );
+    const helperEnd = webhookSource.indexOf('\nasync function', helperStart + 1);
+    const helper = webhookSource.slice(helperStart, helperEnd);
+    expect(helper).toContain('resolveRefundLedgerAction(refund.status)');
+    expect(helper).toContain("if (action === 'defer')");
+    expect(helper).toContain("if (action === 'fail' || action === 'cancel')");
+    expect(helper).toContain('recordOrderRefundCents(paymentIntentId, {');
+    expect(helper).toMatch(/amountCents:\s*refund\.amount/);
+    expect(helper).toMatch(/kind:\s*'make_whole'/);
+
+    for (const functionName of [
+      'issueCartOverflowAutoRefund',
+      'issueEntryPaymentAutoRefund',
+    ]) {
+      const start = webhookSource.indexOf(`async function ${functionName}`);
+      const end = webhookSource.indexOf('\nasync function', start + 1);
+      const body = webhookSource.slice(start, end);
+      expect(body).toContain('reconcileCreatedMakeWholeRefund(');
+      expect(body).not.toContain('recordOrderRefundCents(');
+    }
   });
 
   it('FAILS CLOSED: does not stamp refunded when the amount did not persist', () => {
@@ -155,18 +192,16 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     const start = webhookSource.indexOf('async function issueCartOverflowAutoRefund');
     const end = webhookSource.indexOf('\nasync function', start + 1);
     const body = webhookSource.slice(start, end);
-    expect(body).toContain('recordOrderRefundCents(input.paymentIntentId!, {');
+    expect(body).toContain('reconcileCreatedMakeWholeRefund(input.paymentIntentId!, refund)');
     // Cart overflow refunds lines NEVER accepted: no fee earned, no club
     // transfer, so it must never land in refunded_cents as a platform loss.
-    expect(body).toMatch(/kind:\s*'make_whole'/);
-    expect(body).toMatch(/amountCents:\s*refund\.amount/);
     expect(body).not.toContain('chargeTotalCents');
     // The Stripe refund id is the ledger PRIMARY KEY, so a duplicate delivery is
     // an upsert of the same row rather than a second add.
-    expect(body).toMatch(/refundId:\s*refund\.id/);
+    expect(body).toContain('ledgerResult.attemptedBooking');
     // Fail closed: an unwritten refund leaves the order looking collected in
     // full, so it must alert rather than continue silently (finding 5).
-    expect(body).toContain('recordedRows === null || recordedRows.length === 0');
+    expect(body).toContain('ledgerResult.rows === null || ledgerResult.rows.length === 0');
     // No status stamp here — record_order_refund_cents owns the transition and
     // stamps 'refunded' IFF fully refunded.
     expect(body).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
@@ -176,12 +211,10 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     const start = webhookSource.indexOf('async function issueEntryPaymentAutoRefund');
     const end = webhookSource.indexOf('\nasync function', start + 1);
     const body = webhookSource.slice(start, end);
-    expect(body).toContain('recordOrderRefundCents(input.paymentIntentId, {');
-    expect(body).toMatch(/kind:\s*'make_whole'/);
-    expect(body).toMatch(/amountCents:\s*refund\.amount/);
+    expect(body).toContain('reconcileCreatedMakeWholeRefund(input.paymentIntentId, refund)');
     expect(body).not.toContain('chargeTotalCents');
-    expect(body).toMatch(/refundId:\s*refund\.id/);
-    expect(body).toContain('recordedRows === null || recordedRows.length === 0');
+    expect(body).toContain('ledgerResult.attemptedBooking');
+    expect(body).toContain('ledgerResult.rows === null || ledgerResult.rows.length === 0');
     expect(body).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
   });
 
@@ -237,6 +270,7 @@ describe('stripe_order_snapshots migration (source-pinned)', () => {
       /kind text NOT NULL CHECK \(kind IN \('make_whole', 'post_hoc'\)\)/
     );
     expect(migrationSource).toMatch(/state text NOT NULL DEFAULT 'succeeded'/);
+    expect(migrationSource).toContain("CHECK (state IN ('succeeded', 'failed', 'canceled'))");
     // The array columns the counters used as idempotency keys are gone; the
     // ledger primary key replaces both.
     expect(migrationSource).toContain('DROP COLUMN IF EXISTS make_whole_refund_ids');
@@ -285,8 +319,8 @@ describe('stripe_order_snapshots migration (source-pinned)', () => {
     );
     expect(migrationSource).toMatch(/UPDATE public\.stripe_orders AS o/);
     // The reversal is a STATE CHANGE, never a subtraction.
-    expect(migrationSource).toMatch(/SET state = 'failed'/);
-    expect(migrationSource).toContain('FAILED IS TERMINAL');
+    expect(migrationSource).toContain("v_state text := CASE WHEN p_terminal_state = 'canceled'");
+    expect(migrationSource).toContain('FAILED/CANCELED ARE TERMINAL');
   });
 
   it('is RE-RUNNABLE: drops BOTH the old and the new RPC signatures first', () => {
@@ -295,6 +329,7 @@ describe('stripe_order_snapshots migration (source-pinned)', () => {
       'DROP FUNCTION IF EXISTS public.record_order_refund_cents(text, integer, text, integer)',
       'DROP FUNCTION IF EXISTS public.record_order_refund_cents(text, text, integer, text)',
       'DROP FUNCTION IF EXISTS public.reverse_order_refund_cents(text, text, integer)',
+      'DROP FUNCTION IF EXISTS public.reverse_order_refund_cents(text, text, integer, text, text)',
       'DROP FUNCTION IF EXISTS public.recompute_order_refund_totals(text)',
     ]) {
       expect(migrationSource).toContain(sig);

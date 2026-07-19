@@ -281,6 +281,45 @@ describe('PaymentService read methods', () => {
         completionRate: 1 / 6,
       });
     });
+
+    it('subtracts and reports a partial refund while the order remains succeeded', async () => {
+      mocks.from.mockReturnValue(
+        makeQueryBuilder({
+          data: [
+            {
+              amount_cents: 10_000,
+              status: 'succeeded',
+              refunded_cents: 2_500,
+              make_whole_refunded_cents: 0,
+            },
+          ],
+          error: null,
+        })
+      );
+
+      await expect(service.getShowPaymentSummary('show-1')).resolves.toEqual({
+        totalEntries: 1,
+        totalAmount: 100,
+        paidAmount: 75,
+        pendingAmount: 0,
+        refundedAmount: 25,
+        completionRate: 1,
+      });
+    });
+
+    it('preserves the legacy full-refund fallback when refund columns are absent', async () => {
+      mocks.from.mockReturnValue(
+        makeQueryBuilder({
+          data: [{ amount_cents: 3500, status: 'refunded' }],
+          error: null,
+        })
+      );
+
+      await expect(service.getShowPaymentSummary('show-1')).resolves.toMatchObject({
+        paidAmount: 0,
+        refundedAmount: 35,
+      });
+    });
   });
 
   describe('checkPaymentStatus', () => {

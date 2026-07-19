@@ -40,6 +40,10 @@ import {
 import { decideFreshSessionGate } from '../_shared/freshSessionGate.ts';
 import { buildConfirmationStampPayload } from '../_shared/entryConfirmationStamp.ts';
 import { createWebhookRequestHandler } from './webhookHandler.ts';
+import {
+  listAllChargeRefunds,
+  resolveRefundLedgerAction,
+} from '../_shared/refundLifecycle.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -191,6 +195,10 @@ async function handleEvent(event: Stripe.Event) {
       await handleRefundFailed(event.data.object as Stripe.Refund);
       break;
 
+    case 'refund.updated':
+      await handleRefundUpdated(event.data.object as Stripe.Refund);
+      break;
+
     case 'charge.dispute.created':
       await handleDisputeCreated(event.data.object as Stripe.Dispute);
       break;
@@ -222,9 +230,9 @@ async function handleEvent(event: Stripe.Event) {
  * cannot resurrect it (failed is TERMINAL).
  *
  * IDEMPOTENT by construction — the refund id is the ledger primary key, so a
- * duplicate `refund.failed` delivery re-flips an already-failed row and the
- * recomputed totals are identical. A failure arriving BEFORE its booking event
- * matches no row and correctly changes nothing; Stripe's redelivery settles it.
+ * duplicate terminal delivery leaves the same retained audit row and recomputed
+ * totals. A terminal event arriving BEFORE a booking writes the authoritative
+ * tombstone immediately; it does not depend on Stripe redelivery.
  *
  * The ENTRY-level refund columns are still the operator's job — the alert stays,
  * because the entry stamp and any re-issue are manual.
@@ -234,9 +242,56 @@ async function handleEvent(event: Stripe.Event) {
  * and the drift stays visible rather than silently "handled".
  */
 async function handleRefundFailed(refund: Stripe.Refund) {
+  await handleTerminalRefund(refund, 'failed');
+}
+
+async function handleRefundUpdated(refund: Stripe.Refund) {
+  const action = resolveRefundLedgerAction(refund.status);
+  if (action === 'defer') {
+    console.log(
+      `Refund ${refund.id} remains ${refund.status ?? 'unknown'} — order ledger unchanged`
+    );
+    return;
+  }
+  if (action === 'fail' || action === 'cancel') {
+    await handleTerminalRefund(refund, action === 'cancel' ? 'canceled' : 'failed');
+    return;
+  }
+
+  const paymentIntentId = extractPaymentIntentId(refund.payment_intent);
+  if (!paymentIntentId) {
+    console.error(`Succeeded refund ${refund.id} has no payment intent — cannot book ledger`);
+    return;
+  }
+  const rows = await recordOrderRefundCents(paymentIntentId, {
+    refundId: refund.id,
+    amountCents: refund.amount,
+    kind: refundKindFromMetadata(refund),
+  });
+  if (rows?.length === 0) {
+    await alertAdmin(
+      'Succeeded refund arrived before its order — awaiting attachment',
+      `<p>Refund <code>${refund.id}</code> for payment intent
+       <code>${paymentIntentId}</code> succeeded before its
+       <code>stripe_orders</code> row existed. The refund fact is retained and
+       will attach automatically when the order is inserted.</p>
+       <p>If the order never appears, investigate the checkout webhook for this
+       payment intent; the retained refund currently contributes to no order.</p>`,
+      {
+        source: 'stripe-webhook',
+        dedupeKey: `refund-awaiting-order-${refund.id}`,
+      }
+    );
+  }
+}
+
+async function handleTerminalRefund(
+  refund: Stripe.Refund,
+  terminalState: 'failed' | 'canceled'
+) {
   const entryId = refund.metadata?.entry_id ?? null;
   console.error(
-    `CRITICAL: refund ${refund.id} (${refund.amount}¢) FAILED after creation` +
+    `CRITICAL: refund ${refund.id} (${refund.amount}¢) ${terminalState.toUpperCase()} after creation` +
       (entryId ? ` for entry ${entryId}` : '')
   );
 
@@ -252,6 +307,8 @@ async function handleRefundFailed(refund: Stripe.Refund) {
         p_payment_intent_id: paymentIntentId,
         p_refund_id: refund.id,
         p_amount_cents: refund.amount,
+        p_kind: refundKindFromMetadata(refund),
+        p_terminal_state: terminalState,
       });
       if (error) throw error;
       const rows = (data ?? []) as Array<{ order_id: string; reversed: boolean }>;
@@ -278,15 +335,15 @@ async function handleRefundFailed(refund: Stripe.Refund) {
   }
 
   await alertAdmin(
-    'Stripe refund FAILED after it was issued',
+    `Stripe refund ${terminalState.toUpperCase()} — customer was not paid`,
     `<p>Refund <code>${refund.id}</code> for ${(refund.amount / 100).toFixed(2)} USD has
-     status <code>failed</code>${entryId ? ` (entry <code>${entryId}</code>)` : ''} —
+     status <code>${terminalState}</code>${entryId ? ` (entry <code>${entryId}</code>)` : ''} —
      the customer was NOT paid.</p>
      ${ledgerNote}
      <p>Recovery: the ENTRY-level refund columns are still stamped — clear them (see the
      runbook's "Manual reconciliation" section), then re-issue the refund from the entries
      page. The refund function ignores dead refunds, so re-issuing is safe.</p>`,
-    { source: 'stripe-webhook', dedupeKey: `refund-failed-${refund.id}` }
+    { source: 'stripe-webhook', dedupeKey: `refund-terminal-${refund.id}` }
   );
 }
 
@@ -421,6 +478,41 @@ async function recordOrderRefundCents(
   return rows;
 }
 
+interface CreatedRefundLedgerResult {
+  attemptedBooking: boolean;
+  rows: RecordedRefundRow[] | null;
+}
+
+/**
+ * Stripe can return an in-flight Refund from `refunds.create`. Only succeeded
+ * money belongs in the order ledger; `refund.updated` owns the later outcome.
+ */
+async function reconcileCreatedMakeWholeRefund(
+  paymentIntentId: string,
+  refund: Stripe.Refund
+): Promise<CreatedRefundLedgerResult> {
+  const action = resolveRefundLedgerAction(refund.status);
+  if (action === 'defer') {
+    console.log(
+      `Created refund ${refund.id} remains ${refund.status ?? 'unknown'} — waiting for refund.updated`
+    );
+    return { attemptedBooking: false, rows: [] };
+  }
+  if (action === 'fail' || action === 'cancel') {
+    await handleTerminalRefund(refund, action === 'cancel' ? 'canceled' : 'failed');
+    return { attemptedBooking: false, rows: [] };
+  }
+
+  return {
+    attemptedBooking: true,
+    rows: await recordOrderRefundCents(paymentIntentId, {
+      refundId: refund.id,
+      amountCents: refund.amount,
+      kind: 'make_whole',
+    }),
+  };
+}
+
 /**
  * Resolve the INDIVIDUAL refunds on a charge. `charge.refunds` may be absent or
  * paginated on the event payload, and `charge.amount_refunded` is only a
@@ -437,8 +529,9 @@ async function resolveChargeRefunds(charge: Stripe.Charge): Promise<Stripe.Refun
     return embedded;
   }
   try {
-    const listed = await stripe.refunds.list({ charge: charge.id, limit: 100 });
-    return listed.data;
+    return await listAllChargeRefunds<Stripe.Refund>(charge.id, params =>
+      stripe.refunds.list(params)
+    );
   } catch (err) {
     console.error(`Could not expand refunds for charge ${charge.id}:`, err);
     return null;
@@ -485,12 +578,19 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
   // A refund Stripe already reports as failed/canceled is skipped: it never
   // moved money, and `refund.failed` owns the terminal state flip.
   let recordedRows: RecordedRefundRow[] | null = null;
+  let sawSucceededRefund = false;
   if (intentIdForLedger) {
     // Empty until a refund books rows; an all-skipped charge is "ran, matched
     // nothing", not a write failure.
     recordedRows = [];
     for (const refund of refunds) {
-      if (refund.status === 'failed' || refund.status === 'canceled') continue;
+      const action = resolveRefundLedgerAction(refund.status);
+      if (action === 'defer') continue;
+      if (action === 'fail' || action === 'cancel') {
+        await handleTerminalRefund(refund, action === 'cancel' ? 'canceled' : 'failed');
+        continue;
+      }
+      sawSucceededRefund = true;
       const rows = await recordOrderRefundCents(intentIdForLedger, {
         refundId: refund.id,
         amountCents: refund.amount ?? 0,
@@ -528,6 +628,13 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
   const paymentIntentId = extractPaymentIntentId(charge.payment_intent);
   if (!paymentIntentId) {
     console.error(`charge.refunded for ${charge.id} has no payment intent — cannot reconcile`);
+    return;
+  }
+
+  if (!sawSucceededRefund) {
+    console.log(
+      `charge.refunded for ${paymentIntentId} contained no succeeded refunds — ledger unchanged`
+    );
     return;
   }
 
@@ -1939,15 +2046,14 @@ async function issueEntryPaymentAutoRefund(input: {
     // is what lets the later `charge.refunded` sweep leave the kind alone. The
     // recompute owns the status transition — 'refunded' IFF FULLY refunded — so
     // there is deliberately no status update here.
-    const recordedRows = await recordOrderRefundCents(input.paymentIntentId, {
-      refundId: refund.id,
-      amountCents: refund.amount,
-      kind: 'make_whole',
-    });
+    const ledgerResult = await reconcileCreatedMakeWholeRefund(input.paymentIntentId, refund);
 
     // FAIL CLOSED (finding 5): a failed or unmatched ledger write leaves the
     // order looking collected in full. Alert instead of silently continuing.
-    if (recordedRows === null || recordedRows.length === 0) {
+    if (
+      ledgerResult.attemptedBooking &&
+      (ledgerResult.rows === null || ledgerResult.rows.length === 0)
+    ) {
       await alertAdmin(
         'Payment link auto-refund issued but not recorded on the order',
         `<p>Auto-refund <code>${refund.id}</code> succeeded for session
@@ -2127,15 +2233,14 @@ async function issueCartOverflowAutoRefund(input: {
     // time so the later charge.refunded sweep cannot demote it to a post-hoc
     // loss, and the recompute owns the status transition ('refunded' IFF FULLY
     // refunded), so no status is stamped here.
-    const recordedRows = await recordOrderRefundCents(input.paymentIntentId!, {
-      refundId: refund.id,
-      amountCents: refund.amount,
-      kind: 'make_whole',
-    });
+    const ledgerResult = await reconcileCreatedMakeWholeRefund(input.paymentIntentId!, refund);
 
     // FAIL CLOSED (finding 5): don't leave a refunded charge reading as collected
     // in full without saying so.
-    if (recordedRows === null || recordedRows.length === 0) {
+    if (
+      ledgerResult.attemptedBooking &&
+      (ledgerResult.rows === null || ledgerResult.rows.length === 0)
+    ) {
       await alertAdmin(
         'Cart overflow auto-refund issued but not recorded on the order',
         `<p>Auto-refund <code>${refund.id}</code> succeeded for session

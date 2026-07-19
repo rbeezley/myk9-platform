@@ -32,6 +32,7 @@ describe('stripe-webhook event.type dispatch (source-pinned)', () => {
     ['invoice.payment_failed', 'handleInvoicePaymentFailed'],
     ['charge.refunded', 'handleChargeRefunded'],
     ['refund.failed', 'handleRefundFailed'],
+    ['refund.updated', 'handleRefundUpdated'],
     ['charge.dispute.created', 'handleDisputeCreated'],
     ['account.updated', 'handleAccountUpdated'],
     ['account.application.deauthorized', 'handleAccountDeauthorized'],

@@ -153,7 +153,7 @@ export interface FinancialSummaryDeps {
 // would make net income read falsely negative.
 //
 // The two are recorded in SEPARATE explicit columns at write time (migration
-// 20260717120000) and surface as separate summary totals, so nothing is derived
+// 20260717122000) and surface as separate summary totals, so nothing is derived
 // here:
 //   netPlatformIncome    subtracts refundedCents (post-hoc) ONLY.
 //   onlineCollectedCents subtracts BOTH — a make-whole refund genuinely does

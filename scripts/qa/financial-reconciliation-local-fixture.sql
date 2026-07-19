@@ -1,6 +1,6 @@
 -- Minimal scratch-Postgres fixture for the MYK9-54 financial SQL (MYK9-54).
 --
--- Creates ONLY what migrations 20260717120000 + 20260717130000 need in order to
+-- Creates ONLY what migrations 20260717122000 + 20260717130000 need in order to
 -- apply and run: the Supabase roles, the three tables they touch (columns copied
 -- from the real DDL in 005, 20260609120000, 132, 20260615170000), and toggleable
 -- stubs for the three authorization predicates.
@@ -33,7 +33,7 @@ CREATE TABLE public.shows (
 );
 
 -- 005_myk9show_specific.sql: stripe_orders. The snapshot columns are NOT
--- declared here — migration 20260717120000 must add them itself.
+-- declared here — migration 20260717122000 must add them itself.
 CREATE TABLE public.stripe_orders (
   id                         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id                uuid,

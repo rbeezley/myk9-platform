@@ -21,7 +21,7 @@ QA_DIR="$REPO_ROOT/scripts/qa"
 
 FIXTURE="$QA_DIR/financial-reconciliation-local-fixture.sql"
 ASSERTIONS="$QA_DIR/financial-reconciliation-local-assertions.sql"
-MIGRATION_SNAPSHOTS="$MIGRATIONS/20260717120000_stripe_order_snapshots.sql"
+MIGRATION_SNAPSHOTS="$MIGRATIONS/20260717122000_stripe_order_snapshots.sql"
 MIGRATION_RPC="$MIGRATIONS/20260717130000_financial_reconciliation_rpc.sql"
 
 # ── Locate Postgres server binaries ────────────────────────────────────────

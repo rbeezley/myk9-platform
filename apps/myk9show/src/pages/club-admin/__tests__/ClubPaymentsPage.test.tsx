@@ -8,13 +8,29 @@ import ClubPaymentsPage from '../ClubPaymentsPage';
 import { ScopeType, UserRole } from '@/types/auth-types';
 
 const h = vi.hoisted(() => ({
+  roles: [] as string[],
   userWithRoles: undefined as
     { scopes: Array<{ roleId: string; scopeType: string; scopeId: string }> } | undefined,
+  ensureClubsReady: vi.fn(() => Promise.resolve({ status: 'fresh', clubs: [] })),
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ userWithRoles: h.userWithRoles }),
+  useAuthContext: () => ({
+    getUserRoles: () => h.roles,
+    userWithRoles: h.userWithRoles,
+  }),
 }));
+
+vi.mock('@/store/clubStore', () => {
+  const state = {
+    clubs: [{ id: 'club-1', name: 'Heartland Club' }],
+    clubReadiness: 'fresh',
+    ensureClubsReady: h.ensureClubsReady,
+  };
+  return {
+    useClubStore: (selector: (value: typeof state) => unknown) => selector(state),
+  };
+});
 
 vi.mock('@/features/payments/ClubPaymentsCard', () => ({
   ClubPaymentsCard: ({ clubId }: { clubId: string }) => (
@@ -24,14 +40,16 @@ vi.mock('@/features/payments/ClubPaymentsCard', () => ({
 
 describe('ClubPaymentsPage — club scope-gating', () => {
   it('a non-club-admin (no CLUB scope) sees no club financials', () => {
+    h.roles = [UserRole.EXHIBITOR];
     h.userWithRoles = { scopes: [] };
     render(<ClubPaymentsPage />);
 
     expect(screen.queryByTestId('club-payments-card')).not.toBeInTheDocument();
-    expect(screen.getByText(/no club is linked to your account yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/could not verify your club access yet/i)).toBeInTheDocument();
   });
 
   it('a secretary scoped to a club (not club_admin) sees no club financials', () => {
+    h.roles = [UserRole.SECRETARY];
     h.userWithRoles = {
       scopes: [{ roleId: UserRole.SECRETARY, scopeType: ScopeType.CLUB, scopeId: 'club-1' }],
     };
@@ -41,6 +59,7 @@ describe('ClubPaymentsPage — club scope-gating', () => {
   });
 
   it('a club admin sees the club payments card scoped to their club', () => {
+    h.roles = [UserRole.CLUB_ADMIN];
     h.userWithRoles = {
       scopes: [{ roleId: UserRole.CLUB_ADMIN, scopeType: ScopeType.CLUB, scopeId: 'club-1' }],
     };

@@ -49,7 +49,7 @@ export interface OrderChargeFacts {
  * Do we hold a Stripe order snapshot for this order?
  *
  * A snapshot is present when BOTH snapshot columns were captured at charge time
- * (migration 20260717120000). A null column means the order pre-dates the
+ * (migration 20260717122000). A null column means the order pre-dates the
  * snapshot contract or was recorded outside Stripe — Attested, not suspect.
  *
  * This deliberately does NOT compare amounts. See the module header: the tie-out

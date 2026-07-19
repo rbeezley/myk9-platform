@@ -119,6 +119,30 @@ when disconnected. Show-day scoring, check-in, and other persistent show operati
 must continue using `@myk9/replication` and existing mutation flows. No financial
 dashboard request is allowed to block or alter ringside workflows.
 
+### 7. Derive the refund ledger only from terminal Stripe facts
+
+The order refund ledger records a refund as money returned only when Stripe reports
+`succeeded`. `pending` and `requires_action` remain unbooked until a later
+`refund.updated`; `failed` and `canceled` are terminal audit states that contribute
+nothing to derived refund totals. Both `charge.refunded` reconciliation and
+`refund.updated` use the same status decision, and refund-list expansion drains every
+page rather than assuming the first 100 rows are complete.
+
+Order timestamps follow order status, not refund arithmetic alone. A fully refunded
+local order that is still `pending` or `processing` retains that status and does not
+receive `refunded_at`; its recorded refund facts remain visible in reconciliation so
+gross, fee, and refund amounts net together instead of disappearing from the report.
+The unique `stripe_orders.stripe_payment_intent_id` constraint is the attribution
+contract, so refund RPCs select the single matching order without an unreachable
+multi-order tie-break.
+
+**Alternatives considered:**
+
+- Book in-flight refunds optimistically: rejected because a later cancellation can
+  otherwise leave a permanent phantom refund.
+- Keep source-text pins as the primary regression proof: rejected for money behavior;
+  executable Postgres assertions and behavior tests are the authority.
+
 ## Risks / Trade-offs
 
 - **[Historical orders lack snapshots]** → Mark them rate-unverifiable or net-pending;
@@ -135,6 +159,11 @@ dashboard request is allowed to block or alter ringside workflows.
   role-specific language.
 - **[Canonical-route migration breaks saved links]** → Keep explicit redirects and
   route tests for legacy paths and onboarding return URLs before deleting overlap.
+- **[Refund lifecycle events arrive out of order]** → Keep one audit row per refund,
+  make terminal failure/cancellation authoritative, and replay status permutations in
+  executable SQL tests.
+- **[Refund list exceeds one Stripe page]** → Follow `has_more`/`starting_after` to
+  completion and behavior-test the page boundary and empty-page failure guard.
 
 ## Migration Plan
 

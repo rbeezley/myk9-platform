@@ -162,7 +162,7 @@ describe('financial reconciliation RPC — SQL-side aggregation (source-pinned)'
   it('exposes make_whole_refunded_cents on the orders detail row too', () => {
     // A per-row tie-out (amount == subtotal + fee + make_whole) needs it; deriving
     // it client-side would reintroduce the same tautology.
-    expect(migrationSource).toMatch(/make_whole_refunded_cents   integer/);
+    expect(migrationSource).toMatch(/make_whole_refunded_cents {3}integer/);
     expect(migrationSource).toMatch(/o\.make_whole_refunded_cents/);
   });
 
@@ -235,8 +235,8 @@ describe('financial reconciliation RPC — SQL-side aggregation (source-pinned)'
 
 describe('financial reconciliation RPC — detail/aggregate agreement (source-pinned)', () => {
   it('orders detail applies the SAME status + order_type predicate as the summary', () => {
-    // Review finding 3: without these, failed/pending/cancelled and non-entry
-    // rows enter client-side grouping and disagree with the aggregates.
+    // Refund-bearing pending/processing rows are financially active and must
+    // remain visible, while unrefunded failed/pending/cancelled rows stay out.
     const statusPredicates = migrationSource.match(/status IN \('succeeded', 'refunded'\)/g) ?? [];
     expect(statusPredicates.length).toBe(2); // summary CTE + orders detail
     const entryPredicates = migrationSource.match(/order_type = 'entry'/g) ?? [];
@@ -248,6 +248,8 @@ describe('financial reconciliation RPC — detail/aggregate agreement (source-pi
       migrationSource.indexOf(`REVOKE ALL ON FUNCTION public.${ordersFn}`)
     );
     expect(ordersFnBody).toContain("o.status IN ('succeeded', 'refunded')");
+    expect(ordersFnBody).toContain('o.refunded_cents > 0');
+    expect(ordersFnBody).toContain('o.make_whole_refunded_cents > 0');
     expect(ordersFnBody).toContain("o.order_type = 'entry'");
   });
 });

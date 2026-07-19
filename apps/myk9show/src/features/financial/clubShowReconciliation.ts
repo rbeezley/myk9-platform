@@ -60,7 +60,7 @@ export interface ClubShowReconciliationRow {
  * the club: a $50.00 accepted subtotal on a cart with a $40.00 overflow refund
  * reported $10.00 net when the club is owed the full $50.00 — the overflow money
  * was never part of the club's entry fees, never transferred, and returning it
- * costs the club nothing. With the explicit split (migration 20260717120000)
+ * costs the club nothing. With the explicit split (migration 20260717122000)
  * `refundedCents` IS the post-hoc total, so the make-whole portion is correctly
  * out of this formula.
  *

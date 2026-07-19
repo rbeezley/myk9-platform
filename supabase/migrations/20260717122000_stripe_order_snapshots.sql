@@ -1,5 +1,5 @@
 -- Immutable Stripe order financial snapshot + per-refund ledger
--- (financial-reconciliation, MYK9-54).
+-- (financial-reconciliation, MYK9-54 / MYK9-63).
 --
 -- Records the authoritative, cent-based facts of each online charge AT CHARGE
 -- TIME so a later `platform_settings.platform_fee_percent` change never rewrites
@@ -73,7 +73,9 @@ CREATE TABLE IF NOT EXISTS public.stripe_order_refunds (
   -- IDEMPOTENCY BY CONSTRUCTION: a webhook redelivery is an upsert of this row.
   stripe_refund_id text PRIMARY KEY,
   stripe_payment_intent_id text NOT NULL,
-  order_id uuid REFERENCES public.stripe_orders (id) ON DELETE CASCADE,
+  -- Order snapshots may be pruned or corrected, but refund facts are permanent
+  -- audit history. Detach rather than deleting the ledger row with its order.
+  order_id uuid REFERENCES public.stripe_orders (id) ON DELETE SET NULL,
   amount_cents integer NOT NULL CHECK (amount_cents >= 0),
   -- 'make_whole' = lines NEVER accepted (money handed straight back, no platform
   -- loss). 'post_hoc' = the entry WAS accepted and the platform repays from its
@@ -81,7 +83,8 @@ CREATE TABLE IF NOT EXISTS public.stripe_order_refunds (
   kind text NOT NULL CHECK (kind IN ('make_whole', 'post_hoc')),
   -- A FAILED refund is a STATE CHANGE, never a subtraction. The row is RETAINED
   -- so the history stays auditable.
-  state text NOT NULL DEFAULT 'succeeded' CHECK (state IN ('succeeded', 'failed')),
+  state text NOT NULL DEFAULT 'succeeded'
+    CHECK (state IN ('succeeded', 'failed', 'canceled')),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -129,9 +132,11 @@ GRANT ALL ON public.stripe_order_refunds TO service_role;
 --                             + make_whole_refunded_cents
 --
 -- ── THE REFUND STATUS INVARIANT ────────────────────────────────────────────
---   status = 'refunded'  IFF  make_whole_refunded_cents + refunded_cents
---                             >= amount_cents
---   refunded_at IS NOT NULL  IFF  the same condition holds.
+--   status = 'refunded'  IFF  refunded_at IS NOT NULL.
+--   A succeeded/refunded order is promoted/demoted from the full-refund sum;
+--   pending/processing/failed/cancelled statuses are deliberately preserved and
+--   therefore never receive refunded_at even when recorded refund facts cover
+--   the amount.
 --
 -- Both are RE-DERIVED on every recompute, so the transition now correctly
 -- DEMOTES ('refunded' -> 'succeeded') as well as promotes when a refund fails.
@@ -218,10 +223,13 @@ BEGIN
        SET make_whole_refunded_cents = v_row.mw,
            refunded_cents = v_row.ph,
            status = v_status,
-           -- refunded_at IS NOT NULL IFF fully refunded — derived from the same
-           -- condition as the status, so the two can never disagree. The old
-           -- reversal path cleared this on orders that were never full.
-           refunded_at = CASE WHEN v_full THEN COALESCE(o.refunded_at, now()) ELSE NULL END
+           -- refunded_at follows the DERIVED STATUS, not v_full alone. A local
+           -- pending/processing order keeps that status and must not receive a
+           -- timestamp that claims it is refunded.
+           refunded_at = CASE
+             WHEN v_status = 'refunded' THEN COALESCE(o.refunded_at, now())
+             ELSE NULL
+           END
      WHERE o.id = v_row.oid;
 
     order_id := v_row.oid;
@@ -240,6 +248,55 @@ REVOKE ALL ON FUNCTION public.recompute_order_refund_totals(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.recompute_order_refund_totals(text) FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.recompute_order_refund_totals(text) TO service_role;
 
+-- ── LATE ORDER ATTACHMENT ─────────────────────────────────────────────────
+-- Stripe can deliver refund.updated before the checkout/order webhook creates
+-- stripe_orders. The refund RPC deliberately retains that money fact with a
+-- NULL order_id. When the order later appears, attach every retained fact and
+-- recompute immediately so the order cannot remain falsely fully collected.
+--
+-- The transaction advisory lock is shared with both refund RPCs. It closes the
+-- concurrent race where the order insert and refund delivery overlap: whichever
+-- transaction wins, the loser observes and reconciles the winner's committed row.
+DROP TRIGGER IF EXISTS attach_pending_order_refunds_after_insert ON public.stripe_orders;
+DROP FUNCTION IF EXISTS public.attach_pending_order_refunds_after_insert();
+
+CREATE FUNCTION public.attach_pending_order_refunds_after_insert()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF NEW.stripe_payment_intent_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(NEW.stripe_payment_intent_id, 0)
+  );
+
+  UPDATE public.stripe_order_refunds AS r
+     SET order_id = NEW.id,
+         updated_at = now()
+   WHERE r.stripe_payment_intent_id = NEW.stripe_payment_intent_id
+     AND r.order_id IS NULL;
+
+  PERFORM 1
+    FROM public.recompute_order_refund_totals(NEW.stripe_payment_intent_id);
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.attach_pending_order_refunds_after_insert() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.attach_pending_order_refunds_after_insert()
+  FROM anon, authenticated;
+
+CREATE TRIGGER attach_pending_order_refunds_after_insert
+AFTER INSERT ON public.stripe_orders
+FOR EACH ROW
+WHEN (NEW.stripe_payment_intent_id IS NOT NULL)
+EXECUTE FUNCTION public.attach_pending_order_refunds_after_insert();
+
 -- ── BOOK ONE STRIPE REFUND ─────────────────────────────────────────────────
 -- Upserts exactly one ledger row, then recomputes. The caller passes ONE Stripe
 -- refund (id + amount + kind), never a cumulative total: guessing the split from
@@ -247,13 +304,15 @@ GRANT EXECUTE ON FUNCTION public.recompute_order_refund_totals(text) TO service_
 -- place, and the individual refunds are available on `charge.refunds.data`.
 --
 -- PRECEDENCE RULES, both enforced by the ON CONFLICT clause:
+--   * payment intent and amount are NEVER overwritten. Stripe refund ids map to
+--     immutable refund facts; a stale or malformed redelivery is not allowed to
+--     rewrite the retained audit record.
 --   * `kind` is NEVER overwritten. The make-whole writers book their own refund
 --     id with kind='make_whole' at creation time, so the later `charge.refunded`
 --     delivery — which cannot tell the kinds apart — must not demote it.
---   * `state` is NEVER overwritten. FAILED IS TERMINAL: a redelivered success
---     event for a refund Stripe already failed must not resurrect it. Stripe
---     only moves a refund succeeded -> failed, never back, so a `failed` row is
---     the newer truth regardless of which delivery arrives last.
+--   * `state` is NEVER overwritten. FAILED/CANCELED ARE TERMINAL: a stale
+--     success event must not resurrect the refund. Its amount and kind are also
+--     retained as audit facts.
 --
 -- Callers: the stripe-webhook edge function only (service_role).
 DROP FUNCTION IF EXISTS public.record_order_refund_cents(text, integer, integer);
@@ -288,31 +347,37 @@ BEGIN
     RETURN;
   END IF;
 
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_payment_intent_id, 0)
+  );
+
   -- Lock every order on the intent for the rest of the transaction.
   PERFORM 1
      FROM public.stripe_orders AS o
     WHERE o.stripe_payment_intent_id = p_payment_intent_id
       FOR UPDATE;
 
-  -- One payment intent normally covers exactly one order; when it covers
-  -- several, the refund is attributed to the lowest-id order deterministically
-  -- (booking it against every order would count the same money N times).
+  -- `stripe_orders.stripe_payment_intent_id` is UNIQUE, so an intent matches at
+  -- most one order. Do not add an ORDER BY/LIMIT tie-break that implies a
+  -- multi-order state the schema forbids.
   SELECT o.id INTO v_target
     FROM public.stripe_orders AS o
-   WHERE o.stripe_payment_intent_id = p_payment_intent_id
-   ORDER BY o.id
-   LIMIT 1;
+   WHERE o.stripe_payment_intent_id = p_payment_intent_id;
 
   INSERT INTO public.stripe_order_refunds AS r
     (stripe_refund_id, stripe_payment_intent_id, order_id, amount_cents, kind, state)
   VALUES (p_refund_id, p_payment_intent_id, v_target, v_amount, v_kind, 'succeeded')
   ON CONFLICT (stripe_refund_id) DO UPDATE
-     SET stripe_payment_intent_id = EXCLUDED.stripe_payment_intent_id,
-         -- Late-attach an order that did not exist on the first delivery, but
-         -- never re-point a row that already found its order.
-         order_id = COALESCE(r.order_id, EXCLUDED.order_id),
-         amount_cents = EXCLUDED.amount_cents,
-         -- kind and state are deliberately ABSENT here (see precedence above).
+     SET -- Late-attach an order that did not exist on the first delivery, but
+         -- only through the same immutable payment intent and never re-point a
+         -- row that already found its order.
+         order_id = CASE
+           WHEN r.stripe_payment_intent_id = EXCLUDED.stripe_payment_intent_id
+             THEN COALESCE(r.order_id, EXCLUDED.order_id)
+           ELSE r.order_id
+         END,
+         -- intent, amount, kind and state are deliberately ABSENT: Stripe refund
+         -- facts are immutable audit history, not redelivery inputs.
          updated_at = now();
 
   RETURN QUERY
@@ -347,11 +412,14 @@ GRANT EXECUTE ON FUNCTION public.record_order_refund_cents(text, text, integer, 
 --
 -- Callers: the stripe-webhook edge function only (service_role).
 DROP FUNCTION IF EXISTS public.reverse_order_refund_cents(text, text, integer);
+DROP FUNCTION IF EXISTS public.reverse_order_refund_cents(text, text, integer, text, text);
 
 CREATE FUNCTION public.reverse_order_refund_cents(
   p_payment_intent_id text,
   p_refund_id text,
-  p_amount_cents integer DEFAULT NULL
+  p_amount_cents integer DEFAULT NULL,
+  p_kind text DEFAULT 'post_hoc',
+  p_terminal_state text DEFAULT 'failed'
 )
 RETURNS TABLE (
   order_id uuid,
@@ -368,10 +436,16 @@ AS $$
 DECLARE
   v_flipped bigint := 0;
   v_did boolean := false;
+  v_kind text := CASE WHEN p_kind = 'make_whole' THEN 'make_whole' ELSE 'post_hoc' END;
+  v_state text := CASE WHEN p_terminal_state = 'canceled' THEN 'canceled' ELSE 'failed' END;
 BEGIN
   IF p_payment_intent_id IS NULL OR p_refund_id IS NULL THEN
     RETURN;
   END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_payment_intent_id, 0)
+  );
 
   PERFORM 1
      FROM public.stripe_orders AS o
@@ -387,9 +461,9 @@ BEGIN
   --
   -- So record the failure even with no row to flip. `state` is never overwritten
   -- by the booking upsert, so this tombstone is authoritative: a later booking
-  -- fills in amount/kind/order_id but CANNOT resurrect it. amount_cents is left
-  -- 0 when unknown — a failed row contributes nothing to either total, and the
-  -- booking supplies the real amount for audit.
+  -- attaches order_id but CANNOT resurrect it. amount_cents is left 0 when
+  -- unknown; a failed row contributes nothing to either total, and immutable
+  -- terminal audit facts are never rewritten by a stale booking.
   INSERT INTO public.stripe_order_refunds AS r (
     stripe_refund_id, stripe_payment_intent_id, order_id,
     amount_cents, kind, state
@@ -397,16 +471,15 @@ BEGIN
   VALUES (
     p_refund_id, p_payment_intent_id,
     (SELECT o.id FROM public.stripe_orders o
-      WHERE o.stripe_payment_intent_id = p_payment_intent_id
-      ORDER BY o.id LIMIT 1),
-    COALESCE(GREATEST(p_amount_cents, 0), 0), 'post_hoc', 'failed'
+      WHERE o.stripe_payment_intent_id = p_payment_intent_id),
+    COALESCE(GREATEST(p_amount_cents, 0), 0), v_kind, v_state
   )
   ON CONFLICT (stripe_refund_id) DO UPDATE
-     SET state = 'failed',
+     SET state = v_state,
          updated_at = now()
    -- The intent guard is load-bearing: a refund id must never be failed through
    -- the WRONG payment intent, or one order's failure corrupts another's ledger.
-   WHERE r.state <> 'failed'
+   WHERE r.state = 'succeeded'
      AND r.stripe_payment_intent_id = p_payment_intent_id;
   GET DIAGNOSTICS v_flipped = ROW_COUNT;
   v_did := v_flipped > 0;
@@ -418,14 +491,19 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.reverse_order_refund_cents(text, text, integer) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.reverse_order_refund_cents(text, text, integer) FROM anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.reverse_order_refund_cents(text, text, integer) TO service_role;
+REVOKE ALL ON FUNCTION public.reverse_order_refund_cents(text, text, integer, text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.reverse_order_refund_cents(text, text, integer, text, text)
+  FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.reverse_order_refund_cents(text, text, integer, text, text)
+  TO service_role;
 
 -- Reversible down path (run manually to roll back — migrations are not
 -- auto-reverted in this project):
+--   DROP TRIGGER IF EXISTS attach_pending_order_refunds_after_insert
+--     ON public.stripe_orders;
+--   DROP FUNCTION IF EXISTS public.attach_pending_order_refunds_after_insert();
 --   DROP FUNCTION IF EXISTS public.record_order_refund_cents(text, text, integer, text);
---   DROP FUNCTION IF EXISTS public.reverse_order_refund_cents(text, text, integer);
+--   DROP FUNCTION IF EXISTS public.reverse_order_refund_cents(text, text, integer, text, text);
 --   DROP FUNCTION IF EXISTS public.recompute_order_refund_totals(text);
 --   DROP TABLE IF EXISTS public.stripe_order_refunds;
 --   DROP INDEX IF EXISTS public.idx_stripe_orders_processing_fee_pending;

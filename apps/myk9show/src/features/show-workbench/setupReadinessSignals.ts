@@ -4,7 +4,6 @@ import type { ShowWorkbenchClassSummary } from './showWorkbenchTypes';
 import { classifyPremiumPublishState, type PremiumPublishStateInput } from './premiumPublishState';
 import {
   isShowListingLive,
-  LANDING_CARD_ANCHOR,
   PREMIUM_CARD_ANCHOR,
   SHOW_STATUS_CONTROL_ANCHOR,
 } from './publishReadiness';
@@ -45,7 +44,7 @@ export interface SetupReadinessInput {
    * replicated show row doesn't carry published_premium_url/at, so without
    * this override a published premium would always read as unpublished.
    */
-  premiumInfo?: PremiumPublishStateInput;
+  premiumInfo?: PremiumPublishStateInput & { experienceIsPublished?: boolean | null };
 }
 
 function hasText(value: string | null | undefined): boolean {
@@ -128,11 +127,21 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
       href: `#${PREMIUM_CARD_ANCHOR}`,
     });
   }
-  if (!input.show.experienceIsPublished) {
+  // Publishing the premium also snapshots the landing content, so while a
+  // premium signal is open its fix clears both — a separate landing chip
+  // would be a duplicate task. Only when the PDF is current but the
+  // experience snapshot is not published (the snapshot write failed) does
+  // the landing chip appear, and it points at the premium card, which is
+  // where the "Publish landing page" action lives (PremiumDownloadCard) —
+  // the landing card itself has no publish control, so linking there would
+  // be a dead end.
+  const experienceIsPublished =
+    input.premiumInfo?.experienceIsPublished ?? input.show.experienceIsPublished;
+  if (premiumState === 'published-current' && !experienceIsPublished) {
     signals.push({
       id: 'landing-content-unpublished',
       label: 'Landing page not published',
-      href: `#${LANDING_CARD_ANCHOR}`,
+      href: `#${PREMIUM_CARD_ANCHOR}`,
     });
   }
   return signals;

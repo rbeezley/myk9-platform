@@ -85,6 +85,7 @@ export function ShowWorkbenchSetupPage() {
                     publishedPremiumUrl: publishInfo.publishedUrl,
                     publishedPremiumAt: publishInfo.publishedAt,
                     updatedAt: publishInfo.updatedAt,
+                    experienceIsPublished: publishInfo.experienceIsPublished,
                   },
                 }
               : {}),
@@ -116,7 +117,7 @@ export function ShowWorkbenchSetupPage() {
         <SetupAdaptiveHeader signals={setupSignals} />
         <div className="setup-detail-grid">
           <div className="space-y-6">
-            <ScheduleSummary showId={currentShow.id} />
+            <ScheduleSummary showId={currentShow.id} canEditSchedule />
             <VenueMap location={currentShow.location} />
           </div>
           <div className="space-y-6">

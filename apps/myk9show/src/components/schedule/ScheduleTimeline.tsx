@@ -13,9 +13,11 @@ export const SCHEDULE_TIMELINE_RESERVED_MIN_HEIGHT_PX = 420;
 
 interface ScheduleTimelineProps {
   showId: string;
+  /** Enables inline start-time editing on element cards (manager Setup only). */
+  canEditSchedule?: boolean | undefined;
 }
 
-export function ScheduleTimeline({ showId }: ScheduleTimelineProps) {
+export function ScheduleTimeline({ showId, canEditSchedule = false }: ScheduleTimelineProps) {
   const { data, isLoading, error, refetch } = useScheduleTimeline(showId);
 
   if (isLoading) {
@@ -87,7 +89,7 @@ export function ScheduleTimeline({ showId }: ScheduleTimelineProps) {
         {data.map((day, i) => (
           <div key={day.date}>
             {i > 0 && <hr className="mb-6 border-border" />}
-            <DaySection day={day} showId={showId} />
+            <DaySection day={day} showId={showId} canEditSchedule={canEditSchedule} />
           </div>
         ))}
       </div>

@@ -8,6 +8,8 @@ import { getShowMapClassHref, getShowMapTrialHref } from '@/features/show-map/sh
 interface TrialSpineProps {
   trial: TrialTimelineData;
   showId: string;
+  /** Enables inline start-time editing on element cards (manager Setup only). */
+  canEditSchedule?: boolean | undefined;
 }
 
 /**
@@ -39,7 +41,7 @@ function getElementDestination(
   return { href, ariaLabel, entryCount };
 }
 
-export function TrialSpine({ trial, showId }: TrialSpineProps) {
+export function TrialSpine({ trial, showId, canEditSchedule = false }: TrialSpineProps) {
   const formattedStartTime = formatStartTime(trial.plannedStartTime);
   const trialHref = getShowMapTrialHref(showId, trial.trialId);
 
@@ -91,6 +93,7 @@ export function TrialSpine({ trial, showId }: TrialSpineProps) {
                     entryCount={entryCount}
                     showId={showId}
                     trialId={trial.trialId}
+                    canEditSchedule={canEditSchedule}
                   />
                 </div>
               </div>

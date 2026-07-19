@@ -97,4 +97,45 @@ describe('PremiumDownloadCard', () => {
     expect(screen.getByText(/show data has changed since publish/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /download pdf/i })).toBeInTheDocument();
   });
+
+  it('offers a publish action when the PDF is current but the landing page is unpublished', async () => {
+    // publishExperience publishes the PDF first, then the experience
+    // snapshot; if the snapshot write failed the PDF is current while the
+    // landing page is still unpublished. The Setup tab's "Landing page not
+    // published" chip deep-links here, so this card must expose the action
+    // that clears that state.
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        published_premium_url: 'https://example.test/premium.pdf',
+        published_premium_at: '2026-05-09T12:00:00.000Z',
+        updated_at: '2026-05-09T12:00:00.000Z',
+        experience_is_published: false,
+      },
+      error: null,
+    });
+
+    renderCard(true);
+
+    expect(
+      await screen.findByRole('button', { name: /publish landing page/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/landing page not published/i)).toBeInTheDocument();
+  });
+
+  it('shows no republish action when the PDF is current and the landing page is published', async () => {
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        published_premium_url: 'https://example.test/premium.pdf',
+        published_premium_at: '2026-05-09T12:00:00.000Z',
+        updated_at: '2026-05-09T12:00:00.000Z',
+        experience_is_published: true,
+      },
+      error: null,
+    });
+
+    renderCard(true);
+
+    expect(await screen.findByRole('link', { name: /download pdf/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
 });

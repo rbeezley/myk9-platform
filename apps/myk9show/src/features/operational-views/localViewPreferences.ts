@@ -84,7 +84,9 @@ export function saveLocalView(
   const safeStorage = safeGetStorage(storage);
   if (!safeStorage || !userId) return;
 
-  const validated = validateOperationalView(view);
+  // Persist the scope with the view itself so reapplying it can restore the
+  // exact trial/class context, not just the filters and display settings.
+  const validated = validateOperationalView({ ...view, scope: showScope });
   if (!validated) return;
 
   const record: SavedViewRecord = {
@@ -153,7 +155,13 @@ export function restoreLocalView(
     return null;
   }
 
-  const validated = validateOperationalView(record.view);
+  // Older records from this serialization version kept scope only beside the
+  // view. Merge it back at the validation boundary so those records restore
+  // correctly without a destructive version bump.
+  const validated = validateOperationalView({
+    ...record.view,
+    scope: record.showScope,
+  });
   if (!validated || validated.surface !== surface) {
     safeStorage.removeItem(key);
     return null;
@@ -169,9 +177,8 @@ function isSameShowScope(
   if (!stored || typeof stored !== 'object') return false;
   if (stored.showId !== current.showId) return false;
   // Trial/class scope is only compared when the current scope specifies one;
-  // an unscoped current view (e.g. "all shows/trials") accepts any stored
-  // trial/class as long as the show matches, since the surface itself will
-  // re-filter by the (now cleared) trial/class from the URL, not from here.
+  // an unscoped current view accepts any stored trial/class as long as the
+  // show matches; applying the restored view reinstates that narrower scope.
   if (current.trialId && stored.trialId !== current.trialId) return false;
   if (current.classId && stored.classId !== current.classId) return false;
   return true;

@@ -87,8 +87,17 @@ export function writeView(
   prev: URLSearchParams,
   view: EntryManagementOperationalView
 ): URLSearchParams {
-  const { filters, display } = view;
+  const { filters, scope, display } = view;
   const next = new URLSearchParams(prev);
+  if (scope?.trialId) {
+    next.set('trial', scope.trialId);
+    if (scope.classId) next.set('class', scope.classId);
+    else next.delete('class');
+  } else {
+    next.delete('trial');
+    next.delete('class');
+    next.delete('roster');
+  }
   if (filters.attention === 'all') next.delete('attention');
   else next.set('attention', filters.attention);
   if (filters.payment === 'all') next.delete('payment');

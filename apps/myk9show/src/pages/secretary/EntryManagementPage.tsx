@@ -39,7 +39,6 @@ import { normalizeEntryManagementSearchParams } from '@/components/entries/manag
 import { buildEntryManagementRelatedLinks } from '@/components/entries/management/entryManagementRelatedLinks';
 import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
 import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
-import { useRegisterEntryManagementCommandContext } from '@/features/command-menu/useRegisterEntryManagementCommandContext';
 
 const PAGE_TABS: PrimaryTabDef[] = [
   { id: 'entries', label: 'Entries' },
@@ -222,16 +221,6 @@ const EntryManagementPage: React.FC = () => {
   const [editEntry, setEditEntry] = useState<
     React.ComponentProps<typeof EntryEditDialog>['entry'] | null
   >(null);
-
-  // Command-menu context registration (command palette contextual commands +
-  // "Check in selected entries"). The hook owns the reported selection state.
-  const { onSelectionChange: handleCommandMenuSelectionChange } =
-    useRegisterEntryManagementCommandContext({
-      showId: selectedShowId,
-      trialId: trialFilter,
-      runBulkCheckIn: handleEnrollmentBulkCheckIn,
-      busy: isProcessing,
-    });
 
   const openEditEntry = (entry: EntryManagementEntry) => {
     setEditEntry({
@@ -483,7 +472,6 @@ const EntryManagementPage: React.FC = () => {
                   onBulkStatusChange={handleEnrollmentBulkStatusChange}
                   onBulkCheckIn={handleEnrollmentBulkCheckIn}
                   bulkBusy={isProcessing}
-                  onSelectionChange={handleCommandMenuSelectionChange}
                   onPaymentStatusChange={handleEnrollmentPaymentChange}
                   onStatusChange={handleStatusChange}
                   onCheckInStatusChange={handleCheckInStatusChange}

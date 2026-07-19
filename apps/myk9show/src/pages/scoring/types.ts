@@ -17,6 +17,7 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import type { SecretaryEntry } from '@/services/database/entries';
 
 /**
  * Extended entry type for scoring UI
@@ -126,6 +127,50 @@ export function toScoringEntry(
     // Note: section is optional and not available on ReplicatedEntry
     // It would need to be passed from class data if needed
   };
+}
+
+/**
+ * Adapt the canonical secretary show row to the established scoring model.
+ * This keeps the scoring list on the same show-scoped rows as Show Desk and
+ * Class Details while preserving the existing scoring UI contract.
+ */
+export function secretaryEntryToScoringEntry(entry: SecretaryEntry, index: number): ScoringEntry {
+  const scoringStatus =
+    entry.is_scored || entry.check_in_status === 'completed'
+      ? 'scored'
+      : entry.is_in_ring || entry.check_in_status === 'in-ring'
+        ? 'in-ring'
+        : entry.check_in_status === 'pulled' ||
+            entry.entry_status === 'withdrawn' ||
+            entry.entry_status === 'scratched'
+          ? 'pulled'
+          : undefined;
+  const replicatedEntry: ReplicatedEntry = {
+    id: entry.id,
+    classId: entry.class_id ?? undefined,
+    showId: entry.show_id ?? undefined,
+    trialId: entry.trial_id ?? undefined,
+    dogId: entry.dog_id ?? undefined,
+    handlerId: entry.handler_id ?? undefined,
+    armband: entry.armband ?? undefined,
+    handler: entry.handler ?? undefined,
+    status: scoringStatus,
+    entryStatus: entry.entry_status ?? undefined,
+    checkInStatus: entry.check_in_status as ReplicatedEntry['checkInStatus'],
+    isInRing: entry.is_in_ring ?? undefined,
+    runOrder: entry.run_order ?? undefined,
+    isScored: entry.is_scored ?? undefined,
+    resultStatus: entry.result_status ?? undefined,
+    searchTimeSeconds: entry.search_time_seconds ?? undefined,
+    totalFaults: entry.total_faults ?? undefined,
+    judgeNotes: entry.judge_notes,
+    disqualification_reason: entry.disqualification_reason,
+    scoringCompletedAt: entry.scoring_completed_at,
+    dogCallName: entry.dog?.call_name ?? entry.dog?.name ?? undefined,
+    dogBreed: entry.dog?.breed ?? undefined,
+  };
+
+  return toScoringEntry(replicatedEntry, null, index);
 }
 
 /**

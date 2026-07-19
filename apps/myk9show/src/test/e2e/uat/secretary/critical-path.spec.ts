@@ -106,7 +106,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
       timeout: 15000,
     });
     await expect(page.getByRole('button', { name: 'Add mail-in entry' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Export CSV' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export Full CSV' })).toBeVisible();
     await expect(page.getByText('Total Entries', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Need review', { exact: true })).toBeVisible();
     await expect(page.getByText('Confirmed entries', { exact: true })).toBeVisible();

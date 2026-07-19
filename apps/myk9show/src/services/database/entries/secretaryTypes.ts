@@ -17,6 +17,14 @@ export interface SecretaryEntry {
   jump_height: string | null;
   run_order: number | null;
   is_in_ring: boolean | null;
+  is_scored: boolean | null;
+  result_status: string | null;
+  search_time_seconds: number | null;
+  total_faults: number | null;
+  final_placement: number | null;
+  judge_notes: string | null;
+  disqualification_reason: string | null;
+  scoring_completed_at: string | null;
   check_in_status: string | null;
   withdrawal_reason: string | null;
   payment_method: string | null;

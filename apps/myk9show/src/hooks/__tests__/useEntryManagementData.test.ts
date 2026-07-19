@@ -112,6 +112,25 @@ describe('useEntryManagementData', () => {
     expect(result.current.entries).toEqual([]);
   });
 
+  it('requests replication recovery after a cold load fails', async () => {
+    mocks.syncStatus = {
+      isSyncing: false,
+      lastSyncAt: null,
+      error: null,
+      tablesStatus: { entries: 'idle' },
+    };
+    mocks.getEntriesForShow.mockResolvedValue({
+      data: null,
+      error: new Error("We couldn't load entries for this show. Please retry."),
+    });
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+
+    await waitFor(() => expect(mocks.triggerSync).toHaveBeenCalledTimes(1));
+  });
+
   it('requests replication sync when the selected show loads from an empty idle entries replica', async () => {
     mocks.syncStatus = {
       isSyncing: false,

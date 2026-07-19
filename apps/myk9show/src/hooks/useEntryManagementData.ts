@@ -315,7 +315,12 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
   const entriesSyncAt = syncStatus.lastSyncAt?.getTime() ?? null;
 
   useEffect(() => {
-    if (!selectedShowId || isLoading || loadError || entries.length > 0) {
+    // A cold replica can make the initial online fallback fail (for example,
+    // when authenticated direct `entries` reads are column-restricted). Keep
+    // the one-shot sync recovery active even when that first load surfaced an
+    // error; a successful sync will invalidate the load error on the reload
+    // below and hydrate the secretary table from the replicated result view.
+    if (!selectedShowId || isLoading || entries.length > 0) {
       if (!selectedShowId || entries.length > 0) {
         requestedEmptyReplicaSyncFor.current = null;
       }

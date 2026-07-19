@@ -210,6 +210,32 @@ describe('useNotificationMonitor', () => {
     expect(mockDeliver).toHaveBeenCalledWith(expect.objectContaining({ type: 'your_turn' }));
   });
 
+  it('does not repeat dogs-ahead alerts while the same entry remains in-ring', async () => {
+    mockRefetch.mockResolvedValue({
+      data: {
+        classes: [classRow({ status: 'In Progress' })],
+        entries: [
+          entry({
+            id: 'in-ring-entry',
+            dog_id: 'other-dog',
+            check_in_status: 'in-ring',
+            dog_call_name: 'Scout',
+          }),
+          entry(),
+        ],
+      },
+    });
+    renderHook(() => useNotificationMonitor());
+
+    await emitShowChange();
+    expect(buildYourTurnPayload).toHaveBeenCalledOnce();
+
+    act(() => vi.advanceTimersByTime(60_001));
+    await emitShowChange();
+
+    expect(buildYourTurnPayload).toHaveBeenCalledOnce();
+  });
+
   it('builds a released qualified result URL from the refreshed snapshot', async () => {
     mockRefetch.mockResolvedValue({
       data: {

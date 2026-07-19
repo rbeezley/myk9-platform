@@ -137,6 +137,7 @@ export function useNotificationMonitor(): void {
   const classContextRef = useRef<Map<string, ClassContext>>(new Map());
   const dogNameMap = useRef<Map<string, string>>(new Map());
   const entryResultStatusMapRef = useRef<Map<string, string | null>>(new Map());
+  const lastInRingEntryByClassRef = useRef<Map<string, string>>(new Map());
 
   const deliverRef = useRef(deliver);
   const preferencesRef = useRef(preferences);
@@ -242,6 +243,7 @@ export function useNotificationMonitor(): void {
       }
 
       const nextContexts = new Map<string, ClassContext>();
+      const nextInRingEntryByClass = new Map<string, string>();
       for (const [classId, entries] of entriesByClass) {
         const classRow = classLookup.get(classId);
         nextContexts.set(classId, {
@@ -305,8 +307,15 @@ export function useNotificationMonitor(): void {
         }
 
         const inRingEntry = context.entries.find(entry => entry.checkInStatus === 'in-ring');
-        if (inRingEntry) notifyUpcomingDogs(classId, inRingEntry.id);
+        if (inRingEntry) {
+          nextInRingEntryByClass.set(classId, inRingEntry.id);
+          if (lastInRingEntryByClassRef.current.get(classId) !== inRingEntry.id) {
+            notifyUpcomingDogs(classId, inRingEntry.id);
+          }
+        }
       }
+
+      lastInRingEntryByClassRef.current = nextInRingEntryByClass;
     },
     [notifyUpcomingDogs]
   );

@@ -29,7 +29,7 @@
 
 ## Verification run
 
-- Focused Vitest: 9 files, 39 tests passed.
+- Focused Vitest: 9 files, 40 tests passed.
 - Broad myK9Show suite: no failures observed before the repository's mandatory
   60-second stop threshold.
 - Full monorepo typecheck and lint: passed.

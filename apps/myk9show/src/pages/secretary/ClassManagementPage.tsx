@@ -180,14 +180,13 @@ export const ClassManagementPage: React.FC = () => {
   // bulk path and Show Map use, so `status_source: 'manual'` and the
   // per-status timing fields are always set and the write queues offline.
   // The old row mutation's onSuccess invalidation doesn't run for this path,
-  // so invalidate classes explicitly here (mirrors the delete mutation's
-  // invalidation of `classKeys.byTrial`).
+  // so invalidate the whole classKeys family here — the old mutation also
+  // refreshed lists and the detail cache, and consumers like
+  // JudgeClassInterface/useClassStoreCompat read those.
   const handleStatusChange = async (classId: string, newStatus: string) => {
     try {
       await applyManualClassStatus(classId, newStatus as ManualClassStatus);
-      if (trialId) {
-        queryClient.invalidateQueries({ queryKey: classKeys.byTrial(trialId) });
-      }
+      queryClient.invalidateQueries({ queryKey: classKeys.all });
     } catch {
       toast.error('Failed to update class status. Please try again.');
     }

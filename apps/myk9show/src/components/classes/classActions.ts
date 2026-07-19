@@ -27,20 +27,36 @@ export interface ClassActionHandlers {
   onDelete?: ((classId: string) => void) | undefined;
   onBulkDelete?: ((classIds: string[]) => boolean | Promise<boolean> | undefined) | undefined;
   onBulkStatusChange?:
-    | ((classIds: string[], status: string) => boolean | Promise<boolean> | undefined)
+    | ((
+        classIds: string[],
+        status: string,
+        onFullSuccess?: () => void
+      ) => boolean | Promise<boolean> | undefined)
     | undefined;
   onClear?: () => void;
 }
 
 const STATUS_VALUES = Object.values(CLASS_STATUS);
 
+/** Runs a bulk handler and clears the selection on success — callback-aware,
+ * mirroring entryActions: the dispatcher invokes `onFullSuccess` itself on full
+ * success of the INITIAL run OR a later toast retry (useBulkDispatch forwards it
+ * into retry summaries), so a retry that finally succeeds still clears. The
+ * `cleared` latch prevents double-clearing when the handler both consumed the
+ * callback and resolved non-`false`; the fallback covers lightweight handlers
+ * that report success without consuming the callback. */
 async function runBulkAndClear(
   handlers: ClassActionHandlers,
-  action: () => boolean | Promise<boolean> | undefined
+  action: (onFullSuccess: () => void) => boolean | Promise<boolean> | undefined
 ): Promise<void> {
+  let cleared = false;
+  const onFullSuccess = () => {
+    cleared = true;
+    handlers.onClear?.();
+  };
   try {
-    const result = await action();
-    if (result !== false) handlers.onClear?.();
+    const result = await action(onFullSuccess);
+    if (result !== false && !cleared) handlers.onClear?.();
   } catch {
     // Parent handler owns user-visible error copy; keep selection so retry is possible.
   }
@@ -66,8 +82,12 @@ const statusActions: Array<EntityAction<ClassActionItem, ClassActionHandlers>> =
         eligibleCount > 0 ? `Mark ${eligibleCount} of ${selectedCount} ${status}` : `Mark ${status}`,
       unavailableReason: `No selected classes can be marked ${status}`,
       run: (eligible, handlers) =>
-        runBulkAndClear(handlers, () =>
-          handlers.onBulkStatusChange?.(eligible.map(item => item.id), status)
+        runBulkAndClear(handlers, onFullSuccess =>
+          handlers.onBulkStatusChange?.(
+            eligible.map(item => item.id),
+            status,
+            onFullSuccess
+          )
         ),
     },
   })

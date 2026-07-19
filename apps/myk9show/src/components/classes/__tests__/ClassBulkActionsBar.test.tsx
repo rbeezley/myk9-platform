@@ -54,7 +54,7 @@ describe('ClassBulkActionsBar', () => {
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /mark 2 of 2 in progress/i }));
 
-    expect(onBulkStatusChange).toHaveBeenCalledWith(['1', '2'], 'In Progress');
+    expect(onBulkStatusChange).toHaveBeenCalledWith(['1', '2'], 'In Progress', expect.any(Function));
   });
 
   it('clears the selection after a fully successful bulk status change', async () => {

@@ -72,7 +72,33 @@ describe('classActions bulk status projection (MYK9-59)', () => {
     const markInProgress = bulk.find(action => action.id === `set-status-${CLASS_STATUS.IN_PROGRESS}`);
     await markInProgress?.onSelect();
 
-    expect(onBulkStatusChange).toHaveBeenCalledWith(['1'], CLASS_STATUS.IN_PROGRESS);
+    expect(onBulkStatusChange).toHaveBeenCalledWith(
+      ['1'],
+      CLASS_STATUS.IN_PROGRESS,
+      expect.any(Function)
+    );
     expect(onClear).toHaveBeenCalled();
+  });
+
+  it('clears exactly once when the handler consumes onFullSuccess and resolves true', async () => {
+    const onClear = vi.fn();
+    const onBulkStatusChange = vi
+      .fn()
+      .mockImplementation((_ids: string[], _status: string, onFullSuccess?: () => void) => {
+        onFullSuccess?.();
+        return true;
+      });
+    const handlers: ClassActionHandlers = { onBulkStatusChange, onClear };
+    const items = [cls('1', CLASS_STATUS.SCHEDULED)];
+
+    const bulk = toBulkActions(items, handlers, classActions);
+    const markInProgress = bulk.find(
+      action => action.id === `set-status-${CLASS_STATUS.IN_PROGRESS}`
+    );
+    await markInProgress?.onSelect();
+
+    // The `cleared` latch must prevent the resolve-true fallback from
+    // double-clearing after the dispatcher already invoked onFullSuccess.
+    expect(onClear).toHaveBeenCalledTimes(1);
   });
 });

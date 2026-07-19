@@ -48,9 +48,12 @@ export function ClassBulkActionsBar({
       setConfirmDeleteIds(eligibleIds);
       return false;
     },
-    // No confirm dialog for status: the resolved boolean (true only on full
-    // success) IS the signal `runBulkAndClear` uses to clear the selection.
-    onBulkStatusChange: (classIds, status) => onBulkStatusChange(classIds, status),
+    // No confirm dialog for status. `onFullSuccess` (from runBulkAndClear) is
+    // threaded into the dispatcher so BOTH an initially-full success and a
+    // later "Retry failed" toast success clear the selection; runBulkAndClear's
+    // `cleared` latch prevents a double clear on the initial-success path.
+    onBulkStatusChange: (classIds, status, onFullSuccess) =>
+      onBulkStatusChange(classIds, status, onFullSuccess),
     onClear,
   };
 

@@ -27,7 +27,7 @@
  * Uses `useBulkDispatch`'s `Promise.allSettled` fold + in-flight latch + summary
  * toast (design.md decision D3), matching Entry Management's pattern.
  */
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { classKeys, useDeleteClassMutation } from '@/hooks/queries/useClassesDatabase';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
@@ -53,6 +53,15 @@ export function useClassBulkActions({
 }: UseClassBulkActionsOptions): UseClassBulkActionsResult {
   const queryClient = useQueryClient();
   const deleteClassMutation = useDeleteClassMutation();
+
+  // Toast-driven retries fire AFTER later renders have produced a fresher
+  // classesById — a closure over the prop would still read the dispatch-time
+  // map (the same one the snapshot came from), degenerating the fresh-status
+  // check to always-true. The ref always points at the latest map.
+  const classesByIdRef = useRef(classesById);
+  useEffect(() => {
+    classesByIdRef.current = classesById;
+  });
 
   const label = useCallback(
     (classId: string) => classesById.get(classId)?.name || 'Untitled Class',
@@ -99,14 +108,18 @@ export function useClassBulkActions({
           // useDeleteClassMutation's onSuccess): this is the only seam that also
           // covers toast-driven retries, which run inside useBulkDispatch after
           // any page-level wrapper has already returned. Partial success still
-          // refreshes the succeeded rows. The hook doesn't know trialId, so use
-          // the all-trial-caches key — same as delete's onSuccess.
-          await queryClient.invalidateQueries({ queryKey: [...classKeys.all, 'trial'] });
+          // refreshes the succeeded rows. Invalidate the whole classKeys family
+          // (lists, detail, byTrial, statistics) — the old row mutation also
+          // refreshed lists/detail, and consumers like JudgeClassInterface read
+          // those caches.
+          await queryClient.invalidateQueries({ queryKey: classKeys.all });
         },
         {
           onFullSuccess,
+          // Read through the REF, not the closed-over prop: retries need the
+          // freshest map to detect a concurrent status change and skip the row.
           applicableWhen: classId =>
-            classesById.get(classId)?.status === statusAtDispatch.get(classId),
+            classesByIdRef.current.get(classId)?.status === statusAtDispatch.get(classId),
         }
       );
       return outcome !== null && outcome.failed.length === 0;

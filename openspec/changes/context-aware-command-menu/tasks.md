@@ -6,10 +6,10 @@
 
 ## 2. Contextual palette behavior
 
-- [ ] 2.1 Add contextual navigation and direct dog/people/show/trial result providers; route class and entry queries to their canonical show-scoped owner lists with normalized prefilled filters instead of adding an individual-record index.
-- [ ] 2.2 Add only the allowlisted “Check in selected entries” mutation via the merged `MYK9-47` registry (`entityActions.ts`, PR #1376); keep class status, other entry status, Trial, Dog, and People mutations out of scope.
-- [ ] 2.3 Add show/trial/class context labels and prevent ambiguous cross-show action targets.
-- [ ] 2.4 Add bounded result limits, loading/empty/error states, offline/local fallback, authenticated-user recent-history namespacing, account-change clearing, and permission/show-scope revalidation/redaction.
+- [x] 2.1 Add contextual navigation and direct dog/people/show/trial result providers; route class and entry queries to their canonical show-scoped owner lists with normalized prefilled filters instead of adding an individual-record index.
+- [x] 2.2 Add only the allowlisted “Check in selected entries” mutation via the merged `MYK9-47` registry (`entityActions.ts`, PR #1376); keep class status, other entry status, Trial, Dog, and People mutations out of scope.
+- [x] 2.3 Add show/trial/class context labels and prevent ambiguous cross-show action targets.
+- [x] 2.4 Add bounded result limits, loading/empty/error states, offline/local fallback, authenticated-user recent-history namespacing, account-change clearing, and permission/show-scope revalidation/redaction.
 
 ## 3. Shortcuts and accessibility
 

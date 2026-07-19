@@ -1,7 +1,7 @@
-import React, { useState, useMemo, startTransition } from 'react';
+import { useState, useMemo, startTransition } from 'react';
 import { Command } from 'cmdk';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Search, Dog, Users, Calendar, Building, Plus, Clock } from 'lucide-react';
+import { Search, Dog, Users, Calendar, Building, Plus, Clock, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Kbd } from '@/components/ui/kbd';
 import { useNavigate } from 'react-router-dom';
 import { useDogStore } from '@/store/dogStore';
@@ -11,22 +11,13 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
 import { getDogDisplayName } from '@/types/dog-types';
 import { PERMISSIONS, UserRole } from '@/types/auth-types';
+import { useCommandMenuCommands } from '@/features/command-menu/useCommandMenuCommands';
+import { adaptCommandMenuCommand, type CommandAction } from '@/features/command-menu/commandPaletteAdapter';
 
 interface CommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-type CommandAction = {
-  id: string;
-  title: string;
-  subtitle?: string;
-  icon: React.ReactNode;
-  action: () => void;
-  keywords?: string[];
-  category: 'navigation' | 'data' | 'actions';
-  shortcut?: string;
-};
 
 const MAX_DATA_RESULTS = 5;
 
@@ -52,6 +43,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const { userWithRoles, hasPermission } = useAuthContext();
 
   const { addSearch, getSuggestions } = useRecentSearches({ context: 'command-palette' });
+  const { navigationCommands: contextualNavCommands, checkInCommand } = useCommandMenuCommands();
 
   const dogs = useDogStore(state => state.dogs);
   const people = useUserStore(state => state.people);
@@ -270,12 +262,40 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       });
     }
 
+    if (checkInCommand) {
+      commands.push(
+        adaptCommandMenuCommand(
+          checkInCommand,
+          navigate,
+          onOpenChange,
+          <CheckCircle2 className="h-4 w-4" />,
+          'actions'
+        )
+      );
+    }
+
     return commands;
-  }, [canCreateShows, canManageUsers, navigate, onOpenChange]);
+  }, [canCreateShows, canManageUsers, checkInCommand, navigate, onOpenChange]);
+
+  // Contextual "current show" navigation (task 2.1/2.3) — only present when an
+  // owner surface has registered a command-menu context (commandMenuContextStore).
+  const contextualCommands: CommandAction[] = useMemo(
+    () =>
+      contextualNavCommands.map(command =>
+        adaptCommandMenuCommand(
+          command,
+          navigate,
+          onOpenChange,
+          <ArrowRight className="h-4 w-4" />,
+          'navigation'
+        )
+      ),
+    [contextualNavCommands, navigate, onOpenChange]
+  );
 
   const allCommands = useMemo(
-    () => [...visibleNavigationCommands, ...dataCommands, ...actionCommands],
-    [visibleNavigationCommands, dataCommands, actionCommands]
+    () => [...visibleNavigationCommands, ...contextualCommands, ...dataCommands, ...actionCommands],
+    [visibleNavigationCommands, contextualCommands, dataCommands, actionCommands]
   );
 
   const handleSelect = (commandId: string) => {
@@ -357,6 +377,31 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 </Command.Item>
               ))}
             </Command.Group>
+
+            {/* Current show — contextual navigation from a registered command-menu
+                context (task 2.1/2.3). Absent when no owner surface has registered. */}
+            {contextualCommands.length > 0 && (
+              <Command.Group heading="Current show" className={groupHeadingClass}>
+                {contextualCommands.map(command => (
+                  <Command.Item
+                    key={command.id}
+                    value={`${command.title} ${command.subtitle} ${command.keywords?.join(' ')}`}
+                    onSelect={() => handleSelect(command.id)}
+                    className={itemClass}
+                  >
+                    <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                      {command.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-foreground">{command.title}</div>
+                      {command.subtitle && (
+                        <div className="text-xs text-muted-foreground">{command.subtitle}</div>
+                      )}
+                    </div>
+                  </Command.Item>
+                ))}
+              </Command.Group>
+            )}
 
             {/* Go to (data) */}
             {dataCommands.length > 0 && (

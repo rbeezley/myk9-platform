@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { toast } from 'sonner';
 import { ClassManagementPage } from '../ClassManagementPage';
 
 // Slice 2 (2.2-2.5): local useState selection replaced with useBulkSelection
@@ -60,6 +61,10 @@ vi.mock('@/store/trialStore', () => ({
     selector({
       getTrialById: () => ({ id: 'trial-1', showId: 'show-1', name: 'Saturday Trial' }),
     }),
+}));
+
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 const classRows = [
@@ -172,7 +177,7 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     ).not.toBeChecked();
   });
 
-  it('offers only bulk Delete — bulk status change is descoped (MYK9-59)', async () => {
+  it('offers bulk status change alongside bulk Delete (MYK9-59)', async () => {
     const { user } = renderPage();
     await user.click(screen.getByRole('checkbox', { name: /select all visible classes/i }));
 
@@ -180,8 +185,30 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     expect(
       await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i })
     ).toBeInTheDocument();
-    // Bulk status change is per-row only now; no "Set to" bulk items.
-    expect(screen.queryByRole('menuitem', { name: /set to/i })).not.toBeInTheDocument();
+    // Both rows start Scheduled, so "Mark ... In Progress" is eligible for both.
+    expect(screen.getByRole('menuitem', { name: /mark 2 of 2 in progress/i })).toBeInTheDocument();
+    // Already-Scheduled rows are ineligible for the Scheduled bulk action.
+    expect(screen.getByRole('menuitem', { name: /^mark scheduled/i })).toBeInTheDocument();
+  });
+
+  it('bulk status change dispatches applyManualClassStatus per class and clears selection on full success', async () => {
+    const { user } = renderPage();
+    await user.click(screen.getByRole('checkbox', { name: /select all visible classes/i }));
+
+    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /mark 2 of 2 in progress/i }));
+
+    await waitFor(() => {
+      expect(updateClassMock).toHaveBeenCalledWith(
+        'class-1',
+        expect.objectContaining({ classStatus: 'In Progress', statusSource: 'manual' })
+      );
+      expect(updateClassMock).toHaveBeenCalledWith(
+        'class-2',
+        expect.objectContaining({ classStatus: 'In Progress', statusSource: 'manual' })
+      );
+    });
+    await waitFor(() => expect(screen.queryByText(/selected/i)).not.toBeInTheDocument());
   });
 
   it('resolves the per-row menu from the shared classActions catalog (row/bulk parity)', async () => {
@@ -194,6 +221,35 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     expect(await screen.findByRole('menuitem', { name: /delete class/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /set to in progress/i })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /^set to scheduled$/i })).not.toBeInTheDocument();
+  });
+
+  it('row status change queues the replicated payload with statusSource: manual and timing fields', async () => {
+    const { user } = renderPage();
+    await user.click(screen.getByRole('button', { name: /more actions for Container Novice A/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /set to in progress/i }));
+
+    await waitFor(() => {
+      expect(updateClassMock).toHaveBeenCalledWith(
+        'class-1',
+        expect.objectContaining({
+          classStatus: 'In Progress',
+          statusSource: 'manual',
+          actual_start_time: expect.any(String),
+        })
+      );
+    });
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('row status change shows an error toast and keeps the row unchanged on failure', async () => {
+    updateClassMock.mockRejectedValueOnce(new Error('network down'));
+    const { user } = renderPage();
+    await user.click(screen.getByRole('button', { name: /more actions for Container Novice A/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /set to in progress/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Failed to update class status. Please try again.');
+    });
   });
 
   it('bulk delete soft-deletes via the service RPC, not the replicated hard DELETE', async () => {

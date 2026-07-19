@@ -26,6 +26,9 @@ export interface ClassActionHandlers {
   onStatusChange?: ((classId: string, status: string) => void) | undefined;
   onDelete?: ((classId: string) => void) | undefined;
   onBulkDelete?: ((classIds: string[]) => boolean | Promise<boolean> | undefined) | undefined;
+  onBulkStatusChange?:
+    | ((classIds: string[], status: string) => boolean | Promise<boolean> | undefined)
+    | undefined;
   onClear?: () => void;
 }
 
@@ -43,12 +46,12 @@ async function runBulkAndClear(
   }
 }
 
-// Status transitions are ROW-only. Bulk status change was descoped (MYK9-59):
-// a correct bulk status change must set `status_source='manual'` and the
-// per-status timing fields the canonical show-map path uses (markClassStarted/
-// markClassComplete), or the server's class-status derivation silently overwrites
-// it — that's a distinct feature, out of scope for this bulk-actions change. Bulk
-// DELETE (below) stays; the bulk bar therefore offers delete only.
+// Status transitions carry a `bulk` block (MYK9-59): bulk status change now
+// routes through `applyManualClassStatus` (via `onBulkStatusChange`, dispatched
+// in `useClassBulkActions.ts`) — the same canonical replicated mutation the row
+// path and Show Map use, so `status_source='manual'` and the per-status timing
+// fields are always set. Bulk eligibility matches the row's: not already in the
+// target status.
 const statusActions: Array<EntityAction<ClassActionItem, ClassActionHandlers>> = STATUS_VALUES.map(
   status => ({
     id: `set-status-${status}`,
@@ -56,6 +59,17 @@ const statusActions: Array<EntityAction<ClassActionItem, ClassActionHandlers>> =
     sectionLabel: 'Status',
     applicableWhen: (item, handlers) => Boolean(handlers.onStatusChange) && item.status !== status,
     run: (item, handlers) => handlers.onStatusChange?.(item.id, status),
+    bulk: {
+      applicableWhen: (item, handlers) =>
+        Boolean(handlers.onBulkStatusChange) && item.status !== status,
+      label: (eligibleCount, selectedCount) =>
+        eligibleCount > 0 ? `Mark ${eligibleCount} of ${selectedCount} ${status}` : `Mark ${status}`,
+      unavailableReason: `No selected classes can be marked ${status}`,
+      run: (eligible, handlers) =>
+        runBulkAndClear(handlers, () =>
+          handlers.onBulkStatusChange?.(eligible.map(item => item.id), status)
+        ),
+    },
   })
 );
 

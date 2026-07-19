@@ -17,22 +17,22 @@
 
 ## 2. Catalog, bulk handler, and row unification
 
-- [ ] 2.1 `components/classes/classActions.ts`: add `bulk` blocks to the
+- [x] 2.1 `components/classes/classActions.ts`: add `bulk` blocks to the
       `set-status-<status>` actions (label grammar matching the existing bulk actions,
       eligible = `item.status !== status`), add `onBulkStatusChange` to
       `ClassActionHandlers`, and remove the stale descope comment.
-- [ ] 2.2 `components/classes/useClassBulkActions.ts`: add `handleBulkStatusChange`
+- [x] 2.2 `components/classes/useClassBulkActions.ts`: add `handleBulkStatusChange`
       dispatching `applyManualClassStatus` through the existing `useBulkDispatch` instance,
       with per-run `applicableWhen` capturing each class's pre-batch status so retry skips
       superseded rows; keep the shared busy latch with delete.
-- [ ] 2.3 `components/classes/ClassBulkActionsBar.tsx`: wire `onBulkStatusChange` into the
+- [x] 2.3 `components/classes/ClassBulkActionsBar.tsx`: wire `onBulkStatusChange` into the
       handlers object.
-- [ ] 2.4 `pages/secretary/ClassManagementPage.tsx`: route `handleStatusChange` through
+- [x] 2.4 `pages/secretary/ClassManagementPage.tsx`: route `handleStatusChange` through
       `applyManualClassStatus` (replacing the direct `updateClassMutation` status write),
       keeping error feedback and ensuring classes query invalidation still happens
       (match the delete path's invalidation if the replication write does not already
       trigger it).
-- [ ] 2.5 Tests: catalog projection test (status actions now appear in `toBulkActions`
+- [x] 2.5 Tests: catalog projection test (status actions now appear in `toBulkActions`
       output with correct eligible counts); `useClassBulkActions` test for
       retry-skips-superseded (fresh status mismatch → skipped); ClassManagementPage test
       that a row status change queues the replicated payload with

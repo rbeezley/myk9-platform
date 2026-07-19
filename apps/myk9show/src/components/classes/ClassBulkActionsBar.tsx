@@ -2,9 +2,12 @@
  * ClassBulkActionsBar — sticky bar for Class Management's multi-select.
  *
  * Renders the shared class action catalog (`classActions.ts`) via
- * `RowActionMenu`/`toBulkActions`. Only bulk DELETE is offered — bulk status
- * change was descoped (MYK9-59), so status transitions stay per-row. Bulk delete
- * is destructive and keeps a confirmation dialog (design.md decision D3/D6).
+ * `RowActionMenu`/`toBulkActions`. Bulk status change (MYK9-59) dispatches
+ * directly through `onBulkStatusChange` — `classActions.ts`'s `runBulkAndClear`
+ * clears the selection only when the handler resolves to something other than
+ * `false`, i.e. only on full success, same as bulk delete's post-confirm clear.
+ * Bulk delete stays destructive and keeps a confirmation dialog (design.md
+ * decision D3/D6).
  */
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +19,11 @@ interface ClassBulkActionsBarProps {
   selectedClasses: ClassActionItem[];
   bulkBusy: boolean;
   onBulkDelete: (classIds: string[], onFullSuccess?: () => void) => Promise<boolean>;
+  onBulkStatusChange: (
+    classIds: string[],
+    status: string,
+    onFullSuccess?: () => void
+  ) => Promise<boolean>;
   onClear: () => void;
 }
 
@@ -23,6 +31,7 @@ export function ClassBulkActionsBar({
   selectedClasses,
   bulkBusy,
   onBulkDelete,
+  onBulkStatusChange,
   onClear,
 }: ClassBulkActionsBarProps) {
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
@@ -39,6 +48,9 @@ export function ClassBulkActionsBar({
       setConfirmDeleteIds(eligibleIds);
       return false;
     },
+    // No confirm dialog for status: the resolved boolean (true only on full
+    // success) IS the signal `runBulkAndClear` uses to clear the selection.
+    onBulkStatusChange: (classIds, status) => onBulkStatusChange(classIds, status),
     onClear,
   };
 

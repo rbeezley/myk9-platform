@@ -19,7 +19,7 @@
 
 ## 4. Verification and implementation gate
 
-- [ ] 4.1 Run focused Command Palette/AppHeader tests and `pnpm openspec validate context-aware-command-menu --type change --strict --no-interactive`.
-- [ ] 4.2 Run `pnpm typecheck`, `pnpm lint`, and the relevant myK9Show test suite.
-- [ ] 4.3 Run role-based desktop/tablet browser verification for navigation, selection-aware actions, offline/local results, and keyboard/pointer parity.
+- [x] 4.1 Run focused Command Palette/AppHeader tests and `pnpm openspec validate context-aware-command-menu --type change --strict --no-interactive`.
+- [x] 4.2 Run `pnpm typecheck`, `pnpm lint`, and the relevant myK9Show test suite.
+- [x] 4.3 Run role-based desktop/tablet browser verification for navigation, selection-aware actions, offline/local results, and keyboard/pointer parity.
 - [ ] 4.4 Open the PR with non-goals, action parity evidence, shortcut documentation, review, CI, and merge evidence before archive.

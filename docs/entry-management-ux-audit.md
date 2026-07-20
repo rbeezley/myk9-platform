@@ -356,6 +356,7 @@ Success means:
 11. **Decided:** Replace the six large statistics cards with one compact selector: `Needs review`, `Missing information`, `Payment due`, and `All registrations`, each with a count. `Accepted` remains a secondary filter within All Registrations. Revenue and outstanding totals move out of the primary entry-work hierarchy.
 12. **Decided:** A large, persistent search box is primary queue navigation for hundreds of Entries. It searches the Show Registration and child Entry identities, including Exhibitor/email, Dog, per-Entry Handler, Armband, confirmation, Entry number, and Class, and highlights the matching child context.
 13. **Decided:** Search queries all Show Registrations regardless of the active work queue. While text is present, the list becomes `Search results`; clearing search restores the secretary's previous work queue and trial/class scope.
-14. Should show-wide search also temporarily ignore an active Trial/Class scope, or search only inside that scope?
+14. **Decided:** Active search temporarily ignores Trial/Class scope and searches the entire Show. Results identify their Trial/Class context; clearing search restores the previous scope unchanged.
+15. How should Trial/Class scope be presented when the secretary is not searching?
 
 These are product decisions. Implementation should wait until they are resolved and the redesign is mocked against the two-trial scenario.

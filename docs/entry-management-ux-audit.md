@@ -306,6 +306,12 @@ Examples:
 
 Each action should deep-link or open the existing action surface. No duplicate edit/payment/communication implementation should be added to the page merely to save a click.
 
+### 6. Use a focused Show Registration pane
+
+On desktop, the canonical Show Registration queue/table occupies the left side and the selected Show Registration opens in a focused right pane. The queue carries only identity, combined review state, a quiet payment cue, and the next action. The focused pane owns the child Entries, Dogs, Classes, per-Entry Handlers, payment detail, communication history, and secondary actions.
+
+On tablet and mobile, selecting a Show Registration opens the same focused detail full-width with a clear return to the preserved queue and scope. This follows the Show Desk cockpit pattern while keeping Entry Management's registration-level domain model.
+
 ## Proposed acceptance test
 
 Use the same operator scenario that guided Show Desk:
@@ -326,7 +332,8 @@ Success means:
 1. **Decided:** The default queue is `Needs review`. `All entries` remains one click away.
 2. **Decided:** Exceptions are one destination with Move-ups, Pulls/Scratches, and Waitlist sub-navigation. Urgent counts may deep-link from the main queue, but actions remain on their existing specialized surfaces.
 3. **Decided:** `Payment due` is a main Entry Management work queue using the same canonical table. It emphasizes amount due and existing payment actions without creating a separate secretary payment page.
-4. **Decided:** The canonical table groups by expandable `Show Registration`. The parent row identifies the Exhibitor/submitter, confirmation, combined review state, and payment. Child Entries retain their own Dog, Class, and Handler because one Show Registration may assign different Handlers to different Entries.
-5. Which action should be the row-level primary action for each state?
+4. **Decided:** The canonical table has one row per `Show Registration`. The row identifies the Exhibitor/submitter, confirmation, combined review state, and payment. Child Entries retain their own Dog, Class, and Handler because one Show Registration may assign different Handlers to different Entries.
+5. **Decided:** Desktop uses a two-pane cockpit: Show Registration queue/table on the left and the focused Show Registration on the right. Tablet/mobile opens the same detail full-width and returns to the preserved queue/scope.
+6. Which action should be the row-level primary action for each state?
 
 These are product decisions. Implementation should wait until they are resolved and the redesign is mocked against the two-trial scenario.

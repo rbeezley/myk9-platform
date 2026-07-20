@@ -323,7 +323,7 @@ Success means:
 
 ## Open product decisions for the design session
 
-1. Should the default queue be `Needs review` (recommended) or `All entries`?
+1. **Decided:** The default queue is `Needs review`. `All entries` remains one click away.
 2. Should Exceptions be one destination with sub-navigation, or remain visible as a compact secondary tab group?
 3. Should payment work be a summary queue/filter on the main page, or a dedicated existing payment surface linked from the queue?
 4. Should the default row grouping be individual entry rows or handler/enrollment groups?

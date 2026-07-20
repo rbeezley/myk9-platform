@@ -361,6 +361,7 @@ Success means:
 16. **Decided for `Needs review`:** Oldest Show Registration first, using submission time. Sort controls remain available for Exhibitor, Dog, confirmation number, and submission time.
 17. **Decided:** `Missing information` and `Payment due` use oldest-unresolved-first ordering. Exception workflows preserve their domain ordering, such as Wait List position or request time. The UI does not introduce a hidden urgency formula or prioritize payment by dollar amount.
 18. **Decided:** Focused Show Registration selection is URL-backed. Attention links, search results, bookmarks, copied views, and browser Back/Forward can address an exact registration while preserving queue and scope. Missing/deleted targets fall back calmly to the queue.
-19. What visual status language should replace the current row-level badge clusters?
+19. **Decided:** A Show Registration row has at most one colored status treatment: its primary review state. Classes use plain text or a count; payment uses quiet amount/status text; email and notes appear only when exceptional as a small icon plus plain label. Child Entry statuses remain in the focused pane. Color communicates action or exception, not ordinary metadata.
+20. Should bulk selection operate on Show Registrations, child Entries, or both?
 
 These are product decisions. Implementation should wait until they are resolved and the redesign is mocked against the two-trial scenario.

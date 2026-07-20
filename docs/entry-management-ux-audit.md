@@ -338,6 +338,7 @@ Success means:
 7. **Decided for `Payment due`:** The row-level primary action is `Resolve payment`. The table shows a quiet amount-due cue; the focused pane owns payment history and existing request, cash/check recording, and permitted waiver actions.
 8. **Decided for `Missing information`:** The row-level primary action is `Resolve missing information`. The focused pane shows the affected Entries and durably recorded secretary notes, then exposes existing edit, contact, and decision actions. It does not infer or display specific missing fields unless they are actually recorded.
 9. **Decided:** Remove the `Day-of` quick view from Entry Management. Show Desk owns show-day class operations, check-in, scoring coordination, and class progress. Entry Management retains accepted-entry lookup and status editing, with deep links to the appropriate Show Desk/Class surface for operational work.
-10. Which remaining view and action controls should be removed or demoted?
+10. **Decided:** Remove the visible `Table / Cards` toggle. Entry Management has one responsive Show Registration queue: desktop uses the table/list plus focused pane; tablet/mobile uses responsive registration cards and full-width detail. Density and saved views remain secondary preferences under View Options.
+11. Which remaining view and action controls should be removed or demoted?
 
 These are product decisions. Implementation should wait until they are resolved and the redesign is mocked against the two-trial scenario.

@@ -326,7 +326,7 @@ Success means:
 1. **Decided:** The default queue is `Needs review`. `All entries` remains one click away.
 2. **Decided:** Exceptions are one destination with Move-ups, Pulls/Scratches, and Waitlist sub-navigation. Urgent counts may deep-link from the main queue, but actions remain on their existing specialized surfaces.
 3. **Decided:** `Payment due` is a main Entry Management work queue using the same canonical table. It emphasizes amount due and existing payment actions without creating a separate secretary payment page.
-4. Should the default row grouping be individual entry rows or handler/enrollment groups?
+4. **Decided:** The canonical table groups by expandable `Show Registration`. The parent row identifies the Exhibitor/submitter, confirmation, combined review state, and payment. Child Entries retain their own Dog, Class, and Handler because one Show Registration may assign different Handlers to different Entries.
 5. Which action should be the row-level primary action for each state?
 
 These are product decisions. Implementation should wait until they are resolved and the redesign is mocked against the two-trial scenario.

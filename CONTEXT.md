@@ -170,7 +170,10 @@ Class. Entries are promoted from the Wait List as space opens.
 **Show Registration**
 The submission workflow that turns an Exhibitor's selected Dogs and Classes
 into persisted Entries for a Show, including payment details, confirmation
-number, and Armband assignment.
+number, and Armband assignment. One Show Registration can contain multiple
+Entries, and each Entry may name a different Handler. The Show Registration's
+person is the Exhibitor/submitter and must not be presented as the Handler for
+every Entry.
 
 **Promo Code**
 A discount token issued by a Club, scoped to a single Show or a single Trial.

@@ -43,6 +43,7 @@ import { ClassManagementViewControls } from '@/components/classes/ClassManagemen
 import type { ClassManagementOperationalView } from '@/features/operational-views/operationalViews';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
+import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 
 export const ClassManagementPage: React.FC = () => {
   const {
@@ -59,6 +60,11 @@ export const ClassManagementPage: React.FC = () => {
   const { data: show } = useShowQuery(showId ?? '');
   const showStatus = show?.status;
   const { data: rawClasses = [], isLoading } = useClassesByTrialQuery(trialId || '');
+  const {
+    data: showEntries = [],
+    isLoading: showEntriesLoading,
+    isError: showEntriesIsError,
+  } = useSecretaryShowEntriesQuery(showId ?? '', Boolean(showId));
   const { data: judges = [] } = useJudgesWithQualifications();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -105,6 +111,17 @@ export const ClassManagementPage: React.FC = () => {
   }, [focusClassId, isLoading]);
 
   const allClasses = useMemo(() => (rawClasses as DbClassRow[]) ?? [], [rawClasses]);
+  const entryCountsByClassId = useMemo(() => {
+    if (!showId || ((showEntriesLoading || showEntriesIsError) && showEntries.length === 0)) {
+      return null;
+    }
+    const counts = new Map<string, number>();
+    for (const entry of showEntries) {
+      if (!entry.class_id) continue;
+      counts.set(entry.class_id, (counts.get(entry.class_id) ?? 0) + 1);
+    }
+    return counts;
+  }, [showEntries, showEntriesIsError, showEntriesLoading, showId]);
 
   // Status filtering reuses the same lifecycle derivation the summary tiles
   // use (`deriveClassLifecycleValue`) — the URL `status` param is the
@@ -395,10 +412,13 @@ export const ClassManagementPage: React.FC = () => {
           ) : filteredClasses.length > 0 ? (
             <div className="space-y-2">
               {filteredClasses.map(cls => (
-                  <ClassManagementRow
-                    key={cls.id}
-                    cls={cls}
-                    focused={focusClassId === cls.id}
+                <ClassManagementRow
+                  key={cls.id}
+                  cls={cls}
+                  focused={focusClassId === cls.id}
+                  entryCount={
+                    entryCountsByClassId?.get(cls.id) ?? (entryCountsByClassId ? 0 : null)
+                  }
                   selected={selection.isSelected(cls)}
                   showId={showId}
                   showStatus={showStatus}

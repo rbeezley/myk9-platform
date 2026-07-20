@@ -5,6 +5,8 @@ export interface PublishInfo {
   publishedUrl: string | null;
   publishedAt: string | null;
   updatedAt: string | null;
+  /** Whether the exhibitor-facing experience snapshot is published. */
+  experienceIsPublished: boolean | null;
 }
 
 export function publishInfoQueryKey(showId: string) {
@@ -16,7 +18,7 @@ export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
   // include the post-189 premium-publish columns. Read-only and cheap.
   const { data, error } = await supabase
     .from('shows')
-    .select('published_premium_url, published_premium_at, updated_at')
+    .select('published_premium_url, published_premium_at, updated_at, experience_is_published')
     .eq('id', showId)
     .maybeSingle();
   if (error) throw error;
@@ -25,6 +27,7 @@ export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
     publishedUrl: (row?.published_premium_url as string | null) ?? null,
     publishedAt: (row?.published_premium_at as string | null) ?? null,
     updatedAt: (row?.updated_at as string | null) ?? null,
+    experienceIsPublished: (row?.experience_is_published as boolean | null) ?? null,
   };
 }
 

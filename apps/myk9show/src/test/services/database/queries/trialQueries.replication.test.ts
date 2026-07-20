@@ -528,6 +528,9 @@ describe('trialQueries (replication)', () => {
           startTime: '09:00',
           status: 'Scheduled',
           totalEntriesCount: 99,
+          judgePersonId: 'judge-1',
+          judgeFirstName: 'Ada',
+          judgeLastName: 'Lovelace',
         },
       ]);
     });

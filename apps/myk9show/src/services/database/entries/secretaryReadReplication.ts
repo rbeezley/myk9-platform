@@ -66,7 +66,12 @@ function stringFrom(value: unknown): string | null {
 }
 
 function numberFrom(value: unknown): number | null {
-  return typeof value === 'number' ? value : null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 function booleanFrom(value: unknown): boolean | null {
@@ -195,6 +200,20 @@ function toSecretaryEntry(
     jump_height: entry.jumpHeight ?? null,
     run_order: entry.runOrder ?? null,
     is_in_ring: booleanFrom(replicatedField(entry, 'isInRing', 'is_in_ring')),
+    is_scored: booleanFrom(replicatedField(entry, 'isScored', 'is_scored')),
+    result_status: stringFrom(replicatedField(entry, 'resultStatus', 'result_status')),
+    search_time_seconds: numberFrom(
+      replicatedField(entry, 'searchTimeSeconds', 'search_time_seconds')
+    ),
+    total_faults: numberFrom(replicatedField(entry, 'totalFaults', 'total_faults')),
+    final_placement: numberFrom(replicatedField(entry, 'finalPlacement', 'final_placement')),
+    judge_notes: stringFrom(replicatedField(entry, 'judgeNotes', 'judge_notes')),
+    disqualification_reason: stringFrom(
+      replicatedField(entry, 'disqualificationReason', 'disqualification_reason')
+    ),
+    scoring_completed_at: stringFrom(
+      replicatedField(entry, 'scoringCompletedAt', 'scoring_completed_at')
+    ),
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
     withdrawal_reason: entry.withdrawalReason ?? entry.withdrawal_reason ?? null,
     payment_method: entry.paymentMethod ?? null,

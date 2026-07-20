@@ -2,11 +2,18 @@ import { useState, useCallback } from 'react';
 import { Globe, Copy, Check } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { notifications } from '@/lib/notifications';
 import type { ShowStyle } from '@/features/registries';
 import { PREMIUM_STYLE_LABELS } from '@/types/premium-types';
+import { LANDING_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
 
 const STYLE_LABELS: Record<ShowStyle, string> = PREMIUM_STYLE_LABELS;
+
+// Target ring so a "Finish setup" checklist jump (`#setup-publish-landing`)
+// visibly lands here, matching the #setup-publish row's pattern.
+const ANCHOR_CLASS =
+  'scroll-mt-20 target:ring-2 target:ring-ring target:ring-offset-2 target:ring-offset-background';
 
 interface LandingPageCardProps {
   showId: string;
@@ -53,7 +60,10 @@ export function LandingPageCard({ showId, showStyle }: LandingPageCardProps) {
   }, [url]);
 
   return (
-    <Card className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+    <Card
+      id={LANDING_CARD_ANCHOR}
+      className={cn('flex flex-col gap-4 p-4 sm:flex-row sm:items-center', ANCHOR_CLASS)}
+    >
       <div className="bg-primary/10 text-primary rounded-md p-3">
         <Globe className="h-6 w-6" />
       </div>

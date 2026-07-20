@@ -23,7 +23,9 @@ function makeLevelDetail(
   return {
     classId: 'cls-1',
     entryCount: 0,
+    startTime: null,
     ...overrides,
+    className: overrides.className ?? `Class ${overrides.level}`,
   };
 }
 
@@ -40,6 +42,9 @@ function makeTimelineRow(overrides: Partial<TimelineClassRow>): TimelineClassRow
     startTime: '08:00:00',
     status: 'Scheduled',
     totalEntriesCount: 5,
+    judgePersonId: 'judge-1',
+    judgeFirstName: 'Jane',
+    judgeLastName: 'Doe',
     ...overrides,
   };
 }
@@ -172,6 +177,10 @@ describe('groupByDay', () => {
     expect(result[0]!.trials[0]!.elements).toHaveLength(1);
     expect(result[0]!.trials[0]!.elements[0]!.element).toBe('Rally');
     expect(result[0]!.trials[0]!.elements[0]!.levels).toHaveLength(2);
+    expect(result[0]!.trials[0]!.elements[0]!.levels[0]).toMatchObject({
+      judgeId: 'judge-1',
+      judgeName: 'Jane Doe',
+    });
   });
 
   it('separates different dates', () => {

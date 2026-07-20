@@ -10,8 +10,12 @@ const mocks = vi.hoisted(() => ({
   updateSecretaryLifecycleStatus: vi.fn(),
   getEntryById: vi.fn(),
   getEntriesByShow: vi.fn(),
+  syncEntries: vi.fn(),
+  syncClasses: vi.fn(),
+  syncTrials: vi.fn(),
   getAllDogs: vi.fn(),
   getAllClasses: vi.fn(),
+  getTrialsByShow: vi.fn(),
   getArmbandsByShow: vi.fn(),
   loggerWarn: vi.fn(),
 }));
@@ -29,6 +33,7 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
     updateSecretaryLifecycleStatus: mocks.updateSecretaryLifecycleStatus,
     getEntryById: mocks.getEntryById,
     getEntriesByShow: mocks.getEntriesByShow,
+    sync: mocks.syncEntries,
   },
 }));
 
@@ -41,6 +46,14 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: {
     getAll: mocks.getAllClasses,
+    sync: mocks.syncClasses,
+  },
+}));
+
+vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
+  replicatedTrialsTable: {
+    getTrialsByShow: mocks.getTrialsByShow,
+    sync: mocks.syncTrials,
   },
 }));
 
@@ -139,6 +152,7 @@ function mockPostgrestEntriesRead(data: unknown[]) {
 describe('secretary entry status replication', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.syncEntries.mockResolvedValue({ success: false });
     mocks.updateSecretaryLifecycleStatus.mockResolvedValue('mutation-1');
     mocks.getEntryById.mockImplementation((entryId: string) =>
       Promise.resolve({
@@ -254,6 +268,10 @@ describe('secretary entry status replication', () => {
 describe('secretary entry read replication', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.syncEntries.mockResolvedValue({ success: false });
+    mocks.syncClasses.mockResolvedValue({ success: true });
+    mocks.syncTrials.mockResolvedValue({ success: true });
+    mocks.getTrialsByShow.mockResolvedValue([]);
     mocks.getEntriesByShow.mockResolvedValue([
       {
         id: 'entry-2',
@@ -278,6 +296,13 @@ describe('secretary entry read replication', () => {
         paymentMethod: 'online',
         entryFee: 45,
         checkInStatus: 'checked-in',
+        isScored: true,
+        resultStatus: 'qualified',
+        searchTimeSeconds: 41.25,
+        totalFaults: 0,
+        finalPlacement: '1',
+        judgeNotes: 'Clean search',
+        scoringCompletedAt: '2026-06-01T10:45:00.000Z',
         jumpHeight: '12',
         runOrder: 7,
         specialRequests: 'Crate near ring',
@@ -379,6 +404,22 @@ describe('secretary entry read replication', () => {
     ]);
   });
 
+  it('preserves the scoring fields used by every secretary class-count surface', async () => {
+    const result = await getEntriesForShow('show-1');
+
+    expect(result.data?.[0]).toEqual(
+      expect.objectContaining({
+        is_scored: true,
+        result_status: 'qualified',
+        search_time_seconds: 41.25,
+        total_faults: 0,
+        final_placement: 1,
+        judge_notes: 'Clean search',
+        scoring_completed_at: '2026-06-01T10:45:00.000Z',
+      })
+    );
+  });
+
   it('keeps the replicated secretary table usable when online metadata is unavailable', async () => {
     mocks.supabaseFrom.mockImplementation(() => {
       throw new Error('offline');
@@ -470,7 +511,7 @@ describe('secretary entry read replication', () => {
     const result = await getEntriesForShow('show-1');
 
     expect(mocks.loggerWarn).toHaveBeenCalledWith(
-      'Secretary entries replication cold; falling back to PostGREST',
+      'Secretary entries replication cold; hydrating scoped replica',
       'database',
       { showId: 'show-1', operation: 'get_entries_for_show' }
     );
@@ -478,6 +519,47 @@ describe('secretary entry read replication', () => {
     expect(result.error).toBeNull();
     expect(result.data).toHaveLength(1);
     expect(result.data![0]).toMatchObject({ id: 'entry-from-postgrest' });
+  });
+
+  it('hydrates a cold show-scoped replica before using PostgREST', async () => {
+    mocks.getEntriesByShow.mockResolvedValueOnce([]).mockResolvedValue([
+      {
+        id: 'entry-after-hydration',
+        showId: 'show-1',
+        classId: 'class-1',
+        trialId: 'trial-1',
+        entryStatus: 'confirmed',
+        submittedAt: '2026-06-01T10:00:00.000Z',
+      },
+    ]);
+    mocks.getAllDogs.mockResolvedValue([]);
+    mocks.getAllClasses
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'class-1', name: 'Novice Containers', maxEntries: 20 }]);
+    mocks.getArmbandsByShow.mockResolvedValue([]);
+    mocks.getTrialsByShow
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { id: 'trial-1', name: 'Saturday Trial', date: '2026-06-01', trialType: 'Scent Work' },
+      ]);
+    mocks.syncEntries.mockResolvedValue({ success: true });
+    mockMetadataLookups();
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
+    expect(mocks.syncTrials).toHaveBeenCalledWith('show-1');
+    expect(mocks.syncClasses).toHaveBeenCalledWith('trial-1');
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
+    expect(result.error).toBeNull();
+    expect(result.data).toEqual([
+      expect.objectContaining({
+        id: 'entry-after-hydration',
+        show_id: 'show-1',
+        class: expect.objectContaining({ name: 'Novice Containers' }),
+        trial: { trial_type: 'Scent Work' },
+      }),
+    ]);
   });
 
   it('trusts replication when store is warm but all entries are deleted (does not hit PostgREST)', async () => {

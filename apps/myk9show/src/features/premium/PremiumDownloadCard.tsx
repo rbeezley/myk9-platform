@@ -3,11 +3,18 @@ import { FileText, AlertTriangle, Upload } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { classifyPremiumPublishState } from '@/features/show-workbench/premiumPublishState';
 import { notifications } from '@/lib/notifications';
 import { publishInfoQueryKey, usePublishInfo } from './usePublishInfo';
 import { useGeneratePremium } from './useGeneratePremium';
+import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
+
+// Target ring so a "Finish setup" checklist jump (`#setup-publish-premium`)
+// visibly lands here, matching the #setup-publish row's pattern.
+const ANCHOR_CLASS =
+  'scroll-mt-20 target:ring-2 target:ring-ring target:ring-offset-2 target:ring-offset-background';
 
 interface PremiumDownloadCardProps {
   showId: string;
@@ -53,7 +60,10 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
 
   if (!publishedUrl || !publishedAt) {
     return (
-      <Card className="p-4 flex flex-wrap items-center gap-4">
+      <Card
+        id={PREMIUM_CARD_ANCHOR}
+        className={cn('p-4 flex flex-wrap items-center gap-4', ANCHOR_CLASS)}
+      >
         <div className="bg-muted text-muted-foreground rounded-md p-3">
           <FileText className="h-6 w-6" />
         </div>
@@ -88,26 +98,42 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
       updatedAt: showUpdatedAt,
     }) === 'published-stale';
 
+  // Publishing the premium also snapshots the landing-page content
+  // (publishExperience), so if that second write failed the PDF can be
+  // current while the landing page is still unpublished. Surface the same
+  // republish action so the secretary has a way to finish the job — the
+  // Setup tab's "Landing page not published" chip lands here.
+  const landingUnpublished = showStaleBadge && data?.experienceIsPublished === false;
+  const needsRepublish = stale || landingUnpublished;
+
   return (
-    <Card className="p-4 flex flex-wrap items-center gap-4">
+    <Card
+      id={PREMIUM_CARD_ANCHOR}
+      className={cn('p-4 flex flex-wrap items-center gap-4', ANCHOR_CLASS)}
+    >
       <div className="bg-primary/10 text-primary rounded-md p-3">
         <FileText className="h-6 w-6" />
       </div>
       <div className="flex-1">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-sm">Premium List</h3>
-          {stale && (
+          {stale ? (
             <span className="inline-flex items-center gap-1 text-xs text-warning ">
               <AlertTriangle className="h-3 w-3" />
               Show data has changed since publish
             </span>
-          )}
+          ) : landingUnpublished ? (
+            <span className="inline-flex items-center gap-1 text-xs text-warning ">
+              <AlertTriangle className="h-3 w-3" />
+              Landing page not published
+            </span>
+          ) : null}
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">
           Premium PDF published {publishedLabel}
         </p>
       </div>
-      {stale && (
+      {needsRepublish && (
         <Button
           size="sm"
           className="shrink-0 whitespace-nowrap"
@@ -115,7 +141,7 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
           disabled={isBusy}
         >
           <Upload className="h-4 w-4 mr-2" />
-          {isBusy ? 'Publishing…' : 'Republish premium'}
+          {isBusy ? 'Publishing…' : stale ? 'Republish premium' : 'Publish landing page'}
         </Button>
       )}
       <a

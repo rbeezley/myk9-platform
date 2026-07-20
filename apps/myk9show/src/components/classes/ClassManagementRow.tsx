@@ -32,6 +32,7 @@ export const UNASSIGNED_JUDGE_VALUE = 'TBD';
 
 interface ClassManagementRowProps {
   cls: DbClassRow;
+  entryCount?: number | null;
   selected: boolean;
   focused?: boolean;
   showId: string | undefined;
@@ -52,6 +53,7 @@ interface ClassManagementRowProps {
 
 export const ClassManagementRow: React.FC<ClassManagementRowProps> = ({
   cls,
+  entryCount: canonicalEntryCount,
   selected,
   focused = false,
   showId,
@@ -64,7 +66,8 @@ export const ClassManagementRow: React.FC<ClassManagementRowProps> = ({
   onDelete,
   density = 'comfortable',
 }) => {
-  const entryCount = cls.entries?.length ?? 0;
+  const entryCount =
+    canonicalEntryCount === undefined ? (cls.entries?.length ?? 0) : canonicalEntryCount;
   const maxEntries = cls.max_entries ?? 0;
   const isCompact = density === 'compact';
   return (
@@ -120,10 +123,14 @@ export const ClassManagementRow: React.FC<ClassManagementRowProps> = ({
           })()}
 
           <div className="text-sm text-muted-foreground">
-            <div>
-              Entries: {entryCount}
-              {maxEntries > 0 ? `/${maxEntries}` : ''}
-            </div>
+            {entryCount === null ? (
+              <div aria-label="Entry count unavailable">Entries: —</div>
+            ) : (
+              <div>
+                Entries: {entryCount}
+                {maxEntries > 0 ? `/${maxEntries}` : ''}
+              </div>
+            )}
           </div>
 
           <div>

@@ -104,7 +104,7 @@ export function publicRowToRawEntryRow(row: PublicEntryRow): RawEntryRow {
  * scored columns arrive NULL. Authenticated callers use the full table read
  * (still governed by RLS).
  */
-export function useClassEntriesRaw(classId: string | undefined) {
+export function useClassEntriesRaw(classId: string | undefined, enabled = true) {
   const { user, loading } = useAuthContext();
   const isAnon = !user;
 
@@ -120,7 +120,7 @@ export function useClassEntriesRaw(classId: string | undefined) {
       if (error) throw error;
       return (data ?? []) as unknown as RawEntryRow[];
     },
-    enabled: !!classId && !loading,
+    enabled: !!classId && enabled && !loading,
     ...cacheStrategies.dynamic,
   });
 }

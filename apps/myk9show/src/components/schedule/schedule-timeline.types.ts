@@ -13,6 +13,9 @@ export interface TimelineClassRow {
   startTime: string | null;
   status: string; // raw DB status, needs normalizeClassStatus()
   totalEntriesCount: number;
+  judgePersonId: string | null;
+  judgeFirstName: string | null;
+  judgeLastName: string | null;
 }
 
 /** Raw row from the trial timeline query (trial detail) */
@@ -45,9 +48,17 @@ export interface ElementSummary {
 /** Individual level detail within an element */
 export interface LevelDetail {
   classId: string;
+  /** Full class name (e.g. "Container Novice A") — disambiguates sectioned
+   * classes that share a level (Novice A vs Novice B, ASCA base vs Level C). */
+  className: string;
   level: string;
   status: ClassStatusValue;
   entryCount: number;
+  /** This level-class's own start time (raw DB value), for inline editing. */
+  startTime: string | null;
+  /** Assigned judge metadata, retained per class for display and conflict checks. */
+  judgeId?: string | null | undefined;
+  judgeName?: string | null | undefined;
 }
 
 /** A single trial's timeline data */

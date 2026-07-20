@@ -73,7 +73,7 @@ export function generateCSPPolicy(environment: string): string {
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://challenges.cloudflare.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "connect-src 'self' ws://localhost:* https://*.supabase.co wss://*.supabase.co https://*.ingest.us.sentry.io"
+      "connect-src 'self' https://challenges.cloudflare.com ws://localhost:* https://*.supabase.co wss://*.supabase.co https://*.ingest.us.sentry.io"
     );
   } else {
     // Production - more restrictive
@@ -81,7 +81,7 @@ export function generateCSPPolicy(environment: string): string {
       "script-src 'self' https://challenges.cloudflare.com https://cdn.jsdelivr.net",
       "style-src 'self' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.us.sentry.io"
+      "connect-src 'self' https://challenges.cloudflare.com https://*.supabase.co wss://*.supabase.co https://*.ingest.us.sentry.io"
     );
   }
 

@@ -77,7 +77,13 @@ async function replaceRolesForUser(userId: string, roleNames: string[], clubIds:
       const roleSelected = roleNames.includes(assignment.roleName);
       const clubInTarget =
         roleSelected && !!assignment.clubId && clubIds.includes(assignment.clubId);
-      if (!clubInTarget && assignment.clubId) {
+      if (!assignment.clubId) {
+        // Legacy migrations created secretary/club_admin assignments without a
+        // club_id. Replace must remove that global grant when the target is a
+        // club-scoped set; otherwise narrowing a user to selected clubs leaves
+        // their old broad access active.
+        await rbacService.revokeRole({ userId, roleName: assignment.roleName });
+      } else if (!clubInTarget) {
         await rbacService.revokeRole({
           userId,
           roleName: assignment.roleName,

@@ -324,6 +324,31 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
     expect(result.current.roleError).toBeNull();
   });
 
+  it('replace revokes a legacy global club-scoped role before adding selected club scopes', async () => {
+    getAllRolesMock.mockResolvedValue([role('secretary'), role('exhibitor')]);
+    activeAssignmentsMock.mockResolvedValue({
+      data: [
+        { id: 'ur1', role_id: 'r-secretary', club_id: null, roles: { name: 'secretary' } },
+        { id: 'ur2', role_id: 'r-exhibitor', club_id: null, roles: { name: 'exhibitor' } },
+      ],
+      error: null,
+    });
+    ensureUserHasRoleMock.mockResolvedValue(true);
+    revokeRoleMock.mockResolvedValue(true);
+    const selectedUsers = [selectedUser('u1', 'Alice')];
+    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn() });
+
+    await act(async () => {
+      await result.current.handleBulkRoleChange(
+        baseConfig({ mode: 'replace', roleNames: ['secretary'], clubIds: ['club-1'] })
+      );
+    });
+
+    expect(revokeRoleMock).toHaveBeenCalledWith({ userId: 'u1', roleName: 'secretary' });
+    expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'secretary', { clubId: 'club-1' });
+    expect(result.current.roleError).toBeNull();
+  });
+
   it('replace repairs a user missing the locked exhibitor role (ensures it after revoke+add)', async () => {
     getAllRolesMock.mockResolvedValue([role('judge'), role('exhibitor')]);
     // User has NO exhibitor assignment at all — only judge.

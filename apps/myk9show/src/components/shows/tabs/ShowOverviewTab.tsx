@@ -94,7 +94,7 @@ export function ShowOverviewTab({
               </div>
             </section>
           ) : null}
-          <ScheduleSummary showId={show.id} />
+          <ScheduleSummary showId={show.id} canEditSchedule={canManageShow} compact />
           <VenueMap location={show.location} />
         </div>
 

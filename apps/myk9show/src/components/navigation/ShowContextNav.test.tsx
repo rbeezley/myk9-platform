@@ -14,10 +14,9 @@ function renderNav(path = '/shows/show-42/setup') {
 }
 
 describe('ShowContextNav', () => {
-  it('renders all 6 section links', () => {
+  it('renders all visible management section links without Setup', () => {
     renderNav();
     const labels = [
-      'Setup',
       'Show Desk',
       'Entry Management',
       'Reports',
@@ -27,17 +26,10 @@ describe('ShowContextNav', () => {
     for (const label of labels) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument();
     }
+    expect(screen.queryByRole('link', { name: 'Setup' })).not.toBeInTheDocument();
   });
 
-  it('Setup link points to the canonical setup sub-route', () => {
-    renderNav();
-    expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute(
-      'href',
-      '/shows/show-42/setup'
-    );
-  });
-
-  it('Show Desk link points to the show-desk sub-route', () => {
+  it('Show Desk link points to the canonical show-desk sub-route', () => {
     renderNav();
     expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute(
       'href',
@@ -45,15 +37,15 @@ describe('ShowContextNav', () => {
     );
   });
 
-  it('marks Setup as active on the setup path', () => {
+  it('does not expose a Setup active state on the compatibility path', () => {
     renderNav('/shows/show-42/setup');
-    expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('link', { name: 'Setup' })).not.toBeInTheDocument();
   });
 
   it('marks Show Desk as active on the show-desk path', () => {
     renderNav('/shows/show-42/show-desk');
     expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Setup' })).not.toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('link', { name: 'Setup' })).not.toBeInTheDocument();
   });
 
   it('supports canonical routes that use an id param name', () => {
@@ -66,10 +58,7 @@ describe('ShowContextNav', () => {
     );
 
     expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute(
-      'href',
-      '/shows/show-42/setup'
-    );
+    expect(screen.queryByRole('link', { name: 'Setup' })).not.toBeInTheDocument();
   });
 
   it('renders nothing when showId is absent', () => {

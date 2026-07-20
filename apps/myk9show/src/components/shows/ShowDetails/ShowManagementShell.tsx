@@ -32,7 +32,7 @@ import { publishExperience } from '@/features/experience/publishExperience';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
 import { useShowStore, type ShowInput } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
+import { SHOW_MANAGEMENT_NAV_SECTIONS } from '@/routes/showManagementSections';
 import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
 import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishReadiness';
 import { notifications } from '@/lib/notifications';
@@ -253,7 +253,7 @@ export function ShowManagementShell({
           </div>
         )}
 
-        {/* INTENT: Setup and management sections retain full publishing context.
+        {/* INTENT: Overview and management sections retain full publishing context.
             Show Desk uses compact operational chrome and surfaces only a
             publishing exception, so urgent Class work stays in the viewport. */}
         {!isShowDesk && (
@@ -290,7 +290,7 @@ export function ShowManagementShell({
                     Class Management
                   </option>
                 )}
-                {SHOW_MANAGEMENT_SECTIONS.map(({ label, path }) => (
+                {SHOW_MANAGEMENT_NAV_SECTIONS.map(({ label, path }) => (
                   <option key={path} value={path}>
                     {label}
                   </option>
@@ -298,7 +298,7 @@ export function ShowManagementShell({
               </select>
             </div>
             <div className="hidden max-w-full overflow-x-auto no-scrollbar px-4 lg:flex lg:px-6">
-              {SHOW_MANAGEMENT_SECTIONS.map(({ label, path }) => {
+              {SHOW_MANAGEMENT_NAV_SECTIONS.map(({ label, path }) => {
                 const href = `${canonicalShowHref}/${path}`;
                 const isActive = activeManagementSection === path;
                 return (

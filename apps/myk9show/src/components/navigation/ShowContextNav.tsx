@@ -1,14 +1,6 @@
 import { NavLink, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-
-const NAV_ITEMS = [
-  { label: 'Setup', path: 'setup' },
-  { label: 'Show Desk', path: 'show-desk' },
-  { label: 'Entry Management', path: 'entry-management' },
-  { label: 'Reports', path: 'reports' },
-  { label: 'Results & Check-In', path: 'results-control' },
-  { label: 'Submit Results', path: 'submit-results' },
-] as const;
+import { SHOW_MANAGEMENT_NAV_SECTIONS } from '@/routes/showManagementSections';
 
 export function ShowContextNav() {
   const { id, showId } = useParams<{ id?: string; showId?: string }>();
@@ -23,7 +15,7 @@ export function ShowContextNav() {
       data-testid="show-context-nav"
     >
       <div className="flex max-w-full overflow-x-auto no-scrollbar px-4 sm:px-6">
-        {NAV_ITEMS.map(({ label, path }) => {
+        {SHOW_MANAGEMENT_NAV_SECTIONS.map(({ label, path }) => {
           const to = `/shows/${resolvedShowId}/${path}`;
           return (
             <NavLink

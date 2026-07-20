@@ -41,7 +41,7 @@ function toTimeInputValue(startTime: string | null): string {
 }
 
 /**
- * Inline start-time editor for a single class, used on the Setup tab schedule.
+ * Inline start-time editor for a single class, used on manager schedule views.
  *
  * Renders as plain text with a pencil affordance when idle; switches to an
  * `<input type="time">` with explicit Save/Cancel on click. Writes through

@@ -7,6 +7,7 @@ import { prepareResultLabelItems } from '@/lib/labels/resultLabelData';
 import { mapScopedReportEntries } from '@/pages/secretary/ReportsPage/reportDataMapping';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
+import type { ReportScope } from '@/lib/reports/types';
 import { ResultLabelCell } from './ResultLabelCell';
 import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -26,8 +27,7 @@ interface ResultLabelsReportProps {
   trials: DbTrial[] | null | undefined;
   classes: DbClass[] | null | undefined;
   entries: DbEntry[] | null | undefined;
-  trialId: string;
-  classId: string;
+  scope: ReportScope;
   sortOrder: string;
   isLoading?: boolean;
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
@@ -38,8 +38,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
   trials,
   classes,
   entries,
-  trialId,
-  classId,
+  scope,
   sortOrder,
   isLoading = false,
   iframeRef,
@@ -60,15 +59,14 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
       entries ?? [],
       trials ?? [],
       classes ?? [],
-      trialId,
-      classId,
+      scope,
       show?.assignedJudges ?? []
     );
     return prepareResultLabelItems(enriched, sortOrder, {
       showName: show?.name ?? '',
       ...(show?.clubName ? { clubName: show.clubName } : {}),
     });
-  }, [entries, trials, classes, trialId, classId, sortOrder, show]);
+  }, [entries, trials, classes, scope, sortOrder, show]);
 
   const pages = useMemo(() => buildLabelPages(template, items, skip), [template, items, skip]);
 

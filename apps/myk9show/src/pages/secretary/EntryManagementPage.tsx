@@ -39,6 +39,7 @@ import { normalizeEntryManagementSearchParams } from '@/components/entries/manag
 import { buildEntryManagementRelatedLinks } from '@/components/entries/management/entryManagementRelatedLinks';
 import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
 import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
+import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 
 const PAGE_TABS: PrimaryTabDef[] = [
   { id: 'entries', label: 'Entries' },
@@ -279,6 +280,7 @@ const EntryManagementPage: React.FC = () => {
 
   return (
     <div className="manager-content-container container mx-auto space-y-6 p-4 sm:p-6">
+      <ShowDeskReturnLink showId={selectedShowId || urlShowId} />
       {/* Header */}
       <div className="manager-page-header">
         <div className="min-w-0">

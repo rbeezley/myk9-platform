@@ -36,6 +36,9 @@ export interface TrialClass {
   judgeId: string;
   judgeName?: string | undefined;
   startTime: string;
+  revisedExpectedStart?: string | null | undefined;
+  actualStartTime?: string | undefined;
+  actualFinishTime?: string | undefined;
   status: ClassStatusValue;
   entries: number;
   completedEntries?: number;

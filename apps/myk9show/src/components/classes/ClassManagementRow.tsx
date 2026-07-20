@@ -33,6 +33,7 @@ export const UNASSIGNED_JUDGE_VALUE = 'TBD';
 interface ClassManagementRowProps {
   cls: DbClassRow;
   selected: boolean;
+  focused?: boolean;
   showId: string | undefined;
   showStatus: string | undefined;
   availableJudges: Array<{ id: string; name: string }>;
@@ -52,6 +53,7 @@ interface ClassManagementRowProps {
 export const ClassManagementRow: React.FC<ClassManagementRowProps> = ({
   cls,
   selected,
+  focused = false,
   showId,
   showStatus,
   availableJudges,
@@ -67,9 +69,16 @@ export const ClassManagementRow: React.FC<ClassManagementRowProps> = ({
   const isCompact = density === 'compact';
   return (
     <div
+      id={`class-management-row-${cls.id}`}
       data-class-id={cls.id}
+      data-class-focused={focused || undefined}
+      tabIndex={-1}
       className={`border rounded-lg transition-all ${isCompact ? 'p-2' : 'p-4'} ${
-        selected ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
+        selected
+          ? 'ring-2 ring-primary bg-primary/5'
+          : focused
+            ? 'ring-2 ring-accent-foreground/40 bg-accent/20'
+            : 'hover:bg-muted/50'
       }`}
     >
       <div className="flex items-center gap-4">

@@ -50,7 +50,15 @@ const entries: ReplicatedEntry[] = [
 ];
 
 const classesById = new Map<string, AtShowClassSummary>([
-  ['class-1', { className: 'Novice Container', classStatus: 'in_progress' }],
+  [
+    'class-1',
+    {
+      className: 'Novice Container',
+      classStatus: 'in_progress',
+      expectedStartLabel: '10:15 AM',
+      isRevisedStart: true,
+    },
+  ],
 ]);
 
 describe('buildMyAtShowEntryDetails', () => {
@@ -71,6 +79,8 @@ describe('buildMyAtShowEntryDetails', () => {
       dogName: 'Rex',
       armband: '101',
       className: 'Novice Container',
+      expectedStartLabel: '10:15 AM',
+      isRevisedStart: true,
       hasRunOrder: true,
     });
   });
@@ -97,6 +107,8 @@ describe('deriveAtShowNextAction', () => {
     armband: '101',
     checkInStatus: 'no-status',
     className: 'Novice Container',
+    expectedStartLabel: null,
+    isRevisedStart: false,
     hasRunOrder: true,
     isScored: false,
   };

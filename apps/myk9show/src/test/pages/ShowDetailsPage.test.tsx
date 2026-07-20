@@ -670,12 +670,13 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('link', { name: /manage in workbench/i })).not.toBeInTheDocument();
   });
 
-  it('renders canonical child sections below the show hero', () => {
+  it('renders Show Desk below its compact context instead of the full hero', () => {
     mockAuthContext.isSecretary = true;
 
     renderPage('show-1', '/show-desk');
 
-    expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
+    expect(screen.queryByTestId('detail-hero')).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Show Desk context' })).toBeInTheDocument();
     expect(screen.getByTestId('canonical-child')).toHaveTextContent('Show Desk child');
     expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute('aria-current', 'page');
   });

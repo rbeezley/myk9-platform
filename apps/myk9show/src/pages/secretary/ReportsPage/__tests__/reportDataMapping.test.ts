@@ -70,7 +70,7 @@ describe('buildTrialReportProps', () => {
       trials: [trial],
       classes: [classData],
       entries: [entry],
-      trialId: 'trial-1',
+      scope: { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },
       sortOrder: '',
     });
 
@@ -125,7 +125,7 @@ describe('buildTrialReportProps', () => {
       trials: [trial],
       classes: [assignmentBackedClass],
       entries: [entry],
-      trialId: 'trial-1',
+      scope: { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },
       sortOrder: '',
     });
 
@@ -140,7 +140,7 @@ describe('buildTrialReportProps', () => {
       trials: [trial],
       classes: [classData],
       entries: [entry],
-      trialId: 'trial-1',
+      scope: { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },
       sortOrder: '',
     });
 
@@ -160,7 +160,7 @@ describe('buildTrialReportProps', () => {
       trials: [trial],
       classes: [unassignedClass],
       entries: [entry],
-      trialId: 'trial-1',
+      scope: { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },
       sortOrder: '',
     });
 
@@ -180,7 +180,7 @@ describe('buildTrialReportProps', () => {
       trials: [trial],
       classes: [classData, secondClass],
       entries: [entry],
-      trialId: 'trial-1',
+      scope: { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },
       sortOrder: '',
     });
 
@@ -204,8 +204,12 @@ describe('buildClassReportProps', () => {
         } as DbClass,
       ],
       entries: [entry],
-      trialId: 'trial-1',
-      classId: 'class-1',
+      scope: {
+        kind: 'class',
+        showId: 'show-1',
+        trialId: 'trial-1',
+        classId: 'class-1',
+      },
       sortOrder: 'armband',
     });
 
@@ -228,26 +232,34 @@ describe('buildClassReportProps', () => {
     });
   });
 
-  it('returns null until both a trial and class are selected', () => {
+  it('returns null when the scoped Class or Trial is not available', () => {
     expect(
       buildClassReportProps({
         show,
         trials: [trial],
         classes: [classData],
         entries: [entry],
-        trialId: 'all',
-        classId: 'class-1',
+        scope: {
+          kind: 'class',
+          showId: 'show-1',
+          trialId: 'trial-1',
+          classId: 'missing-class',
+        },
         sortOrder: '',
       })
     ).toBeNull();
     expect(
       buildClassReportProps({
         show,
-        trials: [trial],
+        trials: [],
         classes: [classData],
         entries: [entry],
-        trialId: 'trial-1',
-        classId: 'all',
+        scope: {
+          kind: 'class',
+          showId: 'show-1',
+          trialId: 'trial-1',
+          classId: 'class-1',
+        },
         sortOrder: '',
       })
     ).toBeNull();
@@ -293,7 +305,11 @@ describe('mapScopedReportEntries', () => {
 
   it('Trial 1 / All Classes excludes other trials and labels each entry with its own trial/class', () => {
     // useReportData returns ALL show entries when classId === 'all'.
-    const result = mapScopedReportEntries([e1, e2], trials, classes, 'trial-1', 'all');
+    const result = mapScopedReportEntries([e1, e2], trials, classes, {
+      kind: 'trial',
+      showId: 'show-1',
+      trialId: 'trial-1',
+    });
     expect(result.map(r => r.id)).toEqual(['e1']);
     expect(result[0]).toMatchObject({
       trialNumber: '1',
@@ -304,7 +320,10 @@ describe('mapScopedReportEntries', () => {
   });
 
   it('All Trials / All Classes keeps everything and enriches each per-entry', () => {
-    const result = mapScopedReportEntries([e1, e2], trials, classes, 'all', 'all');
+    const result = mapScopedReportEntries([e1, e2], trials, classes, {
+      kind: 'show',
+      showId: 'show-1',
+    });
     expect(result.map(r => r.id)).toEqual(['e1', 'e2']);
     expect(result.find(r => r.id === 'e2')).toMatchObject({
       trialNumber: '2',
@@ -315,7 +334,12 @@ describe('mapScopedReportEntries', () => {
 
   it('single-class scope enriches the already-scoped entries with the selected class', () => {
     // useReportData has already filtered entries to class-1 here.
-    const result = mapScopedReportEntries([e1], trials, classes, 'trial-1', 'class-1');
+    const result = mapScopedReportEntries([e1], trials, classes, {
+      kind: 'class',
+      showId: 'show-1',
+      trialId: 'trial-1',
+      classId: 'class-1',
+    });
     expect(result.map(r => r.id)).toEqual(['e1']);
     expect(result[0]).toMatchObject({ classElement: 'Container', trialNumber: '1' });
   });
@@ -340,7 +364,10 @@ describe('mapScopedReportEntries', () => {
       dog: { id: 'dog-1', name: 'Rocket', callName: 'Rocket', breed: 'Beagle' },
     }) as DbEntry;
 
-    const reportEntries = mapScopedReportEntries([dbRow], trials, classes, 'all', 'all');
+    const reportEntries = mapScopedReportEntries([dbRow], trials, classes, {
+      kind: 'show',
+      showId: 'show-1',
+    });
     const totals = calculateFinancialReportTotals(reportEntries, 'current');
 
     expect(reportEntries[0]).toMatchObject({
@@ -368,13 +395,10 @@ describe('mapScopedReportEntries', () => {
       },
     } as unknown as DbEntry;
 
-    const reportEntries = mapScopedReportEntries(
-      [paidEnrollmentEntry],
-      trials,
-      classes,
-      'all',
-      'all'
-    );
+    const reportEntries = mapScopedReportEntries([paidEnrollmentEntry], trials, classes, {
+      kind: 'show',
+      showId: 'show-1',
+    });
     const totals = calculateFinancialReportTotals(reportEntries, 'current');
 
     expect(reportEntries[0]).toMatchObject({

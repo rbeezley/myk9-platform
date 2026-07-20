@@ -40,6 +40,7 @@ import type { ScoringEntry, ClassInfo } from './types';
 import { toScoringEntry, toClassInfo, calculatePlacements } from './types';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { useScoringBreadcrumb } from './useScoringBreadcrumb';
+import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 
 /**
  * Main scoring entry list page
@@ -216,6 +217,7 @@ export function ScoringEntryListPage() {
 
   return (
     <div className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <ShowDeskReturnLink showId={breadcrumb.showId ?? undefined} />
       {/* Header */}
       <header className="space-y-4">
         {!breadcrumb.isLoading && (

@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
@@ -14,6 +14,15 @@ import { ResultLabelsReport } from '@/components/reports/labels/ResultLabelsRepo
 import { LabelModeHeader } from '@/components/reports/labels/LabelModeChrome';
 import { buildClassReportProps, buildTrialReportProps } from './reportDataMapping';
 import { useAKCOfficialPdfAction } from './useAKCOfficialPdfAction';
+import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
+import type { ReportScope } from '@/lib/reports/types';
+import { resolveReportScope } from '@/lib/reports/reportScope';
+import { showUndoToast } from '@/lib/undoToast';
+import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
+import { PaperworkPrintConfirmationDialog } from '@/features/show-map/cockpit/PaperworkPrintConfirmationDialog';
+import type { PaperworkDescriptor } from '@/features/show-map/cockpit/paperworkPrintState';
+import { replicatedPaperworkPrintsTable } from '@/services/replication/ReplicatedPaperworkPrintsTable';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
@@ -60,6 +69,14 @@ export default function ReportsPage() {
   const [trialId, setTrialId] = useState<string>(initialScope.trialId);
   const [classId, setClassId] = useState<string>(initialScope.classId);
   const [dogId, setDogId] = useState<string>(initialScope.dogId);
+  const { user } = useAuthContext();
+  const [armbandDescriptor, setArmbandDescriptor] = useState<PaperworkDescriptor | null>(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState<PaperworkDescriptor | null>(null);
+  const [isConfirmingPrint, setIsConfirmingPrint] = useState(false);
+  const effectiveScope = useMemo<ReportScope>(
+    () => resolveReportScope({ showId: showId ?? '', trialId, classId }),
+    [showId, trialId, classId]
+  );
   const report = getReportById(reportType);
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -138,8 +155,14 @@ export default function ReportsPage() {
     setReportType(value);
     const newReport = getReportById(value);
     setSortOrder(newReport?.defaultSort ?? 'run-order');
-    setTrialId('all');
-    setClassId('all');
+    if (!newReport?.scopes.includes(effectiveScope.kind)) {
+      if (effectiveScope.kind === 'class' && newReport?.scopes.includes('trial')) {
+        setClassId('all');
+      } else {
+        setTrialId('all');
+        setClassId('all');
+      }
+    }
     setDogId('all');
   };
 
@@ -149,9 +172,64 @@ export default function ReportsPage() {
     setClassId('all');
   };
 
+  const setCurrentArmbandDescriptor = useCallback(
+    (descriptor: PaperworkDescriptor | null) => setArmbandDescriptor(descriptor),
+    []
+  );
+
+  const paperworkDescriptor = useMemo(() => {
+    if (reportType === 'armband-labels') return armbandDescriptor;
+    return buildReportPaperworkDescriptor({
+      reportId: reportType,
+      scope: effectiveScope,
+      classes: classes as unknown as Parameters<
+        typeof buildReportPaperworkDescriptor
+      >[0]['classes'],
+      entries: entries as unknown as Parameters<
+        typeof buildReportPaperworkDescriptor
+      >[0]['entries'],
+    });
+  }, [armbandDescriptor, reportType, effectiveScope, classes, entries]);
+
   const handlePrint = () => {
     if (!printIframe(iframeRef)) {
       toast.error('The report is still loading. Wait for the preview, then print.');
+      return;
+    }
+    if (paperworkDescriptor) setPendingConfirmation(paperworkDescriptor);
+  };
+
+  const confirmPrinted = async () => {
+    if (!pendingConfirmation || !user) return;
+    const metadata = user.user_metadata ?? {};
+    const fullName =
+      (metadata.full_name as string | undefined)?.trim() ||
+      [metadata.first_name, metadata.last_name].filter(Boolean).join(' ').trim() ||
+      user.email ||
+      'Secretary';
+    setIsConfirmingPrint(true);
+    try {
+      const record = await replicatedPaperworkPrintsTable.confirmPrinted({
+        scope: pendingConfirmation.scope,
+        reportId: pendingConfirmation.reportId,
+        coverage: pendingConfirmation.coverage as unknown as Record<string, unknown>,
+        fingerprint: pendingConfirmation.fingerprint,
+        printedBy: user.id,
+        printedByName: fullName,
+      });
+      setPendingConfirmation(null);
+      showUndoToast({
+        message: 'Print confirmation saved for the secretary team.',
+        onUndo: () => {
+          void replicatedPaperworkPrintsTable
+            .voidPrint({ id: record.id, voidedBy: user.id, reason: 'Undid print confirmation' })
+            .catch(() => toast.error('Print confirmation could not be undone.'));
+        },
+      });
+    } catch {
+      toast.error('Could not save the print confirmation. Try again.');
+    } finally {
+      setIsConfirmingPrint(false);
     }
   };
 
@@ -163,7 +241,10 @@ export default function ReportsPage() {
         trials: trials as Parameters<typeof buildTrialReportProps>[0]['trials'],
         classes: classes as Parameters<typeof buildTrialReportProps>[0]['classes'],
         entries: entries as Parameters<typeof buildTrialReportProps>[0]['entries'],
-        trialId,
+        scope:
+          trialId === 'all'
+            ? { kind: 'show', showId: show.id }
+            : { kind: 'trial', showId: show.id, trialId },
         sortOrder,
       })[0] ?? null
     );
@@ -176,8 +257,7 @@ export default function ReportsPage() {
       trials: trials as Parameters<typeof buildClassReportProps>[0]['trials'],
       classes: classes as Parameters<typeof buildClassReportProps>[0]['classes'],
       entries: entries as Parameters<typeof buildClassReportProps>[0]['entries'],
-      trialId,
-      classId,
+      scope: { kind: 'class', showId: show.id, trialId, classId },
       sortOrder,
     });
   }, [show, trials, classes, entries, trialId, classId, sortOrder]);
@@ -199,6 +279,7 @@ export default function ReportsPage() {
 
   return (
     <div className="container mx-auto py-6 flex flex-col">
+      <ShowDeskReturnLink showId={showId} className="mb-2 self-start" />
       {/* Page header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
@@ -239,7 +320,12 @@ export default function ReportsPage() {
               title="Print Labels — Armband"
               subtitle="Choose a label size, pick which armbands to print, then Print."
             />
-            <ArmbandLabelsReport showId={showId} iframeRef={iframeRef} />
+            <ArmbandLabelsReport
+              showId={showId}
+              scope={effectiveScope}
+              iframeRef={iframeRef}
+              onDescriptorChange={setCurrentArmbandDescriptor}
+            />
             <iframe ref={iframeRef} title="Label Print" style={{ display: 'none' }} />
           </div>
         ) : reportType === 'result-labels' ? (
@@ -253,8 +339,7 @@ export default function ReportsPage() {
               trials={trials as Parameters<typeof ResultLabelsReport>[0]['trials']}
               classes={classes as Parameters<typeof ResultLabelsReport>[0]['classes']}
               entries={entries as Parameters<typeof ResultLabelsReport>[0]['entries']}
-              trialId={trialId}
-              classId={classId}
+              scope={effectiveScope}
               sortOrder={sortOrder}
               isLoading={isLoading}
               iframeRef={iframeRef}
@@ -281,6 +366,15 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
+      <PaperworkPrintConfirmationDialog
+        open={pendingConfirmation !== null}
+        reportLabel={report?.name ?? 'report'}
+        isSaving={isConfirmingPrint}
+        onConfirm={() => void confirmPrinted()}
+        onOpenChange={open => {
+          if (!open && !isConfirmingPrint) setPendingConfirmation(null);
+        }}
+      />
     </div>
   );
 }

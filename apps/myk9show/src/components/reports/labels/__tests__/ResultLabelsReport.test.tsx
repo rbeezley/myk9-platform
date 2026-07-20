@@ -32,8 +32,7 @@ const baseProps = {
   trials,
   classes,
   entries: [] as DbEntry[],
-  trialId: 'all',
-  classId: 'all',
+  scope: { kind: 'show', showId: 'show-1' } as const,
   sortOrder: 'armband',
 } as const;
 

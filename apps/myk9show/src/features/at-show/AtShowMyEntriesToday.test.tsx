@@ -27,6 +27,8 @@ function entry(overrides: Partial<AtShowEntryDetail>): AtShowEntryDetail {
     armband: '101',
     checkInStatus: 'no-status',
     className: 'Novice Container',
+    expectedStartLabel: null,
+    isRevisedStart: false,
     hasRunOrder: true,
     isScored: false,
     ...overrides,

@@ -19,8 +19,8 @@ import { UserRole, ScopeType, type UserWithRoles } from '@/types/auth-types';
 
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
-  replicatedTrialsTable: { getTrialsByShow: vi.fn() },
-  replicatedClassesTable: { getClassesByTrial: vi.fn() },
+  replicatedTrialsTable: { getTrialsByShow: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
+  replicatedClassesTable: { getClassesByTrial: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
   replicatedEntriesTable: { getEntriesByShow: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
 }));
 

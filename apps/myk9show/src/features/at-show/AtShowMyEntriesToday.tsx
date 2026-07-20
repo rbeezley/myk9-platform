@@ -72,6 +72,12 @@ function EntryRow({
         <div className="mt-0.5 truncate text-sm text-muted-foreground">
           {detail.className ?? 'Running order not posted yet'}
         </div>
+        {detail.expectedStartLabel && (
+          <div className="mt-0.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+            <Clock3 className="h-3.5 w-3.5" aria-hidden />
+            {detail.isRevisedStart ? 'Expected' : 'Scheduled'} {detail.expectedStartLabel}
+          </div>
+        )}
         <StatusBadge
           family="entry"
           status={detail.checkInStatus}

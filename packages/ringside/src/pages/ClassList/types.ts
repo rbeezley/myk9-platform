@@ -51,6 +51,11 @@ export interface ClassEntry {
   briefing_time?: string;
   break_until?: string;
   planned_start_time?: string;
+  /** Secretary's revised day-of expectation (an instant). */
+  revised_expected_start?: string;
+  /** Recorded lifecycle timing for staff coordination. */
+  actual_start_time?: string;
+  actual_end_time?: string;
   last_result_at?: string;
   pairedClassId?: string;
   self_checkin_enabled?: boolean;

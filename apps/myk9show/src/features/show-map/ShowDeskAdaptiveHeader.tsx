@@ -361,7 +361,9 @@ function PendingSignalsRow({
       data-testid="show-desk-pending-signals"
     >
       {signals.map(signal => {
-        const isInteractive = Boolean(onSelect);
+        const interaction = SHOW_DESK_SIGNAL_INTERACTION[signal.id];
+        const hasResolvingAction = interaction === 'filter' || Boolean(signal.href);
+        const isInteractive = Boolean(onSelect && hasResolvingAction);
         // INTENT: Interactive chips are filter shortcuts (Pattern 1) — they must meet
         // the 44x44px minimum from docs/INTENT.md. min-h-[44px] plus generous padding
         // keeps the chip readable on desktop while remaining tappable on tablet.
@@ -379,7 +381,6 @@ function PendingSignalsRow({
         }
         // Distinct affordance per behavior: chips that leave Show Desk carry an
         // arrow; chips that apply a local Show Map lens carry a filter glyph.
-        const interaction = SHOW_DESK_SIGNAL_INTERACTION[signal.id];
         return (
           <button
             key={signal.id}

@@ -43,6 +43,7 @@ import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTabl
 import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
+import { replicatedPaperworkPrintsTable } from '@/services/replication/ReplicatedPaperworkPrintsTable';
 import { isAbortSyncError } from '@/services/replication/syncErrorUtils';
 import { requestPersistentStorage } from '@/lib/persistentStorage';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
@@ -95,6 +96,7 @@ const REPLICATED_TABLES = [
   { name: 'judge_assignments', table: replicatedJudgeAssignmentsTable },
   { name: 'armbands', table: replicatedArmbandsTable },
   { name: 'waitlist_entries', table: replicatedWaitlistEntriesTable },
+  { name: 'paperwork_prints', table: replicatedPaperworkPrintsTable },
 ] as const;
 
 const REPLICATED_TABLE_NAMES = REPLICATED_TABLES.map(({ name }) => name);

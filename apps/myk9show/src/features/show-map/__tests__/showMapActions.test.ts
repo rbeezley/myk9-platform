@@ -1121,7 +1121,8 @@ describe('showMapActions', () => {
       expect.objectContaining({
         id: 'review-results',
         nodeId: 'class:class-signed',
-        href: '/shows/show-1/results-control',
+        label: 'View entries and results',
+        href: '/shows/show-1/trials/trial-1/classes/class-signed',
       }),
       expect.objectContaining({
         id: 'submit-final-results',

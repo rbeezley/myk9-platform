@@ -201,14 +201,18 @@ export function PrototypeRegistrationSummary({
   const entryCount = registrationEntryCount(registration);
   const classCount = registrationClassCount(registration);
   return (
+    // INTENT: Focus and bulk selection are different states. Keep the focused row
+    // unmistakable without adding another badge; the checkbox owns bulk selection.
     <div
       className={cn(
         'group grid cursor-pointer items-center gap-3 border-b px-3 py-3 transition-colors last:border-b-0 hover:bg-muted/40',
         dense
           ? 'grid-cols-[auto_minmax(0,1fr)_auto]'
           : 'grid-cols-[auto_minmax(10rem,1.2fr)_minmax(8rem,.8fr)_auto_auto]',
-        selected && 'bg-primary/5 shadow-[inset_3px_0_0_hsl(var(--primary))]'
+        selected &&
+          'relative z-[1] bg-primary/10 shadow-[inset_4px_0_0_hsl(var(--primary)),inset_0_0_0_1px_hsl(var(--primary)/0.55)] hover:bg-primary/10'
       )}
+      aria-selected={selected}
       onClick={onFocus}
     >
       <button

@@ -324,7 +324,7 @@ Success means:
 ## Open product decisions for the design session
 
 1. **Decided:** The default queue is `Needs review`. `All entries` remains one click away.
-2. Should Exceptions be one destination with sub-navigation, or remain visible as a compact secondary tab group?
+2. **Decided:** Exceptions are one destination with Move-ups, Pulls/Scratches, and Waitlist sub-navigation. Urgent counts may deep-link from the main queue, but actions remain on their existing specialized surfaces.
 3. Should payment work be a summary queue/filter on the main page, or a dedicated existing payment surface linked from the queue?
 4. Should the default row grouping be individual entry rows or handler/enrollment groups?
 5. Which action should be the row-level primary action for each state?

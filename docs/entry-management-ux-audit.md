@@ -358,6 +358,7 @@ Success means:
 13. **Decided:** Search queries all Show Registrations regardless of the active work queue. While text is present, the list becomes `Search results`; clearing search restores the secretary's previous work queue and trial/class scope.
 14. **Decided:** Active search temporarily ignores Trial/Class scope and searches the entire Show. Results identify their Trial/Class context; clearing search restores the previous scope unchanged.
 15. **Decided:** Desktop shows compact Trial and Class selectors directly below search. Tablet/mobile uses one `Scope` button. Active scope is displayed once; the separate filter breadcrumb is removed, and Trial/Class detail links move into a small related-actions menu.
-16. What default ordering should each work queue use?
+16. **Decided for `Needs review`:** Oldest Show Registration first, using submission time. Sort controls remain available for Exhibitor, Dog, confirmation number, and submission time.
+17. Should the other action queues follow the same oldest-unresolved-first policy?
 
 These are product decisions. Implementation should wait until they are resolved and the redesign is mocked against the two-trial scenario.

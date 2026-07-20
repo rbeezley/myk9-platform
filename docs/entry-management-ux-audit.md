@@ -326,6 +326,20 @@ The queue may contain hundreds of Entries, so a large, persistent search box mus
 
 Matching a child Entry returns its parent Show Registration and identifies/highlights the matching Dog, Class, or Handler in the focused pane. Search runs against the already-loaded entry dataset so lookup remains immediate and useful offline. The UI shows a result count, provides a one-tap clear action, preserves the current queue/scope when cleared, and may offer a keyboard shortcut as an optional accelerator rather than the only affordance.
 
+### 8. Use a compact floating selection toolbar
+
+The current full-width fixed footer separates selection count from bulk actions across the viewport and can be missed. Replace it with a Linear-style floating selection toolbar centered above the bottom edge:
+
+- bounded compact width rather than a full-width page footer;
+- selected count, primary eligible action, `More actions`, and clear/close in one visual group;
+- high-contrast surface, border, and shadow so selection mode is unmistakable;
+- labels that state both levels when Show Registrations are selected, such as `3 registrations · 11 Entries`;
+- eligibility and partial-failure messaging remains truthful and action-specific;
+- bottom content receives enough padding that the toolbar never obscures rows;
+- mobile uses an inset responsive toolbar or compact bottom sheet above safe-area/navigation controls.
+
+This should become one shared bulk-selection presentation component. Each surface continues to own its action eligibility and mutation behavior; only the discoverability and layout pattern are shared.
+
 ## Proposed acceptance test
 
 Use the same operator scenario that guided Show Desk:
@@ -363,5 +377,6 @@ Success means:
 18. **Decided:** Focused Show Registration selection is URL-backed. Attention links, search results, bookmarks, copied views, and browser Back/Forward can address an exact registration while preserving queue and scope. Missing/deleted targets fall back calmly to the queue.
 19. **Decided:** A Show Registration row has at most one colored status treatment: its primary review state. Classes use plain text or a count; payment uses quiet amount/status text; email and notes appear only when exceptional as a small icon plus plain label. Child Entry statuses remain in the focused pane. Color communicates action or exception, not ordinary metadata.
 20. Should bulk selection operate on Show Registrations, child Entries, or both?
+21. **Decided direction:** Replace the full-width fixed bulk footer with a compact Linear-style floating selection toolbar that keeps count, primary action, overflow actions, and clear together. Surface-specific eligibility and mutations are reused rather than reimplemented.
 
 These are product decisions. Implementation should wait until they are resolved and the redesign is mocked against the two-trial scenario.

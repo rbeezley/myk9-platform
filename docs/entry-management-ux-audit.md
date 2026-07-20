@@ -325,7 +325,7 @@ Success means:
 
 1. **Decided:** The default queue is `Needs review`. `All entries` remains one click away.
 2. **Decided:** Exceptions are one destination with Move-ups, Pulls/Scratches, and Waitlist sub-navigation. Urgent counts may deep-link from the main queue, but actions remain on their existing specialized surfaces.
-3. Should payment work be a summary queue/filter on the main page, or a dedicated existing payment surface linked from the queue?
+3. **Decided:** `Payment due` is a main Entry Management work queue using the same canonical table. It emphasizes amount due and existing payment actions without creating a separate secretary payment page.
 4. Should the default row grouping be individual entry rows or handler/enrollment groups?
 5. Which action should be the row-level primary action for each state?
 

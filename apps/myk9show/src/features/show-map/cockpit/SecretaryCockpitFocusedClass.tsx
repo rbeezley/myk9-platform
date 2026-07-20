@@ -21,9 +21,11 @@ import type {
 
 function PaperworkRow({
   item,
+  timeZone,
   onCommand,
 }: {
   item: FocusedClassModel['paperwork'][number];
+  timeZone: string;
   onCommand: (commandId: string) => void;
 }) {
   const { user } = useAuthContext();
@@ -89,7 +91,7 @@ function PaperworkRow({
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
             {item.printedAt
-              ? `Printed ${formatTime(item.printedAt)}${item.printedBy ? ` by ${item.printedBy}` : ''}${item.coveredByScope ? ` · ${item.coveredByScope[0]?.toUpperCase()}${item.coveredByScope.slice(1)} scope` : ''}`
+              ? `Printed ${formatTime(item.printedAt, timeZone)}${item.printedBy ? ` by ${item.printedBy}` : ''}${item.coveredByScope ? ` · ${item.coveredByScope[0]?.toUpperCase()}${item.coveredByScope.slice(1)} scope` : ''}`
               : 'Not confirmed printed'}
             {stale ? ' · Class data changed after printing' : ''}
           </div>
@@ -136,7 +138,7 @@ function PaperworkRow({
             {item.history.map(record => (
               <div key={record.id} className={cn(record.voidedAt && 'line-through opacity-60')}>
                 <span>
-                  {formatTime(record.printedAt)} by {record.printedBy}
+                  {formatTime(record.printedAt, timeZone)} by {record.printedBy}
                   {record.voidedAt ? ' · marked incorrect' : ''}
                 </span>
                 {!record.voidedAt && user && (
@@ -313,7 +315,12 @@ export function SecretaryCockpitFocusedClass({
             </h3>
             <div className="mt-2 space-y-2">
               {focused.paperwork.map(item => (
-                <PaperworkRow key={item.reportId} item={item} onCommand={onCommand} />
+                <PaperworkRow
+                  key={item.reportId}
+                  item={item}
+                  timeZone={timeZone}
+                  onCommand={onCommand}
+                />
               ))}
             </div>
           </section>

@@ -16,7 +16,7 @@ const entries = [
     check_in_status: null,
     dog: { call_name: 'Storm', owner: { first_name: 'Jamie', last_name: 'Walker' } },
   },
-] as DbEntry[];
+] as unknown as DbEntry[];
 
 describe('buildClassPaperworkMap', () => {
   it('shows the actor and timestamp for a covering confirmed print', () => {
@@ -30,7 +30,6 @@ describe('buildClassPaperworkMap', () => {
       reportId: 'check-in-sheet',
       scope,
       classes,
-      trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
       entries,
     });
     expect(descriptor).not.toBeNull();

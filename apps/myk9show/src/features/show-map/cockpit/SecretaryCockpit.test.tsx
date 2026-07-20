@@ -15,6 +15,7 @@ const snapshot: SecretaryCockpitSnapshot = {
       id: 'class-1',
       trialId: 'trial-1',
       name: 'Container Novice',
+      classOrder: 0,
       lifecycle: 'not-started',
       entryCount: 10,
       scoredCount: 0,

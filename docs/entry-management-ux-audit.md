@@ -336,6 +336,7 @@ Success means:
 5. **Decided:** Desktop uses a two-pane cockpit: Show Registration queue/table on the left and the focused Show Registration on the right. Tablet/mobile opens the same detail full-width and returns to the preserved queue/scope.
 6. **Decided for `Needs review`:** The row-level primary action is `Review registration`, which opens the focused pane. Per-Entry decisions remain visible there. `Accept remaining entries` may be offered inside the focused pane only when the remaining child Entries are eligible for the same decision; it is never the immediate table action.
 7. **Decided for `Payment due`:** The row-level primary action is `Resolve payment`. The table shows a quiet amount-due cue; the focused pane owns payment history and existing request, cash/check recording, and permitted waiver actions.
-8. Which action should be primary for the other work queues and registration states?
+8. **Decided for `Missing information`:** The row-level primary action is `Resolve missing information`. The focused pane shows the affected Entries and durably recorded secretary notes, then exposes existing edit, contact, and decision actions. It does not infer or display specific missing fields unless they are actually recorded.
+9. Which action should be primary for the other work queues and registration states?
 
 These are product decisions. Implementation should wait until they are resolved and the redesign is mocked against the two-trial scenario.

@@ -300,7 +300,7 @@ export function PrototypeFocusPanel({
     >
       <div className="border-b px-5 py-4">
         {onBack && (
-          <Button variant="ghost" size="sm" className="-ml-2 mb-2 gap-2 xl:hidden" onClick={onBack}>
+          <Button variant="ghost" size="sm" className="-ml-2 mb-2 gap-2" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" aria-hidden />
             Back to registrations
           </Button>

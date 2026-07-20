@@ -22,6 +22,7 @@ export interface PrototypeVariantProps {
   queue: PrototypeQueue;
   search: string;
   checkedIds: Set<string>;
+  compactLayout: boolean;
   compactFocusOpen: boolean;
   onQueueChange: (queue: PrototypeQueue) => void;
   onSearchChange: (search: string) => void;
@@ -65,13 +66,35 @@ export function VariantA(props: PrototypeVariantProps) {
         <PrototypeSearchAndScope search={props.search} onSearchChange={props.onSearchChange} />
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(38rem,1.2fr)_minmax(29rem,.8fr)]">
+      <div
+        className={cn(
+          'grid items-start gap-4',
+          !props.compactLayout && 'grid-cols-[minmax(38rem,1.2fr)_minmax(29rem,.8fr)]'
+        )}
+      >
         <section
           className={cn(
             'overflow-hidden rounded-xl border bg-card shadow-sm',
-            props.compactFocusOpen && 'hidden xl:block'
+            props.compactLayout && props.compactFocusOpen && 'hidden'
           )}
         >
+          {props.compactLayout && !props.compactFocusOpen && (
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-3 border-b bg-primary/5 px-4 py-3 text-left hover:bg-primary/10"
+              onClick={() => props.onFocus(props.focus)}
+            >
+              <span className="min-w-0">
+                <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+                  Focused registration
+                </span>
+                <span className="block truncate text-sm font-semibold">
+                  {props.focus.exhibitor}
+                </span>
+              </span>
+              <span className="shrink-0 text-sm font-medium text-primary">Open details →</span>
+            </button>
+          )}
           <div className="grid grid-cols-[auto_minmax(10rem,1.2fr)_minmax(8rem,.8fr)_auto_auto] gap-3 border-b bg-muted/35 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <span className="w-5" />
             <span>Registration</span>
@@ -95,11 +118,16 @@ export function VariantA(props: PrototypeVariantProps) {
           )}
           <Pagination />
         </section>
-        <div className={cn('xl:sticky xl:top-4', !props.compactFocusOpen && 'hidden xl:block')}>
+        <div
+          className={cn(
+            !props.compactLayout && 'sticky top-4',
+            props.compactLayout && !props.compactFocusOpen && 'hidden'
+          )}
+        >
           <PrototypeFocusPanel
             key={props.focus.id}
             registration={props.focus}
-            onBack={props.onCloseCompactFocus}
+            onBack={props.compactLayout ? props.onCloseCompactFocus : undefined}
           />
         </div>
       </div>
@@ -111,11 +139,17 @@ export function VariantB(props: PrototypeVariantProps) {
   return (
     <div className="mx-auto max-w-[1760px] space-y-4 px-4 py-4 sm:px-6">
       <PrototypePageHeader compact />
-      <div className="grid min-h-[calc(100vh-13rem)] overflow-hidden rounded-xl border bg-card shadow-sm xl:grid-cols-[14rem_minmax(19rem,.72fr)_minmax(31rem,1.28fr)]">
+      <div
+        className={cn(
+          'grid min-h-[calc(100vh-13rem)] overflow-hidden rounded-xl border bg-card shadow-sm',
+          !props.compactLayout && 'grid-cols-[14rem_minmax(19rem,.72fr)_minmax(31rem,1.28fr)]'
+        )}
+      >
         <aside
           className={cn(
-            'border-b bg-muted/20 p-3 xl:border-b-0 xl:border-r',
-            props.compactFocusOpen && 'hidden xl:block'
+            'border-b bg-muted/20 p-3',
+            !props.compactLayout && 'border-b-0 border-r',
+            props.compactLayout && props.compactFocusOpen && 'hidden'
           )}
         >
           <div className="mb-3 flex items-center gap-2 px-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
@@ -146,8 +180,9 @@ export function VariantB(props: PrototypeVariantProps) {
 
         <section
           className={cn(
-            'border-b xl:border-b-0 xl:border-r',
-            props.compactFocusOpen && 'hidden xl:block'
+            'border-b',
+            !props.compactLayout && 'border-b-0 border-r',
+            props.compactLayout && props.compactFocusOpen && 'hidden'
           )}
         >
           <div className="border-b p-3">
@@ -177,12 +212,12 @@ export function VariantB(props: PrototypeVariantProps) {
           <Pagination />
         </section>
 
-        <div className={cn('min-w-0', !props.compactFocusOpen && 'hidden xl:block')}>
+        <div className={cn('min-w-0', props.compactLayout && !props.compactFocusOpen && 'hidden')}>
           <PrototypeFocusPanel
             key={props.focus.id}
             registration={props.focus}
             borderless
-            onBack={props.onCloseCompactFocus}
+            onBack={props.compactLayout ? props.onCloseCompactFocus : undefined}
           />
         </div>
       </div>

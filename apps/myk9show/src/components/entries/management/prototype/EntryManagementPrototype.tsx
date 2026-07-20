@@ -3,7 +3,7 @@
  * Three Entry Management variants, switchable with `?prototype=entry-cockpit&variant=A|B|C`,
  * mounted on the existing show Entry Management route.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -103,12 +103,16 @@ function PrototypeSwitcher({
 }
 
 export function EntryManagementPrototype() {
+  const prototypeRef = useRef<HTMLDivElement>(null);
+  const hasMeasuredRef = useRef(false);
+  const previousCompactRef = useRef(false);
   const [searchParams] = useSearchParams();
   const requestedVariant = searchParams.get('variant');
   const variant: VariantKey = isVariantKey(requestedVariant) ? requestedVariant : 'A';
   const [queue, setQueue] = useState<PrototypeQueue>('review');
   const [search, setSearch] = useState('');
   const [focus, setFocus] = useState<PrototypeRegistration>(PROTOTYPE_REGISTRATIONS[0]!);
+  const [compactLayout, setCompactLayout] = useState(false);
   const [compactFocusOpen, setCompactFocusOpen] = useState(false);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
@@ -121,6 +125,25 @@ export function EntryManagementPrototype() {
     if (registrations.length === 0 || registrations.some(item => item.id === focus.id)) return;
     setFocus(registrations[0]!);
   }, [focus.id, registrations]);
+
+  useEffect(() => {
+    const element = prototypeRef.current;
+    if (!element) return undefined;
+    const observer = new ResizeObserver(entries => {
+      const width = entries[0]?.contentRect.width ?? element.clientWidth;
+      const nextCompact = width < 1160;
+      if (hasMeasuredRef.current) {
+        if (nextCompact && !previousCompactRef.current) setCompactFocusOpen(true);
+        if (!nextCompact) setCompactFocusOpen(false);
+      } else {
+        hasMeasuredRef.current = true;
+      }
+      previousCompactRef.current = nextCompact;
+      setCompactLayout(nextCompact);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const toggleChecked = (registrationId: string) => {
     setCheckedIds(current => {
@@ -141,6 +164,7 @@ export function EntryManagementPrototype() {
     queue,
     search,
     checkedIds,
+    compactLayout,
     compactFocusOpen,
     onQueueChange: setQueue,
     onSearchChange: setSearch,
@@ -153,7 +177,10 @@ export function EntryManagementPrototype() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-background pt-10 text-foreground">
+    <div
+      ref={prototypeRef}
+      className="min-h-[calc(100vh-4rem)] bg-background pt-10 text-foreground"
+    >
       {variant === 'A' && <VariantA {...props} />}
       {variant === 'B' && <VariantB {...props} />}
       {variant === 'C' && <VariantC {...props} />}

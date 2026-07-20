@@ -40,6 +40,7 @@ import { buildEntryManagementRelatedLinks } from '@/components/entries/managemen
 import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
 import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
+import { EntryManagementPrototype } from '@/components/entries/management/prototype/EntryManagementPrototype';
 
 const PAGE_TABS: PrimaryTabDef[] = [
   { id: 'entries', label: 'Entries' },
@@ -276,6 +277,10 @@ const EntryManagementPage: React.FC = () => {
         </Card>
       </div>
     );
+  }
+
+  if (import.meta.env.DEV && searchParams.get('prototype') === 'entry-cockpit') {
+    return <EntryManagementPrototype />;
   }
 
   return (

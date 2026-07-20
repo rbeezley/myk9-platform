@@ -147,4 +147,72 @@ describe('ReplicatedPaperworkPrintsTable', () => {
     expect(records.map(record => record.id)).toEqual(['print-1', 'print-2']);
     expect(records.map(record => record.printedByName)).toEqual(['Jamie', 'Morgan']);
   });
+
+  it('persists an offline confirmation and its full insert payload for later replay', async () => {
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const queueMutation = vi
+      .spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      )
+      .mockResolvedValue('mutation-1');
+    await table.confirmPrinted({
+      id: 'offline-print',
+      scope: { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },
+      reportId: 'scoresheet',
+      coverage: { classIds: ['class-1', 'class-2'] },
+      fingerprint: 'sha256:offline',
+      printedBy: 'user-1',
+      printedByName: 'Jamie',
+      printedAt: '2026-07-20T14:00:00.000Z',
+    });
+
+    expect(queueMutation).toHaveBeenCalledWith(
+      'INSERT',
+      'offline-print',
+      expect.objectContaining({
+        id: 'offline-print',
+        show_id: 'show-1',
+        trial_id: 'trial-1',
+        report_id: 'scoresheet',
+      })
+    );
+    expect(await new ReplicatedPaperworkPrintsTable().get('offline-print')).toEqual(
+      expect.objectContaining({ _syncStatus: 'pending', _localOnly: true })
+    );
+    online.mockRestore();
+  });
+
+  it('appends concurrent confirmations and reprints without replacing earlier history', async () => {
+    const input = {
+      scope: { kind: 'class' as const, showId: 'show-1', trialId: 'trial-1', classId: 'class-1' },
+      reportId: 'result-labels',
+      coverage: { classIds: ['class-1'] },
+      fingerprint: 'sha256:results',
+    };
+    await table.confirmPrinted({
+      ...input,
+      id: 'print-jamie',
+      printedBy: 'user-1',
+      printedByName: 'Jamie',
+      printedAt: '2026-07-20T14:00:00.000Z',
+    });
+    await table.confirmPrinted({
+      ...input,
+      id: 'print-morgan',
+      printedBy: 'user-2',
+      printedByName: 'Morgan',
+      printedAt: '2026-07-20T14:02:00.000Z',
+    });
+
+    const history = await table.getByShow('show-1');
+    expect(history.map(record => record.id).sort()).toEqual(['print-jamie', 'print-morgan']);
+    expect(history.map(record => record.printedByName).sort()).toEqual(['Jamie', 'Morgan']);
+  });
 });

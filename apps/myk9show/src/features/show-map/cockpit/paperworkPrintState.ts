@@ -5,7 +5,7 @@ export interface PaperworkSubject {
   facts: unknown;
 }
 
-export interface PaperworkCoverage {
+export interface PaperworkCoverage extends Record<string, unknown> {
   scopeKind: ReportScope['kind'];
   subjectFingerprints: Record<string, string>;
 }

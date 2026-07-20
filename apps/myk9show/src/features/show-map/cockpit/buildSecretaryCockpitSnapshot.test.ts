@@ -45,7 +45,6 @@ describe('buildSecretaryCockpitSnapshot', () => {
           trialNumber: '2',
           status: 'In Progress',
           order: '2',
-          classes: [],
           _version: 1,
           _lastModified: new Date(),
           _lastModifiedBy: 'user-1',

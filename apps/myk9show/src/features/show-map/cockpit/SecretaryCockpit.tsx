@@ -27,6 +27,9 @@ export function SecretaryCockpit({
     ? (snapshot.trials.find(item => item.id === sourceClass.trialId) ?? null)
     : null;
   const focusedAttention = model.attention.all.filter(item => item.classId === focusedId);
+  const focusedClassIsVisible = model.trialGroups.some(group =>
+    group.classes.some(classItem => classItem.id === focusedId)
+  );
   const focusedPanel = (
     <SecretaryCockpitFocusedClass
       focused={model.focusedClass}
@@ -50,6 +53,7 @@ export function SecretaryCockpit({
               type="button"
               size="sm"
               variant={model.day.selected === day ? 'default' : 'outline'}
+              className="min-h-11"
               onClick={() => updateState({ selectedDay: day, focusedClassId: undefined })}
             >
               {formatWeekdayMonthDay(day)}
@@ -91,7 +95,7 @@ export function SecretaryCockpit({
             <Button
               type="button"
               variant="link"
-              className="mt-1 px-0"
+              className="mt-1 min-h-11 px-0"
               onClick={() => updateState({ filter: 'needs-attention' })}
             >
               View {model.attention.overflowCount} more in the schedule
@@ -111,9 +115,26 @@ export function SecretaryCockpit({
           onFilterChange={filter => updateState({ filter })}
           onFocusClass={focusedClassId => updateState({ focusedClassId })}
           onCommand={onCommand}
-          inlineFocusedContent={focusedPanel}
+          inlineFocusedContent={focusedClassIsVisible ? focusedPanel : undefined}
         />
-        <div className="hidden xl:col-start-2 xl:row-start-2 xl:block">{focusedPanel}</div>
+        {!focusedClassIsVisible && model.focusedClass && (
+          <div
+            className="space-y-2 xl:hidden"
+            data-testid="cockpit-inline-focus"
+            aria-label="Focused Class outside current schedule filter"
+          >
+            <p className="text-sm text-muted-foreground">
+              Focused Class is outside the current schedule filter.
+            </p>
+            {focusedPanel}
+          </div>
+        )}
+        <div
+          className="hidden xl:col-start-2 xl:row-start-2 xl:block"
+          data-testid="cockpit-split-focus"
+        >
+          {focusedPanel}
+        </div>
       </div>
     </div>
   );

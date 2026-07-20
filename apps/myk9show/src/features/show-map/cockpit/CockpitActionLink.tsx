@@ -30,7 +30,7 @@ export function CockpitActionLink({
   );
   if (destination.kind === 'href') {
     return (
-      <Button asChild variant={variant} className={cn('justify-between', className)}>
+      <Button asChild variant={variant} className={cn('min-h-11 justify-between', className)}>
         <Link to={destination.href}>{content}</Link>
       </Button>
     );
@@ -39,7 +39,7 @@ export function CockpitActionLink({
     <Button
       type="button"
       variant={variant}
-      className={cn('justify-between', className)}
+      className={cn('min-h-11 justify-between', className)}
       onClick={() => onCommand(destination.commandId)}
     >
       {content}

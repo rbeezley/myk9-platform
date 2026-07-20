@@ -109,7 +109,7 @@ function PaperworkRow({
       {item.confirmation && user && (
         <button
           type="button"
-          className="mt-2 text-xs font-medium text-primary underline-offset-4 hover:underline disabled:opacity-60"
+          className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary underline-offset-4 hover:underline disabled:opacity-60"
           disabled={isRecording}
           onClick={() => void recordAsPrinted()}
         >
@@ -131,7 +131,7 @@ function PaperworkRow({
                 {!record.voidedAt && user && (
                   <button
                     type="button"
-                    className="ml-2 text-destructive underline-offset-4 hover:underline"
+                    className="ml-2 inline-flex min-h-11 items-center text-destructive underline-offset-4 hover:underline"
                     onClick={() => {
                       if (!window.confirm('Mark this print confirmation as incorrect?')) return;
                       void replicatedPaperworkPrintsTable

@@ -45,10 +45,8 @@ describe('ClassStatusControl', () => {
     expect(applyManualClassStatus).not.toHaveBeenCalled();
   });
 
-  it('keeps cancellation separate from routine lifecycle choices', async () => {
-    const { user } = render(
-      <ClassStatusControl classId="class-1" lifecycle="in-progress" canManageShow />
-    );
+  it('keeps cancellation separate from routine lifecycle choices', () => {
+    render(<ClassStatusControl classId="class-1" lifecycle="in-progress" canManageShow />);
 
     expect(screen.getByRole('separator')).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Cancelled' })).toHaveClass('text-destructive');

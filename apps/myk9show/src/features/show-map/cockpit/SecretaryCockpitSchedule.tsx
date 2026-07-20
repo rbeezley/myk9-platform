@@ -67,6 +67,7 @@ export function SecretaryCockpitSchedule({
               type="button"
               size="sm"
               variant="ghost"
+              className="min-h-11"
               onClick={() =>
                 document
                   .querySelector('[data-cockpit-now-marker]')
@@ -86,7 +87,7 @@ export function SecretaryCockpitSchedule({
               variant={filter === option.value ? 'default' : 'secondary'}
               aria-pressed={filter === option.value}
               onClick={() => onFilterChange(option.value)}
-              className="rounded-full"
+              className="min-h-11 rounded-full"
             >
               {option.label}
             </Button>
@@ -211,7 +212,10 @@ export function SecretaryCockpitSchedule({
                           )}
                         </div>
                         {focused && inlineFocusedContent && (
-                          <div className="border-t bg-muted/20 p-3 xl:hidden">
+                          <div
+                            className="border-t bg-muted/20 p-3 xl:hidden"
+                            data-testid="cockpit-inline-focus"
+                          >
                             {inlineFocusedContent}
                           </div>
                         )}

@@ -1,4 +1,14 @@
-import { AlertTriangle, Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Eye,
+  MoreHorizontal,
+  Pencil,
+  RefreshCw,
+  Trash2,
+  WifiOff,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
@@ -18,7 +28,39 @@ import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSi
 import { usePublishInfo } from '@/features/premium/usePublishInfo';
 import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishReadiness';
 import { formatShowDateRange } from '@/lib/format/dates';
+import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import type { Show } from '@/types/show-types';
+
+function ShowDeskSyncStatus() {
+  const sync = useGlobalSyncStatus();
+  const isOffline = sync.status === 'offline';
+  const needsAttention = sync.status === 'error' || sync.status === 'conflict';
+  const isPending = sync.status === 'pending';
+  const Icon = isOffline
+    ? WifiOff
+    : needsAttention
+      ? AlertCircle
+      : isPending
+        ? RefreshCw
+        : CheckCircle2;
+  const label = isOffline
+    ? 'Offline · changes saved on this device'
+    : needsAttention
+      ? 'Sync needs attention'
+      : isPending
+        ? `${sync.queueSize} ${sync.queueSize === 1 ? 'change' : 'changes'} saved on this device`
+        : 'All changes saved';
+
+  return (
+    <span
+      className="inline-flex min-h-11 items-center gap-2 rounded-md border bg-muted/35 px-3 text-sm text-muted-foreground"
+      role="status"
+    >
+      <Icon className={isPending ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+      {label}
+    </span>
+  );
+}
 
 export function ShowDeskCompactContext({
   show,
@@ -72,6 +114,7 @@ export function ShowDeskCompactContext({
 
         <div className="flex flex-wrap items-center justify-end gap-2">
           {(armbandCount ?? 0) > 0 && <ArmbandLookup showId={show.id} />}
+          <ShowDeskSyncStatus />
           <LiveUpdateIndicator />
           <ShowPresenceStack />
           <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
@@ -79,7 +122,7 @@ export function ShowDeskCompactContext({
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" aria-label="More show actions">
+              <Button variant="outline" size="icon-lg" aria-label="More show actions">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>

@@ -106,5 +106,53 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
     expect(showUndoToast).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Check-in sheet recorded as printed.' })
     );
+    expect(screen.getByText('Not confirmed printed')).toBeInTheDocument();
+  });
+
+  it('shows stale broader-scope print evidence and append-only history', async () => {
+    const staleFocused: FocusedClassModel = {
+      ...focused,
+      paperwork: [
+        {
+          ...focused.paperwork[0]!,
+          state: 'stale',
+          printedAt: '2026-07-20T14:42:00.000Z',
+          printedBy: 'Jannie',
+          coveredByScope: 'trial',
+          printHref: '/shows/show-1/reports?scope=class',
+          history: [
+            {
+              id: 'print-2',
+              printedAt: '2026-07-20T14:42:00.000Z',
+              printedBy: 'Jannie',
+            },
+            {
+              id: 'print-1',
+              printedAt: '2026-07-20T14:10:00.000Z',
+              printedBy: 'Morgan',
+              voidedAt: '2026-07-20T14:15:00.000Z',
+            },
+          ],
+        },
+      ],
+    };
+    const { user } = render(
+      <SecretaryCockpitFocusedClass
+        focused={staleFocused}
+        sourceClass={sourceClass}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow
+        onCommand={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Printed 9:42 AM by Jannie · Trial scope/)).toBeInTheDocument();
+    expect(screen.getByText(/Class data changed after printing/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /review and reprint/i })).toBeInTheDocument();
+
+    await user.click(screen.getByText('Print history (2)'));
+    expect(screen.getByText(/9:10 AM by Morgan · marked incorrect/)).toBeInTheDocument();
   });
 });

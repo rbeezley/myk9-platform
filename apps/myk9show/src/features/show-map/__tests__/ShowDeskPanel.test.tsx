@@ -87,6 +87,71 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.getAllByRole('heading', { name: 'Container Novice' })).not.toHaveLength(0);
   });
 
+  it('keeps Trial summaries and deliberate focus while collapsing and filtering the schedule', async () => {
+    const { user } = render(
+      <ShowDeskPanel
+        show={show}
+        trials={[trial]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled', time: '9:00 AM' },
+          { id: 'class-2', trialId: 'trial-1', name: 'Interior Advanced', status: 'In Progress', time: '10:00 AM' },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={now}
+      />,
+      { initialRoute: '/shows/show-1/show-desk?focus=class-1' }
+    );
+
+    const trialTrigger = screen.getByRole('button', { name: /Trial 1 · June 12/i });
+    expect(trialTrigger).toHaveTextContent('2 Classes · 1 in progress · Focused');
+    await user.click(trialTrigger);
+    expect(screen.queryByRole('button', { name: 'Container Novice' })).not.toBeInTheDocument();
+
+    await user.click(trialTrigger);
+    await user.click(screen.getByRole('button', { name: 'In progress' }));
+    expect(screen.queryByRole('button', { name: 'Container Novice' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Container Novice' })).not.toHaveLength(0);
+    expect(screen.getByText('Focused Class is outside the current schedule filter.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Interior Advanced' })).toBeInTheDocument();
+  });
+
+  it('renders the selected Class in both responsive projections and switches only that focus', async () => {
+    const { user } = render(
+      <ShowDeskPanel
+        show={show}
+        trials={[trial]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+          { id: 'class-2', trialId: 'trial-1', name: 'Interior Advanced', status: 'In Progress' },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={now}
+      />,
+      { initialRoute: '/shows/show-1/show-desk?focus=class-1' }
+    );
+
+    expect(
+      within(screen.getByTestId('cockpit-inline-focus')).getByRole('heading', {
+        name: 'Container Novice',
+      })
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('cockpit-split-focus')).getByRole('heading', {
+        name: 'Container Novice',
+      })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Interior Advanced' }));
+    expect(
+      within(screen.getByTestId('cockpit-inline-focus')).getByRole('heading', {
+        name: 'Interior Advanced',
+      })
+    ).toBeInTheDocument();
+    expect(screen.getAllByTestId('cockpit-inline-focus')).toHaveLength(1);
+  });
+
   it('keeps Class work available even when it is not an attention item', () => {
     render(
       <ShowDeskPanel
@@ -122,7 +187,7 @@ describe('ShowDeskPanel cockpit', () => {
         canManageShow
         scopeNow={now}
       />,
-      { initialRoute: '/shows/show-1/show-desk' }
+      { initialRoute: '/shows/show-1/show-desk?focus=class-1&filter=all' }
     );
 
     const reviewLink = screen
@@ -130,6 +195,9 @@ describe('ShowDeskPanel cockpit', () => {
       .find(link => link.getAttribute('href')?.includes('attention=pending'));
     expect(reviewLink).toHaveAttribute('href', expect.stringContaining('/entry-management'));
     expect(reviewLink).toHaveAttribute('href', expect.stringContaining('returnTo='));
+    expect(decodeURIComponent(reviewLink?.getAttribute('href') ?? '')).toContain(
+      'focus=class-1&filter=all'
+    );
   });
 
   it('renders unresolved closeout attention as information instead of a false link', () => {

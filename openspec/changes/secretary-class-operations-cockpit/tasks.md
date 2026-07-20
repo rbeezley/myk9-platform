@@ -43,7 +43,7 @@
 - [x] 5.5 Implement latest-valid-covering-record and per-subject staleness derivation, including Trial/Show batch coverage, one-Class stale changes, and later Class-only reprint precedence.
 - [x] 5.6 Implement explicit `Mark printed`, `Not yet`, and `Record as printed` flows after exact report invocation; never create confirmation from report open, download, PDF generation, or browser Print alone.
 - [x] 5.7 Implement Undo and later `Mark as incorrect` as void operations that retain actor, time, and reason and fall back to the previous valid covering record.
-- [ ] 5.8 Add focused tests for offline save/replay, concurrent confirmations, permission denial, append-only reprints, void/fallback, broad-scope coverage, document-specific staleness, irrelevant changes, and truthful `not confirmed printed` wording.
+- [x] 5.8 Add focused tests for offline save/replay, concurrent confirmations, permission denial, append-only reprints, void/fallback, broad-scope coverage, document-specific staleness, irrelevant changes, and truthful `not confirmed printed` wording.
 
 ## 6. Cockpit Interface and Responsive Behavior
 
@@ -54,14 +54,14 @@
 - [x] 6.5 Make schedule and focused-panel lifecycle badges one shared, touch-accessible manual control backed by the canonical replicated status mutation; add inline Revised Expected Start editing while preserving Scheduled Start; record and display Actual Start/Actual Finish; separate cancellation; and confirm completion when paper scores remain unentered.
 - [x] 6.6 Replace the Show Desk hero/publish cards with the approved compact context bar while keeping Setup unchanged, surfacing publish exceptions and sync state, and updating the protected `// INTENT:` comment to the owner-approved behavior.
 - [x] 6.7 Render Paperwork Print actor/time, broader-scope coverage, current/stale state, history, and calm reminders in the focused Class panel without gating Class lifecycle work.
-- [ ] 6.8 Add component tests for attention interaction, deliberate focus, Trial grouping/collapse summaries, responsive expansion, filters, lifecycle changes with unentered paper scores, compact chrome exceptions, offline/sync text, print history, staleness, and canonical-link labels.
+- [x] 6.8 Add component tests for attention interaction, deliberate focus, Trial grouping/collapse summaries, responsive expansion, filters, lifecycle changes with unentered paper scores, compact chrome exceptions, offline/sync text, print history, staleness, and canonical-link labels.
 - [x] 6.9 Map replicated Class status and Revised Expected Start into steward `/at-show` and exhibitor schedule adapters, add replicated-Class subscriptions/invalidation for already-open surfaces, and keep Actual Start/Actual Finish staff-only.
 
 ## 7. Scenario Verification and Release Gate
 
 - [x] 7.1 Add deterministic test fixtures for concurrent scent-work Classes using named/multiple Search Areas and for obedience/conformation/agility Classes using numbered Rings, including missing Operational Area data.
 - [x] 7.2 Run focused Vitest suites for cockpit projection, routing, report selection, Paperwork Print replication/domain logic, and affected components; run myK9Show typecheck and build for the touched implementation.
-- [ ] 7.3 Walk desktop, landscape tablet, and portrait tablet with the scent-work fixture while online and offline; capture evidence for running/urgent/next/closeout/stale orientation, touch access, deep-link return context, and two-secretary coordination.
+- [x] 7.3 Walk desktop, landscape tablet, and portrait tablet with the scent-work fixture while online and offline; capture evidence for running/urgent/next/closeout/stale orientation, touch access, deep-link return context, and two-secretary coordination.
 - [x] 7.4 Walk the numbered-ring fixture and verify the same schedule model works with Ring terminology and never substitutes Judge when location is missing.
 - [ ] 7.5 Verify on two devices that online status/expected-start changes appear without reload and offline changes converge after reconnect; confirm exhibitor and steward timing visibility differs as specified.
 - [x] 7.6 Run strict OpenSpec verification and review the final diff for duplicated owner workflows, hidden exception paths, unsupported state claims, unrelated changes, and files exceeding project limits.

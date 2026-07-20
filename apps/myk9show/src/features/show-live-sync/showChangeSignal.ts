@@ -13,10 +13,10 @@ export type ShowChangeStatus = 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_
 export type ShowChangeListener = (signal: ShowChangeSignal) => void;
 export type ShowChangeStatusListener = (status: ShowChangeStatus) => void;
 
-type ShowChangeClient = Pick<SupabaseClient, 'channel' | 'removeChannel'>;
+type ShowChangeClient = Pick<SupabaseClient, 'channel' | 'removeChannel' | 'realtime'>;
 
 interface RegistryEntry {
-  channel: RealtimeChannel;
+  channel: RealtimeChannel | null;
   listeners: Set<ShowChangeListener>;
   statusListeners: Set<ShowChangeStatusListener>;
   status?: ShowChangeStatus;
@@ -30,8 +30,11 @@ function isShowChangeSignal(value: unknown): value is ShowChangeSignal {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 
   const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
   return (
-    Object.keys(record).length === 1 && (record.table === 'entries' || record.table === 'classes')
+    keys.every(key => key === 'table' || key === 'id') &&
+    (record.table === 'entries' || record.table === 'classes') &&
+    (record.id === undefined || typeof record.id === 'string')
   );
 }
 
@@ -48,22 +51,40 @@ export function createShowChangeSignalRegistry(client: ShowChangeClient) {
     if (!entry) {
       const listeners = new Set<ShowChangeListener>();
       const statusListeners = new Set<ShowChangeStatusListener>();
-      const channel = client.channel(showChangesTopic(showId), { config: { private: true } });
-      const createdEntry: RegistryEntry = { channel, listeners, statusListeners };
+      const createdEntry: RegistryEntry = { channel: null, listeners, statusListeners };
       entry = createdEntry;
       entries.set(showId, createdEntry);
 
-      channel
-        .on('broadcast', { event: SHOWDAY_CHANGE_EVENT }, message => {
-          if (!isShowChangeSignal(message.payload)) return;
-          for (const currentListener of listeners) currentListener(message.payload);
+      // Supabase Realtime Authorization is separate from PostgREST auth. A
+      // private Broadcast channel must not join until setAuth has supplied the
+      // current session JWT; otherwise the socket can connect while the channel
+      // silently fails authorization and no show-day nudges arrive.
+      void client.realtime
+        .setAuth()
+        .then(() => {
+          // Every consumer may have unmounted while auth was resolving.
+          if (entries.get(showId) !== createdEntry || listeners.size === 0) return;
+
+          const channel = client.channel(showChangesTopic(showId), { config: { private: true } });
+          createdEntry.channel = channel;
+          channel
+            .on('broadcast', { event: SHOWDAY_CHANGE_EVENT }, message => {
+              if (!isShowChangeSignal(message.payload)) return;
+              const signal: ShowChangeSignal = { table: message.payload.table };
+              for (const currentListener of listeners) currentListener(signal);
+            })
+            .subscribe(status => {
+              const currentStatus = status as ShowChangeStatus;
+              createdEntry.status = currentStatus;
+              for (const currentListener of statusListeners) {
+                currentListener(currentStatus);
+              }
+            });
         })
-        .subscribe(status => {
-          const currentStatus = status as ShowChangeStatus;
-          createdEntry.status = currentStatus;
-          for (const currentListener of statusListeners) {
-            currentListener(currentStatus);
-          }
+        .catch(() => {
+          if (entries.get(showId) !== createdEntry) return;
+          createdEntry.status = 'CHANNEL_ERROR';
+          for (const currentListener of statusListeners) currentListener('CHANNEL_ERROR');
         });
     }
 
@@ -84,7 +105,7 @@ export function createShowChangeSignalRegistry(client: ShowChangeClient) {
       if (subscribedEntry.listeners.size > 0) return;
 
       if (entries.get(showId) === subscribedEntry) entries.delete(showId);
-      void client.removeChannel(subscribedEntry.channel);
+      if (subscribedEntry.channel) void client.removeChannel(subscribedEntry.channel);
     };
   };
 

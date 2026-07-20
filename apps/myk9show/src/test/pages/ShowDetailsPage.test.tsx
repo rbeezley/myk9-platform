@@ -147,6 +147,10 @@ vi.mock('@/hooks/useNavigationPerformance', () => ({
   useNavigationPerformance: () => ({ endNavigation: vi.fn() }),
 }));
 
+vi.mock('@/hooks/useGlobalSyncStatus', () => ({
+  useGlobalSyncStatus: () => ({ status: 'synced', queueSize: 0 }),
+}));
+
 // Mock trial store
 let mockTrials: Array<Record<string, unknown>> = [];
 let mockTrialClasses: Record<string, Array<Record<string, unknown>>> = {};

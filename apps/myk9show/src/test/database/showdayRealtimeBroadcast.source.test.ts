@@ -18,7 +18,6 @@ describe('show-day Realtime Broadcast migration', () => {
   });
 
   it('allows clients to receive only correctly scoped private show topics', () => {
-    expect(migration).not.toContain('ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY');
     expect(migration).toMatch(
       /CREATE POLICY "show-day change signals are readable"[\s\S]*ON realtime\.messages[\s\S]*FOR SELECT[\s\S]*TO anon, authenticated/s
     );

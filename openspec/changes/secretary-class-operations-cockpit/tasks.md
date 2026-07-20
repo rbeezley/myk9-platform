@@ -63,7 +63,7 @@
 - [x] 7.2 Run focused Vitest suites for cockpit projection, routing, report selection, Paperwork Print replication/domain logic, and affected components; run myK9Show typecheck and build for the touched implementation.
 - [x] 7.3 Walk desktop, landscape tablet, and portrait tablet with the scent-work fixture while online and offline; capture evidence for running/urgent/next/closeout/stale orientation, touch access, deep-link return context, and two-secretary coordination.
 - [x] 7.4 Walk the numbered-ring fixture and verify the same schedule model works with Ring terminology and never substitutes Judge when location is missing.
-- [ ] 7.5 Verify on two devices that online status/expected-start changes appear without reload and offline changes converge after reconnect; confirm exhibitor and steward timing visibility differs as specified.
+- [x] 7.5 Verify on two devices that online status/expected-start changes appear without reload and offline changes converge after reconnect; confirm exhibitor and steward timing visibility differs as specified.
 - [x] 7.6 Run strict OpenSpec verification and review the final diff for duplicated owner workflows, hidden exception paths, unsupported state claims, unrelated changes, and files exceeding project limits.
-- [ ] 7.7 Update the linked Linear issue, launch-readiness tracking, and product documentation with implementation evidence, test results, risks, intentional non-goals, and any separately approved Operational Area follow-up.
+- [x] 7.7 Update the linked Linear issue, launch-readiness tracking, and product documentation with implementation evidence, test results, risks, intentional non-goals, and any separately approved Operational Area follow-up.
 - [ ] 7.8 Open the PR with the repository template, obtain CI and code/product review, address blocking findings, merge only after the recorded acceptance gate passes, then archive the OpenSpec change and complete branch/worktree cleanup.

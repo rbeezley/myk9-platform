@@ -14,6 +14,10 @@ Date: 2026-07-20
 
 Focused result: 10 files and 44 tests passed. App typecheck, lint, production build, strict OpenSpec validation, and `git diff --check` also passed. The build retained the repository's existing CSS-minifier and mixed static/dynamic import warnings.
 
+The release-gate follow-up added focused coverage for private Realtime authentication, database Broadcast payload normalization, and staff-only Actual Start/Actual Finish visibility. The combined follow-up run passed 3 files and 29 tests.
+
+The final non-integration myK9Show suite passed 1,498 test files and 13,609 tests, with 1 benchmark file and 9 benchmark tests intentionally skipped. The first full run exposed stale partial Supabase test clients that did not model `realtime.setAuth`; the shared test client was brought back into parity, the 59 directly affected tests passed together, and the complete suite then passed without product-code failures.
+
 The behavioral RLS script remains at `supabase/tests/paperwork_prints_rls_test.sql`. The local Docker-backed Supabase stack was unavailable for execution during this walk, so the focused source contract and previously applied linked migration are the local permission evidence; the transactional SQL test should also run in CI or an available local stack.
 
 ## Browser evidence
@@ -48,8 +52,25 @@ The behavioral RLS script remains at `supabase/tests/paperwork_prints_rls_test.s
 - The fixture identified two secretaries working, showed `Saved on this device`, attributed print evidence to Jamie and Alex with times/scopes, exposed history, and identified one-Class staleness after a broader print.
 - Offline console network failures were expected for Supabase/WebSocket, font, and favicon requests in the dev harness; cached cockpit interaction remained available.
 
+### Shared staging convergence and role visibility
+
+- `secretaryCockpitSharedSync.spec.ts` passed against the shared Heartland Show with two independent secretary browser contexts and one staff `/at-show` context.
+- An online manual lifecycle change reached Device B without reload and appeared on `/at-show` with the recorded Actual Start.
+- Revised Expected Start reached Device B and `/at-show`; a second change made while Device A was offline remained local, then converged to both already-open surfaces after reconnect.
+- Cleanup restored the demo Class to `upcoming`, manual source, with no Actual Start, Actual Finish, or Revised Expected Start.
+- `AtShowClassListPage.test.tsx` proves Actual Start/Actual Finish are visible to staff and withheld from exhibitor-only viewers.
+- The existing opt-in `show-live-sync.spec.ts` also passed against real staging Realtime after fixing two production defects exposed by the rehearsal: private channels now authenticate before joining, and database Broadcast payloads containing Supabase's generated `id` are normalized instead of discarded.
+
 ## Remaining release gates
 
-- Two real devices/accounts and shared replicated writes are still required for task 7.5.
-- Linear/product documentation updates remain task 7.7.
 - PR, CI/review, merge, archive, and cleanup remain task 7.8.
+
+## Formal OpenSpec verification
+
+| Dimension    | Result                                                                                                                                                                                                                            |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Completeness | 48/49 tasks complete; all 26 requirements have implementation and evidence. Task 7.8 is intentionally open for the PR/CI/review/merge/archive lifecycle.                                                                          |
+| Correctness  | All 77 scenarios map to focused unit/component, source-contract, browser, or shared-staging evidence. No implementation divergence found.                                                                                         |
+| Coherence    | The implementation follows the approved stable schedule, deliberate Class focus, canonical-owner deep links, truthful Paperwork Print evidence, replicated Class timing, compact chrome, and optional Operational Area decisions. |
+
+No implementation defect blocks the PR. Task 7.8 remains a critical archive gate: do not mark the change complete or archive it until CI/review pass, merge is approved and completed, and branch/worktree cleanup finishes.

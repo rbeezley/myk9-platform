@@ -2,6 +2,8 @@
 -- private, show-scoped Broadcast topics. Replication-backed reads remain the
 -- source of truth; this signal carries no row data.
 
+ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS "show-day change signals are readable" ON realtime.messages;
 CREATE POLICY "show-day change signals are readable"
   ON realtime.messages

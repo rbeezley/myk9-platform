@@ -42,7 +42,7 @@ export function createChainableQuery(
 /**
  * Creates a mock Supabase client with all top-level methods stubbed.
  * .from() returns a chainable query by default.
- * .auth, .channel, .removeChannel are stubbed.
+ * .auth, .realtime, .channel, .removeChannel are stubbed.
  */
 export function createMockSupabase() {
   const mockFrom = vi.fn<(table: string) => unknown>(() => createChainableQuery());
@@ -80,6 +80,12 @@ export function createMockSupabase() {
   return {
     from: mockFrom,
     auth: mockAuth,
+    realtime: {
+      // Private Realtime channels authenticate independently from PostgREST.
+      // Keep the shared test client faithful to SupabaseClient so page tests
+      // can mount live-sync consumers without each rebuilding this API.
+      setAuth: vi.fn().mockResolvedValue(undefined),
+    },
     channel: mockChannel,
     removeChannel: vi.fn(),
     rpc: vi.fn<(name: string, args?: Record<string, unknown>) => unknown>(() =>
@@ -109,5 +115,6 @@ export function resetMockSupabase() {
   mockSupabase.from.mockImplementation(() => createChainableQuery());
   mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
   mockSupabase.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+  mockSupabase.realtime.setAuth.mockResolvedValue(undefined);
   mockSupabase.rpc.mockImplementation(() => createChainableQuery());
 }

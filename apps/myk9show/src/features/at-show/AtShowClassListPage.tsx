@@ -370,7 +370,7 @@ export const AtShowClassListPage: React.FC = () => {
                               {formatAtShowClassTime(entry.start_time, trialTimeZone)}
                             </div>
                           )}
-                          {entry.actual_start_time && (
+                          {!isExhibitorOnly && entry.actual_start_time && (
                             <div className="mt-0.5 text-xs text-muted-foreground">
                               Started{' '}
                               {formatAtShowClassTime(entry.actual_start_time, trialTimeZone)}

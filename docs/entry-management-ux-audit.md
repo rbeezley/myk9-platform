@@ -312,6 +312,20 @@ On desktop, the canonical Show Registration queue/table occupies the left side a
 
 On tablet and mobile, selecting a Show Registration opens the same focused detail full-width with a clear return to the preserved queue and scope. This follows the Show Desk cockpit pattern while keeping Entry Management's registration-level domain model.
 
+### 7. Make search a primary high-volume navigation tool
+
+The queue may contain hundreds of Entries, so a large, persistent search box must sit immediately above the Show Registration list. Search operates over the parent Show Registration and all child Entries, including:
+
+- Exhibitor/submitter name and email;
+- Dog name;
+- per-Entry Handler name;
+- Armband number;
+- confirmation number;
+- Entry number;
+- Class name.
+
+Matching a child Entry returns its parent Show Registration and identifies/highlights the matching Dog, Class, or Handler in the focused pane. Search runs against the already-loaded entry dataset so lookup remains immediate and useful offline. The UI shows a result count, provides a one-tap clear action, preserves the current queue/scope when cleared, and may offer a keyboard shortcut as an optional accelerator rather than the only affordance.
+
 ## Proposed acceptance test
 
 Use the same operator scenario that guided Show Desk:
@@ -339,6 +353,8 @@ Success means:
 8. **Decided for `Missing information`:** The row-level primary action is `Resolve missing information`. The focused pane shows the affected Entries and durably recorded secretary notes, then exposes existing edit, contact, and decision actions. It does not infer or display specific missing fields unless they are actually recorded.
 9. **Decided:** Remove the `Day-of` quick view from Entry Management. Show Desk owns show-day class operations, check-in, scoring coordination, and class progress. Entry Management retains accepted-entry lookup and status editing, with deep links to the appropriate Show Desk/Class surface for operational work.
 10. **Decided:** Remove the visible `Table / Cards` toggle. Entry Management has one responsive Show Registration queue: desktop uses the table/list plus focused pane; tablet/mobile uses responsive registration cards and full-width detail. Density and saved views remain secondary preferences under View Options.
-11. Which remaining view and action controls should be removed or demoted?
+11. **Decided:** Replace the six large statistics cards with one compact selector: `Needs review`, `Missing information`, `Payment due`, and `All registrations`, each with a count. `Accepted` remains a secondary filter within All Registrations. Revenue and outstanding totals move out of the primary entry-work hierarchy.
+12. **Decided:** A large, persistent search box is primary queue navigation for hundreds of Entries. It searches the Show Registration and child Entry identities, including Exhibitor/email, Dog, per-Entry Handler, Armband, confirmation, Entry number, and Class, and highlights the matching child context.
+13. Should search query all Show Registrations regardless of the active work queue, or only the current queue?
 
 These are product decisions. Implementation should wait until they are resolved and the redesign is mocked against the two-trial scenario.

@@ -13,12 +13,16 @@ const productionCsp = vercelConfig.headers
   .find(header => header.key === 'Content-Security-Policy')?.value;
 
 describe('Turnstile deployment contract', () => {
-  it('allows Cloudflare challenge scripts and frames in both production CSP sources', () => {
+  it('allows Cloudflare challenge scripts, connections, and frames in both production CSP sources', () => {
     expect(productionCsp).toContain("script-src 'self' https://challenges.cloudflare.com");
+    expect(productionCsp).toContain('connect-src');
+    expect(productionCsp).toContain("connect-src 'self' https://challenges.cloudflare.com");
     expect(productionCsp).toContain("frame-src 'self' https://challenges.cloudflare.com");
 
     const runtimeCsp = generateCSPPolicy('production');
     expect(runtimeCsp).toContain("script-src 'self' https://challenges.cloudflare.com");
+    expect(runtimeCsp).toContain('connect-src');
+    expect(runtimeCsp).toContain("connect-src 'self' https://challenges.cloudflare.com");
     expect(runtimeCsp).toContain("frame-src 'self' https://challenges.cloudflare.com");
   });
 

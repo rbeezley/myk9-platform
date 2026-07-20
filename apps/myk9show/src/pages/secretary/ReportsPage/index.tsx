@@ -182,10 +182,10 @@ export default function ReportsPage() {
     return buildReportPaperworkDescriptor({
       reportId: reportType,
       scope: effectiveScope,
-      classes: classes as unknown as Parameters<
+      classes: (classes ?? []) as unknown as Parameters<
         typeof buildReportPaperworkDescriptor
       >[0]['classes'],
-      entries: entries as unknown as Parameters<
+      entries: (entries ?? []) as unknown as Parameters<
         typeof buildReportPaperworkDescriptor
       >[0]['entries'],
     });

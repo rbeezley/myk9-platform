@@ -380,5 +380,6 @@ Success means:
 21. **Decided:** Replace the full-width fixed bulk footer with one shared compact Linear-style floating selection toolbar across Show Desk, Class Management, Results Control, and Entry Management. It keeps count, primary action, overflow actions, and clear together; surface-specific eligibility and mutations are reused rather than reimplemented.
 22. **Decided:** The floating selection toolbar appears after the first checkbox selection. Row clicks continue to focus a registration; checkbox selection explicitly enters selection mode, so the first selection receives immediate feedback and actions.
 23. **Decided:** Paginate the canonical queue at 50 Show Registrations per page with a visible result range and Previous/Next controls. Search, scope, filters, and sorting apply to the full matching set before pagination. The current page and selected registrations persist while focused details are opened.
+24. **Decided:** `Add entry` is the only visible primary page-level action. Existing `Export CSV` and `Copy view link` actions move into a compact `More` menu so they remain available without competing with the secretary's daily work.
 
 These are product decisions. Implementation should wait until they are resolved and the redesign is mocked against the two-trial scenario.

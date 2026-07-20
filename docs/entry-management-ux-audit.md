@@ -359,6 +359,7 @@ Success means:
 14. **Decided:** Active search temporarily ignores Trial/Class scope and searches the entire Show. Results identify their Trial/Class context; clearing search restores the previous scope unchanged.
 15. **Decided:** Desktop shows compact Trial and Class selectors directly below search. Tablet/mobile uses one `Scope` button. Active scope is displayed once; the separate filter breadcrumb is removed, and Trial/Class detail links move into a small related-actions menu.
 16. **Decided for `Needs review`:** Oldest Show Registration first, using submission time. Sort controls remain available for Exhibitor, Dog, confirmation number, and submission time.
-17. Should the other action queues follow the same oldest-unresolved-first policy?
+17. **Decided:** `Missing information` and `Payment due` use oldest-unresolved-first ordering. Exception workflows preserve their domain ordering, such as Wait List position or request time. The UI does not introduce a hidden urgency formula or prioritize payment by dollar amount.
+18. Should focused Show Registration selection be URL-backed for deep links and browser navigation?
 
 These are product decisions. Implementation should wait until they are resolved and the redesign is mocked against the two-trial scenario.

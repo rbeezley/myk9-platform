@@ -3,8 +3,17 @@ import ReactDOMServer from 'react-dom/server';
 import { LABEL_TEMPLATES, DEFAULT_TEMPLATE_ID, getAllTemplates } from '@/lib/labels/labelTemplates';
 import { buildLabelPages } from '@/lib/labels/labelLayout';
 import { buildLabelStylesheet } from '@/lib/labels/labelStyles';
-import { prepareArmbandLabelItems, filterEntries } from '@/lib/labels/armbandLabelData';
+import {
+  prepareArmbandLabelItems,
+  filterEntries,
+  selectArmbandLabelEntries,
+} from '@/lib/labels/armbandLabelData';
 import type { LabelContentConfig, LabelFilterConfig } from '@/lib/labels/armbandLabelTypes';
+import type { ReportScope } from '@/lib/reports/types';
+import {
+  buildArmbandPaperworkDescriptor,
+  type PaperworkDescriptor,
+} from '@/features/show-map/cockpit/paperworkPrintState';
 import { ArmbandLabelCell } from './ArmbandLabelCell';
 import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
 import { generatePasscodesFromShowId } from '@myk9/core';
@@ -21,12 +30,16 @@ const TAP_ROW = 'flex items-center gap-2 min-h-[44px] text-sm cursor-pointer';
 
 interface ArmbandLabelsReportProps {
   showId: string | undefined;
+  scope: ReportScope;
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
+  onDescriptorChange?: ((descriptor: PaperworkDescriptor | null) => void) | undefined;
 }
 
 export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
   showId,
+  scope,
   iframeRef: externalIframeRef,
+  onDescriptorChange,
 }) => {
   const [prefs, setPrefs] = useLabelPreferences();
   const [filter, setFilter] = useState<LabelFilterConfig>({
@@ -55,11 +68,55 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     [filter, showSpecific, specificArmband]
   );
 
+  const filteredCandidates = useMemo(
+    () =>
+      filterEntries(
+        allEntries.filter(entry => {
+          if (scope.kind === 'class') return entry.classId === scope.classId;
+          if (scope.kind === 'trial') return entry.trialId === scope.trialId;
+          return true;
+        }),
+        filterConfig
+      ),
+    [allEntries, filterConfig, scope]
+  );
   const filtered = useMemo(
-    () => filterEntries(allEntries, filterConfig),
-    [allEntries, filterConfig]
+    () => selectArmbandLabelEntries(filteredCandidates, { kind: 'show', showId: scope.showId }),
+    [filteredCandidates, scope.showId]
   );
   const items = useMemo(() => prepareArmbandLabelItems(filtered), [filtered]);
+  const paperworkDescriptor = useMemo(
+    () =>
+      filtered.length === 0
+        ? null
+        : buildArmbandPaperworkDescriptor(
+            scope,
+            filtered.map(entry => ({
+              dogId: entry.dogId,
+              calendarDay: entry.calendarDay,
+              armband: entry.armband,
+              callName: entry.callName,
+              handlerName: entry.handler,
+              classIds: filteredCandidates
+                .filter(
+                  candidate =>
+                    (candidate.dogId || `armband:${candidate.armband}`) ===
+                      (entry.dogId || `armband:${entry.armband}`) &&
+                    candidate.calendarDay === entry.calendarDay
+                )
+                .map(candidate => candidate.classId),
+              trialIds: filteredCandidates
+                .filter(
+                  candidate =>
+                    (candidate.dogId || `armband:${candidate.armband}`) ===
+                      (entry.dogId || `armband:${entry.armband}`) &&
+                    candidate.calendarDay === entry.calendarDay
+                )
+                .map(candidate => candidate.trialId),
+            }))
+          ),
+    [filtered, filteredCandidates, scope]
+  );
   const pages = useMemo(() => buildLabelPages(template, items, skip), [template, items, skip]);
 
   const sharedCellProps = useMemo(
@@ -101,6 +158,10 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     iframe.contentDocument?.write(html);
     iframe.contentDocument?.close();
   }, [pages, sharedCellProps, template, pitchAdjustment, externalIframeRef]);
+
+  useEffect(() => {
+    onDescriptorChange?.(paperworkDescriptor);
+  }, [onDescriptorChange, paperworkDescriptor]);
 
   const updateConfig = (key: keyof LabelContentConfig, value: boolean) => {
     setPrefs(p => ({

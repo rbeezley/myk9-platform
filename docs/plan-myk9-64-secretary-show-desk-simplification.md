@@ -1,10 +1,18 @@
 # MYK9-64 — Secretary Show Desk Simplification
 
-> **Status:** Active
+> **Status:** Implementation complete; PR and review pending
 
 Linear: [MYK9-64](https://linear.app/myk9-platform/issue/MYK9-64/the-secretarys-show-details-page-looks-too-complicated) · Related: [MYK9-65](https://linear.app/myk9-platform/issue/MYK9-65) (count trust break), [MYK9-66](https://linear.app/myk9-platform/issue/MYK9-66) (inline status badge)
 
 The Codex UX audit embedded in MYK9-64 (2026-07-19) identified the core problem: **presentation, not capability** — too many useful things visible at once with similar visual weight, plus duplicate routes to the same work. This plan verifies each finding against the actual code and sequences the remediation. Direction: **triage first, details on demand; subtract duplication; progressively disclose power controls.** No new surfaces.
+
+## Implementation closeout — 2026-07-20
+
+The approved Class Operations Cockpit supersedes the narrower phased layout below while preserving its consolidation rules. Show Desk now uses one Trial-grouped daily schedule, a compact Needs Attention strip, and one focused-Class work panel. Ordinary work remains reachable through canonical deep links; the cockpit does not duplicate Entry Management, Class Management, Reports, Results Control, Submit Results, or paper scoring.
+
+The implementation also adds offline-safe manual Class lifecycle and Revised Expected Start controls, staff-recorded Actual Start/Actual Finish, context-scoped reports, and append-only Paperwork Print coordination. Shared-staging rehearsal passed with two secretary contexts plus `/at-show`: online changes appeared without reload, an offline expected-start change converged after reconnect, staff saw actual timing, and exhibitor-only tests confirmed actual timing remains private. Detailed scope and evidence live in [`openspec/changes/secretary-class-operations-cockpit/`](../openspec/changes/secretary-class-operations-cockpit/).
+
+Intentional non-goals remain: no stage board, no inferred Ring from Judge, no duplicated owner workflows, no automatic claim that browser Print completed, and no gating Class work on paperwork state. Venue-printer hardware testing and full ringside end-to-end rehearsal remain separate launch-readiness gates.
 
 ## Code-verified findings
 

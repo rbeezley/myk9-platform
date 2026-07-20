@@ -17,6 +17,7 @@ const useDeleteClassMutationMock = vi.hoisted(() => vi.fn());
 const deleteMutateAsyncMock = vi.hoisted(() => vi.fn());
 const useJudgesWithQualificationsMock = vi.hoisted(() => vi.fn());
 const useShowQueryMock = vi.hoisted(() => vi.fn());
+const getClassByIdMock = vi.hoisted(() => vi.fn());
 const updateClassMock = vi.hoisted(() => vi.fn());
 const deleteClassMock = vi.hoisted(() => vi.fn());
 // Bulk delete routes through the soft_delete_class service RPC (same recoverable
@@ -47,6 +48,7 @@ vi.mock('@/services/database/judges', () => ({
 
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: {
+    getClassById: getClassByIdMock,
     updateClass: updateClassMock,
     deleteClass: deleteClassMock,
   },
@@ -122,6 +124,7 @@ describe('ClassManagementPage bulk selection (2.2-2.5)', () => {
     });
     useJudgesWithQualificationsMock.mockReturnValue({ data: [] });
     useShowQueryMock.mockReturnValue({ data: { id: 'show-1', status: 'published' } });
+    getClassByIdMock.mockResolvedValue(null);
     updateClassMock.mockResolvedValue('mutation-1');
     deleteClassMock.mockResolvedValue('mutation-1');
     softDeleteClassServiceMock.mockResolvedValue({

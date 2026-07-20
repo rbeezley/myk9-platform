@@ -25,6 +25,7 @@ export function normalizeClassManagementSearchParams(searchParams: URLSearchPara
   search: string;
   element: string;
   density: OperationalViewDensity;
+  focusClassId: string | null;
 } {
   const params = new URLSearchParams(searchParams);
 
@@ -34,6 +35,7 @@ export function normalizeClassManagementSearchParams(searchParams: URLSearchPara
   const element = params.get('element') ?? 'all';
   const rawDensity = params.get('density');
   const density = isOperationalViewDensity(rawDensity) ? rawDensity : 'comfortable';
+  const focusClassId = params.get('focus')?.trim() || null;
 
   if (status === 'all') params.delete('status');
   else params.set('status', status);
@@ -47,7 +49,10 @@ export function normalizeClassManagementSearchParams(searchParams: URLSearchPara
   if (density === 'comfortable') params.delete('density');
   else params.set('density', density);
 
-  return { params, status, search, element, density };
+  if (focusClassId) params.set('focus', focusClassId);
+  else params.delete('focus');
+
+  return { params, status, search, element, density, focusClassId };
 }
 
 export interface ClassManagementHrefInput {
@@ -56,6 +61,7 @@ export interface ClassManagementHrefInput {
   status?: ClassManagementStatusFilter;
   search?: string;
   element?: string;
+  focusClassId?: string;
 }
 
 /**
@@ -68,6 +74,7 @@ export interface ClassManagementHrefInput {
  */
 export function getClassManagementHref(input: ClassManagementHrefInput): string {
   const params = new URLSearchParams();
+  if (input.focusClassId) params.set('focus', input.focusClassId);
   if (input.status && input.status !== 'all') params.set('status', input.status);
   if (input.search) params.set('search', input.search);
   if (input.element && input.element !== 'all') params.set('element', input.element);

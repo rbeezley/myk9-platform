@@ -226,7 +226,7 @@ export const reportRegistry: ReportDefinition[] = [
     id: 'armband-labels',
     name: 'Armband Labels',
     category: 'operational',
-    scopes: ['show'],
+    scopes: ['show', 'trial', 'class'],
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport, // Rendered directly by ReportsPage, not via ReportPreview

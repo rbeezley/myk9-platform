@@ -168,7 +168,7 @@ export function ReportPreview({
         trials: targetTrials,
         classes,
         entries,
-        trialId: 'all',
+        scope: { kind: 'show', showId: show.id },
         sortOrder,
       })
         .map(props => {

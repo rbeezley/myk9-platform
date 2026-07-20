@@ -17,7 +17,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, User, ChevronRight, Star, ArrowLeft } from 'lucide-react';
+import { AlertCircle, User, ChevronRight, Star, ArrowLeft, Clock3 } from 'lucide-react';
 import {
   groupSectionedClasses,
   getClassIds,
@@ -41,6 +41,8 @@ import { useMyAtShowEntryDetails } from './useMyAtShowEntryDetails';
 import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
 import { isExhibitorOnlyForAtShow, type AtShowClassSummary } from './myAtShowEntryDetails.helpers';
 import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListState';
+import { formatAtShowClassTime } from './atShowClassTiming';
+import { getTrialTimezone } from '@/features/registries';
 
 const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
   'briefing',
@@ -159,8 +161,16 @@ export const AtShowClassListPage: React.FC = () => {
   const classesById = useMemo(() => {
     const map = new Map<string, AtShowClassSummary>();
     for (const group of groups) {
+      const timeZone = getTrialTimezone(group.trial);
       for (const cls of group.classes) {
-        map.set(cls.id, { className: cls.class_name, classStatus: cls.class_status });
+        map.set(cls.id, {
+          className: cls.class_name,
+          classStatus: cls.class_status,
+          ...(cls.start_time
+            ? { expectedStartLabel: formatAtShowClassTime(cls.start_time, timeZone) }
+            : {}),
+          isRevisedStart: Boolean(cls.revised_expected_start),
+        });
       }
     }
     return map;
@@ -294,6 +304,7 @@ export const AtShowClassListPage: React.FC = () => {
         const trialDate = trial.date ?? trial.trial_date;
         const isOpen = !collapsedTrialIds.has(trial.id);
         const trialDateLabel = trialDate ? formatTrialDate(trialDate) : '';
+        const trialTimeZone = getTrialTimezone(trial);
         const trialLabel = `${trialNumber ? `Trial ${trialNumber}` : 'Trial'}${
           trialDateLabel ? ` · ${trialDateLabel}` : ''
         }`;
@@ -350,6 +361,22 @@ export const AtShowClassListPage: React.FC = () => {
                             <div className="mt-0.5 flex items-center gap-1 truncate text-sm text-muted-foreground">
                               <User size={13} className="shrink-0" />
                               {entry.judge_name}
+                            </div>
+                          )}
+                          {entry.start_time && (
+                            <div className="mt-0.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                              <Clock3 size={13} className="shrink-0" aria-hidden />
+                              {entry.revised_expected_start ? 'Expected' : 'Scheduled'}{' '}
+                              {formatAtShowClassTime(entry.start_time, trialTimeZone)}
+                            </div>
+                          )}
+                          {!isExhibitorOnly && entry.actual_start_time && (
+                            <div className="mt-0.5 text-xs text-muted-foreground">
+                              Started{' '}
+                              {formatAtShowClassTime(entry.actual_start_time, trialTimeZone)}
+                              {entry.actual_end_time
+                                ? ` · Finished ${formatAtShowClassTime(entry.actual_end_time, trialTimeZone)}`
+                                : ''}
                             </div>
                           )}
                         </div>

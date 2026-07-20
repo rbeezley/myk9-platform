@@ -103,11 +103,18 @@ export interface ReportProps {
 
 export type ReportCategory = 'operational' | 'organization' | 'statistics' | 'financial';
 
+export type ReportScope =
+  | { kind: 'show'; showId: string }
+  | { kind: 'trial'; showId: string; trialId: string }
+  | { kind: 'class'; showId: string; trialId: string; classId: string };
+
+export type ReportScopeKind = ReportScope['kind'];
+
 export interface ReportDefinition {
   id: string;
   name: string;
   category: ReportCategory;
-  scopes: ('show' | 'trial' | 'class')[];
+  scopes: ReportScopeKind[];
   sortOptions: ReportSortOption[];
   defaultSort: string;
   component: React.ComponentType<ReportProps>;

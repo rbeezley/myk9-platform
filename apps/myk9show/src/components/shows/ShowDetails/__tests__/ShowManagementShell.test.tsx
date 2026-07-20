@@ -44,6 +44,9 @@ vi.mock('@/features/premium/PremiumDownloadCard', () => ({
 vi.mock('@/features/premium/LandingPageCard', () => ({
   LandingPageCard: () => <div data-testid="landing-page-card" />,
 }));
+vi.mock('../ShowDeskCompactContext', () => ({
+  ShowDeskCompactContext: () => <div data-testid="show-desk-compact-context" />,
+}));
 vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
   ShowEditPanel: ({ open }: { open: boolean }) =>
     open ? <div data-testid="edit-panel-open" /> : null,
@@ -151,6 +154,15 @@ describe('ShowManagementShell', () => {
     expect(anchor).toBeInTheDocument();
     expect(screen.getByTestId('premium-download-card')).toBeInTheDocument();
     expect(screen.getByTestId('landing-page-card')).toBeInTheDocument();
+  });
+
+  it('uses compact operational chrome on Show Desk without the hero or routine publish cards', () => {
+    renderShell({ activeManagementSection: 'show-desk', isManagementSection: true });
+
+    expect(screen.getByTestId('show-desk-compact-context')).toBeInTheDocument();
+    expect(screen.queryByTestId('detail-hero')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('premium-download-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('landing-page-card')).not.toBeInTheDocument();
   });
 
   it('renders the shared tabs when not on a management section', () => {

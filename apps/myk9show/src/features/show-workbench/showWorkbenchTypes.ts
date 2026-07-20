@@ -7,6 +7,10 @@ export interface ShowWorkbenchClassSummary {
   judgeName: string;
   trialId: string;
   time: string;
+  revisedExpectedStart?: string | null;
+  actualStartTime?: string | undefined;
+  actualFinishTime?: string | undefined;
+  displayOrder?: number | undefined;
   status: string;
   entryCount: number;
   scoredCount: number;

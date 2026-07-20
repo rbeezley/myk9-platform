@@ -7,6 +7,10 @@ vi.mock('@/hooks/queries/useArmbandLabelData', () => ({
     entries: [
       {
         id: '1',
+        dogId: 'dog-1',
+        trialId: 'trial-1',
+        classId: 'class-1',
+        calendarDay: '2025-06-11',
         armband: 101,
         callName: 'Storm',
         handler: 'Jane',
@@ -15,6 +19,10 @@ vi.mock('@/hooks/queries/useArmbandLabelData', () => ({
       },
       {
         id: '2',
+        dogId: 'dog-2',
+        trialId: 'trial-1',
+        classId: 'class-1',
+        calendarDay: '2025-06-11',
         armband: 102,
         callName: 'Max',
         handler: 'Bob',
@@ -52,36 +60,38 @@ vi.mock('@myk9/core', () => ({
 }));
 
 describe('ArmbandLabelsReport', () => {
+  const showScope = { kind: 'show' as const, showId: 'test-show-id' };
+
   it('renders the inline config panel', () => {
-    render(<ArmbandLabelsReport showId="test-show-id" />);
+    render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
     expect(screen.getByText(/Label Size/i)).toBeInTheDocument();
   });
 
   it('renders armband numbers from entries', () => {
-    render(<ArmbandLabelsReport showId="test-show-id" />);
+    render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
     expect(screen.getByText('101')).toBeInTheDocument();
     expect(screen.getByText('102')).toBeInTheDocument();
   });
 
   it('renders call names with default config', () => {
-    render(<ArmbandLabelsReport showId="test-show-id" />);
+    render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
     expect(screen.getByText('Storm')).toBeInTheDocument();
     expect(screen.getByText('Max')).toBeInTheDocument();
   });
 
   it('shows label count summary', () => {
-    render(<ArmbandLabelsReport showId="test-show-id" />);
+    render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
     expect(screen.getByText(/2 label/i)).toBeInTheDocument();
   });
 
   it('shows WiFi as not configured when no WiFi data', () => {
-    render(<ArmbandLabelsReport showId="test-show-id" />);
+    render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
     expect(screen.getByText(/not configured/i)).toBeInTheDocument();
   });
 
   describe('mobile touch targets', () => {
     it('uses shadcn primitives, not raw native radio/checkbox inputs', () => {
-      render(<ArmbandLabelsReport showId="test-show-id" />);
+      render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
       // Base UI's Radio/Checkbox render accessible non-input controls (span /
       // button); the native <input> they keep for form integration is hidden
       // from the a11y tree. A raw native control would expose an <input> in the
@@ -99,7 +109,7 @@ describe('ArmbandLabelsReport', () => {
     });
 
     it('gives every radio and checkbox row a 44px-tall hit area', () => {
-      render(<ArmbandLabelsReport showId="test-show-id" />);
+      render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
       const controls = [
         ...screen.getAllByRole('radio'),
         ...screen.getAllByRole('checkbox'),
@@ -115,7 +125,7 @@ describe('ArmbandLabelsReport', () => {
 
   describe('specific-armband number input', () => {
     it('is not nested inside the checkbox label, so tapping it cannot toggle the checkbox', () => {
-      render(<ArmbandLabelsReport showId="test-show-id" />);
+      render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
 
       const specificCheckbox = screen.getByRole('checkbox', {
         name: /specific armband number/i,
@@ -138,7 +148,7 @@ describe('ArmbandLabelsReport', () => {
     });
 
     it('hides the number field and clears it when the checkbox is unchecked', () => {
-      render(<ArmbandLabelsReport showId="test-show-id" />);
+      render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
       const specificCheckbox = screen.getByRole('checkbox', {
         name: /specific armband number/i,
       });

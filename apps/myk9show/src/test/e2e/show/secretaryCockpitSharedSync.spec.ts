@@ -13,6 +13,7 @@ import { signInAsSecretary } from '../helpers/testUsers';
 const ENABLED = process.env.SECRETARY_COCKPIT_SHARED_VERIFY === '1';
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000033';
+const TRIAL_ID = 'dededede-0000-0000-0000-000000000021';
 const CLASS_NAME = 'Exterior Excellent';
 const SHOW_DESK_PATH = `/shows/${SHOW_ID}/show-desk?focus=${CLASS_ID}`;
 const AT_SHOW_PATH = `/at-show/${SHOW_ID}`;
@@ -76,7 +77,9 @@ test.describe('Secretary cockpit shared two-device sync', () => {
     const secretaryA = await contextA.newPage();
     const secretaryB = await contextB.newPage();
     const staffAtShow = await staffContext.newPage();
+    const printProbeId = crypto.randomUUID();
     let didMutate = false;
+    let didInsertPrintProbe = false;
 
     try {
       await Promise.all([
@@ -125,6 +128,35 @@ test.describe('Secretary cockpit shared two-device sync', () => {
       });
       await expect(staffCard).toContainText(/Expected 4:44 PM/i, { timeout: 20_000 });
 
+      const { error: printProbeError } = await admin.from('paperwork_prints').insert({
+        id: printProbeId,
+        show_id: SHOW_ID,
+        trial_id: TRIAL_ID,
+        class_id: CLASS_ID,
+        scope_kind: 'class',
+        report_id: 'check-in-sheet',
+        coverage: {
+          scopeKind: 'class',
+          scope: {
+            kind: 'class',
+            showId: SHOW_ID,
+            trialId: TRIAL_ID,
+            classId: CLASS_ID,
+          },
+          subjectFingerprints: {},
+          subjectScopes: {},
+        },
+        fingerprint: `shared-sync-probe:${printProbeId}`,
+        printed_by: crypto.randomUUID(),
+        printed_by_name: 'Codex sync probe',
+        printed_at: new Date().toISOString(),
+      });
+      expect(printProbeError).toBeNull();
+      didInsertPrintProbe = true;
+      await expect(
+        focusedPanel(secretaryB).getByText(/^\d{1,2}:\d{2} [AP]M by Codex sync probe$/)
+      ).toBeAttached({ timeout: 20_000 });
+
       await contextA.setOffline(true);
       await secretaryA.evaluate(() => window.dispatchEvent(new Event('offline')));
       await setExpectedStart(secretaryA, '16:47');
@@ -137,6 +169,13 @@ test.describe('Secretary cockpit shared two-device sync', () => {
       });
       await expect(staffCard).toContainText(/Expected 4:47 PM/i, { timeout: 30_000 });
     } finally {
+      if (didInsertPrintProbe) {
+        const { error: printCleanupError } = await admin
+          .from('paperwork_prints')
+          .delete()
+          .eq('id', printProbeId);
+        expect(printCleanupError, 'shared Paperwork Print probe cleanup must succeed').toBeNull();
+      }
       if (didMutate) {
         await contextA.setOffline(false).catch(() => undefined);
         const { error: restoreError } = await admin

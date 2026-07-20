@@ -367,6 +367,20 @@ describe('buildSecretaryCockpitModel attention projection', () => {
     expect(timed?.reason).toContain('18 minutes');
     expect(untimed?.reason).toContain('next in schedule order');
   });
+
+  it('uses Revised Expected Start instead of Scheduled Start for preparation urgency', () => {
+    const snapshot = makeSnapshot({
+      classes: makeSnapshot().classes.map(cls =>
+        cls.id === 'upcoming' ? { ...cls, revisedExpectedStart: '2026-07-20T16:00:00.000Z' } : cls
+      ),
+    });
+
+    expect(
+      buildSecretaryCockpitModel(snapshot, { filter: 'all' }).attention.all.find(
+        item => item.id === 'prepare:upcoming:check-in-sheet'
+      )
+    ).toBeUndefined();
+  });
 });
 
 describe('buildSecretaryCockpitModel truth projection', () => {

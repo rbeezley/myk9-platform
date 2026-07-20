@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 
 import { CockpitActionLink } from './CockpitActionLink';
 import { ClassStatusControl, ExpectedStartControl } from './ClassOperationalControls';
+import { getCockpitAnchorElementId } from './cockpitRoutes';
 import type {
   CockpitFilter,
   SecretaryCockpitClass,
@@ -99,7 +100,10 @@ export function SecretaryCockpitSchedule({
         {model.trialGroups.map(group => (
           <Collapsible key={group.trialId} defaultOpen>
             <div className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
-              <CollapsibleTrigger className="gap-3 border-b px-4 py-3 text-left hover:no-underline">
+              <CollapsibleTrigger
+                id={getCockpitAnchorElementId(group.trialId)}
+                className="gap-3 border-b px-4 py-3 text-left hover:no-underline"
+              >
                 <div className="min-w-0">
                   <div className="font-semibold">{group.label}</div>
                   <div className="text-xs font-normal text-muted-foreground">
@@ -131,6 +135,7 @@ export function SecretaryCockpitSchedule({
                           </div>
                         )}
                         <div
+                          id={getCockpitAnchorElementId(classItem.id)}
                           onClick={() => onFocusClass(classItem.id)}
                           className={cn(
                             'grid cursor-pointer gap-3 px-4 py-4 transition-colors hover:bg-muted/40 sm:grid-cols-[92px_minmax(0,1fr)_auto] sm:items-center',

@@ -50,7 +50,9 @@ export function mapScopedReportEntries(
   if (scope.kind === 'class') {
     const cls = classById.get(scope.classId);
     const trial = cls?.trial_id != null ? trialById.get(cls.trial_id) : undefined;
-    return dbEntries.map(e => mapReportEntry(e, trial, cls, assignedJudges));
+    return dbEntries
+      .filter(entry => entry.class_id === scope.classId)
+      .map(entry => mapReportEntry(entry, trial, cls, assignedJudges));
   }
 
   if (scope.kind === 'trial') {

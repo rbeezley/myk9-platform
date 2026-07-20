@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
 
@@ -18,6 +18,9 @@ vi.mock('@/services/database/entries/lifecycle', () => ({
   restoreEntryStatus: vi.fn(),
   pullEntryDayOf: vi.fn(),
 }));
+vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
+  subscribeToShowChanges: vi.fn(() => () => undefined),
+}));
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: { updateClass: vi.fn() },
   replicatedPaperworkPrintsTable: {
@@ -28,8 +31,12 @@ vi.mock('@/services/replication', () => ({
   },
 }));
 vi.mock('@/store/messageStore', () => ({
-  useMessageStore: (selector: (state: { getOrCreateThread: ReturnType<typeof vi.fn>; sendMessage: ReturnType<typeof vi.fn> }) => unknown) =>
-    selector({ getOrCreateThread: vi.fn(), sendMessage: vi.fn() }),
+  useMessageStore: (
+    selector: (state: {
+      getOrCreateThread: ReturnType<typeof vi.fn>;
+      sendMessage: ReturnType<typeof vi.fn>;
+    }) => unknown
+  ) => selector({ getOrCreateThread: vi.fn(), sendMessage: vi.fn() }),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -67,8 +74,20 @@ describe('ShowDeskPanel cockpit', () => {
         show={show}
         trials={[trial]}
         classes={[
-          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled', time: '9:00 AM' },
-          { id: 'class-2', trialId: 'trial-1', name: 'Interior Advanced', status: 'In Progress', time: '10:00 AM' },
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Container Novice',
+            status: 'Scheduled',
+            time: '9:00 AM',
+          },
+          {
+            id: 'class-2',
+            trialId: 'trial-1',
+            name: 'Interior Advanced',
+            status: 'In Progress',
+            time: '10:00 AM',
+          },
         ]}
         entries={[]}
         canManageShow
@@ -87,14 +106,48 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.getAllByRole('heading', { name: 'Container Novice' })).not.toHaveLength(0);
   });
 
+  it('writes the computed day, focus, and anchor into owner-page return links', async () => {
+    render(
+      <ShowDeskPanel
+        show={show}
+        trials={[trial]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+          { id: 'class-2', trialId: 'trial-1', name: 'Interior Advanced', status: 'In Progress' },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={now}
+      />,
+      { initialRoute: '/shows/show-1/show-desk' }
+    );
+
+    const entriesLink = await screen.findAllByRole('link', { name: /view entries and results/i });
+    expect(decodeURIComponent(entriesLink[0]?.getAttribute('href') ?? '')).toContain(
+      'returnTo=/shows/show-1/show-desk?day=2026-06-12&focus=class-2&anchor=class-2'
+    );
+  });
+
   it('keeps Trial summaries and deliberate focus while collapsing and filtering the schedule', async () => {
     const { user } = render(
       <ShowDeskPanel
         show={show}
         trials={[trial]}
         classes={[
-          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled', time: '9:00 AM' },
-          { id: 'class-2', trialId: 'trial-1', name: 'Interior Advanced', status: 'In Progress', time: '10:00 AM' },
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Container Novice',
+            status: 'Scheduled',
+            time: '9:00 AM',
+          },
+          {
+            id: 'class-2',
+            trialId: 'trial-1',
+            name: 'Interior Advanced',
+            status: 'In Progress',
+            time: '10:00 AM',
+          },
         ]}
         entries={[]}
         canManageShow
@@ -112,7 +165,9 @@ describe('ShowDeskPanel cockpit', () => {
     await user.click(screen.getByRole('button', { name: 'In progress' }));
     expect(screen.queryByRole('button', { name: 'Container Novice' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('heading', { name: 'Container Novice' })).not.toHaveLength(0);
-    expect(screen.getByText('Focused Class is outside the current schedule filter.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Focused Class is outside the current schedule filter.')
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Interior Advanced' })).toBeInTheDocument();
   });
 
@@ -152,12 +207,37 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.getAllByTestId('cockpit-inline-focus')).toHaveLength(1);
   });
 
+  it('restores the URL-backed schedule anchor without changing Class focus', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    render(
+      <ShowDeskPanel
+        show={show}
+        trials={[trial]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+          { id: 'class-2', trialId: 'trial-1', name: 'Interior Advanced', status: 'In Progress' },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={now}
+      />,
+      { initialRoute: '/shows/show-1/show-desk?focus=class-2&anchor=class-1' }
+    );
+
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledOnce());
+    expect(screen.getAllByRole('heading', { name: 'Interior Advanced' })).not.toHaveLength(0);
+  });
+
   it('keeps Class work available even when it is not an attention item', () => {
     render(
       <ShowDeskPanel
         show={show}
         trials={[trial]}
-        classes={[{ id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' }]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+        ]}
         entries={[]}
         canManageShow
         scopeNow={now}
@@ -182,8 +262,12 @@ describe('ShowDeskPanel cockpit', () => {
       <ShowDeskPanel
         show={show}
         trials={[trial]}
-        classes={[{ id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' }]}
-        entries={[{ id: 'entry-1', class_id: 'class-1', entry_status: 'submitted', check_in_status: null }]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+        ]}
+        entries={[
+          { id: 'entry-1', class_id: 'class-1', entry_status: 'submitted', check_in_status: null },
+        ]}
         canManageShow
         scopeNow={now}
       />,
@@ -196,7 +280,7 @@ describe('ShowDeskPanel cockpit', () => {
     expect(reviewLink).toHaveAttribute('href', expect.stringContaining('/entry-management'));
     expect(reviewLink).toHaveAttribute('href', expect.stringContaining('returnTo='));
     expect(decodeURIComponent(reviewLink?.getAttribute('href') ?? '')).toContain(
-      'focus=class-1&filter=all'
+      'focus=class-1&anchor=class-1'
     );
   });
 
@@ -205,7 +289,9 @@ describe('ShowDeskPanel cockpit', () => {
       <ShowDeskPanel
         show={show}
         trials={[trial]}
-        classes={[{ id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Complete' }]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Complete' },
+        ]}
         entries={[
           {
             id: 'entry-1',
@@ -229,7 +315,9 @@ describe('ShowDeskPanel cockpit', () => {
       <ShowDeskPanel
         show={show}
         trials={[trial]}
-        classes={[{ id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' }]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+        ]}
         entries={[{ id: 'entry-1', class_id: 'class-1', entry_status: 'submitted' }]}
         canManageShow={false}
         scopeNow={now}

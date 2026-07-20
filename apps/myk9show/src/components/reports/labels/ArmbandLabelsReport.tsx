@@ -68,9 +68,21 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     [filter, showSpecific, specificArmband]
   );
 
-  const filtered = useMemo(
-    () => filterEntries(selectArmbandLabelEntries(allEntries, scope), filterConfig),
+  const filteredCandidates = useMemo(
+    () =>
+      filterEntries(
+        allEntries.filter(entry => {
+          if (scope.kind === 'class') return entry.classId === scope.classId;
+          if (scope.kind === 'trial') return entry.trialId === scope.trialId;
+          return true;
+        }),
+        filterConfig
+      ),
     [allEntries, filterConfig, scope]
+  );
+  const filtered = useMemo(
+    () => selectArmbandLabelEntries(filteredCandidates, { kind: 'show', showId: scope.showId }),
+    [filteredCandidates, scope.showId]
   );
   const items = useMemo(() => prepareArmbandLabelItems(filtered), [filtered]);
   const paperworkDescriptor = useMemo(
@@ -85,9 +97,25 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               armband: entry.armband,
               callName: entry.callName,
               handlerName: entry.handler,
+              classIds: filteredCandidates
+                .filter(
+                  candidate =>
+                    (candidate.dogId || `armband:${candidate.armband}`) ===
+                      (entry.dogId || `armband:${entry.armband}`) &&
+                    candidate.calendarDay === entry.calendarDay
+                )
+                .map(candidate => candidate.classId),
+              trialIds: filteredCandidates
+                .filter(
+                  candidate =>
+                    (candidate.dogId || `armband:${candidate.armband}`) ===
+                      (entry.dogId || `armband:${entry.armband}`) &&
+                    candidate.calendarDay === entry.calendarDay
+                )
+                .map(candidate => candidate.trialId),
             }))
           ),
-    [filtered, scope]
+    [filtered, filteredCandidates, scope]
   );
   const pages = useMemo(() => buildLabelPages(template, items, skip), [template, items, skip]);
 

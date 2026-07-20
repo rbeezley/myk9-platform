@@ -16,6 +16,17 @@ Focused result: 10 files and 44 tests passed. App typecheck, lint, production bu
 
 The release-gate follow-up added focused coverage for private Realtime authentication, database Broadcast payload normalization, and staff-only Actual Start/Actual Finish visibility. The combined follow-up run passed 3 files and 29 tests.
 
+Independent review then found six release blockers. The correction pass added
+durable live Paperwork Print refresh, symmetric added/removed/moved-subject
+staleness, Class identity/lifecycle fingerprints, computed Armband evidence,
+URL initialization and anchor restoration, reachable attention overflow, and
+idempotent lifecycle selection that preserves Actual Start/Finish. It also made
+preparation reminders honor Revised Expected Start, restored 44 px timing
+controls, moved print recording to the calm confirmation dialog, hardened
+Class-scoped Result mapping, and removed the now-redundant fixture prototype.
+The focused correction run passed 12 files and 73 tests; lint, production-app
+TypeScript compilation, and the production build passed afterward.
+
 The final non-integration myK9Show suite passed 1,498 test files and 13,609 tests, with 1 benchmark file and 9 benchmark tests intentionally skipped. The first full run exposed stale partial Supabase test clients that did not model `realtime.setAuth`; the shared test client was brought back into parity, the 59 directly affected tests passed together, and the complete suite then passed without product-code failures.
 
 The behavioral RLS script remains at `supabase/tests/paperwork_prints_rls_test.sql`. The local Docker-backed Supabase stack was unavailable for execution during this walk, so the focused source contract and previously applied linked migration are the local permission evidence; the transactional SQL test should also run in CI or an available local stack.
@@ -57,7 +68,11 @@ The behavioral RLS script remains at `supabase/tests/paperwork_prints_rls_test.s
 - `secretaryCockpitSharedSync.spec.ts` passed against the shared Heartland Show with two independent secretary browser contexts and one staff `/at-show` context.
 - An online manual lifecycle change reached Device B without reload and appeared on `/at-show` with the recorded Actual Start.
 - Revised Expected Start reached Device B and `/at-show`; a second change made while Device A was offline remained local, then converged to both already-open surfaces after reconnect.
+- A service-role Paperwork Print probe appeared in the already-open Device B
+  history without reload, proving the dedicated private Broadcast trigger and
+  scoped replication refresh converge print coordination between secretaries.
 - Cleanup restored the demo Class to `upcoming`, manual source, with no Actual Start, Actual Finish, or Revised Expected Start.
+- Cleanup also deleted the exact temporary Paperwork Print probe.
 - `AtShowClassListPage.test.tsx` proves Actual Start/Actual Finish are visible to staff and withheld from exhibitor-only viewers.
 - The existing opt-in `show-live-sync.spec.ts` also passed against real staging Realtime after fixing two production defects exposed by the rehearsal: private channels now authenticate before joining, and database Broadcast payloads containing Supabase's generated `id` are normalized instead of discarded.
 
@@ -73,4 +88,4 @@ The behavioral RLS script remains at `supabase/tests/paperwork_prints_rls_test.s
 | Correctness  | All 77 scenarios map to focused unit/component, source-contract, browser, or shared-staging evidence. No implementation divergence found.                                                                                         |
 | Coherence    | The implementation follows the approved stable schedule, deliberate Class focus, canonical-owner deep links, truthful Paperwork Print evidence, replicated Class timing, compact chrome, and optional Operational Area decisions. |
 
-No implementation defect blocks the PR. Task 7.8 remains a critical archive gate: do not mark the change complete or archive it until CI/review pass, merge is approved and completed, and branch/worktree cleanup finishes.
+No known implementation defect blocks the PR. Task 7.8 remains a critical archive gate: do not mark the change complete or archive it until CI/review pass, merge is approved and completed, and branch/worktree cleanup finishes.

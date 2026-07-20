@@ -90,11 +90,12 @@ export default function ShowDeskPanel({
           ...classItem,
           trial_id: classItem.trialId,
         })) as unknown as DbClass[],
+        trials: trials.map(trialItem => ({ id: trialItem.id, trialDate: trialItem.trialDate })),
         entries: entries as unknown as DbEntry[],
         records: paperworkPrints.data ?? [],
         returnTo,
       }),
-    [classes, entries, paperworkPrints.data, returnTo, show.id]
+    [classes, entries, paperworkPrints.data, returnTo, show.id, trials]
   );
   const snapshot = useMemo(
     () =>

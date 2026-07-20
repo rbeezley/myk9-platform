@@ -14,10 +14,14 @@ const COCKPIT_FILTERS: ReadonlySet<string> = new Set([
 ]);
 
 export interface CockpitUrlState {
-  selectedDay?: string;
+  selectedDay?: string | undefined;
   filter: CockpitFilter;
   focusedClassId?: string | undefined;
-  anchor?: string;
+  anchor?: string | undefined;
+}
+
+export function getCockpitAnchorElementId(anchor: string): string {
+  return `cockpit-anchor-${encodeURIComponent(anchor)}`;
 }
 
 export function normalizeCockpitUrlState(params: URLSearchParams): CockpitUrlState {

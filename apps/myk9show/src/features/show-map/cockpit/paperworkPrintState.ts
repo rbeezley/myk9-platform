@@ -3,11 +3,15 @@ import type { ReportScope } from '@/lib/reports/types';
 export interface PaperworkSubject {
   key: string;
   facts: unknown;
+  classIds?: readonly string[] | undefined;
+  trialIds?: readonly string[] | undefined;
 }
 
 export interface PaperworkCoverage extends Record<string, unknown> {
   scopeKind: ReportScope['kind'];
+  scope: ReportScope;
   subjectFingerprints: Record<string, string>;
+  subjectScopes: Record<string, { classIds: readonly string[]; trialIds: readonly string[] }>;
 }
 
 export interface PaperworkDescriptor {
@@ -34,6 +38,7 @@ export interface CheckInPaperworkEntry {
   armband: number | null;
   runOrder: number | null;
   checkInStatus: string | null;
+  trialId?: string | undefined;
 }
 
 export interface ScoreSheetPaperworkEntry extends CheckInPaperworkEntry {
@@ -49,6 +54,7 @@ export interface ResultPaperworkEntry {
   placement: number | null;
   searchTimeSeconds: number | null;
   totalFaults: number | null;
+  trialId?: string | undefined;
 }
 
 export interface ArmbandPaperworkDog {
@@ -57,6 +63,14 @@ export interface ArmbandPaperworkDog {
   armband: number;
   callName: string;
   handlerName: string;
+  classIds?: readonly string[] | undefined;
+  trialIds?: readonly string[] | undefined;
+}
+
+export interface PaperworkClassFacts {
+  classId: string;
+  trialId: string;
+  facts: Record<string, unknown>;
 }
 
 function stableStringify(value: unknown): string {
@@ -91,10 +105,19 @@ function buildDescriptor(
       .sort((left, right) => left.key.localeCompare(right.key))
       .map(subject => [subject.key, compactFingerprint(subject.facts)])
   );
+  const subjectScopes = Object.fromEntries(
+    subjects.map(subject => [
+      subject.key,
+      {
+        classIds: [...new Set(subject.classIds ?? [])].sort(),
+        trialIds: [...new Set(subject.trialIds ?? [])].sort(),
+      },
+    ])
+  );
   return {
     reportId,
     scope,
-    coverage: { scopeKind: scope.kind, subjectFingerprints },
+    coverage: { scopeKind: scope.kind, scope, subjectFingerprints, subjectScopes },
     fingerprint: compactFingerprint(subjectFingerprints),
   };
 }
@@ -109,6 +132,8 @@ export function buildCheckInPaperworkDescriptor(
     entries.map(entry => ({
       key: `entry:${entry.entryId}`,
       facts: entry,
+      classIds: [entry.classId],
+      trialIds: entry.trialId ? [entry.trialId] : [],
     }))
   );
 }
@@ -116,24 +141,44 @@ export function buildCheckInPaperworkDescriptor(
 export function buildScoreSheetPaperworkDescriptor(
   scope: ReportScope,
   entries: readonly ScoreSheetPaperworkEntry[],
-  classFacts: Record<string, unknown>
+  classes: readonly PaperworkClassFacts[]
 ): PaperworkDescriptor {
   return buildDescriptor('scoresheet', scope, [
-    ...entries.map(entry => ({ key: `entry:${entry.entryId}`, facts: entry })),
-    { key: `class:${scope.kind === 'class' ? scope.classId : 'selection'}`, facts: classFacts },
+    ...entries.map(entry => ({
+      key: `entry:${entry.entryId}`,
+      facts: entry,
+      classIds: [entry.classId],
+      trialIds: entry.trialId ? [entry.trialId] : [],
+    })),
+    ...classes.map(classItem => ({
+      key: `class:${classItem.classId}`,
+      facts: classItem.facts,
+      classIds: [classItem.classId],
+      trialIds: [classItem.trialId],
+    })),
   ]);
 }
 
 export function buildResultPaperworkDescriptor(
   reportId: 'results-sheet' | 'result-labels',
   scope: ReportScope,
-  entries: readonly ResultPaperworkEntry[]
+  entries: readonly ResultPaperworkEntry[],
+  classes: readonly PaperworkClassFacts[] = []
 ): PaperworkDescriptor {
-  return buildDescriptor(
-    reportId,
-    scope,
-    entries.map(entry => ({ key: `entry:${entry.entryId}`, facts: entry }))
-  );
+  return buildDescriptor(reportId, scope, [
+    ...entries.map(entry => ({
+      key: `entry:${entry.entryId}`,
+      facts: entry,
+      classIds: [entry.classId],
+      trialIds: entry.trialId ? [entry.trialId] : [],
+    })),
+    ...classes.map(classItem => ({
+      key: `class:${classItem.classId}`,
+      facts: classItem.facts,
+      classIds: [classItem.classId],
+      trialIds: [classItem.trialId],
+    })),
+  ]);
 }
 
 export function buildArmbandPaperworkDescriptor(
@@ -143,13 +188,20 @@ export function buildArmbandPaperworkDescriptor(
   return buildDescriptor(
     'armband-labels',
     scope,
-    dogs.map(dog => ({ key: `dog-day:${dog.dogId}:${dog.calendarDay}`, facts: dog }))
+    dogs.map(dog => ({
+      key: `dog-day:${dog.dogId || `armband:${dog.armband}`}:${dog.calendarDay}`,
+      facts: dog,
+      classIds: dog.classIds,
+      trialIds: dog.trialIds,
+    }))
   );
 }
 
 function readCoverage(record: PaperworkPrintEvidence): PaperworkCoverage | null {
   const scopeKind = record.coverage.scopeKind;
   const subjectFingerprints = record.coverage.subjectFingerprints;
+  const scope = record.coverage.scope;
+  const subjectScopes = record.coverage.subjectScopes;
   if (
     (scopeKind !== 'show' && scopeKind !== 'trial' && scopeKind !== 'class') ||
     !subjectFingerprints ||
@@ -158,10 +210,38 @@ function readCoverage(record: PaperworkPrintEvidence): PaperworkCoverage | null 
   ) {
     return null;
   }
+  const parsedScope =
+    scope && typeof scope === 'object' && !Array.isArray(scope)
+      ? (scope as ReportScope)
+      : ({ kind: scopeKind } as ReportScope);
   return {
     scopeKind,
+    scope: parsedScope,
     subjectFingerprints: subjectFingerprints as Record<string, string>,
+    subjectScopes:
+      subjectScopes && typeof subjectScopes === 'object' && !Array.isArray(subjectScopes)
+        ? (subjectScopes as PaperworkCoverage['subjectScopes'])
+        : {},
   };
+}
+
+function scopeCovers(record: PaperworkCoverage, current: ReportScope): boolean {
+  const recordScope = record.scope;
+  if (!('showId' in recordScope) || recordScope.showId !== current.showId) return false;
+  if (recordScope.kind === 'show') return true;
+  if (recordScope.kind === 'trial') {
+    return current.kind !== 'show' && current.trialId === recordScope.trialId;
+  }
+  return current.kind === 'class' && current.classId === recordScope.classId;
+}
+
+function subjectBelongsToScope(
+  subject: { classIds: readonly string[]; trialIds: readonly string[] },
+  scope: ReportScope
+): boolean {
+  if (scope.kind === 'show') return true;
+  if (scope.kind === 'trial') return subject.trialIds.includes(scope.trialId);
+  return subject.classIds.includes(scope.classId);
 }
 
 export function derivePaperworkPrintState(
@@ -179,10 +259,11 @@ export function derivePaperworkPrintState(
     .filter(
       (candidate): candidate is { record: PaperworkPrintEvidence; coverage: PaperworkCoverage } => {
         const coverage = candidate.coverage;
-        return (
-          coverage !== null &&
-          Object.keys(currentSubjects).every(key => key in coverage.subjectFingerprints)
-        );
+        if (coverage === null) return false;
+        if ('showId' in coverage.scope) return scopeCovers(coverage, current.scope);
+        // Backward compatibility for confirmations written before scoped
+        // coverage metadata existed. New records use the exact scope path above.
+        return Object.keys(currentSubjects).every(key => key in coverage.subjectFingerprints);
       }
     )
     .sort((left, right) => right.record.printedAt.localeCompare(left.record.printedAt));
@@ -190,9 +271,16 @@ export function derivePaperworkPrintState(
   const latest = candidates[0];
   if (!latest) return { state: 'unconfirmed', record: null, staleSubjectKeys: [] };
 
-  const staleSubjectKeys = Object.entries(currentSubjects)
-    .filter(([key, fingerprint]) => latest.coverage.subjectFingerprints[key] !== fingerprint)
-    .map(([key]) => key);
+  const recordedSubjects = latest.coverage.subjectFingerprints;
+  const scopedRecordedKeys =
+    Object.keys(latest.coverage.subjectScopes).length > 0
+      ? Object.entries(latest.coverage.subjectScopes)
+          .filter(([, subjectScope]) => subjectBelongsToScope(subjectScope, current.scope))
+          .map(([key]) => key)
+      : Object.keys(recordedSubjects).filter(key => key in currentSubjects);
+  const staleSubjectKeys = [...new Set([...Object.keys(currentSubjects), ...scopedRecordedKeys])]
+    .filter(key => currentSubjects[key] !== recordedSubjects[key])
+    .sort();
   return {
     state: staleSubjectKeys.length > 0 ? 'stale' : 'current',
     record: latest.record,

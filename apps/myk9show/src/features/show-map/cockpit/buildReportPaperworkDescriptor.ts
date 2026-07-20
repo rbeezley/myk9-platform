@@ -29,6 +29,29 @@ export function buildReportPaperworkDescriptor(input: {
 }): PaperworkDescriptor | null {
   const selected = input.entries.filter(entry => entryInScope(entry, input.scope, input.classes));
   if (selected.length === 0) return null;
+  const classById = new Map(input.classes.map(classItem => [classItem.id, classItem] as const));
+  const selectedClasses = [...new Set(selected.map(entry => entry.class_id).filter(Boolean))]
+    .map(classId => classById.get(classId as string))
+    .filter((classItem): classItem is DbClass => Boolean(classItem));
+  const classFacts = selectedClasses.map(classItem => {
+    const row = classItem as DbClass & Record<string, unknown>;
+    return {
+      classId: classItem.id,
+      trialId: classItem.trial_id ?? '',
+      facts: {
+        classId: classItem.id,
+        trialId: classItem.trial_id,
+        element: classItem.element,
+        level: classItem.level,
+        section: classItem.section,
+        status: row.status,
+        judgeName: row.judge_name,
+        timeLimitSeconds: classItem.time_limit_seconds,
+        areaCount: classItem.num_areas,
+        hides: classItem.num_hides,
+      },
+    };
+  });
 
   if (input.reportId === 'check-in-sheet') {
     return buildCheckInPaperworkDescriptor(
@@ -40,15 +63,12 @@ export function buildReportPaperworkDescriptor(input: {
         armband: entry.armband == null ? null : Number(entry.armband),
         runOrder: entry.run_order,
         checkInStatus: entry.check_in_status,
+        trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
       }))
     );
   }
 
   if (input.reportId === 'scoresheet') {
-    const classId = input.scope.kind === 'class' ? input.scope.classId : null;
-    const selectedClass = classId
-      ? input.classes.find(classItem => classItem.id === classId)
-      : undefined;
     return buildScoreSheetPaperworkDescriptor(
       input.scope,
       selected.map(entry => ({
@@ -58,15 +78,10 @@ export function buildReportPaperworkDescriptor(input: {
         armband: entry.armband == null ? null : Number(entry.armband),
         runOrder: entry.run_order,
         checkInStatus: entry.check_in_status,
-        section: selectedClass?.section ?? null,
+        section: classById.get(entry.class_id ?? '')?.section ?? null,
+        trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
       })),
-      selectedClass
-        ? {
-            timeLimitSeconds: selectedClass.time_limit_seconds,
-            areaCount: selectedClass.num_areas,
-            hides: selectedClass.num_hides,
-          }
-        : { selection: input.scope.kind }
+      classFacts
     );
   }
 
@@ -83,7 +98,9 @@ export function buildReportPaperworkDescriptor(input: {
         placement: entry.final_placement,
         searchTimeSeconds: entry.search_time_seconds,
         totalFaults: entry.total_faults,
-      }))
+        trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
+      })),
+      classFacts
     );
   }
 

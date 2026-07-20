@@ -24,7 +24,6 @@ import { features } from '@/config/features';
 import { UserRole } from '@/types/auth-types';
 import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
-import SecretaryCockpitPrototypePage from '@/pages/secretary/SecretaryCockpitPrototypePage';
 import { SHOW_MANAGEMENT_SECTIONS, type ShowManagementSectionPath } from './showManagementSections';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import { hasScopedClubRole } from '@/utils/roleScopes';
@@ -570,8 +569,5 @@ export const PublicRoutes = () => (
 
     {/* Design prototype — no auth, dev iteration only */}
     {import.meta.env.DEV && <Route path="/prototype/show" element={<ShowDetailsPrototype />} />}
-    {import.meta.env.DEV && (
-      <Route path="/prototype/secretary-cockpit" element={<SecretaryCockpitPrototypePage />} />
-    )}
   </>
 );

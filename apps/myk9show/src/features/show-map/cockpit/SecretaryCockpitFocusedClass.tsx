@@ -11,6 +11,7 @@ import { replicatedPaperworkPrintsTable } from '@/services/replication';
 import { CockpitActionLink } from './CockpitActionLink';
 import { ClassStatusControl, ExpectedStartControl } from './ClassOperationalControls';
 import { formatTrialIdentity } from './secretaryCockpitModel';
+import { PaperworkPrintConfirmationDialog } from './PaperworkPrintConfirmationDialog';
 import type {
   FocusedClassModel,
   SecretaryCockpitAttention,
@@ -27,11 +28,11 @@ function PaperworkRow({
 }) {
   const { user } = useAuthContext();
   const [isRecording, setIsRecording] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const current = item.state === 'current';
   const stale = item.state === 'stale';
   const recordAsPrinted = async () => {
     if (!user || !item.confirmation) return;
-    if (!window.confirm(`Record ${item.label} as printed now?`)) return;
     const metadata = user.user_metadata ?? {};
     const printedByName =
       (metadata.full_name as string | undefined)?.trim() ||
@@ -111,11 +112,21 @@ function PaperworkRow({
           type="button"
           className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary underline-offset-4 hover:underline disabled:opacity-60"
           disabled={isRecording}
-          onClick={() => void recordAsPrinted()}
+          onClick={() => setConfirmOpen(true)}
         >
           {isRecording ? 'Recording…' : 'Record as printed'}
         </button>
       )}
+      <PaperworkPrintConfirmationDialog
+        open={confirmOpen}
+        reportLabel={item.label}
+        isSaving={isRecording}
+        onOpenChange={setConfirmOpen}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          void recordAsPrinted();
+        }}
+      />
       {item.history && item.history.length > 0 && (
         <details className="mt-2 text-xs text-muted-foreground">
           <summary className="cursor-pointer font-medium text-foreground">
@@ -250,7 +261,7 @@ export function SecretaryCockpitFocusedClass({
 
         {attention.length > 0 && (
           <div className="space-y-2">
-            {attention.slice(0, 2).map(item => (
+            {attention.map(item => (
               <div
                 key={item.id}
                 className="rounded-lg border border-destructive/30 bg-destructive/5 p-3"

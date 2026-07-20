@@ -96,7 +96,7 @@ export interface SecretaryCockpitSnapshot {
 }
 
 export interface SecretaryCockpitState {
-  selectedDay?: string;
+  selectedDay?: string | undefined;
   focusedClassId?: string | undefined;
   filter: CockpitFilter;
 }

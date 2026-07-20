@@ -68,6 +68,14 @@ function parseTime(value: string | null | undefined): number | null {
   return hour * 60 + minute;
 }
 
+function operationalMinutes(value: string | null | undefined, timeZone: string): number | null {
+  if (value?.includes('T')) {
+    const instant = new Date(value);
+    if (!Number.isNaN(instant.getTime())) return minuteOfDayInTimeZone(instant, timeZone);
+  }
+  return parseTime(value);
+}
+
 function formatClock(value: string | null | undefined, timeZone: string): string | null {
   if (!value) return null;
   if (value.includes('T')) {
@@ -254,14 +262,18 @@ function preparationAttention(
   cls: SecretaryCockpitClass,
   trial: SecretaryCockpitTrial,
   nowMinutes: number,
-  allowUntimed: boolean
+  allowUntimed: boolean,
+  timeZone: string
 ): SecretaryCockpitAttention[] {
   if (cls.lifecycle !== 'not-started') return [];
-  const scheduledMinutes = parseTime(cls.scheduledStart);
-  const minutesUntil = scheduledMinutes == null ? null : scheduledMinutes - nowMinutes;
+  const expectedMinutes = operationalMinutes(
+    cls.revisedExpectedStart ?? cls.scheduledStart,
+    timeZone
+  );
+  const minutesUntil = expectedMinutes == null ? null : expectedMinutes - nowMinutes;
   const isImminent =
     minutesUntil != null && minutesUntil >= 0 && minutesUntil <= PREPARATION_WINDOW_MINUTES;
-  if (!isImminent && !(scheduledMinutes == null && allowUntimed)) return [];
+  if (!isImminent && !(expectedMinutes == null && allowUntimed)) return [];
 
   return cls.paperwork
     .filter(item => PRE_CLASS_PAPERWORK.has(item.reportId))
@@ -293,7 +305,15 @@ function buildAttention(
   const nowMinutes = minuteOfDayInTimeZone(snapshot.now, snapshot.timeZone);
   const generated = dayClasses.flatMap(cls => {
     const trial = trialById.get(cls.trialId);
-    return trial ? preparationAttention(cls, trial, nowMinutes, cls.id === nextNotStarted?.id) : [];
+    return trial
+      ? preparationAttention(
+          cls,
+          trial,
+          nowMinutes,
+          cls.id === nextNotStarted?.id,
+          snapshot.timeZone
+        )
+      : [];
   });
   const candidates = [
     ...dayClasses.flatMap(cls =>

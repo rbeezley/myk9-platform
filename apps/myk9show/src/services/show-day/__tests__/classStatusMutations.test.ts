@@ -5,9 +5,11 @@ import { applyManualClassStatus } from '../classStatusMutations';
 import { replicatedClassesTable } from '@/services/replication';
 
 const mockUpdateClass = replicatedClassesTable.updateClass as unknown as ReturnType<typeof vi.fn>;
+const mockGetClassById = replicatedClassesTable.getClassById as unknown as ReturnType<typeof vi.fn>;
 
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: {
+    getClassById: vi.fn(() => Promise.resolve(null)),
     updateClass: vi.fn(() => Promise.resolve('class-mutation-1')),
   },
 }));
@@ -17,6 +19,7 @@ describe('applyManualClassStatus', () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-07-18T12:00:00.000Z'));
+    mockGetClassById.mockResolvedValue(null);
   });
 
   it('writes In Progress with a start timestamp and no reopen-stamp clear', async () => {
@@ -93,5 +96,16 @@ describe('applyManualClassStatus', () => {
     await applyManualClassStatus('class-1', CLASS_STATUS.IN_PROGRESS);
 
     expect(mockUpdateClass).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves authoritative timing when the selected status is already current', async () => {
+    mockGetClassById.mockResolvedValue({
+      classStatus: CLASS_STATUS.IN_PROGRESS,
+      actual_start_time: '2026-07-18T11:30:00.000Z',
+    });
+
+    await applyManualClassStatus('class-1', CLASS_STATUS.IN_PROGRESS);
+
+    expect(mockUpdateClass).not.toHaveBeenCalled();
   });
 });

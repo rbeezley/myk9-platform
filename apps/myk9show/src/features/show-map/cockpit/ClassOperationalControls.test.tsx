@@ -51,4 +51,10 @@ describe('ClassStatusControl', () => {
     expect(screen.getByRole('separator')).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Cancelled' })).toHaveClass('text-destructive');
   });
+
+  it('keeps the current lifecycle visible but not actionable', () => {
+    render(<ClassStatusControl classId="class-1" lifecycle="in-progress" canManageShow />);
+
+    expect(screen.getByRole('menuitem', { name: 'In progress' })).toBeDisabled();
+  });
 });

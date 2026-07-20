@@ -1,5 +1,9 @@
 # Secretary Cockpit Prototype Review
 
+> Archived review artifact. After the production cockpit passed the browser,
+> offline, and shared-staging gates below, the development-only prototype route
+> and fixture components were removed to avoid leaving a duplicate Show Desk.
+
 ## Question
 
 Does the approved stable-schedule cockpit let a busy secretary orient, focus one
@@ -12,14 +16,14 @@ coordinate physical printing across desktop and tablet?
 pnpm dev:show
 ```
 
-Open:
+During the prototype approval phase, the review route was:
 
 ```text
 http://127.0.0.1:5173/prototype/secretary-cockpit?variant=scent
 ```
 
-The route exists only in development builds. It uses fixture data, keeps all
-state in memory or the URL, performs no query or mutation, and does not alter or
+The route existed only in development builds. It used fixture data, kept all
+state in memory or the URL, performed no query or mutation, and did not alter or
 replace the production Show Desk.
 
 Use the floating arrows or keyboard Left/Right to switch among:

@@ -103,13 +103,18 @@ export function ClassStatusControl({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {STATUS_OPTIONS.filter(option => option.value !== CLASS_STATUS.CANCELLED).map(option => (
-          <DropdownMenuItem key={option.value} onClick={() => void update(option.value)}>
+          <DropdownMenuItem
+            key={option.value}
+            disabled={option.label === label}
+            onClick={() => void update(option.value)}
+          >
             {option.label}
             {option.label === label && <Check className="ml-auto h-4 w-4" />}
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem
+          disabled={label === 'Cancelled'}
           className="text-destructive focus:text-destructive"
           onClick={() => void update(CLASS_STATUS.CANCELLED)}
         >
@@ -191,7 +196,7 @@ export function ExpectedStartControl({
         value={value}
         onChange={event => setValue(event.target.value)}
         aria-label="Revised expected start"
-        className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+        className="min-h-11 rounded-md border border-input bg-background px-2 text-sm text-foreground"
       />
       <Button
         type="button"
@@ -200,6 +205,7 @@ export function ExpectedStartControl({
         onClick={() => void save()}
         disabled={!value || isSaving}
         aria-label="Save expected start"
+        className="h-11 w-11"
       >
         <Check className="h-4 w-4" />
       </Button>
@@ -210,13 +216,14 @@ export function ExpectedStartControl({
         onClick={() => setIsEditing(false)}
         disabled={isSaving}
         aria-label="Cancel expected start edit"
+        className="h-11 w-11"
       >
         <X className="h-4 w-4" />
       </Button>
       {revisedExpectedStart && (
         <button
           type="button"
-          className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+          className="min-h-11 text-xs text-muted-foreground underline-offset-4 hover:underline"
           onClick={() => void setRevisedExpectedStart(classId, null)}
         >
           Use scheduled time

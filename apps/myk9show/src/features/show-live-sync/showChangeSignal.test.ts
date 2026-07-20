@@ -97,12 +97,21 @@ describe('showChangeSignal', () => {
       table: 'classes',
       id: 'c54ff90a-a859-40d8-b7e7-54d7b57601a3',
     });
+    fake.channels[0].emit({ table: 'paperwork_prints' });
     fake.channels[0].emit({ table: 'entries', id: 7 });
     fake.channels[0].emit({ table: 'dogs' });
 
     expect(fake.channel).toHaveBeenCalledTimes(1);
-    expect(first.mock.calls).toEqual([[{ table: 'entries' }], [{ table: 'classes' }]]);
-    expect(second.mock.calls).toEqual([[{ table: 'entries' }], [{ table: 'classes' }]]);
+    expect(first.mock.calls).toEqual([
+      [{ table: 'entries' }],
+      [{ table: 'classes' }],
+      [{ table: 'paperwork_prints' }],
+    ]);
+    expect(second.mock.calls).toEqual([
+      [{ table: 'entries' }],
+      [{ table: 'classes' }],
+      [{ table: 'paperwork_prints' }],
+    ]);
   });
 
   it('removes the shared channel only after the final consumer unsubscribes', async () => {

@@ -344,6 +344,17 @@ describe('mapScopedReportEntries', () => {
     expect(result[0]).toMatchObject({ classElement: 'Container', trialNumber: '1' });
   });
 
+  it('single-class scope rejects entries from another Class even when a caller passes Show data', () => {
+    const result = mapScopedReportEntries([e1, e2], trials, classes, {
+      kind: 'class',
+      showId: 'show-1',
+      trialId: 'trial-1',
+      classId: 'class-1',
+    });
+
+    expect(result.map(reportEntry => reportEntry.id)).toEqual(['e1']);
+  });
+
   it('preserves replicated financial fields through report totals', () => {
     const replicated = rowToEntry({
       id: 'entry-financial',

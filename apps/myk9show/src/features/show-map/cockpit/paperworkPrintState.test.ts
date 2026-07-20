@@ -59,7 +59,13 @@ describe('paperwork coverage and fingerprints', () => {
           section: 'A',
         },
       ],
-      { timeLimitSeconds: 120 }
+      [
+        {
+          classId: 'class-1',
+          trialId: 'trial-1',
+          facts: { timeLimitSeconds: 120 },
+        },
+      ]
     );
     const result = buildResultPaperworkDescriptor('result-labels', classScope, [
       {
@@ -98,17 +104,36 @@ describe('paperwork coverage and fingerprints', () => {
       {
         entryId: 'entry-1',
         classId: 'class-1',
+        trialId: 'trial-1',
         dogId: 'dog-1',
         armband: 101,
         runOrder: 1,
         checkInStatus: null,
       },
     ]);
-    const trialDescriptor: PaperworkDescriptor = {
-      ...classDescriptor,
-      scope: { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },
-      coverage: { ...classDescriptor.coverage, scopeKind: 'trial' },
-    };
+    const trialDescriptor = buildCheckInPaperworkDescriptor(
+      { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },
+      [
+        {
+          entryId: 'entry-1',
+          classId: 'class-1',
+          trialId: 'trial-1',
+          dogId: 'dog-1',
+          armband: 101,
+          runOrder: 1,
+          checkInStatus: null,
+        },
+        {
+          entryId: 'entry-2',
+          classId: 'class-2',
+          trialId: 'trial-1',
+          dogId: 'dog-2',
+          armband: 102,
+          runOrder: 1,
+          checkInStatus: null,
+        },
+      ]
+    );
     expect(
       derivePaperworkPrintState(
         [evidence('trial-print', trialDescriptor, '2026-07-20T14:00:00.000Z')],
@@ -160,6 +185,77 @@ describe('paperwork coverage and fingerprints', () => {
     );
     expect(derived.state).toBe('stale');
     expect(derived.staleSubjectKeys).toEqual(['entry:entry-2']);
+  });
+
+  it('marks added and removed covered Entries stale instead of unconfirmed or current', () => {
+    const first = {
+      entryId: 'entry-1',
+      classId: 'class-1',
+      trialId: 'trial-1',
+      dogId: 'dog-1',
+      armband: 101,
+      runOrder: 1,
+      checkInStatus: null,
+    };
+    const second = { ...first, entryId: 'entry-2', dogId: 'dog-2', armband: 102, runOrder: 2 };
+    const printed = buildCheckInPaperworkDescriptor(classScope, [first]);
+    const afterAdd = buildCheckInPaperworkDescriptor(classScope, [first, second]);
+    const printedTwo = buildCheckInPaperworkDescriptor(classScope, [first, second]);
+    const afterRemove = buildCheckInPaperworkDescriptor(classScope, [first]);
+
+    expect(
+      derivePaperworkPrintState(
+        [evidence('before-add', printed, '2026-07-20T14:00:00.000Z')],
+        afterAdd
+      )
+    ).toMatchObject({ state: 'stale', staleSubjectKeys: ['entry:entry-2'] });
+    expect(
+      derivePaperworkPrintState(
+        [evidence('before-remove', printedTwo, '2026-07-20T14:00:00.000Z')],
+        afterRemove
+      )
+    ).toMatchObject({ state: 'stale', staleSubjectKeys: ['entry:entry-2'] });
+  });
+
+  it('marks score sheets stale when Class lifecycle facts change', () => {
+    const entry = {
+      entryId: 'entry-1',
+      classId: 'class-1',
+      trialId: 'trial-1',
+      dogId: 'dog-1',
+      armband: 101,
+      runOrder: 1,
+      checkInStatus: null,
+    };
+    const printed = buildScoreSheetPaperworkDescriptor(
+      classScope,
+      [entry],
+      [
+        {
+          classId: 'class-1',
+          trialId: 'trial-1',
+          facts: { status: 'Scheduled', element: 'Container', level: 'Novice' },
+        },
+      ]
+    );
+    const current = buildScoreSheetPaperworkDescriptor(
+      classScope,
+      [entry],
+      [
+        {
+          classId: 'class-1',
+          trialId: 'trial-1',
+          facts: { status: 'In Progress', element: 'Container', level: 'Novice' },
+        },
+      ]
+    );
+
+    expect(
+      derivePaperworkPrintState(
+        [evidence('score-sheet', printed, '2026-07-20T14:00:00.000Z')],
+        current
+      )
+    ).toMatchObject({ state: 'stale', staleSubjectKeys: ['class:class-1'] });
   });
 
   it('prefers a later Class-only reprint and falls back after it is voided', () => {

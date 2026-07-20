@@ -3,7 +3,7 @@ import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
 import { getCockpitReportHref } from './cockpitRoutes';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
-import { derivePaperworkPrintState } from './paperworkPrintState';
+import { buildArmbandPaperworkDescriptor, derivePaperworkPrintState } from './paperworkPrintState';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 
 const REPORTS = [
@@ -17,23 +17,28 @@ const REPORTS = [
 export function buildClassPaperworkMap(input: {
   showId: string;
   classes: readonly DbClass[];
+  trials: readonly { id: string; trialDate: string }[];
   entries: readonly DbEntry[];
   records: readonly ReplicatedPaperworkPrint[];
   returnTo: string;
 }): ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]> {
   const result = new Map<string, SecretaryCockpitPaperwork[]>();
+  const trialDateById = new Map(input.trials.map(trial => [trial.id, trial.trialDate] as const));
   for (const classItem of input.classes) {
     const trialId = classItem.trial_id;
     if (!trialId) continue;
     const scope = { kind: 'class' as const, showId: input.showId, trialId, classId: classItem.id };
     const paperwork = REPORTS.flatMap((report): SecretaryCockpitPaperwork[] => {
       const classEntries = input.entries.filter(entry => entry.class_id === classItem.id);
-      const descriptor = buildReportPaperworkDescriptor({
-        reportId: report.id,
-        scope,
-        classes: input.classes,
-        entries: input.entries,
-      });
+      const descriptor =
+        report.id === 'armband-labels'
+          ? buildArmbandDescriptor(scope, classEntries, trialDateById.get(trialId) ?? '')
+          : buildReportPaperworkDescriptor({
+              reportId: report.id,
+              scope,
+              classes: input.classes,
+              entries: input.entries,
+            });
       const history = input.records
         .filter(record => record.reportId === report.id)
         .filter(
@@ -50,34 +55,28 @@ export function buildClassPaperworkMap(input: {
           ...(record.voidedAt ? { voidedAt: record.voidedAt } : {}),
         }));
       if (report.id === 'armband-labels') {
-        if (classEntries.length === 0) return [];
-        const latest = input.records
-          .filter(record => report.id === record.reportId && !record.voidedAt)
-          .filter(
-            record =>
-              record.classId === classItem.id ||
-              record.trialId === trialId ||
-              record.scopeKind === 'show'
-          )
-          .sort((left, right) => right.printedAt.localeCompare(left.printedAt))[0];
+        if (!descriptor) return [];
+        const derived = derivePaperworkPrintState(input.records, descriptor);
         return [
           {
             reportId: report.id,
             label: report.label,
-            // Armband coverage is Dog/day rather than Entry. Until this adapter
-            // has the joined Dog facts used by the report, preserve the audit
-            // timestamp but do not claim the labels are current.
-            state: latest ? ('unknown' as const) : ('unconfirmed' as const),
+            state: derived.state,
             printHref: getCockpitReportHref({
               reportId: report.id,
               scope,
               returnTo: input.returnTo,
             }),
-            ...(latest
+            confirmation: {
+              scope: descriptor.scope,
+              coverage: descriptor.coverage as unknown as Record<string, unknown>,
+              fingerprint: descriptor.fingerprint,
+            },
+            ...(derived.record
               ? {
-                  printedAt: latest.printedAt,
-                  printedBy: latest.printedByName,
-                  coveredByScope: latest.scopeKind,
+                  printedAt: derived.record.printedAt,
+                  printedBy: derived.record.printedByName,
+                  coveredByScope: derived.record.coverage.scopeKind as 'show' | 'trial' | 'class',
                 }
               : {}),
             history,
@@ -111,4 +110,48 @@ export function buildClassPaperworkMap(input: {
     result.set(classItem.id, paperwork);
   }
   return result;
+}
+
+function buildArmbandDescriptor(
+  scope: Extract<import('@/lib/reports/types').ReportScope, { kind: 'class' }>,
+  entries: readonly DbEntry[],
+  calendarDay: string
+) {
+  const dogs = new Map<
+    string,
+    {
+      dogId: string;
+      calendarDay: string;
+      armband: number;
+      callName: string;
+      handlerName: string;
+      classIds: string[];
+      trialIds: string[];
+    }
+  >();
+  for (const entry of entries) {
+    const armband = entry.armband == null ? null : Number(entry.armband);
+    if (!Number.isFinite(armband) || armband === null || !calendarDay) continue;
+    const row = entry as DbEntry & Record<string, unknown>;
+    const dog = row.dog as Record<string, unknown> | null;
+    const handler = row.handler_person as Record<string, unknown> | null;
+    const owner = dog?.owner as Record<string, unknown> | null;
+    const dogId = entry.dog_id ?? '';
+    const key = `${dogId || `armband:${armband}`}:${calendarDay}`;
+    if (dogs.has(key)) continue;
+    const handlerSource = handler ?? owner;
+    dogs.set(key, {
+      dogId,
+      calendarDay,
+      armband,
+      callName: String(dog?.call_name ?? dog?.name ?? ''),
+      handlerName: handlerSource
+        ? `${handlerSource.first_name ?? ''} ${handlerSource.last_name ?? ''}`.trim()
+        : String(row.handler ?? ''),
+      classIds: [scope.classId],
+      trialIds: [scope.trialId],
+    });
+  }
+  if (dogs.size === 0) return null;
+  return buildArmbandPaperworkDescriptor(scope, [...dogs.values()]);
 }

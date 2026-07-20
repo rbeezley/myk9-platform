@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CalendarDays } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { useSecretaryCockpitUrlState } from './useSecretaryCockpitUrlState';
 import { CockpitActionLink } from './CockpitActionLink';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { SecretaryCockpitSchedule } from './SecretaryCockpitSchedule';
+import { getCockpitAnchorElementId } from './cockpitRoutes';
 import type { SecretaryCockpitSnapshot } from './secretaryCockpitTypes';
 
 export function SecretaryCockpit({
@@ -20,6 +22,8 @@ export function SecretaryCockpit({
   onCommand: (commandId: string) => void;
 }) {
   const { state, updateState } = useSecretaryCockpitUrlState();
+  const [showAllAttention, setShowAllAttention] = useState(false);
+  const restoredAnchor = useRef<string | null>(null);
   const model = buildSecretaryCockpitModel(snapshot, state);
   const focusedId = model.focusedClass?.id;
   const sourceClass = snapshot.classes.find(classItem => classItem.id === focusedId) ?? null;
@@ -42,6 +46,35 @@ export function SecretaryCockpit({
     />
   );
 
+  useEffect(() => {
+    const updates: Parameters<typeof updateState>[0] = {};
+    if (model.day.selected && state.selectedDay !== model.day.selected) {
+      updates.selectedDay = model.day.selected;
+    }
+    if (focusedId && state.focusedClassId !== focusedId) {
+      updates.focusedClassId = focusedId;
+    }
+    if (focusedId && !state.anchor) updates.anchor = focusedId;
+    if (Object.keys(updates).length > 0) updateState(updates, { replace: true });
+  }, [
+    focusedId,
+    model.day.selected,
+    state.anchor,
+    state.focusedClassId,
+    state.selectedDay,
+    updateState,
+  ]);
+
+  useEffect(() => {
+    if (!state.anchor || restoredAnchor.current === state.anchor) return;
+    const target = document.getElementById(getCockpitAnchorElementId(state.anchor));
+    if (!target) return;
+    restoredAnchor.current = state.anchor;
+    target.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  }, [state.anchor, model.trialGroups]);
+
+  const visibleAttention = showAllAttention ? model.attention.all : model.attention.items;
+
   return (
     <div className="space-y-5" data-testid="secretary-cockpit">
       {model.day.available.length > 1 && (
@@ -54,7 +87,9 @@ export function SecretaryCockpit({
               size="sm"
               variant={model.day.selected === day ? 'default' : 'outline'}
               className="min-h-11"
-              onClick={() => updateState({ selectedDay: day, focusedClassId: undefined })}
+              onClick={() =>
+                updateState({ selectedDay: day, focusedClassId: undefined, anchor: undefined })
+              }
             >
               {formatWeekdayMonthDay(day)}
             </Button>
@@ -71,7 +106,7 @@ export function SecretaryCockpit({
             </h2>
           </div>
           <div className="grid gap-2 lg:grid-cols-3">
-            {model.attention.items.map(item => (
+            {visibleAttention.map(item => (
               <div
                 key={item.id}
                 className="rounded-lg border border-destructive/25 bg-destructive/5 p-3"
@@ -91,14 +126,14 @@ export function SecretaryCockpit({
               </div>
             ))}
           </div>
-          {model.attention.overflowCount > 0 && (
+          {model.attention.overflowCount > 0 && !showAllAttention && (
             <Button
               type="button"
               variant="link"
               className="mt-1 min-h-11 px-0"
-              onClick={() => updateState({ filter: 'needs-attention' })}
+              onClick={() => setShowAllAttention(true)}
             >
-              View {model.attention.overflowCount} more in the schedule
+              View {model.attention.overflowCount} more issues
             </Button>
           )}
         </section>
@@ -113,7 +148,7 @@ export function SecretaryCockpit({
           filter={state.filter}
           canManageShow={canManageShow}
           onFilterChange={filter => updateState({ filter })}
-          onFocusClass={focusedClassId => updateState({ focusedClassId })}
+          onFocusClass={focusedClassId => updateState({ focusedClassId, anchor: focusedClassId })}
           onCommand={onCommand}
           inlineFocusedContent={focusedClassIsVisible ? focusedPanel : undefined}
         />

@@ -95,6 +95,10 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Record as printed' }));
+    expect(
+      screen.getByRole('heading', { name: 'Did the Check-in sheet print correctly?' })
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Mark printed' }));
 
     expect(replicatedPaperworkPrintsTable.confirmPrinted).toHaveBeenCalledWith(
       expect.objectContaining({

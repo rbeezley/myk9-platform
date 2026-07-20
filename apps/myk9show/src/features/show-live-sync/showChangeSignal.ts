@@ -3,7 +3,7 @@ import { supabase } from '@/services/database/supabaseClient';
 
 export const SHOWDAY_CHANGE_EVENT = 'showday_change';
 
-export type ShowChangeTable = 'entries' | 'classes';
+export type ShowChangeTable = 'entries' | 'classes' | 'paperwork_prints';
 
 export interface ShowChangeSignal {
   table: ShowChangeTable;
@@ -33,7 +33,9 @@ function isShowChangeSignal(value: unknown): value is ShowChangeSignal {
   const keys = Object.keys(record);
   return (
     keys.every(key => key === 'table' || key === 'id') &&
-    (record.table === 'entries' || record.table === 'classes') &&
+    (record.table === 'entries' ||
+      record.table === 'classes' ||
+      record.table === 'paperwork_prints') &&
     (record.id === undefined || typeof record.id === 'string')
   );
 }

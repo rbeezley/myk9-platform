@@ -1,4 +1,4 @@
-import { CLASS_STATUS, type ClassStatusValue } from '@myk9/core';
+import { CLASS_STATUS, normalizeClassStatus, type ClassStatusValue } from '@myk9/core';
 
 import { replicatedClassesTable } from '@/services/replication';
 
@@ -18,6 +18,16 @@ export async function applyManualClassStatus(
   classId: string,
   targetStatus: ManualClassStatus
 ): Promise<void> {
+  const currentClass = await replicatedClassesTable.getClassById(classId);
+  if (currentClass?.classStatus) {
+    const current = normalizeClassStatus(currentClass.classStatus);
+    const target = normalizeClassStatus(targetStatus);
+    const bothNotStarted =
+      (current === CLASS_STATUS.SCHEDULED || current === CLASS_STATUS.UPCOMING) &&
+      (target === CLASS_STATUS.SCHEDULED || target === CLASS_STATUS.UPCOMING);
+    if (current === target || bothNotStarted) return;
+  }
+
   switch (targetStatus) {
     case CLASS_STATUS.IN_PROGRESS:
       // Starting a class must NOT clear a reopen stamp — only a manual

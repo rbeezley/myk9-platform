@@ -120,14 +120,15 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('status-pill')).toBeInTheDocument();
   });
 
-  it('renders the management section nav with the canonical section links', () => {
+  it('renders the management section nav without Setup as a peer workflow', () => {
     renderShell();
     const nav = screen.getByTestId('canonical-show-management-nav');
     expect(nav).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: /show management section/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute(
+    expect(screen.queryByRole('link', { name: 'Setup' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute(
       'href',
-      '/shows/show-1/setup'
+      '/shows/show-1/show-desk'
     );
   });
 

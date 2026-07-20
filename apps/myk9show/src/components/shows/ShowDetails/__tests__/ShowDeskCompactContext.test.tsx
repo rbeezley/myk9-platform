@@ -65,6 +65,15 @@ describe('ShowDeskCompactContext', () => {
     mocks.sync.isOnline = true;
   });
 
+  it('keeps the canonical Overview reachable from Show Desk context', () => {
+    renderContext();
+
+    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute(
+      'href',
+      '/shows/show-1'
+    );
+  });
+
   it('shows a compact resolving exception when the premium is unpublished', () => {
     mocks.publishInfo.publishedUrl = null;
     mocks.publishInfo.publishedAt = null;
@@ -72,9 +81,9 @@ describe('ShowDeskCompactContext', () => {
     renderContext();
 
     expect(screen.getByText('Premium list is not published')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /review in setup/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /review show details/i })).toHaveAttribute(
       'href',
-      '/shows/show-1/setup#setup-publish'
+      '/shows/show-1#setup-publish'
     );
   });
 
@@ -83,9 +92,7 @@ describe('ShowDeskCompactContext', () => {
     mocks.sync.isOnline = false;
     const { rerender } = renderContext();
 
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Offline · changes saved on this device'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Offline · changes saved on this device');
 
     mocks.sync.status = 'pending';
     mocks.sync.isOnline = true;

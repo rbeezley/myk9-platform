@@ -100,6 +100,13 @@ export function ShowDeskCompactContext({
               Shows
             </Link>
             <span aria-hidden="true">/</span>
+            <Link
+              to={canonicalShowHref}
+              className="hover:text-foreground hover:underline"
+            >
+              Overview
+            </Link>
+            <span aria-hidden="true">/</span>
             <span className="font-medium uppercase tracking-[0.12em] text-primary">Show Desk</span>
           </div>
           <h1 className="mt-1 truncate text-xl font-semibold tracking-tight">
@@ -153,12 +160,12 @@ export function ShowDeskCompactContext({
 
       {publishException && (
         <Link
-          to={`${canonicalShowHref}/setup#${SETUP_PUBLISH_ANCHOR}`}
+          to={`${canonicalShowHref}#${SETUP_PUBLISH_ANCHOR}`}
           className="mt-3 flex min-h-11 items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm font-medium text-warning hover:brightness-95"
         >
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>{publishException}</span>
-          <span className="ml-auto">Review in Setup</span>
+          <span className="ml-auto">Review show details</span>
         </Link>
       )}
     </section>

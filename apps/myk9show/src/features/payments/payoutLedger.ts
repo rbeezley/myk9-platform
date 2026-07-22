@@ -8,15 +8,20 @@
  * colocated test pins the two identical — change both together.
  */
 
+import { isUnresolvedPullRefundDecision } from './pullReconciliation';
+
 /** entries row shape needed to compute a club's online liability for a show. */
 export interface LedgerEntryRow {
   show_id: string;
+  entry_status: string | null;
   /** entries.entry_fee — DECIMAL dollars (no cents column). */
   entry_fee: number | null;
   payment_method: string | null;
   payment_status: string | null;
   /** entries.refund_amount — DECIMAL dollars, service-role-only. */
   refund_amount: number | null;
+  /** Explicit secretary decision; refunded rows are also resolved by refund_amount. */
+  refund_decision: string | null;
 }
 
 /**
@@ -114,6 +119,7 @@ export interface LedgerRow {
   clubName: string | null;
   onlineCollectedCents: number;
   refundedCents: number;
+  unresolvedRefundDecisionCount: number;
   /** What the club is owed: the live payout row if one exists, else computed. */
   netOwedCents: number;
   /** Settle date = end_date + 3 days, ISO date (null if the show has no end). */
@@ -163,6 +169,7 @@ export function buildLedgerRows(
       clubName: show.clubName,
       onlineCollectedCents: sumOnlineCollectedCents(entries),
       refundedCents: sumRefundedCents(entries),
+      unresolvedRefundDecisionCount: entries.filter(isUnresolvedPullRefundDecision).length,
       netOwedCents: useStoredAmount ? payout.amount_cents : computedNet,
       settleDate: computeSettleDate(show.endDate),
       payoutStatus: payout ? payout.status : null,

@@ -224,6 +224,43 @@ describe('EntriesTableView selection column', () => {
     expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
   });
 
+  it('shows pull reason, timing, and reconciliation actions in pulled mode', () => {
+    render(
+      <EntriesTableView
+        entries={[
+          {
+            ...entry('pulled', 'Willow'),
+            entryStatus: EntryStatus.SCRATCHED,
+            rawEntryStatus: 'scratched',
+            paymentMethod: 'online',
+            paymentStatus: PaymentStatus.PAID_ONLINE,
+            pullReason: 'Dog is sore',
+            pullTiming: 'before_close',
+          },
+        ]}
+        showPullReconciliation={true}
+      />
+    );
+
+    expect(screen.getByRole('columnheader', { name: 'Pull reason' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Pull timing' })).toBeInTheDocument();
+    expect(screen.getByText('Dog is sore')).toBeInTheDocument();
+    expect(screen.getByText('Before close')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Issue refund' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Deny refund' })).toBeInTheDocument();
+  });
+
+  it('labels missing pull timing as unknown', () => {
+    render(
+      <EntriesTableView
+        entries={[{ ...entry('legacy-pull', 'Ranger'), pullTiming: null }]}
+        showPullReconciliation={true}
+      />
+    );
+
+    expect(screen.getByText('Timing unknown')).toBeInTheDocument();
+  });
+
   // Task 3.2 — a display density preset (Design Decision 3) is a bounded
   // layout choice: identity, status, selection, and the row action menu must
   // remain rendered in EVERY density.

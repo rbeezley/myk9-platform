@@ -27,10 +27,12 @@ function payout(p: Partial<LedgerPayout>): LedgerPayout {
 function entry(p: Partial<LedgerEntryRow>): LedgerEntryRow {
   return {
     show_id: 's1',
+    entry_status: 'confirmed',
     entry_fee: 25,
     payment_method: 'online',
     payment_status: 'paid',
     refund_amount: null,
+    refund_decision: null,
     ...p,
   };
 }
@@ -169,6 +171,24 @@ describe('buildLedgerRows', () => {
   it('sorts by settle date descending (newest first)', () => {
     const rows = buildLedgerRows(shows, new Map(), new Map());
     expect(rows.map(r => r.showId)).toEqual(['s2', 's1']);
+  });
+
+  it('counts unresolved paid-online pull decisions per show', () => {
+    const entriesByShow = new Map<string, LedgerEntryRow[]>([
+      [
+        's1',
+        [
+          entry({ entry_status: 'scratched' }),
+          entry({ entry_status: 'scratched', refund_decision: 'denied' }),
+          entry({ entry_status: 'scratched', refund_amount: 25 }),
+          entry({ entry_status: 'confirmed' }),
+        ],
+      ],
+    ]);
+
+    const rows = buildLedgerRows(shows, entriesByShow, new Map());
+
+    expect(rows.find(row => row.showId === 's1')?.unresolvedRefundDecisionCount).toBe(1);
   });
 });
 

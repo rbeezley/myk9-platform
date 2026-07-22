@@ -20,6 +20,7 @@ import {
   type EntryDecisionEmailJob,
   type EntryDecisionEmailStatus,
 } from '@/features/lifecycle-emails';
+import { buildPullReconciliationColumns } from './pullReconciliationColumns';
 
 /** Minimal selection surface (a subset of useBulkSelection) for the select column. */
 export interface EntriesTableSelection {
@@ -68,6 +69,8 @@ interface EntriesTableViewProps {
    * remain rendered.
    */
   displayPreset?: 'standard' | 'show-day' | undefined;
+  /** Pulled-entry reconciliation mode: adds reason, timing, and refund decision controls. */
+  showPullReconciliation?: boolean | undefined;
 }
 
 function buildSelectColumn(
@@ -156,7 +159,11 @@ function buildColumns(
     onPrepareCorrectionEmail:
       ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
   },
-  showDay?: boolean
+  showDay?: boolean,
+  pullReconciliation?: {
+    onOpenRefund: (entry: EntryManagementEntry) => void;
+    onResolved: () => void;
+  }
 ): ColumnDef<EntryManagementEntry, unknown>[] {
   const columns: ColumnDef<EntryManagementEntry, unknown>[] = [
     {
@@ -291,6 +298,10 @@ function buildColumns(
     },
   ];
 
+  if (pullReconciliation) {
+    columns.push(...buildPullReconciliationColumns(pullReconciliation));
+  }
+
   if (showDay) {
     applyShowDayColumnOrder(columns);
     if (actionHandlers?.onCheckInEntry) {
@@ -343,6 +354,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   showReviewActions = false,
   density,
   displayPreset = 'standard',
+  showPullReconciliation = false,
 }) => {
   // Show-day forces compact density (spec: compact + column emphasis).
   const effectiveDensity: TableDensity | undefined =
@@ -394,7 +406,10 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
         onReviewLifecycleEmail,
         onPrepareCorrectionEmail,
       },
-      displayPreset === 'show-day'
+      displayPreset === 'show-day',
+      showPullReconciliation
+        ? { onOpenRefund: openRefund, onResolved: () => onEntryRefunded?.() }
+        : undefined
     );
     return selection ? [buildSelectColumn(selection), ...dataColumns] : dataColumns;
   }, [
@@ -416,6 +431,8 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
     onReviewLifecycleEmail,
     onPrepareCorrectionEmail,
     displayPreset,
+    showPullReconciliation,
+    onEntryRefunded,
   ]);
 
   return (

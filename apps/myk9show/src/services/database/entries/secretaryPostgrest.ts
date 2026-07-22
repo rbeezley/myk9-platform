@@ -29,10 +29,13 @@ const SECRETARY_ENTRIES_SELECT = `
         scoring_completed_at,
         check_in_status,
         withdrawal_reason,
+        withdrawn_at,
         payment_method,
         refund_amount,
         refunded_at,
         stripe_payment_intent_id,
+        refund_decision,
+        refund_decided_at,
         registration_id,
         handler_person:handler_id (
           id,
@@ -52,7 +55,8 @@ const SECRETARY_ENTRIES_SELECT = `
           refunded_at
         ),
         trial:trial_id (
-          trial_type
+          trial_type,
+          timezone
         ),
         dog:dog_id (
           id,

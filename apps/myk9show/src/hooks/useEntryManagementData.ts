@@ -19,6 +19,7 @@ import {
   mapClassEntryStatus,
 } from '@/utils/entryManagementUtils';
 import { getEntryManagementCountSummary } from '@/utils/entryCountSelectors';
+import { derivePullTiming, type PullRefundDecision } from '@/features/payments/pullReconciliation';
 
 interface UseEntryManagementDataReturn {
   // Auth
@@ -80,7 +81,8 @@ function personName(
 }
 
 export function mapSecretaryEntryToEntryManagementEntry(
-  entry: SecretaryEntry
+  entry: SecretaryEntry,
+  entryCloseDate?: string | null
 ): EntryManagementEntry {
   return {
     id: entry.id,
@@ -160,6 +162,20 @@ export function mapSecretaryEntryToEntryManagementEntry(
     refundAmount: entry.refund_amount ?? null,
     refundedAt: entry.refunded_at ?? null,
     stripePaymentIntentId: entry.stripe_payment_intent_id ?? null,
+    pullReason:
+      entry.entry_status === 'scratched'
+        ? (entry.withdrawal_reason ?? entry.special_requests ?? null)
+        : null,
+    pulledAt: entry.withdrawn_at ?? null,
+    pullTiming:
+      entry.entry_status === 'scratched'
+        ? derivePullTiming({
+            pulledAt: entry.withdrawn_at,
+            entryCloseDate,
+            timeZone: entry.trial?.timezone,
+          })
+        : null,
+    refundDecision: (entry.refund_decision as PullRefundDecision | null) ?? null,
   };
 }
 
@@ -168,6 +184,7 @@ interface EntryManagementShowRow {
   name: string | null;
   start_date: string | null;
   end_date: string | null;
+  entry_close_date: string | null;
 }
 
 /**
@@ -211,35 +228,36 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     }
   }, [user?.id]);
 
-  const loadEntries = useCallback(async (showId: string) => {
-    setIsLoading(true);
-    setLoadError(null);
-    try {
-      const { data, error: queryError } = await getEntriesForShow(showId);
+  const loadEntries = useCallback(
+    async (showId: string) => {
+      setIsLoading(true);
+      setLoadError(null);
+      try {
+        const { data, error: queryError } = await getEntriesForShow(showId);
 
-      if (queryError) {
+        if (queryError) {
+          setLoadError(SECRETARY_ENTRIES_READ_ERROR);
+          logger.error('Error loading entries:', 'secretary', {}, queryError as Error);
+          return;
+        }
+
+        // Transform database entries to UI format
+        // SecretaryEntry is a flat row (one per class entry), not a grouped structure
+        const entryCloseDate = shows.find(show => show.id === showId)?.entry_close_date ?? null;
+        const transformedEntries: EntryManagementEntry[] = ((data || []) as SecretaryEntry[]).map(
+          entry => mapSecretaryEntryToEntryManagementEntry(entry, entryCloseDate)
+        );
+
+        setEntries(transformedEntries);
+      } catch (err) {
         setLoadError(SECRETARY_ENTRIES_READ_ERROR);
-        logger.error('Error loading entries:', 'secretary', {}, queryError as Error);
-        return;
+        logger.error('Error loading entries:', 'secretary', {}, err as Error);
+      } finally {
+        setIsLoading(false);
       }
-
-      // Transform database entries to UI format
-      // SecretaryEntry is a flat row (one per class entry), not a grouped structure
-      // `as unknown` bridge: entries.refund_amount/refunded_at (migration
-      // 20260609220000) aren't in the generated Database types yet — drop the
-      // bridge after the next `supabase gen types` run.
-      const transformedEntries: EntryManagementEntry[] = (
-        (data || []) as unknown as SecretaryEntry[]
-      ).map(mapSecretaryEntryToEntryManagementEntry);
-
-      setEntries(transformedEntries);
-    } catch (err) {
-      setLoadError(SECRETARY_ENTRIES_READ_ERROR);
-      logger.error('Error loading entries:', 'secretary', {}, err as Error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    [shows]
+  );
 
   // Load shows on mount
   useEffect(() => {
@@ -280,6 +298,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           name: row.name,
           start_date: row.start_date,
           end_date: row.end_date,
+          entry_close_date: row.entry_close_date,
         };
         setShows(prev =>
           prev.some(show => show.id === linkedShow.id) ? prev : [linkedShow, ...prev]

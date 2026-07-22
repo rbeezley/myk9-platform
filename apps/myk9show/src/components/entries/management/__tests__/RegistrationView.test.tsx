@@ -105,7 +105,7 @@ type RegistrationViewOverrides = Partial<{
 }>;
 
 function renderView(
-  attentionFilter: 'all' | 'pending' | 'accepted' | 'waitlist' | 'issues',
+  attentionFilter: 'all' | 'pending' | 'accepted' | 'waitlist' | 'issues' | 'pulled',
   entryViewMode: 'table' | 'cards' = 'table',
   overrides: RegistrationViewOverrides = {}
 ) {
@@ -179,6 +179,15 @@ describe('RegistrationView filter content routing', () => {
 
     expect(screen.getByTestId('enrollment-card')).toBeInTheDocument();
     expect(screen.queryByTestId('entries-table')).not.toBeInTheDocument();
+  });
+
+  it('keeps the pulled reconciliation table available on mobile viewports', () => {
+    mockViewport(true);
+
+    renderView('pulled');
+
+    expect(screen.getByTestId('entries-table')).toBeInTheDocument();
+    expect(screen.queryByTestId('enrollment-card')).not.toBeInTheDocument();
   });
 
   it('lets the secretary switch to Day-of mode', async () => {

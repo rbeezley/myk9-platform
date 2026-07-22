@@ -32,7 +32,9 @@ export function usePlatformPayoutLedger() {
       for (let from = 0; ; from += PAGE) {
         const { data: entryRows, error: entriesError } = await supabase
           .from('entries')
-          .select('show_id, entry_fee, payment_method, payment_status, refund_amount')
+          .select(
+            'show_id, entry_status, entry_fee, payment_method, payment_status, refund_amount, refund_decision'
+          )
           .eq('payment_method', 'online')
           .order('id')
           .range(from, from + PAGE - 1);

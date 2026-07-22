@@ -11,13 +11,15 @@
  */
 
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Wallet, Percent } from 'lucide-react';
+import { Wallet, Percent, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Table,
   TableBody,
@@ -229,6 +231,37 @@ function LedgerTable({ rows }: { rows: LedgerRow[] }) {
   );
 }
 
+function RefundDecisionAdvisory({ rows }: { rows: LedgerRow[] }) {
+  const unresolvedRows = rows.filter(row => row.unresolvedRefundDecisionCount > 0);
+  if (unresolvedRows.length === 0) return null;
+
+  const total = unresolvedRows.reduce((sum, row) => sum + row.unresolvedRefundDecisionCount, 0);
+
+  return (
+    <Alert>
+      <AlertTriangle className="h-4 w-4" />
+      <AlertDescription className="space-y-2">
+        <p>
+          {total} pulled {total === 1 ? 'entry' : 'entries'} with unresolved refund decisions.
+          Resolve before payout or handle out-of-band.
+        </p>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {unresolvedRows.map(row => (
+            <Link
+              key={row.showId}
+              className="font-medium text-primary underline underline-offset-4"
+              to={`/shows/${encodeURIComponent(row.showId)}/entry-management?attention=pulled`}
+              aria-label={`Review pulled entries for ${row.showName}`}
+            >
+              {row.showName} ({row.unresolvedRefundDecisionCount})
+            </Link>
+          ))}
+        </div>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 export default function PayoutLedgerPage() {
   const { data: rows, isLoading, isError } = usePlatformPayoutLedger();
 
@@ -267,6 +300,7 @@ export default function PayoutLedgerPage() {
         ) : (
           <>
             <LedgerSummary rows={rows ?? []} />
+            <RefundDecisionAdvisory rows={rows ?? []} />
             <LedgerTable rows={rows ?? []} />
           </>
         )}

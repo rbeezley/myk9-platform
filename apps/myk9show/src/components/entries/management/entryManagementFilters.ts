@@ -17,6 +17,7 @@ export const ENTRY_ATTENTION_FILTER_VALUES = [
   'accepted',
   'waitlist',
   'issues',
+  'pulled',
 ] as const;
 
 export type EntryAttentionFilter = (typeof ENTRY_ATTENTION_FILTER_VALUES)[number];
@@ -34,12 +35,10 @@ export const ENTRY_PAYMENT_FILTER_VALUES = [
 export type EntryPaymentFilter = (typeof ENTRY_PAYMENT_FILTER_VALUES)[number];
 
 /**
- * Exception queues — move-up requests and pulls/no-shows. These are NOT entry
- * status filters: each swaps the whole content pane for a dedicated management
- * sub-app (`MoveUpRequestsTab` / `PullManagementTab`). They live on their own
- * top-level "Exceptions" tab (Phase C), reached via `?tab=exceptions&queue=…`,
- * NOT as `attention` chips — a surface-swap disguised as a status filter was the
- * core cognitive-load defect this page is being remediated for.
+ * Exception queues swap the pane for request-management sub-apps
+ * (`MoveUpRequestsTab` / `PullManagementTab`). The separate `attention=pulled`
+ * filter is intentionally different: it keeps the entries table visible for
+ * post-show refund reconciliation of already-pulled entries.
  */
 export const EXCEPTION_QUEUE_VALUES = ['move-ups', 'pulled'] as const;
 export type ExceptionQueue = (typeof EXCEPTION_QUEUE_VALUES)[number];
@@ -103,6 +102,7 @@ export const ENTRY_MANAGEMENT_FILTERS: FilterDefinition[] = [
       { label: 'Accepted', value: 'accepted' },
       { label: 'Waitlist', value: 'waitlist' },
       { label: 'Issues', value: 'issues' },
+      { label: 'Pulled', value: 'pulled' },
     ],
   },
   {
@@ -149,17 +149,16 @@ function legacyEntryTabToAttention(value: string | null): EntryAttentionFilter |
 }
 
 /**
- * Detect a legacy URL that pointed at move-ups / pulled while they were still
- * `attention` chips (`?attention=move-ups|pulled`) or even older `entryTab`
- * values (`move-ups` / `scratches`). Phase C moved both onto the Exceptions tab,
- * so these now migrate to `?tab=exceptions&queue=…` (see normalize below).
+ * Detect legacy links to the request-management queues. `attention=pulled` is
+ * now a valid reconciliation filter, so only the older `entryTab=scratches`
+ * form migrates to the Exceptions tab.
  */
 function legacyExceptionQueue(
   rawAttention: string | null,
   rawEntryTab: string | null
 ): ExceptionQueue | null {
   if (rawAttention === 'move-ups' || rawEntryTab === 'move-ups') return 'move-ups';
-  if (rawAttention === 'pulled' || rawEntryTab === 'scratches') return 'pulled';
+  if (rawEntryTab === 'scratches') return 'pulled';
   return null;
 }
 
@@ -256,6 +255,8 @@ export function getEntryManagementEmptyStateMessage({
         return 'No waitlist entries match these filters.';
       case 'issues':
         return 'No issue entries match these filters.';
+      case 'pulled':
+        return 'No pulled entries match these filters.';
       case 'all':
         return 'No entries match these filters.';
     }
@@ -272,6 +273,8 @@ export function getEntryManagementEmptyStateMessage({
       return 'No waitlist entries right now.';
     case 'issues':
       return 'No entries have issues right now.';
+    case 'pulled':
+      return 'No pulled entries right now.';
     case 'all':
       return 'No entries yet.';
   }

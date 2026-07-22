@@ -1,6 +1,9 @@
 import { act, renderHook, waitFor } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useEntryManagementData } from '../useEntryManagementData';
+import {
+  mapSecretaryEntryToEntryManagementEntry,
+  useEntryManagementData,
+} from '../useEntryManagementData';
 import { PaymentStatus } from '@/types/show-registration-types';
 
 const mocks = vi.hoisted(() => ({
@@ -80,6 +83,29 @@ beforeEach(() => {
 });
 
 describe('useEntryManagementData', () => {
+  it('maps pull reconciliation reason, timing, and persisted decision', () => {
+    const entry = mapSecretaryEntryToEntryManagementEntry(
+      {
+        id: 'pulled-1',
+        show_id: 'show-1',
+        entry_status: 'scratched',
+        special_requests: 'Crate near ring',
+        withdrawal_reason: 'Dog is sore',
+        withdrawn_at: '2026-06-02T04:30:00Z',
+        refund_decision: 'denied',
+        trial: { trial_type: 'Scent Work', timezone: 'America/Chicago' },
+        dog: null,
+        class: null,
+        registration: null,
+      } as never,
+      '2026-06-01'
+    );
+
+    expect(entry.pullReason).toBe('Dog is sore');
+    expect(entry.pullTiming).toBe('before_close');
+    expect(entry.refundDecision).toBe('denied');
+  });
+
   it('loads shows on mount', async () => {
     const { result } = renderHook(() => useEntryManagementData());
     await waitFor(() => expect(result.current.isLoadingShows).toBe(false));

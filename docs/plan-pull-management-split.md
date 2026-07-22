@@ -2,7 +2,7 @@
 
 > **Status:** Active
 
-> **Phase:** 2 (post-Stripe) — deferred until Stripe refund webhooks + reconciliation are wired. Pre-launch blocker: NO. Revisit when starting the `plan-entry-payment-request.md` Task 3.5 (auto-refund) work.
+> **Phase:** 2 implementation ready on MYK9-23; migration/deployment remains gated on the Stripe cutover. Pre-launch blocker: NO.
 
 > **Decided:** 2026-06-25 (brainstorm with owner).
 
@@ -139,6 +139,13 @@ Run `pnpm typecheck` after updating all callers to catch any missed references.
 
 **No new page.** Entry Management + `status=pulled` filter + `RefundEntryDialog` is the complete reconciliation flow.
 
+**MYK9-23 implementation note (2026-07-22):** This reuses Entry Management via
+`attention=pulled`; it does not duplicate the workflow on a new page. The
+existing Stripe refund dialog remains the refund path. Explicit denials are
+stored on `entries`, while successful refunds remain authoritative through the
+existing refund amount/timestamp fields. The migration has not been applied to
+the shared Supabase project.
+
 ### Phase 3 — Pre-payout advisory gate
 
 In the post-show / wrap-up flow (wherever the payout request action lives — currently the admin payout ledger, `plan-admin-payout-ledger-platform-fee.md`):
@@ -149,14 +156,14 @@ In the post-show / wrap-up flow (wherever the payout request action lives — cu
 
 ### Phase 4 — Tests
 
-- [ ] Unit test: `PullRecord` type shape (no refund fields present)
-- [ ] Unit test: `pull_timing` derivation logic — before close, after close, and **null (entry_deadline missing or pulled_at null)**
-- [ ] Unit test: null timing rule — `pull_timing = null` produces no pre-selection (both buttons unselected)
-- [ ] Component test: `PullManagementTab` renders with `PullRecord` (no refund field access)
-- [ ] Component test: Entry Management pulled filter shows `pull_reason` + `pull_timing` columns; null timing shows "Timing unknown"
-- [ ] Component test: reconciliation row with `pull_timing = 'before_close'` pre-selects "Issue refund"; `'after_close'` pre-selects "Deny"; `null` shows both unselected
-- [ ] Component test: secretary override — clicking the non-default button updates selection without confirmation
-- [ ] Component test: pre-payout advisory renders when unresolved pulls exist, absent when none
+- [x] Unit test: `PullRecord` type shape (no refund fields present)
+- [x] Unit test: `pull_timing` derivation logic — before close, after close, and **null (entry_deadline missing or pulled_at null)**
+- [x] Unit test: null timing rule — `pull_timing = null` produces no pre-selection (both buttons unselected)
+- [x] Component test: `PullManagementTab` renders with `PullRecord` (no refund field access)
+- [x] Component test: Entry Management pulled filter shows `pull_reason` + `pull_timing` columns; null timing shows "Timing unknown"
+- [x] Component test: reconciliation row with `pull_timing = 'before_close'` pre-selects "Issue refund"; `'after_close'` pre-selects "Deny"; `null` shows both unselected
+- [x] Component test: secretary override — clicking the non-default button updates selection without confirmation
+- [x] Component test: pre-payout advisory renders when unresolved pulls exist, absent when none
 
 ---
 

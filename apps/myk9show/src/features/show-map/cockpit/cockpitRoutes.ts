@@ -64,7 +64,7 @@ export function getCockpitEntryManagementHref(input: {
   trialId?: string;
   classId?: string;
   tab?: 'entries' | 'move-ups' | 'pulls' | 'waitlist';
-  attention?: 'pending' | 'missing_information' | 'accepted' | 'waitlist' | 'issues';
+  attention?: 'pending' | 'missing_information' | 'accepted' | 'waitlist' | 'issues' | 'pulled';
   payment?: 'pending' | 'paid_online' | 'paid_by_check' | 'paid_by_cash' | 'waived' | 'refunded';
   mode?: 'review' | 'day-of';
   returnTo: string;

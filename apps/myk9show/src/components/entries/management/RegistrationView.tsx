@@ -430,7 +430,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         }
       />
 
-      {entryViewMode === 'table' && useCardsForContent ? (
+      {entryViewMode === 'table' && useCardsForContent && attentionFilter !== 'pulled' ? (
         enrollmentCardList
       ) : entryViewMode === 'table' ? (
         <EntriesTableView
@@ -446,9 +446,10 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           onUncompEntry={onUncompEntry}
           onRemoveEntry={onRemoveEntry}
           onEntryRefunded={onRefresh}
+          showPullReconciliation={attentionFilter === 'pulled'}
           selection={tableSelection}
           emptyState={emptyStateContent}
-          showReviewActions={workMode === 'review'}
+          showReviewActions={workMode === 'review' && attentionFilter !== 'pulled'}
           density={density}
           displayPreset={displayPreset}
           lifecycleDecisionEmailStatusMap={lifecycleEmails.statusMap}

@@ -1746,6 +1746,9 @@ export type Database = {
           preferred_judge: string | null
           promo_code_id: string | null
           refund_amount: number | null
+          refund_decided_at: string | null
+          refund_decided_by: string | null
+          refund_decision: string | null
           refund_notes: string | null
           refunded_at: string | null
           registration_id: string | null
@@ -1833,6 +1836,9 @@ export type Database = {
           preferred_judge?: string | null
           promo_code_id?: string | null
           refund_amount?: number | null
+          refund_decided_at?: string | null
+          refund_decided_by?: string | null
+          refund_decision?: string | null
           refund_notes?: string | null
           refunded_at?: string | null
           registration_id?: string | null
@@ -1920,6 +1926,9 @@ export type Database = {
           preferred_judge?: string | null
           promo_code_id?: string | null
           refund_amount?: number | null
+          refund_decided_at?: string | null
+          refund_decided_by?: string | null
+          refund_decision?: string | null
           refund_notes?: string | null
           refunded_at?: string | null
           registration_id?: string | null
@@ -11348,6 +11357,10 @@ export type Database = {
         }
       }
       soft_delete_show: { Args: { p_show_id: string }; Returns: undefined }
+      set_entry_refund_decision: {
+        Args: { p_decision: string; p_entry_id: string }
+        Returns: undefined
+      }
       stamp_show_refund_entries: {
         Args: { p_entry_ids: string[]; p_notes: string }
         Returns: number

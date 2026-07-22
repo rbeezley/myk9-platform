@@ -120,7 +120,7 @@ export function SecretaryCockpit({
                     variant="ghost"
                     className="mt-2 h-8 w-full px-2 text-destructive hover:text-destructive"
                   >
-                    Open
+                    {item.label}
                   </CockpitActionLink>
                 )}
               </div>

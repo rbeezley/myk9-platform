@@ -14,26 +14,26 @@ test('registration focus remains clear across desktop, history, and narrow layou
   await expect(page.getByText('Focused registration', { exact: true })).toBeVisible();
 
   const queueRows = page
-    .getByRole('listbox', { name: 'Registration work queue' })
-    .getByRole('option');
+    .getByRole('list', { name: 'Registration work queue' })
+    .getByRole('listitem');
   await expect(queueRows).not.toHaveCount(0);
-  await expect(queueRows.first()).toHaveAttribute('aria-selected', 'true');
+  await expect(queueRows.first()).toHaveAttribute('aria-current', 'true');
   const offlineSearchTerm = (await queueRows.first().getAttribute('aria-label'))?.split(',')[0];
   const firstRegistrationSelection = queueRows.first().getByRole('checkbox');
   await firstRegistrationSelection.check();
   await expect(firstRegistrationSelection).toBeChecked();
   await queueRows.nth(1).click();
-  await expect(queueRows.nth(1)).toHaveAttribute('aria-selected', 'true');
+  await expect(queueRows.nth(1)).toHaveAttribute('aria-current', 'true');
 
   await page.goBack();
-  await expect(queueRows.first()).toHaveAttribute('aria-selected', 'true');
+  await expect(queueRows.first()).toHaveAttribute('aria-current', 'true');
   await expect(firstRegistrationSelection).toBeChecked();
   await queueRows.nth(1).click();
 
   await page.setViewportSize({ width: 900, height: 1000 });
   await expect(page.getByRole('button', { name: 'Back to registrations' })).toBeVisible();
   await page.getByRole('button', { name: 'Back to registrations' }).click();
-  await expect(page.getByRole('listbox', { name: 'Registration work queue' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Registration work queue' })).toBeVisible();
   await expect(queueRows.nth(1)).toBeFocused();
 
   await page.context().setOffline(true);
@@ -42,6 +42,9 @@ test('registration focus remains clear across desktop, history, and narrow layou
       .getByRole('searchbox', { name: 'Search all show registrations' })
       .fill(offlineSearchTerm ?? 'registration');
     await expect(queueRows).not.toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Needs review/ })).toBeDisabled();
+    await expect(page.getByRole('combobox', { name: 'Trial filter' })).toBeDisabled();
+    await expect(page.getByText(/Search covers the whole show/i)).toBeVisible();
   } finally {
     await page.context().setOffline(false);
   }

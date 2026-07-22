@@ -60,12 +60,6 @@ export function useEntryManagementCockpit({
     [canValidateFocus, entryToRegistration, searchParams, validRegistrationKeys]
   );
 
-  useEffect(() => {
-    if (normalized.params.toString() !== searchParams.toString()) {
-      setSearchParams(normalized.params, { replace: true });
-    }
-  }, [normalized.params, searchParams, setSearchParams]);
-
   const state = normalized.state;
   const viewKey = `${state.tab}|${state.exception}|${state.queue}|${state.search}|${state.trialId ?? ''}|${state.classId ?? ''}`;
   const [pageState, setPageState] = useState({ viewKey, pageIndex: 0 });
@@ -98,13 +92,17 @@ export function useEntryManagementCockpit({
     if (visibleSelection.allSelected) selection.deselectItems(builtPage.page.items);
     else selection.selectItems(builtPage.page.items);
   }, [builtPage.page.items, selection, visibleSelection.allSelected]);
-  const queueCounts = state.search
-    ? getShowRegistrationQueueCounts(groups)
-    : getScopedShowRegistrationQueueCounts(
-        groups,
-        state.classId,
-        state.trialId ? (trialClassIds ?? []) : undefined
-      );
+  const queueCounts = useMemo(
+    () =>
+      state.search
+        ? getShowRegistrationQueueCounts(groups)
+        : getScopedShowRegistrationQueueCounts(
+            groups,
+            state.classId,
+            state.trialId ? (trialClassIds ?? []) : undefined
+          ),
+    [groups, state.classId, state.search, state.trialId, trialClassIds]
+  );
   const focusedGroup =
     builtPage.effectiveGroups.find(group => group.groupKey === state.registrationKey) ??
     builtPage.page.items[0] ??

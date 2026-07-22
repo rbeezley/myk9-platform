@@ -70,8 +70,8 @@ describe('EntryRegistrationQueue', () => {
   it('marks the focused row persistently and shows one primary action', () => {
     renderQueue();
 
-    const focused = screen.getByRole('option', { name: /alice martin/i });
-    expect(focused).toHaveAttribute('aria-selected', 'true');
+    const focused = screen.getByRole('listitem', { name: /alice martin/i });
+    expect(focused).toHaveAttribute('aria-current', 'true');
     expect(focused).toHaveAttribute('id', 'entry-registration-registration-1');
     expect(focused.className).toContain('shadow-[inset_4px_0_0');
     expect(screen.getAllByText('Review registration')).toHaveLength(2);
@@ -83,7 +83,7 @@ describe('EntryRegistrationQueue', () => {
   it('clicking a row focuses it while its checkbox only changes bulk selection', async () => {
     const { user, groups, onFocus, onToggle } = renderQueue();
 
-    await user.click(screen.getByRole('option', { name: /priya shah/i }));
+    await user.click(screen.getByRole('listitem', { name: /priya shah/i }));
     expect(onFocus).toHaveBeenCalledWith(groups[1]);
 
     await user.click(screen.getByRole('checkbox', { name: /select alice martin/i }));

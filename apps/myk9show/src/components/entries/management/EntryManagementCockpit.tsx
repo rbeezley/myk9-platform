@@ -183,6 +183,7 @@ export function EntryManagementCockpit({
               key={queue.id}
               type="button"
               variant={cockpit.state.queue === queue.id ? 'secondary' : 'ghost'}
+              disabled={Boolean(cockpit.state.search)}
               className={cn(
                 'min-h-10 shrink-0 gap-3',
                 cockpit.state.queue === queue.id && 'border border-primary/30 bg-primary/10'
@@ -234,8 +235,15 @@ export function EntryManagementCockpit({
           onClassChange={classId => cockpit.setScope(cockpit.state.trialId, classId)}
           isLoadingTrials={isLoadingTrials}
           isLoadingClasses={isLoadingClasses}
+          disabled={Boolean(cockpit.state.search)}
         />
       </div>
+
+      {cockpit.state.search && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Search covers the whole show. Clear search to use queue, Trial, and Class filters.
+        </p>
+      )}
 
       <div
         className={cn(

@@ -171,7 +171,7 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.getByRole('button', { name: 'Interior Advanced' })).toBeInTheDocument();
   });
 
-  it('renders the selected Class in both responsive projections and switches only that focus', async () => {
+  it('mounts the focused Class panel once, inline, on a narrow viewport', async () => {
     const { user } = render(
       <ShowDeskPanel
         show={show}
@@ -192,11 +192,8 @@ describe('ShowDeskPanel cockpit', () => {
         name: 'Container Novice',
       })
     ).toBeInTheDocument();
-    expect(
-      within(screen.getByTestId('cockpit-split-focus')).getByRole('heading', {
-        name: 'Container Novice',
-      })
-    ).toBeInTheDocument();
+    expect(screen.queryByTestId('cockpit-split-focus')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Container Novice' })).toHaveLength(1);
 
     await user.click(screen.getByRole('button', { name: 'Interior Advanced' }));
     expect(
@@ -205,6 +202,47 @@ describe('ShowDeskPanel cockpit', () => {
       })
     ).toBeInTheDocument();
     expect(screen.getAllByTestId('cockpit-inline-focus')).toHaveLength(1);
+  });
+
+  it('mounts the focused Class panel once, in the split column, on a wide viewport', () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation(query => ({
+      matches: query === '(min-width: 1280px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    try {
+      render(
+        <ShowDeskPanel
+          show={show}
+          trials={[trial]}
+          classes={[
+            { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+            { id: 'class-2', trialId: 'trial-1', name: 'Interior Advanced', status: 'In Progress' },
+          ]}
+          entries={[]}
+          canManageShow
+          scopeNow={now}
+        />,
+        { initialRoute: '/shows/show-1/show-desk?focus=class-1' }
+      );
+
+      expect(
+        within(screen.getByTestId('cockpit-split-focus')).getByRole('heading', {
+          name: 'Container Novice',
+        })
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId('cockpit-inline-focus')).not.toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Container Novice' })).toHaveLength(1);
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
   });
 
   it('restores the URL-backed schedule anchor without changing Class focus', async () => {

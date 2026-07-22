@@ -26,10 +26,12 @@ import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
 import { PullManagementTab } from '@/components/entries/PullManagementTab';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
+  getCockpitNormalizationContext,
   normalizeEntryManagementCockpitParams,
   writeCockpitException,
   writeCockpitTab,
 } from '@/components/entries/management/entryManagementCockpitParams';
+import { groupEntriesByShowRegistration } from '@/components/entries/management/showRegistrationProjection';
 import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
@@ -44,34 +46,6 @@ const EntryManagementPage: React.FC = () => {
   const urlShowId = params.showId ?? params.id;
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
-  const cockpitUrl = useMemo(
-    () => normalizeEntryManagementCockpitParams(searchParams),
-    [searchParams]
-  );
-  const activePageTab = cockpitUrl.state.tab;
-  // Copy-link href: built from the normalizer's own output (never raw
-  // `location.search`) so a copied URL only ever carries normalized,
-  // supported Entry Management params and round-trips cleanly on paste.
-  const copyLinkHref = `${location.pathname}?${cockpitUrl.params.toString()}`.replace(/\?$/, '');
-  // Read the trial param directly so the trial's class list can be fetched
-  // before useEntryManagementFilters (which consumes the class ids to filter the
-  // entry list in place).
-  const trialParam = cockpitUrl.state.trialId;
-
-  useEffect(() => {
-    if (cockpitUrl.params.toString() !== searchParams.toString()) {
-      setSearchParams(cockpitUrl.params, { replace: true });
-    }
-  }, [cockpitUrl.params, searchParams, setSearchParams]);
-
-  // Leaving Entries resets the entry drill-down (trial/class/roster) so a later
-  // return doesn't re-enter scoring/roster unexpectedly.
-  const handlePageTabChange = (tab: string) => {
-    setSearchParams(
-      previous => writeCockpitTab(previous, tab === 'exceptions' ? 'exceptions' : 'registrations'),
-      { replace: true }
-    );
-  };
 
   const {
     user,
@@ -89,9 +63,37 @@ const EntryManagementPage: React.FC = () => {
     lastEmailedMap,
     refreshEmailLog,
   } = useEntryManagementData(urlShowId);
+  const registrationGroups = useMemo(() => groupEntriesByShowRegistration(entries), [entries]);
+  const canValidateFocus = Boolean(selectedShowId) && !isLoading && !loadError;
+  const normalizationContext = useMemo(
+    () => (canValidateFocus ? getCockpitNormalizationContext(registrationGroups) : {}),
+    [canValidateFocus, registrationGroups]
+  );
+  const cockpitUrl = useMemo(
+    () => normalizeEntryManagementCockpitParams(searchParams, normalizationContext),
+    [normalizationContext, searchParams]
+  );
+  const activePageTab = cockpitUrl.state.tab;
+  const copyLinkHref = `${location.pathname}?${cockpitUrl.params.toString()}`.replace(/\?$/, '');
+  const trialParam = cockpitUrl.state.trialId;
 
-  // Classes for the selected trial — fetched before useEntryManagementFilters so
-  // their ids can scope the (show-wide) entry list to the chosen trial.
+  useEffect(() => {
+    const focusNeedsValidation = searchParams.has('registration') || searchParams.has('entry');
+    if (focusNeedsValidation && !canValidateFocus) return;
+    if (cockpitUrl.params.toString() !== searchParams.toString()) {
+      setSearchParams(cockpitUrl.params, { replace: true });
+    }
+  }, [canValidateFocus, cockpitUrl.params, searchParams, setSearchParams]);
+
+  // Leaving Entries resets the entry drill-down (trial/class/roster) so a later
+  // return doesn't re-enter scoring/roster unexpectedly.
+  const handlePageTabChange = (tab: string) => {
+    setSearchParams(
+      previous => writeCockpitTab(previous, tab === 'exceptions' ? 'exceptions' : 'registrations'),
+      { replace: true }
+    );
+  };
+
   const { trialClasses, trialClassIds, isLoadingClasses } =
     useEntryManagementTrialClasses(trialParam);
 
@@ -348,6 +350,8 @@ const EntryManagementPage: React.FC = () => {
             <div className="mt-6">
               <EntryManagementCockpit
                 entries={entries}
+                registrationGroups={registrationGroups}
+                cockpitState={cockpitUrl.state}
                 trials={trials}
                 trialClasses={trialClasses}
                 trialClassIds={trialClassIds}

@@ -23,6 +23,8 @@ import type {
   EntryManagementTrial,
   EntryManagementTrialClass,
 } from '@/hooks/useEntryManagementTrialScope';
+import type { ShowRegistrationGroup } from './showRegistrationProjection';
+import type { EntryManagementCockpitState } from './entryManagementCockpitParams';
 import type {
   BulkActionResult,
   EntryClass,
@@ -41,6 +43,8 @@ const QUEUES = [
 
 interface EntryManagementCockpitProps {
   entries: EntryManagementEntry[];
+  registrationGroups: ShowRegistrationGroup[];
+  cockpitState: EntryManagementCockpitState;
   trials: EntryManagementTrial[];
   trialClasses: EntryManagementTrialClass[];
   trialClassIds: readonly string[];
@@ -93,6 +97,8 @@ interface EntryManagementCockpitProps {
 
 export function EntryManagementCockpit({
   entries,
+  registrationGroups,
+  cockpitState,
   trials,
   trialClasses,
   trialClassIds,
@@ -116,9 +122,9 @@ export function EntryManagementCockpit({
   onRefresh,
 }: EntryManagementCockpitProps) {
   const cockpit = useEntryManagementCockpit({
-    entries,
+    groups: registrationGroups,
+    state: cockpitState,
     trialClassIds,
-    canValidateFocus: true,
   });
   const { ref, width } = useElementWidth<HTMLDivElement>();
   const [responsive, dispatchResponsive] = useReducer(

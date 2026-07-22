@@ -2,7 +2,11 @@ import {
   isOperationalViewDensity,
   type OperationalViewDensity,
 } from '@/features/operational-views/operationalViews';
-import { SHOW_REGISTRATION_QUEUES, type ShowRegistrationQueue } from './showRegistrationProjection';
+import {
+  SHOW_REGISTRATION_QUEUES,
+  type ShowRegistrationGroup,
+  type ShowRegistrationQueue,
+} from './showRegistrationProjection';
 
 export const ENTRY_MANAGEMENT_COCKPIT_TABS = ['registrations', 'exceptions'] as const;
 export type EntryManagementCockpitTab = (typeof ENTRY_MANAGEMENT_COCKPIT_TABS)[number];
@@ -24,6 +28,20 @@ export interface EntryManagementCockpitState {
 export interface CockpitNormalizationContext {
   validRegistrationKeys?: ReadonlySet<string>;
   entryToRegistration?: ReadonlyMap<string, string>;
+}
+
+export function getCockpitNormalizationContext(
+  groups: readonly ShowRegistrationGroup[]
+): CockpitNormalizationContext {
+  const validRegistrationKeys = new Set<string>();
+  const entryToRegistration = new Map<string, string>();
+
+  groups.forEach(group => {
+    validRegistrationKeys.add(group.groupKey);
+    group.entries.forEach(entry => entryToRegistration.set(entry.id, group.groupKey));
+  });
+
+  return { validRegistrationKeys, entryToRegistration };
 }
 
 function isShowRegistrationQueue(value: string | null): value is ShowRegistrationQueue {

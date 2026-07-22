@@ -1,9 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { createElement, useEffect, type ReactNode } from 'react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, useLocation, useSearchParams } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { normalizeEntryManagementCockpitParams } from '@/components/entries/management/entryManagementCockpitParams';
+import { groupEntriesByShowRegistration } from '@/components/entries/management/showRegistrationProjection';
 import { useEntryManagementCockpit } from '../useEntryManagementCockpit';
 
 function entry(index: number, classId = `class-${index}`): EntryManagementEntry {
@@ -59,12 +61,15 @@ function wrapper(initialEntry: string, onSearch: (search: string) => void = () =
 describe('useEntryManagementCockpit', () => {
   it('reads normalized state without competing with the page-owned URL canonicalizer', () => {
     let search = '';
+    const groups = groupEntriesByShowRegistration([entry(1)]);
     const { result } = renderHook(
-      () =>
-        useEntryManagementCockpit({
-          entries: [entry(1)],
-          canValidateFocus: true,
-        }),
+      () => {
+        const [searchParams] = useSearchParams();
+        return useEntryManagementCockpit({
+          groups,
+          state: normalizeEntryManagementCockpitParams(searchParams).state,
+        });
+      },
       {
         wrapper: wrapper('/?view=cards&queue=all', value => {
           search = value;
@@ -78,8 +83,15 @@ describe('useEntryManagementCockpit', () => {
 
   it('resets page and selection when the queue changes while memoizing counts', async () => {
     const entries = Array.from({ length: 55 }, (_, index) => entry(index));
+    const groups = groupEntriesByShowRegistration(entries);
     const { result } = renderHook(
-      () => useEntryManagementCockpit({ entries, canValidateFocus: true }),
+      () => {
+        const [searchParams] = useSearchParams();
+        return useEntryManagementCockpit({
+          groups,
+          state: normalizeEntryManagementCockpitParams(searchParams).state,
+        });
+      },
       { wrapper: wrapper('/?queue=all') }
     );
 
@@ -100,13 +112,16 @@ describe('useEntryManagementCockpit', () => {
   it('clears out-of-scope focus and makes search counts whole-show', async () => {
     let search = '';
     const entries = [entry(1, 'class-trial-1'), entry(2, 'class-trial-2')];
+    const groups = groupEntriesByShowRegistration(entries);
     const { result } = renderHook(
-      () =>
-        useEntryManagementCockpit({
-          entries,
+      () => {
+        const [searchParams] = useSearchParams();
+        return useEntryManagementCockpit({
+          groups,
+          state: normalizeEntryManagementCockpitParams(searchParams).state,
           trialClassIds: ['class-trial-1'],
-          canValidateFocus: true,
-        }),
+        });
+      },
       {
         wrapper: wrapper('/?trial=trial-1&registration=registration-2', value => {
           search = value;

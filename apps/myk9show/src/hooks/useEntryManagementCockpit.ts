@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
-import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
   buildShowRegistrationPage,
   getScopedShowRegistrationQueueCounts,
   getShowRegistrationQueueCounts,
   getVisiblePageSelectionState,
-  groupEntriesByShowRegistration,
   type ShowRegistrationGroup,
   type ShowRegistrationQueue,
 } from '@/components/entries/management/showRegistrationProjection';
 import {
-  normalizeEntryManagementCockpitParams,
   writeCockpitDensity,
   writeCockpitException,
   writeCockpitFocus,
@@ -21,46 +18,25 @@ import {
   writeCockpitSearch,
   writeCockpitTab,
   type EntryManagementCockpitTab,
+  type EntryManagementCockpitState,
   type EntryManagementException,
 } from '@/components/entries/management/entryManagementCockpitParams';
 import type { OperationalViewDensity } from '@/features/operational-views/operationalViews';
 
 interface UseEntryManagementCockpitOptions {
-  entries: EntryManagementEntry[];
+  groups: ShowRegistrationGroup[];
+  state: EntryManagementCockpitState;
   trialClassIds?: readonly string[];
-  canValidateFocus: boolean;
 }
 
 const getGroupKey = (group: ShowRegistrationGroup) => group.groupKey;
 
 export function useEntryManagementCockpit({
-  entries,
+  groups,
+  state,
   trialClassIds,
-  canValidateFocus,
 }: UseEntryManagementCockpitOptions) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const groups = useMemo(() => groupEntriesByShowRegistration(entries), [entries]);
-  const validRegistrationKeys = useMemo(
-    () => new Set(groups.map(group => group.groupKey)),
-    [groups]
-  );
-  const entryToRegistration = useMemo(() => {
-    const map = new Map<string, string>();
-    groups.forEach(group => {
-      group.entries.forEach(entry => map.set(entry.id, group.groupKey));
-    });
-    return map;
-  }, [groups]);
-  const normalized = useMemo(
-    () =>
-      normalizeEntryManagementCockpitParams(
-        searchParams,
-        canValidateFocus ? { validRegistrationKeys, entryToRegistration } : {}
-      ),
-    [canValidateFocus, entryToRegistration, searchParams, validRegistrationKeys]
-  );
-
-  const state = normalized.state;
+  const [, setSearchParams] = useSearchParams();
   const viewKey = `${state.tab}|${state.exception}|${state.queue}|${state.search}|${state.trialId ?? ''}|${state.classId ?? ''}`;
   const [pageState, setPageState] = useState({ viewKey, pageIndex: 0 });
   if (pageState.viewKey !== viewKey) {

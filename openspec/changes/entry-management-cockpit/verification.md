@@ -19,7 +19,7 @@
 
 ### Verification evidence
 
-- The final review-focused Vitest suite passed 112 assertions across 17 files covering grouping, scoped counts, visible-page selection, URL normalization/ownership, hook orchestration, responsive state, queue/focus, bulk actions, page boundaries, Show Desk focus, and tool deep-link behavior.
+- The final review-focused Vitest suite passed 114 assertions across 18 files covering grouping, scoped counts, visible-page selection, page-owned URL normalization, hook orchestration, responsive state, queue/focus, bulk actions, page boundaries, Show Desk focus, and tool deep-link behavior.
 - The full myK9Show unit suite passed: 1,503 files and 13,621 tests (one file and nine tests intentionally skipped).
 - Repository-wide TypeScript checking and myK9Show lint completed without errors.
 - Two focused Playwright journeys passed: desktop/history/narrow focus with selection preservation, keyboard focus return and offline search; Entry Management to the existing Check-in desk deep link.

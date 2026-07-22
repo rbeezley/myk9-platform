@@ -2,7 +2,7 @@
  * Class Management's display-preset + saved-view header cluster (tasks.md
  * 3.2/3.3). Thin adapter over the shared `DensityControl`/`SavedViewsControl`
  * — keeps `ClassManagementPage.tsx` from growing past its size budget,
- * mirroring `EntryManagementViewControls.tsx`.
+ * matching the compact secondary-controls pattern used by Entry Management.
  */
 import { DensityControl } from '@/features/operational-views/DensityControl';
 import { SavedViewsControl } from '@/features/operational-views/SavedViewsControl';

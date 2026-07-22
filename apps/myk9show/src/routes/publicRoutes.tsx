@@ -60,11 +60,6 @@ const ClassCreationPage = lazy(() =>
   import('@/pages/secretary/ClassCreationPage').then(m => ({ default: m.ClassCreationPage }))
 );
 const EntryManagementPage = lazy(() => import('@/pages/secretary/EntryManagementPage'));
-const EntryManagementPrototype = lazy(() =>
-  import('@/components/entries/management/prototype/EntryManagementPrototype').then(module => ({
-    default: module.EntryManagementPrototype,
-  }))
-);
 const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
 const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
 const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
@@ -574,15 +569,5 @@ export const PublicRoutes = () => (
 
     {/* Design prototype — no auth, dev iteration only */}
     {import.meta.env.DEV && <Route path="/prototype/show" element={<ShowDetailsPrototype />} />}
-    {import.meta.env.DEV && (
-      <Route
-        path="/prototype/entry-management"
-        element={
-          <SuspenseWrapper>
-            <EntryManagementPrototype />
-          </SuspenseWrapper>
-        }
-      />
-    )}
   </>
 );

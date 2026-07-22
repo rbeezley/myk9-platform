@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +70,8 @@ interface EntryListCardProps {
   onCompEntry?: ((entryId: string) => void) | undefined;
   onUncompEntry?: ((entryId: string) => void) | undefined;
   onRemoveEntry: (entryId: string) => void;
+  showCheckInStatus?: boolean | undefined;
+  matchingEntryIds?: ReadonlySet<string> | undefined;
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
@@ -95,6 +98,8 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   onCompEntry,
   onUncompEntry,
   onRemoveEntry,
+  showCheckInStatus = true,
+  matchingEntryIds,
   emailStatusMap,
   onResendEmail,
   isResendDisabled,
@@ -151,9 +156,18 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   const entryList = (
     <div className="space-y-2">
       {entries.map(entry => (
-        <div key={entry.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+        <div
+          key={entry.id}
+          className={cn(
+            'rounded-lg border p-4 transition-colors hover:bg-muted/50',
+            matchingEntryIds?.has(entry.id) && 'border-primary/50 bg-primary/5'
+          )}
+        >
           <div className="flex items-center gap-2 mb-1">
             <span className="font-semibold">{entry.dogName}</span>
+            {matchingEntryIds?.has(entry.id) && (
+              <span className="text-xs font-medium text-primary">Search match</span>
+            )}
 
             {entry.armbandNumber ? (
               <button
@@ -384,34 +398,38 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                   </div>
                 )}
 
-                {/* Check-in status — clickable dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 cursor-pointer border border-border/40 rounded px-1.5 py-0.5 hover:border-border transition-colors"
-                      aria-label={`Change check-in status for ${entry.dogName} in ${cls.name}`}
-                    >
-                      <CheckInStatusIndicator
-                        status={cls.checkInStatus || 'no-status'}
-                        size="sm"
-                        showLabel={true}
-                        showTooltip={false}
-                      />
-                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    {CHECKIN_STATUSES.map(status => (
-                      <DropdownMenuItem
-                        key={status}
-                        onClick={() => onCheckInStatusChange(entry, cls, status)}
+                {/* Check-in has its own high-throughput desk. Keep this legacy
+                    control for callers that still need it, but do not duplicate
+                    it inside the registration cockpit. */}
+                {showCheckInStatus && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 cursor-pointer border border-border/40 rounded px-1.5 py-0.5 hover:border-border transition-colors"
+                        aria-label={`Change check-in status for ${entry.dogName} in ${cls.name}`}
                       >
-                        {getStatusDescriptor('entry', status).label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                        <CheckInStatusIndicator
+                          status={cls.checkInStatus || 'no-status'}
+                          size="sm"
+                          showLabel={true}
+                          showTooltip={false}
+                        />
+                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      {CHECKIN_STATUSES.map(status => (
+                        <DropdownMenuItem
+                          key={status}
+                          onClick={() => onCheckInStatusChange(entry, cls, status)}
+                        >
+                          {getStatusDescriptor('entry', status).label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             ))}
           </div>

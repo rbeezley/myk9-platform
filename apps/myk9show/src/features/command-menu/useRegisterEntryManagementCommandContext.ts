@@ -17,7 +17,7 @@ export interface UseRegisterEntryManagementCommandContextInput {
     entryIds: string[],
     onFullSuccess?: () => void
   ) => BulkActionResult | Promise<BulkActionResult>;
-  /** Clears the selection owned by RegistrationView after full success. */
+  /** Clears the Entry Management selection after full success. */
   clearSelection: () => void;
   /** True while a bulk mutation from this page is in flight. */
   busy: boolean;

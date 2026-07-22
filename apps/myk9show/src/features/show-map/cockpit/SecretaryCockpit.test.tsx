@@ -40,6 +40,9 @@ describe('SecretaryCockpit attention remainder', () => {
     );
 
     expect(screen.getAllByRole('link', { name: 'Open' })).toHaveLength(3);
+    const focusedClass = screen.getByRole('button', { name: 'Container Novice' });
+    expect(focusedClass).toHaveAttribute('aria-pressed', 'true');
+    expect(focusedClass.parentElement?.parentElement?.className).toContain('shadow-[inset_4px_0_0');
     await user.click(screen.getByRole('button', { name: 'View 2 more issues' }));
     expect(screen.getAllByRole('link', { name: 'Open' })).toHaveLength(5);
   });

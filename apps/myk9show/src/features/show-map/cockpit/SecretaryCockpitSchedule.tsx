@@ -139,7 +139,8 @@ export function SecretaryCockpitSchedule({
                           onClick={() => onFocusClass(classItem.id)}
                           className={cn(
                             'grid cursor-pointer gap-3 px-4 py-4 transition-colors hover:bg-muted/40 sm:grid-cols-[92px_minmax(0,1fr)_auto] sm:items-center',
-                            focused && 'bg-primary/5 shadow-[inset_3px_0_0_hsl(var(--primary))]'
+                            focused &&
+                              'bg-primary/10 shadow-[inset_4px_0_0_hsl(var(--primary)),inset_0_0_0_1px_hsl(var(--primary)/0.55)] hover:bg-primary/10'
                           )}
                         >
                           <div onClick={event => event.stopPropagation()}>

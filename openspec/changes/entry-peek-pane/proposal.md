@@ -33,3 +33,4 @@ None. Entry mutation semantics, offline/replication paths, role checks, and tran
 - Removes `EntryEditDialog`; any other surface still using it must migrate or be explicitly out of scope for this slice.
 - No new route or standalone entry-detail page. No change to the replication-backed mutation path.
 - No database migration and no external API contract change.
+> **Superseded:** The approved `entry-management-cockpit` change absorbs this proposal's URL-addressable detail, responsive preservation, shared-action, offline, and focus requirements. Do not implement this as a second pane.

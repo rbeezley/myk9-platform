@@ -193,6 +193,7 @@ export function ExpectedStartControl({
     setIsSaving(true);
     try {
       await setRevisedExpectedStart(classId, null);
+      setIsEditing(false);
       toast.success('Reverted to the scheduled time.');
     } catch {
       toast.error('Could not revert to the scheduled time.');

@@ -4,7 +4,9 @@ import { useBulkSelection } from '@/hooks/useBulkSelection';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
   buildShowRegistrationPage,
+  getScopedShowRegistrationQueueCounts,
   getShowRegistrationQueueCounts,
+  getVisiblePageSelectionState,
   groupEntriesByShowRegistration,
   type ShowRegistrationGroup,
   type ShowRegistrationQueue,
@@ -77,7 +79,7 @@ export function useEntryManagementCockpit({
         queue: state.queue,
         search: state.search,
         classId: state.classId,
-        ...(state.trialId && trialClassIds ? { trialClassIds } : {}),
+        ...(state.trialId ? { trialClassIds: trialClassIds ?? [] } : {}),
         pageIndex,
       }),
     [groups, pageIndex, state.classId, state.queue, state.search, state.trialId, trialClassIds]
@@ -88,6 +90,21 @@ export function useEntryManagementCockpit({
     pruneToItems: true,
     resetKey: viewKey,
   });
+  const visibleSelection = getVisiblePageSelectionState(
+    builtPage.page.items,
+    selection.selectedIds
+  );
+  const toggleVisiblePage = useCallback(() => {
+    if (visibleSelection.allSelected) selection.deselectItems(builtPage.page.items);
+    else selection.selectItems(builtPage.page.items);
+  }, [builtPage.page.items, selection, visibleSelection.allSelected]);
+  const queueCounts = state.search
+    ? getShowRegistrationQueueCounts(groups)
+    : getScopedShowRegistrationQueueCounts(
+        groups,
+        state.classId,
+        state.trialId ? (trialClassIds ?? []) : undefined
+      );
   const focusedGroup =
     builtPage.effectiveGroups.find(group => group.groupKey === state.registrationKey) ??
     builtPage.page.items[0] ??
@@ -111,12 +128,17 @@ export function useEntryManagementCockpit({
   return {
     state,
     groups,
-    queueCounts: getShowRegistrationQueueCounts(groups),
+    queueCounts,
     page: builtPage.page,
     effectiveGroups: builtPage.effectiveGroups,
     matchingEntryIdsByGroup: builtPage.matchingEntryIdsByGroup,
     focusedGroup,
-    selection,
+    selection: {
+      ...selection,
+      isAllSelected: visibleSelection.allSelected,
+      isPartiallySelected: visibleSelection.partiallySelected,
+      toggleAll: toggleVisiblePage,
+    },
     setPageIndex: (nextPageIndex: number) => setPageState({ viewKey, pageIndex: nextPageIndex }),
     setQueue: (queue: ShowRegistrationQueue) =>
       updateParams(previous => writeCockpitQueue(previous, queue)),

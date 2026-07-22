@@ -3,7 +3,9 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
   buildShowRegistrationPage,
+  getScopedShowRegistrationQueueCounts,
   getShowRegistrationQueueCounts,
+  getVisiblePageSelectionState,
   paginateShowRegistrations,
   groupEntriesByShowRegistration,
   searchShowRegistrationGroups,
@@ -292,6 +294,42 @@ describe('groupEntriesByShowRegistration', () => {
     expect(scoped.page.items.map(group => group.groupKey)).toEqual(['registration-trial-1']);
     expect(searched.page.items.map(group => group.groupKey)).toEqual(['registration-trial-2']);
     expect(searched.matchingEntryIdsByGroup.get('registration-trial-2')).toEqual(['trial-2-entry']);
+  });
+
+  it('treats an explicitly selected Trial with no loaded Classes as an empty scope', () => {
+    const groups = groupEntriesByShowRegistration([
+      entry({ id: 'entry-1', dogId: 'dog-1', dogName: 'Poppy' }),
+    ]);
+
+    const scoped = buildShowRegistrationPage(groups, {
+      queue: 'all',
+      trialClassIds: [],
+      pageIndex: 0,
+    });
+
+    expect(scoped.page.items).toEqual([]);
+    expect(getScopedShowRegistrationQueueCounts(groups, null, [])).toEqual({
+      'needs-review': 0,
+      'missing-information': 0,
+      'payment-due': 0,
+      all: 0,
+    });
+  });
+
+  it('derives select-all state from the visible page, not unseen registrations', () => {
+    const groups = groupEntriesByShowRegistration([
+      entry({ id: 'entry-1', registrationId: 'registration-1', dogId: 'dog-1', dogName: 'Poppy' }),
+      entry({ id: 'entry-2', registrationId: 'registration-2', dogId: 'dog-2', dogName: 'Scout' }),
+    ]);
+
+    expect(getVisiblePageSelectionState([groups[0]!], new Set(['registration-2']))).toEqual({
+      allSelected: false,
+      partiallySelected: false,
+    });
+    expect(getVisiblePageSelectionState([groups[0]!], new Set(['registration-1']))).toEqual({
+      allSelected: true,
+      partiallySelected: false,
+    });
   });
 
   it('projects, queues, paginates, and searches 1,000 child Entries locally', () => {

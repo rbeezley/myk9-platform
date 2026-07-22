@@ -110,6 +110,15 @@ describe('normalizeEntryManagementCockpitParams', () => {
     expect(writeCockpitFocus(next, null).has('registration')).toBe(false);
   });
 
+  it('preserves an in-progress multiword search instead of trimming each keystroke', () => {
+    const next = writeCockpitSearch(params(), 'Alice ');
+    const normalized = normalizeEntryManagementCockpitParams(next);
+
+    expect(next.get('search')).toBe('Alice ');
+    expect(normalized.state.search).toBe('Alice ');
+    expect(normalized.params.get('search')).toBe('Alice ');
+  });
+
   it('drops retired presentation values while preserving supported density and scope', () => {
     const normalized = normalizeEntryManagementCockpitParams(
       params('mode=day-of&view=cards&display=show-day&density=compact&trial=t1&class=c1')

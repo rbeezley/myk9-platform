@@ -41,53 +41,16 @@ import {
   getEntryStatusBadge,
   getPaymentStatusBadge,
 } from '@/utils/entryManagementUtils';
-import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
-import type { EmailLogEntry } from '@/hooks/useEmailStatus';
-import type { CheckInStatus } from '@myk9/core';
 import { CHECKIN_STATUSES } from '@myk9/core';
 import { WithdrawalReasonDialog } from './WithdrawalReasonDialog';
 import { RefundEntryDialog } from './RefundEntryDialog';
 import { isStripeRefundable } from './refundEligibility';
 import { RequestPaymentDialog } from './RequestPaymentDialog';
 import { isPaymentRequestable } from './paymentRequestEligibility';
-import {
-  EntryDecisionEmailStatusBadge,
-  type EntryDecisionEmailJob,
-  type EntryDecisionEmailStatus,
-} from '@/features/lifecycle-emails';
-
-interface EntryListCardProps {
-  entries: EntryManagementEntry[];
-  onStatusChange: (entryId: string, status: EntryStatus, withdrawalReason?: string) => void;
-  onCheckInStatusChange: (
-    entry: EntryManagementEntry,
-    cls: EntryClass,
-    status: CheckInStatus
-  ) => void;
-  onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
-  onOpenEditEntry?: ((entry: EntryManagementEntry) => void) | undefined;
-  onCompEntry?: ((entryId: string) => void) | undefined;
-  onUncompEntry?: ((entryId: string) => void) | undefined;
-  onRemoveEntry: (entryId: string) => void;
-  showCheckInStatus?: boolean | undefined;
-  matchingEntryIds?: ReadonlySet<string> | undefined;
-  emailStatusMap?: Record<string, EmailLogEntry> | undefined;
-  onResendEmail?: ((registrationId: string) => void) | undefined;
-  isResendDisabled?: ((registrationId: string) => boolean) | undefined;
-  hidePaymentBadge?: boolean | undefined;
-  /** Suppress the Card wrapper and title — use when nested inside EnrollmentCard */
-  hideHeader?: boolean | undefined;
-  /** Reload entries after a successful Stripe refund (e.g. loadEntries). */
-  onEntryRefunded?: (() => void) | undefined;
-  /** Reload entries after a payment link is requested (refresh "requested" state). */
-  onPaymentRequested?: (() => void) | undefined;
-  lifecycleDecisionEmailStatusMap?: Record<string, EntryDecisionEmailStatus> | undefined;
-  onReviewLifecycleEmail?:
-    ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
-  onPrepareCorrectionEmail?:
-    ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
-}
+import { EntryDecisionEmailStatusBadge } from '@/features/lifecycle-emails';
+import type { EntryListCardProps } from './EntryListCard.types';
 
 export const EntryListCard: React.FC<EntryListCardProps> = ({
   entries,

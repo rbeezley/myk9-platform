@@ -109,6 +109,7 @@ export function EntryRegistrationQueue({
       <div className="hidden grid-cols-[2.75rem_minmax(9rem,1.15fr)_minmax(7rem,.7fr)_minmax(8rem,.7fr)_minmax(8rem,auto)] items-center gap-3 border-b bg-muted/35 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground/70 md:grid">
         <span className="flex min-h-11 items-center justify-center">
           <Checkbox
+            className="relative before:absolute before:-inset-3.5 before:content-['']"
             aria-label="Select all registrations"
             checked={allSelected}
             indeterminate={partiallySelected}
@@ -162,6 +163,7 @@ export function EntryRegistrationQueue({
                   onKeyDown={event => event.stopPropagation()}
                 >
                   <Checkbox
+                    className="relative before:absolute before:-inset-3.5 before:content-['']"
                     aria-label={`Select ${group.exhibitorName}`}
                     checked={selected}
                     onCheckedChange={() => onToggle(group)}

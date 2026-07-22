@@ -89,7 +89,8 @@ export function normalizeEntryManagementCockpitParams(
     ? 'exceptions'
     : 'registrations';
   const queue = getQueue(source);
-  const search = (source.get('search') ?? source.get('person') ?? '').trim();
+  const rawSearch = source.get('search') ?? source.get('person') ?? '';
+  const search = rawSearch.trim() ? rawSearch : '';
   const rawDensity = source.get('density');
   const density = isOperationalViewDensity(rawDensity) ? rawDensity : 'comfortable';
   const trialId = tab === 'registrations' ? source.get('trial') : null;
@@ -137,8 +138,7 @@ export function writeCockpitQueue(
 
 export function writeCockpitSearch(source: URLSearchParams, search: string): URLSearchParams {
   const next = new URLSearchParams(source);
-  const normalized = search.trim();
-  if (normalized) next.set('search', normalized);
+  if (search.trim()) next.set('search', search);
   else next.delete('search');
   next.delete('registration');
   return next;

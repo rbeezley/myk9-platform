@@ -212,7 +212,7 @@ function entryClassId(entryClass: EntryManagementEntry['classes'][number]): stri
   return entryClass.classId ?? entryClass.id;
 }
 
-function scopeShowRegistrationGroups(
+export function scopeShowRegistrationGroups(
   groups: ShowRegistrationGroup[],
   classId: string | null | undefined,
   trialClassIds: readonly string[] | undefined
@@ -224,7 +224,7 @@ function scopeShowRegistrationGroups(
       )
     );
   }
-  if (trialClassIds && trialClassIds.length > 0) {
+  if (trialClassIds !== undefined) {
     const trialIds = new Set(trialClassIds);
     return groups.filter(group =>
       group.entries.some(entry =>
@@ -233,6 +233,29 @@ function scopeShowRegistrationGroups(
     );
   }
   return groups;
+}
+
+export function getScopedShowRegistrationQueueCounts(
+  groups: ShowRegistrationGroup[],
+  classId: string | null | undefined,
+  trialClassIds: readonly string[] | undefined
+): ShowRegistrationQueueCounts {
+  return getShowRegistrationQueueCounts(
+    scopeShowRegistrationGroups(groups, classId, trialClassIds)
+  );
+}
+
+export function getVisiblePageSelectionState(
+  visibleGroups: ShowRegistrationGroup[],
+  selectedIds: ReadonlySet<string>
+): { allSelected: boolean; partiallySelected: boolean } {
+  const selectedVisibleCount = visibleGroups.filter(group => selectedIds.has(group.groupKey)).length;
+  const allSelected = visibleGroups.length > 0 && selectedVisibleCount === visibleGroups.length;
+
+  return {
+    allSelected,
+    partiallySelected: selectedVisibleCount > 0 && !allSelected,
+  };
 }
 
 export function buildShowRegistrationPage(

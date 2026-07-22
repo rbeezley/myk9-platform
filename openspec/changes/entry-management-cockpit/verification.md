@@ -4,7 +4,7 @@
 
 | Dimension | Status |
 | --- | --- |
-| Completeness | 31/34 tasks complete; three PR/merge delivery gates remain |
+| Completeness | 32/34 tasks complete; review/merge and archive delivery gates remain |
 | Correctness | 15/15 requirements mapped to implementation and regression coverage |
 | Coherence | Approved balanced cockpit, canonical action reuse, and owner-surface links followed |
 
@@ -19,7 +19,7 @@
 
 ### Verification evidence
 
-- 113 focused Vitest assertions passed across grouping, URL normalization, responsive state, queue/focus, bulk actions, page boundaries, Show Desk focus, and tool deep-link behavior.
+- 116 focused Vitest assertions passed across grouping, scoped counts, visible-page selection, URL normalization, responsive state, queue/focus, bulk actions, page boundaries, Show Desk focus, and tool deep-link behavior.
 - The full myK9Show unit suite passed: 1,503 files and 13,621 tests (one file and nine tests intentionally skipped).
 - Repository-wide TypeScript checking and myK9Show lint completed without errors.
 - Two focused Playwright journeys passed: desktop/history/narrow focus with selection preservation, keyboard focus return and offline search; Entry Management to the existing Check-in desk deep link.
@@ -28,9 +28,8 @@
 
 ### Critical delivery gates before archive
 
-1. Complete task 7.1: commit the verified implementation and open the PR with evidence.
-2. Complete task 7.2: wait for required CI/review and obtain explicit merge approval.
-3. Complete task 7.3: after merge, archive/sync OpenSpec and clean up the branch/worktree.
+1. Complete task 7.2: wait for required CI/review and obtain explicit merge approval.
+2. Complete task 7.3: after merge, archive/sync OpenSpec and clean up the branch/worktree.
 
 These are expected delivery-state gates, not missing product behavior. The implementation is ready for commit and PR, but the change is not ready to archive until they complete.
 

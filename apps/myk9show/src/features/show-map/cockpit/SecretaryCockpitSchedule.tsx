@@ -219,7 +219,7 @@ export function SecretaryCockpitSchedule({
                         </div>
                         {focused && inlineFocusedContent && (
                           <div
-                            className="border-t bg-muted/20 p-3 xl:hidden"
+                            className="border-t bg-muted/20 p-3"
                             data-testid="cockpit-inline-focus"
                           >
                             {inlineFocusedContent}

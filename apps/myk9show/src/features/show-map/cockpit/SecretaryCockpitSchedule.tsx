@@ -47,6 +47,12 @@ export function SecretaryCockpitSchedule({
 }) {
   const classById = new Map(sourceClasses.map(classItem => [classItem.id, classItem]));
   const trialById = new Map(sourceTrials.map(trial => [trial.id, trial]));
+  const trialIdsForSelectedDay = new Set(
+    sourceTrials.filter(trial => trial.date === model.day.selected).map(trial => trial.id)
+  );
+  const hasAnyClassForSelectedDay = sourceClasses.some(classItem =>
+    trialIdsForSelectedDay.has(classItem.trialId)
+  );
 
   return (
     <>
@@ -99,9 +105,9 @@ export function SecretaryCockpitSchedule({
       <section className="space-y-3 xl:col-start-1 xl:row-start-2" aria-label="Trial schedule">
         {model.trialGroups.length === 0 && (
           <div className="rounded-xl border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
-            {filter === 'all'
-              ? 'No Classes are scheduled for this day yet.'
-              : 'No Classes match this filter today.'}
+            {hasAnyClassForSelectedDay && filter !== 'all'
+              ? 'No Classes match this filter today.'
+              : 'No Classes are scheduled for this day yet.'}
           </div>
         )}
         {model.trialGroups.map(group => (

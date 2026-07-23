@@ -48,6 +48,12 @@ The system SHALL resolve each exhibitor's account access as paid Premium, foundi
 - **THEN** entitlement SHALL be re-evaluated using server time
 - **AND** the next Premium view or mutation SHALL use the new result without requiring sign-out
 
+#### Scenario: Billing management follows the source
+
+- **WHEN** effective entitlement is resolved for any state
+- **THEN** `canManageBilling` SHALL be true only for source `paid`
+- **AND** founding, complimentary, trial-only, expired, and free states SHALL NOT expose billing-management controls
+
 ### Requirement: Entitlement loading and errors do not create false state
 
 Entitlement consumers SHALL avoid displaying a false free or paid state while required entitlement inputs are loading or temporarily unavailable.

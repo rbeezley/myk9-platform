@@ -206,6 +206,8 @@ When finished, post the implementation summary, verification results, and PR lin
 - Risks or remaining work
 - Whether the acceptance criteria passed
 
+- When a PR merges, immediately close every linked Linear issue whose acceptance criteria and evidence gate are satisfied: move it to **Done**, attach the PR and merge commit, and add a concise completion comment with verification results. Keep any issue with unmet criteria or explicitly deferred work open, with the remaining work recorded.
+
 ### PR review standard
 
 Review against the linked Linear issue and its acceptance criteria. Check for scope gaps, defects, data-flow regressions, unnecessary expansion, security concerns, poor abstractions, missing loading/error states, and code that will be hard to maintain. Do not suggest unrelated improvements unless they are severe.

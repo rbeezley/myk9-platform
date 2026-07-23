@@ -2,6 +2,8 @@ import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../services/database/supabaseClient';
 import type { GeneratedPremium } from '../../types/premium-types';
 
+const GENERATION_FAILURE_MESSAGE = "We couldn't generate the premium list. Please try again.";
+
 interface UseGeneratePremiumResult {
   generate: (showId: string) => Promise<GeneratedPremium>;
   isLoading: boolean;
@@ -16,16 +18,8 @@ export function useGeneratePremium(): UseGeneratePremiumResult {
         body: { show_id: showId },
       });
       if (fnError) {
-        const ctx = (fnError as { context?: Response }).context;
-        let detail = '';
-        if (ctx && typeof ctx.text === 'function') {
-          try {
-            detail = await ctx.text();
-          } catch {
-            // body already consumed or unreadable; fall through
-          }
-        }
-        throw new Error(detail ? `${fnError.message}: ${detail}` : fnError.message);
+        console.error('[premium-generation] request failed', fnError);
+        throw new Error(GENERATION_FAILURE_MESSAGE);
       }
       return data as GeneratedPremium;
     },

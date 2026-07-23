@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { FileText, AlertTriangle, Upload } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { classifyPremiumPublishState } from '@/features/show-workbench/premiumPublishState';
 import { notifications } from '@/lib/notifications';
-import { publishInfoQueryKey, usePublishInfo } from './usePublishInfo';
+import { publishInfoQueryKey, usePublishInfo, type PublishInfo } from './usePublishInfo';
 import { useGeneratePremium } from './useGeneratePremium';
 import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
 
@@ -15,6 +16,7 @@ import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness'
 // visibly lands here, matching the #setup-publish row's pattern.
 const ANCHOR_CLASS =
   'scroll-mt-20 target:ring-2 target:ring-ring target:ring-offset-2 target:ring-offset-background';
+const PUBLISH_FAILURE_MESSAGE = "We couldn't publish the premium list. Please try again.";
 
 interface PremiumDownloadCardProps {
   showId: string;
@@ -26,21 +28,44 @@ interface PremiumDownloadCardProps {
   showStaleBadge?: boolean;
 }
 
+function PublishFailureNotice({ onRetry, disabled }: { onRetry: () => void; disabled: boolean }) {
+  return (
+    <Alert variant="destructive" className="w-full flex items-center justify-between gap-3">
+      <AlertDescription>{PUBLISH_FAILURE_MESSAGE}</AlertDescription>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="shrink-0"
+        onClick={onRetry}
+        disabled={disabled}
+      >
+        Try again
+      </Button>
+    </Alert>
+  );
+}
+
 export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumDownloadCardProps) {
   const queryClient = useQueryClient();
   const { generate, isLoading: isGenerating } = useGeneratePremium();
   const [isPublishing, setIsPublishing] = useState(false);
   const { data } = usePublishInfo(showId);
+  const [publishFailed, setPublishFailed] = useState(false);
+  const publishLatchRef = useRef(false);
   const publishedUrl = data?.publishedUrl;
   const publishedAt = data?.publishedAt;
   const showUpdatedAt = data?.updatedAt;
   const isBusy = isGenerating || isPublishing;
 
   const handleGenerateAndPublish = async () => {
+    if (publishLatchRef.current) return;
+    publishLatchRef.current = true;
+    setPublishFailed(false);
     setIsPublishing(true);
     try {
       const premium = await generate(showId);
-      await publishExperience({ showId, premium, inkSaver: false });
+      const publishResult = await publishExperience({ showId, premium, inkSaver: false });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: publishInfoQueryKey(showId) }),
         queryClient.invalidateQueries({
@@ -48,13 +73,21 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
         }),
         queryClient.invalidateQueries({ queryKey: ['shows'] }),
       ]);
-      notifications.success('Premium list published');
-    } catch (error) {
-      notifications.error('Could not publish the premium list', {
-        description: error instanceof Error ? error.message : 'Please try again.',
+      queryClient.setQueryData<PublishInfo>(publishInfoQueryKey(showId), {
+        publishedUrl: publishResult.premiumUrl,
+        publishedAt: publishResult.publishedAt,
+        // The publish timestamp is the freshest local reference for the
+        // stale-state comparison until the next server read completes.
+        updatedAt: publishResult.publishedAt,
+        experienceIsPublished: true,
       });
+      notifications.success('Premium list published');
+    } catch {
+      setPublishFailed(true);
+      notifications.error('Could not publish the premium list');
     } finally {
       setIsPublishing(false);
+      publishLatchRef.current = false;
     }
   };
 
@@ -64,6 +97,9 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
         id={PREMIUM_CARD_ANCHOR}
         className={cn('p-4 flex flex-wrap items-center gap-4', ANCHOR_CLASS)}
       >
+        {publishFailed && (
+          <PublishFailureNotice onRetry={handleGenerateAndPublish} disabled={isBusy} />
+        )}
         <div className="bg-muted text-muted-foreground rounded-md p-3">
           <FileText className="h-6 w-6" />
         </div>
@@ -111,6 +147,9 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
       id={PREMIUM_CARD_ANCHOR}
       className={cn('p-4 flex flex-wrap items-center gap-4', ANCHOR_CLASS)}
     >
+      {publishFailed && (
+        <PublishFailureNotice onRetry={handleGenerateAndPublish} disabled={isBusy} />
+      )}
       <div className="bg-primary/10 text-primary rounded-md p-3">
         <FileText className="h-6 w-6" />
       </div>

@@ -20,6 +20,11 @@ import {
   type ReplicatedTrial,
 } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
+import { getTrialTimezone } from '@/features/registries';
+import {
+  postgrestGetSecretaryPullMetadataMap,
+  type SecretaryPullMetadata,
+} from './secretaryPostgrest';
 import type { SecretaryEntry } from './secretaryTypes';
 
 interface SecretaryPerson {
@@ -50,6 +55,7 @@ interface SecretaryEntryRelations {
   peopleMap: ReadonlyMap<string, SecretaryPerson>;
   enrollmentsMap: ReadonlyMap<string, SecretaryEnrollment>;
   trialsMap: ReadonlyMap<string, ReplicatedTrial>;
+  pullMetadataMap: ReadonlyMap<string, SecretaryPullMetadata>;
 }
 
 type SecretaryDog = Pick<ReplicatedDog, 'id' | 'name' | 'callName' | 'breed' | 'ownerId'>;
@@ -146,6 +152,18 @@ async function loadSecretaryEnrollmentsMap(
   }
 }
 
+async function loadSecretaryPullMetadataMap(
+  showId: string
+): Promise<Map<string, SecretaryPullMetadata>> {
+  try {
+    return await postgrestGetSecretaryPullMetadataMap(showId);
+  } catch {
+    // Reconciliation is online-only. Offline Entry Management remains usable
+    // and renders unknown timing/no saved decision until this metadata loads.
+    return new Map();
+  }
+}
+
 function toSecretaryEntry(
   entry: ReplicatedEntry,
   {
@@ -156,6 +174,7 @@ function toSecretaryEntry(
     peopleMap,
     enrollmentsMap,
     trialsMap,
+    pullMetadataMap,
   }: SecretaryEntryRelations
 ): SecretaryEntry {
   const dogId = entry.dogId ?? null;
@@ -171,6 +190,7 @@ function toSecretaryEntry(
     : null;
   const trialId = entry.trialId ?? entry.trial_id ?? null;
   const trial = trialId ? (trialsMap.get(trialId) ?? null) : null;
+  const pullMetadata = pullMetadataMap.get(entry.id) ?? null;
   const armband =
     entry.armband ??
     armbandsByEntryId.get(entry.id)?.armbandNumber ??
@@ -216,12 +236,15 @@ function toSecretaryEntry(
     ),
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
     withdrawal_reason: entry.withdrawalReason ?? entry.withdrawal_reason ?? null,
+    withdrawn_at: pullMetadata?.withdrawn_at ?? null,
     payment_method: entry.paymentMethod ?? null,
     refund_amount: numberFrom(replicatedField(entry, 'refundAmount', 'refund_amount')),
     refunded_at: stringFrom(replicatedField(entry, 'refundedAt', 'refunded_at')),
     stripe_payment_intent_id: stringFrom(
       replicatedField(entry, 'stripePaymentIntentId', 'stripe_payment_intent_id')
     ),
+    refund_decision: pullMetadata?.refund_decision ?? null,
+    refund_decided_at: pullMetadata?.refund_decided_at ?? null,
     registration_id: entry.registrationId ?? null,
     registration: enrollment
       ? {
@@ -236,7 +259,9 @@ function toSecretaryEntry(
           refunded_at: enrollment.refunded_at,
         }
       : null,
-    trial: trial ? { trial_type: trial.trialType ?? null } : null,
+    trial: trial
+      ? { trial_type: trial.trialType ?? null, timezone: getTrialTimezone(trial) }
+      : null,
     handler_person: handler
       ? {
           id: handler.id,
@@ -297,9 +322,10 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
     assignedArmbands.filter(a => a.dogId),
     a => a.dogId as string
   );
-  const [peopleMap, enrollmentsMap] = await Promise.all([
+  const [peopleMap, enrollmentsMap, pullMetadataMap] = await Promise.all([
     loadSecretaryPeopleMap(entries, dogs),
     loadSecretaryEnrollmentsMap(entries),
+    entries.length > 0 ? loadSecretaryPullMetadataMap(showId) : Promise.resolve(new Map()),
   ]);
   const data = entries
     .map(entry =>
@@ -311,6 +337,7 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
         peopleMap,
         enrollmentsMap,
         trialsMap,
+        pullMetadataMap,
       })
     )
     .sort((a, b) =>

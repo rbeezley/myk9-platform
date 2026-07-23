@@ -52,6 +52,11 @@ describe('normalizeEntryManagementCockpitParams', () => {
       'tab=exceptions&exception=pulls',
     ],
     [
+      'attention=pulled',
+      { queue: 'needs-review', tab: 'exceptions', exception: 'pulls' },
+      'tab=exceptions&exception=pulls',
+    ],
+    [
       'entryTab=scratches',
       { queue: 'needs-review', tab: 'exceptions', exception: 'pulls' },
       'tab=exceptions&exception=pulls',

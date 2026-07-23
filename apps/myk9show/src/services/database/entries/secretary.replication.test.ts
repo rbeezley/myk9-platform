@@ -86,7 +86,7 @@ function mockLegacyEntryUpdate() {
   return query;
 }
 
-function mockMetadataLookups() {
+function mockMetadataLookups(pullMetadata: unknown[] = []) {
   const makeQuery = (data: unknown[]) => {
     const query = {
       select: vi.fn(() => query),
@@ -129,6 +129,16 @@ function mockMetadataLookups() {
           refunded_at: null,
         },
       ]);
+    }
+
+    if (table === 'entries') {
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
+          Promise.resolve(resolve({ data: pullMetadata, error: null })),
+      };
+      return query;
     }
 
     return mockLegacyEntryUpdate();
@@ -340,14 +350,14 @@ describe('secretary entry read replication', () => {
     mockMetadataLookups();
   });
 
-  it('builds secretary entries from replicated entries, dogs, and classes without reading entries through PostgREST', async () => {
+  it('builds secretary entries from replication with only scoped online reconciliation metadata', async () => {
     const result = await getEntriesForShow('show-1');
 
     expect(mocks.getEntriesByShow).toHaveBeenCalledWith('show-1');
     expect(mocks.getAllDogs).toHaveBeenCalled();
     expect(mocks.getAllClasses).toHaveBeenCalled();
     expect(mocks.getArmbandsByShow).toHaveBeenCalledWith('show-1');
-    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('entries');
     expect(result.error).toBeNull();
     expect(result.data).toEqual([
       expect.objectContaining({
@@ -416,6 +426,27 @@ describe('secretary entry read replication', () => {
         final_placement: 1,
         judge_notes: 'Clean search',
         scoring_completed_at: '2026-06-01T10:45:00.000Z',
+      })
+    );
+  });
+
+  it('merges online pull timing and saved refund decisions into replicated entries', async () => {
+    mockMetadataLookups([
+      {
+        id: 'entry-1',
+        withdrawn_at: '2026-06-01T15:30:00.000Z',
+        refund_decision: 'denied',
+        refund_decided_at: '2026-06-01T16:00:00.000Z',
+      },
+    ]);
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(result.data?.[0]).toEqual(
+      expect.objectContaining({
+        withdrawn_at: '2026-06-01T15:30:00.000Z',
+        refund_decision: 'denied',
+        refund_decided_at: '2026-06-01T16:00:00.000Z',
       })
     );
   });
@@ -521,6 +552,44 @@ describe('secretary entry read replication', () => {
     expect(result.data![0]).toMatchObject({ id: 'entry-from-postgrest' });
   });
 
+  it('retries the cold PostgREST fallback without migration-backed refund columns', async () => {
+    mocks.getEntriesByShow.mockRejectedValueOnce(new Error('replicated entries unavailable'));
+    const selects: string[] = [];
+    mocks.supabaseFrom.mockImplementation(() => {
+      let selected = '';
+      const query = {
+        select: vi.fn((select: string) => {
+          selected = select;
+          selects.push(select);
+          return query;
+        }),
+        eq: vi.fn(() => query),
+        is: vi.fn(() => query),
+        order: vi.fn(() =>
+          Promise.resolve(
+            selected.includes('refund_decision')
+              ? {
+                  data: null,
+                  error: {
+                    code: '42703',
+                    message: 'column entries.refund_decision does not exist',
+                  },
+                }
+              : { data: [{ id: 'entry-from-pre-migration-db' }], error: null }
+          )
+        ),
+      };
+      return query;
+    });
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(result).toEqual({ data: [{ id: 'entry-from-pre-migration-db' }], error: null });
+    expect(selects).toHaveLength(2);
+    expect(selects[0]).toContain('refund_decision');
+    expect(selects[1]).not.toContain('refund_decision');
+  });
+
   it('hydrates a cold show-scoped replica before using PostgREST', async () => {
     mocks.getEntriesByShow.mockResolvedValueOnce([]).mockResolvedValue([
       {
@@ -550,14 +619,14 @@ describe('secretary entry read replication', () => {
     expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
     expect(mocks.syncTrials).toHaveBeenCalledWith('show-1');
     expect(mocks.syncClasses).toHaveBeenCalledWith('trial-1');
-    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('entries');
     expect(result.error).toBeNull();
     expect(result.data).toEqual([
       expect.objectContaining({
         id: 'entry-after-hydration',
         show_id: 'show-1',
         class: expect.objectContaining({ name: 'Novice Containers' }),
-        trial: { trial_type: 'Scent Work' },
+        trial: { trial_type: 'Scent Work', timezone: 'America/New_York' },
       }),
     ]);
   });

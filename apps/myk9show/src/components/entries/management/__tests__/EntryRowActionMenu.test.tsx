@@ -52,10 +52,10 @@ describe('EntryRowActionMenu', () => {
     await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
     await screen.findByRole('menu');
 
-    expect(screen.queryByRole('menuitem', { name: /accept entry/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /^accept$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /move to waitlist/i })).not.toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /check in all classes/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /reject entry/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /^reject$/i })).toBeInTheDocument();
   });
 
   it('hides actions when their handlers are not supplied', async () => {
@@ -66,7 +66,7 @@ describe('EntryRowActionMenu', () => {
     await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
     await screen.findByRole('menu');
 
-    expect(screen.getByRole('menuitem', { name: /accept entry/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /^accept$/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /move to waitlist/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /remove entry/i })).toBeInTheDocument();
     expect(
@@ -151,6 +151,56 @@ describe('EntryRowActionMenu', () => {
     await screen.findByRole('menu');
 
     expect(screen.queryByRole('menuitem', { name: /refund payment/i })).not.toBeInTheDocument();
+  });
+
+  it('confirms before reverting a completed entry to a pre-scoring status from the row menu', async () => {
+    const onStatusChange = vi.fn().mockResolvedValue(true);
+    const { user } = render(
+      <EntryRowActionMenu
+        entry={makeEntry({ entryStatus: EntryStatus.COMPLETED })}
+        onStatusChange={onStatusChange}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
+    await screen.findByRole('menu');
+    await user.click(screen.getByRole('menuitem', { name: /^accept$/i }));
+
+    expect(onStatusChange).not.toHaveBeenCalled();
+    expect(screen.getByText('This entry has a recorded result')).toBeInTheDocument();
+
+    // Cancel is a no-op.
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onStatusChange).not.toHaveBeenCalled();
+    expect(screen.queryByText('This entry has a recorded result')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
+    await screen.findByRole('menu');
+    await user.click(screen.getByRole('menuitem', { name: /^accept$/i }));
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
+
+    expect(onStatusChange).toHaveBeenCalledTimes(1);
+    expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.ACCEPTED);
+  });
+
+  it('confirms before reverting a scored entry that is still ACCEPTED (scoring facts, not just COMPLETED status)', async () => {
+    const onStatusChange = vi.fn().mockResolvedValue(true);
+    const { user } = render(
+      <EntryRowActionMenu
+        entry={makeEntry({ entryStatus: EntryStatus.ACCEPTED, isScored: true })}
+        onStatusChange={onStatusChange}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
+    await screen.findByRole('menu');
+    await user.click(screen.getByRole('menuitem', { name: /mark pending/i }));
+
+    expect(onStatusChange).not.toHaveBeenCalled();
+    expect(screen.getByText('This entry has a recorded result')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
+    expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.PENDING);
   });
 
   it('hides the Refund action when onOpenRefund is not supplied', async () => {

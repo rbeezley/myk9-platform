@@ -198,7 +198,7 @@ export function EntryManagementCockpit({
   return (
     <div ref={ref} className={cn('space-y-4', cockpit.selection.selectedCount > 0 && 'pb-32')}>
       <div className="flex items-start justify-between gap-2">
-        <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Registration queues">
+        <div className="flex min-w-0 flex-1 flex-wrap gap-2 pb-1" aria-label="Registration queues">
           {QUEUES.map(queue => (
             <Button
               key={queue.id}

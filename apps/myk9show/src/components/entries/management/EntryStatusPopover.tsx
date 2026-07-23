@@ -1,11 +1,13 @@
 import { useState, type ReactNode } from 'react';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StatusBadge, StatusIcon } from '@/components/status';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { resolveEntryStatusActions, type EntryStatusActionDefinition } from './entryActions';
+import { getEntryStatusStateLabel } from './reviewStateLabels';
+import { REVERT_CANCELLED, useScoredRevertGuard } from './useScoredRevertGuard';
 
 interface EntryStatusPopoverProps {
   entry: EntryManagementEntry;
@@ -27,7 +29,13 @@ export function EntryStatusPopover({
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [failedAction, setFailedAction] = useState<EntryStatusActionDefinition | null>(null);
   const [queuedOffline, setQueuedOffline] = useState(false);
+  const { guardedOnStatusChange, dialog: revertGuardDialog } = useScoredRevertGuard(
+    entry.entryStatus,
+    { isScored: entry.isScored, resultStatus: entry.resultStatus },
+    onStatusChange
+  );
   const actions = resolveEntryStatusActions(entry, { onStatusChange });
+  const currentStatusLabel = getEntryStatusStateLabel(entry.entryStatus);
 
   const runAction = async (action: EntryStatusActionDefinition) => {
     setOpen(false);
@@ -37,7 +45,11 @@ export function EntryStatusPopover({
     const offline = typeof navigator !== 'undefined' && !navigator.onLine;
 
     try {
-      const result = await onStatusChange(entry.id, action.statusTarget);
+      const result = await guardedOnStatusChange(entry.id, action.statusTarget);
+      if (result === REVERT_CANCELLED) {
+        // Dialog was dismissed — silent no-op, no toast and no failure UI.
+        return;
+      }
       if (result === false) {
         setFailedAction(action);
         return;
@@ -75,6 +87,15 @@ export function EntryStatusPopover({
         </PopoverTrigger>
         <PopoverContent align="start" className="w-64 p-2" role="menu">
           <p className="px-2 pb-1 text-sm font-semibold">Change status</p>
+          <div
+            role="menuitem"
+            aria-disabled="true"
+            className="flex min-h-11 w-full cursor-default items-center gap-2 rounded-md px-2 text-left text-sm text-muted-foreground"
+          >
+            <StatusIcon family="entry" status={entry.entryStatus} size="sm" decorative />
+            <span>{currentStatusLabel} (current)</span>
+            <Check className="ml-auto h-4 w-4" aria-hidden />
+          </div>
           {actions.map(action => (
             <button
               key={action.id}
@@ -120,6 +141,8 @@ export function EntryStatusPopover({
           </button>
         </div>
       )}
+
+      {revertGuardDialog}
     </div>
   );
 }

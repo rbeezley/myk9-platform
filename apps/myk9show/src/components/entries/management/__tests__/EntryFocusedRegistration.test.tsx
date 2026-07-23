@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -129,5 +129,98 @@ describe('EntryFocusedRegistration', () => {
       payment.compareDocumentPosition(communication) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Email Exhibitor' })).toBeInTheDocument();
+  });
+
+  it('shows Accept and Reject in the primary-work panel for a needs-review registration and wires them to the shared handler', async () => {
+    const registration = groupEntriesByShowRegistration([
+      entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
+      entry('entry-2', 'Bean', 'Jamie Lee', 'dog-2'),
+    ])[0]!;
+    const onBulkStatusChange = vi.fn();
+
+    const { user } = render(
+      <EntryFocusedRegistration
+        registration={registration}
+        onStatusChange={vi.fn()}
+        onCheckInStatusChange={vi.fn()}
+        onOpenArmbandDialog={vi.fn()}
+        onRemoveEntry={vi.fn()}
+        onBulkStatusChange={onBulkStatusChange}
+        onBulkCheckIn={vi.fn()}
+        onPaymentStatusChange={vi.fn()}
+      />
+    );
+
+    const panel = screen.getByText('Review registration').closest('div')!;
+    const acceptButton = within(panel).getByRole('button', { name: 'Accept' });
+    const rejectButton = within(panel).getByRole('button', { name: 'Reject' });
+    expect(acceptButton).toBeInTheDocument();
+    expect(rejectButton).toBeInTheDocument();
+
+    await user.click(acceptButton);
+
+    expect(onBulkStatusChange).toHaveBeenCalledTimes(1);
+    expect(onBulkStatusChange).toHaveBeenCalledWith(
+      registration.recommendedAction.affectedEntryIds,
+      EntryStatus.ACCEPTED
+    );
+
+    // Same handler and entry ids as the overflow menu's Accept all.
+    const menuAcceptCallArgs = onBulkStatusChange.mock.calls[0];
+    expect(menuAcceptCallArgs[0]).toEqual(registration.entries.map(e => e.id));
+  });
+
+  it('does not render Accept/Reject buttons when no action is needed', () => {
+    const processedEntry = {
+      ...entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
+      entryStatus: EntryStatus.COMPLETED,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      paidAmount: 25,
+    };
+    const registration = groupEntriesByShowRegistration([processedEntry])[0]!;
+
+    render(
+      <EntryFocusedRegistration
+        registration={registration}
+        onStatusChange={vi.fn()}
+        onCheckInStatusChange={vi.fn()}
+        onOpenArmbandDialog={vi.fn()}
+        onRemoveEntry={vi.fn()}
+        onBulkStatusChange={vi.fn()}
+        onBulkCheckIn={vi.fn()}
+        onPaymentStatusChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('No action needed — all entries processed.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reject' })).not.toBeInTheDocument();
+  });
+
+  it('uses singular verb agreement when exactly one entry needs the recommended action', () => {
+    const registration = groupEntriesByShowRegistration([
+      entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
+      {
+        ...entry('entry-2', 'Bean', 'Jamie Lee', 'dog-2'),
+        entryStatus: EntryStatus.COMPLETED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        paidAmount: 25,
+      },
+    ])[0]!;
+
+    render(
+      <EntryFocusedRegistration
+        registration={registration}
+        onStatusChange={vi.fn()}
+        onCheckInStatusChange={vi.fn()}
+        onOpenArmbandDialog={vi.fn()}
+        onRemoveEntry={vi.fn()}
+        onBulkStatusChange={vi.fn()}
+        onBulkCheckIn={vi.fn()}
+        onPaymentStatusChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/1 of 2 Entries currently needs this action\./)).toBeInTheDocument();
   });
 });

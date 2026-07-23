@@ -3,22 +3,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
+import { EntryStatus } from '@/types/show-registration-types';
 import { EnrollmentCard } from './EnrollmentCard';
 import type { EnrollmentCardProps } from './EnrollmentCard.types';
 import type { ShowRegistrationGroup } from './showRegistrationProjection';
+import { getRegistrationReviewLabel, STATUS_COMMAND_LABELS } from './reviewStateLabels';
 
 interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group'> {
   registration: ShowRegistrationGroup;
   onBack?: () => void;
 }
 
-function reviewLabel(registration: ShowRegistrationGroup): string {
-  if (registration.attentionReasons.includes('missing_information')) {
-    return 'Missing information';
-  }
-  if (registration.attentionReasons.includes('pending_review')) return 'Needs review';
-  return 'Reviewed';
-}
+const reviewLabel = getRegistrationReviewLabel;
 
 export function EntryFocusedRegistration({
   registration,
@@ -74,12 +70,51 @@ export function EntryFocusedRegistration({
             Primary work
           </p>
           <p className="mt-2 font-semibold">{registration.recommendedAction.label}</p>
-          <p className="text-sm text-muted-foreground">
-            {registration.recommendedAction.affectedEntryIds.length} of {registration.entryCount}{' '}
-            {registration.entryCount === 1 ? 'Entry' : 'Entries'} currently{' '}
-            {registration.recommendedAction.affectedEntryIds.length === 1 ? 'needs' : 'need'} this
-            action.
-          </p>
+          {registration.recommendedAction.id === 'view-registration' ? (
+            <p className="text-sm text-muted-foreground">
+              No action needed — all entries processed.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                {registration.recommendedAction.affectedEntryIds.length} of{' '}
+                {registration.entryCount} {registration.entryCount === 1 ? 'Entry' : 'Entries'}{' '}
+                currently{' '}
+                {registration.recommendedAction.affectedEntryIds.length === 1 ? 'needs' : 'need'}{' '}
+                this action.
+              </p>
+              {registration.recommendedAction.id === 'review-registration' &&
+                registration.recommendedAction.affectedEntryIds.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      className="min-h-11"
+                      onClick={() =>
+                        enrollmentCardProps.onBulkStatusChange(
+                          registration.recommendedAction.affectedEntryIds,
+                          EntryStatus.ACCEPTED
+                        )
+                      }
+                    >
+                      {STATUS_COMMAND_LABELS[EntryStatus.ACCEPTED]}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-11 border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() =>
+                        enrollmentCardProps.onBulkStatusChange(
+                          registration.recommendedAction.affectedEntryIds,
+                          EntryStatus.REJECTED
+                        )
+                      }
+                    >
+                      {STATUS_COMMAND_LABELS[EntryStatus.REJECTED]}
+                    </Button>
+                  </div>
+                )}
+            </>
+          )}
         </div>
 
         <EnrollmentCard group={registration} {...enrollmentCardProps} />

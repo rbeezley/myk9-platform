@@ -137,7 +137,7 @@ describe('EntryManagementCockpit status seam', () => {
     await user.click(
       screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
     );
-    await user.click(screen.getByRole('menuitem', { name: 'Accept entry' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't update status.");
     expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.ACCEPTED, undefined);

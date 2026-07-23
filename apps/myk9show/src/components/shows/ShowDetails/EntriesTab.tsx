@@ -3,13 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { cacheStrategies } from '@/lib/queryClient';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, ClipboardList } from 'lucide-react';
-import { getEntriesByShow, getPublicEntriesByShow } from '@/services/database/entries';
-import { StatusBadge } from '@/components/status';
-import { formatShortDate } from '@/lib/format/dates';
-import { DataTable, type ColumnDef } from '@/components/ui/data-table';
-import { useAuthContext } from '@/hooks/useAuthContext';
-import { publicRowToShowEntryRow, type ShowEntryRow } from './entriesTabMappers';
+import { ClipboardList } from 'lucide-react';
+import { getEntriesByShow } from '@/services/database/entries';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 interface EntriesTabProps {
@@ -17,88 +12,29 @@ interface EntriesTabProps {
   onManageEntries?: (() => void) | undefined;
 }
 
-const entryColumns: ColumnDef<ShowEntryRow, unknown>[] = [
-  {
-    id: 'dogName',
-    accessorFn: row => {
-      const dog = row.dog;
-      const parts = [dog?.name, dog?.call_name, dog?.breed].filter(Boolean);
-      return parts.join(' ') || 'Unknown Dog';
-    },
-    header: 'Dog',
-    cell: ({ row }) => {
-      const dog = row.original.dog;
-      const registeredName = dog?.name || 'Unknown Dog';
-      const callName = dog?.call_name;
-      const breed = dog?.breed || '';
-      return (
-        <div>
-          <div className="font-medium text-foreground">{registeredName}</div>
-          {callName && callName !== registeredName && (
-            <div className="text-xs text-muted-foreground">&ldquo;{callName}&rdquo;</div>
-          )}
-          {breed && <div className="text-xs text-muted-foreground">{breed}</div>}
-        </div>
-      );
-    },
-  },
-  {
-    id: 'className',
-    accessorFn: row => row.class?.name || 'N/A',
-    header: 'Class',
-  },
-  {
-    id: 'handler',
-    accessorFn: row =>
-      row.handler ||
-      (row.dog?.owner
-        ? `${row.dog.owner.first_name || ''} ${row.dog.owner.last_name || ''}`.trim()
-        : 'N/A'),
-    header: 'Handler / Owner',
-    meta: { responsiveHide: 'md' as const },
-  },
-  {
-    accessorKey: 'armband',
-    header: 'Armband',
-    cell: ({ getValue }) => <span className="font-mono">{(getValue() as string) || '-'}</span>,
-  },
-  {
-    accessorKey: 'entry_status',
-    header: 'Status',
-    cell: ({ getValue }) => {
-      const status = (getValue() as string) || 'Unknown';
-      return <StatusBadge family="entry" status={status} variant="outline" />;
-    },
-  },
-  {
-    accessorKey: 'created_at',
-    header: 'Date',
-    meta: { responsiveHide: 'sm' as const },
-    cell: ({ getValue }) => formatShortDate(getValue() as string | null) || 'TBD',
-  },
-];
-
+/**
+ * Manager-only entries summary. Managers are always authenticated (canManageShow
+ * requires secretary/admin), so this always resolves via `getEntriesByShow`
+ * (the authenticated read) — there is no anonymous/public consumer of this
+ * component; see ShowDetailTabs, its sole caller.
+ *
+ * Renders a slim total-entries count plus a single primary action that opens
+ * the full Entry Management cockpit — no duplicate table (design D5).
+ */
 export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries }) => {
-  const { user, loading: authLoading } = useAuthContext();
-  const isAnon = !user;
-
   const {
     data: entries = [],
     isLoading: loading,
     isError,
     error: queryError,
   } = useQuery({
-    queryKey: ['shows', showId, 'entries', isAnon ? 'public' : 'auth'],
+    queryKey: ['shows', showId, 'entries', 'auth'],
     queryFn: async () => {
-      if (isAnon) {
-        const result = await getPublicEntriesByShow(showId);
-        return result.data.map(publicRowToShowEntryRow);
-      }
       const result = await getEntriesByShow(showId);
       if (result.error) throw result.error;
-      return (result.data as unknown as ShowEntryRow[]) || [];
+      return result.data ?? [];
     },
-    enabled: !!showId && !authLoading,
+    enabled: !!showId,
     ...cacheStrategies.dynamic,
   });
 
@@ -112,7 +48,7 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
     return (
       <Card className="border-0 bg-gradient-to-br from-gray-50/50 via-white to-slate-50/30 backdrop-blur-xl shadow-lg">
         <CardContent role="status" aria-label="Loading show entries" className="p-6">
-          <TableSkeleton rows={5} columns={6} />
+          <TableSkeleton rows={2} columns={1} />
         </CardContent>
       </Card>
     );
@@ -145,12 +81,7 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
                 Entries will appear here once exhibitors register for this show.
               </p>
             </div>
-            {onManageEntries && (
-              <Button onClick={onManageEntries} variant="outline">
-                <Users className="w-4 h-4 mr-2" />
-                Manage Entries
-              </Button>
-            )}
+            {onManageEntries && <Button onClick={onManageEntries}>Open Entry Management</Button>}
           </div>
         </CardContent>
       </Card>
@@ -158,21 +89,18 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
   }
 
   return (
-    <div className="space-y-4">
-      {/* Summary bar */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">{entries.length} entries</span>
-          {onManageEntries && (
-            <Button onClick={onManageEntries} variant="outline" size="sm">
-              <Users className="w-4 h-4 mr-2" />
-              Manage Entries
-            </Button>
-          )}
+    <Card className="border-0 bg-gradient-to-br from-gray-50/50 via-white to-slate-50/30 backdrop-blur-xl shadow-lg">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <div className="text-2xl font-bold text-foreground">{entries.length}</div>
+            <div className="text-sm text-muted-foreground">
+              {entries.length === 1 ? 'entry' : 'entries'} across this show
+            </div>
+          </div>
+          {onManageEntries && <Button onClick={onManageEntries}>Open Entry Management</Button>}
         </div>
-      </div>
-
-      <DataTable tableId="showEntriesTab" columns={entryColumns} data={entries} />
-    </div>
+      </CardContent>
+    </Card>
   );
 };

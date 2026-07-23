@@ -23,7 +23,7 @@ import { useMyShows } from '@/hooks/useMyShows';
 import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
 
 export const UnifiedAppLayout: React.FC = () => {
-  const { user, getUserRoles } = useAuthContext();
+  const { user, getUserRoles, firstName } = useAuthContext();
   const roles = getUserRoles();
   const ensureClubsReady = useClubStore(s => s.ensureClubsReady);
   const shows = useShowStore(s => s.shows);
@@ -53,8 +53,8 @@ export const UnifiedAppLayout: React.FC = () => {
   }, [today, upcoming, draft]);
 
   const sidebarConfig = useMemo(
-    () => buildUnifiedSidebarConfig(roles, clubContext, nextShow),
-    [roles, clubContext, nextShow]
+    () => buildUnifiedSidebarConfig(roles, clubContext, nextShow, firstName),
+    [roles, clubContext, nextShow, firstName]
   );
   const { mobileOpen, setMobileOpen } = useSidebarLayoutState();
   const openMobileNav = useCallback(() => setMobileOpen(true), [setMobileOpen]);

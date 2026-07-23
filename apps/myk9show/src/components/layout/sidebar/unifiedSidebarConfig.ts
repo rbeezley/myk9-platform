@@ -66,7 +66,7 @@ const STAFF_RINGSIDE_NAV_ITEM: NavItem = {
 };
 
 const EXHIBITOR_SHOW_DAY_NAV_ITEM: NavItem = {
-  title: 'Show day',
+  title: 'Ringside',
   href: '/at-show',
   icon: Radio,
   description: 'Find check-in, run order, and show-day details',
@@ -85,7 +85,8 @@ function nextShowDescription(phase: NextShowContext['phase']): string {
 export function buildUnifiedSidebarConfig(
   userRoles: UserRole[],
   clubContext?: ClubContext,
-  nextShow?: NextShowContext
+  nextShow?: NextShowContext,
+  firstName?: string | null
 ): SidebarConfig {
   const groups: NavGroup[] = [];
   const hasSiteAdmin = hasAnyRole(userRoles, [UserRole.SITE_ADMIN]);
@@ -131,7 +132,7 @@ export function buildUnifiedSidebarConfig(
           icon: Wallet,
           description: 'Your online entry payments and receipts',
         },
-        // Show day resolves the right showId at the destination (RingsideEntryPage),
+        // Ringside resolves the right showId at the destination (RingsideEntryPage),
         // so a static link is safe even though an exhibitor may have several
         // shows. Complements the context-aware <ShowTodayBanner> on MyEntriesPage.
         EXHIBITOR_SHOW_DAY_NAV_ITEM,
@@ -340,7 +341,7 @@ export function buildUnifiedSidebarConfig(
     footerDescription = 'Scoring and evaluation';
   } else if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
     headerIcon = Heart;
-    headerTitle = 'myK9 Exhibitor';
+    headerTitle = firstName?.trim() ? firstName.trim() : 'myK9 Exhibitor';
     footerIcon = Heart;
     footerLabel = 'Exhibitor Access';
     footerDescription = 'Show entries and dog management';

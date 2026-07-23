@@ -1,6 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface FilterOption {
   label: string;
@@ -21,38 +26,22 @@ interface FilterChipsProps {
 }
 
 export function FilterChips({ filters, values, onChange, className }: FilterChipsProps) {
-  const [openKey, setOpenKey] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!openKey) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpenKey(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [openKey]);
-
   return (
-    <div ref={containerRef} data-testid="filter-chips" className={cn('flex flex-wrap gap-2', className)}>
+    <div data-testid="filter-chips" className={cn('flex flex-wrap gap-2', className)}>
       {filters.map(filter => {
         const activeValue = values[filter.key];
         const activeOption = filter.options.find(o => o.value === activeValue);
-        const isOpen = openKey === filter.key;
 
         return (
-          <div key={filter.key} className="relative">
-            <button
+          <DropdownMenu key={filter.key}>
+            <DropdownMenuTrigger
+              nativeButton
               className={cn(
                 'h-8 rounded-full px-3 text-sm inline-flex items-center gap-1 transition-all',
                 activeValue
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'bg-card text-foreground shadow-card hover:shadow-card-hover'
               )}
-              onClick={() => setOpenKey(isOpen ? null : filter.key)}
             >
               {activeOption ? activeOption.label : filter.label}
               {activeValue ? (
@@ -61,33 +50,27 @@ export function FilterChips({ filters, values, onChange, className }: FilterChip
                   onClick={e => {
                     e.stopPropagation();
                     onChange(filter.key, null);
-                    setOpenKey(null);
                   }}
                 />
               ) : (
                 <ChevronDown className="h-3.5 w-3.5 ml-0.5" />
               )}
-            </button>
-            {isOpen && (
-              <div className="absolute top-full left-0 mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 min-w-[160px] py-1">
-                {filter.options.map(option => (
-                  <button
-                    key={option.value}
-                    className={cn(
-                      'w-full text-left px-3.5 py-2 text-sm hover:bg-accent transition-colors',
-                      activeValue === option.value && 'bg-accent font-medium'
-                    )}
-                    onClick={() => {
-                      onChange(filter.key, option.value);
-                      setOpenKey(null);
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-[160px] rounded-xl py-1">
+              {filter.options.map(option => (
+                <DropdownMenuItem
+                  key={option.value}
+                  className={cn(
+                    'px-3.5 py-2 text-sm rounded-none',
+                    activeValue === option.value && 'bg-accent font-medium'
+                  )}
+                  onClick={() => onChange(filter.key, option.value)}
+                >
+                  {option.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         );
       })}
     </div>

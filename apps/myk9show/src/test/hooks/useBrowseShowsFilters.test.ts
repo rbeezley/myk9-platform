@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
+import { useBrowseShowsFilters, disciplineMatchesEvent } from '@/hooks/useBrowseShowsFilters';
 import type { Show } from '@/types/show-types';
 
 // ISO date-only string built from local calendar components — mirrors how DB values arrive
@@ -213,6 +213,19 @@ describe('useBrowseShowsFilters — date range filter', () => {
       expect(ids).toContain('first-of-next');
       expect(ids).not.toContain('first-of-after');
     });
+  });
+});
+
+describe('disciplineMatchesEvent — trial-type variant normalization', () => {
+  it.each(['Scent Work', 'Scentwork', 'scent_work', 'AKC Scent Work'])(
+    'matches "Scent Work" discipline against event %s',
+    event => {
+      expect(disciplineMatchesEvent('Scent Work', event)).toBe(true);
+    }
+  );
+
+  it('does not match an unrelated discipline', () => {
+    expect(disciplineMatchesEvent('Scent Work', 'Agility')).toBe(false);
   });
 });
 

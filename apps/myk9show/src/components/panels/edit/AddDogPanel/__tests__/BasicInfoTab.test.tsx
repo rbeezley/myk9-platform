@@ -177,12 +177,6 @@ describe('BasicInfoTab', () => {
   });
 
   describe('Novice-friendly fields (4.E)', () => {
-    it('shows a reassuring DOB hint so novices are not blocked by an exact date', () => {
-      mockSupabasePeople([]);
-      renderBasicInfoTab(UserRole.EXHIBITOR, 'person-123');
-      expect(screen.getByText(/approximate one is fine/i)).toBeInTheDocument();
-    });
-
     it('does not mark gender/owner touched on dropdown open (no onBlur→touchField)', () => {
       // Regression guard for the "Please select a gender" flash on open. Opening
       // a Base UI Select blurs the trigger; wiring onBlur→touchField there marked

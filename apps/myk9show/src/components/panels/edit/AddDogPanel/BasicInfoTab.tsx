@@ -164,7 +164,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             fieldId="dateOfBirth"
             required
             error={form.getError('dateOfBirth')}
-            hint="Not sure of the exact date? An approximate one is fine."
           >
             <Input
               id="dateOfBirth"

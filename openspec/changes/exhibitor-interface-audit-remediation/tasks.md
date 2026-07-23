@@ -2,22 +2,22 @@
 
 ## 1. Quick fixes (independent, low risk)
 
-- [ ] 1.1 Wire `TitleProgressTeaser` "Upgrade to unlock" button to `navigate('/pricing-page')` (`src/components/dogs/DogDetailsMain/sidebar/TitleProgressTeaser.tsx:26-29`); add a test asserting navigation on click
-- [ ] 1.2 Rename exhibitor nav item "Show day" → "Ringside" in `unifiedSidebarConfig.ts:68-73`; update any tests/snapshots pinning the old label (grep `Show day` in src and tests)
-- [ ] 1.3 Remove the DOB `hint` prop in `AddDogPanel/BasicInfoTab.tsx:167` (keep age preview); grep tests for the hint phrase
-- [ ] 1.4 Re-theme `PhotoDialog.tsx`: Save button → default `Button` variant (drop `bg-gray-900 hover:bg-gray-800`), replace `bg-blue-50`/`border-gray-300`/`text-gray-{400,500,700}` with `bg-muted`/`border-border`/`text-muted-foreground`; verify visually in both themes
+- [x] 1.1 Wire `TitleProgressTeaser` "Upgrade to unlock" button to `navigate('/pricing-page')` (`src/components/dogs/DogDetailsMain/sidebar/TitleProgressTeaser.tsx:26-29`); add a test asserting navigation on click
+- [x] 1.2 Rename exhibitor nav item "Show day" → "Ringside" in `unifiedSidebarConfig.ts:68-73`; update any tests/snapshots pinning the old label (grep `Show day` in src and tests)
+- [x] 1.3 Remove the DOB `hint` prop in `AddDogPanel/BasicInfoTab.tsx:167` (keep age preview); grep tests for the hint phrase
+- [x] 1.4 Re-theme `PhotoDialog.tsx`: Save button → default `Button` variant (drop `bg-gray-900 hover:bg-gray-800`), replace `bg-blue-50`/`border-gray-300`/`text-gray-{400,500,700}` with `bg-muted`/`border-border`/`text-muted-foreground`; verify visually in both themes
 
 ## 2. Sidebar personalization
 
-- [ ] 2.1 Pass `firstName` from `useAuthContext()` in `UnifiedAppLayout.tsx` into `buildUnifiedSidebarConfig` (`unifiedSidebarConfig.ts:85,341-347`); exhibitor `headerTitle` = first name, fallback `'myK9 Exhibitor'`; other roles untouched
-- [ ] 2.2 Unit-test `buildUnifiedSidebarConfig` for: name present, name null fallback, staff titles unchanged
+- [x] 2.1 Pass `firstName` from `useAuthContext()` in `UnifiedAppLayout.tsx` into `buildUnifiedSidebarConfig` (`unifiedSidebarConfig.ts:85,341-347`); exhibitor `headerTitle` = first name, fallback `'myK9 Exhibitor'`; other roles untouched
+- [x] 2.2 Unit-test `buildUnifiedSidebarConfig` for: name present, name null fallback, staff titles unchanged
 
 ## 3. Find Shows filters
 
-- [ ] 3.1 Replace `FilterChips` inline absolute dropdown (`src/components/common/FilterChips.tsx:71-89`) with the portal-based shadcn `DropdownMenu`/`Popover` primitive; preserve chip trigger styling and selection API
-- [ ] 3.2 Verify each `FilterChips` consumer (Find Shows, My Shows filter strip — grep usages) renders and selects correctly; confirm dropdown paints above `PrimaryTabs` on `BrowseShowsPage`
-- [ ] 3.3 Normalize discipline matching in `useBrowseShowsFilters.ts:35-40,145-149` (lowercase, strip non-alpha, containment for org-prefixed values)
-- [ ] 3.4 Unit tests enumerating trial-type variants (`Scent Work`, `Scentwork`, `scent_work`, `AKC Scent Work`, plus non-match case); check staging `trial_type` values and note any data inconsistency found
+- [x] 3.1 Replace `FilterChips` inline absolute dropdown (`src/components/common/FilterChips.tsx:71-89`) with the portal-based shadcn `DropdownMenu`/`Popover` primitive; preserve chip trigger styling and selection API
+- [x] 3.2 Verify each `FilterChips` consumer (Find Shows, My Shows filter strip — grep usages) renders and selects correctly; confirm dropdown paints above `PrimaryTabs` on `BrowseShowsPage`
+- [x] 3.3 Normalize discipline matching in `useBrowseShowsFilters.ts:35-40,145-149` (lowercase, strip non-alpha, containment for org-prefixed values)
+- [x] 3.4 Unit tests enumerating trial-type variants (`Scent Work`, `Scentwork`, `scent_work`, `AKC Scent Work`, plus non-match case); check staging `trial_type` values and note any data inconsistency found
 
 ## 4. My Dogs simplification
 

@@ -20,6 +20,10 @@ import {
   type ReplicatedTrial,
 } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
+import {
+  postgrestGetSecretaryPullMetadataMap,
+  type SecretaryPullMetadata,
+} from './secretaryPostgrest';
 import type { SecretaryEntry } from './secretaryTypes';
 
 interface SecretaryPerson {
@@ -40,13 +44,6 @@ interface SecretaryEnrollment {
   refund_amount: number | null;
   refund_notes: string | null;
   refunded_at: string | null;
-}
-
-interface SecretaryPullMetadata {
-  id: string;
-  withdrawn_at: string | null;
-  refund_decision: string | null;
-  refund_decided_at: string | null;
 }
 
 interface SecretaryEntryRelations {
@@ -158,14 +155,7 @@ async function loadSecretaryPullMetadataMap(
   showId: string
 ): Promise<Map<string, SecretaryPullMetadata>> {
   try {
-    const { data, error } = await supabase
-      .from('entries')
-      .select('id, withdrawn_at, refund_decision, refund_decided_at')
-      .eq('show_id', showId)
-      .eq('entry_status', 'scratched');
-
-    if (error || !data) return new Map();
-    return new Map((data as SecretaryPullMetadata[]).map(metadata => [metadata.id, metadata]));
+    return await postgrestGetSecretaryPullMetadataMap(showId);
   } catch {
     // Reconciliation is online-only. Offline Entry Management remains usable
     // and renders unknown timing/no saved decision until this metadata loads.

@@ -1,5 +1,12 @@
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
 
+export interface SecretaryPullMetadata {
+  id: string;
+  withdrawn_at: string | null;
+  refund_decision: string | null;
+  refund_decided_at: string | null;
+}
+
 const SECRETARY_ENTRIES_SELECT = `
         id,
         dog_id,
@@ -99,4 +106,21 @@ export async function postgrestGetSecretaryEntriesForShow(
   }
 
   return { data: data || [], error: null };
+}
+
+/** Online-only reconciliation metadata layered over the offline entry replica. */
+export async function postgrestGetSecretaryPullMetadataMap(
+  showId: string
+): Promise<Map<string, SecretaryPullMetadata>> {
+  const { data, error } = await supabase
+    .from('entries')
+    .select('id, withdrawn_at, refund_decision, refund_decided_at')
+    .eq('show_id', showId)
+    .eq('entry_status', 'scratched');
+
+  if (error) {
+    throw createDatabaseError(error, 'entries', 'get_secretary_pull_metadata');
+  }
+
+  return new Map((data ?? []).map(metadata => [metadata.id, metadata]));
 }

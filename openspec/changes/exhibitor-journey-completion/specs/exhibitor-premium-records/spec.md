@@ -19,7 +19,8 @@ The Dog Details workspace SHALL expose Title Progress, Statistics, Health Record
 #### Scenario: Downgraded exhibitor has saved records
 
 - **WHEN** a free, expired, or revoked exhibitor has existing Health, Training, or Pedigree data
-- **THEN** the corresponding Records views SHALL allow read, export, and delete access to owned records
+- **THEN** the corresponding Records views SHALL allow read and delete access to owned records
+- **AND** existing Health or Training export/report actions SHALL remain available where already supported
 - **AND** create and edit controls SHALL explain that account Premium is required
 
 ### Requirement: Premium record forms validate before mutation

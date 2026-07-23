@@ -28,7 +28,7 @@ The first draft scored 91/100. It was strong on UX/data integrity but only parti
 
 1. **[EXPANDED] Capability-scoped trial truth** — one server-evaluated context replaces caller-provided counts while preserving the current Analytics-only trial boundary.
 2. **[EXPANDED] Time-bound access** — server time, bounded stale trust, scheduled invalidation, and focus/reconnect refresh cover open-page expiry.
-3. **[ADDED] Server Premium authorization and data rights** — Health, Training, and Pedigree creation/updates require ownership plus account Premium, while owners retain read/export/delete rights after downgrade.
+3. **[ADDED] Server Premium authorization and data rights** — Premium record/manual-result creation and updates require ownership plus account Premium, while owners retain read/delete and existing export rights after downgrade.
 4. **[ADDED] Performance evidence** — one cached query and query-plan tests prevent per-component/N+1 entitlement reads.
 5. **[ADDED] Operational evidence** — durable history, structured PII-safe failures, fallback mismatch checks, and a runbook gate are required.
 

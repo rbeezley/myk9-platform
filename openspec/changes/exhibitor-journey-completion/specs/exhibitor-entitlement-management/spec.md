@@ -72,7 +72,7 @@ Entitlement consumers SHALL avoid displaying a false free or paid state while re
 
 ### Requirement: Premium record and manual-result creation and updates are server-authorized
 
-Premium Health, Training, Pedigree, and Premium manual-result creation and updates SHALL require both record ownership and server-evaluated account Premium access; a client-side feature gate SHALL NOT be the authorization boundary. Record owners SHALL retain read, export, and delete access to their existing personal records after downgrade.
+Premium Health, Training, Pedigree, and Premium manual-result creation and updates SHALL require both record ownership and server-evaluated account Premium access; a client-side feature gate SHALL NOT be the authorization boundary. Record owners SHALL retain read and delete access to existing personal records after downgrade, and existing export actions SHALL remain available for record types that already support export.
 
 #### Scenario: Active account-Premium owner creates or updates a record
 
@@ -99,8 +99,10 @@ Premium Health, Training, Pedigree, and Premium manual-result creation and updat
 #### Scenario: Downgraded owner accesses existing records
 
 - **WHEN** a free, expired, or revoked owner has existing Health, Training, Pedigree, or manual-result records
-- **THEN** the owner SHALL be able to read and export those records
+- **THEN** the owner SHALL be able to read those records
 - **AND** the owner SHALL be able to delete an owned record with the normal confirmation or undo behavior
+- **AND** existing Health or Training export/report actions SHALL remain available where supported before downgrade
+- **AND** the system SHALL NOT add a new Pedigree or manual-result export surface solely for downgrade
 - **AND** adding or editing SHALL remain locked behind account Premium
 
 ### Requirement: Platform admins can grant complimentary Premium
@@ -130,7 +132,8 @@ A site admin SHALL be able to grant time-bounded complimentary Premium to an exh
 
 - **WHEN** two grant requests target the same person concurrently
 - **THEN** the server SHALL serialize the change
-- **AND** at most one unrevoked grant SHALL remain authoritative
+- **AND** at most one grant SHALL be active at the same instant
+- **AND** naturally expired history SHALL remain expired rather than being rewritten as revoked
 
 #### Scenario: Grant operation fails
 
@@ -147,6 +150,18 @@ A site admin SHALL be able to revoke an active founding or complimentary grant f
 - **WHEN** a site admin supplies a non-empty revocation reason and confirms Revoke
 - **THEN** the server SHALL atomically record revoked time, actor, and reason
 - **AND** effective access SHALL fall back to another active source or free
+
+#### Scenario: Later grant follows natural expiry
+
+- **WHEN** an admin grants access after the prior grant's end date
+- **THEN** the prior grant SHALL remain unrevoked with derived status `expired`
+- **AND** the new non-overlapping grant SHALL be recorded as a separate history row
+
+#### Scenario: Active grant is explicitly replaced
+
+- **WHEN** an admin confirms replacement of an overlapping active grant
+- **THEN** the prior grant SHALL be recorded as superseded and linked to its successor
+- **AND** it SHALL NOT be recorded as revoked unless the admin explicitly chose Revoke
 
 #### Scenario: Revoke does not cancel paid billing
 

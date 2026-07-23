@@ -32,15 +32,15 @@
 ## 4. Slice 3A — Entitlement Grant Data and Authorization
 
 - [ ] 4.1 Inventory `roles`, `permissions`, `role_permissions`, site-admin helpers, `people`, `exhibitor_profiles`, and legacy `early_adopter_until` rows in one evidence pass before writing the migration.
-- [ ] 4.2 Add assertion-first SQL/source tests for admin-only grant-row reads, sanitized own-context reads, denied direct writes, denied non-admin RPC calls, required reason/date validation, atomic grant/revoke history, paid-subscription isolation, concurrent requests, server-time boundary evaluation, and Premium create/update authorization.
-- [ ] 4.3 Add the `subscription_entitlement_grants` table, constraints, indexes, admin-only row RLS, sanitized server-evaluated entitlement-context/helper functions, and platform-admin grant/revoke RPC with target-row locking and one unrevoked grant per person.
+- [ ] 4.2 Add assertion-first SQL/source tests for admin-only grant-row reads, sanitized own-context reads, denied direct writes, denied non-admin RPC calls, required reason/date validation, truthful expired/revoked/superseded history, non-overlapping grants, paid-subscription isolation, concurrent requests, server-time boundary evaluation, and Premium create/update authorization.
+- [ ] 4.3 Add the `subscription_entitlement_grants` table, history/status fields, constraints, indexes, admin-only row RLS, sanitized server-evaluated entitlement-context/helper functions, and platform-admin grant/revoke/explicit-replace RPC behavior with target-row locking and active-range overlap prevention.
 - [ ] 4.4 Backfill every non-null `early_adopter_until` value as a founding grant without changing its end date, retain the legacy field for compatibility, and add a migration parity query.
 - [ ] 4.5 Regenerate Supabase TypeScript types and add typed wrappers for the sanitized own-entitlement context, admin grant history, grant, and revoke operations.
-- [ ] 4.6 Apply the server entitlement helper to Health, Training, Pedigree, and Premium manual-result create/update authorization without weakening ownership; add direct-API tests proving free/Analytics-trial-only/expired/revoked callers cannot create or edit, non-owners cannot act, and owners retain read/export/delete access.
+- [ ] 4.6 Apply the server entitlement helper to Health, Training, Pedigree, and Premium manual-result create/update authorization without weakening ownership; add direct-API tests proving free/Analytics-trial-only/expired/revoked callers cannot create or edit, non-owners cannot act, owners retain read/delete access, and existing Health/Training export or report actions remain available.
 - [ ] 4.7 Run migration/source tests, local database replay where available, `pnpm qa:rls-smoke`, focused wrapper tests, `pnpm typecheck`, and `pnpm lint`.
 - [ ] 4.8 Record query plans and bounded timings for entitlement context, admin history, and Premium mutation checks using a high-history account fixture; add or adjust indexes if the plan shows repeated scans.
 - [ ] 4.9 Open the additive migration PR with forward/rollback instructions and query plans for owner/admin lookups; wait for CI/security review, resolve findings, and merge without pushing a linked database.
-- [ ] 4.10 Obtain explicit shared-system approval, deploy the additive migration to staging, and record evidence for backfill parity, admin authorization, non-admin denial, direct Premium-write denial, concurrent grant serialization, and unchanged Stripe rows.
+- [ ] 4.10 Obtain explicit shared-system approval, deploy the additive migration to staging, and record evidence for backfill parity, admin authorization, non-admin denial, natural expiry history, explicit supersession, active-range overlap prevention, direct Premium-write denial, concurrent grant serialization, and unchanged Stripe rows.
 
 ## 5. Slice 3B — Unified Entitlement and Admin Experience
 

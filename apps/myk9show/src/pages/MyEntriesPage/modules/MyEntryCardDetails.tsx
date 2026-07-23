@@ -72,6 +72,16 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
   onReceiptClick,
   onResultRevealClick,
 }) => {
+  // Edit/Receipt dialogs still expect a single `dogName` paired with `classes`
+  // — but a multi-dog order's `classes` spans every dog. Passing the raw
+  // order would misattribute other dogs' classes to the lead dog's name, so
+  // multi-dog orders get a joined name and no single armband instead. The
+  // grouped model itself (stats/filters read top-level fields) is untouched.
+  const editReceiptEntry: MyEntry =
+    entry.dogs.length > 1
+      ? { ...entry, dogName: entry.dogs.map(dog => dog.dogName).join(' & '), armband: undefined }
+      : entry;
+
   return (
     <div id={detailsId} className="myk9-entries-details-panel">
       <div className="myk9-entries-detail-item">
@@ -158,7 +168,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
           {canEdit && (
             <Button
               variant="outline"
-              onClick={() => onEditClick(entry)}
+              onClick={() => onEditClick(editReceiptEntry)}
               className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
             >
               <Edit className="h-5 w-5 mr-1.5" />
@@ -195,7 +205,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
           {canShowReceipt && (
             <Button
               variant="outline"
-              onClick={() => onReceiptClick(entry)}
+              onClick={() => onReceiptClick(editReceiptEntry)}
               className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
             >
               <Download className="h-5 w-5 mr-1.5" />

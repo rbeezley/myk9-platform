@@ -97,4 +97,26 @@ describe('SlideOverPanel stacked Escape handling', () => {
     expect(onClose1).not.toHaveBeenCalled();
     expect(onClose1Again).not.toHaveBeenCalled();
   });
+
+  it('keeps body scroll locked while a stacked panel closes, and unlocks only once none remain open', () => {
+    // Regression guard: closing the nested (topmost) panel must not reset
+    // `document.body.style.overflow` to 'unset' while the outer panel is
+    // still open — scroll should stay locked until the whole stack empties.
+    const onClose1 = vi.fn();
+    const onClose2 = vi.fn();
+    render(<TwoPanels onClose1={onClose1} onClose2={onClose2} />);
+
+    expect(document.body.style.overflow).toBe('hidden');
+
+    // Close the topmost (second) panel — the first is still open.
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose2).toHaveBeenCalledTimes(1);
+    expect(document.body.style.overflow).toBe('hidden');
+
+    // Close the remaining (first) panel — scroll unlocks now that the stack
+    // is empty.
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose1).toHaveBeenCalledTimes(1);
+    expect(document.body.style.overflow).toBe('unset');
+  });
 });

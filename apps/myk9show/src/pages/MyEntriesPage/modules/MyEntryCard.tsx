@@ -183,9 +183,18 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
             {getStatusIcon(entry.entryStatus, entry.paymentStatus)}
             {entry.showName}
           </div>
-          <div className="myk9-entries-card-subtitle flex flex-wrap items-center gap-2">
+          <div className="myk9-entries-card-subtitle flex flex-wrap items-center gap-x-3 gap-y-1.5">
             {isMultiDogOrder ? (
-              <span>{entry.dogs.length} dogs entered</span>
+              // Every dog's identity stays visible on the always-shown summary
+              // band (exhibitor-my-shows-legibility) — wraps, never scrolls.
+              entry.dogs.map(dog => (
+                <span key={dog.dogId} className="inline-flex items-center gap-1.5">
+                  {dog.armband && (
+                    <ArmbandBadge armband={dog.armband} className="size-8 rounded-lg text-xs" />
+                  )}
+                  <span>{dog.dogName}</span>
+                </span>
+              ))
             ) : (
               <>
                 {entry.armband && (

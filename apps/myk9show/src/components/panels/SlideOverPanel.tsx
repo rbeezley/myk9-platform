@@ -113,18 +113,25 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     }
   }, [open]);
 
-  // Track this instance's position in the open-panel stack. Deliberately
-  // depends ONLY on `open` — an inline `onClose`/`preventClose` prop (new
-  // identity every parent render) must not re-push this panel's id while
-  // another panel is open above it, or it would jump to the top of the stack
-  // and steal Escape from the panel that actually opened later.
+  // Track this instance's position in the open-panel stack, and lock body
+  // scroll while ANY panel is open. Deliberately depends ONLY on `open` — an
+  // inline `onClose`/`preventClose` prop (new identity every parent render)
+  // must not re-push this panel's id while another panel is open above it, or
+  // it would jump to the top of the stack and steal Escape from the panel
+  // that actually opened later. Same reasoning applies to body-scroll lock:
+  // closing a nested panel must not unlock scroll while an outer panel is
+  // still open, so `overflow` only resets to 'unset' once the stack is empty.
   useEffect(() => {
     const panelId = panelIdRef.current;
     if (open) {
       openPanelIds.push(panelId);
+      document.body.style.overflow = 'hidden';
     }
     return () => {
       openPanelIds = openPanelIds.filter(id => id !== panelId);
+      if (openPanelIds.length === 0) {
+        document.body.style.overflow = 'unset';
+      }
     };
   }, [open]);
 
@@ -167,13 +174,10 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
 
     if (open) {
       document.addEventListener('keydown', handleKeyDown);
-      // Prevent body scroll
-      document.body.style.overflow = 'hidden';
     }
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
     };
   }, [open, onClose, preventClose]);
 

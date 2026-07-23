@@ -219,6 +219,27 @@ describe('groupEntriesByOrder — one card per online order (D1)', () => {
     expect(result[0].classes).toHaveLength(2);
   });
 
+  it('never merges degraded null-registration rows with an empty dogId/showId (partial offline rows)', () => {
+    const rowA = makeRow({
+      id: 'row-a',
+      registrationId: null,
+      showId: '',
+      dogId: '',
+      classes: [makeClass({ id: 'c-a' })],
+    });
+    const rowB = makeRow({
+      id: 'row-b',
+      registrationId: null,
+      showId: '',
+      dogId: '',
+      classes: [makeClass({ id: 'c-b' })],
+    });
+
+    const result = groupEntriesByOrder([rowA, rowB]);
+
+    expect(result).toHaveLength(2);
+  });
+
   it('a null-registration dog never merges into a real registration order sharing the same show', () => {
     const onlineRow = makeRow({
       id: 'e-online',

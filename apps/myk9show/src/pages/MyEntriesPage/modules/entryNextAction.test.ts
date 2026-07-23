@@ -173,4 +173,66 @@ describe('deriveEntryNextAction', () => {
       classId: 'entry-1',
     });
   });
+
+  describe('mixed-status orders (accepted dog + pending dog on one order)', () => {
+    it('offers check-in for the accepted dog A class, never the pending dog B class', () => {
+      const classA = makeClass({ id: 'a-1', classId: 'class-a', isScored: false });
+      const classB = makeClass({ id: 'b-1', classId: 'class-b', isScored: false });
+      const entry = makeEntry({
+        // Dominant status across dogs — A is accepted, so the order reads accepted.
+        entryStatus: EntryStatus.ACCEPTED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        classes: [classA, classB],
+        dogs: [
+          {
+            id: 'a-1',
+            dogId: 'dog-a',
+            dogName: 'Dog A',
+            classes: [classA],
+            entryStatus: EntryStatus.ACCEPTED,
+          },
+          {
+            id: 'b-1',
+            dogId: 'dog-b',
+            dogName: 'Dog B',
+            classes: [classB],
+            entryStatus: EntryStatus.PENDING,
+          },
+        ],
+      });
+
+      expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({
+        kind: 'check-in',
+        classId: 'a-1',
+      });
+    });
+
+    it('falls back to view-show when only the pending dog B has an unscored class', () => {
+      const classA = makeClass({ id: 'a-1', classId: 'class-a', isScored: true });
+      const classB = makeClass({ id: 'b-1', classId: 'class-b', isScored: false });
+      const entry = makeEntry({
+        entryStatus: EntryStatus.ACCEPTED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        classes: [classA, classB],
+        dogs: [
+          {
+            id: 'a-1',
+            dogId: 'dog-a',
+            dogName: 'Dog A',
+            classes: [classA],
+            entryStatus: EntryStatus.ACCEPTED,
+          },
+          {
+            id: 'b-1',
+            dogId: 'dog-b',
+            dogName: 'Dog B',
+            classes: [classB],
+            entryStatus: EntryStatus.PENDING,
+          },
+        ],
+      });
+
+      expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'view-show' });
+    });
+  });
 });

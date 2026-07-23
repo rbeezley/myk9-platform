@@ -60,9 +60,15 @@ interface OrderAccum {
 
 /** Order-level grouping key: real registrations group by id; null-registration
  *  rows fall back to show+dog so multiple null-registration dogs never merge
- *  into one card (each still renders, per its own show+dog history). */
+ *  into one card (each still renders, per its own show+dog history). If
+ *  either half of that fallback key is missing (partial/degraded offline
+ *  replicated rows without a resolved showId or dogId yet), fall back further
+ *  to the row's own id — an empty `dog::` key would otherwise collide across
+ *  unrelated rows and silently merge them into one card. */
 function orderKeyFor(row: MyEntry): string {
-  return row.registrationId ? `reg:${row.registrationId}` : `dog:${row.showId}:${row.dogId}`;
+  if (row.registrationId) return `reg:${row.registrationId}`;
+  if (row.showId && row.dogId) return `dog:${row.showId}:${row.dogId}`;
+  return `row:${row.id}`;
 }
 
 /**

@@ -1042,10 +1042,20 @@ describe('MyEntryCard grouped-order dogs grid (task 8.2 — one card per online 
     });
   }
 
-  it('shows a dog-count subtitle instead of a single dog name on the summary band', () => {
-    renderCard(makeTwoDogEntry());
-    expect(screen.getByText('2 dogs entered')).toBeInTheDocument();
-    expect(screen.queryByText('Rex')).not.toBeInTheDocument();
+  it('shows every dog identity (armband + name) on the summary band without expanding details', () => {
+    const { container } = renderCard(makeTwoDogEntry());
+    const subtitle = container.querySelector('.myk9-entries-card-subtitle');
+    expect(subtitle).toHaveTextContent('101');
+    expect(subtitle).toHaveTextContent('Rex');
+    expect(subtitle).toHaveTextContent('102');
+    expect(subtitle).toHaveTextContent('Ziva');
+    expect(screen.getByText('Rex')).toBeInTheDocument();
+    expect(screen.getByText('Ziva')).toBeInTheDocument();
+    // Details are still collapsed — the identities came from the summary band.
+    expect(screen.getByRole('button', { name: /show details/i })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
   });
 
   it('single-dog orders never render the dogs grid — flat class list only', () => {
@@ -1062,8 +1072,10 @@ describe('MyEntryCard grouped-order dogs grid (task 8.2 — one card per online 
     const grid = container.querySelector('.myk9-entries-dogs-grid');
     expect(grid).toHaveClass('xl:grid-cols-5');
     expect(container.querySelectorAll('.myk9-entries-dog-group')).toHaveLength(2);
-    expect(screen.getByText('Rex')).toBeInTheDocument();
-    expect(screen.getByText('Ziva')).toBeInTheDocument();
+    // Each name also appears once already in the summary-band identity list
+    // (task 8.2 fix 4) — assert two occurrences (summary + this dog's group).
+    expect(screen.getAllByText('Rex')).toHaveLength(2);
+    expect(screen.getAllByText('Ziva')).toHaveLength(2);
     expect(screen.getByText('Container Search #101')).toBeInTheDocument();
     expect(screen.getByText('Exterior Search #101')).toBeInTheDocument();
     // Class count is conserved — the union of both dogs' classes.
@@ -1115,5 +1127,52 @@ describe('MyEntryCard grouped-order dogs grid (task 8.2 — one card per online 
     const [calledEntry, calledClass] = onCheckInClick.mock.calls[0];
     expect(calledEntry.dogName).toBe('Ziva');
     expect(calledClass.id).toBe('entry-ziva-1');
+  });
+
+  it('passes a joined dog name (and no single armband) to onEditClick/onReceiptClick for a multi-dog order', () => {
+    const onEditClick = vi.fn();
+    const onReceiptClick = vi.fn();
+    render(
+      <MemoryRouter>
+        <MyEntryCard
+          entry={makeTwoDogEntry({ confirmationNumber: 'MK9-55555' })}
+          onCheckInClick={vi.fn()}
+          onEditClick={onEditClick}
+          onReceiptClick={onReceiptClick}
+        />
+      </MemoryRouter>
+    );
+    openDetails();
+
+    fireEvent.click(screen.getByRole('button', { name: /Edit Entry/i }));
+    expect(onEditClick).toHaveBeenCalledTimes(1);
+    expect(onEditClick.mock.calls[0][0].dogName).toBe('Rex & Ziva');
+    expect(onEditClick.mock.calls[0][0].armband).toBeUndefined();
+
+    fireEvent.click(screen.getByRole('button', { name: /Receipt/i }));
+    expect(onReceiptClick).toHaveBeenCalledTimes(1);
+    expect(onReceiptClick.mock.calls[0][0].dogName).toBe('Rex & Ziva');
+  });
+
+  it('passes the plain dog name to onEditClick/onReceiptClick for a single-dog order', () => {
+    const onEditClick = vi.fn();
+    const onReceiptClick = vi.fn();
+    render(
+      <MemoryRouter>
+        <MyEntryCard
+          entry={makeEntry({ confirmationNumber: 'MK9-11111' })}
+          onCheckInClick={vi.fn()}
+          onEditClick={onEditClick}
+          onReceiptClick={onReceiptClick}
+        />
+      </MemoryRouter>
+    );
+    openDetails();
+
+    fireEvent.click(screen.getByRole('button', { name: /Edit Entry/i }));
+    expect(onEditClick.mock.calls[0][0].dogName).toBe('Rex');
+
+    fireEvent.click(screen.getByRole('button', { name: /Receipt/i }));
+    expect(onReceiptClick.mock.calls[0][0].dogName).toBe('Rex');
   });
 });

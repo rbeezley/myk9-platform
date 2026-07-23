@@ -74,6 +74,37 @@ describe('OnboardingInboxPage', () => {
     });
   });
 
+  it('keeps an unsaved edit in one row when a different row is saved', async () => {
+    const user = userEvent.setup();
+    const secondRequest = {
+      ...pendingRequest,
+      id: 'onb-2',
+      clubName: 'Harbor Obedience Club',
+      contactEmail: 'sam@example.com',
+    };
+    getAllOnboardingRequests.mockResolvedValue([pendingRequest, secondRequest]);
+
+    render(<OnboardingInboxPage />, { initialRoute: '/admin/onboarding' });
+
+    expect(await screen.findByText('Tri-State Kennel Club')).toBeInTheDocument();
+
+    // Type an unsaved note into the FIRST row, then save the SECOND row.
+    const noteInputs = screen.getAllByLabelText(/internal note/i);
+    await user.type(noteInputs[0], 'Waiting on callback');
+
+    const statusSelects = screen.getAllByLabelText(/status/i);
+    await user.selectOptions(statusSelects[1], 'contacted');
+    const saveButtons = screen.getAllByRole('button', { name: 'Save' });
+    await user.click(saveButtons[1]);
+
+    await waitFor(() => {
+      expect(updateOnboardingRequest).toHaveBeenCalledWith('onb-2', { status: 'contacted' });
+    });
+
+    // The first row's in-progress note must still be there after the refetch.
+    expect(screen.getAllByLabelText(/internal note/i)[0]).toHaveValue('Waiting on callback');
+  });
+
   it('shows an empty state when there are no requests in the active filter', async () => {
     getAllOnboardingRequests.mockResolvedValue([]);
     render(<OnboardingInboxPage />, { initialRoute: '/admin/onboarding' });

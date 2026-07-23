@@ -51,9 +51,6 @@ export default function OnboardingInboxPage() {
       setLoading(true);
       setError('');
       setRequests(await getAllOnboardingRequests());
-      // Drop drafts on reload — persisted values are now authoritative.
-      setStatusDrafts({});
-      setNoteDrafts({});
     } catch (err) {
       setError('Failed to load onboarding requests.');
       logger.error('Failed to load onboarding requests', 'admin', {}, err as Error);
@@ -92,6 +89,18 @@ export default function OnboardingInboxPage() {
         ...(noteChanged ? { notes: nextNote.trim() } : {}),
       });
       notifications.success('Onboarding request updated');
+      // Drop only THIS row's drafts — the reload makes its persisted values
+      // authoritative — while leaving unsaved edits in other rows intact.
+      setStatusDrafts(prev => {
+        const next = { ...prev };
+        delete next[request.id];
+        return next;
+      });
+      setNoteDrafts(prev => {
+        const next = { ...prev };
+        delete next[request.id];
+        return next;
+      });
       await loadRequests();
     } catch (err) {
       logger.error(

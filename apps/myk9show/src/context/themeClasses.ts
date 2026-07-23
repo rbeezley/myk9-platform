@@ -80,8 +80,17 @@ const LAYOUT_DENSITY_STORAGE_KEY = 'layoutDensity';
 const REDUCE_MOTION_STORAGE_KEY = 'reduceMotion';
 const HIGH_CONTRAST_STORAGE_KEY = 'highContrast';
 
-export function applyLayoutDensity(density: string, root: HTMLElement = document.body): void {
+// Density must live on <html>: the scoring stylesheet scopes its rules to
+// `html.density-*`, while theme-preferences.css selectors work from either.
+export function applyLayoutDensity(
+  density: string,
+  root: HTMLElement = document.documentElement
+): void {
   root.className = root.className.replace(/\bdensity-\w+\b/g, '').concat(` density-${density}`);
+  // Clean up any stale copy left on <body> by older builds that applied it there.
+  if (root === document.documentElement) {
+    document.body.className = document.body.className.replace(/\s*\bdensity-\w+\b/g, '');
+  }
 }
 
 export function getStoredLayoutDensity(): string | null {
@@ -123,6 +132,24 @@ export function getStoredHighContrast(): boolean | null {
   if (typeof window === 'undefined') return null;
   const stored = localStorage.getItem(HIGH_CONTRAST_STORAGE_KEY);
   return stored === null ? null : stored === 'true';
+}
+
+/**
+ * The cached appearance values are per-user server preferences, but the
+ * localStorage cache is global. Clear it on sign-out so the next user on a
+ * shared browser doesn't boot with the previous user's density/motion/
+ * contrast/font settings before their own preferences load.
+ */
+export function clearAppearanceCache(): void {
+  if (typeof window === 'undefined') return;
+  for (const key of [
+    FONT_SCALE_STORAGE_KEY,
+    LAYOUT_DENSITY_STORAGE_KEY,
+    REDUCE_MOTION_STORAGE_KEY,
+    HIGH_CONTRAST_STORAGE_KEY,
+  ]) {
+    localStorage.removeItem(key);
+  }
 }
 
 export function storeHighContrast(enabled: boolean): void {

@@ -13,6 +13,7 @@ import {
   applyHighContrast,
   getStoredHighContrast,
   storeHighContrast,
+  clearAppearanceCache,
 } from './themeClasses';
 
 describe('applyThemeClasses', () => {
@@ -183,5 +184,42 @@ describe('high contrast helpers', () => {
     expect(getStoredHighContrast()).toBe(true);
     storeHighContrast(false);
     expect(getStoredHighContrast()).toBe(false);
+  });
+});
+
+describe('applyLayoutDensity default root', () => {
+  beforeEach(() => {
+    document.documentElement.className = '';
+    document.body.className = '';
+  });
+
+  it('applies to <html> by default so html.density-* scoped styles match', () => {
+    applyLayoutDensity('compact');
+    expect(document.documentElement.className).toContain('density-compact');
+  });
+
+  it('removes a stale density class left on <body> by older builds', () => {
+    document.body.className = 'density-spacious other-class';
+    applyLayoutDensity('compact');
+    expect(document.body.className).not.toContain('density-spacious');
+    expect(document.body.className).toContain('other-class');
+  });
+});
+
+describe('clearAppearanceCache', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('removes all cached appearance keys', () => {
+    storeFontScale('1.2');
+    storeLayoutDensity('compact');
+    storeReduceMotion(true);
+    storeHighContrast(true);
+    clearAppearanceCache();
+    expect(getStoredFontScale()).toBeNull();
+    expect(getStoredLayoutDensity()).toBeNull();
+    expect(getStoredReduceMotion()).toBeNull();
+    expect(getStoredHighContrast()).toBeNull();
   });
 });

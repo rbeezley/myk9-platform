@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { rbacService } from '@/services/rbac/RBACService';
+import { clearAppearanceCache } from '@/context/themeClasses';
 import type { User } from '@supabase/supabase-js';
 
 /**
@@ -249,6 +250,9 @@ export function useAuth() {
     if (error) {
       throw error;
     }
+    // Appearance cache holds the signed-out user's per-user preferences;
+    // clear it so the next user on this browser doesn't inherit them.
+    clearAppearanceCache();
     window.location.href = '/';
   }, []);
 

@@ -16,6 +16,7 @@ export function EntryRowActionMenu({ entry, ...handlers }: EntryRowActionMenuPro
   // actions and must not bypass the Completed-entry confirmation.
   const { guardedOnStatusChange, dialog } = useScoredRevertGuard(
     entry.entryStatus,
+    { isScored: entry.isScored, resultStatus: entry.resultStatus },
     handlers.onStatusChange
   );
   const guardedHandlers: EntryActionHandlers = handlers.onStatusChange

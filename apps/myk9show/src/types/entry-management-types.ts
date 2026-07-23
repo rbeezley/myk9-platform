@@ -46,6 +46,12 @@ export interface EntryManagementEntry {
    * `deriveEntryPresentation` for the owner-approved review-lane overrides
    * (`paid`/`promotion-expired`) that the UI enum folds away. */
   rawEntryStatus?: string | null;
+  /** Scoring facts (entries.is_scored / entries.result_status) — a scored
+   * entry can carry these while entryStatus is still ACCEPTED (scoring
+   * doesn't always flip lifecycle status to COMPLETED), so guards that only
+   * check entryStatus === COMPLETED can miss a real recorded result. */
+  isScored?: boolean | null;
+  resultStatus?: string | null;
   paymentStatus: PaymentStatus;
   submittedAt: Date;
   lastUpdated: Date;

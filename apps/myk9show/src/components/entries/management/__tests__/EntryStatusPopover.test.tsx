@@ -219,4 +219,132 @@ describe('EntryStatusPopover', () => {
 
     expect(onStatusChange).toHaveBeenCalledTimes(1);
   });
+
+  it('confirms a revert for a scored entry that is still ACCEPTED (scoring facts, not just COMPLETED status)', async () => {
+    const user = userEvent.setup();
+    const onStatusChange = vi.fn().mockResolvedValue(true);
+    render(
+      <EntryStatusPopover
+        entry={makeEntry({ entryStatus: EntryStatus.ACCEPTED, isScored: true })}
+        entryClassName="Novice A"
+        onStatusChange={onStatusChange}
+      />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Mark pending' }));
+
+    expect(onStatusChange).not.toHaveBeenCalled();
+    expect(screen.getByText('This entry has a recorded result')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
+    expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.PENDING);
+  });
+
+  it('confirms a revert for an entry with a recorded resultStatus even when isScored is unset', async () => {
+    const user = userEvent.setup();
+    const onStatusChange = vi.fn().mockResolvedValue(true);
+    render(
+      <EntryStatusPopover
+        entry={makeEntry({ entryStatus: EntryStatus.ACCEPTED, resultStatus: 'qualified' })}
+        entryClassName="Novice A"
+        onStatusChange={onStatusChange}
+      />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Mark pending' }));
+
+    expect(screen.getByText('This entry has a recorded result')).toBeInTheDocument();
+  });
+
+  it("does not prompt for the default 'pending' resultStatus placeholder on unscored entries", async () => {
+    const user = userEvent.setup();
+    const onStatusChange = vi.fn().mockResolvedValue(true);
+    render(
+      <EntryStatusPopover
+        entry={makeEntry({
+          entryStatus: EntryStatus.ACCEPTED,
+          resultStatus: 'pending',
+          isScored: false,
+        })}
+        entryClassName="Novice A"
+        onStatusChange={onStatusChange}
+      />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Mark pending' }));
+
+    expect(screen.queryByText('This entry has a recorded result')).not.toBeInTheDocument();
+    expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.PENDING);
+  });
+
+  it('surfaces the retry/failure path when the confirmed status change rejects', async () => {
+    const user = userEvent.setup();
+    const onStatusChange = vi.fn().mockRejectedValueOnce(new Error('boom'));
+    render(
+      <EntryStatusPopover
+        entry={makeEntry({ entryStatus: EntryStatus.COMPLETED })}
+        entryClassName="Novice A"
+        onStatusChange={onStatusChange}
+      />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't update status.");
+  });
+
+  it('cancel produces no toast and no success side effect', async () => {
+    const user = userEvent.setup();
+    const onStatusChange = vi.fn().mockResolvedValue(true);
+    render(
+      <EntryStatusPopover
+        entry={makeEntry({ entryStatus: EntryStatus.COMPLETED })}
+        entryClassName="Novice A"
+        onStatusChange={onStatusChange}
+      />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(onStatusChange).not.toHaveBeenCalled();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('marks the current-status row with the canonical vocabulary label, not the status-descriptor label', async () => {
+    const user = userEvent.setup();
+    render(
+      <EntryStatusPopover
+        entry={makeEntry({ entryStatus: EntryStatus.WAITLIST })}
+        entryClassName="Novice A"
+        onStatusChange={vi.fn()}
+      />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+    );
+
+    // Canonical vocabulary (reviewStateLabels) says "Waitlisted", not the
+    // status-descriptor's "Wait list".
+    expect(screen.getByRole('menuitem', { name: 'Waitlisted (current)' })).toBeInTheDocument();
+    expect(screen.queryByText('Wait list (current)')).not.toBeInTheDocument();
+  });
 });

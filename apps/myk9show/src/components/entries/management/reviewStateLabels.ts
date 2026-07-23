@@ -123,3 +123,30 @@ export const BULK_COMMAND_LABELS: Record<CommandableEntryStatus, string> = {
   [EntryStatus.SCRATCHED]: 'Pull all',
   [EntryStatus.REJECTED]: 'Reject all',
 };
+
+/**
+ * Canonical noun/adjective label for a single `EntryStatus` value — for
+ * surfaces that mark an individual entry's *current* status (e.g. the
+ * status-change menu's inert "current status" row). Reuses the same strings
+ * as `REGISTRATION_REVIEW_STATE_LABELS` so a single entry's status label
+ * can't drift from the registration-group vocabulary (e.g. "Waitlisted" not
+ * "Wait list", "Complete" not "Completed") — never read status labels from
+ * `getStatusDescriptor` for these surfaces.
+ */
+export const ENTRY_STATUS_STATE_LABELS: Record<EntryStatus, string> = {
+  [EntryStatus.PENDING]: 'Pending',
+  [EntryStatus.ACCEPTED]: REGISTRATION_REVIEW_STATE_LABELS.accepted.label,
+  [EntryStatus.REJECTED]: REGISTRATION_REVIEW_STATE_LABELS.not_accepted.label,
+  [EntryStatus.WAITLIST]: REGISTRATION_REVIEW_STATE_LABELS.waitlisted.label,
+  [EntryStatus.CANCELLED]: REGISTRATION_REVIEW_STATE_LABELS.withdrawn.label,
+  [EntryStatus.MISSING_INFO]: REGISTRATION_REVIEW_STATE_LABELS.missing_information.label,
+  [EntryStatus.SCRATCHED]: REGISTRATION_REVIEW_STATE_LABELS.scratched.label,
+  [EntryStatus.MOVED]: REGISTRATION_REVIEW_STATE_LABELS.moved.label,
+  [EntryStatus.COMPLETED]: REGISTRATION_REVIEW_STATE_LABELS.complete.label,
+  [EntryStatus.MOVE_UP_REQUESTED]: REGISTRATION_REVIEW_STATE_LABELS.move_up_requested.label,
+};
+
+/** Canonical label for a single entry's current status. */
+export function getEntryStatusStateLabel(status: EntryStatus): string {
+  return ENTRY_STATUS_STATE_LABELS[status] ?? status;
+}

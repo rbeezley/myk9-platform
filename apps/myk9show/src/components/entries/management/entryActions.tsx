@@ -54,6 +54,9 @@ export type EntryStatusActionDefinition = EntryActionDefinition & {
   statusTarget: EntryStatus;
 };
 
+const canMoveToWaitlist = (status: EntryStatus) =>
+  status === EntryStatus.PENDING || status === EntryStatus.MISSING_INFO;
+
 const canCheckIn = (status: EntryStatus) =>
   status === EntryStatus.ACCEPTED || status === EntryStatus.MOVE_UP_REQUESTED;
 
@@ -123,6 +126,15 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
           )
         ),
     },
+  },
+  {
+    id: 'waitlist',
+    label: 'Move to waitlist',
+    sectionLabel: 'Entry',
+    icon: <Ticket className="h-4 w-4" />,
+    applicableWhen: (entry, handlers) =>
+      Boolean(handlers.onStatusChange) && canMoveToWaitlist(entry.entryStatus),
+    run: (entry, handlers) => handlers.onStatusChange?.(entry.id, EntryStatus.WAITLIST),
   },
   {
     id: 'pending',

@@ -83,7 +83,13 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
   };
 }
 
-function renderCockpit(onStatusChange: ReturnType<typeof vi.fn>) {
+type StatusChangeHandler = (
+  entryId: string,
+  status: EntryStatus,
+  withdrawalReason?: string
+) => void | boolean | Promise<boolean | void>;
+
+function renderCockpit(onStatusChange: StatusChangeHandler) {
   const entry = makeEntry();
   const registrationGroups = groupEntriesByShowRegistration([entry]);
 
@@ -125,7 +131,7 @@ function renderCockpit(onStatusChange: ReturnType<typeof vi.fn>) {
 describe('EntryManagementCockpit status seam', () => {
   it('propagates a failed production mutation to the status popover retry state', async () => {
     const user = userEvent.setup();
-    const onStatusChange = vi.fn().mockResolvedValue(false);
+    const onStatusChange = vi.fn<StatusChangeHandler>(async () => false);
     renderCockpit(onStatusChange);
 
     await user.click(

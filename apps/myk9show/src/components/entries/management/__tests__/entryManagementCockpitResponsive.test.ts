@@ -19,6 +19,16 @@ describe('entryCockpitResponsiveReducer', () => {
     });
   });
 
+  it('reveals a URL-focused registration on a narrow initial load', () => {
+    expect(
+      entryCockpitResponsiveReducer(initialEntryCockpitResponsiveState, {
+        type: 'measure',
+        contentWidth: 800,
+        hasFocusedDetail: true,
+      })
+    ).toEqual({ measured: true, compact: true, detailOpen: true });
+  });
+
   it('preserves visible detail when a wide cockpit narrows', () => {
     const wide = entryCockpitResponsiveReducer(initialEntryCockpitResponsiveState, {
       type: 'measure',

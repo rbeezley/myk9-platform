@@ -36,6 +36,8 @@ interface UseEntryManagementDataReturn {
   entries: EntryManagementEntry[];
   setEntries: React.Dispatch<React.SetStateAction<EntryManagementEntry[]>>;
   isLoading: boolean;
+  /** Show whose entries have completed at least one successful load. */
+  loadedEntriesShowId: string | null;
   /**
    * Action errors — failures from `useEntryManagementActions` (export,
    * bulk status, comp/uncomp, etc.). Rendered inline at the top of
@@ -188,6 +190,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
   // Entry data
   const [entries, setEntries] = useState<EntryManagementEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadedEntriesShowId, setLoadedEntriesShowId] = useState<string | null>(null);
   // Action errors (multiplexed channel — see interface doc).
   const [error, setError] = useState<string | null>(null);
   // Load-specific errors (only set by `loadEntries`; never by actions).
@@ -233,6 +236,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       ).map(mapSecretaryEntryToEntryManagementEntry);
 
       setEntries(transformedEntries);
+      setLoadedEntriesShowId(showId);
     } catch (err) {
       setLoadError(SECRETARY_ENTRIES_READ_ERROR);
       logger.error('Error loading entries:', 'secretary', {}, err as Error);
@@ -308,6 +312,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       loadEntries(selectedShowId);
     } else {
       setEntries([]);
+      setLoadedEntriesShowId(null);
     }
   }, [selectedShowId, loadEntries]);
 
@@ -386,6 +391,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     entries,
     setEntries,
     isLoading,
+    loadedEntriesShowId,
     error,
     setError,
     loadError,

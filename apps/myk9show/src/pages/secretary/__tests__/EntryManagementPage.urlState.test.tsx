@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import EntryManagementPage from '../EntryManagementPage';
 
@@ -31,6 +31,11 @@ const testEntry = vi.hoisted(() => ({
   lastUpdated: new Date(2026, 6, 1, 9),
 }));
 
+const entryDataState = vi.hoisted(() => ({
+  entries: [] as (typeof testEntry)[],
+  loadedEntriesShowId: 'show-1' as string | null,
+}));
+
 vi.mock('@/hooks/useEntryManagementData', () => ({
   useEntryManagementData: () => ({
     user: null,
@@ -38,12 +43,13 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
     shows: [{ id: 'show-1', name: 'Demo Show' }],
     selectedShowId: 'show-1',
     isLoadingShows: false,
-    entries: [testEntry],
+    entries: entryDataState.entries,
     setEntries: vi.fn(),
     isLoading: false,
     error: null,
     setError: vi.fn(),
     loadError: null,
+    loadedEntriesShowId: entryDataState.loadedEntriesShowId,
     loadEntries: vi.fn(),
     lastEmailedMap: {},
     refreshEmailLog: vi.fn(),
@@ -109,6 +115,11 @@ function LocationProbe() {
 }
 
 describe('EntryManagementPage URL ownership', () => {
+  beforeEach(() => {
+    entryDataState.entries = [testEntry];
+    entryDataState.loadedEntriesShowId = 'show-1';
+  });
+
   it('resolves a legacy entry focus to its show-scoped registration', async () => {
     render(
       <>
@@ -137,5 +148,25 @@ describe('EntryManagementPage URL ownership', () => {
 
     await waitFor(() => expect(screen.getByTestId('location-search')).toBeEmptyDOMElement());
     expect(screen.getByTestId('focused-registration')).toHaveTextContent('none');
+  });
+
+  it('preserves registration focus before the selected show entries have loaded', async () => {
+    entryDataState.entries = [];
+    entryDataState.loadedEntriesShowId = null;
+
+    render(
+      <>
+        <EntryManagementPage />
+        <LocationProbe />
+      </>,
+      { initialRoute: '/shows/show-1/entries?registration=registration-1' }
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-search')).toHaveTextContent(
+        '?registration=registration-1'
+      )
+    );
+    expect(screen.getByTestId('focused-registration')).toHaveTextContent('registration-1');
   });
 });

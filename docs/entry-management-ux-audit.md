@@ -393,4 +393,4 @@ Success means:
 34. **Decided after prototype review:** Both Entry Management and Show Desk visibly mark the focused queue row with a persistent background, outline, and leading accent. The state moves immediately when another row is clicked, confirming that the click worked without requiring the Secretary to notice a change in the detail pane. Focus remains visually distinct from checkbox-based bulk selection.
 35. **Decided during production integration:** Retire the incompatible pre-launch device-local Entry Management saved-view shape with the removed Day-of and table/card presentations. There are no real users whose preferences require migration. Normalized copy links and density remain supported secondary controls.
 
-The production cockpit implements these resolved decisions. Verification evidence lives in `openspec/changes/archive/2026-07-23-entry-management-cockpit/verification.md`.
+The production cockpit implements these resolved decisions. Verification evidence lives in `openspec/changes/archive/2026-07-22-entry-management-cockpit/verification.md`.

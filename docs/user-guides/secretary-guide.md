@@ -125,7 +125,7 @@ Entry Management is where you review Show Registrations, find individual Entries
 
 ### Managing the waitlist
 
-When a Class is full, choose **Waitlist** instead of Accept for the affected child Entry.
+When a Class is full, manage its waitlist through the dedicated Exceptions workflow. The child Entry status menu does not create waitlist membership or position.
 
 When a spot opens (someone scratches or is pulled):
 
@@ -151,12 +151,12 @@ Exhibitors receive the announcement in their myK9Show inbox and as a push notifi
 
 ![S-11: Message Center — compose form with show selected](../screenshots/S-11.png)
 
-### Send a message to one exhibitor
+### Email one exhibitor about an entry decision
 
 **From Entry Management (fastest):**
 
-1. Focus the Show Registration and open **Communication and history** → click **Message Exhibitor**.
-2. A compose window opens with the exhibitor pre-selected.
+1. Focus the Show Registration and open **Communication and history** → click **Email Exhibitor**.
+2. The decision-email editor opens with the registration and exhibitor already selected.
 
 **From the Message Center:**
 

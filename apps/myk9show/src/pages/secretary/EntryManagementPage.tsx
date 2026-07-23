@@ -56,6 +56,7 @@ const EntryManagementPage: React.FC = () => {
     entries,
     setEntries,
     isLoading,
+    loadedEntriesShowId,
     error,
     setError,
     loadError,
@@ -64,7 +65,12 @@ const EntryManagementPage: React.FC = () => {
     refreshEmailLog,
   } = useEntryManagementData(urlShowId);
   const registrationGroups = useMemo(() => groupEntriesByShowRegistration(entries), [entries]);
-  const canValidateFocus = Boolean(selectedShowId) && !isLoading && !loadError;
+  const canValidateFocus =
+    Boolean(selectedShowId) &&
+    loadedEntriesShowId === selectedShowId &&
+    entries.length > 0 &&
+    !isLoading &&
+    !loadError;
   const normalizationContext = useMemo(
     () => (canValidateFocus ? getCockpitNormalizationContext(registrationGroups) : {}),
     [canValidateFocus, registrationGroups]
@@ -357,6 +363,7 @@ const EntryManagementPage: React.FC = () => {
                 trialClassIds={trialClassIds}
                 isLoadingTrials={isLoadingTrials}
                 isLoadingClasses={isLoadingClasses}
+                canValidateFocus={canValidateFocus}
                 showId={selectedShowId}
                 {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
                 busy={isProcessing}

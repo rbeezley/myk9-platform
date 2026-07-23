@@ -6,7 +6,7 @@ import { UserRole } from '@/types/auth-types';
 
 describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   // ── Admin ────────────────────────────────────────────────────────────────
-  it('admin sidebar contains Dashboard, System Health, Users, Role Requests, Roles & Permissions, Payments, Support, Help', () => {
+  it('admin sidebar contains Dashboard, System Health, Users, Role Requests, Onboarding, Roles & Permissions, Payments, Support, Help', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
     const adminGroup = config.groups.find(g => g.title === 'Admin');
     const titles = adminGroup?.items.map(i => i.title) ?? [];
@@ -15,6 +15,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
       'System Health',
       'Users',
       'Role Requests',
+      'Onboarding',
       'Roles & Permissions',
       'Payments',
       'Support',
@@ -36,7 +37,6 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
       'Sync',
       'Permission Audit',
       'Templates',
-      'Onboarding',
     ]) {
       expect(titles, `"${parked}" should be absent`).not.toContain(parked);
     }

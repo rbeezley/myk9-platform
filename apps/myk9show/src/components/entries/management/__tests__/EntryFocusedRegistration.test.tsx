@@ -98,4 +98,36 @@ describe('EntryFocusedRegistration', () => {
     await user.click(screen.getByRole('button', { name: 'Back to registrations' }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
+
+  it('keeps Entries, Payment, and Communication and history in stable order', () => {
+    const registration = groupEntriesByShowRegistration([
+      entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
+    ])[0]!;
+
+    render(
+      <EntryFocusedRegistration
+        registration={{ ...registration, enrollmentId: 'enrollment-1' }}
+        onStatusChange={vi.fn()}
+        onCheckInStatusChange={vi.fn()}
+        onOpenArmbandDialog={vi.fn()}
+        onRemoveEntry={vi.fn()}
+        onBulkStatusChange={vi.fn()}
+        onBulkCheckIn={vi.fn()}
+        onPaymentStatusChange={vi.fn()}
+        onSendDecisionEmail={vi.fn()}
+      />
+    );
+
+    const entries = screen.getByRole('heading', { name: 'Entries' });
+    const payment = screen.getByRole('heading', { name: 'Payment' });
+    const communication = screen.getByRole('heading', { name: 'Communication and history' });
+
+    expect(
+      entries.compareDocumentPosition(payment) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      payment.compareDocumentPosition(communication) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Email Exhibitor' })).toBeInTheDocument();
+  });
 });

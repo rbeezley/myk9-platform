@@ -5,6 +5,7 @@ export { CredibilityBand } from './CredibilityBand';
 export { ClubFeatures } from './ClubFeatures';
 export { ExhibitorFeatures } from './ExhibitorFeatures';
 export { OfflineCallout } from './OfflineCallout';
+export { ClubOnboarding } from './ClubOnboarding';
 export { ClosingWaitlist } from './ClosingWaitlist';
 export { LandingFooter } from './LandingFooter';
 export { WaitlistFormLanding } from './WaitlistFormLanding';

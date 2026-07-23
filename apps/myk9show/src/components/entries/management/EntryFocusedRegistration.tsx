@@ -80,13 +80,7 @@ export function EntryFocusedRegistration({
           </p>
         </div>
 
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <h3 className="font-semibold">Entries, payment, and communication</h3>
-            <span className="text-xs text-muted-foreground">Entries grouped by Dog</span>
-          </div>
-          <EnrollmentCard group={registration} {...enrollmentCardProps} />
-        </div>
+        <EnrollmentCard group={registration} {...enrollmentCardProps} />
       </div>
     </section>
   );

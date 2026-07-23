@@ -56,6 +56,7 @@ const EntryManagementPage: React.FC = () => {
     entries,
     setEntries,
     isLoading,
+    loadedEntriesShowId,
     error,
     setError,
     loadError,
@@ -68,7 +69,8 @@ const EntryManagementPage: React.FC = () => {
     () => entries.filter(entry => entry.rawEntryStatus === 'scratched'),
     [entries]
   );
-  const canValidateFocus = Boolean(selectedShowId) && !isLoading && !loadError;
+  const canValidateFocus =
+    Boolean(selectedShowId) && loadedEntriesShowId === selectedShowId && !isLoading && !loadError;
   const normalizationContext = useMemo(
     () => (canValidateFocus ? getCockpitNormalizationContext(registrationGroups) : {}),
     [canValidateFocus, registrationGroups]
@@ -361,6 +363,7 @@ const EntryManagementPage: React.FC = () => {
                 trialClassIds={trialClassIds}
                 isLoadingTrials={isLoadingTrials}
                 isLoadingClasses={isLoadingClasses}
+                canValidateFocus={canValidateFocus}
                 showId={selectedShowId}
                 {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
                 busy={isProcessing}

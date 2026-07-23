@@ -27,20 +27,32 @@ const selectedEntry: EntryManagementEntry = {
 describe('EntryRegistrationSelectionToolbar', () => {
   it('appears on first selection and keeps count, actions, and clear together', async () => {
     const onClear = vi.fn();
+    const onBulkStatusChange = vi.fn();
     const { user } = render(
       <EntryRegistrationSelectionToolbar
         registrations={1}
         selectedEntries={[selectedEntry]}
-        onBulkStatusChange={vi.fn()}
+        onBulkStatusChange={onBulkStatusChange}
         onBulkCheckIn={vi.fn()}
         onClear={onClear}
       />
     );
 
     expect(screen.getByText('1 registration · 1 Entry')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Accept 1 of 1 selected' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Bulk actions' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Clear registration selection' }));
+    expect(screen.getByLabelText('Selected registration actions')).toHaveClass(
+      'bottom-[calc(env(safe-area-inset-bottom)+1.5rem)]'
+    );
+    await user.click(screen.getByRole('button', { name: 'Accept 1 of 1 selected' }));
+    expect(onBulkStatusChange).toHaveBeenCalledWith(
+      ['entry-1'],
+      EntryStatus.ACCEPTED,
+      expect.any(Function)
+    );
     expect(onClear).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: 'Clear registration selection' }));
+    expect(onClear).toHaveBeenCalledTimes(2);
   });
 
   it('does not reserve footer space without a selection', () => {

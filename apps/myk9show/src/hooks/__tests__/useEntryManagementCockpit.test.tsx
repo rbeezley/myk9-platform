@@ -136,4 +136,26 @@ describe('useEntryManagementCockpit', () => {
     await waitFor(() => expect(result.current.page.total).toBe(1));
     expect(result.current.queueCounts.all).toBe(2);
   });
+
+  it('preserves focus until registration groups are ready for validation', async () => {
+    let search = '';
+
+    renderHook(
+      () => {
+        const [searchParams] = useSearchParams();
+        return useEntryManagementCockpit({
+          groups: [],
+          state: normalizeEntryManagementCockpitParams(searchParams).state,
+          canValidateFocus: false,
+        });
+      },
+      {
+        wrapper: wrapper('/?registration=registration-1', value => {
+          search = value;
+        }),
+      }
+    );
+
+    await waitFor(() => expect(search).toBe('?registration=registration-1'));
+  });
 });

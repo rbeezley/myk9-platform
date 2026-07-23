@@ -7,6 +7,7 @@ import {
   ClubFeatures,
   ExhibitorFeatures,
   OfflineCallout,
+  ClubOnboarding,
   ClosingWaitlist,
   LandingFooter,
 } from '@/components/landing/v2';
@@ -64,6 +65,7 @@ const Home: React.FC = () => {
       <ClubFeatures />
       <ExhibitorFeatures />
       <OfflineCallout />
+      <ClubOnboarding />
       <ClosingWaitlist ref={closingRef} />
       <LandingFooter />
     </div>

@@ -1007,6 +1007,124 @@
   margin: 0;
 }
 
+/* ─── Club onboarding (lead form) ─────────────────────────────────── */
+/* Mirrors the .l-closing section shell; sits on a slightly deeper ivory
+   band so the two stacked CTAs (club onboarding + exhibitor waitlist)
+   read as distinct. The form reuses .l-waitlist field styles; only the
+   two-column rows, textarea, and status-card states are new here. */
+.landing-v2 .l-onboard {
+  padding: 100px 0 80px;
+  text-align: center;
+  background: var(--ivory-100);
+}
+.landing-v2 .l-onboard h2 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-size: clamp(32px, 4.4vw, 56px);
+  line-height: 1.04;
+  margin: 0 0 18px;
+  color: var(--ink-900);
+  text-wrap: balance;
+}
+.landing-v2 .l-onboard h2 em {
+  font-style: italic;
+  color: var(--terracotta-600);
+  font-weight: 400;
+}
+.landing-v2 .l-onboard > .l-container > p {
+  font-size: 17px;
+  color: var(--stone-700);
+  max-width: 560px;
+  margin: 0 auto 32px;
+}
+/* Center the form / status card within the section. */
+.landing-v2 .l-onboard .l-waitlist,
+.landing-v2 .l-onboard .l-onboard-card {
+  margin: 0 auto;
+}
+.landing-v2 .l-onboard-form {
+  max-width: 560px;
+}
+/* Paired fields sit two-up on desktop, stack on mobile. */
+.landing-v2 .l-onboard .l-onboard-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.landing-v2 .l-onboard .l-onboard-textarea {
+  resize: vertical;
+  min-height: 84px;
+  line-height: 1.5;
+}
+.landing-v2 .l-onboard select.l-pill-input {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  /* Chevron drawn as a background image so the native arrow doesn't fight
+     the l-pill-input border treatment. */
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--stone-500) 50%),
+    linear-gradient(135deg, var(--stone-500) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+}
+.landing-v2 .l-onboard .l-onboard-optional {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: var(--stone-500);
+}
+.landing-v2 .l-onboard .l-onboard-status {
+  text-transform: capitalize;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+.landing-v2 .l-onboard .l-onboard-loading {
+  font-size: 14px;
+  color: var(--stone-500);
+  margin: 0;
+  text-align: center;
+}
+/* Gate / status / success states — white card matching .l-waitlist-success,
+   but centered to suit the short-copy states. */
+.landing-v2 .l-onboard-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  box-shadow: var(--shadow-card);
+  max-width: 540px;
+  text-align: center;
+}
+.landing-v2 .l-onboard-card .l-success-title {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  color: var(--ink-900);
+  margin: 0 0 8px;
+}
+.landing-v2 .l-onboard-card p {
+  font-size: 15px;
+  color: var(--stone-700);
+  line-height: 1.55;
+  margin: 0;
+}
+.landing-v2 .l-onboard-card .l-submit-row {
+  justify-content: center;
+  margin-top: 18px;
+}
+.landing-v2 .l-onboard-card .l-fineprint {
+  margin-top: 12px;
+}
+
 /* ─── Footer ──────────────────────────────────────────────────────── */
 .landing-v2 .l-footer {
   padding: 56px 0 40px;
@@ -1123,13 +1241,15 @@
   .landing-v2 .l-cred {
     padding: 56px 0 40px;
   }
-  .landing-v2 .l-closing {
+  .landing-v2 .l-closing,
+  .landing-v2 .l-onboard {
     padding: 64px 0;
   }
   .landing-v2 .l-cred-cards {
     grid-template-columns: 1fr;
   }
-  .landing-v2 .l-waitlist .l-roles {
+  .landing-v2 .l-waitlist .l-roles,
+  .landing-v2 .l-onboard .l-onboard-row {
     grid-template-columns: 1fr;
   }
   .landing-v2 .l-foot-grid {

@@ -142,6 +142,33 @@ describe('useEntryManagementData', () => {
     expect(mocks.getEntriesForShow).toHaveBeenCalledWith('show-1');
   });
 
+  it('marks an empty load authoritative after entry replication has succeeded', async () => {
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => result.current.setSelectedShowId('show-1'));
+
+    await waitFor(() => expect(result.current.loadedEntriesShowId).toBe('show-1'));
+    expect(result.current.entries).toEqual([]);
+  });
+
+  it('keeps an empty cold-replica load unvalidated until sync recovery', async () => {
+    mocks.syncStatus = {
+      isSyncing: false,
+      lastSyncAt: null,
+      error: null,
+      tablesStatus: { entries: 'idle' },
+    };
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => result.current.setSelectedShowId('show-1'));
+
+    await waitFor(() => expect(mocks.getEntriesForShow).toHaveBeenCalledWith('show-1'));
+    expect(result.current.loadedEntriesShowId).toBeNull();
+  });
+
   it('surfaces a retryable plain-English message when entries cannot be loaded', async () => {
     mocks.getEntriesForShow.mockResolvedValue({
       data: null,

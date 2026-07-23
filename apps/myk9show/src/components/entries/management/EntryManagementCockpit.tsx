@@ -50,6 +50,7 @@ interface EntryManagementCockpitProps {
   trialClassIds: readonly string[];
   isLoadingTrials: boolean;
   isLoadingClasses: boolean;
+  canValidateFocus?: boolean;
   showId: string;
   showName?: string;
   busy?: boolean;
@@ -104,6 +105,7 @@ export function EntryManagementCockpit({
   trialClassIds,
   isLoadingTrials,
   isLoadingClasses,
+  canValidateFocus = true,
   showId,
   showName,
   busy = false,
@@ -125,7 +127,9 @@ export function EntryManagementCockpit({
     groups: registrationGroups,
     state: cockpitState,
     trialClassIds,
+    canValidateFocus,
   });
+  const focusedKey = cockpit.focusedGroup?.groupKey ?? null;
   const { ref, width } = useElementWidth<HTMLDivElement>();
   const [responsive, dispatchResponsive] = useReducer(
     entryCockpitResponsiveReducer,
@@ -133,8 +137,14 @@ export function EntryManagementCockpit({
   );
 
   useEffect(() => {
-    if (width !== null) dispatchResponsive({ type: 'measure', contentWidth: width });
-  }, [width]);
+    if (width !== null) {
+      dispatchResponsive({
+        type: 'measure',
+        contentWidth: width,
+        hasFocusedDetail: cockpit.state.registrationKey !== null,
+      });
+    }
+  }, [cockpit.state.registrationKey, width]);
 
   const registrationIds = useMemo(
     () => [...new Set(entries.map(entry => entry.registrationId).filter(Boolean))],
@@ -176,12 +186,11 @@ export function EntryManagementCockpit({
   };
 
   const selectedEntries = cockpit.selection.selectedItems.flatMap(group => group.entries);
-  const focusedKey = cockpit.focusedGroup?.groupKey ?? null;
   const showQueue = !responsive.compact || !responsive.detailOpen;
   const showDetail = !responsive.compact || responsive.detailOpen;
 
   return (
-    <div ref={ref} className="space-y-4">
+    <div ref={ref} className={cn('space-y-4', cockpit.selection.selectedCount > 0 && 'pb-32')}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Registration queues">
           {QUEUES.map(queue => (

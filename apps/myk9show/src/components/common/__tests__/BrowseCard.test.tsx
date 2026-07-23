@@ -79,6 +79,25 @@ describe('BrowseCard', () => {
     );
     expect(screen.getByAltText('dog avatar')).toBeInTheDocument();
   });
+
+  it('omits the action button entirely when actionLabel is not provided', () => {
+    render(<BrowseCard href="/dogs/1" name="Maggie" avatar={<div />} />);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('still navigates on card click when actionLabel is omitted', () => {
+    render(<BrowseCard href="/dogs/42" name="Maggie" avatar={<div />} />);
+    const card = screen.getByRole('link');
+    expect(card).toHaveAttribute('tabIndex', '0');
+    fireEvent.click(card);
+    expect(mockNavigate).toHaveBeenCalledWith('/dogs/42');
+  });
+
+  it('still navigates on Enter when actionLabel is omitted', () => {
+    render(<BrowseCard href="/dogs/42" name="Maggie" avatar={<div />} />);
+    fireEvent.keyDown(screen.getByRole('link'), { key: 'Enter' });
+    expect(mockNavigate).toHaveBeenCalledWith('/dogs/42');
+  });
 });
 
 describe('BrowseCardAvatar', () => {

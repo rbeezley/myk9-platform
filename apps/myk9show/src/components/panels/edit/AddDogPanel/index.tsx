@@ -375,13 +375,19 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
         previewAlt="Dog photo preview"
       />
 
-      {/* Registration Dialog */}
-      <AddEditRegistrationDialog
-        open={isAddEditRegDialogOpen}
-        onOpenChange={setIsAddEditRegDialogOpen}
-        onSave={handleSaveRegistration}
-        initialData={currentRegToEdit}
-      />
+      {/* Registration slide-over. The wizard's dog isn't persisted yet, so this
+          writes to wizard state (handleSaveRegistration), not the DB — do not
+          swap it for AddRegistrationPanel's DB mutation path. Wrapped with an
+          explicit z-index above the wizard's own SlideOverPanel (z-50) so it
+          layers correctly on top even though both are position:fixed. */}
+      <div className="relative z-[60]">
+        <AddEditRegistrationDialog
+          open={isAddEditRegDialogOpen}
+          onOpenChange={setIsAddEditRegDialogOpen}
+          onSave={handleSaveRegistration}
+          initialData={currentRegToEdit}
+        />
+      </div>
     </>
   );
 };

@@ -118,6 +118,12 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
     );
   }
 
+  // exhibitor-show-day-access (D9): a signed-in user with no grant, staff role,
+  // or entry for this show is never shown the passcode form — that prompt is
+  // reserved for anonymous / explicit `?passcode=1` flows. Signed-in visitors
+  // get an explanatory, account-voiced state pointing them at My Shows. (Any
+  // anonymous visitor was already redirected to sign-in above, so everyone
+  // reaching this branch is authenticated.)
   return (
     <FullScreen>
       <div className="max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
@@ -126,22 +132,21 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
           You don&apos;t have ringside access for this show.
         </p>
         <p className="text-sm text-muted-foreground">
-          Entered this show? Check your entries under My Shows. Working the show? Enter the passcode
-          your secretary gave you.
+          Ringside opens on show day for entered exhibitors and show workers. If you&apos;re entered
+          in this show, your entries and check-in are under My Shows.
         </p>
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
           <Link
-            to="/at-show?passcode=1"
+            to="/exhibitor/entries"
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <KeyRound className="h-4 w-4" aria-hidden />
-            Enter passcode
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Go to My Shows
           </Link>
           <Link
             to="/"
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-input px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
             Back to dashboard
           </Link>
         </div>

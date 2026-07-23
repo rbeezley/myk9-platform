@@ -15,6 +15,7 @@
 import { EntryStatus } from '@/types/show-registration-types';
 import { getEntryPaymentPrompt } from '@/features/payments/entryPaymentPrompt';
 import { isPastShowEntry } from './myEntriesStats.helpers';
+import { findOwningDog } from './myEntryDogView';
 import type { MyEntry } from './my-entries-types';
 
 export type EntryNextAction =
@@ -58,11 +59,21 @@ export function deriveEntryNextAction(
   // Check-in is only a live next action for an ACCEPTED entry at a non-past
   // show: terminal/waitlisted/pending entries have no confirmed spot to check
   // in for even when a class row is unscored, and a scratched/moved/absent
-  // class is no longer participating.
+  // class is no longer participating. `entry.entryStatus` is the dominant
+  // status across every dog on the order, so it alone isn't enough for a
+  // mixed-status order (accepted dog + pending dog) — a pending dog's class
+  // must never be offered as the summary check-in action. When every dog
+  // shares the dominant status this per-dog check is a no-op (fast path).
+  const allDogsAccepted =
+    entry.dogs.length === 0 || entry.dogs.every(dog => dog.entryStatus === EntryStatus.ACCEPTED);
   if (entry.entryStatus === EntryStatus.ACCEPTED && !isPastShowEntry(entry, now)) {
     const eligibleClass = entry.classes.find(cls => {
       if (cls.isScored) return false;
       if (cls.status !== 'entered') return false;
+      if (!allDogsAccepted) {
+        const owningDog = findOwningDog(entry, cls.id);
+        if (!owningDog || owningDog.entryStatus !== EntryStatus.ACCEPTED) return false;
+      }
       // Same cascade MyEntryCard reads: class-scoped toggle, defaulting open
       // when the class id or map entry is missing.
       if (!cls.classId) return true;

@@ -144,6 +144,45 @@ describe('DogDetailsTabs', () => {
     });
   });
 
+  describe('tab strip contents', () => {
+    beforeEach(() => {
+      vi.mocked(useSubscriptionGate).mockReturnValue({
+        isPremium: false,
+        tier: 'free',
+        isExpired: false,
+        isInTrial: false,
+        isEarlyAdopter: false,
+        isLoading: false,
+      });
+    });
+
+    it('does not render an Activity tab trigger', () => {
+      render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />);
+      expect(screen.queryByRole('tab', { name: /activity/i })).not.toBeInTheDocument();
+    });
+
+    it('defaults to the Registrations tab as selected', () => {
+      render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />);
+      expect(screen.getByRole('tab', { name: /registrations/i })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
+    });
+
+    it('defaults to the Registrations tab for the secretary role too', () => {
+      render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} role="secretary" />);
+      expect(screen.getByRole('tab', { name: /registrations/i })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
+    });
+
+    it('always renders an Activity section below the tab panel', () => {
+      render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />);
+      expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
+    });
+  });
+
   describe('premium user (isPremium=true)', () => {
     beforeEach(() => {
       vi.mocked(useSubscriptionGate).mockReturnValue({

@@ -40,6 +40,7 @@ import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { useMyWaitlistEntries } from '@/hooks/queries/useMyWaitlistEntries';
 import { useSelfCheckinMap } from '@/hooks/queries/useSelfCheckinEnabled';
+import { toDogEntryView } from './modules/myEntryDogView';
 import {
   useMyEntriesData,
   useMyEntriesFilters,
@@ -133,7 +134,11 @@ const MyEntriesPage: React.FC = () => {
     const now = new Date();
     return entries.reduce<Record<string, number>>((counts, entry) => {
       if (isPastShowEntry(entry, now)) return counts;
-      counts[entry.dogId] = (counts[entry.dogId] ?? 0) + entry.classes.length;
+      // An order can span several dogs — attribute each dog's own classes to
+      // its own dogId instead of lumping the whole order onto the lead dog.
+      for (const dog of entry.dogs) {
+        counts[dog.dogId] = (counts[dog.dogId] ?? 0) + dog.classes.length;
+      }
       return counts;
     }, {});
   }, [entries]);
@@ -201,14 +206,19 @@ const MyEntriesPage: React.FC = () => {
 
   React.useEffect(() => {
     const keys = new Set<string>();
+    // Build the model per dog, not per order — the result card needs the
+    // owning dog's identity, and an order can span several dogs.
     for (const entry of entries) {
-      for (const cls of entry.classes) {
-        const model = buildResultCardModel({
-          entry,
-          classEntry: cls,
-          visibility: buildResultCardVisibility(cls),
-        });
-        if (model && hasSeenResultReveal(model.releaseKey)) keys.add(model.releaseKey);
+      for (const dog of entry.dogs) {
+        const dogView = toDogEntryView(entry, dog);
+        for (const cls of dog.classes) {
+          const model = buildResultCardModel({
+            entry: dogView,
+            classEntry: cls,
+            visibility: buildResultCardVisibility(cls),
+          });
+          if (model && hasSeenResultReveal(model.releaseKey)) keys.add(model.releaseKey);
+        }
       }
     }
     setSeenResultReleaseKeys(keys);
@@ -218,21 +228,23 @@ const MyEntriesPage: React.FC = () => {
     const resultEntryId = searchParams.get('resultEntryId');
     if (!resultEntryId || resultRevealModel) return;
 
-    for (const entry of entries) {
-      const classEntry = entry.classes.find(cls => cls.id === resultEntryId);
-      if (!classEntry) continue;
-      const model = buildResultCardModel({
-        entry,
-        classEntry,
-        visibility: buildResultCardVisibility(classEntry),
-      });
-      if (model) {
-        setResultRevealModel(model);
-        const next = new URLSearchParams(searchParams);
-        next.delete('resultEntryId');
-        setSearchParams(next, { replace: true });
+    outer: for (const entry of entries) {
+      for (const dog of entry.dogs) {
+        const classEntry = dog.classes.find(cls => cls.id === resultEntryId);
+        if (!classEntry) continue;
+        const model = buildResultCardModel({
+          entry: toDogEntryView(entry, dog),
+          classEntry,
+          visibility: buildResultCardVisibility(classEntry),
+        });
+        if (model) {
+          setResultRevealModel(model);
+          const next = new URLSearchParams(searchParams);
+          next.delete('resultEntryId');
+          setSearchParams(next, { replace: true });
+        }
+        break outer;
       }
-      break;
     }
   }, [entries, resultRevealModel, searchParams, setSearchParams]);
 
@@ -430,7 +442,9 @@ const MyEntriesPage: React.FC = () => {
           payingEntryId={startPayment.isPending ? (startPayment.variables?.entryId ?? null) : null}
           decliningOfferId={decline.isPending ? (decline.variables ?? null) : null}
           paymentError={startPayment.error?.message ?? null}
-          paymentErrorOfferId={startPayment.isError ? (startPayment.variables?.waitlistEntryId ?? null) : null}
+          paymentErrorOfferId={
+            startPayment.isError ? (startPayment.variables?.waitlistEntryId ?? null) : null
+          }
           declineError={decline.error?.message ?? null}
           declineErrorOfferId={decline.isError ? (decline.variables ?? null) : null}
           focusedOfferId={focusedWaitlistOfferId}

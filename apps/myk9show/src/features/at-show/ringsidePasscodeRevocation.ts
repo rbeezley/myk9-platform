@@ -62,10 +62,12 @@ export function isPasscodeRegeneratedMessage(text: string | undefined | null): b
 }
 
 /**
- * Surface the revocation to the user and route back to passcode sign-in: toast,
- * drop any account-scoped grant, and sign out an anonymous passcode session (a
- * signed-in account keeps its account session — only the grant is dropped). Both
- * make `AtShowAccessGate` fall through to the passcode prompt rather than loop.
+ * Surface the revocation to the user and route out of ringside: toast, drop any
+ * account-scoped grant, and sign out an anonymous passcode session (a signed-in
+ * account keeps its account session — only the grant is dropped). Either way
+ * `AtShowAccessGate` stops looping: anonymous sessions land on sign-in, and
+ * signed-in accounts get the gate's explanatory no-access state (the passcode
+ * form is reserved for anonymous / explicit `?passcode=1` flows).
  *
  * `suppressRehydration` is held true from the synchronous `clearGrant()` until
  * the anon session's `signOut()` actually resolves (or immediately, for a

@@ -224,14 +224,49 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     expect(screen.queryByRole('columnheader', { name: 'Name' })).not.toBeInTheDocument();
   });
 
-  it('honors a stored table preference for exhibitor-only users', () => {
+  it('ignores a stored table preference and stays card-only for exhibitor-only users', () => {
+    // My Dogs is card-only for exhibitors (design.md D3) — unlike
+    // secretary/admin, no stored preference can switch them to the table.
     localStorage.setItem('view-pref-dogs', 'table');
     mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
 
     renderPage();
 
-    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
-    expect(screen.queryByText('AKC DN12345678')).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Name' })).not.toBeInTheDocument();
+    expect(screen.getByText('AKC DN12345678')).toBeInTheDocument();
+  });
+
+  it('hides the view-mode toggle entirely for exhibitor-only users', () => {
+    mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+
+    renderPage();
+
+    expect(screen.queryByTitle('Cards view')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Table view')).not.toBeInTheDocument();
+  });
+
+  it('navigates to the dog detail page on card click for exhibitor-only users', async () => {
+    const user = userEvent.setup();
+    mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+
+    renderPage();
+
+    await user.click(screen.getByRole('link', { name: /max/i }));
+
+    expect(screen.getByTestId('current-location')).toHaveTextContent('/dogs/dog-1');
+  });
+
+  it('navigates to the dog detail page on Enter for exhibitor-only users', async () => {
+    const user = userEvent.setup();
+    mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+
+    renderPage();
+
+    const card = screen.getByRole('link', { name: /max/i });
+    card.focus();
+    await user.keyboard('{Enter}');
+
+    expect(screen.getByTestId('current-location')).toHaveTextContent('/dogs/dog-1');
   });
 
   it('renders dog cards with registration number badges when cards are selected', () => {

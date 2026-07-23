@@ -39,6 +39,27 @@ const DISCIPLINE_MAP: Record<string, string> = {
   obedience: 'Obedience',
 };
 
+/**
+ * Normalize a trial-type / discipline string for comparison: lowercase and
+ * strip everything but letters, so 'Scent Work', 'Scentwork', 'scent_work',
+ * and 'AKC Scent Work' all reduce to comparable tokens.
+ */
+export function normalizeDisciplineToken(value: string): string {
+  return value.toLowerCase().replace(/[^a-z]/g, '');
+}
+
+/**
+ * Whether a show's event/trial-type string matches the selected discipline's
+ * mapped show type, tolerant of casing, punctuation, and organization
+ * prefixes (e.g. an event of 'AKC Scent Work' matches discipline 'Scent Work').
+ */
+export function disciplineMatchesEvent(showType: string, event: string): boolean {
+  const normalizedShowType = normalizeDisciplineToken(showType);
+  const normalizedEvent = normalizeDisciplineToken(event);
+  if (!normalizedShowType || !normalizedEvent) return false;
+  return normalizedEvent.includes(normalizedShowType);
+}
+
 function parseLocalShowDate(value: string | undefined): Date | null {
   if (!value) return null;
 
@@ -145,7 +166,9 @@ export function useBrowseShowsFilters({
     if (filters.discipline !== 'all') {
       const showType = DISCIPLINE_MAP[filters.discipline];
       if (showType) {
-        filtered = filtered.filter(show => show.events.includes(showType));
+        filtered = filtered.filter(show =>
+          show.events.some(event => disciplineMatchesEvent(showType, event))
+        );
       }
     }
 

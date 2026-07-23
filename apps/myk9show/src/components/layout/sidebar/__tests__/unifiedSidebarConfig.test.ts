@@ -193,19 +193,19 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── Exhibitor-only ───────────────────────────────────────────────────────
-  it('exhibitor-only sidebar has exactly My Shows, My Dogs, My Payments, Show day, Find Shows', () => {
+  it('exhibitor-only sidebar has exactly My Shows, My Dogs, My Payments, Ringside, Find Shows', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
     const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
-    expect(allTitles).toEqual(['My Shows', 'My Dogs', 'My Payments', 'Show day', 'Find Shows']);
+    expect(allTitles).toEqual(['My Shows', 'My Dogs', 'My Payments', 'Ringside', 'Find Shows']);
   });
 
-  // The permanent Show day entry targets the bare /at-show route, which resolves
+  // The permanent Ringside entry targets the bare /at-show route, which resolves
   // the showId at the destination (RingsideEntryPage) — so a static link is safe
   // for an exhibitor with several shows. It replaces the old retired
   // /exhibitor/show-day link (still asserted absent below).
-  it('exhibitor-only sidebar includes a Show day item pointing at /at-show', () => {
+  it('exhibitor-only sidebar includes a Ringside item pointing at /at-show', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
-    const item = config.groups.flatMap(g => g.items).find(i => i.title === 'Show day');
+    const item = config.groups.flatMap(g => g.items).find(i => i.title === 'Ringside');
     expect(item?.href).toBe('/at-show');
   });
 
@@ -327,5 +327,57 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY, UserRole.EXHIBITOR]);
     const ringside = config.groups.flatMap(g => g.items).filter(i => i.href === '/at-show');
     expect(ringside).toHaveLength(1);
+  });
+});
+
+// ── Sidebar personalization (headerTitle) ────────────────────────────────
+describe('buildUnifiedSidebarConfig — exhibitor headerTitle personalization', () => {
+  it('uses firstName as headerTitle for an exhibitor-only user when present', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, undefined, 'Jamie');
+    expect(config.headerTitle).toBe('Jamie');
+  });
+
+  it('falls back to "myK9 Exhibitor" when firstName is null', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, undefined, null);
+    expect(config.headerTitle).toBe('myK9 Exhibitor');
+  });
+
+  it('falls back to "myK9 Exhibitor" when firstName is omitted', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
+    expect(config.headerTitle).toBe('myK9 Exhibitor');
+  });
+
+  it('falls back to "myK9 Exhibitor" when firstName is empty/whitespace', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, undefined, '   ');
+    expect(config.headerTitle).toBe('myK9 Exhibitor');
+  });
+
+  it('does not personalize headerTitle for staff roles, even when firstName is passed', () => {
+    const admin = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN], undefined, undefined, 'Jamie');
+    expect(admin.headerTitle).toBe('myK9 Admin');
+
+    const secretary = buildUnifiedSidebarConfig(
+      [UserRole.SECRETARY],
+      undefined,
+      undefined,
+      'Jamie'
+    );
+    expect(secretary.headerTitle).toBe('myK9 Manager');
+
+    const judge = buildUnifiedSidebarConfig([UserRole.JUDGE], undefined, undefined, 'Jamie');
+    expect(judge.headerTitle).toBe('myK9 Judge');
+  });
+
+  it('personalizes headerTitle for an exhibitor combined with another role', () => {
+    const config = buildUnifiedSidebarConfig(
+      [UserRole.EXHIBITOR, UserRole.JUDGE],
+      undefined,
+      undefined,
+      'Jamie'
+    );
+    // Judge outranks Exhibitor in the role-priority chain, so headerTitle
+    // stays the judge title — personalization only applies to the pure
+    // "Exhibitor" branding case.
+    expect(config.headerTitle).toBe('myK9 Judge');
   });
 });

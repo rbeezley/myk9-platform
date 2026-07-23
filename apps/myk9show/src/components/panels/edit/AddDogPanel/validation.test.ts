@@ -270,6 +270,22 @@ describe('isTabValid', () => {
     expect(isTabValid('basic', data)).toBe(true);
   });
 
+  it('basic tab is valid without color — Color & Markings lives on the Optional tab', () => {
+    const data = {
+      ...createInitialFormData(),
+      callName: 'Rex',
+      gender: 'Male' as const,
+      dateOfBirth: '2020-01-01',
+      ownerId: 'p-1',
+      color: '',
+    };
+    expect(isTabValid('basic', data)).toBe(true);
+    // The full-form schema also treats color as optional, so Essentials-only
+    // submission doesn't get blocked by a missing color later either.
+    const result = addDogSchema.safeParse(validFormData({ color: '' }));
+    expect(result.success).toBe(true);
+  });
+
   it('basic tab rejects whitespace-only callName', () => {
     const data = {
       ...createInitialFormData(),

@@ -25,6 +25,20 @@ export const AdditionalInfoTab: React.FC = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormField
+            label="Color & Markings"
+            fieldId="color"
+            className="md:col-span-2"
+            hint="Describe the primary color and any distinctive markings"
+          >
+            <Input
+              id="color"
+              value={formData.color}
+              onChange={e => form.setValue('color', e.target.value)}
+              placeholder="e.g., Black & White, Red, Blue Merle"
+            />
+          </FormField>
+
           <FormField label="Height (inches)" fieldId="height">
             <Input
               id="height"

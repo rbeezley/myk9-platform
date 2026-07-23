@@ -178,6 +178,12 @@ const BrowseDogsPage: React.FC = () => {
       );
     }
 
+    // My Dogs is card-only for exhibitors (design.md D3) — the table view and
+    // its toggle are a secretary/admin affordance only.
+    if (isExhibitorOnly) {
+      return <DogsGridView dogs={filteredDogs} />;
+    }
+
     switch (viewMode) {
       case 'table':
         return (
@@ -195,7 +201,7 @@ const BrowseDogsPage: React.FC = () => {
   return (
     <PageShell>
       {isLoading && dogs.length === 0 && (
-        <BrowseDogsSkeleton viewMode={viewMode === 'cards' ? 'grid' : 'table'} />
+        <BrowseDogsSkeleton viewMode={isExhibitorOnly || viewMode === 'cards' ? 'grid' : 'table'} />
       )}
 
       {hasError && !isLoading && (
@@ -217,8 +223,7 @@ const BrowseDogsPage: React.FC = () => {
             filters={chipFilters}
             filterValues={chipFilterValues}
             onFilterChange={handleChipFilterChange}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
+            {...(isExhibitorOnly ? {} : { viewMode, onViewModeChange: setViewMode })}
             resultsShowing={filteredDogs.length}
             resultsTotal={dogs.length}
             filtered={hasActiveFilters}

@@ -1,14 +1,5 @@
 import React, { lazy, Suspense, useMemo } from 'react';
-import {
-  Activity,
-  BarChart3,
-  Crown,
-  FileText,
-  Stethoscope,
-  BookOpen,
-  GitBranch,
-  Trophy,
-} from 'lucide-react';
+import { BarChart3, Crown, FileText, Stethoscope, BookOpen, GitBranch, Trophy } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
@@ -41,7 +32,6 @@ const PerformanceStatisticsSection = lazy(
 );
 
 const TAB_IDS = [
-  'activity',
   'registrations',
   'competitions',
   'title-progress',
@@ -59,13 +49,12 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
 }) => {
   const { isPremium, isLoading } = useSubscriptionGate();
   const { user } = useAuthContext();
-  const [activeTab, setActiveTab] = useUrlTab(TAB_IDS, 'activity');
+  const [activeTab, setActiveTab] = useUrlTab(TAB_IDS, 'registrations');
   const isSecretary = role === 'secretary';
   const dogName = getDogDisplayName(dog);
 
   const tabDefs: PrimaryTabDef[] = useMemo(() => {
     const base: PrimaryTabDef[] = [
-      { id: 'activity', label: 'Activity', icon: Activity },
       {
         id: 'registrations',
         label: 'Registrations',
@@ -102,100 +91,103 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   }, [dog.registrations, registrationsCount, isSecretary, isPremium, isLoading]);
 
   return (
-    <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>
-      <TabsContent value="activity" className="pt-6">
+    <>
+      <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>
+        <TabsContent value="registrations" className="pt-6">
+          <RegistrationsSection dog={dog} autoOpenAddDialog={autoOpenAddRegistration} />
+        </TabsContent>
+
+        {!isSecretary && features.competitionsTab && (
+          <TabsContent value="competitions" className="pt-6">
+            <Suspense fallback={<TabContentSkeleton />}>
+              <CompetitionsTabs dogId={dog.id} isPremium={isPremium} />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {!isSecretary && (
+          <TabsContent value="title-progress" className="pt-6">
+            <BlurGate
+              locked={!isLoading && !isPremium}
+              trackingContext="title-progress"
+              title="Title Progress"
+              description="Monitor your dog's progress toward titles and certifications."
+            >
+              <Suspense fallback={<TabContentSkeleton />}>
+                <TitleProgressSection dogId={dog.id} ownerId={user?.id ?? ''} />
+              </Suspense>
+            </BlurGate>
+          </TabsContent>
+        )}
+
+        {!isSecretary && features.statisticsTab && (
+          <TabsContent value="statistics" className="pt-6">
+            <BlurGate
+              locked={!isLoading && !isPremium}
+              trackingContext="statistics"
+              title="Statistics"
+              description="Visualize your dog's performance trends, qualification rates, and achievements."
+            >
+              <Suspense fallback={<TabContentSkeleton />}>
+                <PerformanceStatisticsSection dogId={dog.id} />
+              </Suspense>
+            </BlurGate>
+          </TabsContent>
+        )}
+
+        <TabsContent value="health-records" className="pt-6">
+          <BlurGate
+            locked={!isSecretary && !isLoading && !isPremium}
+            trackingContext="health-records"
+            title="Health Records"
+            description="Keep comprehensive health records for your dog's wellbeing."
+          >
+            <Suspense fallback={<TabContentSkeleton />}>
+              <HealthRecordsSection
+                user={{ isPremium }}
+                dogId={dog.id}
+                vaccinationsOnly={isSecretary}
+              />
+            </Suspense>
+          </BlurGate>
+        </TabsContent>
+
+        {!isSecretary && (
+          <TabsContent value="training-journal" className="pt-6">
+            <BlurGate
+              locked={!isLoading && !isPremium}
+              trackingContext="training-journal"
+              title="Training Journal"
+              description="Document training sessions and track your dog's progress."
+            >
+              <Suspense fallback={<TabContentSkeleton />}>
+                <TrainingSection dogId={dog.id} />
+              </Suspense>
+            </BlurGate>
+          </TabsContent>
+        )}
+
+        {!isSecretary && (
+          <TabsContent value="pedigree" className="pt-6">
+            <BlurGate
+              locked={!isLoading && !isPremium}
+              trackingContext="pedigree"
+              title="Pedigree"
+              description="Explore your dog's lineage and ancestry with detailed pedigree tracking."
+            >
+              <Suspense fallback={<TabContentSkeleton />}>
+                <PedigreeSection dogId={dog.id} />
+              </Suspense>
+            </BlurGate>
+          </TabsContent>
+        )}
+      </PrimaryTabs>
+
+      <section className="pt-6">
+        <h2 className="text-base font-semibold mb-3">Activity</h2>
         <ActivityTab dogId={dog.id} dogName={dogName} role={role} />
-      </TabsContent>
-
-      <TabsContent value="registrations" className="pt-6">
-        <RegistrationsSection dog={dog} autoOpenAddDialog={autoOpenAddRegistration} />
-      </TabsContent>
-
-      {!isSecretary && features.competitionsTab && (
-        <TabsContent value="competitions" className="pt-6">
-          <Suspense fallback={<TabContentSkeleton />}>
-            <CompetitionsTabs dogId={dog.id} isPremium={isPremium} />
-          </Suspense>
-        </TabsContent>
-      )}
-
-      {!isSecretary && (
-        <TabsContent value="title-progress" className="pt-6">
-          <BlurGate
-            locked={!isLoading && !isPremium}
-            trackingContext="title-progress"
-            title="Title Progress"
-            description="Monitor your dog's progress toward titles and certifications."
-          >
-            <Suspense fallback={<TabContentSkeleton />}>
-              <TitleProgressSection dogId={dog.id} ownerId={user?.id ?? ''} />
-            </Suspense>
-          </BlurGate>
-        </TabsContent>
-      )}
-
-      {!isSecretary && features.statisticsTab && (
-        <TabsContent value="statistics" className="pt-6">
-          <BlurGate
-            locked={!isLoading && !isPremium}
-            trackingContext="statistics"
-            title="Statistics"
-            description="Visualize your dog's performance trends, qualification rates, and achievements."
-          >
-            <Suspense fallback={<TabContentSkeleton />}>
-              <PerformanceStatisticsSection dogId={dog.id} />
-            </Suspense>
-          </BlurGate>
-        </TabsContent>
-      )}
-
-      <TabsContent value="health-records" className="pt-6">
-        <BlurGate
-          locked={!isSecretary && !isLoading && !isPremium}
-          trackingContext="health-records"
-          title="Health Records"
-          description="Keep comprehensive health records for your dog's wellbeing."
-        >
-          <Suspense fallback={<TabContentSkeleton />}>
-            <HealthRecordsSection
-              user={{ isPremium }}
-              dogId={dog.id}
-              vaccinationsOnly={isSecretary}
-            />
-          </Suspense>
-        </BlurGate>
-      </TabsContent>
-
-      {!isSecretary && (
-        <TabsContent value="training-journal" className="pt-6">
-          <BlurGate
-            locked={!isLoading && !isPremium}
-            trackingContext="training-journal"
-            title="Training Journal"
-            description="Document training sessions and track your dog's progress."
-          >
-            <Suspense fallback={<TabContentSkeleton />}>
-              <TrainingSection dogId={dog.id} />
-            </Suspense>
-          </BlurGate>
-        </TabsContent>
-      )}
-
-      {!isSecretary && (
-        <TabsContent value="pedigree" className="pt-6">
-          <BlurGate
-            locked={!isLoading && !isPremium}
-            trackingContext="pedigree"
-            title="Pedigree"
-            description="Explore your dog's lineage and ancestry with detailed pedigree tracking."
-          >
-            <Suspense fallback={<TabContentSkeleton />}>
-              <PedigreeSection dogId={dog.id} />
-            </Suspense>
-          </BlurGate>
-        </TabsContent>
-      )}
-    </PrimaryTabs>
+      </section>
+    </>
   );
 };
 

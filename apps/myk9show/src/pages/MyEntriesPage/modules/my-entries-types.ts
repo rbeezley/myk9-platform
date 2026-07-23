@@ -48,11 +48,36 @@ export interface EntryClass {
 }
 
 /**
- * Represents a user's entry in a show
+ * One dog's slice of a grouped order card: identity + its own nested classes.
+ * A single-dog order still populates a one-element `dogs` array on `MyEntry`
+ * so `MyEntryCard` has one shape to render regardless of dog count.
+ */
+export interface MyEntryDogGroup {
+  /** Stable row id for this dog within the order (first merged class row's id). */
+  id: string;
+  dogId: string;
+  dogName: string;
+  /** Dog's armband number for this show, shared across class rows when assigned. */
+  armband?: string | undefined;
+  classes: EntryClass[];
+  /** Dominant status across this dog's own classes (see `dominantStatus`). */
+  entryStatus: EntryStatus;
+}
+
+/**
+ * Represents a user's entry — grouped to one card per online order
+ * (`registrationId`; entries with no registration fall back to a show+dog
+ * grouping so nothing disappears — see `groupEntriesByOrder`). `dogName` /
+ * `dogId` / `armband` / `classes` mirror the *first* dog on the order for
+ * back-compat with single-dog rendering and callers that only care about
+ * "the" dog; `dogs` holds every dog on the order and `classes` is the
+ * flattened union of every dog's classes (kept in lockstep by
+ * `updateEntryCheckIn`).
  */
 export interface MyEntry {
   id: string;
-  registrationId: string;
+  /** Null for secretary/mail-in entries with no linked online registration. */
+  registrationId: string | null;
   showId: string;
   showName: string;
   showDate: Date;
@@ -67,7 +92,10 @@ export interface MyEntry {
   dogId: string;
   /** Dog's armband number for this show, shared across class rows when assigned. */
   armband?: string | undefined;
+  /** Flattened classes across every dog on the order. */
   classes: EntryClass[];
+  /** Every dog on this order, in submission order. Length 1 for a single-dog order. */
+  dogs: MyEntryDogGroup[];
   totalFee: number;
   entryStatus: EntryStatus;
   paymentStatus: PaymentStatus;

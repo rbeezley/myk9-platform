@@ -153,6 +153,36 @@ describe('EntryRowActionMenu', () => {
     expect(screen.queryByRole('menuitem', { name: /refund payment/i })).not.toBeInTheDocument();
   });
 
+  it('confirms before reverting a completed entry to a pre-scoring status from the row menu', async () => {
+    const onStatusChange = vi.fn().mockResolvedValue(true);
+    const { user } = render(
+      <EntryRowActionMenu
+        entry={makeEntry({ entryStatus: EntryStatus.COMPLETED })}
+        onStatusChange={onStatusChange}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
+    await screen.findByRole('menu');
+    await user.click(screen.getByRole('menuitem', { name: /^accept$/i }));
+
+    expect(onStatusChange).not.toHaveBeenCalled();
+    expect(screen.getByText('This entry has a recorded result')).toBeInTheDocument();
+
+    // Cancel is a no-op.
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onStatusChange).not.toHaveBeenCalled();
+    expect(screen.queryByText('This entry has a recorded result')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
+    await screen.findByRole('menu');
+    await user.click(screen.getByRole('menuitem', { name: /^accept$/i }));
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
+
+    expect(onStatusChange).toHaveBeenCalledTimes(1);
+    expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.ACCEPTED);
+  });
+
   it('hides the Refund action when onOpenRefund is not supplied', async () => {
     const { user } = render(
       <EntryRowActionMenu

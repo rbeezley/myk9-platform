@@ -13,9 +13,9 @@
 
 ## 3. Status Menu Marking and Revert Guard
 
-- [ ] 3.1 Write failing tests for `EntryStatusPopover`: current status marked and inert; choosing a pre-scoring status for a completed entry opens a confirmation; confirm applies, cancel is a no-op; non-scored entries change with no dialog; double-submit latch per project AlertDialog lesson.
-- [ ] 3.2 Implement current-state marking and the completed-entry confirmation dialog.
-- [ ] 3.3 Run popover + status-cell caller tests; `pnpm typecheck`.
+- [x] 3.1 Write failing tests for `EntryStatusPopover`: current status marked and inert; choosing a pre-scoring status for a completed entry opens a confirmation; confirm applies, cancel is a no-op; non-scored entries change with no dialog; double-submit latch per project AlertDialog lesson.
+- [x] 3.2 Implement current-state marking and the completed-entry confirmation dialog.
+- [x] 3.3 Run popover + status-cell caller tests; `pnpm typecheck`.
 
 ## 4. Narrow Layout Pass
 

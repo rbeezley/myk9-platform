@@ -45,12 +45,7 @@ describe('entry status action definitions', () => {
     const inline = resolveEntryStatusActions(entry, handlers);
     const row = toRowActions(entry, handlers, entryActions);
 
-    expect(inline.map(action => action.id)).toEqual([
-      'accept',
-      'missing-info',
-      'pull',
-      'reject',
-    ]);
+    expect(inline.map(action => action.id)).toEqual(['accept', 'missing-info', 'pull', 'reject']);
     expect(
       row
         .filter(
@@ -117,5 +112,111 @@ describe('EntryStatusPopover', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't update status.");
     await user.click(screen.getByRole('button', { name: 'Retry status update' }));
     expect(onStatusChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('marks the entry current status as inert in the menu', async () => {
+    const user = userEvent.setup();
+    render(
+      <EntryStatusPopover
+        entry={makeEntry({ entryStatus: EntryStatus.ACCEPTED })}
+        entryClassName="Novice A"
+        onStatusChange={vi.fn()}
+      />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+    );
+
+    const currentItem = screen.getByRole('menuitem', { name: /Accepted/ });
+    expect(currentItem).toHaveAttribute('aria-disabled', 'true');
+    expect(currentItem).toHaveTextContent(/current/i);
+    await user.click(currentItem);
+    // Inert row must not dispatch a status change.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('confirms before reverting a completed entry to a pre-scoring status', async () => {
+    const user = userEvent.setup();
+    const onStatusChange = vi.fn().mockResolvedValue(true);
+    render(
+      <EntryStatusPopover
+        entry={makeEntry({ entryStatus: EntryStatus.COMPLETED })}
+        entryClassName="Novice A"
+        onStatusChange={onStatusChange}
+      />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
+
+    expect(onStatusChange).not.toHaveBeenCalled();
+    expect(screen.getByText('This entry has a recorded result')).toBeInTheDocument();
+
+    // Cancel is a no-op.
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onStatusChange).not.toHaveBeenCalled();
+    expect(screen.queryByText('This entry has a recorded result')).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
+
+    expect(onStatusChange).toHaveBeenCalledTimes(1);
+    expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.ACCEPTED);
+  });
+
+  it('does not show a confirmation for non-scored entries', async () => {
+    const user = userEvent.setup();
+    const onStatusChange = vi.fn().mockResolvedValue(true);
+    render(
+      <EntryStatusPopover
+        entry={makeEntry({ entryStatus: EntryStatus.PENDING })}
+        entryClassName="Novice A"
+        onStatusChange={onStatusChange}
+      />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
+
+    expect(screen.queryByText('This entry has a recorded result')).not.toBeInTheDocument();
+    expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.ACCEPTED);
+  });
+
+  it('double-activation of the confirm button only submits once', async () => {
+    const user = userEvent.setup();
+    let resolveChange: (value: boolean) => void = () => {};
+    const onStatusChange = vi.fn(
+      () =>
+        new Promise<boolean>(resolve => {
+          resolveChange = resolve;
+        })
+    );
+    render(
+      <EntryStatusPopover
+        entry={makeEntry({ entryStatus: EntryStatus.COMPLETED })}
+        entryClassName="Novice A"
+        onStatusChange={onStatusChange}
+      />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
+
+    const confirmButton = screen.getByRole('button', { name: 'Change status' });
+    await user.click(confirmButton);
+    await user.click(confirmButton);
+    resolveChange(true);
+
+    expect(onStatusChange).toHaveBeenCalledTimes(1);
   });
 });

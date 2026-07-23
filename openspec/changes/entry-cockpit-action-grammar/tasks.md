@@ -19,8 +19,8 @@
 
 ## 4. Narrow Layout Pass
 
-- [ ] 4.1 Write viewport-conditional tests (or logic tests on the responsive state) for chip wrapping and stacked rows at the compact breakpoint; assert single-DOM-copy rows.
-- [ ] 4.2 Implement chip wrapping (density control at row end) and stacked row layout via the existing `entryManagementCockpitResponsive` state.
+- [x] 4.1 Write viewport-conditional tests (or logic tests on the responsive state) for chip wrapping and stacked rows at the compact breakpoint; assert single-DOM-copy rows.
+- [x] 4.2 Implement chip wrapping (density control at row end) and stacked row layout via the existing `entryManagementCockpitResponsive` state.
 - [ ] 4.3 Browser-verify at 390 px and 768 px (light + dark): chips reachable, names legible, tablet grid unchanged; capture screenshots for the PR.
 
 ## 5. Entries Tab Consolidation

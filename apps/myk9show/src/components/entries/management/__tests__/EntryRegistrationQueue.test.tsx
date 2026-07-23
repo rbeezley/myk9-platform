@@ -37,7 +37,7 @@ function entry(id: string, registrationId: string, ownerName: string): EntryMana
   };
 }
 
-function renderQueue() {
+function renderQueue(options: { compact?: boolean } = {}) {
   const groups = groupEntriesByShowRegistration([
     entry('entry-1', 'registration-1', 'Alice Martin'),
     entry('entry-2', 'registration-2', 'Priya Shah'),
@@ -61,6 +61,7 @@ function renderQueue() {
       pageIndex={0}
       pageCount={1}
       onPageChange={vi.fn()}
+      compact={options.compact}
     />
   );
   return { ...result, groups, onFocus, onToggle, onToggleAll };
@@ -100,5 +101,61 @@ describe('EntryRegistrationQueue', () => {
     expect(checkbox.className).toContain('before:-inset-3.5');
     await user.click(checkbox);
     expect(onToggleAll).toHaveBeenCalledTimes(1);
+  });
+
+  describe('compact layout', () => {
+    it('stacks row content instead of rendering the multi-column grid', () => {
+      renderQueue({ compact: true });
+
+      const focused = screen.getByRole('listitem', { name: /alice martin/i });
+      expect(focused.className).toContain('flex-col');
+      expect(focused.className).not.toContain('grid-cols-[2.75rem_minmax(9rem');
+    });
+
+    it('renders each row exactly once (no CSS-hidden duplicate copy)', () => {
+      renderQueue({ compact: true });
+
+      expect(screen.getAllByText('Alice Martin')).toHaveLength(1);
+      expect(screen.getAllByText(/Poppy/)).toHaveLength(1);
+    });
+
+    it('does not truncate the exhibitor name or dog summary', () => {
+      renderQueue({ compact: true });
+
+      const name = screen.getByText('Alice Martin');
+      const dogSummary = screen.getByText(/Poppy · 1 Entry/);
+      expect(name.className).not.toContain('truncate');
+      expect(dogSummary.className).not.toContain('truncate');
+    });
+
+    it('keeps select-all reachable via a simplified header', () => {
+      renderQueue({ compact: true });
+
+      expect(screen.getByRole('checkbox', { name: /select all registrations/i })).toBeVisible();
+      expect(screen.getByText('Select all')).toBeInTheDocument();
+    });
+
+    it('still exposes the review label and action link per row', () => {
+      renderQueue({ compact: true });
+
+      expect(screen.getAllByText('Needs review')).toHaveLength(2);
+      expect(screen.getAllByText('Review registration')).toHaveLength(2);
+    });
+  });
+
+  describe('non-compact layout (>=768px, unchanged grid)', () => {
+    it('keeps the multi-column grid when compact is false', () => {
+      renderQueue({ compact: false });
+
+      const focused = screen.getByRole('listitem', { name: /alice martin/i });
+      expect(focused.className).toContain('grid-cols-[2.75rem_minmax(9rem');
+      expect(focused.className).not.toContain('flex-col');
+    });
+
+    it('renders each row exactly once', () => {
+      renderQueue({ compact: false });
+
+      expect(screen.getAllByText('Alice Martin')).toHaveLength(1);
+    });
   });
 });

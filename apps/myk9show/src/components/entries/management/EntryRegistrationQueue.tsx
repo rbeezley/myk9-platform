@@ -26,6 +26,7 @@ interface EntryRegistrationQueueProps {
   pageCount: number;
   onPageChange: (pageIndex: number) => void;
   density?: OperationalViewDensity;
+  compact?: boolean;
 }
 
 function formatSubmittedAt(value: Date): string {
@@ -75,14 +76,15 @@ export function EntryRegistrationQueue({
   pageCount,
   onPageChange,
   density = 'comfortable',
+  compact = false,
 }: EntryRegistrationQueueProps) {
   return (
     <section
       className="overflow-hidden rounded-xl border bg-card shadow-sm"
       aria-label="Registrations"
     >
-      <div className="hidden grid-cols-[2.75rem_minmax(9rem,1.15fr)_minmax(7rem,.7fr)_minmax(8rem,.7fr)_minmax(8rem,auto)] items-center gap-3 border-b bg-muted/35 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground/70 md:grid">
-        <span className="flex min-h-11 items-center justify-center">
+      {compact ? (
+        <div className="flex items-center gap-3 border-b bg-muted/35 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground/70">
           <Checkbox
             className="relative before:absolute before:-inset-3.5 before:content-['']"
             aria-label="Select all registrations"
@@ -90,12 +92,25 @@ export function EntryRegistrationQueue({
             indeterminate={partiallySelected}
             onCheckedChange={onToggleAll}
           />
-        </span>
-        <span>Registration</span>
-        <span>Entries</span>
-        <span>Review / payment</span>
-        <span className="text-right">Next action</span>
-      </div>
+          <span>Select all</span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-[2.75rem_minmax(9rem,1.15fr)_minmax(7rem,.7fr)_minmax(8rem,.7fr)_minmax(8rem,auto)] items-center gap-3 border-b bg-muted/35 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground/70">
+          <span className="flex min-h-11 items-center justify-center">
+            <Checkbox
+              className="relative before:absolute before:-inset-3.5 before:content-['']"
+              aria-label="Select all registrations"
+              checked={allSelected}
+              indeterminate={partiallySelected}
+              onCheckedChange={onToggleAll}
+            />
+          </span>
+          <span>Registration</span>
+          <span>Entries</span>
+          <span>Review / payment</span>
+          <span className="text-right">Next action</span>
+        </div>
+      )}
 
       {groups.length === 0 ? (
         <div className="px-5 py-12 text-center">
@@ -118,7 +133,10 @@ export function EntryRegistrationQueue({
                 aria-current={focused ? 'true' : undefined}
                 aria-label={`${group.exhibitorName}, ${group.entryCount} ${group.entryCount === 1 ? 'Entry' : 'Entries'}, ${reviewLabel(group)}, ${group.recommendedAction.label}`}
                 className={cn(
-                  'group grid cursor-pointer grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 border-b px-3 outline-none transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring md:grid-cols-[2.75rem_minmax(9rem,1.15fr)_minmax(7rem,.7fr)_minmax(8rem,.7fr)_minmax(8rem,auto)]',
+                  'group cursor-pointer items-center border-b px-3 outline-none transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                  compact
+                    ? 'flex flex-col items-stretch gap-1.5'
+                    : 'grid grid-cols-[2.75rem_minmax(9rem,1.15fr)_minmax(7rem,.7fr)_minmax(8rem,.7fr)_minmax(8rem,auto)] gap-3',
                   density === 'compact' && 'py-2',
                   density === 'comfortable' && 'py-3',
                   focused &&
@@ -132,60 +150,103 @@ export function EntryRegistrationQueue({
                   }
                 }}
               >
-                <span
-                  className="flex min-h-11 items-center justify-center"
-                  onClick={event => event.stopPropagation()}
-                  onKeyDown={event => event.stopPropagation()}
-                >
-                  <Checkbox
-                    className="relative before:absolute before:-inset-3.5 before:content-['']"
-                    aria-label={`Select ${group.exhibitorName}`}
-                    checked={selected}
-                    onCheckedChange={() => onToggle(group)}
-                  />
-                </span>
+                {compact ? (
+                  <>
+                    <div className="flex items-start gap-3">
+                      <span
+                        className="flex min-h-11 items-center justify-center"
+                        onClick={event => event.stopPropagation()}
+                        onKeyDown={event => event.stopPropagation()}
+                      >
+                        <Checkbox
+                          className="relative before:absolute before:-inset-3.5 before:content-['']"
+                          aria-label={`Select ${group.exhibitorName}`}
+                          checked={selected}
+                          onCheckedChange={() => onToggle(group)}
+                        />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold">{group.exhibitorName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {group.confirmationNumber ?? 'No confirmation'} ·{' '}
+                          {formatSubmittedAt(group.submittedAt)}
+                        </p>
+                      </div>
+                    </div>
 
-                <div className="min-w-0">
-                  <p className="truncate font-semibold">{group.exhibitorName}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {group.confirmationNumber ?? 'No confirmation'} ·{' '}
-                    {formatSubmittedAt(group.submittedAt)}
-                  </p>
-                  <p className="mt-1 truncate text-xs text-muted-foreground md:hidden">
-                    {dogNames.join(', ')} · {group.entryCount}{' '}
-                    {group.entryCount === 1 ? 'Entry' : 'Entries'}
-                  </p>
-                </div>
+                    <p className="text-sm font-medium">
+                      {dogNames.join(', ')} · {group.entryCount}{' '}
+                      {group.entryCount === 1 ? 'Entry' : 'Entries'}
+                    </p>
 
-                <div className="hidden min-w-0 md:block">
-                  <p className="truncate text-sm font-medium">{dogNames.join(', ')}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {group.entryCount} {group.entryCount === 1 ? 'Entry' : 'Entries'} ·{' '}
-                    {group.classCount} {group.classCount === 1 ? 'Class' : 'Classes'}
-                  </p>
-                </div>
+                    <div className="text-sm">
+                      <p className="font-medium">{reviewLabel(group)}</p>
+                      <p
+                        className={cn(
+                          'text-xs text-muted-foreground',
+                          group.attentionReasons.includes('payment_due') && 'text-destructive'
+                        )}
+                      >
+                        {paymentLabel(group)}
+                      </p>
+                    </div>
 
-                <div className="hidden min-w-0 text-sm md:block">
-                  <p className="truncate font-medium">{reviewLabel(group)}</p>
-                  <p
-                    className={cn(
-                      'truncate text-xs text-muted-foreground',
-                      group.attentionReasons.includes('payment_due') && 'text-destructive'
-                    )}
-                  >
-                    {paymentLabel(group)}
-                  </p>
-                </div>
+                    <p className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
+                      {group.recommendedAction.label}
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <span
+                      className="flex min-h-11 items-center justify-center"
+                      onClick={event => event.stopPropagation()}
+                      onKeyDown={event => event.stopPropagation()}
+                    >
+                      <Checkbox
+                        className="relative before:absolute before:-inset-3.5 before:content-['']"
+                        aria-label={`Select ${group.exhibitorName}`}
+                        checked={selected}
+                        onCheckedChange={() => onToggle(group)}
+                      />
+                    </span>
 
-                <div className="text-right text-sm">
-                  <p className="text-xs font-medium text-muted-foreground md:hidden">
-                    {reviewLabel(group)} · {paymentLabel(group)}
-                  </p>
-                  <p className="mt-1 inline-flex items-center justify-end gap-1 text-xs font-semibold text-primary">
-                    {group.recommendedAction.label}
-                    <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                  </p>
-                </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{group.exhibitorName}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {group.confirmationNumber ?? 'No confirmation'} ·{' '}
+                        {formatSubmittedAt(group.submittedAt)}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{dogNames.join(', ')}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {group.entryCount} {group.entryCount === 1 ? 'Entry' : 'Entries'} ·{' '}
+                        {group.classCount} {group.classCount === 1 ? 'Class' : 'Classes'}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0 text-sm">
+                      <p className="truncate font-medium">{reviewLabel(group)}</p>
+                      <p
+                        className={cn(
+                          'truncate text-xs text-muted-foreground',
+                          group.attentionReasons.includes('payment_due') && 'text-destructive'
+                        )}
+                      >
+                        {paymentLabel(group)}
+                      </p>
+                    </div>
+
+                    <div className="text-right text-sm">
+                      <p className="inline-flex items-center justify-end gap-1 text-xs font-semibold text-primary">
+                        {group.recommendedAction.label}
+                        <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}

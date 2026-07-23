@@ -46,6 +46,22 @@ describe('entryCockpitResponsiveReducer', () => {
     ).toEqual({ measured: true, compact: true, detailOpen: false });
   });
 
+  it('returns to the compact queue when URL focus is cleared', () => {
+    const focused = entryCockpitResponsiveReducer(initialEntryCockpitResponsiveState, {
+      type: 'measure',
+      contentWidth: 800,
+      hasFocusedDetail: true,
+    });
+
+    expect(
+      entryCockpitResponsiveReducer(focused, {
+        type: 'measure',
+        contentWidth: 800,
+        hasFocusedDetail: false,
+      })
+    ).toEqual({ measured: true, compact: true, detailOpen: false });
+  });
+
   it('preserves visible detail when a wide cockpit narrows', () => {
     const wide = entryCockpitResponsiveReducer(initialEntryCockpitResponsiveState, {
       type: 'measure',

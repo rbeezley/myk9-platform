@@ -45,6 +45,8 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   onCompEntry,
   onUncompEntry,
   onRemoveEntry,
+  showCheckInStatus = true,
+  matchingEntryIds,
   onBulkStatusChange,
   onBulkCheckIn,
   onPaymentStatusChange,
@@ -355,38 +357,52 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
       {expanded && (
         <CardContent className={cn('pt-0 px-0 pb-2')}>
           <div className="space-y-3">
-            {dogGroups.map(dogGroup => (
-              <section
-                key={dogGroup.dogKey}
-                className="border-t border-border/50 px-4 pt-3 first:border-t-0 first:pt-0"
-              >
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold">{dogGroup.dogName}</h3>
-                  <span className="text-xs text-muted-foreground">
-                    {dogGroup.entries.length} {dogGroup.entries.length === 1 ? 'entry' : 'entries'}
-                  </span>
-                </div>
-                <EntryListCard
-                  entries={dogGroup.entries}
-                  onStatusChange={onStatusChange}
-                  onEntryRefunded={onEntryRefunded}
-                  onCheckInStatusChange={onCheckInStatusChange}
-                  onOpenArmbandDialog={onOpenArmbandDialog}
-                  onOpenEditEntry={onOpenEditEntry}
-                  onCompEntry={onCompEntry}
-                  onUncompEntry={onUncompEntry}
-                  onRemoveEntry={onRemoveEntry}
-                  hidePaymentBadge={true}
-                  hideHeader={true}
-                  emailStatusMap={emailStatusMap}
-                  onResendEmail={onResendEmail}
-                  isResendDisabled={isResendDisabled}
-                  lifecycleDecisionEmailStatusMap={lifecycleDecisionEmailStatusMap}
-                  onReviewLifecycleEmail={onReviewLifecycleEmail}
-                  onPrepareCorrectionEmail={onPrepareCorrectionEmail}
-                />
-              </section>
-            ))}
+            {dogGroups.map(dogGroup => {
+              const dogHasSearchMatch = dogGroup.entries.some(entry =>
+                matchingEntryIds?.has(entry.id)
+              );
+              return (
+                <section
+                  key={dogGroup.dogKey}
+                  className={cn(
+                    'border-t border-border/50 px-4 pt-3 first:border-t-0 first:pt-0',
+                    dogHasSearchMatch && 'rounded-lg bg-primary/5 ring-1 ring-primary/30'
+                  )}
+                >
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold">{dogGroup.dogName}</h3>
+                    <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {dogHasSearchMatch && <span className="text-primary">Search match</span>}
+                      <span>
+                        {dogGroup.entries.length}{' '}
+                        {dogGroup.entries.length === 1 ? 'entry' : 'entries'}
+                      </span>
+                    </span>
+                  </div>
+                  <EntryListCard
+                    entries={dogGroup.entries}
+                    matchingEntryIds={matchingEntryIds}
+                    onStatusChange={onStatusChange}
+                    onEntryRefunded={onEntryRefunded}
+                    onCheckInStatusChange={onCheckInStatusChange}
+                    onOpenArmbandDialog={onOpenArmbandDialog}
+                    onOpenEditEntry={onOpenEditEntry}
+                    onCompEntry={onCompEntry}
+                    onUncompEntry={onUncompEntry}
+                    onRemoveEntry={onRemoveEntry}
+                    showCheckInStatus={showCheckInStatus}
+                    hidePaymentBadge={true}
+                    hideHeader={true}
+                    emailStatusMap={emailStatusMap}
+                    onResendEmail={onResendEmail}
+                    isResendDisabled={isResendDisabled}
+                    lifecycleDecisionEmailStatusMap={lifecycleDecisionEmailStatusMap}
+                    onReviewLifecycleEmail={onReviewLifecycleEmail}
+                    onPrepareCorrectionEmail={onPrepareCorrectionEmail}
+                  />
+                </section>
+              );
+            })}
           </div>
         </CardContent>
       )}

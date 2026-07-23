@@ -188,7 +188,7 @@ export const ClassManagementPage: React.FC = () => {
     // bulk action to rows they can no longer see (Design Decision 4). `density`
     // is deliberately excluded — it never changes which rows are visible, only
     // how tightly they're laid out, so it must not clear an in-progress
-    // selection (see RegistrationView.tsx for the mirrored Entry Management note).
+    // selection (the Entry Management cockpit follows the same rule).
     resetKey: `${statusFilter}|${searchTerm}|${elementFilter}`,
   });
 

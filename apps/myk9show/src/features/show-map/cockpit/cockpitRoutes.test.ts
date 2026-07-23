@@ -11,6 +11,7 @@ import {
   getShowDeskHref,
   normalizeCockpitUrlState,
   resolveShowDeskReturnHref,
+  writeCockpitUrlState,
 } from './cockpitRoutes';
 
 const context = {
@@ -37,6 +38,14 @@ describe('Show Desk context routes', () => {
       focusedClassId: 'class-1',
       anchor: 'trial-1',
     });
+  });
+
+  it('preserves a deep-linked Show Desk tool while cockpit focus initializes', () => {
+    const previous = new URLSearchParams('tool=people-at-show');
+
+    expect(writeCockpitUrlState(previous, context).toString()).toBe(
+      'day=2026-07-20&filter=needs-attention&focus=class%2F1&anchor=trial-1&tool=people-at-show'
+    );
   });
 
   it('builds typed owner links with the exact scope and encoded return context', () => {

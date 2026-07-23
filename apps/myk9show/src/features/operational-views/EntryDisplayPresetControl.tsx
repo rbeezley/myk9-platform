@@ -3,7 +3,7 @@
  * selected", Requirement "Display presets preserve safe operational
  * information"). "Show day" gives PRIORITY to armband, dog, class, and
  * check-in information (compact density + armband/checkIn column emphasis in
- * `EntriesTableView`) without hiding anything — identity, current status,
+ * Entry Management displays without hiding anything — identity, current status,
  * selection controls, and row action menus always remain rendered.
  */
 import { ListChecks, Sun } from 'lucide-react';

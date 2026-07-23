@@ -1,7 +1,7 @@
 /**
  * DogsBulkActionsBar — sticky bottom bar for the dogs browse table multi-select
  * (design.md decision D2/D3, tasks.md slice 3.4). Follows the
- * `EntryBulkActionsBar` pattern: a count + Clear on the left, a `RowActionMenu`
+ * compact bulk-action pattern: a count + Clear on the left, a `RowActionMenu`
  * resolved from `dogActions` on the right. Status-change actions dispatch
  * directly through `useUpdateDogMutation`; delete opens a confirmation dialog
  * (destructive, so it keeps the extra step) before dispatching

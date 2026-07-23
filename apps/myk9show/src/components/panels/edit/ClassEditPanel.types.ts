@@ -56,7 +56,6 @@ export interface TrialClassEditFormData extends Record<string, unknown> {
   section: string;
   judgeId: string;
   judgeName?: string;
-  startTime: string;
   status: ClassStatusValue;
   entries: number;
 }

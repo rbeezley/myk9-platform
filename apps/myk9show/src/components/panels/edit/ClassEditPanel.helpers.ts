@@ -81,7 +81,6 @@ export const trialClassToFormData = (trialClass: Partial<TrialClass>): TrialClas
     section: trialClass.section || '',
     judgeId: trialClass.judgeId || '',
     judgeName: trialClass.judgeName || '',
-    startTime: trialClass.startTime || '',
     status: trialClass.status || 'Upcoming',
     entries: trialClass.entries || 0,
   };
@@ -95,7 +94,6 @@ export const formDataToTrialClass = (formData: TrialClassEditFormData): Partial<
   section: formData.section,
   judgeId: formData.judgeId,
   ...(formData.judgeName !== undefined && { judgeName: formData.judgeName }),
-  startTime: formData.startTime,
   status: formData.status,
   entries: formData.entries,
 });

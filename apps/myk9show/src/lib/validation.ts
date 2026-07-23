@@ -336,7 +336,6 @@ export const classSchemas = {
     section: requiredString,
     judgeId: commonValidations.optionalString,
     judgeName: commonValidations.optionalString,
-    startTime: commonValidations.optionalString,
     status: z.string().min(1, 'Please select a status'),
     entries: z.number(),
   }),

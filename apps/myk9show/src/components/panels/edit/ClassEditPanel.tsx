@@ -88,7 +88,6 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
   );
 
   const judgeError = form?.getError('judgeId');
-  const startTimeError = form?.getError('startTime');
   const statusError = form?.getError('status');
 
   return (
@@ -170,18 +169,6 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                   <SelectItem value="TBD">TBD</SelectItem>
                 </SelectContent>
               </Select>
-            </FormField>
-            <FormField label="Start Time" fieldId="startTime" error={startTimeError}>
-              <Input
-                id="startTime"
-                type="datetime-local"
-                value={data.startTime}
-                onChange={handleInputChange('startTime')}
-                onBlur={handleBlur('startTime')}
-                className={cn(startTimeError && 'border-destructive')}
-                aria-invalid={!!startTimeError}
-                aria-describedby={startTimeError ? 'startTime-error' : undefined}
-              />
             </FormField>
             <FormField label="Status" fieldId="trialStatus" required error={statusError}>
               <Select value={data.status} onValueChange={handleSelectChange('status')}>

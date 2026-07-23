@@ -96,6 +96,12 @@ function renderPanel(level: string, element: string) {
 }
 
 describe('ClassEditPanel — Section field visibility', () => {
+  it('leaves start-time editing to the canonical Setup editor', () => {
+    renderPanel('Novice', 'Interior');
+
+    expect(screen.queryByLabelText('Start Time')).not.toBeInTheDocument();
+  });
+
   it('shows Section field for Novice level', () => {
     renderPanel('Novice', 'Interior');
     expect(screen.getByLabelText('Section')).toBeInTheDocument();

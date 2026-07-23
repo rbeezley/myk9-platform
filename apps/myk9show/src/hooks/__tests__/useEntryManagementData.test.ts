@@ -77,8 +77,7 @@ beforeEach(() => {
     error: null,
     tablesStatus: { entries: 'success' },
   };
-  // Default: getShowById returns the show — ensures initialShowId tests are stable
-  // regardless of which async path (shows.some vs fetch) wins the race.
+  // Default: getShowById returns the show for missing-show deep links.
   mocks.getShowById.mockResolvedValue({ data: makeShow(), error: null });
 });
 
@@ -246,6 +245,24 @@ describe('useEntryManagementData', () => {
     await waitFor(() => expect(result.current.selectedShowId).toBe('show-deeplink'));
     expect(mocks.getShowById).toHaveBeenCalledWith('show-deeplink');
     expect(result.current.shows.some(s => s.id === 'show-deeplink')).toBe(true);
+  });
+
+  it('waits for the secretary show list before fetching a missing deep-link show', async () => {
+    let resolveShows!: (value: { data: ReturnType<typeof makeShow>[]; error: null }) => void;
+    mocks.getSecretaryShows.mockImplementation(
+      () => new Promise(resolve => (resolveShows = resolve))
+    );
+    mocks.getShowById.mockResolvedValue({ data: makeShow('show-deeplink'), error: null });
+
+    const { result } = renderHook(() => useEntryManagementData('show-deeplink'));
+
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(true));
+    expect(mocks.getShowById).not.toHaveBeenCalled();
+
+    act(() => resolveShows({ data: [], error: null }));
+
+    await waitFor(() => expect(mocks.getShowById).toHaveBeenCalledWith('show-deeplink'));
+    await waitFor(() => expect(result.current.selectedShowId).toBe('show-deeplink'));
   });
 
   it('cancels the deep-link fetch when unmounted before it resolves', async () => {

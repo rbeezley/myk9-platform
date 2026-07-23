@@ -278,6 +278,11 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       return;
     }
 
+    // Let the scoped secretary list resolve before falling back to a direct
+    // show lookup. This avoids racing loadShows and dropping the linked show
+    // (and its entry-close date) from the mirrored ref.
+    if (isLoadingShows) return;
+
     if (shows.some(s => s.id === candidate)) {
       setSelectedShowId(candidate);
       setDidApplyInitial(true);

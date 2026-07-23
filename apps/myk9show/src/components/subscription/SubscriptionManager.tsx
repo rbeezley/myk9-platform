@@ -50,9 +50,18 @@ interface SubscriptionManagerProps {
    * `true` to preserve the standalone /subscription page's existing layout.
    */
   showUsage?: boolean;
+  /**
+   * Path Stripe returns to after the customer portal closes. Defaults to
+   * `/pricing-page` (standalone page behaviour); the account billing section
+   * passes its own URL so the user lands back where they started.
+   */
+  portalReturnPath?: string;
 }
 
-export function SubscriptionManager({ showUsage = true }: SubscriptionManagerProps = {}) {
+export function SubscriptionManager({
+  showUsage = true,
+  portalReturnPath = '/pricing-page',
+}: SubscriptionManagerProps = {}) {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -170,7 +179,7 @@ export function SubscriptionManager({ showUsage = true }: SubscriptionManagerPro
       // authenticated user — no customer id crosses the wire.
       const { data, error } = await supabase.functions.invoke('stripe-customer-portal', {
         body: {
-          returnUrl: window.location.origin + '/pricing-page',
+          returnUrl: window.location.origin + portalReturnPath,
         },
       });
 

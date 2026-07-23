@@ -40,9 +40,6 @@ export function entryCockpitResponsiveReducer(
       detailOpen: action.hasFocusedDetail === true,
     };
   }
-  if (action.hasFocusedDetail && !state.detailOpen) {
-    return { measured: true, compact: true, detailOpen: true };
-  }
   if (!state.compact) return { measured: true, compact: true, detailOpen: true };
   return { ...state, measured: true, compact: true };
 }

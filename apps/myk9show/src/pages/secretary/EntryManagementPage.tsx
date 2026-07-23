@@ -66,11 +66,7 @@ const EntryManagementPage: React.FC = () => {
   } = useEntryManagementData(urlShowId);
   const registrationGroups = useMemo(() => groupEntriesByShowRegistration(entries), [entries]);
   const canValidateFocus =
-    Boolean(selectedShowId) &&
-    loadedEntriesShowId === selectedShowId &&
-    entries.length > 0 &&
-    !isLoading &&
-    !loadError;
+    Boolean(selectedShowId) && loadedEntriesShowId === selectedShowId && !isLoading && !loadError;
   const normalizationContext = useMemo(
     () => (canValidateFocus ? getCockpitNormalizationContext(registrationGroups) : {}),
     [canValidateFocus, registrationGroups]

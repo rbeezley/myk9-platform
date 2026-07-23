@@ -169,4 +169,20 @@ describe('EntryManagementPage URL ownership', () => {
     );
     expect(screen.getByTestId('focused-registration')).toHaveTextContent('registration-1');
   });
+
+  it('removes stale focus after an authoritative empty-show load', async () => {
+    entryDataState.entries = [];
+    entryDataState.loadedEntriesShowId = 'show-1';
+
+    render(
+      <>
+        <EntryManagementPage />
+        <LocationProbe />
+      </>,
+      { initialRoute: '/shows/show-1/entries?registration=registration-stale' }
+    );
+
+    await waitFor(() => expect(screen.getByTestId('location-search')).toBeEmptyDOMElement());
+    expect(screen.getByTestId('focused-registration')).toHaveTextContent('none');
+  });
 });

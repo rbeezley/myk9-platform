@@ -29,6 +29,23 @@ describe('entryCockpitResponsiveReducer', () => {
     ).toEqual({ measured: true, compact: true, detailOpen: true });
   });
 
+  it('keeps compact detail closed after the secretary returns to the queue', () => {
+    const focused = entryCockpitResponsiveReducer(initialEntryCockpitResponsiveState, {
+      type: 'measure',
+      contentWidth: 800,
+      hasFocusedDetail: true,
+    });
+    const closed = entryCockpitResponsiveReducer(focused, { type: 'close-detail' });
+
+    expect(
+      entryCockpitResponsiveReducer(closed, {
+        type: 'measure',
+        contentWidth: 820,
+        hasFocusedDetail: true,
+      })
+    ).toEqual({ measured: true, compact: true, detailOpen: false });
+  });
+
   it('preserves visible detail when a wide cockpit narrows', () => {
     const wide = entryCockpitResponsiveReducer(initialEntryCockpitResponsiveState, {
       type: 'measure',

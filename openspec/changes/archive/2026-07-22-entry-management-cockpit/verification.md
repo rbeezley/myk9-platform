@@ -36,13 +36,14 @@
 
 Independent archive review found presentation gaps that were narrower than the approved cockpit scope but contradicted its acceptance criteria. The archive cleanup therefore also verified and corrected:
 
-- Compact registration deep links remain focused through the initial empty-replica sync and open the detail view at 800px.
+- Compact registration deep links remain focused through the initial empty-replica sync and open the detail view at 800px, while an ordinary narrow load stays on the queue and returning to the queue remains stable across remeasurement.
+- Focus is validated after authoritative empty-show hydration without treating an initial cold-replica empty result as final.
 - The floating selection toolbar exposes the first safe eligible action, retains overflow actions and clear-selection, respects the bottom safe area, and reserves page clearance while visible.
 - Focused registration sections follow the approved Entries, Payment, then Communication/history hierarchy.
-- Secretary documentation sends waitlist work to Exceptions and names the focused registration email control precisely.
+- Secretary documentation sends waitlist work to Exceptions, uses the shipped **Accepted** and **Not Accepted** status labels, and names the focused registration email control precisely without promising an automatic rejection email.
 - Screenshot S-16 now requests the child Entry action and is marked for recapture.
 
-Focused Vitest coverage, myK9Show TypeScript checking, myK9Show lint, and an authenticated seeded-show browser re-walk passed after these corrections. The browser re-walk covered queue selection, the visible bulk action, focused-section order, and a compact direct URL surviving replica hydration.
+Focused Vitest coverage (50 tests across seven files), myK9Show TypeScript checking, myK9Show lint, and an authenticated seeded-show browser re-walk passed after these corrections. The browser re-walk covered queue selection, the visible bulk action, focused-section order, and a compact direct URL surviving replica hydration.
 
 ### Warnings
 

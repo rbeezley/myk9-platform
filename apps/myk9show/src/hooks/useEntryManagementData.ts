@@ -179,6 +179,8 @@ interface EntryManagementShowRow {
 export function useEntryManagementData(initialShowId?: string): UseEntryManagementDataReturn {
   const { user, hasRole } = useAuthContext();
   const { status: syncStatus, triggerSync } = useReplicationSync();
+  const entriesSyncStatusRef = useRef(syncStatus.tablesStatus.entries);
+  entriesSyncStatusRef.current = syncStatus.tablesStatus.entries;
 
   // Show selection — resolve from URL param, localStorage, or empty.
   // Defer applying until shows load so the Select can resolve the display name.
@@ -236,7 +238,9 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       ).map(mapSecretaryEntryToEntryManagementEntry);
 
       setEntries(transformedEntries);
-      setLoadedEntriesShowId(showId);
+      setLoadedEntriesShowId(
+        transformedEntries.length > 0 || entriesSyncStatusRef.current === 'success' ? showId : null
+      );
     } catch (err) {
       setLoadError(SECRETARY_ENTRIES_READ_ERROR);
       logger.error('Error loading entries:', 'secretary', {}, err as Error);

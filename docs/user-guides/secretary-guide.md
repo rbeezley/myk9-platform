@@ -102,7 +102,7 @@ Entry Management is where you review Show Registrations, find individual Entries
 1. Open **Entry Management** from the sidebar or from the Show Workbench.
 2. Start in **Needs review**, or search the whole Show by Exhibitor, Dog, Handler, Armband, confirmation, Entry number, or Class.
 3. Select the Show Registration to open it in the focused pane.
-4. Expand the Dog and choose **Accept** for the affected child Entry. Payment is already recorded for online Entries paid through the registration wizard.
+4. Expand the Dog, open the child Entry status, and choose **Accepted**. Payment is already recorded for online Entries paid through the registration wizard.
 
 **To approve many registrations at once:** Check each Show Registration. A compact floating toolbar appears with both the registration count and affected Entry count. Choose the available Accept action; only eligible child Entries are changed.
 
@@ -113,7 +113,7 @@ Entry Management is where you review Show Registrations, find individual Entries
 ### Rejecting an entry
 
 1. Search for or select the Show Registration, then expand the affected Dog.
-2. Choose **Reject** for the child Entry. The Entry changes to Rejected and the exhibitor is notified.
+2. Open the child Entry status and choose **Not Accepted**. The status changes immediately. If the exhibitor needs an explanation, use **Email Exhibitor** under **Communication and history**.
 
 ### Adding a mail-in or walk-in entry
 

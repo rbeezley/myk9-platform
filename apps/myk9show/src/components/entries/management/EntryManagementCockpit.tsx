@@ -141,10 +141,10 @@ export function EntryManagementCockpit({
       dispatchResponsive({
         type: 'measure',
         contentWidth: width,
-        hasFocusedDetail: focusedKey !== null,
+        hasFocusedDetail: cockpit.state.registrationKey !== null,
       });
     }
-  }, [focusedKey, width]);
+  }, [cockpit.state.registrationKey, width]);
 
   const registrationIds = useMemo(
     () => [...new Set(entries.map(entry => entry.registrationId).filter(Boolean))],

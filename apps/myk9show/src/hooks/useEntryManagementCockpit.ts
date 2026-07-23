@@ -91,12 +91,15 @@ export function useEntryManagementCockpit({
 
   useEffect(() => {
     if (!canValidateFocus || focusedGroupIsVisible) return;
-    setSearchParams(previous => writeCockpitFocus(previous, null), { replace: true });
+    setSearchParams(previous => writeCockpitFocus(previous, null), {
+      replace: true,
+      preventScrollReset: true,
+    });
   }, [canValidateFocus, focusedGroupIsVisible, setSearchParams]);
 
   const updateParams = useCallback(
     (writer: (previous: URLSearchParams) => URLSearchParams) => {
-      setSearchParams(previous => writer(previous), { replace: true });
+      setSearchParams(previous => writer(previous), { replace: true, preventScrollReset: true });
     },
     [setSearchParams]
   );
@@ -122,7 +125,9 @@ export function useEntryManagementCockpit({
     // Focus changes are navigable work steps. Push them into history so browser
     // Back/Forward can move between focused registrations without losing scope.
     setFocus: (registrationKey: string | null) =>
-      setSearchParams(previous => writeCockpitFocus(previous, registrationKey)),
+      setSearchParams(previous => writeCockpitFocus(previous, registrationKey), {
+        preventScrollReset: true,
+      }),
     setScope: (trialId: string | null, classId: string | null = null) =>
       updateParams(previous => writeCockpitScope(previous, trialId, classId)),
     setTab: (tab: EntryManagementCockpitTab) =>

@@ -366,7 +366,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
                       <div className="flex items-center gap-1">
                         <Trophy className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">
-                          <span className="text-muted-foreground italic">Select below</span>
+                          <span className="text-muted-foreground italic">Chosen at approval</span>
                         </span>
                       </div>
                     </div>

@@ -76,7 +76,9 @@ export function EntryFocusedRegistration({
           <p className="mt-2 font-semibold">{registration.recommendedAction.label}</p>
           <p className="text-sm text-muted-foreground">
             {registration.recommendedAction.affectedEntryIds.length} of {registration.entryCount}{' '}
-            {registration.entryCount === 1 ? 'Entry' : 'Entries'} currently need this action.
+            {registration.entryCount === 1 ? 'Entry' : 'Entries'} currently{' '}
+            {registration.recommendedAction.affectedEntryIds.length === 1 ? 'needs' : 'need'} this
+            action.
           </p>
         </div>
 

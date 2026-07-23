@@ -3,7 +3,7 @@
  *
  * Displays and manages pull requests from exhibitors.
  * Secretary can approve or deny requests here.
- * Refund reconciliation lives in Entry Management (filter: Pulled).
+ * Approved pulls and their refund decisions are reconciled on this same surface.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -39,25 +39,27 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
-import { StatusIcon } from '@/components/status';
-import {
-  getPendingPullRequests,
-  getPulledEntries,
-  type PullRecord,
-} from '@/services/database/day-of-operations';
+import { getPendingPullRequests, type PullRecord } from '@/services/database/day-of-operations';
 import {
   approvePullRequestReplicated,
   denyPullRequestReplicated,
 } from '@/services/show-day/requestManagement';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { PullReconciliationCard } from './management/PullReconciliationCard';
+import { RefundEntryDialog } from './management/RefundEntryDialog';
 
 interface PullManagementTabProps {
   showId: string;
+  processedEntries: EntryManagementEntry[];
   onRefresh?: () => void;
 }
 
-export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, onRefresh }) => {
+export const PullManagementTab: React.FC<PullManagementTabProps> = ({
+  showId,
+  processedEntries,
+  onRefresh,
+}) => {
   const [pendingRequests, setPendingRequests] = useState<PullRecord[]>([]);
-  const [processedPulls, setProcessedPulls] = useState<PullRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,25 +69,19 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
   const [selectedRequest, setSelectedRequest] = useState<PullRecord | null>(null);
   const [dialogAction, setDialogAction] = useState<'approve' | 'deny' | null>(null);
   const [denyReason, setDenyReason] = useState('');
+  const [refundEntry, setRefundEntry] = useState<EntryManagementEntry | null>(null);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const [pendingResult, processedResult] = await Promise.all([
-        getPendingPullRequests(showId),
-        getPulledEntries(showId),
-      ]);
+      const pendingResult = await getPendingPullRequests(showId);
 
       if (pendingResult.error) {
         setError('Failed to load pull requests');
       } else {
         setPendingRequests(pendingResult.data as PullRecord[]);
-      }
-
-      if (!processedResult.error) {
-        setProcessedPulls(processedResult.data as PullRecord[]);
       }
     } catch (_err) {
       setError('An unexpected error occurred');
@@ -176,35 +172,20 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
   };
 
   const filteredPending = filterRequests(pendingRequests);
-  const filteredProcessed = filterRequests(processedPulls);
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredProcessed = normalizedSearch
+    ? processedEntries.filter(
+        entry =>
+          entry.dogName.toLowerCase().includes(normalizedSearch) ||
+          entry.handlerName.toLowerCase().includes(normalizedSearch) ||
+          entry.classes.some(entryClass => entryClass.name.toLowerCase().includes(normalizedSearch))
+      )
+    : processedEntries;
 
   const formatPullDateTime = (dateStr: string | null) => formatEntryDateTime(dateStr) || 'N/A';
 
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
-  };
-
-  const getPullTimingBadge = (timing: 'before_close' | 'after_close' | null) => {
-    switch (timing) {
-      case 'before_close':
-        return (
-          <Badge variant="outline" className="bg-green-50 text-green-700">
-            Before close
-          </Badge>
-        );
-      case 'after_close':
-        return (
-          <Badge variant="outline" className="bg-orange-50 text-orange-700">
-            After close
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="outline" className="bg-gray-50 text-gray-500">
-            Timing unknown
-          </Badge>
-        );
-    }
   };
 
   if (isLoading) {
@@ -227,10 +208,17 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
             Pull Management
           </h3>
           <p className="text-sm text-muted-foreground">
-            Review and approve pull requests. Refund decisions are made in Entry Management.
+            Review pull requests and reconcile refunds in one place.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={loadData}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            void loadData();
+            onRefresh?.();
+          }}
+        >
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
@@ -369,46 +357,27 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
             </Card>
           ) : (
             <div className="space-y-3">
-              {filteredProcessed.map(pull => (
-                <Card key={pull.id} className="hover:bg-muted/50 transition-colors">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                          <StatusIcon family="entry" status="pulled" decorative />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{pull.dog?.name || 'Unknown Dog'}</span>
-                            {pull.armband && <Badge variant="outline">#{pull.armband}</Badge>}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {pull.class?.class_number && `#${pull.class.class_number} - `}
-                            {pull.class?.name}
-                          </div>
-                          {pull.pull_reason && (
-                            <div className="text-xs text-muted-foreground italic">
-                              {pull.pull_reason}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-6">
-                        {getPullTimingBadge(pull.pull_timing)}
-
-                        <div className="text-sm text-muted-foreground">
-                          Pulled: {formatPullDateTime(pull.pulled_at ?? pull.updated_at)}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              {filteredProcessed.map(entry => (
+                <PullReconciliationCard
+                  key={entry.id}
+                  entry={entry}
+                  onOpenRefund={setRefundEntry}
+                  onResolved={() => onRefresh?.()}
+                />
               ))}
             </div>
           )}
         </TabsContent>
       </Tabs>
+
+      <RefundEntryDialog
+        open={refundEntry !== null}
+        onOpenChange={open => {
+          if (!open) setRefundEntry(null);
+        }}
+        entry={refundEntry}
+        onRefunded={() => onRefresh?.()}
+      />
 
       {/* Approve Dialog */}
       <Dialog open={dialogAction === 'approve'} onOpenChange={open => !open && closeDialog()}>

@@ -64,6 +64,10 @@ const EntryManagementPage: React.FC = () => {
     refreshEmailLog,
   } = useEntryManagementData(urlShowId);
   const registrationGroups = useMemo(() => groupEntriesByShowRegistration(entries), [entries]);
+  const pulledEntries = useMemo(
+    () => entries.filter(entry => entry.rawEntryStatus === 'scratched'),
+    [entries]
+  );
   const canValidateFocus = Boolean(selectedShowId) && !isLoading && !loadError;
   const normalizationContext = useMemo(
     () => (canValidateFocus ? getCockpitNormalizationContext(registrationGroups) : {}),
@@ -438,6 +442,7 @@ const EntryManagementPage: React.FC = () => {
                 <CardContent className="pt-6">
                   <PullManagementTab
                     showId={selectedShowId}
+                    processedEntries={pulledEntries}
                     onRefresh={() => loadEntries(selectedShowId)}
                   />
                 </CardContent>

@@ -123,15 +123,40 @@ export async function postgrestGetSecretaryEntriesForShow(
 export async function postgrestGetSecretaryPullMetadataMap(
   showId: string
 ): Promise<Map<string, SecretaryPullMetadata>> {
-  const { data, error } = await supabase
-    .from('entries')
-    .select('id, withdrawn_at, refund_decision, refund_decided_at')
-    .eq('show_id', showId)
-    .eq('entry_status', 'scratched');
+  const runSelect = (includeRefundDecision: boolean) =>
+    supabase
+      .from('entries')
+      .select(
+        includeRefundDecision
+          ? 'id, withdrawn_at, refund_decision, refund_decided_at'
+          : 'id, withdrawn_at'
+      )
+      .eq('show_id', showId)
+      .eq('entry_status', 'scratched');
+
+  let response = await runSelect(true);
+  if (isPullRefundSchemaUnavailable(response.error)) {
+    response = await runSelect(false);
+  }
+  const { data, error } = response;
 
   if (error) {
     throw createDatabaseError(error, 'entries', 'get_secretary_pull_metadata');
   }
 
-  return new Map((data ?? []).map(metadata => [metadata.id, metadata]));
+  const rows = (data ?? []) as unknown as Array<
+    Pick<SecretaryPullMetadata, 'id' | 'withdrawn_at'> &
+      Partial<Pick<SecretaryPullMetadata, 'refund_decision' | 'refund_decided_at'>>
+  >;
+  return new Map(
+    rows.map(metadata => [
+      metadata.id,
+      {
+        id: metadata.id,
+        withdrawn_at: metadata.withdrawn_at,
+        refund_decision: metadata.refund_decision ?? null,
+        refund_decided_at: metadata.refund_decided_at ?? null,
+      },
+    ])
+  );
 }

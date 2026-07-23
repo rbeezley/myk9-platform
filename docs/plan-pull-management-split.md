@@ -14,8 +14,8 @@
 
 `ScratchRequest` (the type powering `PullManagementTab`) conflates two concerns with different ownership, timing, and write paths:
 
-1. **Show-day pull state** — offline-first, written at ringside by the secretary: *was this entry pulled, when, and why?*
-2. **Refund accounting** — online, written post-show via a secretary action or Stripe: *was a refund issued, for how much, and did it clear?*
+1. **Show-day pull state** — offline-first, written at ringside by the secretary: _was this entry pulled, when, and why?_
+2. **Refund accounting** — online, written post-show via a secretary action or Stripe: _was a refund issued, for how much, and did it clear?_
 
 The three refund fields (`refund_status`, `refund_amount`, `stripe_payment_intent_id`) are `?` optional bolted-on additions to a type that only needs to describe a ringside pull event. The replication layer owns pull state; Stripe owns refund state. Mixing them creates a false dependency: the offline-first ringside UI appears to need Stripe awareness, and the Stripe reconciliation path appears to need ringside data.
 
@@ -29,12 +29,12 @@ A secondary problem: the codebase uses "scratch"/"scratched" as both the type na
 
 These are different states with different inputs and different secretary actions:
 
-| State | What happened | How it's recorded | Refund eligible? |
-|-------|--------------|-------------------|-----------------|
-| **Pulled (before close)** | Secretary or exhibitor removed the entry before entries closed for that class | `entry_status = 'scratched'`; `pull_timing = 'before_close'` | Club policy — commonly yes |
-| **Pulled (after close)** | Entry removed after the class entry window closed | `entry_status = 'scratched'`; `pull_timing = 'after_close'` | Club policy — commonly no |
-| **Absent** | Dog never checked in, no pull was recorded | `check_in_status` remains un-checked-in; scoresheet row = "Absent" | Club policy — typically no |
-| **Pulled → no refund** | Secretary decided no refund after reviewing the pull | Same as absent from the scoring side | Decision made: no |
+| State                     | What happened                                                                 | How it's recorded                                                  | Refund eligible?           |
+| ------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------- |
+| **Pulled (before close)** | Secretary or exhibitor removed the entry before entries closed for that class | `entry_status = 'scratched'`; `pull_timing = 'before_close'`       | Club policy — commonly yes |
+| **Pulled (after close)**  | Entry removed after the class entry window closed                             | `entry_status = 'scratched'`; `pull_timing = 'after_close'`        | Club policy — commonly no  |
+| **Absent**                | Dog never checked in, no pull was recorded                                    | `check_in_status` remains un-checked-in; scoresheet row = "Absent" | Club policy — typically no |
+| **Pulled → no refund**    | Secretary decided no refund after reviewing the pull                          | Same as absent from the scoring side                               | Decision made: no          |
 
 Pulled-without-refund and absent look identical on the scoresheet ("Absent"), but they are different inputs: one was a deliberate pre-show act, one was a no-show. The secretary needs to distinguish them — a pulled dog (especially before close) may still warrant a courtesy note or follow-up.
 
@@ -43,6 +43,7 @@ Pulled-without-refund and absent look identical on the scoresheet ("Absent"), bu
 Which pulled entries get refunds is a **club policy decision**, not a system rule. The system provides **simple, opinionated defaults** to reduce decision fatigue, while always allowing the secretary to override any default for any entry. There will always be exceptions; the system must never block them.
 
 **Default behavior (sensible starting point):**
+
 - Pulled before close → pre-select "Issue refund" (most common outcome)
 - Pulled after close → pre-select "Deny" (most common outcome)
 - Timing unknown (`pull_timing = null`) → no pre-selection; both buttons appear; secretary must make an explicit choice
@@ -54,6 +55,7 @@ Which pulled entries get refunds is a **club policy decision**, not a system rul
 **Legacy data:** Existing `entry_status = 'scratched'` entries pre-dating this feature will have `pull_timing = null` at query time. They are handled identically to the null-timing case above — no migration needed, no data cleanup required before shipping.
 
 The system's job is to:
+
 1. Surface the pull reason and timing to the secretary
 2. Pre-select a sensible default decision based on timing (null timing = no pre-selection)
 3. Let the secretary override any entry's decision without friction
@@ -70,15 +72,15 @@ Since the platform payout schedule is **Manual**, the secretary has a window bet
 
 ## Decisions
 
-| # | Decision | Rationale |
-|---|----------|-----------|
-| D1 | Rename `ScratchRequest` → `PullRecord` | Domain term is "pulled"; "scratch" is confusing noise |
-| D2 | Remove `refund_status`, `refund_amount`, `stripe_payment_intent_id` from `PullRecord` | These belong on `entries` directly (they already exist as columns); `PullRecord` was projecting them unnecessarily |
-| D3 | Add `pull_timing: 'before_close' \| 'after_close'` to `PullRecord` | Informs (does not automate) the secretary's refund eligibility decision |
-| D4 | No automation — refunds are a manual secretary action | Too many exceptions; policy varies by club, reason, and timing |
-| D5 | Reconciliation surface = Entry Management filtered to `status=pulled` | Reuse existing page + existing `RefundEntryDialog` (#885); no new page |
-| D6 | Advisory pre-payout gate — not a hard block | Secretary owns the decision; system surfaces count of unresolved items |
-| D7 | "Scratch" → "Pull" in all user-facing strings | Standardize on domain term |
+| #   | Decision                                                                              | Rationale                                                                                                          |
+| --- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| D1  | Rename `ScratchRequest` → `PullRecord`                                                | Domain term is "pulled"; "scratch" is confusing noise                                                              |
+| D2  | Remove `refund_status`, `refund_amount`, `stripe_payment_intent_id` from `PullRecord` | These belong on `entries` directly (they already exist as columns); `PullRecord` was projecting them unnecessarily |
+| D3  | Add `pull_timing: 'before_close' \| 'after_close'` to `PullRecord`                    | Informs (does not automate) the secretary's refund eligibility decision                                            |
+| D4  | No automation — refunds are a manual secretary action                                 | Too many exceptions; policy varies by club, reason, and timing                                                     |
+| D5  | Reconciliation surface = Entry Management → Exceptions → Pulls / scratches → Pulled   | Reuse the canonical pull-request surface + existing `RefundEntryDialog` (#885); no new page                        |
+| D6  | Advisory pre-payout gate — not a hard block                                           | Secretary owns the decision; system surfaces count of unresolved items                                             |
+| D7  | "Scratch" → "Pull" in all user-facing strings                                         | Standardize on domain term                                                                                         |
 
 ---
 
@@ -89,7 +91,7 @@ Since the platform payout schedule is **Manual**, the secretary has a window bet
 - Refund policy configuration per club (post-Phase 2; the system doesn't enforce policy, it informs)
 - Bulk "deny all after-close pulls" action — implement reactively if secretaries ask for it
 
-**Risk to track:** A secretary with 40+ pulled entries across multiple trials may find the row-action menu insufficient. If this surfaces as a real pain point, add a "Resolve all" bulk action on the filtered Entry Management view. Do not pre-build it.
+**Risk to track:** A secretary with 40+ pulled entries across multiple trials may find per-entry actions insufficient. If this surfaces as a real pain point, add a "Resolve all" bulk action on the existing Pulls / scratches surface. Do not pre-build it.
 
 ---
 
@@ -119,6 +121,7 @@ Since the platform payout schedule is **Manual**, the secretary has a window bet
   - Update UI labels: "Scratch" → "Pull", "Scratched" → "Pulled"
 
 **[ADDED] Additional callers to update** (grep `ScratchRequest\|requestScratch\|approveScratchRequest\|denyScratchRequest\|scratchEntryDayOf\|scratch_reason\|scratched_at` across the repo before starting — the full list from the Explore audit):
+
 - `apps/myk9show/src/test/e2e/fixtures/phase4SeamHandlers.ts`
 - `apps/myk9show/src/test/e2e/fixtures/phase4SeamHttp.ts`
 - `apps/myk9show/src/test/phase4-seam/phase4SeamRoutes.test.ts`
@@ -133,18 +136,21 @@ Run `pnpm typecheck` after updating all callers to catch any missed references.
 ### Phase 2 — Reconciliation surface
 
 **Entry Management page (`EntryManagementPage.tsx`):**
-- Expose `pull_reason` column in the table view when `status=pulled` filter is active
-- Expose `pull_timing` column (`'Before close'` / `'After close'`) — this is the key signal for the secretary's refund decision
-- Ensure the existing `RefundEntryDialog` action in `EntryRowActionMenu` is visible for pulled entries
 
-**No new page.** Entry Management + `status=pulled` filter + `RefundEntryDialog` is the complete reconciliation flow.
+- Keep Pulls / scratches under the existing Exceptions peer
+- Show `pull_reason` and `pull_timing` for processed pulls
+- Add `Issue refund` / `Deny` actions per pull, pre-selected per D3
+- Reuse the existing `RefundEntryDialog` for Stripe refunds
 
-**MYK9-23 implementation note (2026-07-22):** This reuses Entry Management via
-`attention=pulled`; it does not duplicate the workflow on a new page. The
-existing Stripe refund dialog remains the refund path. Explicit denials are
-stored on `entries`, while successful refunds remain authoritative through the
-existing refund amount/timestamp fields. The migration has not been applied to
-the shared Supabase project.
+**No new page.** Entry Management → Exceptions → Pulls / scratches + `RefundEntryDialog` is the complete reconciliation flow.
+
+**MYK9-23 implementation note (2026-07-22):** This reuses the canonical Pulls /
+scratches exception surface and the Entry Management page's already-loaded,
+replication-backed entry projection; it does not add another list or duplicate
+the processed-pull fetch. The existing Stripe refund dialog remains the refund
+path. Explicit denials are stored on `entries`, while successful refunds remain
+authoritative through the existing refund amount/timestamp fields. The
+migration has not been applied to the shared Supabase project.
 
 ### Phase 3 — Pre-payout advisory gate
 
@@ -160,8 +166,8 @@ In the post-show / wrap-up flow (wherever the payout request action lives — cu
 - [x] Unit test: `pull_timing` derivation logic — before close, after close, and **null (entry_deadline missing or pulled_at null)**
 - [x] Unit test: null timing rule — `pull_timing = null` produces no pre-selection (both buttons unselected)
 - [x] Component test: `PullManagementTab` renders with `PullRecord` (no refund field access)
-- [x] Component test: Entry Management pulled filter shows `pull_reason` + `pull_timing` columns; null timing shows "Timing unknown"
-- [x] Component test: reconciliation row with `pull_timing = 'before_close'` pre-selects "Issue refund"; `'after_close'` pre-selects "Deny"; `null` shows both unselected
+- [x] Component test: the Pulls / scratches processed list shows `pull_reason` + `pull_timing`; null timing shows "Timing unknown"
+- [x] Component test: reconciliation action with `pull_timing = 'before_close'` pre-selects "Issue refund"; `'after_close'` pre-selects "Deny"; `null` shows both unselected
 - [x] Component test: secretary override — clicking the non-default button updates selection without confirmation
 - [x] Component test: pre-payout advisory renders when unresolved pulls exist, absent when none
 

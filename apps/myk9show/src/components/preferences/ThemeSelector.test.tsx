@@ -120,7 +120,9 @@ describe('ThemeSelector mode wiring', () => {
 
     await user.click(screen.getByRole('radio', { name: /^Compact/ }));
 
-    expect(document.body.className).toContain('density-compact');
+    // Density lives on <html>, not <body> — applyLayoutDensity scrubs the body copy.
+    expect(root.className).toContain('density-compact');
+    expect(document.body.className).not.toContain('density-compact');
     expect(localStorage.getItem('layoutDensity')).toBe('compact');
   });
 

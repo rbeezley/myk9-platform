@@ -25,10 +25,10 @@
 
 ## 5. Entries Tab Consolidation
 
-- [ ] 5.1 Confirm the manager-vs-anon audience split in `ShowDetailTabs`/`EntriesTab` and whether any other consumer imports `EntriesTab`.
-- [ ] 5.2 Write failing tests: manager sees summary counts + "Open Entry Management" navigation; anon/public rendering unchanged.
-- [ ] 5.3 Implement the manager summary + link (delete the manager table branch; keep or extract the public path per 5.1 findings).
-- [ ] 5.4 Grep docs (`--include="*.md"`) for references to the manager Entries tab table and update any user-guide/support text that describes it.
+- [x] 5.1 Confirm the manager-vs-anon audience split in `ShowDetailTabs`/`EntriesTab` and whether any other consumer imports `EntriesTab`.
+- [x] 5.2 Write failing tests: manager sees summary counts + "Open Entry Management" navigation; anon/public rendering unchanged.
+- [x] 5.3 Implement the manager summary + link (delete the manager table branch; keep or extract the public path per 5.1 findings).
+- [x] 5.4 Grep docs (`--include="*.md"`) for references to the manager Entries tab table and update any user-guide/support text that describes it.
 
 ## 6. Verification and Closeout
 

@@ -1,7 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
-import { AlertTriangle, Camera, Dog, Loader2, Mail, MapPin, Phone } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, Loader2, Mail, MapPin, Phone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,13 +11,10 @@ import { getInitials } from '@/lib/utils';
 import { useProfileForm } from '@/hooks/useProfileForm';
 import { useAvatarUpload } from '@/hooks/useAvatarUpload';
 import { useUpdatePerson } from '@/hooks/useUsers';
-import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { mapDatabaseDogsArray } from '@/services/mappers/dogMappers';
 import { deleteUser } from '@/services/database/users/reads';
 import { revokeSelfAuthIdentity } from '@/services/auth/revokeSelfAuthIdentity';
 import { getUserFriendlyError } from '@/utils/errorMessages';
-import type { Dog as DogType } from '@/types/dog-types';
 
 const DELETE_CONFIRMATION_TEXT = 'DELETE';
 const PENDING_SELF_DELETE_REVOCATION_KEY_PREFIX = 'myk9:pending-self-delete-auth-revocation';
@@ -39,8 +35,16 @@ export function ProfileSection() {
     [form.person, updatePerson]
   );
 
-  const { upload, uploading } = useAvatarUpload({ onSuccess });
+  const { upload, uploading, error: avatarError } = useAvatarUpload({ onSuccess });
   const fullName = `${form.person?.firstName || ''} ${form.person?.lastName || ''}`.trim();
+
+  // Auto-clear the inline success indicator after a few seconds, matching
+  // SecuritySettings' password-update feedback pattern.
+  useEffect(() => {
+    if (!form.saveSuccess) return;
+    const timer = setTimeout(() => form.clearSaveStatus(), 4000);
+    return () => clearTimeout(timer);
+  }, [form.saveSuccess, form]);
 
   return (
     <div className="space-y-6">
@@ -86,6 +90,12 @@ export function ProfileSection() {
                 }}
               />
               <p className="mt-1.5 text-xs text-muted-foreground">JPG, PNG, WebP · max 5MB</p>
+              {avatarError && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>{avatarError}</AlertDescription>
+                </Alert>
+              )}
             </div>
           </div>
         </CardContent>
@@ -96,6 +106,18 @@ export function ProfileSection() {
           <CardTitle className="text-base">Personal information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {form.saveSuccess && (
+            <Alert className="border-success/30 bg-success/10 text-success">
+              <CheckCircle2 className="h-4 w-4 text-success" />
+              <AlertDescription>Profile updated successfully.</AlertDescription>
+            </Alert>
+          )}
+          {form.saveError && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{form.saveError}</AlertDescription>
+            </Alert>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="firstName">First name</Label>
@@ -119,7 +141,15 @@ export function ProfileSection() {
               <Mail className="inline h-3.5 w-3.5 mr-1 opacity-60" />
               Email
             </Label>
-            <Input id="email" type="email" value={form.email} readOnly className="opacity-70" />
+            <Input
+              id="email"
+              type="email"
+              value={form.email}
+              readOnly
+              aria-readonly="true"
+              className="cursor-default bg-muted text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            <p className="text-xs text-muted-foreground">Email can&apos;t be changed here.</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="phone">
@@ -176,65 +206,6 @@ export function ProfileSection() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-export function DogsSection() {
-  const { data: rawDogs, isLoading } = useDogsQuery();
-  const dogs: DogType[] = mapDatabaseDogsArray((rawDogs ?? []) as Record<string, unknown>[]);
-
-  if (isLoading)
-    return (
-      <Card>
-        <CardContent className="py-8 flex justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">My dogs</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {dogs.length === 0 ? (
-          <div className="py-4 text-center space-y-3">
-            <p className="text-sm text-muted-foreground">You don't have any dogs yet.</p>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/dogs">Browse or add dogs</Link>
-            </Button>
-          </div>
-        ) : (
-          <ul className="divide-y divide-border/50">
-            {dogs.map(dog => (
-              <li key={dog.id} className="flex items-center justify-between py-2.5">
-                <div className="flex items-center gap-3">
-                  {dog.imageUrl ? (
-                    <img
-                      src={dog.imageUrl}
-                      alt={dog.callName || dog.name}
-                      className="h-9 w-9 rounded-full object-cover border border-border/50"
-                    />
-                  ) : (
-                    <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center">
-                      <Dog className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-medium">{dog.callName || dog.name}</p>
-                    {dog.breed && <p className="text-xs text-muted-foreground">{dog.breed}</p>}
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to={`/dogs/${dog.id}`}>View</Link>
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 

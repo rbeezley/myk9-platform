@@ -1,6 +1,16 @@
 import { createContext, useCallback, useEffect, useState, ReactNode } from 'react';
 import { ThemeMode, ResolvedTheme, ThemeContextType } from './themeUtils';
-import { applyThemeClasses, applyFontScale, getStoredFontScale } from './themeClasses';
+import {
+  applyThemeClasses,
+  applyFontScale,
+  getStoredFontScale,
+  applyLayoutDensity,
+  getStoredLayoutDensity,
+  applyReduceMotion,
+  getStoredReduceMotion,
+  applyHighContrast,
+  getStoredHighContrast,
+} from './themeClasses';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -60,6 +70,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const storedScale = getStoredFontScale();
     if (storedScale) {
       applyFontScale(storedScale);
+    }
+  }, []);
+
+  // Apply the persisted layout density / reduce-motion / high-contrast
+  // preferences on boot, same rationale as the font-scale hydration above:
+  // without this, a reload shows the switch/radio as ON (server preference)
+  // while the actual class was never re-applied to the DOM.
+  useEffect(() => {
+    const storedDensity = getStoredLayoutDensity();
+    if (storedDensity) {
+      applyLayoutDensity(storedDensity);
+    }
+    const storedReduceMotion = getStoredReduceMotion();
+    if (storedReduceMotion !== null) {
+      applyReduceMotion(storedReduceMotion);
+    }
+    const storedHighContrast = getStoredHighContrast();
+    if (storedHighContrast !== null) {
+      applyHighContrast(storedHighContrast);
     }
   }, []);
 

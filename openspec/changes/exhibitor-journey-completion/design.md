@@ -94,7 +94,7 @@ Alternative considered: shrink cards and typography until the tree fits. Rejecte
 Extract a pure resolver and a single React Query-backed hook that return:
 
 ```ts
-type EntitlementSource = 'paid' | 'founding' | 'complimentary' | 'trial' | 'none';
+type EntitlementSource = 'paid' | 'founding' | 'complimentary' | 'none';
 
 interface EffectiveEntitlement {
   tier: 'free' | 'premium';
@@ -102,20 +102,26 @@ interface EffectiveEntitlement {
   status: 'active' | 'expired' | 'free';
   endsAt: string | null;
   evaluatedAt: string;
+  trustedUntil: string;
   canManageBilling: boolean;
+  analyticsTrial: {
+    status: 'active' | 'used' | 'unavailable';
+    scoredShowCount: number | null;
+    showLimit: number;
+  };
 }
 ```
 
-Precedence is active paid Premium, active founding/complimentary grant, active trial, then free. If no source is active but a paid subscription or grant ended, the resolver returns free with `status: 'expired'` and the most relevant end date. An active grant can therefore keep Premium available after a paid subscription ends without claiming that billing is active.
+Precedence for account Premium is active paid Premium, active founding/complimentary grant, then free. If no account source is active but a paid subscription or grant ended, the resolver returns free with `status: 'expired'` and the most relevant end date. An active grant can therefore keep Premium available after a paid subscription ends without claiming that billing is active.
 
 <!-- [EXPANDED after plan verification] -->
-The existing first-three-scored-shows trial is account-wide Premium access, not an Analytics-only tier accident. A server-evaluated, account-scoped entitlement-context RPC returns database evaluation time, the active/most-recent grant, and the distinct scored-show count needed by the existing trial rule. This removes the optional `trialShowCount` input that currently lets Analytics and Dog Details disagree. The account query uses one React Query key and is deduplicated across all consumers; Analytics reuses the same trial progress instead of fetching a second entitlement count.
+The existing first-three-scored-shows trial remains scoped to Premium Analytics, matching the current product copy and avoiding an unapproved expansion of Premium pricing terms. A server-evaluated, account-scoped entitlement-context RPC returns database evaluation time, a sanitized active/most-recent grant projection, and the distinct scored-show count needed by the existing Analytics trial rule. This removes caller-provided `trialShowCount` while preserving the existing capability boundary: paid/founding/complimentary access unlocks all five dog capabilities, while an Analytics trial unlocks only the currently trialed Analytics content. The account query uses one React Query key and is deduplicated across all consumers.
 
-The resolver uses server `evaluatedAt`, not the device clock, for paid/grant/trial boundaries. The hook schedules one invalidation at the nearest active source end and also revalidates on focus/reconnect, so a page left open cannot retain Premium indefinitely after expiry.
+The resolver uses server `evaluatedAt`, not the device clock, for paid/grant boundaries. Each result has a bounded `trustedUntil`, no later than the active source end or the cache's short maximum-stale interval. The hook schedules invalidation at that boundary and revalidates on focus/reconnect. If refresh fails, the last trusted value may remain visible only until `trustedUntil`; Premium creation/update actions then fail closed even if the page stays open.
 
 `useSubscriptionGate` becomes a compatibility wrapper or is migrated caller-by-caller to the new hook. Dog gates, Analytics, Subscription, Pricing, and account messaging consume the same effective result. They hold a neutral loading state until profile and grant reads settle, preventing a lock/unlock flash.
 
-`SubscriptionManager` still owns Stripe billing details and customer-portal actions, but it receives effective entitlement rather than inferring access from the presence of a Stripe row. Billing controls render only for paid access. Founding, complimentary, and trial access display their source, end condition, and the correct next action. Hardcoded usage metrics and unavailable invoice links are removed.
+`SubscriptionManager` still owns Stripe billing details and customer-portal actions, but it receives effective entitlement rather than inferring access from the presence of a Stripe row. Billing controls render only for paid access. Founding and complimentary access display their source, end condition, and the correct next action. The existing Analytics trial is explained as capability-scoped progress, not mislabeled as an account subscription. Hardcoded usage metrics and unavailable invoice links are removed.
 
 Alternative considered: add fake Stripe subscriptions for test users. Rejected because it corrupts billing truth and can accidentally trigger webhook, portal, invoice, or revenue behavior.
 
@@ -130,7 +136,7 @@ Create `subscription_entitlement_grants` as the durable record:
 - `granted_by_person_id`, `created_at`
 - nullable `revoked_at`, `revoked_by_person_id`, `revoke_reason`
 
-Authenticated users may read their own grant history; site admins may read all grants. Direct authenticated insert/update/delete is denied. A server-authorized RPC grants or revokes access atomically, verifies `is_site_admin()`, requires a reason, validates the date range, locks the target person, closes any prior unrevoked grant, and records actor/target/reason. A partial unique index allows at most one unrevoked grant per person; the RPC serializes concurrent changes.
+The grant table is admin-readable only because its reason, actor, and revocation fields are internal. The current user receives only a sanitized source/status/start/end projection through the security-definer entitlement-context RPC. Direct authenticated select/insert/update/delete on the table is denied to non-admins. A server-authorized RPC grants or revokes access atomically, verifies `is_site_admin()`, requires a reason, validates the date range, locks the target person, closes any prior unrevoked grant, and records actor/target/reason. A partial unique index allows at most one unrevoked grant per person; the RPC serializes concurrent changes.
 
 Existing non-null `people.early_adopter_until` values are backfilled as `founding` grants. During one compatibility release, the effective hook prefers the grant table but can fall back to the legacy column if the table is unavailable. After staging and production verification, a later migration in this change removes the fallback, legacy trigger, and legacy column.
 
@@ -140,14 +146,14 @@ Alternative considered: keep editing `early_adopter_until`. Rejected because ord
 
 Alternative considered: a new Admin Subscriptions page. Rejected because user-scoped access administration belongs with the selected user.
 
-### 7A. Enforce Premium record mutations on the server
+### 7A. Enforce Premium record creation and updates on the server
 
 <!-- [ADDED after plan verification] -->
-Add one server-side `has_effective_premium_access(person_id, evaluated_at)` helper that uses paid profile state, the active grant, and the existing scored-show trial rule. Premium record write policies or their established mutation RPCs call this helper in addition to ownership checks. Client gates remain the presentation layer; they are not the authorization boundary.
+Add one server-side `has_effective_premium_access(person_id, evaluated_at)` helper that uses paid profile state and the active grant. The Analytics-scoped trial does not authorize dog-record creation or updates. Premium record create/update policies or their established mutation RPCs call this helper in addition to ownership checks. Client gates remain the presentation layer; they are not the authorization boundary.
 
-The implementation inventory decides the narrowest established enforcement point for Health, Training, and Pedigree. If a mutation already uses a security-definer RPC, enforce there. If it writes a table directly, add an RLS `WITH CHECK`/`USING` condition without weakening owner isolation. Title Progress and Statistics remain derived read features; their authenticated read paths must either enforce the same helper or return only inputs already legitimately visible to the owner, with the paid presentation gated consistently.
+The implementation inventory decides the narrowest established enforcement point for Health, Training, and Pedigree. If a mutation already uses a security-definer RPC, enforce there. If it writes a table directly, add an RLS `WITH CHECK` condition for inserts/updates without weakening owner isolation. Existing owner reads, exports, and deletes remain available after downgrade so myK9 does not hold personal dog records hostage; the canonical Records view becomes read-only and explains that Premium is required to add or edit. Title Progress and Statistics remain derived read features; their authenticated read paths return only inputs already legitimately visible to the owner, with paid presentation gated consistently.
 
-Use the same server helper in the entitlement-context RPC so UI and mutation authorization cannot encode different rules. SQL tests cover free, paid, founding, complimentary, trial, expired, revoked, non-owner, and non-admin cases.
+Use the same server helper in the entitlement-context RPC so UI and create/update authorization cannot encode different account-Premium rules. SQL tests cover free, paid, founding, complimentary, Analytics trial, expired, revoked, non-owner, read/export/delete, and non-admin cases.
 
 Alternative considered: keep Premium as a client-only lock. Rejected because a direct API call could continue writing paid records after free, expiry, or revocation.
 
@@ -185,7 +191,7 @@ Pricing recognizes any active Premium entitlement and replaces purchase CTAs wit
 - [Entitlement migration briefly has two representations] → Backfill first, prefer the grant table, log fallback use, compare grant/profile results in staging, and remove the legacy column only after evidence.
 - [Grant abuse or self-service escalation] → Deny direct writes, authorize in the RPC, require actor/reason/expiry, use RLS, test non-admin and self-call attempts, and audit every state change.
 - [Concurrent grant/revoke requests race] → Lock the target person and enforce one unrevoked grant with a partial unique index.
-- [A failed entitlement read could lock a legitimate user] → Keep the last successful React Query value during transient failures, show a non-destructive account error, and never mutate billing/access as recovery.
+- [A failed entitlement read could lock a legitimate user] → Keep the last successful React Query value only until its bounded `trustedUntil`, show a non-destructive account error, and fail Premium creation/update closed after that boundary without changing billing/grant data.
 - [Dog deep links or bookmarks break] → Map every legacy tab id, test forward/back navigation, and retain one release of compatibility parsing.
 - [Consolidation hides a Premium feature] → Show all secondary views inside their owning group, preserve direct links, and include free/Premium discovery tests for all five features.
 - [Responsive fixes regress desktop density] → Use content-container breakpoints, snapshot/source guards, and browser evidence at all four audited viewport classes.
@@ -193,7 +199,7 @@ Pricing recognizes any active Premium entitlement and replaces purchase CTAs wit
 - [Payment/count fixes overlap active changes] → Rebase after their merge, consume shared selectors, and remove duplicate tasks rather than create a second implementation.
 - [Schema deployment or rollback leaves access inconsistent] → Use additive migrations first, preserve the legacy source through verification, and make cleanup a separately approved migration.
 - [Entitlement context is fetched by many components] → Use one account-scoped React Query key, server aggregation, appropriate person/grant/result indexes, and record `EXPLAIN (ANALYZE, BUFFERS)` evidence against a high-history fixture.
-- [A browser remains open across an expiry] → Evaluate against server time, invalidate at the nearest boundary, and revalidate on focus/reconnect before allowing the next Premium mutation.
+- [A browser remains open across an expiry] → Evaluate against server time, invalidate at the nearest boundary, and revalidate on focus/reconnect before allowing the next Premium creation/update.
 - [Grant/RPC failures become invisible operationally] → Persist grant history atomically, emit structured failure logs without PII/reasons, and add a staging query/runbook for recent grants, revocations, denials, and legacy-fallback mismatches.
 
 ## Migration Plan

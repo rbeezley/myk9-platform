@@ -31,11 +31,11 @@
 ## 4. Slice 3A — Entitlement Grant Data and Authorization
 
 - [ ] 4.1 Inventory `roles`, `permissions`, `role_permissions`, site-admin helpers, `people`, `exhibitor_profiles`, and legacy `early_adopter_until` rows in one evidence pass before writing the migration.
-- [ ] 4.2 Add assertion-first SQL/source tests for owner/admin reads, denied direct writes, denied non-admin RPC calls, required reason/date validation, atomic grant/revoke history, paid-subscription isolation, concurrent requests, server-time boundary evaluation, and Premium write authorization.
-- [ ] 4.3 Add the `subscription_entitlement_grants` table, constraints, indexes, owner/admin RLS, server-evaluated entitlement-context/helper functions, and platform-admin grant/revoke RPC with target-row locking and one unrevoked grant per person.
+- [ ] 4.2 Add assertion-first SQL/source tests for admin-only grant-row reads, sanitized own-context reads, denied direct writes, denied non-admin RPC calls, required reason/date validation, atomic grant/revoke history, paid-subscription isolation, concurrent requests, server-time boundary evaluation, and Premium create/update authorization.
+- [ ] 4.3 Add the `subscription_entitlement_grants` table, constraints, indexes, admin-only row RLS, sanitized server-evaluated entitlement-context/helper functions, and platform-admin grant/revoke RPC with target-row locking and one unrevoked grant per person.
 - [ ] 4.4 Backfill every non-null `early_adopter_until` value as a founding grant without changing its end date, retain the legacy field for compatibility, and add a migration parity query.
 - [ ] 4.5 Regenerate Supabase TypeScript types and add typed query/mutation wrappers for own-grant reads, admin history, grant, and revoke.
-- [ ] 4.6 Apply the server entitlement helper to the established Health, Training, and Pedigree mutation authorization boundaries without weakening record-owner isolation; add direct-API bypass tests for free, expired, revoked, Premium, and non-owner callers.
+- [ ] 4.6 Apply the server entitlement helper to Health, Training, and Pedigree create/update authorization without weakening ownership; add direct-API tests proving free/Analytics-trial-only/expired/revoked callers cannot create or edit, non-owners cannot act, and owners retain read/export/delete access.
 - [ ] 4.7 Run migration/source tests, local database replay where available, `pnpm qa:rls-smoke`, focused wrapper tests, `pnpm typecheck`, and `pnpm lint`.
 - [ ] 4.8 Record query plans and bounded timings for entitlement context, admin history, and Premium mutation checks using a high-history account fixture; add or adjust indexes if the plan shows repeated scans.
 - [ ] 4.9 Open the additive migration PR with forward/rollback instructions and query plans for owner/admin lookups; wait for CI/security review, resolve findings, and merge without pushing a linked database.
@@ -43,14 +43,14 @@
 
 ## 5. Slice 3B — Unified Entitlement and Admin Experience
 
-- [ ] 5.1 Add pure resolver/hook tests for paid, founding, complimentary, account-wide trial, free, expired, multiple-source precedence, server-time boundary timestamps, scheduled expiry invalidation, focus/reconnect refresh, loading, refresh failure, and no-trusted-result failure.
-- [ ] 5.2 Implement the server-context-backed effective-entitlement resolver and one account-scoped React Query hook, remove caller-provided trial counts, migrate or wrap every `useSubscriptionGate` caller, preserve the last trusted result on refresh error, schedule boundary invalidation, and add structured legacy-fallback mismatch logging.
+- [ ] 5.1 Add pure resolver/hook tests for paid, founding, complimentary, Analytics-scoped trial, free, expired, multiple-source precedence, server-time boundary timestamps, bounded stale access, scheduled expiry invalidation, focus/reconnect refresh, loading, refresh failure, and no-trusted-result failure.
+- [ ] 5.2 Implement the sanitized server-context-backed entitlement resolver and one account-scoped React Query hook, remove caller-provided trial counts while preserving the Analytics-only trial boundary, retain the last trusted result only until `trustedUntil`, schedule boundary invalidation, and add structured legacy-fallback mismatch logging.
 - [ ] 5.3 Add User Management tests for admin-only visibility, target eligibility, required end date/reason, grant/revoke confirmation, failure preservation, history, refetch, and disabled repeat submission.
 - [ ] 5.4 Add the Complimentary Premium control to the existing `UserEditPanel` using the authorized RPC; do not add a page or direct table mutation.
 - [ ] 5.5 Refactor Subscription to compose effective access with Stripe billing details, remove hardcoded usage and unavailable invoice links, and test paid, complimentary, founding, trial, expired, free, loading, and error states.
 - [ ] 5.6 Make Pricing entitlement-aware and test that active sources receive the correct current-access action while free/expired users retain the real checkout path.
 - [ ] 5.7 Remove or configure placeholder footer phone/address/social/help/legal items and reconcile `docs/future/exhibitor-premium.md`, `docs/roles/exhibitor.md`, and operations guidance with the five shipped capabilities and admin grant workflow.
-- [ ] 5.8 Verify Slice 3B with focused resolver/hook, User Management, Subscription, Pricing, Footer, and every gate-consumer test; `pnpm typecheck`; `pnpm lint`; and staging browser transitions across free, account-wide trial, complimentary Premium, expiry while open, and revoked free.
+- [ ] 5.8 Verify Slice 3B with focused resolver/hook, User Management, Subscription, Pricing, Footer, and every gate-consumer test; `pnpm typecheck`; `pnpm lint`; and staging browser transitions across free, Analytics-scoped trial, complimentary Premium, expiry while open/refresh failing, and revoked free.
 - [ ] 5.9 Open the Slice 3B PR with authorization evidence and screenshots; wait for CI/security/product review, resolve findings, and merge.
 
 ## 6. Slice 4 — Core Exhibitor Trust Contracts
@@ -75,6 +75,7 @@
 - [ ] 7.7 Conduct one visible-label-only walkthrough with an elderly or low-tech test user, record confusion and completion evidence, and open follow-up issues for non-blocking findings rather than silently expanding this change.
 - [ ] 7.8 Confirm there are no new routes, duplicate dashboards, fake metrics, placeholder links, stale locks, horizontal clipping, console errors, or unhandled mutation failures in scope.
 - [ ] 7.9 Review structured entitlement logs and the admin grant-history query for PII-safe visibility of grants, revocations, denials, fallback mismatches, and expiry transitions; add the operational check to the runbook.
+- [ ] 7.10 Regress the previously audited but not repeated paths: dog delete/refetch, exhibitor check-in vocabulary, stale-cart recovery, and Developer-menu visibility; record pass evidence or open a blocking follow-up before calling the journey complete.
 
 ## 8. Compatibility Cleanup and Rollback Readiness
 

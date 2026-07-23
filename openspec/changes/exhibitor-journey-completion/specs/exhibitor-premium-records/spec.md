@@ -2,7 +2,7 @@
 
 ### Requirement: Every shipped Premium dog capability is discoverable
 
-The Dog Details workspace SHALL expose Title Progress, Statistics, Health Records, Training Journal, and Pedigree to an active Premium exhibitor through the Career or Records group, and SHALL expose a labeled locked preview or upgrade path for each Premium concern to a free exhibitor without adding a separate Premium page.
+The Dog Details workspace SHALL expose Title Progress, Statistics, Health Records, Training Journal, and Pedigree to an active account-Premium exhibitor through the Career or Records group, and SHALL expose a labeled locked preview or read-only downgrade state with an upgrade path to a free exhibitor without adding a separate Premium page.
 
 #### Scenario: Active Premium exhibitor discovers all capabilities
 
@@ -15,6 +15,12 @@ The Dog Details workspace SHALL expose Title Progress, Statistics, Health Record
 - **WHEN** a free exhibitor opens Career or Records
 - **THEN** every unavailable Premium secondary view SHALL have a plain-language label and one shared route to the existing Pricing page
 - **AND** the page SHALL NOT render five competing top-level lock tabs
+
+#### Scenario: Downgraded exhibitor has saved records
+
+- **WHEN** a free, expired, or revoked exhibitor has existing Health, Training, or Pedigree data
+- **THEN** the corresponding Records views SHALL allow read, export, and delete access to owned records
+- **AND** create and edit controls SHALL explain that account Premium is required
 
 ### Requirement: Premium record forms validate before mutation
 

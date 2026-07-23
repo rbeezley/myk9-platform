@@ -50,6 +50,8 @@ Premium gating SHALL occur at the affected Career or Records secondary view with
 
 - **WHEN** a free exhibitor opens Records
 - **THEN** Health, Training, and Pedigree SHALL be discoverable through one coherent Records treatment
+- **AND** existing owned records SHALL remain readable, exportable, and deletable in a read-only downgrade state
+- **AND** adding or editing SHALL present one consistent account-Premium upgrade path
 - **AND** the sidebar SHALL NOT repeat a competing Title Progress upgrade card
 
 #### Scenario: User upgrades and returns

@@ -2,7 +2,7 @@
 
 ### Requirement: Effective entitlement has one source of truth
 
-The system SHALL resolve each exhibitor's effective access as paid Premium, founding grant, complimentary grant, trial, expired, or free and SHALL use that same result for feature gates, Dog Details, Analytics, Subscription, Pricing, and account messaging.
+The system SHALL resolve each exhibitor's account access as paid Premium, founding grant, complimentary grant, expired, or free, plus the existing Analytics-scoped trial progress, and SHALL use that same context for feature gates, Dog Details, Analytics, Subscription, Pricing, and account messaging.
 
 #### Scenario: Active paid subscription
 
@@ -26,15 +26,15 @@ The system SHALL resolve each exhibitor's effective access as paid Premium, foun
 #### Scenario: Trial access
 
 - **WHEN** an exhibitor is eligible for the existing scored-show trial and has no active paid subscription or grant
-- **THEN** effective access SHALL be Premium with source `trial`
-- **AND** the same trial SHALL unlock all five Premium dog capabilities and Analytics
-- **AND** the remaining trial condition SHALL be explained consistently
+- **THEN** eligible Premium Analytics content SHALL be available through the existing Analytics trial
+- **AND** Title Progress, dog Statistics, Health, Training, and Pedigree SHALL remain subject to account Premium
+- **AND** Subscription and Pricing SHALL describe the trial as Analytics-scoped rather than as an active paid or complimentary subscription
 
 #### Scenario: Multiple active sources
 
 - **WHEN** more than one access source is active
-- **THEN** the resolver SHALL choose paid before grant and grant before trial
-- **AND** access SHALL remain Premium until every active source ends
+- **THEN** the resolver SHALL choose paid before grant for account Premium
+- **AND** Analytics SHALL use account Premium before its capability-scoped trial
 
 #### Scenario: Access expired
 
@@ -60,8 +60,9 @@ Entitlement consumers SHALL avoid displaying a false free or paid state while re
 #### Scenario: Refresh fails after a successful load
 
 - **WHEN** an entitlement refresh fails after a prior successful result
-- **THEN** the last successful result SHALL remain visible for the session
-- **AND** the account surface SHALL provide a non-destructive retry message
+- **THEN** the last successful result MAY remain visible only until its server-derived trusted boundary
+- **AND** Premium creation/update SHALL fail closed after that boundary
+- **AND** the account surface SHALL provide a non-destructive retry message without changing billing or grant state
 
 #### Scenario: No trusted result exists
 
@@ -69,19 +70,19 @@ Entitlement consumers SHALL avoid displaying a false free or paid state while re
 - **THEN** Premium mutations SHALL fail closed
 - **AND** the system SHALL explain that access could not be verified without changing billing or grant data
 
-### Requirement: Premium record mutations are server-authorized
+### Requirement: Premium record creation and updates are server-authorized
 
-Premium Health, Training, and Pedigree mutations SHALL require both record ownership and server-evaluated effective Premium access; a client-side feature gate SHALL NOT be the authorization boundary.
+Premium Health, Training, and Pedigree creation and updates SHALL require both record ownership and server-evaluated account Premium access; a client-side feature gate SHALL NOT be the authorization boundary. Record owners SHALL retain read, export, and delete access to their existing personal records after downgrade.
 
-#### Scenario: Active Premium owner writes a record
+#### Scenario: Active account-Premium owner creates or updates a record
 
-- **WHEN** the record owner has active paid, founding, complimentary, or trial Premium access
-- **THEN** the established mutation path SHALL allow a valid Health, Training, or Pedigree write
+- **WHEN** the record owner has active paid, founding, or complimentary Premium access
+- **THEN** the established mutation path SHALL allow a valid Health, Training, or Pedigree create or update
 
-#### Scenario: Free or expired owner bypasses the UI
+#### Scenario: Free or expired owner bypasses the create or edit UI
 
-- **WHEN** a free, expired, or revoked owner calls a Premium record mutation directly
-- **THEN** the server SHALL reject the write
+- **WHEN** a free, Analytics-trial-only, expired, or revoked owner calls a Premium record create or update directly
+- **THEN** the server SHALL reject the create or update
 - **AND** existing saved records SHALL remain intact
 
 #### Scenario: Non-owner has Premium
@@ -91,9 +92,16 @@ Premium Health, Training, and Pedigree mutations SHALL require both record owner
 
 #### Scenario: UI result is stale at mutation time
 
-- **WHEN** the client last saw active access but the source expired or was revoked before mutation
-- **THEN** the server SHALL reject the mutation using its current entitlement evaluation
+- **WHEN** the client last saw active access but the source expired or was revoked before create or update
+- **THEN** the server SHALL reject the create or update using its current entitlement evaluation
 - **AND** the client SHALL refetch entitlement and explain that access changed
+
+#### Scenario: Downgraded owner accesses existing records
+
+- **WHEN** a free, expired, or revoked owner has existing Health, Training, or Pedigree records
+- **THEN** the owner SHALL be able to read and export those records
+- **AND** the owner SHALL be able to delete an owned record with the normal confirmation or undo behavior
+- **AND** adding or editing SHALL remain locked behind account Premium
 
 ### Requirement: Platform admins can grant complimentary Premium
 
@@ -154,12 +162,13 @@ A site admin SHALL be able to revoke an active founding or complimentary grant f
 
 ### Requirement: Entitlement grants are durable and auditable
 
-The system SHALL retain grant and revocation history with target, type, start, end, actor, reason, and timestamps; direct authenticated writes SHALL be denied and reads SHALL be limited to the owner and site admins.
+The system SHALL retain grant and revocation history with target, type, start, end, actor, reason, and timestamps; the complete records SHALL be readable only by site admins, and non-admin users SHALL receive only a sanitized own-entitlement projection from the authorized context RPC.
 
-#### Scenario: User reads own grant status
+#### Scenario: User reads sanitized own grant status
 
 - **WHEN** an authenticated exhibitor loads their entitlement
-- **THEN** they SHALL be able to read only their own applicable grant records
+- **THEN** the entitlement-context RPC SHALL return only their source, status, start, and end values
+- **AND** it SHALL NOT expose internal reasons or grant/revocation actor identifiers
 
 #### Scenario: Admin reviews grant history
 
@@ -168,8 +177,8 @@ The system SHALL retain grant and revocation history with target, type, start, e
 
 #### Scenario: User attempts direct write
 
-- **WHEN** an authenticated user attempts to insert, update, or delete a grant outside the authorized RPC
-- **THEN** RLS SHALL deny the write
+- **WHEN** a non-admin authenticated user attempts to select, insert, update, or delete a grant row directly
+- **THEN** RLS SHALL deny the operation
 
 ### Requirement: Subscription and Pricing explain the effective source
 

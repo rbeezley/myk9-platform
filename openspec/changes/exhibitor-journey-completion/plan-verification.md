@@ -13,7 +13,7 @@
 | Make Subscription/Pricing truthful for paid, gifted, trial, expired, and free | **Covered** | `exhibitor-entitlement-management` source/display requirements and `tasks.md` 5.5–5.6. |
 | Reconcile My Shows, My Payments, counts, and entry actions | **Covered** | Added `exhibitor-journey-trust` requirements and `tasks.md` Slice 4 reuse existing truth contracts. |
 | Error handling and recovery | **Covered** | Specs cover validation, mutation failure, entitlement failure, grant/revoke failure, delete recovery, and retry states; Tasks 2, 3, 5, and 7 test them. |
-| Security and authorization | **Covered after patch** | `design.md` Decision 7A, entitlement server-authorization requirements, and Tasks 4.2–4.10 cover RLS/RPC/direct bypass/non-owner cases. |
+| Security and authorization | **Covered after patch** | `design.md` Decision 7A, entitlement server-authorization requirements, and Tasks 4.2–4.10 cover sanitized grant reads, RLS/RPC/direct bypass/non-owner cases, and downgrade data rights. |
 | Rollback and migration compatibility | **Covered** | `design.md` Migration Plan/Risks and `tasks.md` Section 8 define additive rollout, fallback, preflight, cleanup, and reconstruction. |
 | Performance and query scaling | **Covered after patch** | `design.md` Decision 6/Risks use one deduplicated server context; Task 4.8 requires query-plan evidence with a high-history fixture. |
 | Expiration and device-clock edge cases | **Covered after patch** | Entitlement scenarios require server time and open-page invalidation; Tasks 5.1–5.2 and 7.2 verify them. |
@@ -22,13 +22,13 @@
 
 ### Coverage: 100/100 after patch
 
-The first draft scored 91/100. It was strong on UX/data integrity but only partial on account-wide trial consistency, live expiry, server enforcement, query cost, and operational visibility. Those gaps were patched in the proposal, design, entitlement spec, and tasks before validation.
+The first draft scored 91/100. It was strong on UX/data integrity but only partial on capability-scoped trial consistency, live expiry, server enforcement, query cost, and operational visibility. Those gaps were patched in the proposal, design, entitlement spec, and tasks before validation.
 
 ### Patched Gaps
 
-1. **[EXPANDED] Account-wide trial truth** — one server-evaluated context now replaces caller-provided trial counts.
-2. **[EXPANDED] Time-bound access** — server time, scheduled invalidation, and focus/reconnect refresh cover open-page expiry.
-3. **[ADDED] Server Premium authorization** — Health, Training, and Pedigree mutations require ownership plus effective access.
+1. **[EXPANDED] Capability-scoped trial truth** — one server-evaluated context replaces caller-provided counts while preserving the current Analytics-only trial boundary.
+2. **[EXPANDED] Time-bound access** — server time, bounded stale trust, scheduled invalidation, and focus/reconnect refresh cover open-page expiry.
+3. **[ADDED] Server Premium authorization and data rights** — Health, Training, and Pedigree creation/updates require ownership plus account Premium, while owners retain read/export/delete rights after downgrade.
 4. **[ADDED] Performance evidence** — one cached query and query-plan tests prevent per-component/N+1 entitlement reads.
 5. **[ADDED] Operational evidence** — durable history, structured PII-safe failures, fallback mismatch checks, and a runbook gate are required.
 

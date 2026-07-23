@@ -68,6 +68,8 @@ export function useProfileForm() {
     zipCode: '',
   });
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Pre-fill from person data
   useEffect(() => {
@@ -114,8 +116,12 @@ export function useProfileForm() {
 
   const save = async () => {
     if (!person) return;
+    setSaveError(null);
+    setSaveSuccess(false);
     if (!isValid) {
-      notifications.error(Object.values(errors)[0] ?? 'Please check your profile details.');
+      const message = Object.values(errors)[0] ?? 'Please check your profile details.';
+      notifications.error(message);
+      setSaveError(message);
       return;
     }
     setSaving(true);
@@ -137,8 +143,11 @@ export function useProfileForm() {
         `Profile "${values.firstName} ${values.lastName}" updated successfully`,
         { duration: 4000 }
       );
+      setSaveSuccess(true);
     } catch (err) {
-      notifications.error(friendlyDbError(err, 'Failed to update profile.'));
+      const message = friendlyDbError(err, 'Failed to update profile.');
+      notifications.error(message);
+      setSaveError(message);
     } finally {
       setSaving(false);
     }
@@ -158,6 +167,11 @@ export function useProfileForm() {
     }
   };
 
+  const clearSaveStatus = () => {
+    setSaveError(null);
+    setSaveSuccess(false);
+  };
+
   return {
     values,
     setValue,
@@ -165,6 +179,9 @@ export function useProfileForm() {
     isValid,
     isDirty,
     saving,
+    saveError,
+    saveSuccess,
+    clearSaveStatus,
     save,
     reset,
     isLoading,

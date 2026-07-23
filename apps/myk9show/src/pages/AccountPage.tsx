@@ -16,7 +16,17 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { ThemeSelector } from '@/components/preferences/ThemeSelector';
-import { applyFontScale, storeFontScale, FONT_SIZE_SCALES } from '@/context/themeClasses';
+import {
+  applyFontScale,
+  storeFontScale,
+  FONT_SIZE_SCALES,
+  applyLayoutDensity,
+  storeLayoutDensity,
+  applyReduceMotion,
+  storeReduceMotion,
+  applyHighContrast,
+  storeHighContrast,
+} from '@/context/themeClasses';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { SecuritySettings } from '@/components/preferences/SecuritySettings';
 import { DataSettings } from '@/components/preferences/DataSettings';
@@ -102,6 +112,32 @@ export default function AccountPage() {
     applyFontScale(scale);
     storeFontScale(scale);
   }, [preferences?.theme?.fontSize]);
+
+  // Same rationale as the font-scale effect above, for the other
+  // boot-hydrated appearance preferences: keep the applied class + localStorage
+  // cache in sync with the loaded server preference, so server prefs win over
+  // a stale cache and "Reset Theme Settings" actually reverts the applied
+  // classes when the blob resets.
+  useEffect(() => {
+    const layoutDensity = preferences?.theme?.layoutDensity;
+    if (!layoutDensity) return;
+    applyLayoutDensity(layoutDensity);
+    storeLayoutDensity(layoutDensity);
+  }, [preferences?.theme?.layoutDensity]);
+
+  useEffect(() => {
+    const reduceMotion = preferences?.theme?.reduceMotion;
+    if (reduceMotion === undefined) return;
+    applyReduceMotion(reduceMotion);
+    storeReduceMotion(reduceMotion);
+  }, [preferences?.theme?.reduceMotion]);
+
+  useEffect(() => {
+    const highContrast = preferences?.theme?.highContrast;
+    if (highContrast === undefined) return;
+    applyHighContrast(highContrast);
+    storeHighContrast(highContrast);
+  }, [preferences?.theme?.highContrast]);
 
   const showFlash = useCallback((msg: string, kind: 'success' | 'error' = 'success') => {
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);

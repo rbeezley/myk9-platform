@@ -65,3 +65,67 @@ export function storeFontScale(scale: string): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(FONT_SCALE_STORAGE_KEY, scale);
 }
+
+/**
+ * Layout density / Reduce Motion / High Contrast persistence + application.
+ *
+ * These three accessibility/display preferences are stored server-side via
+ * userPreferencesService, same as fontSize — too slow for a synchronous
+ * app-boot apply. This mirrors the fontScale pattern above: cache the
+ * last-applied value in localStorage so it can be re-applied immediately on
+ * boot (before the async preferences load resolves), and re-apply again once
+ * the loaded server preference lands (so it wins over a stale cache).
+ */
+const LAYOUT_DENSITY_STORAGE_KEY = 'layoutDensity';
+const REDUCE_MOTION_STORAGE_KEY = 'reduceMotion';
+const HIGH_CONTRAST_STORAGE_KEY = 'highContrast';
+
+export function applyLayoutDensity(density: string, root: HTMLElement = document.body): void {
+  root.className = root.className.replace(/\bdensity-\w+\b/g, '').concat(` density-${density}`);
+}
+
+export function getStoredLayoutDensity(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(LAYOUT_DENSITY_STORAGE_KEY);
+}
+
+export function storeLayoutDensity(density: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LAYOUT_DENSITY_STORAGE_KEY, density);
+}
+
+export function applyReduceMotion(
+  enabled: boolean,
+  root: HTMLElement = document.documentElement
+): void {
+  root.classList.toggle('reduce-motion', enabled);
+}
+
+export function getStoredReduceMotion(): boolean | null {
+  if (typeof window === 'undefined') return null;
+  const stored = localStorage.getItem(REDUCE_MOTION_STORAGE_KEY);
+  return stored === null ? null : stored === 'true';
+}
+
+export function storeReduceMotion(enabled: boolean): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(REDUCE_MOTION_STORAGE_KEY, String(enabled));
+}
+
+export function applyHighContrast(
+  enabled: boolean,
+  root: HTMLElement = document.documentElement
+): void {
+  root.classList.toggle('high-contrast', enabled);
+}
+
+export function getStoredHighContrast(): boolean | null {
+  if (typeof window === 'undefined') return null;
+  const stored = localStorage.getItem(HIGH_CONTRAST_STORAGE_KEY);
+  return stored === null ? null : stored === 'true';
+}
+
+export function storeHighContrast(enabled: boolean): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(enabled));
+}

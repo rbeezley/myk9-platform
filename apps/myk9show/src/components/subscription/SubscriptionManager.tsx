@@ -44,13 +44,6 @@ interface Invoice {
 
 interface SubscriptionManagerProps {
   /**
-   * Show the "Usage This Month" summary card. Currently rendered with
-   * placeholder figures, so surfaces that must not display unverified data
-   * (e.g. the account page's Plan & billing section) pass `false`. Defaults to
-   * `true` to preserve the standalone /subscription page's existing layout.
-   */
-  showUsage?: boolean;
-  /**
    * Path Stripe returns to after the customer portal closes. Defaults to
    * `/pricing-page` (standalone page behaviour); the account billing section
    * passes its own URL so the user lands back where they started.
@@ -59,7 +52,6 @@ interface SubscriptionManagerProps {
 }
 
 export function SubscriptionManager({
-  showUsage = true,
   portalReturnPath = '/pricing-page',
 }: SubscriptionManagerProps = {}) {
   const { user } = useAuth();
@@ -360,35 +352,6 @@ export function SubscriptionManager({
           )}
         </CardContent>
       </Card>
-
-      {/* Usage Summary */}
-      {showUsage && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Usage This Month</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold">12</p>
-                <p className="text-sm text-muted-foreground">Shows Created</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold">45</p>
-                <p className="text-sm text-muted-foreground">Dogs Registered</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold">89</p>
-                <p className="text-sm text-muted-foreground">Entries Processed</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold">156</p>
-                <p className="text-sm text-muted-foreground">Reports Generated</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </motion.div>
   );
 }

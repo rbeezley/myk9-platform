@@ -195,6 +195,21 @@ describe('ShowAccessCodesCard', () => {
     expect(screen.getByRole('button', { name: /generate new codes/i })).toBeInTheDocument();
   });
 
+  it('preserves the card and retry action when initial generation fails', () => {
+    renderWithProviders(
+      <ShowAccessCodesCard
+        showId={TEST_SHOW_ID}
+        canRegenerate
+        initialError="Could not generate show access codes. Please try again below."
+      />
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Could not generate show access codes. Please try again below.'
+    );
+    expect(screen.getByRole('button', { name: /generate new codes/i })).toBeInTheDocument();
+  });
+
   it('regenerates and displays fresh codes when the user confirms', async () => {
     mockRegenerateRpc({
       data: [{ admin: 'a1111', judge: 'j2222', steward: 's3333', exhibitor: 'e4444' }],
@@ -219,6 +234,34 @@ describe('ShowAccessCodesCard', () => {
     expect(screen.getByText('j2222')).toBeInTheDocument();
     expect(screen.getByText('s3333')).toBeInTheDocument();
     expect(screen.getByText('e4444')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Access codes are ready to share.');
+    expect(screen.getByRole('button', { name: /regenerate codes/i })).toBeInTheDocument();
+  });
+
+  it('shows an in-progress state and prevents a second generation request', async () => {
+    let resolveRpc: ((value: unknown) => void) | undefined;
+    mockSupabase.rpc.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          resolveRpc = resolve;
+        }) as unknown as ReturnType<typeof mockSupabase.rpc>
+    );
+
+    const { user } = renderWithProviders(
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />
+    );
+
+    await user.click(screen.getByRole('button', { name: /generate new codes/i }));
+    await user.click(await screen.findByRole('button', { name: /^generate$/i }));
+
+    expect(await screen.findByRole('button', { name: /generating new codes/i })).toBeDisabled();
+    expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
+
+    resolveRpc?.({
+      data: [{ admin: 'a1111', judge: 'j2222', steward: 's3333', exhibitor: 'e4444' }],
+      error: null,
+    });
+    expect(await screen.findByText('a1111')).toBeInTheDocument();
   });
 
   it('surfaces an error notification when regeneration fails', async () => {
@@ -227,7 +270,9 @@ describe('ShowAccessCodesCard', () => {
       error: { message: 'not authorized' },
     });
 
-    const { user } = renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />);
+    const { user } = renderWithProviders(
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />
+    );
 
     await user.click(screen.getByRole('button', { name: /generate new codes/i }));
     const generateConfirm = await screen.findByRole('button', { name: /^generate$/i });
@@ -238,8 +283,31 @@ describe('ShowAccessCodesCard', () => {
         "You don't have permission to make that change."
       );
     });
-    // Empty state remains active.
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "You don't have permission to make that change."
+    );
+    // The management card remains visible and offers retry.
     expect(screen.getByRole('button', { name: /generate new codes/i })).toBeInTheDocument();
+  });
+
+  it('keeps the management card available after a refresh without redisplaying plaintext codes', async () => {
+    const { user, unmount } = renderWithProviders(
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />
+    );
+    mockRegenerateRpc({
+      data: [{ admin: 'a1111', judge: 'j2222', steward: 's3333', exhibitor: 'e4444' }],
+      error: null,
+    });
+
+    await user.click(screen.getByRole('button', { name: /generate new codes/i }));
+    await user.click(await screen.findByRole('button', { name: /^generate$/i }));
+    expect(await screen.findByText('a1111')).toBeInTheDocument();
+
+    unmount();
+    renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />);
+    expect(screen.getByText('Show Access Codes')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /generate new codes/i })).toBeInTheDocument();
+    expect(screen.queryByText('a1111')).not.toBeInTheDocument();
   });
 
   it('filters by visibleRoles when provided', () => {

@@ -78,10 +78,15 @@ interface UseShowCreationWizardActionsOptions {
   /**
    * Called once the show row exists. `passcodes` carries the freshly-generated
    * plaintexts from insert_show_passcodes — exactly once. Null if the passcode
-   * insert failed (the show still saved); the secretary can recover via
-   * regenerate_show_passcodes from the show settings UI.
+   * insert failed (the show still saved); `passcodeError` keeps the secretary
+   * on the success surface with a retry action.
    */
-  onCreated?: (showId: string, showName: string, passcodes: ShowPasscodes | null) => void;
+  onCreated?: (
+    showId: string,
+    showName: string,
+    passcodes: ShowPasscodes | null,
+    passcodeError?: string | null
+  ) => void;
 }
 
 export function useShowCreationWizardActions({
@@ -253,6 +258,7 @@ export function useShowCreationWizardActions({
             showId: realShowId,
             savedShow,
             passcodes,
+            passcodeError,
           } = await saveShowAtomicOnline({
             show,
             trials,
@@ -276,7 +282,7 @@ export function useShowCreationWizardActions({
           if (status === 'draft') {
             navigate(`/shows/${realShowId}`);
           } else if (onCreatedRef.current) {
-            onCreatedRef.current(realShowId, savedShow.name, passcodes);
+            onCreatedRef.current(realShowId, savedShow.name, passcodes, passcodeError);
           } else {
             navigate('/secretary/dashboard');
           }
@@ -405,10 +411,10 @@ export function useShowCreationWizardActions({
         if (status === 'draft') {
           navigate(`/shows/${realShowId}`);
         } else if (onCreatedRef.current) {
-          // Offline / edit path has no insert_show_passcodes wiring yet — pass
-          // null so the access card falls back to the legacy UUID derivation
-          // (still in sync with myK9Q's legacy validator until PR #2).
-          onCreatedRef.current(realShowId, savedShow.name, null);
+          // Offline / edit path has no insert_show_passcodes wiring yet. Keep
+          // the management surface available so the secretary can regenerate
+          // codes after returning to the show settings page.
+          onCreatedRef.current(realShowId, savedShow.name, null, null);
         } else {
           navigate('/secretary/dashboard');
         }

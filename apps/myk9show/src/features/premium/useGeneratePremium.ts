@@ -18,7 +18,7 @@ export function useGeneratePremium(): UseGeneratePremiumResult {
         body: { show_id: showId },
       });
       if (fnError) {
-        console.error('[premium-generation] request failed', fnError);
+        console.error('[premium-generation] request failed', { showId });
         throw new Error(GENERATION_FAILURE_MESSAGE);
       }
       return data as GeneratedPremium;

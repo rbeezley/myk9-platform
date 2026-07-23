@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { classifyPremiumPublishState } from '@/features/show-workbench/premiumPublishState';
 import { notifications } from '@/lib/notifications';
-import { publishInfoQueryKey, usePublishInfo, type PublishInfo } from './usePublishInfo';
+import { publishInfoQueryKey, usePublishInfo } from './usePublishInfo';
 import { useGeneratePremium } from './useGeneratePremium';
 import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
 
@@ -36,7 +36,7 @@ function PublishFailureNotice({ onRetry, disabled }: { onRetry: () => void; disa
         type="button"
         size="sm"
         variant="outline"
-        className="shrink-0"
+        className="min-h-[44px] shrink-0"
         onClick={onRetry}
         disabled={disabled}
       >
@@ -65,22 +65,17 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
     setIsPublishing(true);
     try {
       const premium = await generate(showId);
-      const publishResult = await publishExperience({ showId, premium, inkSaver: false });
+      await publishExperience({ showId, premium, inkSaver: false });
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: publishInfoQueryKey(showId) }),
+        queryClient.refetchQueries({ queryKey: publishInfoQueryKey(showId), type: 'active' }),
         queryClient.invalidateQueries({
           queryKey: ['shows', showId, 'published-experience-content'],
         }),
-        queryClient.invalidateQueries({ queryKey: ['shows'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['shows'],
+          predicate: query => query.queryKey[2] !== 'publish-info',
+        }),
       ]);
-      queryClient.setQueryData<PublishInfo>(publishInfoQueryKey(showId), {
-        publishedUrl: publishResult.premiumUrl,
-        publishedAt: publishResult.publishedAt,
-        // The publish timestamp is the freshest local reference for the
-        // stale-state comparison until the next server read completes.
-        updatedAt: publishResult.publishedAt,
-        experienceIsPublished: true,
-      });
       notifications.success('Premium list published');
     } catch {
       setPublishFailed(true);
@@ -91,40 +86,14 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
     }
   };
 
-  if (!publishedUrl || !publishedAt) {
-    return (
-      <Card
-        id={PREMIUM_CARD_ANCHOR}
-        className={cn('p-4 flex flex-wrap items-center gap-4', ANCHOR_CLASS)}
-      >
-        {publishFailed && (
-          <PublishFailureNotice onRetry={handleGenerateAndPublish} disabled={isBusy} />
-        )}
-        <div className="bg-muted text-muted-foreground rounded-md p-3">
-          <FileText className="h-6 w-6" />
-        </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-sm">Premium List</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Premium PDF is not published yet</p>
-        </div>
-        <Button
-          size="sm"
-          className="shrink-0 whitespace-nowrap"
-          onClick={handleGenerateAndPublish}
-          disabled={isBusy}
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          {isBusy ? 'Publishing…' : 'Generate & publish premium'}
-        </Button>
-      </Card>
-    );
-  }
-
-  const publishedLabel = new Date(publishedAt).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const hasPublishedPremium = Boolean(publishedUrl && publishedAt);
+  const publishedLabel = publishedAt
+    ? new Date(publishedAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : '';
 
   const stale =
     showStaleBadge &&
@@ -150,47 +119,70 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
       {publishFailed && (
         <PublishFailureNotice onRetry={handleGenerateAndPublish} disabled={isBusy} />
       )}
-      <div className="bg-primary/10 text-primary rounded-md p-3">
-        <FileText className="h-6 w-6" />
-      </div>
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-sm">Premium List</h3>
-          {stale ? (
-            <span className="inline-flex items-center gap-1 text-xs text-warning ">
-              <AlertTriangle className="h-3 w-3" />
-              Show data has changed since publish
-            </span>
-          ) : landingUnpublished ? (
-            <span className="inline-flex items-center gap-1 text-xs text-warning ">
-              <AlertTriangle className="h-3 w-3" />
-              Landing page not published
-            </span>
-          ) : null}
-        </div>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Premium PDF published {publishedLabel}
-        </p>
-      </div>
-      {needsRepublish && (
-        <Button
-          size="sm"
-          className="shrink-0 whitespace-nowrap"
-          onClick={handleGenerateAndPublish}
-          disabled={isBusy}
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          {isBusy ? 'Publishing…' : stale ? 'Republish premium' : 'Publish landing page'}
-        </Button>
+      {!hasPublishedPremium ? (
+        <>
+          <div className="bg-muted text-muted-foreground rounded-md p-3">
+            <FileText className="h-6 w-6" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-sm">Premium List</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Premium PDF is not published yet</p>
+          </div>
+          <Button
+            size="sm"
+            className="shrink-0 whitespace-nowrap"
+            onClick={handleGenerateAndPublish}
+            disabled={isBusy}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            {isBusy ? 'Publishing…' : 'Generate & publish premium'}
+          </Button>
+        </>
+      ) : (
+        <>
+          <div className="bg-primary/10 text-primary rounded-md p-3">
+            <FileText className="h-6 w-6" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-sm">Premium List</h3>
+              {stale ? (
+                <span className="inline-flex items-center gap-1 text-xs text-warning ">
+                  <AlertTriangle className="h-3 w-3" />
+                  Show data has changed since publish
+                </span>
+              ) : landingUnpublished ? (
+                <span className="inline-flex items-center gap-1 text-xs text-warning ">
+                  <AlertTriangle className="h-3 w-3" />
+                  Landing page not published
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Premium PDF published {publishedLabel}
+            </p>
+          </div>
+          {needsRepublish && (
+            <Button
+              size="sm"
+              className="shrink-0 whitespace-nowrap"
+              onClick={handleGenerateAndPublish}
+              disabled={isBusy}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {isBusy ? 'Publishing…' : stale ? 'Republish premium' : 'Publish landing page'}
+            </Button>
+          )}
+          <a
+            href={publishedUrl ?? ''}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonVariants({ size: 'sm', className: 'shrink-0 whitespace-nowrap' })}
+          >
+            Download PDF
+          </a>
+        </>
       )}
-      <a
-        href={publishedUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={buttonVariants({ size: 'sm', className: 'shrink-0 whitespace-nowrap' })}
-      >
-        Download PDF
-      </a>
     </Card>
   );
 }

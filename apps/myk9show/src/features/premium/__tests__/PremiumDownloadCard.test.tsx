@@ -145,6 +145,41 @@ describe('PremiumDownloadCard', () => {
     });
   });
 
+  it('preserves an authoritative stale warning from the refetched show row', async () => {
+    maybeSingleMock
+      .mockResolvedValueOnce({
+        data: {
+          published_premium_url: 'https://example.test/premium.pdf',
+          published_premium_at: '2026-05-09T12:00:00.000Z',
+          updated_at: '2026-05-09T12:05:01.000Z',
+          experience_is_published: true,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          published_premium_url: 'https://example.test/premium.pdf',
+          published_premium_at: '2026-05-10T12:06:00.000Z',
+          updated_at: '2026-05-10T12:07:00.000Z',
+          experience_is_published: true,
+        },
+        error: null,
+      });
+    generateMock.mockResolvedValue({});
+    publishExperienceMock.mockResolvedValue({
+      premiumUrl: 'https://example.test/premium.pdf',
+      publishedAt: '2026-05-10T12:06:00.000Z',
+    });
+
+    const { user } = renderCard(true);
+    await user.click(await screen.findByRole('button', { name: /republish premium/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/show data has changed since publish/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /republish premium/i })).toBeInTheDocument();
+    });
+  });
+
   it('starts only one publish attempt for same-mount double-submit', async () => {
     maybeSingleMock.mockResolvedValue({
       data: {
@@ -213,6 +248,53 @@ describe('PremiumDownloadCard', () => {
     await user.click(screen.getByRole('button', { name: /try again/i }));
     await waitFor(() => {
       expect(generateMock).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows a secretary-friendly retry when publishing the experience fails and recovers', async () => {
+    maybeSingleMock
+      .mockResolvedValueOnce({
+        data: {
+          published_premium_url: null,
+          published_premium_at: null,
+          updated_at: '2026-05-09T12:00:00.000Z',
+          experience_is_published: false,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          published_premium_url: 'https://example.test/premium.pdf',
+          published_premium_at: '2026-05-09T12:01:00.000Z',
+          updated_at: '2026-05-09T12:01:00.000Z',
+          experience_is_published: true,
+        },
+        error: null,
+      });
+    generateMock.mockResolvedValue({});
+    publishExperienceMock
+      .mockRejectedValueOnce(new Error('Edge Function returned 500: {"detail":"db down"}'))
+      .mockResolvedValueOnce({
+        premiumUrl: 'https://example.test/premium.pdf',
+        publishedAt: '2026-05-09T12:01:00.000Z',
+      });
+
+    const { user } = renderCard(true);
+    await user.click(await screen.findByRole('button', { name: /generate & publish premium/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /we couldn't publish the premium list\. please try again\./i
+    );
+    expect(screen.getByRole('button', { name: /try again/i })).toHaveClass('min-h-[44px]');
+    expect(screen.queryByText(/db down|edge function returned 500/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /try again/i }));
+
+    await waitFor(() => {
+      expect(generateMock).toHaveBeenCalledTimes(2);
+      expect(publishExperienceMock).toHaveBeenCalledTimes(2);
+      expect(screen.getByRole('link', { name: /download pdf/i })).toBeInTheDocument();
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
   });

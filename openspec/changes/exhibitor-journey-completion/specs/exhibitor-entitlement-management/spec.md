@@ -70,18 +70,18 @@ Entitlement consumers SHALL avoid displaying a false free or paid state while re
 - **THEN** Premium mutations SHALL fail closed
 - **AND** the system SHALL explain that access could not be verified without changing billing or grant data
 
-### Requirement: Premium record creation and updates are server-authorized
+### Requirement: Premium record and manual-result creation and updates are server-authorized
 
-Premium Health, Training, and Pedigree creation and updates SHALL require both record ownership and server-evaluated account Premium access; a client-side feature gate SHALL NOT be the authorization boundary. Record owners SHALL retain read, export, and delete access to their existing personal records after downgrade.
+Premium Health, Training, Pedigree, and Premium manual-result creation and updates SHALL require both record ownership and server-evaluated account Premium access; a client-side feature gate SHALL NOT be the authorization boundary. Record owners SHALL retain read, export, and delete access to their existing personal records after downgrade.
 
 #### Scenario: Active account-Premium owner creates or updates a record
 
 - **WHEN** the record owner has active paid, founding, or complimentary Premium access
-- **THEN** the established mutation path SHALL allow a valid Health, Training, or Pedigree create or update
+- **THEN** the established mutation path SHALL allow a valid Health, Training, Pedigree, or manual-result create or update
 
 #### Scenario: Free or expired owner bypasses the create or edit UI
 
-- **WHEN** a free, Analytics-trial-only, expired, or revoked owner calls a Premium record create or update directly
+- **WHEN** a free, Analytics-trial-only, expired, or revoked owner calls a Premium Health, Training, Pedigree, or manual-result create or update directly
 - **THEN** the server SHALL reject the create or update
 - **AND** existing saved records SHALL remain intact
 
@@ -98,7 +98,7 @@ Premium Health, Training, and Pedigree creation and updates SHALL require both r
 
 #### Scenario: Downgraded owner accesses existing records
 
-- **WHEN** a free, expired, or revoked owner has existing Health, Training, or Pedigree records
+- **WHEN** a free, expired, or revoked owner has existing Health, Training, Pedigree, or manual-result records
 - **THEN** the owner SHALL be able to read and export those records
 - **AND** the owner SHALL be able to delete an owned record with the normal confirmation or undo behavior
 - **AND** adding or editing SHALL remain locked behind account Premium

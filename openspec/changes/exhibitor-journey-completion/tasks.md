@@ -1,10 +1,11 @@
 ## 1. Execution Contract and Overlap Control
 
 - [x] 1.1 Link [MYK9-71](https://linear.app/myk9-platform/issue/MYK9-71/complete-the-exhibitor-journey-and-premium-entitlement-experience) to `exhibitor-journey-completion`, attach the audit and OpenSpec, and record the four implementation slices and evidence gates.
-- [ ] 1.2 Re-read `docs/INTENT.md`, the audit, proposal, design, all four delta specs, and the linked Linear acceptance criteria before editing code.
-- [ ] 1.3 Rebase on current `main`, inspect the final state of `improve-exhibitor-entries-scan`, `unified-financial-dashboard`, and related exhibitor remediation, and remove or narrow any task already satisfied there.
-- [ ] 1.4 Inventory every current Premium route/component/hook, legacy Dog Details tab URL, entitlement caller, Stripe/account surface, `people`/`exhibitor_profiles`/RBAC table, and User Management mutation path; save the inventory in the implementation PR or an OpenSpec note.
-- [ ] 1.5 Capture baseline free and complimentary-Premium screenshots and console/network evidence at 390x844, 834x1112, tablet landscape, and 1280x800 using the audit persona without creating a paid Stripe subscription.
+- [ ] 1.2 Treat MYK9-71 as the parent contract and create/link one PR-sized child Linear issue for each implementation slice in sections 2, 3, 4, 5, and 6, plus the section 8 compatibility cleanup, before starting that slice.
+- [ ] 1.3 Re-read `docs/INTENT.md`, the audit, proposal, design, all four delta specs, and the linked Linear acceptance criteria before editing code.
+- [ ] 1.4 Rebase on current `main`, inspect the final state of `improve-exhibitor-entries-scan`, `unified-financial-dashboard`, and related exhibitor remediation, and remove or narrow any task already satisfied there.
+- [ ] 1.5 Inventory every current Premium route/component/hook, legacy Dog Details tab URL, entitlement caller, Stripe/account surface, `people`/`exhibitor_profiles`/RBAC table, and User Management mutation path; save the inventory in the implementation PR or an OpenSpec note.
+- [ ] 1.6 Capture baseline free and complimentary-Premium screenshots and console/network evidence at 390x844, 834x1112, tablet landscape, and 1280x800 using the audit persona without creating a paid Stripe subscription.
 
 ## 2. Slice 1 — Premium Record Integrity
 
@@ -34,8 +35,8 @@
 - [ ] 4.2 Add assertion-first SQL/source tests for admin-only grant-row reads, sanitized own-context reads, denied direct writes, denied non-admin RPC calls, required reason/date validation, atomic grant/revoke history, paid-subscription isolation, concurrent requests, server-time boundary evaluation, and Premium create/update authorization.
 - [ ] 4.3 Add the `subscription_entitlement_grants` table, constraints, indexes, admin-only row RLS, sanitized server-evaluated entitlement-context/helper functions, and platform-admin grant/revoke RPC with target-row locking and one unrevoked grant per person.
 - [ ] 4.4 Backfill every non-null `early_adopter_until` value as a founding grant without changing its end date, retain the legacy field for compatibility, and add a migration parity query.
-- [ ] 4.5 Regenerate Supabase TypeScript types and add typed query/mutation wrappers for own-grant reads, admin history, grant, and revoke.
-- [ ] 4.6 Apply the server entitlement helper to Health, Training, and Pedigree create/update authorization without weakening ownership; add direct-API tests proving free/Analytics-trial-only/expired/revoked callers cannot create or edit, non-owners cannot act, and owners retain read/export/delete access.
+- [ ] 4.5 Regenerate Supabase TypeScript types and add typed wrappers for the sanitized own-entitlement context, admin grant history, grant, and revoke operations.
+- [ ] 4.6 Apply the server entitlement helper to Health, Training, Pedigree, and Premium manual-result create/update authorization without weakening ownership; add direct-API tests proving free/Analytics-trial-only/expired/revoked callers cannot create or edit, non-owners cannot act, and owners retain read/export/delete access.
 - [ ] 4.7 Run migration/source tests, local database replay where available, `pnpm qa:rls-smoke`, focused wrapper tests, `pnpm typecheck`, and `pnpm lint`.
 - [ ] 4.8 Record query plans and bounded timings for entitlement context, admin history, and Premium mutation checks using a high-history account fixture; add or adjust indexes if the plan shows repeated scans.
 - [ ] 4.9 Open the additive migration PR with forward/rollback instructions and query plans for owner/admin lookups; wait for CI/security review, resolve findings, and merge without pushing a linked database.

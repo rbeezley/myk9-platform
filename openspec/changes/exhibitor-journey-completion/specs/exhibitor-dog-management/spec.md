@@ -58,3 +58,11 @@ Premium gating SHALL occur at the affected Career or Records secondary view with
 
 - **WHEN** a user follows an upgrade action from a locked secondary view and later returns with Premium access
 - **THEN** the original dog and secondary view SHALL be restored
+
+## REMOVED Requirements
+
+### Requirement: Upgrade teaser navigates to pricing
+
+**Reason**: The Title Progress sidebar teaser duplicates Career's canonical locked-view treatment and conflicts with the consolidated Dog Details hierarchy.
+
+**Migration**: Route upgrade actions from the locked Title Progress or Statistics secondary view to `/pricing-page`, preserving the dog and secondary-view return state.

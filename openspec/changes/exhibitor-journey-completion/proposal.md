@@ -2,6 +2,8 @@
 
 [MYK9-71](https://linear.app/myk9-platform/issue/MYK9-71/complete-the-exhibitor-journey-and-premium-entitlement-experience)
 
+MYK9-71 is the parent execution contract. Before implementation, create and link one PR-sized child issue for each tasks section 2, 3, 4, 5, and 6 slice, plus the later section 8 compatibility cleanup.
+
 ## Why
 
 Exhibitors will be most myK9 users, but the July 23 role-journey audit found trust-breaking defects in the existing free and Premium experience: invalid Premium records can be submitted, date and filter behavior is wrong, the dog workspace does not fit common viewports, complimentary access contradicts the Subscription page, and core entry/payment summaries still disagree. Completing this existing journey now supports fall 2026 launch readiness while preserving the exhibitor intent, "This respects my time."
@@ -12,7 +14,7 @@ Exhibitors will be most myK9 users, but the July 23 role-journey audit found tru
 - Prevent invalid pedigree and health records, use date-only-safe formatting, make health filters functional, and give destructive training actions accessible confirmation or recovery.
 - Consolidate the existing Dog Details hierarchy into three top-level concerns—Overview, Career, and Records—with secondary views inside Career and Records, responsive layouts, stable deep links, and no repeated activity feed.
 - Establish one effective-entitlement contract for paid, complimentary, capability-scoped trial, free, and expired access so navigation gates, Subscription, Pricing, and account messaging agree.
-- Enforce effective Premium access at the server boundary for Premium record creation and updates so a client-side gate cannot be bypassed, while preserving owner read/export/delete rights after downgrade.
+- Enforce effective Premium access at the server boundary for Premium Health, Training, Pedigree, and manual-result creation and updates so a client-side gate cannot be bypassed, while preserving owner read/export/delete rights after downgrade.
 - Add a platform-admin-only complimentary Premium grant/revoke control to the existing User Management surface, including expiration, reason, actor, and audit history. Complimentary access does not create fake Stripe subscription rows.
 - Remove false product promises and placeholder data from exhibitor-facing Subscription, Pricing, and footer surfaces.
 - Enforce the existing `exhibitor-money-clarity` and `exhibitor-count-integrity` contracts instead of inventing new totals, and make entry-change actions describe what they can actually change.

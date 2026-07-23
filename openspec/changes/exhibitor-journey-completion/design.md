@@ -146,14 +146,14 @@ Alternative considered: keep editing `early_adopter_until`. Rejected because ord
 
 Alternative considered: a new Admin Subscriptions page. Rejected because user-scoped access administration belongs with the selected user.
 
-### 7A. Enforce Premium record creation and updates on the server
+### 7A. Enforce Premium record and manual-result creation and updates on the server
 
 <!-- [ADDED after plan verification] -->
-Add one server-side `has_effective_premium_access(person_id, evaluated_at)` helper that uses paid profile state and the active grant. The Analytics-scoped trial does not authorize dog-record creation or updates. Premium record create/update policies or their established mutation RPCs call this helper in addition to ownership checks. Client gates remain the presentation layer; they are not the authorization boundary.
+Add one server-side `has_effective_premium_access(person_id, evaluated_at)` helper that uses paid profile state and the active grant. The Analytics-scoped trial does not authorize dog-record or Premium manual-result creation/updates. Premium record and manual-result create/update policies or their established mutation RPCs call this helper in addition to ownership checks. Client gates remain the presentation layer; they are not the authorization boundary.
 
-The implementation inventory decides the narrowest established enforcement point for Health, Training, and Pedigree. If a mutation already uses a security-definer RPC, enforce there. If it writes a table directly, add an RLS `WITH CHECK` condition for inserts/updates without weakening owner isolation. Existing owner reads, exports, and deletes remain available after downgrade so myK9 does not hold personal dog records hostage; the canonical Records view becomes read-only and explains that Premium is required to add or edit. Title Progress and Statistics remain derived read features; their authenticated read paths return only inputs already legitimately visible to the owner, with paid presentation gated consistently.
+The implementation inventory decides the narrowest established enforcement point for Health, Training, Pedigree, and manual results created from the Premium competition UI. If a mutation already uses a security-definer RPC, enforce there. If it writes a table directly, add an RLS `WITH CHECK` condition for inserts/updates without weakening owner isolation. Existing owner reads, exports, and deletes remain available after downgrade so myK9 does not hold personal dog or manually entered competition data hostage; the canonical Records/manual-results views become read-only and explain that account Premium is required to add or edit. Title Progress and Statistics remain derived read features over legitimately visible owner data, with paid presentation gated consistently.
 
-Use the same server helper in the entitlement-context RPC so UI and create/update authorization cannot encode different account-Premium rules. SQL tests cover free, paid, founding, complimentary, Analytics trial, expired, revoked, non-owner, read/export/delete, and non-admin cases.
+Use the same server helper in the entitlement-context RPC so UI and create/update authorization cannot encode different account-Premium rules. SQL tests cover Health, Training, Pedigree, and manual-result paths for free, paid, founding, complimentary, Analytics trial, expired, revoked, non-owner, read/export/delete, and non-admin cases.
 
 Alternative considered: keep Premium as a client-only lock. Rejected because a direct API call could continue writing paid records after free, expiry, or revocation.
 

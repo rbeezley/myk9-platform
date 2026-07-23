@@ -11,7 +11,7 @@
 | Fix invalid records, dates, filters, and destructive actions | **Covered** | `exhibitor-premium-records` form/date/filter/training requirements and `tasks.md` Slice 1 plus 3.7. |
 | Make Dog Details fit and remain discoverable | **Covered** | Modified `exhibitor-dog-management` contract and `design.md` Decisions 1 and 5. |
 | Make Subscription/Pricing truthful for paid, gifted, trial, expired, and free | **Covered** | `exhibitor-entitlement-management` source/display requirements and `tasks.md` 5.5–5.6. |
-| Reconcile My Shows, My Payments, counts, and entry actions | **Covered** | Added `exhibitor-journey-trust` requirements and `tasks.md` Slice 4 reuse existing truth contracts. |
+| Reconcile My Shows, My Payments, counts, and entry actions | **Covered** | `tasks.md` Slice 4 verifies implementation against canonical `exhibitor-money-clarity` and `exhibitor-count-integrity`; the journey-trust delta adds only the missing mobile Payments and entry-action contracts. |
 | Error handling and recovery | **Covered** | Specs cover validation, mutation failure, entitlement failure, grant/revoke failure, delete recovery, and retry states; Tasks 2, 3, 5, and 7 test them. |
 | Security and authorization | **Covered after patch** | `design.md` Decision 7A, entitlement server-authorization requirements, and Tasks 4.2–4.10 cover sanitized grant reads, RLS/RPC/direct bypass/non-owner cases, and downgrade data rights. |
 | Rollback and migration compatibility | **Covered** | `design.md` Migration Plan/Risks and `tasks.md` Section 8 define additive rollout, fallback, preflight, cleanup, and reconstruction. |

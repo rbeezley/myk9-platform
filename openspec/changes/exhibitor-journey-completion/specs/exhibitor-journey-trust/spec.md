@@ -23,27 +23,6 @@ Every exhibitor entry-change action SHALL describe whether the destination can c
 - **THEN** the page SHALL explain the restriction
 - **AND** it SHALL link to the existing show-team contact path rather than present a dead edit action
 
-### Requirement: Cross-surface entry and payment truth uses existing contracts
-
-The completed exhibitor journey SHALL enforce the existing `exhibitor-count-integrity` and `exhibitor-money-clarity` requirements on My Shows, My Payments, dog activity, and entry actions without adding another summary surface.
-
-#### Scenario: No money is due
-
-- **WHEN** the shared exhibitor amount-due computation returns zero
-- **THEN** My Shows and My Payments SHALL both communicate that nothing is due
-- **AND** neither SHALL display a contradictory payment-due state
-
-#### Scenario: Money is due
-
-- **WHEN** the shared exhibitor amount-due computation returns a positive balance
-- **THEN** My Shows and My Payments SHALL show the same scoped amount and the existing payment path
-
-#### Scenario: Entry counts have different scopes
-
-- **WHEN** current class entries, all class-entry history, shows entered, orders, or dogs produce different numbers
-- **THEN** each number SHALL be labeled with its actual unit and time/lifecycle scope
-- **AND** no two differently scoped numbers SHALL both appear as an unlabeled `entries` total
-
 ### Requirement: Dog navigation restores orientation
 
 Navigation from a dog list or Dog Details secondary view SHALL place the exhibitor at an intentional heading/focus position while preserving normal browser Back/Forward scroll restoration.
@@ -85,6 +64,22 @@ Subscription, Pricing, Payments, and global footer content SHALL render only dat
 - **WHEN** release/tracking documentation describes Premium availability
 - **THEN** it SHALL agree with the five capabilities shipped in the app
 - **AND** parked or future work SHALL be distinguished from currently available behavior
+
+### Requirement: Mobile Payments keeps core details discoverable
+
+The existing Exhibitor Payments surface SHALL keep amount, payment status, and receipt availability discoverable at a 390px viewport without requiring an unlabeled horizontal-table gesture.
+
+#### Scenario: Payment history on phone
+
+- **WHEN** an exhibitor views payment history at 390px width
+- **THEN** each payment row or its labeled disclosure SHALL expose amount, status, and receipt availability
+- **AND** disclosure and receipt controls SHALL have accessible names and at least 44px touch targets
+
+#### Scenario: No receipt is available
+
+- **WHEN** a payment has no real receipt destination
+- **THEN** the mobile disclosure SHALL say that no receipt is available
+- **AND** it SHALL NOT render a placeholder link
 
 ### Requirement: Completed journey evidence covers entitlement transitions
 

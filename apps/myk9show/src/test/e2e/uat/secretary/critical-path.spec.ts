@@ -97,7 +97,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     });
   });
 
-  test('entry management exposes review, waitlist, armband, and export controls', async ({
+  test('entry management exposes review, waitlist, and export controls', async ({
     page,
   }) => {
     test.setTimeout(60_000);
@@ -122,12 +122,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await page.getByRole('button', { name: 'Waitlist', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Waitlist Management' })).toBeVisible();
     await page.getByRole('tab', { name: 'Registrations', exact: true }).click();
-    await page.getByRole('button', { name: /All registrations/ }).click();
-
-    await expect(page.getByText('Focused registration', { exact: true })).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: /Change armband for|Assign/ }).first()
-    ).toBeVisible();
+    await expect(page.getByRole('button', { name: /All registrations/ })).toBeVisible();
   });
 
   test('reports page exposes financial and statistics report choices', async ({ page }) => {

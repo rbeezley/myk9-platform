@@ -120,6 +120,28 @@ describe('useAuth', () => {
       );
     });
 
+    it('includes the auth callback redirect in the confirmation email when provided', async () => {
+      const { result } = renderHook(() => useAuth());
+
+      await act(async () => {
+        await result.current.signUp(
+          'test@example.com',
+          'password123',
+          undefined,
+          undefined,
+          '/?onboarding=true#get-started'
+        );
+      });
+
+      expect(mockSupabase.auth.signUp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: expect.objectContaining({
+            emailRedirectTo: `${window.location.origin}/auth/callback?redirectTo=%2F%3Fonboarding%3Dtrue%23get-started`,
+          }),
+        })
+      );
+    });
+
     it('should handle signUp errors', async () => {
       const mockError = new Error('Registration failed');
       mockSupabase.auth.signUp.mockResolvedValue({
@@ -185,6 +207,26 @@ describe('useAuth', () => {
         type: 'signup',
         email: 'test@example.com',
         options: { captchaToken: 'captcha-token' },
+      });
+    });
+
+    it('preserves the auth callback redirect when resending confirmation', async () => {
+      const { result } = renderHook(() => useAuth());
+
+      await act(async () => {
+        await result.current.resendConfirmationEmail(
+          'test@example.com',
+          undefined,
+          '/?onboarding=true#get-started'
+        );
+      });
+
+      expect(mockSupabase.auth.resend).toHaveBeenCalledWith({
+        type: 'signup',
+        email: 'test@example.com',
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?redirectTo=%2F%3Fonboarding%3Dtrue%23get-started`,
+        },
       });
     });
 

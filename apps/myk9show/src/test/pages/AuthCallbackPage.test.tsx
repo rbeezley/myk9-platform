@@ -55,6 +55,18 @@ describe('AuthCallbackPage', () => {
       await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
     });
 
+    it('returns to the onboarding form after successful signup verification', async () => {
+      mockVerifyOtp.mockResolvedValue({ data: { user: {} }, error: null });
+      renderWithRouter(
+        '?token_hash=abc&type=signup&redirectTo=%2F%3Fonboarding%3Dtrue%23get-started'
+      );
+      await waitFor(() =>
+        expect(mockNavigate).toHaveBeenCalledWith('/?onboarding=true#get-started', {
+          replace: true,
+        })
+      );
+    });
+
     it('redirects to reset-password on successful recovery verification', async () => {
       mockVerifyOtp.mockResolvedValue({ data: { user: {} }, error: null });
       renderWithRouter('?token_hash=abc&type=recovery');
@@ -65,8 +77,14 @@ describe('AuthCallbackPage', () => {
 
     it('shows error state when verification fails', async () => {
       mockVerifyOtp.mockResolvedValue({ data: {}, error: { message: 'Token expired' } });
-      renderWithRouter('?token_hash=abc&type=signup');
+      renderWithRouter(
+        '?token_hash=abc&type=signup&returnTo=%2F%3Fonboarding%3Dtrue%23get-started'
+      );
       await waitFor(() => expect(screen.getByText(/expired/i)).toBeInTheDocument());
+      expect(screen.getByRole('link', { name: /back to sign in/i })).toHaveAttribute(
+        'href',
+        '/sign-in?redirectTo=%2F%3Fonboarding%3Dtrue%23get-started'
+      );
     });
   });
 

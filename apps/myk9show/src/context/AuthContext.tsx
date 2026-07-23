@@ -76,9 +76,14 @@ export interface AuthContextType {
     email: string,
     password: string,
     metadata?: { firstName?: string; lastName?: string; roles?: string[] },
-    captchaToken?: string
+    captchaToken?: string,
+    redirectTo?: string
   ) => Promise<void>;
-  resendConfirmationEmail: (email: string, captchaToken?: string) => Promise<void>;
+  resendConfirmationEmail: (
+    email: string,
+    captchaToken?: string,
+    redirectTo?: string
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithGoogle: (redirectTo?: string) => Promise<void>;
   resetPassword: (email: string, captchaToken?: string) => Promise<void>;

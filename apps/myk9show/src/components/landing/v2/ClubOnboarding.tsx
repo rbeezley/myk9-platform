@@ -8,6 +8,7 @@ import {
   type OnboardingRequest,
 } from '@/services/database/onboarding-requests';
 import { logger } from '@/services/LoggingService';
+import { buildSignInPathForRedirect, buildSignUpPathForRedirect } from '@/pages/SignInPage.helpers';
 
 // Club-onboarding lead form for the marketing homepage. Restyled onto the
 // editorial l-* system so it reads as one page with the waitlist / feature
@@ -80,11 +81,7 @@ export function ClubOnboarding() {
   }, [user]);
 
   const handleSignIn = useCallback(() => {
-    // NOTE: the auth pages do not yet consume `returnTo`, so this does not
-    // auto-return to the form after sign-in — the gate copy tells the user to
-    // come back here. Wiring returnTo through sign-in/sign-up/OAuth is tracked
-    // as a follow-up; the target is kept here so it works once that lands.
-    navigate('/sign-in?returnTo=/?onboarding=true%23get-started');
+    navigate(buildSignInPathForRedirect('/?onboarding=true#get-started'));
   }, [navigate]);
 
   const handleSubmit = useCallback(
@@ -131,7 +128,11 @@ export function ClubOnboarding() {
         setSubmitted(true);
       } catch (err) {
         const isAuthError = err instanceof Error && /401|403|JWT|auth/i.test(err.message);
-        if (isAuthError) {
+        const isDuplicateRequest =
+          typeof err === 'object' && err !== null && 'code' in err && err.code === '23505';
+        if (isDuplicateRequest) {
+          setError('You already have a request under review.');
+        } else if (isAuthError) {
           setError('Your session has expired. Please sign in again.');
         } else {
           setError('Something went wrong. Please try again.');
@@ -156,7 +157,7 @@ export function ClubOnboarding() {
         <p className="l-success-title">Create your free account</p>
         <p>
           Requesting club onboarding takes a myK9Show account — it's free. Sign in or sign up, then
-          come back to this page to submit your request.
+          your request form will be ready when you return.
         </p>
         <div className="l-submit-row">
           <button type="button" className="l-btn l-btn-primary l-btn-lg" onClick={handleSignIn}>
@@ -166,7 +167,11 @@ export function ClubOnboarding() {
         </div>
         <p className="l-fineprint">
           Don't have an account?{' '}
-          <button type="button" className="l-btn-text" onClick={() => navigate('/sign-up')}>
+          <button
+            type="button"
+            className="l-btn-text"
+            onClick={() => navigate(buildSignUpPathForRedirect('/?onboarding=true#get-started'))}
+          >
             Create one for free
           </button>
         </p>

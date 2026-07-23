@@ -59,6 +59,19 @@ describe('SignUpPage', () => {
     expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument();
   });
 
+  it('passes the return target to Google OAuth', () => {
+    render(
+      <MemoryRouter initialEntries={['/sign-up?returnTo=%2F%3Fonboarding=true%23get-started']}>
+        <SignUpPage />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByLabelText(/I agree to the/i));
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+
+    expect(mockSignInWithGoogle).toHaveBeenCalledWith('/?onboarding=true#get-started');
+  });
+
   it('renders an "or" divider between Google button and email form', () => {
     render(
       <MemoryRouter>
@@ -192,6 +205,41 @@ describe('SignUpPage', () => {
         roles: ['exhibitor', 'club_officer', 'secretary'],
       });
     });
+  });
+
+  it('passes the return target to email signup and resend', async () => {
+    const user = userEvent.setup();
+    mockSignUp.mockResolvedValue(undefined);
+    mockResendConfirmationEmail.mockResolvedValue(undefined);
+
+    render(
+      <MemoryRouter initialEntries={['/sign-up?returnTo=%2F%3Fonboarding=true%23get-started']}>
+        <SignUpPage />
+      </MemoryRouter>
+    );
+
+    await user.type(screen.getByLabelText(/first name/i), 'Pat');
+    await user.type(screen.getByLabelText(/last name/i), 'Morgan');
+    await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
+    await user.type(screen.getByLabelText(/^password$/i), 'password123');
+    await user.type(screen.getByLabelText(/confirm password/i), 'password123');
+    await user.click(screen.getByLabelText(/i agree to the/i));
+    await user.click(screen.getByRole('button', { name: /sign up/i }));
+
+    expect(mockSignUp).toHaveBeenCalledWith(
+      'pat@example.com',
+      'password123',
+      { firstName: 'Pat', lastName: 'Morgan', roles: ['exhibitor'] },
+      undefined,
+      '/?onboarding=true#get-started'
+    );
+
+    await user.click(screen.getByRole('button', { name: /resend email/i }));
+    expect(mockResendConfirmationEmail).toHaveBeenCalledWith(
+      'pat@example.com',
+      undefined,
+      '/?onboarding=true#get-started'
+    );
   });
 
   it('requires and forwards Turnstile verification for email signup when configured', async () => {

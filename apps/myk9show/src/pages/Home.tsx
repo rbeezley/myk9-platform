@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   LandingHeader,
   HeroPhotoLed,
@@ -15,6 +15,19 @@ import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 
 const Home: React.FC = () => {
   const closingRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (window.location.hash !== '#get-started') return;
+    const target = document.getElementById('get-started');
+    if (!target) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      target.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   const scrollToWaitlist = useCallback(() => {
     const node = closingRef.current ?? document.getElementById('closing');

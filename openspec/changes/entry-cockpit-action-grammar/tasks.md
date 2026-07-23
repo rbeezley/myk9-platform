@@ -34,6 +34,6 @@
 
 - [x] 6.1 Run focused vitest suites for all touched areas plus `pnpm typecheck`; note any pre-existing hangs separately.
 - [x] 6.2 Secretary browser walk on desktop + 390 px: queue triage → focused card accept/reject → status menu marking/guard → Entries tab link; record evidence.
-- [ ] 6.3 Run `pnpm openspec validate entry-cockpit-action-grammar --strict`.
+- [x] 6.3 Run `pnpm openspec validate entry-cockpit-action-grammar --strict`.
 - [ ] 6.4 Open PR(s) referencing the audit doc, run Codex review before merge (behavior-changing), wait for CI, merge.
 - [ ] 6.5 Archive the change via the opsx archive flow only after merge and verification.

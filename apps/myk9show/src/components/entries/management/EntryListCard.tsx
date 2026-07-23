@@ -6,10 +6,7 @@ import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -51,6 +48,7 @@ import { RequestPaymentDialog } from './RequestPaymentDialog';
 import { isPaymentRequestable } from './paymentRequestEligibility';
 import { EntryDecisionEmailStatusBadge } from '@/features/lifecycle-emails';
 import type { EntryListCardProps } from './EntryListCard.types';
+import { EntryStatusPopover } from './EntryStatusPopover';
 
 export const EntryListCard: React.FC<EntryListCardProps> = ({
   entries,
@@ -255,7 +253,8 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
               <div key={cls.id} className="flex items-center gap-2 text-sm flex-wrap">
                 <span className="text-muted-foreground font-medium min-w-[120px]">{cls.name}:</span>
 
-                {/* Entry status — read-only for Moved; dropdown for all others */}
+                {/* Moved entries remain read-only; the status popover owns only
+                    the frequent transitions and leaves check-in independent. */}
                 {entry.entryStatus === EntryStatus.MOVED ? (
                   <div className="flex items-center gap-1.5">
                     {getEntryStatusBadge(entry.entryStatus)}
@@ -265,94 +264,68 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                   </div>
                 ) : (
                   <div className="flex flex-col gap-0.5">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
-                          aria-label={`Change entry status for ${entry.dogName} in ${cls.name}`}
-                        >
-                          {getEntryStatusBadge(entry.entryStatus)}
-                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuItem
-                          onClick={() => onStatusChange(entry.id, EntryStatus.PENDING)}
-                        >
-                          Pending
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => onStatusChange(entry.id, EntryStatus.ACCEPTED)}
-                        >
-                          Accepted
-                        </DropdownMenuItem>
-                        {/* No "Waitlisted" option: real waitlisting is per-class
-                            with position/capacity tracked in `waitlist_entries`
-                            (WaitlistManagementPage / useWaitListMutations). This
-                            status write maps WAITLIST → 'submitted' (the entry's
-                            pre-decision state), so it never creates membership
-                            and the entry stays Pending. */}
-                        <DropdownMenuItem
-                          onClick={() => onStatusChange(entry.id, EntryStatus.REJECTED)}
-                        >
-                          Not Accepted
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => onStatusChange(entry.id, EntryStatus.MISSING_INFO)}
-                        >
-                          Missing Info
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openWithdrawalDialog(entry.id)}>
-                          Withdrawn
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => onStatusChange(entry.id, EntryStatus.SCRATCHED)}
-                        >
-                          Pulled
-                        </DropdownMenuItem>
-                        {/* Money group — payment actions live under their own
-                            quiet header so they read as a distinct concern from
-                            the lifecycle (status) items above and the destructive
-                            action below. Each item is individually gated, so the
-                            header only renders when at least one money action is
-                            available. */}
-                        {(isPaymentRequestable(entry) || isStripeRefundable(entry)) && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuGroup>
-                              <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                    <EntryStatusPopover
+                      entry={entry}
+                      className={cls.name}
+                      onStatusChange={onStatusChange}
+                      additionalContent={
+                        <>
+                          <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">
+                            Other entry actions
+                          </p>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            data-status-popover-action
+                            className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                            onClick={() => openWithdrawalDialog(entry.id)}
+                          >
+                            Withdrawn
+                          </button>
+                          {(isPaymentRequestable(entry) || isStripeRefundable(entry)) && (
+                            <>
+                              <p className="mt-2 px-2 pb-1 text-xs font-medium text-muted-foreground">
                                 Payment
-                              </DropdownMenuLabel>
+                              </p>
                               {isPaymentRequestable(entry) && (
-                                <DropdownMenuItem
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  data-status-popover-action
+                                  className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
                                   onClick={() => setRequestPaymentDialog({ open: true, entry })}
                                 >
-                                  <CreditCard className="h-4 w-4 mr-2" />
+                                  <CreditCard className="h-4 w-4" aria-hidden />
                                   Request payment…
-                                </DropdownMenuItem>
+                                </button>
                               )}
                               {isStripeRefundable(entry) && (
-                                <DropdownMenuItem
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  data-status-popover-action
+                                  className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
                                   onClick={() => setRefundDialog({ open: true, entry })}
                                 >
-                                  <CreditCard className="h-4 w-4 mr-2" />
+                                  <CreditCard className="h-4 w-4" aria-hidden />
                                   Refund payment…
-                                </DropdownMenuItem>
+                                </button>
                               )}
-                            </DropdownMenuGroup>
-                          </>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => setRemoveDialog({ open: true, entry })}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Remove Entry
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            role="menuitem"
+                            data-status-popover-action
+                            className="mt-2 flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-destructive hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                            onClick={() => setRemoveDialog({ open: true, entry })}
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden />
+                            Remove Entry
+                          </button>
+                        </>
+                      }
+                    />
                     {entry.entryStatus === EntryStatus.CANCELLED && entry.withdrawalReason && (
                       <span className="text-xs text-muted-foreground pl-0.5">
                         {entry.withdrawalReason}

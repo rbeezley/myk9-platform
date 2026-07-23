@@ -172,10 +172,16 @@ export function useEntryManagementActions({
       const entry = entries.find(e => e.id === entryId);
       if (!entry) return false;
       const priorStatus = entry.entryStatus;
+      const offline = typeof navigator !== 'undefined' && !navigator.onLine;
       const ok = await executeStatusChange(
         { entryId, newStatus, withdrawalReason, entry, userId: user?.id },
         { changeSecretaryStatus: changeSecretaryEntryStatus, patchEntries: setEntries }
       );
+
+      if (!ok) {
+        toast.error("Couldn't update entry status");
+        return false;
+      }
 
       // Offer a time-boxed undo only for simple transitions (design.md D6). A
       // withdrawal carries a reason (collected in its own dialog) and is left
@@ -186,10 +192,11 @@ export function useEntryManagementActions({
           onUndo: () => {
             void runSingleUndo(entryId, priorStatus, newStatus);
           },
+          ...(offline ? { description: 'Queued — will sync when online' } : {}),
         });
       }
 
-      return ok;
+      return true;
     },
     [entries, setEntries, user, runSingleUndo]
   );

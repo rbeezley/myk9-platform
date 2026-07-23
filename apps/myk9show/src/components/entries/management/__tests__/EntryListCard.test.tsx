@@ -121,7 +121,7 @@ describe('EntryListCard - check-in button affordance', () => {
     fireEvent.click(screen.getByText('Accepted'));
 
     // Valid status transitions remain reachable…
-    expect(screen.getByText('Not Accepted')).toBeTruthy();
+    expect(screen.getByText('Reject entry')).toBeTruthy();
     // …but the broken no-op "Waitlisted" option is gone.
     expect(screen.queryByText('Waitlisted')).toBeNull();
   });

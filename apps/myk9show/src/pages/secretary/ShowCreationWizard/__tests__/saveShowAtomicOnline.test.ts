@@ -246,7 +246,7 @@ describe('saveShowAtomicOnline', () => {
       triggerSync: vi.fn().mockResolvedValue(undefined),
     });
 
-    const passcodeCall = rpcMock.mock.calls.find((c) => c[0] === 'insert_show_passcodes');
+    const passcodeCall = rpcMock.mock.calls.find(c => c[0] === 'insert_show_passcodes');
     expect(passcodeCall).toBeDefined();
     // The new signature takes ONLY p_show_id — generation is server-side so
     // there's no p_codes payload (client can't detect UNIQUE collisions).
@@ -258,7 +258,8 @@ describe('saveShowAtomicOnline', () => {
 
   it('returns passcodes: null and warns when insert_show_passcodes fails (show still created)', async () => {
     rpcMock.mockImplementation(async (fn: string) => {
-      if (fn === 'insert_show_passcodes') return { data: null, error: { message: 'pepper missing' } };
+      if (fn === 'insert_show_passcodes')
+        return { data: null, error: { message: 'pepper missing' } };
       return { error: null };
     });
 
@@ -273,6 +274,9 @@ describe('saveShowAtomicOnline', () => {
     });
 
     expect(result.passcodes).toBeNull();
+    expect(result.passcodeError).toBe(
+      'Could not generate show access codes. Please try again below.'
+    );
     expect(result.showId).toBeTruthy();
     expect(result.savedShow.name).toBe('Test Show');
   });

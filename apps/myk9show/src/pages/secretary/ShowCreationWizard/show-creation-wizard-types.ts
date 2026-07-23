@@ -12,11 +12,13 @@ export interface CreatedShow {
   name: string;
   /**
    * Server-generated plaintext passcodes returned from insert_show_passcodes.
-   * Null when the passcode insert failed — the access card falls back to the
-   * legacy UUID-derivation in that case so the secretary still gets working
-   * codes for the existing-show fallback path.
+   * Null when the passcode insert failed. `passcodeError` keeps the success
+   * overlay visible so the secretary can retry generation without losing the
+   * route back to passcode management.
    */
   passcodes: ShowPasscodes | null;
+  /** Plain-language failure from the one-time server passcode generation. */
+  passcodeError: string | null;
 }
 
 export interface WizardStep {

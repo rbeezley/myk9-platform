@@ -2,9 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { MyEntryCard } from './MyEntryCard';
-import { groupEntriesByShowAndDog } from './useMyEntriesData';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import type { MyEntry, EntryClass } from './my-entries-types';
+import type { MyEntry, MyEntryDogGroup, EntryClass } from './my-entries-types';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
 
 /** Expand the collapsed "Show details" panel so its contents are queryable. */
@@ -12,8 +11,15 @@ function openDetails() {
   fireEvent.click(screen.getByRole('button', { name: /show details/i }));
 }
 
+/**
+ * Builds a single-dog order. `dogs` defaults to one group mirroring the
+ * top-level dog/class fields so single-dog rendering — the vast majority of
+ * these cases — exercises the exact same code path as before grouped-order
+ * cards existed. Pass `dogs` explicitly to build a multi-dog order.
+ */
 function makeEntry(overrides: Partial<MyEntry> = {}): MyEntry {
-  return {
+  const { dogs, ...rest } = overrides;
+  const base = {
     id: 'e1',
     registrationId: 'r1',
     showId: 's1',
@@ -28,6 +34,30 @@ function makeEntry(overrides: Partial<MyEntry> = {}): MyEntry {
     paymentStatus: PaymentStatus.PAID_ONLINE,
     submittedAt: new Date('2026-08-01'),
     lastUpdated: new Date('2026-08-15'),
+    ...rest,
+  };
+  return {
+    ...base,
+    dogs: dogs ?? [
+      {
+        id: base.id,
+        dogId: base.dogId,
+        dogName: base.dogName,
+        armband: base.armband,
+        classes: base.classes,
+        entryStatus: base.entryStatus,
+      },
+    ],
+  };
+}
+
+function makeDogGroup(overrides: Partial<MyEntryDogGroup> = {}): MyEntryDogGroup {
+  return {
+    id: 'e1',
+    dogId: 'd1',
+    dogName: 'Rex',
+    classes: [],
+    entryStatus: EntryStatus.ACCEPTED,
     ...overrides,
   };
 }
@@ -433,128 +463,6 @@ describe('MyEntryCard result reveal prompt', () => {
 
     expect(screen.queryByRole('button', { name: /New result/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Result card/i })).not.toBeInTheDocument();
-  });
-});
-
-describe('groupEntriesByShowAndDog', () => {
-  it('returns a single entry unchanged when there is only one class', () => {
-    const entry = makeEntry({ classes: [makeClass()] });
-    const result = groupEntriesByShowAndDog([entry]);
-    expect(result).toHaveLength(1);
-    expect(result[0].classes).toHaveLength(1);
-  });
-
-  it('merges two class rows for the same dog and registration into one card', () => {
-    const classA = makeClass({ id: 'c1', name: 'Container Search', fee: 25 });
-    const classB = makeClass({ id: 'c2', name: 'Exterior Search', fee: 30 });
-    const rowA = makeEntry({
-      id: 'c1',
-      registrationId: 'r1',
-      dogId: 'd1',
-      classes: [classA],
-      totalFee: 25,
-    });
-    const rowB = makeEntry({
-      id: 'c2',
-      registrationId: 'r1',
-      dogId: 'd1',
-      classes: [classB],
-      totalFee: 30,
-    });
-
-    const result = groupEntriesByShowAndDog([rowA, rowB]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].classes).toHaveLength(2);
-    expect(result[0].totalFee).toBe(55);
-  });
-
-  it('keeps separate cards for different dogs at the same show', () => {
-    const rowA = makeEntry({
-      id: 'e1',
-      registrationId: 'r1',
-      dogId: 'd1',
-      dogName: 'Rex',
-      classes: [makeClass({ id: 'c1' })],
-    });
-    const rowB = makeEntry({
-      id: 'e2',
-      registrationId: 'r2',
-      dogId: 'd2',
-      dogName: 'Ziva',
-      classes: [makeClass({ id: 'c2' })],
-    });
-
-    const result = groupEntriesByShowAndDog([rowA, rowB]);
-
-    expect(result).toHaveLength(2);
-  });
-
-  it('keeps separate cards for the same dog at different shows', () => {
-    const rowA = makeEntry({
-      id: 'e1',
-      registrationId: 'r1',
-      dogId: 'd1',
-      showId: 's1',
-      classes: [makeClass({ id: 'c1' })],
-    });
-    const rowB = makeEntry({
-      id: 'e2',
-      registrationId: 'r2',
-      dogId: 'd1',
-      showId: 's2',
-      classes: [makeClass({ id: 'c2' })],
-    });
-
-    const result = groupEntriesByShowAndDog([rowA, rowB]);
-
-    expect(result).toHaveLength(2);
-  });
-
-  it('returns an empty array for empty input', () => {
-    expect(groupEntriesByShowAndDog([])).toEqual([]);
-  });
-
-  it('uses the highest-priority status when merging — ACCEPTED beats PENDING seed', () => {
-    const seed = makeEntry({
-      entryStatus: EntryStatus.PENDING,
-      classes: [makeClass({ id: 'c1' })],
-    });
-    const second = makeEntry({
-      entryStatus: EntryStatus.ACCEPTED,
-      classes: [makeClass({ id: 'c2' })],
-    });
-    const result = groupEntriesByShowAndDog([seed, second]);
-    expect(result[0].entryStatus).toBe(EntryStatus.ACCEPTED);
-  });
-
-  it('uses the highest-priority status — ACCEPTED seed is not downgraded by SCRATCHED row', () => {
-    const seed = makeEntry({
-      entryStatus: EntryStatus.ACCEPTED,
-      classes: [makeClass({ id: 'c1', status: 'entered' })],
-    });
-    const scratched = makeEntry({
-      entryStatus: EntryStatus.SCRATCHED,
-      classes: [makeClass({ id: 'c2', status: 'scratched' })],
-    });
-    const result = groupEntriesByShowAndDog([seed, scratched]);
-    expect(result[0].entryStatus).toBe(EntryStatus.ACCEPTED);
-  });
-
-  it('keeps an armband from a later row when the seed row has none', () => {
-    const seed = makeEntry({
-      armband: undefined,
-      classes: [makeClass({ id: 'c1' })],
-    });
-    const second = makeEntry({
-      armband: '142',
-      classes: [makeClass({ id: 'c2' })],
-    });
-
-    const result = groupEntriesByShowAndDog([seed, second]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].armband).toBe('142');
   });
 });
 
@@ -1088,5 +996,124 @@ describe('MyEntryCard progressive disclosure (exhibitor-my-shows-elderly-ux-reme
     );
 
     expect(screen.queryByText(PENDING_REVIEW_REASSURANCE)).not.toBeInTheDocument();
+  });
+});
+
+describe('MyEntryCard grouped-order dogs grid (task 8.2 — one card per online order)', () => {
+  function makeTwoDogEntry(overrides: Partial<MyEntry> = {}): MyEntry {
+    const rexClasses = [
+      makeClass({
+        id: 'entry-rex-1',
+        classId: 'class-1',
+        name: 'Container Search',
+        isScored: true,
+      }),
+    ];
+    const zivaClasses = [
+      makeClass({
+        id: 'entry-ziva-1',
+        classId: 'class-2',
+        name: 'Exterior Search',
+        isScored: false,
+      }),
+    ];
+    const dogs: MyEntryDogGroup[] = [
+      makeDogGroup({
+        id: 'entry-rex-1',
+        dogId: 'd1',
+        dogName: 'Rex',
+        armband: '101',
+        classes: rexClasses,
+      }),
+      makeDogGroup({
+        id: 'entry-ziva-1',
+        dogId: 'd2',
+        dogName: 'Ziva',
+        armband: '102',
+        classes: zivaClasses,
+      }),
+    ];
+    return makeEntry({
+      dogName: 'Rex',
+      dogId: 'd1',
+      classes: [...rexClasses, ...zivaClasses],
+      dogs,
+      ...overrides,
+    });
+  }
+
+  it('shows a dog-count subtitle instead of a single dog name on the summary band', () => {
+    renderCard(makeTwoDogEntry());
+    expect(screen.getByText('2 dogs entered')).toBeInTheDocument();
+    expect(screen.queryByText('Rex')).not.toBeInTheDocument();
+  });
+
+  it('single-dog orders never render the dogs grid — flat class list only', () => {
+    const { container } = renderCard(makeEntry({ classes: [makeClass()] }));
+    openDetails();
+    expect(container.querySelector('.myk9-entries-dogs-grid')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('.myk9-entries-class-row')).toHaveLength(1);
+  });
+
+  it('renders each dog with its own nested classes in a wrapping grid capped at 5 columns', () => {
+    const { container } = renderCard(makeTwoDogEntry());
+    openDetails();
+
+    const grid = container.querySelector('.myk9-entries-dogs-grid');
+    expect(grid).toHaveClass('xl:grid-cols-5');
+    expect(container.querySelectorAll('.myk9-entries-dog-group')).toHaveLength(2);
+    expect(screen.getByText('Rex')).toBeInTheDocument();
+    expect(screen.getByText('Ziva')).toBeInTheDocument();
+    expect(screen.getByText('Container Search #101')).toBeInTheDocument();
+    expect(screen.getByText('Exterior Search #101')).toBeInTheDocument();
+    // Class count is conserved — the union of both dogs' classes.
+    expect(screen.getByText('2 classes entered')).toBeInTheDocument();
+  });
+
+  it('scopes a per-dog check-in click to that dog, not the order lead dog', () => {
+    const onCheckInClick = vi.fn();
+    render(
+      <MemoryRouter>
+        <MyEntryCard
+          entry={makeTwoDogEntry()}
+          onCheckInClick={onCheckInClick}
+          onEditClick={vi.fn()}
+          onReceiptClick={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+    openDetails();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Update check-in for Ziva in Exterior Search/i })
+    );
+    expect(onCheckInClick).toHaveBeenCalledTimes(1);
+    const [calledEntry, calledClass] = onCheckInClick.mock.calls[0];
+    expect(calledEntry.dogName).toBe('Ziva');
+    expect(calledEntry.dogId).toBe('d2');
+    expect(calledClass.id).toBe('entry-ziva-1');
+  });
+
+  it('derives the order-level next action across dogs — check-in for the eligible class on the second dog', () => {
+    const onCheckInClick = vi.fn();
+    render(
+      <MemoryRouter>
+        <MyEntryCard
+          entry={makeTwoDogEntry()}
+          onCheckInClick={onCheckInClick}
+          onEditClick={vi.fn()}
+          onReceiptClick={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+
+    // Rex's only class is already scored; Ziva's is the eligible one — the
+    // summary band must still surface Check In, not fall through to View Show.
+    const checkInButton = screen.getByRole('button', { name: 'Check In' });
+    fireEvent.click(checkInButton);
+    expect(onCheckInClick).toHaveBeenCalledTimes(1);
+    const [calledEntry, calledClass] = onCheckInClick.mock.calls[0];
+    expect(calledEntry.dogName).toBe('Ziva');
+    expect(calledClass.id).toBe('entry-ziva-1');
   });
 });

@@ -6,7 +6,8 @@ import type { MyEntry, EntryClass } from './my-entries-types';
 const NOW = new Date('2026-09-01T12:00:00Z');
 
 function makeEntry(overrides: Partial<MyEntry> = {}): MyEntry {
-  return {
+  const { dogs, ...rest } = overrides;
+  const base = {
     id: 'e1',
     registrationId: 'r1',
     showId: 's1',
@@ -21,7 +22,20 @@ function makeEntry(overrides: Partial<MyEntry> = {}): MyEntry {
     paymentStatus: PaymentStatus.PAID_ONLINE,
     submittedAt: new Date('2026-08-01'),
     lastUpdated: new Date('2026-08-15'),
-    ...overrides,
+    ...rest,
+  };
+  return {
+    ...base,
+    dogs: dogs ?? [
+      {
+        id: base.id,
+        dogId: base.dogId,
+        dogName: base.dogName,
+        armband: base.armband,
+        classes: base.classes,
+        entryStatus: base.entryStatus,
+      },
+    ],
   };
 }
 

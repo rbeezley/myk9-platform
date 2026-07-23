@@ -11,6 +11,7 @@ let mockUser: {
   app_metadata?: Record<string, unknown>;
 } | null = null;
 let mockRoles: UserRole[] = [];
+let mockLoading = false;
 const mockAccountToday = vi.hoisted(() => ({
   hasAccountEntryForShow: false,
   isLoading: false,
@@ -24,7 +25,7 @@ const mockHasAnyEntry = vi.hoisted(() => ({
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: mockUser,
-    loading: false,
+    loading: mockLoading,
     hasRole: (role: UserRole) => mockRoles.includes(role),
   }),
 }));
@@ -58,6 +59,7 @@ describe('AtShowAccessGate', () => {
   beforeEach(() => {
     mockUser = null;
     mockRoles = [];
+    mockLoading = false;
     mockAccountToday.hasAccountEntryForShow = false;
     mockAccountToday.isLoading = false;
     mockAccountToday.error = null;
@@ -123,7 +125,11 @@ describe('AtShowAccessGate', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows both audiences to a visitor with no entries and no access', () => {
+  // exhibitor-show-day-access (D9): a signed-in user with no grant, staff role,
+  // or entry is never shown the passcode form — they get an account-voiced
+  // explanatory state pointing at My Shows. The passcode prompt is reserved for
+  // anonymous / explicit `?passcode=1` flows (handled outside this gate).
+  it('gives a signed-in visitor with no entry an explanatory state, never a passcode prompt', () => {
     mockUser = { id: 'user-1' };
     mockRoles = [UserRole.EXHIBITOR];
     mockHasAnyEntry.hasAnyEntryForShow = false;
@@ -131,7 +137,11 @@ describe('AtShowAccessGate', () => {
     renderGate();
 
     expect(screen.getByText("You don't have ringside access for this show.")).toBeInTheDocument();
-    expect(screen.getByText(/Entered this show\?.*Working the show\?/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /go to my shows/i })).toBeInTheDocument();
+    // No passcode affordance for authenticated users on this path.
+    expect(screen.queryByText(/enter passcode/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/passcode/i)).not.toBeInTheDocument();
+    expect(document.querySelector('a[href="/at-show?passcode=1"]')).not.toBeInTheDocument();
   });
 
   // Codex review round 3 (PR #1217): must not flash the deny copy while the
@@ -198,5 +208,48 @@ describe('AtShowAccessGate', () => {
       screen.queryByText("You don't have ringside access for this show.")
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Ringside isn't open for this show yet.")).not.toBeInTheDocument();
+  });
+
+  // exhibitor-show-day-access (D9): the passcode form is reserved for anonymous
+  // / `?passcode=1` flows. An anonymous visitor without a grant is sent to
+  // sign-in (unchanged) — this gate never renders a passcode prompt for them.
+  it('redirects an anonymous visitor without a grant to sign-in (passcode flow unchanged)', () => {
+    mockUser = null;
+
+    renderGate();
+
+    expect(screen.getByText('SIGN IN PAGE')).toBeInTheDocument();
+    expect(
+      screen.queryByText("You don't have ringside access for this show.")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/passcode/i)).not.toBeInTheDocument();
+  });
+
+  // exhibitor-show-day-access (D9): the gate waits for RBAC role resolution
+  // before rendering any restricted/passcode state, so staff never flash the
+  // deny copy while roles are still loading (RBAC reloads on a 60s poll).
+  it('shows a loading state (never the deny/passcode copy) while RBAC roles are still loading for staff', () => {
+    mockUser = { id: 'user-1' };
+    mockRoles = []; // RBAC not yet resolved — role will arrive once loading clears
+    mockLoading = true;
+
+    renderGate();
+
+    expect(screen.getByRole('status', { name: 'Checking ringside access…' })).toBeInTheDocument();
+    expect(
+      screen.queryByText("You don't have ringside access for this show.")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/passcode/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('AT SHOW CONTENT')).not.toBeInTheDocument();
+  });
+
+  it('admits staff once RBAC resolves after the loading window', () => {
+    mockUser = { id: 'user-1' };
+    mockRoles = [UserRole.SECRETARY];
+    mockLoading = false;
+
+    renderGate();
+
+    expect(screen.getByText('AT SHOW CONTENT')).toBeInTheDocument();
   });
 });

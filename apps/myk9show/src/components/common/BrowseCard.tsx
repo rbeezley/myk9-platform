@@ -5,7 +5,13 @@ import { Eye } from 'lucide-react';
 
 interface BrowseCardProps {
   href: string;
-  actionLabel: string;
+  /**
+   * Redundant "View X" button label. The whole card is already a click/Enter
+   * navigation target (role="link" below), so this is opt-in for consumers
+   * that still want a visible action affordance (e.g. Clubs, People). Omit it
+   * for card-only surfaces — see design.md D3 and DogsGridView.
+   */
+  actionLabel?: string;
   badges?: React.ReactNode;
   avatar: React.ReactNode;
   name: string;
@@ -37,20 +43,22 @@ export function BrowseCard({ href, actionLabel, badges, avatar, name, children }
         </div>
 
         {/* Action */}
-        <div className="shrink-0 ml-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs transition-colors group-hover:border-primary/40 group-hover:text-primary"
-            onClick={e => {
-              e.stopPropagation();
-              navigate(href);
-            }}
-          >
-            <Eye className="mr-1.5 h-3.5 w-3.5" />
-            {actionLabel}
-          </Button>
-        </div>
+        {actionLabel && (
+          <div className="shrink-0 ml-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs transition-colors group-hover:border-primary/40 group-hover:text-primary"
+              onClick={e => {
+                e.stopPropagation();
+                navigate(href);
+              }}
+            >
+              <Eye className="mr-1.5 h-3.5 w-3.5" />
+              {actionLabel}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -87,6 +87,9 @@ export const addDogSchema = z.object({
       }
     }),
   ownerId: z.string().min(1, 'Please select an owner').max(64),
+  // Color & Markings lives on the Optional details tab (AdditionalInfoTab), not
+  // Essentials — stays optional (no `.min`) so the Essentials step can complete
+  // without it.
   color: z.string().max(60, 'Color is too long'),
   height: z.string().max(20, 'Height is too long'),
   weight: z.string().max(20, 'Weight is too long'),

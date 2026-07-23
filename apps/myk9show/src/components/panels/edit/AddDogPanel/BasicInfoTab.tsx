@@ -179,20 +179,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               </div>
             )}
           </FormField>
-
-          <FormField
-            label="Color & Markings"
-            fieldId="color"
-            className="md:col-span-2"
-            hint="Describe the primary color and any distinctive markings"
-          >
-            <Input
-              id="color"
-              value={formData.color}
-              onChange={e => form.setValue('color', e.target.value)}
-              placeholder="e.g., Black & White, Red, Blue Merle"
-            />
-          </FormField>
         </div>
 
         <div

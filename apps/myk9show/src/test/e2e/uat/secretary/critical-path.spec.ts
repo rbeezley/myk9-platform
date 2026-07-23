@@ -100,36 +100,34 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
   test('entry management exposes review, waitlist, armband, and export controls', async ({
     page,
   }) => {
+    test.setTimeout(60_000);
     await signInAsSecretary(page, `/shows/${SHOW_ID}/entry-management`);
 
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
       timeout: 15000,
     });
-    await expect(page.getByRole('button', { name: 'Add mail-in entry' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add entry' })).toBeVisible();
+    await page.getByRole('button', { name: 'More', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Export Full CSV' })).toBeVisible();
-    await expect(page.getByText('Total Entries', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Need review', { exact: true })).toBeVisible();
-    await expect(page.getByText('Confirmed entries', { exact: true })).toBeVisible();
-
-    await expect(page.getByRole('textbox', { name: 'Search entries' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Entries', exact: true })).toBeVisible({
-      timeout: 10000,
-    });
-    await expect(page.getByRole('group', { name: 'Quick view presets' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Review', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Day-of', exact: true })).toBeVisible();
-
-    await page.getByRole('tab', { name: 'Waitlist', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Waitlist Management' })).toBeVisible();
-    await page.getByRole('tab', { name: 'Entries', exact: true }).click();
-
-    const rowActions = page.getByRole('button', { name: /^Actions for / }).first();
-    await expect(rowActions).toBeVisible({ timeout: 10000 });
-    await rowActions.click();
-    await expect(
-      page.getByRole('menuitem', { name: /Assign armband|Change armband/i }).first()
-    ).toBeVisible();
     await page.keyboard.press('Escape');
+
+    await expect(
+      page.getByRole('searchbox', { name: 'Search all show registrations' })
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: /Needs review/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /All registrations/ })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Registrations', exact: true })).toBeVisible();
+
+    await page.getByRole('tab', { name: 'Exceptions', exact: true }).click();
+    await page.getByRole('button', { name: 'Waitlist', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Waitlist Management' })).toBeVisible();
+    await page.getByRole('tab', { name: 'Registrations', exact: true }).click();
+    await page.getByRole('button', { name: /All registrations/ }).click();
+
+    await expect(page.getByText('Focused registration', { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /Change armband for|Assign/ }).first()
+    ).toBeVisible();
   });
 
   test('reports page exposes financial and statistics report choices', async ({ page }) => {

@@ -47,6 +47,12 @@ export function SecretaryCockpitSchedule({
 }) {
   const classById = new Map(sourceClasses.map(classItem => [classItem.id, classItem]));
   const trialById = new Map(sourceTrials.map(trial => [trial.id, trial]));
+  const trialIdsForSelectedDay = new Set(
+    sourceTrials.filter(trial => trial.date === model.day.selected).map(trial => trial.id)
+  );
+  const hasAnyClassForSelectedDay = sourceClasses.some(classItem =>
+    trialIdsForSelectedDay.has(classItem.trialId)
+  );
 
   return (
     <>
@@ -97,6 +103,13 @@ export function SecretaryCockpitSchedule({
       </section>
 
       <section className="space-y-3 xl:col-start-1 xl:row-start-2" aria-label="Trial schedule">
+        {model.trialGroups.length === 0 && (
+          <div className="rounded-xl border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+            {hasAnyClassForSelectedDay && filter !== 'all'
+              ? 'No Classes match this filter today.'
+              : 'No Classes are scheduled for this day yet.'}
+          </div>
+        )}
         {model.trialGroups.map(group => (
           <Collapsible key={group.trialId} defaultOpen>
             <div className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
@@ -218,7 +231,7 @@ export function SecretaryCockpitSchedule({
                         </div>
                         {focused && inlineFocusedContent && (
                           <div
-                            className="border-t bg-muted/20 p-3 xl:hidden"
+                            className="border-t bg-muted/20 p-3"
                             data-testid="cockpit-inline-focus"
                           >
                             {inlineFocusedContent}

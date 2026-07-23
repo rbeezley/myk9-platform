@@ -3,6 +3,7 @@ import { AlertTriangle, CalendarDays } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 import { buildSecretaryCockpitModel } from './secretaryCockpitModel';
 import { useSecretaryCockpitUrlState } from './useSecretaryCockpitUrlState';
@@ -24,6 +25,7 @@ export function SecretaryCockpit({
   const { state, updateState } = useSecretaryCockpitUrlState();
   const [showAllAttention, setShowAllAttention] = useState(false);
   const restoredAnchor = useRef<string | null>(null);
+  const isSplitViewport = useMediaQuery('(min-width: 1280px)');
   const model = buildSecretaryCockpitModel(snapshot, state);
   const focusedId = model.focusedClass?.id;
   const sourceClass = snapshot.classes.find(classItem => classItem.id === focusedId) ?? null;
@@ -34,7 +36,7 @@ export function SecretaryCockpit({
   const focusedClassIsVisible = model.trialGroups.some(group =>
     group.classes.some(classItem => classItem.id === focusedId)
   );
-  const focusedPanel = (
+  const focusedPanel = model.focusedClass ? (
     <SecretaryCockpitFocusedClass
       focused={model.focusedClass}
       sourceClass={sourceClass}
@@ -44,7 +46,7 @@ export function SecretaryCockpit({
       canManageShow={canManageShow}
       onCommand={onCommand}
     />
-  );
+  ) : null;
 
   useEffect(() => {
     const updates: Parameters<typeof updateState>[0] = {};
@@ -120,7 +122,7 @@ export function SecretaryCockpit({
                     variant="ghost"
                     className="mt-2 h-8 w-full px-2 text-destructive hover:text-destructive"
                   >
-                    Open
+                    {item.label}
                   </CockpitActionLink>
                 )}
               </div>
@@ -150,11 +152,13 @@ export function SecretaryCockpit({
           onFilterChange={filter => updateState({ filter })}
           onFocusClass={focusedClassId => updateState({ focusedClassId, anchor: focusedClassId })}
           onCommand={onCommand}
-          inlineFocusedContent={focusedClassIsVisible ? focusedPanel : undefined}
+          inlineFocusedContent={
+            !isSplitViewport && focusedClassIsVisible ? focusedPanel : undefined
+          }
         />
-        {!focusedClassIsVisible && model.focusedClass && (
+        {!isSplitViewport && !focusedClassIsVisible && model.focusedClass && (
           <div
-            className="space-y-2 xl:hidden"
+            className="space-y-2"
             data-testid="cockpit-inline-focus"
             aria-label="Focused Class outside current schedule filter"
           >
@@ -164,12 +168,11 @@ export function SecretaryCockpit({
             {focusedPanel}
           </div>
         )}
-        <div
-          className="hidden xl:col-start-2 xl:row-start-2 xl:block"
-          data-testid="cockpit-split-focus"
-        >
-          {focusedPanel}
-        </div>
+        {isSplitViewport && model.focusedClass && (
+          <div className="xl:col-start-2 xl:row-start-2" data-testid="cockpit-split-focus">
+            {focusedPanel}
+          </div>
+        )}
       </div>
     </div>
   );

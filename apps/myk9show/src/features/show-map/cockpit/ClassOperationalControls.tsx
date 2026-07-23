@@ -169,7 +169,7 @@ export function ExpectedStartControl({
         <Clock3 className="h-4 w-4 text-muted-foreground" />
         {effective || 'Set expected start'}
         {canManageShow && (
-          <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100" />
+          <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-60 group-hover:opacity-100" />
         )}
       </button>
     );
@@ -184,6 +184,19 @@ export function ExpectedStartControl({
       toast.success('Expected start updated. The scheduled time was preserved.');
     } catch {
       toast.error('Expected start could not be updated.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const revertToScheduled = async () => {
+    setIsSaving(true);
+    try {
+      await setRevisedExpectedStart(classId, null);
+      setIsEditing(false);
+      toast.success('Reverted to the scheduled time.');
+    } catch {
+      toast.error('Could not revert to the scheduled time.');
     } finally {
       setIsSaving(false);
     }
@@ -223,8 +236,9 @@ export function ExpectedStartControl({
       {revisedExpectedStart && (
         <button
           type="button"
-          className="min-h-11 text-xs text-muted-foreground underline-offset-4 hover:underline"
-          onClick={() => void setRevisedExpectedStart(classId, null)}
+          disabled={isSaving}
+          className="min-h-11 text-xs text-muted-foreground underline-offset-4 hover:underline disabled:opacity-60"
+          onClick={() => void revertToScheduled()}
         >
           Use scheduled time
         </button>

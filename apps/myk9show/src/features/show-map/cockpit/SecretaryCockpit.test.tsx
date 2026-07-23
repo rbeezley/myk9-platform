@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
@@ -39,8 +39,14 @@ describe('SecretaryCockpit attention remainder', () => {
       { initialRoute: '/shows/show-1/show-desk' }
     );
 
-    expect(screen.getAllByRole('link', { name: 'Open' })).toHaveLength(3);
+    const attentionStrip = screen.getByRole('region', { name: /needs attention/i });
+    const issueLinks = () =>
+      within(attentionStrip)
+        .getAllByRole('link')
+        .filter(link => link.getAttribute('href')?.startsWith('/issues/'));
+
+    expect(issueLinks()).toHaveLength(3);
     await user.click(screen.getByRole('button', { name: 'View 2 more issues' }));
-    expect(screen.getAllByRole('link', { name: 'Open' })).toHaveLength(5);
+    expect(issueLinks()).toHaveLength(5);
   });
 });

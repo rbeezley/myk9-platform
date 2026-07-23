@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StatusBadge, StatusIcon } from '@/components/status';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -94,6 +94,7 @@ export function EntryStatusPopover({
           >
             <StatusIcon family="entry" status={entry.entryStatus} size="sm" decorative />
             <span>{currentStatusLabel} (current)</span>
+            <Check className="ml-auto h-4 w-4" aria-hidden />
           </div>
           {actions.map(action => (
             <button

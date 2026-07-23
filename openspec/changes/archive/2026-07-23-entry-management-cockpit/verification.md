@@ -4,7 +4,7 @@
 
 | Dimension | Status |
 | --- | --- |
-| Completeness | 32/34 tasks complete; review/merge and archive delivery gates remain |
+| Completeness | 34/34 tasks complete; implementation and delivery gates passed |
 | Correctness | 15/15 requirements mapped to implementation and regression coverage |
 | Coherence | Approved balanced cockpit, canonical action reuse, and owner-surface links followed |
 
@@ -26,12 +26,11 @@
 - A synthetic 1,000-child-Entry projection/search exercise passed within the local performance threshold.
 - Strict OpenSpec validation and `git diff --check` passed.
 
-### Critical delivery gates before archive
+### Delivery gates completed
 
-1. Complete task 7.2: wait for required CI/review and obtain explicit merge approval.
-2. Complete task 7.3: after merge, archive/sync OpenSpec and clean up the branch/worktree.
-
-These are expected delivery-state gates, not missing product behavior. The implementation is ready for commit and PR, but the change is not ready to archive until they complete.
+1. PR #1419 passed required CI, accessibility, and deterministic E2E smoke checks before merging to `main`.
+2. The product owner explicitly approved the merge, and the merged state was verified.
+3. The feature branch/worktree were removed, delta specifications were synced, and the completed change was archived.
 
 ### Warnings
 

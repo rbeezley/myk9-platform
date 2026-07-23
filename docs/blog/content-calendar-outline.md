@@ -38,12 +38,12 @@ Link each post to the KB article it supplements — do not duplicate full KB ste
 
 ---
 
-### Post S-3 — Approving entries: what "Pending" means and when to act
+### Post S-3 — Reviewing registrations: what needs attention and when to act
 
 **Audience:** Secretary
 **Category:** secretary-tips
 **Customer question:** "When do I approve entries? Do I have to do them one at a time?"
-**Main takeaway:** Entries arrive in the Pending tab after the exhibitor pays. Approve them in batches with bulk-select or one at a time from the entry card. No manual counting — the entry count badge stays live.
+**Main takeaway:** New Show Registrations appear in **Needs review** after submission. Focus one registration to act on its child Entries, or select several registrations and use the floating toolbar for eligible bulk actions. Queue counts always match the registrations shown.
 **Related guide:** `docs/user-guides/secretary-guide.md` § 4 Entry Management
 **Related KB:** `approve-entries`
 **Support-deflection value:** Medium — most secretaries figure this out after one show.

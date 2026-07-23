@@ -50,8 +50,8 @@
 ## 7. PR and merge gate
 
 - [x] 7.1 Commit the verified implementation, review the diff for unrelated changes, and open a PR using the repository template with OpenSpec, tests, visual evidence, risk, non-goals, and agent involvement.
-- [ ] 7.2 Wait for required CI and review, fix actionable failures, and obtain explicit approval before merging.
-- [ ] 7.3 After merge, verify the PR state, archive/sync the OpenSpec changes as appropriate, update tracking, and perform branch/worktree cleanup.
+- [x] 7.2 Required CI and review completed, actionable smoke-test failures were fixed, and the product owner explicitly approved the merge.
+- [x] 7.3 PR #1419 was verified merged; the OpenSpec change was synced and archived, tracking was updated, and its feature branch/worktree were removed.
 
 ## Validation Profile
 

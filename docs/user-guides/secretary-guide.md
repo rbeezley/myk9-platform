@@ -93,30 +93,31 @@ This is not available in the Setup tab after publication. If you need to add a t
 
 ## Section 4 — Entry Management
 
-Entry Management is where you act on pending entries, add mail-in entries, and manage your waitlist.
+Entry Management is where you review Show Registrations, find individual Entries quickly, add mail-in or walk-in Entries, and manage Exceptions.
 
-![S-07: Entry Management — Pending tab with entry cards](../screenshots/S-07.png)
+![S-07: Entry Management — Needs review queue and focused registration](../screenshots/S-07.png)
 
 ### Approving an online entry
 
 1. Open **Entry Management** from the sidebar or from the Show Workbench.
-2. Click the **Pending** tab.
-3. Find the entry. Click **Accept** → the entry moves to the Accepted tab. Payment is already recorded for online entries paid through the registration wizard.
+2. Start in **Needs review**, or search the whole Show by Exhibitor, Dog, Handler, Armband, confirmation, Entry number, or Class.
+3. Select the Show Registration to open it in the focused pane.
+4. Expand the Dog and choose **Accept** for the affected child Entry. Payment is already recorded for online Entries paid through the registration wizard.
 
-**To approve many entries at once:** Check the box next to each entry → a sticky action bar appears at the bottom. Click **Approve selected**.
+**To approve many registrations at once:** Check each Show Registration. A compact floating toolbar appears with both the registration count and affected Entry count. Choose the available Accept action; only eligible child Entries are changed.
 
-![S-09: Entry Management — bulk select with sticky approve bar](../screenshots/S-09.png)
+![S-09: Entry Management — registration selection with floating action toolbar](../screenshots/S-09.png)
 
-![S-08: Entry Management — three-dot menu open on a single entry card](../screenshots/S-08.png)
+![S-08: Entry Management — focused registration with child Entry actions](../screenshots/S-08.png)
 
 ### Rejecting an entry
 
-1. In the **Pending** tab, open the three-dot menu on the entry.
-2. Click **Reject** → the entry moves to Rejected and the exhibitor is notified.
+1. Search for or select the Show Registration, then expand the affected Dog.
+2. Choose **Reject** for the child Entry. The Entry changes to Rejected and the exhibitor is notified.
 
 ### Adding a mail-in or walk-in entry
 
-1. Click **Add Entry**.
+1. Click **Add entry**.
 2. Search for the exhibitor by name or email. If they're not in the system, click **Create Exhibitor** and enter their details.
 3. Search for their dog. If the dog isn't in the system, click **Add Dog** and enter AKC registration number, breed, and name.
 4. Select the class, enter the check number and amount paid.
@@ -124,15 +125,15 @@ Entry Management is where you act on pending entries, add mail-in entries, and m
 
 ### Managing the waitlist
 
-When a class is full, click **Waitlist** instead of Accept on a pending entry.
+When a Class is full, choose **Waitlist** instead of Accept for the affected child Entry.
 
 When a spot opens (someone scratches or is pulled):
 
-1. Open **Waitlist Management** from the sidebar.
+1. Open **Entry Management** → **Exceptions** → **Waitlist**.
 2. Find the next exhibitor in line → click **Offer Spot**.
 3. The exhibitor is notified. If they don't confirm within the notice window, move to the next person.
 
-![S-10: Waitlist Management — Juniper at position 1 waiting for Interior Advanced](../screenshots/S-10.png)
+![S-10: Entry Management — Exceptions with Waitlist selected](../screenshots/S-10.png)
 
 ---
 
@@ -154,7 +155,7 @@ Exhibitors receive the announcement in their myK9Show inbox and as a push notifi
 
 **From Entry Management (fastest):**
 
-1. Open the entry card → click **Message Exhibitor**.
+1. Focus the Show Registration and open **Communication and history** → click **Message Exhibitor**.
 2. A compose window opens with the exhibitor pre-selected.
 
 **From the Message Center:**
@@ -212,13 +213,13 @@ The Show Desk is your headquarters on show day. Check-in, scratches, move-ups, l
 
 There are two different actions depending on the reason:
 
-**Show-day withdrawal (stays in records):** Go to **Entry Management**, find the entry, and change the class status dropdown from **Pending** or **Accepted** to **Pulled**. The entry stays visible under the Pulled tab and counts correctly in AKC results submission.
+**Show-day withdrawal (stays in records):** Go to **Entry Management**, search for and focus the Show Registration, then change the affected child Entry from **Pending** or **Accepted** to **Pulled**. The Entry remains available under **Exceptions** → **Pulls / Scratches** and counts correctly in AKC results submission.
 
 **Remove a mistaken or duplicate entry (deletes from records):**
 
 1. Go to **Entry Management**.
-2. Find the entry and expand the class row.
-3. Click the **trash icon** on the right of the class row → "Remove entry?" dialog appears.
+2. Search for and focus the Show Registration, then expand the Dog containing the mistaken Entry.
+3. Open the child Entry's secondary actions and choose **Remove entry** → the "Remove entry?" dialog appears.
 4. Confirm → the class entry is deleted from records.
 
 ![S-16: Entry Management — "Remove entry?" confirmation dialog](../screenshots/S-16.png)
@@ -379,10 +380,10 @@ All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-25:
 | S-04    | § 2     | Wizard Step 3 (class selection)                                                    | ready               |
 | S-05    | § 2     | Wizard Step 4 (review)                                                             | captured 2026-06-25 |
 | S-06    | § 3     | Show Workbench — Setup tab                                                         | ready               |
-| S-07    | § 4     | Entry Management — Pending tab                                                     | ready               |
-| S-08    | § 4     | Three-dot menu on entry card                                                       | ready               |
-| S-09    | § 4     | Bulk select + approve bar                                                          | ready               |
-| S-10    | § 4     | Waitlist Management page                                                           | ready               |
+| S-07    | § 4     | Entry Management — Needs review queue and focused registration                     | needs recapture     |
+| S-08    | § 4     | Focused registration with child Entry actions                                      | needs recapture     |
+| S-09    | § 4     | Registration selection and floating toolbar                                        | needs recapture     |
+| S-10    | § 4     | Exceptions — Waitlist                                                              | needs recapture     |
 | S-11    | § 5     | Message Center — compose                                                           | ready               |
 | S-12    | § 6     | Reports — Check-in Sheet                                                           | ready               |
 | S-13    | § 6     | Reports — Steward's Report selected                                                | ready               |

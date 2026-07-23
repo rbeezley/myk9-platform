@@ -266,7 +266,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                   <div className="flex flex-col gap-0.5">
                     <EntryStatusPopover
                       entry={entry}
-                      className={cls.name}
+                      entryClassName={cls.name}
                       onStatusChange={onStatusChange}
                       additionalContent={
                         <>

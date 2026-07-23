@@ -9,7 +9,7 @@ import { resolveEntryStatusActions, type EntryStatusActionDefinition } from './e
 
 interface EntryStatusPopoverProps {
   entry: EntryManagementEntry;
-  className: string;
+  entryClassName: string;
   onStatusChange: (
     entryId: string,
     status: EntryStatus
@@ -19,7 +19,7 @@ interface EntryStatusPopoverProps {
 
 export function EntryStatusPopover({
   entry,
-  className,
+  entryClassName,
   onStatusChange,
   additionalContent,
 }: EntryStatusPopoverProps) {
@@ -63,7 +63,7 @@ export function EntryStatusPopover({
             className={cn(
               'inline-flex min-h-11 min-w-11 items-center justify-start gap-1 rounded-md px-1 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70'
             )}
-            aria-label={`Change entry status for ${entry.dogName} in ${className}`}
+            aria-label={`Change entry status for ${entry.dogName} in ${entryClassName}`}
           >
             <StatusBadge family="entry" status={entry.entryStatus} variant="outline" />
             {isPending ? (

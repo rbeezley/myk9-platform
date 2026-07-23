@@ -47,7 +47,6 @@ describe('entry status action definitions', () => {
 
     expect(inline.map(action => action.id)).toEqual([
       'accept',
-      'waitlist',
       'missing-info',
       'pull',
       'reject',
@@ -77,7 +76,7 @@ describe('EntryStatusPopover', () => {
     render(
       <EntryStatusPopover
         entry={makeEntry()}
-        className="Novice A"
+        entryClassName="Novice A"
         onStatusChange={onStatusChange}
       />
     );
@@ -104,7 +103,7 @@ describe('EntryStatusPopover', () => {
     render(
       <EntryStatusPopover
         entry={makeEntry()}
-        className="Novice A"
+        entryClassName="Novice A"
         onStatusChange={onStatusChange}
       />
     );

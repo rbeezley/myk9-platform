@@ -177,12 +177,18 @@ export function EntryManagementCockpit({
   ) => {
     const entry = entries.find(candidate => candidate.id === entryId);
     const statusSaved = await onStatusChange(entryId, status, withdrawalReason);
-    if (!entry || statusSaved === false || !entry.registrationId) return;
-    if (status !== EntryStatus.ACCEPTED && status !== EntryStatus.WAITLIST) return;
-    lifecycleEmails.openDecisionPrompt(
-      { ...entry, entryStatus: status },
-      status === EntryStatus.ACCEPTED ? 'accepted' : 'waitlisted'
-    );
+    if (
+      entry &&
+      statusSaved !== false &&
+      entry.registrationId &&
+      (status === EntryStatus.ACCEPTED || status === EntryStatus.WAITLIST)
+    ) {
+      lifecycleEmails.openDecisionPrompt(
+        { ...entry, entryStatus: status },
+        status === EntryStatus.ACCEPTED ? 'accepted' : 'waitlisted'
+      );
+    }
+    return statusSaved;
   };
 
   const selectedEntries = cockpit.selection.selectedItems.flatMap(group => group.entries);

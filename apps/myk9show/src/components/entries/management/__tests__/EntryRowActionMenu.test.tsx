@@ -67,7 +67,7 @@ describe('EntryRowActionMenu', () => {
     await screen.findByRole('menu');
 
     expect(screen.getByRole('menuitem', { name: /accept entry/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /move to waitlist/i })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /move to waitlist/i })).not.toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /remove entry/i })).toBeInTheDocument();
     expect(
       screen.queryByRole('menuitem', { name: /check in all classes/i })

@@ -1,4 +1,6 @@
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
+import { isPullRefundSchemaUnavailable } from '@/features/payments/pullRefundSchemaCompatibility';
+import type { SecretaryEntry } from './secretaryTypes';
 
 export interface SecretaryPullMetadata {
   id: string;
@@ -7,7 +9,7 @@ export interface SecretaryPullMetadata {
   refund_decided_at: string | null;
 }
 
-const SECRETARY_ENTRIES_SELECT = `
+const SECRETARY_ENTRIES_BASE_SELECT = `
         id,
         dog_id,
         class_id,
@@ -41,8 +43,6 @@ const SECRETARY_ENTRIES_SELECT = `
         refund_amount,
         refunded_at,
         stripe_payment_intent_id,
-        refund_decision,
-        refund_decided_at,
         registration_id,
         handler_person:handler_id (
           id,
@@ -86,17 +86,28 @@ const SECRETARY_ENTRIES_SELECT = `
         )
       `;
 
+const SECRETARY_ENTRIES_SELECT = `${SECRETARY_ENTRIES_BASE_SELECT},
+        refund_decision,
+        refund_decided_at`;
+
 export async function postgrestGetSecretaryEntriesForShow(
   showId: string,
   startTime: number,
   operation: string
-) {
-  const { data, error } = await supabase
-    .from('entries')
-    .select(SECRETARY_ENTRIES_SELECT)
-    .eq('show_id', showId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true });
+): Promise<{ data: SecretaryEntry[]; error: null }> {
+  const runSelect = (includeRefundDecision: boolean) =>
+    supabase
+      .from('entries')
+      .select(includeRefundDecision ? SECRETARY_ENTRIES_SELECT : SECRETARY_ENTRIES_BASE_SELECT)
+      .eq('show_id', showId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true });
+
+  let response = await runSelect(true);
+  if (isPullRefundSchemaUnavailable(response.error)) {
+    response = await runSelect(false);
+  }
+  const { data, error } = response;
 
   const duration = Date.now() - startTime;
   logQuery('entries', operation, duration, error?.message);
@@ -105,7 +116,7 @@ export async function postgrestGetSecretaryEntriesForShow(
     throw createDatabaseError(error, 'entries', operation);
   }
 
-  return { data: data || [], error: null };
+  return { data: (data ?? []) as unknown as SecretaryEntry[], error: null };
 }
 
 /** Online-only reconciliation metadata layered over the offline entry replica. */

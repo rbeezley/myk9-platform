@@ -1,11 +1,11 @@
 import { screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { PullReconciliationActions } from '../PullReconciliationActions';
 
-const denyPullRefundDecision = vi.fn().mockResolvedValue(undefined);
+const denyPullRefundDecision = vi.fn().mockResolvedValue('saved');
 vi.mock('@/features/payments/denyPullRefundDecision', () => ({
   denyPullRefundDecision: (...args: unknown[]) => denyPullRefundDecision(...args),
 }));
@@ -37,6 +37,10 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
 }
 
 describe('PullReconciliationActions', () => {
+  beforeEach(() => {
+    denyPullRefundDecision.mockReset().mockResolvedValue('saved');
+  });
+
   it('suggests refund before close and denial after close', () => {
     const { rerender } = render(
       <PullReconciliationActions entry={makeEntry()} onOpenRefund={vi.fn()} onResolved={vi.fn()} />
@@ -102,5 +106,22 @@ describe('PullReconciliationActions', () => {
 
     await waitFor(() => expect(denyPullRefundDecision).toHaveBeenCalledWith('entry-1'));
     expect(onResolved).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables denial when the migration-backed RPC is unavailable', async () => {
+    denyPullRefundDecision.mockResolvedValueOnce('unavailable');
+    const onResolved = vi.fn();
+    const { user } = render(
+      <PullReconciliationActions
+        entry={makeEntry()}
+        onOpenRefund={vi.fn()}
+        onResolved={onResolved}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Deny refund' }));
+
+    expect(await screen.findByRole('button', { name: 'Deny unavailable' })).toBeDisabled();
+    expect(onResolved).not.toHaveBeenCalled();
   });
 });

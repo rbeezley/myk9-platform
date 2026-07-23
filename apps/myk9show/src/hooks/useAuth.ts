@@ -130,6 +130,13 @@ export function useAuth() {
           });
         }
       }
+
+      // Clear the cached per-user appearance preferences on ANY sign-out —
+      // explicit signOut, suspension-forced, session expiry, or another tab —
+      // so the next user on a shared browser doesn't inherit them.
+      if (_event === 'SIGNED_OUT') {
+        clearAppearanceCache();
+      }
     });
 
     return () => {

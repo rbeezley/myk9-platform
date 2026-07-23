@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';
@@ -9,6 +9,7 @@ import {
   type TurnstileChallengeHandle,
 } from '@/components/security/TurnstileChallenge';
 import { getTurnstileSiteKey } from '@/config/turnstile';
+import { buildSignInPathForRedirect, getSignInReturnTo } from './SignInPage.helpers';
 
 /** Seconds to disable the resend button, aligned with Supabase's email rate limit. */
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -39,10 +40,14 @@ const SignUp: React.FC = () => {
   const turnstileRef = useRef<TurnstileChallengeHandle>(null);
   const submissionPendingRef = useRef(false);
   const resendPendingRef = useRef(false);
+  const [searchParams] = useSearchParams();
 
   const isLoading = loading || authLoading;
   const turnstileSiteKey = getTurnstileSiteKey();
   const captchaRequired = turnstileSiteKey.length > 0;
+  const hasRedirectTarget = searchParams.has('redirectTo') || searchParams.has('returnTo');
+  const signUpReturnTo = getSignInReturnTo(searchParams);
+  const signInPath = hasRedirectTarget ? buildSignInPathForRedirect(signUpReturnTo) : '/sign-in';
 
   // Tick the resend cooldown down to zero. setState lives inside the interval
   // callback with a functional updater, so it doesn't trip the repo's
@@ -63,9 +68,17 @@ const SignUp: React.FC = () => {
     try {
       if (captchaRequired) {
         if (!captchaToken) return;
-        await resendConfirmationEmail(email, captchaToken);
+        if (hasRedirectTarget) {
+          await resendConfirmationEmail(email, captchaToken, signUpReturnTo);
+        } else {
+          await resendConfirmationEmail(email, captchaToken);
+        }
       } else {
-        await resendConfirmationEmail(email);
+        if (hasRedirectTarget) {
+          await resendConfirmationEmail(email, undefined, signUpReturnTo);
+        } else {
+          await resendConfirmationEmail(email);
+        }
       }
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
       notifications.success('Confirmation email resent', {
@@ -86,7 +99,7 @@ const SignUp: React.FC = () => {
     setError('');
     setGoogleLoading(true);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(hasRedirectTarget ? signUpReturnTo : undefined);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Google sign-in failed');
       setGoogleLoading(false);
@@ -126,9 +139,17 @@ const SignUp: React.FC = () => {
         roles: selectedRoles,
       };
       if (captchaRequired) {
-        await signUp(email, password, metadata, captchaToken ?? undefined);
+        if (hasRedirectTarget) {
+          await signUp(email, password, metadata, captchaToken ?? undefined, signUpReturnTo);
+        } else {
+          await signUp(email, password, metadata, captchaToken ?? undefined);
+        }
       } else {
-        await signUp(email, password, metadata);
+        if (hasRedirectTarget) {
+          await signUp(email, password, metadata, undefined, signUpReturnTo);
+        } else {
+          await signUp(email, password, metadata);
+        }
       }
       setEmailSent(true);
     } catch (error: unknown) {
@@ -181,7 +202,7 @@ const SignUp: React.FC = () => {
                 ? `Resend email in ${resendCooldown}s`
                 : 'Resend email'}
           </button>
-          <Link to="/sign-in" className="text-primary hover:underline font-medium">
+          <Link to={signInPath} className="text-primary hover:underline font-medium">
             Back to sign in
           </Link>
         </div>
@@ -203,7 +224,7 @@ const SignUp: React.FC = () => {
         <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">Create an account</h2>
         <div className="text-muted-foreground text-center mb-6">
           Already have an account?{' '}
-          <Link to="/sign-in" className="text-primary hover:underline font-medium">
+          <Link to={signInPath} className="text-primary hover:underline font-medium">
             Sign in
           </Link>
         </div>

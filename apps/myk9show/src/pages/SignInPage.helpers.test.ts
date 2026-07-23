@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildSignInPathForRedirect,
+  buildSignUpPathForRedirect,
   getShowEntryRedirectShowId,
   getSignInReturnTo,
   normalizeSignInRedirect,
@@ -30,6 +31,12 @@ describe('sign-in redirect helpers', () => {
   it('builds a sign-in URL with redirectTo for the protected route target', () => {
     expect(buildSignInPathForRedirect('/shows/show-1/register?dog=dog-1')).toBe(
       '/sign-in?redirectTo=%2Fshows%2Fshow-1%2Fregister%3Fdog%3Ddog-1'
+    );
+  });
+
+  it('builds a sign-up URL with returnTo for the post-confirmation target', () => {
+    expect(buildSignUpPathForRedirect('/?onboarding=true#get-started')).toBe(
+      '/sign-up?returnTo=%2F%3Fonboarding%3Dtrue%23get-started'
     );
   });
 

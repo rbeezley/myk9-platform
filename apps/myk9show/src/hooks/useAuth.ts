@@ -19,6 +19,12 @@ import type { User } from '@supabase/supabase-js';
 
 const SIGN_IN_TIMEOUT_MS = 15_000;
 
+function buildAuthCallbackUrl(redirectTo?: string): string {
+  const callbackUrl = new URL('/auth/callback', window.location.origin);
+  if (redirectTo) callbackUrl.searchParams.set('redirectTo', redirectTo);
+  return callbackUrl.toString();
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
@@ -148,7 +154,8 @@ export function useAuth() {
       email: string,
       password: string,
       metadata?: { firstName?: string; lastName?: string; roles?: string[] },
-      captchaToken?: string
+      captchaToken?: string,
+      redirectTo?: string
     ) => {
       const { error } = await supabase.auth.signUp({
         email,
@@ -160,6 +167,7 @@ export function useAuth() {
             ...(metadata?.roles?.length ? { intended_roles: metadata.roles } : {}),
           },
           ...(captchaToken ? { captchaToken } : {}),
+          ...(redirectTo ? { emailRedirectTo: buildAuthCallbackUrl(redirectTo) } : {}),
         },
       });
 
@@ -182,16 +190,24 @@ export function useAuth() {
    * @param {string} email - The address that registered but hasn't confirmed
    * @throws {AuthError} If the resend fails (e.g. rate-limited or unknown email)
    */
-  const resendConfirmationEmail = useCallback(async (email: string, captchaToken?: string) => {
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email,
-      ...(captchaToken ? { options: { captchaToken } } : {}),
-    });
-    if (error) {
-      throw error;
-    }
-  }, []);
+  const resendConfirmationEmail = useCallback(
+    async (email: string, captchaToken?: string, redirectTo?: string) => {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        ...((captchaToken || redirectTo) && {
+          options: {
+            ...(captchaToken ? { captchaToken } : {}),
+            ...(redirectTo ? { emailRedirectTo: buildAuthCallbackUrl(redirectTo) } : {}),
+          },
+        }),
+      });
+      if (error) {
+        throw error;
+      }
+    },
+    []
+  );
 
   /**
    * Signs in a user with email and password

@@ -7,8 +7,8 @@
 
 ## 2. Primary-Work Decision Actions
 
-- [ ] 2.1 Write failing component tests for `EntryFocusedRegistration`: Accept/Reject buttons render for needs-review registrations, call the same handlers as the overflow menu with the same entry ids, and do not render when no action is needed; "no action needed" copy renders for fully processed registrations; singular verb agreement.
-- [ ] 2.2 Implement the panel buttons and the no-action state, wiring the existing bulk/status handlers (no new mutation paths).
+- [x] 2.1 Write failing component tests for `EntryFocusedRegistration`: Accept/Reject buttons render for needs-review registrations, call the same handlers as the overflow menu with the same entry ids, and do not render when no action is needed; "no action needed" copy renders for fully processed registrations; singular verb agreement.
+- [x] 2.2 Implement the panel buttons and the no-action state, wiring the existing bulk/status handlers (no new mutation paths).
 - [ ] 2.3 Verify in-browser (dev server): accept from panel updates queue chips live; overflow menu still works.
 
 ## 3. Status Menu Marking and Revert Guard

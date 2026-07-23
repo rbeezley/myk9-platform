@@ -126,10 +126,13 @@ describe('AskQPanel', () => {
     act(() => useAskQPanelStore.getState().open());
     const { user } = render(<AskQPanel />, { initialRoute: '/exhibitor/entries' });
 
-    await user.type(
-      screen.getByPlaceholderText('Ask about using myK9Show...'),
-      'Where are my entries?'
-    );
+    // Set the value instantly with fireEvent.change rather than user.type: the
+    // per-character async typing races the escalation assertion under CI load
+    // (this file's historic flake). The reliable sibling tests use the same
+    // instant-change pattern.
+    fireEvent.change(screen.getByPlaceholderText('Ask about using myK9Show...'), {
+      target: { value: 'Where are my entries?' },
+    });
     await user.click(screen.getByRole('button', { name: 'Send query' }));
 
     expect(
@@ -242,10 +245,11 @@ describe('AskQPanel', () => {
     // committed `mode` via a captured closure; without this the click can fire against a
     // stale render where mode is still null and `questionMode: 'show-data'` is dropped.
     await screen.findByRole('button', { name: 'This show', pressed: true });
-    await user.type(
-      screen.getByPlaceholderText('Ask about rules, your results, or the app...'),
-      'Schedule?'
-    );
+    // Instant fireEvent.change instead of per-character user.type — same CI
+    // race avoidance as the escalation test above.
+    fireEvent.change(screen.getByPlaceholderText('Ask about rules, your results, or the app...'), {
+      target: { value: 'Schedule?' },
+    });
     await user.click(screen.getByRole('button', { name: 'Send query' }));
 
     await waitFor(() => {

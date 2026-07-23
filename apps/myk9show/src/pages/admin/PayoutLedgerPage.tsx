@@ -250,7 +250,7 @@ function RefundDecisionAdvisory({ rows }: { rows: LedgerRow[] }) {
             <Link
               key={row.showId}
               className="font-medium text-primary underline underline-offset-4"
-              to={`/shows/${encodeURIComponent(row.showId)}/entry-management?attention=pulled`}
+              to={`/shows/${encodeURIComponent(row.showId)}/entry-management?tab=exceptions&exception=pulls`}
               aria-label={`Review pulled entries for ${row.showName}`}
             >
               {row.showName} ({row.unresolvedRefundDecisionCount})

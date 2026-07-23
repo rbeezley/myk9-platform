@@ -99,7 +99,7 @@ describe('PayoutLedgerPage', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: /review pulled entries for spring trial/i })
-    ).toHaveAttribute('href', '/shows/s1/entry-management?attention=pulled');
+    ).toHaveAttribute('href', '/shows/s1/entry-management?tab=exceptions&exception=pulls');
     expect(screen.getByText('Spring Trial')).toBeInTheDocument();
   });
 

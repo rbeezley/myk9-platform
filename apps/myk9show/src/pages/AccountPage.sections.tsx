@@ -15,6 +15,10 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { deleteUser } from '@/services/database/users/reads';
 import { revokeSelfAuthIdentity } from '@/services/auth/revokeSelfAuthIdentity';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { Award } from 'lucide-react';
+import { SubscriptionManager } from '@/components/subscription/SubscriptionManager';
+import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
+import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 
 const DELETE_CONFIRMATION_TEXT = 'DELETE';
 const PENDING_SELF_DELETE_REVOCATION_KEY_PREFIX = 'myk9:pending-self-delete-auth-revocation';
@@ -205,6 +209,33 @@ export function ProfileSection() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+export function BillingSection() {
+  const { isEarlyAdopter } = useSubscriptionGate();
+  const { profile } = useExhibitorProfile();
+  const foundingUntil = profile?.person?.early_adopter_until;
+
+  return (
+    <div className="space-y-6">
+      {/* Founding-member context — real, per-user, and reassuring. Mirrors the
+          banner on the standalone /subscription page. */}
+      {isEarlyAdopter && foundingUntil && (
+        <Alert className="border-amber-400/60">
+          <Award className="h-4 w-4 text-amber-500" />
+          <AlertDescription>
+            <span className="font-semibold">Founding member</span> — premium is on us until{' '}
+            {new Date(foundingUntil).toLocaleDateString()}. Thank you for being here early.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Reuse the standalone subscription manager. `showUsage={false}` hides the
+          placeholder "Usage This Month" card so the account page shows only
+          real, verified billing data. */}
+      <SubscriptionManager showUsage={false} />
     </div>
   );
 }

@@ -42,7 +42,17 @@ interface Invoice {
   invoicePdf: string;
 }
 
-export function SubscriptionManager() {
+interface SubscriptionManagerProps {
+  /**
+   * Show the "Usage This Month" summary card. Currently rendered with
+   * placeholder figures, so surfaces that must not display unverified data
+   * (e.g. the account page's Plan & billing section) pass `false`. Defaults to
+   * `true` to preserve the standalone /subscription page's existing layout.
+   */
+  showUsage?: boolean;
+}
+
+export function SubscriptionManager({ showUsage = true }: SubscriptionManagerProps = {}) {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -343,31 +353,33 @@ export function SubscriptionManager() {
       </Card>
 
       {/* Usage Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Usage This Month</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold">12</p>
-              <p className="text-sm text-muted-foreground">Shows Created</p>
+      {showUsage && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Usage This Month</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold">12</p>
+                <p className="text-sm text-muted-foreground">Shows Created</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold">45</p>
+                <p className="text-sm text-muted-foreground">Dogs Registered</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold">89</p>
+                <p className="text-sm text-muted-foreground">Entries Processed</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold">156</p>
+                <p className="text-sm text-muted-foreground">Reports Generated</p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold">45</p>
-              <p className="text-sm text-muted-foreground">Dogs Registered</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold">89</p>
-              <p className="text-sm text-muted-foreground">Entries Processed</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold">156</p>
-              <p className="text-sm text-muted-foreground">Reports Generated</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </motion.div>
   );
 }

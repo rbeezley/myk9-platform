@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Bell,
   CheckCircle2,
+  CreditCard,
   Download,
   Lock,
   Loader2,
@@ -33,17 +34,20 @@ import { DataSettings } from '@/components/preferences/DataSettings';
 import { InstallAppSettings } from '@/components/preferences/InstallAppSettings';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { ProfileSection, DeleteSection } from './AccountPage.sections';
+import { ProfileSection, BillingSection, DeleteSection } from './AccountPage.sections';
 import type { Section, NavGroup } from './AccountPage.types';
 import type { PreferencesUpdate } from '@/types/user-preferences';
 import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 
-const NON_PREF_SECTIONS: ReadonlySet<Section> = new Set(['profile', 'delete']);
+const NON_PREF_SECTIONS: ReadonlySet<Section> = new Set(['profile', 'billing', 'delete']);
 
 const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Your account',
-    items: [{ key: 'profile', label: 'Profile', icon: User }],
+    items: [
+      { key: 'profile', label: 'Profile', icon: User },
+      { key: 'billing', label: 'Plan & billing', icon: CreditCard },
+    ],
   },
   {
     label: 'Display',
@@ -207,6 +211,8 @@ export default function AccountPage() {
         );
       case 'notifications':
         return <NotificationSettings />;
+      case 'billing':
+        return <BillingSection />;
       case 'security':
         return <SecuritySettings />;
       case 'data':

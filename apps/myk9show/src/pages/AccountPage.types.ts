@@ -1,7 +1,14 @@
 import type React from 'react';
 
 export type Section =
-  'profile' | 'appearance' | 'notifications' | 'security' | 'data' | 'install' | 'delete';
+  | 'profile'
+  | 'billing'
+  | 'appearance'
+  | 'notifications'
+  | 'security'
+  | 'data'
+  | 'install'
+  | 'delete';
 
 export interface NavItem {
   key: Section;

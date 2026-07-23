@@ -54,6 +54,8 @@ The menu marks the entry's current status (check indicator + disabled row). If t
 
 For managers, `ShowDetailTabs` renders a slim summary (total entries, needs-review count, payment-due count — data already available from the cockpit hooks' underlying query/props) with one primary "Open Entry Management" button and no duplicate table. The `EntriesTab` flat-table remains only for the anon/public audience path it already serves; if analysis during implementation shows managers were the only consumer, delete the manager branch outright (deletion preferred over dormancy).
 
+> **Implementation finding (5.1):** the anon branch inside `EntriesTab` was unreachable — its sole importer mounts it behind `canManageShow` — so the dead anon branch was deleted per the fallback clause; `getPublicEntriesByShow` keeps its live consumer in `useEntriesDatabase`. Needs-review/payment-due counts were not cheaply derivable in that context, so the summary shows total entries only (per the tasks' fallback).
+
 ## Risks / Trade-offs
 
 - **Duplicate action paths (panel + menu)** — mitigated by both calling the same handlers; tests assert one shared implementation.

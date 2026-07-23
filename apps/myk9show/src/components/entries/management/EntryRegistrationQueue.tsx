@@ -2,6 +2,7 @@ import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { PaymentStatus } from '@/types/show-registration-types';
 import type { OperationalViewDensity } from '@/features/operational-views/operationalViews';
 import {
@@ -26,7 +27,6 @@ interface EntryRegistrationQueueProps {
   pageCount: number;
   onPageChange: (pageIndex: number) => void;
   density?: OperationalViewDensity;
-  compact?: boolean;
 }
 
 function formatSubmittedAt(value: Date): string {
@@ -76,8 +76,12 @@ export function EntryRegistrationQueue({
   pageCount,
   onPageChange,
   density = 'comfortable',
-  compact = false,
 }: EntryRegistrationQueueProps) {
+  // Matches the `md:` Tailwind breakpoint (768px) — driven by actual viewport
+  // width, not the cockpit's measured content-width `compact` state, so a
+  // wide viewport with a narrower content column (e.g. sidebar layout) still
+  // keeps the desktop grid.
+  const compact = !useMediaQuery('(min-width: 768px)', true);
   return (
     <section
       className="overflow-hidden rounded-xl border bg-card shadow-sm"

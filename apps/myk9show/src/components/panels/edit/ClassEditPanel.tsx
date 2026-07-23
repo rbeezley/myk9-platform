@@ -61,21 +61,6 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
     return currentShow?.assignedJudges || [];
   }, [shows, showId]);
 
-  const handleInputChange = useCallback(
-    (field: keyof TrialClassEditFormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.type === 'number' ? parseInt(e.target.value) || 0 : e.target.value;
-      form?.setValue(field, value);
-    },
-    [form]
-  );
-
-  const handleBlur = useCallback(
-    (field: keyof TrialClassEditFormData) => () => {
-      form?.touchField(field);
-    },
-    [form]
-  );
-
   const handleSelectChange = useCallback(
     (field: keyof TrialClassEditFormData) => (value: string) => {
       form?.setValue(field, value);

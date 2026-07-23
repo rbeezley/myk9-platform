@@ -46,4 +46,4 @@ This change does not duplicate an existing page. It reshapes the existing canoni
 - Reuses `useEntryManagementData`, `useEntryManagementActions`, existing exception components, lifecycle email/payment dialogs, shared entry action definitions, and replication-backed Entry mutations.
 - Removes the production need for the throwaway prototype route after browser parity is verified.
 - Adds a small consistent focused-row treatment to the existing Show Desk queue without changing Show Desk data ownership or actions.
-- Supersedes the unimplemented `openspec/changes/entry-peek-pane` change; that change should be archived or removed after this implementation is accepted.
+- Supersedes the unimplemented peek-pane change, archived at `openspec/changes/archive/2026-07-22-entry-peek-pane/` without syncing its obsolete delta spec.

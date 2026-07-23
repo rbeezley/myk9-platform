@@ -27,6 +27,7 @@ interface UseEntryManagementCockpitOptions {
   groups: ShowRegistrationGroup[];
   state: EntryManagementCockpitState;
   trialClassIds?: readonly string[];
+  canValidateFocus?: boolean;
 }
 
 const getGroupKey = (group: ShowRegistrationGroup) => group.groupKey;
@@ -35,6 +36,7 @@ export function useEntryManagementCockpit({
   groups,
   state,
   trialClassIds,
+  canValidateFocus = true,
 }: UseEntryManagementCockpitOptions) {
   const [, setSearchParams] = useSearchParams();
   const viewKey = `${state.tab}|${state.exception}|${state.queue}|${state.search}|${state.trialId ?? ''}|${state.classId ?? ''}`;
@@ -88,9 +90,9 @@ export function useEntryManagementCockpit({
     builtPage.effectiveGroups.some(group => group.groupKey === state.registrationKey);
 
   useEffect(() => {
-    if (focusedGroupIsVisible) return;
+    if (!canValidateFocus || focusedGroupIsVisible) return;
     setSearchParams(previous => writeCockpitFocus(previous, null), { replace: true });
-  }, [focusedGroupIsVisible, setSearchParams]);
+  }, [canValidateFocus, focusedGroupIsVisible, setSearchParams]);
 
   const updateParams = useCallback(
     (writer: (previous: URLSearchParams) => URLSearchParams) => {

@@ -10,7 +10,9 @@ export interface EntryCockpitResponsiveState {
 }
 
 export type EntryCockpitResponsiveAction =
-  { type: 'measure'; contentWidth: number } | { type: 'open-detail' } | { type: 'close-detail' };
+  | { type: 'measure'; contentWidth: number; hasFocusedDetail?: boolean }
+  | { type: 'open-detail' }
+  | { type: 'close-detail' };
 
 export const initialEntryCockpitResponsiveState: EntryCockpitResponsiveState = {
   measured: false,
@@ -31,7 +33,16 @@ export function entryCockpitResponsiveReducer(
 
   const compact = action.contentWidth < ENTRY_COCKPIT_COMPACT_WIDTH;
   if (!compact) return { measured: true, compact: false, detailOpen: false };
-  if (!state.measured) return { measured: true, compact: true, detailOpen: false };
+  if (!state.measured) {
+    return {
+      measured: true,
+      compact: true,
+      detailOpen: action.hasFocusedDetail === true,
+    };
+  }
+  if (state.compact && action.hasFocusedDetail === false && state.detailOpen) {
+    return { measured: true, compact: true, detailOpen: false };
+  }
   if (!state.compact) return { measured: true, compact: true, detailOpen: true };
   return { ...state, measured: true, compact: true };
 }

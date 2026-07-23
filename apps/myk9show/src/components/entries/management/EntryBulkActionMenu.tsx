@@ -1,7 +1,7 @@
-import { RowActionMenu, toBulkActions } from '@/components/ui/RowActionMenu';
+import { RowActionMenu, type RowAction } from '@/components/ui/RowActionMenu';
 import type { EntryStatus } from '@/types/show-registration-types';
 import type { BulkActionResult, EntryManagementEntry } from '@/types/entry-management-types';
-import { entryActions } from './entryActions';
+import { getEntryBulkActions } from './entryBulkActions';
 
 interface EntryBulkActionMenuProps {
   selectedEntries: EntryManagementEntry[];
@@ -17,6 +17,7 @@ interface EntryBulkActionMenuProps {
   onClear: () => void;
   /** Disable the menu while a bulk batch is in flight (spec: controls disabled until settle). */
   disabled?: boolean;
+  actions?: RowAction[];
 }
 
 export function EntryBulkActionMenu({
@@ -25,12 +26,17 @@ export function EntryBulkActionMenu({
   onBulkCheckIn,
   onClear,
   disabled = false,
+  actions,
 }: EntryBulkActionMenuProps) {
-  const actions = toBulkActions(
-    selectedEntries,
-    { onBulkStatusChange, onBulkCheckIn, onClear },
-    entryActions
-  );
+  const resolvedActions =
+    actions ?? getEntryBulkActions(selectedEntries, onBulkStatusChange, onBulkCheckIn, onClear);
 
-  return <RowActionMenu actions={actions} size="touch" label="Bulk actions" disabled={disabled} />;
+  return (
+    <RowActionMenu
+      actions={resolvedActions}
+      size="touch"
+      label="Bulk actions"
+      disabled={disabled}
+    />
+  );
 }

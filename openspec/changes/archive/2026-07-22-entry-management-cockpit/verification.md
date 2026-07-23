@@ -2,11 +2,11 @@
 
 ### Summary
 
-| Dimension | Status |
-| --- | --- |
-| Completeness | 32/34 tasks complete; review/merge and archive delivery gates remain |
-| Correctness | 15/15 requirements mapped to implementation and regression coverage |
-| Coherence | Approved balanced cockpit, canonical action reuse, and owner-surface links followed |
+| Dimension    | Status                                                                              |
+| ------------ | ----------------------------------------------------------------------------------- |
+| Completeness | 34/34 tasks complete; implementation and delivery gates passed                      |
+| Correctness  | 15/15 requirements mapped to implementation and regression coverage                 |
+| Coherence    | Approved balanced cockpit, canonical action reuse, and owner-surface links followed |
 
 ### Implementation evidence
 
@@ -26,12 +26,24 @@
 - A synthetic 1,000-child-Entry projection/search exercise passed within the local performance threshold.
 - Strict OpenSpec validation and `git diff --check` passed.
 
-### Critical delivery gates before archive
+### Delivery gates completed
 
-1. Complete task 7.2: wait for required CI/review and obtain explicit merge approval.
-2. Complete task 7.3: after merge, archive/sync OpenSpec and clean up the branch/worktree.
+1. PR #1419 passed required CI, accessibility, and deterministic E2E smoke checks before merging to `main`.
+2. The product owner explicitly approved the merge, and the merged state was verified.
+3. The feature branch/worktree were removed, delta specifications were synced, and the completed change was archived.
 
-These are expected delivery-state gates, not missing product behavior. The implementation is ready for commit and PR, but the change is not ready to archive until they complete.
+### Archive follow-up verification
+
+Independent archive review found presentation gaps that were narrower than the approved cockpit scope but contradicted its acceptance criteria. The archive cleanup therefore also verified and corrected:
+
+- Compact registration deep links remain focused through the initial empty-replica sync and open the detail view at 800px, while an ordinary narrow load stays on the queue; returning to the queue remains stable across remeasurement, browser Back, and invalid-focus normalization.
+- Focus is validated after authoritative empty-show hydration without treating an initial cold-replica empty result as final.
+- The floating selection toolbar exposes the first safe eligible action, retains overflow actions and clear-selection, respects the bottom safe area, and reserves page clearance while visible.
+- Focused registration sections follow the approved Entries, Payment, then Communication/history hierarchy.
+- Secretary documentation sends waitlist work to Exceptions, uses the shipped **Accepted** and **Not Accepted** status labels, and names the focused registration email control precisely without promising an automatic rejection email.
+- Screenshot S-16 now requests the child Entry action and is marked for recapture.
+
+Focused Vitest coverage (51 tests across seven files), myK9Show TypeScript checking, myK9Show lint, and an authenticated seeded-show browser re-walk passed after these corrections. The browser re-walk covered queue selection, the visible bulk action, focused-section order, and a compact direct URL surviving replica hydration.
 
 ### Warnings
 

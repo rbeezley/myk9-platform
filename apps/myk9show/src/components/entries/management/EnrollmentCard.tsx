@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp, Receipt, MoreHorizontal, Mail } from 'lucide-react';
+import { ChevronDown, ChevronUp, Receipt, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/utils/format';
 import { EntryListCard } from './EntryListCard';
@@ -34,6 +34,7 @@ import { EnrollmentPartialPaymentDialog } from './EnrollmentPartialPaymentDialog
 import { EnrollmentRefundDialog } from './EnrollmentRefundDialog';
 import { EnrollmentEmailDialog } from './EnrollmentEmailDialog';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
+import { EnrollmentCommunicationSection } from './EnrollmentCommunicationSection';
 
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   group,
@@ -132,12 +133,139 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
 
   return (
     <Card className="border border-border/60">
-      <CardHeader className="py-3 px-4">
+      <CardContent className="p-0">
+        <section aria-labelledby="focused-registration-entries">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <div>
+              <h3 id="focused-registration-entries" className="font-semibold">
+                Entries
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {group.handlerName}
+                {group.confirmationNumber && (
+                  <> · {formatConfirmationNumberLabel(group.confirmationNumber)}</>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" className="min-h-11 gap-1 px-3">
+                    Actions
+                    <MoreHorizontal className="h-4 w-4" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() =>
+                      onBulkStatusChange(
+                        group.entries.map(entry => entry.id),
+                        EntryStatus.ACCEPTED
+                      )
+                    }
+                  >
+                    Accept All
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      onBulkStatusChange(
+                        group.entries.map(entry => entry.id),
+                        EntryStatus.REJECTED
+                      )
+                    }
+                  >
+                    Reject All
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      onBulkStatusChange(
+                        group.entries.map(entry => entry.id),
+                        EntryStatus.MISSING_INFO
+                      )
+                    }
+                  >
+                    Missing Info
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onBulkCheckIn(group.entries.map(entry => entry.id))}
+                  >
+                    Check In All
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-11 w-11"
+                onClick={() => setExpanded(value => !value)}
+                aria-label={expanded ? 'Collapse' : 'Expand'}
+              >
+                {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+
+          {expanded && (
+            <div className="space-y-3 border-t border-border/50 px-4 py-3">
+              {dogGroups.map(dogGroup => {
+                const dogHasSearchMatch = dogGroup.entries.some(entry =>
+                  matchingEntryIds?.has(entry.id)
+                );
+                return (
+                  <section
+                    key={dogGroup.dogKey}
+                    className={cn(
+                      'border-t border-border/50 pt-3 first:border-t-0 first:pt-0',
+                      dogHasSearchMatch && 'rounded-lg bg-primary/5 ring-1 ring-primary/30'
+                    )}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <h4 className="text-sm font-semibold">{dogGroup.dogName}</h4>
+                      <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {dogHasSearchMatch && <span className="text-primary">Search match</span>}
+                        <span>
+                          {dogGroup.entries.length}{' '}
+                          {dogGroup.entries.length === 1 ? 'entry' : 'entries'}
+                        </span>
+                      </span>
+                    </div>
+                    <EntryListCard
+                      entries={dogGroup.entries}
+                      matchingEntryIds={matchingEntryIds}
+                      onStatusChange={onStatusChange}
+                      onEntryRefunded={onEntryRefunded}
+                      onCheckInStatusChange={onCheckInStatusChange}
+                      onOpenArmbandDialog={onOpenArmbandDialog}
+                      onOpenEditEntry={onOpenEditEntry}
+                      onCompEntry={onCompEntry}
+                      onUncompEntry={onUncompEntry}
+                      onRemoveEntry={onRemoveEntry}
+                      showCheckInStatus={showCheckInStatus}
+                      hidePaymentBadge={true}
+                      hideHeader={true}
+                      emailStatusMap={emailStatusMap}
+                      onResendEmail={onResendEmail}
+                      isResendDisabled={isResendDisabled}
+                      lifecycleDecisionEmailStatusMap={lifecycleDecisionEmailStatusMap}
+                      onReviewLifecycleEmail={onReviewLifecycleEmail}
+                      onPrepareCorrectionEmail={onPrepareCorrectionEmail}
+                    />
+                  </section>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </CardContent>
+
+      <CardHeader className="border-t border-border/60 px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <Receipt className="h-4 w-4 text-muted-foreground shrink-0" />
             <div>
-              <span className="font-semibold text-sm">{group.handlerName}</span>
+              <h3 className="font-semibold">Payment</h3>
+              <span className="text-sm text-muted-foreground">{group.handlerName}</span>
               {group.confirmationNumber && (
                 <span className="text-xs text-muted-foreground ml-2">
                   {formatConfirmationNumberLabel(group.confirmationNumber)}
@@ -151,7 +279,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5">
               {/* Manual payment recording only exists for enrollment (mail-in)
                   groups. Online-checkout groups have no enrollment row, so the
@@ -261,151 +389,18 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                 </span>
               )}
             </div>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline" className="h-7 gap-1 text-xs px-2">
-                  Actions
-                  <MoreHorizontal className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() =>
-                    onBulkStatusChange(
-                      group.entries.map(e => e.id),
-                      EntryStatus.ACCEPTED
-                    )
-                  }
-                >
-                  Accept All
-                </DropdownMenuItem>
-                {/* No "Waitlist All": real waitlisting is per-class with
-                    position/capacity tracked in `waitlist_entries` (see
-                    WaitlistManagementPage / useWaitListMutations). This bulk
-                    action only writes entry_status, which maps WAITLIST →
-                    'submitted' (the entry's pre-decision state), so it never
-                    creates membership and the entry stays Pending — same reason
-                    Lane 2.2 (#827) omitted bulk Waitlist from the table
-                    multi-select bar. */}
-                <DropdownMenuItem
-                  onClick={() =>
-                    onBulkStatusChange(
-                      group.entries.map(e => e.id),
-                      EntryStatus.REJECTED
-                    )
-                  }
-                >
-                  Reject All
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    onBulkStatusChange(
-                      group.entries.map(e => e.id),
-                      EntryStatus.MISSING_INFO
-                    )
-                  }
-                >
-                  Missing Info
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onBulkCheckIn(group.entries.map(e => e.id))}>
-                  Check In All
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {onSendDecisionEmail && enrollmentId && (
-              <div className="flex items-center gap-1.5">
-                {lastDecisionEmailedAt && (
-                  <span
-                    className="text-xs text-muted-foreground"
-                    title={new Date(lastDecisionEmailedAt).toLocaleString()}
-                  >
-                    Emailed {formatRelativeTime(new Date(lastDecisionEmailedAt))}
-                  </span>
-                )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 gap-1 text-xs px-2"
-                  onClick={() => {
-                    setEmailMessage('');
-                    setEmailDialogOpen(true);
-                  }}
-                  title="Send decision email to exhibitor"
-                >
-                  <Mail className="h-3 w-3" />
-                  Email Exhibitor
-                </Button>
-              </div>
-            )}
-
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0"
-              onClick={() => setExpanded(v => !v)}
-              aria-label={expanded ? 'Collapse' : 'Expand'}
-            >
-              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
           </div>
         </div>
       </CardHeader>
 
-      {expanded && (
-        <CardContent className={cn('pt-0 px-0 pb-2')}>
-          <div className="space-y-3">
-            {dogGroups.map(dogGroup => {
-              const dogHasSearchMatch = dogGroup.entries.some(entry =>
-                matchingEntryIds?.has(entry.id)
-              );
-              return (
-                <section
-                  key={dogGroup.dogKey}
-                  className={cn(
-                    'border-t border-border/50 px-4 pt-3 first:border-t-0 first:pt-0',
-                    dogHasSearchMatch && 'rounded-lg bg-primary/5 ring-1 ring-primary/30'
-                  )}
-                >
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-semibold">{dogGroup.dogName}</h3>
-                    <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {dogHasSearchMatch && <span className="text-primary">Search match</span>}
-                      <span>
-                        {dogGroup.entries.length}{' '}
-                        {dogGroup.entries.length === 1 ? 'entry' : 'entries'}
-                      </span>
-                    </span>
-                  </div>
-                  <EntryListCard
-                    entries={dogGroup.entries}
-                    matchingEntryIds={matchingEntryIds}
-                    onStatusChange={onStatusChange}
-                    onEntryRefunded={onEntryRefunded}
-                    onCheckInStatusChange={onCheckInStatusChange}
-                    onOpenArmbandDialog={onOpenArmbandDialog}
-                    onOpenEditEntry={onOpenEditEntry}
-                    onCompEntry={onCompEntry}
-                    onUncompEntry={onUncompEntry}
-                    onRemoveEntry={onRemoveEntry}
-                    showCheckInStatus={showCheckInStatus}
-                    hidePaymentBadge={true}
-                    hideHeader={true}
-                    emailStatusMap={emailStatusMap}
-                    onResendEmail={onResendEmail}
-                    isResendDisabled={isResendDisabled}
-                    lifecycleDecisionEmailStatusMap={lifecycleDecisionEmailStatusMap}
-                    onReviewLifecycleEmail={onReviewLifecycleEmail}
-                    onPrepareCorrectionEmail={onPrepareCorrectionEmail}
-                  />
-                </section>
-              );
-            })}
-          </div>
-        </CardContent>
-      )}
+      <EnrollmentCommunicationSection
+        lastDecisionEmailedAt={lastDecisionEmailedAt}
+        canSendDecisionEmail={Boolean(onSendDecisionEmail && enrollmentId)}
+        onEmail={() => {
+          setEmailMessage('');
+          setEmailDialogOpen(true);
+        }}
+      />
 
       <EnrollmentCheckPaymentDialog
         open={checkDialog.open}

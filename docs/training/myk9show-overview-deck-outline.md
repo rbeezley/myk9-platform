@@ -94,15 +94,16 @@
 
 ## Slide 7 — Secretary: Entry Management
 
-**Title:** Approve entries — or add them manually
-**Key message:** Online entries arrive ready to review. One click to approve; bulk-select for batches. Mail-in and walk-in entries can be added manually with payment recorded.
+**Title:** Review registrations — or add entries manually
+**Key message:** Online Show Registrations arrive in one focused work queue. Review one registration at a time or select several for bulk actions; mail-in and walk-in Entries can be added manually with payment recorded.
 **Talking points:**
-- Pending tab shows all entries awaiting decision
-- Approve, reject, or waitlist in one click (or bulk-select for mass approval)
+- Needs review is the safe default; robust search finds an Exhibitor, Dog, Handler, Armband, confirmation, Entry number, or Class across the Show
+- Selecting a registration opens its Dogs and child Entries in the focused pane
+- Accept, reject, or waitlist an individual child Entry, or use the compact floating toolbar for eligible bulk actions
 - Add a mail-in entry: find exhibitor, pick class, enter check number
-- Waitlist moves to offer a spot when someone scratches
+- Exceptions keeps Move-ups, Pulls/Scratches, and Waitlist together
 
-🖼️ **Screenshots needed:** Entry Management Pending tab (shot S-07), bulk action bar (shot S-09).
+🖼️ **Screenshots needed:** Entry Management Needs review cockpit (shot S-07), floating registration actions (shot S-09).
 **Account:** `secretary@myk9t.com` | **Viewport:** 1280 × 800
 
 *Reused in:* Secretary Onboarding Deck (slide 4)
@@ -289,8 +290,8 @@
 |---|---|---|---|
 | S-02 | 6 | Wizard Step 1 (details) | ready |
 | S-04 | 6 | Wizard Step 3 (class selection) | ready |
-| S-07 | 7 | Entry Management Pending tab | ready |
-| S-09 | 7 | Bulk select + approve action | ready |
+| S-07 | 7 | Entry Management Needs review cockpit | needs recapture |
+| S-09 | 7 | Registration selection + floating actions | needs recapture |
 | S-15 | 8 | Show Desk — Show Map with class rows | ready |
 | S-19 | 8 | Show Desk — Tools panel | ready |
 | S-20 | 9 | Results Control — all classes complete | ready |

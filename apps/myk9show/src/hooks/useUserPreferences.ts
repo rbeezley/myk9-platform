@@ -1,30 +1,30 @@
 /**
  * User Preferences Hook
- * Phase 6.4: User Preferences & UI State
  *
- * React hook for managing user preferences with real-time synchronization
+ * React hook for loading, updating, and resetting user preferences.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { userPreferencesService } from '@/services/preferences/userPreferencesService';
 import { reportInfo, reportStoreError } from '@/utils/standardizedErrorHandler';
-import type {
-  UserPreferences,
-  PreferencesUpdate,
-  SyncState,
-  UseUserPreferencesReturn,
-} from '@/types/user-preferences';
+import type { UserPreferences, PreferencesUpdate } from '@/types/user-preferences';
+
+export interface UseUserPreferencesReturn {
+  preferences: UserPreferences | null;
+  loading: boolean;
+  error: string | null;
+  updatePreferences: (updates: PreferencesUpdate) => Promise<void>;
+  resetToDefaults: (category?: keyof PreferencesUpdate) => Promise<void>;
+}
 
 export function useUserPreferences(userId: string | null): UseUserPreferencesReturn {
   // State
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [syncState, setSyncState] = useState<SyncState>(userPreferencesService.getSyncState());
 
   // Refs
   const currentUserIdRef = useRef<string | null>(null);
-  const isInitializedRef = useRef(false);
 
   /**
    * Load user preferences
@@ -99,209 +99,23 @@ export function useUserPreferences(userId: string | null): UseUserPreferencesRet
     [userId]
   );
 
-  /**
-   * Export preferences
-   */
-  const exportPreferences = useCallback(async (): Promise<string> => {
-    if (!userId) {
-      throw new Error('No user ID provided');
-    }
-
-    try {
-      const exported = await userPreferencesService.exportPreferences(userId);
-      reportInfo('useUserPreferences', 'Preferences exported successfully');
-      return exported;
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to export preferences';
-      setError(errorMessage);
-      reportStoreError('exportPreferences', 'userPreferences', err);
-      throw err;
-    }
-  }, [userId]);
-
-  /**
-   * Import preferences
-   */
-  const importPreferences = useCallback(
-    async (data: string) => {
-      if (!userId) {
-        throw new Error('No user ID provided');
-      }
-
-      try {
-        setError(null);
-
-        const imported = await userPreferencesService.importPreferences(userId, data);
-        setPreferences(imported);
-
-        reportInfo('useUserPreferences', 'Preferences imported successfully');
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to import preferences';
-        setError(errorMessage);
-        reportStoreError('importPreferences', 'userPreferences', err);
-        throw err;
-      }
-    },
-    [userId]
-  );
-
-  /**
-   * Resolve sync conflicts
-   */
-  const resolveConflicts = useCallback(
-    async (resolution: 'local' | 'remote' | 'merge') => {
-      if (!userId) {
-        throw new Error('No user ID provided');
-      }
-
-      try {
-        setError(null);
-
-        switch (resolution) {
-          case 'remote': {
-            const remotePrefs = await userPreferencesService.forceSync(userId);
-            setPreferences(remotePrefs);
-            break;
-          }
-          case 'local': {
-            if (preferences) {
-              const updated = await userPreferencesService.updatePreferences(userId, {
-                theme: preferences.theme,
-                competition: preferences.competition,
-                notifications: preferences.notifications,
-                data: preferences.data,
-                privacy: preferences.privacy,
-              });
-              setPreferences(updated);
-            }
-            break;
-          }
-          case 'merge': {
-            const remotePrefs = await userPreferencesService.forceSync(userId);
-            if (preferences) {
-              const merged = await userPreferencesService.updatePreferences(userId, {
-                theme: { ...remotePrefs.theme, ...preferences.theme },
-                competition: { ...remotePrefs.competition, ...preferences.competition },
-                notifications: { ...remotePrefs.notifications, ...preferences.notifications },
-                data: { ...remotePrefs.data, ...preferences.data },
-                privacy: { ...remotePrefs.privacy, ...preferences.privacy },
-              });
-              setPreferences(merged);
-            } else {
-              setPreferences(remotePrefs);
-            }
-            break;
-          }
-        }
-
-        reportInfo('useUserPreferences', 'Conflicts resolved', { resolution });
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to resolve conflicts';
-        setError(errorMessage);
-        reportStoreError('resolveConflicts', 'userPreferences', err);
-        throw err;
-      }
-    },
-    [userId, preferences]
-  );
-
-  /**
-   * Force sync with server
-   */
-  const forceSync = useCallback(async () => {
-    if (!userId) {
-      throw new Error('No user ID provided');
-    }
-
-    try {
-      setError(null);
-      setLoading(true);
-
-      const synced = await userPreferencesService.forceSync(userId);
-      setPreferences(synced);
-
-      reportInfo('useUserPreferences', 'Force sync completed');
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to sync preferences';
-      setError(errorMessage);
-      reportStoreError('forceSync', 'userPreferences', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  /**
-   * Handle sync state changes
-   */
-  const updateSyncState = useCallback(() => {
-    setSyncState(userPreferencesService.getSyncState());
-  }, []);
-
-  /**
-   * Handle preferences updates from other devices
-   */
-  const handlePreferencesUpdate = useCallback(
-    (event: CustomEvent) => {
-      const { preferences: updatedPrefs, source } = event.detail;
-
-      if (source === 'remote' && updatedPrefs.userId === userId) {
-        setPreferences(updatedPrefs);
-        reportInfo('useUserPreferences', 'Received preferences update from another device');
-      }
-    },
-    [userId]
-  );
-
   // Initialize when userId changes
   useEffect(() => {
     if (userId && userId !== currentUserIdRef.current) {
       currentUserIdRef.current = userId;
-      isInitializedRef.current = false;
-
       loadPreferences(userId);
     } else if (!userId) {
       currentUserIdRef.current = null;
       setPreferences(null);
       setError(null);
-      isInitializedRef.current = false;
     }
   }, [userId, loadPreferences]);
 
-  // Set up event listeners
-  useEffect(() => {
-    // Listen for preferences updates
-    window.addEventListener('preferences-updated', handlePreferencesUpdate as EventListener);
-
-    // Listen for sync state changes
-    const syncInterval = setInterval(updateSyncState, 1000);
-
-    return () => {
-      window.removeEventListener('preferences-updated', handlePreferencesUpdate as EventListener);
-      clearInterval(syncInterval);
-    };
-  }, [handlePreferencesUpdate, updateSyncState]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      // Cleanup is handled by the service singleton
-    };
-  }, []);
-
   return {
-    // State
     preferences,
     loading,
     error,
-    syncState,
-
-    // Actions
     updatePreferences,
     resetToDefaults,
-    exportPreferences,
-    importPreferences,
-    resolveConflicts,
-    forceSync,
   };
 }

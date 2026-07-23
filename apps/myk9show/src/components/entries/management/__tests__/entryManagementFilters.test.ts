@@ -31,9 +31,10 @@ describe('entryManagementFilters', () => {
   });
 
   it('only accepts known attention filter values', () => {
-    // Move-ups remains a dedicated queue. Pulled is also a reconciliation
-    // filter on the Entries surface, where payment actions already live.
+    // Phase C: move-ups / pulled are no longer attention filters — they moved to
+    // the Exceptions tab. They must NOT appear as status filter values.
     expect(ENTRY_ATTENTION_FILTER_VALUES).not.toContain('move-ups');
+    expect(ENTRY_ATTENTION_FILTER_VALUES).not.toContain('pulled');
     expect([...ENTRY_ATTENTION_FILTER_VALUES]).toEqual([
       'all',
       'pending',
@@ -41,7 +42,6 @@ describe('entryManagementFilters', () => {
       'accepted',
       'waitlist',
       'issues',
-      'pulled',
     ]);
     const result = normalizeEntryManagementSearchParams(new URLSearchParams('attention=bad'));
 
@@ -67,7 +67,7 @@ describe('entryManagementFilters', () => {
     ).toBe('No entries have issues right now.');
   });
 
-  describe('legacy exception URL migration', () => {
+  describe('legacy move-ups / pulled URL migration to the Exceptions tab', () => {
     it('isExceptionQueue recognizes the two queues and rejects others', () => {
       expect([...EXCEPTION_QUEUE_VALUES]).toEqual(['move-ups', 'pulled']);
       expect(isExceptionQueue('move-ups')).toBe(true);
@@ -87,13 +87,12 @@ describe('entryManagementFilters', () => {
       expect(result.attention).toBe('all');
     });
 
-    it('keeps ?attention=pulled on the Entries reconciliation surface', () => {
+    it('migrates ?attention=pulled to the Exceptions tab with queue=pulled', () => {
       const result = normalizeEntryManagementSearchParams(new URLSearchParams('attention=pulled'));
 
-      expect(result.params.has('tab')).toBe(false);
-      expect(result.params.has('queue')).toBe(false);
-      expect(result.params.get('attention')).toBe('pulled');
-      expect(result.attention).toBe('pulled');
+      expect(result.params.get('tab')).toBe('exceptions');
+      expect(result.params.get('queue')).toBe('pulled');
+      expect(result.params.has('attention')).toBe(false);
     });
 
     it('migrates the oldest entryTab=scratches link to queue=pulled', () => {

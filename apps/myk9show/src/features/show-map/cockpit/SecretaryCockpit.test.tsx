@@ -39,6 +39,9 @@ describe('SecretaryCockpit attention remainder', () => {
       { initialRoute: '/shows/show-1/show-desk' }
     );
 
+    const focusedClass = screen.getByRole('button', { name: 'Container Novice' });
+    expect(focusedClass).toHaveAttribute('aria-pressed', 'true');
+    expect(focusedClass.parentElement?.parentElement?.className).toContain('shadow-[inset_4px_0_0');
     const attentionStrip = screen.getByRole('region', { name: /needs attention/i });
     const issueLinks = () =>
       within(attentionStrip)

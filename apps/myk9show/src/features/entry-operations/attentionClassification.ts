@@ -11,7 +11,7 @@ export const ENTRY_ATTENTION_REASONS = [
 export type EntryAttentionReason = (typeof ENTRY_ATTENTION_REASONS)[number];
 export type ClassAttentionReason = 'reopened_after_closeout';
 export type OperationalAttentionFilter =
-  'all' | 'pending' | 'missing_information' | 'accepted' | 'waitlist' | 'issues' | 'pulled';
+  'all' | 'pending' | 'missing_information' | 'accepted' | 'waitlist' | 'issues';
 
 export type OperationalEntryState =
   'pending_review' | 'missing_information' | 'accepted' | 'waitlist' | 'terminal' | 'other';
@@ -75,9 +75,6 @@ export function matchesOperationalAttentionFilter(
   if (filter === 'missing_information') return state === 'missing_information';
   if (filter === 'accepted') return state === 'accepted';
   if (filter === 'waitlist') return state === 'waitlist';
-  if (filter === 'pulled') {
-    return (entry.entryStatus ?? mapEntryStatus(entry.rawEntryStatus)) === EntryStatus.SCRATCHED;
-  }
   const reasons = classifyEntryAttention(entry);
   return reasons.includes('missing_information') || reasons.includes('payment_due');
 }

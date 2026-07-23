@@ -4,8 +4,7 @@ export interface EntryManagementHrefInput {
   showId: string;
   trialId?: string | null;
   classId?: string | null;
-  attention?:
-    'all' | 'pending' | 'missing_information' | 'accepted' | 'waitlist' | 'issues' | 'pulled';
+  attention?: 'all' | 'pending' | 'missing_information' | 'accepted' | 'waitlist' | 'issues';
   payment?:
     'all' | 'pending' | 'paid_online' | 'paid_by_check' | 'paid_by_cash' | 'waived' | 'refunded';
   mode?: 'review' | 'day-of';

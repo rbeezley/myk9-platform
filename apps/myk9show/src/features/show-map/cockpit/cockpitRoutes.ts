@@ -38,6 +38,21 @@ export function normalizeCockpitUrlState(params: URLSearchParams): CockpitUrlSta
   };
 }
 
+export function writeCockpitUrlState(
+  previous: URLSearchParams,
+  state: CockpitUrlState
+): URLSearchParams {
+  const params = new URLSearchParams();
+  if (state.selectedDay) params.set('day', state.selectedDay);
+  if (state.filter !== 'all') params.set('filter', state.filter);
+  if (state.focusedClassId) params.set('focus', state.focusedClassId);
+  if (state.anchor) params.set('anchor', state.anchor);
+
+  const requestedToolId = previous.get('tool')?.trim();
+  if (requestedToolId) params.set('tool', requestedToolId);
+  return params;
+}
+
 export function getShowDeskHref({
   showId,
   state,
@@ -45,11 +60,7 @@ export function getShowDeskHref({
   showId: string;
   state: CockpitUrlState;
 }): string {
-  const params = new URLSearchParams();
-  if (state.selectedDay) params.set('day', state.selectedDay);
-  if (state.filter !== 'all') params.set('filter', state.filter);
-  if (state.focusedClassId) params.set('focus', state.focusedClassId);
-  if (state.anchor) params.set('anchor', state.anchor);
+  const params = writeCockpitUrlState(new URLSearchParams(), state);
   const query = params.toString();
   return `/shows/${encodeURIComponent(showId)}/show-desk${query ? `?${query}` : ''}`;
 }
@@ -64,7 +75,7 @@ export function getCockpitEntryManagementHref(input: {
   trialId?: string;
   classId?: string;
   tab?: 'entries' | 'move-ups' | 'pulls' | 'waitlist';
-  attention?: 'pending' | 'missing_information' | 'accepted' | 'waitlist' | 'issues' | 'pulled';
+  attention?: 'pending' | 'missing_information' | 'accepted' | 'waitlist' | 'issues';
   payment?: 'pending' | 'paid_online' | 'paid_by_check' | 'paid_by_cash' | 'waived' | 'refunded';
   mode?: 'review' | 'day-of';
   returnTo: string;

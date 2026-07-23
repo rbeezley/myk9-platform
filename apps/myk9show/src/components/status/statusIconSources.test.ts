@@ -45,7 +45,6 @@ const MIGRATED_RENDERERS = [
   'components/entries/EntryStatusHistory.tsx',
   'components/entries/EntryStatusStepper.tsx',
   'components/entries/PullManagementTab.tsx',
-  'components/entries/management/EntryStatsCards.tsx',
   'components/live/EntryRow.tsx',
   'components/live/LiveClassCard.tsx',
   'components/judges/JudgeCheckInInterface.tsx',
@@ -143,10 +142,7 @@ describe('status icon grammar source ownership', () => {
       'packages/ringside/src/pages/EntryList/SortableEntryCardComponents.tsx'
     );
     const ringsideStatusApiSources = [
-      resolve(
-        WORKSPACE_ROOT,
-        'packages/ringside/src/pages/EntryList/sortableEntryCardUtils.ts'
-      ),
+      resolve(WORKSPACE_ROOT, 'packages/ringside/src/pages/EntryList/sortableEntryCardUtils.ts'),
       resolve(WORKSPACE_ROOT, 'packages/ringside/src/pages/EntryList/index.ts'),
       resolve(WORKSPACE_ROOT, 'packages/ringside/src/index.ts'),
     ];
@@ -188,12 +184,8 @@ describe('status icon grammar source ownership', () => {
       'utf8'
     );
 
-    expect(showDetails).toContain(
-      'normalizeClassStatus(cls.status) === CLASS_STATUS.COMPLETED'
-    );
-    expect(showDetails).toContain(
-      'normalizeClassStatus(cls.status) === CLASS_STATUS.IN_PROGRESS'
-    );
+    expect(showDetails).toContain('normalizeClassStatus(cls.status) === CLASS_STATUS.COMPLETED');
+    expect(showDetails).toContain('normalizeClassStatus(cls.status) === CLASS_STATUS.IN_PROGRESS');
   });
 
   it('derives Trial Details status when the stored trial status is missing', () => {

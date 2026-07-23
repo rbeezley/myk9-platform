@@ -13,7 +13,7 @@ import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
  *   - entries 053/054/057 are 'submitted'/'pending' -> the Entries tab's
  *     enrollment-group "Accept All / Reject All" actions (Cards view — the
  *     default Table view uses a flat per-row status menu instead, see
- *     components/entries/management/RegistrationView.tsx).
+ *     components/entries/management/EntryFocusedRegistration.tsx).
  *   - entry 056 (Scout) is entry_status='move-up-requested' ("GAP FIXTURE #3",
  *     see supabase/seed-demo.sql section 6) -> the Move-ups tab.
  *

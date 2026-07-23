@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 /**
  * Invokes the `send-registration-email` edge function for a registration
  * (enrollment) id. This is the SAME sender the Entries Management page uses to
- * resend confirmations (see RegistrationView.handleResendEmail) — we reuse it so
+ * resend confirmations — we reuse it so
  * the wizard's confirmation email is byte-for-byte the one secretaries can later
  * resend, and so idempotency lives in one place.
  *

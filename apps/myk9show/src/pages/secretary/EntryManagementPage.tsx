@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation, useParams, useSearchParams } from 'react-router-dom';
-import { useUrlTab } from '@/hooks/useUrlTab';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import WaitlistManagementPage from './WaitlistManagementPage/index';
@@ -10,104 +9,43 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { auditService } from '@/services/AuditService';
 import { UserRole } from '@/types/auth-types';
 import { AuditAction } from '@/types/audit-types';
-import { Users, AlertCircle, Download } from 'lucide-react';
+import { Users, AlertCircle, Download, MoreHorizontal, Plus, UserCheck } from 'lucide-react';
 import { SecretaryAddEntriesDecision } from '@/features/registration/SecretaryAddEntriesDecision';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 import { useEntryManagementData } from '@/hooks/useEntryManagementData';
-import { useEntryManagementFilters } from '@/hooks/useEntryManagementFilters';
 import { useEntryManagementActions } from '@/hooks/useEntryManagementActions';
 import {
   useEntryManagementTrialClasses,
   useEntryManagementTrialScope,
 } from '@/hooks/useEntryManagementTrialScope';
-import {
-  ArmbandDialog,
-  CompEntryDialog,
-  FilterBreadcrumb,
-  TrialClassFilters,
-  TrialRosterView,
-  TrialScopeBar,
-  RegistrationView,
-} from '@/components/entries/management';
+import { ArmbandDialog, CompEntryDialog } from '@/components/entries/management';
+import { EntryManagementCockpit } from '@/components/entries/management/EntryManagementCockpit';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
 import { PullManagementTab } from '@/components/entries/PullManagementTab';
-import { groupEntriesByEnrollment, type EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import { normalizeEntryManagementSearchParams } from '@/components/entries/management/entryManagementFilters';
-import { buildEntryManagementRelatedLinks } from '@/components/entries/management/entryManagementRelatedLinks';
+import {
+  getCockpitNormalizationContext,
+  normalizeEntryManagementCockpitParams,
+  writeCockpitException,
+  writeCockpitTab,
+} from '@/components/entries/management/entryManagementCockpitParams';
+import { groupEntriesByShowRegistration } from '@/components/entries/management/showRegistrationProjection';
 import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
-import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 
 const PAGE_TABS: PrimaryTabDef[] = [
-  { id: 'entries', label: 'Entries' },
-  { id: 'move-ups', label: 'Move-ups' },
-  { id: 'pulls', label: 'Pulls' },
-  { id: 'waitlist', label: 'Waitlist' },
+  { id: 'registrations', label: 'Registrations' },
+  { id: 'exceptions', label: 'Exceptions' },
 ];
 
-/**
- * Entry Management Page for show secretaries
- * Refactored as part of DEBT-002 - extracted hooks, components, and utilities
- * Original: 1,428 lines -> Refactored: ~400 lines (72% reduction)
- */
 const EntryManagementPage: React.FC = () => {
   const params = useParams<{ showId?: string; id?: string }>();
   const urlShowId = params.showId ?? params.id;
-  const [activePageTab] = useUrlTab(
-    ['entries', 'move-ups', 'pulls', 'waitlist'] as const,
-    'entries'
-  );
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
-  // Copy-link href: built from the normalizer's own output (never raw
-  // `location.search`) so a copied URL only ever carries normalized,
-  // supported Entry Management params and round-trips cleanly on paste.
-  const copyLinkHref = `${location.pathname}?${normalizeEntryManagementSearchParams(searchParams).params.toString()}`.replace(
-    /\?$/,
-    ''
-  );
-  // Read the trial param directly so the trial's class list can be fetched
-  // before useEntryManagementFilters (which consumes the class ids to filter the
-  // entry list in place).
-  const trialParam = searchParams.get('trial');
-
-  useEffect(() => {
-    if (searchParams.get('tab') !== 'exceptions') return;
-    setSearchParams(
-      prev => {
-        const next = new URLSearchParams(prev);
-        next.set('tab', prev.get('queue') === 'pulled' ? 'pulls' : 'move-ups');
-        next.delete('queue');
-        return next;
-      },
-      { replace: true }
-    );
-  }, [searchParams, setSearchParams]);
-
-  // Leaving Entries resets the entry drill-down (trial/class/roster) so a later
-  // return doesn't re-enter scoring/roster unexpectedly.
-  const handlePageTabChange = (tab: string) => {
-    setSearchParams(
-      prev => {
-        const next = new URLSearchParams(prev);
-        if (tab === 'entries') {
-          next.delete('tab');
-          next.delete('queue');
-        } else {
-          next.set('tab', tab);
-          next.delete('trial');
-          next.delete('class');
-          next.delete('roster');
-          next.delete('queue');
-        }
-        return next;
-      },
-      { replace: true }
-    );
-  };
 
   const {
     user,
@@ -122,48 +60,43 @@ const EntryManagementPage: React.FC = () => {
     setError,
     loadError,
     loadEntries,
-    stats,
-    tabCounts,
     lastEmailedMap,
     refreshEmailLog,
   } = useEntryManagementData(urlShowId);
+  const registrationGroups = useMemo(() => groupEntriesByShowRegistration(entries), [entries]);
+  const canValidateFocus = Boolean(selectedShowId) && !isLoading && !loadError;
+  const normalizationContext = useMemo(
+    () => (canValidateFocus ? getCockpitNormalizationContext(registrationGroups) : {}),
+    [canValidateFocus, registrationGroups]
+  );
+  const cockpitUrl = useMemo(
+    () => normalizeEntryManagementCockpitParams(searchParams, normalizationContext),
+    [normalizationContext, searchParams]
+  );
+  const activePageTab = cockpitUrl.state.tab;
+  const copyLinkHref = `${location.pathname}?${cockpitUrl.params.toString()}`.replace(/\?$/, '');
+  const trialParam = cockpitUrl.state.trialId;
 
-  // Classes for the selected trial — fetched before useEntryManagementFilters so
-  // their ids can scope the (show-wide) entry list to the chosen trial.
+  useEffect(() => {
+    const focusNeedsValidation = searchParams.has('registration') || searchParams.has('entry');
+    if (focusNeedsValidation && !canValidateFocus) return;
+    if (cockpitUrl.params.toString() !== searchParams.toString()) {
+      setSearchParams(cockpitUrl.params, { replace: true });
+    }
+  }, [canValidateFocus, cockpitUrl.params, searchParams, setSearchParams]);
+
+  // Leaving Entries resets the entry drill-down (trial/class/roster) so a later
+  // return doesn't re-enter scoring/roster unexpectedly.
+  const handlePageTabChange = (tab: string) => {
+    setSearchParams(
+      previous => writeCockpitTab(previous, tab === 'exceptions' ? 'exceptions' : 'registrations'),
+      { replace: true }
+    );
+  };
+
   const { trialClasses, trialClassIds, isLoadingClasses } =
     useEntryManagementTrialClasses(trialParam);
 
-  const {
-    searchTerm,
-    setSearchTerm,
-    paymentFilter,
-    setPaymentFilter,
-    attentionFilter,
-    setAttentionFilter,
-    workMode,
-    setWorkMode,
-    entryViewMode,
-    setEntryViewMode,
-    density,
-    setDensity,
-    displayPreset,
-    setDisplayPreset,
-    applyPreset,
-    applyView,
-    trialFilter,
-    classFilter,
-    viewMode,
-    rosterView,
-    setRosterView,
-    setTrialFilter,
-    setClassFilter,
-    filteredEntries,
-  } = useEntryManagementFilters({ entries, tabCounts, showId: selectedShowId, trialClassIds });
-
-  const enrollmentGroups: EnrollmentGroup[] = useMemo(
-    () => groupEntriesByEnrollment(filteredEntries),
-    [filteredEntries]
-  );
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
 
   const {
@@ -192,17 +125,10 @@ const EntryManagementPage: React.FC = () => {
     user,
   });
 
-  const {
-    trials,
-    isLoadingTrials,
-    breadcrumbTrialName,
-    breadcrumbClassName,
-    rosterEntries,
-    isLoadingTrialEntries,
-  } = useEntryManagementTrialScope({
+  const { trials, isLoadingTrials } = useEntryManagementTrialScope({
     selectedShowId,
-    trialFilter,
-    classFilter,
+    trialFilter: cockpitUrl.state.trialId,
+    classFilter: cockpitUrl.state.classId,
     trialClasses,
   });
 
@@ -281,7 +207,6 @@ const EntryManagementPage: React.FC = () => {
   return (
     <div className="manager-content-container container mx-auto space-y-6 p-4 sm:p-6">
       <ShowDeskReturnLink showId={selectedShowId || urlShowId} />
-      {/* Header */}
       <div className="manager-page-header">
         <div className="min-w-0">
           <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">
@@ -292,17 +217,48 @@ const EntryManagementPage: React.FC = () => {
           </p>
         </div>
         <div className="manager-page-actions">
-          <CopyViewLinkButton href={copyLinkHref} label="Copy view link" />
-          <SecretaryAddEntriesDecision showId={selectedShowId} />
-          <Button
-            variant="outline"
-            onClick={handleExportCSV}
-            disabled={!selectedShowId || isProcessing}
-            className="w-full sm:w-auto"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export Full CSV
-          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="outline" className="gap-2">
+                <MoreHorizontal className="h-4 w-4" aria-hidden />
+                More
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 space-y-2">
+              <p className="text-sm font-semibold">Entry tools</p>
+              <Button asChild variant="outline" size="sm" className="h-8 gap-2">
+                <Link
+                  to={`/shows/${encodeURIComponent(selectedShowId || urlShowId || '')}/show-desk?tool=people-at-show`}
+                >
+                  <UserCheck className="h-4 w-4" aria-hidden />
+                  Open Check-in desk
+                </Link>
+              </Button>
+              <CopyViewLinkButton href={copyLinkHref} label="Copy view link" />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCSV}
+                disabled={!selectedShowId || isProcessing}
+                className="h-8 gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Export Full CSV
+              </Button>
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button type="button" disabled={!selectedShowId} className="gap-2">
+                <Plus className="h-4 w-4" aria-hidden />
+                Add entry
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-auto">
+              <p className="mb-3 text-sm font-semibold">Who are you entering?</p>
+              <SecretaryAddEntriesDecision showId={selectedShowId} />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -326,7 +282,7 @@ const EntryManagementPage: React.FC = () => {
 
       {/* Page-level tabs: Entries | Move-ups | Pulls | Waitlist */}
       <PrimaryTabs tabs={PAGE_TABS} value={activePageTab} onValueChange={handlePageTabChange}>
-        <TabsContent value="entries">
+        <TabsContent value="registrations">
           {/* No Show Selected — kept as loading guard while useEntryManagementData resolves the show */}
           {!selectedShowId && isLoadingShows && (
             <Card>
@@ -391,162 +347,106 @@ const EntryManagementPage: React.FC = () => {
             interactive.
           */}
           {selectedShowId && !isLoading && !loadError && (
-            <div className="space-y-6 mt-6">
-              {/* Trial / Class Filters */}
-              <TrialClassFilters
+            <div className="mt-6">
+              <EntryManagementCockpit
+                entries={entries}
+                registrationGroups={registrationGroups}
+                cockpitState={cockpitUrl.state}
                 trials={trials}
-                classes={trialClasses}
-                trialFilter={trialFilter}
-                classFilter={classFilter}
-                onTrialChange={setTrialFilter}
-                onClassChange={setClassFilter}
+                trialClasses={trialClasses}
+                trialClassIds={trialClassIds}
                 isLoadingTrials={isLoadingTrials}
                 isLoadingClasses={isLoadingClasses}
+                showId={selectedShowId}
+                {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
+                busy={isProcessing}
+                lastEmailedMap={lastEmailedMap}
+                onStatusChange={handleStatusChange}
+                onCheckInStatusChange={handleCheckInStatusChange}
+                onOpenEditEntry={openEditEntry}
+                onOpenArmbandDialog={entry =>
+                  setArmbandDialog({
+                    open: true,
+                    entry,
+                    value: entry.armbandNumber || '',
+                  })
+                }
+                onOpenCompDialog={entry =>
+                  setCompDialog({
+                    open: true,
+                    entryId: entry.id,
+                    entryNumber: entry.entryNumber,
+                    dogName: entry.dogName,
+                    className: entry.classes[0]?.name ?? '',
+                  })
+                }
+                onUncompEntry={handleUncompEntry}
+                onRemoveEntry={handleRemoveEntry}
+                onBulkStatusChange={handleEnrollmentBulkStatusChange}
+                onBulkCheckIn={handleEnrollmentBulkCheckIn}
+                onPaymentStatusChange={handleEnrollmentPaymentChange}
+                onSendDecisionEmail={async (registrationId, message, amountDue) => {
+                  await handleSendDecisionEmail(registrationId, message, amountDue);
+                  const registrationIds = [
+                    ...new Set(entries.map(entry => entry.registrationId).filter(Boolean)),
+                  ];
+                  refreshEmailLog(registrationIds);
+                }}
+                onRefresh={() => loadEntries(selectedShowId)}
               />
-
-              {/* Filter Breadcrumb */}
-              <FilterBreadcrumb
-                trialName={breadcrumbTrialName}
-                className={breadcrumbClassName}
-                onClearTrial={() => setTrialFilter(null)}
-                onClearClass={() => setClassFilter(null)}
-              />
-
-              {/* Related context: Trial/Class Details for the active scope.
-                  This page is already staff-gated above, so isStaff is true
-                  whenever this renders. */}
-              <RelatedContextLinks
-                items={buildEntryManagementRelatedLinks({
-                  isStaff: true,
-                  showId: selectedShowId,
-                  trialFilter,
-                  classFilter,
-                  loadedTrialClassIds: trialClassIds,
-                })}
-                className="px-4"
-              />
-
-              {/* Trial scope controls (List/Roster toggle + "Score this class"
-                  deep-link) — only once a trial is selected. */}
-              {trialFilter && (
-                <TrialScopeBar
-                  rosterView={rosterView}
-                  onRosterViewChange={setRosterView}
-                  classId={classFilter}
-                />
-              )}
-
-              {/* Registration view: stats, filters, bulk actions, and entries */}
-              {viewMode === 'registration' && (
-                <RegistrationView
-                  stats={stats}
-                  searchTerm={searchTerm}
-                  setSearchTerm={setSearchTerm}
-                  paymentFilter={paymentFilter}
-                  setPaymentFilter={setPaymentFilter}
-                  attentionFilter={attentionFilter}
-                  setAttentionFilter={setAttentionFilter}
-                  workMode={workMode}
-                  setWorkMode={setWorkMode}
-                  applyPreset={applyPreset}
-                  applyView={applyView}
-                  density={density}
-                  setDensity={setDensity}
-                  displayPreset={displayPreset}
-                  setDisplayPreset={setDisplayPreset}
-                  trialFilter={trialFilter}
-                  classFilter={classFilter}
-                  entryViewMode={entryViewMode}
-                  setEntryViewMode={setEntryViewMode}
-                  filteredEntries={filteredEntries}
-                  hasActiveScopeFilters={Boolean(trialFilter || classFilter)}
-                  onResetFilters={() => {
-                    setSearchTerm('');
-                    setPaymentFilter('all');
-                    setAttentionFilter('all');
-                    setTrialFilter(null);
-                    setClassFilter(null);
-                  }}
-                  showId={selectedShowId}
-                  currentUserId={user?.id}
-                  showName={selectedShow?.name ?? undefined}
-                  entries={entries}
-                  onBulkStatusChange={handleEnrollmentBulkStatusChange}
-                  onBulkCheckIn={handleEnrollmentBulkCheckIn}
-                  bulkBusy={isProcessing}
-                  onPaymentStatusChange={handleEnrollmentPaymentChange}
-                  onStatusChange={handleStatusChange}
-                  onCheckInStatusChange={handleCheckInStatusChange}
-                  onOpenEditEntry={openEditEntry}
-                  onOpenArmbandDialog={entry =>
-                    setArmbandDialog({
-                      open: true,
-                      entry,
-                      value: entry.armbandNumber || '',
-                    })
-                  }
-                  onOpenCompDialog={entry =>
-                    setCompDialog({
-                      open: true,
-                      entryId: entry.id,
-                      entryNumber: entry.entryNumber,
-                      dogName: entry.dogName,
-                      className: entry.classes[0]?.name ?? '',
-                    })
-                  }
-                  onUncompEntry={handleUncompEntry}
-                  onRemoveEntry={handleRemoveEntry}
-                  onRefresh={() => loadEntries(selectedShowId)}
-                  enrollmentGroups={enrollmentGroups}
-                  lastEmailedMap={lastEmailedMap}
-                  onSendDecisionEmail={async (registrationId, message, amountDue) => {
-                    await handleSendDecisionEmail(registrationId, message, amountDue);
-                    const regIds = [...new Set(entries.map(e => e.registrationId).filter(Boolean))];
-                    refreshEmailLog(regIds);
-                  }}
-                />
-              )}
-
-              {/* Roster view: trial entries (explicit toggle, class-filtered). */}
-              {viewMode === 'roster' && (
-                <TrialRosterView
-                  entries={rosterEntries}
-                  onClassClick={classId => setClassFilter(classId)}
-                  isLoading={isLoadingTrialEntries}
-                />
-              )}
             </div>
           )}
         </TabsContent>
 
-        <TabsContent value="move-ups">
-          {selectedShowId && (
-            <Card>
-              <CardContent className="pt-6">
-                <MoveUpRequestsTab
-                  showId={selectedShowId}
-                  onRefresh={() => loadEntries(selectedShowId)}
-                />
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="pulls">
-          {selectedShowId && (
-            <Card>
-              <CardContent className="pt-6">
-                <PullManagementTab
-                  showId={selectedShowId}
-                  onRefresh={() => loadEntries(selectedShowId)}
-                />
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="waitlist">
-          <WaitlistManagementPage showId={selectedShowId || undefined} />
+        <TabsContent value="exceptions">
+          <div className="mt-6 space-y-4">
+            <div className="flex flex-wrap gap-2" aria-label="Entry exceptions">
+              {(
+                [
+                  ['move-ups', 'Move-ups'],
+                  ['pulls', 'Pulls / scratches'],
+                  ['waitlist', 'Waitlist'],
+                ] as const
+              ).map(([exception, label]) => (
+                <Button
+                  key={exception}
+                  type="button"
+                  variant={cockpitUrl.state.exception === exception ? 'secondary' : 'ghost'}
+                  aria-pressed={cockpitUrl.state.exception === exception}
+                  onClick={() =>
+                    setSearchParams(previous => writeCockpitException(previous, exception), {
+                      replace: true,
+                    })
+                  }
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            {selectedShowId && cockpitUrl.state.exception === 'move-ups' && (
+              <Card>
+                <CardContent className="pt-6">
+                  <MoveUpRequestsTab
+                    showId={selectedShowId}
+                    onRefresh={() => loadEntries(selectedShowId)}
+                  />
+                </CardContent>
+              </Card>
+            )}
+            {selectedShowId && cockpitUrl.state.exception === 'pulls' && (
+              <Card>
+                <CardContent className="pt-6">
+                  <PullManagementTab
+                    showId={selectedShowId}
+                    onRefresh={() => loadEntries(selectedShowId)}
+                  />
+                </CardContent>
+              </Card>
+            )}
+            {cockpitUrl.state.exception === 'waitlist' && (
+              <WaitlistManagementPage showId={selectedShowId || undefined} />
+            )}
+          </div>
         </TabsContent>
       </PrimaryTabs>
 

@@ -147,7 +147,7 @@ describe('EntryManagementPage — error state (PR #418, audit finding P1)', () =
     setDataState({ loadError: 'Failed to load entries' });
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries/show-1' });
 
-    // The stats card headings only render inside RegistrationView, which
+    // Queue totals only render inside the cockpit, which
     // is gated on `!loadError`. If any of these appear, the gate failed
     // and the misleading zero-state UX is back.
     expect(screen.queryByText('Pending', { selector: 'p' })).not.toBeInTheDocument();

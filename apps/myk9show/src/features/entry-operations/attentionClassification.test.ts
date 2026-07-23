@@ -4,7 +4,6 @@ import {
   classifyClassAttention,
   classifyEntryAttention,
   classifyRawEntryAttention,
-  matchesOperationalAttentionFilter,
   type OperationalEntryInput,
 } from './attentionClassification';
 
@@ -56,15 +55,6 @@ describe('classifyEntryAttention', () => {
       'missing_information',
     ]);
     expect(classifyRawEntryAttention({ entry_status: 'submitted' })).toEqual(['pending_review']);
-  });
-
-  it('matches pulled entries without folding other terminal states into the filter', () => {
-    expect(
-      matchesOperationalAttentionFilter(input({ entryStatus: EntryStatus.SCRATCHED }), 'pulled')
-    ).toBe(true);
-    expect(
-      matchesOperationalAttentionFilter(input({ entryStatus: EntryStatus.CANCELLED }), 'pulled')
-    ).toBe(false);
   });
 });
 

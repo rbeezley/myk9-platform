@@ -101,8 +101,12 @@ export default function AccountPage() {
   );
 
   useEffect(() => {
-    const section = readSectionParam(searchParams);
-    if (section && section !== active) setActive(section);
+    // An absent/invalid section param means the base /account URL — fall back
+    // to 'profile' so external navigation that drops the param (e.g. the
+    // account-menu "Account" link opened while this page is already mounted)
+    // doesn't leave a stale section like billing selected.
+    const section = readSectionParam(searchParams) ?? 'profile';
+    if (section !== active) setActive(section);
   }, [active, searchParams]);
 
   // Keep the applied/cached font scale derived from the loaded preference.

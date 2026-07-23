@@ -235,7 +235,7 @@ export function BillingSection() {
       {/* Reuse the standalone subscription manager. `showUsage={false}` hides the
           placeholder "Usage This Month" card so the account page shows only
           real, verified billing data. */}
-      <SubscriptionManager showUsage={false} />
+      <SubscriptionManager showUsage={false} portalReturnPath="/account?section=billing" />
     </div>
   );
 }

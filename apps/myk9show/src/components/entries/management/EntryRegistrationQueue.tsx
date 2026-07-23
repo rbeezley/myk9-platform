@@ -141,7 +141,7 @@ export function EntryRegistrationQueue({
                 role="listitem"
                 tabIndex={0}
                 aria-current={focused ? 'true' : undefined}
-                aria-label={`${group.exhibitorName}, ${group.entryCount} Entries, ${reviewLabel(group)}, ${group.recommendedAction.label}`}
+                aria-label={`${group.exhibitorName}, ${group.entryCount} ${group.entryCount === 1 ? 'Entry' : 'Entries'}, ${reviewLabel(group)}, ${group.recommendedAction.label}`}
                 className={cn(
                   'group grid cursor-pointer grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 border-b px-3 outline-none transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring md:grid-cols-[2.75rem_minmax(9rem,1.15fr)_minmax(7rem,.7fr)_minmax(8rem,.7fr)_minmax(8rem,auto)]',
                   density === 'compact' && 'py-2',

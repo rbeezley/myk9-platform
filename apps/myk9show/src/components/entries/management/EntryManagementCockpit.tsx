@@ -222,7 +222,7 @@ export function EntryManagementCockpit({
           <PopoverTrigger asChild>
             <Button type="button" variant="outline" size="sm" className="min-h-10 shrink-0 gap-2">
               <SlidersHorizontal className="h-4 w-4" aria-hidden />
-              View
+              Density
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-auto">
@@ -304,6 +304,7 @@ export function EntryManagementCockpit({
                 ? {
                     onBack: () => {
                       dispatchResponsive({ type: 'close-detail' as const });
+                      cockpit.setFocus(null);
                       requestAnimationFrame(() => {
                         document
                           .getElementById(getEntryRegistrationRowId(focusedKey ?? ''))

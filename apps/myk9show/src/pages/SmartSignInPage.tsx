@@ -6,6 +6,7 @@ import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';
 import {
   getShowEntryRedirectShowId,
+  buildSignUpPathForRedirect,
   getSignInReturnTo,
   persistSignInRedirect,
 } from './SignInPage.helpers';
@@ -260,7 +261,10 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
         {!passcodeOnly && (
           <div className="text-muted-foreground text-center mb-6">
             Don't have an account?{' '}
-            <Link to="/sign-up" className="text-primary hover:underline font-medium">
+            <Link
+              to={buildSignUpPathForRedirect(signInReturnTo)}
+              className="text-primary hover:underline font-medium"
+            >
               Sign up
             </Link>
           </div>

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';
@@ -9,11 +9,20 @@ import {
   type TurnstileChallengeHandle,
 } from '@/components/security/TurnstileChallenge';
 import { getTurnstileSiteKey } from '@/config/turnstile';
+import {
+  buildSignInPathForRedirect,
+  getSignInReturnTo,
+  persistSignInRedirect,
+} from './SignInPage.helpers';
 
 /** Seconds to disable the resend button, aligned with Supabase's email rate limit. */
 const RESEND_COOLDOWN_SECONDS = 60;
 
 const SignUp: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const signUpReturnTo = useMemo(() => getSignInReturnTo(searchParams), [searchParams]);
+  const signInPath =
+    signUpReturnTo === '/' ? '/sign-in' : buildSignInPathForRedirect(signUpReturnTo);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -86,7 +95,8 @@ const SignUp: React.FC = () => {
     setError('');
     setGoogleLoading(true);
     try {
-      await signInWithGoogle();
+      persistSignInRedirect(signUpReturnTo);
+      await signInWithGoogle(signUpReturnTo);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Google sign-in failed');
       setGoogleLoading(false);
@@ -120,6 +130,9 @@ const SignUp: React.FC = () => {
     setLoading(true);
 
     try {
+      // Email confirmation returns through AuthCallbackPage, which consumes
+      // this same-browser redirect when Supabase's default callback URL is used.
+      persistSignInRedirect(signUpReturnTo);
       const metadata = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -181,7 +194,7 @@ const SignUp: React.FC = () => {
                 ? `Resend email in ${resendCooldown}s`
                 : 'Resend email'}
           </button>
-          <Link to="/sign-in" className="text-primary hover:underline font-medium">
+          <Link to={signInPath} className="text-primary hover:underline font-medium">
             Back to sign in
           </Link>
         </div>
@@ -203,7 +216,7 @@ const SignUp: React.FC = () => {
         <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">Create an account</h2>
         <div className="text-muted-foreground text-center mb-6">
           Already have an account?{' '}
-          <Link to="/sign-in" className="text-primary hover:underline font-medium">
+          <Link to={signInPath} className="text-primary hover:underline font-medium">
             Sign in
           </Link>
         </div>

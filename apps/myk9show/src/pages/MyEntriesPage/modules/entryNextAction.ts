@@ -56,33 +56,29 @@ export function deriveEntryNextAction(
     return { kind: 'finish-payment' };
   }
 
-  // Check-in is only a live next action for an ACCEPTED entry at a non-past
-  // show: terminal/waitlisted/pending entries have no confirmed spot to check
-  // in for even when a class row is unscored, and a scratched/moved/absent
-  // class is no longer participating. `entry.entryStatus` is the dominant
-  // status across every dog on the order, so it alone isn't enough for a
-  // mixed-status order (accepted dog + pending dog) — a pending dog's class
-  // must never be offered as the summary check-in action. When every dog
-  // shares the dominant status this per-dog check is a no-op (fast path).
-  const allDogsAccepted =
-    entry.dogs.length === 0 || entry.dogs.every(dog => dog.entryStatus === EntryStatus.ACCEPTED);
-  if (entry.entryStatus === EntryStatus.ACCEPTED && !isPastShowEntry(entry, now)) {
+  // Check-in is only a live next action for an accepted dog at a non-past
+  // show. The order-level status is a display summary: COMPLETED can dominate
+  // ACCEPTED when one dog has a result, so eligibility must be resolved from
+  // the dog that owns each class. Orders without dog groups retain the legacy
+  // order-level fallback.
+  if (!isPastShowEntry(entry, now)) {
     const eligibleClass = entry.classes.find(cls => {
-      if (cls.isScored) return false;
-      if (cls.status !== 'entered') return false;
-      if (!allDogsAccepted) {
-        const owningDog = findOwningDog(entry, cls.id);
+      if (cls.isScored || cls.status !== 'entered') return false;
+
+      const owningDog = findOwningDog(entry, cls.id);
+      if (entry.dogs.length > 0) {
         if (!owningDog || owningDog.entryStatus !== EntryStatus.ACCEPTED) return false;
+      } else if (entry.entryStatus !== EntryStatus.ACCEPTED) {
+        return false;
       }
+
       // Same cascade MyEntryCard reads: class-scoped toggle, defaulting open
       // when the class id or map entry is missing.
       if (!cls.classId) return true;
       return selfCheckinByClassId[cls.classId] ?? true;
     });
 
-    if (eligibleClass) {
-      return { kind: 'check-in', classId: eligibleClass.id };
-    }
+    if (eligibleClass) return { kind: 'check-in', classId: eligibleClass.id };
   }
 
   return { kind: 'view-show' };

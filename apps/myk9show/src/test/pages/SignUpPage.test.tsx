@@ -59,6 +59,18 @@ describe('SignUpPage', () => {
     expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument();
   });
 
+  it('passes the return target to Google sign-in when signing up from a gated flow', () => {
+    render(
+      <MemoryRouter initialEntries={['/sign-up?redirectTo=%2F%3Fonboarding%3Dtrue%23get-started']}>
+        <SignUpPage />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByLabelText(/I agree to the/i));
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+
+    expect(mockSignInWithGoogle).toHaveBeenCalledWith('/?onboarding=true#get-started');
+  });
+
   it('renders an "or" divider between Google button and email form', () => {
     render(
       <MemoryRouter>

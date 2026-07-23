@@ -8,6 +8,9 @@ import {
   type OnboardingRequest,
 } from '@/services/database/onboarding-requests';
 import { logger } from '@/services/LoggingService';
+import { buildSignInPathForRedirect, buildSignUpPathForRedirect } from '@/pages/SignInPage.helpers';
+
+const CLUB_ONBOARDING_RETURN_TO = '/?onboarding=true#get-started';
 
 // Club-onboarding lead form for the marketing homepage. Restyled onto the
 // editorial l-* system so it reads as one page with the waitlist / feature
@@ -80,11 +83,11 @@ export function ClubOnboarding() {
   }, [user]);
 
   const handleSignIn = useCallback(() => {
-    // NOTE: the auth pages do not yet consume `returnTo`, so this does not
-    // auto-return to the form after sign-in — the gate copy tells the user to
-    // come back here. Wiring returnTo through sign-in/sign-up/OAuth is tracked
-    // as a follow-up; the target is kept here so it works once that lands.
-    navigate('/sign-in?returnTo=/?onboarding=true%23get-started');
+    navigate(buildSignInPathForRedirect(CLUB_ONBOARDING_RETURN_TO));
+  }, [navigate]);
+
+  const handleSignUp = useCallback(() => {
+    navigate(buildSignUpPathForRedirect(CLUB_ONBOARDING_RETURN_TO));
   }, [navigate]);
 
   const handleSubmit = useCallback(
@@ -155,8 +158,8 @@ export function ClubOnboarding() {
             skip under the section's own <h2>. */}
         <p className="l-success-title">Create your free account</p>
         <p>
-          Requesting club onboarding takes a myK9Show account — it's free. Sign in or sign up, then
-          come back to this page to submit your request.
+          Requesting club onboarding takes a myK9Show account — it's free. Sign in or sign up, and
+          you'll return here to submit your request.
         </p>
         <div className="l-submit-row">
           <button type="button" className="l-btn l-btn-primary l-btn-lg" onClick={handleSignIn}>
@@ -166,7 +169,7 @@ export function ClubOnboarding() {
         </div>
         <p className="l-fineprint">
           Don't have an account?{' '}
-          <button type="button" className="l-btn-text" onClick={() => navigate('/sign-up')}>
+          <button type="button" className="l-btn-text" onClick={handleSignUp}>
             Create one for free
           </button>
         </p>

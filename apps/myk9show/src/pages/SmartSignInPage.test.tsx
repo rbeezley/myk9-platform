@@ -133,6 +133,17 @@ describe('SmartSignInPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('preserves the return target when the user chooses to create an account', () => {
+    render(<SmartSignInPage />, {
+      initialRoute: '/sign-in?redirectTo=%2F%3Fonboarding%3Dtrue%23get-started',
+    });
+
+    expect(screen.getByRole('link', { name: /sign up/i })).toHaveAttribute(
+      'href',
+      '/sign-up?redirectTo=%2F%3Fonboarding%3Dtrue%23get-started'
+    );
+  });
+
   it('password sign-in follows redirectTo instead of the exhibitor fallback', async () => {
     const user = userEvent.setup();
     signInMock.mockResolvedValue(undefined);

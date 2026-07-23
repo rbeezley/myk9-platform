@@ -31,6 +31,11 @@ export function buildSignInPathForRedirect(target: string): string {
   return `/sign-in?${params.toString()}`;
 }
 
+export function buildSignUpPathForRedirect(target: string): string {
+  const params = new URLSearchParams({ redirectTo: target });
+  return `/sign-up?${params.toString()}`;
+}
+
 export function persistSignInRedirect(target: string): void {
   const normalized = normalizeSignInRedirect(target);
   if (!normalized) return;

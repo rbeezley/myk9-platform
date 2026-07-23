@@ -20,6 +20,7 @@ import {
   type ReplicatedTrial,
 } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
+import { getTrialTimezone } from '@/features/registries';
 import {
   postgrestGetSecretaryPullMetadataMap,
   type SecretaryPullMetadata,
@@ -258,7 +259,9 @@ function toSecretaryEntry(
           refunded_at: enrollment.refunded_at,
         }
       : null,
-    trial: trial ? { trial_type: trial.trialType ?? null, timezone: trial.timezone ?? null } : null,
+    trial: trial
+      ? { trial_type: trial.trialType ?? null, timezone: getTrialTimezone(trial) }
+      : null,
     handler_person: handler
       ? {
           id: handler.id,

@@ -626,7 +626,7 @@ describe('secretary entry read replication', () => {
         id: 'entry-after-hydration',
         show_id: 'show-1',
         class: expect.objectContaining({ name: 'Novice Containers' }),
-        trial: { trial_type: 'Scent Work', timezone: null },
+        trial: { trial_type: 'Scent Work', timezone: 'America/New_York' },
       }),
     ]);
   });

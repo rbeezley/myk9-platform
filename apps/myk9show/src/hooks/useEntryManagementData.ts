@@ -20,6 +20,7 @@ import {
 } from '@/utils/entryManagementUtils';
 import { getEntryManagementCountSummary } from '@/utils/entryCountSelectors';
 import { derivePullTiming, type PullRefundDecision } from '@/features/payments/pullReconciliation';
+import { getTrialTimezone } from '@/features/registries';
 
 interface UseEntryManagementDataReturn {
   // Auth
@@ -163,16 +164,14 @@ export function mapSecretaryEntryToEntryManagementEntry(
     refundedAt: entry.refunded_at ?? null,
     stripePaymentIntentId: entry.stripe_payment_intent_id ?? null,
     pullReason:
-      entry.entry_status === 'scratched'
-        ? (entry.withdrawal_reason ?? entry.special_requests ?? null)
-        : null,
+      entry.entry_status === 'scratched' ? (entry.withdrawal_reason ?? null) : null,
     pulledAt: entry.withdrawn_at ?? null,
     pullTiming:
       entry.entry_status === 'scratched'
         ? derivePullTiming({
             pulledAt: entry.withdrawn_at,
             entryCloseDate,
-            timeZone: entry.trial?.timezone,
+            timeZone: getTrialTimezone(entry.trial),
           })
         : null,
     refundDecision: (entry.refund_decision as PullRefundDecision | null) ?? null,
@@ -198,6 +197,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
   // Show selection — resolve from URL param, localStorage, or empty.
   // Defer applying until shows load so the Select can resolve the display name.
   const [shows, setShows] = useState<EntryManagementShow[]>([]);
+  const showsRef = useRef<EntryManagementShow[]>([]);
   const [selectedShowId, setSelectedShowId] = useState<string>('');
   const [isLoadingShows, setIsLoadingShows] = useState(true);
   const [didApplyInitial, setDidApplyInitial] = useState(false);
@@ -219,7 +219,9 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       if (queryError) {
         logger.error('Error loading shows:', 'secretary', {}, queryError as Error);
       } else {
-        setShows(data || []);
+        const nextShows = data || [];
+        showsRef.current = nextShows;
+        setShows(nextShows);
       }
     } catch (err) {
       logger.error('Error loading shows:', 'secretary', {}, err as Error);
@@ -243,7 +245,8 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
 
         // Transform database entries to UI format
         // SecretaryEntry is a flat row (one per class entry), not a grouped structure
-        const entryCloseDate = shows.find(show => show.id === showId)?.entry_close_date ?? null;
+        const entryCloseDate =
+          showsRef.current.find(show => show.id === showId)?.entry_close_date ?? null;
         const transformedEntries: EntryManagementEntry[] = ((data || []) as SecretaryEntry[]).map(
           entry => mapSecretaryEntryToEntryManagementEntry(entry, entryCloseDate)
         );
@@ -256,7 +259,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
         setIsLoading(false);
       }
     },
-    [shows]
+    []
   );
 
   // Load shows on mount
@@ -300,9 +303,11 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           end_date: row.end_date,
           entry_close_date: row.entry_close_date,
         };
-        setShows(prev =>
-          prev.some(show => show.id === linkedShow.id) ? prev : [linkedShow, ...prev]
-        );
+        const nextShows = showsRef.current.some(show => show.id === linkedShow.id)
+          ? showsRef.current
+          : [linkedShow, ...showsRef.current];
+        showsRef.current = nextShows;
+        setShows(nextShows);
         setSelectedShowId(initialShowId);
       }
 

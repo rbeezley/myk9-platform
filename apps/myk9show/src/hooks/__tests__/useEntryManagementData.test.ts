@@ -106,6 +106,26 @@ describe('useEntryManagementData', () => {
     expect(entry.refundDecision).toBe('denied');
   });
 
+  it('does not mislabel special requests as a pull reason', () => {
+    const entry = mapSecretaryEntryToEntryManagementEntry(
+      {
+        id: 'pulled-without-reason',
+        show_id: 'show-1',
+        entry_status: 'scratched',
+        special_requests: 'Crate near ring',
+        withdrawal_reason: null,
+        dog: null,
+        class: null,
+        registration: null,
+        trial: null,
+      } as never,
+      '2026-06-01'
+    );
+
+    expect(entry.pullReason).toBeNull();
+    expect(entry.notes).toBe('Crate near ring');
+  });
+
   it('loads shows on mount', async () => {
     const { result } = renderHook(() => useEntryManagementData());
     await waitFor(() => expect(result.current.isLoadingShows).toBe(false));

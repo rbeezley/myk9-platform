@@ -139,6 +139,15 @@ export function getStoredHighContrast(): boolean | null {
  * localStorage cache is global. Clear it on sign-out so the next user on a
  * shared browser doesn't boot with the previous user's density/motion/
  * contrast/font settings before their own preferences load.
+ *
+ * INTENT: theme mode and accent color (settingsStore, `myK9Q_settings`) are
+ * deliberately NOT cleared here — they are device-level, like the OS dark-mode
+ * setting, not per-user. theme-init.js must apply them synchronously before
+ * auth exists (flash-free boot), anonymous passcode ringside users have no
+ * user_preferences row to hydrate from, and there is no server hydrate-back
+ * path — so resetting them on sign-out would wipe the owner's dark mode on a
+ * personal device to save a shared browser from inheriting a color choice.
+ * See the settingsStore module docstring before changing this.
  */
 export function clearAppearanceCache(): void {
   if (typeof window === 'undefined') return;

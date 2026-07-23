@@ -77,6 +77,17 @@ vi.mock('@/components/preferences/DataSettings', () => ({
 vi.mock('@/components/preferences/InstallAppSettings', () => ({
   InstallAppSettings: () => <div data-testid="install-settings" />,
 }));
+// BillingSection reuses SubscriptionManager (Stripe/supabase) + profile hooks;
+// stub them so the account-page test stays lightweight.
+vi.mock('@/components/subscription/SubscriptionManager', () => ({
+  SubscriptionManager: () => <div data-testid="subscription-manager" />,
+}));
+vi.mock('@/hooks/useSubscriptionGate', () => ({
+  useSubscriptionGate: () => ({ isEarlyAdopter: false }),
+}));
+vi.mock('@/hooks/useExhibitorProfile', () => ({
+  useExhibitorProfile: () => ({ profile: null }),
+}));
 
 describe('AccountPage', () => {
   beforeEach(() => {
@@ -111,6 +122,7 @@ describe('AccountPage', () => {
     render();
     [
       'Profile',
+      'Plan & billing',
       'Appearance',
       'Notifications',
       'Security',
@@ -118,6 +130,15 @@ describe('AccountPage', () => {
       'Install app',
       'Delete account',
     ].forEach(label => expect(screen.getByRole('button', { name: label })).toBeInTheDocument());
+  });
+
+  it('opens the Plan & billing section from the section query param', () => {
+    render('/account?section=billing');
+    expect(screen.getByTestId('subscription-manager')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Plan & billing' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
   });
 
   it('defaults to the Profile section', () => {

@@ -131,7 +131,10 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
-        <Link to="/subscription" className="w-full flex items-center gap-2">
+        {/* Billing now lives as a section on the unified account page; the
+            standalone /subscription route is kept only for Stripe checkout
+            redirects. */}
+        <Link to="/account?section=billing" className="w-full flex items-center gap-2">
           <CreditCard className="h-4 w-4" />
           Plan &amp; billing
         </Link>

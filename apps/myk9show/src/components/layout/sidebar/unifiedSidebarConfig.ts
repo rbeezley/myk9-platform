@@ -170,6 +170,12 @@ export function buildUnifiedSidebarConfig(
             description: 'Review elevated access',
           },
           {
+            title: 'Onboarding',
+            href: '/admin/onboarding',
+            icon: Building2,
+            description: 'Club onboarding requests',
+          },
+          {
             title: 'Roles & Permissions',
             href: '/admin/permissions',
             icon: Shield,

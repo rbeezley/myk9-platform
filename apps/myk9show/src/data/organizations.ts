@@ -22,9 +22,9 @@ export const SHOW_ORGANIZATIONS: OrganizationOption[] = listRegistries().map(id 
 /**
  * Bodies the app does not (yet) support. Offered ONLY on the club onboarding
  * lead form, never in the show-creation wizard — a club running one of these
- * should still be able to raise its hand, which is exactly what the FAQ
- * ("if yours isn't listed, let us know through the club onboarding form",
- * `src/data/faqs.ts`) promises.
+ * should still be able to raise its hand — the club onboarding lead form
+ * (ClubOnboarding, components/landing/v2/) lets a club whose body isn't
+ * listed reach out anyway.
  */
 const UNSUPPORTED_ORGANIZATIONS: OrganizationOption[] = [
   { value: 'NACSW', label: 'NACSW (National Association of Canine Scent Work)' },

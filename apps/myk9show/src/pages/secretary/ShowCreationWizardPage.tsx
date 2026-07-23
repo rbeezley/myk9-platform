@@ -83,7 +83,8 @@ const ShowCreationWizardPage: React.FC = () => {
     useShowCreationWizardActions({
       editMode,
       setIsLoading,
-      onCreated: (id, name, passcodes) => setCreatedShow({ id, name, passcodes }),
+      onCreated: (id, name, passcodes, passcodeError) =>
+        setCreatedShow({ id, name, passcodes, passcodeError: passcodeError ?? null }),
     });
 
   // Reset wizard state when entering fresh create mode (not edit mode)
@@ -370,7 +371,6 @@ const ShowCreationWizardPage: React.FC = () => {
           {/* Main Content — flat cream worksheet region (not a card) so the inner
               step cards are the single lifting card layer, never card-in-card. */}
           <div className="relative flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-border bg-background sm:min-h-[700px]">
-
             {/* Collapsible Validation Banner — only shown after user clicks Next.
                 Wrapped so handleNext can scroll it into view on a failed attempt. */}
             {hasAttemptedNext && validationMessages.length > 0 && (

@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { notifications } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
@@ -41,6 +42,8 @@ interface ShowAccessCodesCardProps {
    * `canRegenerate` flag — see below.
    */
   passcodes?: ShowPasscodes | null;
+  /** A plain-language passcode generation failure from the show-creation flow. */
+  initialError?: string | null;
   /**
    * When `true` AND no `passcodes` prop is supplied, the card renders a
    * confirm-gated "Generate new codes" CTA that invokes
@@ -67,24 +70,50 @@ type RegenerateRpcRow = {
   exhibitor: string;
 };
 
+type RegenerationState = 'idle' | 'generating' | 'success';
+
+interface RegenerateButtonProps {
+  isRegenerating: boolean;
+  onClick: () => void;
+  variant?: 'default' | 'outline';
+}
+
+function RegenerateButton({ isRegenerating, onClick, variant = 'default' }: RegenerateButtonProps) {
+  return (
+    <Button variant={variant} className="w-full gap-2" onClick={onClick} disabled={isRegenerating}>
+      {isRegenerating ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <KeyRound className="h-4 w-4" />
+      )}
+      {isRegenerating
+        ? 'Generating new codes…'
+        : variant === 'outline'
+          ? 'Regenerate codes'
+          : 'Generate new codes'}
+    </Button>
+  );
+}
+
 export function ShowAccessCodesCard({
   showId,
   showName,
   showDate,
   visibleRoles,
   passcodes: providedPasscodes,
+  initialError = null,
   canRegenerate = false,
 }: ShowAccessCodesCardProps) {
   const [generatedPasscodes, setGeneratedPasscodes] = useState<ShowPasscodes | null>(null);
-  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regenerationState, setRegenerationState] = useState<RegenerationState>('idle');
+  const [regenerationError, setRegenerationError] = useState<string | null>(initialError);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const qrContainerRef = useRef<HTMLDivElement>(null);
 
-  // Server-provided plaintexts (wizard) take precedence over any locally
-  // regenerated set; otherwise we display whatever the regenerate flow
-  // returned in this session. Until either fires, we render the empty
-  // state with the "Generate new codes" CTA.
-  const passcodes = providedPasscodes ?? generatedPasscodes;
+  // Wizard-provided plaintexts are the initial set. Once regeneration runs,
+  // the fresh set must replace them so revoked codes cannot be redistributed.
+  const passcodes = generatedPasscodes ?? providedPasscodes;
+  const isRegenerating = regenerationState === 'generating';
 
   async function copyToClipboard(text: string) {
     await navigator.clipboard.writeText(text);
@@ -92,7 +121,10 @@ export function ShowAccessCodesCard({
   }
 
   async function handleRegenerate() {
-    setIsRegenerating(true);
+    if (isRegenerating) return;
+
+    setRegenerationState('generating');
+    setRegenerationError(null);
     try {
       const { data, error } = await (
         supabase.rpc as unknown as (
@@ -102,7 +134,9 @@ export function ShowAccessCodesCard({
       )('regenerate_show_passcodes', { p_show_id: showId });
 
       if (error || !data || data.length === 0) {
-        notifications.error(friendlyDbError(error, 'Could not generate new codes. Please try again.'));
+        const message = friendlyDbError(error, 'Could not generate new codes. Please try again.');
+        setRegenerationError(message);
+        notifications.error(message);
         return;
       }
 
@@ -113,9 +147,14 @@ export function ShowAccessCodesCard({
         steward: row.steward,
         exhibitor: row.exhibitor,
       });
+      setRegenerationState('success');
       notifications.success('New codes generated. Copy or print them now.');
+    } catch (error) {
+      const message = friendlyDbError(error, 'Could not generate new codes. Please try again.');
+      setRegenerationError(message);
+      notifications.error(message);
     } finally {
-      setIsRegenerating(false);
+      setRegenerationState(current => (current === 'generating' ? 'idle' : current));
       setConfirmOpen(false);
     }
   }
@@ -158,6 +197,34 @@ export function ShowAccessCodesCard({
     win.print();
   }
 
+  const regenerationDialog = canRegenerate ? (
+    <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Generate new access codes?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This replaces the current codes for {showName ?? 'this show'}. Anyone using the old
+            codes will be locked out and must be given the new ones.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isRegenerating}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleRegenerate} disabled={isRegenerating}>
+            {isRegenerating ? 'Generating…' : 'Generate'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  ) : null;
+
+  const regenerationErrorAlert = regenerationError ? (
+    <Alert variant="destructive">
+      <AlertCircle className="h-4 w-4" />
+      <AlertTitle>Access codes were not generated</AlertTitle>
+      <AlertDescription>{regenerationError} Use the button below to try again.</AlertDescription>
+    </Alert>
+  ) : null;
+
   // Empty state — no plaintexts available. The hashes exist server-side
   // (every show has them after the Phase 0 backfill), but plaintexts are
   // recoverable only by regenerating, which invalidates the old set.
@@ -182,6 +249,7 @@ export function ShowAccessCodesCard({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          {regenerationErrorAlert}
           <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning ">
             <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <p>
@@ -189,36 +257,8 @@ export function ShowAccessCodesCard({
               you're ready to redistribute them.
             </p>
           </div>
-          <Button
-            onClick={() => setConfirmOpen(true)}
-            disabled={isRegenerating}
-            className="w-full gap-2"
-          >
-            {isRegenerating ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <KeyRound className="h-4 w-4" />
-            )}
-            Generate new codes
-          </Button>
-
-          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Generate new access codes?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This replaces the current codes for {showName ?? 'this show'}. Anyone using the
-                  old codes will be locked out and must be given the new ones.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isRegenerating}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleRegenerate} disabled={isRegenerating}>
-                  {isRegenerating ? 'Generating…' : 'Generate'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <RegenerateButton isRegenerating={isRegenerating} onClick={() => setConfirmOpen(true)} />
+          {regenerationDialog}
         </CardContent>
       </Card>
     );
@@ -241,12 +281,18 @@ export function ShowAccessCodesCard({
       <CardHeader>
         <CardTitle>Show Access Codes</CardTitle>
         <CardDescription>
-          Share these with your team. Enter a code at myk9show.com/at-show to open this show on any
-          device, no separate app or download. Codes won't be shown again, so copy or print them
-          now.
+          {regenerationState === 'success'
+            ? 'New access codes generated successfully. Copy or print them now, then regenerate them here whenever access needs to be reset.'
+            : "Share these with your team. Enter a code at myk9show.com/at-show to open this show on any device, no separate app or download. Codes won't be shown again, so copy or print them now."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        {regenerationErrorAlert}
+        {regenerationState === 'success' && (
+          <p className="text-sm text-success" role="status" aria-live="polite">
+            Access codes are ready to share.
+          </p>
+        )}
         {/* Hidden QR SVG used by printSlip */}
         <div ref={qrContainerRef} className="hidden">
           <QRCodeSVG value={exhibitorUrl} size={80} />
@@ -294,6 +340,14 @@ export function ShowAccessCodesCard({
             )}
           </div>
         ))}
+        {canRegenerate && (
+          <RegenerateButton
+            isRegenerating={isRegenerating}
+            onClick={() => setConfirmOpen(true)}
+            variant="outline"
+          />
+        )}
+        {regenerationDialog}
       </CardContent>
     </Card>
   );

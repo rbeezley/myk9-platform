@@ -19,12 +19,11 @@ import {
 
 type OnboardingStatus = OnboardingRequest['status'];
 
-const STATUS_OPTIONS: readonly OnboardingStatus[] = [
-  'pending',
-  'contacted',
-  'onboarded',
-  'declined',
-];
+// The editable statuses are the filter tabs minus the 'all' pseudo-filter —
+// derive them so the two lists can't drift when a status is added.
+const STATUS_OPTIONS: readonly OnboardingStatus[] = ONBOARDING_STATUS_FILTERS.filter(
+  (status): status is OnboardingStatus => status !== 'all'
+);
 
 function StatusBadge({ status }: { status: OnboardingStatus }) {
   const presentation = getOnboardingStatusPresentation(status);

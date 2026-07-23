@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { EntryStatus } from '@/types/show-registration-types';
+import type { EntryAttentionReason } from '@/features/entry-operations/attentionClassification';
 import {
   BULK_COMMAND_LABELS,
   getRegistrationReviewLabel,
@@ -12,9 +13,9 @@ import {
 } from '../reviewStateLabels';
 
 function registration(
-  attentionReasons: string[],
+  attentionReasons: EntryAttentionReason[],
   statuses: EntryStatus[]
-): { attentionReasons: any[]; entries: { entryStatus: EntryStatus }[] } {
+): { attentionReasons: EntryAttentionReason[]; entries: { entryStatus: EntryStatus }[] } {
   return {
     attentionReasons,
     entries: statuses.map(entryStatus => ({ entryStatus })),

@@ -286,5 +286,25 @@ describe('useProfileForm', () => {
     });
 
     expect(notifications.error).toHaveBeenCalledWith('Failed to update profile.');
+    expect(result.current.saveError).toBe('Failed to update profile.');
+  });
+
+  it('save() sets saveSuccess on success and clearSaveStatus resets it', async () => {
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
+
+    await waitForFormLoaded(result);
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.saveSuccess).toBe(true);
+
+    act(() => {
+      result.current.clearSaveStatus();
+    });
+
+    expect(result.current.saveSuccess).toBe(false);
+    expect(result.current.saveError).toBeNull();
   });
 });

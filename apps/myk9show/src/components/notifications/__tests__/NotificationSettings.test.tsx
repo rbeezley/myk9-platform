@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { NotificationSettings } from '../NotificationSettings';
 import { useNotificationStore } from '@/store/notificationStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { DEFAULT_PREFERENCES } from '@myk9/notifications';
 
 // Mock sound/voice modules
@@ -14,6 +15,15 @@ vi.mock('@myk9/notifications', async () => {
     isSpeechSupported: vi.fn(() => true),
   };
 });
+
+// Mock the haptic feedback hook
+vi.mock('@myk9/scoring-ui', () => ({
+  useHapticFeedback: () => ({
+    light: vi.fn(),
+    medium: vi.fn(),
+    isSupported: true,
+  }),
+}));
 
 import { testSound, speakWithConfig } from '@myk9/notifications';
 
@@ -92,6 +102,7 @@ beforeEach(() => {
     unreadCount: 0,
     permissionStatus: 'default' as NotificationPermission,
   });
+  useSettingsStore.getState().updateSettings({ hapticFeedback: true });
 });
 
 describe('NotificationSettings', () => {
@@ -204,6 +215,29 @@ describe('NotificationSettings', () => {
       voiceName: 'Alex',
       voiceRate: 1.5,
     });
+  });
+
+  // --- Haptic feedback ---
+  it('renders haptic feedback toggle', () => {
+    render(<NotificationSettings />);
+    expect(screen.getByRole('switch', { name: /haptic feedback/i })).toBeInTheDocument();
+    expect(screen.getByText(/vibrate on touch/i)).toBeInTheDocument();
+  });
+
+  it('reads haptic feedback state from settings store', () => {
+    useSettingsStore.getState().updateSettings({ hapticFeedback: false });
+    render(<NotificationSettings />);
+    expect(screen.getByRole('switch', { name: /haptic feedback/i })).toHaveAttribute(
+      'data-state',
+      'unchecked'
+    );
+  });
+
+  it('writes haptic feedback state to settings store on toggle', () => {
+    useSettingsStore.getState().updateSettings({ hapticFeedback: false });
+    render(<NotificationSettings />);
+    fireEvent.click(screen.getByRole('switch', { name: /haptic feedback/i }));
+    expect(useSettingsStore.getState().settings.hapticFeedback).toBe(true);
   });
 
   // --- Test notification ---

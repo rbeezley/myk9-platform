@@ -1,74 +1,66 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   Bell,
   CheckCircle2,
-  Dog,
   Download,
   Lock,
   Loader2,
   Palette,
   RotateCcw,
-  Shield,
-  SlidersHorizontal,
   Trash2,
-  Upload,
   User,
-  Wifi,
+  HardDrive,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { ThemeSelector } from '@/components/preferences/ThemeSelector';
-import { applyFontScale, storeFontScale, FONT_SIZE_SCALES } from '@/context/themeClasses';
+import {
+  applyFontScale,
+  storeFontScale,
+  FONT_SIZE_SCALES,
+  applyLayoutDensity,
+  storeLayoutDensity,
+  applyReduceMotion,
+  storeReduceMotion,
+  applyHighContrast,
+  storeHighContrast,
+} from '@/context/themeClasses';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
-import { GeneralSettings } from '@/components/preferences/GeneralSettings';
-import { PrivacySettings } from '@/components/preferences/PrivacySettings';
 import { SecuritySettings } from '@/components/preferences/SecuritySettings';
 import { DataSettings } from '@/components/preferences/DataSettings';
 import { InstallAppSettings } from '@/components/preferences/InstallAppSettings';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { downloadFile } from '@/lib/export';
-import { ProfileSection, DogsSection, DeleteSection } from './AccountPage.sections';
+import { ProfileSection, DeleteSection } from './AccountPage.sections';
 import type { Section, NavGroup } from './AccountPage.types';
 import type { PreferencesUpdate } from '@/types/user-preferences';
 import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 
-type ActionKey = 'reset' | 'export' | 'import';
-
-const NON_PREF_SECTIONS: ReadonlySet<Section> = new Set(['profile', 'dogs', 'delete']);
+const NON_PREF_SECTIONS: ReadonlySet<Section> = new Set(['profile', 'delete']);
 
 const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Your account',
-    items: [
-      { key: 'profile', label: 'Profile', icon: User },
-      { key: 'dogs', label: 'My dogs', icon: Dog },
-    ],
+    items: [{ key: 'profile', label: 'Profile', icon: User }],
   },
   {
     label: 'Display',
-    items: [
-      { key: 'appearance', label: 'Appearance', icon: Palette },
-      { key: 'general', label: 'General', icon: SlidersHorizontal },
-    ],
+    items: [{ key: 'appearance', label: 'Appearance', icon: Palette }],
   },
   {
     label: 'Notifications',
     items: [{ key: 'notifications', label: 'Notifications', icon: Bell }],
   },
   {
-    label: 'Privacy & security',
-    items: [
-      { key: 'privacy', label: 'Privacy', icon: Shield },
-      { key: 'security', label: 'Security', icon: Lock },
-    ],
+    label: 'Security',
+    items: [{ key: 'security', label: 'Security', icon: Lock }],
   },
   {
     label: 'Advanced settings',
     items: [
-      { key: 'data', label: 'Data & sync', icon: Wifi },
+      { key: 'data', label: 'Storage', icon: HardDrive },
       { key: 'install', label: 'Install app', icon: Download },
       { key: 'delete', label: 'Delete account', icon: Trash2 },
     ],
@@ -92,10 +84,8 @@ export default function AccountPage() {
     loading: prefsLoading,
     updatePreferences,
     resetToDefaults,
-    exportPreferences,
-    importPreferences,
   } = useUserPreferences(user?.id ?? null);
-  const [actionLoading, setActionLoading] = useState<ActionKey | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
   const [flash, setFlash] = useState<{ msg: string; kind: 'success' | 'error' } | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -112,9 +102,9 @@ export default function AccountPage() {
   }, [active, searchParams]);
 
   // Keep the applied/cached font scale derived from the loaded preference.
-  // Without this, "Reset" or "Import settings" only replace the server-backed
-  // preference — the localStorage cache that ThemeProvider re-applies on boot
-  // would keep the previous scale (e.g. a stale 1.2 after resetting to Medium).
+  // Without this, "Reset" only replaces the server-backed preference — the
+  // localStorage cache that ThemeProvider re-applies on boot would keep the
+  // previous scale (e.g. a stale 1.2 after resetting to Medium).
   useEffect(() => {
     const fontSize = preferences?.theme?.fontSize;
     if (!fontSize) return;
@@ -123,25 +113,37 @@ export default function AccountPage() {
     storeFontScale(scale);
   }, [preferences?.theme?.fontSize]);
 
+  // Same rationale as the font-scale effect above, for the other
+  // boot-hydrated appearance preferences: keep the applied class + localStorage
+  // cache in sync with the loaded server preference, so server prefs win over
+  // a stale cache and "Reset Theme Settings" actually reverts the applied
+  // classes when the blob resets.
+  useEffect(() => {
+    const layoutDensity = preferences?.theme?.layoutDensity;
+    if (!layoutDensity) return;
+    applyLayoutDensity(layoutDensity);
+    storeLayoutDensity(layoutDensity);
+  }, [preferences?.theme?.layoutDensity]);
+
+  useEffect(() => {
+    const reduceMotion = preferences?.theme?.reduceMotion;
+    if (reduceMotion === undefined) return;
+    applyReduceMotion(reduceMotion);
+    storeReduceMotion(reduceMotion);
+  }, [preferences?.theme?.reduceMotion]);
+
+  useEffect(() => {
+    const highContrast = preferences?.theme?.highContrast;
+    if (highContrast === undefined) return;
+    applyHighContrast(highContrast);
+    storeHighContrast(highContrast);
+  }, [preferences?.theme?.highContrast]);
+
   const showFlash = useCallback((msg: string, kind: 'success' | 'error' = 'success') => {
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     setFlash({ msg, kind });
     flashTimerRef.current = setTimeout(() => setFlash(null), kind === 'error' ? 5000 : 3000);
   }, []);
-
-  const withAction = useCallback(
-    async (key: ActionKey, fn: () => Promise<void>) => {
-      try {
-        setActionLoading(key);
-        await fn();
-      } catch (e) {
-        showFlash(e instanceof Error ? e.message : 'Something went wrong', 'error');
-      } finally {
-        setActionLoading(null);
-      }
-    },
-    [showFlash]
-  );
 
   const handleUpdate = useCallback(
     async (updates: PreferencesUpdate) => {
@@ -157,46 +159,18 @@ export default function AccountPage() {
 
   const handleReset = useCallback(
     async (category?: keyof PreferencesUpdate) => {
-      await withAction('reset', async () => {
+      try {
+        setResetLoading(true);
         await resetToDefaults(category);
         showFlash(`${category ?? 'All preferences'} reset to defaults`);
-      });
-    },
-    [withAction, resetToDefaults, showFlash]
-  );
-
-  const handleExport = useCallback(async () => {
-    await withAction('export', async () => {
-      const data = await exportPreferences();
-      downloadFile(
-        data,
-        `myK9Show-prefs-${new Date().toISOString().slice(0, 10)}.json`,
-        'application/json'
-      );
-      showFlash('Exported');
-    });
-  }, [withAction, exportPreferences, showFlash]);
-
-  const handleImport = useCallback(() => {
-    const input = Object.assign(document.createElement('input'), {
-      type: 'file',
-      accept: '.json',
-    });
-    input.onchange = async (e: Event) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) {
-        setActionLoading(null);
-        return;
+      } catch (e) {
+        showFlash(e instanceof Error ? e.message : 'Something went wrong', 'error');
+      } finally {
+        setResetLoading(false);
       }
-      await withAction('import', async () => {
-        await importPreferences(await file.text());
-        showFlash('Imported');
-      });
-    };
-    input.addEventListener('cancel', () => setActionLoading(null));
-    setActionLoading('import');
-    input.click();
-  }, [withAction, importPreferences, showFlash]);
+    },
+    [resetToDefaults, showFlash]
+  );
 
   const handleSectionChange = useCallback(
     (section: Section) => {
@@ -212,25 +186,6 @@ export default function AccountPage() {
     [searchParams, setSearchParams]
   );
 
-  const actionButtons = useMemo(
-    () => [
-      {
-        key: 'export' as ActionKey,
-        label: 'Export settings',
-        Icon: Download,
-        action: handleExport,
-      },
-      { key: 'import' as ActionKey, label: 'Import settings', Icon: Upload, action: handleImport },
-      {
-        key: 'reset' as ActionKey,
-        label: 'Reset all settings',
-        Icon: RotateCcw,
-        action: () => handleReset(),
-      },
-    ],
-    [handleExport, handleImport, handleReset]
-  );
-
   const renderSection = () => {
     if (!NON_PREF_SECTIONS.has(active) && prefsLoading) {
       return (
@@ -242,8 +197,6 @@ export default function AccountPage() {
     switch (active) {
       case 'profile':
         return <ProfileSection />;
-      case 'dogs':
-        return <DogsSection />;
       case 'appearance':
         return (
           <ThemeSelector
@@ -252,28 +205,12 @@ export default function AccountPage() {
             onReset={() => handleReset('theme')}
           />
         );
-      case 'general':
-        return <GeneralSettings />;
       case 'notifications':
         return <NotificationSettings />;
-      case 'privacy':
-        return (
-          <PrivacySettings
-            preferences={preferences?.privacy}
-            onUpdate={p => handleUpdate({ privacy: p })}
-            onReset={() => handleReset('privacy')}
-          />
-        );
       case 'security':
         return <SecuritySettings />;
       case 'data':
-        return (
-          <DataSettings
-            preferences={preferences?.data}
-            onUpdate={d => handleUpdate({ data: d })}
-            onReset={() => handleReset('data')}
-          />
-        );
+        return <DataSettings />;
       case 'install':
         return <InstallAppSettings />;
       case 'delete':
@@ -351,24 +288,21 @@ export default function AccountPage() {
               </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/50 pt-3 md:mt-4 md:block md:space-y-1 md:pt-4">
-              {actionButtons.map(({ key, label, Icon, action }) => (
-                <Button
-                  key={key}
-                  variant="ghost"
-                  className="min-h-11 justify-center px-3 text-muted-foreground md:w-full md:justify-start md:text-sm"
-                  onClick={action}
-                  disabled={!!actionLoading}
-                  title={label}
-                >
-                  {actionLoading === key ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin md:mr-2" />
-                  ) : (
-                    <Icon className="h-3.5 w-3.5 md:mr-2" />
-                  )}
-                  <span className="sr-only md:not-sr-only">{label}</span>
-                </Button>
-              ))}
+            <div className="mt-3 border-t border-border/50 pt-3 md:mt-4 md:pt-4">
+              <Button
+                variant="ghost"
+                className="min-h-11 w-full justify-center px-3 text-muted-foreground md:justify-start md:text-sm"
+                onClick={() => handleReset()}
+                disabled={resetLoading}
+                title="Reset all settings"
+              >
+                {resetLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin md:mr-2" />
+                ) : (
+                  <RotateCcw className="h-3.5 w-3.5 md:mr-2" />
+                )}
+                <span className="sr-only md:not-sr-only">Reset all settings</span>
+              </Button>
             </div>
           </nav>
 

@@ -25,25 +25,24 @@ Object.defineProperty(window, 'location', {
 });
 
 describe('DataSettings cache clear', () => {
-  const defaultProps = {
-    preferences: undefined,
-    onUpdate: vi.fn(),
-    onReset: vi.fn(),
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
   });
 
   it('renders clear cache button', () => {
-    render(<DataSettings {...defaultProps} />);
+    render(<DataSettings />);
     expect(screen.getByRole('button', { name: /clear cache/i })).toBeInTheDocument();
+  });
+
+  it('shows the offline-first note', () => {
+    render(<DataSettings />);
+    expect(screen.getByText(/works offline automatically/i)).toBeInTheDocument();
   });
 
   it('shows confirmation before clearing', async () => {
     mockConfirm.mockReturnValue(false);
-    const { user } = render(<DataSettings {...defaultProps} />);
+    const { user } = render(<DataSettings />);
     await user.click(screen.getByRole('button', { name: /clear cache/i }));
     expect(mockConfirm).toHaveBeenCalledWith(expect.stringContaining('clear'));
     expect(mockClear).not.toHaveBeenCalled();
@@ -51,7 +50,7 @@ describe('DataSettings cache clear', () => {
 
   it('clears React Query cache and reloads on confirm', async () => {
     mockConfirm.mockReturnValue(true);
-    const { user } = render(<DataSettings {...defaultProps} />);
+    const { user } = render(<DataSettings />);
     await user.click(screen.getByRole('button', { name: /clear cache/i }));
     expect(mockClear).toHaveBeenCalled();
     expect(mockReload).toHaveBeenCalled();
@@ -64,7 +63,7 @@ describe('DataSettings cache clear', () => {
     localStorage.setItem('scroll_shows', '150');
 
     mockConfirm.mockReturnValue(true);
-    const { user } = render(<DataSettings {...defaultProps} />);
+    const { user } = render(<DataSettings />);
     await user.click(screen.getByRole('button', { name: /clear cache/i }));
 
     // Preserved

@@ -32,12 +32,6 @@ vi.mock('@/hooks/useUsers', () => ({
   useUpdatePerson: () => ({ mutate: vi.fn() }),
 }));
 
-let mockDogs: Array<{ id: string; name: string; call_name?: string; breed?: string }> = [];
-let mockDogsLoading = false;
-vi.mock('@/hooks/queries/useDogsDatabase', () => ({
-  useDogsQuery: () => ({ data: mockDogs, isLoading: mockDogsLoading }),
-}));
-
 const mockSignOut = vi.fn().mockResolvedValue(undefined);
 let mockAuthUserId = 'u-1';
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -62,12 +56,8 @@ vi.mock('@/hooks/useUserPreferences', () => ({
   useUserPreferences: () => ({
     preferences: null,
     loading: false,
-    syncState: null,
     updatePreferences: vi.fn().mockResolvedValue(undefined),
     resetToDefaults: vi.fn().mockResolvedValue(undefined),
-    exportPreferences: vi.fn().mockResolvedValue('{}'),
-    importPreferences: vi.fn().mockResolvedValue(undefined),
-    forceSync: vi.fn(),
   }),
 }));
 
@@ -77,12 +67,6 @@ vi.mock('@/components/preferences/ThemeSelector', () => ({
 }));
 vi.mock('@/components/notifications/NotificationSettings', () => ({
   NotificationSettings: () => <div data-testid="notification-settings" />,
-}));
-vi.mock('@/components/preferences/GeneralSettings', () => ({
-  GeneralSettings: () => <div data-testid="general-settings" />,
-}));
-vi.mock('@/components/preferences/PrivacySettings', () => ({
-  PrivacySettings: () => <div data-testid="privacy-settings" />,
 }));
 vi.mock('@/components/preferences/SecuritySettings', () => ({
   SecuritySettings: () => <div data-testid="security-settings" />,
@@ -98,8 +82,6 @@ describe('AccountPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    mockDogs = [];
-    mockDogsLoading = false;
     mockAuthUserId = 'u-1';
     mockForm.isDirty = false;
     mockForm.saving = false;
@@ -120,7 +102,8 @@ describe('AccountPage', () => {
     expect(screen.getByText('Display')).toBeInTheDocument();
     // 'Notifications' appears as both group label and nav item — verify at least 2 occurrences
     expect(screen.getAllByText('Notifications').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText('Privacy & security')).toBeInTheDocument();
+    // 'Security' appears as both group label and nav item — verify at least 2 occurrences
+    expect(screen.getAllByText('Security').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Advanced settings')).toBeInTheDocument();
   });
 
@@ -128,13 +111,10 @@ describe('AccountPage', () => {
     render();
     [
       'Profile',
-      'My dogs',
       'Appearance',
-      'General',
       'Notifications',
-      'Privacy',
       'Security',
-      'Data & sync',
+      'Storage',
       'Install app',
       'Delete account',
     ].forEach(label => expect(screen.getByRole('button', { name: label })).toBeInTheDocument());
@@ -155,22 +135,10 @@ describe('AccountPage', () => {
     );
   });
 
-  it('switches to My dogs section on click', () => {
-    render();
-    fireEvent.click(screen.getByRole('button', { name: 'My dogs' }));
-    expect(screen.getByText(/you don't have any dogs yet/i)).toBeInTheDocument();
-  });
-
   it('switches to Appearance section and renders ThemeSelector', () => {
     render();
     fireEvent.click(screen.getByRole('button', { name: 'Appearance' }));
     expect(screen.getByTestId('theme-selector')).toBeInTheDocument();
-  });
-
-  it('switches to General section', () => {
-    render();
-    fireEvent.click(screen.getByRole('button', { name: 'General' }));
-    expect(screen.getByTestId('general-settings')).toBeInTheDocument();
   });
 
   it('switches to Notifications section', () => {
@@ -179,21 +147,15 @@ describe('AccountPage', () => {
     expect(screen.getByTestId('notification-settings')).toBeInTheDocument();
   });
 
-  it('switches to Privacy section', () => {
-    render();
-    fireEvent.click(screen.getByRole('button', { name: 'Privacy' }));
-    expect(screen.getByTestId('privacy-settings')).toBeInTheDocument();
-  });
-
   it('switches to Security section', () => {
     render();
     fireEvent.click(screen.getByRole('button', { name: 'Security' }));
     expect(screen.getByTestId('security-settings')).toBeInTheDocument();
   });
 
-  it('switches to Data & sync section', () => {
+  it('switches to Storage section', () => {
     render();
-    fireEvent.click(screen.getByRole('button', { name: 'Data & sync' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Storage' }));
     expect(screen.getByTestId('data-settings')).toBeInTheDocument();
   });
 
@@ -201,18 +163,6 @@ describe('AccountPage', () => {
     render();
     fireEvent.click(screen.getByRole('button', { name: 'Install app' }));
     expect(screen.getByTestId('install-settings')).toBeInTheDocument();
-  });
-
-  it('DogsSection shows dog list when dogs present', () => {
-    mockDogs = [
-      { id: 'd-1', name: 'Biscuit', call_name: 'Biscuit', breed: 'Border Collie' },
-      { id: 'd-2', name: 'Max', call_name: 'Max', breed: '' },
-    ];
-    render();
-    fireEvent.click(screen.getByRole('button', { name: 'My dogs' }));
-    expect(screen.getByText('Biscuit')).toBeInTheDocument();
-    expect(screen.getByText('Border Collie')).toBeInTheDocument();
-    expect(screen.getByText('Max')).toBeInTheDocument();
   });
 
   it('DeleteSection shows two-step confirm', () => {

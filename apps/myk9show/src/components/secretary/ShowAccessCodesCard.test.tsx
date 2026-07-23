@@ -238,6 +238,32 @@ describe('ShowAccessCodesCard', () => {
     expect(screen.getByRole('button', { name: /regenerate codes/i })).toBeInTheDocument();
   });
 
+  it('replaces wizard-provided codes after regeneration', async () => {
+    mockRegenerateRpc({
+      data: [{ admin: 'a9999', judge: 'j8888', steward: 's7777', exhibitor: 'e6666' }],
+      error: null,
+    });
+
+    const { user } = renderWithProviders(
+      <ShowAccessCodesCard
+        showId={TEST_SHOW_ID}
+        canRegenerate
+        passcodes={{
+          admin: 'a1111',
+          judge: 'j2222',
+          steward: 's3333',
+          exhibitor: 'e4444',
+        }}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /regenerate codes/i }));
+    await user.click(await screen.findByRole('button', { name: /^generate$/i }));
+
+    expect(await screen.findByText('a9999')).toBeInTheDocument();
+    expect(screen.queryByText('a1111')).not.toBeInTheDocument();
+  });
+
   it('shows an in-progress state and prevents a second generation request', async () => {
     let resolveRpc: ((value: unknown) => void) | undefined;
     mockSupabase.rpc.mockImplementation(

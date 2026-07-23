@@ -110,11 +110,9 @@ export function ShowAccessCodesCard({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const qrContainerRef = useRef<HTMLDivElement>(null);
 
-  // Server-provided plaintexts (wizard) take precedence over any locally
-  // regenerated set; otherwise we display whatever the regenerate flow
-  // returned in this session. Until either fires, we render the empty
-  // state with the "Generate new codes" CTA.
-  const passcodes = providedPasscodes ?? generatedPasscodes;
+  // Wizard-provided plaintexts are the initial set. Once regeneration runs,
+  // the fresh set must replace them so revoked codes cannot be redistributed.
+  const passcodes = generatedPasscodes ?? providedPasscodes;
   const isRegenerating = regenerationState === 'generating';
 
   async function copyToClipboard(text: string) {

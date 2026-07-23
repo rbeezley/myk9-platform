@@ -15,12 +15,8 @@ import { useShowStore } from '@/store/showStore';
 import { useClubStore } from '@/store/clubStore';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { deriveRegistryId } from '@/features/registries';
-import {
-  replicatedClassesTable,
-  type ReplicatedClass,
-} from '@/services/replication/ReplicatedClassesTable';
+import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { supabase } from '@/services/database/supabaseClient';
-import type { SportClassRuleRow } from '@/types/sport-template-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
@@ -29,7 +25,6 @@ import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
 import type { Show } from '@/types/show-types';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
-import type { ClassData } from '@/components/classes/types/classTypes';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import {
   createClassDataFromWizard,
@@ -38,39 +33,7 @@ import {
 } from './showCreationWizardTransformers';
 import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
-
-/**
- * Convert wizard ClassData to ReplicatedClass for offline-first storage
- */
-function classDataToReplicatedClass(
-  classData: ClassData,
-  rule?: SportClassRuleRow
-): ReplicatedClass {
-  return {
-    id: classData.id || crypto.randomUUID(),
-    trialId: classData.trialId,
-    name: classData.className || classData.trial || 'Class',
-    level: classData.level,
-    element: classData.element,
-    section: classData.section,
-    entryFee: classData.preEntryFee || classData.entryFee,
-    maxEntries: classData.maxEntries,
-    judgeName: classData.judge,
-    classOrder: classData.classOrder ? parseInt(classData.classOrder, 10) : undefined,
-    classStatus: classData.status || 'Scheduled',
-    startTime: classData.startTime,
-    // Keep snake_case alias for backward compat
-    trial_id: classData.trialId,
-    // Scoring rule fields (from sport_class_rules, baked in at creation)
-    ...(rule && {
-      timerMode: rule.timer_mode,
-      hidesKnown: rule.hides_known,
-      distractionCount: rule.distraction_count_min,
-      areaCount: rule.area_count,
-      timeLimitSeconds: rule.max_time_seconds_fixed ?? undefined,
-    }),
-  };
-}
+import { classDataToReplicatedClass } from './classDataToReplicatedClass';
 
 interface UseShowCreationWizardActionsOptions {
   editMode?: EditMode | undefined;

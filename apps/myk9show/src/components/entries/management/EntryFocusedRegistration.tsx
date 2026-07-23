@@ -6,19 +6,14 @@ import { formatConfirmationNumberLabel } from '@/features/registration/confirmat
 import { EnrollmentCard } from './EnrollmentCard';
 import type { EnrollmentCardProps } from './EnrollmentCard.types';
 import type { ShowRegistrationGroup } from './showRegistrationProjection';
+import { getRegistrationReviewLabel } from './reviewStateLabels';
 
 interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group'> {
   registration: ShowRegistrationGroup;
   onBack?: () => void;
 }
 
-function reviewLabel(registration: ShowRegistrationGroup): string {
-  if (registration.attentionReasons.includes('missing_information')) {
-    return 'Missing information';
-  }
-  if (registration.attentionReasons.includes('pending_review')) return 'Needs review';
-  return 'Reviewed';
-}
+const reviewLabel = getRegistrationReviewLabel;
 
 export function EntryFocusedRegistration({
   registration,

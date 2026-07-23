@@ -52,10 +52,10 @@ describe('EntryRowActionMenu', () => {
     await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
     await screen.findByRole('menu');
 
-    expect(screen.queryByRole('menuitem', { name: /accept entry/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /^accept$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /move to waitlist/i })).not.toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /check in all classes/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /reject entry/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /^reject$/i })).toBeInTheDocument();
   });
 
   it('hides actions when their handlers are not supplied', async () => {
@@ -66,7 +66,7 @@ describe('EntryRowActionMenu', () => {
     await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
     await screen.findByRole('menu');
 
-    expect(screen.getByRole('menuitem', { name: /accept entry/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /^accept$/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /move to waitlist/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /remove entry/i })).toBeInTheDocument();
     expect(

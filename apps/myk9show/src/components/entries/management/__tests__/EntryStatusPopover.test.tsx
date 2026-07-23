@@ -90,7 +90,7 @@ describe('EntryStatusPopover', () => {
     await user.keyboard('{Enter}');
 
     expect(screen.getByRole('menu')).toBeInTheDocument();
-    const accept = screen.getByRole('menuitem', { name: 'Accept entry' });
+    const accept = screen.getByRole('menuitem', { name: 'Accept' });
     expect(accept).toHaveClass('min-h-11');
     await user.click(accept);
 
@@ -112,7 +112,7 @@ describe('EntryStatusPopover', () => {
       screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
     );
     expect(screen.queryByText('Check in all classes')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('menuitem', { name: 'Accept entry' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't update status.");
     await user.click(screen.getByRole('button', { name: 'Retry status update' }));

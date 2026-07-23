@@ -1,9 +1,9 @@
 ## 1. Review-State Vocabulary Module
 
-- [ ] 1.1 Grep every render site of the current review-state strings ("Accepted", "Reviewed", "Needs review", "Missing Info", "Accept entry", "Reject entry", bulk labels) across `apps/myk9show/src/components/entries/**` and record the consumer list.
-- [ ] 1.2 Write assertion-first tests for a pure `reviewStateLabels` module: state→label/tone mapping, verb-command mapping for menu items, and a source-text pin that "Reviewed" is no longer produced.
-- [ ] 1.3 Implement the module and convert queue rows, `EntryFocusedRegistration.reviewLabel`, `EntryStatusPopover`, and bulk-action labels to consume it.
-- [ ] 1.4 Run colocated + caller tests for every converted component; `pnpm typecheck`.
+- [x] 1.1 Grep every render site of the current review-state strings ("Accepted", "Reviewed", "Needs review", "Missing Info", "Accept entry", "Reject entry", bulk labels) across `apps/myk9show/src/components/entries/**` and record the consumer list.
+- [x] 1.2 Write assertion-first tests for a pure `reviewStateLabels` module: state→label/tone mapping, verb-command mapping for menu items, and a source-text pin that "Reviewed" is no longer produced.
+- [x] 1.3 Implement the module and convert queue rows, `EntryFocusedRegistration.reviewLabel`, `EntryStatusPopover`, and bulk-action labels to consume it.
+- [x] 1.4 Run colocated + caller tests for every converted component; `pnpm typecheck`.
 
 ## 2. Primary-Work Decision Actions
 

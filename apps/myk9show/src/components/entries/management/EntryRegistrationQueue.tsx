@@ -2,12 +2,13 @@ import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { PaymentStatus } from '@/types/show-registration-types';
 import type { OperationalViewDensity } from '@/features/operational-views/operationalViews';
 import {
   getEntryRegistrationRowId,
   type ShowRegistrationGroup,
 } from './showRegistrationProjection';
+import { getRegistrationReviewLabel } from './reviewStateLabels';
 
 interface EntryRegistrationQueueProps {
   groups: ShowRegistrationGroup[];
@@ -56,33 +57,7 @@ function paymentLabel(group: ShowRegistrationGroup): string {
   }
 }
 
-function reviewLabel(group: ShowRegistrationGroup): string {
-  if (group.attentionReasons.includes('missing_information')) return 'Missing information';
-  if (group.attentionReasons.includes('pending_review')) return 'Needs review';
-
-  const statuses = [...new Set(group.entries.map(entry => entry.entryStatus))];
-  if (statuses.length !== 1) return 'Mixed statuses';
-  switch (statuses[0]) {
-    case EntryStatus.ACCEPTED:
-      return 'Accepted';
-    case EntryStatus.REJECTED:
-      return 'Not accepted';
-    case EntryStatus.WAITLIST:
-      return 'Waitlisted';
-    case EntryStatus.CANCELLED:
-      return 'Withdrawn';
-    case EntryStatus.SCRATCHED:
-      return 'Scratched';
-    case EntryStatus.MOVED:
-      return 'Moved';
-    case EntryStatus.COMPLETED:
-      return 'Complete';
-    case EntryStatus.MOVE_UP_REQUESTED:
-      return 'Move-up requested';
-    default:
-      return 'Needs review';
-  }
-}
+const reviewLabel = getRegistrationReviewLabel;
 
 export function EntryRegistrationQueue({
   groups,

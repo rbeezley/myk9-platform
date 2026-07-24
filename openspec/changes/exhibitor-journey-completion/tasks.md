@@ -13,7 +13,7 @@
 - [x] 2.2 Replace programmatic submit-event dispatch in Pedigree and Health add/edit dialogs with native form association or `requestSubmit()`, add TypeScript validation, and close/reset only after confirmed mutation success.
 - [x] 2.3 Add a date-only helper test matrix for UTC, `America/Chicago`, month/year boundaries, and round-trip edit display, then replace touched `new Date('YYYY-MM-DD')` paths.
 - [x] 2.4 Add failing Health filter tests for search, type, year, combined filters, and filter-specific empty state, then wire the controls to real state and clear-filter recovery.
-- [ ] 2.5 Verify Slice 1 with focused Pedigree, Health form, date-helper, and Health filter tests plus `pnpm typecheck` and `pnpm lint`.
+- [x] 2.5 Verify Slice 1 with focused Pedigree, Health form, date-helper, and Health filter tests plus `pnpm typecheck` and `pnpm lint`.
 - [ ] 2.6 Open the Slice 1 PR with the audit findings, red-to-green evidence, risk, how to test, and explicit non-goals; wait for CI/review, resolve findings, and merge before starting dependent layout work.
 
 ## 3. Slice 2 — Dog Workspace Consolidation and Responsive Records

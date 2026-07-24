@@ -4,8 +4,8 @@
 
 | Dimension    | Status                                                                 |
 | ------------ | ---------------------------------------------------------------------- |
-| Completeness | 13/14 tasks complete; 6/6 requirements implemented                    |
-| Correctness  | 6/6 requirements and 21/21 scenarios covered by code/tests             |
+| Completeness | 14/15 tasks complete; 6/6 requirements implemented                    |
+| Correctness  | 6/6 requirements and 22/22 scenarios covered by code/tests             |
 | Coherence    | Follows dedicated-endpoint, caller-RLS, separate-state, no-new-page design |
 
 ## Implementation Mapping
@@ -15,13 +15,13 @@
 - Separate read-only registry: `operatorToolDefinitions.ts` registers only `summarize_operator_alerts`; unknown tools fail closed.
 - Caller-scoped RLS: `operatorAlerts.ts` receives the caller client, selects five allowlisted fields, filters unresolved rows, orders deterministically, and applies a 50-row hard limit.
 - Redaction and bounds: `operatorAlerts.ts` excludes arbitrary/detail fields, caps strings, aggregates severity/source counts, and returns at most 10 recent alerts.
-- Conversation/audit separation: `AskQPanel.tsx` uses a second `useAskQ` instance and clears it on mode change; `operatorSupportAudit.ts` stores a constant redacted query marker.
-- Availability and cost controls: the edge function is disabled unless `OPERATOR_SUPPORT_ENABLED=true`, and `operatorSupportRateLimit.ts` applies a fail-closed 20-request UTC-day limit before audit/model/tool work.
+- Conversation/audit separation: `AskQPanel.tsx` uses a second `useAskQ` instance and clears it on mode change; the reservation RPC stores only a constant redacted query marker.
+- Availability and cost controls: the edge function is disabled unless `OPERATOR_SUPPORT_ENABLED=true`; `reserve_operator_support_query()` rechecks caller identity/role and uses a per-admin transaction advisory lock to atomically reserve one of 20 UTC-day slots with its audit row.
 - Failure-path auditing and input handling: operator tool usage is finalized even when a later model call fails, and non-object JSON bodies receive a controlled bad-request response.
 
 ## Verification Evidence
 
-- Focused Vitest: 6 files, 37 tests passed.
+- Focused Vitest: 7 files, 43 tests passed.
 - myK9Show application and test TypeScript checks passed.
 - Shared operator modules passed a standalone TypeScript check.
 - Focused ESLint passed (only the repository's existing module-type runtime warning was emitted).
@@ -41,6 +41,7 @@
 
 - The broader `docs/plan-ai-natural-language-access.md` still requires typed diagnostic states and production-like validation before Phase 2 can deploy. Rate limiting and the disable switch are now included in this slice.
 - A Deno runtime bundle/serve check could not run because Deno is not installed in this worktree environment. Shared logic is typechecked and tested, but the edge-function entry point still needs Supabase local/staging verification before deployment.
+- The atomic quota migration has source-contract coverage but has not been applied or exercised against the linked database; deployment must apply and validate it before enabling the edge function.
 - Linear MYK9-26 remains Backlog and describes this feature as post-launch. The local implementation was started only because the user explicitly approved proceeding; the issue was not changed.
 
 ### SUGGESTION

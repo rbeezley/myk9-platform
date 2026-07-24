@@ -10,6 +10,7 @@
 - [x] 2.2 Implement the separate read-only operator tool registry and executor
 - [x] 2.3 Implement the dedicated Operator Support handler with authentication, `is_site_admin()` authorization, fail-closed rate limiting, redacted audit metadata, model loop, and SSE response
 - [x] 2.4 Add the disabled-by-default `ask-operator-support` edge-function entry point using distinct caller and audit clients
+- [x] 2.5 Add an atomic, caller-authenticated quota-reservation RPC with a per-admin advisory lock and redacted audit insertion
 
 ## 3. AskQ Panel Integration
 

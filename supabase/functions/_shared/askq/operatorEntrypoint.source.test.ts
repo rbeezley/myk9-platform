@@ -30,8 +30,9 @@ describe('ask-operator-support entrypoint wiring', () => {
 
   it('fails closed behind an explicit kill switch and applies a dedicated daily limit', () => {
     expect(source).toContain("Deno.env.get('OPERATOR_SUPPORT_ENABLED') !== 'true'");
-    expect(source).toContain('createOperatorSupportRateLimiter(auditClient)');
-    expect(rateLimitSource).toContain(".eq('app_source', 'operator-support')");
+    expect(source).toContain('reserveOperatorSupportQuery(callerClient)');
+    expect(source).not.toContain('reserveOperatorSupportQuery(auditClient)');
+    expect(rateLimitSource).toContain("rpc('reserve_operator_support_query')");
     expect(rateLimitSource).toContain('OPERATOR_SUPPORT_DAILY_LIMIT = 20');
     expect(rateLimitSource).toContain("status: 'unavailable'");
   });

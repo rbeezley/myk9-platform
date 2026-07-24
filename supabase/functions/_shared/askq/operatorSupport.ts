@@ -2,7 +2,7 @@ import type { ClaudeContentBlock, ClaudeMessage, ToolDefinition } from './types.
 import type { OperatorAlertClient } from './operatorAlerts.ts';
 import { isRegisteredOperatorTool, OPERATOR_TOOLS } from './operatorToolDefinitions.ts';
 import type { OperatorSupportAuditWriter } from './operatorSupportAudit.ts';
-import type { CheckOperatorSupportRateLimit } from './operatorSupportRateLimit.ts';
+import type { ReserveOperatorSupportQuery } from './operatorSupportRateLimit.ts';
 
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_TOOL_ITERATIONS = 3;
@@ -44,7 +44,7 @@ interface HandleOperatorSupportOptions {
   user: { id: string } | null;
   callerClient: OperatorSupportCallerClient;
   audit: OperatorSupportAudit;
-  checkRateLimit: CheckOperatorSupportRateLimit;
+  reserveQuery: ReserveOperatorSupportQuery;
   callModel: CallOperatorModel;
   executeTool: ExecuteOperatorTool;
   now?: () => number;
@@ -75,7 +75,7 @@ export async function handleOperatorSupportRequest({
   user,
   callerClient,
   audit,
-  checkRateLimit,
+  reserveQuery,
   callModel,
   executeTool,
   now = Date.now,
@@ -104,27 +104,19 @@ export async function handleOperatorSupportRequest({
     throw new OperatorSupportError(400, 'Message too long (max 2000 characters)');
   }
 
-  const rateLimit = await checkRateLimit(user.id);
-  if (rateLimit.status === 'unavailable') {
+  const reservation = await reserveQuery();
+  if (reservation.status === 'unavailable') {
     throw new OperatorSupportError(503, 'Operator Support rate limit unavailable');
   }
-  if (rateLimit.status === 'limited') {
+  if (reservation.status === 'limited') {
     throw new OperatorSupportError(429, 'Daily limit reached', {
-      remaining: rateLimit.remaining,
-      limit: rateLimit.limit,
-      resetsAt: rateLimit.resetsAt,
+      remaining: reservation.remaining,
+      limit: reservation.limit,
+      resetsAt: reservation.resetsAt,
     });
   }
 
-  let queryLogId: string | null = null;
-  try {
-    queryLogId = await audit.start(user.id);
-  } catch {
-    // The model must not run unless the request has a durable audit marker.
-  }
-  if (!queryLogId) {
-    throw new OperatorSupportError(503, 'Operator Support audit unavailable');
-  }
+  const queryLogId = reservation.logId;
 
   const messages: ClaudeMessage[] = [{ role: 'user', content: message }];
   const toolsUsed: string[] = [];
@@ -181,8 +173,8 @@ export async function handleOperatorSupportRequest({
     toolsUsed: [...new Set(toolsUsed)],
     queryLogId,
     responseTimeMs,
-    remaining: rateLimit.remaining,
-    limit: rateLimit.limit,
+    remaining: reservation.remaining,
+    limit: reservation.limit,
   };
 }
 

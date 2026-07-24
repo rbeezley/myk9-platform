@@ -46,7 +46,7 @@ Alternative considered: reuse the normal `TOOLS` registry and filter it per requ
 
 ### Preserve RLS by dependency separation
 
-The endpoint will construct a caller client from the supplied bearer token and pass only that client to the operator executor. A service-role client may be constructed only for redacted audit and rate-limit access to `chatbot_query_log`, which is service-role managed; it will never be supplied to an operator read or tool.
+The endpoint will construct a caller client from the supplied bearer token and pass only that client to the operator executor and quota-reservation RPC. A service-role client may be constructed only to complete an already-reserved `chatbot_query_log` audit row; it will never be supplied to an operator read, quota decision, or tool.
 
 The alert query selects only `id`, `created_at`, `source`, `severity`, and `title`, filters unresolved rows, orders newest first, and applies a hard limit. The model receives aggregate severity/source counts and a small recent-alert list. It never receives `detail`, `dedupe_key`, `resolved_by`, or other arbitrary JSON.
 
@@ -54,7 +54,7 @@ Alternative considered: service-role reads plus manual authorization filters. Re
 
 ### Audit metadata without private prompt retention
 
-The endpoint will create a `chatbot_query_log` row with `app_source: "operator-support"` and a constant redacted query marker, then update tools and response time. This records who invoked the mode and which tool ran without persisting the operator's potentially sensitive natural-language question.
+The caller-scoped quota RPC will create a `chatbot_query_log` row with `app_source: "operator-support"` and a constant redacted query marker, then the endpoint will update tools and response time. This records who invoked the mode and which tool ran without persisting the operator's potentially sensitive natural-language question.
 
 The endpoint will update the provisional audit row from a guaranteed cleanup path, so tools that read private alert data remain recorded even if a later model call fails.
 
@@ -62,7 +62,7 @@ Alternative considered: store the full prompt like normal AskQ. Rejected because
 
 ### Fail closed on availability and cost controls
 
-`OPERATOR_SUPPORT_ENABLED` must be exactly `"true"` before the endpoint accepts requests. Authorized requests are limited to 20 per UTC day using redacted `operator-support` audit rows; a rate-limit query failure returns an unavailable response before audit creation, model access, or tool execution.
+`OPERATOR_SUPPORT_ENABLED` must be exactly `"true"` before the endpoint accepts requests. Authorized requests are limited to 20 per UTC day by `reserve_operator_support_query()`, which derives identity from `auth.uid()`, rechecks site-admin status, takes a per-user transaction advisory lock, counts redacted `operator-support` audit rows, and inserts the reserved audit row atomically. RPC failure or malformed output returns unavailable before model or tool execution.
 
 Alternative considered: rely on the client role gate or provider limits. Rejected because neither prevents direct endpoint calls from a compromised site-admin session.
 
@@ -84,9 +84,10 @@ The response prompt will direct the model to recommend `/admin/health` when an a
 1. Add and test the shared operator tool, authorization handler, and edge-function entry point.
 2. Add the admin-only panel mode and operator-specific client sender.
 3. Run focused unit, security-contract, TypeScript, and OpenSpec verification.
-4. Deploy the new edge function separately after review and explicitly set `OPERATOR_SUPPORT_ENABLED=true` only after runtime validation; the UI can be rolled back independently because normal AskQ is unchanged.
+4. Apply the quota-reservation migration, then deploy the new edge function separately after review.
+5. Explicitly set `OPERATOR_SUPPORT_ENABLED=true` only after migration and runtime validation; the UI can be rolled back independently because normal AskQ is unchanged.
 
-No database migration is required. Rollback removes the UI mode and edge function; existing AskQ and `/admin/health` behavior remain intact.
+Rollback first disables Operator Support, then removes the UI mode/edge function, and finally drops the reservation RPC/index after callers are reverted. Existing AskQ and `/admin/health` behavior remain intact.
 
 ## Open Questions
 

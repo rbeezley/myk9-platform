@@ -67,6 +67,27 @@ describe('AskQPanel', () => {
     expect(askqService.sendAskQQuery).not.toHaveBeenCalled();
   });
 
+  it('does not offer a subscription upgrade for the fixed Operator Support limit', async () => {
+    authState.userWithRoles.roles = ['site_admin'];
+    vi.mocked(askqService.sendOperatorSupportQuery).mockRejectedValue(
+      new askqService.RateLimitError(0, 20, '2026-07-25T00:00:00.000Z')
+    );
+
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />);
+
+    await user.click(screen.getByRole('button', { name: 'Operator Support' }));
+    fireEvent.change(screen.getByPlaceholderText('Ask about platform alerts...'), {
+      target: { value: 'Summarize unresolved alerts' },
+    });
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+
+    expect(await screen.findByText('Daily limit reached. Resets at midnight.')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Upgrade for more queries' })
+    ).not.toBeInTheDocument();
+  });
+
   it('clears private Operator Support state when returning to normal AskQ', async () => {
     authState.userWithRoles.roles = ['site_admin'];
     vi.mocked(askqService.sendOperatorSupportQuery).mockResolvedValue(

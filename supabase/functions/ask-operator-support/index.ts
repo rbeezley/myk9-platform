@@ -2,11 +2,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { callClaude } from '../_shared/askq/promptBuilder.ts';
 import {
-  handleOperatorSupportRequest,
-  OperatorSupportError,
+  handleOperatorSupportRequest, OperatorSupportError,
 } from '../_shared/askq/operatorSupport.ts';
 import { createOperatorSupportAudit } from '../_shared/askq/operatorSupportAudit.ts';
-import { createOperatorSupportRateLimiter } from '../_shared/askq/operatorSupportRateLimit.ts';
+import { reserveOperatorSupportQuery } from '../_shared/askq/operatorSupportRateLimit.ts';
 import { executeOperatorTool } from '../_shared/askq/operatorToolExecutor.ts';
 
 const CORS_HEADERS = {
@@ -61,15 +60,15 @@ Deno.serve(async (request: Request) => {
       return jsonResponse({ error: 'Invalid JSON body' }, 400);
     }
 
-    // Service-role access is deliberately contained inside redacted audit and
-    // rate-limit infrastructure. Tools receive only the caller-scoped client.
+    // Service-role access is deliberately contained inside audit completion.
+    // Reservation and tools both use the caller-scoped client.
     const auditClient = createClient(supabaseUrl, serviceRoleKey);
     const result = await handleOperatorSupportRequest({
       body,
       user,
       callerClient,
       audit: createOperatorSupportAudit(auditClient),
-      checkRateLimit: createOperatorSupportRateLimiter(auditClient),
+      reserveQuery: () => reserveOperatorSupportQuery(callerClient),
       callModel: (messages, tools, systemPrompt) =>
         callClaude(messages, anthropicKey, tools, systemPrompt),
       executeTool: executeOperatorTool,

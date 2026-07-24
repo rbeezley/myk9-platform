@@ -1,8 +1,9 @@
 export const OPERATOR_SUPPORT_DAILY_LIMIT = 20;
 
-export type OperatorSupportRateLimitResult =
+export type OperatorSupportReservation =
   | {
       status: 'allowed';
+      logId: string;
       remaining: number;
       limit: number;
       resetsAt: string;
@@ -17,66 +18,57 @@ export type OperatorSupportRateLimitResult =
       status: 'unavailable';
     };
 
-interface RateLimitQuery {
-  select(
-    columns: string,
-    options: { count: 'exact'; head: true }
-  ): RateLimitQuery;
-  eq(column: string, value: string): RateLimitQuery;
-  gte(
-    column: string,
-    value: string
-  ): PromiseLike<{
-    count: number | null;
-    error: { message: string } | null;
-  }>;
+interface ReservationRpcResult {
+  data: unknown;
+  error: { message: string } | null;
 }
 
-export interface OperatorSupportRateLimitClient {
-  from(table: string): RateLimitQuery;
+export interface OperatorSupportReservationClient {
+  rpc(name: 'reserve_operator_support_query'): PromiseLike<ReservationRpcResult>;
 }
 
-export type CheckOperatorSupportRateLimit = (
-  userId: string
-) => Promise<OperatorSupportRateLimitResult>;
+export type ReserveOperatorSupportQuery = () => Promise<OperatorSupportReservation>;
 
-export function createOperatorSupportRateLimiter(
-  client: OperatorSupportRateLimitClient,
-  now: () => Date = () => new Date()
-): CheckOperatorSupportRateLimit {
-  return async userId => {
-    const currentTime = now();
-    const dayStart = new Date(currentTime);
-    dayStart.setUTCHours(0, 0, 0, 0);
-    const resetsAt = new Date(dayStart);
-    resetsAt.setUTCDate(resetsAt.getUTCDate() + 1);
+export async function reserveOperatorSupportQuery(
+  client: OperatorSupportReservationClient
+): Promise<OperatorSupportReservation> {
+  const { data, error } = await client.rpc('reserve_operator_support_query');
+  if (error || !Array.isArray(data) || data.length !== 1) {
+    return { status: 'unavailable' };
+  }
 
-    const { count, error } = await client
-      .from('chatbot_query_log')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('app_source', 'operator-support')
-      .gte('created_at', dayStart.toISOString());
+  const row = data[0];
+  if (!isRecord(row)) {
+    return { status: 'unavailable' };
+  }
 
-    if (error) {
-      return { status: 'unavailable' };
-    }
+  const limit = readNonNegativeInteger(row.daily_limit);
+  const remaining = readNonNegativeInteger(row.remaining);
+  const resetsAt = typeof row.resets_at === 'string' ? row.resets_at : null;
+  if (limit !== OPERATOR_SUPPORT_DAILY_LIMIT || remaining === null || !resetsAt) {
+    return { status: 'unavailable' };
+  }
 
-    const used = count ?? 0;
-    if (used >= OPERATOR_SUPPORT_DAILY_LIMIT) {
-      return {
-        status: 'limited',
-        remaining: 0,
-        limit: OPERATOR_SUPPORT_DAILY_LIMIT,
-        resetsAt: resetsAt.toISOString(),
-      };
-    }
+  if (row.allowed === false && row.log_id === null && remaining === 0) {
+    return { status: 'limited', remaining, limit, resetsAt };
+  }
+  if (row.allowed !== true || typeof row.log_id !== 'string' || !row.log_id) {
+    return { status: 'unavailable' };
+  }
 
-    return {
-      status: 'allowed',
-      remaining: OPERATOR_SUPPORT_DAILY_LIMIT - used - 1,
-      limit: OPERATOR_SUPPORT_DAILY_LIMIT,
-      resetsAt: resetsAt.toISOString(),
-    };
+  return {
+    status: 'allowed',
+    logId: row.log_id,
+    remaining,
+    limit,
+    resetsAt,
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readNonNegativeInteger(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
 }

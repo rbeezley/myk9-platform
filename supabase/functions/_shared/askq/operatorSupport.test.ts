@@ -5,7 +5,7 @@ import {
   OperatorSupportError,
   type OperatorSupportAudit,
 } from './operatorSupport.ts';
-import { createOperatorSupportAudit, OPERATOR_QUERY_REDACTION } from './operatorSupportAudit.ts';
+import { createOperatorSupportAudit } from './operatorSupportAudit.ts';
 
 function makeCallerClient(isSiteAdmin: boolean, error: { message: string } | null = null) {
   return {
@@ -16,15 +16,15 @@ function makeCallerClient(isSiteAdmin: boolean, error: { message: string } | nul
 
 function makeAudit(overrides: Partial<OperatorSupportAudit> = {}): OperatorSupportAudit {
   return {
-    start: vi.fn(async () => 'log-1'),
     finish: vi.fn(async () => undefined),
     ...overrides,
   };
 }
 
-function allowRateLimit() {
+function allowReservation() {
   return vi.fn(async () => ({
     status: 'allowed' as const,
+    logId: 'log-1',
     remaining: 19,
     limit: 20,
     resetsAt: '2026-07-25T00:00:00.000Z',
@@ -42,6 +42,7 @@ describe('Operator Support authorization boundary', () => {
   it('rejects an unauthenticated caller before audit, model, or tools', async () => {
     const callerClient = makeCallerClient(true);
     const audit = makeAudit();
+    const reserveQuery = allowReservation();
     const callModel = vi.fn();
     const executeTool = vi.fn();
 
@@ -51,14 +52,14 @@ describe('Operator Support authorization boundary', () => {
         user: null,
         callerClient,
         audit,
-        checkRateLimit: allowRateLimit(),
+        reserveQuery,
         callModel,
         executeTool,
       })
     ).rejects.toEqual(new OperatorSupportError(401, 'Unauthorized'));
 
     expect(callerClient.rpc).not.toHaveBeenCalled();
-    expect(audit.start).not.toHaveBeenCalled();
+    expect(reserveQuery).not.toHaveBeenCalled();
     expect(callModel).not.toHaveBeenCalled();
     expect(executeTool).not.toHaveBeenCalled();
   });
@@ -66,6 +67,7 @@ describe('Operator Support authorization boundary', () => {
   it('rejects a non-admin even when the client forges operator mode fields', async () => {
     const callerClient = makeCallerClient(false);
     const audit = makeAudit();
+    const reserveQuery = allowReservation();
     const callModel = vi.fn();
     const executeTool = vi.fn();
 
@@ -79,21 +81,22 @@ describe('Operator Support authorization boundary', () => {
         user: { id: 'exhibitor-1' },
         callerClient,
         audit,
-        checkRateLimit: allowRateLimit(),
+        reserveQuery,
         callModel,
         executeTool,
       })
     ).rejects.toEqual(new OperatorSupportError(403, 'Operator Support requires site admin access'));
 
     expect(callerClient.rpc).toHaveBeenCalledWith('is_site_admin');
-    expect(audit.start).not.toHaveBeenCalled();
+    expect(reserveQuery).not.toHaveBeenCalled();
     expect(callModel).not.toHaveBeenCalled();
     expect(executeTool).not.toHaveBeenCalled();
   });
 
-  it('fails closed before model or tool execution when audit creation fails', async () => {
+  it('fails closed before model or tool execution when quota reservation fails', async () => {
     const callerClient = makeCallerClient(true);
-    const audit = makeAudit({ start: vi.fn(async () => null) });
+    const audit = makeAudit();
+    const reserveQuery = vi.fn(async () => ({ status: 'unavailable' as const }));
     const callModel = vi.fn();
     const executeTool = vi.fn();
 
@@ -103,11 +106,11 @@ describe('Operator Support authorization boundary', () => {
         user: { id: 'admin-1' },
         callerClient,
         audit,
-        checkRateLimit: allowRateLimit(),
+        reserveQuery,
         callModel,
         executeTool,
       })
-    ).rejects.toEqual(new OperatorSupportError(503, 'Operator Support audit unavailable'));
+    ).rejects.toEqual(new OperatorSupportError(503, 'Operator Support rate limit unavailable'));
 
     expect(callModel).not.toHaveBeenCalled();
     expect(executeTool).not.toHaveBeenCalled();
@@ -146,7 +149,7 @@ describe('Operator Support authorization boundary', () => {
       user: { id: 'admin-1' },
       callerClient,
       audit,
-      checkRateLimit: allowRateLimit(),
+      reserveQuery: allowReservation(),
       callModel,
       executeTool,
     });
@@ -179,7 +182,7 @@ describe('Operator Support authorization boundary', () => {
         user: { id: 'admin-1' },
         callerClient,
         audit,
-        checkRateLimit: allowRateLimit(),
+        reserveQuery: allowReservation(),
         callModel,
         executeTool,
       })
@@ -193,7 +196,7 @@ describe('Operator Support authorization boundary', () => {
   it('rejects a non-object JSON body with a controlled 400 response', async () => {
     const callerClient = makeCallerClient(true);
     const audit = makeAudit();
-    const checkRateLimit = allowRateLimit();
+    const reserveQuery = allowReservation();
     const callModel = vi.fn();
     const executeTool = vi.fn();
 
@@ -203,21 +206,20 @@ describe('Operator Support authorization boundary', () => {
         user: { id: 'admin-1' },
         callerClient,
         audit,
-        checkRateLimit,
+        reserveQuery,
         callModel,
         executeTool,
       })
     ).rejects.toEqual(new OperatorSupportError(400, 'Invalid request body'));
 
-    expect(checkRateLimit).not.toHaveBeenCalled();
-    expect(audit.start).not.toHaveBeenCalled();
+    expect(reserveQuery).not.toHaveBeenCalled();
     expect(callModel).not.toHaveBeenCalled();
   });
 
   it('fails closed at the daily limit before audit, model, or tool execution', async () => {
     const callerClient = makeCallerClient(true);
     const audit = makeAudit();
-    const checkRateLimit = vi.fn(async () => ({
+    const reserveQuery = vi.fn(async () => ({
       status: 'limited' as const,
       remaining: 0,
       limit: 20,
@@ -232,7 +234,7 @@ describe('Operator Support authorization boundary', () => {
         user: { id: 'admin-1' },
         callerClient,
         audit,
-        checkRateLimit,
+        reserveQuery,
         callModel,
         executeTool,
       })
@@ -246,7 +248,6 @@ describe('Operator Support authorization boundary', () => {
       },
     });
 
-    expect(audit.start).not.toHaveBeenCalled();
     expect(callModel).not.toHaveBeenCalled();
     expect(executeTool).not.toHaveBeenCalled();
   });
@@ -277,7 +278,7 @@ describe('Operator Support authorization boundary', () => {
         user: { id: 'admin-1' },
         callerClient,
         audit,
-        checkRateLimit: allowRateLimit(),
+        reserveQuery: allowReservation(),
         callModel,
         executeTool,
       })
@@ -291,27 +292,23 @@ describe('Operator Support authorization boundary', () => {
   });
 });
 
-describe('Operator Support redacted audit writer', () => {
-  it('stores a constant redacted marker instead of the natural-language prompt', async () => {
+describe('Operator Support audit completion', () => {
+  it('updates only the reserved audit row with bounded metadata', async () => {
     const query = {
-      insert: vi.fn(() => query),
-      select: vi.fn(() => query),
-      single: vi.fn(async () => ({ data: { id: 'log-1' }, error: null })),
       update: vi.fn(() => query),
       eq: vi.fn(async () => ({ error: null })),
     };
     const client = { from: vi.fn(() => query) };
     const audit = createOperatorSupportAudit(client);
 
-    await expect(audit.start('admin-1')).resolves.toBe('log-1');
+    await expect(
+      audit.finish('log-1', ['summarize_operator_alerts', 'summarize_operator_alerts'], 123)
+    ).resolves.toBeUndefined();
 
-    expect(query.insert).toHaveBeenCalledWith({
-      query: OPERATOR_QUERY_REDACTION,
-      tools_used: [],
-      user_id: 'admin-1',
-      app_source: 'operator-support',
-      response_time_ms: 0,
+    expect(query.update).toHaveBeenCalledWith({
+      tools_used: ['summarize_operator_alerts'],
+      response_time_ms: 123,
     });
-    expect(OPERATOR_QUERY_REDACTION).not.toContain('Summarize alerts');
+    expect(query.eq).toHaveBeenCalledWith('id', 'log-1');
   });
 });

@@ -21,7 +21,7 @@ The system SHALL present Operator Support as a site-admin-only mode inside the e
 
 ### Requirement: Operator Support has a server-enforced authorization boundary
 
-The system SHALL route Operator Support to a dedicated endpoint that is disabled by default, authenticates the bearer token, verifies `is_site_admin()` through the caller-scoped client, rejects invalid request shapes, and applies a fail-closed daily limit before processing the question.
+The system SHALL route Operator Support to a dedicated endpoint that is disabled by default, authenticates the bearer token, verifies `is_site_admin()` through the caller-scoped client, rejects invalid request shapes, and atomically reserves a fail-closed daily quota slot before processing the question.
 
 #### Scenario: Site admin sends an operator question
 
@@ -47,6 +47,11 @@ The system SHALL route Operator Support to a dedicated endpoint that is disabled
 
 - **WHEN** the dedicated operator-support audit count reaches 20 requests for the UTC day
 - **THEN** the endpoint returns a rate-limited response before creating another audit row, invoking a model, or executing a tool
+
+#### Scenario: Concurrent requests approach the daily limit
+
+- **WHEN** multiple requests for the same admin attempt to reserve the final quota slots concurrently
+- **THEN** the database serializes their quota decisions and permits no more than the remaining daily slots
 
 #### Scenario: Authorized admin sends a non-object JSON body
 

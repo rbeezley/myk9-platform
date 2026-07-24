@@ -29,4 +29,4 @@ None.
 - Adds a dedicated Supabase edge-function endpoint and shared TypeScript operator-tool modules.
 - Extends the existing AskQ panel and client service with a site-admin-only mode.
 - Reads the existing `operator_alerts` table under caller-scoped RLS and reuses the existing AskQ presentation patterns.
-- Adds focused unit and authorization-boundary tests; no schema migration, new application surface, or write path is introduced.
+- Adds an atomic quota-reservation RPC/index plus focused unit and authorization-boundary tests; no new application surface or operator-data write path is introduced.

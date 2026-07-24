@@ -356,7 +356,7 @@ export function AskQPanel() {
       {activeAskQ.status === 'rate-limited' && (
         <div className="bg-warning/10 text-warning text-sm rounded-lg px-3.5 py-2.5">
           <p>Daily limit reached. Resets at midnight.</p>
-          {!isPremium && (
+          {!isPremium && activeMode !== 'operator-support' && (
             <a href="/subscription" className="mt-1 text-xs underline block">
               Upgrade for more queries
             </a>

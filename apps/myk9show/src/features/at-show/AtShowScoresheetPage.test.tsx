@@ -22,11 +22,16 @@ import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncConte
 // reassign `mockRoles` to exercise the deny path. Real `getPrimaryRole` is kept
 // so the account-RBAC → ringside-role mapping is exercised, not stubbed away.
 let mockRoles: UserRole[] = [UserRole.JUDGE];
+// MYK9-82: the signed-in judge's person id, matched against judge_assignments.
+let mockPersonId: string | undefined = 'judge-1';
 vi.mock('@/hooks/useAuthContext', async importOriginal => {
   const actual = await importOriginal<typeof import('@/hooks/useAuthContext')>();
   return {
     ...actual,
-    useAuthContext: () => ({ getUserRoles: () => mockRoles }),
+    useAuthContext: () => ({
+      getUserRoles: () => mockRoles,
+      userWithRoles: { databaseUserId: mockPersonId },
+    }),
   };
 });
 
@@ -41,6 +46,18 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: { sync: vi.fn(), getTrialsByShow: vi.fn(), getTrialById: vi.fn() },
+}));
+
+// MYK9-82's pre-flight assignment check reads this barrel export directly.
+// `getAll` defaults to an empty store (cold cache) — tests that need an
+// assignment decision set it explicitly; everything else exercises the
+// documented fail-open behavior. `vi.hoisted` because `vi.mock` factories are
+// hoisted above top-level consts.
+const { judgeAssignmentsGetAll } = vi.hoisted(() => ({
+  judgeAssignmentsGetAll: vi.fn().mockResolvedValue([]),
+}));
+vi.mock('@/services/replication', () => ({
+  replicatedJudgeAssignmentsTable: { getAll: judgeAssignmentsGetAll },
 }));
 
 const submitScoreOptimistically = vi.fn();
@@ -176,6 +193,10 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRoles = [UserRole.JUDGE];
+    mockPersonId = 'judge-1';
+    // Default cold-cache (fail-open): tests exercising the pre-flight gate set
+    // an explicit assignment list; every other test just needs it to resolve.
+    judgeAssignmentsGetAll.mockResolvedValue([]);
     // The canScore gate reads the grant store; clear it so a leaked grant from
     // a sibling test (or future Phase 1b setGrant) can't silently override
     // `mockRoles` and pass the deny-path tests for the wrong reason.
@@ -202,6 +223,12 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       isSyncing: true,
       tablesStatus: { classes: 'syncing', entries: 'idle', dogs: 'idle', trials: 'idle' },
     });
+
+    // MYK9-82's pre-flight (`useJudgeAssignedToClass`) resolves one microtask
+    // after mount before `ScoresheetContent` mounts at all — sync it first so
+    // the findByRole below is checking the scoring engine's OWN loading state,
+    // not racing the pre-flight's.
+    await waitFor(() => expect(judgeAssignmentsGetAll).toHaveBeenCalled());
 
     expect(await screen.findByRole('status', { name: 'Loading scoresheet' })).toBeInTheDocument();
     expect(document.querySelector('.animate-spin')).toBeNull();
@@ -266,7 +293,12 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
     expect(await screen.findByText('Live scoresheet for #105')).toBeInTheDocument();
 
+    judgeAssignmentsGetAll.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'switch scoresheet' }));
+
+    // MYK9-82's pre-flight re-runs for the new classId before `ScoresheetContent`
+    // remounts — sync on it first, same reasoning as the test above.
+    await waitFor(() => expect(judgeAssignmentsGetAll).toHaveBeenCalled());
 
     expect(await screen.findByRole('status', { name: 'Loading scoresheet' })).toBeInTheDocument();
     expect(document.querySelector('.animate-spin')).toBeNull();
@@ -325,6 +357,103 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
     expect(screen.queryByText('No Scoring Access')).not.toBeInTheDocument();
+  });
+
+  // MYK9-82: `canScore` only checks the ROLE. The server additionally requires
+  // the judge be assigned to THIS class — without a client-side pre-flight,
+  // an unassigned judge would submit a score that dead-letters at sync.
+  describe('judge assignment pre-flight (MYK9-82)', () => {
+    it('blocks a signed-in judge with no matching assignment for this class', async () => {
+      judgeAssignmentsGetAll.mockResolvedValue([
+        { id: 'a1', personId: 'judge-1', classId: 'some-other-class', status: 'confirmed' },
+      ]);
+      renderPage();
+
+      expect(
+        await screen.findByText("You're not assigned to judge this class")
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId('live-scoresheet')).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /enter judge passcode/i })).toHaveAttribute(
+        'href',
+        '/at-show?passcode=1'
+      );
+      // No optimistic score, no in-ring transition — same structural guarantee
+      // as the canScore gate: a denied session runs none of the scoring flow.
+      expect(transitionToInRing).not.toHaveBeenCalled();
+    });
+
+    it('allows a signed-in judge who IS assigned (confirmed) to this class', async () => {
+      judgeAssignmentsGetAll.mockResolvedValue([
+        { id: 'a1', personId: 'judge-1', classId: 'class-1', status: 'confirmed' },
+      ]);
+      renderPage();
+
+      expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+      expect(screen.queryByText("You're not assigned to judge this class")).not.toBeInTheDocument();
+    });
+
+    it('allows an "invited" (not yet confirmed) assignment', async () => {
+      judgeAssignmentsGetAll.mockResolvedValue([
+        { id: 'a1', personId: 'judge-1', classId: 'class-1', status: 'invited' },
+      ]);
+      renderPage();
+
+      expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    });
+
+    it('does not block a withdrawn/declined assignment status', async () => {
+      judgeAssignmentsGetAll.mockResolvedValue([
+        { id: 'a1', personId: 'judge-1', classId: 'class-1', status: 'declined' },
+      ]);
+      renderPage();
+
+      expect(
+        await screen.findByText("You're not assigned to judge this class")
+      ).toBeInTheDocument();
+    });
+
+    it('fails open when the local assignment store is a cold cache (empty)', async () => {
+      judgeAssignmentsGetAll.mockResolvedValue([]);
+      renderPage();
+
+      // A legitimate judge must never be blocked by missing local data — the
+      // server RPC remains the real enforcement boundary regardless.
+      expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    });
+
+    it('fails open when the replicated read itself errors', async () => {
+      judgeAssignmentsGetAll.mockRejectedValue(new Error('IDB unavailable'));
+      renderPage();
+
+      expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    });
+
+    it('does not apply the pre-flight to a passcode-granted judge session', async () => {
+      // A passcode grant overrides RBAC and is authorized server-side via the
+      // grant path — assignment data is irrelevant here.
+      useRingsideGrantStore.getState().setGrant({
+        showId: 'show-1',
+        role: 'judge',
+        source: 'passcode',
+      });
+      judgeAssignmentsGetAll.mockResolvedValue([
+        { id: 'a1', personId: 'judge-1', classId: 'some-other-class', status: 'confirmed' },
+      ]);
+      renderPage();
+
+      expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+      expect(screen.queryByText("You're not assigned to judge this class")).not.toBeInTheDocument();
+    });
+
+    it('does not apply the pre-flight to a manager role (assignment-irrelevant)', async () => {
+      mockRoles = [UserRole.SITE_ADMIN];
+      judgeAssignmentsGetAll.mockResolvedValue([
+        { id: 'a1', personId: 'someone-else', classId: 'class-1', status: 'confirmed' },
+      ]);
+      renderPage();
+
+      expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    });
   });
 
   // MYK9-76: the timer's 30-second chime/voice announcements were previously

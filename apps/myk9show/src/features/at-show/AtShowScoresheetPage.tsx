@@ -17,13 +17,14 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Loader2,
   AlertCircle,
   ArrowLeft,
   WifiOff,
   ShieldAlert,
+  KeyRound,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -42,6 +43,7 @@ import {
 import { useAtShowScoresheet } from './useAtShowScoresheet';
 import { useAtShowStoragePersistence } from './useAtShowStoragePersistence';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
+import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
 import { useAtShowAudioMute } from './useAtShowAudioMute';
 import { badgeClass } from './slots/atShowChrome.helpers';
 import { useAudioWarnings } from '@/hooks/useAudioWarnings';
@@ -64,7 +66,16 @@ export const AtShowScoresheetPage: React.FC = () => {
   // model gives stewards `canScore: false`. Derive the effective ringside role
   // the same way the EntryList shims do — account RBAC, overridden by a Phase 1c
   // show-scoped passcode grant.
-  const { hasPermission } = useRingsideEffectiveRole(showId);
+  const { hasPermission, showRole, grantRole } = useRingsideEffectiveRole(showId);
+
+  // MYK9-82: the server (`ringside_update_entry()`) only authorizes scoring for
+  // a judge assigned to THIS class — the `canScore` permission above only
+  // checks the ROLE, not the assignment. Without this, an unassigned signed-in
+  // judge sails past the gate, submits an optimistic score, and only learns at
+  // sync that it was rejected. Called unconditionally (hooks can't follow the
+  // early return below) — it self-resolves 'not-applicable' for every session
+  // this doesn't concern (passcode grants, managers, stewards, exhibitors).
+  const assignmentCheck = useJudgeAssignedToClass({ showRole, grantRole, classId });
 
   // Gate BEFORE mounting the scoring engine: an unauthorized role must never run
   // `useAtShowScoresheet` (whose load effect calls `transitionToInRing`), so the
@@ -83,6 +94,38 @@ export const AtShowScoresheetPage: React.FC = () => {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Entry List
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (assignmentCheck.status === 'checking') {
+    return <AtShowScoresheetSkeleton />;
+  }
+
+  if (assignmentCheck.status === 'unassigned') {
+    return (
+      <div className="ringside-root container max-w-2xl mx-auto px-4 py-6">
+        <div className="rounded-xl border bg-card p-6 text-center">
+          <KeyRound className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-lg font-medium mb-2">You&apos;re not assigned to judge this class</p>
+          <p className="text-muted-foreground">
+            Scores from an unassigned account can&apos;t be saved. Enter the judge passcode to score
+            this class, or ask the secretary to add your assignment.
+          </p>
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <Link
+              to="/at-show?passcode=1"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              <KeyRound className="h-4 w-4" aria-hidden />
+              Enter judge passcode
+            </Link>
+            <Button variant="outline" onClick={handleBack}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Entry List
+            </Button>
+          </div>
         </div>
       </div>
     );

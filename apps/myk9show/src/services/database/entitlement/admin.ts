@@ -12,16 +12,6 @@
 import { supabase } from '../supabaseClient';
 import type { AdminGrantHistoryRow, AdminGrantParams } from './types';
 
-// Cast pending type regeneration — see the tracking marker in ./types.ts
-// (admin_grant_entitlement, admin_revoke_entitlement, and the table are not in
-// the generated Database type until the migration is pushed; task 4.10).
-type UntypedRpcClient = {
-  rpc: (
-    fn: 'admin_grant_entitlement' | 'admin_revoke_entitlement',
-    args: Record<string, unknown>
-  ) => Promise<{ data: unknown; error: { message: string } | null }>;
-};
-
 /**
  * Creates a new entitlement grant. Returns the new grant's id.
  *
@@ -30,23 +20,20 @@ type UntypedRpcClient = {
  * the caller explicitly opts into superseding it.
  */
 export async function grantEntitlement(params: AdminGrantParams): Promise<string> {
-  const { data, error } = await (supabase as unknown as UntypedRpcClient).rpc(
-    'admin_grant_entitlement',
-    {
-      p_person_id: params.personId,
-      p_grant_type: params.grantType,
-      p_starts_at: params.startsAt,
-      p_ends_at: params.endsAt,
-      p_reason: params.reason,
-      p_replace_active: params.replaceActive ?? false,
-    }
-  );
+  const { data, error } = await supabase.rpc('admin_grant_entitlement', {
+    p_person_id: params.personId,
+    p_grant_type: params.grantType,
+    p_starts_at: params.startsAt,
+    p_ends_at: params.endsAt,
+    p_reason: params.reason,
+    p_replace_active: params.replaceActive ?? false,
+  });
 
   if (error) {
     throw new Error(`grantEntitlement: ${error.message}`);
   }
 
-  return data as string;
+  return data;
 }
 
 /**
@@ -59,13 +46,10 @@ export async function revokeEntitlement(grantId: string, reason: string): Promis
     throw new Error('revokeEntitlement: reason is required');
   }
 
-  const { error } = await (supabase as unknown as UntypedRpcClient).rpc(
-    'admin_revoke_entitlement',
-    {
-      p_grant_id: grantId,
-      p_reason: reason,
-    }
-  );
+  const { error } = await supabase.rpc('admin_revoke_entitlement', {
+    p_grant_id: grantId,
+    p_reason: reason,
+  });
 
   if (error) {
     throw new Error(`revokeEntitlement: ${error.message}`);
@@ -78,26 +62,7 @@ export async function revokeEntitlement(grantId: string, reason: string): Promis
  * non-admin caller will silently get `[]`, not an error.
  */
 export async function fetchGrantHistory(personId: string): Promise<AdminGrantHistoryRow[]> {
-  const { data, error } = await (
-    supabase as unknown as {
-      from: (table: 'subscription_entitlement_grants') => {
-        select: (columns: '*') => {
-          eq: (
-            column: 'person_id',
-            value: string
-          ) => {
-            order: (
-              column: 'created_at',
-              opts: { ascending: boolean }
-            ) => Promise<{
-              data: AdminGrantHistoryRow[] | null;
-              error: { message: string } | null;
-            }>;
-          };
-        };
-      };
-    }
-  )
+  const { data, error } = await supabase
     .from('subscription_entitlement_grants')
     .select('*')
     .eq('person_id', personId)
@@ -107,5 +72,6 @@ export async function fetchGrantHistory(personId: string): Promise<AdminGrantHis
     throw new Error(`fetchGrantHistory: ${error.message}`);
   }
 
-  return data ?? [];
+  // Generated row type widens grant_type to plain string; narrow to the domain type.
+  return (data ?? []) as AdminGrantHistoryRow[];
 }

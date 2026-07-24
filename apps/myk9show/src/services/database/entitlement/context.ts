@@ -14,19 +14,9 @@ import type { OwnEntitlementContext } from './types';
 /**
  * Fetches the current user's sanitized entitlement context via
  * `get_own_entitlement_context()`.
- *
- * Cast pending type regeneration — see the tracking marker in ./types.ts
- * (regenerate after the staging deploy, task 4.10; getMyOnboardingRequests
- * precedent in services/database/onboarding-requests/reads.ts).
  */
 export async function fetchOwnEntitlementContext(): Promise<OwnEntitlementContext> {
-  const { data, error } = await (
-    supabase as unknown as {
-      rpc: (
-        fn: 'get_own_entitlement_context'
-      ) => Promise<{ data: OwnEntitlementContext[] | null; error: { message: string } | null }>;
-    }
-  ).rpc('get_own_entitlement_context');
+  const { data, error } = await supabase.rpc('get_own_entitlement_context');
 
   if (error) {
     throw new Error(`fetchOwnEntitlementContext: ${error.message}`);
@@ -37,5 +27,7 @@ export async function fetchOwnEntitlementContext(): Promise<OwnEntitlementContex
     throw new Error('fetchOwnEntitlementContext: RPC returned no row');
   }
 
-  return row;
+  // Generated types widen grant_type/grant_status to plain string (and drop
+  // the nullability the SQL function can return); narrow to the domain type.
+  return row as OwnEntitlementContext;
 }

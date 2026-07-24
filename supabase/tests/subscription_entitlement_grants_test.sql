@@ -24,6 +24,9 @@
 BEGIN;
 
 CREATE TEMP TABLE tid (k text PRIMARY KEY, v uuid) ON COMMIT DROP;
+-- The suite switches between roles with SET LOCAL ROLE; let all of them use
+-- the shared fixture-id table.
+GRANT ALL ON tid TO PUBLIC;
 
 -- ---------------------------------------------------------------------------
 -- Fixtures
@@ -59,6 +62,10 @@ VALUES
 
 -- The trigger created an exhibitor_profiles row (default tier) for each adopted
 -- person. Set the tiers this test needs: owner + other free, paid premium.
+-- restrict_subscription_column_updates (migration 109) only admits
+-- current_setting('role') = 'service_role' or platform_admin — superuser is
+-- NOT exempt — so impersonate service_role for this fixture write.
+SET LOCAL ROLE service_role;
 UPDATE public.exhibitor_profiles ep
 SET subscription_tier = v.tier, subscription_expires_at = v.expires_at
 FROM (VALUES
@@ -67,6 +74,7 @@ FROM (VALUES
   ('00000000-0000-0000-0000-000000000914'::uuid,'free',    NULL)
 ) AS v(person_id, tier, expires_at)
 WHERE ep.person_id = v.person_id;
+RESET ROLE;
 
 -- Site admin role for the admin person.
 INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
@@ -235,8 +243,8 @@ $$;
 -- Insert show/entry fixtures as the privileged role (bypass entries RLS), then
 -- restore the admin session.
 RESET ROLE;
-INSERT INTO public.shows (id, name, type, start_date, end_date)
-VALUES ('00000000-0000-0000-0000-000000000961','Seg Show','All-Breed',CURRENT_DATE,CURRENT_DATE);
+INSERT INTO public.shows (id, name, organization, start_date, end_date)
+VALUES ('00000000-0000-0000-0000-000000000961','Seg Show','AKC',CURRENT_DATE,CURRENT_DATE);
 -- Trial + class are required: scored_show_count now replicates the entry-results
 -- view visibility, which counts an owner's scored entry only when the class's
 -- qualification results are visible. With no show_visibility_settings row the
@@ -437,6 +445,17 @@ BEGIN
   INSERT INTO tid VALUES ('future', v_id);
 END;
 $$;
+
+-- Inside this single test transaction now() is frozen, so every grant shares
+-- one created_at and get_own_entitlement_context's "most recently created"
+-- ORDER BY would tie. In production each admin RPC runs in its own
+-- transaction, so creations are strictly ordered; reproduce that here with a
+-- privileged clock nudge on the newest grant.
+RESET ROLE;
+UPDATE public.subscription_entitlement_grants
+SET created_at = created_at + interval '1 second'
+WHERE id = (SELECT v FROM tid WHERE k = 'future');
+SET LOCAL ROLE authenticated;
 
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000902', true);
 DO $$

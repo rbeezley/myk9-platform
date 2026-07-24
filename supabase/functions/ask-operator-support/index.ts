@@ -4,9 +4,9 @@ import { callClaude } from '../_shared/askq/promptBuilder.ts';
 import {
   handleOperatorSupportRequest,
   OperatorSupportError,
-  type OperatorSupportBody,
 } from '../_shared/askq/operatorSupport.ts';
 import { createOperatorSupportAudit } from '../_shared/askq/operatorSupportAudit.ts';
+import { createOperatorSupportRateLimiter } from '../_shared/askq/operatorSupportRateLimit.ts';
 import { executeOperatorTool } from '../_shared/askq/operatorToolExecutor.ts';
 
 const CORS_HEADERS = {
@@ -21,6 +21,9 @@ Deno.serve(async (request: Request) => {
   }
   if (request.method !== 'POST') {
     return new Response('Method not allowed', { status: 405, headers: CORS_HEADERS });
+  }
+  if (Deno.env.get('OPERATOR_SUPPORT_ENABLED') !== 'true') {
+    return jsonResponse({ error: 'Operator Support is unavailable' }, 503);
   }
 
   try {
@@ -51,21 +54,22 @@ Deno.serve(async (request: Request) => {
       return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
-    let body: OperatorSupportBody;
+    let body: unknown;
     try {
       body = await request.json();
     } catch {
       return jsonResponse({ error: 'Invalid JSON body' }, 400);
     }
 
-    // Service-role access is deliberately contained inside the audit writer.
-    // The handler and tool executor receive only the caller-scoped client.
+    // Service-role access is deliberately contained inside redacted audit and
+    // rate-limit infrastructure. Tools receive only the caller-scoped client.
     const auditClient = createClient(supabaseUrl, serviceRoleKey);
     const result = await handleOperatorSupportRequest({
       body,
       user,
       callerClient,
       audit: createOperatorSupportAudit(auditClient),
+      checkRateLimit: createOperatorSupportRateLimiter(auditClient),
       callModel: (messages, tools, systemPrompt) =>
         callClaude(messages, anthropicKey, tools, systemPrompt),
       executeTool: executeOperatorTool,
@@ -74,7 +78,7 @@ Deno.serve(async (request: Request) => {
     return eventStreamResponse(result);
   } catch (error) {
     if (error instanceof OperatorSupportError) {
-      return jsonResponse({ error: error.message }, error.status);
+      return jsonResponse({ error: error.message, ...error.details }, error.status);
     }
 
     console.error('ask-operator-support error:', (error as Error).message);
@@ -94,6 +98,8 @@ function eventStreamResponse(result: {
   toolsUsed: string[];
   queryLogId: string;
   responseTimeMs: number;
+  remaining: number;
+  limit: number;
 }): Response {
   const stream = new ReadableStream({
     start(controller) {
@@ -109,8 +115,8 @@ function eventStreamResponse(result: {
         send('token', result.text.slice(index, index + 4));
       }
       send('meta', {
-        remaining: null,
-        limit: null,
+        remaining: result.remaining,
+        limit: result.limit,
         responseTimeMs: result.responseTimeMs,
         queryLogId: result.queryLogId,
       });

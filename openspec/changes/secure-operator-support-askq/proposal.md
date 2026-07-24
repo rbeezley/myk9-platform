@@ -8,6 +8,7 @@ Site admins need a fast, natural-language way to investigate platform problems o
 - Route Operator Support requests to a separate endpoint that verifies `site_admin` authorization on the server.
 - Introduce a separate, fixed read-only operator tool allowlist; the first tool summarizes unresolved operator alerts through the caller's RLS-scoped client.
 - Bound and redact tool output, keep the operator conversation separate from normal AskQ state, and record redacted audit metadata.
+- Fail closed behind an explicit server switch and a dedicated per-admin daily model-request limit.
 - Add negative security coverage proving that non-admins, forged client input, normal AskQ sessions, service-role reads, and write tools cannot cross the boundary.
 - Do not create a standalone chatbot, replace AskQ, expose a read-only MCP endpoint, add write tools, or implement user/payment/entry/service-health tools in this first slice.
 

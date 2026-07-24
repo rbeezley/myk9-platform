@@ -22,6 +22,15 @@ function makeAudit(overrides: Partial<OperatorSupportAudit> = {}): OperatorSuppo
   };
 }
 
+function allowRateLimit() {
+  return vi.fn(async () => ({
+    status: 'allowed' as const,
+    remaining: 19,
+    limit: 20,
+    resetsAt: '2026-07-25T00:00:00.000Z',
+  }));
+}
+
 function textResponse(text = 'No unresolved alerts were found in the bounded alert window.') {
   return {
     content: [{ type: 'text', text }],
@@ -42,6 +51,7 @@ describe('Operator Support authorization boundary', () => {
         user: null,
         callerClient,
         audit,
+        checkRateLimit: allowRateLimit(),
         callModel,
         executeTool,
       })
@@ -69,6 +79,7 @@ describe('Operator Support authorization boundary', () => {
         user: { id: 'exhibitor-1' },
         callerClient,
         audit,
+        checkRateLimit: allowRateLimit(),
         callModel,
         executeTool,
       })
@@ -92,6 +103,7 @@ describe('Operator Support authorization boundary', () => {
         user: { id: 'admin-1' },
         callerClient,
         audit,
+        checkRateLimit: allowRateLimit(),
         callModel,
         executeTool,
       })
@@ -134,6 +146,7 @@ describe('Operator Support authorization boundary', () => {
       user: { id: 'admin-1' },
       callerClient,
       audit,
+      checkRateLimit: allowRateLimit(),
       callModel,
       executeTool,
     });
@@ -166,6 +179,7 @@ describe('Operator Support authorization boundary', () => {
         user: { id: 'admin-1' },
         callerClient,
         audit,
+        checkRateLimit: allowRateLimit(),
         callModel,
         executeTool,
       })
@@ -174,6 +188,106 @@ describe('Operator Support authorization boundary', () => {
     );
 
     expect(executeTool).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-object JSON body with a controlled 400 response', async () => {
+    const callerClient = makeCallerClient(true);
+    const audit = makeAudit();
+    const checkRateLimit = allowRateLimit();
+    const callModel = vi.fn();
+    const executeTool = vi.fn();
+
+    await expect(
+      handleOperatorSupportRequest({
+        body: null,
+        user: { id: 'admin-1' },
+        callerClient,
+        audit,
+        checkRateLimit,
+        callModel,
+        executeTool,
+      })
+    ).rejects.toEqual(new OperatorSupportError(400, 'Invalid request body'));
+
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(audit.start).not.toHaveBeenCalled();
+    expect(callModel).not.toHaveBeenCalled();
+  });
+
+  it('fails closed at the daily limit before audit, model, or tool execution', async () => {
+    const callerClient = makeCallerClient(true);
+    const audit = makeAudit();
+    const checkRateLimit = vi.fn(async () => ({
+      status: 'limited' as const,
+      remaining: 0,
+      limit: 20,
+      resetsAt: '2026-07-25T00:00:00.000Z',
+    }));
+    const callModel = vi.fn();
+    const executeTool = vi.fn();
+
+    await expect(
+      handleOperatorSupportRequest({
+        body: { message: 'Summarize alerts' },
+        user: { id: 'admin-1' },
+        callerClient,
+        audit,
+        checkRateLimit,
+        callModel,
+        executeTool,
+      })
+    ).rejects.toMatchObject({
+      status: 429,
+      message: 'Daily limit reached',
+      details: {
+        remaining: 0,
+        limit: 20,
+        resetsAt: '2026-07-25T00:00:00.000Z',
+      },
+    });
+
+    expect(audit.start).not.toHaveBeenCalled();
+    expect(callModel).not.toHaveBeenCalled();
+    expect(executeTool).not.toHaveBeenCalled();
+  });
+
+  it('records tools that ran when a later model call fails', async () => {
+    const callerClient = makeCallerClient(true);
+    const audit = makeAudit();
+    const modelError = new Error('model unavailable');
+    const callModel = vi
+      .fn()
+      .mockResolvedValueOnce({
+        content: [
+          {
+            type: 'tool_use',
+            id: 'tool-1',
+            name: 'summarize_operator_alerts',
+            input: {},
+          },
+        ],
+        stop_reason: 'tool_use',
+      })
+      .mockRejectedValueOnce(modelError);
+    const executeTool = vi.fn(async () => ({ result: { unresolvedCountInWindow: 0 } }));
+
+    await expect(
+      handleOperatorSupportRequest({
+        body: { message: 'Summarize alerts' },
+        user: { id: 'admin-1' },
+        callerClient,
+        audit,
+        checkRateLimit: allowRateLimit(),
+        callModel,
+        executeTool,
+      })
+    ).rejects.toBe(modelError);
+
+    expect(audit.finish).toHaveBeenCalledWith(
+      'log-1',
+      ['summarize_operator_alerts'],
+      expect.any(Number)
+    );
   });
 });
 

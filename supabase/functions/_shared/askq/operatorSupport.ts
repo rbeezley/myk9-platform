@@ -2,14 +2,10 @@ import type { ClaudeContentBlock, ClaudeMessage, ToolDefinition } from './types.
 import type { OperatorAlertClient } from './operatorAlerts.ts';
 import { isRegisteredOperatorTool, OPERATOR_TOOLS } from './operatorToolDefinitions.ts';
 import type { OperatorSupportAuditWriter } from './operatorSupportAudit.ts';
+import type { CheckOperatorSupportRateLimit } from './operatorSupportRateLimit.ts';
 
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_TOOL_ITERATIONS = 3;
-
-export interface OperatorSupportBody {
-  message?: unknown;
-  [key: string]: unknown;
-}
 
 export interface OperatorSupportCallerClient extends OperatorAlertClient {
   rpc(name: 'is_site_admin'): PromiseLike<{
@@ -44,10 +40,11 @@ type ExecuteOperatorTool = (
 ) => Promise<{ result: unknown }>;
 
 interface HandleOperatorSupportOptions {
-  body: OperatorSupportBody;
+  body: unknown;
   user: { id: string } | null;
   callerClient: OperatorSupportCallerClient;
   audit: OperatorSupportAudit;
+  checkRateLimit: CheckOperatorSupportRateLimit;
   callModel: CallOperatorModel;
   executeTool: ExecuteOperatorTool;
   now?: () => number;
@@ -58,12 +55,15 @@ export interface OperatorSupportResult {
   toolsUsed: string[];
   queryLogId: string;
   responseTimeMs: number;
+  remaining: number;
+  limit: number;
 }
 
 export class OperatorSupportError extends Error {
   constructor(
     public readonly status: number,
-    message: string
+    message: string,
+    public readonly details: Record<string, unknown> = {}
   ) {
     super(message);
     this.name = 'OperatorSupportError';
@@ -75,6 +75,7 @@ export async function handleOperatorSupportRequest({
   user,
   callerClient,
   audit,
+  checkRateLimit,
   callModel,
   executeTool,
   now = Date.now,
@@ -92,12 +93,27 @@ export async function handleOperatorSupportRequest({
     throw new OperatorSupportError(403, 'Operator Support requires site admin access');
   }
 
+  if (!isRecord(body)) {
+    throw new OperatorSupportError(400, 'Invalid request body');
+  }
   const message = typeof body.message === 'string' ? body.message.trim() : '';
   if (!message) {
     throw new OperatorSupportError(400, 'Message is required');
   }
   if (message.length > MAX_MESSAGE_LENGTH) {
     throw new OperatorSupportError(400, 'Message too long (max 2000 characters)');
+  }
+
+  const rateLimit = await checkRateLimit(user.id);
+  if (rateLimit.status === 'unavailable') {
+    throw new OperatorSupportError(503, 'Operator Support rate limit unavailable');
+  }
+  if (rateLimit.status === 'limited') {
+    throw new OperatorSupportError(429, 'Daily limit reached', {
+      remaining: rateLimit.remaining,
+      limit: rateLimit.limit,
+      resetsAt: rateLimit.resetsAt,
+    });
   }
 
   let queryLogId: string | null = null;
@@ -112,55 +128,61 @@ export async function handleOperatorSupportRequest({
 
   const messages: ClaudeMessage[] = [{ role: 'user', content: message }];
   const toolsUsed: string[] = [];
-  let result = await callModel(messages, OPERATOR_TOOLS, OPERATOR_SUPPORT_PROMPT);
-  let iterations = 0;
+  let text = '';
+  try {
+    let result = await callModel(messages, OPERATOR_TOOLS, OPERATOR_SUPPORT_PROMPT);
+    let iterations = 0;
 
-  while (result.stop_reason === 'tool_use') {
-    iterations += 1;
-    if (iterations > MAX_TOOL_ITERATIONS) {
-      throw new OperatorSupportError(502, 'Operator tool iteration limit reached');
-    }
-
-    messages.push({
-      role: 'assistant',
-      content: result.content as ClaudeContentBlock[],
-    });
-    const toolResults: ClaudeContentBlock[] = [];
-
-    for (const block of result.content) {
-      if (block.type !== 'tool_use') continue;
-      const toolName = block.name ?? '';
-      if (!isRegisteredOperatorTool(toolName)) {
-        throw new OperatorSupportError(502, 'Model requested an unavailable operator tool');
+    while (result.stop_reason === 'tool_use') {
+      iterations += 1;
+      if (iterations > MAX_TOOL_ITERATIONS) {
+        throw new OperatorSupportError(502, 'Operator tool iteration limit reached');
       }
 
-      const input = block.input ?? {};
-      const toolResult = await executeTool(toolName, input, callerClient);
-      toolsUsed.push(toolName);
-      toolResults.push({
-        type: 'tool_result',
-        tool_use_id: block.id ?? '',
-        content: JSON.stringify(toolResult),
+      messages.push({
+        role: 'assistant',
+        content: result.content as ClaudeContentBlock[],
       });
+      const toolResults: ClaudeContentBlock[] = [];
+
+      for (const block of result.content) {
+        if (block.type !== 'tool_use') continue;
+        const toolName = block.name ?? '';
+        if (!isRegisteredOperatorTool(toolName)) {
+          throw new OperatorSupportError(502, 'Model requested an unavailable operator tool');
+        }
+
+        const input = block.input ?? {};
+        toolsUsed.push(toolName);
+        const toolResult = await executeTool(toolName, input, callerClient);
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: block.id ?? '',
+          content: JSON.stringify(toolResult),
+        });
+      }
+
+      messages.push({ role: 'user', content: toolResults });
+      result = await callModel(messages, OPERATOR_TOOLS, OPERATOR_SUPPORT_PROMPT);
     }
 
-    messages.push({ role: 'user', content: toolResults });
-    result = await callModel(messages, OPERATOR_TOOLS, OPERATOR_SUPPORT_PROMPT);
+    text = result.content.find(block => block.type === 'text')?.text?.trim() ?? '';
+  } finally {
+    try {
+      await audit.finish(queryLogId, toolsUsed, Math.max(0, now() - startedAt));
+    } catch (error) {
+      console.error('Unable to complete Operator Support audit:', (error as Error).message);
+    }
   }
 
-  const text = result.content.find(block => block.type === 'text')?.text?.trim() ?? '';
   const responseTimeMs = Math.max(0, now() - startedAt);
-  try {
-    await audit.finish(queryLogId, toolsUsed, responseTimeMs);
-  } catch (error) {
-    console.error('Unable to complete Operator Support audit:', (error as Error).message);
-  }
-
   return {
     text: text || 'No operator summary was returned.',
     toolsUsed: [...new Set(toolsUsed)],
     queryLogId,
     responseTimeMs,
+    remaining: rateLimit.remaining,
+    limit: rateLimit.limit,
   };
 }
 
@@ -182,3 +204,7 @@ RESPONSE STYLE:
 - Lead with the operational state shown by the tool.
 - State when counts are bounded by the query window.
 - Be concise and avoid overstating overall platform health.`;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}

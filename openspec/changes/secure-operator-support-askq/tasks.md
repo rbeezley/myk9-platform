@@ -1,15 +1,15 @@
 ## 1. Security Contracts and Tests
 
 - [x] 1.1 Add failing tests for the fixed operator tool registry, bounded/redacted alert summaries, and caller-client query contract
-- [x] 1.2 Add failing tests for server-side site-admin authorization, forged requests, audit failure, unknown tools, and caller/service client separation
+- [x] 1.2 Add failing tests for server-side site-admin authorization, forged requests, invalid bodies, rate limiting, audit failure paths, unknown tools, and caller/service client separation
 - [x] 1.3 Add failing AskQ panel tests for site-admin visibility, non-admin hiding, operator endpoint routing, and state separation
 
 ## 2. Read-Only Operator Backend
 
 - [x] 2.1 Implement the operator alert field allowlist, bounded summary formatter, and RLS-scoped query
 - [x] 2.2 Implement the separate read-only operator tool registry and executor
-- [x] 2.3 Implement the dedicated Operator Support handler with authentication, `is_site_admin()` authorization, redacted audit metadata, model loop, and SSE response
-- [x] 2.4 Add the `ask-operator-support` edge-function entry point using distinct caller and audit clients
+- [x] 2.3 Implement the dedicated Operator Support handler with authentication, `is_site_admin()` authorization, fail-closed rate limiting, redacted audit metadata, model loop, and SSE response
+- [x] 2.4 Add the disabled-by-default `ask-operator-support` edge-function entry point using distinct caller and audit clients
 
 ## 3. AskQ Panel Integration
 

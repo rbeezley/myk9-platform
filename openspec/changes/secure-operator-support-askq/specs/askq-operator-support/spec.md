@@ -21,7 +21,7 @@ The system SHALL present Operator Support as a site-admin-only mode inside the e
 
 ### Requirement: Operator Support has a server-enforced authorization boundary
 
-The system SHALL route Operator Support to a dedicated endpoint that authenticates the bearer token and verifies `is_site_admin()` through the caller-scoped client before processing the question.
+The system SHALL route Operator Support to a dedicated endpoint that is disabled by default, authenticates the bearer token, verifies `is_site_admin()` through the caller-scoped client, rejects invalid request shapes, and applies a fail-closed daily limit before processing the question.
 
 #### Scenario: Site admin sends an operator question
 
@@ -37,6 +37,21 @@ The system SHALL route Operator Support to a dedicated endpoint that authenticat
 
 - **WHEN** a non-admin modifies a normal AskQ request or directly calls the Operator Support endpoint
 - **THEN** client-supplied mode data does not bypass server-side site-admin authorization
+
+#### Scenario: Operator Support is not explicitly enabled
+
+- **WHEN** the server enable switch is absent or not exactly enabled
+- **THEN** the endpoint returns unavailable without authenticating, auditing, invoking a model, or executing a tool
+
+#### Scenario: Authorized admin reaches the daily limit
+
+- **WHEN** the dedicated operator-support audit count reaches 20 requests for the UTC day
+- **THEN** the endpoint returns a rate-limited response before creating another audit row, invoking a model, or executing a tool
+
+#### Scenario: Authorized admin sends a non-object JSON body
+
+- **WHEN** a valid JSON body is null, an array, or another non-object value
+- **THEN** the endpoint returns a controlled bad-request response without invoking a model or executing a tool
 
 ### Requirement: Operator Support exposes only separately registered read tools
 
@@ -108,3 +123,8 @@ The system SHALL keep Operator Support request state separate from normal AskQ s
 
 - **WHEN** the endpoint cannot create the provisional audit record
 - **THEN** it fails closed before model or operator-tool execution
+
+#### Scenario: Model failure follows a successful operator read
+
+- **WHEN** an operator tool executes and a subsequent model call fails
+- **THEN** the provisional audit record is still updated with the tool that accessed the private alert data

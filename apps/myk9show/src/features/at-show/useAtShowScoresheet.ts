@@ -27,6 +27,10 @@ import { buildResolvedClassRules } from '@myk9/scoring-ui';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
 import type { ScoringEntry, ClassInfo } from '@/pages/scoring/types';
 import {
+  isCurrentFinalPendingEntry,
+  recordCompletionIntentIfConfirmed,
+} from './atShowClassCompletion';
+import {
   toScoringEntry,
   toClassInfo,
   resolveSportTypeForClass,
@@ -191,6 +195,21 @@ export function useAtShowScoresheet({
     if (!entry || !classInfo) return;
     // Clear any prior failure before this attempt.
     setSubmitError(null);
+    let wasFinalPendingEntry = false;
+    if (classId) {
+      try {
+        wasFinalPendingEntry = await isCurrentFinalPendingEntry(classId, entry.entryId);
+      } catch (err) {
+        logger.warn(
+          'Could not verify class completion before scoring',
+          'at-show',
+          {},
+          err as Error
+        );
+      }
+    }
+
+    let scoreSaved = false;
     await submitScoreOptimistically({
       entryId: entry.entryId,
       classId: classInfo.id,
@@ -198,8 +217,7 @@ export function useAtShowScoresheet({
       className: classInfo.name,
       scoreData: toOptimisticScorePayload(scoreData),
       onSuccess: () => {
-        transitionToCompleted(entry.entryId);
-        onScored();
+        scoreSaved = true;
       },
       onError: err => {
         // Durable-queue failure: the score is NOT saved. Keep the judge on the
@@ -212,6 +230,18 @@ export function useAtShowScoresheet({
         );
       },
     });
+
+    if (!scoreSaved) return;
+
+    if (classId) {
+      try {
+        await recordCompletionIntentIfConfirmed(classId, wasFinalPendingEntry);
+      } catch (err) {
+        logger.warn('Could not verify class completion after scoring', 'at-show', {}, err as Error);
+      }
+    }
+    transitionToCompleted(entry.entryId);
+    onScored();
   };
 
   return {

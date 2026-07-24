@@ -90,6 +90,16 @@ export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
 export { useEntryListData } from './hooks/useEntryListData';
 export type { UseEntryListDataOptions } from './hooks/useEntryListData';
 
+export {
+  ClassCompletionPresentation,
+  ClassPodium,
+  markClassCompletionPending,
+} from './components/ClassCompletionPresentation';
+export type {
+  ClassCompletionPresentationProps,
+  ClassPodiumProps,
+} from './components/ClassCompletionPresentation';
+
 // ── Hook DI contracts (PR E2d-1) ────────────────────────────────────────
 // `EntryListHandlers` and `EntryListActions` mirror the return shapes
 // of the host's `useEntryListHandlers` and `useEntryListActions`. The

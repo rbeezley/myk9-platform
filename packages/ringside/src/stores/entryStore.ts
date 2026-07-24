@@ -57,6 +57,10 @@ export interface Entry {
   showQualification?: boolean;
   showTime?: boolean;
   showFaults?: boolean;
+  /** Scoring/ring timestamps used by the class-completion elapsed-time summary. */
+  scoredAt?: string;
+  ringEntryTime?: string;
+  ringExitTime?: string;
 }
 
 interface EntryFilters {

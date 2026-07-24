@@ -26,4 +26,12 @@
 ## 5. Delivery Gate
 
 - [x] 5.1 Obtain approval for shared-system mutations, then open a PR with MYK9-26 scope, security boundaries, verification, risks, and non-goals
-- [ ] 5.2 Complete CI and code review, merge the approved PR, update Linear/tracking evidence, and archive the OpenSpec change only after acceptance criteria pass
+- [x] 5.2 Complete CI and code review, merge the approved PR, and update Linear/tracking evidence
+
+## 6. Health Scope Follow-up
+
+- [x] 6.1 Add failing tests for a caller-scoped, allowlisted, bounded latest-health-snapshot read
+- [x] 6.2 Add the read-only System Health tool using existing site-admin RLS and fail-safe staleness rules
+- [x] 6.3 Add a deterministic response scope guard so alert or health summaries cannot claim complete platform health
+- [x] 6.4 Run focused tests, type checks, and OpenSpec verification
+- [ ] 6.5 Archive the OpenSpec change only after the follow-up is accepted

@@ -297,10 +297,13 @@ export function AskQPanel() {
         <Alert>
           <AlertDescription className="space-y-2">
             <p>
-              Read-only access to a bounded summary of unresolved operator alerts. No user lookup,
-              payment tracing, or write actions are available in this first slice.
+              Read-only access to unresolved operator alerts and the latest automated System Health
+              snapshot. This snapshot does not guarantee complete platform health.
             </p>
-            <p>Do not paste user or payment details into this mode yet.</p>
+            <p>
+              No user lookup, payment tracing, or write actions are available. Do not paste user or
+              payment details into this mode yet.
+            </p>
             <Link className="inline-block text-xs underline" to="/admin/health">
               Open full System Health
             </Link>

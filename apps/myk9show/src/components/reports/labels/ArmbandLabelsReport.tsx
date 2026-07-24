@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { LABEL_TEMPLATES, DEFAULT_TEMPLATE_ID, getAllTemplates } from '@/lib/labels/labelTemplates';
 import { buildLabelPages } from '@/lib/labels/labelLayout';
@@ -131,7 +131,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     [config, template.labelHeight, passcodes, wifiNetwork, wifiPassword]
   );
 
-  useEffect(() => {
+  const writeLabelIframe = useCallback(() => {
     const iframe = externalIframeRef?.current;
     if (!iframe || pages.length === 0) return;
 
@@ -159,6 +159,10 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     iframe.contentDocument?.write(html);
     iframe.contentDocument?.close();
   }, [pages, sharedCellProps, template, pitchAdjustment, offsetTop, offsetLeft, externalIframeRef]);
+
+  useEffect(() => {
+    writeLabelIframe();
+  }, [writeLabelIframe]);
 
   useEffect(() => {
     onDescriptorChange?.(paperworkDescriptor);
@@ -353,7 +357,13 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
         </div>
 
         {/* Advanced — Printer Calibration */}
-        <LabelCalibrationPanel prefs={prefs} setPrefs={setPrefs} />
+        <LabelCalibrationPanel
+          prefs={prefs}
+          setPrefs={setPrefs}
+          template={template}
+          iframeRef={externalIframeRef}
+          onAfterTestPrint={writeLabelIframe}
+        />
       </LabelSetupSection>
 
       {/* Empty state */}

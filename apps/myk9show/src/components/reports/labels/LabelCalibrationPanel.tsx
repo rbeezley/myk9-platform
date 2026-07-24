@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui/button';
 import { SetupEyebrow } from './LabelModeChrome';
 import type { LabelPreferences } from '@/hooks/useLabelPreferences';
+import type { LabelTemplate } from '@/lib/labels/labelTemplates';
+import { buildCalibrationTestSheetHtml } from '@/lib/labels/calibrationTestSheet';
 
 interface LabelCalibrationPanelProps {
   prefs: LabelPreferences;
   setPrefs: (updater: (prev: LabelPreferences) => LabelPreferences) => void;
+  template?: LabelTemplate | undefined;
+  iframeRef?: React.RefObject<HTMLIFrameElement | null> | undefined;
+  onAfterTestPrint?: (() => void) | undefined;
 }
 
 interface CalibrationSliderProps {
@@ -57,10 +63,28 @@ function CalibrationSlider({
  * `useLabelPreferences` tuple — this component never calls the hook itself,
  * so it never creates a second, independent prefs instance.
  */
-export function LabelCalibrationPanel({ prefs, setPrefs }: LabelCalibrationPanelProps) {
+export function LabelCalibrationPanel({
+  prefs,
+  setPrefs,
+  template,
+  iframeRef,
+  onAfterTestPrint,
+}: LabelCalibrationPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const { pitchAdjustment, offsetTop, offsetLeft } = prefs;
   const hasCalibration = pitchAdjustment !== 0 || offsetTop !== 0 || offsetLeft !== 0;
+
+  const handlePrintTestSheet = () => {
+    const iframe = iframeRef?.current;
+    if (!iframe || !template) return;
+
+    const html = buildCalibrationTestSheetHtml(template, pitchAdjustment, offsetTop, offsetLeft);
+    iframe.contentDocument?.open();
+    iframe.contentDocument?.write(html);
+    iframe.contentDocument?.close();
+    iframe.contentWindow?.print();
+    onAfterTestPrint?.();
+  };
 
   return (
     <div>
@@ -115,6 +139,12 @@ export function LabelCalibrationPanel({ prefs, setPrefs }: LabelCalibrationPanel
             >
               Reset calibration
             </button>
+          )}
+
+          {iframeRef && template && (
+            <Button type="button" variant="outline" size="sm" onClick={handlePrintTestSheet}>
+              Print alignment test
+            </Button>
           )}
 
           <p className="text-xs text-muted-foreground">

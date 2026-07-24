@@ -1,6 +1,35 @@
 import { render as customRender, screen, fireEvent } from '@/test/utils/testUtils';
 import { LabelCalibrationPanel } from '../LabelCalibrationPanel';
 import type { LabelPreferences } from '@/hooks/useLabelPreferences';
+import type { LabelTemplate } from '@/lib/labels/labelTemplates';
+
+const testTemplate: LabelTemplate = {
+  id: '18262',
+  name: 'test',
+  labelWidth: 4,
+  labelHeight: 1.333,
+  columns: 2,
+  rows: 7,
+  labelsPerSheet: 14,
+  pageMarginTop: 0.875,
+  pageMarginBottom: 0.875,
+  pageMarginLeft: 0.15625,
+  pageMarginRight: 0.15625,
+  gapX: 0.1875,
+  gapY: 0,
+};
+
+function makeMockIframeRef() {
+  const print = vi.fn();
+  const write = vi.fn();
+  const open = vi.fn();
+  const close = vi.fn();
+  const iframe = {
+    contentDocument: { open, write, close },
+    contentWindow: { print },
+  } as unknown as HTMLIFrameElement;
+  return { current: iframe, print, write, open, close };
+}
 
 function makePrefs(overrides: Partial<LabelPreferences> = {}): LabelPreferences {
   return {
@@ -113,5 +142,61 @@ describe('LabelCalibrationPanel', () => {
     expect(result.pitchAdjustment).toBe(0);
     expect(result.offsetTop).toBe(0);
     expect(result.offsetLeft).toBe(0);
+  });
+
+  it('hides the print button when no iframeRef is provided', () => {
+    customRender(
+      <LabelCalibrationPanel prefs={makePrefs()} setPrefs={vi.fn()} template={testTemplate} />
+    );
+    fireEvent.click(screen.getByText(/show advanced/i));
+    expect(screen.queryByText(/print alignment test/i)).not.toBeInTheDocument();
+  });
+
+  it('hides the print button when no template is provided', () => {
+    const mockRef = makeMockIframeRef();
+    customRender(
+      <LabelCalibrationPanel prefs={makePrefs()} setPrefs={vi.fn()} iframeRef={mockRef} />
+    );
+    fireEvent.click(screen.getByText(/show advanced/i));
+    expect(screen.queryByText(/print alignment test/i)).not.toBeInTheDocument();
+  });
+
+  it('writes test-sheet HTML into the iframe and calls print when clicked', () => {
+    const mockRef = makeMockIframeRef();
+    customRender(
+      <LabelCalibrationPanel
+        prefs={makePrefs({ pitchAdjustment: 3, offsetTop: 5, offsetLeft: 0 })}
+        setPrefs={vi.fn()}
+        template={testTemplate}
+        iframeRef={mockRef}
+      />
+    );
+    fireEvent.click(screen.getByText(/show advanced/i));
+    fireEvent.click(screen.getByText(/print alignment test/i));
+
+    expect(mockRef.open).toHaveBeenCalled();
+    expect(mockRef.write).toHaveBeenCalled();
+    const writtenHtml = mockRef.write.mock.calls[0]![0] as string;
+    expect(writtenHtml).toContain('Calibration: top +5, left 0, pitch +3 (thousandths of an inch)');
+    expect(mockRef.close).toHaveBeenCalled();
+    expect(mockRef.print).toHaveBeenCalled();
+  });
+
+  it('invokes onAfterTestPrint after print', () => {
+    const mockRef = makeMockIframeRef();
+    const onAfterTestPrint = vi.fn();
+    customRender(
+      <LabelCalibrationPanel
+        prefs={makePrefs()}
+        setPrefs={vi.fn()}
+        template={testTemplate}
+        iframeRef={mockRef}
+        onAfterTestPrint={onAfterTestPrint}
+      />
+    );
+    fireEvent.click(screen.getByText(/show advanced/i));
+    fireEvent.click(screen.getByText(/print alignment test/i));
+
+    expect(onAfterTestPrint).toHaveBeenCalled();
   });
 });

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { LABEL_TEMPLATES, getAllTemplates, getLabelTemplate } from '@/lib/labels/labelTemplates';
 import { buildLabelPages } from '@/lib/labels/labelLayout';
@@ -74,7 +74,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
   // Write the print-ready sheet into the hidden iframe. The cell content uses
   // inline styles, so serializing it here preserves the exact layout; the
   // stylesheet only supplies the fixed-dimension grid + @page geometry.
-  useEffect(() => {
+  const writeLabelIframe = useCallback(() => {
     const iframe = iframeRef?.current;
     if (!iframe) return;
 
@@ -116,6 +116,10 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
     iframe.contentDocument?.write(html);
     iframe.contentDocument?.close();
   }, [pages, template, prefs.pitchAdjustment, prefs.offsetTop, prefs.offsetLeft, iframeRef]);
+
+  useEffect(() => {
+    writeLabelIframe();
+  }, [writeLabelIframe]);
 
   const templates = getAllTemplates();
 
@@ -163,7 +167,13 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
         </div>
 
         {/* Advanced — Printer Calibration */}
-        <LabelCalibrationPanel prefs={prefs} setPrefs={setPrefs} />
+        <LabelCalibrationPanel
+          prefs={prefs}
+          setPrefs={setPrefs}
+          template={template}
+          iframeRef={iframeRef}
+          onAfterTestPrint={writeLabelIframe}
+        />
       </LabelSetupSection>
 
       {/* Loading state — render before the empty state so the preview doesn't

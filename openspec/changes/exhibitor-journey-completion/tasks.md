@@ -31,7 +31,7 @@
 
 ## 4. Slice 3A — Entitlement Grant Data and Authorization
 
-- [ ] 4.1 Inventory `roles`, `permissions`, `role_permissions`, site-admin helpers, `people`, `exhibitor_profiles`, and legacy `early_adopter_until` rows in one evidence pass before writing the migration.
+- [x] 4.1 Inventory `roles`, `permissions`, `role_permissions`, site-admin helpers, `people`, `exhibitor_profiles`, and legacy `early_adopter_until` rows in one evidence pass before writing the migration.
 - [ ] 4.2 Add assertion-first SQL/source tests for admin-only grant-row reads, sanitized own-context reads, denied direct writes, denied non-admin RPC calls, required reason/date validation, truthful expired/revoked/superseded history, non-overlapping grants, paid-subscription isolation, concurrent requests, server-time boundary evaluation, and Premium create/update authorization.
 - [ ] 4.3 Add the `subscription_entitlement_grants` table, history/status fields, constraints, indexes, explicit Data API `GRANT`s (`GRANT SELECT, INSERT, UPDATE, DELETE ... TO authenticated`; no `anon` grant) alongside admin-only row RLS, sanitized server-evaluated entitlement-context/helper functions, and platform-admin grant/revoke/explicit-replace RPC behavior with target-row locking and active-range overlap prevention.
 - [ ] 4.4 Backfill every non-null `early_adopter_until` value as a founding grant without changing its end date, retain the legacy field for compatibility, and add a migration parity query.

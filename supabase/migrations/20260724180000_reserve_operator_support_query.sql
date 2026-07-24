@@ -70,14 +70,16 @@ BEGIN
     tools_used,
     user_id,
     app_source,
-    response_time_ms
+    response_time_ms,
+    created_at
   )
   VALUES (
     '[operator support query redacted]',
     ARRAY[]::text[],
     v_user_id,
     'operator-support',
-    0
+    0,
+    v_now
   )
   RETURNING id INTO v_log_id;
 

@@ -19,6 +19,8 @@ describe('Operator Support quota reservation migration', () => {
     expect(migration).toContain("query,\n    tools_used,\n    user_id,\n    app_source");
     expect(migration).toContain("'[operator support query redacted]'");
     expect(migration).toContain("app_source = 'operator-support'");
+    expect(migration).toContain("response_time_ms,\n    created_at");
+    expect(migration).toContain("'operator-support',\n    0,\n    v_now");
   });
 
   it('derives identity from auth context and limits execution to authenticated callers', () => {

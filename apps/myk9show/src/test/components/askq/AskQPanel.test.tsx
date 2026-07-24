@@ -82,7 +82,9 @@ describe('AskQPanel', () => {
     });
     await user.click(screen.getByRole('button', { name: 'Send query' }));
 
-    expect(await screen.findByText('Daily limit reached. Resets at midnight.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Daily limit reached. Resets at midnight UTC.')
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole('link', { name: 'Upgrade for more queries' })
     ).not.toBeInTheDocument();

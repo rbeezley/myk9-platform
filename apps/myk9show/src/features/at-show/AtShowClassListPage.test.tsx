@@ -24,6 +24,16 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { getEntriesByShow: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
 }));
 
+const mockJudgeAssignmentData = vi.hoisted(() => ({
+  getActive: vi.fn(),
+  subscribe: vi.fn(() => vi.fn()),
+}));
+
+vi.mock('@/services/database/judges', () => ({
+  getActiveJudgeAssignmentsForShow: mockJudgeAssignmentData.getActive,
+  subscribeToJudgeAssignmentChanges: mockJudgeAssignmentData.subscribe,
+}));
+
 // The "Back to Show Desk" affordance mirrors the show-desk route's admission,
 // which is club-SCOPED for club admins. Drive `hasRole`/`userWithRoles` so we
 // can prove a scoped club admin gets the shortcut while a cross-club admin does
@@ -31,6 +41,7 @@ vi.mock('@/services/replication', () => ({
 const mockAuthState = vi.hoisted(() => ({
   hasRole: (_role: unknown): boolean => false,
   userWithRoles: null as UserWithRoles | null,
+  user: null as { is_anonymous?: boolean } | null,
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -102,6 +113,7 @@ function seed() {
     (async (trialId: string) => CLASSES_BY_TRIAL[trialId] ?? []) as never
   );
   vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([] as never);
+  mockJudgeAssignmentData.getActive.mockResolvedValue([]);
 }
 
 const settledSyncStatus: ReplicationSyncContextValue['status'] = {
@@ -142,6 +154,7 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     seed();
     mockAuthState.hasRole = () => false;
     mockAuthState.userWithRoles = null;
+    mockAuthState.user = null;
   });
 
   it('renders class cards (Novice A/B collapsed into one, plus standalone)', async () => {

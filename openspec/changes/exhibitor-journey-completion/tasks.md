@@ -21,11 +21,11 @@
 - [x] 3.1 Add navigation tests for default Overview, Career/Records secondary views, all legacy tab mappings, copied deep links, Back/Forward behavior, lock discovery, and upgrade-return state.
 - [x] 3.2 Refactor `DogDetailsTabs` into Overview, Career, and Records using existing feature components and hooks; render Activity only on Overview and remove the duplicate Title Progress sidebar teaser/card where it repeats Career.
 - [x] 3.3 Add container-aware secondary navigation that remains labeled, keyboard operable, and unclipped at the four audited viewport classes.
-- [ ] 3.4 Add responsive tests/source guards and implement Health header/filter/action reflow inside constrained Dog Details content containers.
-- [ ] 3.5 Add Pedigree relationship-order tests and implement wide tree plus narrow Parents/Grandparents grouped layouts with equivalent add/view/edit/delete actions.
-- [ ] 3.6 Add Title Progress and Statistics tests for locked, loading, error/retry, empty, and source-grounded populated states without demonstration data.
-- [ ] 3.7 Add Training Journal accessibility and deletion-recovery tests, then label fields/toolbars/delete controls and implement confirmation or mutation-backed Undo with failure restoration.
-- [ ] 3.8 Implement route-entry focus/scroll behavior for dog-card navigation, secondary deep links, and browser Back restoration with focused navigation tests.
+- [x] 3.4 Add responsive tests/source guards and implement Health header/filter/action reflow inside constrained Dog Details content containers.
+- [x] 3.5 Add Pedigree relationship-order tests and implement wide tree plus narrow Parents/Grandparents grouped layouts with equivalent add/view/edit/delete actions.
+- [x] 3.6 Add Title Progress and Statistics tests for locked, loading, error/retry, empty, and source-grounded populated states without demonstration data.
+- [x] 3.7 Add Training Journal accessibility and deletion-recovery tests, then label fields/toolbars/delete controls and implement confirmation or mutation-backed Undo with failure restoration.
+- [x] 3.8 Implement route-entry focus/scroll behavior for dog-card navigation, secondary deep links, and browser Back restoration with focused navigation tests.
 - [ ] 3.9 Verify Slice 2 with focused Dog Details, Title Progress, Statistics, Health, Training, and Pedigree tests; `pnpm typecheck`; `pnpm lint`; and browser checks at all four viewport classes in light and dark modes.
 - [ ] 3.10 Open the Slice 2 PR with before/after screenshots and accessibility evidence; wait for CI/review, resolve findings, and merge.
 

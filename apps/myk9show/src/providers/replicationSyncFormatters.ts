@@ -8,7 +8,13 @@ export interface SyncFailedEventDetail {
   message: string;
 }
 
-const SCORE_FIELDS = new Set(['is_scored', 'result_status', 'scoring_completed_at']);
+const NON_SCORING_RINGSIDE_FIELDS = new Set([
+  'run_order',
+  'check_in_status',
+  'is_in_ring',
+  'ring_entry_time',
+  'ring_exit_time',
+]);
 
 function isPermanentScoreAuthorizationMutation(
   mutation: SyncFailedEventDetail['mutations'][number]
@@ -21,7 +27,9 @@ function isPermanentScoreAuthorizationMutation(
     return false;
   }
 
-  return Object.keys(mutation.rpc.fields ?? {}).some(field => SCORE_FIELDS.has(field));
+  return Object.keys(mutation.rpc.fields ?? {}).some(
+    field => !NON_SCORING_RINGSIDE_FIELDS.has(field)
+  );
 }
 
 export function hasPermanentScoreAuthorizationFailure(detail: SyncFailedEventDetail): boolean {
@@ -88,7 +96,7 @@ function actionLabel(operation: string | undefined): string {
 
 export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
   if (hasPermanentScoreAuthorizationFailure(detail)) {
-    return "Score not saved — you're not authorized to score this class. Enter the judge passcode or ask the secretary.";
+    return "Score not saved — you're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.";
   }
 
   const first = detail.mutations[0];

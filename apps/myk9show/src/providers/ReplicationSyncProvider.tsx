@@ -580,7 +580,13 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
 
       for (const failureDetail of splitPermanentScoreAuthorizationFailures(detail)) {
         const ids = failureDetail.mutations.map(m => m.id).filter(Boolean);
-        const toastId = `sync-failed:${ids[0] ?? 'unknown'}`;
+        const isPermanentScoreAuthorizationFailure =
+          hasPermanentScoreAuthorizationFailure(failureDetail);
+        const toastId = ids[0]
+          ? `sync-failed:${ids[0]}`
+          : `sync-failed:${
+              isPermanentScoreAuthorizationFailure ? 'authorization' : 'other'
+            }:unknown`;
         if (!failedSyncToastIdsRef.current.includes(toastId)) {
           failedSyncToastIdsRef.current.push(toastId);
         }
@@ -594,25 +600,19 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           );
           toast.dismiss(toastId);
         };
-        const isPermanentScoreAuthorizationFailure =
-          hasPermanentScoreAuthorizationFailure(failureDetail);
         toast.error(formatSyncFailureToast(failureDetail), {
           id: toastId,
           // INTENT: Failure toasts persist until the user makes an explicit
           // choice. The underlying mutations survive in IDB either way, so a
           // dismissed-by-reload toast re-surfaces on the next sign-in.
           duration: Infinity,
-          ...(isPermanentScoreAuthorizationFailure
-            ? {}
-            : {
-                action: {
-                  label: 'Retry',
-                  onClick: () => {
-                    void Promise.allSettled(ids.map(id => mutationManager.retryFailedMutation(id)));
-                    clearToastId();
-                  },
-                },
-              }),
+          action: {
+            label: isPermanentScoreAuthorizationFailure ? 'Retry after access is fixed' : 'Retry',
+            onClick: () => {
+              void Promise.allSettled(ids.map(id => mutationManager.retryFailedMutation(id)));
+              clearToastId();
+            },
+          },
           cancel: {
             label: 'Discard',
             onClick: () => {

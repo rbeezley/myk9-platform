@@ -55,9 +55,9 @@ describe('isRetryableError', () => {
       // Cloudflare timeout — library retries; our queue layer also retries.
       expect(isRetryableError({ message: 'Cloudflare 520', code: '520' })).toBe(true);
       // PostgREST schema cache reload — library retries; our queue layer also retries.
-      expect(
-        isRetryableError({ message: 'schema reload', code: '503', details: 'PGRST002' }),
-      ).toBe(true);
+      expect(isRetryableError({ message: 'schema reload', code: '503', details: 'PGRST002' })).toBe(
+        true
+      );
     });
 
     it('returns false for 4xx client errors (non-429)', () => {
@@ -80,6 +80,11 @@ describe('isRetryableError', () => {
 
     it('returns false for RLS policy rejections', () => {
       expect(isRetryableError(new Error('RLS policy blocked INSERT'))).toBe(false);
+    });
+
+    it('keeps ambiguous unauthorized and forbidden messages retryable without a structured code', () => {
+      expect(isRetryableError(new Error('Unauthorized gateway response'))).toBe(true);
+      expect(isRetryableError(new Error('Forbidden while refreshing the session'))).toBe(true);
     });
 
     // FAIL-OPEN (audit H2): a score must never be discarded because an ambiguous

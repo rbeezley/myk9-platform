@@ -128,7 +128,7 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     );
   });
 
-  it('explains a permanent score authorization failure without offering Retry', () => {
+  it('explains how to fix a permanent score authorization failure before retrying', () => {
     renderProvider();
 
     act(() => {
@@ -156,15 +156,19 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     });
 
     expect(toast.error).toHaveBeenCalledWith(
-      "Score not saved — you're not authorized to score this class. Enter the judge passcode or ask the secretary.",
+      "Score not saved — you're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.",
       expect.objectContaining({
         duration: Infinity,
+        action: expect.objectContaining({ label: 'Retry after access is fixed' }),
         cancel: expect.objectContaining({ label: 'Discard' }),
       })
     );
     const options = vi.mocked(toast.error).mock.calls[0]?.[1] as ToastOptions;
-    expect(options.action).toBeUndefined();
-    expect(retryFailedMutationMock).not.toHaveBeenCalled();
+    act(() => {
+      options.action!.onClick();
+    });
+    expect(retryFailedMutationMock).toHaveBeenCalledWith('score-mut-1');
+    expect(toast.dismiss).toHaveBeenCalledWith('sync-failed:score-mut-1');
   });
 
   it('keeps unrelated failures retryable when a batch also contains a score authorization failure', () => {
@@ -208,7 +212,9 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     const retryableCall = calls.find(([message]) =>
       String(message).startsWith("We couldn't update this show")
     );
-    expect((authorizationCall?.[1] as ToastOptions).action).toBeUndefined();
+    expect((authorizationCall?.[1] as ToastOptions).action?.label).toBe(
+      'Retry after access is fixed'
+    );
     expect((retryableCall?.[1] as ToastOptions).action?.label).toBe('Retry');
 
     act(() => {
@@ -216,6 +222,42 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     });
     expect(retryFailedMutationMock).toHaveBeenCalledWith('show-mut-1');
     expect(retryFailedMutationMock).not.toHaveBeenCalledWith('score-mut-1');
+  });
+
+  it('uses distinct fallback toast IDs when split failures have no mutation IDs', () => {
+    renderProvider();
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('replication:sync-failed', {
+          detail: {
+            count: 2,
+            mutations: [
+              {
+                tableName: 'entries',
+                operation: 'UPDATE',
+                failureKind: 'authorization',
+                rpc: {
+                  name: 'ringside_update_entry',
+                  fields: { result_status: 'qualified' },
+                },
+              },
+              {
+                tableName: 'shows',
+                operation: 'UPDATE',
+                failureKind: 'max-retries',
+              },
+            ],
+            message: '',
+          },
+        })
+      );
+    });
+
+    const ids = vi
+      .mocked(toast.error)
+      .mock.calls.map(([, options]) => (options as ToastOptions).id);
+    expect(ids).toEqual(['sync-failed:authorization:unknown', 'sync-failed:other:unknown']);
   });
 
   it('caps failed-sync toasts so repeated failures do not stack endlessly', () => {

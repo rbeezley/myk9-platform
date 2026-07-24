@@ -1399,6 +1399,7 @@ describe('MutationManager', () => {
         ...makeMutation({ id: 'mut-retry-failed', retries: 3 }),
         status: 'failed',
         error: 'Non-retryable error: auth expired',
+        failureKind: 'authorization',
         failedAt: Date.now(),
       });
 
@@ -1413,6 +1414,7 @@ describe('MutationManager', () => {
       expect(pending[0]!.status).toBe('pending');
       expect(pending[0]!.retries).toBe(0);
       expect(pending[0]!.error).toBeUndefined();
+      expect(pending[0]!.failureKind).toBeUndefined();
       expect(pending[0]!.failedAt).toBeUndefined();
     });
 

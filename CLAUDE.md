@@ -27,6 +27,7 @@ When I correct you or you catch yourself making a mistake, before continuing, ad
 - `supabase functions deploy --workdir apps/myk9show` follows that dir's stale `.temp/project-ref` (myK9Show-Working, defunct) — ALWAYS pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly and confirm the "Deployed Functions on project ..." line names the right ref.
 - `codex review --commit <SHA>` reviews ONLY that one commit — on a multi-commit PR, run it per code commit (or against the range); reviewing the branch tip alone can hit a docs-only commit and vacuously pass.
 - `git branch -D <branch>` fails while any worktree (including the current one) is checked out on it, including as the silent local-delete half of `gh pr merge --delete-branch` — always remove the worktree first, then delete the branch.
+- If work flagged as a background-task chip gets absorbed into the current session (e.g., it turns out to block the main task), dismiss the chip IMMEDIATELY — before continuing — or the user may start it and duplicate the work (PR #1441/#1442).
 
 ## Intent & Emotional Design
 

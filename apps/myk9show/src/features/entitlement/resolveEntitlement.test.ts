@@ -148,22 +148,25 @@ describe('resolveEntitlement', () => {
     expect(result.status).toBe('expired');
   });
 
-  it('expired: a revoked grant with a FUTURE scheduled ends_at clamps endsAt to server time', () => {
-    const result = resolveEntitlement(
-      baseContext({
-        grant_type: 'complimentary',
-        grant_status: 'revoked',
-        // Scheduled end after evaluated_at: the revocation cut access short,
-        // so the resolver must not report a future "ended" date.
-        grant_ends_at: '2026-07-30T00:00:00.000Z',
-      }),
+  it('expired: a revoked grant with a FUTURE scheduled ends_at reports NO end date (never a moving one)', () => {
+    // The revocation cut access short, the sanitized context omits revoked_at,
+    // and clamping to evaluated_at would move the reported end date on every
+    // refresh. The only truthful answer is "ended, date unknown".
+    const context: Partial<OwnEntitlementContext> = {
+      grant_type: 'complimentary',
+      grant_status: 'revoked',
+      grant_ends_at: '2026-07-30T00:00:00.000Z',
+    };
+    const first = resolveEntitlement(baseContext(context), { maxStaleMs: MAX_STALE_MS });
+    const later = resolveEntitlement(
+      baseContext({ ...context, evaluated_at: '2026-07-25T09:30:00.000Z' }),
       { maxStaleMs: MAX_STALE_MS }
     );
 
-    expect(result.status).toBe('expired');
-    if (result.status === 'expired') {
-      expect(result.endsAt).toBe(baseContext({}).evaluated_at);
-    }
+    expect(first.status).toBe('expired');
+    expect(first.endsAt).toBeNull();
+    // Stable across refreshes at different server times.
+    expect(later.endsAt).toBeNull();
   });
 
   it('expired: superseded grant is treated as ended (access is over)', () => {

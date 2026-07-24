@@ -249,12 +249,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
             </FormField>
           )}
 
-          {hasPermission('admin:manage') && (
-            <ComplimentaryPremiumSection
-              personId={userId}
-              hasExhibitorProfile={data.roles.includes('exhibitor')}
-            />
-          )}
+          {hasPermission('admin:manage') && <ComplimentaryPremiumSection personId={userId} />}
         </TabsContent>
 
         {/* Contact Information Tab */}

@@ -24,6 +24,7 @@ import {
 import type { AdminGrantHistoryRow } from '@/services/database/entitlement/types';
 import { notifications } from '@/lib/notifications';
 import { ComplimentaryPremiumHistory } from './ComplimentaryPremiumHistory';
+import { endOfLocalDay, toDateInputValue } from './complimentaryPremiumDates';
 
 /** Overlap-rejection message thrown by admin_grant_entitlement() when an active grant already exists. */
 const OVERLAP_ERROR_SNIPPET = 'overlapping active grant';
@@ -31,19 +32,12 @@ const OVERLAP_ERROR_SNIPPET = 'overlapping active grant';
 const grantHistoryQueryKey = (personId: string) =>
   ['entitlement', 'grantHistory', personId] as const;
 
-/** Formats a Date as `YYYY-MM-DD` for a native date input's default value. */
-function toDateInputValue(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
 interface ComplimentaryPremiumSectionProps {
   personId: string;
-  hasExhibitorProfile: boolean;
 }
 
 export const ComplimentaryPremiumSection: React.FC<ComplimentaryPremiumSectionProps> = ({
   personId,
-  hasExhibitorProfile,
 }) => {
   const queryClient = useQueryClient();
   const [endDate, setEndDate] = useState('');
@@ -59,10 +53,18 @@ export const ComplimentaryPremiumSection: React.FC<ComplimentaryPremiumSectionPr
   const grantInFlight = useRef(false);
   const revokeInFlight = useRef(false);
 
+  // Eligibility is the existence of an exhibitor_profiles row — NOT the
+  // `exhibitor` role, which drifts from the profile in both directions. We
+  // deliberately do NOT pre-check it from the client: `exhibitor_profiles_policy`
+  // (migration 020) still grants admin read via `has_role('platform_admin')`, a
+  // role migration 124 renamed to `site_admin` and deleted, so an admin's read of
+  // another person's profile returns zero rows whether or not one exists — a
+  // false "ineligible" is indistinguishable from a true one. admin_grant_entitlement()
+  // is the authority (it rejects a target with no profile, SECURITY DEFINER, so it
+  // sees the row); its message is surfaced on failure. See MYK9-87 for the policy fix.
   const historyQuery = useQuery({
     queryKey: grantHistoryQueryKey(personId),
     queryFn: () => fetchGrantHistory(personId),
-    enabled: hasExhibitorProfile,
   });
 
   const invalidateEntitlementQueries = () => {
@@ -71,15 +73,21 @@ export const ComplimentaryPremiumSection: React.FC<ComplimentaryPremiumSectionPr
   };
 
   const grantMutation = useMutation({
-    mutationFn: (replaceActive: boolean) =>
-      grantEntitlement({
+    mutationFn: (replaceActive: boolean) => {
+      // Access runs through the END of the selected local calendar day.
+      const endsAt = endOfLocalDay(endDate);
+      if (!endsAt) {
+        return Promise.reject(new Error('Please choose a valid expiration date'));
+      }
+      return grantEntitlement({
         personId,
         grantType: 'complimentary',
         startsAt: new Date().toISOString(),
-        endsAt: new Date(endDate).toISOString(),
+        endsAt: endsAt.toISOString(),
         reason: reason.trim(),
         replaceActive,
-      }),
+      });
+    },
     onSuccess: () => {
       notifications.success('Complimentary Premium granted');
       setEndDate('');
@@ -121,27 +129,11 @@ export const ComplimentaryPremiumSection: React.FC<ComplimentaryPremiumSectionPr
     },
   });
 
-  if (!hasExhibitorProfile) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Gift className="h-5 w-5" />
-            Complimentary Premium
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            This user has no exhibitor profile, so complimentary Premium cannot be granted.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   const validate = (): string | null => {
     if (!endDate) return 'Please choose an expiration date';
-    if (new Date(endDate).getTime() <= Date.now()) return 'Expiration must be in the future';
+    const endsAt = endOfLocalDay(endDate);
+    if (!endsAt) return 'Please choose a valid expiration date';
+    if (endsAt.getTime() <= Date.now()) return 'Expiration must be in the future';
     if (!reason.trim()) return 'Please enter a reason';
     return null;
   };
@@ -246,16 +238,34 @@ export const ComplimentaryPremiumSection: React.FC<ComplimentaryPremiumSectionPr
 
         <div className="space-y-3">
           <h4 className="text-sm font-medium">Grant history</h4>
-          <ComplimentaryPremiumHistory
-            rows={historyQuery.data ?? []}
-            isLoading={historyQuery.isLoading}
-            onRevoke={row => {
-              setRevokeTarget(row);
-              setRevokeReason('');
-              setRevokeError(null);
-            }}
-            revokeDisabled={revokeMutation.isPending}
-          />
+          {historyQuery.isError ? (
+            // Never render the empty state for a FAILED fetch — an admin would
+            // read "no history" as truth and re-grant over an existing grant.
+            <div className="space-y-2">
+              <p className="text-sm text-destructive" role="alert">
+                Could not load grant history. This user may still have grants — nothing was changed.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => historyQuery.refetch()}
+              >
+                Retry
+              </Button>
+            </div>
+          ) : (
+            <ComplimentaryPremiumHistory
+              rows={historyQuery.data ?? []}
+              isLoading={historyQuery.isLoading}
+              onRevoke={row => {
+                setRevokeTarget(row);
+                setRevokeReason('');
+                setRevokeError(null);
+              }}
+              revokeDisabled={revokeMutation.isPending}
+            />
+          )}
         </div>
       </CardContent>
 

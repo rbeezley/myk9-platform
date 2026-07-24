@@ -99,11 +99,13 @@ export function resolveEntitlement(
     if (grantEnded)
       candidates.push({ ms: grantEndsAtMs as number, iso: context.grant_ends_at as string });
     const mostRecent = candidates.reduce((a, b) => (b.ms > a.ms ? b : a));
-    // A revoked/superseded grant ends the moment it was cut short, not at its
+    // A revoked/superseded grant ended the moment it was cut short, not at its
     // scheduled ends_at (which may still be in the future — the sanitized
-    // context deliberately omits revoked_at). Clamp to server time so the UI
-    // never claims access "ended" on a future date.
-    const endsAtIso = mostRecent.ms > evaluatedAtMs ? evaluatedAt : mostRecent.iso;
+    // context deliberately omits revoked_at). We cannot know the real instant,
+    // and clamping to evaluatedAt would MOVE the reported end date on every
+    // refresh. Report no date at all instead; consumers render a dateless
+    // "access has ended" phrase.
+    const endsAtIso = mostRecent.ms > evaluatedAtMs ? null : mostRecent.iso;
 
     return {
       tier: 'free',

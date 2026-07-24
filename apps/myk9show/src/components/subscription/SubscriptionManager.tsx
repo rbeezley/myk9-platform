@@ -44,16 +44,28 @@ const SOURCE_LABEL: Record<Exclude<EntitlementSource, 'none'>, string> = {
   complimentary: 'Complimentary Premium',
 };
 
+/** Human wording for the real Stripe subscription status. */
+const BILLING_STATUS_LABEL: Record<BillingDetails['status'], string> = {
+  active: 'Active',
+  past_due: 'Past due',
+  canceled: 'Canceled',
+  unpaid: 'Unpaid',
+};
+
 export function SubscriptionManager({
   portalReturnPath = '/pricing-page',
 }: SubscriptionManagerProps = {}) {
   const { user } = useAuth();
-  const { effective, isLoading, isError, refetch } = useEntitlement();
+  const { effective, isTrusted, isLoading, isError, refetch } = useEntitlement();
   const [billing, setBilling] = useState<BillingDetails | null>(null);
   const [billingLoading, setBillingLoading] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
 
-  const showPaidBilling = effective?.status === 'active' && effective.source === 'paid';
+  // Only a TRUSTED result may describe the plan as active or expose billing
+  // controls. After a failed boundary refresh the component must stop claiming
+  // the plan is active instead of doing so indefinitely.
+  const trusted = isTrusted ? effective : null;
+  const showPaidBilling = trusted?.status === 'active' && trusted.source === 'paid';
 
   const fetchBillingDetails = useCallback(async () => {
     try {
@@ -165,7 +177,10 @@ export function SubscriptionManager({
     );
   }
 
-  if (isError && !effective) {
+  // No trusted result: never describe the plan as active and never expose
+  // billing actions. Non-destructive — nothing about the underlying billing or
+  // grant data is changed or erased.
+  if (!trusted) {
     return (
       <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3">
         <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
@@ -189,7 +204,7 @@ export function SubscriptionManager({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      {isError && effective && (
+      {isError && (
         <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
           <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
           <p className="text-destructive text-sm">
@@ -211,7 +226,9 @@ export function SubscriptionManager({
             Current Plan
           </CardTitle>
         </CardHeader>
-        <CardContent>{effective && <SubscriptionStatus effective={effective} />}</CardContent>
+        <CardContent>
+          <SubscriptionStatus effective={trusted} />
+        </CardContent>
       </Card>
 
       {showPaidBilling && (
@@ -228,6 +245,10 @@ export function SubscriptionManager({
             ) : billing ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Payment Status</p>
+                    <p className="font-medium">{BILLING_STATUS_LABEL[billing.status]}</p>
+                  </div>
                   <div>
                     <p className="text-muted-foreground">Current Period</p>
                     <p className="font-medium">
@@ -252,6 +273,19 @@ export function SubscriptionManager({
                     </div>
                   )}
                 </div>
+
+                {billing.status !== 'active' && (
+                  <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                    <p className="text-destructive text-sm">
+                      {billing.status === 'past_due'
+                        ? 'Your last payment failed and your subscription is past due. Update your payment method to keep Premium.'
+                        : billing.status === 'unpaid'
+                          ? 'Your subscription is unpaid. Update your payment method to restore billing.'
+                          : 'Your subscription is canceled. Premium ends at the end of the paid period.'}
+                    </p>
+                  </div>
+                )}
 
                 {billing.cancelAtPeriodEnd && (
                   <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
@@ -279,7 +313,9 @@ export function SubscriptionManager({
   );
 }
 
-function SubscriptionStatus({ effective }: { effective: EffectiveEntitlement }) {
+function SubscriptionStatus({ effective }: { effective: EffectiveEntitlement | null }) {
+  if (!effective) return null;
+
   if (effective.status === 'active') {
     const { source } = effective;
     return (
@@ -317,7 +353,9 @@ function SubscriptionStatus({ effective }: { effective: EffectiveEntitlement }) 
           <Badge variant="secondary">Expired</Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          Your Premium access ended {new Date(effective.endsAt).toLocaleDateString()}.
+          {effective.endsAt
+            ? `Your Premium access ended ${new Date(effective.endsAt).toLocaleDateString()}.`
+            : 'Your Premium access has ended.'}
         </p>
         <Button onClick={() => (window.location.href = '/pricing-page')}>
           View plans to resubscribe

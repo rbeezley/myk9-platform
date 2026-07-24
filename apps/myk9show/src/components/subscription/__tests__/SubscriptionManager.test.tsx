@@ -43,6 +43,8 @@ const { builders, fromMock, loggerErrorMock, entitlementHolder, refetchMock } = 
       value: null as Record<string, unknown> | null,
       loading: undefined as boolean | undefined,
       error: false,
+      // undefined => trusted whenever a value exists (the common case).
+      trusted: undefined as boolean | undefined,
     },
     refetchMock: vi.fn(),
   };
@@ -75,7 +77,7 @@ vi.mock('@/stripe-config', () => ({
 vi.mock('@/features/entitlement/useEntitlement', () => ({
   useEntitlement: () => ({
     effective: entitlementHolder.value,
-    isTrusted: true,
+    isTrusted: entitlementHolder.trusted ?? entitlementHolder.value !== null,
     canAuthorizePremium: entitlementHolder.value?.tier === 'premium',
     isLoading: entitlementHolder.loading === true,
     isError: entitlementHolder.error === true,
@@ -139,6 +141,7 @@ describe('SubscriptionManager', () => {
     entitlementHolder.value = null;
     entitlementHolder.loading = undefined;
     entitlementHolder.error = false;
+    entitlementHolder.trusted = undefined;
     builders.people.result = { data: { id: 'person-1' }, error: null };
     builders.stripe_customers.result = { data: null, error: null };
     builders.stripe_subscriptions.result = { data: null, error: null };
@@ -261,5 +264,68 @@ describe('SubscriptionManager', () => {
 
     expect(await screen.findByRole('heading', { name: /^premium$/i })).toBeInTheDocument();
     expect(screen.getByText(/couldn't refresh your account access/i)).toBeInTheDocument();
+  });
+
+  it('stops claiming the plan is active and hides billing actions once the result is UNTRUSTED', async () => {
+    // Refresh failed and the trusted boundary has since passed.
+    entitlementHolder.value = activeEntitlement('paid');
+    entitlementHolder.trusted = false;
+    entitlementHolder.error = true;
+    render(<SubscriptionManager />);
+
+    expect(await screen.findByText(/couldn't verify your account access/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^premium$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /manage subscription/i })).not.toBeInTheDocument();
+    // Non-destructive: a retry path is offered, nothing is erased.
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it('renders a dateless truthful phrase when an expired result has no knowable end date', async () => {
+    entitlementHolder.value = { ...expiredEntitlement(), endsAt: null };
+    render(<SubscriptionManager />);
+
+    expect(await screen.findByText(/your premium access has ended\./i)).toBeInTheDocument();
+    expect(screen.queryByText(/access ended \d/i)).not.toBeInTheDocument();
+  });
+
+  it('surfaces a past_due Stripe billing status instead of reading as Active', async () => {
+    entitlementHolder.value = activeEntitlement('paid');
+    builders.stripe_customers.result = { data: { id: 'cus-row-uuid' }, error: null };
+    builders.stripe_subscriptions.result = {
+      data: {
+        status: 'past_due',
+        stripe_price_id: 'price_month',
+        current_period_start: '2026-06-10T18:18:33Z',
+        current_period_end: '2026-07-10T18:18:33Z',
+        cancel_at_period_end: false,
+        customer_id: 'cus-row-uuid',
+      },
+      error: null,
+    };
+
+    render(<SubscriptionManager />);
+
+    expect(await screen.findByText('Past due')).toBeInTheDocument();
+    expect(screen.getByText(/last payment failed/i)).toBeInTheDocument();
+  });
+
+  it('surfaces a canceled Stripe billing status', async () => {
+    entitlementHolder.value = activeEntitlement('paid');
+    builders.stripe_customers.result = { data: { id: 'cus-row-uuid' }, error: null };
+    builders.stripe_subscriptions.result = {
+      data: {
+        status: 'canceled',
+        stripe_price_id: 'price_month',
+        current_period_start: '2026-06-10T18:18:33Z',
+        current_period_end: '2026-07-10T18:18:33Z',
+        cancel_at_period_end: false,
+        customer_id: 'cus-row-uuid',
+      },
+      error: null,
+    };
+
+    render(<SubscriptionManager />);
+
+    expect(await screen.findByText('Canceled')).toBeInTheDocument();
   });
 });

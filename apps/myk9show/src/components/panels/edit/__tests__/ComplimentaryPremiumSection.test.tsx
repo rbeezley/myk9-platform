@@ -48,9 +48,7 @@ const expiredGrant: AdminGrantHistoryRow = {
 };
 
 function renderSection(props?: Partial<React.ComponentProps<typeof ComplimentaryPremiumSection>>) {
-  return render(
-    <ComplimentaryPremiumSection personId="person-1" hasExhibitorProfile={true} {...props} />
-  );
+  return render(<ComplimentaryPremiumSection personId="person-1" {...props} />);
 }
 
 const futureDateInputValue = () => {
@@ -67,24 +65,73 @@ describe('ComplimentaryPremiumSection', () => {
     fetchGrantHistoryMock.mockResolvedValue([]);
   });
 
-  it('shows a plain explanation instead of the grant form when the target has no exhibitor profile', () => {
-    renderSection({ hasExhibitorProfile: false });
+  it('renders the grant form without a client-side eligibility pre-check', async () => {
+    renderSection();
 
-    expect(screen.getByText(/no exhibitor profile/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/expiration date/i)).not.toBeInTheDocument();
-    expect(fetchGrantHistoryMock).not.toHaveBeenCalled();
+    // Eligibility is NOT probed from the client: exhibitor_profiles_policy still
+    // keys admin reads off the removed `platform_admin` role (MYK9-87), so a
+    // client check cannot distinguish "no profile" from "not allowed to see it".
+    expect(await screen.findByLabelText(/expiration date/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no exhibitor profile/i)).not.toBeInTheDocument();
+  });
+
+  it('surfaces the server rejection when the target has no exhibitor profile', async () => {
+    grantEntitlementMock.mockRejectedValue(new Error('target has no exhibitor profile'));
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.type(await screen.findByLabelText(/expiration date/i), '2026-12-31');
+    await user.type(screen.getByLabelText(/reason/i), 'thanks for testing');
+    await user.click(screen.getByRole('button', { name: /grant complimentary premium/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/no exhibitor profile/i);
+  });
+
+  it('shows an error with retry instead of a false empty state when history fails to load', async () => {
+    fetchGrantHistoryMock.mockRejectedValue(new Error('fetchGrantHistory: boom'));
+    const user = userEvent.setup();
+    renderSection();
+
+    expect(await screen.findByText(/could not load grant history/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no grant history for this user/i)).not.toBeInTheDocument();
+
+    fetchGrantHistoryMock.mockResolvedValue([activeGrant]);
+    await user.click(screen.getByRole('button', { name: /retry/i }));
+
+    expect(await screen.findByText(/beta tester/i)).toBeInTheDocument();
+  });
+
+  it('ends the grant at the last local instant of the selected calendar day', async () => {
+    grantEntitlementMock.mockResolvedValue('new-grant-id');
+    const user = userEvent.setup();
+    renderSection();
+
+    // Pinned date string: a native date input yields a bare YYYY-MM-DD. Parsed
+    // as UTC this would be 2099-12-31T00:00:00Z — the PREVIOUS local day in any
+    // negative-offset zone. The expected instant is local end-of-day.
+    const pinned = '2099-12-31';
+    const expected = new Date(2099, 11, 31, 23, 59, 59, 999).toISOString();
+
+    await user.type(await screen.findByLabelText(/expiration date/i), pinned);
+    await user.type(screen.getByLabelText(/reason/i), 'Pinned date test');
+    await user.click(screen.getByRole('button', { name: /grant complimentary premium/i }));
+
+    await waitFor(() => expect(grantEntitlementMock).toHaveBeenCalledTimes(1));
+    expect(grantEntitlementMock).toHaveBeenCalledWith(
+      expect.objectContaining({ endsAt: expected })
+    );
   });
 
   it('requires a future end date and a reason before submitting a grant', async () => {
     const user = userEvent.setup();
     renderSection();
 
-    await user.click(screen.getByRole('button', { name: /grant complimentary premium/i }));
+    await user.click(await screen.findByRole('button', { name: /grant complimentary premium/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/expiration/i);
     expect(grantEntitlementMock).not.toHaveBeenCalled();
 
-    await user.type(screen.getByLabelText(/expiration date/i), futureDateInputValue());
+    await user.type(await screen.findByLabelText(/expiration date/i), futureDateInputValue());
     await user.click(screen.getByRole('button', { name: /grant complimentary premium/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/reason/i);
@@ -96,7 +143,7 @@ describe('ComplimentaryPremiumSection', () => {
     const user = userEvent.setup();
     renderSection();
 
-    await user.type(screen.getByLabelText(/expiration date/i), futureDateInputValue());
+    await user.type(await screen.findByLabelText(/expiration date/i), futureDateInputValue());
     await user.type(screen.getByLabelText(/reason/i), 'Founding beta tester gift');
     await user.click(screen.getByRole('button', { name: /grant complimentary premium/i }));
 
@@ -120,7 +167,7 @@ describe('ComplimentaryPremiumSection', () => {
     const user = userEvent.setup();
     renderSection();
 
-    await user.type(screen.getByLabelText(/expiration date/i), futureDateInputValue());
+    await user.type(await screen.findByLabelText(/expiration date/i), futureDateInputValue());
     await user.type(screen.getByLabelText(/reason/i), 'Replace test');
     await user.click(screen.getByRole('button', { name: /grant complimentary premium/i }));
 
@@ -146,7 +193,7 @@ describe('ComplimentaryPremiumSection', () => {
     const user = userEvent.setup();
     renderSection();
 
-    await user.type(screen.getByLabelText(/expiration date/i), futureDateInputValue());
+    await user.type(await screen.findByLabelText(/expiration date/i), futureDateInputValue());
     await user.type(screen.getByLabelText(/reason/i), 'In flight test');
     const grantButton = screen.getByRole('button', { name: /grant complimentary premium/i });
 
@@ -166,7 +213,7 @@ describe('ComplimentaryPremiumSection', () => {
     renderSection();
 
     const endDateValue = futureDateInputValue();
-    await user.type(screen.getByLabelText(/expiration date/i), endDateValue);
+    await user.type(await screen.findByLabelText(/expiration date/i), endDateValue);
     await user.type(screen.getByLabelText(/reason/i), 'Preserve me');
     await user.click(screen.getByRole('button', { name: /grant complimentary premium/i }));
 
@@ -204,12 +251,37 @@ describe('ComplimentaryPremiumSection', () => {
   });
 
   it('renders truthful history status, dates, reason, and actor for each grant', async () => {
-    fetchGrantHistoryMock.mockResolvedValue([activeGrant]);
+    const revokedGrant: AdminGrantHistoryRow = {
+      ...activeGrant,
+      id: 'grant-2',
+      reason: 'Trial extension',
+      revoked_at: new Date(Date.now() - 3600000).toISOString(),
+      revoked_by_person_id: 'admin-2',
+      revoke_reason: 'No longer eligible',
+    };
+    fetchGrantHistoryMock.mockResolvedValue([activeGrant, revokedGrant]);
     renderSection();
 
     await screen.findByText(/beta tester/i);
     expect(screen.getByText('active')).toBeInTheDocument();
-    expect(screen.getByText(/beta tester/i)).toBeInTheDocument();
+
+    // Actor + event timestamp are required audit evidence (spec: "Admin
+    // reviews grant history"), so neither may be omitted.
+    const grantedLines = screen.getAllByText(/granted by admin-1 on /i);
+    expect(grantedLines).toHaveLength(2);
+    expect(grantedLines[0]).toHaveTextContent(new Date(activeGrant.created_at).toLocaleString());
+
+    expect(screen.getByText(/revoked by admin-2 on /i)).toHaveTextContent(
+      new Date(revokedGrant.revoked_at as string).toLocaleString()
+    );
+    expect(screen.getByText(/revoked by admin-2 on /i)).toHaveTextContent('No longer eligible');
+  });
+
+  it('labels an unknown grant actor rather than omitting it', async () => {
+    fetchGrantHistoryMock.mockResolvedValue([{ ...activeGrant, granted_by_person_id: null }]);
+    renderSection();
+
+    expect(await screen.findByText(/granted by unknown actor on /i)).toBeInTheDocument();
   });
 
   it('disables repeat submission for revoke while in flight', async () => {

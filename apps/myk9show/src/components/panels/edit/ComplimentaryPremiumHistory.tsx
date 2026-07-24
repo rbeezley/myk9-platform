@@ -22,6 +22,17 @@ const STATUS_BADGE_VARIANT: Record<
 
 const formatDate = (value: string) => new Date(value).toLocaleDateString();
 
+/** Grant/revoke event stamps carry a time of day that matters for audit. */
+const formatDateTime = (value: string) => new Date(value).toLocaleString();
+
+/**
+ * Actor person ids are shown raw and labelled. There is no cheap admin
+ * people-by-id lookup to reuse here (`getUserById` pulls dogs and judge
+ * qualifications per call), and per the audit requirement an unresolved actor
+ * must still be displayed rather than omitted.
+ */
+const formatActor = (personId: string | null) => personId ?? 'unknown actor';
+
 interface ComplimentaryPremiumHistoryProps {
   rows: AdminGrantHistoryRow[];
   isLoading: boolean;
@@ -71,9 +82,15 @@ export const ComplimentaryPremiumHistory: React.FC<ComplimentaryPremiumHistoryPr
                 {formatDate(row.starts_at)} – {formatDate(row.ends_at)}
               </p>
               <p className="text-sm">{row.reason}</p>
-              {row.revoked_at && row.revoke_reason && (
-                <p className="text-sm text-muted-foreground">
-                  Revoked {formatDate(row.revoked_at)}: {row.revoke_reason}
+              <p className="text-xs text-muted-foreground">
+                Granted by {formatActor(row.granted_by_person_id)} on{' '}
+                {formatDateTime(row.created_at)}
+              </p>
+              {row.revoked_at && (
+                <p className="text-xs text-muted-foreground">
+                  Revoked by {formatActor(row.revoked_by_person_id)} on{' '}
+                  {formatDateTime(row.revoked_at)}
+                  {row.revoke_reason ? `: ${row.revoke_reason}` : ''}
                 </p>
               )}
             </div>

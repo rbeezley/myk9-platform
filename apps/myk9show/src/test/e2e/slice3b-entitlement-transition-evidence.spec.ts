@@ -3,11 +3,19 @@
  *
  * Drives the REAL admin grant workflow (UserEditPanel → admin RPCs) against
  * the linked staging database, then verifies the exhibitor-facing truth on
- * Subscription and Pricing between each transition. Mutates staging data
- * (grant + revoke for the e2e exhibitor, leaving only truthful history rows),
- * so this spec is NOT in the CI allowlist — run it deliberately:
+ * Subscription, Pricing, and a premium dog capability between each transition.
+ * Mutates staging data (grant + revoke for the e2e exhibitor, leaving only
+ * truthful history rows), so this spec is NOT in the CI allowlist — run it
+ * deliberately, and ONLY on a single project with a single worker:
  *
- *   pnpm playwright test src/test/e2e/slice3b-entitlement-transition-evidence.spec.ts
+ *   pnpm playwright test src/test/e2e/slice3b-entitlement-transition-evidence.spec.ts \
+ *     --project=chromium --workers=1
+ *
+ * `test.describe.configure({ mode: 'serial' })` orders tests only WITHIN a
+ * project. The default config fans this file across chromium/firefox/webkit/
+ * mobile-chrome/tablet concurrently, and every project mutates the SAME staging
+ * exhibitor — grants would supersede and revoke each other nondeterministically.
+ * The guard below therefore skips every project except EVIDENCE_PROJECT.
  *
  * Requires E2E_ADMIN_PASSWORD and E2E_DEMO_EXHIBITOR_PASSWORD in the env.
  */
@@ -15,6 +23,9 @@ import { test, expect, type Page } from '@playwright/test';
 import { signInAsTestUser } from './helpers/testUsers';
 
 const EVIDENCE_DIR = process.env.SLICE3B_EVIDENCE_DIR ?? 'test-results/slice3b-evidence';
+
+/** The one project allowed to mutate the shared staging exhibitor. */
+const EVIDENCE_PROJECT = process.env.SLICE3B_EVIDENCE_PROJECT ?? 'chromium';
 
 const EXHIBITOR_EMAIL = process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'e2e-exhibitor@test.myk9.com';
 
@@ -43,9 +54,93 @@ async function openExhibitorEditPanel(page: Page) {
   });
 }
 
+/**
+ * Opens the exhibitor's first dog on Career → Title Progress: an account-Premium
+ * capability, so it is the surface that must flip locked/unlocked with a grant.
+ */
+async function openDogTitleProgress(page: Page) {
+  await page.goto('/dogs');
+  // BrowseCard renders a div with an EXPLICIT role="link" (plus tabIndex and an
+  // Enter handler) and navigates via onClick — there is no href to read, and
+  // real <a> elements elsewhere on the page also expose the link role, so match
+  // the attribute directly. Waiting on the card itself matters: before the dogs
+  // query settles the page briefly renders unrelated headings.
+  const dogCards = page.locator('[role="link"]');
+  await expect(dogCards.first(), 'the e2e exhibitor must own at least one dog').toBeVisible({
+    timeout: 20000,
+  });
+  // Keyboard activation avoids pointer hit-testing against the card's layout.
+  await dogCards.first().press('Enter');
+  // Client-side navigation fires no `load` event, so waitForURL's default
+  // waitUntil would hang — poll the URL instead.
+  await expect(page).toHaveURL(/\/dogs\/[0-9a-f-]{36}/i, { timeout: 20000 });
+
+  const dogId = new URL(page.url()).pathname.split('/dogs/')[1]?.split('/')[0];
+  expect(dogId, 'expected a dog detail URL after opening the first dog').toBeTruthy();
+  await page.goto(`/dogs/${dogId}?section=career&view=titles`);
+}
+
+/**
+ * Positive locked evidence: BlurGate's own chrome. The blurred children are
+ * `aria-hidden`, so role-based queries only ever see the real section when it
+ * is genuinely unlocked.
+ */
+async function expectTitleProgressLocked(page: Page) {
+  await expect(page.getByText('Premium Feature').first()).toBeVisible({ timeout: 20000 });
+  await expect(page.getByRole('button', { name: 'Upgrade to Premium' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Log Result' })).toHaveCount(0);
+}
+
+/** Positive unlocked evidence: the real section's own action is reachable. */
+async function expectTitleProgressUnlocked(page: Page) {
+  await expect(page.getByRole('button', { name: 'Log Result' })).toBeVisible({ timeout: 20000 });
+  await expect(page.getByRole('button', { name: 'Upgrade to Premium' })).toHaveCount(0);
+  await expect(page.getByText('Premium Feature')).toHaveCount(0);
+}
+
+/** Positive non-premium evidence on Subscription: a settled free/expired plan state. */
+async function expectSubscriptionNonPremium(page: Page) {
+  await expect(page.getByText(/Premium access ended|You're on the free plan/).first()).toBeVisible({
+    timeout: 20000,
+  });
+  await expect(page.getByText('Complimentary premium through')).toHaveCount(0);
+  await expect(page.getByText('Founding member premium through')).toHaveCount(0);
+}
+
+/** Positive non-premium evidence on Pricing: the real checkout action is offered. */
+async function expectPricingOffersCheckout(page: Page) {
+  await expect(page.getByRole('button', { name: 'Subscribe Now' })).toBeVisible({
+    timeout: 20000,
+  });
+  await expect(page.getByRole('button', { name: /^You have .*Premium$/ })).toHaveCount(0);
+}
+
 test.describe.configure({ mode: 'serial' });
 
 test.describe('Slice 3B: free -> complimentary -> revoked transition', () => {
+  test.beforeEach(() => {
+    test.skip(
+      test.info().project.name !== EVIDENCE_PROJECT,
+      `Mutates the shared staging exhibitor — runs only on the "${EVIDENCE_PROJECT}" project with --workers=1.`
+    );
+  });
+
+  test('exhibitor starts on the truthful free state', async ({ page }) => {
+    await signInAsTestUser(page, 'DEMO_EXHIBITOR');
+
+    await page.goto('/subscription');
+    await expectSubscriptionNonPremium(page);
+    await shoot(page, '00a-exhibitor-subscription-free');
+
+    await page.goto('/pricing-page');
+    await expectPricingOffersCheckout(page);
+    await shoot(page, '00b-exhibitor-pricing-free');
+
+    await openDogTitleProgress(page);
+    await expectTitleProgressLocked(page);
+    await shoot(page, '00c-exhibitor-dog-title-progress-locked');
+  });
+
   test('admin grants complimentary Premium to the e2e exhibitor', async ({ page }) => {
     await signInAsTestUser(page, 'SITE_ADMIN');
     await openExhibitorEditPanel(page);
@@ -73,6 +168,8 @@ test.describe('Slice 3B: free -> complimentary -> revoked transition', () => {
       timeout: 15000,
     });
     await expect(history.getByText(GRANT_REASON).first()).toBeVisible();
+    // Actor-backed audit evidence, per the entitlement spec's admin scenario.
+    await expect(history.getByText(/Granted by /).first()).toBeVisible();
     await shoot(page, '02-admin-history-active-grant');
   });
 
@@ -96,6 +193,16 @@ test.describe('Slice 3B: free -> complimentary -> revoked transition', () => {
     await shoot(page, '04-exhibitor-pricing-current-access');
   });
 
+  test('a granted exhibitor sees an unlocked premium dog capability', async ({ page }) => {
+    await signInAsTestUser(page, 'DEMO_EXHIBITOR');
+
+    // Slice 3B's headline behavior: the grant — not a Stripe subscription —
+    // unlocks the account-Premium dog capabilities.
+    await openDogTitleProgress(page);
+    await expectTitleProgressUnlocked(page);
+    await shoot(page, '04b-exhibitor-dog-title-progress-unlocked');
+  });
+
   test('admin revokes the grant with a reason', async ({ page }) => {
     await signInAsTestUser(page, 'SITE_ADMIN');
     await openExhibitorEditPanel(page);
@@ -111,6 +218,7 @@ test.describe('Slice 3B: free -> complimentary -> revoked transition', () => {
     await expect(history.getByText('revoked', { exact: true }).first()).toBeVisible({
       timeout: 15000,
     });
+    await expect(history.getByText(/Revoked by /).first()).toBeVisible();
     await shoot(page, '05-admin-history-revoked');
   });
 
@@ -118,18 +226,15 @@ test.describe('Slice 3B: free -> complimentary -> revoked transition', () => {
     await signInAsTestUser(page, 'DEMO_EXHIBITOR');
 
     await page.goto('/subscription');
-    // A revoked grant resolves as non-premium; the page must NOT claim any
-    // active premium source.
-    await expect(page.getByText('Complimentary premium through')).toHaveCount(0, {
-      timeout: 20000,
-    });
+    await expectSubscriptionNonPremium(page);
     await shoot(page, '06-exhibitor-subscription-after-revoke');
 
     await page.goto('/pricing-page');
-    // The real checkout path is back for non-premium users.
-    await expect(page.getByRole('button', { name: 'You have Complimentary Premium' })).toHaveCount(
-      0
-    );
+    await expectPricingOffersCheckout(page);
     await shoot(page, '07-exhibitor-pricing-after-revoke');
+
+    await openDogTitleProgress(page);
+    await expectTitleProgressLocked(page);
+    await shoot(page, '08-exhibitor-dog-title-progress-relocked');
   });
 });

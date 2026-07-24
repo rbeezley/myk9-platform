@@ -2,7 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
-import { useEntitlement, ENTITLEMENT_QUERY_KEY } from './useEntitlement';
+import { useEntitlement, ENTITLEMENT_QUERY_KEY, entitlementQueryKey } from './useEntitlement';
 import type { OwnEntitlementContext } from '@/services/database/entitlement/types';
 
 const mockFetchOwnEntitlementContext = vi.fn<() => Promise<OwnEntitlementContext>>();
@@ -29,10 +29,11 @@ function activePaidContext(overrides: Partial<OwnEntitlementContext> = {}): OwnE
   };
 }
 
-function renderWithClient() {
+function renderWithClient(seed?: (client: QueryClient) => void) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+  seed?.(queryClient);
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
@@ -151,7 +152,69 @@ describe('useEntitlement', () => {
     expect(result.current.effective?.tier).toBe('premium');
   });
 
-  it('uses a single, stable query key across renders', () => {
+  it('uses a single, stable query key prefix', () => {
     expect(ENTITLEMENT_QUERY_KEY).toEqual(['entitlement', 'own']);
+  });
+
+  it('query key is account-scoped so another account cannot reuse a cached entitlement', () => {
+    expect(entitlementQueryKey('user-1')).toEqual(['entitlement', 'own', 'user-1']);
+    expect(entitlementQueryKey('user-2')).not.toEqual(entitlementQueryKey('user-1'));
+    expect(entitlementQueryKey(undefined)).toEqual(['entitlement', 'own', 'anonymous']);
+  });
+
+  it('reads the query cache under the signed-in account key', async () => {
+    mockFetchOwnEntitlementContext.mockResolvedValue(activePaidContext());
+
+    const { queryClient, result } = renderWithClient();
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(queryClient.getQueryData(entitlementQueryKey('user-1'))).toBeTruthy();
+    expect(queryClient.getQueryData(ENTITLEMENT_QUERY_KEY)).toBeUndefined();
+  });
+
+  it('a device clock far behind the server does NOT extend trust past the server interval', async () => {
+    // Server says "trust this for 5 minutes"; the device clock is 3 days
+    // behind, so an absolute trustedUntil - Date.now() comparison would grant
+    // days of trust. Trust must follow the SERVER-relative interval instead.
+    const serverNow = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockFetchOwnEntitlementContext.mockResolvedValueOnce({
+      evaluated_at: serverNow,
+      paid_tier: 'premium',
+      paid_expires_at: new Date(Date.parse(serverNow) + 60 * 60 * 1000).toISOString(),
+      grant_type: null,
+      grant_status: null,
+      grant_starts_at: null,
+      grant_ends_at: null,
+      scored_show_count: 5,
+    });
+
+    const { result } = renderWithClient();
+
+    await vi.waitFor(() => expect(result.current.isTrusted).toBe(true));
+
+    mockFetchOwnEntitlementContext.mockRejectedValue(new Error('refresh failed'));
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 1000);
+
+    await vi.waitFor(() => expect(result.current.isTrusted).toBe(false));
+    expect(result.current.canAuthorizePremium).toBe(false);
+  });
+
+  it('cached data whose trustedUntil already passed fails closed on the FIRST render', () => {
+    // Never resolves: the only value available on first render is the
+    // pre-expired cached entry.
+    mockFetchOwnEntitlementContext.mockReturnValue(new Promise(() => {}));
+
+    const { result } = renderWithClient(client => {
+      client.setQueryData(entitlementQueryKey('user-1'), activePaidContext(), {
+        // Received locally 10 minutes ago — past the 5-minute trust ceiling.
+        updatedAt: Date.now() - 10 * 60 * 1000,
+      });
+    });
+
+    expect(result.current.effective?.tier).toBe('premium');
+    expect(result.current.isTrusted).toBe(false);
+    expect(result.current.canAuthorizePremium).toBe(false);
   });
 });

@@ -65,8 +65,14 @@ export default function PricingPage() {
   const { user } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
-  const { effective } = useEntitlement();
-  const activeSource = effective?.status === 'active' ? effective.source : null;
+  const { effective, isTrusted, isError: isEntitlementError, refetch } = useEntitlement();
+  // Purchase-vs-current-access may ONLY be decided from a trusted result:
+  // otherwise a complimentary user could enter paid checkout before their
+  // grant resolves. Signed-out visitors have no entitlement to resolve, so
+  // they keep the normal (sign-in redirecting) purchase path.
+  const trusted = isTrusted ? effective : null;
+  const activeSource = trusted?.status === 'active' ? trusted.source : null;
+  const isAccessUnresolved = !!user && !trusted;
   // Set by BlurGate when the user upgraded from a locked Career/Records
   // secondary view — lets them return to the same dog and view afterward
   // instead of the return path only being the browser Back button.
@@ -201,7 +207,28 @@ export default function PricingPage() {
                         </div>
                         <p className="text-muted-foreground mb-6">{tier.description}</p>
 
-                        {hasActiveAccess ? (
+                        {isPaidTier && isAccessUnresolved ? (
+                          <div className="space-y-2">
+                            <button
+                              type="button"
+                              disabled
+                              className="w-full py-3 px-6 rounded-xl font-medium bg-muted text-muted-foreground cursor-not-allowed"
+                            >
+                              {isEntitlementError
+                                ? "Couldn't check your access"
+                                : 'Checking your access…'}
+                            </button>
+                            {isEntitlementError && (
+                              <button
+                                type="button"
+                                onClick={() => refetch()}
+                                className="w-full py-2 px-6 rounded-xl text-sm font-medium bg-accent text-accent-foreground hover:bg-accent/80"
+                              >
+                                Retry
+                              </button>
+                            )}
+                          </div>
+                        ) : hasActiveAccess ? (
                           <button
                             onClick={() => navigate('/subscription')}
                             className="w-full py-3 px-6 rounded-xl font-medium transition-colors bg-accent text-accent-foreground hover:bg-accent/80 flex items-center justify-center gap-2"

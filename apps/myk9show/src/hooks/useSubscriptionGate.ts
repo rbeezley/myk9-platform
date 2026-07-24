@@ -22,18 +22,18 @@ export interface SubscriptionGateOptions {
  *   const { isPremium, isInTrial } = useSubscriptionGate({ trialShowCount: 2 });
  */
 /**
- * NOTE: this hook is a thin compatibility wrapper preserved for its 8
- * existing callers (design.md Decision 6). It still computes tier from the
- * legacy profile/early-adopter fields so those callers keep behaving
- * unchanged in this batch — including AnalyticsPage's caller-provided
- * `trialShowCount`, which is NOT migrated here. New code should call
- * `useEntitlement()` directly. This wrapper cross-checks its legacy result
- * against the new server-backed resolver and logs a structured mismatch
- * instead of changing behavior.
+ * NOTE: this hook is a thin compatibility wrapper preserved for its existing
+ * callers (design.md Decision 6). Account-level Premium now comes from the
+ * TRUSTED server-backed resolver whenever one is available, so an account
+ * whose only Premium source is an active founding/complimentary grant is
+ * Premium on every surface. The legacy profile/early-adopter calculation is
+ * kept only as the fallback for when the entitlement read is unavailable or
+ * untrusted. AnalyticsPage's caller-provided `trialShowCount` axis is NOT
+ * migrated here. New code should call `useEntitlement()` directly.
  */
 export function useSubscriptionGate(options?: SubscriptionGateOptions) {
-  const { profile, isLoading } = useExhibitorProfile();
-  const { effective: newEffective, isLoading: isEntitlementLoading } = useEntitlement();
+  const { profile, isLoading: isProfileLoading } = useExhibitorProfile();
+  const { effective: newEffective, isTrusted, isLoading: isEntitlementLoading } = useEntitlement();
 
   const rawTier: PlanType = profile?.subscription_tier ?? 'free';
   const expiresAt = profile?.subscription_expires_at;
@@ -54,16 +54,22 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
     options?.trialShowCount !== undefined &&
     options.trialShowCount <= TRIAL_SHOW_LIMIT;
 
-  const tier: PlanType = isPaidPremium || isEarlyAdopter || isInTrial ? 'premium' : 'free';
+  const legacyAccountPremium = isPaidPremium || isEarlyAdopter;
+  // The trusted resolver is authoritative for ACCOUNT Premium — it is the only
+  // source that sees founding/complimentary grants. Fall back to the legacy
+  // profile calculation only when no trusted result exists.
+  const trustedAccountPremium = isTrusted && newEffective ? newEffective.tier === 'premium' : null;
+  const accountPremium = trustedAccountPremium ?? legacyAccountPremium;
+
+  const tier: PlanType = accountPremium || isInTrial ? 'premium' : 'free';
 
   // Structured legacy-fallback mismatch logging (design.md Decision 6). Only
   // compares account-level Premium (paid/founding/complimentary), since the
   // legacy trial here is caller-driven while the resolver's trial is
   // Analytics-scoped and server-computed — the two are not the same axis.
   useEffect(() => {
-    if (isLoading || isEntitlementLoading || !newEffective) return;
+    if (isProfileLoading || isEntitlementLoading || !newEffective) return;
 
-    const legacyAccountPremium = isPaidPremium || isEarlyAdopter;
     const newAccountPremium = newEffective.tier === 'premium';
 
     if (legacyAccountPremium !== newAccountPremium) {
@@ -75,7 +81,14 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
         newStatus: newEffective.status,
       });
     }
-  }, [isLoading, isEntitlementLoading, newEffective, isPaidPremium, isEarlyAdopter]);
+  }, [
+    isProfileLoading,
+    isEntitlementLoading,
+    newEffective,
+    legacyAccountPremium,
+    isPaidPremium,
+    isEarlyAdopter,
+  ]);
 
   return {
     tier,
@@ -83,6 +96,7 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
     isExpired,
     isInTrial,
     isEarlyAdopter,
-    isLoading,
+    // Neutral until BOTH reads settle — consumers must not flash a lock/unlock.
+    isLoading: isProfileLoading || isEntitlementLoading,
   } as const;
 }

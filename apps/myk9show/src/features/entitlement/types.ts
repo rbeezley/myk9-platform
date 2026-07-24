@@ -40,8 +40,15 @@ export interface EffectiveEntitlementExpired extends EffectiveEntitlementBase {
   tier: 'free';
   status: 'expired';
   source: 'none';
-  /** Most relevant end date among the sources that ended. */
-  endsAt: string;
+  /**
+   * Most relevant end date among the sources that ended, or null when no exact
+   * end date is knowable. A grant cut short by revocation/supersession still
+   * carries its originally SCHEDULED ends_at, and the sanitized server context
+   * deliberately omits revoked_at — so the true end instant is unknown. Null
+   * means "access has ended, date not knowable"; consumers must render a
+   * truthful dateless phrase rather than inventing one.
+   */
+  endsAt: string | null;
   canManageBilling: false;
 }
 

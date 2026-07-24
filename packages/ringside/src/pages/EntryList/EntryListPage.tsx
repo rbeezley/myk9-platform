@@ -30,6 +30,7 @@ import type { TabType } from './hooks/useEntryListFilters';
 import {
   EntryListHeader,
   EntryListContent,
+  ClassCompletionPresentation,
   EntryListDialogs,
   SuccessToast,
   FloatingDoneButton,
@@ -303,6 +304,14 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
       <layout.PullToRefresh onRefresh={() => refresh(true)} enabled={false} threshold={80}>
         <div className="isolate">
           <div className="pb-8 pt-2">
+            <ClassCompletionPresentation
+              key={classId}
+              classId={classId}
+              classInfo={classInfo}
+              entries={localEntries}
+              activeTab={activeTab}
+              onSelectCompleted={() => setActiveTab('completed')}
+            />
             <EntryListContent
               entries={currentEntries}
               activeTab={activeTab}

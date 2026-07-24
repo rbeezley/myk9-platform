@@ -122,7 +122,7 @@ const TitleProgressCard: React.FC<TitleProgressCardProps> = ({ dogId }) => {
         )}
 
         <Button variant="outline" size="sm" className="w-full mt-3" asChild>
-          <Link to={`/dogs/${dogId}?tab=title-progress`}>See full progress</Link>
+          <Link to={`/dogs/${dogId}?section=career&view=titles`}>See full progress</Link>
         </Button>
       </CardContent>
     </Card>

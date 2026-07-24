@@ -24,7 +24,6 @@ import { saveDogPhoto, validateImageFile } from './utils';
 import type { DogDetailsMainProps } from './types';
 
 import TitleProgressCard from './sidebar/TitleProgressCard';
-import TitleProgressTeaser from './sidebar/TitleProgressTeaser';
 import RegistrationsCard from './sidebar/RegistrationsCard';
 import AboutCard from './sidebar/AboutCard';
 import OwnerContactCard from './sidebar/OwnerContactCard';
@@ -51,9 +50,13 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const [autoOpenAddRegistration, setAutoOpenAddRegistration] = useState(false);
 
   const openAddRegistration = () => {
+    // Registrations live on Overview — the default section — so clearing
+    // section/view state is enough to land there; no `tab` param is needed.
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
-      next.set('tab', 'registrations');
+      next.delete('tab');
+      next.delete('section');
+      next.delete('view');
       return next;
     });
     setAutoOpenAddRegistration(true);
@@ -263,11 +266,12 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
     <>
       <AboutCard dog={updatedDog} />
       <OwnerContactCard owner={owner} />
-      {isPremium ? (
-        <TitleProgressCard dogId={updatedDog.id} />
-      ) : (
-        <TitleProgressTeaser dogName={updatedDog.callName ?? 'your dog'} />
-      )}
+      {/* INTENT: Free users see no sidebar Title Progress teaser — Career's
+          locked-view treatment is the single upgrade path for Title Progress
+          and Statistics, so the sidebar never repeats a competing upgrade
+          card (spec: exhibitor-dog-management "Premium locks preserve the
+          free dog workspace"). */}
+      {isPremium && <TitleProgressCard dogId={updatedDog.id} />}
       <RegistrationsCard
         dog={updatedDog}
         registrationsCount={liveRegistrationsCount}

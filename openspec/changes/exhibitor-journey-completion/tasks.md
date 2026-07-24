@@ -14,13 +14,13 @@
 - [x] 2.3 Add a date-only helper test matrix for UTC, `America/Chicago`, month/year boundaries, and round-trip edit display, then replace touched `new Date('YYYY-MM-DD')` paths.
 - [x] 2.4 Add failing Health filter tests for search, type, year, combined filters, and filter-specific empty state, then wire the controls to real state and clear-filter recovery.
 - [x] 2.5 Verify Slice 1 with focused Pedigree, Health form, date-helper, and Health filter tests plus `pnpm typecheck` and `pnpm lint`.
-- [ ] 2.6 Open the Slice 1 PR with the audit findings, red-to-green evidence, risk, how to test, and explicit non-goals; wait for CI/review, resolve findings, and merge before starting dependent layout work.
+- [x] 2.6 Open the Slice 1 PR with the audit findings, red-to-green evidence, risk, how to test, and explicit non-goals; wait for CI/review, resolve findings, and merge before starting dependent layout work.
 
 ## 3. Slice 2 — Dog Workspace Consolidation and Responsive Records
 
-- [ ] 3.1 Add navigation tests for default Overview, Career/Records secondary views, all legacy tab mappings, copied deep links, Back/Forward behavior, lock discovery, and upgrade-return state.
-- [ ] 3.2 Refactor `DogDetailsTabs` into Overview, Career, and Records using existing feature components and hooks; render Activity only on Overview and remove the duplicate Title Progress sidebar teaser/card where it repeats Career.
-- [ ] 3.3 Add container-aware secondary navigation that remains labeled, keyboard operable, and unclipped at the four audited viewport classes.
+- [x] 3.1 Add navigation tests for default Overview, Career/Records secondary views, all legacy tab mappings, copied deep links, Back/Forward behavior, lock discovery, and upgrade-return state.
+- [x] 3.2 Refactor `DogDetailsTabs` into Overview, Career, and Records using existing feature components and hooks; render Activity only on Overview and remove the duplicate Title Progress sidebar teaser/card where it repeats Career.
+- [x] 3.3 Add container-aware secondary navigation that remains labeled, keyboard operable, and unclipped at the four audited viewport classes.
 - [ ] 3.4 Add responsive tests/source guards and implement Health header/filter/action reflow inside constrained Dog Details content containers.
 - [ ] 3.5 Add Pedigree relationship-order tests and implement wide tree plus narrow Parents/Grandparents grouped layouts with equivalent add/view/edit/delete actions.
 - [ ] 3.6 Add Title Progress and Statistics tests for locked, loading, error/retry, empty, and source-grounded populated states without demonstration data.

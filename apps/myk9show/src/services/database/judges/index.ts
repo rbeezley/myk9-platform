@@ -44,3 +44,8 @@ export type {
   CreateJudgeCertificationDbData,
   JudgeAvailabilityUpsertData,
 } from './reads';
+export {
+  getActiveJudgeAssignmentsForShow,
+  subscribeToJudgeAssignmentChanges,
+} from './assignmentReads';
+export type { ActiveJudgeAssignmentStatus } from './assignmentReads';

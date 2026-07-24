@@ -26,7 +26,7 @@
 - [x] 3.6 Add Title Progress and Statistics tests for locked, loading, error/retry, empty, and source-grounded populated states without demonstration data.
 - [x] 3.7 Add Training Journal accessibility and deletion-recovery tests, then label fields/toolbars/delete controls and implement confirmation or mutation-backed Undo with failure restoration.
 - [x] 3.8 Implement route-entry focus/scroll behavior for dog-card navigation, secondary deep links, and browser Back restoration with focused navigation tests.
-- [ ] 3.9 Verify Slice 2 with focused Dog Details, Title Progress, Statistics, Health, Training, and Pedigree tests; `pnpm typecheck`; `pnpm lint`; and browser checks at all four viewport classes in light and dark modes.
+- [x] 3.9 Verify Slice 2 with focused Dog Details, Title Progress, Statistics, Health, Training, and Pedigree tests; `pnpm typecheck`; `pnpm lint`; and browser checks at all four viewport classes in light and dark modes.
 - [ ] 3.10 Open the Slice 2 PR with before/after screenshots and accessibility evidence; wait for CI/review, resolve findings, and merge.
 
 ## 4. Slice 3A — Entitlement Grant Data and Authorization

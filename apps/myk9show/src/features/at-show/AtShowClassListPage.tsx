@@ -122,12 +122,13 @@ function yourRingScanPriority(entry: ClassEntry): number {
 
 interface YourRingClass {
   entry: ClassEntry;
+  scanPriority: number;
   trialTimeZone: string;
 }
 
 function sortClassesForYourRing(classes: YourRingClass[]): YourRingClass[] {
   return [...classes].sort((a, b) => {
-    const priorityDelta = yourRingScanPriority(a.entry) - yourRingScanPriority(b.entry);
+    const priorityDelta = a.scanPriority - b.scanPriority;
     if (priorityDelta !== 0) return priorityDelta;
     const orderDelta = a.entry.class_order - b.entry.class_order;
     if (orderDelta !== 0) return orderDelta;
@@ -192,12 +193,22 @@ export const AtShowClassListPage: React.FC = () => {
   const yourRingClasses = useMemo(
     () =>
       sortClassesForYourRing(
-        groups.flatMap(group =>
-          groupSectionedClasses(
-            group.classes.filter(cls => assignedClassIds.has(cls.id)),
-            organization
-          ).map(entry => ({ entry, trialTimeZone: getTrialTimezone(group.trial) }))
-        )
+        groups.flatMap(group => {
+          const assignedClasses = group.classes.filter(cls => assignedClassIds.has(cls.id));
+          const scanPriorities = new Map(
+            assignedClasses.map(cls => [cls.id, yourRingScanPriority(cls)])
+          );
+
+          return groupSectionedClasses(assignedClasses, organization).map(entry => ({
+            entry,
+            scanPriority: Math.min(
+              ...getClassIds(entry).map(
+                classId => scanPriorities.get(classId) ?? yourRingScanPriority(entry)
+              )
+            ),
+            trialTimeZone: getTrialTimezone(group.trial),
+          }));
+        })
       ),
     [assignedClassIds, groups, organization]
   );

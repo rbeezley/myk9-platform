@@ -167,6 +167,36 @@ describe('AtShowClassListPage Your ring', () => {
     );
   });
 
+  it('sorts a combined A/B row live-first when section B is live', async () => {
+    authState.hasRole = role => role === UserRole.JUDGE;
+    authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
+    authState.user = { is_anonymous: false };
+    vi.mocked(replicatedClassesTable.getClassesByTrial).mockResolvedValue([
+      NOVICE_A,
+      { ...NOVICE_B, classStatus: 'in_progress' },
+      INTERIOR_EXCELLENT,
+      BURIED_ADVANCED,
+    ] as never);
+    vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([
+      { id: 'entry-a', classId: 'class-a', isScored: false },
+      { id: 'entry-c', classId: 'class-c', isScored: false },
+    ] as never);
+    judgeAssignmentData.getActive.mockResolvedValue([
+      { id: 'assignment-a', personId: 'judge-1', classId: 'class-a', status: 'confirmed' },
+      { id: 'assignment-b', personId: 'judge-1', classId: 'class-b', status: 'confirmed' },
+      { id: 'assignment-c', personId: 'judge-1', classId: 'class-c', status: 'confirmed' },
+    ] as never);
+
+    renderPage();
+
+    const yourRing = await screen.findByRole('region', { name: 'Your ring' });
+    const combinedLiveClass = within(yourRing).getByText(/Container Novice A & B/);
+    const setupClass = within(yourRing).getByText(/Interior Excellent/);
+    expect(combinedLiveClass.compareDocumentPosition(setupClass)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+  });
+
   it('leaves the current class list unchanged when the signed-in judge has no assignments', async () => {
     authState.hasRole = role => role === UserRole.JUDGE;
     authState.userWithRoles = { databaseUserId: 'judge-without-assignments' } as UserWithRoles;

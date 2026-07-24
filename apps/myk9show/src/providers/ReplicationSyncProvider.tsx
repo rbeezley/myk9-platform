@@ -52,7 +52,12 @@ import {
   isPasscodeRegeneratedMessage,
   revokeRingsidePasscodeAccess,
 } from '@/features/at-show/ringsidePasscodeRevocation';
-import { formatSyncFailureToast, formatDownloadFailureToast } from './replicationSyncFormatters';
+import {
+  formatSyncFailureToast,
+  formatDownloadFailureToast,
+  hasPermanentScoreAuthorizationFailure,
+  splitPermanentScoreAuthorizationFailures,
+} from './replicationSyncFormatters';
 import {
   classifyTableSyncResults,
   createTablesStatus,
@@ -573,40 +578,50 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         return;
       }
 
-      const ids = detail.mutations.map(m => m.id).filter(Boolean);
-      const toastId = `sync-failed:${ids[0] ?? 'unknown'}`;
-      if (!failedSyncToastIdsRef.current.includes(toastId)) {
-        failedSyncToastIdsRef.current.push(toastId);
-      }
-      while (failedSyncToastIdsRef.current.length > 3) {
-        const oldest = failedSyncToastIdsRef.current.shift();
-        if (oldest) toast.dismiss(oldest);
-      }
-      const clearToastId = () => {
-        failedSyncToastIdsRef.current = failedSyncToastIdsRef.current.filter(id => id !== toastId);
-        toast.dismiss(toastId);
-      };
-      toast.error(formatSyncFailureToast(detail), {
-        id: toastId,
-        // INTENT: Failure toasts persist until the user makes an explicit
-        // choice. The underlying mutations survive in IDB either way, so a
-        // dismissed-by-reload toast re-surfaces on the next sign-in.
-        duration: Infinity,
-        action: {
-          label: 'Retry',
-          onClick: () => {
-            void Promise.allSettled(ids.map(id => mutationManager.retryFailedMutation(id)));
-            clearToastId();
+      for (const failureDetail of splitPermanentScoreAuthorizationFailures(detail)) {
+        const ids = failureDetail.mutations.map(m => m.id).filter(Boolean);
+        const isPermanentScoreAuthorizationFailure =
+          hasPermanentScoreAuthorizationFailure(failureDetail);
+        const toastId = ids[0]
+          ? `sync-failed:${ids[0]}`
+          : `sync-failed:${
+              isPermanentScoreAuthorizationFailure ? 'authorization' : 'other'
+            }:unknown`;
+        if (!failedSyncToastIdsRef.current.includes(toastId)) {
+          failedSyncToastIdsRef.current.push(toastId);
+        }
+        while (failedSyncToastIdsRef.current.length > 3) {
+          const oldest = failedSyncToastIdsRef.current.shift();
+          if (oldest) toast.dismiss(oldest);
+        }
+        const clearToastId = () => {
+          failedSyncToastIdsRef.current = failedSyncToastIdsRef.current.filter(
+            id => id !== toastId
+          );
+          toast.dismiss(toastId);
+        };
+        toast.error(formatSyncFailureToast(failureDetail), {
+          id: toastId,
+          // INTENT: Failure toasts persist until the user makes an explicit
+          // choice. The underlying mutations survive in IDB either way, so a
+          // dismissed-by-reload toast re-surfaces on the next sign-in.
+          duration: Infinity,
+          action: {
+            label: isPermanentScoreAuthorizationFailure ? 'Retry after access is fixed' : 'Retry',
+            onClick: () => {
+              void Promise.allSettled(ids.map(id => mutationManager.retryFailedMutation(id)));
+              clearToastId();
+            },
           },
-        },
-        cancel: {
-          label: 'Discard',
-          onClick: () => {
-            void Promise.allSettled(ids.map(id => mutationManager.discardFailedMutation(id)));
-            clearToastId();
+          cancel: {
+            label: 'Discard',
+            onClick: () => {
+              void Promise.allSettled(ids.map(id => mutationManager.discardFailedMutation(id)));
+              clearToastId();
+            },
           },
-        },
-      });
+        });
+      }
     };
     window.addEventListener('replication:sync-failed', handleSyncFailed);
     return () => window.removeEventListener('replication:sync-failed', handleSyncFailed);

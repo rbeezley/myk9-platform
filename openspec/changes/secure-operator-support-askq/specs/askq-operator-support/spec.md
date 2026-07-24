@@ -60,7 +60,7 @@ The system SHALL route Operator Support to a dedicated endpoint that is disabled
 
 ### Requirement: Operator Support exposes only separately registered read tools
 
-The system SHALL use an operator-specific tool registry that contains no normal AskQ tool and no write-capable tool. The initial registry SHALL contain only unresolved operator-alert summarization.
+The system SHALL use an operator-specific tool registry that contains no normal AskQ tool and no write-capable tool. The registry SHALL contain only unresolved operator-alert summarization and latest System Health snapshot summarization.
 
 #### Scenario: Normal AskQ request executes
 
@@ -75,7 +75,7 @@ The system SHALL use an operator-specific tool registry that contains no normal 
 #### Scenario: Operator tool registry is inspected
 
 - **WHEN** the registered operator tools are enumerated
-- **THEN** the only tool is the read-only unresolved operator-alert summary
+- **THEN** the only tools are the read-only unresolved operator-alert summary and latest System Health snapshot summary
 
 ### Requirement: Operator reads preserve caller-scoped RLS
 
@@ -90,6 +90,39 @@ The system SHALL execute every operator data read through the authenticated call
 
 - **WHEN** the endpoint creates or updates audit metadata through a service-role client
 - **THEN** that client is isolated from operator reads and tool execution
+
+#### Scenario: System Health snapshot query runs
+
+- **WHEN** a site admin asks about current platform health
+- **THEN** the tool queries the latest `system_health_snapshots` row through the caller-scoped client under existing RLS
+
+### Requirement: System Health summaries are bounded and fail safe
+
+The system SHALL query a fixed allowlist from only the newest System Health snapshot, cap and sanitize the configured checks, and derive an effective failure when the snapshot is missing, malformed, or more than 26 hours old.
+
+#### Scenario: Latest snapshot is stale
+
+- **WHEN** the stored snapshot reports OK but is more than 26 hours old
+- **THEN** the tool reports the stored status separately and returns an effective failed health signal
+
+#### Scenario: Health payload contains extra fields
+
+- **WHEN** a snapshot or check contains fields outside the allowlist
+- **THEN** those fields are not returned to the model
+
+### Requirement: Operator answers state their monitoring scope
+
+The system SHALL append a server-controlled scope statement to every answer that uses alert or System Health tools. Alert absence SHALL NOT be presented as proof of overall platform health, and an OK snapshot SHALL be described only as the state of configured automated checks.
+
+#### Scenario: No unresolved alerts are found
+
+- **WHEN** the model presents zero unresolved alerts as an all-clear platform result
+- **THEN** the server appends that the bounded alert window does not verify overall platform health
+
+#### Scenario: Latest configured checks report OK
+
+- **WHEN** the System Health tool reports an effective OK status
+- **THEN** the server appends that the snapshot does not guarantee complete platform health
 
 ### Requirement: Alert summaries are bounded and redacted
 

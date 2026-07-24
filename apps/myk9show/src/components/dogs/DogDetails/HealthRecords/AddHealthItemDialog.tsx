@@ -9,12 +9,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { validateAddHealthItem } from './AddHealthItemDialog.validation';
 
 export type HealthItemType =
-  | 'vaccination'
-  | 'medication'
-  | 'allergy'
-  | 'vet_visit'
-  | 'ofa_screening'
-  | 'genetic_screening';
+  'vaccination' | 'medication' | 'allergy' | 'vet_visit' | 'ofa_screening' | 'genetic_screening';
 
 interface AddHealthItemDialogProps {
   open: boolean;
@@ -176,6 +171,7 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
       ofaTestDate,
       geneticProvider,
       geneticTestDate,
+      geneticMarkers,
     });
     if (validationMessage) {
       setValidationError(validationMessage);
@@ -275,14 +271,21 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
 
   const formId = 'add-health-item-form';
 
+  const handleClose = () => {
+    // Block every close path (header ×, Cancel, backdrop) while a mutation
+    // is in flight. Without this, closing mid-submit and reopening the
+    // dialog for a new item lets the stale request's `.then()` reset and
+    // close the *new* dialog instance out from under the user.
+    if (submittingRef.current) return;
+    resetForm();
+    setValidationError(null);
+    onClose();
+  };
+
   return (
     <StandardDialog
       open={open}
-      onClose={() => {
-        resetForm();
-        setValidationError(null);
-        onClose();
-      }}
+      onClose={handleClose}
       onSave={() => {
         const form = document.getElementById(formId);
         if (form instanceof HTMLFormElement) form.requestSubmit();
@@ -337,10 +340,18 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
               onChange={setExpirationDate}
             />
             <FormField label="Veterinarian" fieldId="healthVaccineVet">
-              <Input id="healthVaccineVet" value={vetName} onChange={e => setVetName(e.target.value)} />
+              <Input
+                id="healthVaccineVet"
+                value={vetName}
+                onChange={e => setVetName(e.target.value)}
+              />
             </FormField>
             <FormField label="Lot Number" fieldId="healthVaccineLot">
-              <Input id="healthVaccineLot" value={lotNumber} onChange={e => setLotNumber(e.target.value)} />
+              <Input
+                id="healthVaccineLot"
+                value={lotNumber}
+                onChange={e => setLotNumber(e.target.value)}
+              />
             </FormField>
           </>
         )}
@@ -439,14 +450,26 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
               />
             </FormField>
             <FormField label="Diagnosis" fieldId="healthVisitDiagnosis">
-              <Textarea id="healthVisitDiagnosis" value={diagnosis} onChange={e => setDiagnosis(e.target.value)} />
+              <Textarea
+                id="healthVisitDiagnosis"
+                value={diagnosis}
+                onChange={e => setDiagnosis(e.target.value)}
+              />
             </FormField>
             <FormField label="Treatment" fieldId="healthVisitTreatment">
-              <Textarea id="healthVisitTreatment" value={treatment} onChange={e => setTreatment(e.target.value)} />
+              <Textarea
+                id="healthVisitTreatment"
+                value={treatment}
+                onChange={e => setTreatment(e.target.value)}
+              />
             </FormField>
             <div className="grid grid-cols-2 gap-4">
               <FormField label="Veterinarian" fieldId="healthVisitVet">
-                <Input id="healthVisitVet" value={vetName} onChange={e => setVetName(e.target.value)} />
+                <Input
+                  id="healthVisitVet"
+                  value={vetName}
+                  onChange={e => setVetName(e.target.value)}
+                />
               </FormField>
               <FormField label="Cost ($)" fieldId="healthVisitCost">
                 <Input

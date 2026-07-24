@@ -76,6 +76,17 @@ const PedigreeAncestorForm = forwardRef<PedigreeAncestorFormRef, PedigreeAncesto
         setError('Registered Name is required.');
         return;
       }
+      // Registry Org and Registration # are only persisted as a pair (see
+      // PedigreeAncestorAddDialog/EditDialog, which build
+      // `registration_numbers` only when both are present). A half-filled
+      // pair passes native validation but is silently discarded on save,
+      // so reject it explicitly here.
+      const hasRegOrg = form.regOrg.trim() !== '';
+      const hasRegNumber = form.regNumber.trim() !== '';
+      if (hasRegOrg !== hasRegNumber) {
+        setError('Enter both registry organization and registration number, or neither.');
+        return;
+      }
       setError(null);
       onSubmit(form);
     };

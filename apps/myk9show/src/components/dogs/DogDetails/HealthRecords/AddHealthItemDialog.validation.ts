@@ -6,6 +6,11 @@
  */
 import type { HealthItemType } from './AddHealthItemDialog';
 
+export interface GeneticMarkerRowFields {
+  marker: string;
+  result: string;
+}
+
 export interface AddHealthItemFields {
   vaccineName: string;
   dateGiven: string;
@@ -16,6 +21,7 @@ export interface AddHealthItemFields {
   ofaTestDate: string;
   geneticProvider: string;
   geneticTestDate: string;
+  geneticMarkers: GeneticMarkerRowFields[];
 }
 
 /** Returns a human-readable message identifying the missing required field(s), or null when valid. */
@@ -44,6 +50,16 @@ export function validateAddHealthItem(
     case 'genetic_screening':
       if (!fields.geneticProvider.trim()) return 'Provider is required.';
       if (!fields.geneticTestDate) return 'Test Date is required.';
+      // A row with only a marker or only a result is neither a complete
+      // entry nor cleanly droppable: the submit code filters rows by
+      // marker presence alone, so a result-only row is silently discarded
+      // and a marker-only row persists with no result. Reject any
+      // half-filled row instead of guessing which half was meant.
+      if (
+        fields.geneticMarkers.some(row => (row.marker.trim() !== '') !== (row.result.trim() !== ''))
+      ) {
+        return 'Each marker row needs both a marker and a result, or leave the row empty.';
+      }
       return null;
     default:
       return null;

@@ -94,7 +94,11 @@ describe('America/Chicago TZ semantics', () => {
       expect(date.getMonth()).toBe(6);
       expect(date.getDate()).toBe(23);
     } finally {
-      process.env.TZ = originalTz;
+      if (originalTz === undefined) {
+        delete process.env.TZ;
+      } else {
+        process.env.TZ = originalTz;
+      }
     }
   });
 });

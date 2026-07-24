@@ -89,6 +89,56 @@ describe('PedigreeAncestorAddDialog', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/network error/i);
     expect(screen.getByRole('textbox', { name: /registered name/i })).toHaveValue('New Sire');
   });
+
+  it('does not call onAdd when only Registry Org is filled', async () => {
+    const onAdd = vi.fn();
+
+    const { user } = render(
+      <PedigreeAncestorAddDialog
+        open
+        position="sire"
+        dogId="dog-1"
+        ownerId="owner-1"
+        onClose={vi.fn()}
+        onAdd={onAdd}
+      />
+    );
+
+    await user.type(screen.getByRole('textbox', { name: /registered name/i }), 'New Sire');
+    await user.type(screen.getByRole('textbox', { name: /registry org/i }), 'AKC');
+    // Registration # intentionally left blank.
+    await user.click(screen.getByRole('button', { name: /add/i }));
+
+    expect(onAdd).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /enter both registry organization and registration number, or neither/i
+    );
+  });
+
+  it('does not call onAdd when only Registration # is filled', async () => {
+    const onAdd = vi.fn();
+
+    const { user } = render(
+      <PedigreeAncestorAddDialog
+        open
+        position="sire"
+        dogId="dog-1"
+        ownerId="owner-1"
+        onClose={vi.fn()}
+        onAdd={onAdd}
+      />
+    );
+
+    await user.type(screen.getByRole('textbox', { name: /registered name/i }), 'New Sire');
+    // Registry Org intentionally left blank.
+    await user.type(screen.getByRole('textbox', { name: /registration #/i }), 'SS12345');
+    await user.click(screen.getByRole('button', { name: /add/i }));
+
+    expect(onAdd).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /enter both registry organization and registration number, or neither/i
+    );
+  });
 });
 
 describe('PedigreeAncestorEditDialog', () => {

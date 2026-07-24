@@ -16,12 +16,12 @@ import {
 } from '@/features/show-map/cockpit/paperworkPrintState';
 import { ArmbandLabelCell } from './ArmbandLabelCell';
 import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
+import { LabelCalibrationPanel } from './LabelCalibrationPanel';
 import { generatePasscodesFromShowId } from '@myk9/core';
 import { useLabelPreferences } from '@/hooks/useLabelPreferences';
 import { useArmbandLabelData } from '@/hooks/queries/useArmbandLabelData';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 
 // A full-width, 44px-tall tappable row keeps native-sized controls but gives
@@ -48,7 +48,6 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
   });
   const [specificArmband, setSpecificArmband] = useState('');
   const [showSpecific, setShowSpecific] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Derive from prefs — single source of truth
   const templateId = prefs.templateId ?? DEFAULT_TEMPLATE_ID;
@@ -353,49 +352,8 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
           </span>
         </div>
 
-        {/* Advanced — Pitch Adjustment */}
-        <div>
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="text-xs text-muted-foreground hover:text-foreground underline min-h-[44px]"
-          >
-            {showAdvanced ? 'Hide' : 'Show'} Advanced
-          </button>
-          {showAdvanced && (
-            <div className="mt-2 p-3 border rounded bg-background space-y-2">
-              <SetupEyebrow>Vertical Pitch Adjustment</SetupEyebrow>
-              <p className="text-xs text-muted-foreground">
-                If labels drift out of alignment toward the bottom of the page, adjust this value.
-                Positive = more space between rows, negative = less. Saved per browser.
-              </p>
-              <div className="flex items-center gap-3 min-h-[44px]">
-                <Slider
-                  min={-20}
-                  max={20}
-                  step={1}
-                  value={[pitchAdjustment]}
-                  onValueChange={([v]) => setPrefs(p => ({ ...p, pitchAdjustment: v ?? 0 }))}
-                  className="w-48"
-                  aria-label="Vertical pitch adjustment"
-                />
-                <span className="text-sm font-mono w-20">
-                  {pitchAdjustment > 0 ? '+' : ''}
-                  {pitchAdjustment}/1000&quot;
-                </span>
-                {pitchAdjustment !== 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setPrefs(p => ({ ...p, pitchAdjustment: 0 }))}
-                    className="text-xs text-muted-foreground hover:text-foreground underline min-h-[44px]"
-                  >
-                    Reset
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Advanced — Printer Calibration */}
+        <LabelCalibrationPanel prefs={prefs} setPrefs={setPrefs} />
       </LabelSetupSection>
 
       {/* Empty state */}

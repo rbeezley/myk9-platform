@@ -50,6 +50,8 @@ vi.mock('@/hooks/useLabelPreferences', () => ({
       },
       skip: 0,
       pitchAdjustment: 0,
+      offsetTop: 0,
+      offsetLeft: 0,
     },
     vi.fn(),
   ],
@@ -97,10 +99,7 @@ describe('ArmbandLabelsReport', () => {
       // from the a11y tree. A raw native control would expose an <input> in the
       // a11y tree instead — so asserting "not INPUT" proves the shadcn
       // primitives are in use.
-      const controls = [
-        ...screen.getAllByRole('radio'),
-        ...screen.getAllByRole('checkbox'),
-      ];
+      const controls = [...screen.getAllByRole('radio'), ...screen.getAllByRole('checkbox')];
       expect(screen.getAllByRole('radio').length).toBeGreaterThan(0);
       expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(0);
       for (const control of controls) {
@@ -110,10 +109,7 @@ describe('ArmbandLabelsReport', () => {
 
     it('gives every radio and checkbox row a 44px-tall hit area', () => {
       render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
-      const controls = [
-        ...screen.getAllByRole('radio'),
-        ...screen.getAllByRole('checkbox'),
-      ];
+      const controls = [...screen.getAllByRole('radio'), ...screen.getAllByRole('checkbox')];
       expect(controls.length).toBeGreaterThan(0);
       for (const control of controls) {
         const row = control.closest('label');

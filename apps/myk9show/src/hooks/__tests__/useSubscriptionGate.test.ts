@@ -8,6 +8,44 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
   useExhibitorProfile: () => mockUseExhibitorProfile(),
 }));
 
+// Mutable entitlement stub. Default = settled but with NO trusted result, so
+// the wrapper falls back to the legacy profile calculation (the pre-existing
+// contract exercised by most cases below).
+const entitlementHolder: {
+  effective: Record<string, unknown> | null;
+  isTrusted: boolean;
+  isLoading: boolean;
+  isError: boolean;
+} = { effective: null, isTrusted: false, isLoading: false, isError: false };
+
+vi.mock('@/features/entitlement/useEntitlement', () => ({
+  useEntitlement: () => ({
+    effective: entitlementHolder.effective,
+    isTrusted: entitlementHolder.isTrusted,
+    canAuthorizePremium:
+      entitlementHolder.isTrusted && entitlementHolder.effective?.tier === 'premium',
+    isLoading: entitlementHolder.isLoading,
+    isError: entitlementHolder.isError,
+    refetch: vi.fn(),
+  }),
+}));
+
+function trustedEntitlement(
+  tier: 'free' | 'premium',
+  source: 'paid' | 'founding' | 'complimentary' | 'none'
+) {
+  entitlementHolder.effective = {
+    tier,
+    status: tier === 'premium' ? 'active' : 'free',
+    source,
+    evaluatedAt: new Date().toISOString(),
+    trustedUntil: new Date(Date.now() + 60_000).toISOString(),
+    analyticsTrial: { status: 'unavailable', scoredShowCount: null, showLimit: 3 },
+  };
+  entitlementHolder.isTrusted = true;
+  entitlementHolder.isLoading = false;
+}
+
 import { useSubscriptionGate } from '../useSubscriptionGate';
 
 const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -41,6 +79,10 @@ function mockEarlyAdopterProfile(until: string = futureDate) {
 describe('useSubscriptionGate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    entitlementHolder.effective = null;
+    entitlementHolder.isTrusted = false;
+    entitlementHolder.isLoading = false;
+    entitlementHolder.isError = false;
   });
 
   describe('existing behavior (no options)', () => {
@@ -219,6 +261,79 @@ describe('useSubscriptionGate', () => {
       expect(result.current.isExpired).toBe(true);
       expect(result.current.isEarlyAdopter).toBe(true);
       expect(result.current.isPremium).toBe(true);
+    });
+  });
+
+  describe('server-backed entitlement (trusted resolver is authoritative)', () => {
+    it('grant-only account is premium: no legacy profile Premium signal at all', () => {
+      // subscription_tier 'free', no early_adopter_until — the ONLY Premium
+      // source is an active complimentary grant, visible only to the resolver.
+      mockFreeProfile();
+      trustedEntitlement('premium', 'complimentary');
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.tier).toBe('premium');
+      expect(result.current.isPremium).toBe(true);
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it('founding grant seen only by the resolver also unlocks premium', () => {
+      mockFreeProfile();
+      trustedEntitlement('premium', 'founding');
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.isPremium).toBe(true);
+    });
+
+    it('a trusted free result locks an account the legacy fields would have called premium', () => {
+      mockEarlyAdopterProfile();
+      trustedEntitlement('free', 'none');
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.tier).toBe('free');
+      expect(result.current.isPremium).toBe(false);
+    });
+
+    it('untrusted entitlement falls back to the legacy calculation', () => {
+      mockPremiumProfile(futureDate);
+      // A result exists but its trust boundary passed (failed refresh).
+      trustedEntitlement('free', 'none');
+      entitlementHolder.isTrusted = false;
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.isPremium).toBe(true);
+    });
+
+    it('failed entitlement read falls back to the legacy calculation', () => {
+      mockEarlyAdopterProfile();
+      entitlementHolder.effective = null;
+      entitlementHolder.isError = true;
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.isPremium).toBe(true);
+      expect(result.current.isEarlyAdopter).toBe(true);
+    });
+
+    it('loading is neutral until BOTH the profile and entitlement reads settle', () => {
+      mockFreeProfile();
+      entitlementHolder.isLoading = true;
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.isLoading).toBe(true);
+    });
+
+    it('loading is neutral while the profile is still loading', () => {
+      mockUseExhibitorProfile.mockReturnValue({ profile: null, isLoading: true });
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.isLoading).toBe(true);
     });
   });
 });

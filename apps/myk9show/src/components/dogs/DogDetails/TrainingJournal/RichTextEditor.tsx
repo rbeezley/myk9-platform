@@ -21,15 +21,20 @@ import { cn } from '@/lib/utils';
 
 // Extracted ToolbarButton component to module level
 interface ToolbarButtonProps {
+  label: string;
   onClick: () => void;
   isActive?: boolean;
+  /** Set for true toggle controls (formatting marks); omitted for one-shot actions like Undo/Redo. */
+  pressed?: boolean;
   disabled?: boolean;
   children: React.ReactNode;
 }
 
 const ToolbarButton = ({
+  label,
   onClick,
   isActive = false,
+  pressed,
   disabled = false,
   children,
 }: ToolbarButtonProps) => (
@@ -37,10 +42,15 @@ const ToolbarButton = ({
     type="button"
     variant={isActive ? 'default' : 'ghost'}
     size="sm"
+    aria-label={label}
+    aria-pressed={pressed}
     onMouseDown={e => e.preventDefault()}
     onClick={onClick}
     disabled={disabled}
-    className={cn('h-8 w-8 p-0', isActive && 'bg-primary text-primary-foreground')}
+    className={cn(
+      'h-11 w-11 min-h-11 min-w-11 p-0',
+      isActive && 'bg-primary text-primary-foreground'
+    )}
   >
     {children}
   </Button>
@@ -83,6 +93,12 @@ export function RichTextEditor({
       onChange?.(editor.getHTML());
     },
     editable: !readOnly,
+    editorProps: {
+      attributes: {
+        'aria-label': 'Training notes',
+        role: 'textbox',
+      },
+    },
   });
 
   const handleImageUpload = useCallback(
@@ -129,6 +145,8 @@ export function RichTextEditor({
             <div className="flex items-center gap-1 flex-wrap">
               {/* Text Formatting */}
               <ToolbarButton
+                label="Bold"
+                pressed={editor.isActive('bold')}
                 onClick={() => editor.chain().focus().toggleBold().run()}
                 isActive={editor.isActive('bold')}
               >
@@ -136,6 +154,8 @@ export function RichTextEditor({
               </ToolbarButton>
 
               <ToolbarButton
+                label="Italic"
+                pressed={editor.isActive('italic')}
                 onClick={() => editor.chain().focus().toggleItalic().run()}
                 isActive={editor.isActive('italic')}
               >
@@ -143,6 +163,8 @@ export function RichTextEditor({
               </ToolbarButton>
 
               <ToolbarButton
+                label="Strikethrough"
+                pressed={editor.isActive('strike')}
                 onClick={() => editor.chain().focus().toggleStrike().run()}
                 isActive={editor.isActive('strike')}
               >
@@ -153,6 +175,8 @@ export function RichTextEditor({
 
               {/* Lists */}
               <ToolbarButton
+                label="Bullet list"
+                pressed={editor.isActive('bulletList')}
                 onClick={() => editor.chain().focus().toggleBulletList().run()}
                 isActive={editor.isActive('bulletList')}
               >
@@ -160,6 +184,8 @@ export function RichTextEditor({
               </ToolbarButton>
 
               <ToolbarButton
+                label="Numbered list"
+                pressed={editor.isActive('orderedList')}
                 onClick={() => editor.chain().focus().toggleOrderedList().run()}
                 isActive={editor.isActive('orderedList')}
               >
@@ -167,6 +193,8 @@ export function RichTextEditor({
               </ToolbarButton>
 
               <ToolbarButton
+                label="Quote"
+                pressed={editor.isActive('blockquote')}
                 onClick={() => editor.chain().focus().toggleBlockquote().run()}
                 isActive={editor.isActive('blockquote')}
               >
@@ -177,6 +205,7 @@ export function RichTextEditor({
 
               {/* Headings */}
               <select
+                aria-label="Text style"
                 value={
                   editor.isActive('heading', { level: 1 })
                     ? '1'
@@ -198,7 +227,7 @@ export function RichTextEditor({
                       .run();
                   }
                 }}
-                className="px-2 py-1 text-sm border rounded h-8"
+                className="px-2 py-1 text-sm border rounded h-11 min-h-11"
               >
                 <option value="0">Paragraph</option>
                 <option value="1">Heading 1</option>
@@ -210,13 +239,15 @@ export function RichTextEditor({
 
               {/* Media */}
               <label className="cursor-pointer">
+                <span className="sr-only">Upload image</span>
                 <input
                   type="file"
                   accept="image/*"
+                  aria-label="Upload image"
                   onChange={handleImageUpload}
                   className="hidden"
                 />
-                <div className="h-8 w-8 p-0 hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors">
+                <div className="h-11 w-11 min-h-11 min-w-11 p-0 hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors">
                   <Camera className="h-4 w-4" />
                 </div>
               </label>
@@ -225,6 +256,7 @@ export function RichTextEditor({
 
               {/* Undo/Redo */}
               <ToolbarButton
+                label="Undo"
                 onClick={() => editor.chain().focus().undo().run()}
                 disabled={!editor.can().chain().focus().undo().run()}
               >
@@ -232,6 +264,7 @@ export function RichTextEditor({
               </ToolbarButton>
 
               <ToolbarButton
+                label="Redo"
                 onClick={() => editor.chain().focus().redo().run()}
                 disabled={!editor.can().chain().focus().redo().run()}
               >
@@ -242,7 +275,7 @@ export function RichTextEditor({
               {onSave && (
                 <>
                   <Separator orientation="vertical" className="h-6 mx-2" />
-                  <Button size="sm" onClick={handleSave} className="h-8">
+                  <Button size="sm" onClick={handleSave} className="h-11 min-h-11">
                     <Save className="h-4 w-4 mr-1" />
                     Save
                   </Button>

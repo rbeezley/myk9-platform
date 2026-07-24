@@ -57,6 +57,8 @@ function mockTitleProgress(
     progressBySport,
     templates: [],
     isLoading,
+    isError: false,
+    refetch: vi.fn(),
     earnedAbbreviations: [],
   });
 }

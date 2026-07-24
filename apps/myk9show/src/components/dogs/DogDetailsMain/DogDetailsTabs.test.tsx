@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
+import { Routes, Route } from 'react-router-dom';
 import { render } from '@/test/utils/testUtils';
 import DogDetailsTabs from './DogDetailsTabs';
 import type { Dog } from '@/types/dog-types';
 
-// Mock all lazy-loaded tab sections — they make real API calls
+// Mock all lazy-loaded section components — they make real API calls
 vi.mock('@/components/dogs/DogDetails/TrainingJournal/TrainingSection', () => ({
   default: () => <div>training section</div>,
 }));
@@ -26,12 +27,6 @@ vi.mock('@/components/common/ActivityTimeline', () => ({
 vi.mock('@/components/dogs/DogDetails/Statistics/PerformanceStatisticsSection', () => ({
   default: () => <div>statistics section</div>,
 }));
-
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return { ...actual, useNavigate: () => mockNavigate };
-});
 
 vi.mock('@/hooks/useSubscriptionGate', () => ({
   useSubscriptionGate: vi.fn(),
@@ -67,142 +62,213 @@ const mockDog = fromPartial<Dog>({
   ownerId: 'user-1',
 });
 
-describe('DogDetailsTabs', () => {
+function setFree() {
+  vi.mocked(useSubscriptionGate).mockReturnValue({
+    isPremium: false,
+    tier: 'free',
+    isExpired: false,
+    isInTrial: false,
+    isEarlyAdopter: false,
+    isLoading: false,
+  });
+}
+
+function setPremium() {
+  vi.mocked(useSubscriptionGate).mockReturnValue({
+    isPremium: true,
+    tier: 'premium',
+    isExpired: false,
+    isInTrial: false,
+    isEarlyAdopter: false,
+    isLoading: false,
+  });
+}
+
+/** Renders DogDetailsTabs behind a route so location/back/forward work. */
+function renderAt(initialRoute: string, dog: Dog = mockDog) {
+  return render(
+    <Routes>
+      <Route
+        path="/dogs/:id"
+        element={<DogDetailsTabs dog={dog} autoOpenAddRegistration={false} />}
+      />
+    </Routes>,
+    { initialRoute }
+  );
+}
+
+describe('DogDetailsTabs navigation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setFree();
   });
 
-  describe('registration count badge', () => {
-    beforeEach(() => {
-      vi.mocked(useSubscriptionGate).mockReturnValue({
-        isPremium: false,
-        tier: 'free',
-        isExpired: false,
-        isInTrial: false,
-        isEarlyAdopter: false,
-        isLoading: false,
-      });
+  describe('default Overview', () => {
+    it('selects Overview with no section state in the URL', () => {
+      renderAt('/dogs/dog-1');
+      expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
     });
 
-    it('shows registration count on the Registrations tab when registrations exist', () => {
-      const dogWithRegs = {
-        ...mockDog,
-        registrations: [
-          { id: 'r1', organization: 'AKC', registrationNumber: 'DN12345' },
-          { id: 'r2', organization: 'UKC', registrationNumber: 'U98765' },
-        ],
-      } as Dog;
-      render(<DogDetailsTabs dog={dogWithRegs} autoOpenAddRegistration={false} />);
-      // PrimaryTabs renders count as a Badge with the numeric value
-      expect(screen.getByText('2')).toBeInTheDocument();
-    });
-
-    it('shows 0 count when dog has no registrations', () => {
-      const dogNoRegs = { ...mockDog, registrations: [] } as Dog;
-      render(<DogDetailsTabs dog={dogNoRegs} autoOpenAddRegistration={false} />);
-      expect(screen.getByText('0')).toBeInTheDocument();
-    });
-  });
-
-  describe('free user (isPremium=false)', () => {
-    beforeEach(() => {
-      vi.mocked(useSubscriptionGate).mockReturnValue({
-        isPremium: false,
-        tier: 'free',
-        isExpired: false,
-        isInTrial: false,
-        isEarlyAdopter: false,
-        isLoading: false,
-      });
-    });
-
-    it.each([
-      ['Title Progress', "Monitor your dog's progress toward titles and certifications."],
-      [
-        'Statistics',
-        "Visualize your dog's performance trends, qualification rates, and achievements.",
-      ],
-      ['Health Records', "Keep comprehensive health records for your dog's wellbeing."],
-      ['Training Journal', "Document training sessions and track your dog's progress."],
-      ['Pedigree', "Explore your dog's lineage and ancestry with detailed pedigree tracking."],
-    ])('shows BlurGate overlay on %s tab', async (title, description) => {
-      const { user } = render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />);
-
-      // Click the tab to activate it
-      await user.click(screen.getByRole('tab', { name: new RegExp(title, 'i') }));
-
-      // "Premium Feature" label and description are unique to the overlay.
-      // Don't assert on `title` directly — it also appears in the tab button.
-      expect(screen.getByText('Premium Feature')).toBeInTheDocument();
-      expect(screen.getByText(description)).toBeInTheDocument();
-    });
-
-    it('does not show BlurGate on free tabs', async () => {
-      render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />);
-      // Registrations tab is default — no overlay
-      expect(screen.queryByText('Premium Feature')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('tab strip contents', () => {
-    beforeEach(() => {
-      vi.mocked(useSubscriptionGate).mockReturnValue({
-        isPremium: false,
-        tier: 'free',
-        isExpired: false,
-        isInTrial: false,
-        isEarlyAdopter: false,
-        isLoading: false,
-      });
-    });
-
-    it('does not render an Activity tab trigger', () => {
-      render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />);
+    it('renders registrations and one Activity section, with no separate Activity tab', () => {
+      renderAt('/dogs/dog-1');
+      expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
       expect(screen.queryByRole('tab', { name: /activity/i })).not.toBeInTheDocument();
     });
 
-    it('defaults to the Registrations tab as selected', () => {
-      render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />);
-      expect(screen.getByRole('tab', { name: /registrations/i })).toHaveAttribute(
-        'aria-selected',
-        'true'
-      );
-    });
-
-    it('defaults to the Registrations tab for the secretary role too', () => {
-      render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} role="secretary" />);
-      expect(screen.getByRole('tab', { name: /registrations/i })).toHaveAttribute(
-        'aria-selected',
-        'true'
-      );
-    });
-
-    it('always renders an Activity section below the tab panel', () => {
-      render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />);
-      expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
+    it('renders exactly one Activity heading (not repeated per view)', () => {
+      renderAt('/dogs/dog-1');
+      expect(screen.getAllByRole('heading', { name: 'Activity' })).toHaveLength(1);
     });
   });
 
-  describe('premium user (isPremium=true)', () => {
-    beforeEach(() => {
-      vi.mocked(useSubscriptionGate).mockReturnValue({
-        isPremium: true,
-        tier: 'premium',
-        isExpired: false,
-        isInTrial: false,
-        isEarlyAdopter: false,
-        isLoading: false,
-      });
+  describe('Career secondary views', () => {
+    it('opens Career with Competitions as the default secondary view', async () => {
+      renderAt('/dogs/dog-1?section=career');
+      expect(screen.getByRole('tab', { name: 'Career' })).toHaveAttribute('aria-selected', 'true');
+      expect(await screen.findByText('competitions section')).toBeInTheDocument();
     });
 
-    it('does not show BlurGate overlay on Title Progress tab', async () => {
-      const { user } = render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />);
-      await user.click(screen.getByRole('tab', { name: /title progress/i }));
-      // The section is lazy()-loaded. When this test runs first under shuffle
-      // its import() hasn't resolved yet, so await it via findByText rather
-      // than a synchronous getByText that races the Suspense boundary.
-      expect(await screen.findByText('title progress section')).toBeInTheDocument();
+    it('opens the requested Career secondary view (Title Progress)', () => {
+      renderAt('/dogs/dog-1?section=career&view=titles');
+      expect(screen.getByText('Premium Feature')).toBeInTheDocument();
+    });
+
+    it('opens the requested Career secondary view (Statistics)', () => {
+      renderAt('/dogs/dog-1?section=career&view=statistics');
+      expect(screen.getByText('Premium Feature')).toBeInTheDocument();
+    });
+
+    it('keeps top-level navigation as Overview, Career, Records', () => {
+      renderAt('/dogs/dog-1?section=career');
+      expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Career' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Records' })).toBeInTheDocument();
+    });
+  });
+
+  describe('Records secondary views', () => {
+    it('opens Records with Health as the default secondary view', () => {
+      renderAt('/dogs/dog-1?section=records');
+      expect(screen.getByRole('tab', { name: 'Records' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByText('Premium Feature')).toBeInTheDocument();
+    });
+
+    it('opens the requested Records secondary view (Training)', () => {
+      renderAt('/dogs/dog-1?section=records&view=training');
+      expect(screen.getByText('Premium Feature')).toBeInTheDocument();
+      expect(screen.getByText('Training Journal')).toBeInTheDocument();
+    });
+
+    it('opens the requested Records secondary view (Pedigree)', () => {
+      renderAt('/dogs/dog-1?section=records&view=pedigree');
+      expect(screen.getByText('Pedigree')).toBeInTheDocument();
+    });
+  });
+
+  describe('legacy tab link mapping', () => {
+    it.each([
+      ['tab=registrations', 'Overview'],
+      ['tab=competitions', 'Career'],
+      ['tab=title-progress', 'Career'],
+      ['tab=statistics', 'Career'],
+      ['tab=health-records', 'Records'],
+      ['tab=training-journal', 'Records'],
+      ['tab=pedigree', 'Records'],
+    ])('maps legacy ?%s to the %s section', (query, expectedTopLevel) => {
+      renderAt(`/dogs/dog-1?${query}`);
+      expect(screen.getByRole('tab', { name: expectedTopLevel })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
+    });
+
+    it('maps legacy tab=title-progress to the Title Progress secondary view', () => {
+      renderAt('/dogs/dog-1?tab=title-progress');
+      expect(screen.getByText('Premium Feature')).toBeInTheDocument();
+      expect(screen.getByText('Title Progress')).toBeInTheDocument();
+    });
+  });
+
+  describe('copied deep links', () => {
+    it('a copied Records/Pedigree link opens directly on that view', () => {
+      renderAt('/dogs/dog-1?section=records&view=pedigree');
+      expect(screen.getByRole('tab', { name: 'Records' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByText('Pedigree')).toBeInTheDocument();
+    });
+  });
+
+  describe('Back/Forward behavior', () => {
+    // Uses a real BrowserRouter (not MemoryRouter) so window.history.back()/
+    // forward() exercise the same popstate path a real Back button does.
+    it('moving from Overview to Career and back with browser Back restores Overview, then Forward restores Career', async () => {
+      window.history.pushState({}, '', '/dogs/dog-1');
+      const { user } = render(
+        <Routes>
+          <Route
+            path="/dogs/:id"
+            element={<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />}
+          />
+        </Routes>,
+        { initialRoute: '' }
+      );
+
+      await user.click(screen.getByRole('tab', { name: 'Career' }));
+      expect(screen.getByRole('tab', { name: 'Career' })).toHaveAttribute('aria-selected', 'true');
+
+      window.history.back();
+      await screen.findByRole('tab', { name: 'Overview', selected: true });
+
+      window.history.forward();
+      await screen.findByRole('tab', { name: 'Career', selected: true });
+    });
+  });
+
+  describe('lock discovery', () => {
+    it('free user: Competitions stays usable in Career', async () => {
+      renderAt('/dogs/dog-1?section=career');
+      expect(await screen.findByText('competitions section')).toBeInTheDocument();
       expect(screen.queryByText('Premium Feature')).not.toBeInTheDocument();
+    });
+
+    it('free user: Title Progress and Statistics expose one consistent locked treatment', () => {
+      renderAt('/dogs/dog-1?section=career&view=titles');
+      expect(screen.getByText('Premium Feature')).toBeInTheDocument();
+      expect(
+        screen.getByText("Monitor your dog's progress toward titles and certifications.")
+      ).toBeInTheDocument();
+    });
+
+    it('free user: Records exposes one coherent locked treatment for Health', () => {
+      renderAt('/dogs/dog-1?section=records');
+      expect(screen.getByText('Premium Feature')).toBeInTheDocument();
+      expect(
+        screen.getByText("Keep comprehensive health records for your dog's wellbeing.")
+      ).toBeInTheDocument();
+    });
+
+    it('premium user: no BlurGate overlay on Career/Title Progress', () => {
+      setPremium();
+      renderAt('/dogs/dog-1?section=career&view=titles');
+      expect(screen.queryByText('Premium Feature')).not.toBeInTheDocument();
+      expect(screen.getByText('title progress section')).toBeInTheDocument();
+    });
+
+    it('premium user: no BlurGate overlay on Records/Pedigree', () => {
+      setPremium();
+      renderAt('/dogs/dog-1?section=records&view=pedigree');
+      expect(screen.queryByText('Premium Feature')).not.toBeInTheDocument();
+      expect(screen.getByText('pedigree section')).toBeInTheDocument();
+    });
+  });
+
+  describe('secretary role', () => {
+    it('renders Registrations and a vaccinations-only Health Records section, no Overview/Career/Records strip', () => {
+      render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} role="secretary" />);
+      expect(screen.getByRole('heading', { name: 'Health Records' })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'Career' })).not.toBeInTheDocument();
     });
   });
 });

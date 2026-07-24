@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Check } from 'lucide-react';
 import { products, annualPriceId } from '../stripe-config';
@@ -56,6 +56,14 @@ const tiers = [
 export default function PricingPage() {
   const { user } = useAuthContext();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Set by BlurGate when the user upgraded from a locked Career/Records
+  // secondary view — lets them return to the same dog and view afterward
+  // instead of the return path only being the browser Back button.
+  const returnTo =
+    typeof (location.state as { from?: unknown } | null)?.from === 'string'
+      ? (location.state as { from: string }).from
+      : null;
   // Annual exists only when VITE_STRIPE_PRICE_ANNUAL is configured; the
   // toggle hides entirely otherwise (premium launch plan, Task 3).
   // INVARIANT: the Stripe annual price MUST be $49.00/yr (unit_amount=4900) —
@@ -82,6 +90,13 @@ export default function PricingPage() {
       if (checkoutInFlightRef.current) return;
       checkoutInFlightRef.current = true;
       try {
+        // React Router state cannot survive Stripe's full-page redirect, so
+        // persist the locked-view return target for the post-checkout
+        // Subscription page to consume (exhibitor-dog-management "User
+        // upgrades and returns").
+        if (returnTo) {
+          sessionStorage.setItem('postCheckoutReturnTo', returnTo);
+        }
         await createCheckoutSession(priceId, 'subscription');
       } catch (error) {
         logger.error('Failed to create checkout session:', 'pages', {}, error as Error);
@@ -101,6 +116,14 @@ export default function PricingPage() {
           <section className="py-16 md:py-24 bg-background">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="text-center max-w-3xl mx-auto mb-16">
+                {returnTo && (
+                  <Link
+                    to={returnTo}
+                    className="mb-4 inline-block text-sm font-medium text-primary hover:underline"
+                  >
+                    ← Back to your dog
+                  </Link>
+                )}
                 <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
                   Simple, Transparent Pricing
                 </h1>

@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import TrainingDeleteConfirmDialog from './TrainingDeleteConfirmDialog';
 import { RichTextEditor } from './RichTextEditor';
 import {
   BookOpen,
@@ -42,7 +44,7 @@ interface EnhancedTrainingJournalProps {
   goals?: TrainingGoal[];
   onAddEntry?: (entry: Omit<TrainingEntry, 'id'>) => void;
   onUpdateEntry?: (id: string, entry: Partial<TrainingEntry>) => void;
-  onDeleteEntry?: (id: string) => void;
+  onDeleteEntry?: (id: string) => Promise<void> | void;
   onCreateGoal?: (goal: {
     title: string;
     target_date: string | null;
@@ -76,6 +78,7 @@ export function EnhancedTrainingJournal({
 }: EnhancedTrainingJournalProps) {
   const [isAddingEntry, setIsAddingEntry] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TrainingEntry | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<TrainingEntry | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isProgressOpen, setIsProgressOpen] = useState(false);
   const [isGoalsOpen, setIsGoalsOpen] = useState(false);
@@ -87,6 +90,18 @@ export function EnhancedTrainingJournal({
         entry.content.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  const handleConfirmDelete = async () => {
+    const entry = deletingEntry;
+    if (!entry) return;
+    try {
+      await onDeleteEntry?.(entry.id);
+    } catch {
+      toast.error(`Couldn't delete "${entry.title}". Please try again.`);
+    } finally {
+      setDeletingEntry(null);
+    }
+  };
 
   const totalHours = entries.reduce((sum, entry) => sum + entry.duration, 0) / 60;
   const averageProgress =
@@ -127,28 +142,39 @@ export function EnhancedTrainingJournal({
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Session Title</label>
+            <label htmlFor="training-entry-title" className="block text-sm font-medium mb-2">
+              Session Title
+            </label>
             <Input
+              id="training-entry-title"
               value={formData.title}
               onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
               placeholder="e.g., Basic obedience training"
+              className="min-h-11"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Duration (minutes)</label>
+            <label htmlFor="training-entry-duration" className="block text-sm font-medium mb-2">
+              Duration (minutes)
+            </label>
             <Input
+              id="training-entry-duration"
               type="number"
               value={formData.duration}
               onChange={e =>
                 setFormData(prev => ({ ...prev, duration: parseInt(e.target.value) || 0 }))
               }
+              className="min-h-11"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Difficulty</label>
+            <label htmlFor="training-entry-difficulty" className="block text-sm font-medium mb-2">
+              Difficulty
+            </label>
             <select
+              id="training-entry-difficulty"
               value={formData.difficulty}
               onChange={e =>
                 setFormData(prev => ({
@@ -156,7 +182,7 @@ export function EnhancedTrainingJournal({
                   difficulty: parseInt(e.target.value) as 1 | 2 | 3 | 4 | 5,
                 }))
               }
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border rounded-md min-h-11"
             >
               {[1, 2, 3, 4, 5].map(level => (
                 <option key={level} value={level}>
@@ -167,8 +193,11 @@ export function EnhancedTrainingJournal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Progress</label>
+            <label htmlFor="training-entry-progress" className="block text-sm font-medium mb-2">
+              Progress
+            </label>
             <select
+              id="training-entry-progress"
               value={formData.progress}
               onChange={e =>
                 setFormData(prev => ({
@@ -176,7 +205,7 @@ export function EnhancedTrainingJournal({
                   progress: e.target.value as TrainingEntry['progress'],
                 }))
               }
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border rounded-md min-h-11"
             >
               {Object.entries(progressLabels).map(([key, label]) => (
                 <option key={key} value={key}>
@@ -197,10 +226,10 @@ export function EnhancedTrainingJournal({
         </div>
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onCancel}>
+          <Button variant="outline" onClick={onCancel} className="min-h-11">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!formData.title.trim()}>
+          <Button onClick={handleSubmit} disabled={!formData.title.trim()} className="min-h-11">
             {entry ? 'Update' : 'Add'} Entry
           </Button>
         </div>
@@ -242,15 +271,23 @@ export function EnhancedTrainingJournal({
             <CardTitle className="text-lg">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button onClick={() => setIsAddingEntry(true)} className="w-full">
+            <Button onClick={() => setIsAddingEntry(true)} className="w-full min-h-11">
               <Plus className="h-4 w-4 mr-2" />
               New Training Session
             </Button>
-            <Button variant="outline" className="w-full" onClick={() => setIsProgressOpen(true)}>
+            <Button
+              variant="outline"
+              className="w-full min-h-11"
+              onClick={() => setIsProgressOpen(true)}
+            >
               <TrendingUp className="h-4 w-4 mr-2" />
               View Progress Report
             </Button>
-            <Button variant="outline" className="w-full" onClick={() => setIsGoalsOpen(true)}>
+            <Button
+              variant="outline"
+              className="w-full min-h-11"
+              onClick={() => setIsGoalsOpen(true)}
+            >
               <Award className="h-4 w-4 mr-2" />
               Set Training Goals
             </Button>
@@ -266,10 +303,11 @@ export function EnhancedTrainingJournal({
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
+                  aria-label="Search training sessions"
                   placeholder="Search training sessions..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 min-h-11"
                 />
               </div>
             </div>
@@ -350,14 +388,21 @@ export function EnhancedTrainingJournal({
                       {progressLabels[entry.progress]}
                     </Badge>
                     <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => setEditingEntry(entry)}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="min-h-11"
+                        aria-label={`Edit ${entry.title}`}
+                        onClick={() => setEditingEntry(entry)}
+                      >
                         Edit
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => onDeleteEntry?.(entry.id)}
+                        className="min-h-11 min-w-11 text-destructive hover:text-destructive"
+                        aria-label={`Delete ${entry.title}`}
+                        onClick={() => setDeletingEntry(entry)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -387,6 +432,13 @@ export function EnhancedTrainingJournal({
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Entry Confirmation */}
+      <TrainingDeleteConfirmDialog
+        entryTitle={deletingEntry?.title ?? null}
+        onCancel={() => setDeletingEntry(null)}
+        onConfirm={handleConfirmDelete}
+      />
 
       {/* Add Entry Dialog */}
       <Dialog open={isAddingEntry} onOpenChange={setIsAddingEntry}>

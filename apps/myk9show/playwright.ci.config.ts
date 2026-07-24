@@ -28,6 +28,7 @@ const REGRESSION_SPECS = [
   // window is open; the default Heartland fixture is currently closed. Keep it
   // in the maintained inventory, but not in Nightly until that fixture exists.
   '**/authentication-validation.spec.ts',
+  '**/slice2-dog-workspace-evidence.spec.ts',
   '**/entities/entriesUI.spec.ts',
   '**/secretary/show-creation-wizard.spec.ts',
   '**/secretary/classCreation.spec.ts',

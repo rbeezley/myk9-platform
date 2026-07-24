@@ -13,12 +13,16 @@ let memoryMuted = false;
 
 function readMuted(): boolean {
   try {
-    const stored = localStorage.getItem(AUDIO_MUTE_KEY);
-    if (stored !== null) return stored === 'true';
+    // Storage is readable, so it IS the source of truth — including when the
+    // key is absent, which means "no preference" (default unmuted). Falling
+    // back to `memoryMuted` here would resurrect a stale preference after the
+    // key was removed (e.g. storage cleared in another tab).
+    return localStorage.getItem(AUDIO_MUTE_KEY) === 'true';
   } catch {
-    // Storage unreadable — fall through to the in-memory value.
+    // Storage unreadable (private mode / disabled) — the session-local value
+    // is all we have.
+    return memoryMuted;
   }
-  return memoryMuted;
 }
 
 function writeMuted(muted: boolean): void {

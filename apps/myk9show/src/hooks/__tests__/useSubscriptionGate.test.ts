@@ -8,6 +8,20 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
   useExhibitorProfile: () => mockUseExhibitorProfile(),
 }));
 
+// Neutral stub: keeps the mismatch-logging effect a no-op for these
+// contract tests (isEntitlementLoading true short-circuits the comparison).
+// The new resolver/hook path has its own dedicated test suites.
+vi.mock('@/features/entitlement/useEntitlement', () => ({
+  useEntitlement: () => ({
+    effective: null,
+    isTrusted: false,
+    canAuthorizePremium: false,
+    isLoading: true,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+}));
+
 import { useSubscriptionGate } from '../useSubscriptionGate';
 
 const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();

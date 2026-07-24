@@ -1,7 +1,11 @@
+import { useEffect } from 'react';
 import { useExhibitorProfile } from './useExhibitorProfile';
+import { useEntitlement } from '@/features/entitlement/useEntitlement';
+import { TRIAL_SHOW_LIMIT } from '@/features/entitlement/types';
+import { logger } from '@/services/LoggingService';
 import type { PlanType } from '@/components/subscription/featureUtils';
 
-export const TRIAL_SHOW_LIMIT = 3;
+export { TRIAL_SHOW_LIMIT };
 
 export interface SubscriptionGateOptions {
   /** Number of distinct shows where the user has at least one scored entry. */
@@ -17,8 +21,19 @@ export interface SubscriptionGateOptions {
  *   const { isPremium, isExpired, tier } = useSubscriptionGate();
  *   const { isPremium, isInTrial } = useSubscriptionGate({ trialShowCount: 2 });
  */
+/**
+ * NOTE: this hook is a thin compatibility wrapper preserved for its 8
+ * existing callers (design.md Decision 6). It still computes tier from the
+ * legacy profile/early-adopter fields so those callers keep behaving
+ * unchanged in this batch — including AnalyticsPage's caller-provided
+ * `trialShowCount`, which is NOT migrated here. New code should call
+ * `useEntitlement()` directly. This wrapper cross-checks its legacy result
+ * against the new server-backed resolver and logs a structured mismatch
+ * instead of changing behavior.
+ */
 export function useSubscriptionGate(options?: SubscriptionGateOptions) {
   const { profile, isLoading } = useExhibitorProfile();
+  const { effective: newEffective, isLoading: isEntitlementLoading } = useEntitlement();
 
   const rawTier: PlanType = profile?.subscription_tier ?? 'free';
   const expiresAt = profile?.subscription_expires_at;
@@ -40,6 +55,27 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
     options.trialShowCount <= TRIAL_SHOW_LIMIT;
 
   const tier: PlanType = isPaidPremium || isEarlyAdopter || isInTrial ? 'premium' : 'free';
+
+  // Structured legacy-fallback mismatch logging (design.md Decision 6). Only
+  // compares account-level Premium (paid/founding/complimentary), since the
+  // legacy trial here is caller-driven while the resolver's trial is
+  // Analytics-scoped and server-computed — the two are not the same axis.
+  useEffect(() => {
+    if (isLoading || isEntitlementLoading || !newEffective) return;
+
+    const legacyAccountPremium = isPaidPremium || isEarlyAdopter;
+    const newAccountPremium = newEffective.tier === 'premium';
+
+    if (legacyAccountPremium !== newAccountPremium) {
+      logger.warn('useSubscriptionGate legacy/resolver mismatch', 'useSubscriptionGate', {
+        legacyAccountPremium,
+        legacySource: isPaidPremium ? 'paid' : isEarlyAdopter ? 'founding' : 'none',
+        newAccountPremium,
+        newSource: newEffective.source,
+        newStatus: newEffective.status,
+      });
+    }
+  }, [isLoading, isEntitlementLoading, newEffective, isPaidPremium, isEarlyAdopter]);
 
   return {
     tier,

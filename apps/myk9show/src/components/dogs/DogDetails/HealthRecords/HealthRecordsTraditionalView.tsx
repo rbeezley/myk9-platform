@@ -6,7 +6,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PrimaryTabs, PrimaryTabsContent } from '@/components/common/PrimaryTabs';
 import type { PrimaryTabDef } from '@/components/common/PrimaryTabs';
-import { Pencil, Plus } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import type {
   VaccinationRecord,
   VetVisitRecord,
@@ -35,6 +35,7 @@ interface TraditionalViewProps {
   onEditMedication: (record: MedicationRecord) => void;
   onEditAllergy: (record: AllergyRecord) => void;
   onEditVetVisit: (record: VetVisitRecord) => void;
+  onDeleteItem: (type: HealthItemType, id: string, title: string) => void;
 }
 
 export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
@@ -53,6 +54,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
   onEditMedication,
   onEditAllergy,
   onEditVetVisit,
+  onDeleteItem,
 }) => {
   const [activeTab, setActiveTab] = useState('vetVisits');
 
@@ -110,6 +112,14 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     Edit
                   </Button>
                 )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onDeleteItem('vet_visit', visit.id, visit.reason)}
+                  aria-label={`Delete ${visit.reason}`}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
               </div>
             </div>
           ))}
@@ -159,17 +169,25 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                   <span className="text-xs text-muted-foreground">
                     {vacc.vet_name || 'Unknown'}
                   </span>
-                {!readOnly && (
+                  {!readOnly && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEditVaccination(vacc)}
+                      aria-label={`Edit ${vacc.vaccine_name}`}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
-                    size="sm"
-                    onClick={() => onEditVaccination(vacc)}
-                    aria-label={`Edit ${vacc.vaccine_name}`}
+                    size="icon"
+                    onClick={() => onDeleteItem('vaccination', vacc.id, vacc.vaccine_name)}
+                    aria-label={`Delete ${vacc.vaccine_name}`}
                   >
-                    <Pencil className="h-4 w-4 mr-1" />
-                    Edit
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
-                )}
                 </div>
               </div>
             );
@@ -219,6 +237,14 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     Edit
                   </Button>
                 )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onDeleteItem('medication', med.id, med.medication_name)}
+                  aria-label={`Delete ${med.medication_name}`}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
               </div>
             </div>
           ))}
@@ -274,6 +300,14 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     Edit
                   </Button>
                 )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onDeleteItem('allergy', allergy.id, allergy.allergen)}
+                  aria-label={`Delete ${allergy.allergen}`}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
               </div>
             </div>
           ))}
@@ -320,6 +354,16 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     {ofa.certification_number}
                   </span>
                 )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    onDeleteItem('ofa_screening', ofa.id, `${ofa.test_type} screening`)
+                  }
+                  aria-label={`Delete ${ofa.test_type} screening`}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
               </div>
             </div>
           ))}
@@ -355,6 +399,16 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                   <p className="text-sm text-muted-foreground">{formatHealthDate(gen.test_date)}</p>
                 </div>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() =>
+                  onDeleteItem('genetic_screening', gen.id, `${gen.provider} genetic test`)
+                }
+                aria-label={`Delete ${gen.provider} genetic test`}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
               {gen.results.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {gen.results.map((marker, idx) => (

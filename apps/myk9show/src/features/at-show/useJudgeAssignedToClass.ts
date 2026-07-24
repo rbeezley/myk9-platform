@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { UserRole as RingsideRole } from '@myk9/ringside';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { UserRole as ShowRole } from '@/types/auth-types';
 import { replicatedJudgeAssignmentsTable } from '@/services/replication';
 
 /** Assignment-lifecycle statuses that put a class on the judge's plate — mirrors useJudgeAssignments. */
@@ -14,39 +13,48 @@ export type JudgeAssignmentGateResult =
   | { status: 'unassigned' };
 
 interface Args {
-  showRole: ShowRole | null | undefined;
-  grantRole: RingsideRole | null;
+  /** Effective ringside role (grant overrides RBAC), from useRingsideEffectiveRole. */
+  ringsideRole: RingsideRole | null;
+  /** Whether the Supabase session is anonymous (a passcode guest session). */
+  isAnonymous: boolean;
   classId: string | undefined;
 }
 
 /**
- * MYK9-82 pre-flight: `ringside_update_entry()` only authorizes scoring for a
- * judge assigned to THIS class (`judge_assignments`, status confirmed|invited).
- * A signed-in judge account with no matching assignment passes the client
- * `canScore` gate (it only checks the role), submits an optimistic score, and
- * only discovers the rejection later at sync — by which point the run is over
- * and the score is gone. This checks the assignment before the scoring engine
- * mounts, so an unassigned judge is redirected to the passcode path instead.
+ * MYK9-82 pre-flight: `ringside_update_entry()` authorizes a scoring write via
+ * `auth.uid()`-based tiers — manager role, a judge assigned to THIS class
+ * (`judge_assignments`, status confirmed|invited), or (for an ANONYMOUS passcode
+ * session) a show-scoped `app_metadata` claim. A signed-in judge ACCOUNT gets
+ * NONE of the passcode claim — `validate-passcode` stamps only anonymous
+ * sessions, and the account session is left untouched (Locked Decision #8;
+ * migration 20260704190000 documents this explicitly). So a signed-in judge
+ * with no assignment passes the client `canScore` gate, submits an optimistic
+ * score, and only discovers the rejection at sync — the run is over and the
+ * score is gone. This checks the assignment before the scoring engine mounts.
  *
- * Scope: only applies to a pure RBAC judge session with no passcode grant —
- * a passcode grant already overrides RBAC and is authorized server-side via
- * the grant path, and manager roles are authorized as managers, not via
- * assignment. Every other case resolves as `not-applicable` immediately.
+ * Applies to a **non-anonymous session whose effective ringside role is
+ * `judge`** — this catches both a signed-in RBAC judge AND a signed-in account
+ * holding a judge passcode grant (the grant is client-only and does NOT
+ * establish server authorization for an account session). Every other case is
+ * `not-applicable`: an anonymous passcode session is server-authorized show-wide
+ * by its claim, and managers/admins are authorized by role, not by assignment.
  *
- * Fail-open by design: reads replicated data only (offline-safe, no network
- * fallback). If the local `judge_assignments` store is completely empty —
- * sync hasn't landed, or the read fails — this resolves `assigned` rather
- * than blocking. A cold cache must never deny a legitimate judge; the server
- * RPC remains the actual enforcement boundary regardless of this check.
+ * Fail-open by design: reads replicated data only. It does a fast local check
+ * first (an already-assigned judge never blocks or waits), and only when there
+ * is no local match does it force a fresh `judge_assignments` sync before
+ * denying — so a just-added assignment that hasn't replicated yet doesn't
+ * wrongly block a legitimate judge. A cold/empty cache, a sync failure, or a
+ * read error all resolve `assigned`; the server RPC remains the real
+ * enforcement boundary.
  */
 export function useJudgeAssignedToClass({
-  showRole,
-  grantRole,
+  ringsideRole,
+  isAnonymous,
   classId,
 }: Args): JudgeAssignmentGateResult {
   const { userWithRoles } = useAuthContext();
   const personId = userWithRoles?.databaseUserId ?? null;
-  const applicable = !grantRole && showRole === ShowRole.JUDGE;
+  const applicable = !isAnonymous && ringsideRole === 'judge';
 
   // The lookup key for the CURRENT inputs; null while inapplicable or identity
   // hasn't resolved. Storing the resolved verdict keyed by this string means a
@@ -65,28 +73,63 @@ export function useJudgeAssignedToClass({
     if (!lookupKey || !classId || !personId) return;
 
     let cancelled = false;
-    replicatedJudgeAssignmentsTable
-      .getAll()
-      .then(all => {
+    const matches = (rows: { personId: string; classId: string | null; status: string | null }[]) =>
+      rows.some(
+        a =>
+          a.personId === personId &&
+          a.classId === classId &&
+          ACTIVE_ASSIGNMENT_STATUSES.includes(a.status ?? '')
+      );
+
+    const resolve = async () => {
+      // Fast path: an already-assigned judge is confirmed from the local cache
+      // with no sync round-trip and never blocks.
+      let local;
+      try {
+        local = await replicatedJudgeAssignmentsTable.getAll();
+      } catch {
+        if (!cancelled) setResolved({ key: lookupKey, value: 'assigned' });
+        return;
+      }
+      if (cancelled) return;
+      if (matches(local)) {
+        setResolved({ key: lookupKey, value: 'assigned' });
+        return;
+      }
+
+      // No local match — the cache may be stale or predate a just-added
+      // assignment. Force a fresh sync before denying so a legitimate judge is
+      // never blocked by data that simply hasn't replicated yet.
+      try {
+        const result = await replicatedJudgeAssignmentsTable.sync();
         if (cancelled) return;
-        // Cold cache (sync hasn't landed) — fail open, never block a real judge.
-        if (all.length === 0) {
+        if (!result?.success) {
           setResolved({ key: lookupKey, value: 'assigned' });
           return;
         }
-        const isAssigned = all.some(
-          a =>
-            a.personId === personId &&
-            a.classId === classId &&
-            ACTIVE_ASSIGNMENT_STATUSES.includes(a.status ?? '')
-        );
-        setResolved({ key: lookupKey, value: isAssigned ? 'assigned' : 'unassigned' });
-      })
-      .catch(() => {
-        // Read failure — fail open; the server RPC is the real enforcement boundary.
+      } catch {
         if (!cancelled) setResolved({ key: lookupKey, value: 'assigned' });
-      });
+        return;
+      }
 
+      let fresh;
+      try {
+        fresh = await replicatedJudgeAssignmentsTable.getAll();
+      } catch {
+        if (!cancelled) setResolved({ key: lookupKey, value: 'assigned' });
+        return;
+      }
+      if (cancelled) return;
+      // Genuinely empty after a successful sync still fails open — never trap a
+      // judge behind missing data; the server RPC is the real boundary.
+      if (fresh.length === 0) {
+        setResolved({ key: lookupKey, value: 'assigned' });
+        return;
+      }
+      setResolved({ key: lookupKey, value: matches(fresh) ? 'assigned' : 'unassigned' });
+    };
+
+    resolve();
     return () => {
       cancelled = true;
     };

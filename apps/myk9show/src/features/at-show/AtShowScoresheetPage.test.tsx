@@ -24,6 +24,10 @@ import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncConte
 let mockRoles: UserRole[] = [UserRole.JUDGE];
 // MYK9-82: the signed-in judge's person id, matched against judge_assignments.
 let mockPersonId: string | undefined = 'judge-1';
+// MYK9-82: whether the Supabase session is anonymous (a passcode guest). A
+// signed-in account is the default; the anonymous-exempt test flips this.
+let mockIsAnonymous = false;
+const signOut = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/hooks/useAuthContext', async importOriginal => {
   const actual = await importOriginal<typeof import('@/hooks/useAuthContext')>();
   return {
@@ -31,6 +35,8 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
     useAuthContext: () => ({
       getUserRoles: () => mockRoles,
       userWithRoles: { databaseUserId: mockPersonId },
+      user: { is_anonymous: mockIsAnonymous },
+      signOut,
     }),
   };
 });
@@ -53,11 +59,15 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
 // assignment decision set it explicitly; everything else exercises the
 // documented fail-open behavior. `vi.hoisted` because `vi.mock` factories are
 // hoisted above top-level consts.
-const { judgeAssignmentsGetAll } = vi.hoisted(() => ({
+const { judgeAssignmentsGetAll, judgeAssignmentsSync } = vi.hoisted(() => ({
   judgeAssignmentsGetAll: vi.fn().mockResolvedValue([]),
+  judgeAssignmentsSync: vi.fn().mockResolvedValue({ success: true }),
 }));
 vi.mock('@/services/replication', () => ({
-  replicatedJudgeAssignmentsTable: { getAll: judgeAssignmentsGetAll },
+  replicatedJudgeAssignmentsTable: {
+    getAll: judgeAssignmentsGetAll,
+    sync: judgeAssignmentsSync,
+  },
 }));
 
 const submitScoreOptimistically = vi.fn();
@@ -194,9 +204,11 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     vi.clearAllMocks();
     mockRoles = [UserRole.JUDGE];
     mockPersonId = 'judge-1';
+    mockIsAnonymous = false;
     // Default cold-cache (fail-open): tests exercising the pre-flight gate set
     // an explicit assignment list; every other test just needs it to resolve.
     judgeAssignmentsGetAll.mockResolvedValue([]);
+    judgeAssignmentsSync.mockResolvedValue({ success: true });
     // The canScore gate reads the grant store; clear it so a leaked grant from
     // a sibling test (or future Phase 1b setGrant) can't silently override
     // `mockRoles` and pass the deny-path tests for the wrong reason.
@@ -360,10 +372,12 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
   });
 
   // MYK9-82: `canScore` only checks the ROLE. The server additionally requires
-  // the judge be assigned to THIS class — without a client-side pre-flight,
-  // an unassigned judge would submit a score that dead-letters at sync.
+  // a signed-in judge be assigned to THIS class — without a client-side
+  // pre-flight, an unassigned judge would submit a score that dead-letters at
+  // sync. A passcode grant does NOT establish server authz for an account
+  // session, so it is not an exemption.
   describe('judge assignment pre-flight (MYK9-82)', () => {
-    it('blocks a signed-in judge with no matching assignment for this class', async () => {
+    it('blocks a signed-in judge with no matching assignment, offering the guest-passcode escape', async () => {
       judgeAssignmentsGetAll.mockResolvedValue([
         { id: 'a1', personId: 'judge-1', classId: 'some-other-class', status: 'confirmed' },
       ]);
@@ -373,13 +387,27 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
         await screen.findByText("You're not assigned to judge this class")
       ).toBeInTheDocument();
       expect(screen.queryByTestId('live-scoresheet')).not.toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /enter judge passcode/i })).toHaveAttribute(
-        'href',
-        '/at-show?passcode=1'
-      );
+      // The CTA no longer offers an in-place passcode link (that keeps the
+      // unauthorized account session); it offers sign-out to a guest passcode.
+      expect(screen.queryByRole('link', { name: /passcode/i })).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /sign out to use a passcode/i })
+      ).toBeInTheDocument();
       // No optimistic score, no in-ring transition — same structural guarantee
       // as the canScore gate: a denied session runs none of the scoring flow.
       expect(transitionToInRing).not.toHaveBeenCalled();
+    });
+
+    it('signs out then routes to the guest passcode form when the escape is taken', async () => {
+      judgeAssignmentsGetAll.mockResolvedValue([
+        { id: 'a1', personId: 'judge-1', classId: 'some-other-class', status: 'confirmed' },
+      ]);
+      renderPage();
+
+      const escape = await screen.findByRole('button', { name: /sign out to use a passcode/i });
+      fireEvent.click(escape);
+
+      await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
     });
 
     it('allows a signed-in judge who IS assigned (confirmed) to this class', async () => {
@@ -390,6 +418,8 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
       expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
       expect(screen.queryByText("You're not assigned to judge this class")).not.toBeInTheDocument();
+      // Local match — no forced sync needed.
+      expect(judgeAssignmentsSync).not.toHaveBeenCalled();
     });
 
     it('allows an "invited" (not yet confirmed) assignment', async () => {
@@ -412,12 +442,38 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       ).toBeInTheDocument();
     });
 
+    it('forces a fresh sync before denying, and unblocks when the sync pulls the assignment', async () => {
+      // Stale cache (unrelated rows) → first read misses; the forced sync
+      // downloads the real assignment → second read matches → not blocked.
+      judgeAssignmentsGetAll
+        .mockResolvedValueOnce([
+          { id: 'a2', personId: 'someone-else', classId: 'class-1', status: 'confirmed' },
+        ])
+        .mockResolvedValueOnce([
+          { id: 'a1', personId: 'judge-1', classId: 'class-1', status: 'confirmed' },
+        ]);
+      renderPage();
+
+      expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+      expect(judgeAssignmentsSync).toHaveBeenCalledTimes(1);
+    });
+
     it('fails open when the local assignment store is a cold cache (empty)', async () => {
       judgeAssignmentsGetAll.mockResolvedValue([]);
       renderPage();
 
       // A legitimate judge must never be blocked by missing local data — the
       // server RPC remains the real enforcement boundary regardless.
+      expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    });
+
+    it('fails open when the forced sync fails (offline)', async () => {
+      judgeAssignmentsGetAll.mockResolvedValue([
+        { id: 'a2', personId: 'someone-else', classId: 'class-1', status: 'confirmed' },
+      ]);
+      judgeAssignmentsSync.mockResolvedValue({ success: false, error: 'offline' });
+      renderPage();
+
       expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
     });
 
@@ -428,9 +484,10 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
     });
 
-    it('does not apply the pre-flight to a passcode-granted judge session', async () => {
-      // A passcode grant overrides RBAC and is authorized server-side via the
-      // grant path — assignment data is irrelevant here.
+    it('BLOCKS a signed-in judge holding a passcode GRANT but no assignment', async () => {
+      // A client-side passcode grant does NOT establish server authorization for
+      // a signed-in account (validate-passcode stamps only anonymous sessions),
+      // so the assignment check must still apply — the grant is not an exemption.
       useRingsideGrantStore.getState().setGrant({
         showId: 'show-1',
         role: 'judge',
@@ -441,8 +498,21 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       ]);
       renderPage();
 
+      expect(
+        await screen.findByText("You're not assigned to judge this class")
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId('live-scoresheet')).not.toBeInTheDocument();
+    });
+
+    it('exempts an ANONYMOUS passcode session (server-authorized show-wide by its claim)', async () => {
+      mockIsAnonymous = true;
+      judgeAssignmentsGetAll.mockResolvedValue([]);
+      renderPage();
+
       expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
-      expect(screen.queryByText("You're not assigned to judge this class")).not.toBeInTheDocument();
+      // Anonymous sessions never consult judge_assignments — their claim
+      // authorizes every class in the show.
+      expect(judgeAssignmentsGetAll).not.toHaveBeenCalled();
     });
 
     it('does not apply the pre-flight to a manager role (assignment-irrelevant)', async () => {

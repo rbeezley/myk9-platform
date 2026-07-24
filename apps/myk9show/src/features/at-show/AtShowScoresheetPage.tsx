@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Loader2,
   AlertCircle,
@@ -46,6 +46,7 @@ import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
 import { useAtShowAudioMute } from './useAtShowAudioMute';
 import { badgeClass } from './slots/atShowChrome.helpers';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useAudioWarnings } from '@/hooks/useAudioWarnings';
 import { DEFAULT_AUDIO_SETTINGS } from '@/constants/audioSettings';
 import { speakRemainingSeconds } from './atShowVoiceAnnouncement';
@@ -66,16 +67,30 @@ export const AtShowScoresheetPage: React.FC = () => {
   // model gives stewards `canScore: false`. Derive the effective ringside role
   // the same way the EntryList shims do — account RBAC, overridden by a Phase 1c
   // show-scoped passcode grant.
-  const { hasPermission, showRole, grantRole } = useRingsideEffectiveRole(showId);
+  const { hasPermission, ringsideRole } = useRingsideEffectiveRole(showId);
+  const { user, signOut } = useAuthContext();
+  const isAnonymous = user?.is_anonymous === true;
 
-  // MYK9-82: the server (`ringside_update_entry()`) only authorizes scoring for
-  // a judge assigned to THIS class — the `canScore` permission above only
-  // checks the ROLE, not the assignment. Without this, an unassigned signed-in
-  // judge sails past the gate, submits an optimistic score, and only learns at
-  // sync that it was rejected. Called unconditionally (hooks can't follow the
-  // early return below) — it self-resolves 'not-applicable' for every session
-  // this doesn't concern (passcode grants, managers, stewards, exhibitors).
-  const assignmentCheck = useJudgeAssignedToClass({ showRole, grantRole, classId });
+  // The only passcode path that actually authorizes scoring is an ANONYMOUS
+  // guest session (validate-passcode stamps the show-scoped claim only on anon
+  // sessions). A signed-in judge must therefore sign out first, then enter the
+  // passcode as a guest — routing to the passcode form while still signed in
+  // would just re-create the same unauthorized account session.
+  const handleSignOutToPasscode = useCallback(async () => {
+    await signOut();
+    navigate('/at-show?passcode=1');
+  }, [signOut, navigate]);
+
+  // MYK9-82: `ringside_update_entry()` authorizes a signed-in judge ACCOUNT only
+  // when it is assigned to THIS class — the `canScore` permission above checks
+  // only the ROLE. A passcode grant does NOT establish server authz for an
+  // account session (validate-passcode stamps only anonymous sessions), so a
+  // signed-in judge — with or without a grant — who isn't assigned would submit
+  // an optimistic score that dead-letters at sync. This checks assignment first.
+  // Called unconditionally (hooks can't follow the early return below); it
+  // self-resolves 'not-applicable' for every session this doesn't concern
+  // (anonymous passcode sessions, managers, stewards, exhibitors).
+  const assignmentCheck = useJudgeAssignedToClass({ ringsideRole, isAnonymous, classId });
 
   // Gate BEFORE mounting the scoring engine: an unauthorized role must never run
   // `useAtShowScoresheet` (whose load effect calls `transitionToInRing`), so the
@@ -107,23 +122,21 @@ export const AtShowScoresheetPage: React.FC = () => {
     return (
       <div className="ringside-root container max-w-2xl mx-auto px-4 py-6">
         <div className="rounded-xl border bg-card p-6 text-center">
-          <KeyRound className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <ShieldAlert className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg font-medium mb-2">You&apos;re not assigned to judge this class</p>
           <p className="text-muted-foreground">
-            Scores from an unassigned account can&apos;t be saved. Enter the judge passcode to score
-            this class, or ask the secretary to add your assignment.
+            Scores from an unassigned account can&apos;t be saved. Ask the secretary to add you as
+            the judge for this class. To score with a show passcode instead, sign out and enter it
+            as a guest.
           </p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
-            <Link
-              to="/at-show?passcode=1"
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <KeyRound className="h-4 w-4" aria-hidden />
-              Enter judge passcode
-            </Link>
             <Button variant="outline" onClick={handleBack}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Entry List
+            </Button>
+            <Button variant="ghost" onClick={handleSignOutToPasscode}>
+              <KeyRound className="h-4 w-4 mr-2" />
+              Sign out to use a passcode
             </Button>
           </div>
         </div>

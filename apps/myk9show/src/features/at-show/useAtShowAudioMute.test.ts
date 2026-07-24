@@ -3,7 +3,7 @@
  * timer chime/voice announcements (MYK9-76).
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 import { useAtShowAudioMute } from './useAtShowAudioMute';
@@ -50,5 +50,33 @@ describe('useAtShowAudioMute', () => {
 
     expect(a.result.current[0]).toBe(true);
     expect(b.result.current[0]).toBe(true);
+  });
+
+  it('still mutes for the session when localStorage is unavailable', () => {
+    // Simulate a locked-down browser (private mode / disabled storage): both
+    // reads and writes throw. The toggle must still TAKE EFFECT via the
+    // in-memory fallback, otherwise the mute button does nothing. Assert the
+    // transition (flip, then flip back) rather than an absolute baseline, since
+    // the module-level in-memory value can carry over from a prior test.
+    const getSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage disabled');
+    });
+    const setSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage disabled');
+    });
+
+    try {
+      const { result } = renderHook(() => useAtShowAudioMute());
+      const initial = result.current[0];
+
+      act(() => result.current[1]());
+      expect(result.current[0]).toBe(!initial);
+
+      act(() => result.current[1]());
+      expect(result.current[0]).toBe(initial);
+    } finally {
+      getSpy.mockRestore();
+      setSpy.mockRestore();
+    }
   });
 });

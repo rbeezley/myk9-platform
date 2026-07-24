@@ -11,6 +11,7 @@ import type {
   OFAScreeningRecord,
   GeneticScreeningRecord,
 } from '../../../../types/health';
+import { parseHealthDate } from './healthDateOnly';
 
 /** Convert health records to timeline events */
 export const convertToTimelineEvents = (
@@ -29,14 +30,14 @@ export const convertToTimelineEvents = (
       type: 'vaccination' as const,
       title: `${vacc.vaccine_name} Vaccination`,
       description: `Administered by ${vacc.vet_name || 'Unknown'}`,
-      date: new Date(vacc.date_given),
+      date: parseHealthDate(vacc.date_given),
       vetName: vacc.vet_name || '',
       clinic: vacc.clinic_name || '',
       status:
-        vacc.expiration_date && new Date(vacc.expiration_date) < new Date()
+        vacc.expiration_date && parseHealthDate(vacc.expiration_date) < new Date()
           ? 'overdue'
           : 'completed',
-      expiration: vacc.expiration_date ? new Date(vacc.expiration_date) : undefined,
+      expiration: vacc.expiration_date ? parseHealthDate(vacc.expiration_date) : undefined,
       notes: vacc.notes || '',
       attachments: [],
     });
@@ -48,7 +49,7 @@ export const convertToTimelineEvents = (
       type: 'vet_visit' as const,
       title: visit.reason,
       description: visit.notes || 'Routine visit',
-      date: new Date(visit.visit_date),
+      date: parseHealthDate(visit.visit_date),
       vetName: visit.vet_name || '',
       clinic: visit.clinic_name || '',
       cost: visit.cost || 0,
@@ -64,7 +65,7 @@ export const convertToTimelineEvents = (
       type: 'medication' as const,
       title: med.medication_name,
       description: `${med.dosage || ''} - ${med.frequency || ''}`,
-      date: med.start_date ? new Date(med.start_date) : new Date(),
+      date: med.start_date ? parseHealthDate(med.start_date) : new Date(),
       vetName: med.frequency || '',
       status: 'scheduled' as const,
       notes: med.notes || '',
@@ -78,7 +79,7 @@ export const convertToTimelineEvents = (
       type: 'allergy' as const,
       title: `${allergy.allergen} Allergy`,
       description: allergy.reaction || '',
-      date: allergy.discovered_date ? new Date(allergy.discovered_date) : new Date(),
+      date: allergy.discovered_date ? parseHealthDate(allergy.discovered_date) : new Date(),
       vetName: allergy.discovered_by || '',
       status: 'completed' as const,
       notes: allergy.reaction || '',
@@ -92,7 +93,7 @@ export const convertToTimelineEvents = (
       type: 'vaccination' as const, // Reuse closest timeline icon type
       title: `OFA ${ofa.test_type.charAt(0).toUpperCase() + ofa.test_type.slice(1)} Screening`,
       description: `Status: ${ofa.status}${ofa.result ? ` — ${ofa.result}` : ''}`,
-      date: new Date(ofa.test_date),
+      date: parseHealthDate(ofa.test_date),
       vetName: ofa.veterinarian || '',
       status: ofa.status === 'pending' ? 'scheduled' : 'completed',
       notes: ofa.notes || '',
@@ -107,7 +108,7 @@ export const convertToTimelineEvents = (
       type: 'vaccination' as const, // Reuse closest timeline icon type
       title: `${gen.provider} Genetic Test`,
       description: `${markerCount} marker${markerCount !== 1 ? 's' : ''} tested`,
-      date: new Date(gen.test_date),
+      date: parseHealthDate(gen.test_date),
       vetName: gen.provider,
       status: 'completed' as const,
       notes: gen.notes || '',
@@ -126,7 +127,7 @@ export const getVaccinationAlerts = (vaccinations: VaccinationRecord[]): Vaccina
 
   return vaccinations.filter(v => {
     if (!v.expiration_date) return false;
-    const exp = new Date(v.expiration_date);
+    const exp = parseHealthDate(v.expiration_date);
     return exp <= thirtyDaysFromNow;
   });
 };

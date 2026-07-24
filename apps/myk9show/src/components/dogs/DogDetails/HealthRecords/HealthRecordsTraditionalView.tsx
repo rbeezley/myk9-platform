@@ -17,6 +17,7 @@ import type {
 } from '../../../../types/health';
 import type { HealthItemType } from './AddHealthItemDialog';
 import { ofaStatusColors, geneticStatusColors } from './HealthRecordsSection.types';
+import { formatHealthDate, parseHealthDate } from './healthDateOnly';
 
 interface TraditionalViewProps {
   vaccinationsData: VaccinationRecord[];
@@ -87,8 +88,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                 <div>
                   <h4 className="font-medium">{visit.reason}</h4>
                   <p className="text-sm text-muted-foreground">
-                    {new Date(visit.visit_date).toLocaleDateString()} &bull;{' '}
-                    {visit.vet_name || 'Unknown'}
+                    {formatHealthDate(visit.visit_date)} &bull; {visit.vet_name || 'Unknown'}
                   </p>
                   {visit.notes && <p className="text-sm mt-1">{visit.notes}</p>}
                 </div>
@@ -126,8 +126,8 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
           )}
           {vaccinationsData.map(vacc => {
             const isExpiringSoon =
-              vacc.expiration_date && new Date(vacc.expiration_date) <= thirtyDaysFromNow;
-            const isOverdue = vacc.expiration_date && new Date(vacc.expiration_date) < now;
+              vacc.expiration_date && parseHealthDate(vacc.expiration_date) <= thirtyDaysFromNow;
+            const isOverdue = vacc.expiration_date && parseHealthDate(vacc.expiration_date) < now;
             return (
               <div
                 key={vacc.id}
@@ -137,14 +137,14 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                   <div>
                     <h4 className="font-medium">{vacc.vaccine_name}</h4>
                     <p className="text-sm text-muted-foreground">
-                      Given: {new Date(vacc.date_given).toLocaleDateString()}
+                      Given: {formatHealthDate(vacc.date_given)}
                     </p>
                     {vacc.expiration_date && (
                       <p
                         className={`text-sm ${isOverdue ? 'text-destructive font-medium' : isExpiringSoon ? 'text-amber-600 font-medium' : 'text-muted-foreground'}`}
                       >
                         {isOverdue ? 'Overdue since' : 'Next Due'}:{' '}
-                        {new Date(vacc.expiration_date).toLocaleDateString()}
+                        {formatHealthDate(vacc.expiration_date)}
                       </p>
                     )}
                   </div>
@@ -289,7 +289,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {new Date(ofa.test_date).toLocaleDateString()}
+                    {formatHealthDate(ofa.test_date)}
                     {ofa.veterinarian ? ` \u2022 ${ofa.veterinarian}` : ''}
                   </p>
                   {ofa.result && <p className="text-sm mt-1">Result: {ofa.result}</p>}
@@ -330,9 +330,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                       {gen.results.length} marker{gen.results.length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(gen.test_date).toLocaleDateString()}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{formatHealthDate(gen.test_date)}</p>
                 </div>
               </div>
               {gen.results.length > 0 && (

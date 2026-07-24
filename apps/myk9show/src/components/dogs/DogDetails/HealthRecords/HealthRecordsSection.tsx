@@ -21,6 +21,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import type { HealthRecordsSectionProps } from './HealthRecordsSection.types';
 import { dispatchHealthItemAsync, importHealthRecords } from './HealthRecordsSection.types';
 import { convertToTimelineEvents, getVaccinationAlerts } from './HealthRecordsSection.helpers';
+import { parseHealthDate } from './healthDateOnly';
 import { HealthRecordsTraditionalView } from './HealthRecordsTraditionalView';
 import type { HealthImportOutcome, ParsedHealthImportRow } from './healthImport';
 import EditVaccinationDialog from './Vaccinations/EditVaccinationDialog';
@@ -300,7 +301,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           </div>
           <ul className="mt-1 space-y-1">
             {vaccinationAlerts.map(v => {
-              const exp = new Date(v.expiration_date!);
+              const exp = parseHealthDate(v.expiration_date!);
               const isOverdue = exp < new Date();
               return (
                 <li

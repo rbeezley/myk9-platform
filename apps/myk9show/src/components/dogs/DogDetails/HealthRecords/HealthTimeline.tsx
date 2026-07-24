@@ -25,6 +25,11 @@ import { cn } from '@/lib/utils';
 import { downloadFile, exportToCSV } from '@/lib/export';
 import type { HealthImportOutcome, ParsedHealthImportRow } from './healthImport';
 import { HealthImportDialog } from './HealthImportDialog';
+import {
+  filterHealthEvents,
+  hasActiveHealthTimelineFilters,
+  type HealthTimelineFilters,
+} from './HealthTimeline.filters';
 
 export interface HealthEvent {
   id: string;
@@ -129,31 +134,24 @@ export function HealthTimeline({
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
 
+  const activeFilters: HealthTimelineFilters = useMemo(
+    () => ({ searchTerm, filterType, selectedYear }),
+    [searchTerm, filterType, selectedYear]
+  );
+  const baselineFilterType = vaccinationsOnly ? 'vaccination' : 'all';
+  const filtersActive = hasActiveHealthTimelineFilters(activeFilters, baselineFilterType);
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilterType(vaccinationsOnly ? 'vaccination' : 'all');
+    setSelectedYear(null);
+  };
+
   const filteredEvents = useMemo(() => {
-    let filtered = events;
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(
-        event =>
-          event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          event.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          event.vetName?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Type filter
-    if (filterType !== 'all') {
-      filtered = filtered.filter(event => event.type === filterType);
-    }
-
-    // Year filter
-    if (selectedYear) {
-      filtered = filtered.filter(event => event.date.getFullYear() === selectedYear);
-    }
-
-    return filtered.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [events, searchTerm, filterType, selectedYear]);
+    return filterHealthEvents(events, activeFilters).sort(
+      (a, b) => b.date.getTime() - a.date.getTime()
+    );
+  }, [events, activeFilters]);
 
   const eventsByYear = useMemo(() => {
     const grouped: Record<number, HealthEvent[]> = {};
@@ -170,6 +168,14 @@ export function HealthTimeline({
   const years = Object.keys(eventsByYear)
     .map(Number)
     .sort((a, b) => b - a);
+
+  // Options for the year filter must come from the full (unfiltered) event
+  // set, not `years`, or picking a year would remove every other year from
+  // the dropdown.
+  const availableYears = useMemo(
+    () => Array.from(new Set(events.map(event => event.date.getFullYear()))).sort((a, b) => b - a),
+    [events]
+  );
 
   const getExportFilename = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -363,9 +369,10 @@ export function HealthTimeline({
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search health records..."
-                  value={''}
+                  value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   className="pl-10"
+                  aria-label="Search health records"
                 />
               </div>
             </div>
@@ -387,13 +394,14 @@ export function HealthTimeline({
               )}
 
               <select
-                value={''}
+                value={selectedYear ?? ''}
                 onChange={e => setSelectedYear(e.target.value ? Number(e.target.value) : null)}
                 className="px-3 py-2 border rounded-md text-sm"
+                aria-label="Filter by year"
               >
                 <option value="">All Years</option>
-                {years.map(year => (
-                  <option key={year} value={''}>
+                {availableYears.map(year => (
+                  <option key={year} value={year}>
                     {year}
                   </option>
                 ))}
@@ -406,6 +414,12 @@ export function HealthTimeline({
               >
                 <Filter className="h-4 w-4" />
               </Button>
+
+              {filtersActive && (
+                <Button variant="outline" size="sm" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -456,15 +470,27 @@ export function HealthTimeline({
         )}
       </AnimatePresence>
 
-      {filteredEvents.length === 0 && (
+      {filteredEvents.length === 0 && events.length > 0 && filtersActive && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Filter className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No records match your filters</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              This dog has {events.length} health record{events.length === 1 ? '' : 's'} — none
+              match the current search, type, or year filter.
+            </p>
+            <Button onClick={clearFilters}>Clear filters</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {events.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Heart className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Health Records Found</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {searchTerm || filterType !== 'all'
-                ? 'Try adjusting your search or filters'
-                : "Start tracking your dog's health by adding the first record"}
+              Start tracking your dog&apos;s health by adding the first record
             </p>
             <Button onClick={onAddEvent}>
               <Plus className="h-4 w-4" />

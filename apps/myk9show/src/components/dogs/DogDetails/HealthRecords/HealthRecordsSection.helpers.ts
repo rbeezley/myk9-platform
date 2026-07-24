@@ -27,6 +27,8 @@ export const convertToTimelineEvents = (
   vaccinations.forEach(vacc => {
     events.push({
       id: `vacc-${vacc.id}`,
+      recordId: vacc.id,
+      recordType: 'vaccination',
       type: 'vaccination' as const,
       title: `${vacc.vaccine_name} Vaccination`,
       description: `Administered by ${vacc.vet_name || 'Unknown'}`,
@@ -46,6 +48,8 @@ export const convertToTimelineEvents = (
   vetVisits.forEach(visit => {
     events.push({
       id: `visit-${visit.id}`,
+      recordId: visit.id,
+      recordType: 'vet_visit',
       type: 'vet_visit' as const,
       title: visit.reason,
       description: visit.notes || 'Routine visit',
@@ -62,6 +66,8 @@ export const convertToTimelineEvents = (
   medications.forEach(med => {
     events.push({
       id: `med-${med.id}`,
+      recordId: med.id,
+      recordType: 'medication',
       type: 'medication' as const,
       title: med.medication_name,
       description: `${med.dosage || ''} - ${med.frequency || ''}`,
@@ -76,6 +82,8 @@ export const convertToTimelineEvents = (
   allergies.forEach(allergy => {
     events.push({
       id: `allergy-${allergy.id}`,
+      recordId: allergy.id,
+      recordType: 'allergy',
       type: 'allergy' as const,
       title: `${allergy.allergen} Allergy`,
       description: allergy.reaction || '',
@@ -90,6 +98,8 @@ export const convertToTimelineEvents = (
   ofaScreenings.forEach(ofa => {
     events.push({
       id: `ofa-${ofa.id}`,
+      recordId: ofa.id,
+      recordType: 'ofa_screening',
       type: 'vaccination' as const, // Reuse closest timeline icon type
       title: `OFA ${ofa.test_type.charAt(0).toUpperCase() + ofa.test_type.slice(1)} Screening`,
       description: `Status: ${ofa.status}${ofa.result ? ` — ${ofa.result}` : ''}`,
@@ -105,6 +115,8 @@ export const convertToTimelineEvents = (
     const markerCount = gen.results.length;
     events.push({
       id: `genetic-${gen.id}`,
+      recordId: gen.id,
+      recordType: 'genetic_screening',
       type: 'vaccination' as const, // Reuse closest timeline icon type
       title: `${gen.provider} Genetic Test`,
       description: `${markerCount} marker${markerCount !== 1 ? 's' : ''} tested`,

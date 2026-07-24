@@ -87,6 +87,15 @@ describe('EnhancedTrainingJournal quick actions', () => {
 });
 
 describe('EnhancedTrainingJournal accessibility', () => {
+  it('keeps existing entries readable and deletable in read-only mode', () => {
+    render(<EnhancedTrainingJournal entries={[entry]} readOnly />);
+
+    expect(screen.queryByRole('button', { name: /new training session/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Container drill' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete Container drill' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view progress report/i })).toBeInTheDocument();
+  });
+
   it('gives the entry form fields programmatic accessible names', () => {
     render(<EnhancedTrainingJournal entries={[entry]} />);
     fireEvent.click(screen.getByRole('button', { name: /new training session/i }));

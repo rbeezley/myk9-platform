@@ -222,4 +222,19 @@ describe('clearAppearanceCache', () => {
     expect(getStoredReduceMotion()).toBeNull();
     expect(getStoredHighContrast()).toBeNull();
   });
+
+  it('resets live appearance state as well as cached values', () => {
+    applyFontScale('1.4');
+    applyLayoutDensity('compact');
+    applyReduceMotion(true);
+    applyHighContrast(true);
+
+    clearAppearanceCache();
+
+    expect(document.documentElement.style.getPropertyValue('--font-scale')).toBe('1');
+    expect(document.documentElement.classList.contains('density-compact')).toBe(false);
+    expect(document.documentElement.classList.contains('density-comfortable')).toBe(true);
+    expect(document.documentElement.classList.contains('reduce-motion')).toBe(false);
+    expect(document.documentElement.classList.contains('high-contrast')).toBe(false);
+  });
 });

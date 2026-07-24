@@ -6,7 +6,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PrimaryTabs, PrimaryTabsContent } from '@/components/common/PrimaryTabs';
 import type { PrimaryTabDef } from '@/components/common/PrimaryTabs';
-import { Pencil, Plus } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import type {
   VaccinationRecord,
   VetVisitRecord,
@@ -29,11 +29,13 @@ interface TraditionalViewProps {
   vaccinationAlerts: VaccinationRecord[];
   now: Date;
   thirtyDaysFromNow: Date;
+  readOnly?: boolean;
   onAddItem: (type: HealthItemType) => void;
   onEditVaccination: (record: VaccinationRecord) => void;
   onEditMedication: (record: MedicationRecord) => void;
   onEditAllergy: (record: AllergyRecord) => void;
   onEditVetVisit: (record: VetVisitRecord) => void;
+  onDeleteItem: (type: HealthItemType, id: string, title: string) => void;
 }
 
 export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
@@ -46,11 +48,13 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
   vaccinationAlerts,
   now,
   thirtyDaysFromNow,
+  readOnly = false,
   onAddItem,
   onEditVaccination,
   onEditMedication,
   onEditAllergy,
   onEditVetVisit,
+  onDeleteItem,
 }) => {
   const [activeTab, setActiveTab] = useState('vetVisits');
 
@@ -71,10 +75,12 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       <PrimaryTabsContent value="vetVisits" className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Vet Visits</h3>
-          <Button size="sm" onClick={() => onAddItem('vet_visit')}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Vet Visit
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => onAddItem('vet_visit')}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Vet Visit
+            </Button>
+          )}
         </div>
         <div className="grid gap-4">
           {vetVisitsData.length === 0 && (
@@ -95,14 +101,24 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                 {visit.cost != null && visit.cost > 0 && (
                   <span className="text-sm font-medium">${visit.cost}</span>
                 )}
+                {!readOnly && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEditVetVisit(visit)}
+                    aria-label={`Edit ${visit.reason}`}
+                  >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
-                  size="sm"
-                  onClick={() => onEditVetVisit(visit)}
-                  aria-label={`Edit ${visit.reason}`}
+                  size="icon"
+                  onClick={() => onDeleteItem('vet_visit', visit.id, visit.reason)}
+                  aria-label={`Delete ${visit.reason}`}
                 >
-                  <Pencil className="h-4 w-4 mr-1" />
-                  Edit
+                  <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </div>
             </div>
@@ -113,10 +129,12 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       <PrimaryTabsContent value="vaccinations" className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Vaccinations</h3>
-          <Button size="sm" onClick={() => onAddItem('vaccination')}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Vaccination
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => onAddItem('vaccination')}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Vaccination
+            </Button>
+          )}
         </div>
         <div className="grid gap-4">
           {vaccinationsData.length === 0 && (
@@ -151,14 +169,24 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                   <span className="text-xs text-muted-foreground">
                     {vacc.vet_name || 'Unknown'}
                   </span>
+                  {!readOnly && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEditVaccination(vacc)}
+                      aria-label={`Edit ${vacc.vaccine_name}`}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
-                    size="sm"
-                    onClick={() => onEditVaccination(vacc)}
-                    aria-label={`Edit ${vacc.vaccine_name}`}
+                    size="icon"
+                    onClick={() => onDeleteItem('vaccination', vacc.id, vacc.vaccine_name)}
+                    aria-label={`Delete ${vacc.vaccine_name}`}
                   >
-                    <Pencil className="h-4 w-4 mr-1" />
-                    Edit
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
               </div>
@@ -170,10 +198,12 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       <PrimaryTabsContent value="medications" className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Medications</h3>
-          <Button size="sm" onClick={() => onAddItem('medication')}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Medication
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => onAddItem('medication')}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Medication
+            </Button>
+          )}
         </div>
         <div className="grid gap-4">
           {medicationsData.length === 0 && (
@@ -196,14 +226,24 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     Active
                   </span>
                 )}
+                {!readOnly && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEditMedication(med)}
+                    aria-label={`Edit ${med.medication_name}`}
+                  >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
-                  size="sm"
-                  onClick={() => onEditMedication(med)}
-                  aria-label={`Edit ${med.medication_name}`}
+                  size="icon"
+                  onClick={() => onDeleteItem('medication', med.id, med.medication_name)}
+                  aria-label={`Delete ${med.medication_name}`}
                 >
-                  <Pencil className="h-4 w-4 mr-1" />
-                  Edit
+                  <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </div>
             </div>
@@ -214,10 +254,12 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       <PrimaryTabsContent value="allergies" className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Allergies</h3>
-          <Button size="sm" onClick={() => onAddItem('allergy')}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Allergy
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => onAddItem('allergy')}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Allergy
+            </Button>
+          )}
         </div>
         <div className="grid gap-4">
           {allergiesData.length === 0 && (
@@ -247,14 +289,24 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     {allergy.severity.replace('_', ' ')}
                   </span>
                 )}
+                {!readOnly && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEditAllergy(allergy)}
+                    aria-label={`Edit ${allergy.allergen}`}
+                  >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
-                  size="sm"
-                  onClick={() => onEditAllergy(allergy)}
-                  aria-label={`Edit ${allergy.allergen}`}
+                  size="icon"
+                  onClick={() => onDeleteItem('allergy', allergy.id, allergy.allergen)}
+                  aria-label={`Delete ${allergy.allergen}`}
                 >
-                  <Pencil className="h-4 w-4 mr-1" />
-                  Edit
+                  <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </div>
             </div>
@@ -265,10 +317,12 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       <PrimaryTabsContent value="ofaScreenings" className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">OFA / Health Screenings</h3>
-          <Button size="sm" onClick={() => onAddItem('ofa_screening')}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add OFA Screening
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => onAddItem('ofa_screening')}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add OFA Screening
+            </Button>
+          )}
         </div>
         <div className="grid gap-4">
           {ofaScreeningsData.length === 0 && (
@@ -300,6 +354,16 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     {ofa.certification_number}
                   </span>
                 )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    onDeleteItem('ofa_screening', ofa.id, `${ofa.test_type} screening`)
+                  }
+                  aria-label={`Delete ${ofa.test_type} screening`}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
               </div>
             </div>
           ))}
@@ -309,10 +373,12 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       <PrimaryTabsContent value="geneticScreenings" className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Genetic Tests</h3>
-          <Button size="sm" onClick={() => onAddItem('genetic_screening')}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Genetic Test
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => onAddItem('genetic_screening')}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Genetic Test
+            </Button>
+          )}
         </div>
         <div className="grid gap-4">
           {geneticScreeningsData.length === 0 && (
@@ -333,6 +399,16 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                   <p className="text-sm text-muted-foreground">{formatHealthDate(gen.test_date)}</p>
                 </div>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() =>
+                  onDeleteItem('genetic_screening', gen.id, `${gen.provider} genetic test`)
+                }
+                aria-label={`Delete ${gen.provider} genetic test`}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
               {gen.results.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {gen.results.map((marker, idx) => (

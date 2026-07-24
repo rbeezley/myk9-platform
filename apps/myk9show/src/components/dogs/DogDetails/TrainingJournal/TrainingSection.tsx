@@ -62,9 +62,10 @@ const dbToEnhanced = (entry: TrainingJournalEntry): EnhancedTrainingEntry => ({
 
 interface TrainingSectionProps {
   dogId: string;
+  readOnly?: boolean;
 }
 
-export default function TrainingSection({ dogId }: TrainingSectionProps) {
+export default function TrainingSection({ dogId, readOnly = false }: TrainingSectionProps) {
   const { user } = useAuth();
 
   const { data: entries = [], isLoading, isError, error } = useTrainingEntriesQuery(dogId);
@@ -192,6 +193,7 @@ export default function TrainingSection({ dogId }: TrainingSectionProps) {
       }}
       onCreateGoal={handleCreateGoal}
       onToggleGoal={handleToggleGoal}
+      readOnly={readOnly}
     />
   );
 }

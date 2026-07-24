@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useCallback, lazy, Suspense } from 'react';
+import { toast } from 'sonner';
+import { friendlyDbError } from '@/utils/friendlyDbError';
 import { HealthTimeline } from './HealthTimeline';
 import { Button } from '@/components/ui/button';
 import { Heart, Calendar, List, AlertTriangle } from 'lucide-react';
@@ -16,6 +18,12 @@ import {
   useUpdateMedicationMutation,
   useUpdateAllergyMutation,
   useUpdateVetVisitMutation,
+  useDeleteVaccinationMutation,
+  useDeleteMedicationMutation,
+  useDeleteAllergyMutation,
+  useDeleteVetVisitMutation,
+  useDeleteOFAScreeningMutation,
+  useDeleteGeneticScreeningMutation,
 } from '@/hooks/queries/useHealthDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type { HealthRecordsSectionProps } from './HealthRecordsSection.types';
@@ -23,6 +31,7 @@ import { dispatchHealthItemAsync, importHealthRecords } from './HealthRecordsSec
 import { convertToTimelineEvents, getVaccinationAlerts } from './HealthRecordsSection.helpers';
 import { parseHealthDate } from './healthDateOnly';
 import { HealthRecordsTraditionalView } from './HealthRecordsTraditionalView';
+import HealthDeleteConfirmDialog from './HealthDeleteConfirmDialog';
 import type { HealthImportOutcome, ParsedHealthImportRow } from './healthImport';
 import EditVaccinationDialog from './Vaccinations/EditVaccinationDialog';
 import EditMedicationDialog from './Medications/EditMedicationDialog';
@@ -38,11 +47,19 @@ import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 const AddHealthItemDialog = lazy(() => import('./AddHealthItemDialog'));
 
+interface PendingHealthDelete {
+  type: HealthItemType;
+  id: string;
+  title: string;
+}
+
 const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
   user,
   dogId = '',
   vaccinationsOnly = false,
+  readOnly: readOnlyProp = false,
 }) => {
+  const readOnly = readOnlyProp || (!user.isPremium && !vaccinationsOnly);
   const [viewMode, setViewMode] = useState<'timeline' | 'traditional'>('timeline');
   const [addDialogType, setAddDialogType] = useState<HealthItemType | null>(null);
   const [editingVaccination, setEditingVaccination] = useState<VaccinationRecord | null>(null);
@@ -86,6 +103,13 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
   const updateMedication = useUpdateMedicationMutation();
   const updateAllergy = useUpdateAllergyMutation();
   const updateVetVisit = useUpdateVetVisitMutation();
+  const deleteVaccination = useDeleteVaccinationMutation();
+  const deleteMedication = useDeleteMedicationMutation();
+  const deleteAllergy = useDeleteAllergyMutation();
+  const deleteVetVisit = useDeleteVetVisitMutation();
+  const deleteOFAScreening = useDeleteOFAScreeningMutation();
+  const deleteGeneticScreening = useDeleteGeneticScreeningMutation();
+  const [pendingDelete, setPendingDelete] = useState<PendingHealthDelete | null>(null);
 
   const vaccinationsData = useMemo(
     () => (vaccinationsOnly ? vaccinationsOnlyQuery.data : vaccinations.data) || [],
@@ -171,6 +195,71 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
     [mutations, authUser?.id]
   );
 
+  const requestDelete = useCallback(
+    (type: HealthItemType, id: string, title: string) => {
+      if (
+        deleteVaccination.isPending ||
+        deleteMedication.isPending ||
+        deleteAllergy.isPending ||
+        deleteVetVisit.isPending ||
+        deleteOFAScreening.isPending ||
+        deleteGeneticScreening.isPending
+      ) {
+        return;
+      }
+      setPendingDelete({ type, id, title });
+    },
+    [
+      deleteAllergy.isPending,
+      deleteGeneticScreening.isPending,
+      deleteMedication.isPending,
+      deleteOFAScreening.isPending,
+      deleteVaccination.isPending,
+      deleteVetVisit.isPending,
+    ]
+  );
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!pendingDelete) return;
+
+    const { type, id } = pendingDelete;
+    try {
+      switch (type) {
+        case 'vaccination':
+          await deleteVaccination.mutateAsync(id);
+          break;
+        case 'medication':
+          await deleteMedication.mutateAsync(id);
+          break;
+        case 'allergy':
+          await deleteAllergy.mutateAsync(id);
+          break;
+        case 'vet_visit':
+          await deleteVetVisit.mutateAsync(id);
+          break;
+        case 'ofa_screening':
+          await deleteOFAScreening.mutateAsync(id);
+          break;
+        case 'genetic_screening':
+          await deleteGeneticScreening.mutateAsync(id);
+          break;
+      }
+      setPendingDelete(null);
+    } catch (error) {
+      toast.error(
+        friendlyDbError(error, "We couldn't delete this health record. Please try again.")
+      );
+    }
+  }, [
+    deleteAllergy,
+    deleteGeneticScreening,
+    deleteMedication,
+    deleteOFAScreening,
+    deleteVaccination,
+    deleteVetVisit,
+    pendingDelete,
+  ]);
+
   const handleSaveVaccination = useCallback(
     (record: VaccinationRecord) => {
       setVaccinationSaveError(null);
@@ -238,18 +327,6 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
     },
     [updateVetVisit]
   );
-
-  if (!user.isPremium && !vaccinationsOnly) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Heart className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Health Records</h3>
-        <p className="text-muted-foreground mb-4">
-          Track vaccinations, vet visits, medications, and more with our enhanced timeline view.
-        </p>
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -356,7 +433,13 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           onEventClick={() => {}}
           onAddEvent={() => setAddDialogType('vaccination')}
           onImportRecords={handleImportRecords}
+          onDeleteEvent={event => {
+            if (event.recordId && event.recordType) {
+              requestDelete(event.recordType, event.recordId, event.title);
+            }
+          }}
           vaccinationsOnly={vaccinationsOnly}
+          readOnly={readOnly}
         />
       ) : (
         <HealthRecordsTraditionalView
@@ -369,15 +452,17 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           vaccinationAlerts={vaccinationAlerts}
           now={now}
           thirtyDaysFromNow={thirtyDaysFromNow}
+          readOnly={readOnly}
           onAddItem={setAddDialogType}
           onEditVaccination={setEditingVaccination}
           onEditMedication={setEditingMedication}
           onEditAllergy={setEditingAllergy}
           onEditVetVisit={setEditingVetVisit}
+          onDeleteItem={requestDelete}
         />
       )}
 
-      {addDialogType && (
+      {addDialogType && !readOnly && (
         <Suspense fallback={null}>
           <AddHealthItemDialog
             open={!!addDialogType}
@@ -449,6 +534,22 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           saveError={vetVisitSaveError}
         />
       )}
+
+      <HealthDeleteConfirmDialog
+        recordTitle={pendingDelete?.title ?? null}
+        isSubmitting={
+          deleteVaccination.isPending ||
+          deleteMedication.isPending ||
+          deleteAllergy.isPending ||
+          deleteVetVisit.isPending ||
+          deleteOFAScreening.isPending ||
+          deleteGeneticScreening.isPending
+        }
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          void handleDeleteConfirm();
+        }}
+      />
     </div>
   );
 };

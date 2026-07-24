@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -16,7 +16,6 @@ import {
   Filter,
   Download,
   Upload,
-  Clock,
   AlertTriangle,
   CheckCircle,
   Plus,
@@ -31,9 +30,13 @@ import {
   hasActiveHealthTimelineFilters,
   type HealthTimelineFilters,
 } from './HealthTimeline.filters';
+import { HealthTimelineEvent } from './HealthTimelineEvent';
 
 export interface HealthEvent {
   id: string;
+  recordId?: string;
+  recordType?:
+    'vaccination' | 'medication' | 'allergy' | 'vet_visit' | 'ofa_screening' | 'genetic_screening';
   type: 'vaccination' | 'vet_visit' | 'medication' | 'allergy' | 'surgery' | 'checkup';
   title: string;
   description?: string | undefined;
@@ -61,9 +64,11 @@ interface HealthTimelineProps {
   events: HealthEvent[];
   onEventClick?: (event: HealthEvent) => void;
   onAddEvent?: () => void;
+  onDeleteEvent?: (event: HealthEvent) => void;
   onImportRecords?:
     ((records: ParsedHealthImportRow[]) => Promise<HealthImportOutcome>) | undefined;
   vaccinationsOnly?: boolean;
+  readOnly?: boolean;
 }
 
 const eventTypeConfig = {
@@ -121,13 +126,25 @@ const exportColumns = [
   'Attachments',
 ] as const;
 
+const getStatusBadge = (status: string, expiration?: Date) => {
+  if (status === 'overdue' || (expiration && expiration < new Date())) {
+    return <Badge variant="destructive">Overdue</Badge>;
+  }
+  if (status === 'scheduled') {
+    return <Badge variant="secondary">Scheduled</Badge>;
+  }
+  return <Badge variant="default">Completed</Badge>;
+};
+
 export function HealthTimeline({
   dogId,
   events,
   onEventClick,
   onAddEvent,
+  onDeleteEvent,
   onImportRecords,
   vaccinationsOnly = false,
+  readOnly = false,
 }: HealthTimelineProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>(vaccinationsOnly ? 'vaccination' : 'all');
@@ -217,128 +234,6 @@ export function HealthTimeline({
     exportToCSV(exportRows, filename, { dateFormat: 'YYYY-MM-DD' });
   };
 
-  const getStatusBadge = (status: string, expiration?: Date) => {
-    if (status === 'overdue' || (expiration && expiration < new Date())) {
-      return <Badge variant="destructive">Overdue</Badge>;
-    }
-    if (status === 'scheduled') {
-      return <Badge variant="secondary">Scheduled</Badge>;
-    }
-    return <Badge variant="default">Completed</Badge>;
-  };
-
-  const EventItem = ({ event, isLast = false }: { event: HealthEvent; isLast?: boolean }) => {
-    const config = eventTypeConfig[event.type] ?? defaultEventTypeConfig;
-    const IconComponent = config.icon;
-
-    return (
-      <motion.div
-        layout
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        className="relative"
-      >
-        {viewMode === 'timeline' && !isLast && (
-          <div className="absolute left-6 top-16 w-0.5 h-full bg-border z-0" />
-        )}
-
-        <div className="flex gap-4">
-          {viewMode === 'timeline' && (
-            <div
-              className={cn(
-                'flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center z-10',
-                config.color
-              )}
-            >
-              <IconComponent className="h-6 w-6 text-white" />
-            </div>
-          )}
-
-          <Card
-            className={cn(
-              'flex-1 cursor-pointer hover:shadow-md transition-shadow',
-              viewMode === 'grid' && 'h-full'
-            )}
-            onClick={() => onEventClick?.(event)}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  {viewMode === 'grid' && (
-                    <div
-                      className={cn(
-                        'w-8 h-8 rounded-full flex items-center justify-center',
-                        config.color
-                      )}
-                    >
-                      <IconComponent className="h-4 w-4 text-white" />
-                    </div>
-                  )}
-                  <div>
-                    <CardTitle className="text-lg">{event.title}</CardTitle>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      {event.date.toLocaleDateString()}
-                      {event.vetName && (
-                        <>
-                          <span>•</span>
-                          <span>Dr. {event.vetName}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {getStatusBadge(event.status, event.expiration)}
-                  <Badge variant="outline">{config.label}</Badge>
-                </div>
-              </div>
-            </CardHeader>
-
-            {(event.description || event.attachments?.length || event.cost) && (
-              <CardContent className="pt-0">
-                {event.description && (
-                  <p className="text-sm text-muted-foreground mb-3">{event.description}</p>
-                )}
-
-                {event.attachments && event.attachments.length > 0 && (
-                  <div className="flex gap-2 mb-3">
-                    {event.attachments.slice(0, 3).map(attachment => (
-                      <div
-                        key={attachment.id}
-                        className="flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded"
-                      >
-                        <FileText className="h-3 w-3" />
-                        {attachment.name}
-                      </div>
-                    ))}
-                    {event.attachments.length > 3 && (
-                      <div className="text-xs text-muted-foreground px-2 py-1">
-                        +{event.attachments.length - 3} more
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between">
-                  {event.cost && <span className="text-sm font-medium">${event.cost}</span>}
-
-                  {event.expiration && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      Next: {event.expiration.toLocaleDateString()}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        </div>
-      </motion.div>
-    );
-  };
-
   return (
     <div ref={containerRef} className="space-y-6" data-testid="health-timeline-container">
       {/* Header Controls */}
@@ -356,15 +251,17 @@ export function HealthTimeline({
 
         {!vaccinationsOnly && (
           <div className={cn('flex flex-wrap gap-2', isNarrow && 'w-full')}>
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn(isNarrow && 'flex-1')}
-              onClick={() => setIsImportOpen(true)}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Import Records
-            </Button>
+            {!readOnly && (
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(isNarrow && 'flex-1')}
+                onClick={() => setIsImportOpen(true)}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import Records
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -374,10 +271,12 @@ export function HealthTimeline({
               <Download className="h-4 w-4 mr-2" />
               Export Timeline
             </Button>
-            <Button size="sm" className={cn(isNarrow && 'flex-1')} onClick={onAddEvent}>
-              <Plus className="h-4 w-4" />
-              Add Event
-            </Button>
+            {!readOnly && (
+              <Button size="sm" className={cn(isNarrow && 'flex-1')} onClick={onAddEvent}>
+                <Plus className="h-4 w-4" />
+                Add Event
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -478,9 +377,14 @@ export function HealthTimeline({
                 </h3>
                 <div className="space-y-6">
                   {eventsByYear[year].map((event, index) => (
-                    <EventItem
+                    <HealthTimelineEvent
                       key={event.id}
                       event={event}
+                      config={eventTypeConfig[event.type] ?? defaultEventTypeConfig}
+                      viewMode={viewMode}
+                      getStatusBadge={getStatusBadge}
+                      {...(onEventClick ? { onEventClick } : {})}
+                      {...(onDeleteEvent ? { onDeleteEvent } : {})}
                       isLast={index === eventsByYear[year].length - 1}
                     />
                   ))}
@@ -498,7 +402,15 @@ export function HealthTimeline({
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
           >
             {filteredEvents.map(event => (
-              <EventItem key={event.id} event={event} />
+              <HealthTimelineEvent
+                key={event.id}
+                event={event}
+                config={eventTypeConfig[event.type] ?? defaultEventTypeConfig}
+                viewMode={viewMode}
+                getStatusBadge={getStatusBadge}
+                {...(onEventClick ? { onEventClick } : {})}
+                {...(onDeleteEvent ? { onDeleteEvent } : {})}
+              />
             ))}
           </motion.div>
         )}
@@ -526,10 +438,12 @@ export function HealthTimeline({
             <p className="text-sm text-muted-foreground mb-4">
               Start tracking your dog&apos;s health by adding the first record
             </p>
-            <Button onClick={onAddEvent}>
-              <Plus className="h-4 w-4" />
-              Add Health Record
-            </Button>
+            {!readOnly && (
+              <Button onClick={onAddEvent}>
+                <Plus className="h-4 w-4" />
+                Add Health Record
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

@@ -21,9 +21,10 @@ import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 interface PedigreeSectionProps {
   dogId: string;
+  readOnly?: boolean;
 }
 
-export default function PedigreeSection({ dogId }: PedigreeSectionProps) {
+export default function PedigreeSection({ dogId, readOnly = false }: PedigreeSectionProps) {
   const { user } = useAuthContext();
   const { data: ancestors = [], isLoading, isError } = usePedigreeQuery(dogId);
   const upsertMutation = useUpsertPedigreeAncestorMutation();
@@ -158,37 +159,42 @@ export default function PedigreeSection({ dogId }: PedigreeSectionProps) {
         ancestors={ancestors}
         onAdd={handleAdd}
         onView={handleView}
-        onEdit={handleEdit}
+        onEdit={readOnly ? undefined : handleEdit}
         onDelete={handleDeleteClick}
+        readOnly={readOnly}
       />
 
-      <PedigreeAncestorAddDialog
-        open={addDialogOpen}
-        position={addPosition}
-        dogId={dogId}
-        ownerId={user?.id ?? ''}
-        onClose={() => {
-          setAddDialogOpen(false);
-          setAddPosition(null);
-          setAddError(null);
-        }}
-        onAdd={handleAddSave}
-        isSaving={upsertMutation.isPending}
-        saveError={addError}
-      />
+      {!readOnly && (
+        <PedigreeAncestorAddDialog
+          open={addDialogOpen}
+          position={addPosition}
+          dogId={dogId}
+          ownerId={user?.id ?? ''}
+          onClose={() => {
+            setAddDialogOpen(false);
+            setAddPosition(null);
+            setAddError(null);
+          }}
+          onAdd={handleAddSave}
+          isSaving={upsertMutation.isPending}
+          saveError={addError}
+        />
+      )}
 
-      <PedigreeAncestorEditDialog
-        open={editDialogOpen}
-        ancestor={editAncestor}
-        onClose={() => {
-          setEditDialogOpen(false);
-          setEditAncestor(null);
-          setEditError(null);
-        }}
-        onSave={handleEditSave}
-        isSaving={updateMutation.isPending}
-        saveError={editError}
-      />
+      {!readOnly && (
+        <PedigreeAncestorEditDialog
+          open={editDialogOpen}
+          ancestor={editAncestor}
+          onClose={() => {
+            setEditDialogOpen(false);
+            setEditAncestor(null);
+            setEditError(null);
+          }}
+          onSave={handleEditSave}
+          isSaving={updateMutation.isPending}
+          saveError={editError}
+        />
+      )}
 
       <PedigreeAncestorDetailsDialog
         open={detailsDialogOpen}

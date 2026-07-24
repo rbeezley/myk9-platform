@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import TrainingDeleteConfirmDialog from './TrainingDeleteConfirmDialog';
-import { RichTextEditor } from './RichTextEditor';
+import { TrainingEntryForm } from './TrainingEntryForm';
+import { progressLabels } from './TrainingJournal.constants';
 import {
   BookOpen,
   Plus,
@@ -51,6 +52,7 @@ interface EnhancedTrainingJournalProps {
     sport_tag: string | null;
   }) => Promise<void> | void;
   onToggleGoal?: (goal: TrainingGoal) => void;
+  readOnly?: boolean;
 }
 
 const progressColors = {
@@ -58,13 +60,6 @@ const progressColors = {
   good: 'bg-blue-500',
   fair: 'bg-yellow-500',
   needs_work: 'bg-red-500',
-};
-
-const progressLabels = {
-  excellent: 'Excellent',
-  good: 'Good',
-  fair: 'Fair',
-  needs_work: 'Needs Work',
 };
 
 export function EnhancedTrainingJournal({
@@ -75,6 +70,7 @@ export function EnhancedTrainingJournal({
   onDeleteEntry,
   onCreateGoal,
   onToggleGoal,
+  readOnly = false,
 }: EnhancedTrainingJournalProps) {
   const [isAddingEntry, setIsAddingEntry] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TrainingEntry | null>(null);
@@ -111,132 +107,6 @@ export function EnhancedTrainingJournal({
         100
       : 0;
 
-  const TrainingEntryForm = ({
-    entry,
-    onSubmit,
-    onCancel,
-  }: {
-    entry?: TrainingEntry;
-    onSubmit: (data: Omit<TrainingEntry, 'id'>) => void;
-    onCancel: () => void;
-  }) => {
-    const [formData, setFormData] = useState({
-      title: entry?.title || '',
-      content: entry?.content || '',
-      date: entry?.date || new Date(),
-      duration: entry?.duration || 30,
-      skills: entry?.skills || [],
-      difficulty: entry?.difficulty || 3,
-      progress: entry?.progress || 'good',
-      photos: entry?.photos || [],
-      notes: entry?.notes || '',
-      goals: entry?.goals || [],
-    });
-
-    const handleSubmit = () => {
-      onSubmit(formData as Omit<TrainingEntry, 'id'>);
-      onCancel();
-    };
-
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="training-entry-title" className="block text-sm font-medium mb-2">
-              Session Title
-            </label>
-            <Input
-              id="training-entry-title"
-              value={formData.title}
-              onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="e.g., Basic obedience training"
-              className="min-h-11"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="training-entry-duration" className="block text-sm font-medium mb-2">
-              Duration (minutes)
-            </label>
-            <Input
-              id="training-entry-duration"
-              type="number"
-              value={formData.duration}
-              onChange={e =>
-                setFormData(prev => ({ ...prev, duration: parseInt(e.target.value) || 0 }))
-              }
-              className="min-h-11"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="training-entry-difficulty" className="block text-sm font-medium mb-2">
-              Difficulty
-            </label>
-            <select
-              id="training-entry-difficulty"
-              value={formData.difficulty}
-              onChange={e =>
-                setFormData(prev => ({
-                  ...prev,
-                  difficulty: parseInt(e.target.value) as 1 | 2 | 3 | 4 | 5,
-                }))
-              }
-              className="w-full px-3 py-2 border rounded-md min-h-11"
-            >
-              {[1, 2, 3, 4, 5].map(level => (
-                <option key={level} value={level}>
-                  {'★'.repeat(level)} {level === 1 ? 'Very Easy' : level === 5 ? 'Very Hard' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="training-entry-progress" className="block text-sm font-medium mb-2">
-              Progress
-            </label>
-            <select
-              id="training-entry-progress"
-              value={formData.progress}
-              onChange={e =>
-                setFormData(prev => ({
-                  ...prev,
-                  progress: e.target.value as TrainingEntry['progress'],
-                }))
-              }
-              className="w-full px-3 py-2 border rounded-md min-h-11"
-            >
-              {Object.entries(progressLabels).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2">Training Notes</label>
-          <RichTextEditor
-            content={formData.content}
-            onChange={content => setFormData(prev => ({ ...prev, content }))}
-            placeholder="Describe what you worked on, how your dog performed, and any observations..."
-          />
-        </div>
-
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onCancel} className="min-h-11">
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!formData.title.trim()} className="min-h-11">
-            {entry ? 'Update' : 'Add'} Entry
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-6">
       {/* Header and Stats */}
@@ -271,10 +141,12 @@ export function EnhancedTrainingJournal({
             <CardTitle className="text-lg">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button onClick={() => setIsAddingEntry(true)} className="w-full min-h-11">
-              <Plus className="h-4 w-4 mr-2" />
-              New Training Session
-            </Button>
+            {!readOnly && (
+              <Button onClick={() => setIsAddingEntry(true)} className="w-full min-h-11">
+                <Plus className="h-4 w-4 mr-2" />
+                New Training Session
+              </Button>
+            )}
             <Button
               variant="outline"
               className="w-full min-h-11"
@@ -283,14 +155,16 @@ export function EnhancedTrainingJournal({
               <TrendingUp className="h-4 w-4 mr-2" />
               View Progress Report
             </Button>
-            <Button
-              variant="outline"
-              className="w-full min-h-11"
-              onClick={() => setIsGoalsOpen(true)}
-            >
-              <Award className="h-4 w-4 mr-2" />
-              Set Training Goals
-            </Button>
+            {!readOnly && (
+              <Button
+                variant="outline"
+                className="w-full min-h-11"
+                onClick={() => setIsGoalsOpen(true)}
+              >
+                <Award className="h-4 w-4 mr-2" />
+                Set Training Goals
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -388,15 +262,17 @@ export function EnhancedTrainingJournal({
                       {progressLabels[entry.progress]}
                     </Badge>
                     <div className="flex gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="min-h-11"
-                        aria-label={`Edit ${entry.title}`}
-                        onClick={() => setEditingEntry(entry)}
-                      >
-                        Edit
-                      </Button>
+                      {!readOnly && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="min-h-11"
+                          aria-label={`Edit ${entry.title}`}
+                          onClick={() => setEditingEntry(entry)}
+                        >
+                          Edit
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"
@@ -423,12 +299,16 @@ export function EnhancedTrainingJournal({
             <p className="text-sm text-muted-foreground mb-4">
               {searchTerm
                 ? 'Try adjusting your search'
-                : 'Start documenting your training journey!'}
+                : readOnly
+                  ? 'No training sessions recorded yet.'
+                  : 'Start documenting your training journey!'}
             </p>
-            <Button onClick={() => setIsAddingEntry(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add First Session
-            </Button>
+            {!readOnly && (
+              <Button onClick={() => setIsAddingEntry(true)} className="min-h-11">
+                <Plus className="h-4 w-4 mr-2" />
+                Add First Session
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
@@ -441,39 +321,43 @@ export function EnhancedTrainingJournal({
       />
 
       {/* Add Entry Dialog */}
-      <Dialog open={isAddingEntry} onOpenChange={setIsAddingEntry}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add Training Session</DialogTitle>
-          </DialogHeader>
-          <TrainingEntryForm
-            onSubmit={data => {
-              onAddEntry?.(data);
-              setIsAddingEntry(false);
-            }}
-            onCancel={() => setIsAddingEntry(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      {!readOnly && (
+        <Dialog open={isAddingEntry} onOpenChange={setIsAddingEntry}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Add Training Session</DialogTitle>
+            </DialogHeader>
+            <TrainingEntryForm
+              onSubmit={data => {
+                onAddEntry?.(data);
+                setIsAddingEntry(false);
+              }}
+              onCancel={() => setIsAddingEntry(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Edit Entry Dialog */}
-      <Dialog open={!!editingEntry} onOpenChange={() => setEditingEntry(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Training Session</DialogTitle>
-          </DialogHeader>
-          {editingEntry && (
-            <TrainingEntryForm
-              entry={editingEntry}
-              onSubmit={data => {
-                onUpdateEntry?.(editingEntry.id, data);
-                setEditingEntry(null);
-              }}
-              onCancel={() => setEditingEntry(null)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {!readOnly && (
+        <Dialog open={!!editingEntry} onOpenChange={() => setEditingEntry(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Training Session</DialogTitle>
+            </DialogHeader>
+            {editingEntry && (
+              <TrainingEntryForm
+                entry={editingEntry}
+                onSubmit={data => {
+                  onUpdateEntry?.(editingEntry.id, data);
+                  setEditingEntry(null);
+                }}
+                onCancel={() => setEditingEntry(null)}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
 
       <TrainingProgressReportDialog
         open={isProgressOpen}
@@ -481,13 +365,15 @@ export function EnhancedTrainingJournal({
         entries={entries}
       />
 
-      <TrainingGoalsDialog
-        open={isGoalsOpen}
-        onOpenChange={setIsGoalsOpen}
-        goals={goals}
-        onCreateGoal={goal => onCreateGoal?.(goal)}
-        onToggleGoal={goal => onToggleGoal?.(goal)}
-      />
+      {!readOnly && (
+        <TrainingGoalsDialog
+          open={isGoalsOpen}
+          onOpenChange={setIsGoalsOpen}
+          goals={goals}
+          onCreateGoal={goal => onCreateGoal?.(goal)}
+          onToggleGoal={goal => onToggleGoal?.(goal)}
+        />
+      )}
     </div>
   );
 }

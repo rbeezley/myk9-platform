@@ -7,10 +7,11 @@ import { getOrderedPedigreeRelationshipSlots } from './pedigreeRelationshipGroup
 
 interface PedigreeTreeProps {
   ancestors: PedigreeAncestor[];
-  onAdd: (position: PedigreePosition) => void;
-  onView: (ancestor: PedigreeAncestor) => void;
-  onEdit: (ancestor: PedigreeAncestor) => void;
-  onDelete: (ancestor: PedigreeAncestor) => void;
+  onAdd?: ((position: PedigreePosition) => void) | undefined;
+  onView: ((ancestor: PedigreeAncestor) => void) | undefined;
+  onEdit?: ((ancestor: PedigreeAncestor) => void) | undefined;
+  onDelete: ((ancestor: PedigreeAncestor) => void) | undefined;
+  readOnly?: boolean;
 }
 
 // Below this measured content-container width the visual tree's grandparent
@@ -34,6 +35,7 @@ const PedigreeTree: React.FC<PedigreeTreeProps> = ({
   onView,
   onEdit,
   onDelete,
+  readOnly = false,
 }) => {
   const { ref, width } = useElementWidth<HTMLDivElement>();
   // Unmeasured on first render — default to the grouped layout so nothing
@@ -50,10 +52,10 @@ const PedigreeTree: React.FC<PedigreeTreeProps> = ({
         ancestor={ancestor}
         position={position}
         displayRole={POSITION_SHORT_NAMES[position]}
-        onAdd={() => onAdd(position)}
-        onView={ancestor ? () => onView(ancestor) : undefined}
-        onEdit={ancestor ? () => onEdit(ancestor) : undefined}
-        onDelete={ancestor ? () => onDelete(ancestor) : undefined}
+        onAdd={readOnly ? undefined : () => onAdd?.(position)}
+        onView={ancestor ? () => onView?.(ancestor) : undefined}
+        onEdit={readOnly || !ancestor ? undefined : () => onEdit?.(ancestor)}
+        onDelete={ancestor ? () => onDelete?.(ancestor) : undefined}
       />
     );
   };

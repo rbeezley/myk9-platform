@@ -38,7 +38,6 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
               dogId={dog.id}
               view="health"
               isPremium={isPremium}
-              locked={false}
               vaccinationsOnly
             />
           </Suspense>
@@ -81,7 +80,6 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
             view={(state.view as RecordsView) ?? 'health'}
             onViewChange={setView}
             isPremium={isPremium}
-            locked={locked}
           />
         </div>
       )}

@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { BlurGate } from '@/components/common/BlurGate';
+import { PremiumReadOnlyNotice } from '@/components/common/PremiumReadOnlyNotice';
 import { TabContentSkeleton } from './Skeletons';
 import { SecondaryViewNav, type SecondaryViewDef } from './DogDetailsSectionNav';
 import type { RecordsView } from './dogDetailsSections';
@@ -16,22 +16,20 @@ interface RecordsSectionProps {
   dogId: string;
   view: RecordsView;
   isPremium: boolean;
-  locked: boolean;
   onViewChange?: (view: RecordsView) => void;
   /** Secretary surface: Health only, no Premium gate, vaccinations-only content. */
   vaccinationsOnly?: boolean;
 }
 
 /**
- * Records groups Health, Training, and Pedigree — all Premium for the
- * exhibitor role — behind one secondary navigation and one coherent
- * locked/read-only treatment, rather than three separately gated peer tabs.
+ * Records groups Health, Training, and Pedigree behind one secondary
+ * navigation. Free exhibitors can keep using their existing records in a
+ * read-only state while add/edit actions remain Premium.
  */
 const RecordsSection: React.FC<RecordsSectionProps> = ({
   dogId,
   view,
   isPremium,
-  locked,
   onViewChange,
   vaccinationsOnly = false,
 }) => {
@@ -44,13 +42,15 @@ const RecordsSection: React.FC<RecordsSectionProps> = ({
   }
 
   const views: SecondaryViewDef[] = [
-    { id: 'health', label: 'Health Records', locked },
-    { id: 'training', label: 'Training Journal', locked },
-    { id: 'pedigree', label: 'Pedigree', locked },
+    { id: 'health', label: 'Health Records' },
+    { id: 'training', label: 'Training Journal' },
+    { id: 'pedigree', label: 'Pedigree' },
   ];
+  const readOnly = !isPremium;
 
   return (
     <div className="space-y-4">
+      {readOnly && <PremiumReadOnlyNotice />}
       <SecondaryViewNav
         label="Records view"
         views={views}
@@ -59,42 +59,21 @@ const RecordsSection: React.FC<RecordsSectionProps> = ({
       />
 
       {view === 'health' && (
-        <BlurGate
-          locked={locked}
-          trackingContext="health-records"
-          title="Health Records"
-          description="Keep comprehensive health records for your dog's wellbeing."
-        >
-          <Suspense fallback={<TabContentSkeleton />}>
-            <HealthRecordsSection user={{ isPremium }} dogId={dogId} />
-          </Suspense>
-        </BlurGate>
+        <Suspense fallback={<TabContentSkeleton />}>
+          <HealthRecordsSection user={{ isPremium }} dogId={dogId} readOnly={readOnly} />
+        </Suspense>
       )}
 
       {view === 'training' && (
-        <BlurGate
-          locked={locked}
-          trackingContext="training-journal"
-          title="Training Journal"
-          description="Document training sessions and track your dog's progress."
-        >
-          <Suspense fallback={<TabContentSkeleton />}>
-            <TrainingSection dogId={dogId} />
-          </Suspense>
-        </BlurGate>
+        <Suspense fallback={<TabContentSkeleton />}>
+          <TrainingSection dogId={dogId} readOnly={readOnly} />
+        </Suspense>
       )}
 
       {view === 'pedigree' && (
-        <BlurGate
-          locked={locked}
-          trackingContext="pedigree"
-          title="Pedigree"
-          description="Explore your dog's lineage and ancestry with detailed pedigree tracking."
-        >
-          <Suspense fallback={<TabContentSkeleton />}>
-            <PedigreeSection dogId={dogId} />
-          </Suspense>
-        </BlurGate>
+        <Suspense fallback={<TabContentSkeleton />}>
+          <PedigreeSection dogId={dogId} readOnly={readOnly} />
+        </Suspense>
       )}
     </div>
   );

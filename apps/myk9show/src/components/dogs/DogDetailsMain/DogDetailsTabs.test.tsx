@@ -150,21 +150,23 @@ describe('DogDetailsTabs navigation', () => {
   });
 
   describe('Records secondary views', () => {
-    it('opens Records with Health as the default secondary view', () => {
+    it('opens Records with Health as the default secondary view', async () => {
       renderAt('/dogs/dog-1?section=records');
       expect(screen.getByRole('tab', { name: 'Records' })).toHaveAttribute('aria-selected', 'true');
-      expect(screen.getByText('Premium Feature')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Records are read-only' })).toBeInTheDocument();
+      expect(await screen.findByText('health records section')).toBeInTheDocument();
     });
 
-    it('opens the requested Records secondary view (Training)', () => {
+    it('opens the requested Records secondary view (Training)', async () => {
       renderAt('/dogs/dog-1?section=records&view=training');
-      expect(screen.getByText('Premium Feature')).toBeInTheDocument();
-      expect(screen.getByText('Training Journal')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Records are read-only' })).toBeInTheDocument();
+      expect(await screen.findByText('training section')).toBeInTheDocument();
     });
 
-    it('opens the requested Records secondary view (Pedigree)', () => {
+    it('opens the requested Records secondary view (Pedigree)', async () => {
       renderAt('/dogs/dog-1?section=records&view=pedigree');
-      expect(screen.getByText('Pedigree')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Records are read-only' })).toBeInTheDocument();
+      expect(await screen.findByText('pedigree section')).toBeInTheDocument();
     });
   });
 
@@ -193,10 +195,10 @@ describe('DogDetailsTabs navigation', () => {
   });
 
   describe('copied deep links', () => {
-    it('a copied Records/Pedigree link opens directly on that view', () => {
+    it('a copied Records/Pedigree link opens directly on that view', async () => {
       renderAt('/dogs/dog-1?section=records&view=pedigree');
       expect(screen.getByRole('tab', { name: 'Records' })).toHaveAttribute('aria-selected', 'true');
-      expect(screen.getByText('Pedigree')).toBeInTheDocument();
+      expect(await screen.findByText('pedigree section')).toBeInTheDocument();
     });
   });
 
@@ -243,10 +245,8 @@ describe('DogDetailsTabs navigation', () => {
 
     it('free user: Records exposes one coherent locked treatment for Health', () => {
       renderAt('/dogs/dog-1?section=records');
-      expect(screen.getByText('Premium Feature')).toBeInTheDocument();
-      expect(
-        screen.getByText("Keep comprehensive health records for your dog's wellbeing.")
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Records are read-only' })).toBeInTheDocument();
+      expect(screen.getByText('health records section')).toBeInTheDocument();
     });
 
     it('premium user: no BlurGate overlay on Career/Title Progress', () => {

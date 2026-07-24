@@ -12,9 +12,9 @@
 import { supabase } from '../supabaseClient';
 import type { AdminGrantHistoryRow, AdminGrantParams } from './types';
 
-// TODO(types): regenerate after staging deploy (task 4.10) — admin_grant_entitlement,
-// admin_revoke_entitlement, and the subscription_entitlement_grants table are not
-// yet in the generated Database type until the migration is pushed.
+// Cast pending type regeneration — see the tracking marker in ./types.ts
+// (admin_grant_entitlement, admin_revoke_entitlement, and the table are not in
+// the generated Database type until the migration is pushed; task 4.10).
 type UntypedRpcClient = {
   rpc: (
     fn: 'admin_grant_entitlement' | 'admin_revoke_entitlement',

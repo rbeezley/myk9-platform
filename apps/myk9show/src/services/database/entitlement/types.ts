@@ -3,8 +3,10 @@
 // Mirrors supabase/migrations/20260724120000_subscription_entitlement_grants.sql:
 // the `subscription_entitlement_grants` table plus the
 // get_own_entitlement_context / admin_grant_entitlement / admin_revoke_entitlement
-// RPCs. Not yet in generated Supabase types (migration unpushed) — see the
-// `TODO(types)` markers in context.ts / admin.ts.
+// RPCs. Not yet in generated Supabase types (migration unpushed).
+//
+// TODO(types): regenerate Supabase types after the staging deploy (task 4.10)
+// and remove the `as unknown` casts in context.ts / admin.ts.
 
 /** The only two grant types the server accepts (CHECK constraint on the table). */
 export type EntitlementGrantType = 'founding' | 'complimentary';

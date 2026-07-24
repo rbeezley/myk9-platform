@@ -15,11 +15,9 @@ import type { OwnEntitlementContext } from './types';
  * Fetches the current user's sanitized entitlement context via
  * `get_own_entitlement_context()`.
  *
- * TODO(types): regenerate after staging deploy (task 4.10) — the migration
- * that adds this RPC (20260724120000_subscription_entitlement_grants.sql) is
- * not yet pushed, so `get_own_entitlement_context` isn't in the generated
- * Database type. Cast the client narrowly, matching the
- * getMyOnboardingRequests precedent (services/database/onboarding-requests/reads.ts).
+ * Cast pending type regeneration — see the tracking marker in ./types.ts
+ * (regenerate after the staging deploy, task 4.10; getMyOnboardingRequests
+ * precedent in services/database/onboarding-requests/reads.ts).
  */
 export async function fetchOwnEntitlementContext(): Promise<OwnEntitlementContext> {
   const { data, error } = await (

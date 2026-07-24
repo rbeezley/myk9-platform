@@ -206,7 +206,9 @@ RESPONSE STYLE:
 function applyOperatorScopeGuard(text: string, toolsUsed: string[]): string {
   const usedAlerts = toolsUsed.includes('summarize_operator_alerts');
   const usedHealth = toolsUsed.includes('summarize_system_health');
-  if (!usedAlerts && !usedHealth) return text;
+  if (!usedAlerts && !usedHealth) {
+    return `${text}\\n\\nScope: No operator alert or health data was read for this answer.`;
+  }
 
   const scope = usedHealth
     ? usedAlerts

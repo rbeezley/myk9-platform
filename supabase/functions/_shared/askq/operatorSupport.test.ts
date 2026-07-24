@@ -202,6 +202,26 @@ describe('Operator Support authorization boundary', () => {
     );
   });
 
+  it('marks an answer as ungrounded when the model returns text without using a tool', async () => {
+    const result = await handleOperatorSupportRequest({
+      body: { message: 'Is the platform healthy?' },
+      user: { id: 'admin-1' },
+      callerClient: makeCallerClient(true),
+      audit: makeAudit(),
+      reserveQuery: allowReservation(),
+      callModel: vi.fn(async () =>
+        textResponse('All clear. Your myK9Show platform is operating normally.')
+      ),
+      executeTool: vi.fn(),
+    });
+
+    expect(result.text).toBe(
+      'All clear. Your myK9Show platform is operating normally.\\n\\n' +
+        'Scope: No operator alert or health data was read for this answer.'
+    );
+    expect(result.toolsUsed).toEqual([]);
+  });
+
   it('scopes a health-tool answer to configured automated checks', async () => {
     const callerClient = makeCallerClient(true);
     const callModel = vi

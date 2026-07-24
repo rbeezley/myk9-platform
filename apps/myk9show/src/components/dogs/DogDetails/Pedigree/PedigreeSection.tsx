@@ -39,24 +39,34 @@ export default function PedigreeSection({ dogId }: PedigreeSectionProps) {
   const [detailsAncestor, setDetailsAncestor] = useState<PedigreeAncestor | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteAncestor, setDeleteAncestorObj] = useState<PedigreeAncestor | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const handleAdd = (position: PedigreePosition) => {
     setAddPosition(position);
+    setAddError(null);
     setAddDialogOpen(true);
   };
 
   const handleAddSave = (data: CreatePedigreeAncestorData) => {
     if (!user?.id) return;
+    setAddError(null);
     upsertMutation.mutate(data, {
       onSuccess: () => {
         setAddDialogOpen(false);
         setAddPosition(null);
+      },
+      onError: err => {
+        setAddError(
+          err instanceof Error ? err.message : 'The ancestor could not be saved. Please try again.'
+        );
       },
     });
   };
 
   const handleEdit = (ancestor: PedigreeAncestor) => {
     setEditAncestor(ancestor);
+    setEditError(null);
     setEditDialogOpen(true);
   };
 
@@ -70,12 +80,20 @@ export default function PedigreeSection({ dogId }: PedigreeSectionProps) {
       position: _p,
       ...updates
     } = ancestor;
+    setEditError(null);
     updateMutation.mutate(
       { id, dogId: dog_id, updates },
       {
         onSuccess: () => {
           setEditDialogOpen(false);
           setEditAncestor(null);
+        },
+        onError: err => {
+          setEditError(
+            err instanceof Error
+              ? err.message
+              : 'The ancestor could not be saved. Please try again.'
+          );
         },
       }
     );
@@ -152,8 +170,11 @@ export default function PedigreeSection({ dogId }: PedigreeSectionProps) {
         onClose={() => {
           setAddDialogOpen(false);
           setAddPosition(null);
+          setAddError(null);
         }}
         onAdd={handleAddSave}
+        isSaving={upsertMutation.isPending}
+        saveError={addError}
       />
 
       <PedigreeAncestorEditDialog
@@ -162,8 +183,11 @@ export default function PedigreeSection({ dogId }: PedigreeSectionProps) {
         onClose={() => {
           setEditDialogOpen(false);
           setEditAncestor(null);
+          setEditError(null);
         }}
         onSave={handleEditSave}
+        isSaving={updateMutation.isPending}
+        saveError={editError}
       />
 
       <PedigreeAncestorDetailsDialog

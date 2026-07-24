@@ -9,11 +9,11 @@
 
 ## 2. Slice 1 — Premium Record Integrity
 
-- [ ] 2.1 Add assertion-first failing tests proving empty Pedigree and Health submissions invoke no mutation and mutation failures preserve the open form and its entered values.
-- [ ] 2.2 Replace programmatic submit-event dispatch in Pedigree and Health add/edit dialogs with native form association or `requestSubmit()`, add TypeScript validation, and close/reset only after confirmed mutation success.
-- [ ] 2.3 Add a date-only helper test matrix for UTC, `America/Chicago`, month/year boundaries, and round-trip edit display, then replace touched `new Date('YYYY-MM-DD')` paths.
-- [ ] 2.4 Add failing Health filter tests for search, type, year, combined filters, and filter-specific empty state, then wire the controls to real state and clear-filter recovery.
-- [ ] 2.5 Verify Slice 1 with focused Pedigree, Health form, date-helper, and Health filter tests plus `pnpm typecheck` and `pnpm lint`.
+- [x] 2.1 Add assertion-first failing tests proving empty Pedigree and Health submissions invoke no mutation and mutation failures preserve the open form and its entered values.
+- [x] 2.2 Replace programmatic submit-event dispatch in Pedigree and Health add/edit dialogs with native form association or `requestSubmit()`, add TypeScript validation, and close/reset only after confirmed mutation success.
+- [x] 2.3 Add a date-only helper test matrix for UTC, `America/Chicago`, month/year boundaries, and round-trip edit display, then replace touched `new Date('YYYY-MM-DD')` paths.
+- [x] 2.4 Add failing Health filter tests for search, type, year, combined filters, and filter-specific empty state, then wire the controls to real state and clear-filter recovery.
+- [x] 2.5 Verify Slice 1 with focused Pedigree, Health form, date-helper, and Health filter tests plus `pnpm typecheck` and `pnpm lint`.
 - [ ] 2.6 Open the Slice 1 PR with the audit findings, red-to-green evidence, risk, how to test, and explicit non-goals; wait for CI/review, resolve findings, and merge before starting dependent layout work.
 
 ## 3. Slice 2 — Dog Workspace Consolidation and Responsive Records
@@ -33,7 +33,7 @@
 
 - [ ] 4.1 Inventory `roles`, `permissions`, `role_permissions`, site-admin helpers, `people`, `exhibitor_profiles`, and legacy `early_adopter_until` rows in one evidence pass before writing the migration.
 - [ ] 4.2 Add assertion-first SQL/source tests for admin-only grant-row reads, sanitized own-context reads, denied direct writes, denied non-admin RPC calls, required reason/date validation, truthful expired/revoked/superseded history, non-overlapping grants, paid-subscription isolation, concurrent requests, server-time boundary evaluation, and Premium create/update authorization.
-- [ ] 4.3 Add the `subscription_entitlement_grants` table, history/status fields, constraints, indexes, admin-only row RLS, sanitized server-evaluated entitlement-context/helper functions, and platform-admin grant/revoke/explicit-replace RPC behavior with target-row locking and active-range overlap prevention.
+- [ ] 4.3 Add the `subscription_entitlement_grants` table, history/status fields, constraints, indexes, explicit Data API `GRANT`s (`GRANT SELECT, INSERT, UPDATE, DELETE ... TO authenticated`; no `anon` grant) alongside admin-only row RLS, sanitized server-evaluated entitlement-context/helper functions, and platform-admin grant/revoke/explicit-replace RPC behavior with target-row locking and active-range overlap prevention.
 - [ ] 4.4 Backfill every non-null `early_adopter_until` value as a founding grant without changing its end date, retain the legacy field for compatibility, and add a migration parity query.
 - [ ] 4.5 Regenerate Supabase TypeScript types and add typed wrappers for the sanitized own-entitlement context, admin grant history, grant, and revoke operations.
 - [ ] 4.6 Apply the server entitlement helper to Health, Training, Pedigree, and Premium manual-result create/update authorization without weakening ownership; add direct-API tests proving free/Analytics-trial-only/expired/revoked callers cannot create or edit, non-owners cannot act, owners retain read/delete access, and existing Health/Training export or report actions remain available.

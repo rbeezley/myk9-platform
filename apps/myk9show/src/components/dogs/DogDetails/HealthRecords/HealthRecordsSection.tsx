@@ -19,8 +19,9 @@ import {
 } from '@/hooks/queries/useHealthDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type { HealthRecordsSectionProps } from './HealthRecordsSection.types';
-import { dispatchHealthItem, importHealthRecords } from './HealthRecordsSection.types';
+import { dispatchHealthItemAsync, importHealthRecords } from './HealthRecordsSection.types';
 import { convertToTimelineEvents, getVaccinationAlerts } from './HealthRecordsSection.helpers';
+import { parseHealthDate } from './healthDateOnly';
 import { HealthRecordsTraditionalView } from './HealthRecordsTraditionalView';
 import type { HealthImportOutcome, ParsedHealthImportRow } from './healthImport';
 import EditVaccinationDialog from './Vaccinations/EditVaccinationDialog';
@@ -48,6 +49,11 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
   const [editingMedication, setEditingMedication] = useState<MedicationRecord | null>(null);
   const [editingAllergy, setEditingAllergy] = useState<AllergyRecord | null>(null);
   const [editingVetVisit, setEditingVetVisit] = useState<VetVisitRecord | null>(null);
+  const [vaccinationSaveError, setVaccinationSaveError] = useState<string | null>(null);
+  const [medicationSaveError, setMedicationSaveError] = useState<string | null>(null);
+  const [allergySaveError, setAllergySaveError] = useState<string | null>(null);
+  const [vetVisitSaveError, setVetVisitSaveError] = useState<string | null>(null);
+  const [addItemError, setAddItemError] = useState<string | null>(null);
   const { user: authUser } = useAuthContext();
 
   const {
@@ -146,10 +152,16 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
   );
 
   const handleAddItem = useCallback(
-    (type: HealthItemType, data: Record<string, unknown>) => {
-      dispatchHealthItem(type, data, mutations, authUser?.id);
+    async (type: HealthItemType, data: Record<string, unknown>) => {
+      setAddItemError(null);
+      try {
+        await dispatchHealthItemAsync(type, data, mutations, authUser?.id);
+      } catch (err) {
+        setAddItemError(err instanceof Error ? err.message : 'The record could not be saved.');
+        throw err;
+      }
     },
-    [mutations, authUser?.id]
+    [mutations, authUser]
   );
 
   const handleImportRecords = useCallback(
@@ -161,9 +173,16 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
 
   const handleSaveVaccination = useCallback(
     (record: VaccinationRecord) => {
+      setVaccinationSaveError(null);
       updateVaccination.mutate(
         { id: record.id, updates: record },
-        { onSuccess: () => setEditingVaccination(null) }
+        {
+          onSuccess: () => setEditingVaccination(null),
+          onError: err =>
+            setVaccinationSaveError(
+              err instanceof Error ? err.message : 'The vaccination could not be saved.'
+            ),
+        }
       );
     },
     [updateVaccination]
@@ -171,9 +190,16 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
 
   const handleSaveMedication = useCallback(
     (record: MedicationRecord) => {
+      setMedicationSaveError(null);
       updateMedication.mutate(
         { id: record.id, updates: record },
-        { onSuccess: () => setEditingMedication(null) }
+        {
+          onSuccess: () => setEditingMedication(null),
+          onError: err =>
+            setMedicationSaveError(
+              err instanceof Error ? err.message : 'The medication could not be saved.'
+            ),
+        }
       );
     },
     [updateMedication]
@@ -181,9 +207,16 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
 
   const handleSaveAllergy = useCallback(
     (record: AllergyRecord) => {
+      setAllergySaveError(null);
       updateAllergy.mutate(
         { id: record.id, updates: record },
-        { onSuccess: () => setEditingAllergy(null) }
+        {
+          onSuccess: () => setEditingAllergy(null),
+          onError: err =>
+            setAllergySaveError(
+              err instanceof Error ? err.message : 'The allergy could not be saved.'
+            ),
+        }
       );
     },
     [updateAllergy]
@@ -191,9 +224,16 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
 
   const handleSaveVetVisit = useCallback(
     (record: VetVisitRecord) => {
+      setVetVisitSaveError(null);
       updateVetVisit.mutate(
         { id: record.id, updates: record },
-        { onSuccess: () => setEditingVetVisit(null) }
+        {
+          onSuccess: () => setEditingVetVisit(null),
+          onError: err =>
+            setVetVisitSaveError(
+              err instanceof Error ? err.message : 'The vet visit could not be saved.'
+            ),
+        }
       );
     },
     [updateVetVisit]
@@ -261,7 +301,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           </div>
           <ul className="mt-1 space-y-1">
             {vaccinationAlerts.map(v => {
-              const exp = new Date(v.expiration_date!);
+              const exp = parseHealthDate(v.expiration_date!);
               const isOverdue = exp < new Date();
               return (
                 <li
@@ -343,8 +383,12 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
             open={!!addDialogType}
             type={addDialogType}
             dogId={dogId}
-            onClose={() => setAddDialogType(null)}
+            onClose={() => {
+              setAddDialogType(null);
+              setAddItemError(null);
+            }}
             onAdd={handleAddItem}
+            saveError={addItemError}
           />
         </Suspense>
       )}
@@ -354,8 +398,13 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           key={editingVaccination.id}
           open
           record={editingVaccination}
-          onClose={() => setEditingVaccination(null)}
+          onClose={() => {
+            setEditingVaccination(null);
+            setVaccinationSaveError(null);
+          }}
           onSave={handleSaveVaccination}
+          isSaving={updateVaccination.isPending}
+          saveError={vaccinationSaveError}
         />
       )}
       {editingMedication && (
@@ -363,8 +412,13 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           key={editingMedication.id}
           open
           record={editingMedication}
-          onClose={() => setEditingMedication(null)}
+          onClose={() => {
+            setEditingMedication(null);
+            setMedicationSaveError(null);
+          }}
           onSave={handleSaveMedication}
+          isSaving={updateMedication.isPending}
+          saveError={medicationSaveError}
         />
       )}
       {editingAllergy && (
@@ -372,8 +426,13 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           key={editingAllergy.id}
           open
           record={editingAllergy}
-          onClose={() => setEditingAllergy(null)}
+          onClose={() => {
+            setEditingAllergy(null);
+            setAllergySaveError(null);
+          }}
           onSave={handleSaveAllergy}
+          isSaving={updateAllergy.isPending}
+          saveError={allergySaveError}
         />
       )}
       {editingVetVisit && (
@@ -381,8 +440,13 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           key={editingVetVisit.id}
           open
           record={editingVetVisit}
-          onClose={() => setEditingVetVisit(null)}
+          onClose={() => {
+            setEditingVetVisit(null);
+            setVetVisitSaveError(null);
+          }}
           onSave={handleSaveVetVisit}
+          isSaving={updateVetVisit.isPending}
+          saveError={vetVisitSaveError}
         />
       )}
     </div>

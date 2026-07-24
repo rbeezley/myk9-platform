@@ -112,6 +112,9 @@ interface EffectiveEntitlement {
 }
 ```
 
+<!-- [ADDED after design review] -->
+The interface above is the contract shape; the implementation SHOULD model it as a discriminated union (for example, discriminated on `status`) so inconsistent combinations such as `tier: 'premium'` with `status: 'expired'` are unrepresentable, and resolver tests must reject any combination outside the scenarios in `exhibitor-entitlement-management`.
+
 Precedence for account Premium is active paid Premium, active founding/complimentary grant, then free. If no account source is active but a paid subscription or grant ended, the resolver returns free with `status: 'expired'` and the most relevant end date. An active grant can therefore keep Premium available after a paid subscription ends without claiming that billing is active.
 
 <!-- [EXPANDED after plan verification] -->

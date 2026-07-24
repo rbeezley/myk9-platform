@@ -156,4 +156,98 @@ describe('health edit dialogs', () => {
       })
     );
   });
+
+  it('does not save a vaccination when the expiration date is blank, and preserves entered values', async () => {
+    const onSave = vi.fn();
+    // The date picker renders its `required` semantics on a hidden input,
+    // which browsers exclude from constraint validation. The explicit
+    // TypeScript-level validation (design.md Decision 3) is the only thing
+    // that actually blocks this submission.
+    const record: VaccinationRecord = {
+      id: 'vacc-2',
+      dog_id: 'dog-1',
+      vaccine_name: 'Rabies',
+      date_given: '2026-01-10',
+      expiration_date: undefined,
+      vet_name: 'Dr. Old',
+      created_at: '2026-01-10T00:00:00Z',
+      updated_at: '2026-01-10T00:00:00Z',
+    };
+
+    const { user } = render(
+      <EditVaccinationDialog open record={record} onClose={vi.fn()} onSave={onSave} />
+    );
+
+    await user.clear(screen.getByRole('textbox', { name: /veterinarian/i }));
+    await user.type(screen.getByRole('textbox', { name: /veterinarian/i }), 'Dr. Removed Later');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/all fields are required/i);
+    // Entered values remain in the still-open form.
+    expect(screen.getByRole('textbox', { name: /veterinarian/i })).toHaveValue('Dr. Removed Later');
+  });
+
+  it('keeps the vaccination dialog open and preserves values when the update mutation fails', async () => {
+    const onSave = vi.fn();
+    const record: VaccinationRecord = {
+      id: 'vacc-3',
+      dog_id: 'dog-1',
+      vaccine_name: 'Rabies',
+      date_given: '2026-01-10',
+      expiration_date: '2027-01-10',
+      vet_name: 'Dr. Old',
+      created_at: '2026-01-10T00:00:00Z',
+      updated_at: '2026-01-10T00:00:00Z',
+    };
+
+    const { user, rerender } = render(
+      <EditVaccinationDialog open record={record} onClose={vi.fn()} onSave={onSave} />
+    );
+
+    await user.clear(screen.getByRole('textbox', { name: /vaccination/i }));
+    await user.type(screen.getByRole('textbox', { name: /vaccination/i }), 'DHPP');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+
+    // Simulate the parent's mutation onError: it surfaces `saveError` and
+    // never flips `open` to false.
+    rerender(
+      <EditVaccinationDialog
+        open
+        record={record}
+        onClose={vi.fn()}
+        onSave={onSave}
+        saveError="Request timed out"
+      />
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/request timed out/i);
+    expect(screen.getByRole('textbox', { name: /vaccination/i })).toHaveValue('DHPP');
+  });
+
+  it('does not save an allergy when the required allergen is blank', async () => {
+    const onSave = vi.fn();
+    const record: AllergyRecord = {
+      id: 'allergy-2',
+      dog_id: 'dog-1',
+      allergen: 'Chicken',
+      reaction: 'Itchy skin',
+      severity: 'moderate',
+      discovered_date: '2026-01-10',
+      created_at: '2026-01-10T00:00:00Z',
+      updated_at: '2026-01-10T00:00:00Z',
+    };
+
+    const { user } = render(
+      <EditAllergyDialog open record={record} onClose={vi.fn()} onSave={onSave} />
+    );
+
+    await user.clear(screen.getByLabelText(/allergy name/i));
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/allergy name/i)).toBeInvalid();
+  });
 });

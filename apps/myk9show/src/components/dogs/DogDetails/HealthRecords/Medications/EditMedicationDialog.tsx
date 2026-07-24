@@ -11,6 +11,10 @@ interface EditMedicationDialogProps {
   record: MedicationRecord | null;
   onClose: () => void;
   onSave: (record: MedicationRecord) => void;
+  /** True while the update mutation is in flight; disables the Save button. */
+  isSaving?: boolean;
+  /** Set when the update mutation was rejected; rendered as a retryable error. */
+  saveError?: string | null;
 }
 
 const EditMedicationDialog: React.FC<EditMedicationDialogProps> = ({
@@ -18,6 +22,8 @@ const EditMedicationDialog: React.FC<EditMedicationDialogProps> = ({
   record,
   onClose,
   onSave,
+  isSaving = false,
+  saveError = null,
 }) => {
   const [medicationName, setMedicationName] = useState(record?.medication_name || '');
   const [dosage, setDosage] = useState(record?.dosage || '');
@@ -25,10 +31,18 @@ const EditMedicationDialog: React.FC<EditMedicationDialogProps> = ({
   const [notes, setNotes] = useState(record?.notes || '');
   const [startDate, setStartDate] = useState(record?.start_date || '');
   const [endDate, setEndDate] = useState(record?.end_date || '');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!record) return;
+    // Validate at the form boundary in addition to native `required`
+    // attributes so an invalid submission never reaches the mutation.
+    if (!medicationName.trim() || !dosage.trim()) {
+      setValidationError('Name and Dosage are required.');
+      return;
+    }
+    setValidationError(null);
     onSave({
       ...record,
       medication_name: medicationName,
@@ -44,16 +58,21 @@ const EditMedicationDialog: React.FC<EditMedicationDialogProps> = ({
     <StandardDialog
       open={open}
       onClose={onClose}
-      onSave={() =>
-        document
-          .getElementById('edit-medication-form')
-          ?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
-      }
+      onSave={() => {
+        const form = document.getElementById('edit-medication-form');
+        if (form instanceof HTMLFormElement) form.requestSubmit();
+      }}
       title="Edit Medication"
       description="All fields are required."
       formId="edit-medication-form"
       saveLabel="Save"
+      isSubmitting={isSaving}
     >
+      {(validationError || saveError) && (
+        <p role="alert" aria-live="assertive" className="text-sm text-destructive mb-3">
+          {validationError ?? `${saveError} The record was not saved. Please try again.`}
+        </p>
+      )}
       {/*
   Two-column grid layout for medication fields:
   - Name, Dosage, Frequency, Next Due each get their own cell

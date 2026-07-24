@@ -32,6 +32,16 @@ The first draft scored 91/100. It was strong on UX/data integrity but only parti
 4. **[ADDED] Performance evidence** — one cached query and query-plan tests prevent per-component/N+1 entitlement reads.
 5. **[ADDED] Operational evidence** — durable history, structured PII-safe failures, fallback mismatch checks, and a runbook gate are required.
 
+### Design Review 2026-07-23 (Claude)
+
+Independent review verified every code reference (legacy `early_adopter_until` sites, `useSubscriptionGate` caller-provided trial count, `is_site_admin()`, `DogDetailsTabs`, audit doc) and that MODIFIED/REMOVED requirement headers match `openspec/specs/exhibitor-dog-management/spec.md`. Verdict: approved. Three findings were folded back into the artifacts:
+
+1. **Data API GRANTs** — Task 4.3 now requires explicit `GRANT ... TO authenticated` (no `anon`) on `subscription_entitlement_grants`; Supabase no longer auto-exposes new `public` tables, and RLS alone is not enough for the admin path.
+2. **Type-safe entitlement contract** — `design.md` Decision 6 now directs the implementation to a discriminated union so combinations like `tier: 'premium'` + `status: 'expired'` are unrepresentable.
+3. **`canManageBilling` pinned** — the entitlement spec adds a scenario making billing management exclusive to source `paid`.
+
+Noted, no artifact change required: Slice 4 rebase risk against `improve-exhibitor-entries-scan` / `unified-financial-dashboard` (already in Risks), and Task 7.7's real-user walkthrough being the one non-automatable gate.
+
 ## Validation Profile
 
 - Risk: high

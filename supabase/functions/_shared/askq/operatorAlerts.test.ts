@@ -260,6 +260,36 @@ describe('Operator Support system-health tool', () => {
     });
   });
 
+  it('uses the worst check status when it conflicts with the stored overall status', async () => {
+    const { client } = makeHealthClient([
+      {
+        id: 'snapshot-1',
+        created_at: '2026-07-24T11:00:00.000Z',
+        source: 'cron-health-check',
+        overall_status: 'ok',
+        run_duration_ms: 100,
+        checks: [
+          {
+            key: 'background-jobs',
+            label: 'Background jobs',
+            status: 'fail',
+            detail: 'A configured job is overdue',
+            checked_at: '2026-07-24T11:00:00.000Z',
+          },
+        ],
+      },
+    ]);
+
+    await expect(
+      readOperatorHealthSummary(client, Date.parse('2026-07-24T12:00:00.000Z'))
+    ).resolves.toMatchObject({
+      snapshotAvailable: true,
+      reportedStatus: 'ok',
+      effectiveStatus: 'fail',
+      checksPayloadValid: true,
+    });
+  });
+
   it('reports a missing snapshot as a failed health signal instead of healthy', async () => {
     const { client } = makeHealthClient([]);
 

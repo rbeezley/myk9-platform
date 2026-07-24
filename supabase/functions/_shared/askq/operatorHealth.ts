@@ -12,6 +12,7 @@ const SCOPE_NOTE =
 
 type HealthStatus = 'ok' | 'warn' | 'fail';
 type HealthCheckStatus = HealthStatus | 'unknown';
+const HEALTH_STATUS_RANK: Record<HealthStatus, number> = { ok: 0, warn: 1, fail: 2 };
 
 export interface OperatorHealthSummary {
   snapshotAvailable: boolean;
@@ -65,18 +66,26 @@ export function summarizeOperatorHealth(value: unknown, now: number): OperatorHe
   const createdAtMs = Date.parse(snapshotCreatedAt);
   const isStale = Number.isNaN(createdAtMs) || now - createdAtMs > OPERATOR_HEALTH_STALE_AFTER_MS;
   const checksPayloadValid = hasValidChecksPayload(value.checks);
+  const checks = normalizeChecks(value.checks);
+  const effectiveStatus =
+    isStale || !checksPayloadValid
+      ? 'fail'
+      : worstHealthStatus([
+          reportedStatus,
+          ...checks.map(check => normalizeHealthStatus(check.status) ?? 'fail'),
+        ]);
 
   return {
     snapshotAvailable: true,
     snapshotCreatedAt,
     source,
     reportedStatus,
-    effectiveStatus: isStale || !checksPayloadValid ? 'fail' : reportedStatus,
+    effectiveStatus,
     isStale,
     staleAfterHours: OPERATOR_HEALTH_STALE_AFTER_HOURS,
     runDurationMs: normalizeRunDuration(value.run_duration_ms),
     checksPayloadValid,
-    checks: normalizeChecks(value.checks),
+    checks,
     scopeNote: SCOPE_NOTE,
   };
 }
@@ -133,6 +142,13 @@ function hasValidChecksPayload(value: unknown): boolean {
 
 function normalizeHealthStatus(value: unknown): HealthStatus | null {
   return value === 'ok' || value === 'warn' || value === 'fail' ? value : null;
+}
+
+function worstHealthStatus(statuses: HealthStatus[]): HealthStatus {
+  return statuses.reduce<HealthStatus>(
+    (worst, status) => (HEALTH_STATUS_RANK[status] > HEALTH_STATUS_RANK[worst] ? status : worst),
+    'ok'
+  );
 }
 
 function normalizeCheckStatus(value: unknown): HealthCheckStatus {

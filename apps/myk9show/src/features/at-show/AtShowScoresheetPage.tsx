@@ -47,6 +47,7 @@ import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
 import { useAtShowAudioMute } from './useAtShowAudioMute';
 import { badgeClass } from './slots/atShowChrome.helpers';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { supabase } from '@/services/database/supabaseClient';
 import { useAudioWarnings } from '@/hooks/useAudioWarnings';
 import { DEFAULT_AUDIO_SETTINGS } from '@/constants/audioSettings';
 import { speakRemainingSeconds } from './atShowVoiceAnnouncement';
@@ -67,19 +68,21 @@ export const AtShowScoresheetPage: React.FC = () => {
   // model gives stewards `canScore: false`. Derive the effective ringside role
   // the same way the EntryList shims do — account RBAC, overridden by a Phase 1c
   // show-scoped passcode grant.
-  const { hasPermission, ringsideRole } = useRingsideEffectiveRole(showId);
-  const { user, signOut } = useAuthContext();
+  const { hasPermission, ringsideRole, showRole } = useRingsideEffectiveRole(showId);
+  const { user } = useAuthContext();
   const isAnonymous = user?.is_anonymous === true;
 
   // The only passcode path that actually authorizes scoring is an ANONYMOUS
   // guest session (validate-passcode stamps the show-scoped claim only on anon
   // sessions). A signed-in judge must therefore sign out first, then enter the
-  // passcode as a guest — routing to the passcode form while still signed in
-  // would just re-create the same unauthorized account session.
+  // passcode as a guest. We sign out via supabase DIRECTLY rather than the
+  // AuthContext `signOut` (which hard-redirects to '/', clobbering the
+  // navigation below) — the SIGNED_OUT auth listener still runs its cleanup —
+  // then route client-side to the passcode form in a single navigation.
   const handleSignOutToPasscode = useCallback(async () => {
-    await signOut();
+    await supabase.auth.signOut();
     navigate('/at-show?passcode=1');
-  }, [signOut, navigate]);
+  }, [navigate]);
 
   // MYK9-82: `ringside_update_entry()` authorizes a signed-in judge ACCOUNT only
   // when it is assigned to THIS class — the `canScore` permission above checks
@@ -89,8 +92,13 @@ export const AtShowScoresheetPage: React.FC = () => {
   // an optimistic score that dead-letters at sync. This checks assignment first.
   // Called unconditionally (hooks can't follow the early return below); it
   // self-resolves 'not-applicable' for every session this doesn't concern
-  // (anonymous passcode sessions, managers, stewards, exhibitors).
-  const assignmentCheck = useJudgeAssignedToClass({ ringsideRole, isAnonymous, classId });
+  // (anonymous passcode sessions, manager accounts, stewards, exhibitors).
+  const assignmentCheck = useJudgeAssignedToClass({
+    ringsideRole,
+    showRole,
+    isAnonymous,
+    classId,
+  });
 
   // Gate BEFORE mounting the scoring engine: an unauthorized role must never run
   // `useAtShowScoresheet` (whose load effect calls `transitionToInRing`), so the

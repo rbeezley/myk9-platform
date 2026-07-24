@@ -27,7 +27,6 @@ let mockPersonId: string | undefined = 'judge-1';
 // MYK9-82: whether the Supabase session is anonymous (a passcode guest). A
 // signed-in account is the default; the anonymous-exempt test flips this.
 let mockIsAnonymous = false;
-const signOut = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/hooks/useAuthContext', async importOriginal => {
   const actual = await importOriginal<typeof import('@/hooks/useAuthContext')>();
   return {
@@ -36,10 +35,19 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
       getUserRoles: () => mockRoles,
       userWithRoles: { databaseUserId: mockPersonId },
       user: { is_anonymous: mockIsAnonymous },
-      signOut,
     }),
   };
 });
+
+// The "sign out to use a passcode" escape signs out via supabase directly
+// (NOT the AuthContext signOut, which hard-redirects and would clobber the
+// client-side navigation to the passcode form).
+const { supabaseSignOut } = vi.hoisted(() => ({
+  supabaseSignOut: vi.fn().mockResolvedValue({ error: null }),
+}));
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: { auth: { signOut: supabaseSignOut } },
+}));
 
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: { getClassById: vi.fn(), sync: vi.fn() },
@@ -398,7 +406,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       expect(transitionToInRing).not.toHaveBeenCalled();
     });
 
-    it('signs out then routes to the guest passcode form when the escape is taken', async () => {
+    it('signs out via supabase then routes to the guest passcode form when the escape is taken', async () => {
       judgeAssignmentsGetAll.mockResolvedValue([
         { id: 'a1', personId: 'judge-1', classId: 'some-other-class', status: 'confirmed' },
       ]);
@@ -407,7 +415,9 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       const escape = await screen.findByRole('button', { name: /sign out to use a passcode/i });
       fireEvent.click(escape);
 
-      await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+      // Direct supabase sign-out (not the hard-redirecting AuthContext signOut),
+      // so the client-side navigation to the passcode form isn't clobbered.
+      await waitFor(() => expect(supabaseSignOut).toHaveBeenCalledTimes(1));
     });
 
     it('allows a signed-in judge who IS assigned (confirmed) to this class', async () => {
@@ -513,6 +523,25 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       // Anonymous sessions never consult judge_assignments — their claim
       // authorizes every class in the show.
       expect(judgeAssignmentsGetAll).not.toHaveBeenCalled();
+    });
+
+    it('exempts a manager ACCOUNT holding a judge passcode grant (server manager tier)', async () => {
+      // A secretary who entered a JUDGE passcode has effective role 'judge', but
+      // the server authorizes them via the manager tier regardless of assignment
+      // — the gate must not block them.
+      mockRoles = [UserRole.SECRETARY];
+      useRingsideGrantStore.getState().setGrant({
+        showId: 'show-1',
+        role: 'judge',
+        source: 'passcode',
+      });
+      judgeAssignmentsGetAll.mockResolvedValue([
+        { id: 'a1', personId: 'someone-else', classId: 'class-1', status: 'confirmed' },
+      ]);
+      renderPage();
+
+      expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+      expect(screen.queryByText("You're not assigned to judge this class")).not.toBeInTheDocument();
     });
 
     it('does not apply the pre-flight to a manager role (assignment-irrelevant)', async () => {

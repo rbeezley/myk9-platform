@@ -6,6 +6,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 
+import { UserRole as ShowRole } from '@/types/auth-types';
+
 const { getAll, sync } = vi.hoisted(() => ({ getAll: vi.fn(), sync: vi.fn() }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ userWithRoles: { databaseUserId: 'judge-1' } }),
@@ -31,7 +33,12 @@ describe('useJudgeAssignedToClass', () => {
 
   it('is not-applicable for an anonymous (passcode guest) session', () => {
     const { result } = renderHook(() =>
-      useJudgeAssignedToClass({ ringsideRole: 'judge', isAnonymous: true, classId: 'class-1' })
+      useJudgeAssignedToClass({
+        ringsideRole: 'judge',
+        showRole: ShowRole.JUDGE,
+        isAnonymous: true,
+        classId: 'class-1',
+      })
     );
     expect(result.current).toEqual({ status: 'not-applicable' });
     expect(getAll).not.toHaveBeenCalled();
@@ -39,16 +46,45 @@ describe('useJudgeAssignedToClass', () => {
 
   it('is not-applicable for a non-judge effective role (e.g. admin/manager)', () => {
     const { result } = renderHook(() =>
-      useJudgeAssignedToClass({ ringsideRole: 'admin', isAnonymous: false, classId: 'class-1' })
+      useJudgeAssignedToClass({
+        ringsideRole: 'admin',
+        showRole: ShowRole.SITE_ADMIN,
+        isAnonymous: false,
+        classId: 'class-1',
+      })
     );
     expect(result.current).toEqual({ status: 'not-applicable' });
+    expect(getAll).not.toHaveBeenCalled();
+  });
+
+  it('is not-applicable for a manager ACCOUNT even when a grant overrode the role to judge', () => {
+    // A secretary/site-admin/club-admin who entered a JUDGE passcode has an
+    // effective role of `judge`, but the server authorizes them via its manager
+    // tier regardless of assignment — so the gate must not block them.
+    for (const showRole of [ShowRole.SITE_ADMIN, ShowRole.SECRETARY, ShowRole.CLUB_ADMIN]) {
+      const { result, unmount } = renderHook(() =>
+        useJudgeAssignedToClass({
+          ringsideRole: 'judge',
+          showRole,
+          isAnonymous: false,
+          classId: 'class-1',
+        })
+      );
+      expect(result.current).toEqual({ status: 'not-applicable' });
+      unmount();
+    }
     expect(getAll).not.toHaveBeenCalled();
   });
 
   it('resolves assigned from the local cache without forcing a sync', async () => {
     getAll.mockResolvedValue([CONFIRMED]);
     const { result } = renderHook(() =>
-      useJudgeAssignedToClass({ ringsideRole: 'judge', isAnonymous: false, classId: 'class-1' })
+      useJudgeAssignedToClass({
+        ringsideRole: 'judge',
+        showRole: ShowRole.JUDGE,
+        isAnonymous: false,
+        classId: 'class-1',
+      })
     );
 
     expect(result.current).toEqual({ status: 'checking' });
@@ -59,7 +95,12 @@ describe('useJudgeAssignedToClass', () => {
   it('accepts an "invited" (not yet confirmed) assignment', async () => {
     getAll.mockResolvedValue([{ ...CONFIRMED, status: 'invited' }]);
     const { result } = renderHook(() =>
-      useJudgeAssignedToClass({ ringsideRole: 'judge', isAnonymous: false, classId: 'class-1' })
+      useJudgeAssignedToClass({
+        ringsideRole: 'judge',
+        showRole: ShowRole.JUDGE,
+        isAnonymous: false,
+        classId: 'class-1',
+      })
     );
     await waitFor(() => expect(result.current).toEqual({ status: 'assigned' }));
   });
@@ -71,7 +112,12 @@ describe('useJudgeAssignedToClass', () => {
       { id: 'a2', personId: 'someone-else', classId: 'class-1', status: 'confirmed' },
     ]);
     const { result } = renderHook(() =>
-      useJudgeAssignedToClass({ ringsideRole: 'judge', isAnonymous: false, classId: 'class-1' })
+      useJudgeAssignedToClass({
+        ringsideRole: 'judge',
+        showRole: ShowRole.JUDGE,
+        isAnonymous: false,
+        classId: 'class-1',
+      })
     );
 
     await waitFor(() => expect(result.current).toEqual({ status: 'unassigned' }));
@@ -86,7 +132,12 @@ describe('useJudgeAssignedToClass', () => {
       ])
       .mockResolvedValueOnce([CONFIRMED]);
     const { result } = renderHook(() =>
-      useJudgeAssignedToClass({ ringsideRole: 'judge', isAnonymous: false, classId: 'class-1' })
+      useJudgeAssignedToClass({
+        ringsideRole: 'judge',
+        showRole: ShowRole.JUDGE,
+        isAnonymous: false,
+        classId: 'class-1',
+      })
     );
 
     await waitFor(() => expect(result.current).toEqual({ status: 'assigned' }));
@@ -96,7 +147,12 @@ describe('useJudgeAssignedToClass', () => {
   it('ignores a non-active status (declined) for the matching row', async () => {
     getAll.mockResolvedValue([{ ...CONFIRMED, status: 'declined' }]);
     const { result } = renderHook(() =>
-      useJudgeAssignedToClass({ ringsideRole: 'judge', isAnonymous: false, classId: 'class-1' })
+      useJudgeAssignedToClass({
+        ringsideRole: 'judge',
+        showRole: ShowRole.JUDGE,
+        isAnonymous: false,
+        classId: 'class-1',
+      })
     );
     await waitFor(() => expect(result.current).toEqual({ status: 'unassigned' }));
   });
@@ -104,7 +160,12 @@ describe('useJudgeAssignedToClass', () => {
   it('fails open (assigned) when the store is empty even after a successful sync', async () => {
     getAll.mockResolvedValue([]);
     const { result } = renderHook(() =>
-      useJudgeAssignedToClass({ ringsideRole: 'judge', isAnonymous: false, classId: 'class-1' })
+      useJudgeAssignedToClass({
+        ringsideRole: 'judge',
+        showRole: ShowRole.JUDGE,
+        isAnonymous: false,
+        classId: 'class-1',
+      })
     );
     await waitFor(() => expect(result.current).toEqual({ status: 'assigned' }));
   });
@@ -115,7 +176,12 @@ describe('useJudgeAssignedToClass', () => {
     ]);
     sync.mockResolvedValue({ success: false, error: 'offline' });
     const { result } = renderHook(() =>
-      useJudgeAssignedToClass({ ringsideRole: 'judge', isAnonymous: false, classId: 'class-1' })
+      useJudgeAssignedToClass({
+        ringsideRole: 'judge',
+        showRole: ShowRole.JUDGE,
+        isAnonymous: false,
+        classId: 'class-1',
+      })
     );
     await waitFor(() => expect(result.current).toEqual({ status: 'assigned' }));
   });
@@ -123,7 +189,12 @@ describe('useJudgeAssignedToClass', () => {
   it('fails open (assigned) when the local read rejects', async () => {
     getAll.mockRejectedValue(new Error('IDB unavailable'));
     const { result } = renderHook(() =>
-      useJudgeAssignedToClass({ ringsideRole: 'judge', isAnonymous: false, classId: 'class-1' })
+      useJudgeAssignedToClass({
+        ringsideRole: 'judge',
+        showRole: ShowRole.JUDGE,
+        isAnonymous: false,
+        classId: 'class-1',
+      })
     );
     await waitFor(() => expect(result.current).toEqual({ status: 'assigned' }));
   });

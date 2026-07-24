@@ -40,27 +40,30 @@ const CareerSection: React.FC<CareerSectionProps> = ({
   locked,
 }) => {
   const views: SecondaryViewDef[] = [
-    { id: 'competitions', label: 'Competitions' },
+    ...(features.competitionsTab ? [{ id: 'competitions' as const, label: 'Competitions' }] : []),
     { id: 'titles', label: 'Title Progress', locked },
     ...(features.statisticsTab ? [{ id: 'statistics' as const, label: 'Statistics', locked }] : []),
   ];
+  // With the competitions deployment switch off, the section default falls
+  // through to Title Progress so the URL default never selects a hidden view.
+  const effectiveView = view === 'competitions' && !features.competitionsTab ? 'titles' : view;
 
   return (
     <div className="space-y-4">
       <SecondaryViewNav
         label="Career view"
         views={views}
-        value={view}
+        value={effectiveView}
         onValueChange={v => onViewChange(v as CareerView)}
       />
 
-      {view === 'competitions' && (
+      {effectiveView === 'competitions' && features.competitionsTab && (
         <Suspense fallback={<TabContentSkeleton />}>
           <CompetitionsTabs dogId={dogId} isPremium={isPremium} />
         </Suspense>
       )}
 
-      {view === 'titles' && (
+      {effectiveView === 'titles' && (
         <BlurGate
           locked={locked}
           trackingContext="title-progress"
@@ -73,7 +76,7 @@ const CareerSection: React.FC<CareerSectionProps> = ({
         </BlurGate>
       )}
 
-      {view === 'statistics' && features.statisticsTab && (
+      {effectiveView === 'statistics' && features.statisticsTab && (
         <BlurGate
           locked={locked}
           trackingContext="statistics"

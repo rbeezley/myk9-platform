@@ -13,11 +13,13 @@ interface PedigreeTreeProps {
   onDelete: (ancestor: PedigreeAncestor) => void;
 }
 
-// Below this measured content-container width the visual tree's two
-// grandparent clusters (four ~180-220px cards plus gaps) no longer fit at
-// readable sizes, so we switch to stacked relationship groups instead of
-// shrinking cards/typography (elderly persona).
-const TREE_MIN_WIDTH = 640;
+// Below this measured content-container width the visual tree's grandparent
+// row no longer fits at readable sizes: four ~180px-minimum cards plus two
+// 16px intra-pair gaps and one 32px inter-pair gap need ~784px, so anything
+// narrower switches to stacked relationship groups instead of shrinking
+// cards/typography (elderly persona) or overflowing the two-column Dog
+// Details container.
+const TREE_MIN_WIDTH = 800;
 
 /**
  * Container-aware Pedigree layout (design.md Decision 5 / "Premium records

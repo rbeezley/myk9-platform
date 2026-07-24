@@ -77,6 +77,16 @@ describe('PedigreeTree container-aware layout', () => {
     expect(within(grouped).getByText("Dam's Dam")).toBeInTheDocument();
   });
 
+  it('keeps the grouped layout in the 640-799px window where the tree row cannot fit', () => {
+    // The grandparent row needs ~784px (4 × 180px cards + gaps); a
+    // two-column Dog Details container at audited widths lands in this
+    // range, so the visual tree must NOT be selected here (codex P1).
+    useElementWidthMock.mockReturnValue({ ref: { current: null }, width: 700 });
+    render(<PedigreeTree ancestors={ancestors} {...handlers()} />);
+    expect(screen.getByTestId('pedigree-grouped-layout')).toBeInTheDocument();
+    expect(screen.queryByTestId('pedigree-tree-layout')).not.toBeInTheDocument();
+  });
+
   it('defaults to the grouped layout before the container width is measured', () => {
     useElementWidthMock.mockReturnValue({ ref: { current: null }, width: null });
     render(<PedigreeTree ancestors={ancestors} {...handlers()} />);

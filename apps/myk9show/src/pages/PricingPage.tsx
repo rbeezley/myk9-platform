@@ -90,6 +90,13 @@ export default function PricingPage() {
       if (checkoutInFlightRef.current) return;
       checkoutInFlightRef.current = true;
       try {
+        // React Router state cannot survive Stripe's full-page redirect, so
+        // persist the locked-view return target for the post-checkout
+        // Subscription page to consume (exhibitor-dog-management "User
+        // upgrades and returns").
+        if (returnTo) {
+          sessionStorage.setItem('postCheckoutReturnTo', returnTo);
+        }
         await createCheckoutSession(priceId, 'subscription');
       } catch (error) {
         logger.error('Failed to create checkout session:', 'pages', {}, error as Error);

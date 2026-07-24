@@ -65,6 +65,14 @@ const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId, owne
             </Button>
           </div>
         </div>
+        {/* The header's Log Result action stays usable while title data is
+            unavailable — manual results don't depend on the failed query. */}
+        <LogManualResultPanel
+          open={panelOpen}
+          onClose={() => setPanelOpen(false)}
+          dogId={dogId}
+          ownerId={ownerId}
+        />
       </div>
     );
   }

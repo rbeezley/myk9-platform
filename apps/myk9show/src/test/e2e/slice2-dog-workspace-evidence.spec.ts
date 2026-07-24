@@ -117,16 +117,38 @@ test.describe('Slice 2 dog workspace evidence (demo exhibitor)', () => {
       }
     }
 
-    // Legacy deep links resolve to the mapped section/view (light, desktop).
+    // Legacy deep links resolve to the mapped section/view (light, desktop):
+    // assert the SELECTED top-level tab and the rendered secondary view, not
+    // merely the (unchanged) input URL.
     await page.setViewportSize({ width: 1280, height: 800 });
-    for (const [legacy, expected] of [
-      ['tab=title-progress', /section=career|tab=title-progress/],
-      ['tab=pedigree', /section=records|tab=pedigree/],
-      ['tab=registrations', /\/dogs\//],
+    for (const [legacy, topTab, secondaryNav] of [
+      ['tab=title-progress', 'Career', 'Career view'],
+      ['tab=pedigree', 'Records', 'Records view'],
+      ['tab=registrations', 'Overview', null],
     ] as const) {
       await page.goto(`${dogPath}?${legacy}`);
-      await expect(page.getByRole('tablist', { name: 'Dog details section' })).toBeVisible();
-      await expect(page).toHaveURL(expected);
+      const nav = page.getByRole('tablist', { name: 'Dog details section' });
+      await expect(nav).toBeVisible();
+      await expect(nav.getByRole('tab', { name: topTab })).toHaveAttribute('aria-selected', 'true');
+      if (secondaryNav) {
+        await expect(
+          page
+            .getByRole('tablist', { name: secondaryNav })
+            .or(page.getByLabel(secondaryNav))
+            .first()
+        ).toBeVisible({ timeout: 15000 });
+      }
     }
+    // Correct secondary view for a specific legacy id, and the locked
+    // treatment: the demo exhibitor is a free account, so Records/Pedigree
+    // must render the Premium lock with a working upgrade action.
+    await page.goto(`${dogPath}?tab=pedigree`);
+    await expect(page.getByText('Premium Feature', { exact: false }).first()).toBeVisible({
+      timeout: 15000,
+    });
+    const upgrade = page.getByRole('button', { name: /Upgrade to Premium/i }).first();
+    await expect(upgrade).toBeVisible();
+    await upgrade.click();
+    await expect(page).toHaveURL(/pricing-page/);
   });
 });

@@ -73,6 +73,7 @@ CREATE INDEX idx_seg_active_range
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.subscription_entitlement_grants TO authenticated;
 
 ALTER TABLE public.subscription_entitlement_grants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subscription_entitlement_grants FORCE ROW LEVEL SECURITY;
 
 -- Only site admins may read raw rows (reason/actor/revocation are internal).
 -- Non-admins get the sanitized projection via get_own_entitlement_context().

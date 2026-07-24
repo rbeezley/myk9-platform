@@ -3,11 +3,9 @@ import confetti from 'canvas-confetti';
 import { Trophy, X } from 'lucide-react';
 import type { Entry } from '../../../stores/entryStore';
 import type { ClassInfo } from '../types';
+import { claimClassCompletionCelebration } from './classCompletionStorage';
 
-const PENDING_PREFIX = 'myk9:class-completion-pending:';
-const CELEBRATED_PREFIX = 'myk9:class-completion-celebrated:';
-const pendingInMemory = new Set<string>();
-const celebratedInMemory = new Set<string>();
+export { markClassCompletionPending } from './classCompletionStorage';
 
 type CompletedTab = 'pending' | 'completed';
 type PodiumPlacement = 1 | 2 | 3 | 4;
@@ -24,57 +22,13 @@ export interface ClassPodiumProps {
   entries: Entry[];
 }
 
-/**
- * Record that this device just submitted the final unscored entry in a class.
- * The Completed-tab presentation consumes the intent only after the replicated
- * class confirms that results have been released.
- */
-export function markClassCompletionPending(classId: string): void {
-  pendingInMemory.add(classId);
-  try {
-    localStorage.setItem(`${PENDING_PREFIX}${classId}`, '1');
-  } catch {
-    // In-memory state preserves the current scoring session when storage is unavailable.
-  }
-}
-
-function hasStoredFlag(prefix: string, classId: string): boolean {
-  try {
-    return localStorage.getItem(`${prefix}${classId}`) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function claimClassCompletionCelebration(classId: string): boolean {
-  const isPending = pendingInMemory.has(classId) || hasStoredFlag(PENDING_PREFIX, classId);
-  const isCelebrated = celebratedInMemory.has(classId) || hasStoredFlag(CELEBRATED_PREFIX, classId);
-
-  if (!isPending) return false;
-  if (isCelebrated) {
-    pendingInMemory.delete(classId);
-    try {
-      localStorage.removeItem(`${PENDING_PREFIX}${classId}`);
-    } catch {
-      // Nothing else to do; the celebrated flag still prevents replay.
-    }
-    return false;
-  }
-
-  pendingInMemory.delete(classId);
-  celebratedInMemory.add(classId);
-  try {
-    localStorage.removeItem(`${PENDING_PREFIX}${classId}`);
-    localStorage.setItem(`${CELEBRATED_PREFIX}${classId}`, '1');
-  } catch {
-    // The module-level sets still prevent replay for this app session.
-  }
-  return true;
-}
-
 function isQualified(entry: Entry): boolean {
   const result = entry.resultText?.trim().toLowerCase();
   return result === 'q' || result === 'qualified';
+}
+
+function isPodiumPlacement(value: number | undefined): value is PodiumPlacement {
+  return value !== undefined && Number.isInteger(value) && value >= 1 && value <= 4;
 }
 
 function parseTime(value: string | undefined): number | null {
@@ -158,10 +112,7 @@ export function ClassPodium({ entries }: ClassPodiumProps) {
   const placedEntries = entries
     .filter(
       (entry): entry is Entry & { placement: PodiumPlacement } =>
-        entry.isScored &&
-        entry.placement !== undefined &&
-        entry.placement >= 1 &&
-        entry.placement <= 4
+        entry.isScored && isQualified(entry) && isPodiumPlacement(entry.placement)
     )
     .sort((a, b) => a.placement - b.placement);
 
@@ -260,24 +211,23 @@ export function ClassCompletionPresentation({
   const resultsReleased = Boolean(classInfo?.resultsReleasedAt);
   const isPresentationReady = isFinalized && resultsReleased;
   const scoredCount = useMemo(() => entries.filter(entry => entry.isScored).length, [entries]);
-  const qualifiedCount = useMemo(() => entries.filter(isQualified).length, [entries]);
+  const qualifiedCount = useMemo(
+    () => entries.filter(entry => entry.isScored && isQualified(entry)).length,
+    [entries]
+  );
   const elapsedTime = useMemo(
     () => (classInfo ? formatElapsedTime(classInfo, entries) : null),
     [classInfo, entries]
   );
 
   useEffect(() => {
-    if (
-      !classId ||
-      !classInfo ||
-      !isPresentationReady ||
-      claimedRef.current ||
-      !claimClassCompletionCelebration(classId)
-    ) {
+    if (!classId || !classInfo || !isPresentationReady || claimedRef.current) {
       return;
     }
 
     claimedRef.current = true;
+    if (!claimClassCompletionCelebration(classId)) return;
+
     onSelectCompleted();
     setShowCelebration(true);
     fireCompletionConfetti();

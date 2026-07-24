@@ -90,15 +90,8 @@ export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
 export { useEntryListData } from './hooks/useEntryListData';
 export type { UseEntryListDataOptions } from './hooks/useEntryListData';
 
-export {
-  ClassCompletionPresentation,
-  ClassPodium,
-  markClassCompletionPending,
-} from './components/ClassCompletionPresentation';
-export type {
-  ClassCompletionPresentationProps,
-  ClassPodiumProps,
-} from './components/ClassCompletionPresentation';
+export { ClassCompletionPresentation, ClassPodium, markClassCompletionPending } from './components';
+export type { ClassCompletionPresentationProps, ClassPodiumProps } from './components';
 
 // ── Hook DI contracts (PR E2d-1) ────────────────────────────────────────
 // `EntryListHandlers` and `EntryListActions` mirror the return shapes

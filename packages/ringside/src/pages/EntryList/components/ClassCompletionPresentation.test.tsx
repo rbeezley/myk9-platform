@@ -5,8 +5,10 @@ import type { Entry } from '../../../stores/entryStore';
 import type { ClassInfo } from '../types';
 import {
   ClassCompletionPresentation,
+  ClassPodium,
   markClassCompletionPending,
 } from './ClassCompletionPresentation';
+import { COMPLETION_INTENT_MAX_AGE_MS } from './classCompletionStorage';
 
 const { confettiBurst } = vi.hoisted(() => ({
   confettiBurst: vi.fn(),
@@ -67,7 +69,7 @@ const entries: Entry[] = [
     handler: 'Lee Handler',
     isScored: true,
     status: 'completed',
-    resultText: 'not_qualified',
+    resultText: 'qualified',
     placement: 4,
     className: 'Container Novice',
   },
@@ -142,7 +144,7 @@ describe('ClassCompletionPresentation', () => {
     expect(screen.getByRole('region', { name: 'Class podium' })).not.toBeNull();
     expect(screen.getByText('45 minutes')).not.toBeNull();
     expect(screen.getByText('entries scored').parentElement?.textContent).toBe('4entries scored');
-    expect(screen.getByText('qualified').parentElement?.textContent).toBe('3qualified');
+    expect(screen.getByText('qualified').parentElement?.textContent).toBe('4qualified');
     expect(screen.getAllByTestId('podium-position')).toHaveLength(4);
     expect(confettiBurst).toHaveBeenCalledTimes(1);
 
@@ -237,5 +239,75 @@ describe('ClassCompletionPresentation', () => {
 
     expect(await screen.findByRole('region', { name: 'Class complete' })).not.toBeNull();
     expect(confettiBurst).not.toHaveBeenCalled();
+  });
+
+  it('does not replay a stale completion intent or change the selected tab', async () => {
+    const now = Date.parse('2026-07-24T16:00:00.000Z');
+    const dateNow = vi.spyOn(Date, 'now').mockReturnValue(now);
+    const onSelectCompleted = vi.fn();
+    markClassCompletionPending('class-stale');
+    dateNow.mockReturnValue(now + COMPLETION_INTENT_MAX_AGE_MS + 1);
+
+    render(<PresentationHarness classId="class-stale" onSelectCompleted={onSelectCompleted} />);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Class complete' })).toBeNull();
+    });
+    expect(onSelectCompleted).not.toHaveBeenCalled();
+    expect(confettiBurst).not.toHaveBeenCalled();
+    dateNow.mockRestore();
+  });
+
+  it('does not re-read completion storage after reaching an already-celebrated terminal state', async () => {
+    markClassCompletionPending('class-terminal');
+    const firstRender = render(
+      <PresentationHarness classId="class-terminal" initialTab="completed" />
+    );
+    expect(await screen.findByRole('region', { name: 'Class complete' })).not.toBeNull();
+    firstRender.unmount();
+
+    const storageRead = vi.spyOn(Storage.prototype, 'getItem');
+    const secondRender = render(
+      <PresentationHarness classId="class-terminal" initialTab="completed" />
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Class complete' })).toBeNull();
+    });
+    const readsAfterClaim = storageRead.mock.calls.length;
+
+    secondRender.rerender(
+      <PresentationHarness
+        classId="class-terminal"
+        initialTab="completed"
+        classInfo={{ ...releasedClass }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(storageRead).toHaveBeenCalledTimes(readsAfterClaim);
+    });
+    storageRead.mockRestore();
+  });
+
+  it('ignores non-integer placements and non-qualifying results', () => {
+    const invalidPlacement: Entry = {
+      ...entries[0],
+      id: 'entry-invalid-placement',
+      callName: 'Fraction',
+      placement: 2.5,
+    };
+    const nonQualifyingPlacement: Entry = {
+      ...entries[0],
+      id: 'entry-nq-placement',
+      callName: 'No Qualifier',
+      resultText: 'not_qualified',
+      placement: 4,
+    };
+
+    render(<ClassPodium entries={[...entries, invalidPlacement, nonQualifyingPlacement]} />);
+
+    expect(screen.getAllByTestId('podium-position')).toHaveLength(4);
+    expect(screen.queryByText('Fraction')).toBeNull();
+    expect(screen.queryByText('No Qualifier')).toBeNull();
   });
 });

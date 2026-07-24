@@ -195,18 +195,12 @@ export function useAtShowScoresheet({
     if (!entry || !classInfo) return;
     // Clear any prior failure before this attempt.
     setSubmitError(null);
+    const completionClassId = classInfo.id;
     let wasFinalPendingEntry = false;
-    if (classId) {
-      try {
-        wasFinalPendingEntry = await isCurrentFinalPendingEntry(classId, entry.entryId);
-      } catch (err) {
-        logger.warn(
-          'Could not verify class completion before scoring',
-          'at-show',
-          {},
-          err as Error
-        );
-      }
+    try {
+      wasFinalPendingEntry = await isCurrentFinalPendingEntry(completionClassId, entry.entryId);
+    } catch (err) {
+      logger.warn('Could not verify class completion before scoring', 'at-show', {}, err as Error);
     }
 
     let scoreSaved = false;
@@ -233,12 +227,10 @@ export function useAtShowScoresheet({
 
     if (!scoreSaved) return;
 
-    if (classId) {
-      try {
-        await recordCompletionIntentIfConfirmed(classId, wasFinalPendingEntry);
-      } catch (err) {
-        logger.warn('Could not verify class completion after scoring', 'at-show', {}, err as Error);
-      }
+    try {
+      await recordCompletionIntentIfConfirmed(completionClassId, wasFinalPendingEntry);
+    } catch (err) {
+      logger.warn('Could not verify class completion after scoring', 'at-show', {}, err as Error);
     }
     transitionToCompleted(entry.entryId);
     onScored();

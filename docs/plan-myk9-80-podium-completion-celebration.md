@@ -14,6 +14,8 @@ Add a podium presentation and a one-time class-completion celebration to the exi
 - `ReplicatedClass` already carries server-authoritative `resultsReleasedAt`, `actual_start_time`, and `actual_end_time`.
 - `ReplicatedEntry` already carries scoring and ring timestamps for an offline fallback.
 - Placement values are server-authored and already mapped onto ringside entries.
+- `no-status` remains expected and unaccounted until show staff records an explicit
+  terminal outcome such as absent or excused; the client does not infer no-shows.
 
 ## Duplication question
 
@@ -27,6 +29,8 @@ Does this duplicate an existing page? No. The podium is a view state at the top 
 4. Add shared completion-intent storage and a celebration hook/component:
    - the scoresheet records intent only when fresh replicated snapshots confirm the submitted entry was the final expected, unaccounted entry and the class became accounted-for;
    - the entry list consumes intent only after server-authoritative finalization and `resultsReleasedAt` exist;
+   - pending intent expires after 24 hours so a later revisit cannot hijack the
+     selected tab or trigger delayed confetti;
    - a persistent per-class celebrated flag prevents revisit and sync replay;
    - reduced-motion users receive the summary without confetti.
 5. When the valid completion intent is consumed, select the Completed tab and layer a dismissible summary over the podium.

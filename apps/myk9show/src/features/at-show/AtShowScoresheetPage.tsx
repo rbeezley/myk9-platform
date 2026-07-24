@@ -89,8 +89,14 @@ export const AtShowScoresheetPage: React.FC = () => {
   const handleSignOutToPasscode = useCallback(async () => {
     setSignOutError(false);
     await supabase.auth.signOut({ scope: 'local' });
-    const { data } = await supabase.auth.getSession();
-    if (data.session) {
+    // Proceed ONLY when we can positively confirm no session remains. A retained
+    // session, OR an inconclusive read — auth-js returns { session: null, error }
+    // when an expired token's refresh fails transiently (e.g. offline) while
+    // keeping the persisted session for a later retry — keeps us here with a
+    // retry message. Navigating then would strand the judge: once connectivity
+    // returns, anonymous passcode sign-in refuses to replace the live account.
+    const { data, error } = await supabase.auth.getSession();
+    if (data.session || error) {
       setSignOutError(true);
       return;
     }

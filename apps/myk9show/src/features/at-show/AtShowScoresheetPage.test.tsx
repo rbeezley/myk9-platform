@@ -455,7 +455,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
-    it('stays on the block only when the session is genuinely still live', async () => {
+    it('stays on the block when the session is genuinely still live', async () => {
       // Exceptional: sign-out did NOT clear the session. Keyed on the resulting
       // session (not the error), we must not navigate or discard the grant.
       supabaseGetSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
@@ -473,6 +473,31 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
       await screen.findByRole('alert');
       expect(screen.getByText("You're not assigned to judge this class")).toBeInTheDocument();
+      expect(useRingsideGrantStore.getState().activeGrant).not.toBeNull();
+    });
+
+    it('stays on the block when the session read is inconclusive (offline refresh error)', async () => {
+      // auth-js returns { session: null, error } when an expired token's refresh
+      // fails transiently but the persisted session is retained. Treating that
+      // as signed-out would strand the judge once connectivity returns, so a
+      // null session WITH an error must keep us here, not navigate.
+      supabaseGetSession.mockResolvedValue({
+        data: { session: null },
+        error: { message: 'network' },
+      });
+      useRingsideGrantStore.getState().setGrant({
+        showId: 'show-1',
+        role: 'judge',
+        source: 'passcode',
+      });
+      judgeAssignmentsGetAll.mockResolvedValue([
+        { id: 'a1', personId: 'judge-1', classId: 'some-other-class', status: 'confirmed' },
+      ]);
+      renderPage();
+
+      fireEvent.click(await screen.findByRole('button', { name: /sign out to use a passcode/i }));
+
+      await screen.findByRole('alert');
       expect(useRingsideGrantStore.getState().activeGrant).not.toBeNull();
     });
 

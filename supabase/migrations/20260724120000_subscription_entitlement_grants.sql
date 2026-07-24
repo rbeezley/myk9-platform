@@ -168,12 +168,14 @@ GRANT EXECUTE ON FUNCTION public.has_effective_premium_access(uuid, timestamptz)
 -- (can_view_scores OR vis.qualification_visible) AND is_scored = true AND
 -- result_status is one of the recognized codes (qualified/nq/absent/excused/
 -- withdrawn) — see 20260621190000_ringside_entry_read_for_staff.sql result_text
--- CASE. The caller here is the dog's owner/co-owner (is_own_entry), for whom
--- can_view_scores is false (that flag is manager-or-assigned-judge only), so the
--- OR collapses to vis.qualification_visible from resolve_class_result_visibility.
--- The server query below reproduces exactly that predicate: distinct show_id over
--- the caller's owned/co-owned dogs where the entry is scored, carries a recognized
--- result_status, and the class's qualification results are visible.
+-- CASE. can_view_scores = can_manage_show(show_id) OR the caller is the class's
+-- assigned (confirmed/invited) judge — an exhibitor who also manages or judges
+-- sees results even before qualification release, so the count must include
+-- that path or such users would undercount vs. the client and retain extra
+-- trial access. The server query below reproduces the full predicate: distinct
+-- show_id over the caller's owned/co-owned dogs where the entry is scored,
+-- carries a recognized result_status, and EITHER the class's qualification
+-- results are visible OR the caller has privileged score visibility.
 CREATE OR REPLACE FUNCTION public.get_own_entitlement_context()
 RETURNS TABLE (
   evaluated_at timestamptz,
@@ -251,7 +253,19 @@ BEGIN
   WHERE (d.owner_id = v_person_id OR d.co_owner_id = v_person_id)
     AND e.is_scored = true
     AND e.result_status IN ('qualified', 'nq', 'absent', 'excused', 'withdrawn')
-    AND vis.qualification_visible;
+    AND (
+      vis.qualification_visible
+      -- can_view_scores path of view_authenticated_entry_results: show manager
+      -- or the class's assigned judge sees result_text before release.
+      OR public.can_manage_show(e.show_id)
+      OR EXISTS (
+        SELECT 1
+        FROM public.judge_assignments ja
+        WHERE ja.person_id = v_person_id
+          AND ja.class_id = e.class_id
+          AND ja.status IN ('confirmed', 'invited')
+      )
+    );
 
   RETURN QUERY SELECT
     v_now,

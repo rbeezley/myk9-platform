@@ -3,7 +3,7 @@ export interface ExampleQuery {
   category: 'rules' | 'show-data' | 'app-help';
 }
 
-export type AskQPanelMode = ExampleQuery['category'];
+export type AskQPanelMode = ExampleQuery['category'] | 'operator-support';
 
 export interface RulebookScopeOption {
   label: string;
@@ -33,6 +33,7 @@ export const QUESTION_MODE_LABELS: Record<AskQPanelMode, string> = {
   'app-help': 'App help',
   rules: 'Rules',
   'show-data': 'This show',
+  'operator-support': 'Operator Support',
 };
 
 export const RULEBOOK_SCOPE_OPTIONS: RulebookScopeOption[] = [
@@ -51,6 +52,7 @@ export const TOOL_LABELS: Record<string, string> = {
   get_entry_results: 'Results',
   get_trial_overview: 'Trials',
   search_entries: 'Entries',
+  summarize_operator_alerts: 'Operator alerts',
 };
 
 export const SOURCE_LABELS: Record<string, string> = {

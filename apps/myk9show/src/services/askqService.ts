@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 
 const FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ask-myk9show`;
+const OPERATOR_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ask-operator-support`;
 
 export interface AskQRequest {
   message: string;
@@ -11,6 +12,11 @@ export interface AskQRequest {
 }
 
 export type AskQQuestionMode = 'app-help' | 'rules' | 'show-data';
+
+export type AskQQuerySender = (
+  request: AskQRequest,
+  signal?: AbortSignal
+) => Promise<ReadableStream<Uint8Array>>;
 
 export interface AskQRulebookScope {
   organizationCode?: string;
@@ -29,6 +35,21 @@ export async function sendAskQQuery(
   request: AskQRequest,
   signal?: AbortSignal
 ): Promise<ReadableStream<Uint8Array>> {
+  return sendAuthenticatedQuery(FUNCTION_URL, request, signal);
+}
+
+export async function sendOperatorSupportQuery(
+  request: AskQRequest,
+  signal?: AbortSignal
+): Promise<ReadableStream<Uint8Array>> {
+  return sendAuthenticatedQuery(OPERATOR_FUNCTION_URL, { message: request.message }, signal);
+}
+
+async function sendAuthenticatedQuery(
+  functionUrl: string,
+  request: AskQRequest,
+  signal?: AbortSignal
+): Promise<ReadableStream<Uint8Array>> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -36,7 +57,7 @@ export async function sendAskQQuery(
     throw new Error('Not authenticated');
   }
 
-  const response = await fetch(FUNCTION_URL, {
+  const response = await fetch(functionUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

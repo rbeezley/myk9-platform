@@ -19,6 +19,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
 describe('AskQPanel', () => {
   beforeEach(() => {
     authState.user = { id: 'user-1' };
+    authState.userWithRoles.roles = ['exhibitor'];
     // `parseSSEStream` is overridden by the deferred skeleton test. Clear-only
     // resets let that implementation leak when Vitest shuffles test order.
     vi.clearAllMocks();
@@ -36,6 +37,87 @@ describe('AskQPanel', () => {
     act(() => useAskQPanelStore.getState().open());
     render(<AskQPanel />);
     expect(screen.getByText('AskQ Assistant')).toBeInTheDocument();
+  });
+
+  it('hides Operator Support from non-site-admin users', () => {
+    act(() => useAskQPanelStore.getState().open());
+    render(<AskQPanel />);
+
+    expect(screen.queryByRole('button', { name: 'Operator Support' })).not.toBeInTheDocument();
+  });
+
+  it('shows Operator Support to site admins and routes only through its dedicated sender', async () => {
+    authState.userWithRoles.roles = ['site_admin'];
+    vi.mocked(askqService.sendOperatorSupportQuery).mockResolvedValue(createMockStream());
+
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />);
+
+    await user.click(screen.getByRole('button', { name: 'Operator Support' }));
+    const input = screen.getByPlaceholderText('Ask about platform alerts...');
+    fireEvent.change(input, { target: { value: 'Summarize unresolved alerts' } });
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+
+    await waitFor(() => {
+      expect(askqService.sendOperatorSupportQuery).toHaveBeenCalledWith(
+        { message: 'Summarize unresolved alerts' },
+        expect.any(AbortSignal)
+      );
+    });
+    expect(askqService.sendAskQQuery).not.toHaveBeenCalled();
+  });
+
+  it('does not offer a subscription upgrade for the fixed Operator Support limit', async () => {
+    authState.userWithRoles.roles = ['site_admin'];
+    vi.mocked(askqService.sendOperatorSupportQuery).mockRejectedValue(
+      new askqService.RateLimitError(0, 20, '2026-07-25T00:00:00.000Z')
+    );
+
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />);
+
+    await user.click(screen.getByRole('button', { name: 'Operator Support' }));
+    fireEvent.change(screen.getByPlaceholderText('Ask about platform alerts...'), {
+      target: { value: 'Summarize unresolved alerts' },
+    });
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+
+    expect(
+      await screen.findByText('Daily limit reached. Resets at midnight UTC.')
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Upgrade for more queries' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('clears private Operator Support state when returning to normal AskQ', async () => {
+    authState.userWithRoles.roles = ['site_admin'];
+    vi.mocked(askqService.sendOperatorSupportQuery).mockResolvedValue(
+      createMockStream('Two unresolved operator alerts.')
+    );
+    vi.mocked(askqService.parseSSEStream).mockImplementation(async (_stream, onEvent) => {
+      onEvent('token', 'Two unresolved operator alerts.');
+      onEvent('done', {});
+    });
+
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />);
+
+    await user.click(screen.getByRole('button', { name: 'Operator Support' }));
+    fireEvent.change(screen.getByPlaceholderText('Ask about platform alerts...'), {
+      target: { value: 'Summarize unresolved alerts' },
+    });
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+    expect(await screen.findByText('Two unresolved operator alerts.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open full System Health' })).toHaveAttribute(
+      'href',
+      '/admin/health'
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Rules' }));
+
+    expect(screen.queryByText('Two unresolved operator alerts.')).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Ask about the selected rulebook...')).toBeInTheDocument();
   });
 
   it('shows example queries in empty state', () => {

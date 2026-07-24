@@ -1,6 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { sendAskQQuery, parseSSEStream, RateLimitError } from '@/services/askqService';
-import type { AskQQuestionMode, AskQRequest, AskQRulebookScope } from '@/services/askqService';
+import type {
+  AskQQuerySender,
+  AskQQuestionMode,
+  AskQRequest,
+  AskQRulebookScope,
+} from '@/services/askqService';
 
 export type AskQStatus = 'idle' | 'streaming' | 'done' | 'error' | 'rate-limited';
 
@@ -34,7 +39,7 @@ const INITIAL_STATE: AskQState = {
   error: null,
 };
 
-export function useAskQ() {
+export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
   const [state, setState] = useState<AskQState>(INITIAL_STATE);
   const abortRef = useRef<AbortController | null>(null);
   const answerRef = useRef('');
@@ -86,7 +91,7 @@ export function useAskQ() {
           ...(options.questionMode ? { questionMode: options.questionMode } : {}),
           ...(options.rulebookScope ? { rulebookScope: options.rulebookScope } : {}),
         };
-        const stream = await sendAskQQuery(request, signal);
+        const stream = await sendQuery(request, signal);
 
         let answer = '';
         let toolsUsed: string[] = [];
@@ -162,7 +167,7 @@ export function useAskQ() {
       }
     },
 
-    []
+    [sendQuery]
   );
 
   const cancel = useCallback(() => {

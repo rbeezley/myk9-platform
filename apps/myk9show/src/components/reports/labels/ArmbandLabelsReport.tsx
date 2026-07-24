@@ -133,7 +133,14 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
   const writeLabelIframe = useCallback(() => {
     const iframe = externalIframeRef?.current;
-    if (!iframe || pages.length === 0) return;
+    if (!iframe) return;
+
+    if (pages.length === 0) {
+      iframe.contentDocument?.open();
+      iframe.contentDocument?.write('<!DOCTYPE html><html><head></head><body></body></html>');
+      iframe.contentDocument?.close();
+      return;
+    }
 
     const sheetsHtml = pages
       .map(page => {

@@ -104,4 +104,30 @@ describe('buildCalibrationTestSheetHtml', () => {
     expect(html).toContain('<html>');
     expect(html).toContain('</html>');
   });
+
+  it('renders .label-sheet as the first in-flow element in <body>, matching real reports', () => {
+    const html = buildCalibrationTestSheetHtml(template18262, 0, 0, 0);
+    const bodyMatch = html.match(/<body>([\s\S]*)<\/body>/);
+    expect(bodyMatch).not.toBeNull();
+    const bodyContent = bodyMatch![1];
+    expect(bodyContent.trimStart().startsWith('<div class="label-sheet">')).toBe(true);
+  });
+
+  it('takes the reference ruler out of normal document flow (position: fixed)', () => {
+    const html = buildCalibrationTestSheetHtml(template18262, 0, 0, 0);
+    const rulerWrapRule = html.match(/\.calibration-ruler-wrap\s*\{[^}]*\}/);
+    expect(rulerWrapRule).not.toBeNull();
+    expect(rulerWrapRule![0]).toContain('position: fixed');
+  });
+
+  it('omits the row/col marker in the first cell so it does not overlap the diagnosis guide', () => {
+    const html = buildCalibrationTestSheetHtml(template18262, 0, 0, 0);
+    const firstCellMatch = html.match(
+      /<div class="label-cell"[^>]*>([\s\S]*?)<\/div>\s*<div class="label-cell"/
+    );
+    expect(firstCellMatch).not.toBeNull();
+    const firstCellContent = firstCellMatch![1];
+    expect(firstCellContent).toContain('calibration-guide');
+    expect(firstCellContent).not.toContain('Row 1, Col 1');
+  });
 });

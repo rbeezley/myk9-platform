@@ -55,7 +55,10 @@ export function buildCalibrationTestSheetHtml(
 .calibration-corner-mark--bottom-right::after { bottom: 0; right: 0; }
 
 .calibration-ruler-wrap {
-  padding: 0.15in 0 0.05in;
+  position: fixed;
+  top: 0.05in;
+  right: 0.05in;
+  text-align: right;
 }
 .calibration-ruler {
   width: 1in;
@@ -110,13 +113,23 @@ export function buildCalibrationTestSheetHtml(
   const cellsHtml = Array.from({ length: template.rows }, (_, rowIndex) =>
     Array.from({ length: template.columns }, (_, colIndex) => {
       const isFirstCell = rowIndex === 0 && colIndex === 0;
+      // The first cell holds the diagnosis guide, which already occupies the
+      // top-left corner where the row/col marker would render — omit the
+      // marker there to avoid overlapping text (row/col 1,1 is implied).
+      const cellMarkerHtml = isFirstCell
+        ? ''
+        : `<div class="calibration-cell-marker">Row ${rowIndex + 1}, Col ${colIndex + 1}</div>`;
       return `<div class="label-cell" style="border: 1px dashed #000;">
 ${isFirstCell ? diagnosisGuideHtml : ''}
-<div class="calibration-cell-marker">Row ${rowIndex + 1}, Col ${colIndex + 1}</div>
+${cellMarkerHtml}
 </div>`;
     }).join('')
   ).join('');
 
+  // Out-of-flow (position: fixed) so it overlays the page without shifting
+  // .label-sheet down — the sheet must land at the exact same coordinates as
+  // a real label report, which requires .label-sheet to be the first
+  // in-flow element in <body>.
   const rulerHtml = `
 <div class="calibration-ruler-wrap">
   <div class="calibration-ruler"></div>
@@ -124,5 +137,5 @@ ${isFirstCell ? diagnosisGuideHtml : ''}
 </div>
 `;
 
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Label Calibration Test Sheet</title><style>${css}${cornerMarkStyles}</style></head><body>${cornerMarksHtml}${rulerHtml}<div class="label-sheet">${cellsHtml}</div></body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Label Calibration Test Sheet</title><style>${css}${cornerMarkStyles}</style></head><body><div class="label-sheet">${cellsHtml}</div>${cornerMarksHtml}${rulerHtml}</body></html>`;
 }

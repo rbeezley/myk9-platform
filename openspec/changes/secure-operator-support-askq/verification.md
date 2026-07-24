@@ -31,6 +31,7 @@
 - `pnpm openspec validate secure-operator-support-askq --strict` passed.
 - `git diff --check` passed and the worktree contains only the scoped implementation and OpenSpec files.
 - `supabase db push` applied `20260724180000_reserve_operator_support_query.sql` to the linked project; `supabase migration list --linked` confirms matching local and remote versions.
+- `supabase functions deploy ask-operator-support --no-verify-jwt` deployed the function to the linked project; an unauthenticated live POST returned HTTP 503 with `Operator Support is unavailable`, confirming the runtime is reachable and the server switch remains closed.
 
 ## Issues by Priority
 
@@ -41,7 +42,7 @@
 ### WARNING
 
 - The broader `docs/plan-ai-natural-language-access.md` still requires typed diagnostic states and production-like validation before Phase 2 can deploy. Rate limiting and the disable switch are now included in this slice.
-- A Deno runtime bundle/serve check could not run because Deno is not installed in this worktree environment. Shared logic is typechecked and tested, but the edge-function entry point still needs Supabase local/staging verification before deployment.
+- Supabase deployment bundled the Edge Function successfully and the disabled-path live probe passed. An authenticated site-admin end-to-end exercise still requires a controlled enablement window.
 - The atomic quota migration is applied and has source-contract coverage, but the RPC still needs an authenticated site-admin staging exercise before enabling the edge function.
 - Linear MYK9-26 remains Backlog and describes this feature as post-launch. The local implementation was started only because the user explicitly approved proceeding; the issue was not changed.
 

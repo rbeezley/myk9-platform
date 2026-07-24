@@ -16,7 +16,7 @@
  * on load). The block is structural, not a hidden submit button.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Loader2,
@@ -47,6 +47,7 @@ import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
 import { useAtShowAudioMute } from './useAtShowAudioMute';
 import { badgeClass } from './slots/atShowChrome.helpers';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAudioWarnings } from '@/hooks/useAudioWarnings';
 import { DEFAULT_AUDIO_SETTINGS } from '@/constants/audioSettings';
@@ -68,19 +69,29 @@ export const AtShowScoresheetPage: React.FC = () => {
   // model gives stewards `canScore: false`. Derive the effective ringside role
   // the same way the EntryList shims do — account RBAC, overridden by a Phase 1c
   // show-scoped passcode grant.
-  const { hasPermission, ringsideRole, showRole } = useRingsideEffectiveRole(showId);
+  const { hasPermission, showRole } = useRingsideEffectiveRole(showId);
   const { user } = useAuthContext();
   const isAnonymous = user?.is_anonymous === true;
+  const [signOutError, setSignOutError] = useState(false);
 
   // The only passcode path that actually authorizes scoring is an ANONYMOUS
   // guest session (validate-passcode stamps the show-scoped claim only on anon
   // sessions). A signed-in judge must therefore sign out first, then enter the
   // passcode as a guest. We sign out via supabase DIRECTLY rather than the
   // AuthContext `signOut` (which hard-redirects to '/', clobbering the
-  // navigation below) — the SIGNED_OUT auth listener still runs its cleanup —
-  // then route client-side to the passcode form in a single navigation.
+  // navigation below). supabase.auth.signOut resolves with an { error } instead
+  // of throwing, so we must NOT navigate on failure — otherwise the passcode
+  // form would run with the account session still live and loop back here. On
+  // success we also clear the in-memory ringside grant (the hard reload we
+  // skipped is what ringsideGrantStore otherwise relied on) before navigating.
   const handleSignOutToPasscode = useCallback(async () => {
-    await supabase.auth.signOut();
+    setSignOutError(false);
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setSignOutError(true);
+      return;
+    }
+    useRingsideGrantStore.getState().clearGrant();
     navigate('/at-show?passcode=1');
   }, [navigate]);
 
@@ -93,12 +104,7 @@ export const AtShowScoresheetPage: React.FC = () => {
   // Called unconditionally (hooks can't follow the early return below); it
   // self-resolves 'not-applicable' for every session this doesn't concern
   // (anonymous passcode sessions, manager accounts, stewards, exhibitors).
-  const assignmentCheck = useJudgeAssignedToClass({
-    ringsideRole,
-    showRole,
-    isAnonymous,
-    classId,
-  });
+  const assignmentCheck = useJudgeAssignedToClass({ showRole, isAnonymous, classId });
 
   // Gate BEFORE mounting the scoring engine: an unauthorized role must never run
   // `useAtShowScoresheet` (whose load effect calls `transitionToInRing`), so the
@@ -147,6 +153,11 @@ export const AtShowScoresheetPage: React.FC = () => {
               Sign out to use a passcode
             </Button>
           </div>
+          {signOutError && (
+            <p role="alert" className="mt-3 text-sm text-destructive">
+              Couldn&apos;t sign out — check your connection and try again.
+            </p>
+          )}
         </div>
       </div>
     );

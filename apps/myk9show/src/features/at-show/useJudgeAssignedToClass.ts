@@ -1,24 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { UserRole as RingsideRole } from '@myk9/ringside';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole as ShowRole } from '@/types/auth-types';
 import { replicatedJudgeAssignmentsTable } from '@/services/replication';
 
 /** Assignment-lifecycle statuses that put a class on the judge's plate — mirrors useJudgeAssignments. */
 const ACTIVE_ASSIGNMENT_STATUSES = ['confirmed', 'invited'];
-
-/**
- * Account roles the server's `ringside_update_entry()` manager tier authorizes
- * (is_site_admin / is_trial_secretary / is_club_admin) — they may score without
- * a judge_assignment, so the pre-flight must never block them, even when a
- * passcode grant has overridden their EFFECTIVE ringside role to `judge`.
- * CHAIRMAN is deliberately excluded — the server manager tier does not admit it.
- */
-const SERVER_MANAGER_ACCOUNT_ROLES: readonly ShowRole[] = [
-  ShowRole.SITE_ADMIN,
-  ShowRole.SECRETARY,
-  ShowRole.CLUB_ADMIN,
-];
 
 export type JudgeAssignmentGateResult =
   | { status: 'not-applicable' }
@@ -27,9 +13,7 @@ export type JudgeAssignmentGateResult =
   | { status: 'unassigned' };
 
 interface Args {
-  /** Effective ringside role (grant overrides RBAC), from useRingsideEffectiveRole. */
-  ringsideRole: RingsideRole | null;
-  /** Account RBAC role (grant-independent) — used to exempt server-authorized managers. */
+  /** Account RBAC role (grant-independent), from useRingsideEffectiveRole. */
   showRole: ShowRole | null | undefined;
   /** Whether the Supabase session is anonymous (a passcode guest session). */
   isAnonymous: boolean;
@@ -48,12 +32,19 @@ interface Args {
  * score, and only discovers the rejection at sync — the run is over and the
  * score is gone. This checks the assignment before the scoring engine mounts.
  *
- * Applies to a **non-anonymous session whose effective ringside role is
- * `judge`** — this catches both a signed-in RBAC judge AND a signed-in account
- * holding a judge passcode grant (the grant is client-only and does NOT
- * establish server authorization for an account session). Every other case is
- * `not-applicable`: an anonymous passcode session is server-authorized show-wide
- * by its claim, and managers/admins are authorized by role, not by assignment.
+ * Applies to a **non-anonymous JUDGE account** — the one case whose server
+ * authorization depends solely on `judge_assignments`, and the ticket's real
+ * target. It keys on the ACCOUNT role (grant-independent), so a signed-in judge
+ * holding a client-side passcode grant is still gated (the grant does not
+ * establish server authz for an account session). Every other session is
+ * `not-applicable` and left to fail open, which is never worse than today:
+ *   - anonymous passcode session — server-authorized show-wide by its claim;
+ *   - manager accounts (site-admin / secretary / club-admin) — authorized by
+ *     the server's role tier (with its own club scoping we don't replicate);
+ *   - a non-judge account holding a judge/admin grant — an exotic combination
+ *     the server would reject, left to the existing dead-letter path (MYK9-84).
+ * Keying on the account role deliberately avoids re-implementing the server's
+ * full, club-scoped manager/steward tiers on the client, which is fragile.
  *
  * Fail-open by design: reads replicated data only. It does a fast local check
  * first (an already-assigned judge never blocks or waits), and only when there
@@ -64,21 +55,13 @@ interface Args {
  * enforcement boundary.
  */
 export function useJudgeAssignedToClass({
-  ringsideRole,
   showRole,
   isAnonymous,
   classId,
 }: Args): JudgeAssignmentGateResult {
   const { userWithRoles } = useAuthContext();
   const personId = userWithRoles?.databaseUserId ?? null;
-  // A manager ACCOUNT is authorized by the server's role tier regardless of
-  // assignment — even if a judge passcode grant overrode its effective role to
-  // `judge` — so never gate it. The gate applies to a non-anonymous session
-  // whose EFFECTIVE role is `judge` and whose ACCOUNT is not a server manager
-  // (catches a signed-in RBAC judge, and a signed-in non-manager holding a judge
-  // grant, both of which the server authorizes only via judge_assignments).
-  const isManagerAccount = showRole != null && SERVER_MANAGER_ACCOUNT_ROLES.includes(showRole);
-  const applicable = !isAnonymous && ringsideRole === 'judge' && !isManagerAccount;
+  const applicable = !isAnonymous && showRole === ShowRole.JUDGE;
 
   // The lookup key for the CURRENT inputs; null while inapplicable or identity
   // hasn't resolved. Storing the resolved verdict keyed by this string means a

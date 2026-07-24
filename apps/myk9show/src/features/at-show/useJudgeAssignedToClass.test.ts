@@ -34,7 +34,6 @@ describe('useJudgeAssignedToClass', () => {
   it('is not-applicable for an anonymous (passcode guest) session', () => {
     const { result } = renderHook(() =>
       useJudgeAssignedToClass({
-        ringsideRole: 'judge',
         showRole: ShowRole.JUDGE,
         isAnonymous: true,
         classId: 'class-1',
@@ -44,10 +43,9 @@ describe('useJudgeAssignedToClass', () => {
     expect(getAll).not.toHaveBeenCalled();
   });
 
-  it('is not-applicable for a non-judge effective role (e.g. admin/manager)', () => {
+  it('is not-applicable for a non-judge account role (e.g. site admin)', () => {
     const { result } = renderHook(() =>
       useJudgeAssignedToClass({
-        ringsideRole: 'admin',
         showRole: ShowRole.SITE_ADMIN,
         isAnonymous: false,
         classId: 'class-1',
@@ -57,14 +55,13 @@ describe('useJudgeAssignedToClass', () => {
     expect(getAll).not.toHaveBeenCalled();
   });
 
-  it('is not-applicable for a manager ACCOUNT even when a grant overrode the role to judge', () => {
-    // A secretary/site-admin/club-admin who entered a JUDGE passcode has an
-    // effective role of `judge`, but the server authorizes them via its manager
-    // tier regardless of assignment — so the gate must not block them.
+  it('is not-applicable for any manager account role (server authorizes them by role)', () => {
+    // Managers reach scoring via their own role or a grant, but the gate keys on
+    // the ACCOUNT role, so a non-judge account is never gated — the server's
+    // (club-scoped) manager tier is left to authorize or reject them.
     for (const showRole of [ShowRole.SITE_ADMIN, ShowRole.SECRETARY, ShowRole.CLUB_ADMIN]) {
       const { result, unmount } = renderHook(() =>
         useJudgeAssignedToClass({
-          ringsideRole: 'judge',
           showRole,
           isAnonymous: false,
           classId: 'class-1',
@@ -80,7 +77,6 @@ describe('useJudgeAssignedToClass', () => {
     getAll.mockResolvedValue([CONFIRMED]);
     const { result } = renderHook(() =>
       useJudgeAssignedToClass({
-        ringsideRole: 'judge',
         showRole: ShowRole.JUDGE,
         isAnonymous: false,
         classId: 'class-1',
@@ -96,7 +92,6 @@ describe('useJudgeAssignedToClass', () => {
     getAll.mockResolvedValue([{ ...CONFIRMED, status: 'invited' }]);
     const { result } = renderHook(() =>
       useJudgeAssignedToClass({
-        ringsideRole: 'judge',
         showRole: ShowRole.JUDGE,
         isAnonymous: false,
         classId: 'class-1',
@@ -113,7 +108,6 @@ describe('useJudgeAssignedToClass', () => {
     ]);
     const { result } = renderHook(() =>
       useJudgeAssignedToClass({
-        ringsideRole: 'judge',
         showRole: ShowRole.JUDGE,
         isAnonymous: false,
         classId: 'class-1',
@@ -133,7 +127,6 @@ describe('useJudgeAssignedToClass', () => {
       .mockResolvedValueOnce([CONFIRMED]);
     const { result } = renderHook(() =>
       useJudgeAssignedToClass({
-        ringsideRole: 'judge',
         showRole: ShowRole.JUDGE,
         isAnonymous: false,
         classId: 'class-1',
@@ -148,7 +141,6 @@ describe('useJudgeAssignedToClass', () => {
     getAll.mockResolvedValue([{ ...CONFIRMED, status: 'declined' }]);
     const { result } = renderHook(() =>
       useJudgeAssignedToClass({
-        ringsideRole: 'judge',
         showRole: ShowRole.JUDGE,
         isAnonymous: false,
         classId: 'class-1',
@@ -161,7 +153,6 @@ describe('useJudgeAssignedToClass', () => {
     getAll.mockResolvedValue([]);
     const { result } = renderHook(() =>
       useJudgeAssignedToClass({
-        ringsideRole: 'judge',
         showRole: ShowRole.JUDGE,
         isAnonymous: false,
         classId: 'class-1',
@@ -177,7 +168,6 @@ describe('useJudgeAssignedToClass', () => {
     sync.mockResolvedValue({ success: false, error: 'offline' });
     const { result } = renderHook(() =>
       useJudgeAssignedToClass({
-        ringsideRole: 'judge',
         showRole: ShowRole.JUDGE,
         isAnonymous: false,
         classId: 'class-1',
@@ -190,7 +180,6 @@ describe('useJudgeAssignedToClass', () => {
     getAll.mockRejectedValue(new Error('IDB unavailable'));
     const { result } = renderHook(() =>
       useJudgeAssignedToClass({
-        ringsideRole: 'judge',
         showRole: ShowRole.JUDGE,
         isAnonymous: false,
         classId: 'class-1',

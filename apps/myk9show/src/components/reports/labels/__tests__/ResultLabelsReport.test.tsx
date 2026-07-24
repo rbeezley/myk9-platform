@@ -7,14 +7,14 @@ import { fromAny } from '@total-typescript/shoehorn';
 
 const STORAGE_KEY = 'myk9show-label-prefs';
 
-const buildLabelStylesheetMock = vi.fn(
+const buildLabelStylesheetMock = vi.fn<
   (
-    _template: unknown,
+    template: unknown,
     pitchAdjustment: number | undefined,
     offsetTop: number | undefined,
     offsetLeft: number | undefined
-  ) => 'css'
-);
+  ) => string
+>(() => 'css');
 vi.mock('@/lib/labels/labelStyles', () => ({
   buildLabelStylesheet: (
     template: unknown,

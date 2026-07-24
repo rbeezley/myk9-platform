@@ -290,6 +290,33 @@ describe('Operator Support system-health tool', () => {
     });
   });
 
+  it('uses failed checks beyond the returned detail cap when deriving effective status', async () => {
+    const checks = Array.from({ length: OPERATOR_HEALTH_CHECK_LIMIT + 1 }, (_, index) => ({
+      key: `check-${index}`,
+      label: `Check ${index}`,
+      status: index === OPERATOR_HEALTH_CHECK_LIMIT ? 'fail' : 'ok',
+      detail: `Detail ${index}`,
+      checked_at: '2026-07-24T11:00:00.000Z',
+    }));
+    const { client } = makeHealthClient([
+      {
+        id: 'snapshot-1',
+        created_at: '2026-07-24T11:00:00.000Z',
+        source: 'cron-health-check',
+        overall_status: 'ok',
+        run_duration_ms: 100,
+        checks,
+      },
+    ]);
+
+    const summary = await readOperatorHealthSummary(client, Date.parse('2026-07-24T12:00:00.000Z'));
+
+    expect(summary.checks).toHaveLength(OPERATOR_HEALTH_CHECK_LIMIT);
+    expect(summary.checksPayloadValid).toBe(true);
+    expect(summary.reportedStatus).toBe('ok');
+    expect(summary.effectiveStatus).toBe('fail');
+  });
+
   it('reports a missing snapshot as a failed health signal instead of healthy', async () => {
     const { client } = makeHealthClient([]);
 

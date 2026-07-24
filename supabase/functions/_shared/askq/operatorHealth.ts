@@ -70,10 +70,7 @@ export function summarizeOperatorHealth(value: unknown, now: number): OperatorHe
   const effectiveStatus =
     isStale || !checksPayloadValid
       ? 'fail'
-      : worstHealthStatus([
-          reportedStatus,
-          ...checks.map(check => normalizeHealthStatus(check.status) ?? 'fail'),
-        ]);
+      : worstHealthStatus([reportedStatus, ...allCheckStatuses(value.checks)]);
 
   return {
     snapshotAvailable: true,
@@ -137,6 +134,13 @@ function hasValidChecksPayload(value: unknown): boolean {
         typeof check.detail === 'string' &&
         (check.checked_at === null || typeof check.checked_at === 'string')
     )
+  );
+}
+
+function allCheckStatuses(value: unknown): HealthStatus[] {
+  if (!Array.isArray(value)) return ['fail'];
+  return value.map(check =>
+    isOperatorRecord(check) ? (normalizeHealthStatus(check.status) ?? 'fail') : 'fail'
   );
 }
 

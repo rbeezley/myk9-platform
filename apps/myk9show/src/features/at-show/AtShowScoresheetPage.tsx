@@ -16,9 +16,17 @@
  * on load). The block is structural, not a hidden submit button.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader2, AlertCircle, ArrowLeft, WifiOff, ShieldAlert } from 'lucide-react';
+import {
+  Loader2,
+  AlertCircle,
+  ArrowLeft,
+  WifiOff,
+  ShieldAlert,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
@@ -34,7 +42,11 @@ import {
 import { useAtShowScoresheet } from './useAtShowScoresheet';
 import { useAtShowStoragePersistence } from './useAtShowStoragePersistence';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
+import { useAtShowAudioMute } from './useAtShowAudioMute';
 import { badgeClass } from './slots/atShowChrome.helpers';
+import { useAudioWarnings } from '@/hooks/useAudioWarnings';
+import { DEFAULT_AUDIO_SETTINGS } from '@/constants/audioSettings';
+import { speakRemainingSeconds } from './atShowVoiceAnnouncement';
 
 export const AtShowScoresheetPage: React.FC = () => {
   const { showId, classId, entryId } = useParams<{
@@ -157,6 +169,26 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   const isLoadedRoute = loadedClassId === classId && loadedEntryId === entryId;
   const hasAnyScoresheetState = Boolean(entry || classInfo || rules);
 
+  // Timer audio (30-second warning chime + optional voice announcement) —
+  // MYK9-76. Muting sets volume to 0 rather than skipping playWarning() so
+  // useAudioWarnings' existing volume-gate (`if (!config.volume) return`)
+  // does the silencing; the Master-level suppression itself lives inside
+  // `useStopwatch` (it never calls onWarningChime/onVoiceAnnouncement for
+  // Master runs) and must not be duplicated here.
+  const [audioMuted, toggleAudioMuted] = useAtShowAudioMute();
+  const audioSettings = useMemo(
+    () => ({ ...DEFAULT_AUDIO_SETTINGS, volume: audioMuted ? 0 : DEFAULT_AUDIO_SETTINGS.volume }),
+    [audioMuted]
+  );
+  const audio = useAudioWarnings(audioSettings);
+  const handleVoiceAnnouncement = useCallback(
+    (secondsRemaining: number) => {
+      if (audioMuted) return;
+      speakRemainingSeconds(secondsRemaining);
+    },
+    [audioMuted]
+  );
+
   if (
     isLoading ||
     (!isLoadedRoute && hasAnyScoresheetState) ||
@@ -207,6 +239,15 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
 
   return (
     <div className="ringside-root">
+      <button
+        type="button"
+        onClick={toggleAudioMuted}
+        aria-label={audioMuted ? 'Unmute timer sounds' : 'Mute timer sounds'}
+        aria-pressed={audioMuted}
+        className="fixed right-3 top-3 z-40 flex h-9 w-9 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
+      >
+        {audioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+      </button>
       {showAddToHomeNudge && (
         // iOS Safari, not installed, persistence not granted: without Add-to-Home
         // the browser purges IndexedDB (and the backup) after 7 days idle, which
@@ -282,6 +323,9 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         rules={rules}
         onSubmit={submit}
         onBack={onBack}
+        onWarningChime={audio.playWarning}
+        onVoiceAnnouncement={handleVoiceAnnouncement}
+        enableVoiceAnnouncements={!audioMuted}
       />
     </div>
   );

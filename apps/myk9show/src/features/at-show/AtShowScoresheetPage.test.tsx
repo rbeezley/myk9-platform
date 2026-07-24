@@ -74,17 +74,26 @@ const StubLiveScoresheet = ({
   entry,
   onSubmit,
   onBack,
+  onWarningChime,
+  onVoiceAnnouncement,
+  enableVoiceAnnouncements,
 }: {
   entry: { armband: number };
   onSubmit: (sd: unknown) => void;
   onBack: () => void;
+  onWarningChime?: () => void;
+  onVoiceAnnouncement?: (secondsRemaining: number) => void;
+  enableVoiceAnnouncements?: boolean;
 }) => (
   <div>
     <div data-testid="live-scoresheet">Live scoresheet for #{entry.armband}</div>
+    <div data-testid="voice-announcements-enabled">{String(enableVoiceAnnouncements)}</div>
     <button onClick={() => onSubmit({ resultText: 'Qualified', searchTime: '0:30.00' })}>
       Submit Score
     </button>
     <button onClick={onBack}>Back</button>
+    <button onClick={() => onWarningChime?.()}>Fire warning chime</button>
+    <button onClick={() => onVoiceAnnouncement?.(30)}>Fire voice announcement</button>
   </div>
 );
 vi.mock('@myk9/scoring-ui', () => ({
@@ -92,7 +101,18 @@ vi.mock('@myk9/scoring-ui', () => ({
   buildResolvedClassRules: () => ({ maxTimeSeconds: 120 }),
 }));
 
+const playWarning = vi.fn();
+vi.mock('@/hooks/useAudioWarnings', () => ({
+  useAudioWarnings: vi.fn(() => ({ playWarning })),
+}));
+
+const speakRemainingSeconds = vi.fn();
+vi.mock('./atShowVoiceAnnouncement', () => ({
+  speakRemainingSeconds: (...args: unknown[]) => speakRemainingSeconds(...args),
+}));
+
 import { AtShowScoresheetPage } from './AtShowScoresheetPage';
+import { useAudioWarnings } from '@/hooks/useAudioWarnings';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import { transitionToInRing } from '@/utils/checkInTransitions';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -160,6 +180,8 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     // a sibling test (or future Phase 1b setGrant) can't silently override
     // `mockRoles` and pass the deny-path tests for the wrong reason.
     useRingsideGrantStore.getState().clearGrant();
+    // useAtShowAudioMute persists to localStorage — start every test unmuted.
+    localStorage.clear();
     seed();
   });
 
@@ -303,5 +325,56 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
     expect(screen.queryByText('No Scoring Access')).not.toBeInTheDocument();
+  });
+
+  // MYK9-76: the timer's 30-second chime/voice announcements were previously
+  // silent because the callbacks were never passed to the live scoresheet.
+  describe('timer audio (MYK9-76)', () => {
+    it('wires the chime and voice announcement callbacks, enabled by default', async () => {
+      renderPage();
+      await screen.findByTestId('live-scoresheet');
+
+      expect(screen.getByTestId('voice-announcements-enabled')).toHaveTextContent('true');
+
+      fireEvent.click(screen.getByText('Fire warning chime'));
+      expect(playWarning).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByText('Fire voice announcement'));
+      expect(speakRemainingSeconds).toHaveBeenCalledWith(30);
+    });
+
+    it('mutes via the toggle: disables voice announcements and zeroes chime volume', async () => {
+      renderPage();
+      await screen.findByTestId('live-scoresheet');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mute timer sounds' }));
+
+      expect(screen.getByTestId('voice-announcements-enabled')).toHaveTextContent('false');
+      expect(vi.mocked(useAudioWarnings)).toHaveBeenLastCalledWith(
+        expect.objectContaining({ volume: 0 })
+      );
+
+      fireEvent.click(screen.getByText('Fire voice announcement'));
+      expect(speakRemainingSeconds).not.toHaveBeenCalled();
+
+      // Unmuting restores both.
+      fireEvent.click(screen.getByRole('button', { name: 'Unmute timer sounds' }));
+      expect(screen.getByTestId('voice-announcements-enabled')).toHaveTextContent('true');
+      expect(vi.mocked(useAudioWarnings)).toHaveBeenLastCalledWith(
+        expect.objectContaining({ volume: expect.any(Number) })
+      );
+      expect(vi.mocked(useAudioWarnings).mock.calls.at(-1)?.[0].volume).toBeGreaterThan(0);
+    });
+
+    it('persists the mute preference across remounts', async () => {
+      const first = renderPage();
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByRole('button', { name: 'Mute timer sounds' }));
+      first.unmount();
+
+      renderPage();
+      await screen.findByTestId('live-scoresheet');
+      expect(screen.getByTestId('voice-announcements-enabled')).toHaveTextContent('false');
+    });
   });
 });

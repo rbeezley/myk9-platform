@@ -148,6 +148,24 @@ describe('resolveEntitlement', () => {
     expect(result.status).toBe('expired');
   });
 
+  it('expired: a revoked grant with a FUTURE scheduled ends_at clamps endsAt to server time', () => {
+    const result = resolveEntitlement(
+      baseContext({
+        grant_type: 'complimentary',
+        grant_status: 'revoked',
+        // Scheduled end after evaluated_at: the revocation cut access short,
+        // so the resolver must not report a future "ended" date.
+        grant_ends_at: '2026-07-30T00:00:00.000Z',
+      }),
+      { maxStaleMs: MAX_STALE_MS }
+    );
+
+    expect(result.status).toBe('expired');
+    if (result.status === 'expired') {
+      expect(result.endsAt).toBe(baseContext({}).evaluated_at);
+    }
+  });
+
   it('expired: superseded grant is treated as ended (access is over)', () => {
     const result = resolveEntitlement(
       baseContext({

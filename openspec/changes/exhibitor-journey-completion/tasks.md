@@ -51,7 +51,7 @@
 - [x] 5.5 Refactor Subscription to compose effective access with Stripe billing details, remove hardcoded usage and unavailable invoice links, and test paid, complimentary, founding, trial, expired, free, loading, and error states.
 - [x] 5.6 Make Pricing entitlement-aware and test that active sources receive the correct current-access action while free/expired users retain the real checkout path.
 - [x] 5.7 Remove or configure placeholder footer phone/address/social/help/legal items and reconcile `docs/future/exhibitor-premium.md`, `docs/roles/exhibitor.md`, and operations guidance with the five shipped capabilities and admin grant workflow.
-- [ ] 5.8 Verify Slice 3B with focused resolver/hook, User Management, Subscription, Pricing, Footer, and every gate-consumer test; `pnpm typecheck`; `pnpm lint`; and staging browser transitions across free, Analytics-scoped trial, complimentary Premium, expiry while open/refresh failing, and revoked free.
+- [x] 5.8 Verify Slice 3B with focused resolver/hook, User Management, Subscription, Pricing, Footer, and every gate-consumer test; `pnpm typecheck`; `pnpm lint`; and staging browser transitions across free, Analytics-scoped trial, complimentary Premium, expiry while open/refresh failing, and revoked free.
 - [ ] 5.9 Open the Slice 3B PR with authorization evidence and screenshots; wait for CI/security/product review, resolve findings, and merge.
 
 ## 6. Slice 4 — Core Exhibitor Trust Contracts

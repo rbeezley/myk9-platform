@@ -99,12 +99,17 @@ export function resolveEntitlement(
     if (grantEnded)
       candidates.push({ ms: grantEndsAtMs as number, iso: context.grant_ends_at as string });
     const mostRecent = candidates.reduce((a, b) => (b.ms > a.ms ? b : a));
+    // A revoked/superseded grant ends the moment it was cut short, not at its
+    // scheduled ends_at (which may still be in the future — the sanitized
+    // context deliberately omits revoked_at). Clamp to server time so the UI
+    // never claims access "ended" on a future date.
+    const endsAtIso = mostRecent.ms > evaluatedAtMs ? evaluatedAt : mostRecent.iso;
 
     return {
       tier: 'free',
       status: 'expired',
       source: 'none',
-      endsAt: mostRecent.iso,
+      endsAt: endsAtIso,
       evaluatedAt,
       trustedUntil: new Date(staleBoundaryMs).toISOString(),
       canManageBilling: false,

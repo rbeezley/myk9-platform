@@ -42,11 +42,14 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
 // The "sign out to use a passcode" escape signs out via supabase directly
 // (NOT the AuthContext signOut, which hard-redirects and would clobber the
 // client-side navigation to the passcode form).
-const { supabaseSignOut } = vi.hoisted(() => ({
+const { supabaseSignOut, supabaseGetSession } = vi.hoisted(() => ({
   supabaseSignOut: vi.fn().mockResolvedValue({ error: null }),
+  // auth-js removes the local session even on a failed revoke, so the handler
+  // decides by the RESULTING session, not the returned error. Default: gone.
+  supabaseGetSession: vi.fn().mockResolvedValue({ data: { session: null } }),
 }));
 vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: { auth: { signOut: supabaseSignOut } },
+  supabase: { auth: { signOut: supabaseSignOut, getSession: supabaseGetSession } },
 }));
 
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
@@ -218,8 +221,9 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     judgeAssignmentsGetAll.mockResolvedValue([]);
     judgeAssignmentsSync.mockResolvedValue({ success: true });
     // clearAllMocks resets call history but not mockResolvedValue impls — the
-    // sign-out-failure test overrides this, so restore the success default.
+    // sign-out tests override these, so restore the defaults (signed out).
     supabaseSignOut.mockResolvedValue({ error: null });
+    supabaseGetSession.mockResolvedValue({ data: { session: null } });
     // The canScore gate reads the grant store; clear it so a leaked grant from
     // a sibling test (or future Phase 1b setGrant) can't silently override
     // `mockRoles` and pass the deny-path tests for the wrong reason.
@@ -409,7 +413,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       expect(transitionToInRing).not.toHaveBeenCalled();
     });
 
-    it('signs out via supabase, clears the grant, then routes to the guest passcode form', async () => {
+    it('signs out (local scope), clears the grant, then routes to the guest passcode form', async () => {
       useRingsideGrantStore.getState().setGrant({
         showId: 'show-1',
         role: 'judge',
@@ -424,17 +428,17 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       fireEvent.click(escape);
 
       // Direct supabase sign-out (not the hard-redirecting AuthContext signOut),
-      // so the client-side navigation to the passcode form isn't clobbered. Uses
-      // LOCAL scope so a failed server-revoke can't leave the session in a
-      // partial state. The in-memory grant is cleared since we skip the hard
-      // reload it relied on.
-      await waitFor(() => expect(supabaseSignOut).toHaveBeenCalledTimes(1));
-      expect(supabaseSignOut).toHaveBeenCalledWith({ scope: 'local' });
-      expect(useRingsideGrantStore.getState().activeGrant).toBeNull();
+      // LOCAL scope so we don't revoke the user's other devices. Session is gone
+      // → clear the in-memory grant (we skipped the hard reload it relied on).
+      await waitFor(() => expect(supabaseSignOut).toHaveBeenCalledWith({ scope: 'local' }));
+      await waitFor(() => expect(useRingsideGrantStore.getState().activeGrant).toBeNull());
     });
 
-    it('stays on the block (no navigation, no grant clear) when sign-out fails', async () => {
+    it('still proceeds even when the revoke request errors but the session is gone', async () => {
+      // auth-js removes the local session before returning { error }, so an error
+      // does NOT mean we're still signed in — the resulting session (null) does.
       supabaseSignOut.mockResolvedValue({ error: { message: 'network' } });
+      supabaseGetSession.mockResolvedValue({ data: { session: null } });
       useRingsideGrantStore.getState().setGrant({
         showId: 'show-1',
         role: 'judge',
@@ -445,12 +449,28 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       ]);
       renderPage();
 
-      const escape = await screen.findByRole('button', { name: /sign out to use a passcode/i });
-      fireEvent.click(escape);
+      fireEvent.click(await screen.findByRole('button', { name: /sign out to use a passcode/i }));
 
-      // supabase.auth.signOut RESOLVES with an error rather than throwing — we
-      // must not navigate on failure (the account session is still live) and
-      // must not discard the grant.
+      await waitFor(() => expect(useRingsideGrantStore.getState().activeGrant).toBeNull());
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('stays on the block only when the session is genuinely still live', async () => {
+      // Exceptional: sign-out did NOT clear the session. Keyed on the resulting
+      // session (not the error), we must not navigate or discard the grant.
+      supabaseGetSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
+      useRingsideGrantStore.getState().setGrant({
+        showId: 'show-1',
+        role: 'judge',
+        source: 'passcode',
+      });
+      judgeAssignmentsGetAll.mockResolvedValue([
+        { id: 'a1', personId: 'judge-1', classId: 'some-other-class', status: 'confirmed' },
+      ]);
+      renderPage();
+
+      fireEvent.click(await screen.findByRole('button', { name: /sign out to use a passcode/i }));
+
       await screen.findByRole('alert');
       expect(screen.getByText("You're not assigned to judge this class")).toBeInTheDocument();
       expect(useRingsideGrantStore.getState().activeGrant).not.toBeNull();

@@ -11,6 +11,7 @@ export interface HealthRecordsSectionProps {
   user: { isPremium: boolean };
   dogId?: string;
   vaccinationsOnly?: boolean;
+  readOnly?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Mutation results have varying TData/TVariables; dispatch function handles casting

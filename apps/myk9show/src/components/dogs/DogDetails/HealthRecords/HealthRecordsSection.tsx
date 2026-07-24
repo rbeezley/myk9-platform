@@ -42,7 +42,9 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
   user,
   dogId = '',
   vaccinationsOnly = false,
+  readOnly: readOnlyProp = false,
 }) => {
+  const readOnly = readOnlyProp || (!user.isPremium && !vaccinationsOnly);
   const [viewMode, setViewMode] = useState<'timeline' | 'traditional'>('timeline');
   const [addDialogType, setAddDialogType] = useState<HealthItemType | null>(null);
   const [editingVaccination, setEditingVaccination] = useState<VaccinationRecord | null>(null);
@@ -239,18 +241,6 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
     [updateVetVisit]
   );
 
-  if (!user.isPremium && !vaccinationsOnly) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Heart className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Health Records</h3>
-        <p className="text-muted-foreground mb-4">
-          Track vaccinations, vet visits, medications, and more with our enhanced timeline view.
-        </p>
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <div
@@ -357,6 +347,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           onAddEvent={() => setAddDialogType('vaccination')}
           onImportRecords={handleImportRecords}
           vaccinationsOnly={vaccinationsOnly}
+          readOnly={readOnly}
         />
       ) : (
         <HealthRecordsTraditionalView
@@ -369,6 +360,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           vaccinationAlerts={vaccinationAlerts}
           now={now}
           thirtyDaysFromNow={thirtyDaysFromNow}
+          readOnly={readOnly}
           onAddItem={setAddDialogType}
           onEditVaccination={setEditingVaccination}
           onEditMedication={setEditingMedication}

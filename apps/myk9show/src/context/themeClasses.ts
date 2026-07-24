@@ -159,6 +159,10 @@ export function clearAppearanceCache(): void {
   ]) {
     localStorage.removeItem(key);
   }
+  applyFontScale('1');
+  applyLayoutDensity('comfortable');
+  applyReduceMotion(false);
+  applyHighContrast(false);
 }
 
 export function storeHighContrast(enabled: boolean): void {

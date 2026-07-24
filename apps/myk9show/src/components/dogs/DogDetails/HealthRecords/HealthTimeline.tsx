@@ -64,6 +64,7 @@ interface HealthTimelineProps {
   onImportRecords?:
     ((records: ParsedHealthImportRow[]) => Promise<HealthImportOutcome>) | undefined;
   vaccinationsOnly?: boolean;
+  readOnly?: boolean;
 }
 
 const eventTypeConfig = {
@@ -128,6 +129,7 @@ export function HealthTimeline({
   onAddEvent,
   onImportRecords,
   vaccinationsOnly = false,
+  readOnly = false,
 }: HealthTimelineProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>(vaccinationsOnly ? 'vaccination' : 'all');
@@ -356,15 +358,17 @@ export function HealthTimeline({
 
         {!vaccinationsOnly && (
           <div className={cn('flex flex-wrap gap-2', isNarrow && 'w-full')}>
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn(isNarrow && 'flex-1')}
-              onClick={() => setIsImportOpen(true)}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Import Records
-            </Button>
+            {!readOnly && (
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(isNarrow && 'flex-1')}
+                onClick={() => setIsImportOpen(true)}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import Records
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -374,10 +378,12 @@ export function HealthTimeline({
               <Download className="h-4 w-4 mr-2" />
               Export Timeline
             </Button>
-            <Button size="sm" className={cn(isNarrow && 'flex-1')} onClick={onAddEvent}>
-              <Plus className="h-4 w-4" />
-              Add Event
-            </Button>
+            {!readOnly && (
+              <Button size="sm" className={cn(isNarrow && 'flex-1')} onClick={onAddEvent}>
+                <Plus className="h-4 w-4" />
+                Add Event
+              </Button>
+            )}
           </div>
         )}
       </div>

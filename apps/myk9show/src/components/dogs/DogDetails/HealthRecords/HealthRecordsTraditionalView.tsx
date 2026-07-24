@@ -29,6 +29,7 @@ interface TraditionalViewProps {
   vaccinationAlerts: VaccinationRecord[];
   now: Date;
   thirtyDaysFromNow: Date;
+  readOnly?: boolean;
   onAddItem: (type: HealthItemType) => void;
   onEditVaccination: (record: VaccinationRecord) => void;
   onEditMedication: (record: MedicationRecord) => void;
@@ -46,6 +47,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
   vaccinationAlerts,
   now,
   thirtyDaysFromNow,
+  readOnly = false,
   onAddItem,
   onEditVaccination,
   onEditMedication,
@@ -71,10 +73,12 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       <PrimaryTabsContent value="vetVisits" className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Vet Visits</h3>
-          <Button size="sm" onClick={() => onAddItem('vet_visit')}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Vet Visit
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => onAddItem('vet_visit')}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Vet Visit
+            </Button>
+          )}
         </div>
         <div className="grid gap-4">
           {vetVisitsData.length === 0 && (
@@ -95,15 +99,17 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                 {visit.cost != null && visit.cost > 0 && (
                   <span className="text-sm font-medium">${visit.cost}</span>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onEditVetVisit(visit)}
-                  aria-label={`Edit ${visit.reason}`}
-                >
-                  <Pencil className="h-4 w-4 mr-1" />
-                  Edit
-                </Button>
+                {!readOnly && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEditVetVisit(visit)}
+                    aria-label={`Edit ${visit.reason}`}
+                  >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
               </div>
             </div>
           ))}
@@ -113,10 +119,12 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       <PrimaryTabsContent value="vaccinations" className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Vaccinations</h3>
-          <Button size="sm" onClick={() => onAddItem('vaccination')}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Vaccination
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => onAddItem('vaccination')}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Vaccination
+            </Button>
+          )}
         </div>
         <div className="grid gap-4">
           {vaccinationsData.length === 0 && (
@@ -151,6 +159,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                   <span className="text-xs text-muted-foreground">
                     {vacc.vet_name || 'Unknown'}
                   </span>
+                {!readOnly && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -160,6 +169,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     <Pencil className="h-4 w-4 mr-1" />
                     Edit
                   </Button>
+                )}
                 </div>
               </div>
             );
@@ -170,10 +180,12 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       <PrimaryTabsContent value="medications" className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Medications</h3>
-          <Button size="sm" onClick={() => onAddItem('medication')}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Medication
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => onAddItem('medication')}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Medication
+            </Button>
+          )}
         </div>
         <div className="grid gap-4">
           {medicationsData.length === 0 && (
@@ -196,15 +208,17 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     Active
                   </span>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onEditMedication(med)}
-                  aria-label={`Edit ${med.medication_name}`}
-                >
-                  <Pencil className="h-4 w-4 mr-1" />
-                  Edit
-                </Button>
+                {!readOnly && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEditMedication(med)}
+                    aria-label={`Edit ${med.medication_name}`}
+                  >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
               </div>
             </div>
           ))}
@@ -214,10 +228,12 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       <PrimaryTabsContent value="allergies" className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Allergies</h3>
-          <Button size="sm" onClick={() => onAddItem('allergy')}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Allergy
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => onAddItem('allergy')}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Allergy
+            </Button>
+          )}
         </div>
         <div className="grid gap-4">
           {allergiesData.length === 0 && (
@@ -247,15 +263,17 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     {allergy.severity.replace('_', ' ')}
                   </span>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onEditAllergy(allergy)}
-                  aria-label={`Edit ${allergy.allergen}`}
-                >
-                  <Pencil className="h-4 w-4 mr-1" />
-                  Edit
-                </Button>
+                {!readOnly && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEditAllergy(allergy)}
+                    aria-label={`Edit ${allergy.allergen}`}
+                  >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
               </div>
             </div>
           ))}
@@ -265,10 +283,12 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       <PrimaryTabsContent value="ofaScreenings" className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">OFA / Health Screenings</h3>
-          <Button size="sm" onClick={() => onAddItem('ofa_screening')}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add OFA Screening
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => onAddItem('ofa_screening')}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add OFA Screening
+            </Button>
+          )}
         </div>
         <div className="grid gap-4">
           {ofaScreeningsData.length === 0 && (
@@ -309,10 +329,12 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       <PrimaryTabsContent value="geneticScreenings" className="space-y-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Genetic Tests</h3>
-          <Button size="sm" onClick={() => onAddItem('genetic_screening')}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Genetic Test
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => onAddItem('genetic_screening')}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Genetic Test
+            </Button>
+          )}
         </div>
         <div className="grid gap-4">
           {geneticScreeningsData.length === 0 && (

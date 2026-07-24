@@ -98,6 +98,16 @@ CREATE POLICY "seg_admin_select"
 -- active grant at p_evaluated_at. The Analytics scored-show trial deliberately
 -- does NOT participate here: it authorizes only trialed Analytics content, never
 -- dog-record or manual-result mutation (Decision 7A).
+--
+-- Paid tier requires a NON-NULL expiry in the future: Stripe always stamps an
+-- expiry on an active subscription, and the client gate treats premium-with-null-
+-- expiry as expired, so a null subscription_expires_at is NOT active here.
+--
+-- Caller scoping: this is EXECUTE-revoked from PUBLIC/anon and additionally only
+-- answers truthfully for the caller's own person (p_person_id =
+-- get_my_person_id()) or a site admin. Any other caller gets false — never an
+-- error, so RLS policies (which always pass the caller's own id) keep working
+-- while arbitrary-UUID probing by non-admins is denied.
 CREATE OR REPLACE FUNCTION public.has_effective_premium_access(
   p_person_id uuid,
   p_evaluated_at timestamptz DEFAULT now()
@@ -109,30 +119,37 @@ STABLE
 SET search_path = ''
 AS $$
   SELECT
-    EXISTS (
-      SELECT 1
-      FROM public.exhibitor_profiles ep
-      WHERE ep.person_id = p_person_id
-        AND ep.subscription_tier IN ('premium', 'pro')
-        AND (ep.subscription_expires_at IS NULL
-             OR ep.subscription_expires_at > p_evaluated_at)
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM public.subscription_entitlement_grants g
-      WHERE g.person_id = p_person_id
-        AND g.revoked_at IS NULL
-        AND g.superseded_at IS NULL
-        AND g.starts_at <= p_evaluated_at
-        AND g.ends_at > p_evaluated_at
+    (p_person_id = public.get_my_person_id() OR public.is_site_admin())
+    AND (
+      EXISTS (
+        SELECT 1
+        FROM public.exhibitor_profiles ep
+        WHERE ep.person_id = p_person_id
+          AND ep.subscription_tier IN ('premium', 'pro')
+          AND ep.subscription_expires_at IS NOT NULL
+          AND ep.subscription_expires_at > p_evaluated_at
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM public.subscription_entitlement_grants g
+        WHERE g.person_id = p_person_id
+          AND g.revoked_at IS NULL
+          AND g.superseded_at IS NULL
+          AND g.starts_at <= p_evaluated_at
+          AND g.ends_at > p_evaluated_at
+      )
     );
 $$;
 
 COMMENT ON FUNCTION public.has_effective_premium_access(uuid, timestamptz) IS
-  'Server authority for account-Premium (paid tier OR active grant). Used by '
-  'Premium record RLS and by get_own_entitlement_context so UI and write '
+  'Server authority for account-Premium (paid tier with non-null future expiry OR '
+  'active grant). Caller-scoped: own person or site admin only, else false. Used '
+  'by Premium record RLS and by get_own_entitlement_context so UI and write '
   'authorization cannot diverge. Analytics trial is intentionally excluded.';
 
+-- PG grants EXECUTE to PUBLIC by default; strip it so only the scoped, explicitly
+-- granted roles can call this (defense in depth alongside the caller scoping).
+REVOKE ALL ON FUNCTION public.has_effective_premium_access(uuid, timestamptz) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.has_effective_premium_access(uuid, timestamptz) TO authenticated;
 
 -- =============================================================================
@@ -147,10 +164,16 @@ GRANT EXECUTE ON FUNCTION public.has_effective_premium_access(uuid, timestamptz)
 -- scored_show_count equivalence: AnalyticsPage computes
 --   new Set(allEntries.filter(e => e.resultText !== 'pending').map(e => e.showId)).size
 -- where allEntries come from view_authenticated_entry_results for the caller's
--- dogs, and result_text is 'pending' exactly when entries.is_scored = false
--- (migration 003 result_text CASE). The server query below reproduces that:
--- distinct entries.show_id over the caller's owned/co-owned dogs where
--- is_scored = true.
+-- dogs. In that view result_text is non-null (non-'pending') for a row ONLY when
+-- (can_view_scores OR vis.qualification_visible) AND is_scored = true AND
+-- result_status is one of the recognized codes (qualified/nq/absent/excused/
+-- withdrawn) — see 20260621190000_ringside_entry_read_for_staff.sql result_text
+-- CASE. The caller here is the dog's owner/co-owner (is_own_entry), for whom
+-- can_view_scores is false (that flag is manager-or-assigned-judge only), so the
+-- OR collapses to vis.qualification_visible from resolve_class_result_visibility.
+-- The server query below reproduces exactly that predicate: distinct show_id over
+-- the caller's owned/co-owned dogs where the entry is scored, carries a recognized
+-- result_status, and the class's qualification results are visible.
 CREATE OR REPLACE FUNCTION public.get_own_entitlement_context()
 RETURNS TABLE (
   evaluated_at timestamptz,
@@ -224,8 +247,11 @@ BEGIN
   SELECT count(DISTINCT e.show_id) INTO v_scored
   FROM public.entries e
   JOIN public.dogs d ON d.id = e.dog_id
+  CROSS JOIN LATERAL public.resolve_class_result_visibility(e.class_id) AS vis
   WHERE (d.owner_id = v_person_id OR d.co_owner_id = v_person_id)
-    AND e.is_scored = true;
+    AND e.is_scored = true
+    AND e.result_status IN ('qualified', 'nq', 'absent', 'excused', 'withdrawn')
+    AND vis.qualification_visible;
 
   RETURN QUERY SELECT
     v_now,
@@ -246,6 +272,7 @@ COMMENT ON FUNCTION public.get_own_entitlement_context() IS
   'superseded; only "active" is currently Premium (scheduled = future-dated, '
   'not yet Premium — Slice 3B''s resolver must treat it as non-premium).';
 
+REVOKE ALL ON FUNCTION public.get_own_entitlement_context() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_own_entitlement_context() TO authenticated;
 
 -- =============================================================================
@@ -288,6 +315,12 @@ BEGIN
 
   IF p_ends_at IS NULL OR p_starts_at IS NULL OR p_ends_at <= p_starts_at THEN
     RAISE EXCEPTION 'ends_at must be after starts_at' USING ERRCODE = 'check_violation';
+  END IF;
+
+  -- A grant that has already fully ended authorizes nothing; reject it via the RPC.
+  -- (Historical/backfill rows are written through privileged inserts, not here.)
+  IF p_ends_at <= now() THEN
+    RAISE EXCEPTION 'ends_at must be in the future' USING ERRCODE = 'check_violation';
   END IF;
 
   -- Target must be an exhibitor (exhibitor_profiles row exists).
@@ -350,6 +383,7 @@ COMMENT ON FUNCTION public.admin_grant_entitlement(uuid, text, timestamptz, time
   'target person, rejects overlap unless replacing, records supersession (not '
   'revocation) on replace. Touches no Stripe row and no early_adopter_until.';
 
+REVOKE ALL ON FUNCTION public.admin_grant_entitlement(uuid, text, timestamptz, timestamptz, text, boolean) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_grant_entitlement(uuid, text, timestamptz, timestamptz, text, boolean) TO authenticated;
 
 -- Revoke a currently-active grant. Site-admin only, reason required. Writes
@@ -407,6 +441,7 @@ COMMENT ON FUNCTION public.admin_revoke_entitlement(uuid, text) IS
   'Site-admin-only: revoke a currently-active grant (reason required). Does not '
   'cancel Stripe billing and does not touch early_adopter_until.';
 
+REVOKE ALL ON FUNCTION public.admin_revoke_entitlement(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_revoke_entitlement(uuid, text) TO authenticated;
 
 -- =============================================================================

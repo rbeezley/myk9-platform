@@ -28,6 +28,20 @@ CREATE TEMP TABLE tid (k text PRIMARY KEY, v uuid) ON COMMIT DROP;
 -- ---------------------------------------------------------------------------
 -- Fixtures
 -- ---------------------------------------------------------------------------
+-- Seed UNLINKED people first (auth_user_id NULL), keyed by email. Inserting the
+-- auth.users rows below fires handle_new_user(), which for a NON-anonymous user
+-- ADOPTS a matching unlinked person by email (setting auth_user_id) and creates
+-- its exhibitor_profiles + exhibitor user_roles rows. Seeding people up front lets
+-- the trigger adopt these fixed ids instead of colliding on the unique auth_user_id
+-- constraint (which is what happened when people were inserted with explicit
+-- auth_user_id after the trigger had already created its own person rows).
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id, created_at)
+VALUES
+  ('00000000-0000-0000-0000-000000000911','Seg','Admin','seg-admin@example.test',NULL, now() - interval '400 days'),
+  ('00000000-0000-0000-0000-000000000912','Seg','Owner','seg-owner@example.test',NULL, now() - interval '400 days'),
+  ('00000000-0000-0000-0000-000000000913','Seg','Paid','seg-paid@example.test',NULL, now() - interval '400 days'),
+  ('00000000-0000-0000-0000-000000000914','Seg','Other','seg-other@example.test',NULL, now() - interval '400 days');
+
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
@@ -43,19 +57,16 @@ VALUES
   ('00000000-0000-0000-0000-000000000904', '00000000-0000-0000-0000-000000000000',
    'authenticated','authenticated','seg-other@example.test','',now(),now(),now(),'{}','{}',false,false,false);
 
-INSERT INTO public.people (id, first_name, last_name, auth_user_id, created_at)
-VALUES
-  ('00000000-0000-0000-0000-000000000911','Seg','Admin','00000000-0000-0000-0000-000000000901', now() - interval '400 days'),
-  ('00000000-0000-0000-0000-000000000912','Seg','Owner','00000000-0000-0000-0000-000000000902', now() - interval '400 days'),
-  ('00000000-0000-0000-0000-000000000913','Seg','Paid','00000000-0000-0000-0000-000000000903', now() - interval '400 days'),
-  ('00000000-0000-0000-0000-000000000914','Seg','Other','00000000-0000-0000-0000-000000000904', now() - interval '400 days');
-
--- Exhibitor profiles: owner + other are free, paid is premium.
-INSERT INTO public.exhibitor_profiles (person_id, auth_user_id, subscription_tier, subscription_expires_at)
-VALUES
-  ('00000000-0000-0000-0000-000000000912','00000000-0000-0000-0000-000000000902','free',NULL),
-  ('00000000-0000-0000-0000-000000000913','00000000-0000-0000-0000-000000000903','premium',NULL),
-  ('00000000-0000-0000-0000-000000000914','00000000-0000-0000-0000-000000000904','free',NULL);
+-- The trigger created an exhibitor_profiles row (default tier) for each adopted
+-- person. Set the tiers this test needs: owner + other free, paid premium.
+UPDATE public.exhibitor_profiles ep
+SET subscription_tier = v.tier, subscription_expires_at = v.expires_at
+FROM (VALUES
+  ('00000000-0000-0000-0000-000000000912'::uuid,'free',    NULL::timestamptz),
+  ('00000000-0000-0000-0000-000000000913'::uuid,'premium', now() + interval '30 days'),
+  ('00000000-0000-0000-0000-000000000914'::uuid,'free',    NULL)
+) AS v(person_id, tier, expires_at)
+WHERE ep.person_id = v.person_id;
 
 -- Site admin role for the admin person.
 INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
@@ -140,8 +151,9 @@ BEGIN
 END;
 $$;
 
--- Non-admin: RLS hides the row entirely.
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000912', true);
+-- Non-admin: RLS hides the row entirely. Session is the OWNER's auth user id
+-- (…0902), not the person id — auth.uid()/RLS key off the auth user.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000902', true);
 DO $$
 DECLARE v_cnt integer;
 BEGIN
@@ -195,6 +207,11 @@ $$;
 -- ===========================================================================
 -- D. has_effective_premium_access matrix
 -- ===========================================================================
+-- The helper is caller-scoped: a non-admin may only probe their OWN person id.
+-- This matrix probes several people, so run it as the site admin (who may probe
+-- anyone). Cross-person probing by a non-admin is proven denied in section E's
+-- ownership tests and the analytics-trial block below.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000901', true);
 DO $$
 BEGIN
   -- complimentary active -> true
@@ -220,8 +237,17 @@ $$;
 RESET ROLE;
 INSERT INTO public.shows (id, name, type, start_date, end_date)
 VALUES ('00000000-0000-0000-0000-000000000961','Seg Show','All-Breed',CURRENT_DATE,CURRENT_DATE);
-INSERT INTO public.entries (id, show_id, dog_id, is_scored, result_status)
+-- Trial + class are required: scored_show_count now replicates the entry-results
+-- view visibility, which counts an owner's scored entry only when the class's
+-- qualification results are visible. With no show_visibility_settings row the
+-- resolver defaults qualification timing to 'immediate' -> always visible.
+INSERT INTO public.trials (id, show_id, name, date)
+VALUES ('00000000-0000-0000-0000-000000000965','00000000-0000-0000-0000-000000000961','Seg Trial',CURRENT_DATE);
+INSERT INTO public.classes (id, trial_id, name, status)
+VALUES ('00000000-0000-0000-0000-000000000966','00000000-0000-0000-0000-000000000965','Seg Class','completed');
+INSERT INTO public.entries (id, show_id, class_id, dog_id, is_scored, result_status)
 VALUES ('00000000-0000-0000-0000-000000000971','00000000-0000-0000-0000-000000000961',
+        '00000000-0000-0000-0000-000000000966',
         '00000000-0000-0000-0000-000000000951', true, 'qualified');
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000901', true);
@@ -351,17 +377,20 @@ $$;
 -- ===========================================================================
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000901', true);
 
--- Natural expiry -> status 'expired', unrevoked. Grant a past-ended founding grant
--- to the "other" person (currently free, no active grant).
-DO $$
-DECLARE v_id uuid;
-BEGIN
-  v_id := public.admin_grant_entitlement(
-    '00000000-0000-0000-0000-000000000914','founding',
-    now() - interval '60 days', now() - interval '30 days','historical', false);
-  INSERT INTO tid VALUES ('expired', v_id);
-END;
-$$;
+-- Natural expiry -> status 'expired', unrevoked. A fully-past grant cannot be
+-- created via admin_grant_entitlement (it now rejects ends_at <= now()); such
+-- historical rows are written through a privileged direct insert (RLS-bypassing
+-- superuser), exactly as a backfill would. Grant it to the "other" person
+-- (currently free, no active grant).
+RESET ROLE;
+INSERT INTO public.subscription_entitlement_grants
+  (id, person_id, grant_type, starts_at, ends_at, reason, granted_by_person_id)
+VALUES ('00000000-0000-0000-0000-000000000981',
+        '00000000-0000-0000-0000-000000000914','founding',
+        now() - interval '60 days', now() - interval '30 days','historical', NULL);
+INSERT INTO tid VALUES ('expired', '00000000-0000-0000-0000-000000000981');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000901', true);
 
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000904', true);
 DO $$

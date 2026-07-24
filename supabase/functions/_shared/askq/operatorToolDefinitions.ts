@@ -11,6 +11,16 @@ export const OPERATOR_TOOLS: ToolDefinition[] = [
       required: [],
     },
   },
+  {
+    name: 'summarize_system_health',
+    description:
+      'Read the latest bounded System Health snapshot, including staleness and configured automated checks. This tool cannot run checks or modify health data.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
 ];
 
 export function isRegisteredOperatorTool(name: string): boolean {

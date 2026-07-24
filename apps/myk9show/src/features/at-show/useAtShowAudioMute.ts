@@ -10,13 +10,19 @@ const AUDIO_MUTE_CHANGED_EVENT = 'myk9:at-show-audio-mute-changed';
 // persist. localStorage stays the source of truth whenever it IS readable, so
 // normal cross-tab persistence is unaffected.
 let memoryMuted = false;
+// Latched once a write fails. From that point the persisted value can no longer
+// reflect the user's choice, so the in-memory value wins for the rest of the
+// session — covering the asymmetric case where reads succeed but writes throw
+// (e.g. quota exhausted), which a read-only try/catch would miss.
+let memoryFallbackActive = false;
 
 function readMuted(): boolean {
+  if (memoryFallbackActive) return memoryMuted;
   try {
-    // Storage is readable, so it IS the source of truth — including when the
-    // key is absent, which means "no preference" (default unmuted). Falling
-    // back to `memoryMuted` here would resurrect a stale preference after the
-    // key was removed (e.g. storage cleared in another tab).
+    // Storage is readable and writable, so it IS the source of truth —
+    // including when the key is absent, which means "no preference" (default
+    // unmuted). Falling back to `memoryMuted` here would resurrect a stale
+    // preference after the key was removed (e.g. storage cleared elsewhere).
     return localStorage.getItem(AUDIO_MUTE_KEY) === 'true';
   } catch {
     // Storage unreadable (private mode / disabled) — the session-local value
@@ -30,8 +36,10 @@ function writeMuted(muted: boolean): void {
   try {
     localStorage.setItem(AUDIO_MUTE_KEY, String(muted));
   } catch {
-    // Storage unavailable — the preference won't persist, but memoryMuted above
-    // keeps it effective for this session.
+    // Couldn't persist: storage may still be READABLE but now holds a stale or
+    // absent value, so switch to the in-memory value for the rest of the
+    // session. Without this the toggle would appear dead.
+    memoryFallbackActive = true;
   }
   window.dispatchEvent(new Event(AUDIO_MUTE_CHANGED_EVENT));
 }

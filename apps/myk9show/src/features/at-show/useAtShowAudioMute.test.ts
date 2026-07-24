@@ -67,6 +67,29 @@ describe('useAtShowAudioMute', () => {
     expect(b.result.current[0]).toBe(true);
   });
 
+  it('still mutes for the session when only WRITES fail (readable storage, quota exhausted)', async () => {
+    // The asymmetric case: getItem works, setItem throws. A read-only try/catch
+    // would read the absent key as "unmuted" and the toggle would appear dead,
+    // so a failed write must latch the in-memory value as the source of truth.
+    const useAtShowAudioMute = await loadHook();
+    const setSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+
+    try {
+      const { result } = renderHook(() => useAtShowAudioMute());
+      expect(result.current[0]).toBe(false);
+
+      act(() => result.current[1]());
+      expect(result.current[0]).toBe(true);
+
+      act(() => result.current[1]());
+      expect(result.current[0]).toBe(false);
+    } finally {
+      setSpy.mockRestore();
+    }
+  });
+
   it('still mutes for the session when localStorage is unavailable', async () => {
     // Simulate a locked-down browser (private mode / disabled storage): both
     // reads and writes throw. The toggle must still TAKE EFFECT via the

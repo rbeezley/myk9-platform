@@ -50,4 +50,33 @@ describe('useLabelPreferences', () => {
     const [prefs] = result.current;
     expect(prefs.templateId).toBe('18262');
   });
+
+  it('defaults offsetTop and offsetLeft to 0', () => {
+    const { result } = renderHook(() => useLabelPreferences());
+    const [prefs] = result.current;
+    expect(prefs.offsetTop).toBe(0);
+    expect(prefs.offsetLeft).toBe(0);
+  });
+
+  it('clamps out-of-range stored offsetTop/offsetLeft to +/-30', () => {
+    localStorage.setItem(
+      'myk9show-label-prefs',
+      JSON.stringify({ offsetTop: 999, offsetLeft: -999 })
+    );
+    const { result } = renderHook(() => useLabelPreferences());
+    const [prefs] = result.current;
+    expect(prefs.offsetTop).toBe(30);
+    expect(prefs.offsetLeft).toBe(-30);
+  });
+
+  it('hydrates legacy stored prefs without offset keys to 0', () => {
+    localStorage.setItem(
+      'myk9show-label-prefs',
+      JSON.stringify({ templateId: '8387', skip: 3, pitchAdjustment: 5 })
+    );
+    const { result } = renderHook(() => useLabelPreferences());
+    const [prefs] = result.current;
+    expect(prefs.offsetTop).toBe(0);
+    expect(prefs.offsetLeft).toBe(0);
+  });
 });

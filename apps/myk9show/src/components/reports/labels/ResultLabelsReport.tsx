@@ -103,7 +103,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
       })
       .join('');
 
-    const css = buildLabelStylesheet(template, pitch);
+    const css = buildLabelStylesheet(template, pitch, 0, 0);
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Result Labels</title><style>${css}</style></head><body>${sheetsHtml}</body></html>`;
 
     iframe.contentDocument?.open();

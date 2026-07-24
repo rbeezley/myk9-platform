@@ -55,6 +55,8 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
   const config = prefs.contentConfig;
   const skip = prefs.skip;
   const pitchAdjustment = prefs.pitchAdjustment;
+  const offsetTop = prefs.offsetTop;
+  const offsetLeft = prefs.offsetLeft;
 
   const { entries: allEntries, wifiNetwork, wifiPassword, isLoading } = useArmbandLabelData(showId);
   const template = LABEL_TEMPLATES[templateId];
@@ -151,13 +153,13 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
       })
       .join('');
 
-    const css = buildLabelStylesheet(template, pitchAdjustment);
+    const css = buildLabelStylesheet(template, pitchAdjustment, offsetTop, offsetLeft);
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Armband Labels</title><style>${css}</style></head><body>${sheetsHtml}</body></html>`;
 
     iframe.contentDocument?.open();
     iframe.contentDocument?.write(html);
     iframe.contentDocument?.close();
-  }, [pages, sharedCellProps, template, pitchAdjustment, externalIframeRef]);
+  }, [pages, sharedCellProps, template, pitchAdjustment, offsetTop, offsetLeft, externalIframeRef]);
 
   useEffect(() => {
     onDescriptorChange?.(paperworkDescriptor);

@@ -9,6 +9,8 @@ export interface LabelPreferences {
   contentConfig: LabelContentConfig;
   skip: number;
   pitchAdjustment: number;
+  offsetTop: number;
+  offsetLeft: number;
 }
 
 const DEFAULT_PREFS: LabelPreferences = {
@@ -16,7 +18,16 @@ const DEFAULT_PREFS: LabelPreferences = {
   contentConfig: DEFAULT_CONTENT_CONFIG,
   skip: 0,
   pitchAdjustment: 0,
+  offsetTop: 0,
+  offsetLeft: 0,
 };
+
+const OFFSET_MIN = -30;
+const OFFSET_MAX = 30;
+
+function clampOffset(value: number): number {
+  return Math.min(OFFSET_MAX, Math.max(OFFSET_MIN, value));
+}
 
 function loadPrefs(): LabelPreferences {
   try {
@@ -27,6 +38,8 @@ function loadPrefs(): LabelPreferences {
     return {
       ...DEFAULT_PREFS,
       ...parsed,
+      offsetTop: clampOffset(parsed.offsetTop ?? DEFAULT_PREFS.offsetTop),
+      offsetLeft: clampOffset(parsed.offsetLeft ?? DEFAULT_PREFS.offsetLeft),
       contentConfig: {
         ...DEFAULT_CONTENT_CONFIG,
         ...savedContentConfig,

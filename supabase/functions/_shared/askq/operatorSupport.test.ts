@@ -161,10 +161,78 @@ describe('Operator Support authorization boundary', () => {
       serviceAuditClient
     );
     expect(result).toMatchObject({
-      text: 'There are two unresolved alerts.',
       toolsUsed: ['summarize_operator_alerts'],
       queryLogId: 'log-1',
     });
+    expect(result.text).toContain('There are two unresolved alerts.');
+  });
+
+  it('adds a deterministic scope warning when alert results are presented as platform health', async () => {
+    const callerClient = makeCallerClient(true);
+    const callModel = vi
+      .fn()
+      .mockResolvedValueOnce({
+        content: [
+          {
+            type: 'tool_use',
+            id: 'tool-1',
+            name: 'summarize_operator_alerts',
+            input: {},
+          },
+        ],
+        stop_reason: 'tool_use',
+      })
+      .mockResolvedValueOnce(
+        textResponse('All clear. Your myK9Show platform is operating normally.')
+      );
+
+    const result = await handleOperatorSupportRequest({
+      body: { message: 'Summarize unresolved alerts' },
+      user: { id: 'admin-1' },
+      callerClient,
+      audit: makeAudit(),
+      reserveQuery: allowReservation(),
+      callModel,
+      executeTool: vi.fn(async () => ({ result: { unresolvedCountInWindow: 0 } })),
+    });
+
+    expect(result.text).toBe(
+      'All clear. Your myK9Show platform is operating normally.\n\n' +
+        'Scope: This confirms only the bounded unresolved-alert window; it does not verify overall platform health.'
+    );
+  });
+
+  it('scopes a health-tool answer to configured automated checks', async () => {
+    const callerClient = makeCallerClient(true);
+    const callModel = vi
+      .fn()
+      .mockResolvedValueOnce({
+        content: [
+          {
+            type: 'tool_use',
+            id: 'tool-1',
+            name: 'summarize_system_health',
+            input: {},
+          },
+        ],
+        stop_reason: 'tool_use',
+      })
+      .mockResolvedValueOnce(textResponse('The latest automated checks report OK.'));
+
+    const result = await handleOperatorSupportRequest({
+      body: { message: 'Is the platform healthy?' },
+      user: { id: 'admin-1' },
+      callerClient,
+      audit: makeAudit(),
+      reserveQuery: allowReservation(),
+      callModel,
+      executeTool: vi.fn(async () => ({ result: { effectiveStatus: 'ok' } })),
+    });
+
+    expect(result.text).toBe(
+      'The latest automated checks report OK.\n\n' +
+        'Scope: This reports only the latest configured automated health snapshot; it does not guarantee complete platform health.'
+    );
   });
 
   it('rejects an unregistered model-requested tool without executing it', async () => {

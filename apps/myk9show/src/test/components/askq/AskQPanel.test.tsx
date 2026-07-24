@@ -67,6 +67,21 @@ describe('AskQPanel', () => {
     expect(askqService.sendAskQQuery).not.toHaveBeenCalled();
   });
 
+  it('describes system-health snapshots as read-only and incomplete coverage', async () => {
+    authState.userWithRoles.roles = ['site_admin'];
+
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />);
+
+    await user.click(screen.getByRole('button', { name: 'Operator Support' }));
+
+    expect(screen.getByText(/latest automated System Health snapshot/i)).toBeInTheDocument();
+    expect(screen.getByText(/does not guarantee complete platform health/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/No user lookup, payment tracing, or write actions/i)
+    ).toBeInTheDocument();
+  });
+
   it('does not offer a subscription upgrade for the fixed Operator Support limit', async () => {
     authState.userWithRoles.roles = ['site_admin'];
     vi.mocked(askqService.sendOperatorSupportQuery).mockRejectedValue(

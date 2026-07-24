@@ -1,3 +1,5 @@
+import { boundedOperatorString, isOperatorRecord } from './operatorDataSanitization.ts';
+
 export const OPERATOR_ALERT_SELECT = 'id, created_at, source, severity, title';
 export const OPERATOR_ALERT_QUERY_LIMIT = 50;
 export const OPERATOR_ALERT_RECENT_LIMIT = 10;
@@ -91,32 +93,16 @@ export function summarizeOperatorAlerts(rows: unknown[]): OperatorAlertSummary {
 }
 
 function toOperatorAlertRow(value: unknown): OperatorAlertRow | null {
-  if (!isRecord(value)) return null;
+  if (!isOperatorRecord(value)) return null;
 
-  const id = boundedString(value.id, 64);
-  const createdAt = boundedString(value.created_at, 64);
-  const source = boundedString(value.source, 80);
-  const severity = boundedString(value.severity, 16);
-  const title = boundedString(value.title, 200);
+  const id = boundedOperatorString(value.id, 64);
+  const createdAt = boundedOperatorString(value.created_at, 64);
+  const source = boundedOperatorString(value.source, 80);
+  const severity = boundedOperatorString(value.severity, 16);
+  const title = boundedOperatorString(value.title, 200);
   if (!id || !createdAt || !source || !severity || !title) return null;
 
   return { id, created_at: createdAt, source, severity, title };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function boundedString(value: unknown, maxLength: number): string {
-  if (typeof value !== 'string') return '';
-  return [...value]
-    .map(character => {
-      const codePoint = character.codePointAt(0) ?? 0;
-      return codePoint <= 31 || codePoint === 127 ? ' ' : character;
-    })
-    .join('')
-    .trim()
-    .slice(0, maxLength);
 }
 
 function normalizeSeverity(value: string): OperatorAlertSeverity {

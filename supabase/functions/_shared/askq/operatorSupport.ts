@@ -168,9 +168,10 @@ export async function handleOperatorSupportRequest({
   }
 
   const responseTimeMs = Math.max(0, now() - startedAt);
+  const uniqueToolsUsed = [...new Set(toolsUsed)];
   return {
-    text: text || 'No operator summary was returned.',
-    toolsUsed: [...new Set(toolsUsed)],
+    text: applyOperatorScopeGuard(text || 'No operator summary was returned.', uniqueToolsUsed),
+    toolsUsed: uniqueToolsUsed,
     queryLogId,
     responseTimeMs,
     remaining: reservation.remaining,
@@ -188,7 +189,12 @@ SECURITY BOUNDARY:
 
 AVAILABLE SCOPE:
 - You can summarize the bounded unresolved operator-alert window.
+- You can summarize the latest bounded System Health snapshot and whether it is stale.
 - For any question about current alert state, you must call summarize_operator_alerts before answering.
+- For any question about current platform or system health, you must call summarize_system_health before answering.
+- If a question asks about both health and alerts, call both tools.
+- Zero unresolved alerts never proves that the platform is healthy.
+- Describe an OK health snapshot as "the configured automated checks report OK," never as a guarantee that the whole platform is healthy.
 - If the administrator needs full alert detail or resolution controls, direct them to /admin/health.
 - If the requested information is outside the available tool, say that it is not available in this first Operator Support slice.
 
@@ -196,6 +202,20 @@ RESPONSE STYLE:
 - Lead with the operational state shown by the tool.
 - State when counts are bounded by the query window.
 - Be concise and avoid overstating overall platform health.`;
+
+function applyOperatorScopeGuard(text: string, toolsUsed: string[]): string {
+  const usedAlerts = toolsUsed.includes('summarize_operator_alerts');
+  const usedHealth = toolsUsed.includes('summarize_system_health');
+  if (!usedAlerts && !usedHealth) return text;
+
+  const scope = usedHealth
+    ? usedAlerts
+      ? 'Scope: This reports only the latest configured automated health snapshot and bounded unresolved-alert window; it does not guarantee complete platform health.'
+      : 'Scope: This reports only the latest configured automated health snapshot; it does not guarantee complete platform health.'
+    : 'Scope: This confirms only the bounded unresolved-alert window; it does not verify overall platform health.';
+
+  return `${text}\n\n${scope}`;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

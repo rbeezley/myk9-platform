@@ -6,16 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import TrainingDeleteConfirmDialog from './TrainingDeleteConfirmDialog';
 import { RichTextEditor } from './RichTextEditor';
 import {
   BookOpen,
@@ -443,27 +434,11 @@ export function EnhancedTrainingJournal({
       )}
 
       {/* Delete Entry Confirmation */}
-      <AlertDialog open={!!deletingEntry} onOpenChange={open => !open && setDeletingEntry(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this training session?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deletingEntry
-                ? `"${deletingEntry.title}" will be permanently deleted. This action cannot be undone.`
-                : ''}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <TrainingDeleteConfirmDialog
+        entryTitle={deletingEntry?.title ?? null}
+        onCancel={() => setDeletingEntry(null)}
+        onConfirm={handleConfirmDelete}
+      />
 
       {/* Add Entry Dialog */}
       <Dialog open={isAddingEntry} onOpenChange={setIsAddingEntry}>

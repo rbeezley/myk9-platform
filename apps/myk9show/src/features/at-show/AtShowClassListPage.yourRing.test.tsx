@@ -1,6 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, within } from '@/test/utils/testUtils';
+import { act, render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { UserRole, type UserWithRoles } from '@/types/auth-types';
@@ -16,6 +16,8 @@ const judgeAssignmentData = vi.hoisted(() => ({
     return vi.fn();
   }),
 }));
+
+const syncJudgeAssignments = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
@@ -109,10 +111,14 @@ function seedClassList() {
   judgeAssignmentData.getActive.mockResolvedValue([]);
 }
 
-function renderPage() {
+function renderPage(syncStatus = settledSyncStatus) {
   return render(
     <ReplicationSyncContext.Provider
-      value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+      value={{
+        status: syncStatus,
+        triggerSync: vi.fn(),
+        syncTable: syncJudgeAssignments,
+      }}
     >
       <Routes>
         <Route path="/at-show/:showId" element={<AtShowClassListPage />} />
@@ -127,6 +133,8 @@ describe('AtShowClassListPage Your ring', () => {
     vi.clearAllMocks();
     window.localStorage.clear();
     judgeAssignmentSubscription.onChange = null;
+    syncJudgeAssignments.mockReset();
+    syncJudgeAssignments.mockResolvedValue(undefined);
     authState.hasRole = () => false;
     authState.userWithRoles = null;
     authState.user = null;
@@ -165,6 +173,102 @@ describe('AtShowClassListPage Your ring', () => {
     expect(yourRing.compareDocumentPosition(screen.getByTestId('at-show-trial-trial-1'))).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
+  });
+
+  it('keeps the class list stable while the judge assignment cache is loading', async () => {
+    authState.hasRole = role => role === UserRole.JUDGE;
+    authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
+    authState.user = { is_anonymous: false };
+    let resolveAssignments: (assignments: never[]) => void = () => undefined;
+    judgeAssignmentData.getActive.mockReturnValue(
+      new Promise(resolve => {
+        resolveAssignments = resolve;
+      })
+    );
+
+    renderPage();
+
+    await waitFor(() => expect(replicatedClassesTable.getClassesByTrial).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('status', { name: 'Loading at-show classes' })).toBeInTheDocument();
+    expect(screen.queryByText(/Container Novice/)).not.toBeInTheDocument();
+
+    resolveAssignments([]);
+    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+  });
+
+  it('waits for the first judge assignment sync before accepting an empty cache', async () => {
+    authState.hasRole = role => role === UserRole.JUDGE;
+    authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
+    authState.user = { is_anonymous: false };
+
+    renderPage({
+      ...settledSyncStatus,
+      isSyncing: true,
+      lastSyncAt: null,
+      tablesStatus: {
+        ...settledSyncStatus.tablesStatus,
+        judge_assignments: 'syncing',
+      },
+    });
+
+    await waitFor(() => expect(judgeAssignmentData.getActive).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('status', { name: 'Loading at-show classes' })).toBeInTheDocument();
+    expect(screen.queryByText(/Container Novice/)).not.toBeInTheDocument();
+  });
+
+  it('refreshes a previously synced empty cache before hiding Your ring', async () => {
+    authState.hasRole = role => role === UserRole.JUDGE;
+    authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
+    authState.user = { is_anonymous: false };
+    judgeAssignmentData.getActive
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { id: 'assignment-a', personId: 'judge-1', classId: 'class-a', status: 'confirmed' },
+      ] as never);
+
+    renderPage({
+      ...settledSyncStatus,
+      tablesStatus: {
+        ...settledSyncStatus.tablesStatus,
+        judge_assignments: 'success',
+      },
+    });
+
+    const yourRing = await screen.findByRole('region', { name: 'Your ring' });
+    expect(within(yourRing).getByText(/Container Novice/)).toBeInTheDocument();
+    expect(syncJudgeAssignments).toHaveBeenCalledTimes(1);
+    expect(syncJudgeAssignments).toHaveBeenCalledWith('judge_assignments');
+  });
+
+  it('accepts an empty cached result offline instead of waiting for a sync', async () => {
+    authState.hasRole = role => role === UserRole.JUDGE;
+    authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
+    authState.user = { is_anonymous: false };
+    const onlineSpy = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+
+    try {
+      renderPage({
+        ...settledSyncStatus,
+        lastSyncAt: null,
+        tablesStatus: {
+          ...settledSyncStatus.tablesStatus,
+          judge_assignments: 'idle',
+        },
+      });
+
+      expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+      expect(
+        screen.queryByRole('status', { name: 'Loading at-show classes' })
+      ).not.toBeInTheDocument();
+    } finally {
+      onlineSpy.mockRestore();
+    }
   });
 
   it('sorts a combined A/B row live-first when section B is live', async () => {
@@ -250,10 +354,11 @@ describe('AtShowClassListPage Your ring', () => {
     authState.user = { is_anonymous: false };
     judgeAssignmentData.getActive.mockRejectedValueOnce(new Error('IndexedDB unavailable'));
 
-    renderPage();
+    const { user } = renderPage();
 
     expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Your ring unavailable' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(syncJudgeAssignments).toHaveBeenCalledWith('judge_assignments');
   });
 });

@@ -175,6 +175,7 @@ export const AtShowClassListPage: React.FC = () => {
   const {
     assignedClassIds,
     error: assignmentError,
+    isLoading: assignmentsLoading,
     retry: retryAssignments,
   } = useMyAtShowJudgeAssignments(showId);
 
@@ -298,7 +299,7 @@ export const AtShowClassListPage: React.FC = () => {
     groups.length === 0 &&
     areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
 
-  if (isLoading || isClassDataStillSyncing) {
+  if (isLoading || isClassDataStillSyncing || assignmentsLoading) {
     return <AtShowClassListSkeleton />;
   }
 

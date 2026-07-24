@@ -2,21 +2,7 @@ import {
   replicatedJudgeAssignmentsTable,
   type ReplicatedJudgeAssignment,
 } from '@/services/replication';
-
-export type ActiveJudgeAssignmentStatus = 'confirmed' | 'invited';
-
-const ACTIVE_JUDGE_ASSIGNMENT_STATUSES: ReadonlySet<ActiveJudgeAssignmentStatus> = new Set([
-  'confirmed',
-  'invited',
-]);
-
-function isActiveJudgeAssignmentStatus(
-  status: string | null
-): status is ActiveJudgeAssignmentStatus {
-  return (
-    status !== null && ACTIVE_JUDGE_ASSIGNMENT_STATUSES.has(status as ActiveJudgeAssignmentStatus)
-  );
-}
+import { isActiveJudgeAssignmentStatus } from './assignmentStatus';
 
 /** Offline-only active class assignments for one judge at one show. */
 export async function getActiveJudgeAssignmentsForShow(

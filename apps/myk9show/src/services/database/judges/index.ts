@@ -48,4 +48,8 @@ export {
   getActiveJudgeAssignmentsForShow,
   subscribeToJudgeAssignmentChanges,
 } from './assignmentReads';
-export type { ActiveJudgeAssignmentStatus } from './assignmentReads';
+export {
+  ACTIVE_JUDGE_ASSIGNMENT_STATUSES,
+  isActiveJudgeAssignmentStatus,
+} from './assignmentStatus';
+export type { ActiveJudgeAssignmentStatus } from './assignmentStatus';

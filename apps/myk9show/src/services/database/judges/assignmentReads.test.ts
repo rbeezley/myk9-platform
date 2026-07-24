@@ -16,11 +16,23 @@ import {
   getActiveJudgeAssignmentsForShow,
   subscribeToJudgeAssignmentChanges,
 } from './assignmentReads';
+import {
+  ACTIVE_JUDGE_ASSIGNMENT_STATUSES,
+  isActiveJudgeAssignmentStatus,
+} from './assignmentStatus';
 
 describe('active judge assignment reads', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getByShowId.mockResolvedValue([]);
+  });
+
+  it('defines the shared assignment lifecycle contract once', () => {
+    expect(ACTIVE_JUDGE_ASSIGNMENT_STATUSES).toEqual(['confirmed', 'invited']);
+    expect(isActiveJudgeAssignmentStatus('confirmed')).toBe(true);
+    expect(isActiveJudgeAssignmentStatus('invited')).toBe(true);
+    expect(isActiveJudgeAssignmentStatus('declined')).toBe(false);
+    expect(isActiveJudgeAssignmentStatus(null)).toBe(false);
   });
 
   it('returns only active class assignments for the requested judge and show', async () => {

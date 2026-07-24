@@ -1345,19 +1345,36 @@ describe('MutationManager', () => {
       );
     });
 
-    it('moves permanently failed mutations to the failed_mutations store instead of deleting them', async () => {
+    it('persists a 42501 score dead-letter with its authorization classification', async () => {
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,
-        makeMutation({ id: 'mut-archive', retries: 0 })
+        makeMutation({
+          id: 'mut-archive',
+          retries: 0,
+          rpc: {
+            name: 'ringside_update_entry',
+            fields: { scoring_completed_at: '2026-07-24T12:00:00Z' },
+          },
+        })
       );
 
-      vi.mocked(mockSupabase.from).mockReturnValue({
-        update: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            select: vi.fn(() => Promise.reject(new Error('RLS policy blocked UPDATE'))),
-          })),
-        })),
-      } as unknown as ReturnType<typeof mockSupabase.from>);
+      const authorizationError = Object.assign(new Error('not authorized to score this class'), {
+        name: 'PostgrestError',
+        code: '42501',
+        details: '',
+        hint: '',
+        toJSON: () => ({
+          name: 'PostgrestError',
+          message: 'not authorized to score this class',
+          code: '42501',
+          details: '',
+          hint: '',
+        }),
+      });
+      vi.mocked(mockSupabase.rpc).mockResolvedValue({
+        data: null,
+        error: authorizationError,
+      } as unknown as Awaited<ReturnType<typeof mockSupabase.rpc>>);
 
       await manager.uploadPendingMutations();
 
@@ -1368,7 +1385,12 @@ describe('MutationManager', () => {
       expect(failed).toHaveLength(1);
       expect(failed[0]!.id).toBe('mut-archive');
       expect(failed[0]!.status).toBe('failed');
-      expect(failed[0]!.error).toContain('RLS policy blocked UPDATE');
+      expect(failed[0]!.error).toContain('not authorized to score this class');
+      expect(failed[0]!.failureKind).toBe('authorization');
+      expect(failed[0]!.rpc).toMatchObject({
+        name: 'ringside_update_entry',
+        fields: { scoring_completed_at: '2026-07-24T12:00:00Z' },
+      });
       expect(failed[0]!.failedAt).toEqual(expect.any(Number));
     });
 

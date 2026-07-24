@@ -175,6 +175,31 @@ function isSupabaseError(error: unknown): error is SupabaseError {
 }
 
 /**
+ * Whether an error is an authorization/permission rejection.
+ *
+ * Kept separate from retryability so a dead letter can preserve the reason
+ * after the original structured error has been reduced to a display string.
+ */
+export function isAuthorizationError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+
+  const candidate = error as Record<string, unknown>;
+  const code = typeof candidate.code === 'string' ? candidate.code : undefined;
+  const message =
+    typeof candidate.message === 'string' ? candidate.message.toLowerCase() : undefined;
+
+  return (
+    code === '42501' ||
+    message?.includes('row-level security') === true ||
+    message?.includes('rls policy') === true ||
+    message?.includes('permission denied') === true ||
+    message?.includes('not authorized') === true ||
+    message?.includes('unauthorized') === true ||
+    message?.includes('forbidden') === true
+  );
+}
+
+/**
  * Determines if an error is retryable
  *
  * Retryable errors include:
@@ -227,15 +252,7 @@ export function isRetryableError(error: unknown): boolean {
     }
 
     // RLS / insufficient-privilege denials need a role/permission fix.
-    if (
-      code === '42501' ||
-      message.includes('row-level security') ||
-      message.includes('rls policy') ||
-      message.includes('permission denied') ||
-      message.includes('not authorized') ||
-      message.includes('unauthorized') ||
-      message.includes('forbidden')
-    ) {
+    if (isAuthorizationError(error)) {
       return false;
     }
 
@@ -252,12 +269,7 @@ export function isRetryableError(error: unknown): boolean {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
 
-    if (
-      message.includes('rls policy blocked') ||
-      message.includes('row-level security') ||
-      message.includes('permission denied') ||
-      message.includes('violates') // constraint/check violation text
-    ) {
+    if (isAuthorizationError(error) || message.includes('violates')) {
       return false;
     }
   }

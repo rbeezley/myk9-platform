@@ -1,7 +1,4 @@
-import {
-  calculateBackoffDelay,
-  isRetryableError,
-} from './mutation-utils';
+import { calculateBackoffDelay, isAuthorizationError, isRetryableError } from './mutation-utils';
 import type { PendingMutation } from './types';
 
 export interface ClassifyMutationFailureOptions {
@@ -37,6 +34,11 @@ export function classifyMutationFailure({
       retries,
       status: 'failed',
       error: canRetry ? `Max retries exceeded: ${message}` : `Non-retryable error: ${message}`,
+      failureKind: canRetry
+        ? 'max-retries'
+        : isAuthorizationError(error)
+          ? 'authorization'
+          : 'permanent',
       failedAt: now,
     };
     delete failed.nextRetryAt;
@@ -53,6 +55,7 @@ export function classifyMutationFailure({
     nextRetryAt: retryAt,
   };
   delete pending.failedAt;
+  delete pending.failureKind;
 
   return { mutation: pending, message, canRetry, permanentlyFailed };
 }

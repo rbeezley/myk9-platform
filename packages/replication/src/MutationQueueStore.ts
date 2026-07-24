@@ -193,6 +193,7 @@ export class MutationQueueStore {
       occRetries: 0,
     };
     delete requeued.error;
+    delete requeued.failureKind;
     delete requeued.nextRetryAt;
     delete requeued.failedAt;
 

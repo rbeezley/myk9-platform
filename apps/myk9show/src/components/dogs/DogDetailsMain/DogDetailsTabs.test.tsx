@@ -243,24 +243,28 @@ describe('DogDetailsTabs navigation', () => {
       ).toBeInTheDocument();
     });
 
-    it('free user: Records exposes one coherent locked treatment for Health', () => {
+    it('free user: Records exposes one coherent locked treatment for Health', async () => {
       renderAt('/dogs/dog-1?section=records');
       expect(screen.getByRole('heading', { name: 'Records are read-only' })).toBeInTheDocument();
-      expect(screen.getByText('health records section')).toBeInTheDocument();
+      expect(await screen.findByText('health records section')).toBeInTheDocument();
     });
 
-    it('premium user: no BlurGate overlay on Career/Title Progress', () => {
+    it('premium user: no BlurGate overlay on Career/Title Progress', async () => {
       setPremium();
       renderAt('/dogs/dog-1?section=career&view=titles');
+      // Await the section before asserting the overlay is absent: the sections are
+      // `lazy()`-loaded, so a synchronous query would run against the Suspense
+      // skeleton and pass vacuously (and `getByText` for the section would fail
+      // outright unless an earlier test had already warmed the lazy import).
+      expect(await screen.findByText('title progress section')).toBeInTheDocument();
       expect(screen.queryByText('Premium Feature')).not.toBeInTheDocument();
-      expect(screen.getByText('title progress section')).toBeInTheDocument();
     });
 
-    it('premium user: no BlurGate overlay on Records/Pedigree', () => {
+    it('premium user: no BlurGate overlay on Records/Pedigree', async () => {
       setPremium();
       renderAt('/dogs/dog-1?section=records&view=pedigree');
+      expect(await screen.findByText('pedigree section')).toBeInTheDocument();
       expect(screen.queryByText('Premium Feature')).not.toBeInTheDocument();
-      expect(screen.getByText('pedigree section')).toBeInTheDocument();
     });
   });
 

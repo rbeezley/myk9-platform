@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trophy, ChevronDown, ChevronRight } from 'lucide-react';
+import { AlertCircle, Plus, Trophy, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTitleProgress } from '@/hooks/useTitleProgress';
 import SportTitleGroup from './SportTitleGroup';
@@ -19,7 +19,7 @@ interface OrgGroup {
 }
 
 const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId, ownerId }) => {
-  const { progressBySport, templates, isLoading } = useTitleProgress(dogId);
+  const { progressBySport, templates, isLoading, isError, refetch } = useTitleProgress(dogId);
   const [panelOpen, setPanelOpen] = useState(false);
 
   const header = (
@@ -41,6 +41,28 @@ const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId, owne
             {Array.from({ length: 3 }).map((_, index) => (
               <Skeleton key={index} className="h-24 rounded-lg" />
             ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="mb-6">
+        <div className="bg-background rounded-xl border p-6">
+          {header}
+          <div
+            role="alert"
+            className="flex flex-col items-center justify-center py-12 text-center gap-2"
+          >
+            <AlertCircle className="h-8 w-8 text-destructive" />
+            <p className="text-sm text-muted-foreground">
+              We couldn&rsquo;t load title progress. Please try again.
+            </p>
+            <Button size="sm" variant="outline" onClick={() => refetch()}>
+              Retry
+            </Button>
           </div>
         </div>
       </div>

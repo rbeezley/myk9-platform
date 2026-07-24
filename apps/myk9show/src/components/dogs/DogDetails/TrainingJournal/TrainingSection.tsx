@@ -187,7 +187,9 @@ export default function TrainingSection({ dogId }: TrainingSectionProps) {
       goals={goals}
       onAddEntry={handleAddEntry}
       onUpdateEntry={handleUpdateEntry}
-      onDeleteEntry={id => deleteMutation.mutate(id)}
+      onDeleteEntry={async id => {
+        await deleteMutation.mutateAsync(id);
+      }}
       onCreateGoal={handleCreateGoal}
       onToggleGoal={handleToggleGoal}
     />

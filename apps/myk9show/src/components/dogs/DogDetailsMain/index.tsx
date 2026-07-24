@@ -21,6 +21,7 @@ import DogDetailsTabs from './DogDetailsTabs';
 import DogDialogs from './DogDialogs';
 import DogStatusDialog from '@/components/dogs/DogStatusDialog';
 import { saveDogPhoto, validateImageFile } from './utils';
+import { useRouteEntryFocus } from './useRouteEntryFocus';
 import type { DogDetailsMainProps } from './types';
 
 import TitleProgressCard from './sidebar/TitleProgressCard';
@@ -46,6 +47,12 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const canDeleteDog = useCanDeleteDog(dog.id);
   const canRestoreDog = hasRole(UserRole.SITE_ADMIN);
   const { isPremium } = useSubscriptionGate();
+
+  // Route-entry focus/scroll (task 3.8, design.md Decision 10): a dog-card
+  // click or a Career/Records deep link lands on the main heading; browser
+  // Back/Forward is left untouched. See useRouteEntryFocus for the guard.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useRouteEntryFocus(headingRef, dog.id);
 
   const [autoOpenAddRegistration, setAutoOpenAddRegistration] = useState(false);
 
@@ -296,6 +303,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             onDeleteDialogOpen={() => setIsDeleteDialogOpen(true)}
             onStatusDialogOpen={() => setIsStatusDialogOpen(true)}
             canDelete={canDeleteDog}
+            headingRef={headingRef}
           />
         }
         properties={[]}

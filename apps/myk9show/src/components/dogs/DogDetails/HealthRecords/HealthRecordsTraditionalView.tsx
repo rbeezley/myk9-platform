@@ -69,7 +69,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
   return (
     <PrimaryTabs tabs={tabs} value={activeTab} onValueChange={setActiveTab} className="w-full">
       <PrimaryTabsContent value="vetVisits" className="space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Vet Visits</h3>
           <Button size="sm" onClick={() => onAddItem('vet_visit')}>
             <Plus className="h-4 w-4 mr-1" />
@@ -84,7 +84,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
           )}
           {vetVisitsData.map(visit => (
             <div key={visit.id} className="p-4 border rounded-lg">
-              <div className="flex justify-between items-start">
+              <div className="flex flex-wrap justify-between items-start gap-2">
                 <div>
                   <h4 className="font-medium">{visit.reason}</h4>
                   <p className="text-sm text-muted-foreground">
@@ -111,7 +111,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       </PrimaryTabsContent>
 
       <PrimaryTabsContent value="vaccinations" className="space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Vaccinations</h3>
           <Button size="sm" onClick={() => onAddItem('vaccination')}>
             <Plus className="h-4 w-4 mr-1" />
@@ -133,7 +133,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                 key={vacc.id}
                 className={`p-4 border rounded-lg ${isOverdue ? 'border-destructive/20 bg-destructive/10 ' : isExpiringSoon ? 'border-amber-300 bg-warning/10 ' : ''}`}
               >
-                <div className="flex justify-between items-start">
+                <div className="flex flex-wrap justify-between items-start gap-2">
                   <div>
                     <h4 className="font-medium">{vacc.vaccine_name}</h4>
                     <p className="text-sm text-muted-foreground">
@@ -168,7 +168,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       </PrimaryTabsContent>
 
       <PrimaryTabsContent value="medications" className="space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Medications</h3>
           <Button size="sm" onClick={() => onAddItem('medication')}>
             <Plus className="h-4 w-4 mr-1" />
@@ -183,7 +183,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
           )}
           {medicationsData.map(med => (
             <div key={med.id} className="p-4 border rounded-lg">
-              <div className="flex justify-between items-start">
+              <div className="flex flex-wrap justify-between items-start gap-2">
                 <div>
                   <h4 className="font-medium">{med.medication_name}</h4>
                   <p className="text-sm text-muted-foreground">
@@ -212,7 +212,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       </PrimaryTabsContent>
 
       <PrimaryTabsContent value="allergies" className="space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Allergies</h3>
           <Button size="sm" onClick={() => onAddItem('allergy')}>
             <Plus className="h-4 w-4 mr-1" />
@@ -227,7 +227,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
           )}
           {allergiesData.map(allergy => (
             <div key={allergy.id} className="p-4 border rounded-lg">
-              <div className="flex justify-between items-start">
+              <div className="flex flex-wrap justify-between items-start gap-2">
                 <div>
                   <h4 className="font-medium">{allergy.allergen}</h4>
                   <p className="text-sm text-muted-foreground">
@@ -263,7 +263,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       </PrimaryTabsContent>
 
       <PrimaryTabsContent value="ofaScreenings" className="space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">OFA / Health Screenings</h3>
           <Button size="sm" onClick={() => onAddItem('ofa_screening')}>
             <Plus className="h-4 w-4 mr-1" />
@@ -278,7 +278,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
           )}
           {ofaScreeningsData.map(ofa => (
             <div key={ofa.id} className="p-4 border rounded-lg">
-              <div className="flex justify-between items-start">
+              <div className="flex flex-wrap justify-between items-start gap-2">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <h4 className="font-medium capitalize">{ofa.test_type}</h4>
@@ -307,7 +307,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       </PrimaryTabsContent>
 
       <PrimaryTabsContent value="geneticScreenings" className="space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center gap-2">
           <h3 className="text-lg font-semibold">Genetic Tests</h3>
           <Button size="sm" onClick={() => onAddItem('genetic_screening')}>
             <Plus className="h-4 w-4 mr-1" />
@@ -322,7 +322,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
           )}
           {geneticScreeningsData.map(gen => (
             <div key={gen.id} className="p-4 border rounded-lg">
-              <div className="flex justify-between items-start mb-2">
+              <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <h4 className="font-medium">{gen.provider}</h4>

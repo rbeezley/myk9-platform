@@ -22,6 +22,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useElementWidth } from '@/hooks/useElementWidth';
 import { downloadFile, exportToCSV } from '@/lib/export';
 import type { HealthImportOutcome, ParsedHealthImportRow } from './healthImport';
 import { HealthImportDialog } from './HealthImportDialog';
@@ -133,6 +134,11 @@ export function HealthTimeline({
   const [viewMode, setViewMode] = useState<'timeline' | 'grid'>('timeline');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  // Container width (not viewport width) drives reflow: the Dog Details
+  // main column can be narrow even at desktop viewport sizes when a sidebar
+  // is open, so sm:/md: breakpoints alone would under- or over-wrap here.
+  const { ref: containerRef, width: containerWidth } = useElementWidth<HTMLDivElement>();
+  const isNarrow = containerWidth !== null && containerWidth < 480;
 
   const activeFilters: HealthTimelineFilters = useMemo(
     () => ({ searchTerm, filterType, selectedYear }),
@@ -334,25 +340,41 @@ export function HealthTimeline({
   };
 
   return (
-    <div className="space-y-6">
+    <div ref={containerRef} className="space-y-6" data-testid="health-timeline-container">
       {/* Header Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+      <div
+        data-testid="health-timeline-header"
+        className={cn(
+          'flex flex-wrap gap-3',
+          isNarrow ? 'flex-col items-stretch' : 'items-center justify-between'
+        )}
+      >
         <div className="flex items-center gap-2">
           <Heart className="h-5 w-5" />
           <h2 className="text-xl font-semibold">Health Timeline</h2>
         </div>
 
         {!vaccinationsOnly && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsImportOpen(true)}>
+          <div className={cn('flex flex-wrap gap-2', isNarrow && 'w-full')}>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(isNarrow && 'flex-1')}
+              onClick={() => setIsImportOpen(true)}
+            >
               <Upload className="h-4 w-4 mr-2" />
               Import Records
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExportTimeline}>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(isNarrow && 'flex-1')}
+              onClick={handleExportTimeline}
+            >
               <Download className="h-4 w-4 mr-2" />
               Export Timeline
             </Button>
-            <Button size="sm" onClick={onAddEvent}>
+            <Button size="sm" className={cn(isNarrow && 'flex-1')} onClick={onAddEvent}>
               <Plus className="h-4 w-4" />
               Add Event
             </Button>
@@ -363,8 +385,11 @@ export function HealthTimeline({
       {/* Filters and Search */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
+          <div
+            data-testid="health-timeline-filters"
+            className={cn('flex flex-wrap gap-4', isNarrow && 'flex-col')}
+          >
+            <div className="flex-1 min-w-[200px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -377,12 +402,12 @@ export function HealthTimeline({
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className={cn('flex flex-wrap gap-2', isNarrow && 'w-full flex-col')}>
               {!vaccinationsOnly && (
                 <select
                   value={filterType}
                   onChange={e => setFilterType(e.target.value)}
-                  className="px-3 py-2 border rounded-md text-sm"
+                  className={cn('px-3 py-2 border rounded-md text-sm', isNarrow && 'w-full')}
                 >
                   <option value="all">All Types</option>
                   {Object.entries(eventTypeConfig).map(([key, config]) => (
@@ -396,7 +421,7 @@ export function HealthTimeline({
               <select
                 value={selectedYear ?? ''}
                 onChange={e => setSelectedYear(e.target.value ? Number(e.target.value) : null)}
-                className="px-3 py-2 border rounded-md text-sm"
+                className={cn('px-3 py-2 border rounded-md text-sm', isNarrow && 'w-full')}
                 aria-label="Filter by year"
               >
                 <option value="">All Years</option>
@@ -407,19 +432,28 @@ export function HealthTimeline({
                 ))}
               </select>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setViewMode(viewMode === 'timeline' ? 'grid' : 'timeline')}
-              >
-                <Filter className="h-4 w-4" />
-              </Button>
-
-              {filtersActive && (
-                <Button variant="outline" size="sm" onClick={clearFilters}>
-                  Clear filters
+              <div className={cn('flex gap-2', isNarrow && 'w-full')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(isNarrow && 'flex-1')}
+                  onClick={() => setViewMode(viewMode === 'timeline' ? 'grid' : 'timeline')}
+                  aria-label="Toggle timeline view mode"
+                >
+                  <Filter className="h-4 w-4" />
                 </Button>
-              )}
+
+                {filtersActive && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(isNarrow && 'flex-1')}
+                    onClick={clearFilters}
+                  >
+                    Clear filters
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>

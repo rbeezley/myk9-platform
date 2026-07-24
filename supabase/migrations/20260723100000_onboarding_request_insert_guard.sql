@@ -1,10 +1,6 @@
 -- Keep requester-created onboarding rows in the admin queue's safe initial state.
 -- The owner insert policy must not allow a client to set an admin workflow status
 -- or write the private notes column.
---
--- NOTE: this migration was applied directly to the linked project (version
--- 20260723100000) before the file existed in the repo; this file is the exact
--- recovered statement list so local migration history matches the remote.
 
 begin;
 

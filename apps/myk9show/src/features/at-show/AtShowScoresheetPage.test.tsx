@@ -424,9 +424,12 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       fireEvent.click(escape);
 
       // Direct supabase sign-out (not the hard-redirecting AuthContext signOut),
-      // so the client-side navigation to the passcode form isn't clobbered. The
-      // in-memory grant is cleared since we skip the hard reload it relied on.
+      // so the client-side navigation to the passcode form isn't clobbered. Uses
+      // LOCAL scope so a failed server-revoke can't leave the session in a
+      // partial state. The in-memory grant is cleared since we skip the hard
+      // reload it relied on.
       await waitFor(() => expect(supabaseSignOut).toHaveBeenCalledTimes(1));
+      expect(supabaseSignOut).toHaveBeenCalledWith({ scope: 'local' });
       expect(useRingsideGrantStore.getState().activeGrant).toBeNull();
     });
 

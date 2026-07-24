@@ -79,14 +79,16 @@ export const AtShowScoresheetPage: React.FC = () => {
   // sessions). A signed-in judge must therefore sign out first, then enter the
   // passcode as a guest. We sign out via supabase DIRECTLY rather than the
   // AuthContext `signOut` (which hard-redirects to '/', clobbering the
-  // navigation below). supabase.auth.signOut resolves with an { error } instead
-  // of throwing, so we must NOT navigate on failure — otherwise the passcode
-  // form would run with the account session still live and loop back here. On
-  // success we also clear the in-memory ringside grant (the hard reload we
-  // skipped is what ringsideGrantStore otherwise relied on) before navigating.
+  // navigation below), and with `scope: 'local'`: a GLOBAL sign-out removes the
+  // on-device session EVEN when its server-revoke request errors (auth-js), so
+  // an error there would leave us reasoning about a session that's actually
+  // gone. Local sign-out clears only this device with no revoke round-trip, so
+  // an { error } genuinely means the local session persists — only then do we
+  // stay put. On success we also clear the in-memory ringside grant (the hard
+  // reload we skipped is what ringsideGrantStore otherwise relied on).
   const handleSignOutToPasscode = useCallback(async () => {
     setSignOutError(false);
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
     if (error) {
       setSignOutError(true);
       return;

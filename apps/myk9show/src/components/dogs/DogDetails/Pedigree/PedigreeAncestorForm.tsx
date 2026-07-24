@@ -56,9 +56,13 @@ const PedigreeAncestorForm = forwardRef<PedigreeAncestorFormRef, PedigreeAncesto
       ...INITIAL_VALUES,
       ...initialValues,
     });
+    const [error, setError] = useState<string | null>(null);
 
     useImperativeHandle(ref, () => ({
-      reset: () => setForm({ ...INITIAL_VALUES, ...initialValues }),
+      reset: () => {
+        setForm({ ...INITIAL_VALUES, ...initialValues });
+        setError(null);
+      },
     }));
 
     const update = (field: keyof AncestorFormValues, value: string) =>
@@ -66,12 +70,29 @@ const PedigreeAncestorForm = forwardRef<PedigreeAncestorFormRef, PedigreeAncesto
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
+      // Validate at the form boundary in addition to native `required`
+      // attributes so an invalid submission never reaches the mutation.
+      if (!form.registeredName.trim()) {
+        setError('Registered Name is required.');
+        return;
+      }
+      setError(null);
       onSubmit(form);
     };
 
     return (
       <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <FormField label="Registered Name" fieldId={`${formId}-registeredName`} required>
+        {error && (
+          <p role="alert" aria-live="assertive" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        <FormField
+          label="Registered Name"
+          fieldId={`${formId}-registeredName`}
+          required
+          error={!form.registeredName.trim() && error ? error : undefined}
+        >
           <Input
             id={`${formId}-registeredName`}
             type="text"

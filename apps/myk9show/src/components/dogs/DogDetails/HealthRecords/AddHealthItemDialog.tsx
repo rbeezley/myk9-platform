@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import DatePickerField from '@/components/common/DatePickerField';
 import { Plus, Trash2 } from 'lucide-react';
+import { validateAddHealthItem } from './AddHealthItemDialog.validation';
 
 export type HealthItemType =
   | 'vaccination'
@@ -20,7 +21,10 @@ interface AddHealthItemDialogProps {
   type: HealthItemType;
   dogId: string;
   onClose: () => void;
-  onAdd: (type: HealthItemType, data: Record<string, unknown>) => void;
+  /** Runs the create mutation; must reject on failure so the dialog can stay open. */
+  onAdd: (type: HealthItemType, data: Record<string, unknown>) => Promise<void>;
+  /** Set by the parent when the last create mutation was rejected. */
+  saveError?: string | null;
 }
 
 const typeLabels: Record<HealthItemType, string> = {
@@ -56,9 +60,15 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
   dogId,
   onClose,
   onAdd,
+  saveError = null,
 }) => {
   // Shared fields
   const [notes, setNotes] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // In-flight guard: Button's `loading` prop already blocks re-activation,
+  // but this also protects the requestSubmit()-triggered native submit path.
+  const submittingRef = useRef(false);
 
   // Vaccination fields
   const [vaccineName, setVaccineName] = useState('');
@@ -152,6 +162,26 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
+
+    // Validate at the form boundary in addition to native `required`
+    // attributes so an invalid submission never reaches the mutation.
+    const validationMessage = validateAddHealthItem(type, {
+      vaccineName,
+      dateGiven,
+      medicationName,
+      allergen,
+      visitDate,
+      reason,
+      ofaTestDate,
+      geneticProvider,
+      geneticTestDate,
+    });
+    if (validationMessage) {
+      setValidationError(validationMessage);
+      return;
+    }
+    setValidationError(null);
 
     let data: Record<string, unknown> = { dog_id: dogId };
 
@@ -224,9 +254,23 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
         break;
     }
 
-    onAdd(type, data);
-    resetForm();
-    onClose();
+    // Preserve entered values while the mutation is in flight; only reset
+    // and close once the mutation is confirmed successful.
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    onAdd(type, data)
+      .then(() => {
+        resetForm();
+        onClose();
+      })
+      .catch(() => {
+        // Parent surfaces the failure via `saveError`; the dialog stays
+        // open and the entered values are left untouched for retry.
+      })
+      .finally(() => {
+        submittingRef.current = false;
+        setIsSubmitting(false);
+      });
   };
 
   const formId = 'add-health-item-form';
@@ -236,21 +280,27 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
       open={open}
       onClose={() => {
         resetForm();
+        setValidationError(null);
         onClose();
       }}
-      onSave={() =>
-        document
-          .getElementById(formId)
-          ?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
-      }
+      onSave={() => {
+        const form = document.getElementById(formId);
+        if (form instanceof HTMLFormElement) form.requestSubmit();
+      }}
       title={`Add ${typeLabels[type]}`}
       formId={formId}
+      isSubmitting={isSubmitting}
       saveLabel={
         <>
           <Plus className="mr-2 h-4 w-4" /> Add
         </>
       }
     >
+      {(validationError || saveError) && (
+        <p role="alert" aria-live="assertive" className="text-sm text-destructive mb-3">
+          {validationError ?? `${saveError} The record was not saved. Please try again.`}
+        </p>
+      )}
       <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-4">
         {type === 'vaccination' && (
           <>

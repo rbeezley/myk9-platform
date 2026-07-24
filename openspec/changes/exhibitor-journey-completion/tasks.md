@@ -9,8 +9,8 @@
 
 ## 2. Slice 1 — Premium Record Integrity
 
-- [ ] 2.1 Add assertion-first failing tests proving empty Pedigree and Health submissions invoke no mutation and mutation failures preserve the open form and its entered values.
-- [ ] 2.2 Replace programmatic submit-event dispatch in Pedigree and Health add/edit dialogs with native form association or `requestSubmit()`, add TypeScript validation, and close/reset only after confirmed mutation success.
+- [x] 2.1 Add assertion-first failing tests proving empty Pedigree and Health submissions invoke no mutation and mutation failures preserve the open form and its entered values.
+- [x] 2.2 Replace programmatic submit-event dispatch in Pedigree and Health add/edit dialogs with native form association or `requestSubmit()`, add TypeScript validation, and close/reset only after confirmed mutation success.
 - [ ] 2.3 Add a date-only helper test matrix for UTC, `America/Chicago`, month/year boundaries, and round-trip edit display, then replace touched `new Date('YYYY-MM-DD')` paths.
 - [ ] 2.4 Add failing Health filter tests for search, type, year, combined filters, and filter-specific empty state, then wire the controls to real state and clear-filter recovery.
 - [ ] 2.5 Verify Slice 1 with focused Pedigree, Health form, date-helper, and Health filter tests plus `pnpm typecheck` and `pnpm lint`.

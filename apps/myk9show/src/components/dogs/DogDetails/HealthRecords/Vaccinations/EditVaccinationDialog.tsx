@@ -10,6 +10,10 @@ interface EditVaccinationDialogProps {
   record: VaccinationRecord | null;
   onClose: () => void;
   onSave: (record: VaccinationRecord) => void;
+  /** True while the update mutation is in flight; disables the Save button. */
+  isSaving?: boolean;
+  /** Set when the update mutation was rejected; rendered as a retryable error. */
+  saveError?: string | null;
 }
 
 const EditVaccinationDialog: React.FC<EditVaccinationDialogProps> = ({
@@ -17,15 +21,25 @@ const EditVaccinationDialog: React.FC<EditVaccinationDialogProps> = ({
   record,
   onClose,
   onSave,
+  isSaving = false,
+  saveError = null,
 }) => {
   const [vaccineName, setVaccineName] = useState(record?.vaccine_name || '');
   const [dateGiven, setDateGiven] = useState(record?.date_given || '');
   const [expirationDate, setExpirationDate] = useState(record?.expiration_date || '');
   const [vetName, setVeterinarian] = useState(record?.vet_name || '');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!record) return;
+    // Validate at the form boundary in addition to native `required`
+    // attributes so an invalid submission never reaches the mutation.
+    if (!vaccineName.trim() || !dateGiven || !expirationDate || !vetName.trim()) {
+      setValidationError('All fields are required.');
+      return;
+    }
+    setValidationError(null);
     onSave({
       ...record,
       vaccine_name: vaccineName,
@@ -39,16 +53,21 @@ const EditVaccinationDialog: React.FC<EditVaccinationDialogProps> = ({
     <StandardDialog
       open={open}
       onClose={onClose}
-      onSave={() =>
-        document
-          .getElementById('edit-vaccination-form')
-          ?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
-      }
+      onSave={() => {
+        const form = document.getElementById('edit-vaccination-form');
+        if (form instanceof HTMLFormElement) form.requestSubmit();
+      }}
       title="Edit Vaccination Record"
       description="All fields are required."
       formId="edit-vaccination-form"
       saveLabel="Save"
+      isSubmitting={isSaving}
     >
+      {(validationError || saveError) && (
+        <p role="alert" aria-live="assertive" className="text-sm text-destructive mb-3">
+          {validationError ?? `${saveError} The record was not saved. Please try again.`}
+        </p>
+      )}
       <form id="edit-vaccination-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
         <FormField label="Vaccination" fieldId="editVaccination" required>
           <Input

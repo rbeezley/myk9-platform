@@ -30,6 +30,7 @@
 - The broad myK9Show Vitest run was stopped after exceeding the repository's 60-second ceiling; all tests observed before termination passed.
 - `pnpm openspec validate secure-operator-support-askq --strict` passed.
 - `git diff --check` passed and the worktree contains only the scoped implementation and OpenSpec files.
+- `supabase db push` applied `20260724180000_reserve_operator_support_query.sql` to the linked project; `supabase migration list --linked` confirms matching local and remote versions.
 
 ## Issues by Priority
 
@@ -41,7 +42,7 @@
 
 - The broader `docs/plan-ai-natural-language-access.md` still requires typed diagnostic states and production-like validation before Phase 2 can deploy. Rate limiting and the disable switch are now included in this slice.
 - A Deno runtime bundle/serve check could not run because Deno is not installed in this worktree environment. Shared logic is typechecked and tested, but the edge-function entry point still needs Supabase local/staging verification before deployment.
-- The atomic quota migration has source-contract coverage but has not been applied or exercised against the linked database; deployment must apply and validate it before enabling the edge function.
+- The atomic quota migration is applied and has source-contract coverage, but the RPC still needs an authenticated site-admin staging exercise before enabling the edge function.
 - Linear MYK9-26 remains Backlog and describes this feature as post-launch. The local implementation was started only because the user explicitly approved proceeding; the issue was not changed.
 
 ### SUGGESTION

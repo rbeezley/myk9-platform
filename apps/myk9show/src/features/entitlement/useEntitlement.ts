@@ -6,7 +6,7 @@
 // result is no longer trusted — even if the page stays open and the stale
 // value is still on screen.
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { fetchOwnEntitlementContext } from '@/services/database/entitlement/context';
@@ -40,6 +40,11 @@ export function useEntitlement(): UseEntitlementResult {
   // referentially unchanged but still re-renders — does not re-trigger
   // invalidateQueries on every render once the boundary has passed.
   const lastInvalidatedBoundaryRef = useRef<string | null>(null);
+  // The trustedUntil boundary that has already PASSED (set by the boundary
+  // timeout / effect, never during render — render must stay pure, so we
+  // cannot compare against Date.now() there). Guarantees a re-render at the
+  // boundary so canAuthorizePremium flips to false even if refetch fails.
+  const [expiredBoundary, setExpiredBoundary] = useState<string | null>(null);
 
   const query = useQuery({
     queryKey: ENTITLEMENT_QUERY_KEY,
@@ -69,21 +74,18 @@ export function useEntitlement(): UseEntitlementResult {
     }
     if (!trustedUntil) return undefined;
 
-    const delay = Date.parse(trustedUntil) - Date.now();
-    if (delay <= 0) {
-      // Invalidate at most once per boundary — React Query's own retry/
-      // backoff owns subsequent attempts if this one fails; isTrusted is
-      // already false so authorization is fail-closed regardless.
+    // Always go through a timeout (0ms when the boundary already passed) —
+    // setState synchronously inside the effect body would cascade renders
+    // (react-hooks/set-state-in-effect). The effect only re-runs when the
+    // boundary string itself changes, and the ref guards invalidation to at
+    // most once per boundary, so a failing refetch cannot storm.
+    const delay = Math.max(0, Date.parse(trustedUntil) - Date.now());
+    timeoutRef.current = setTimeout(() => {
+      setExpiredBoundary(trustedUntil);
       if (lastInvalidatedBoundaryRef.current !== trustedUntil) {
         lastInvalidatedBoundaryRef.current = trustedUntil;
         queryClient.invalidateQueries({ queryKey: ENTITLEMENT_QUERY_KEY });
       }
-      return undefined;
-    }
-
-    timeoutRef.current = setTimeout(() => {
-      lastInvalidatedBoundaryRef.current = trustedUntil;
-      queryClient.invalidateQueries({ queryKey: ENTITLEMENT_QUERY_KEY });
     }, delay);
 
     return () => {
@@ -91,7 +93,9 @@ export function useEntitlement(): UseEntitlementResult {
     };
   }, [trustedUntil, queryClient]);
 
-  const isTrusted = !!effective && Date.parse(effective.trustedUntil) > Date.now();
+  // Pure derivation: the boundary effect/timeout marks a passed trustedUntil,
+  // so render never consults the wall clock directly.
+  const isTrusted = !!effective && expiredBoundary !== effective.trustedUntil;
 
   return {
     effective,

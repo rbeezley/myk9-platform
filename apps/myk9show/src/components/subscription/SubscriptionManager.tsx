@@ -1,14 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, Calendar, Settings, Download, AlertCircle, Crown, Zap } from 'lucide-react';
+import { CreditCard, Calendar, Settings, AlertCircle, Crown, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import { products, annualPriceId } from '@/stripe-config';
+import { useEntitlement } from '@/features/entitlement/useEntitlement';
+import type { EffectiveEntitlement, EntitlementSource } from '@/features/entitlement/types';
 
 /** Display amount/interval per known price id; unknown ids show no price line. */
 function priceDisplay(priceId: string | null): { amount: number; interval: 'month' | 'year' } {
@@ -17,29 +19,14 @@ function priceDisplay(priceId: string | null): { amount: number; interval: 'mont
   return { amount: 0, interval: 'month' };
 }
 
-interface Subscription {
-  id: string;
+/** Real Stripe billing details for the "paid" source only — never shown for grants. */
+interface BillingDetails {
   status: 'active' | 'past_due' | 'canceled' | 'unpaid';
-  planName: string;
-  planType: 'free' | 'premium';
   amount: number;
-  currency: string;
   interval: 'month' | 'year';
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
   cancelAtPeriodEnd: boolean;
-  stripeCustomerId: string;
-  stripeSubscriptionId: string;
-}
-
-interface Invoice {
-  id: string;
-  amount: number;
-  currency: string;
-  status: string;
-  created: Date;
-  invoiceUrl: string;
-  invoicePdf: string;
 }
 
 interface SubscriptionManagerProps {
@@ -51,18 +38,26 @@ interface SubscriptionManagerProps {
   portalReturnPath?: string;
 }
 
+const SOURCE_LABEL: Record<Exclude<EntitlementSource, 'none'>, string> = {
+  paid: 'Premium',
+  founding: 'Founding Member Premium',
+  complimentary: 'Complimentary Premium',
+};
+
 export function SubscriptionManager({
   portalReturnPath = '/pricing-page',
 }: SubscriptionManagerProps = {}) {
   const { user } = useAuth();
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { effective, isLoading, isError, refetch } = useEntitlement();
+  const [billing, setBilling] = useState<BillingDetails | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
 
-  const fetchSubscriptionData = useCallback(async () => {
+  const showPaidBilling = effective?.status === 'active' && effective.source === 'paid';
+
+  const fetchBillingDetails = useCallback(async () => {
     try {
-      setLoading(true);
+      setBillingLoading(true);
 
       // stripe_subscriptions.customer_id is a stripe_customers row uuid, NOT
       // the auth user id — resolve our own customer row first. Filter by the
@@ -77,8 +72,6 @@ export function SubscriptionManager({
 
       if (meError) throw meError;
 
-      // order+limit: maybeSingle() throws if a person ever accrues two
-      // customer rows; prefer the newest rather than erroring the page.
       const { data: customer, error: customerError } = me
         ? await supabase
             .from('stripe_customers')
@@ -95,7 +88,7 @@ export function SubscriptionManager({
         ? await supabase
             .from('stripe_subscriptions')
             .select(
-              'stripe_subscription_id, status, stripe_price_id, current_period_start, current_period_end, cancel_at_period_end, customer_id'
+              'status, stripe_price_id, current_period_start, current_period_end, cancel_at_period_end, customer_id'
             )
             .eq('customer_id', customer.id)
             .order('created_at', { ascending: false })
@@ -107,8 +100,7 @@ export function SubscriptionManager({
 
       if (subData) {
         const { amount, interval } = priceDisplay(subData.stripe_price_id);
-        setSubscription({
-          id: subData.stripe_subscription_id || '',
+        setBilling({
           status:
             subData.status === 'active'
               ? 'active'
@@ -117,56 +109,32 @@ export function SubscriptionManager({
                 : subData.status === 'past_due'
                   ? 'past_due'
                   : 'unpaid',
-          planName: 'Premium', // Default for active subscriptions
-          planType: 'premium' as const, // All paid subscriptions are premium
           amount,
-          currency: 'usd',
           interval,
           currentPeriodStart: new Date(subData.current_period_start || new Date().toISOString()),
           currentPeriodEnd: new Date(subData.current_period_end || new Date().toISOString()),
           cancelAtPeriodEnd: subData.cancel_at_period_end || false,
-          stripeCustomerId: subData.customer_id || '',
-          stripeSubscriptionId: subData.stripe_subscription_id || '',
         });
-
-        // Fetch invoices
-        const { data: invoiceData, error: invoiceError } = await supabase
-          .from('stripe_orders')
-          .select('*')
-          .eq('customer_id', subData.customer_id || '')
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (invoiceError) throw invoiceError;
-
-        setInvoices(
-          invoiceData?.map(inv => ({
-            id: inv.id.toString(),
-            amount: inv.amount_cents,
-            currency: inv.currency || 'usd',
-            status: inv.status || 'unknown',
-            created: new Date(inv.created_at || ''),
-            invoiceUrl: '#', // Not available in orders
-            invoicePdf: '#', // Not available in orders
-          })) || []
-        );
+      } else {
+        setBilling(null);
       }
     } catch (err) {
-      logger.error('Error fetching subscription:', 'components', {}, err as Error);
-      setError('Failed to load subscription information');
+      logger.error('Error fetching billing details:', 'components', {}, err as Error);
+      setPortalError('Failed to load billing information');
     } finally {
-      setLoading(false);
+      setBillingLoading(false);
     }
   }, [user?.id]);
 
   useEffect(() => {
-    if (user) {
-      fetchSubscriptionData();
+    if (user && showPaidBilling) {
+      fetchBillingDetails();
     }
-  }, [user, fetchSubscriptionData]);
+  }, [user, showPaidBilling, fetchBillingDetails]);
 
   const openCustomerPortal = async () => {
     try {
+      setPortalError(null);
       // MP-27: the edge function derives the Stripe customer from the
       // authenticated user — no customer id crosses the wire.
       const { data, error } = await supabase.functions.invoke('stripe-customer-portal', {
@@ -182,44 +150,37 @@ export function SubscriptionManager({
       }
     } catch (err) {
       logger.error('Error opening customer portal:', 'components', {}, err as Error);
-      setError('Failed to open customer portal');
+      setPortalError('Failed to open customer portal');
     }
   };
 
-  if (loading) {
+  // Neutral loading state: no lock/unlock flash while entitlement resolves.
+  if (isLoading && !effective) {
     return (
       <div className="space-y-6">
         <div className="animate-pulse space-y-4">
           <div className="h-40 bg-muted rounded-lg"></div>
-          <div className="h-60 bg-muted rounded-lg"></div>
         </div>
       </div>
     );
   }
 
-  const getPlanIcon = (planType: string) => {
-    if (planType === 'premium') {
-      return <Crown className="h-5 w-5 text-amber-500" />;
-    }
-    return <Zap className="h-5 w-5 text-blue-500" />;
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active': {
-        return <Badge className="bg-success/10 text-success ">Active</Badge>;
-      }
-      case 'past_due': {
-        return <Badge variant="destructive">Past Due</Badge>;
-      }
-      case 'canceled': {
-        return <Badge variant="secondary">Canceled</Badge>;
-      }
-      default: {
-        return <Badge variant="outline">{status}</Badge>;
-      }
-    }
-  };
+  if (isError && !effective) {
+    return (
+      <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3">
+        <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+        <div className="flex-1">
+          <p className="text-destructive text-sm">
+            We couldn't verify your account access right now. Your billing and access are unchanged
+            — try again.
+          </p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -228,130 +189,165 @@ export function SubscriptionManager({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      {error && (
+      {isError && effective && (
         <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
           <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
-          <p className="text-destructive text-sm">{error}</p>
+          <p className="text-destructive text-sm">
+            We couldn't refresh your account access. Showing the last known state.
+          </p>
+        </div>
+      )}
+      {portalError && (
+        <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
+          <p className="text-destructive text-sm">{portalError}</p>
         </div>
       )}
 
-      {/* Current Subscription */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
-            Current Subscription
+            Current Plan
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          {subscription ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {getPlanIcon(subscription.planType)}
+        <CardContent>{effective && <SubscriptionStatus effective={effective} />}</CardContent>
+      </Card>
+
+      {showPaidBilling && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Billing
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {billingLoading && !billing ? (
+              <div className="animate-pulse h-24 bg-muted rounded-lg" />
+            ) : billing ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <h3 className="font-semibold text-lg">{subscription.planName}</h3>
-                    {subscription.amount > 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        ${subscription.amount / 100} / {subscription.interval}
-                      </p>
-                    )}
+                    <p className="text-muted-foreground">Current Period</p>
+                    <p className="font-medium">
+                      {billing.currentPeriodStart.toLocaleDateString()} -{' '}
+                      {billing.currentPeriodEnd.toLocaleDateString()}
+                    </p>
                   </div>
+                  <div>
+                    <p className="text-muted-foreground">Next Billing</p>
+                    <p className="font-medium">
+                      {billing.cancelAtPeriodEnd
+                        ? 'Subscription will cancel'
+                        : billing.currentPeriodEnd.toLocaleDateString()}
+                    </p>
+                  </div>
+                  {billing.amount > 0 && (
+                    <div>
+                      <p className="text-muted-foreground">Amount</p>
+                      <p className="font-medium">
+                        ${billing.amount / 100} / {billing.interval}
+                      </p>
+                    </div>
+                  )}
                 </div>
-                {getStatusBadge(subscription.status)}
-              </div>
 
-              <Separator />
+                {billing.cancelAtPeriodEnd && (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
+                    <p className="text-amber-800 text-sm">
+                      Your subscription will cancel at the end of the current billing period.
+                    </p>
+                  </div>
+                )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Current Period</p>
-                  <p className="font-medium">
-                    {subscription.currentPeriodStart.toLocaleDateString()} -{' '}
-                    {subscription.currentPeriodEnd.toLocaleDateString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Next Billing</p>
-                  <p className="font-medium">
-                    {subscription.cancelAtPeriodEnd
-                      ? 'Subscription will cancel'
-                      : subscription.currentPeriodEnd.toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
+                <Separator />
 
-              {subscription.cancelAtPeriodEnd && (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
-                  <p className="text-amber-800 text-sm">
-                    Your subscription will cancel at the end of the current billing period.
-                  </p>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-4">
                 <Button onClick={openCustomerPortal} className="flex items-center gap-2">
                   <Settings className="h-4 w-4" />
                   Manage Subscription
                 </Button>
               </div>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground mb-4">No active subscription</p>
-              <Button onClick={() => (window.location.href = '/pricing-page')}>View Plans</Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Billing History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Billing History
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {invoices.length > 0 ? (
-            <div className="space-y-3">
-              {invoices.map(invoice => (
-                <div
-                  key={invoice.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
-                >
-                  <div>
-                    <p className="font-medium">
-                      ${invoice.amount / 100} {invoice.currency.toUpperCase()}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {invoice.created.toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={invoice.status === 'paid' ? 'default' : 'destructive'}>
-                      {invoice.status}
-                    </Badge>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => window.open(invoice.invoicePdf, '_blank')}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No billing history available
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            ) : (
+              <p className="text-muted-foreground text-sm">Billing details are unavailable.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </motion.div>
+  );
+}
+
+function SubscriptionStatus({ effective }: { effective: EffectiveEntitlement }) {
+  if (effective.status === 'active') {
+    const { source } = effective;
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Crown className="h-5 w-5 text-amber-500" />
+            <h3 className="font-semibold text-lg">{SOURCE_LABEL[source]}</h3>
+          </div>
+          <Badge className="bg-success/10 text-success">Active</Badge>
+        </div>
+        {source === 'paid' ? (
+          <p className="text-sm text-muted-foreground">
+            Renews {new Date(effective.endsAt).toLocaleDateString()}.
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {source === 'founding' ? 'Founding member premium' : 'Complimentary premium'} through{' '}
+            {new Date(effective.endsAt).toLocaleDateString()}. Billing is not applicable — this
+            access was granted, not purchased.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (effective.status === 'expired') {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Crown className="h-5 w-5 text-muted-foreground" />
+            <h3 className="font-semibold text-lg">Premium access ended</h3>
+          </div>
+          <Badge variant="secondary">Expired</Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Your Premium access ended {new Date(effective.endsAt).toLocaleDateString()}.
+        </p>
+        <Button onClick={() => (window.location.href = '/pricing-page')}>
+          View plans to resubscribe
+        </Button>
+      </div>
+    );
+  }
+
+  // status === 'free'
+  const trial = effective.analyticsTrial;
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-lg">Free</h3>
+        <Badge variant="outline">Free</Badge>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        You're on the free plan. Upgrade to unlock title tracking, health records, training journal,
+        and pedigree management.
+      </p>
+      {trial.status === 'active' && (
+        <div className="p-3 bg-muted rounded-lg flex items-start gap-2">
+          <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+          <p className="text-sm">
+            Premium Analytics trial: {trial.scoredShowCount ?? 0} of {trial.showLimit} scored shows
+            used. This unlocks Analytics only — it is not an account subscription.
+          </p>
+        </div>
+      )}
+      <Button onClick={() => (window.location.href = '/pricing-page')}>View Plans</Button>
+    </div>
   );
 }

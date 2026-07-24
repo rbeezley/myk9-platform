@@ -31,6 +31,7 @@ import { userFormSchema, userToFormData, formDataToUser } from './UserEditPanel.
 import { BasicInfoTab } from './BasicInfoTab';
 import { ContactInfoTab } from './ContactInfoTab';
 import { QualificationsTab } from './QualificationsTab';
+import { ComplimentaryPremiumSection } from './ComplimentaryPremiumSection';
 
 // Re-export types for consumers that may need them
 export type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
@@ -246,6 +247,13 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
                 </SelectContent>
               </Select>
             </FormField>
+          )}
+
+          {hasPermission('admin:manage') && (
+            <ComplimentaryPremiumSection
+              personId={userId}
+              hasExhibitorProfile={data.roles.includes('exhibitor')}
+            />
           )}
         </TabsContent>
 

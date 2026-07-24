@@ -232,10 +232,10 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 ### future/ — parked backlog
 
-| Doc                                                        | Status    | Title                              |
-| ---------------------------------------------------------- | --------- | ---------------------------------- |
-| [future/club-admin.md](future/club-admin.md)               | Reference | Parked: Club Admin Future Features |
-| [future/exhibitor-premium.md](future/exhibitor-premium.md) | Reference | Parked: Exhibitor Premium Features |
+| Doc                                                        | Status    | Title                               |
+| ---------------------------------------------------------- | --------- | ----------------------------------- |
+| [future/club-admin.md](future/club-admin.md)               | Reference | Parked: Club Admin Future Features  |
+| [future/exhibitor-premium.md](future/exhibitor-premium.md) | Reference | Shipped: Exhibitor Premium Features |
 
 ### research/
 

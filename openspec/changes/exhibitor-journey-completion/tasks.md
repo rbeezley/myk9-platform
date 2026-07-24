@@ -44,13 +44,13 @@
 
 ## 5. Slice 3B — Unified Entitlement and Admin Experience
 
-- [ ] 5.1 Add pure resolver/hook tests for paid, founding, complimentary, Analytics-scoped trial, free, expired, multiple-source precedence, server-time boundary timestamps, bounded stale access, scheduled expiry invalidation, focus/reconnect refresh, loading, refresh failure, and no-trusted-result failure.
-- [ ] 5.2 Implement the sanitized server-context-backed entitlement resolver and one account-scoped React Query hook, remove caller-provided trial counts while preserving the Analytics-only trial boundary, retain the last trusted result only until `trustedUntil`, schedule boundary invalidation, and add structured legacy-fallback mismatch logging.
-- [ ] 5.3 Add User Management tests for admin-only visibility, target eligibility, required end date/reason, grant/revoke confirmation, failure preservation, history, refetch, and disabled repeat submission.
-- [ ] 5.4 Add the Complimentary Premium control to the existing `UserEditPanel` using the authorized RPC; do not add a page or direct table mutation.
-- [ ] 5.5 Refactor Subscription to compose effective access with Stripe billing details, remove hardcoded usage and unavailable invoice links, and test paid, complimentary, founding, trial, expired, free, loading, and error states.
-- [ ] 5.6 Make Pricing entitlement-aware and test that active sources receive the correct current-access action while free/expired users retain the real checkout path.
-- [ ] 5.7 Remove or configure placeholder footer phone/address/social/help/legal items and reconcile `docs/future/exhibitor-premium.md`, `docs/roles/exhibitor.md`, and operations guidance with the five shipped capabilities and admin grant workflow.
+- [x] 5.1 Add pure resolver/hook tests for paid, founding, complimentary, Analytics-scoped trial, free, expired, multiple-source precedence, server-time boundary timestamps, bounded stale access, scheduled expiry invalidation, focus/reconnect refresh, loading, refresh failure, and no-trusted-result failure.
+- [x] 5.2 Implement the sanitized server-context-backed entitlement resolver and one account-scoped React Query hook, remove caller-provided trial counts while preserving the Analytics-only trial boundary, retain the last trusted result only until `trustedUntil`, schedule boundary invalidation, and add structured legacy-fallback mismatch logging.
+- [x] 5.3 Add User Management tests for admin-only visibility, target eligibility, required end date/reason, grant/revoke confirmation, failure preservation, history, refetch, and disabled repeat submission.
+- [x] 5.4 Add the Complimentary Premium control to the existing `UserEditPanel` using the authorized RPC; do not add a page or direct table mutation.
+- [x] 5.5 Refactor Subscription to compose effective access with Stripe billing details, remove hardcoded usage and unavailable invoice links, and test paid, complimentary, founding, trial, expired, free, loading, and error states.
+- [x] 5.6 Make Pricing entitlement-aware and test that active sources receive the correct current-access action while free/expired users retain the real checkout path.
+- [x] 5.7 Remove or configure placeholder footer phone/address/social/help/legal items and reconcile `docs/future/exhibitor-premium.md`, `docs/roles/exhibitor.md`, and operations guidance with the five shipped capabilities and admin grant workflow.
 - [ ] 5.8 Verify Slice 3B with focused resolver/hook, User Management, Subscription, Pricing, Footer, and every gate-consumer test; `pnpm typecheck`; `pnpm lint`; and staging browser transitions across free, Analytics-scoped trial, complimentary Premium, expiry while open/refresh failing, and revoked free.
 - [ ] 5.9 Open the Slice 3B PR with authorization evidence and screenshots; wait for CI/security/product review, resolve findings, and merge.
 

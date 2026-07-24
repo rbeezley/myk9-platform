@@ -1,12 +1,20 @@
 import { useCallback, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Check } from 'lucide-react';
+import { Check, Crown } from 'lucide-react';
 import { products, annualPriceId } from '../stripe-config';
 import { createCheckoutSession } from '../lib/stripe';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import Footer from '../components/layout/Footer';
 import { logger } from '@/services/LoggingService';
+import { useEntitlement } from '@/features/entitlement/useEntitlement';
+import type { EntitlementSource } from '@/features/entitlement/types';
+
+const CURRENT_ACCESS_LABEL: Record<Exclude<EntitlementSource, 'none'>, string> = {
+  paid: 'You have Premium',
+  founding: 'You have Founding Member Premium',
+  complimentary: 'You have Complimentary Premium',
+};
 
 // INTENT: Two tiers only — Free (results log) and Premium ($4.99/mo, all capabilities).
 // Per-person subscription, not per-dog.
@@ -57,6 +65,8 @@ export default function PricingPage() {
   const { user } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
+  const { effective } = useEntitlement();
+  const activeSource = effective?.status === 'active' ? effective.source : null;
   // Set by BlurGate when the user upgraded from a locked Career/Records
   // secondary view — lets them return to the same dog and view afterward
   // instead of the return path only being the browser Back button.
@@ -105,7 +115,7 @@ export default function PricingPage() {
         checkoutInFlightRef.current = false;
       }
     },
-    [user, navigate]
+    [user, navigate, returnTo]
   );
 
   return (
@@ -167,6 +177,11 @@ export default function PricingPage() {
                   const price = isPaidTier && annualActive ? '$49' : tier.price;
                   const period = isPaidTier && annualActive ? '/year' : tier.period;
                   const priceId = isPaidTier && annualActive ? annualPriceId! : tier.priceId;
+                  // Per spec ("Active Premium user opens Pricing"): an active
+                  // source shows the current-access action instead of a
+                  // duplicate purchase button. Free/expired users keep the
+                  // real checkout path unchanged.
+                  const hasActiveAccess = isPaidTier && activeSource;
                   return (
                     <div
                       key={tier.name}
@@ -186,16 +201,26 @@ export default function PricingPage() {
                         </div>
                         <p className="text-muted-foreground mb-6">{tier.description}</p>
 
-                        <button
-                          onClick={() => handleSubscribe(priceId)}
-                          className={`w-full py-3 px-6 rounded-xl font-medium transition-colors ${
-                            tier.buttonVariant === 'solid'
-                              ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                              : 'bg-accent text-accent-foreground hover:bg-accent/80'
-                          }`}
-                        >
-                          {tier.buttonText}
-                        </button>
+                        {hasActiveAccess ? (
+                          <button
+                            onClick={() => navigate('/subscription')}
+                            className="w-full py-3 px-6 rounded-xl font-medium transition-colors bg-accent text-accent-foreground hover:bg-accent/80 flex items-center justify-center gap-2"
+                          >
+                            <Crown size={18} className="text-amber-500" />
+                            {CURRENT_ACCESS_LABEL[activeSource!]}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleSubscribe(priceId)}
+                            className={`w-full py-3 px-6 rounded-xl font-medium transition-colors ${
+                              tier.buttonVariant === 'solid'
+                                ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                                : 'bg-accent text-accent-foreground hover:bg-accent/80'
+                            }`}
+                          >
+                            {tier.buttonText}
+                          </button>
+                        )}
 
                         <ul className="mt-8 space-y-4">
                           {tier.features.map(feature => (

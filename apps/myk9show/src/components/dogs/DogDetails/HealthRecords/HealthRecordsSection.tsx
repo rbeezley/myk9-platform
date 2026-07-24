@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import { toast } from 'sonner';
+import { friendlyDbError } from '@/utils/friendlyDbError';
 import { HealthTimeline } from './HealthTimeline';
 import { Button } from '@/components/ui/button';
 import { Heart, Calendar, List, AlertTriangle } from 'lucide-react';
@@ -194,9 +195,29 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
     [mutations, authUser?.id]
   );
 
-  const requestDelete = useCallback((type: HealthItemType, id: string, title: string) => {
-    setPendingDelete({ type, id, title });
-  }, []);
+  const requestDelete = useCallback(
+    (type: HealthItemType, id: string, title: string) => {
+      if (
+        deleteVaccination.isPending ||
+        deleteMedication.isPending ||
+        deleteAllergy.isPending ||
+        deleteVetVisit.isPending ||
+        deleteOFAScreening.isPending ||
+        deleteGeneticScreening.isPending
+      ) {
+        return;
+      }
+      setPendingDelete({ type, id, title });
+    },
+    [
+      deleteAllergy.isPending,
+      deleteGeneticScreening.isPending,
+      deleteMedication.isPending,
+      deleteOFAScreening.isPending,
+      deleteVaccination.isPending,
+      deleteVetVisit.isPending,
+    ]
+  );
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!pendingDelete) return;
@@ -226,7 +247,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
       setPendingDelete(null);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : 'The health record could not be deleted.'
+        friendlyDbError(error, "We couldn't delete this health record. Please try again.")
       );
     }
   }, [

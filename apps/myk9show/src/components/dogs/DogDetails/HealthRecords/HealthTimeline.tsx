@@ -383,8 +383,8 @@ export function HealthTimeline({
                       config={eventTypeConfig[event.type] ?? defaultEventTypeConfig}
                       viewMode={viewMode}
                       getStatusBadge={getStatusBadge}
-                      onEventClick={onEventClick}
-                      onDeleteEvent={onDeleteEvent}
+                      {...(onEventClick ? { onEventClick } : {})}
+                      {...(onDeleteEvent ? { onDeleteEvent } : {})}
                       isLast={index === eventsByYear[year].length - 1}
                     />
                   ))}
@@ -408,8 +408,8 @@ export function HealthTimeline({
                 config={eventTypeConfig[event.type] ?? defaultEventTypeConfig}
                 viewMode={viewMode}
                 getStatusBadge={getStatusBadge}
-                onEventClick={onEventClick}
-                onDeleteEvent={onDeleteEvent}
+                {...(onEventClick ? { onEventClick } : {})}
+                {...(onDeleteEvent ? { onDeleteEvent } : {})}
               />
             ))}
           </motion.div>

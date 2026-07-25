@@ -86,6 +86,10 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
     differenceInDays
   );
   const isPastShow = isPastShowEntry(entry, new Date(currentTime));
+  // null when no online cart can be built safely (unresolved show, or nothing
+  // online-payable to recover) — the Finish Payment action is suppressed rather
+  // than pointing at a cart that would charge the wrong rows.
+  const paymentHref = buildOrderPaymentHref(entry);
 
   const isPaid =
     entry.paymentStatus === PaymentStatus.PAID_ONLINE ||
@@ -283,9 +287,9 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           onCheckInClick(entry, cls) handler the per-class details control
           calls — never a separate write path. */}
       <div className="myk9-entries-action-buttons">
-        {nextAction.kind === 'finish-payment' && (
+        {nextAction.kind === 'finish-payment' && paymentHref && (
           <Button asChild className="min-h-[44px] transition-all duration-200">
-            <Link to={buildOrderPaymentHref(entry)}>
+            <Link to={paymentHref}>
               <CreditCard className="h-5 w-5 mr-1.5" />
               Finish Payment
             </Link>

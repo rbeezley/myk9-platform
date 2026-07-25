@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { buildOrderBalance, reconcileOrderPaymentStatus } from './myEntryOrderBalance';
+import {
+  buildOrderBalance,
+  buildOrderPaymentHref,
+  reconcileOrderPaymentStatus,
+} from './myEntryOrderBalance';
 import type { EntryBalanceSource } from '@/features/payments/entryBalanceSummary';
-import type { EntryClass } from './my-entries-types';
+import type { EntryClass, MyEntry, MyEntryBalance } from './my-entries-types';
 import type { OrderBalanceContext } from './myEntryOrderBalance';
 
 const NOW = new Date('2026-09-01T12:00:00Z');
@@ -159,5 +163,119 @@ describe('reconcileOrderPaymentStatus', () => {
     ];
 
     expect(reconcileOrderPaymentStatus(eligible)).toBe(PaymentStatus.PARTIAL_REFUND);
+  });
+});
+
+function makeEntry(overrides: Partial<MyEntry> = {}): MyEntry {
+  return {
+    id: 'e1',
+    registrationId: 'r1',
+    showId: 's1',
+    showName: 'Test Show',
+    showDate: new Date('2026-09-15'),
+    location: { venue: 'Test Venue', city: 'Denver', state: 'CO' },
+    dogName: 'Rex',
+    dogId: 'd1',
+    classes: [],
+    dogs: [],
+    totalFee: 50,
+    entryStatus: EntryStatus.ACCEPTED,
+    paymentStatus: PaymentStatus.PENDING,
+    submittedAt: new Date('2026-08-01'),
+    lastUpdated: new Date('2026-08-15'),
+    ...overrides,
+  };
+}
+
+function makeBalance(overrides: Partial<MyEntryBalance> = {}): MyEntryBalance {
+  return {
+    paymentStatus: PaymentStatus.PENDING,
+    paymentMethod: null,
+    amountDueCents: 0,
+    onlineDueCents: 0,
+    payAtShowDueCents: 0,
+    payAtShowMethod: null,
+    dueEntryIds: [],
+    ...overrides,
+  };
+}
+
+describe('buildOrderPaymentHref', () => {
+  it('targets exactly the rows the balance says owe an online amount', () => {
+    const entry = makeEntry({
+      classes: [makeClass({ id: 'c1' }), makeClass({ id: 'c2' })],
+      balance: makeBalance({ onlineDueCents: 2500, dueEntryIds: ['c2'] }),
+    });
+
+    expect(buildOrderPaymentHref(entry)).toBe('/cart?showId=s1&entryIds=c2');
+  });
+
+  it('refuses recovery when the show relation never resolved', () => {
+    // showId '' would build `/cart?showId=&entryIds=...` — a cart with no show.
+    const entry = makeEntry({
+      showId: '',
+      classes: [makeClass({ id: 'c1', paymentMethod: null })],
+    });
+
+    expect(buildOrderPaymentHref(entry)).toBeNull();
+  });
+
+  it('refuses recovery when an authoritative balance owes nothing online', () => {
+    const entry = makeEntry({
+      classes: [makeClass({ id: 'c1', paymentMethod: 'cash' })],
+      balance: makeBalance({ payAtShowDueCents: 2500, payAtShowMethod: 'cash' }),
+    });
+
+    expect(buildOrderPaymentHref(entry)).toBeNull();
+  });
+
+  it('never sweeps a pending pay-at-show row into the online cart', () => {
+    // No balance = the partial-replication window. The old fallback used EVERY
+    // class id, which put the cash row into an online checkout.
+    const entry = makeEntry({
+      paymentMethod: 'cash',
+      classes: [
+        makeClass({ id: 'c1', paymentStatus: PaymentStatus.PENDING, paymentMethod: 'cash' }),
+        makeClass({ id: 'c2', paymentStatus: PaymentStatus.PENDING, paymentMethod: null }),
+      ],
+    });
+
+    expect(buildOrderPaymentHref(entry)).toBe('/cart?showId=s1&entryIds=c2');
+  });
+
+  it('refuses recovery when every unreplicated row is pay-at-show', () => {
+    const entry = makeEntry({
+      paymentMethod: 'check',
+      classes: [makeClass({ id: 'c1', paymentStatus: PaymentStatus.PENDING, paymentMethod: 'check' })],
+    });
+
+    expect(buildOrderPaymentHref(entry)).toBeNull();
+  });
+
+  it('excludes already-paid rows from the recovery fallback', () => {
+    const entry = makeEntry({
+      classes: [
+        makeClass({ id: 'c1', paymentStatus: PaymentStatus.PAID_ONLINE, paymentMethod: 'online' }),
+        makeClass({ id: 'c2', paymentStatus: PaymentStatus.PENDING, paymentMethod: 'online' }),
+      ],
+    });
+
+    expect(buildOrderPaymentHref(entry)).toBe('/cart?showId=s1&entryIds=c2');
+  });
+
+  it('falls back to the entry row itself when no class rows replicated at all', () => {
+    const entry = makeEntry({ classes: [], paymentStatus: PaymentStatus.PENDING });
+
+    expect(buildOrderPaymentHref(entry)).toBe('/cart?showId=s1&entryIds=e1');
+  });
+
+  it('refuses the entry-row fallback when the entry itself is pay-at-show', () => {
+    const entry = makeEntry({
+      classes: [],
+      paymentStatus: PaymentStatus.PENDING,
+      paymentMethod: 'cash',
+    });
+
+    expect(buildOrderPaymentHref(entry)).toBeNull();
   });
 });

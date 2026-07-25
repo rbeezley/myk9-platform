@@ -20,8 +20,12 @@ interface CareerSectionProps {
   ownerId: string;
   view: CareerView;
   onViewChange: (view: CareerView) => void;
+  /**
+   * Premium AUTHORIZATION (`canAuthorizePremium`), not the display tier —
+   * it reaches content that offers writes.
+   */
   isPremium: boolean;
-  /** Free-user lock — Competitions itself is always free. */
+  /** Free-user DISPLAY lock — Competitions itself is always free. */
   locked: boolean;
 }
 

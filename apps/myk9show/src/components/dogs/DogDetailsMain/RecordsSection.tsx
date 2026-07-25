@@ -15,6 +15,12 @@ const PedigreeSection = lazy(() => import('@/components/dogs/DogDetails/Pedigree
 interface RecordsSectionProps {
   dogId: string;
   view: RecordsView;
+  /**
+   * Drives `readOnly` — i.e. whether add/edit controls exist. Callers MUST
+   * pass the AUTHORIZATION value (`canAuthorizePremium`), never the optimistic
+   * display tier, or an untrusted entitlement read surfaces writes the server
+   * rejects.
+   */
   isPremium: boolean;
   onViewChange?: (view: RecordsView) => void;
   /** Secretary surface: Health only, no Premium gate, vaccinations-only content. */

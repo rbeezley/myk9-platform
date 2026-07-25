@@ -43,6 +43,23 @@ export function useMyAtShowJudgeAssignments(
     });
   }, [personId, queryClient, showId]);
 
+  // The queryFn deliberately resolves an EMPTY result while the app-wide first
+  // sync is still in flight. Nothing in the query key changes when that sync
+  // finishes, so without this the cached empty answer stands and an assigned
+  // judge never sees "Your ring" until a reload. Re-run on the transition.
+  const judgeTableStatus = syncStatus.tablesStatus.judge_assignments;
+  const lastJudgeTableStatus = useRef(judgeTableStatus);
+  useEffect(() => {
+    const previous = lastJudgeTableStatus.current;
+    lastJudgeTableStatus.current = judgeTableStatus;
+    if (!isApplicable || previous === judgeTableStatus) return;
+    if (judgeTableStatus !== 'success') return;
+    if (previous !== 'idle' && previous !== 'syncing') return;
+    void queryClient.invalidateQueries({
+      queryKey: ['at-show', 'judge-assignments', showId, personId],
+    });
+  }, [isApplicable, judgeTableStatus, personId, queryClient, showId]);
+
   const query = useQuery({
     queryKey: ['at-show', 'judge-assignments', showId, personId],
     enabled: isApplicable,
@@ -53,7 +70,7 @@ export function useMyAtShowJudgeAssignments(
       );
       if (localAssignments.length > 0 || !lookupKey) return localAssignments;
 
-      const tableStatus = syncStatus.tablesStatus.judge_assignments;
+      const tableStatus = judgeTableStatus;
       if (tableStatus === 'idle' || tableStatus === 'syncing') {
         // The app-wide first sync is already the refresh for this lookup.
         refreshedEmptyCacheKey.current = lookupKey;

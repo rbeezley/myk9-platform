@@ -37,6 +37,26 @@ function isPaymentEligibleStatus(status: EntryStatus): boolean {
 }
 
 /**
+ * Whether ANY class row on this order can still owe money — never the order's
+ * own dominant `entryStatus`. A registration can contain several dogs/classes,
+ * and its display status may be COMPLETED because one sibling has a result
+ * while another accepted or pending row still owes an online or pay-at-show
+ * balance, so payment eligibility must be derived below the order summary.
+ * Shared by `deriveEntryNextAction` and `MyEntryCard` so the summary-band
+ * action and the card's payment prompts never disagree about eligibility.
+ */
+export function hasPaymentEligibleClass(entry: MyEntry): boolean {
+  return entry.classes.length > 0
+    ? entry.classes.some(cls => {
+        const owningDog = findOwningDog(entry, cls.id);
+        return isPaymentEligibleStatus(
+          cls.entryStatus ?? owningDog?.entryStatus ?? entry.entryStatus
+        );
+      })
+    : isPaymentEligibleStatus(entry.entryStatus);
+}
+
+/**
  * Derive the single primary action for an entry's summary band.
  */
 export function deriveEntryNextAction(
@@ -46,19 +66,7 @@ export function deriveEntryNextAction(
   const now = options.now ?? new Date();
   const selfCheckinByClassId = options.selfCheckinByClassId ?? {};
 
-  // A registration can contain several dogs/classes. Its display status may
-  // be COMPLETED because one sibling has a result while another accepted or
-  // pending row still owes an online balance, so payment eligibility must be
-  // derived below the order summary.
-  const canPayStatus =
-    entry.classes.length > 0
-      ? entry.classes.some(cls => {
-          const owningDog = findOwningDog(entry, cls.id);
-          return isPaymentEligibleStatus(
-            cls.entryStatus ?? owningDog?.entryStatus ?? entry.entryStatus
-          );
-        })
-      : isPaymentEligibleStatus(entry.entryStatus);
+  const canPayStatus = hasPaymentEligibleClass(entry);
   // Same row-level order balance the card renders from — the summary-band
   // action can never disagree with the amount shown (exhibitor-money-clarity).
   const paymentPrompt = canPayStatus ? getOrderOnlinePrompt(entry) : ({ kind: 'none' } as const);

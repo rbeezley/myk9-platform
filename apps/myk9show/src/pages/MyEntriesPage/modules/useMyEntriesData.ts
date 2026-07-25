@@ -134,38 +134,43 @@ export function useMyEntriesData({
     const trialDate = parseShowDate(trialData?.date ?? classData?.trial?.date);
     const trialNumber = trialData?.trial_number ?? classData?.trial?.trial_number ?? undefined;
 
-    // Build a single-element classes array from this entry row's own data
-    const classes: EntryClass[] = classData
-      ? [
-          {
-            id: entry.id as string,
-            entryStatus: mapEntryStatus(entry.entry_status as string),
-            classId: classData.id,
-            name: classData.name || 'Unknown Class',
-            number: classData.class_number || '',
-            fee: (entry.entry_fee as number) || 0,
-            trialDate,
-            trialNumber,
-            jumpHeight: (entry.jump_height as string) || undefined,
-            trialType: trialData?.trial_type || classData.trial?.trial_type || undefined,
-            runOrder: (entry.run_order as number) || undefined,
-            status: mapClassEntryStatus(entry.entry_status as string),
-            handler: (entry.handler as string) || undefined,
-            paymentStatus: rowPaymentStatus,
-            paymentMethod: rowPaymentMethod,
-            // Read the persisted check-in status instead of hardcoding undefined,
-            // or the card always shows "Not Checked In" even after a check-in.
-            checkInStatus: normalizeCheckInStatus(entry.check_in_status),
-            isScored: (entry.is_scored as boolean) || false,
-            resultStatus: (entry.result_status as EntryClass['resultStatus']) ?? undefined,
-            searchTimeSeconds: (entry.search_time_seconds as number) ?? undefined,
-            totalFaults: (entry.total_faults as number) ?? undefined,
-            finalPlacement: (entry.final_placement as number) ?? undefined,
-            resultsReleasedAt: (entry.class_results_released_at as string | null) ?? undefined,
-            dogImageUrl: (entry.dog_image_url as string | null) ?? undefined,
-          },
-        ]
-      : [];
+    // Build a single-element classes array from this entry row's own data.
+    // The `class:class_id` join can be unresolved during the partial-
+    // replication window (the entry row synced before its class relation),
+    // but the row's own fee/status/payment fields are still real — dropping
+    // the row here (an empty `classes` array) is what let a mixed order's
+    // balance undercount the raw-row `balanceSummary` used elsewhere on this
+    // page. Emit the row with placeholder class-identity fields instead so
+    // its money still flows into `groupEntriesByOrder` / `buildOrderBalance`.
+    const classes: EntryClass[] = [
+      {
+        id: entry.id as string,
+        entryStatus: mapEntryStatus(entry.entry_status as string),
+        classId: classData?.id,
+        name: classData?.name || 'Unknown Class',
+        number: classData?.class_number || '',
+        fee: (entry.entry_fee as number) || 0,
+        trialDate,
+        trialNumber,
+        jumpHeight: (entry.jump_height as string) || undefined,
+        trialType: trialData?.trial_type || classData?.trial?.trial_type || undefined,
+        runOrder: (entry.run_order as number) || undefined,
+        status: mapClassEntryStatus(entry.entry_status as string),
+        handler: (entry.handler as string) || undefined,
+        paymentStatus: rowPaymentStatus,
+        paymentMethod: rowPaymentMethod,
+        // Read the persisted check-in status instead of hardcoding undefined,
+        // or the card always shows "Not Checked In" even after a check-in.
+        checkInStatus: normalizeCheckInStatus(entry.check_in_status),
+        isScored: (entry.is_scored as boolean) || false,
+        resultStatus: (entry.result_status as EntryClass['resultStatus']) ?? undefined,
+        searchTimeSeconds: (entry.search_time_seconds as number) ?? undefined,
+        totalFaults: (entry.total_faults as number) ?? undefined,
+        finalPlacement: (entry.final_placement as number) ?? undefined,
+        resultsReleasedAt: (entry.class_results_released_at as string | null) ?? undefined,
+        dogImageUrl: (entry.dog_image_url as string | null) ?? undefined,
+      },
+    ];
 
     const entryStatus = mapEntryStatus(entry.entry_status as string);
     // Use real confirmation number from joined registration, fall back to UUID slice for legacy entries

@@ -57,7 +57,10 @@ function toBalanceSources(classes: EntryClass[], ctx: OrderBalanceContext): Entr
     showEndDate: ctx.showEndDate,
     entryStatus: cls.entryStatus ?? ctx.entryStatus,
     paymentStatus: cls.paymentStatus ?? ctx.paymentStatus,
-    paymentMethod: cls.paymentMethod ?? ctx.paymentMethod,
+    // `null` is meaningful here (an explicit unresolved-online payment) and
+    // must not be overwritten by a paid sibling's method — only fall back
+    // to the order context when the row never carried the field at all.
+    paymentMethod: cls.paymentMethod !== undefined ? cls.paymentMethod : ctx.paymentMethod,
     totalFee: cls.fee,
   }));
 }
@@ -76,6 +79,13 @@ export function reconcileOrderPaymentStatus(eligible: EntryBalanceSource[]): Pay
   if (eligible.length === 0) return null;
   if (eligible.some(source => source.paymentStatus === PaymentStatus.PENDING)) {
     return PaymentStatus.PENDING;
+  }
+
+  // A row can already carry PARTIAL_REFUND directly (not just a mix of
+  // REFUNDED + paid rows) — check that before falling through to the paid
+  // status, or a paid sibling silently wins and the card offers its receipt.
+  if (eligible.some(source => source.paymentStatus === PaymentStatus.PARTIAL_REFUND)) {
+    return PaymentStatus.PARTIAL_REFUND;
   }
 
   const refunded = eligible.filter(source => source.paymentStatus === PaymentStatus.REFUNDED);

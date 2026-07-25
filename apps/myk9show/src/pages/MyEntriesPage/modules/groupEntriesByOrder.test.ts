@@ -382,7 +382,9 @@ describe('groupEntriesByOrder — row combinations Codex found on PR #1456', () 
       id: 'entry-paid',
       totalFee: 100,
       paymentStatus: PaymentStatus.PAID_ONLINE,
-      classes: [makeClass({ id: 'entry-paid', fee: 100, paymentStatus: PaymentStatus.PAID_ONLINE })],
+      classes: [
+        makeClass({ id: 'entry-paid', fee: 100, paymentStatus: PaymentStatus.PAID_ONLINE }),
+      ],
     });
     const withdrawn = makeRow({
       id: 'entry-withdrawn',
@@ -449,7 +451,9 @@ describe('groupEntriesByOrder — row combinations Codex found on PR #1456', () 
       id: 'entry-paid',
       totalFee: 100,
       paymentStatus: PaymentStatus.PAID_ONLINE,
-      classes: [makeClass({ id: 'entry-paid', fee: 100, paymentStatus: PaymentStatus.PAID_ONLINE })],
+      classes: [
+        makeClass({ id: 'entry-paid', fee: 100, paymentStatus: PaymentStatus.PAID_ONLINE }),
+      ],
     });
     const refunded = makeRow({
       id: 'entry-refunded',
@@ -479,5 +483,51 @@ describe('groupEntriesByOrder — row combinations Codex found on PR #1456', () 
 
     expect(order.balance).toBeUndefined();
     expect(order.paymentStatus).toBe(PaymentStatus.PENDING);
+  });
+
+  it('includes a partially-replicated sibling row in the order balance, not just the resolved one', () => {
+    // Mixed replication: one class row's join resolved, the other hasn't yet.
+    // useMyEntriesData still emits a placeholder class (no classId, generic
+    // name) for the unresolved row rather than dropping it — otherwise its
+    // fee silently disappears from the card even though the raw-row page
+    // summary still counts it.
+    const resolved = makeRow({
+      id: 'entry-resolved',
+      totalFee: 30,
+      paymentStatus: PaymentStatus.PENDING,
+      classes: [
+        makeClass({
+          id: 'entry-resolved',
+          classId: 'class-1',
+          fee: 30,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: 'online',
+        }),
+      ],
+    });
+    const unresolved = makeRow({
+      id: 'entry-unresolved',
+      dogId: 'd1',
+      registrationId: 'r1',
+      totalFee: 20,
+      paymentStatus: PaymentStatus.PENDING,
+      classes: [
+        makeClass({
+          id: 'entry-unresolved',
+          classId: undefined,
+          name: 'Unknown Class',
+          number: '',
+          fee: 20,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: 'online',
+        }),
+      ],
+    });
+
+    const [order] = groupEntriesByOrder([resolved, unresolved]);
+
+    expect(order.totalFee).toBe(50);
+    expect(order.balance?.onlineDueCents).toBe(5000);
+    expect(order.balance?.dueEntryIds.sort()).toEqual(['entry-resolved', 'entry-unresolved']);
   });
 });

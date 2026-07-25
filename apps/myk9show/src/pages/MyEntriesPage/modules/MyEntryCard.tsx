@@ -35,7 +35,7 @@ import {
 } from './myEntriesUtils';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import { formatEntryDate, formatShortDate } from '@/lib/format/dates';
-import { deriveEntryNextAction } from './entryNextAction';
+import { deriveEntryNextAction, hasPaymentEligibleClass } from './entryNextAction';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
 import { MyEntryCardDetails } from './MyEntryCardDetails';
 import { findOwningDog, toDogEntryView } from './myEntryDogView';
@@ -140,7 +140,10 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
   // move-up request is a confirmed entry that can still owe its fee even though
   // it isn't editable while awaiting secretary approval. Waitlisted entries stay
   // out — they pay on promotion, not before.
-  const canPayStatus = hasEditableStatus || entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED;
+  // Derived per class ROW (shared with deriveEntryNextAction), not the order's
+  // dominant entryStatus — a COMPLETED sibling can otherwise mask a still-owed
+  // accepted/pending row and silently drop its payment prompt.
+  const canPayStatus = hasPaymentEligibleClass(entry);
   // "Finish Payment" is an ONLINE action — cash/check exhibitors chose to pay at
   // the show and must see a calm status, not a debt CTA (4.C). No payment prompt
   // at all unless the entry status is one that can still owe its fee.

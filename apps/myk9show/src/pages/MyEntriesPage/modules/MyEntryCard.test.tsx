@@ -297,6 +297,28 @@ describe('MyEntryCard — cash/check is a status, not a debt (4.C)', () => {
     expect(screen.getByRole('link', { name: /Finish Payment/i })).toBeInTheDocument();
     expect(screen.queryByText(/cash to check-in/i)).not.toBeInTheDocument();
   });
+
+  // Payment eligibility must be derived per class ROW, not the order's
+  // dominant entryStatus — a completed sibling class can otherwise dominate
+  // the order to COMPLETED and silently suppress a still-owed accepted
+  // sibling's pay-at-show instruction, even though the balance/My Payments
+  // still report that amount due.
+  it('still shows a pay-at-show prompt for an accepted cash class when a completed sibling dominates the order status', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.COMPLETED,
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'cash',
+        totalFee: 30,
+        classes: [
+          makeClass({ id: 'completed-1', entryStatus: EntryStatus.COMPLETED, isScored: true }),
+          makeClass({ id: 'accepted-1', entryStatus: EntryStatus.ACCEPTED, isScored: false }),
+        ],
+      })
+    );
+
+    expect(screen.getByText('Bring $30.00 cash to check-in')).toBeInTheDocument();
+  });
 });
 
 describe('MyEntryCard history status clarity', () => {

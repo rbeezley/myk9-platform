@@ -4,11 +4,15 @@
  *
  * READ-ONLY. Signs in, scans, and tabs. Submits nothing.
  *
- * Scope note: the Premium record forms (health, training, pedigree) are scanned
- * in the state a NON-entitled exhibitor sees them — behind their BlurGate. The
- * seeded account has no active Premium, and granting one is a shared-system
- * write, so the unlocked forms are covered separately. The admin grant control
- * likewise needs an admin session. Both gaps are recorded rather than skipped.
+ * Entitlement prerequisite: the seeded exhibitor holds an ACTIVE complimentary
+ * grant on staging (2026-07-25 → 2026-10-23, issued via
+ * admin_grant_entitlement). Without it the Premium record forms never render
+ * and this suite reports them "clean" without having scanned anything — gated
+ * UI hides its defects from a scanner exactly as it hides them from a user.
+ * That is not hypothetical: the free-tier run passed Dog Details while three
+ * `aria-prohibited-attr` nodes sat unscanned in the gated Title Progress pips.
+ * When the grant lapses, renew it or these tests will fail at the trigger
+ * assertion rather than silently degrade.
  *
  * Run pinned to its own port — `reuseExistingServer` will otherwise attach to
  * another worktree's dev server on 5173 and scan that branch's markup:
@@ -53,6 +57,16 @@ async function assertNoBlockingViolations(page: Page, name: string, include?: st
   const builder = new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']);
   if (include) builder.include(include);
   const results = await builder.analyze();
+
+  // A scoped scan whose selector matched nothing reports zero violations and
+  // looks identical to a clean pass. Require evidence that axe actually
+  // inspected something before believing the result.
+  if (include) {
+    expect(
+      results.passes.length + results.violations.length + results.incomplete.length,
+      `${name}: axe inspected no nodes — did "${include}" match anything?`
+    ).toBeGreaterThan(0);
+  }
 
   const blocking = results.violations.filter(v => BLOCKING_IMPACTS.includes(v.impact ?? ''));
   const advisory = results.violations.filter(v => !BLOCKING_IMPACTS.includes(v.impact ?? ''));
@@ -115,6 +129,46 @@ test.describe('Slice 5: accessibility', () => {
 
     await assertNoBlockingViolations(page, 'My Payments (390px)');
   });
+
+  /**
+   * The Premium record forms, scanned OPEN. These are gated, so they are
+   * invisible to a free-tier scan — the seeded account holds an active
+   * complimentary grant precisely so they render. Scoped to the dialog itself:
+   * the page behind it is covered by the Dog Details case above, and a dialog
+   * aria-hides that page, which would otherwise report the backdrop's Base UI
+   * focus guards rather than anything about the form.
+   */
+  const PREMIUM_FORMS = [
+    { view: 'health', trigger: /^Add (Health Record|Vaccination)$/i },
+    { view: 'training', trigger: /^Add (Training Session|First Session)$/i },
+    // Pedigree has no generic "add ancestor" — Slice 3.5's grouped layout
+    // gives each slot its own relationship-named trigger.
+    { view: 'pedigree', trigger: /^Add (Sire|Dam|Grandsire|Granddam)$/i },
+  ] as const;
+
+  for (const form of PREMIUM_FORMS) {
+    test(`Premium ${form.view} form is accessible when open`, async ({ page }) => {
+      await signInAsTestUser(page, 'DEMO_EXHIBITOR');
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto(`/dogs/${SEED_DOG_ID}?section=records&view=${form.view}`);
+      await waitForAppShell(page);
+
+      // If the trigger is absent the entitlement gate is still closed, and a
+      // silent skip would report this surface as covered when it was not.
+      const trigger = page.getByRole('button', { name: form.trigger }).first();
+      await expect(
+        trigger,
+        `${form.view}: add-form trigger not found — is the Premium gate still closed?`
+      ).toBeVisible({ timeout: 20000 });
+      await trigger.click();
+
+      const dialog = page.getByRole('dialog').first();
+      await expect(dialog).toBeVisible({ timeout: 15000 });
+      await page.waitForTimeout(750);
+
+      await assertNoBlockingViolations(page, `Premium ${form.view} form`, '[role="dialog"]');
+    });
+  }
 
   /**
    * The admin grant control (ComplimentaryPremiumSection) renders inside

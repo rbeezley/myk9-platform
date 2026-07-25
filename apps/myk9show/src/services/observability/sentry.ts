@@ -91,7 +91,34 @@ function scrubValue(value: unknown, key = ''): unknown {
   return value;
 }
 
-export function scrubSentryEvent(event: SentryErrorEvent, _hint?: EventHint): SentryErrorEvent {
+const ANONYMOUS_FRAME_FILENAMES = new Set(['', '<anonymous>', '<unknown>', 'anonymous']);
+
+function isAnonymousFrame(filename: string | undefined): boolean {
+  return ANONYMOUS_FRAME_FILENAMES.has((filename ?? '').trim());
+}
+
+/**
+ * True when the frame that actually threw has no real source file. Every frame from our
+ * own bundle carries an `/assets/...` filename, so a bare `<anonymous>` throw site means
+ * the code came from a browser extension or other injected script, not from myK9Show.
+ */
+export function isInjectedScriptEvent(event: SentryErrorEvent): boolean {
+  const values = event.exception?.values ?? [];
+
+  return values.some(value => {
+    const frames = value.stacktrace?.frames ?? [];
+    if (frames.length === 0) return false;
+    // Sentry orders frames outermost-first, so the throw site is last.
+    return isAnonymousFrame(frames[frames.length - 1]?.filename);
+  });
+}
+
+export function scrubSentryEvent(
+  event: SentryErrorEvent,
+  _hint?: EventHint
+): SentryErrorEvent | null {
+  if (isInjectedScriptEvent(event)) return null;
+
   const scrubbed = scrubValue(event) as SentryErrorEvent;
 
   if (event.user?.id) {

@@ -33,6 +33,51 @@ describe('Sentry observability helpers', () => {
     );
   });
 
+  it('drops events thrown from injected third-party scripts', () => {
+    const event = {
+      type: undefined,
+      exception: {
+        values: [
+          {
+            type: 'TypeError',
+            value: 'Converting circular structure to JSON',
+            stacktrace: {
+              frames: [
+                { filename: '/assets/scripts/vendor-react-dom-CuqAsU7i.js', function: 'Sl' },
+                { filename: '<anonymous>', function: 'appendChild' },
+                { filename: '<anonymous>', function: '?' },
+              ],
+            },
+          },
+        ],
+      },
+    } as unknown as SentryErrorEvent;
+
+    expect(scrubSentryEvent(event)).toBeNull();
+  });
+
+  it('keeps events whose throw site is our own bundle', () => {
+    const event = {
+      type: undefined,
+      exception: {
+        values: [
+          {
+            type: 'TypeError',
+            value: 'boom',
+            stacktrace: {
+              frames: [
+                { filename: '<anonymous>', function: 'dispatch' },
+                { filename: '/assets/scripts/index-abc123.js', function: 'renderRow' },
+              ],
+            },
+          },
+        ],
+      },
+    } as unknown as SentryErrorEvent;
+
+    expect(scrubSentryEvent(event)).not.toBeNull();
+  });
+
   it('scrubs user, request, breadcrumb, and domain-specific PII before sending', () => {
     const event: SentryErrorEvent = {
       type: undefined,
@@ -68,7 +113,7 @@ describe('Sentry observability helpers', () => {
       ],
     };
 
-    const scrubbed = scrubSentryEvent(event);
+    const scrubbed = scrubSentryEvent(event)!;
 
     expect(scrubbed.message).toBe(
       'Handler [Filtered] hit dog [Filtered] with [Filtered] at [Filtered]'
@@ -104,7 +149,7 @@ describe('Sentry observability helpers', () => {
       },
     };
 
-    const scrubbed = scrubSentryEvent(event);
+    const scrubbed = scrubSentryEvent(event)!;
 
     expect(scrubbed.message).toBe('Auth refresh failed [redacted-token] [redacted-secret]');
     expect(scrubbed.extra).toEqual({

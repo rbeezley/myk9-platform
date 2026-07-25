@@ -174,6 +174,20 @@ describe('deriveEntryNextAction', () => {
     });
   });
 
+  it('never offers check-in for an unresolved placeholder row, even without a class id', () => {
+    // A class row whose join hasn't replicated yet (see useMyEntriesData) —
+    // its money is real but its class identity isn't, so it must not expose
+    // a check-in action just because `classId` happens to be missing too.
+    const entry = makeEntry({
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      classes: [
+        makeClass({ id: 'entry-1', classId: undefined, unresolved: true, isScored: false }),
+      ],
+    });
+
+    expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'view-show' });
+  });
+
   describe('mixed-status orders (accepted dog + pending dog on one order)', () => {
     it('offers check-in for the accepted dog A class, never the pending dog B class', () => {
       const classA = makeClass({ id: 'a-1', classId: 'class-a', isScored: false });

@@ -17,6 +17,15 @@ export interface EntryClass {
   entryStatus?: EntryStatus | undefined;
   /** The class being entered. Distinct from `id`; drives the self-check-in cascade. */
   classId?: string | undefined;
+  /**
+   * True only for a placeholder row emitted while this entry row's `class`
+   * join hasn't replicated yet (partial-replication window) — its money
+   * fields are real, but its class identity (`name`/`number`/`classId`) is
+   * not. Must gate class-scoped ACTIONS (check-in) so an unresolved row never
+   * exposes a control for a class it doesn't actually know it belongs to;
+   * money math (`buildOrderBalance`) is unaffected by this flag.
+   */
+  unresolved?: boolean | undefined;
   name: string;
   number: string;
   fee: number;

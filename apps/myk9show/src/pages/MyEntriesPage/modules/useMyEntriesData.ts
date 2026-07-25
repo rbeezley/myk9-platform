@@ -147,6 +147,9 @@ export function useMyEntriesData({
         id: entry.id as string,
         entryStatus: mapEntryStatus(entry.entry_status as string),
         classId: classData?.id,
+        // Money flows through even when the class join hasn't replicated yet,
+        // but class-scoped actions (check-in) must not — see EntryClass.unresolved.
+        unresolved: !classData,
         name: classData?.name || 'Unknown Class',
         number: classData?.class_number || '',
         fee: (entry.entry_fee as number) || 0,

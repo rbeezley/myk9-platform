@@ -870,6 +870,28 @@ describe('MyEntryCard self-check-in gating', () => {
     expect(screen.getByLabelText('Self check-in not available')).toBeInTheDocument();
     expect(onCheckInClick).not.toHaveBeenCalled();
   });
+
+  it('disables check-in for an unresolved placeholder row even with no class id in the map', () => {
+    // classId is undefined here for the SAME reason the map is empty — the
+    // class join hasn't replicated. `unresolved` must win over the "missing
+    // class id defaults to enabled" rule, or a fake "Unknown Class" row gets
+    // a tappable check-in control before it's real.
+    const placeholder = makeClass({
+      id: 'entry-1',
+      classId: undefined,
+      unresolved: true,
+      name: 'Unknown Class',
+      checkInStatus: 'no-status',
+    });
+    const onCheckInClick = renderWithMap(makeEntry({ classes: [placeholder] }), {});
+    openDetails();
+
+    expect(
+      screen.queryByRole('button', { name: /update check-in for rex in unknown class/i })
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Self check-in not available')).toBeInTheDocument();
+    expect(onCheckInClick).not.toHaveBeenCalled();
+  });
 });
 
 describe('MyEntryCard progressive disclosure (exhibitor-my-shows-elderly-ux-remediation 3.1-3.5)', () => {

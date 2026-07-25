@@ -82,7 +82,7 @@ export function deriveEntryNextAction(
   // fixtures or partially replicated rows.
   if (!isPastShowEntry(entry, now)) {
     const eligibleClass = entry.classes.find(cls => {
-      if (cls.isScored || cls.status !== 'entered') return false;
+      if (cls.unresolved || cls.isScored || cls.status !== 'entered') return false;
 
       const owningDog = findOwningDog(entry, cls.id);
       const classEntryStatus = cls.entryStatus ?? owningDog?.entryStatus ?? entry.entryStatus;

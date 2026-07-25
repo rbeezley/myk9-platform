@@ -27,8 +27,9 @@ export interface ReplicationConflictSnapshot<T = Record<string, unknown>> {
   detectedAt: number;
 }
 
-export interface ReplicationConflictEventDetail<T = Record<string, unknown>>
-  extends ReplicationConflictSnapshot<T> {}
+export interface ReplicationConflictEventDetail<
+  T = Record<string, unknown>,
+> extends ReplicationConflictSnapshot<T> {}
 
 export type ReplicationConflictResolution = 'keep-local' | 'take-remote';
 
@@ -120,6 +121,11 @@ export interface PendingMutation {
   retries: number; // Retry attempts
   status: MutationStatus;
   error?: string; // Last error message
+  /**
+   * Why a mutation moved to the failed-mutation store. Preserved with the dead
+   * letter so user-facing recovery does not have to parse display text.
+   */
+  failureKind?: 'authorization' | 'permanent' | 'max-retries';
 
   /** Causal dependency tracking */
   dependsOn?: string[]; // IDs of mutations that must complete before this one
@@ -188,18 +194,17 @@ export interface SyncResult {
    *  despite metadata indicating it previously held rows — an unexpected eviction
    *  worth logging (it is the silent failure mode the watermark fix guards). */
   recoveredFromEmptyReplica?: boolean;
+  /** Set when the Phase-1 mutation upload rejected but the download proceeded.
+   *  `success` still reflects the download, but pending local writes remain
+   *  unsynced — callers must not treat this as a fully healthy sync. */
+  uploadError?: string;
 }
 
 /**
  * Sync operation types
  */
 export type SyncOperation =
-  | 'full-sync'
-  | 'incremental-sync'
-  | 'INSERT'
-  | 'UPDATE'
-  | 'DELETE'
-  | 'BATCH_UPDATE';
+  'full-sync' | 'incremental-sync' | 'INSERT' | 'UPDATE' | 'DELETE' | 'BATCH_UPDATE';
 
 /**
  * Sync options for controlling sync behavior

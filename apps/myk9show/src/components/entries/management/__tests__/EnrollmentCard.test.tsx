@@ -193,8 +193,8 @@ describe('EnrollmentCard', () => {
     fireEvent.click(screen.getByRole('button', { name: /actions/i }));
 
     // Bulk actions that map to a valid entry_status write remain reachable…
-    expect(screen.getByText('Accept All')).toBeTruthy();
-    expect(screen.getByText('Reject All')).toBeTruthy();
+    expect(screen.getByText('Accept all')).toBeTruthy();
+    expect(screen.getByText('Reject all')).toBeTruthy();
     expect(screen.getByText('Check In All')).toBeTruthy();
     // …but "Waitlist All" is intentionally absent.
     expect(screen.queryByText('Waitlist All')).toBeNull();

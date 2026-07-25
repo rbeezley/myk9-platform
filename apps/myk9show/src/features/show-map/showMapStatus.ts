@@ -1,10 +1,10 @@
 import {
   CLASS_STATUS,
-  getCheckinStatusConfig,
-  getClassStatusDisplay,
   isCheckInStatus,
   normalizeClassStatus,
+  type TrialStatusKey,
 } from '@myk9/core';
+import { getStatusDescriptor } from '@/components/status';
 import type {
   ShowMapClassInput,
   ShowMapDisplayStatus,
@@ -58,18 +58,31 @@ function isEntryPulledOrScratched(entry: ShowMapEntryInput): boolean {
 export function classifyClassStatus(status?: string): ShowMapDisplayStatus | undefined {
   if (!status) return undefined;
   const normalized = normalizeClassStatus(status);
-  const display = getClassStatusDisplay(normalized);
+  const label = getStatusDescriptor('class', normalized).label;
 
   if (normalized === CLASS_STATUS.COMPLETED) {
-    return { value: normalized, label: display.label, kind: 'complete' };
+    return { value: normalized, label, kind: 'complete' };
   }
   if (normalized === CLASS_STATUS.IN_PROGRESS) {
-    return { value: normalized, label: display.label, kind: 'active' };
+    return { value: normalized, label, kind: 'active' };
   }
   if (normalized === CLASS_STATUS.CANCELLED) {
-    return { value: normalized, label: display.label, kind: 'muted' };
+    return { value: normalized, label, kind: 'muted' };
   }
   return { value: normalized, label: 'Not started', kind: 'neutral' };
+}
+
+export function classifyTrialStatus(status: TrialStatusKey): ShowMapDisplayStatus {
+  const label = getStatusDescriptor('trial', status).label;
+  const kind =
+    status === 'completed'
+      ? 'complete'
+      : status === 'in-progress'
+        ? 'active'
+        : status === 'cancelled'
+          ? 'muted'
+          : 'neutral';
+  return { value: status, label, kind };
 }
 
 export function classifyClassWrapUpStatus(
@@ -174,11 +187,10 @@ export function classifyEntryCheckInStatus(
     return { value: status, label: 'Complete', kind: 'complete' };
   }
 
-  const config = getCheckinStatusConfig(status);
-  if (!config) return undefined;
   return {
     value: status,
-    label: status === 'checked-in' ? 'Checked in' : config.label,
+    label:
+      status === 'checked-in' ? 'Checked in' : getStatusDescriptor('entry', status).label,
     kind: status === 'in-ring' ? 'active' : 'complete',
   };
 }

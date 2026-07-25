@@ -100,6 +100,10 @@ const UserManagementPage: React.FC = () => {
   };
 
   const clearSelection = () => setSelectedUsers([]);
+  const removeDeletedUsers = (deletedUserIds: string[]) => {
+    if (deletedUserIds.length === 0) return;
+    setSelectedUsers(prev => prev.filter(item => !deletedUserIds.includes(item.id)));
+  };
 
   // User action handlers
   const handleUserClick = (user: User) => {
@@ -175,9 +179,11 @@ const UserManagementPage: React.FC = () => {
             <BulkActionsBar
               selectedUsers={selectedUsers}
               onClearSelection={clearSelection}
-              onBulkComplete={() => clearSelection()}
+              onBulkComplete={deletedUserIds => {
+                removeDeletedUsers(deletedUserIds ?? []);
+              }}
               onUsersDeleted={deletedUserIds => {
-                clearSelection();
+                removeDeletedUsers(deletedUserIds);
                 logger.debug('Users deleted:', 'admin', { data: deletedUserIds });
               }}
             />
@@ -259,6 +265,7 @@ const UserManagementPage: React.FC = () => {
                   setFilters(DEFAULT_USER_FILTER);
                 },
               }}
+              variant="filter"
             />
           )}
 
@@ -276,6 +283,10 @@ const UserManagementPage: React.FC = () => {
               totalPages={totalPages}
               totalFilteredUsers={filteredUsers.length}
               onPageChange={setCurrentPage}
+              onClearSearch={() => {
+                setSearchTerm('');
+                setFilters(DEFAULT_USER_FILTER);
+              }}
               pageSize={pageSize}
               onPageSizeChange={size => {
                 setPageSize(size);

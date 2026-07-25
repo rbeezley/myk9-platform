@@ -288,9 +288,11 @@ describe('showMapActionMutations', () => {
         statusSource: 'manual',
         // Manual completion resolves any server reopen → clear the stamp.
         reopenedAfterCloseoutAt: null,
-        isCompleted: true,
       })
     );
+    const completedPayload = mockUpdateClass.mock.calls[0][1] as Record<string, unknown>;
+    // is_completed is not a schema column — the helper must not write it.
+    expect(completedPayload).not.toHaveProperty('isCompleted');
     // Single replicated write — no second mutation for the marker.
     expect(mockUpdateClass).toHaveBeenCalledTimes(1);
     expect(mockFrom).not.toHaveBeenCalled();
@@ -304,12 +306,13 @@ describe('showMapActionMutations', () => {
       expect.objectContaining({
         classStatus: 'In Progress',
         statusSource: 'manual',
-        isCompleted: false,
       })
     );
-    // Starting a class must NOT clear a reopen stamp — only a manual completion does.
     const startedPayload = mockUpdateClass.mock.calls[0][1] as Record<string, unknown>;
+    // Starting a class must NOT clear a reopen stamp — only a manual completion does.
     expect(startedPayload).not.toHaveProperty('reopenedAfterCloseoutAt');
+    // is_completed is not a schema column — the helper must not write it.
+    expect(startedPayload).not.toHaveProperty('isCompleted');
     expect(mockUpdateClass).toHaveBeenCalledTimes(1);
     expect(mockFrom).not.toHaveBeenCalled();
   });

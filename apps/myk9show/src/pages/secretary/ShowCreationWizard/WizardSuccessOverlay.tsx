@@ -33,6 +33,8 @@ export const WizardSuccessOverlay: React.FC<WizardSuccessOverlayProps> = ({
         showId={createdShow.id}
         showName={createdShow.name}
         passcodes={createdShow.passcodes}
+        {...(createdShow.passcodeError ? { initialError: createdShow.passcodeError } : {})}
+        canRegenerate
       />
     </div>
     <Button size="lg" onClick={onGoToDashboard}>

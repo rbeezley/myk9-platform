@@ -289,16 +289,17 @@ describe('ShowMapTab', () => {
       />
     );
 
-    expect(screen.getByText('Trial 1')).toBeInTheDocument();
+    expect(screen.queryByText('Trial 1')).not.toBeInTheDocument();
     expect(screen.queryByText('Interior Novice A')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^completed$/i }));
+    expect(screen.getByText('Trial 1')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
 
     expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
   });
 
-  it('renders Running Now cards and opens the active class when selected', async () => {
+  it('renders Running Now cards and locates the active class in the tree via the secondary action', async () => {
     const { user } = render(
       <ShowMapTab
         show={show}
@@ -327,7 +328,9 @@ describe('ShowMapTab', () => {
     expect(screen.getByText('25% scored')).toBeInTheDocument();
     expect(screen.queryByText('Interior Novice A')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /ring 1.*interior novice a/i }));
+    // Primary card click navigates to Class Details (MYK9-64 F4); the tree
+    // expansion behavior lives behind the explicit Locate in Show Map action.
+    await user.click(screen.getByTestId('locate-in-show-map-class:class-1'));
 
     expect(screen.getByRole('button', { name: /collapse trial 1/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /score class/i })).toBeInTheDocument();
@@ -560,7 +563,6 @@ describe('ShowMapTab', () => {
         classStatus: 'In Progress',
         statusSource: 'manual',
         actual_start_time: expect.any(String),
-        isCompleted: false,
       })
     );
   });
@@ -600,7 +602,6 @@ describe('ShowMapTab', () => {
         statusSource: 'manual',
         reopenedAfterCloseoutAt: null,
         actual_end_time: expect.any(String),
-        isCompleted: true,
       })
     );
   });

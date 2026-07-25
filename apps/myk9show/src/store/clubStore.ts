@@ -9,6 +9,21 @@ import { create } from 'zustand';
 import { replicatedClubsTable, type ReplicatedClub } from '@/services/replication';
 import type { Club } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
+import { DEFAULT_TIMEOUT_MS, withTimeout } from '@myk9/core';
+
+export type ClubReadinessStatus = 'loading' | 'fresh' | 'offline' | 'unavailable';
+
+export interface ClubReadinessResult {
+  status: ClubReadinessStatus;
+  clubs: Club[];
+}
+
+let clubSessionIsFresh = false;
+let clubSyncInFlight: Promise<{ success: boolean }> | null = null;
+
+function isOnline(): boolean {
+  return typeof navigator === 'undefined' || navigator.onLine;
+}
 
 /**
  * Convert ReplicatedClub to app Club type
@@ -80,10 +95,15 @@ export interface ClubStoreState {
   isLoading: boolean;
   isSyncing: boolean;
   error: string | null;
+  clubReadiness: ClubReadinessStatus;
 
   // Actions
   loadClubs: () => Promise<void>;
   syncClubs: () => Promise<void>;
+  ensureClubsReady: (options?: {
+    requestedClubId?: string | undefined;
+    force?: boolean;
+  }) => Promise<ClubReadinessResult>;
   selectClub: (id: string) => void;
   addClub: (club: Club) => Promise<string | undefined>;
   updateClub: (club: Club) => Promise<void>;
@@ -102,6 +122,7 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
   isLoading: false,
   isSyncing: false,
   error: null,
+  clubReadiness: 'loading',
   _unsubscribe: null,
 
   /**
@@ -155,6 +176,73 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
       set({ error: errorMessage });
     } finally {
       set({ isSyncing: false });
+    }
+  },
+
+  /**
+   * Make the narrow public club replica ready for a route or club-admin
+   * context. The remote operation remains in flight after a caller-visible
+   * timeout so concurrent callers cannot create duplicate sync work.
+   */
+  ensureClubsReady: async ({ requestedClubId, force = false } = {}) => {
+    set({ clubReadiness: 'loading' });
+    await get().loadClubs();
+
+    const cachedClubs = get().clubs;
+    if (!isOnline()) {
+      const status = cachedClubs.length > 0 ? 'offline' : 'unavailable';
+      set({ clubReadiness: status });
+      return { status, clubs: cachedClubs };
+    }
+
+    const requestedClubIsMissing =
+      requestedClubId !== undefined && !cachedClubs.some(club => club.id === requestedClubId);
+    if (!force && clubSessionIsFresh && !requestedClubIsMissing) {
+      set({ clubReadiness: 'fresh' });
+      return { status: 'fresh', clubs: cachedClubs };
+    }
+
+    if (!clubSyncInFlight) {
+      clubSyncInFlight = replicatedClubsTable
+        .sync()
+        .then(async result => {
+          if (result.success) {
+            await get().loadClubs();
+            clubSessionIsFresh = true;
+          } else {
+            clubSessionIsFresh = false;
+            logger.warn('Club data refresh failed', 'clubs');
+          }
+          return { success: result.success };
+        })
+        .catch(() => {
+          clubSessionIsFresh = false;
+          logger.warn('Club data refresh failed', 'clubs');
+          return { success: false };
+        })
+        .finally(() => {
+          clubSyncInFlight = null;
+        });
+    }
+
+    try {
+      const result = await withTimeout(clubSyncInFlight, DEFAULT_TIMEOUT_MS, 'Club data refresh');
+      const clubs = get().clubs;
+      if (result.success) {
+        set({ clubReadiness: 'fresh' });
+        return { status: 'fresh', clubs };
+      }
+      set({ clubReadiness: 'unavailable' });
+      return { status: 'unavailable', clubs };
+    } catch {
+      // Keep cached clubs visible, but do not let stale cache validate a
+      // club-admin scope after a failed freshness check.
+      const clubs = get().clubs;
+      logger.warn('Club data refresh unavailable', 'clubs', {
+        hasCachedClubs: clubs.length > 0,
+      });
+      set({ clubReadiness: 'unavailable' });
+      return { status: 'unavailable', clubs };
     }
   },
 
@@ -246,3 +334,10 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
     }
   },
 }));
+
+/** Reset the session marker between isolated tests and browser sessions. */
+export function resetClubReadinessForTests(): void {
+  clubSessionIsFresh = false;
+  clubSyncInFlight = null;
+  useClubStore.setState({ clubReadiness: 'loading' });
+}

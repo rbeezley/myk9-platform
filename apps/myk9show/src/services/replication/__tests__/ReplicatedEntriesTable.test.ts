@@ -17,6 +17,7 @@ import {
 } from '../ReplicatedEntriesTable';
 import { logger } from '@myk9/core';
 import { fromAny } from '@total-typescript/shoehorn';
+import { supabase } from '@/services/database/supabaseClient';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -52,6 +53,12 @@ describe('ReplicatedEntriesTable', () => {
   beforeEach(async () => {
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
+    // Writes now hydrate cold cache misses via supabase.from() (see
+    // getOrHydrateEntry), so every test in this file can reach it — not just
+    // the ones that mean to. Reset it fresh so a leftover mockReturnValue(Once)
+    // from an earlier test never leaks into an unrelated test under
+    // --sequence.shuffle (each test that needs a real response sets its own).
+    vi.mocked(supabase.from).mockReset();
 
     table = new ReplicatedEntriesTable();
   });
@@ -1825,6 +1832,135 @@ describe('ReplicatedEntriesTable', () => {
       // Manual filtering: class-1 + show-1
       const class1Show1 = class1Entries.filter(e => e.showId === 'show-1');
       expect(class1Show1).toHaveLength(2);
+    });
+  });
+
+  // Regression: secretary Entry Management reads its list via PostgREST and never
+  // runs a per-show entries sync, so in a fresh browser profile the replica is
+  // cold and the first check-in failed with "Entry <id> not found" even though
+  // the entry exists server-side. Writes must hydrate the missing row from the
+  // authenticated view (same source as sync) before applying the mutation.
+  describe('Cold-replica hydration on write', () => {
+    const serverRow = {
+      id: 'entry-cold',
+      class_id: 'class-1',
+      show_id: 'show-1',
+      dog_id: 'dog-1',
+      armband: 104,
+      handler: 'Test Exhibitor',
+      entry_status: 'submitted',
+      check_in_status: 'no-status',
+      updated_at: '2026-07-18T12:00:00.000Z',
+      version: 7,
+    };
+
+    // Resets before queuing: a test whose code path never calls supabase.from()
+    // (e.g. the deleted-entry short-circuit below) would otherwise leave its
+    // queued mockReturnValueOnce unconsumed, and FIFO ordering would hand it to
+    // whichever later test calls supabase.from() next instead of that test's
+    // own freshly-queued mock.
+    function mockViewSingleRowFetch(result: { data: unknown; error: unknown }) {
+      const maybeSingle = vi.fn(async () => result);
+      const eq = vi.fn(() => ({ maybeSingle }));
+      const select = vi.fn(() => ({ eq }));
+      vi.mocked(supabase.from).mockReset();
+      vi.mocked(supabase.from).mockReturnValueOnce(fromAny({ select }));
+      return { select, eq, maybeSingle };
+    }
+
+    it('hydrates a missing entry from the authenticated view, then checks it in', async () => {
+      const { eq } = mockViewSingleRowFetch({ data: serverRow, error: null });
+
+      await table.updateCheckInStatus('entry-cold', 'checked-in');
+
+      expect(supabase.from).toHaveBeenCalledWith('view_authenticated_entry_results');
+      expect(eq).toHaveBeenCalledWith('id', 'entry-cold');
+
+      const result = await table.get('entry-cold');
+      expect(result?.checkInStatus).toBe('checked-in');
+      expect(result?._syncStatus).toBe('pending');
+    });
+
+    it('seeds the OCC serverVersion from the fetched row', async () => {
+      mockViewSingleRowFetch({ data: serverRow, error: null });
+
+      await table.updateCheckInStatus('entry-cold', 'checked-in');
+
+      // Dirty writes preserve the seeded serverVersion, so the queued UPDATE
+      // carries the correct OCC precondition (WHERE version = 7).
+      const row = await table.getReplicatedRow('entry-cold');
+      expect(row?.serverVersion).toBe(7);
+    });
+
+    it('throws the canonical not-found error when the server has no row either', async () => {
+      mockViewSingleRowFetch({ data: null, error: null });
+
+      await expect(table.updateCheckInStatus('entry-gone', 'checked-in')).rejects.toThrow(
+        'Entry entry-gone not found'
+      );
+    });
+
+    it('throws the canonical not-found error when the hydration fetch fails (offline)', async () => {
+      mockViewSingleRowFetch({ data: null, error: { message: 'network unavailable' } });
+
+      await expect(table.updateCheckInStatus('entry-offline', 'checked-in')).rejects.toThrow(
+        'Entry entry-offline not found'
+      );
+    });
+
+    it('does not resurrect an entry deleted locally this session', async () => {
+      await table.set('entry-del', { id: 'entry-del', classId: 'class-1' });
+      await table.deleteEntry('entry-del');
+      const { maybeSingle } = mockViewSingleRowFetch({ data: serverRow, error: null });
+
+      await expect(table.updateCheckInStatus('entry-del', 'checked-in')).rejects.toThrow(
+        'Entry entry-del not found'
+      );
+      expect(maybeSingle).not.toHaveBeenCalled();
+    });
+
+    it('does not resurrect an entry deleted while its hydration fetch was in flight', async () => {
+      // The delete lands AFTER the _deletedIds pre-check but BEFORE the fetch
+      // resolves — the race the resurrection guard must still win.
+      let resolveFetch: (value: { data: unknown; error: unknown }) => void;
+      const pendingFetch = new Promise<{ data: unknown; error: unknown }>(resolve => {
+        resolveFetch = resolve;
+      });
+      const maybeSingle = vi.fn(() => pendingFetch);
+      const eq = vi.fn(() => ({ maybeSingle }));
+      const select = vi.fn(() => ({ eq }));
+      vi.mocked(supabase.from).mockReset();
+      vi.mocked(supabase.from).mockReturnValueOnce(fromAny({ select }));
+
+      const writePromise = table.updateCheckInStatus('entry-race', 'checked-in');
+      // Attach the rejection assertion immediately so Node never sees an
+      // unhandled-rejection window while the awaits below run.
+      const assertion = expect(writePromise).rejects.toThrow('Entry entry-race not found');
+      await Promise.resolve(); // let the fetch start
+      await table.deleteEntry('entry-race');
+      resolveFetch!({ data: { ...serverRow, id: 'entry-race' }, error: null });
+
+      await assertion;
+      expect(await table.get('entry-race')).toBeNull();
+    });
+
+    it('hydrates updateEntry writes too (day-of scratch path)', async () => {
+      mockViewSingleRowFetch({ data: serverRow, error: null });
+
+      await table.updateEntry('entry-cold', { withdrawalReason: 'sick' });
+
+      const result = await table.get('entry-cold');
+      expect(result?.withdrawalReason).toBe('sick');
+      expect(result?._syncStatus).toBe('pending');
+    });
+
+    it('hydrates updateEntryStatus writes too', async () => {
+      mockViewSingleRowFetch({ data: serverRow, error: null });
+
+      await table.updateEntryStatus('entry-cold', 'checked-in');
+
+      const result = await table.get('entry-cold');
+      expect(result?.status).toBe('checked-in');
     });
   });
 });

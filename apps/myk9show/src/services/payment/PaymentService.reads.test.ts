@@ -154,6 +154,73 @@ describe('PaymentService read methods', () => {
         },
       ]);
     });
+
+    // REGRESSION: 'succeeded' is the status stripe_orders actually writes for a
+    // captured payment, and it was missing from mapOrderStatus — so every
+    // successful payment read as "pending" in payment history. A PARTIALLY
+    // refunded order also stays 'succeeded' (only a FULL refund flips the
+    // status), so partial refunds fell into the same hole.
+    it.each([
+      ['succeeded', 0],
+      ['succeeded', 1500],
+    ])('maps a %s order (refunded %i¢) to completed, never pending', async (status, refunded) => {
+      const orderRow = {
+        id: 'order-1',
+        entry_ids: ['entry-1'],
+        customer_id: 'cust-1',
+        amount_cents: 3500,
+        refunded_cents: refunded,
+        currency: 'usd',
+        status,
+        stripe_payment_intent_id: 'pi_123',
+        order_type: 'entry_fee',
+        metadata: {},
+        created_at: '2026-07-01T00:00:00.000Z',
+        updated_at: '2026-07-02T00:00:00.000Z',
+      };
+
+      mocks.from.mockImplementation((table: string) => {
+        if (table === 'stripe_customers') {
+          return makeQueryBuilder({ data: { id: 'cust-1' }, error: null });
+        }
+        if (table === 'stripe_orders') {
+          return makeQueryBuilder({ data: [orderRow], error: null });
+        }
+        throw new Error(`unexpected table: ${table}`);
+      });
+
+      const result = await service.getPaymentHistory('user-1');
+      expect(result[0]?.status).toBe('completed');
+    });
+
+    it('still maps a genuinely pending order to pending', async () => {
+      const orderRow = {
+        id: 'order-1',
+        entry_ids: ['entry-1'],
+        customer_id: 'cust-1',
+        amount_cents: 3500,
+        currency: 'usd',
+        status: 'pending',
+        stripe_payment_intent_id: 'pi_123',
+        order_type: 'entry_fee',
+        metadata: {},
+        created_at: '2026-07-01T00:00:00.000Z',
+        updated_at: '2026-07-02T00:00:00.000Z',
+      };
+
+      mocks.from.mockImplementation((table: string) => {
+        if (table === 'stripe_customers') {
+          return makeQueryBuilder({ data: { id: 'cust-1' }, error: null });
+        }
+        if (table === 'stripe_orders') {
+          return makeQueryBuilder({ data: [orderRow], error: null });
+        }
+        throw new Error(`unexpected table: ${table}`);
+      });
+
+      const result = await service.getPaymentHistory('user-1');
+      expect(result[0]?.status).toBe('pending');
+    });
   });
 
   describe('getShowPaymentSummary', () => {
@@ -212,6 +279,45 @@ describe('PaymentService read methods', () => {
         pendingAmount: 70,
         refundedAmount: 35,
         completionRate: 1 / 6,
+      });
+    });
+
+    it('subtracts and reports a partial refund while the order remains succeeded', async () => {
+      mocks.from.mockReturnValue(
+        makeQueryBuilder({
+          data: [
+            {
+              amount_cents: 10_000,
+              status: 'succeeded',
+              refunded_cents: 2_500,
+              make_whole_refunded_cents: 0,
+            },
+          ],
+          error: null,
+        })
+      );
+
+      await expect(service.getShowPaymentSummary('show-1')).resolves.toEqual({
+        totalEntries: 1,
+        totalAmount: 100,
+        paidAmount: 75,
+        pendingAmount: 0,
+        refundedAmount: 25,
+        completionRate: 1,
+      });
+    });
+
+    it('preserves the legacy full-refund fallback when refund columns are absent', async () => {
+      mocks.from.mockReturnValue(
+        makeQueryBuilder({
+          data: [{ amount_cents: 3500, status: 'refunded' }],
+          error: null,
+        })
+      );
+
+      await expect(service.getShowPaymentSummary('show-1')).resolves.toMatchObject({
+        paidAmount: 0,
+        refundedAmount: 35,
       });
     });
   });
@@ -289,6 +395,14 @@ describe('PaymentService read methods', () => {
       const result = await service.checkPaymentStatus('order-1');
 
       expect(result?.userId).toBe('cust-1');
+    });
+
+    it('returns null and logs when the query builder throws', async () => {
+      mocks.from.mockImplementation(() => {
+        throw new Error('connection reset');
+      });
+
+      await expect(service.checkPaymentStatus('order-1')).resolves.toBeNull();
     });
   });
 
@@ -376,6 +490,14 @@ describe('PaymentService read methods', () => {
       const receipt = await service.generateReceipt('order-12345678');
 
       expect(receipt?.paidAt).toEqual(new Date('2026-07-01T00:00:00.000Z'));
+    });
+
+    it('returns null and logs when the query builder throws', async () => {
+      mocks.from.mockImplementation(() => {
+        throw new Error('connection reset');
+      });
+
+      await expect(service.generateReceipt('order-1')).resolves.toBeNull();
     });
   });
 });

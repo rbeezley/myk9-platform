@@ -8,7 +8,7 @@ import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
 import { Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { NoDataEmptyState } from '@/components/common/EmptyState';
+import { EmptyState } from '@/components/common/EmptyState';
 import { useEffect, useState } from 'react';
 import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
@@ -203,7 +203,7 @@ export default function RegistrationsSection({
     return (
       <div className="flex items-center justify-center py-8">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Error loading registrations</p>
+          <p className="text-destructive mb-4">Error loading registrations</p>
           <Button onClick={() => refetch()} variant="outline">
             Try Again
           </Button>
@@ -231,11 +231,15 @@ export default function RegistrationsSection({
         </Button>
       </div>
       {!registrations || registrations.length === 0 ? (
-        <NoDataEmptyState
-          entityName="Registrations"
+        <EmptyState
+          icon={Plus}
+          title="No Registrations Found"
           description="Add your first kennel club registration to get started."
-          canCreate={true}
-          onCreateClick={() => setIsAddRegistrationDialogOpen(true)}
+          action={{
+            label: 'Add Registration',
+            onClick: () => setIsAddRegistrationDialogOpen(true),
+            icon: Plus,
+          }}
         />
       ) : (
         <div className="grid gap-4 grid-cols-1">
@@ -259,7 +263,7 @@ export default function RegistrationsSection({
                         setIsDeleteRegistrationDialogOpen(true);
                       },
                       icon: <Trash2 className="w-4 h-4 mr-2" />,
-                      className: 'text-red-600',
+                      className: 'text-destructive',
                     },
                   ]}
                 />

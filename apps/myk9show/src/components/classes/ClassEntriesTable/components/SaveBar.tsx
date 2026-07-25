@@ -18,7 +18,7 @@ export const SaveBar: React.FC<SaveBarProps> = ({
   changesSummary,
   isSubmitting,
   submitError,
-  onSubmit
+  onSubmit,
 }) => {
   if (changesSummary.total === 0) return null;
 
@@ -36,7 +36,7 @@ export const SaveBar: React.FC<SaveBarProps> = ({
               <span className="mx-2">•</span>
             )}
             {changesSummary.invalid > 0 && (
-              <span className="text-red-600">
+              <span className="text-destructive">
                 {changesSummary.invalid} invalid change{changesSummary.invalid !== 1 ? 's' : ''}
               </span>
             )}
@@ -47,16 +47,16 @@ export const SaveBar: React.FC<SaveBarProps> = ({
         </div>
 
         <div className="flex items-center space-x-3">
-          {submitError && (
-            <div className="text-sm text-red-600">{submitError}</div>
-          )}
+          {submitError && <div className="text-sm text-red-600">{submitError}</div>}
           <Button
             onClick={onSubmit}
             disabled={!changesSummary.canSubmit || isSubmitting}
             className="myk9-action-button myk9-action-button-primary"
           >
             <Save className="h-4 w-4 mr-2" />
-            {isSubmitting ? 'Saving...' : `Save ${changesSummary.valid} Change${changesSummary.valid !== 1 ? 's' : ''}`}
+            {isSubmitting
+              ? 'Saving...'
+              : `Save ${changesSummary.valid} Change${changesSummary.valid !== 1 ? 's' : ''}`}
           </Button>
         </div>
       </div>

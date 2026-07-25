@@ -12,9 +12,9 @@ interface DirectSaveTemplatesDialogProps {
   onClose: () => void;
 }
 
-export const DirectSaveTemplatesDialog: React.FC<DirectSaveTemplatesDialogProps> = ({ 
-  open, 
-  onClose 
+export const DirectSaveTemplatesDialog: React.FC<DirectSaveTemplatesDialogProps> = ({
+  open,
+  onClose,
 }) => {
   const { templates } = useTemplateStore();
   const [isSaving, setIsSaving] = useState(false);
@@ -28,7 +28,7 @@ export const DirectSaveTemplatesDialog: React.FC<DirectSaveTemplatesDialogProps>
   const handleDirectSave = async () => {
     setIsSaving(true);
     setResult(null);
-    
+
     try {
       const saveResult = await saveTemplatesFromLocalStorage();
       setResult(saveResult);
@@ -37,7 +37,7 @@ export const DirectSaveTemplatesDialog: React.FC<DirectSaveTemplatesDialogProps>
         success: false,
         message: 'Unexpected error occurred',
         templatesCount: 0,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     } finally {
       setIsSaving(false);
@@ -62,11 +62,12 @@ export const DirectSaveTemplatesDialog: React.FC<DirectSaveTemplatesDialogProps>
             Save Templates Directly to File
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           <div className="text-sm text-muted-foreground">
-            This will automatically save your templates directly to <code>src/data/mockTemplatesWithFields.ts</code>.
-            No downloads or manual file replacement needed!
+            This will automatically save your templates directly to{' '}
+            <code>src/data/mockTemplatesWithFields.ts</code>. No downloads or manual file
+            replacement needed!
           </div>
 
           <Card>
@@ -81,7 +82,7 @@ export const DirectSaveTemplatesDialog: React.FC<DirectSaveTemplatesDialogProps>
                 {templates.length} templates
               </div>
               <div className="space-y-1 text-sm max-h-32 overflow-y-auto">
-                {templates.map((template) => (
+                {templates.map(template => (
                   <div key={template.id} className="flex items-center justify-between">
                     <span className="truncate">{template.templateName}</span>
                     <span className="text-muted-foreground ml-2 flex-shrink-0">
@@ -94,19 +95,21 @@ export const DirectSaveTemplatesDialog: React.FC<DirectSaveTemplatesDialogProps>
           </Card>
 
           {result && (
-            <Alert className={result.success ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
+            <Alert
+              className={
+                result.success
+                  ? 'border-green-200 bg-green-50'
+                  : 'border-destructive/20 bg-destructive/10'
+              }
+            >
               {result.success ? (
                 <Check className="h-4 w-4 text-green-600" />
               ) : (
-                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertCircle className="h-4 w-4 text-destructive" />
               )}
-              <AlertDescription className={result.success ? "text-green-800" : "text-red-800"}>
+              <AlertDescription className={result.success ? 'text-green-800' : 'text-destructive'}>
                 {result.message}
-                {result.error && (
-                  <div className="mt-1 text-xs">
-                    Error: {result.error}
-                  </div>
-                )}
+                {result.error && <div className="mt-1 text-xs">Error: {result.error}</div>}
               </AlertDescription>
             </Alert>
           )}
@@ -120,7 +123,9 @@ export const DirectSaveTemplatesDialog: React.FC<DirectSaveTemplatesDialogProps>
                 <ol className="list-decimal list-inside space-y-1 ml-2">
                   <li>Reload the page to see your templates loaded from the file</li>
                   <li>You can now safely use "Reset to Mock Data" - your templates will persist</li>
-                  <li>Your templates are now part of the codebase and will be version controlled</li>
+                  <li>
+                    Your templates are now part of the codebase and will be version controlled
+                  </li>
                 </ol>
               </div>
             </div>
@@ -132,13 +137,15 @@ export const DirectSaveTemplatesDialog: React.FC<DirectSaveTemplatesDialogProps>
               <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                 <li>Reads all templates from your localStorage</li>
                 <li>Generates properly formatted TypeScript code</li>
-                <li>Writes directly to <code>src/data/mockTemplatesWithFields.ts</code></li>
+                <li>
+                  Writes directly to <code>src/data/mockTemplatesWithFields.ts</code>
+                </li>
                 <li>Your templates become permanent mock data instantly!</li>
               </ol>
             </div>
           )}
         </div>
-        
+
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={handleClose}>
             {result ? 'Close' : 'Cancel'}
@@ -150,8 +157,8 @@ export const DirectSaveTemplatesDialog: React.FC<DirectSaveTemplatesDialogProps>
             </Button>
           )}
           {!result && (
-            <Button 
-              onClick={handleDirectSave} 
+            <Button
+              onClick={handleDirectSave}
               disabled={isSaving || templates.length === 0}
               className="min-w-32"
             >

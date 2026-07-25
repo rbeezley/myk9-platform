@@ -5,14 +5,52 @@
  * @module MyEntriesPage/modules/entryTabDefs
  */
 
-import { List, Clock, CheckCircle, Users, CalendarDays, CircleCheck } from 'lucide-react';
+import { createElement } from 'react';
+import { List, CalendarDays } from 'lucide-react';
 import type { PrimaryTabDef } from '@/components/common/PrimaryTabs';
+import { StatusIcon } from '@/components/status';
 
 export const ENTRY_TAB_DEFS = [
   { id: 'all', label: 'All', icon: List },
-  { id: 'pending', label: 'Pending', icon: Clock },
-  { id: 'accepted', label: 'Accepted', icon: CheckCircle },
-  { id: 'waitlist', label: 'Waitlist', icon: Users },
+  {
+    id: 'pending',
+    label: 'Pending',
+    icon: createElement(StatusIcon, {
+      family: 'entry',
+      status: 'pending',
+      size: 'sm',
+      decorative: true,
+    }),
+  },
+  {
+    id: 'accepted',
+    label: 'Accepted',
+    icon: createElement(StatusIcon, {
+      family: 'entry',
+      status: 'accepted',
+      size: 'sm',
+      decorative: true,
+    }),
+  },
+  {
+    id: 'waitlist',
+    label: 'Waitlist',
+    icon: createElement(StatusIcon, {
+      family: 'entry',
+      status: 'waitlist',
+      size: 'sm',
+      decorative: true,
+    }),
+  },
   { id: 'upcoming', label: 'Upcoming', icon: CalendarDays },
-  { id: 'completed', label: 'Completed', icon: CircleCheck },
+  {
+    id: 'completed',
+    label: 'Completed',
+    icon: createElement(StatusIcon, {
+      family: 'entry',
+      status: 'completed',
+      size: 'sm',
+      decorative: true,
+    }),
+  },
 ] as const satisfies Omit<PrimaryTabDef, 'count'>[];

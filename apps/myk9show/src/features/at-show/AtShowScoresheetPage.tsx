@@ -16,9 +16,18 @@
  * on load). The block is structural, not a hidden submit button.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader2, AlertCircle, ArrowLeft, WifiOff, ShieldAlert } from 'lucide-react';
+import {
+  Loader2,
+  AlertCircle,
+  ArrowLeft,
+  WifiOff,
+  ShieldAlert,
+  KeyRound,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
@@ -34,7 +43,15 @@ import {
 import { useAtShowScoresheet } from './useAtShowScoresheet';
 import { useAtShowStoragePersistence } from './useAtShowStoragePersistence';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
+import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
+import { useAtShowAudioMute } from './useAtShowAudioMute';
 import { badgeClass } from './slots/atShowChrome.helpers';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
+import { supabase } from '@/services/database/supabaseClient';
+import { useAudioWarnings } from '@/hooks/useAudioWarnings';
+import { DEFAULT_AUDIO_SETTINGS } from '@/constants/audioSettings';
+import { speakRemainingSeconds } from './atShowVoiceAnnouncement';
 
 export const AtShowScoresheetPage: React.FC = () => {
   const { showId, classId, entryId } = useParams<{
@@ -52,7 +69,51 @@ export const AtShowScoresheetPage: React.FC = () => {
   // model gives stewards `canScore: false`. Derive the effective ringside role
   // the same way the EntryList shims do — account RBAC, overridden by a Phase 1c
   // show-scoped passcode grant.
-  const { hasPermission } = useRingsideEffectiveRole(showId);
+  const { hasPermission, showRole } = useRingsideEffectiveRole(showId);
+  const { user } = useAuthContext();
+  const isAnonymous = user?.is_anonymous === true;
+  const [signOutError, setSignOutError] = useState(false);
+
+  // The only passcode path that actually authorizes scoring is an ANONYMOUS
+  // guest session (validate-passcode stamps the show-scoped claim only on anon
+  // sessions). A signed-in judge must therefore sign out first, then enter the
+  // passcode as a guest. We sign out via supabase DIRECTLY rather than the
+  // AuthContext `signOut` (which hard-redirects to '/', clobbering the
+  // navigation below), scoped `local` so we don't revoke the user's other
+  // devices. Crucially, auth-js removes the on-device session even when the
+  // revoke request errors, so the returned { error } does NOT tell us whether
+  // we're still signed in — decide by the ACTUAL resulting session instead. If
+  // it's gone (the normal case, error or not) we clear the in-memory ringside
+  // grant (the hard reload we skipped is what ringsideGrantStore otherwise
+  // relied on) and open the passcode form; only a still-live session stays put.
+  const handleSignOutToPasscode = useCallback(async () => {
+    setSignOutError(false);
+    await supabase.auth.signOut({ scope: 'local' });
+    // Proceed ONLY when we can positively confirm no session remains. A retained
+    // session, OR an inconclusive read — auth-js returns { session: null, error }
+    // when an expired token's refresh fails transiently (e.g. offline) while
+    // keeping the persisted session for a later retry — keeps us here with a
+    // retry message. Navigating then would strand the judge: once connectivity
+    // returns, anonymous passcode sign-in refuses to replace the live account.
+    const { data, error } = await supabase.auth.getSession();
+    if (data.session || error) {
+      setSignOutError(true);
+      return;
+    }
+    useRingsideGrantStore.getState().clearGrant();
+    navigate('/at-show?passcode=1');
+  }, [navigate]);
+
+  // MYK9-82: `ringside_update_entry()` authorizes a signed-in judge ACCOUNT only
+  // when it is assigned to THIS class — the `canScore` permission above checks
+  // only the ROLE. A passcode grant does NOT establish server authz for an
+  // account session (validate-passcode stamps only anonymous sessions), so a
+  // signed-in judge — with or without a grant — who isn't assigned would submit
+  // an optimistic score that dead-letters at sync. This checks assignment first.
+  // Called unconditionally (hooks can't follow the early return below); it
+  // self-resolves 'not-applicable' for every session this doesn't concern
+  // (anonymous passcode sessions, manager accounts, stewards, exhibitors).
+  const assignmentCheck = useJudgeAssignedToClass({ showRole, isAnonymous, classId });
 
   // Gate BEFORE mounting the scoring engine: an unauthorized role must never run
   // `useAtShowScoresheet` (whose load effect calls `transitionToInRing`), so the
@@ -71,6 +132,41 @@ export const AtShowScoresheetPage: React.FC = () => {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Entry List
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (assignmentCheck.status === 'checking') {
+    return <AtShowScoresheetSkeleton />;
+  }
+
+  if (assignmentCheck.status === 'unassigned') {
+    return (
+      <div className="ringside-root container max-w-2xl mx-auto px-4 py-6">
+        <div className="rounded-xl border bg-card p-6 text-center">
+          <ShieldAlert className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-lg font-medium mb-2">You&apos;re not assigned to judge this class</p>
+          <p className="text-muted-foreground">
+            Scores from an unassigned account can&apos;t be saved. Ask the secretary to add you as
+            the judge for this class. To score with a show passcode instead, sign out and enter it
+            as a guest.
+          </p>
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <Button variant="outline" onClick={handleBack}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Entry List
+            </Button>
+            <Button variant="ghost" onClick={handleSignOutToPasscode}>
+              <KeyRound className="h-4 w-4 mr-2" />
+              Sign out to use a passcode
+            </Button>
+          </div>
+          {signOutError && (
+            <p role="alert" className="mt-3 text-sm text-destructive">
+              Couldn&apos;t sign out — check your connection and try again.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -157,6 +253,26 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   const isLoadedRoute = loadedClassId === classId && loadedEntryId === entryId;
   const hasAnyScoresheetState = Boolean(entry || classInfo || rules);
 
+  // Timer audio (30-second warning chime + optional voice announcement) —
+  // MYK9-76. Muting sets volume to 0 rather than skipping playWarning() so
+  // useAudioWarnings' existing volume-gate (`if (!config.volume) return`)
+  // does the silencing; the Master-level suppression itself lives inside
+  // `useStopwatch` (it never calls onWarningChime/onVoiceAnnouncement for
+  // Master runs) and must not be duplicated here.
+  const [audioMuted, toggleAudioMuted] = useAtShowAudioMute();
+  const audioSettings = useMemo(
+    () => ({ ...DEFAULT_AUDIO_SETTINGS, volume: audioMuted ? 0 : DEFAULT_AUDIO_SETTINGS.volume }),
+    [audioMuted]
+  );
+  const audio = useAudioWarnings(audioSettings);
+  const handleVoiceAnnouncement = useCallback(
+    (secondsRemaining: number) => {
+      if (audioMuted) return;
+      speakRemainingSeconds(secondsRemaining);
+    },
+    [audioMuted]
+  );
+
   if (
     isLoading ||
     (!isLoadedRoute && hasAnyScoresheetState) ||
@@ -207,6 +323,15 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
 
   return (
     <div className="ringside-root">
+      <button
+        type="button"
+        onClick={toggleAudioMuted}
+        aria-label={audioMuted ? 'Unmute timer sounds' : 'Mute timer sounds'}
+        aria-pressed={audioMuted}
+        className="fixed right-3 top-3 z-40 flex h-9 w-9 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
+      >
+        {audioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+      </button>
       {showAddToHomeNudge && (
         // iOS Safari, not installed, persistence not granted: without Add-to-Home
         // the browser purges IndexedDB (and the backup) after 7 days idle, which
@@ -282,6 +407,9 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         rules={rules}
         onSubmit={submit}
         onBack={onBack}
+        onWarningChime={audio.playWarning}
+        onVoiceAnnouncement={handleVoiceAnnouncement}
+        enableVoiceAnnouncements={!audioMuted}
       />
     </div>
   );

@@ -30,11 +30,7 @@ function useMigratedAuth() {
     migrationStatus: context.rbacError
       ? 'error'
       : ((isMigrated ? 'completed' : 'pending') as
-          | 'pending'
-          | 'in_progress'
-          | 'completed'
-          | 'failed'
-          | 'error'),
+          'pending' | 'in_progress' | 'completed' | 'failed' | 'error'),
     useDatabase: isMigrated,
     isLegacy: !isMigrated,
   };
@@ -223,7 +219,7 @@ export const CompactMigrationStatus: React.FC = () => {
       case 'in_progress':
         return 'bg-blue-100 text-blue-800';
       case 'error':
-        return 'bg-red-100 text-red-800';
+        return 'bg-destructive/10 text-destructive';
       default:
         return 'bg-amber-100 text-amber-800';
     }

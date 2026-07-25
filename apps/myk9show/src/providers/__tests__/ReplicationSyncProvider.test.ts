@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { formatSyncFailureToast, formatDownloadFailureToast } from '../replicationSyncFormatters';
+import {
+  formatSyncFailureToast,
+  formatDownloadFailureToast,
+  hasPermanentScoreAuthorizationFailure,
+} from '../replicationSyncFormatters';
 
 describe('formatSyncFailureToast', () => {
   it('renders a plain-English object and action without raw DB details', () => {
@@ -66,6 +70,46 @@ describe('formatSyncFailureToast', () => {
 
     expect(msg).toBe("We couldn't update this entry. Retry or discard this change.");
     expect(msg).not.toMatch(/supabase|rpc|ringside_update_entry|retry 3|timeout/i);
+  });
+
+  it('recognizes future scoring fields without treating check-in writes as scores', () => {
+    expect(
+      hasPermanentScoreAuthorizationFailure({
+        count: 1,
+        mutations: [
+          {
+            id: 'search-time-score',
+            tableName: 'entries',
+            operation: 'UPDATE',
+            failureKind: 'authorization',
+            rpc: {
+              name: 'ringside_update_entry',
+              fields: { search_time_seconds: 42.5 },
+            },
+          },
+        ],
+        message: '',
+      })
+    ).toBe(true);
+
+    expect(
+      hasPermanentScoreAuthorizationFailure({
+        count: 1,
+        mutations: [
+          {
+            id: 'check-in-only',
+            tableName: 'entries',
+            operation: 'UPDATE',
+            failureKind: 'authorization',
+            rpc: {
+              name: 'ringside_update_entry',
+              fields: { check_in_status: 'checked_in', is_in_ring: false },
+            },
+          },
+        ],
+        message: '',
+      })
+    ).toBe(false);
   });
 });
 

@@ -156,6 +156,8 @@ describe('ClassDetailsPage header actions', () => {
       localRawEntries: [],
       dbRawEntries: [],
       classEntries: [],
+      entriesLoading: false,
+      entriesError: null,
       parentTrial: { id: 'trial-1', showId: 'show-1', trialNumber: 'Saturday Trial 1' },
       parentShow: { id: 'show-1', name: 'Spring Classic', organization: 'AKC' },
       dogs: [],
@@ -192,5 +194,17 @@ describe('ClassDetailsPage header actions', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(
       '/shows/show-1/entry-management?trial=trial-1&class=class-1'
     );
+  });
+
+  it('does not render a confident empty run sheet when staff entries are unavailable', () => {
+    mockUseClassDetailsData.mockReturnValue({
+      ...mockUseClassDetailsData(),
+      entriesLoading: false,
+      entriesError: "We couldn't load entries for this show. Please retry.",
+    });
+
+    renderClassDetailsPage();
+
+    expect(screen.queryByTestId('secretary-run-sheet')).not.toBeInTheDocument();
   });
 });

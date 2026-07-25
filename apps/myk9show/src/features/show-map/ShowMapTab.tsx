@@ -304,7 +304,11 @@ function ShowMapTabView({
           />
         )}
         {!compact && (
-          <ShowMapRunningNowStrip items={runningNowItems} onSelect={selectRunningNowClass} />
+          <ShowMapRunningNowStrip
+            items={runningNowItems}
+            onOpen={navigateTo}
+            onLocate={selectRunningNowClass}
+          />
         )}
         {canManageShow && !compact && (
           <PriorityQueue

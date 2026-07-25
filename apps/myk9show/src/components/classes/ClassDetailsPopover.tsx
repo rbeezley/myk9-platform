@@ -1,15 +1,9 @@
 import { useState } from 'react';
 import { Clock, Eye, Smartphone, User, Activity, Hash } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useIsTouchDevice } from '@myk9/scoring-ui';
-import { getClassStatusDisplay } from '@myk9/core';
+import { StatusBadge } from '@/components/status';
 
 export interface ClassDetailsData {
   id: string;
@@ -29,7 +23,6 @@ interface ClassDetailsPopoverProps {
 }
 
 function ClassDetailsContent({ data }: { data: ClassDetailsData }) {
-  const statusDisplay = getClassStatusDisplay(data.status);
   const completedCount = data.completedEntries ?? 0;
 
   const visibilityLabels: Record<string, string> = {
@@ -46,12 +39,7 @@ function ClassDetailsContent({ data }: { data: ClassDetailsData }) {
           <Activity className="h-3.5 w-3.5" />
           <span>Status</span>
         </div>
-        <Badge
-          variant="secondary"
-          className={`${statusDisplay.bgClass} ${statusDisplay.textClass}`}
-        >
-          {statusDisplay.label}
-        </Badge>
+        <StatusBadge family="class" status={data.status} variant="secondary" />
       </div>
 
       {/* Entry Progress */}
@@ -120,9 +108,7 @@ function ClassDetailsContent({ data }: { data: ClassDetailsData }) {
       {/* Class ID (subtle) */}
       <div className="flex items-center justify-between pt-2 border-t">
         <span className="text-xs text-muted-foreground">Class ID</span>
-        <span className="text-xs text-muted-foreground font-mono">
-          {data.id.slice(0, 8)}...
-        </span>
+        <span className="text-xs text-muted-foreground font-mono">{data.id.slice(0, 8)}...</span>
       </div>
     </div>
   );

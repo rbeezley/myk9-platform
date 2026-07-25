@@ -1,27 +1,45 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, CheckCircle } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import {
+  TurnstileChallenge,
+  type TurnstileChallengeHandle,
+} from '@/components/security/TurnstileChallenge';
+import { getTurnstileSiteKey, isCaptchaFailure } from '@/config/turnstile';
 
 const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileChallengeHandle>(null);
+  const submissionPendingRef = useRef(false);
   const { resetPassword } = useAuthContext();
+  const turnstileSiteKey = getTurnstileSiteKey();
+  const captchaRequired = turnstileSiteKey.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submissionPendingRef.current || (captchaRequired && !captchaToken)) return;
+    submissionPendingRef.current = true;
     setLoading(true);
     setError('');
 
     try {
-      await resetPassword(email);
+      if (captchaRequired) {
+        await resetPassword(email, captchaToken ?? undefined);
+      } else {
+        await resetPassword(email);
+      }
       setSubmitted(true);
     } catch (err) {
       // Network errors — show generic error so user knows to retry
       // Auth errors (user not found, etc.) — show success to prevent enumeration
-      if (
+      if (isCaptchaFailure(err)) {
+        setError('Security verification expired. Please complete it again.');
+      } else if (
         err instanceof Error &&
         (err.name === 'FetchError' || err.message === 'Failed to fetch')
       ) {
@@ -30,6 +48,8 @@ const ForgotPasswordPage: React.FC = () => {
         setSubmitted(true);
       }
     } finally {
+      if (captchaRequired) turnstileRef.current?.reset();
+      submissionPendingRef.current = false;
       setLoading(false);
     }
   };
@@ -93,10 +113,18 @@ const ForgotPasswordPage: React.FC = () => {
               />
             </div>
           </div>
+          {captchaRequired && (
+            <TurnstileChallenge
+              ref={turnstileRef}
+              siteKey={turnstileSiteKey}
+              action="password_recovery"
+              onTokenChange={setCaptchaToken}
+            />
+          )}
           {error && <div className="text-destructive mb-4 text-center">{error}</div>}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (captchaRequired && !captchaToken)}
             className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 dark:bg-primary/90 dark:text-white dark:hover:bg-primary/80"
           >
             {loading ? (

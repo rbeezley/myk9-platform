@@ -1,9 +1,8 @@
 /**
  * Check-in status types and configuration for entry status management.
  *
- * Single source of truth for the check-in state machine used by both
- * myK9Show and myK9Q. UI-free — contains only types, labels, colors, and
- * icon names (as strings). Each app resolves icon names to components.
+ * Single source of truth for the check-in state machine used by myK9Show.
+ * UI-free: presentation belongs to @myk9/ui's shared status grammar.
  *
  * State machine:
  *   no-status → checked-in → at-gate / come-to-gate → in-ring → completed
@@ -50,86 +49,6 @@ export const CHECKIN_STATUSES: readonly CheckInStatus[] = [
 export const ENTRY_STATUSES: readonly CheckInStatus[] = CHECKIN_STATUSES;
 
 // ============================================================================
-// Status Configuration
-// ============================================================================
-
-export interface CheckInStatusConfig {
-  readonly value: CheckInStatus;
-  readonly label: string;
-  readonly icon: string;
-  readonly colorVar: string;
-  readonly textColorVar: string;
-  readonly description: string;
-}
-
-export const CHECKIN_STATUS: Record<string, CheckInStatusConfig> = {
-  NO_STATUS: {
-    value: 'no-status',
-    label: 'No Status',
-    icon: 'Circle',
-    colorVar: '--status-no-status',
-    textColorVar: '--status-no-status-text',
-    description: 'Dog has not checked in yet',
-  },
-  CHECKED_IN: {
-    value: 'checked-in',
-    label: 'Checked-in',
-    icon: 'Check',
-    colorVar: '--status-checked-in',
-    textColorVar: '--status-checked-in-text',
-    description: 'Dog is ready to compete',
-  },
-  CONFLICT: {
-    value: 'conflict',
-    label: 'Conflict',
-    icon: 'AlertTriangle',
-    colorVar: '--status-conflict',
-    textColorVar: '--status-conflict-text',
-    description: 'Dog entered in multiple classes',
-  },
-  PULLED: {
-    value: 'pulled',
-    label: 'Pulled',
-    icon: 'XCircle',
-    colorVar: '--status-pulled',
-    textColorVar: '--status-pulled-text',
-    description: 'Dog has been withdrawn from class',
-  },
-  AT_GATE: {
-    value: 'at-gate',
-    label: 'At Gate',
-    icon: 'Star',
-    colorVar: '--status-at-gate',
-    textColorVar: '--status-at-gate-text',
-    description: 'Dog is waiting at the ring entrance',
-  },
-  COME_TO_GATE: {
-    value: 'come-to-gate',
-    label: 'Come to Gate',
-    icon: 'Bell',
-    colorVar: '--status-at-gate',
-    textColorVar: '--status-at-gate-text',
-    description: 'Gate steward calling exhibitor',
-  },
-  IN_RING: {
-    value: 'in-ring',
-    label: 'In Ring',
-    icon: 'Target',
-    colorVar: '--status-in-ring',
-    textColorVar: '--status-in-ring-text',
-    description: 'Dog is currently competing in the ring',
-  },
-  COMPLETED: {
-    value: 'completed',
-    label: 'Completed',
-    icon: 'CheckCircle',
-    colorVar: '--status-completed',
-    textColorVar: '--status-completed-text',
-    description: 'Dog has finished competing',
-  },
-} as const;
-
-// ============================================================================
 // Exhibitor-Allowed Statuses
 // ============================================================================
 
@@ -152,16 +71,6 @@ export const SECRETARY_ONLY_STATUSES: readonly CheckInStatus[] = [
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-/** Pre-built lookup map for O(1) config access by status value */
-const CONFIG_BY_VALUE = new Map<string, CheckInStatusConfig>(
-  Object.values(CHECKIN_STATUS).map(s => [s.value, s])
-);
-
-/** Look up status config by value */
-export function getCheckinStatusConfig(value: string): CheckInStatusConfig | undefined {
-  return CONFIG_BY_VALUE.get(value);
-}
 
 /** Type guard for CheckInStatus */
 export function isCheckInStatus(value: string): value is CheckInStatus {

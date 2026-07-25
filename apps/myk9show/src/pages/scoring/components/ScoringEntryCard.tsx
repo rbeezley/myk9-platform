@@ -11,9 +11,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
 import {
   GripVertical,
-  CheckCircle2,
-  Circle,
-  AlertCircle,
   Trophy,
   ChevronRight,
   MoreVertical,
@@ -21,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { ScoringEntry } from '../types';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { StatusBadge } from '@/components/status';
 
 interface ScoringEntryCardProps {
   entry: ScoringEntry;
@@ -31,42 +29,14 @@ interface ScoringEntryCardProps {
 }
 
 /**
- * Get status color and icon
+ * Result qualification is separate from entry lifecycle status.
  */
-function getStatusDisplay(entry: ScoringEntry) {
-  if (entry.isScored) {
-    const isQualified = entry.result?.qualification === 'Qualified';
-    return {
-      icon: isQualified ? (
-        <CheckCircle2 className="h-5 w-5 text-teal-500" />
-      ) : (
-        <AlertCircle className="h-5 w-5 text-amber-500" />
-      ),
-      badge: isQualified ? 'Q' : 'NQ',
-      badgeClass: isQualified ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-700',
-    };
-  }
-
-  if (entry.inRing) {
-    return {
-      icon: <Circle className="h-5 w-5 text-blue-500 fill-blue-500" />,
-      badge: 'In Ring',
-      badgeClass: 'bg-blue-100 text-blue-700',
-    };
-  }
-
-  if (entry.status === 'pulled') {
-    return {
-      icon: <AlertCircle className="h-5 w-5 text-muted-foreground" />,
-      badge: 'Pulled',
-      badgeClass: 'bg-muted text-muted-foreground',
-    };
-  }
-
+function getResultBadge(entry: ScoringEntry) {
+  if (!entry.isScored) return null;
+  const isQualified = entry.result?.qualification === 'Qualified';
   return {
-    icon: <Circle className="h-5 w-5 text-muted-foreground" />,
-    badge: null,
-    badgeClass: '',
+    label: isQualified ? 'Q' : 'NQ',
+    className: isQualified ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-700',
   };
 }
 
@@ -75,7 +45,9 @@ function getStatusDisplay(entry: ScoringEntry) {
  */
 export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps>(
   ({ entry, onSelect, onResetScore, isDragging, className, ...props }, ref) => {
-    const status = getStatusDisplay(entry);
+    const lifecycleStatus = entry.isScored ? 'completed' : entry.inRing ? 'in-ring' : entry.status;
+    const showLifecycleBadge = !entry.isScored && (entry.inRing || entry.status === 'pulled');
+    const resultBadge = getResultBadge(entry);
     const [menuOpen, setMenuOpen] = useState(false);
 
     const handleClick = () => {
@@ -123,12 +95,13 @@ export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-foreground truncate">{entry.callName}</h3>
-            {status.badge && (
-              <span
-                className={cn('px-2 py-0.5 text-xs font-medium rounded-full', status.badgeClass)}
-              >
-                {status.badge}
+            {resultBadge && (
+              <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full', resultBadge.className)}>
+                {resultBadge.label}
               </span>
+            )}
+            {!resultBadge && showLifecycleBadge && (
+              <StatusBadge family="entry" status={lifecycleStatus} className="text-xs" />
             )}
           </div>
           {entry.isScored && entry.result ? (

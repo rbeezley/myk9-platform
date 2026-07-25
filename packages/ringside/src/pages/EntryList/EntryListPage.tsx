@@ -22,14 +22,15 @@
 
 import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TabBar, type Tab } from '@myk9/ui';
-import { Clock, CheckCircle, Trophy, ArrowUpDown, Users, ArrowLeft } from 'lucide-react';
+import { StatusIcon, TabBar, type Tab } from '@myk9/ui';
+import { Trophy, ArrowUpDown, Users, ArrowLeft } from 'lucide-react';
 import type { EntryListPageProps, FilterPanelSortOption } from './pageProps';
 import type { PrintSortOrder } from './dialogSlots';
 import type { TabType } from './hooks/useEntryListFilters';
 import {
   EntryListHeader,
   EntryListContent,
+  ClassCompletionPresentation,
   EntryListDialogs,
   SuccessToast,
   FloatingDoneButton,
@@ -174,11 +175,16 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   // causing inactive tab to show 0.
   const statusTabs: Tab[] = useMemo(
     () => [
-      { id: 'pending', label: 'Pending', icon: <Clock size={16} />, count: entryCounts.pending },
+      {
+        id: 'pending',
+        label: 'Pending',
+        icon: <StatusIcon family="entry" status="pending" size="sm" decorative />,
+        count: entryCounts.pending,
+      },
       {
         id: 'completed',
         label: 'Completed',
-        icon: <CheckCircle size={16} />,
+        icon: <StatusIcon family="entry" status="completed" size="sm" decorative />,
         count: entryCounts.completed,
       },
     ],
@@ -298,6 +304,14 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
       <layout.PullToRefresh onRefresh={() => refresh(true)} enabled={false} threshold={80}>
         <div className="isolate">
           <div className="pb-8 pt-2">
+            <ClassCompletionPresentation
+              key={classId}
+              classId={classId}
+              classInfo={classInfo}
+              entries={localEntries}
+              activeTab={activeTab}
+              onSelectCompleted={() => setActiveTab('completed')}
+            />
             <EntryListContent
               entries={currentEntries}
               activeTab={activeTab}

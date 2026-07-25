@@ -30,33 +30,36 @@ export function CheckInProgressBar({
       <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
         <div
           data-testid="progress-segment"
-          className="transition-all duration-500"
-          style={{ width: `${checkedInPct}%`, backgroundColor: 'var(--status-checked-in)' }}
+          className="bg-info transition-all duration-500"
+          style={{ width: `${checkedInPct}%` }}
         />
         <div
           data-testid="progress-segment"
-          className="transition-all duration-500"
-          style={{ width: `${partialPct}%`, backgroundColor: 'var(--status-conflict)' }}
+          className="bg-warning transition-all duration-500"
+          style={{ width: `${partialPct}%` }}
         />
         <div
           data-testid="progress-segment"
-          className="transition-all duration-500"
-          style={{ width: `${nonePct}%`, backgroundColor: 'var(--status-no-status)' }}
+          className="bg-muted-foreground/40 transition-all duration-500"
+          style={{ width: `${nonePct}%` }}
         />
       </div>
 
       <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
-        <span>
-          <span style={{ color: 'var(--status-checked-in)' }}>&bull;</span> Checked In{' '}
-          {checkedInCount}
+        <span className="inline-flex items-center gap-1">
+          <StatusIcon family="entry" status="checked-in" size="sm" decorative />
+          Checked In {checkedInCount}
         </span>
-        <span>
-          <span style={{ color: 'var(--status-conflict)' }}>&bull;</span> Partial {partialCount}
+        <span className="inline-flex items-center gap-1">
+          <StatusIcon family="entry" status="pending" size="sm" decorative />
+          Partial {partialCount}
         </span>
-        <span>
-          <span style={{ color: 'var(--status-no-status)' }}>&bull;</span> Not Checked In {noneCount}
+        <span className="inline-flex items-center gap-1">
+          <StatusIcon family="entry" status="no-status" size="sm" decorative />
+          Not Checked In {noneCount}
         </span>
       </div>
     </div>
   );
 }
+import { StatusIcon } from '@/components/status';

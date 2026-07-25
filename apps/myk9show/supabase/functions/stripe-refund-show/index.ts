@@ -48,13 +48,15 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   };
 }
 
-let _corsHeaders: Record<string, string> = getCorsHeaders(null);
-
-function corsResponse(body: string | object | null, status = 200) {
-  if (status === 204) return new Response(null, { status, headers: _corsHeaders });
+function corsResponse(
+  corsHeaders: Record<string, string>,
+  body: string | object | null,
+  status = 200
+) {
+  if (status === 204) return new Response(null, { status, headers: corsHeaders });
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ..._corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
 
@@ -277,31 +279,35 @@ async function refundIntent(
 }
 
 Deno.serve(async req => {
-  _corsHeaders = getCorsHeaders(req.headers.get('origin'));
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   try {
-    if (req.method === 'OPTIONS') return corsResponse({}, 204);
-    if (req.method !== 'POST') return corsResponse({ error: 'Method not allowed' }, 405);
+    if (req.method === 'OPTIONS') return corsResponse(corsHeaders, {}, 204);
+    if (req.method !== 'POST')
+      return corsResponse(corsHeaders, { error: 'Method not allowed' }, 405);
 
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return corsResponse({ error: 'Missing Authorization header' }, 401);
+    if (!authHeader)
+      return corsResponse(corsHeaders, { error: 'Missing Authorization header' }, 401);
     const token = authHeader.replace('Bearer ', '');
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser(token);
-    if (authError || !user) return corsResponse({ error: 'Authentication failed' }, 401);
+    if (authError || !user)
+      return corsResponse(corsHeaders, { error: 'Authentication failed' }, 401);
 
     const body: ShowRefundRequest = await req.json();
     const { show_id, notes } = body;
-    if (!show_id) return corsResponse({ error: 'Missing required parameter: show_id' }, 400);
+    if (!show_id)
+      return corsResponse(corsHeaders, { error: 'Missing required parameter: show_id' }, 400);
 
     const { data: show, error: showError } = await supabase
       .from('shows')
       .select('id, club_id, status')
       .eq('id', show_id)
       .single();
-    if (showError || !show) return corsResponse({ error: 'Show not found' }, 404);
+    if (showError || !show) return corsResponse(corsHeaders, { error: 'Show not found' }, 404);
     const club_id = (show as { club_id: string | null }).club_id;
     const status = (show as { status: string | null }).status;
 
@@ -319,7 +325,11 @@ Deno.serve(async req => {
       userClient.rpc('is_site_admin'),
     ]);
     if (!(secretaryRes.data === true || clubAdminRes.data === true || siteAdminRes.data === true)) {
-      return corsResponse({ error: 'Not authorized to refund entries for this show' }, 403);
+      return corsResponse(
+        corsHeaders,
+        { error: 'Not authorized to refund entries for this show' },
+        403
+      );
     }
 
     // Cancellation gate: a bulk make-whole refund is a SHOW-CANCELLATION action.
@@ -327,7 +337,7 @@ Deno.serve(async req => {
     // authorized manager from refunding every paid entry of a live/upcoming show
     // by accident or abuse (PR #974 review, finding P1a).
     if (status !== 'cancelled') {
-      return corsResponse({ error: 'show_not_cancelled' }, 422);
+      return corsResponse(corsHeaders, { error: 'show_not_cancelled' }, 422);
     }
 
     const moneyLock = await acquireShowMoneyLock(supabase, show_id, {
@@ -336,6 +346,7 @@ Deno.serve(async req => {
     });
     if (!moneyLock.ok) {
       return corsResponse(
+        corsHeaders,
         {
           error:
             moneyLock.reason === 'locked' ? 'money_operation_in_progress' : 'money_lock_failed',
@@ -351,15 +362,20 @@ Deno.serve(async req => {
       const block = await readPayoutBlock(show_id);
       if (block && 'error' in block) {
         return corsResponse(
+          corsHeaders,
           { error: 'Could not verify the show’s payout state — try again in a moment.' },
           500
         );
       }
-      if (block) return corsResponse({ error: block.code }, 422);
+      if (block) return corsResponse(corsHeaders, { error: block.code }, 422);
 
       const entries = await fetchShowEntries(show_id);
       if (entries === null) {
-        return corsResponse({ error: 'Could not load the show’s entries — try again.' }, 500);
+        return corsResponse(
+          corsHeaders,
+          { error: 'Could not load the show’s entries — try again.' },
+          500
+        );
       }
 
       const plan = buildShowRefundPlan(entries);
@@ -395,7 +411,7 @@ Deno.serve(async req => {
           `${skipped.length} skipped, ${failed.length} failed`
       );
 
-      return corsResponse({
+      return corsResponse(corsHeaders, {
         refunded,
         skipped,
         failed,
@@ -410,8 +426,10 @@ Deno.serve(async req => {
       await moneyLock.release();
     }
   } catch (error: unknown) {
+    // MP-20: log the detail (Stripe SDK messages embed intent/charge ids and
+    // internal phrasing) but return a generic body to the caller.
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('stripe-refund-show error:', message);
-    return corsResponse({ error: message }, 500);
+    return corsResponse(corsHeaders, { error: 'refund_failed' }, 500);
   }
 });

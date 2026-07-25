@@ -1,10 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getClassStatusBadgeClasses } from '@myk9/core';
 import { type ColumnDef, type SortingFn } from '@tanstack/react-table';
 import { DataTable, levelProgressionSort } from '@/components/ui/data-table';
 import type { TrialClass } from '@/components/trials/types/trial.types';
 import { shouldShowSection } from './ClassDetailsMain.helpers';
+import { StatusBadge } from '@/components/status';
 
 interface ClassesTableViewProps {
   classes: TrialClass[];
@@ -60,11 +60,12 @@ const COLUMNS: ColumnDef<TrialClass, unknown>[] = [
     header: 'Status',
     accessorFn: cls => (cls.status ?? '').toLowerCase(),
     cell: ({ row }) => (
-      <span
-        className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${getClassStatusBadgeClasses(row.original.status)}`}
-      >
-        {row.original.status}
-      </span>
+      <StatusBadge
+        family="class"
+        status={row.original.status}
+        className="px-3 py-1 text-xs"
+        variant="outline"
+      />
     ),
   },
 ];

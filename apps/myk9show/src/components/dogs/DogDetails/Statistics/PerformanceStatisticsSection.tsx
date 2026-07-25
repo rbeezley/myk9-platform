@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertCircle, BarChart3 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { usePerformanceStatistics } from '@/hooks/usePerformanceStatistics';
 import StatsSummaryCards from './StatsSummaryCards';
 import {
@@ -15,7 +16,7 @@ interface PerformanceStatisticsSectionProps {
 }
 
 const PerformanceStatisticsSection: React.FC<PerformanceStatisticsSectionProps> = ({ dogId }) => {
-  const { stats, isLoading, isError } = usePerformanceStatistics(dogId);
+  const { stats, isLoading, isError, refetch } = usePerformanceStatistics(dogId);
 
   if (isLoading) {
     return (
@@ -36,9 +37,17 @@ const PerformanceStatisticsSection: React.FC<PerformanceStatisticsSectionProps> 
 
   if (isError) {
     return (
-      <div className="bg-background rounded-xl shadow-sm p-6 border flex flex-col items-center justify-center min-h-[200px] gap-2">
+      <div
+        role="alert"
+        className="bg-background rounded-xl shadow-sm p-6 border flex flex-col items-center justify-center min-h-[200px] gap-2"
+      >
         <AlertCircle className="h-8 w-8 text-destructive" />
-        <p className="text-sm text-muted-foreground">Failed to load performance statistics.</p>
+        <p className="text-sm text-muted-foreground">
+          We couldn&rsquo;t load performance statistics. Please try again.
+        </p>
+        <Button size="sm" variant="outline" onClick={() => refetch()}>
+          Retry
+        </Button>
       </div>
     );
   }

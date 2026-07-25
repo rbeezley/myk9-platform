@@ -1,50 +1,123 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, type TestInfo } from '@playwright/test';
 import { signInAsSecretary } from '../helpers/testUsers';
+import {
+  installSharedStagingWriteGuard,
+  type GuardedRingsideRpcCall,
+} from '../helpers/sharedStagingWriteGuard';
 import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
 
 /**
  * UI tests for the Entry Management page (secretary role).
  *
- * Walks /secretary/entries/:showId as TEST_USERS.SECRETARY against the seeded
- * June 2026 AKC Scent Work show. Tests are stateless w.r.t. DB content — they
- * verify UI flows (browse, bulk dialogs, armband, comp) regardless of what
- * status the seeded entries currently have.
+ * Walks the canonical `/shows/:showId/entry-management` surface as the
+ * secretary role against the maintained Heartland seed. Card-only assertions
+ * explicitly switch to Cards view; table-only row-action and selection coverage
+ * stays on desktop projects; mobile-chrome and tablet skip those tests because
+ * they render enrollment cards instead.
  */
 
 test.describe.configure({ mode: 'serial' });
 
-// Seeded "June 2026" AKC Scent Work show.
-const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
-const ENTRIES_URL = `/secretary/entries/${SHOW_ID}`;
+// The maintained seeded secretary show (Heartland Scent Work Classic). Use the
+// shared constant so the spec tracks reseeds instead of a hardcoded show id.
+const SHOW_ID = LIVE_SECRETARY_SHOW_ID;
+const ENTRIES_URL = `/shows/${SHOW_ID}/entry-management`;
 
 /** Navigate to entries page and wait for the entries list to render. */
 async function gotoEntries(page: Page) {
+  const entriesResponse = page.waitForResponse(
+    response =>
+      response.request().method() === 'GET' &&
+      response.url().includes('/rest/v1/entries') &&
+      response.url().includes('show_id=eq.'),
+    { timeout: 10_000 }
+  );
   await page.goto(ENTRIES_URL);
-  // The entries-card heading is the data-loaded signal
-  await page
-    .getByRole('heading')
-    .filter({ hasText: /^Entries \(\d+\)$/ })
-    .waitFor({ timeout: 10_000 });
+  // The "Total Entries" title is the data-loaded signal.
+  await page.getByText('Total Entries', { exact: true }).waitFor({ timeout: 10_000 });
+  return (await entriesResponse).json() as SecretaryEntryRow[];
+}
+
+interface SecretaryEntryRow {
+  id: string;
+}
+
+/** Seed the replica required by the offline-first check-in writer. */
+async function seedEntryReplica(page: Page, rows: SecretaryEntryRow[]) {
+  await page.evaluate(
+    ({ rows, dbName }) =>
+      new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open(dbName);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains('replicated_tables')) {
+            db.close();
+            reject(new Error('replicated_tables store is unavailable'));
+            return;
+          }
+
+          const transaction = db.transaction('replicated_tables', 'readwrite');
+          const store = transaction.objectStore('replicated_tables');
+          const timestamp = new Date().toISOString();
+          for (const row of rows) {
+            store.put({
+              tableName: 'entries',
+              id: row.id,
+              data: {
+                id: row.id,
+                entryStatus: 'accepted',
+                entry_status: 'accepted',
+                checkInStatus: 'no-status',
+                check_in_status: 'no-status',
+              },
+              version: 1,
+              lastSyncedAt: timestamp,
+              lastAccessedAt: timestamp,
+              accessCount: 0,
+              lastModifiedAt: timestamp,
+              isDirty: false,
+              syncStatus: 'synced',
+            });
+          }
+
+          transaction.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          transaction.onerror = () => {
+            db.close();
+            reject(transaction.error);
+          };
+          transaction.onabort = () => {
+            db.close();
+            reject(transaction.error);
+          };
+        };
+      }),
+    { rows, dbName: 'myK9_Replication' }
+  );
 }
 
 /**
- * Click the "Select All" checkbox in the entries list header. The visible
- * "Select All" toggle is a Checkbox + sibling span inside the entries-card
- * header — there's no <label> wrapping them, so we scope to the entries-card
- * heading's parent and click the only checkbox in that header row.
+ * Click the canonical table selection checkbox. The enrollment-card view does
+ * not expose this control, so callers that need it keep the desktop table view.
  */
 async function selectAllEntries(page: Page) {
-  const entriesHeader = page
-    .getByRole('heading')
-    .filter({ hasText: /^Entries \(\d+\)$/ })
-    .locator('..');
-  await entriesHeader.getByRole('checkbox').click();
+  await page.getByRole('checkbox', { name: 'Select all entries' }).click();
+}
+
+function skipMobileTableCoverage(testInfo: TestInfo) {
+  test.skip(
+    testInfo.project.name === 'mobile-chrome' || testInfo.project.name === 'tablet',
+    'Table-only Entry Management coverage is not rendered by mobile/table projects'
+  );
 }
 
 // ─── Browse ───────────────────────────────────────────────────────────────────
 
 test.describe('Browse entries', () => {
-  test('loads the June 2026 show with stats and entry cards', async ({ page }) => {
+  test('loads the seeded secretary show with stats and entry cards', async ({ page }) => {
     await signInAsSecretary(page);
     await gotoEntries(page);
 
@@ -53,20 +126,21 @@ test.describe('Browse entries', () => {
     await expect(page.getByText('Need review', { exact: true })).toBeVisible();
     await expect(page.getByText('Confirmed entries', { exact: true })).toBeVisible();
 
-    // At least one entry card heading must appear
-    await expect(page.getByRole('heading', { level: 4 }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Cards view' }).click();
+    const firstEntryCard = page.locator('.border.rounded-lg').filter({ hasText: 'Willow' }).first();
+    await expect(firstEntryCard).toBeVisible();
   });
 
   test('search filter renders matching entries', async ({ page }) => {
     await signInAsSecretary(page);
     await gotoEntries(page);
 
-    await page.getByRole('textbox', { name: 'Search entries...' }).fill('Bravo');
+    await page.getByRole('textbox', { name: 'Search entries' }).fill('Willow');
 
-    // The Bravo dog has at least one entry on the seeded show
-    await expect(page.getByText('Bravo').first()).toBeVisible();
+    // Willow is a dog seeded into the maintained secretary show (Heartland).
+    await expect(page.getByText('Willow').first()).toBeVisible();
 
-    await page.getByRole('textbox', { name: 'Search entries...' }).fill('');
+    await page.getByRole('textbox', { name: 'Search entries' }).fill('');
   });
 
   test('tab navigation: Entries / Waitlist outer tabs', async ({ page }) => {
@@ -82,14 +156,15 @@ test.describe('Browse entries', () => {
 
   test('entry row Actions menu teardown does not block the Add entries decision point', async ({
     page,
-  }) => {
+  }, testInfo) => {
+    skipMobileTableCoverage(testInfo);
     await signInAsSecretary(page);
-    await page.goto(`/secretary/entries/${LIVE_SECRETARY_SHOW_ID}?attention=all`);
+    await page.goto(`${ENTRIES_URL}?attention=all`);
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
       timeout: 10_000,
     });
 
-    const rowActions = page.getByRole('button', { name: /Actions for/i }).first();
+    const rowActions = page.getByRole('button', { name: /^Actions for / }).first();
     await expect(rowActions).toBeVisible();
     await rowActions.click();
 
@@ -112,108 +187,77 @@ test.describe('Browse entries', () => {
 // ─── Bulk actions ──────────────────────────────────────────────────────────────
 
 test.describe('Bulk actions', () => {
-  test('Change Status dialog opens after Select All + Change Status click', async ({ page }) => {
+  test('bulk action menu exposes canonical status and check-in actions', async ({
+    page,
+  }, testInfo) => {
+    skipMobileTableCoverage(testInfo);
     await signInAsSecretary(page);
     await gotoEntries(page);
 
     await selectAllEntries(page);
 
-    const changeStatusBtn = page.getByRole('button', { name: 'Change Status' });
-    await expect(changeStatusBtn).toBeVisible();
+    const bulkActions = page.getByRole('button', { name: 'Bulk actions' });
+    await expect(bulkActions).toBeVisible();
+    await bulkActions.click();
 
-    // Regression guard for 2026-04-27 stale-closure bug: dialog never opened
-    await changeStatusBtn.click();
-    await expect(page.getByRole('dialog', { name: 'Bulk Status Change' })).toBeVisible();
-
-    // Dialog has the three status options
-    await page.locator('[role="dialog"] [role="combobox"]').click();
-    await expect(page.getByRole('option', { name: 'Accept' })).toBeVisible();
-    await expect(page.getByRole('option', { name: 'Move to Waitlist' })).toBeVisible();
-    await expect(page.getByRole('option', { name: 'Reject' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: /Accept .* selected/ })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: /Check in .* selected/ })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: /Reject .* selected/ })).toBeVisible();
   });
 
-  test('Bulk Check-In dialog opens and confirming does not crash the component', async ({
+  test('bulk check-in sends the authorized mutation and does not crash the component', async ({
     page,
-  }) => {
+  }, testInfo) => {
+    skipMobileTableCoverage(testInfo);
     await signInAsSecretary(page);
-    await gotoEntries(page);
+    const rows = await gotoEntries(page);
+    const entryIds = new Set(rows.map(row => row.id));
+    await page.getByRole('button', { name: 'Day-of', exact: true }).click();
+    await seedEntryReplica(page, rows);
+    const rpcCalls: GuardedRingsideRpcCall[] = [];
+    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls });
 
     await selectAllEntries(page);
 
-    const bulkCheckInBtn = page.getByRole('button', { name: 'Bulk Check-In' });
-    await expect(bulkCheckInBtn).toBeVisible();
-    await bulkCheckInBtn.click();
+    await page.getByRole('button', { name: 'Bulk actions' }).click();
+    const checkInItem = page.getByRole('menuitem', { name: /Check in .* selected/ });
+    await expect(checkInItem).toBeVisible();
+    await checkInItem.dispatchEvent('click');
 
-    const dialog = page.getByRole('dialog', { name: 'Bulk Check-In' });
-    await expect(dialog).toBeVisible();
-    await expect(page.getByText(/Check in all classes for/)).toBeVisible();
+    // The current offline-first writer routes the check-in field through the
+    // authorized ringside RPC and sends the entry ID selected by the table.
+    await expect.poll(() => rpcCalls.length).toBeGreaterThan(0);
+    expect(rpcCalls[0]?.p_fields).toMatchObject({ check_in_status: 'checked-in' });
+    expect(rpcCalls.every(call => call.p_entry_id && entryIds.has(call.p_entry_id))).toBe(true);
 
-    // Capture the PATCH the click fires so we can assert it targets the correct
-    // table column. With the previous bug (passing class definition IDs), the
-    // PATCH still returned 200 because Supabase silently matches zero rows for
-    // unknown UUIDs — the UI looked fine but nothing was persisted. Asserting
-    // on the request URL distinguishes "wrote correctly" from "wrote nothing".
-    const [patchRequest] = await Promise.all([
-      page.waitForRequest(r => r.url().includes('/rest/v1/entries') && r.method() === 'PATCH'),
-      page.getByRole('button', { name: 'Check In All' }).click(),
-    ]);
-
-    // The request body must set is_in_ring (the column bulkCheckIn writes).
-    const body = patchRequest.postDataJSON() as Record<string, unknown> | null;
-    expect(body).toMatchObject({ is_in_ring: true });
-
-    await expect(dialog).not.toBeVisible();
-
-    // 'checked_in' typo crash regression: LoadingErrorBoundary must NOT fire.
+    // Regression guard: a successful mutation must leave the page mounted.
     await expect(page.getByText('Failed to load component')).not.toBeVisible();
-
-    // Optimistic UI shows Checked In immediately
-    await expect(page.getByRole('button', { name: /Checked In/ }).first()).toBeVisible();
-
-    // Persistence regression: reload and re-assert. With the class-IDs bug,
-    // the PATCH targeted nonexistent entry rows, so this re-render after a
-    // fresh DB fetch would revert to "Not Checked In".
-    await page.reload();
-    await page
-      .getByRole('heading')
-      .filter({ hasText: /^Entries \(\d+\)$/ })
-      .waitFor({ timeout: 10_000 });
-    await expect(page.getByRole('button', { name: /Checked In/ }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible();
   });
 });
 
 // ─── Armband assignment ────────────────────────────────────────────────────────
 
 test.describe('Armband assignment', () => {
-  test('Auto-Assign Armbands dialog opens with starting number field and cancels cleanly', async ({
-    page,
-  }) => {
+  test('manual armband dialog opens from the entry row action menu', async ({ page }, testInfo) => {
+    skipMobileTableCoverage(testInfo);
     await signInAsSecretary(page);
     await gotoEntries(page);
 
-    await page.getByRole('button', { name: 'Auto-Assign Armbands' }).click();
+    // The armband action lives in the per-row Actions menu, and its label is
+    // "Assign armband" (unassigned) or "Change armband" (already assigned) —
+    // match both so the test is robust to the seed's armband state.
+    await page
+      .getByRole('button', { name: /Actions for/i })
+      .first()
+      .click();
+    const armbandItem = page.getByRole('menuitem', { name: /(Assign|Change) armband/i }).first();
+    await expect(armbandItem).toBeVisible();
+    await armbandItem.click();
 
-    const dialog = page.getByRole('dialog', { name: /Auto-Assign/i });
-    await expect(dialog).toBeVisible();
-    await expect(page.getByText(/Automatically assign sequential armband numbers/)).toBeVisible();
-
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
-    await expect(dialog).not.toBeVisible();
-  });
-
-  test('manual Assign Armband dialog opens for an entry', async ({ page }) => {
-    await signInAsSecretary(page);
-    await gotoEntries(page);
-
-    // The seeded June 2026 show has at least one entry with an Assign Armband
-    // button; failing means the entry-action row regressed.
-    const assignBtn = page.getByRole('button', { name: 'Assign Armband' }).first();
-    await expect(assignBtn).toBeVisible();
-    await assignBtn.click();
-
+    // The dialog title is "Assign Armband" in both modes (see ArmbandDialog).
     const dialog = page.getByRole('dialog', { name: 'Assign Armband' });
     await expect(dialog).toBeVisible();
-    // Either an input or the Assign button confirms the dialog body rendered.
     await expect(dialog.getByRole('button', { name: /Assign|Cancel/ }).first()).toBeVisible();
 
     // Cancel out (test does not mutate state)
@@ -225,15 +269,16 @@ test.describe('Armband assignment', () => {
 // ─── Comp entry ────────────────────────────────────────────────────────────────
 
 test.describe('Comp entry', () => {
-  test('Comp Entry dialog opens with reason field', async ({ page }) => {
+  test('Comp Entry dialog opens with reason field', async ({ page }, testInfo) => {
+    skipMobileTableCoverage(testInfo);
     await signInAsSecretary(page);
     await gotoEntries(page);
 
-    // The seeded show always has at least one un-comped entry showing the
-    // "Comp Entry" button; if this disappears the entry-action row regressed.
-    const compBtn = page.getByRole('button', { name: 'Comp Entry' }).first();
-    await expect(compBtn).toBeVisible();
-    await compBtn.click();
+    const rowActions = page.getByRole('button', { name: /^Actions for / }).first();
+    await rowActions.click();
+    const compItem = page.getByRole('menuitem', { name: 'Comp entry', exact: true });
+    await expect(compItem).toBeVisible();
+    await compItem.dispatchEvent('click');
 
     const dialog = page.getByRole('dialog', { name: 'Comp Entry' });
     await expect(dialog).toBeVisible();

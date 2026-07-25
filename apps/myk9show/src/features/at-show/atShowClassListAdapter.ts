@@ -43,7 +43,7 @@ function normalizeSection(section: string | undefined): string {
   return section === 'A' || section === 'B' ? section : '';
 }
 
-function toClassEntry(
+export function toClassEntry(
   cls: ReplicatedClass,
   entries: ReplicatedEntry[],
   favoriteClassIds: Set<string>
@@ -62,6 +62,17 @@ function toClassEntry(
     completed_count: completed,
     class_status: toRingsideClassStatus(cls.classStatus),
     is_favorite: favoriteClassIds.has(cls.id),
+    ...(cls.startTime ? { planned_start_time: cls.startTime } : {}),
+    ...(cls.revisedExpectedStart
+      ? {
+          start_time: cls.revisedExpectedStart,
+          revised_expected_start: cls.revisedExpectedStart,
+        }
+      : cls.startTime
+        ? { start_time: cls.startTime }
+        : {}),
+    ...(cls.actual_start_time ? { actual_start_time: cls.actual_start_time } : {}),
+    ...(cls.actual_end_time ? { actual_end_time: cls.actual_end_time } : {}),
     // The card navigates by counts + identity; per-dog detail isn't needed here.
     dogs: [],
   };

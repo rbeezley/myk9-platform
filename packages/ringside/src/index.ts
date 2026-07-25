@@ -50,12 +50,11 @@ export type {
   ClassStatus,
   ClassDog,
   ClassStatusInput,
-  FormattedStatus,
+  EffectiveClassStatus,
 } from './utils/classStatus';
 export {
   getClassDisplayStatus,
-  getClassStatusColor,
-  getFormattedClassStatus,
+  getEffectiveClassStatus,
 } from './utils/classStatus';
 
 // Level sort + stale-data helpers (moved from apps/myk9q in PR E1a)
@@ -97,9 +96,6 @@ export {
 // Status formatting + sort/filter helpers (PR E1a)
 export {
   getContextualPreview,
-  getFormattedStatus,
-  getStatusColor,
-  getStatusLabel,
   isMaxTimeSet,
   shouldShowMaxTimeWarning,
   isEmptyDataError,
@@ -121,9 +117,6 @@ export {
   type UseFavoriteClassesReturn,
 } from './pages/ClassList';
 
-// Realtime class hook (PR E1d — already-DI'd; no RingsideProvider needed)
-export { useClassRealtime } from './pages/ClassList';
-
 // ── Pages: EntryList (PR E2a + E2b) ──────────────────────────────────────
 // E2a moved pure helpers + state hooks. E2b moved `useEntryListData` (the
 // React Query data orchestrator) using the direct-arg DI pattern from
@@ -143,7 +136,7 @@ export type {
   EntryListDataDependencies,
 } from './pages/EntryList';
 
-export type { StatusBorderClass, StatusConfig } from './pages/EntryList';
+export type { StatusBorderClass } from './pages/EntryList';
 export {
   normalizeResultText,
   getResultClassName,
@@ -151,7 +144,6 @@ export {
   getStatusBorderClass,
   getPlacementEmoji,
   getPlacementText,
-  getStatusConfig,
   isNationalsCompetition,
   getDisplayTime,
 } from './pages/EntryList';
@@ -167,6 +159,15 @@ export { SortableEntryCard } from './pages/EntryList';
 export type { SortableEntryCardProps } from './pages/EntryList';
 export { EntryListContent } from './pages/EntryList';
 export type { EntryListContentProps } from './pages/EntryList';
+export {
+  ClassCompletionPresentation,
+  ClassPodium,
+  markClassCompletionPending,
+} from './pages/EntryList';
+export type {
+  ClassCompletionPresentationProps,
+  ClassPodiumProps,
+} from './pages/EntryList';
 export { EntryListHeader } from './pages/EntryList';
 export type { EntryListHeaderProps } from './pages/EntryList';
 export { EntryListDialogs } from './pages/EntryList';

@@ -1,7 +1,7 @@
 import React from 'react';
-import { Check } from 'lucide-react';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { cn } from '@/lib/utils';
+import { StatusIcon } from '@/components/status';
 
 interface EntryStatusStepperProps {
   entryStatus: EntryStatus;
@@ -85,31 +85,30 @@ export const EntryStatusStepper: React.FC<EntryStatusStepperProps> = ({
           const completed = isStepCompleted(index, activeStep);
           const active = isStepActive(index, activeStep);
           const isLastStep = index === steps.length - 1;
+          const indicatorStatus = completed
+            ? 'completed'
+            : active && (hasError || isWaitlist)
+              ? entryStatus
+              : active
+                ? 'in-progress'
+                : 'no-status';
 
           return (
             <React.Fragment key={step.key}>
               {/* Step indicator */}
               <div className="flex flex-col items-center">
-                <div
-                  className={cn(
-                    'w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300',
-                    completed && 'bg-success text-success-foreground',
-                    active && !hasError && 'bg-primary text-primary-foreground ring-2 ring-ring',
-                    active && hasError && 'bg-destructive text-white ring-2 ring-destructive/30',
-                    active && isWaitlist && 'bg-warning text-white ring-2 ring-warning/30',
-                    !completed && !active && 'bg-muted text-muted-foreground'
-                  )}
-                >
-                  {completed ? <Check className="w-3.5 h-3.5" /> : <span>{index + 1}</span>}
+                <div className="flex h-6 w-6 items-center justify-center">
+                  <StatusIcon
+                    family="entry"
+                    status={indicatorStatus}
+                    size="lg"
+                    decorative
+                  />
                 </div>
                 <span
                   className={cn(
-                    'mt-1.5 text-[10px] font-medium text-center leading-tight',
-                    completed && 'text-success',
-                    active && !hasError && 'text-primary',
-                    active && hasError && 'text-destructive',
-                    active && isWaitlist && 'text-warning',
-                    !completed && !active && 'text-muted-foreground'
+                    'mt-1.5 text-center text-xs font-medium leading-tight',
+                    active ? 'text-foreground' : 'text-muted-foreground'
                   )}
                 >
                   {/* Show special label for waitlist/rejected */}
@@ -125,12 +124,7 @@ export const EntryStatusStepper: React.FC<EntryStatusStepperProps> = ({
 
               {/* Connector line */}
               {!isLastStep && (
-                <div
-                  className={cn(
-                    'flex-1 h-0.5 mx-1.5 transition-all duration-300',
-                    completed ? 'bg-success' : 'bg-muted'
-                  )}
-                />
+                <div className="mx-1.5 h-0.5 flex-1 bg-border transition-all duration-300" />
               )}
             </React.Fragment>
           );

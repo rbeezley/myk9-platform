@@ -364,7 +364,7 @@ describe('MutationManager', () => {
         .mockRejectedValueOnce(new Error('DB crash'))
         .mockResolvedValue(mockDb); // Restore for next call
 
-      await manager.uploadPendingMutations();
+      await expect(manager.uploadPendingMutations()).rejects.toThrow('DB crash');
 
       // isUploading should be reset — next call shouldn't be skipped
       await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, makeMutation({ id: 'mut-2' }));
@@ -1345,19 +1345,36 @@ describe('MutationManager', () => {
       );
     });
 
-    it('moves permanently failed mutations to the failed_mutations store instead of deleting them', async () => {
+    it('persists a 42501 score dead-letter with its authorization classification', async () => {
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,
-        makeMutation({ id: 'mut-archive', retries: 0 })
+        makeMutation({
+          id: 'mut-archive',
+          retries: 0,
+          rpc: {
+            name: 'ringside_update_entry',
+            fields: { scoring_completed_at: '2026-07-24T12:00:00Z' },
+          },
+        })
       );
 
-      vi.mocked(mockSupabase.from).mockReturnValue({
-        update: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            select: vi.fn(() => Promise.reject(new Error('RLS policy blocked UPDATE'))),
-          })),
-        })),
-      } as unknown as ReturnType<typeof mockSupabase.from>);
+      const authorizationError = Object.assign(new Error('not authorized to score this class'), {
+        name: 'PostgrestError',
+        code: '42501',
+        details: '',
+        hint: '',
+        toJSON: () => ({
+          name: 'PostgrestError',
+          message: 'not authorized to score this class',
+          code: '42501',
+          details: '',
+          hint: '',
+        }),
+      });
+      vi.mocked(mockSupabase.rpc).mockResolvedValue({
+        data: null,
+        error: authorizationError,
+      } as unknown as Awaited<ReturnType<typeof mockSupabase.rpc>>);
 
       await manager.uploadPendingMutations();
 
@@ -1368,7 +1385,12 @@ describe('MutationManager', () => {
       expect(failed).toHaveLength(1);
       expect(failed[0]!.id).toBe('mut-archive');
       expect(failed[0]!.status).toBe('failed');
-      expect(failed[0]!.error).toContain('RLS policy blocked UPDATE');
+      expect(failed[0]!.error).toContain('not authorized to score this class');
+      expect(failed[0]!.failureKind).toBe('authorization');
+      expect(failed[0]!.rpc).toMatchObject({
+        name: 'ringside_update_entry',
+        fields: { scoring_completed_at: '2026-07-24T12:00:00Z' },
+      });
       expect(failed[0]!.failedAt).toEqual(expect.any(Number));
     });
 
@@ -1377,6 +1399,7 @@ describe('MutationManager', () => {
         ...makeMutation({ id: 'mut-retry-failed', retries: 3 }),
         status: 'failed',
         error: 'Non-retryable error: auth expired',
+        failureKind: 'authorization',
         failedAt: Date.now(),
       });
 
@@ -1391,6 +1414,7 @@ describe('MutationManager', () => {
       expect(pending[0]!.status).toBe('pending');
       expect(pending[0]!.retries).toBe(0);
       expect(pending[0]!.error).toBeUndefined();
+      expect(pending[0]!.failureKind).toBeUndefined();
       expect(pending[0]!.failedAt).toBeUndefined();
     });
 
@@ -1662,12 +1686,11 @@ describe('MutationManager', () => {
   // ========================================
 
   describe('Error Handling', () => {
-    it('should handle database errors gracefully', async () => {
+    it('surfaces database errors as a rejection, not an empty-success result', async () => {
       vi.mocked(databaseManager.getDatabase).mockRejectedValueOnce(new Error('DB error'));
 
-      const results = await manager.uploadPendingMutations();
+      await expect(manager.uploadPendingMutations()).rejects.toThrow('DB error');
 
-      expect(results).toHaveLength(0);
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.stringContaining('Failed to upload mutations'),
         expect.any(Error)
@@ -2070,12 +2093,7 @@ describe('MutationManager', () => {
       });
 
       const stored = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, mutationId);
-      expect(stored?.explicitDataKeys).toEqual([
-        'id',
-        'display_order',
-        'status',
-        'status_source',
-      ]);
+      expect(stored?.explicitDataKeys).toEqual(['id', 'display_order', 'status', 'status_source']);
       expect(stored?.data).toEqual({
         id: 'class-1',
         display_order: 4,

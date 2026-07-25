@@ -36,6 +36,8 @@ export function isExhibitorOnlyForAtShow(hasRole: (role: UserRole) => boolean): 
 export interface AtShowClassSummary {
   className: string;
   classStatus: string;
+  expectedStartLabel?: string | undefined;
+  isRevisedStart?: boolean | undefined;
 }
 
 export interface AtShowEntryDetail {
@@ -46,6 +48,8 @@ export interface AtShowEntryDetail {
   checkInStatus: CheckInStatus;
   /** Null when the class isn't in today's replicated class list yet. */
   className: string | null;
+  expectedStartLabel: string | null;
+  isRevisedStart: boolean;
   /** Whether the exhibitor's row has a run-order position assigned. */
   hasRunOrder: boolean;
   isScored: boolean;
@@ -81,6 +85,8 @@ export function buildMyAtShowEntryDetails(
       armband: entry.armband ?? null,
       checkInStatus: entry.checkInStatus ?? 'no-status',
       className: classSummary?.className ?? null,
+      expectedStartLabel: classSummary?.expectedStartLabel ?? null,
+      isRevisedStart: classSummary?.isRevisedStart ?? false,
       hasRunOrder: entry.runOrder != null,
       isScored: entry.isScored ?? false,
     });

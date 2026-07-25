@@ -63,8 +63,12 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-entry-draw-lottery.md](plan-entry-draw-lottery.md)                                                         | Active    | Entry Draw / Lottery — random-draw intake (depends on payment plan)          |
 | [plan-entry-payment-request.md](plan-entry-payment-request.md)                                                   | Active    | Entry Payment, Waitlist & Capacity (links, pay-to-claim, judge-day)          |
 | [plan-exhibitor-early-checkin.md](plan-exhibitor-early-checkin.md)                                               | Active    | Exhibitor early check-in — toggle gate (P1 done) + /at-show fix (P2)         |
+| [plan-label-print-calibration.md](plan-label-print-calibration.md)                                               | Active    | Label print calibration — offsets, shared panel, alignment test sheet        |
 | [plan-landing-hero-lcp-prerender.md](plan-landing-hero-lcp-prerender.md)                                         | Active    | Landing-page mobile LCP — prerender + hydrate the hero                       |
 | [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                                                 | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                        |
+| [plan-myk9-64-secretary-show-desk-simplification.md](plan-myk9-64-secretary-show-desk-simplification.md)         | Active    | MYK9-64 — Secretary Show Desk simplification (dedupe routes, affordances)    |
+| [plan-myk9-80-podium-completion-celebration.md](plan-myk9-80-podium-completion-celebration.md)                   | Active    | MYK9-80 — At-show podium + class completion celebration                      |
+| [plan-myk9-84-authz-dead-letter.md](plan-myk9-84-authz-dead-letter.md)                                           | Active    | MYK9-84 — Permanent Authorization Dead-Letter Messaging                      |
 | [plan-operator-docs-portal.md](plan-operator-docs-portal.md)                                                     | Deferred  | Gated Operator Docs Portal — searchable runbooks (deferred 2026-06-27)       |
 | [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                                               | Active    | Plan: Phase 4 seam render-only read strategy                                 |
 | [plan-pull-management-split.md](plan-pull-management-split.md)                                                   | Active    | Pull Management — separate show-day pull state from refund accounting        |
@@ -89,7 +93,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | Doc                                                                                                          | Status    | Title                                                         |
 | ------------------------------------------------------------------------------------------------------------ | --------- | ------------------------------------------------------------- |
 | [plans/2026-06-12-user-documentation-support-plan.md](plans/2026-06-12-user-documentation-support-plan.md)   | Active    | User Documentation and Support Materials Implementation Plan  |
-| [plans/2026-07-16-nightly-review-fixes.md](plans/2026-07-16-nightly-review-fixes.md)                           | Active    | Nightly Review Fixes — 2026-07-16                            |
+| [plans/2026-07-16-nightly-review-fixes.md](plans/2026-07-16-nightly-review-fixes.md)                         | Active    | Nightly Review Fixes — 2026-07-16                             |
 | [plans/design_handoff_premiums/README.md](plans/design_handoff_premiums/README.md)                           | Reference | Handoff: Premium List Designs (myK9Show)                      |
 | [plans/qa/2026-05-12-nightly-e2e-repair-batches.md](plans/qa/2026-05-12-nightly-e2e-repair-batches.md)       | Active    | Nightly E2E Repair Batches                                    |
 | [plans/qa/2026-05-12-proactive-quality-system-plan.md](plans/qa/2026-05-12-proactive-quality-system-plan.md) | Reference | Proactive Quality System Plan                                 |
@@ -231,10 +235,10 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 ### future/ — parked backlog
 
-| Doc                                                        | Status    | Title                              |
-| ---------------------------------------------------------- | --------- | ---------------------------------- |
-| [future/club-admin.md](future/club-admin.md)               | Reference | Parked: Club Admin Future Features |
-| [future/exhibitor-premium.md](future/exhibitor-premium.md) | Reference | Parked: Exhibitor Premium Features |
+| Doc                                                        | Status    | Title                               |
+| ---------------------------------------------------------- | --------- | ----------------------------------- |
+| [future/club-admin.md](future/club-admin.md)               | Reference | Parked: Club Admin Future Features  |
+| [future/exhibitor-premium.md](future/exhibitor-premium.md) | Reference | Shipped: Exhibitor Premium Features |
 
 ### research/
 

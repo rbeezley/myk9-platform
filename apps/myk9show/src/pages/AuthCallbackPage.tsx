@@ -3,7 +3,11 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { supabase } from '@/lib/supabase';
-import { consumePersistedSignInRedirect, getSignInReturnTo } from './SignInPage.helpers';
+import {
+  buildSignInPathForRedirect,
+  consumePersistedSignInRedirect,
+  getSignInReturnTo,
+} from './SignInPage.helpers';
 
 const AuthCallbackPage = () => {
   const [searchParams] = useSearchParams();
@@ -19,6 +23,13 @@ const AuthCallbackPage = () => {
   const redirectTarget = useMemo(() => getSignInReturnTo(searchParams), [searchParams]);
   const oauthRedirectTarget = useMemo(
     () => (searchParams.has('redirectTo') || searchParams.has('returnTo') ? redirectTarget : null),
+    [redirectTarget, searchParams]
+  );
+  const signInPath = useMemo(
+    () =>
+      searchParams.has('redirectTo') || searchParams.has('returnTo')
+        ? buildSignInPathForRedirect(redirectTarget)
+        : '/sign-in',
     [redirectTarget, searchParams]
   );
 
@@ -89,7 +100,7 @@ const AuthCallbackPage = () => {
           </div>
           <h2 className="text-2xl font-bold mb-2">Verification Failed</h2>
           <p className="text-muted-foreground mb-6">{error}</p>
-          <Link to="/sign-in" className="text-primary hover:underline font-medium">
+          <Link to={signInPath} className="text-primary hover:underline font-medium">
             &larr; Back to sign in
           </Link>
         </div>

@@ -16,6 +16,20 @@ vi.mock('../useClubStripeAccount', async importOriginal => {
   };
 });
 
+// The reconciliation card (MYK9-54 task 3.1) makes its own React Query calls
+// through the shared financial service. This suite is about the bank-account
+// connect/status flow, so the reconciliation hook is stubbed to an empty,
+// settled result — its own behavior (verified/attested/mismatch/pending/
+// unavailable states) is covered by ClubFinancialReconciliationCard.test.tsx.
+vi.mock('@/features/financial/useClubFinancialReconciliation', () => ({
+  useClubFinancialReconciliation: vi.fn(() => ({
+    rows: [],
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  })),
+}));
+
 const mockedUseAccount = vi.mocked(accountModule.useClubStripeAccount);
 const mockedUsePayoutHistory = vi.mocked(accountModule.useClubPayoutHistory);
 const mockedStartOnboarding = vi.mocked(accountModule.startConnectOnboarding);
@@ -80,6 +94,21 @@ describe('ClubPaymentsCard', () => {
     expect(screen.getByText(/federal banking law/i)).toBeInTheDocument();
     expect(screen.getByText(/never sees or stores this information/i)).toBeInTheDocument();
     expect(screen.getByText(/not a personal one/i)).toBeInTheDocument();
+    expect(mockedStartOnboarding).not.toHaveBeenCalled();
+  });
+
+  it('Not now closes the checklist without starting Stripe onboarding', async () => {
+    mockAccountState(null);
+    const user = userEvent.setup();
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /connect payment account/i }));
+    const notNow = screen.getByRole('button', { name: 'Not now' });
+    notNow.focus();
+    await user.keyboard('{Enter}');
+
+    expect(screen.queryByText(/before you start/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /connect payment account/i })).toBeInTheDocument();
     expect(mockedStartOnboarding).not.toHaveBeenCalled();
   });
 
@@ -357,5 +386,16 @@ describe('ClubPaymentsCard', () => {
     const paidBadge = screen.getByText('Paid');
     expect(paidBadge).toHaveClass('bg-success');
     expect(paidBadge.className).not.toMatch(/bg-green-/);
+  });
+
+  it('does not add a second checkout/payment action alongside the Stripe onboarding flow (no-duplicate-checkout regression)', () => {
+    // MYK9-54 explicitly forbids adding a duplicate checkout/payment action —
+    // /exhibitor/payments remains the single canonical checkout surface. The
+    // club reconciliation enrichment must only ever show read-only
+    // status/copy/link-out affordances.
+    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    expect(screen.queryByRole('button', { name: /pay|checkout|charge/i })).not.toBeInTheDocument();
   });
 });

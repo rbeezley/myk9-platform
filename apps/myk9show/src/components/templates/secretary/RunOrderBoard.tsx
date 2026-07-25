@@ -3,24 +3,23 @@ import { CreatedClass } from '@/types/template.types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/status';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  GripVertical,
-  AlertTriangle,
-  RotateCcw,
-  Save,
-  Eye,
-  Calendar,
-  Timer
-} from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { GripVertical, AlertTriangle, RotateCcw, Save, Eye, Calendar, Timer } from 'lucide-react';
 
 interface RunOrderBoardProps {
   classes: CreatedClass[];
   onReorder: (reorderedClasses: CreatedClass[]) => void;
   onJudgeAssign: (classId: string, judgeId: string) => void;
-  availableJudges?: { id: string; name: string; }[];
+  availableJudges?: { id: string; name: string }[];
   trialStartTime?: Date;
 }
 
@@ -29,14 +28,12 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
   onReorder,
   onJudgeAssign,
   availableJudges = [],
-  trialStartTime = new Date()
+  trialStartTime = new Date(),
 }) => {
   const [draggedItem, setDraggedItem] = useState<CreatedClass | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [localClasses, setLocalClasses] = useState<CreatedClass[]>(classes);
-  const [startTime, setStartTime] = useState<string>(
-    trialStartTime.toTimeString().slice(0, 5)
-  );
+  const [startTime, setStartTime] = useState<string>(trialStartTime.toTimeString().slice(0, 5));
   const [breakDuration, setBreakDuration] = useState<number>(15); // minutes between classes
 
   // Update local state when props change
@@ -46,39 +43,45 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
 
   // Calculate schedule with timing
   const calculateSchedule = () => {
-    const schedule: Array<CreatedClass & { 
-      calculatedStartTime: Date; 
-      calculatedEndTime: Date;
-      conflicts: string[];
-    }> = [];
+    const schedule: Array<
+      CreatedClass & {
+        calculatedStartTime: Date;
+        calculatedEndTime: Date;
+        conflicts: string[];
+      }
+    > = [];
 
     let currentTime = new Date();
     const [hours, minutes] = startTime.split(':').map(Number);
     currentTime.setHours(hours, minutes, 0, 0);
 
-    localClasses.forEach((cls) => {
+    localClasses.forEach(cls => {
       const startTime = new Date(currentTime);
-      const endTime = new Date(currentTime.getTime() + ((cls.fieldValues?.estimatedJudgingTime as number) || 15) * 60000);
-      
+      const endTime = new Date(
+        currentTime.getTime() + ((cls.fieldValues?.estimatedJudgingTime as number) || 15) * 60000
+      );
+
       // Detect conflicts
       const conflicts: string[] = [];
-      
+
       // Check for judge conflicts
-      const sameJudgeClasses = schedule.filter(s => 
-        s.personnel?.judgeId === cls.personnel?.judgeId && 
-        cls.personnel?.judgeId && 
-        s.calculatedEndTime > startTime && 
-        s.calculatedStartTime < endTime
+      const sameJudgeClasses = schedule.filter(
+        s =>
+          s.personnel?.judgeId === cls.personnel?.judgeId &&
+          cls.personnel?.judgeId &&
+          s.calculatedEndTime > startTime &&
+          s.calculatedStartTime < endTime
       );
       if (sameJudgeClasses.length > 0) {
         conflicts.push(`Judge conflict with ${sameJudgeClasses[0].className}`);
       }
 
       // Check for venue conflicts (same element running simultaneously)
-      const sameElementClasses = schedule.filter(s => 
-        s.element === cls.element && 
-        s.calculatedEndTime > startTime && 
-        s.calculatedStartTime < endTime
+      const sameElementClasses = schedule.filter(
+        s =>
+          s.element === cls.element &&
+          s.calculatedEndTime > startTime &&
+          s.calculatedStartTime < endTime
       );
       if (sameElementClasses.length > 0) {
         conflicts.push(`Venue conflict with ${sameElementClasses[0].className}`);
@@ -88,11 +91,11 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
         ...cls,
         calculatedStartTime: startTime,
         calculatedEndTime: endTime,
-        conflicts
+        conflicts,
       });
 
       // Add break time for next class
-      currentTime = new Date(endTime.getTime() + (breakDuration * 60000));
+      currentTime = new Date(endTime.getTime() + breakDuration * 60000);
     });
 
     return schedule;
@@ -117,7 +120,7 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
 
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
-    
+
     if (!draggedItem) return;
 
     const draggedIndex = localClasses.findIndex(c => c.id === draggedItem.id);
@@ -130,7 +133,7 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
     // Update run orders
     const reorderedClasses = newClasses.map((cls, index) => ({
       ...cls,
-      runOrder: index + 1
+      runOrder: index + 1,
     }));
 
     setLocalClasses(reorderedClasses);
@@ -157,7 +160,7 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
 
     const reorderedClasses = optimized.map((cls, index) => ({
       ...cls,
-      runOrder: index + 1
+      runOrder: index + 1,
     }));
 
     setLocalClasses(reorderedClasses);
@@ -188,9 +191,7 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
               <Calendar className="h-5 w-5" />
               Run Order Management
             </div>
-            <Badge variant="outline">
-              {localClasses.length} classes
-            </Badge>
+            <Badge variant="outline">{localClasses.length} classes</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -198,18 +199,14 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Trial Start Time</Label>
-              <Input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-              />
+              <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Break Between Classes (minutes)</Label>
               <Input
                 type="number"
                 value={breakDuration}
-                onChange={(e) => setBreakDuration(Number(e.target.value))}
+                onChange={e => setBreakDuration(Number(e.target.value))}
                 min={0}
                 max={60}
               />
@@ -240,14 +237,18 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
               <div className="text-sm text-muted-foreground">Total Minutes</div>
             </div>
             <div className="text-center">
-              <div className={`text-2xl font-bold ${getConflictCount() > 0 ? 'text-red-600' : 'text-green-600'}`}>
+              <div
+                className={`text-2xl font-bold ${getConflictCount() > 0 ? 'text-destructive' : 'text-green-600'}`}
+              >
                 {getConflictCount()}
               </div>
               <div className="text-sm text-muted-foreground">Conflicts</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
-                {schedule.length > 0 ? formatTime(schedule[schedule.length - 1].calculatedEndTime) : '--:--'}
+                {schedule.length > 0
+                  ? formatTime(schedule[schedule.length - 1].calculatedEndTime)
+                  : '--:--'}
               </div>
               <div className="text-sm text-muted-foreground">End Time</div>
             </div>
@@ -270,16 +271,16 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
                 <div
                   key={cls.id}
                   draggable
-                  onDragStart={(e) => handleDragStart(e, cls)}
-                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragStart={e => handleDragStart(e, cls)}
+                  onDragOver={e => handleDragOver(e, index)}
                   onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, index)}
+                  onDrop={e => handleDrop(e, index)}
                   className={`border rounded-lg p-4 transition-all cursor-move ${
                     draggedItem?.id === cls.id ? 'opacity-50' : ''
-                  } ${
-                    dragOverIndex === index ? 'border-primary bg-primary/5' : ''
-                  } ${
-                    cls.conflicts.length > 0 ? 'border-red-200 bg-red-50' : 'hover:bg-muted/50'
+                  } ${dragOverIndex === index ? 'border-primary bg-primary/5' : ''} ${
+                    cls.conflicts.length > 0
+                      ? 'border-destructive/20 bg-destructive/10'
+                      : 'hover:bg-muted/50'
                   }`}
                 >
                   <div className="flex items-center gap-4">
@@ -296,7 +297,9 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
                       <div className="md:col-span-2">
                         <div className="font-medium">{cls.className}</div>
                         <div className="text-sm text-muted-foreground">
-                          {cls.element}{cls.level ? ` ${cls.level}` : ''}{cls.section ? ` ${cls.section}` : ''}
+                          {cls.element}
+                          {cls.level ? ` ${cls.level}` : ''}
+                          {cls.section ? ` ${cls.section}` : ''}
                         </div>
                       </div>
 
@@ -308,24 +311,25 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
                       </div>
 
                       <div className="text-center">
-                        <div className="font-mono text-sm">
-                          {formatTime(cls.calculatedEndTime)}
-                        </div>
+                        <div className="font-mono text-sm">{formatTime(cls.calculatedEndTime)}</div>
                         <div className="text-xs text-muted-foreground">End</div>
                       </div>
 
                       <div className="text-center">
-                        <div className="text-sm">{(cls.fieldValues?.estimatedJudgingTime as number) || 15}min</div>
+                        <div className="text-sm">
+                          {(cls.fieldValues?.estimatedJudgingTime as number) || 15}min
+                        </div>
                         <div className="text-xs text-muted-foreground">Duration</div>
                       </div>
 
                       <div>
                         {cls.personnel?.judgeId ? (
                           <Badge variant="secondary" className="text-xs">
-                            {availableJudges.find(j => j.id === cls.personnel.judgeId)?.name || 'Judge Assigned'}
+                            {availableJudges.find(j => j.id === cls.personnel.judgeId)?.name ||
+                              'Judge Assigned'}
                           </Badge>
                         ) : (
-                          <Select onValueChange={(value) => onJudgeAssign(cls.id, value)}>
+                          <Select onValueChange={value => onJudgeAssign(cls.id, value)}>
                             <SelectTrigger className="h-8 text-xs">
                               <SelectValue placeholder="Assign Judge" />
                             </SelectTrigger>
@@ -343,18 +347,14 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
 
                     {/* Status & Conflicts */}
                     <div className="flex flex-col items-end gap-2">
-                      <Badge variant={
-                        cls.status === 'Completed' ? 'default' :
-                        cls.status === 'In Progress' ? 'secondary' :
-                        cls.status === 'Cancelled' ? 'destructive' : 'outline'
-                      } className="text-xs">
-                        {cls.status}
-                      </Badge>
-                      
+                      <StatusBadge family="class" status={cls.status} className="text-xs" />
+
                       {cls.conflicts.length > 0 && (
-                        <div className="flex items-center gap-1 text-red-600">
+                        <div className="flex items-center gap-1 text-destructive">
                           <AlertTriangle className="h-4 w-4" />
-                          <span className="text-xs">{cls.conflicts.length} conflict{cls.conflicts.length !== 1 ? 's' : ''}</span>
+                          <span className="text-xs">
+                            {cls.conflicts.length} conflict{cls.conflicts.length !== 1 ? 's' : ''}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -362,9 +362,9 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
 
                   {/* Conflict Details */}
                   {cls.conflicts.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-red-200">
-                      <div className="text-sm font-medium text-red-800 mb-1">Conflicts:</div>
-                      <ul className="text-sm text-red-700 space-y-1">
+                    <div className="mt-3 pt-3 border-t border-destructive/20">
+                      <div className="text-sm font-medium text-destructive mb-1">Conflicts:</div>
+                      <ul className="text-sm text-destructive space-y-1">
                         {cls.conflicts.map((conflict, idx) => (
                           <li key={idx} className="flex items-center gap-2">
                             <AlertTriangle className="h-3 w-3" />
@@ -391,18 +391,18 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
 
       {/* Conflict Summary */}
       {getConflictCount() > 0 && (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-destructive/20 bg-destructive/10">
           <CardHeader>
-            <CardTitle className="text-red-800 flex items-center gap-2">
+            <CardTitle className="text-destructive flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
               Scheduling Conflicts Detected
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <p className="text-red-700 text-sm">
-                {getConflictCount()} conflict{getConflictCount() !== 1 ? 's' : ''} found in the current schedule. 
-                Review and resolve conflicts before finalizing the run order.
+              <p className="text-destructive text-sm">
+                {getConflictCount()} conflict{getConflictCount() !== 1 ? 's' : ''} found in the
+                current schedule. Review and resolve conflicts before finalizing the run order.
               </p>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={handleAutoOptimize}>

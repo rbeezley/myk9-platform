@@ -32,13 +32,14 @@ import { publishExperience } from '@/features/experience/publishExperience';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
 import { useShowStore, type ShowInput } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
+import { SHOW_MANAGEMENT_NAV_SECTIONS } from '@/routes/showManagementSections';
 import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
 import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishReadiness';
 import { notifications } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
+import { ShowDeskCompactContext } from './ShowDeskCompactContext';
 
 function parseOptionalCurrency(value: string | number | undefined): number | undefined {
   if (value === undefined) return undefined;
@@ -133,6 +134,7 @@ export function ShowManagementShell({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const entryDataUnavailable = entryDataState !== 'ready';
+  const isShowDesk = activeManagementSection === 'show-desk';
 
   const handleConfirmDelete = () => {
     setShowDeleteDialog(false);
@@ -143,76 +145,88 @@ export function ShowManagementShell({
   return (
     <>
       <PageShell>
-        <PageHeader
-          breadcrumbs={breadcrumbs}
-          title={show.name || 'Show Details'}
-          actions={
-            (armbandCount ?? 0) > 0 && show?.id ? <ArmbandLookup showId={show.id} /> : undefined
-          }
-        />
-
-        <DetailHero
-          cover={
-            show.startDate ? (
-              <ShowDateBlock startDate={show.startDate} endDate={show.endDate} />
-            ) : undefined
-          }
-          name={show.name || 'Untitled Show'}
-          subtitle={show.clubName || undefined}
-          badges={
-            show.organization ? [{ label: show.organization, variant: 'default' as const }] : []
-          }
-          metadata={[]}
-          headerActions={
-            <>
-              <LiveUpdateIndicator />
-              <ShowPresenceStack />
-              <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
-                <ShowStatusPill showId={show.id} status={show.status} />
-              </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label="More show actions"
-                    className="h-10 w-10 sm:h-9 sm:w-9"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link to={`${canonicalShowHref}?preview=public`}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      Preview as exhibitor
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setShowEditPanel(true)}>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => setShowDeleteDialog(true)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          }
-          footer={
-            <QuickInfoCards
-              show={show}
-              canManageShow={true}
-              entryCount={entryDataUnavailable ? null : catalogEntryCount}
+        {isShowDesk ? (
+          <ShowDeskCompactContext
+            show={show}
+            canonicalShowHref={canonicalShowHref}
+            armbandCount={armbandCount}
+            onEdit={() => setShowEditPanel(true)}
+            onDelete={() => setShowDeleteDialog(true)}
+          />
+        ) : (
+          <>
+            <PageHeader
+              breadcrumbs={breadcrumbs}
+              title={show.name || 'Show Details'}
+              actions={
+                (armbandCount ?? 0) > 0 && show?.id ? <ArmbandLookup showId={show.id} /> : undefined
+              }
             />
-          }
-        />
+
+            <DetailHero
+              cover={
+                show.startDate ? (
+                  <ShowDateBlock startDate={show.startDate} endDate={show.endDate} />
+                ) : undefined
+              }
+              name={show.name || 'Untitled Show'}
+              subtitle={show.clubName || undefined}
+              badges={
+                show.organization ? [{ label: show.organization, variant: 'default' as const }] : []
+              }
+              metadata={[]}
+              headerActions={
+                <>
+                  <LiveUpdateIndicator />
+                  <ShowPresenceStack />
+                  <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
+                    <ShowStatusPill showId={show.id} status={show.status} />
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        aria-label="More show actions"
+                        className="h-10 w-10 sm:h-9 sm:w-9"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem asChild>
+                        <Link to={`${canonicalShowHref}?preview=public`}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Preview as exhibitor
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setShowEditPanel(true)}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setShowDeleteDialog(true)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              }
+              footer={
+                <QuickInfoCards
+                  show={show}
+                  canManageShow={true}
+                  entryCount={entryDataUnavailable ? null : catalogEntryCount}
+                />
+              }
+            />
+          </>
+        )}
 
         {entryDataUnavailable && (
           <div className="mt-4 rounded-md border border-dashed bg-muted/20 px-4 py-3 text-sm">
@@ -239,17 +253,18 @@ export function ShowManagementShell({
           </div>
         )}
 
-        {/* INTENT: The publish row renders once, above the section tabs —
-            it is show-level state the secretary needs on every tab. The
-            Setup tab's readiness chip deep-links here via #setup-publish;
-            the target: ring makes the jump visibly land somewhere. */}
-        <div
-          id={SETUP_PUBLISH_ANCHOR}
-          className="mt-4 grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2 target:ring-2 target:ring-ring target:ring-offset-2 target:ring-offset-background"
-        >
-          <PremiumDownloadCard showId={show.id} showStaleBadge={true} />
-          <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />
-        </div>
+        {/* INTENT: Overview and management sections retain full publishing context.
+            Show Desk uses compact operational chrome and surfaces only a
+            publishing exception, so urgent Class work stays in the viewport. */}
+        {!isShowDesk && (
+          <div
+            id={SETUP_PUBLISH_ANCHOR}
+            className="mt-4 grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2 target:ring-2 target:ring-ring target:ring-offset-2 target:ring-offset-background"
+          >
+            <PremiumDownloadCard showId={show.id} showStaleBadge={true} />
+            <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />
+          </div>
+        )}
 
         {show?.id && (
           <nav
@@ -275,7 +290,7 @@ export function ShowManagementShell({
                     Class Management
                   </option>
                 )}
-                {SHOW_MANAGEMENT_SECTIONS.map(({ label, path }) => (
+                {SHOW_MANAGEMENT_NAV_SECTIONS.map(({ label, path }) => (
                   <option key={path} value={path}>
                     {label}
                   </option>
@@ -283,7 +298,7 @@ export function ShowManagementShell({
               </select>
             </div>
             <div className="hidden max-w-full overflow-x-auto no-scrollbar px-4 lg:flex lg:px-6">
-              {SHOW_MANAGEMENT_SECTIONS.map(({ label, path }) => {
+              {SHOW_MANAGEMENT_NAV_SECTIONS.map(({ label, path }) => {
                 const href = `${canonicalShowHref}/${path}`;
                 const isActive = activeManagementSection === path;
                 return (

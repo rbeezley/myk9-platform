@@ -1,23 +1,18 @@
-import type { UserRole as UserRoleType } from '@/types/user-types';
 import { SelectedUser } from '@/pages/admin/UserManagementPage';
 
 export interface BulkActionsBarProps {
   selectedUsers: SelectedUser[];
   onClearSelection: () => void;
-  onBulkComplete: () => void;
+  /** Removes only the users confirmed deleted; blocked users remain selected. */
+  onBulkComplete: (deletedUserIds?: string[]) => void;
   onUsersDeleted?: (deletedUserIds: string[]) => void;
 }
 
-export type DialogType = 'role' | 'status' | 'delete' | 'cascadeConfirm' | null;
-
-export interface BulkRoleData {
-  action: 'add' | 'remove' | 'replace';
-  roles: UserRoleType[];
-}
-
-export interface BulkStatusData {
-  action: 'activate' | 'deactivate' | 'suspend';
-}
+// 'status' dialog removed: no correct per-user account-status mutation exists to
+// mirror in bulk. 'role' was removed in MYK9-47 (broken canonical values, ignored
+// ensureUserHasRole result, no club scope) and rebuilt correctly in MYK9-58 —
+// see BulkRoleDialog.tsx and useBulkActions.handleBulkRoleChange.
+export type DialogType = 'delete' | 'cascadeConfirm' | 'role' | null;
 
 export interface RelatedDataDetails {
   entryCount: number;

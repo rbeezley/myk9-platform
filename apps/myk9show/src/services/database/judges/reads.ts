@@ -19,6 +19,7 @@ import { untypedFrom } from '../_shared/untyped-from';
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
 import type { DbJudgeAvailability } from '@/types/database-mappings';
 import { replicatedClassesTable, replicatedJudgeAssignmentsTable } from '@/services/replication';
+import { ACTIVE_JUDGE_ASSIGNMENT_STATUSES } from './assignmentStatus';
 
 // Helper to access tables not in generated types
 const qualificationsTable = () => untypedFrom('judge_qualifications');
@@ -599,7 +600,7 @@ export async function getJudgeUpcomingAssignments(personId: string): Promise<Jud
   const { data, error } = await assignmentsTable()
     .select('*, shows!judge_assignments_show_id_fkey(name, start_date, end_date, organization)')
     .eq('person_id', personId)
-    .in('status', ['invited', 'confirmed'])
+    .in('status', [...ACTIVE_JUDGE_ASSIGNMENT_STATUSES])
     .order('created_at', { ascending: true });
 
   if (error) {

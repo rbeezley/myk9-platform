@@ -14,6 +14,7 @@ interface TrialClassFiltersProps {
   onClassChange: (classId: string | null) => void;
   isLoadingTrials?: boolean;
   isLoadingClasses?: boolean;
+  disabled?: boolean;
 }
 
 function formatTrialLabel(trial: TrialClassFiltersProps['trials'][number]): string {
@@ -41,9 +42,10 @@ export const TrialClassFilters: React.FC<TrialClassFiltersProps> = ({
   onClassChange,
   isLoadingTrials = false,
   isLoadingClasses = false,
+  disabled = false,
 }) => {
-  const isTrialDisabled = isLoadingTrials;
-  const isClassDisabled = trialFilter === null || isLoadingClasses;
+  const isTrialDisabled = disabled || isLoadingTrials;
+  const isClassDisabled = disabled || trialFilter === null || isLoadingClasses;
 
   return (
     <div className="flex gap-3">

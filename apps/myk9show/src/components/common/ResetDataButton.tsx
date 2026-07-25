@@ -20,13 +20,19 @@ export function ResetDataButton() {
   }
 
   const handleResetAll = () => {
-    if (confirm('Reset all data (preserves templates & UI preferences)? This will reload the page.')) {
+    if (
+      confirm('Reset all data (preserves templates & UI preferences)? This will reload the page.')
+    ) {
       resetAllMockData();
     }
   };
 
   const handleResetEverything = async () => {
-    if (confirm('NUCLEAR RESET: This will clear ALL data including templates and UI preferences. Are you sure?')) {
+    if (
+      confirm(
+        'NUCLEAR RESET: This will clear ALL data including templates and UI preferences. Are you sure?'
+      )
+    ) {
       await resetEverything();
     }
   };
@@ -50,7 +56,7 @@ export function ResetDataButton() {
           <Trash2 className="h-4 w-4" />
           Reset Data Only
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleResetEverything} className="gap-2 text-red-600">
+        <DropdownMenuItem onClick={handleResetEverything} className="gap-2 text-destructive">
           <Bomb className="h-4 w-4" />
           Reset Everything
         </DropdownMenuItem>

@@ -67,6 +67,30 @@ A competitive division within a Trial (e.g. "Novice A Agility"). Defines
 the rules, judge assignment, run order, and entry limit. Classes belong to
 Trials, not directly to Shows.
 
+**Scheduled Start**
+The originally published or configured start time for a Class. It remains
+unchanged when show-day delays alter the current expectation.
+_Avoid_: Original time, old time
+
+**Revised Expected Start**
+The secretary's current best estimate of when a delayed or rescheduled Class
+will begin, recorded without replacing its Scheduled Start.
+_Avoid_: New scheduled time, Actual Start
+
+**Actual Start**
+The timestamp recorded when a Class begins competition.
+_Avoid_: Revised Expected Start, start estimate
+
+**Actual Finish**
+The timestamp recorded when a Class finishes competition.
+_Avoid_: Score-entry completion, results release time
+
+**Class Lifecycle Status**
+The recorded operational state of a Class: Not started, In progress, Complete,
+or Cancelled. Complete means judging has physically finished; it does not assert
+that paper scores have been entered.
+_Avoid_: Running as a status label, Stage
+
 **Trial**
 A single day or session of competition within a Show. A Show has one or more
 Trials; each Trial has one or more Classes.
@@ -74,6 +98,25 @@ Trials; each Trial has one or more Classes.
 **Show**
 The top-level event created and managed by a Club. A Show has a date range,
 location, and one or more Trials. The unit of secretary work.
+
+**Operational Area**
+A named physical place used for competition activity at a Show. Sport-specific
+interfaces may call it a Search Area, Ring, or Course, and one Class may use
+more than one Operational Area.
+_Avoid_: Ring as the universal term, Judge as a location proxy
+
+**Paperwork Print**
+A staff-confirmed record that a specific kind of Show, Trial, or Class
+paperwork was physically printed, including who confirmed it and when. Opening
+a report, generating a PDF, or launching the browser print dialog is not a
+Paperwork Print.
+_Avoid_: Print click, report view, PDF generation
+
+**Report Scope**
+The Show, Trial, or Class whose records a report includes. A report opened from
+one of those contexts defaults to that context, while staff may deliberately
+choose another supported Report Scope.
+_Avoid_: Page scope, filter scope
 
 **Dog**
 A registered canine competitor. A Dog has an owner (Handler or Exhibitor),
@@ -105,8 +148,20 @@ Distinct from Club Admin and Treasurer, even when the same person fills more
 than one role.
 
 **Armband**
-The numbered identifier assigned to a Handler for a specific Show day. Used
-for check-in and ring management.
+The unique numbered identifier assigned to a Dog for an entire Show. The number
+stays the same across all of that Dog's Entries and Show days, while a Handler
+may handle multiple Dogs with different Armbands.
+
+**Armband Label**
+A printable daily label for an Armband assignment, produced once per
+Dog/Armband for each included Show day. It identifies the Armband and may
+include the Dog's call name, Handler, Trial date, or show-access information.
+_Avoid_: Entry label, Result Label
+
+**Result Label**
+A printable label for one Entry's competition result, including its Class
+context and available placement, time, or faults.
+_Avoid_: Ribbon label, Armband Label
 
 **Wait List**
 An ordered list of Entries that did not make the initial entry limit for a
@@ -115,7 +170,10 @@ Class. Entries are promoted from the Wait List as space opens.
 **Show Registration**
 The submission workflow that turns an Exhibitor's selected Dogs and Classes
 into persisted Entries for a Show, including payment details, confirmation
-number, and Armband assignment.
+number, and Armband assignment. One Show Registration can contain multiple
+Entries, and each Entry may name a different Handler. The Show Registration's
+person is the Exhibitor/submitter and must not be presented as the Handler for
+every Entry.
 
 **Promo Code**
 A discount token issued by a Club, scoped to a single Show or a single Trial.

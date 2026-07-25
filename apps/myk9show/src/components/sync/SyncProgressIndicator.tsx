@@ -1,6 +1,6 @@
 /**
  * SyncProgressIndicator - Real-time sync progress visualization
- * 
+ *
  * Provides detailed progress tracking including:
  * - Real-time progress updates with animations
  * - Speed and ETA calculations
@@ -16,12 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { 
+import {
   Loader2,
   CheckCircle,
   AlertCircle,
@@ -48,7 +43,7 @@ import {
   Database,
   Eye,
   EyeOff,
-  Clock
+  Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -93,76 +88,74 @@ export function SyncProgressIndicator({
   className,
   compact = false,
   showDetails = true,
-  operationId
+  operationId,
 }: SyncProgressIndicatorProps) {
-  const { 
-    pauseAllSync, 
-    resumeAllSync, 
-    removeOperation, 
-    updateOperationStatus 
-  } = useSyncStore();
-  
+  const { pauseAllSync, resumeAllSync, removeOperation, updateOperationStatus } = useSyncStore();
+
   const [expanded, setExpanded] = useState(!compact);
 
   // Capture initial time once to avoid Date.now() in useMemo
   const [now] = useState(() => Date.now());
 
   // Mock active operations for demonstration
-  const mockOperations: SyncOperation[] = useMemo(() => [
-    {
-      id: 'sync-1',
-      type: 'sync',
-      entityType: 'entries',
-      batchId: 'batch-entries-001',
-      status: 'processing',
-      progress: 67,
-      totalItems: 150,
-      processedItems: 100,
-      failedItems: 3,
-      startTime: new Date(now - 120000), // 2 minutes ago
-      estimatedCompletion: new Date(now + 60000), // 1 minute from now
-      speed: 2.5,
-      retryCount: 0,
-      maxRetries: 3,
-      canCancel: true,
-      canPause: true,
-      details: {
-        phase: 'Uploading entry data',
-        currentItem: 'entry-456',
-        lastProcessed: 'entry-455'
-      }
-    },
-    {
-      id: 'download-1',
-      type: 'download',
-      entityType: 'shows',
-      status: 'processing',
-      progress: 23,
-      totalItems: 50,
-      processedItems: 12,
-      failedItems: 0,
-      startTime: new Date(now - 30000), // 30 seconds ago
-      estimatedCompletion: new Date(now + 45000), // 45 seconds from now
-      speed: 0.8,
-      retryCount: 0,
-      maxRetries: 3,
-      canCancel: true,
-      canPause: false,
-      details: {
-        phase: 'Downloading show metadata',
-        currentItem: 'show-789'
-      }
-    }
-  ], [now]);
+  const mockOperations: SyncOperation[] = useMemo(
+    () => [
+      {
+        id: 'sync-1',
+        type: 'sync',
+        entityType: 'entries',
+        batchId: 'batch-entries-001',
+        status: 'processing',
+        progress: 67,
+        totalItems: 150,
+        processedItems: 100,
+        failedItems: 3,
+        startTime: new Date(now - 120000), // 2 minutes ago
+        estimatedCompletion: new Date(now + 60000), // 1 minute from now
+        speed: 2.5,
+        retryCount: 0,
+        maxRetries: 3,
+        canCancel: true,
+        canPause: true,
+        details: {
+          phase: 'Uploading entry data',
+          currentItem: 'entry-456',
+          lastProcessed: 'entry-455',
+        },
+      },
+      {
+        id: 'download-1',
+        type: 'download',
+        entityType: 'shows',
+        status: 'processing',
+        progress: 23,
+        totalItems: 50,
+        processedItems: 12,
+        failedItems: 0,
+        startTime: new Date(now - 30000), // 30 seconds ago
+        estimatedCompletion: new Date(now + 45000), // 45 seconds from now
+        speed: 0.8,
+        retryCount: 0,
+        maxRetries: 3,
+        canCancel: true,
+        canPause: false,
+        details: {
+          phase: 'Downloading show metadata',
+          currentItem: 'show-789',
+        },
+      },
+    ],
+    [now]
+  );
 
   // Get operations to display
   const operations = useMemo(() => {
     const ops = mockOperations; // In real app, use activeOperations
-    
+
     if (operationId) {
       return ops.filter(op => op.id === operationId);
     }
-    
+
     return ops.filter(op => op.status === 'processing' || op.status === 'paused');
   }, [operationId, mockOperations]);
 
@@ -170,7 +163,7 @@ export function SyncProgressIndicator({
   const overallProgress = useMemo(() => {
     if (operations.length === 0) return 0;
     if (operations.length === 1) return operations[0].progress;
-    
+
     const totalProgress = operations.reduce((sum, op) => sum + op.progress, 0);
     return Math.round(totalProgress / operations.length);
   }, [operations]);
@@ -236,12 +229,12 @@ export function SyncProgressIndicator({
   // Compact view
   if (compact && operations.length > 0) {
     const mainOperation = operations[0];
-    
+
     return (
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className={cn("flex items-center gap-2 px-2 py-1 rounded-md bg-muted", className)}>
+            <div className={cn('flex items-center gap-2 px-2 py-1 rounded-md bg-muted', className)}>
               {getOperationIcon(mainOperation)}
               <Progress value={mainOperation.progress} className="w-16 h-2" />
               <span className="text-xs font-medium">{mainOperation.progress}%</span>
@@ -254,7 +247,9 @@ export function SyncProgressIndicator({
           </TooltipTrigger>
           <TooltipContent>
             <div className="text-sm">
-              <div className="font-medium">{mainOperation.details?.phase || mainOperation.type}</div>
+              <div className="font-medium">
+                {mainOperation.details?.phase || mainOperation.type}
+              </div>
               <div className="text-muted-foreground">
                 {mainOperation.processedItems}/{mainOperation.totalItems} items
               </div>
@@ -274,7 +269,7 @@ export function SyncProgressIndicator({
   }
 
   return (
-    <Card className={cn("", className)}>
+    <Card className={cn('', className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
@@ -284,18 +279,14 @@ export function SyncProgressIndicator({
               <Badge variant="secondary">{operations.length} operations</Badge>
             )}
           </CardTitle>
-          
+
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setExpanded(!expanded)}
-            >
+            <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)}>
               {expanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
           </div>
         </div>
-        
+
         {/* Overall progress */}
         {operations.length > 1 && (
           <div className="space-y-2">
@@ -310,7 +301,7 @@ export function SyncProgressIndicator({
 
       {expanded && (
         <CardContent className="pt-0 space-y-4">
-          {operations.map((operation) => (
+          {operations.map(operation => (
             <div key={operation.id} className="space-y-3 p-3 border rounded-lg">
               {/* Operation header */}
               <div className="flex items-center justify-between">
@@ -327,38 +318,26 @@ export function SyncProgressIndicator({
                     )}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-1">
                   {operation.canPause && operation.status === 'processing' && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handlePause(operation.id)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => handlePause(operation.id)}>
                       <Pause className="h-4 w-4" />
                     </Button>
                   )}
-                  
+
                   {operation.status === 'paused' && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleResume(operation.id)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => handleResume(operation.id)}>
                       <Play className="h-4 w-4" />
                     </Button>
                   )}
-                  
+
                   {operation.status === 'failed' && operation.retryCount < operation.maxRetries && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRetry(operation.id)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => handleRetry(operation.id)}>
                       <RotateCcw className="h-4 w-4" />
                     </Button>
                   )}
-                  
+
                   {operation.canCancel && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -370,8 +349,8 @@ export function SyncProgressIndicator({
                         <AlertDialogHeader>
                           <AlertDialogTitle>Cancel Sync Operation</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Are you sure you want to cancel this sync operation? 
-                            Any progress will be lost and you'll need to start over.
+                            Are you sure you want to cancel this sync operation? Any progress will
+                            be lost and you'll need to start over.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -392,18 +371,18 @@ export function SyncProgressIndicator({
                   <span>
                     {operation.processedItems} of {operation.totalItems} items
                     {operation.failedItems > 0 && (
-                      <span className="text-red-600 ml-2">
+                      <span className="text-destructive ml-2">
                         ({operation.failedItems} failed)
                       </span>
                     )}
                   </span>
                   <span className="font-medium">{operation.progress}%</span>
                 </div>
-                <Progress 
-                  value={operation.progress} 
+                <Progress
+                  value={operation.progress}
                   className={cn(
-                    operation.status === 'failed' && "bg-red-100",
-                    operation.status === 'paused' && "bg-orange-100"
+                    operation.status === 'failed' && 'bg-destructive/10',
+                    operation.status === 'paused' && 'bg-orange-100'
                   )}
                 />
               </div>
@@ -445,7 +424,7 @@ export function SyncProgressIndicator({
 
               {/* Error message */}
               {operation.error && (
-                <div className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                <div className="text-xs text-destructive bg-destructive/10 p-2 rounded border border-destructive/20">
                   Error: {operation.error}
                 </div>
               )}

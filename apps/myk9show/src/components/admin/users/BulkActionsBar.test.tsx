@@ -3,8 +3,10 @@
  * Tests bulk operations, user deletion, and user interface interactions
  */
 
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BulkActionsBar } from './BulkActionsBar';
 import {
   useDeleteUserMutation,
@@ -29,6 +31,26 @@ vi.mock('@/hooks/useAuthContext', () => ({
 // no personId, so the guard is inert here anyway.
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useOwnedLiveDogsByPersonQuery: () => ({ data: [], isLoading: false }),
+}));
+
+// BulkRoleDialog's clubs-list query — resolve empty so opening the dialog doesn't
+// hit a real client. Role-change behavior itself is covered in useBulkActions.test.ts.
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        is: vi.fn(() => ({
+          order: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        })),
+      })),
+    })),
+  },
+}));
+
+vi.mock('@/services/rbac/RBACService', () => ({
+  rbacService: {
+    getAllRoles: vi.fn(() => Promise.resolve([])),
+  },
 }));
 
 const mockUseDeleteUserMutation = vi.mocked(useDeleteUserMutation);
@@ -62,6 +84,14 @@ const mockSelectedUsers: SelectedUser[] = [
     },
   },
 ];
+
+// BulkRoleDialog (rendered by this component) reads via useQuery/useQueryClient
+// (clubs-list + role change cache invalidation) — wrap every render in a
+// QueryClientProvider so those hooks don't throw outside a provider.
+function render(ui: React.ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
 
 const defaultProps = {
   selectedUsers: mockSelectedUsers,
@@ -362,16 +392,19 @@ describe('BulkActionsBar', () => {
   });
 
   describe('Bulk Actions Menu', () => {
-    it('renders role management button', () => {
+    it('renders a "Change roles" action opening BulkRoleDialog (MYK9-58 rebuild)', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      expect(screen.getByRole('button', { name: /roles/i })).toBeInTheDocument();
+      const rolesButton = screen.getByRole('button', { name: /change roles/i });
+      fireEvent.click(rolesButton);
+
+      expect(screen.getByText('Change Roles')).toBeInTheDocument();
     });
 
-    it('renders status management button', () => {
+    it('does not render a status action (no real per-user status mutation exists)', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      expect(screen.getByRole('button', { name: /status/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^status$/i })).not.toBeInTheDocument();
     });
   });
 

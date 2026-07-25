@@ -1,8 +1,23 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { forwardRef, useImperativeHandle } from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
+
+vi.mock('@/components/security/TurnstileChallenge', () => ({
+  TurnstileChallenge: forwardRef(function MockTurnstileChallenge(
+    props: { onTokenChange: (token: string | null) => void },
+    ref
+  ) {
+    useImperativeHandle(ref, () => ({ reset: () => props.onTokenChange(null) }));
+    return (
+      <button type="button" onClick={() => props.onTokenChange('turnstile-token')}>
+        Complete security check
+      </button>
+    );
+  }),
+}));
 
 // Mock useAuthContext
 const mockResetPassword = vi.fn();
@@ -15,6 +30,10 @@ vi.mock('@/hooks/useAuthContext', () => ({
 describe('ForgotPasswordPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   const renderPage = () =>
@@ -48,6 +67,55 @@ describe('ForgotPasswordPage', () => {
       expect(screen.getByText('Check your email')).toBeInTheDocument();
     });
     expect(mockResetPassword).toHaveBeenCalledWith('user@example.com');
+  });
+
+  it('requires and forwards Turnstile verification when configured', async () => {
+    vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key');
+    mockResetPassword.mockResolvedValue(undefined);
+    renderPage();
+
+    await userEvent.type(screen.getByLabelText('Email address'), 'user@example.com');
+    expect(screen.getByRole('button', { name: 'Send Reset Link' })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Complete security check' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send Reset Link' }));
+
+    await waitFor(() =>
+      expect(mockResetPassword).toHaveBeenCalledWith('user@example.com', 'turnstile-token')
+    );
+  });
+
+  it('keeps the form open and requests a fresh challenge when CAPTCHA verification fails', async () => {
+    vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key');
+    const captchaError = Object.assign(new Error('Captcha verification failed'), {
+      code: 'captcha_failed',
+    });
+    mockResetPassword.mockRejectedValue(captchaError);
+    renderPage();
+
+    await userEvent.type(screen.getByLabelText('Email address'), 'user@example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Complete security check' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send Reset Link' }));
+
+    expect(
+      await screen.findByText('Security verification expired. Please complete it again.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Check your email')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send Reset Link' })).toBeDisabled();
+  });
+
+  it('does not reuse one token when the form is submitted twice', async () => {
+    vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key');
+    mockResetPassword.mockReturnValue(new Promise(() => undefined));
+    renderPage();
+
+    await userEvent.type(screen.getByLabelText('Email address'), 'user@example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Complete security check' }));
+    const form = screen.getByRole('button', { name: 'Send Reset Link' }).closest('form');
+    fireEvent.submit(form!);
+    fireEvent.submit(form!);
+
+    expect(mockResetPassword).toHaveBeenCalledTimes(1);
   });
 
   it('shows success even when resetPassword throws (prevents email enumeration)', async () => {

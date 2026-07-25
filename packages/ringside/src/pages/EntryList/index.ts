@@ -40,7 +40,7 @@ export type {
 } from './types';
 
 // ── Sortable card utilities (moved from sortableEntryCardUtils.ts) ───────
-export type { StatusBorderClass, StatusConfig } from './sortableEntryCardUtils';
+export type { StatusBorderClass } from './sortableEntryCardUtils';
 export {
   normalizeResultText,
   getResultClassName,
@@ -48,7 +48,6 @@ export {
   getStatusBorderClass,
   getPlacementEmoji,
   getPlacementText,
-  getStatusConfig,
   isNationalsCompetition,
   getDisplayTime,
 } from './sortableEntryCardUtils';
@@ -90,6 +89,9 @@ export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
 // as the host's binding for the `EntryListDataDependencies` slot.
 export { useEntryListData } from './hooks/useEntryListData';
 export type { UseEntryListDataOptions } from './hooks/useEntryListData';
+
+export { ClassCompletionPresentation, ClassPodium, markClassCompletionPending } from './components';
+export type { ClassCompletionPresentationProps, ClassPodiumProps } from './components';
 
 // ── Hook DI contracts (PR E2d-1) ────────────────────────────────────────
 // `EntryListHandlers` and `EntryListActions` mirror the return shapes

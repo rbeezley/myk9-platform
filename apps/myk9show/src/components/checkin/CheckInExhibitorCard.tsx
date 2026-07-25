@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { StatusIcon } from '@/components/status';
 import { CheckInClassRow } from './CheckInClassRow';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 
-const SUMMARY_BORDER_COLOR: Record<string, string> = {
-  none: 'var(--status-no-status)',
-  partial: 'var(--status-conflict)',
-  'checked-in': 'var(--status-checked-in)',
-};
+function getSummaryEntryStatus(summaryStatus: ExhibitorCheckInGroup['summaryStatus']) {
+  if (summaryStatus === 'checked-in') return 'checked-in';
+  if (summaryStatus === 'partial') return 'pending';
+  return 'no-status';
+}
 
 interface CheckInExhibitorCardProps {
   group: ExhibitorCheckInGroup;
@@ -29,16 +30,13 @@ export function CheckInExhibitorCard({
     .filter(e => e.checkInStatus === 'no-status' || !e.checkInStatus)
     .map(e => e.entryId);
 
-  const borderColor = SUMMARY_BORDER_COLOR[group.summaryStatus] ?? 'var(--status-no-status)';
+  const summaryEntryStatus = getSummaryEntryStatus(group.summaryStatus);
   const isDone = group.summaryStatus === 'checked-in';
 
   return (
     <div
-      className="rounded-lg bg-card shadow-card"
-      style={{
-        borderLeft: `3px solid ${borderColor}`,
-        opacity: isDone ? 0.7 : 1,
-      }}
+      className="rounded-lg border-l-[3px] border-l-border bg-card shadow-card"
+      style={{ opacity: isDone ? 0.7 : 1 }}
     >
       <div
         data-testid="exhibitor-card-header"
@@ -64,9 +62,9 @@ export function CheckInExhibitorCard({
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
           )}
 
-          {isDone ? (
-            <Check className="h-5 w-5" style={{ color: 'var(--status-checked-in)' }} />
-          ) : (
+          <StatusIcon family="entry" status={summaryEntryStatus} size="lg" decorative />
+
+          {!isDone && (
             <Button
               size="sm"
               className="h-8"

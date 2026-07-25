@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard, Trophy, ListChecks, ClipboardList, Medal, ListTree } from 'lucide-react';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
@@ -14,11 +13,11 @@ import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
-import { CLASS_STATUS } from '@myk9/core';
-import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
-import { getEntriesForShow } from '@/services/database/entries';
-import { queryKeys } from '@/lib/queryClient';
-import type { SecretaryEntry } from '@/services/database/entries';
+import { CLASS_STATUS, normalizeClassStatus } from '@myk9/core';
+import {
+  useEntriesByShowQuery,
+  useSecretaryShowEntriesQuery,
+} from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { ShowPublicLanding } from '@/components/shows/ShowDetails/ShowPublicLanding';
@@ -42,12 +41,7 @@ import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 import { useSubmittedEntryProjection } from '@/features/exhibitor-entry/useSubmittedEntryProjection';
 import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
 
-/**
- * Thin audience router for `/shows/:id`. Loads the show + entries once, derives
- * the shared tab data, then delegates to one of three focused surfaces by
- * audience (see resolveShowAudience): the public landing, the exhibitor view, or
- * the management shell. The presence provider wraps only the authed surfaces.
- */
+/** Loads `/shows/:id` once and delegates to the public, exhibitor, or management surface. */
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -102,15 +96,7 @@ const ShowDetailsPage: React.FC = () => {
     isSuccess: secretaryEntriesLoaded,
     isError: secretaryEntriesIsError,
     refetch: refetchSecretaryEntries,
-  } = useQuery<SecretaryEntry[]>({
-    queryKey: queryKeys.showEntries(id ?? ''),
-    queryFn: async () => {
-      const result = await getEntriesForShow(id ?? '');
-      if (result.error) throw result.error;
-      return (result.data ?? []) as unknown as SecretaryEntry[];
-    },
-    enabled: Boolean(id && canManageShow),
-  });
+  } = useSecretaryShowEntriesQuery(id ?? '', Boolean(id && canManageShow));
   const entryDataState: 'ready' | 'loading' | 'error' = !canManageShow
     ? 'ready'
     : secretaryEntriesLoaded
@@ -187,10 +173,7 @@ const ShowDetailsPage: React.FC = () => {
   const isAuthenticated = !!user;
   const requestedTab = searchParams.get('tab');
   const isWaitingForExhibitorEntryDefault =
-    isAuthenticated &&
-    !canManageShow &&
-    !requestedTab &&
-    exhibitorEntryDataState === 'loading';
+    isAuthenticated && !canManageShow && !requestedTab && exhibitorEntryDataState === 'loading';
 
   // Tab state — URL-synced with dynamic allowed tabs
   const canShowMap = features.showMap && canManageShow;
@@ -283,7 +266,12 @@ const ShowDetailsPage: React.FC = () => {
       stats[trial.id] = {
         classCount: classes.length,
         entryCount: trialEntryCount,
-        completedClasses: classes.filter(cls => cls.status === CLASS_STATUS.COMPLETED).length,
+        completedClasses: classes.filter(
+          cls => normalizeClassStatus(cls.status) === CLASS_STATUS.COMPLETED
+        ).length,
+        hasStarted: classes.some(
+          cls => normalizeClassStatus(cls.status) === CLASS_STATUS.IN_PROGRESS
+        ),
       };
     }
     return stats;

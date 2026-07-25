@@ -72,6 +72,7 @@ describe('ShowDeskToolsSheet', () => {
     actionableCount?: number;
     actionableTone?: 'urgent' | 'routine';
     showId?: string;
+    requestedToolId?: string;
   }) {
     return render(
       <ShowDeskToolsSheet
@@ -80,6 +81,9 @@ describe('ShowDeskToolsSheet', () => {
         toolCount={props?.toolCount}
         {...(props?.actionableCount !== undefined && { actionableCount: props.actionableCount })}
         {...(props?.actionableTone !== undefined && { actionableTone: props.actionableTone })}
+        {...(props?.requestedToolId !== undefined && {
+          requestedToolId: props.requestedToolId,
+        })}
       />
     );
   }
@@ -99,6 +103,17 @@ describe('ShowDeskToolsSheet', () => {
 
     expect(screen.queryByRole('dialog', { name: /show desk tools/i })).not.toBeInTheDocument();
     expect(screen.queryByTestId('add-entries-tool')).not.toBeInTheDocument();
+  });
+
+  it('opens a requested tool directly for cross-page deep links', () => {
+    renderSheet({ requestedToolId: 'broadcast' });
+
+    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /schedule slip script/i })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(screen.getByTestId('broadcast-tool')).toBeInTheDocument();
   });
 
   it('opens the sheet on trigger click and renders collapsed tool sections', async () => {

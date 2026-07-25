@@ -1,5 +1,8 @@
 import type { PayoutStatus } from '@/features/payments/payoutLedger';
 import type { RoleRequestStatus } from '@/services/database/role-requests';
+import type { OnboardingRequest } from '@/services/database/onboarding-requests';
+
+type OnboardingStatus = OnboardingRequest['status'];
 
 type AdminStatusTone = 'pending' | 'progress' | 'success' | 'danger';
 
@@ -28,6 +31,21 @@ const ROLE_REQUEST_STATUS: Record<RoleRequestStatus, { label: string; tone: Admi
   denied: { label: 'Denied', tone: 'danger' },
 };
 
+export const ONBOARDING_STATUS_FILTERS: readonly (OnboardingStatus | 'all')[] = [
+  'all',
+  'pending',
+  'contacted',
+  'onboarded',
+  'declined',
+];
+
+const ONBOARDING_STATUS: Record<OnboardingStatus, { label: string; tone: AdminStatusTone }> = {
+  pending: { label: 'Pending', tone: 'pending' },
+  contacted: { label: 'Contacted', tone: 'progress' },
+  onboarded: { label: 'Onboarded', tone: 'success' },
+  declined: { label: 'Declined', tone: 'danger' },
+};
+
 const PAYOUT_STATUS: Record<PayoutStatus, { label: string; tone: AdminStatusTone }> = {
   pending: { label: 'Pending', tone: 'pending' },
   processing: { label: 'Processing', tone: 'progress' },
@@ -50,6 +68,14 @@ export function getRoleRequestStatusPresentation(
 
 export function getRoleRequestFilterLabel(status: RoleRequestStatus | 'all'): string {
   return status === 'all' ? 'All' : ROLE_REQUEST_STATUS[status].label;
+}
+
+export function getOnboardingStatusPresentation(status: OnboardingStatus): AdminStatusPresentation {
+  return toPresentation(ONBOARDING_STATUS[status]);
+}
+
+export function getOnboardingFilterLabel(status: OnboardingStatus | 'all'): string {
+  return status === 'all' ? 'All' : ONBOARDING_STATUS[status].label;
 }
 
 /**

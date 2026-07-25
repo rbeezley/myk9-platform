@@ -13,6 +13,7 @@ const useUpdateClassMutationMock = vi.hoisted(() => vi.fn());
 const useDeleteClassMutationMock = vi.hoisted(() => vi.fn());
 const useJudgesWithQualificationsMock = vi.hoisted(() => vi.fn());
 const useShowQueryMock = vi.hoisted(() => vi.fn());
+const useSecretaryShowEntriesQueryMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/queries/useClassesDatabase', () => ({
   useClassesByTrialQuery: useClassesByTrialQueryMock,
@@ -26,6 +27,10 @@ vi.mock('@/hooks/queries/useClassesDatabase', () => ({
 
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowQuery: useShowQueryMock,
+}));
+
+vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
+  useSecretaryShowEntriesQuery: useSecretaryShowEntriesQueryMock,
 }));
 
 vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
@@ -84,6 +89,16 @@ describe('ClassManagementPage lifecycle chips (2.B)', () => {
     useDeleteClassMutationMock.mockReturnValue({ mutate: vi.fn() });
     useJudgesWithQualificationsMock.mockReturnValue({ data: [] });
     useShowQueryMock.mockReturnValue({ data: { id: 'show-1', status: 'published' } });
+    useSecretaryShowEntriesQueryMock.mockReturnValue({
+      data: Array.from({ length: 8 }, (_, index) => ({
+        id: `entry-${index + 1}`,
+        show_id: 'show-1',
+        trial_id: 'trial-1',
+        class_id: 'class-1',
+      })),
+      isLoading: false,
+      isError: false,
+    });
   });
 
   it('renders the derived label, never the raw enum', () => {
@@ -106,5 +121,48 @@ describe('ClassManagementPage lifecycle chips (2.B)', () => {
     expect(tileCount('Not started')).toBe('2');
     expect(tileCount('In Progress')).toBe('1');
     expect(tileCount('Completed')).toBe('1');
+  });
+
+  it('announces summary lifecycle labels once through visible text', () => {
+    renderPage();
+    expect(screen.queryByRole('img', { name: 'Not started' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'In Progress' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Completed' })).not.toBeInTheDocument();
+  });
+
+  it('derives each class entry total from the shared show-scoped entry rows', () => {
+    renderPage();
+
+    expect(within(rowFor('Container Novice A')).getByText('Entries: 8/50')).toBeVisible();
+  });
+
+  it('shows an unavailable count instead of a false zero while shared entries cannot load', () => {
+    useSecretaryShowEntriesQueryMock.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: true,
+      error: new Error('Offline with no cached entries'),
+    });
+
+    renderPage();
+
+    expect(
+      within(rowFor('Container Novice A')).getByLabelText('Entry count unavailable')
+    ).toHaveTextContent('Entries: —');
+    expect(within(rowFor('Container Novice A')).queryByText('Entries: 0/50')).toBeNull();
+  });
+
+  it('keeps cached entry counts visible when a background refresh fails', () => {
+    const cachedEntries = useSecretaryShowEntriesQueryMock().data;
+    useSecretaryShowEntriesQueryMock.mockReturnValue({
+      data: cachedEntries,
+      isLoading: false,
+      isError: true,
+      error: new Error('Refresh failed'),
+    });
+
+    renderPage();
+
+    expect(within(rowFor('Container Novice A')).getByText('Entries: 8/50')).toBeVisible();
   });
 });

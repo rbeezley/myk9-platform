@@ -22,6 +22,7 @@ import { CoverImageUpload } from '@/components/ui/cover-image-upload';
 import { Club } from '@/types/club-types';
 import { generatePalette } from '@/lib/branding';
 import { getClubInitials } from './utils';
+import { normalizeContactDestinations } from './contactDestinations';
 
 interface ClubHeaderProps {
   club: Club;
@@ -53,6 +54,9 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
     () => (club.accentColor ? generatePalette(club.accentColor) : null),
     [club.accentColor]
   );
+  const contact = useMemo(() => normalizeContactDestinations(club), [club]);
+  const hasMenuActions =
+    canEditBranding || canDeleteClub || !!contact.email || !!contact.phone || !!contact.website;
 
   const foundedYear = club.founded
     ? club.founded instanceof Date
@@ -83,60 +87,60 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
             Edit
           </Button>
         )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild nativeButton>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 p-0 bg-black/30 hover:bg-black/50 text-white"
-              aria-label="Club options"
-            >
-              <MoreVertical className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {canEditBranding && (
-              <>
-                <DropdownMenuItem onClick={onEditPhoto}>
-                  <Camera className="mr-2 h-4 w-4" />
-                  Change Photo
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            <DropdownMenuItem onClick={() => window.open(`mailto:${club.email}`, '_self')}>
-              <Mail className="mr-2 h-4 w-4" />
-              Email Club
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => window.open(`tel:${club.phone}`, '_self')}>
-              <Phone className="mr-2 h-4 w-4" />
-              Call Club
-            </DropdownMenuItem>
-            {club.website && (
-              <DropdownMenuItem
-                onClick={() =>
-                  window.open(
-                    club.website?.startsWith('http') ? club.website : `https://${club.website}`,
-                    '_blank',
-                    'noopener,noreferrer'
-                  )
-                }
+        {hasMenuActions && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild nativeButton>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 p-0 bg-black/30 hover:bg-black/50 text-white"
+                aria-label="Club options"
               >
-                <Globe className="mr-2 h-4 w-4" />
-                Visit Website
-              </DropdownMenuItem>
-            )}
-            {canDeleteClub && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onDeleteClub} className="text-red-600">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Club
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {canEditBranding && (
+                <>
+                  <DropdownMenuItem onClick={onEditPhoto}>
+                    <Camera className="mr-2 h-4 w-4" />
+                    Change Photo
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              {contact.email && (
+                <DropdownMenuItem onClick={() => window.open(contact.email!, '_self')}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Email Club
                 </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              )}
+              {contact.phone && (
+                <DropdownMenuItem onClick={() => window.open(contact.phone!, '_self')}>
+                  <Phone className="mr-2 h-4 w-4" />
+                  Call Club
+                </DropdownMenuItem>
+              )}
+              {contact.website && (
+                <DropdownMenuItem
+                  onClick={() => window.open(contact.website!, '_blank', 'noopener,noreferrer')}
+                >
+                  <Globe className="mr-2 h-4 w-4" />
+                  Visit Website
+                </DropdownMenuItem>
+              )}
+              {canDeleteClub && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onDeleteClub} className="text-destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Club
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Accent color bar at very top */}
@@ -244,26 +248,26 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
               )}
             </div>
             {/* Quick contact actions */}
-            {(club.email || club.phone) && (
+            {(contact.email || contact.phone) && (
               <div className="flex gap-2 mt-4">
-                {club.email && (
+                {contact.email && (
                   <Button
                     variant="outline"
                     size="sm"
                     className="h-9 px-3"
-                    onClick={() => window.open(`mailto:${club.email}`, '_self')}
+                    onClick={() => window.open(contact.email!, '_self')}
                     title={`Email: ${club.email}`}
                   >
                     <Mail className="w-4 h-4 mr-2" />
                     Email
                   </Button>
                 )}
-                {club.phone && (
+                {contact.phone && (
                   <Button
                     variant="outline"
                     size="sm"
                     className="h-9 px-3"
-                    onClick={() => window.open(`tel:${club.phone}`, '_self')}
+                    onClick={() => window.open(contact.phone!, '_self')}
                     title={`Call: ${club.phone}`}
                   >
                     <Phone className="w-4 h-4 mr-2" />

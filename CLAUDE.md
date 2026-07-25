@@ -25,7 +25,10 @@ When I correct you or you catch yourself making a mistake, before continuing, ad
 ## LESSONS
 
 - `supabase functions deploy --workdir apps/myk9show` follows that dir's stale `.temp/project-ref` (myK9Show-Working, defunct) — ALWAYS pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly and confirm the "Deployed Functions on project ..." line names the right ref.
+- `codex review --commit <SHA>` reviews ONLY that one commit — on a multi-commit PR, run it per code commit (or against the range); reviewing the branch tip alone can hit a docs-only commit and vacuously pass.
 - `git branch -D <branch>` fails while any worktree (including the current one) is checked out on it, including as the silent local-delete half of `gh pr merge --delete-branch` — always remove the worktree first, then delete the branch.
+- If work flagged as a background-task chip gets absorbed into the current session (e.g., it turns out to block the main task), dismiss the chip IMMEDIATELY — before continuing — or the user may start it and duplicate the work (PR #1441/#1442).
+- When adding a `docs/plan-*.md`, add its status line and `docs/README.md` index row in the same edit.
 
 ## Intent & Emotional Design
 
@@ -140,7 +143,15 @@ For bug-fixing methodology (assertion-first testing, seed-data/RBAC survey-first
 
 ## Workflow
 
-Update tracking after completing each task or sprint item: move the corresponding Linear issue (team **MyK9-platform**) to Done, and keep sprint docs and the debt register in sync with actual progress.
+Set the corresponding Linear issue (team **MyK9-platform**) to In Progress when starting work on it, and keep it there throughout implementation and PR review. When implementation finishes, post a comment on the issue with:
+
+- **What changed** — summary of the implementation
+- **Tests/checks run** — what was executed and the result
+- **Branch or PR link**
+- **Risks or remaining work**
+- **Whether the acceptance criteria passed**
+
+Move the issue to Done only after the PR merges, then keep sprint docs and the debt register in sync with the merged state.
 
 **Which review to use, and the Codex second-opinion policy: see [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 4.**
 

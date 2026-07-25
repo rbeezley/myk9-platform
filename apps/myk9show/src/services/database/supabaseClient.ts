@@ -140,29 +140,6 @@ export const signOut = async () => {
   return { error };
 };
 
-// Real-time subscription utilities
-export const createRealtimeSubscription = (
-  table: string,
-  callback: (payload: unknown) => void,
-  filter?: string
-) => {
-  const subscription = supabase.channel(`public:${table}`).on(
-    'postgres_changes',
-    {
-      event: '*',
-      schema: 'public',
-      table,
-      ...(filter && { filter }),
-    },
-    callback
-  );
-
-  return {
-    subscribe: () => subscription.subscribe(),
-    unsubscribe: () => subscription.unsubscribe(),
-  };
-};
-
 // Batch operation utilities
 export const executeBatch = async <T>(
   operations: Array<() => Promise<T>>

@@ -13,14 +13,14 @@ import '@/styles/myk9-table.css';
 
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Mail, Phone, MapPin, Calendar, Building2 } from 'lucide-react';
+import { Mail, Phone, MapPin, Calendar, Building2, Search, Users } from 'lucide-react';
 
 import { User } from '@/types/user-types';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { formatRelativeTime } from '@/lib/timeUtils';
 import { DENSITY_CONFIG, APPLE_FONT_STYLE, ROLE_CONFIG } from './types';
 import type { UserTableProps } from './types';
-import { UserTableEmptyState } from './UserTableEmptyState';
+import { EmptyState } from '@/components/common/EmptyState';
 import { Pagination } from './Pagination';
 import { RowActions } from './RowActions';
 import {
@@ -353,6 +353,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   pageSize,
   onPageSizeChange,
   searchTerm = '',
+  onClearSearch,
   densityMode = 'comfortable',
 }) => {
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
@@ -418,11 +419,29 @@ export const UserTable: React.FC<UserTableProps> = ({
     [selectedUsers, onSelectUser, onSelectAll, users, searchTerm, densityMode]
   );
 
+  const emptyState = (
+    <EmptyState
+      icon={searchTerm ? Search : Users}
+      title={searchTerm ? 'No Matching Users' : 'No Users Found'}
+      description={
+        searchTerm
+          ? `No users match "${searchTerm}". Try adjusting your search terms or filters.`
+          : 'There are no users to display. Users will appear here once they are added to the system.'
+      }
+      action={
+        searchTerm && onClearSearch
+          ? { label: 'Clear Search', onClick: onClearSearch, variant: 'outline' }
+          : null
+      }
+      variant={searchTerm ? 'filter' : 'default'}
+    />
+  );
+
   // Empty state (before DataTable so we keep the bespoke design)
   if (!isLoading && !users.length) {
     return (
       <div className="space-y-6" style={APPLE_FONT_STYLE}>
-        <UserTableEmptyState searchTerm={searchTerm} />
+        {emptyState}
       </div>
     );
   }
@@ -445,7 +464,7 @@ export const UserTable: React.FC<UserTableProps> = ({
             loading={isLoading}
             onRowClick={user => onUserClick(user)}
             className="myk9-table"
-            emptyState={<UserTableEmptyState searchTerm={searchTerm} />}
+            emptyState={emptyState}
           />
         </div>
       </div>

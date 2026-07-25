@@ -30,6 +30,7 @@ export interface UserTableProps {
   pageSize: number;
   onPageSizeChange?: (size: number) => void;
   searchTerm?: string;
+  onClearSearch?: () => void;
   densityMode?: DensityMode;
 }
 

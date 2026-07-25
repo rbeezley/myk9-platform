@@ -12,6 +12,7 @@ export * from './Tabs';
 export * from './StatCard';
 export * from './StatsGrid';
 export * from './StatusBadge';
+export * from './StatusIcon';
 export * from './TimerDisplay';
 export * from './PageLayout';
 export * from './ClassCard';

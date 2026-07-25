@@ -41,7 +41,6 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
           <BrowseCard
             key={dog.id}
             href={`/dogs/${dog.id}`}
-            actionLabel="View Dog"
             name={displayName}
             avatar={
               <BrowseCardAvatar

@@ -25,9 +25,13 @@ export interface ListControlsProps {
   filterValues: Record<string, string>;
   onFilterChange: (key: string, value: string | null) => void;
 
-  /** View-mode toggle. Defaults to the standard cards/table pair. */
-  viewMode: string;
-  onViewModeChange: (mode: string) => void;
+  /**
+   * View-mode toggle. Defaults to the standard cards/table pair. Omit both
+   * (or set `hideViewToggle`) for card-only surfaces such as the exhibitor
+   * My Dogs view — see design.md D3.
+   */
+  viewMode?: string;
+  onViewModeChange?: (mode: string) => void;
   viewModes?: readonly ViewMode[];
 
   /** Result count summary (pluralize `entityName` at the call site). */
@@ -104,7 +108,7 @@ export function ListControls({
           </>
         )}
 
-        {!hideViewToggle && (
+        {!hideViewToggle && viewMode !== undefined && onViewModeChange && (
           <ViewToggle
             modes={viewModes}
             active={viewMode}
@@ -170,7 +174,11 @@ function MobileFiltersSheet({
             const activeValue = values[filter.key];
 
             return (
-              <section key={filter.key} className="space-y-2" aria-labelledby={`${filter.key}-filter`}>
+              <section
+                key={filter.key}
+                className="space-y-2"
+                aria-labelledby={`${filter.key}-filter`}
+              >
                 <h3 id={`${filter.key}-filter`} className="text-sm font-semibold text-foreground">
                   {filter.label}
                 </h3>

@@ -358,7 +358,7 @@ export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({ showId, classN
                     </div>
 
                     {classItem.errorMessage && (
-                      <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                      <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-2 rounded border border-destructive/20">
                         <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                         <span>{classItem.errorMessage}</span>
                       </div>

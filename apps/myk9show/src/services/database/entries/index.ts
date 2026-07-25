@@ -29,6 +29,7 @@ export * from './lifecycle';
 export * from './moveUpNote';
 export * from './search';
 export * from './secretary';
+export { SECRETARY_ENTRIES_READ_ERROR } from './secretaryReadErrors';
 export { hardDeleteEntry, restoreEntry, getDeletedEntries } from './admin';
 export { entryInvalidationKeys } from './invalidation';
 export type { EntryChange } from './invalidation';

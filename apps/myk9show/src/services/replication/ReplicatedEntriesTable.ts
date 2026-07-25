@@ -199,14 +199,56 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   /**
+   * Load an entry for a write, hydrating the local replica from the server on
+   * a cache miss.
+   *
+   * Pages like secretary Entry Management read their lists via PostgREST and
+   * never run a per-show entries sync (only /at-show and scoring surfaces call
+   * `sync(showId)`), so in a fresh browser profile the replica is cold and the
+   * first check-in / day-of scratch would fail with "Entry not found" even
+   * though the entry exists server-side. Hydration reads the same view the
+   * sync adapter uses and seeds a clean row carrying its OCC serverVersion, so
+   * the queued mutation's precondition matches the server. Offline misses
+   * still throw the canonical not-found error: there is nothing to write
+   * against, and the caller's retry UX handles it.
+   */
+  private async getOrHydrateEntry(entryId: string): Promise<ReplicatedEntry> {
+    const cached = await this.get(entryId);
+    if (cached) return cached;
+
+    // An entry deleted locally this session must not be resurrected by a write.
+    if (!this._deletedIds.has(entryId)) {
+      try {
+        const { data, error } = await supabase
+          .from('view_authenticated_entry_results')
+          .select('*')
+          .eq('id', entryId)
+          .maybeSingle();
+
+        // Re-check after the await: a deleteEntry() for this id may have landed
+        // while the fetch was in flight, and must still win the race.
+        if (!error && data && !this._deletedIds.has(entryId)) {
+          const row = data as unknown as EntryRow;
+          const hydrated = rowToEntry(row);
+          const serverVersion = (row as Record<string, unknown>).version as number | undefined;
+          await this.set(entryId, hydrated, false, undefined, serverVersion);
+          logger.log(`[${this.getTableName()}] Hydrated cold-replica entry ${entryId} for write`);
+          return hydrated;
+        }
+      } catch (error) {
+        logger.warn(`[${this.getTableName()}] Cold-replica hydration failed for ${entryId}`, error);
+      }
+    }
+
+    throw new Error(`Entry ${entryId} not found`);
+  }
+
+  /**
    * Update entry status (offline-first)
    * @returns mutation ID if queued, null if no MutationManager
    */
   async updateEntryStatus(entryId: string, status: string): Promise<string | null> {
-    const entry = await this.get(entryId);
-    if (!entry) {
-      throw new Error(`Entry ${entryId} not found`);
-    }
+    const entry = await this.getOrHydrateEntry(entryId);
 
     const updated: ReplicatedEntry = {
       ...entry,
@@ -231,10 +273,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * policies allow `check_in_status` changes without granting broad row writes.
    */
   async updateCheckInStatus(entryId: string, status: CheckInStatus): Promise<string | null> {
-    const entry = await this.get(entryId);
-    if (!entry) {
-      throw new Error(`Entry ${entryId} not found`);
-    }
+    const entry = await this.getOrHydrateEntry(entryId);
 
     const updated: ReplicatedEntry = {
       ...entry,
@@ -268,10 +307,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * @returns mutation ID if queued, null if no MutationManager
    */
   async updateEntry(entryId: string, updates: Partial<ReplicatedEntry>): Promise<string | null> {
-    const entry = await this.get(entryId);
-    if (!entry) {
-      throw new Error(`Entry ${entryId} not found`);
-    }
+    const entry = await this.getOrHydrateEntry(entryId);
 
     const updated: ReplicatedEntry = {
       ...entry,
@@ -418,7 +454,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * @param dependsOn - Optional mutation IDs that must upload before this entry
    * The mutation ID is available via `lastMutationId` for dependency tracking.
    */
-  async createEntry(entry: ReplicatedEntry, dependsOn: string | string[] = []): Promise<ReplicatedEntry> {
+  async createEntry(
+    entry: ReplicatedEntry,
+    dependsOn: string | string[] = []
+  ): Promise<ReplicatedEntry> {
     const newEntry: ReplicatedEntry = {
       ...entry,
       _version: 1,
@@ -432,11 +471,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       'INSERT',
       entry.id,
       entryToSupabaseRow(newEntry),
-      typeof dependsOn === 'string'
-        ? [dependsOn]
-        : dependsOn.length > 0
-          ? dependsOn
-          : undefined
+      typeof dependsOn === 'string' ? [dependsOn] : dependsOn.length > 0 ? dependsOn : undefined
     );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new entry ${entry.id}`);

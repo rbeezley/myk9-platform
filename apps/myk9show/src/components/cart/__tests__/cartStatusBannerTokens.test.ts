@@ -6,16 +6,15 @@ import { describe, expect, it } from 'vitest';
  * Guards the cart expiration banners against regressing to a light-only Tailwind
  * palette. `bg-red-50 / text-red-700` and `bg-amber-50 / text-amber-700` have no
  * dark-mode counterpart, so they render near-black/low-contrast chips in dark mode
- * (the ShowStatusPill #666 bug class). Both CartSummary (the /cart route) and
- * CartPreviewPanel (the header cart dropdown) must use the theme-aware
- * --destructive / --warning tokens, whose light/dark values are split in index.css.
+ * (the ShowStatusPill #666 bug class). CartSummary (the /cart route) must use
+ * the theme-aware --destructive / --warning tokens, whose light/dark values are
+ * split in index.css. (CartPreviewPanel was deleted as dead code — MP-25.)
  */
 function read(relFromHere: string): string {
   return readFileSync(resolve(__dirname, relFromHere), 'utf8');
 }
 
 const sources = {
-  CartPreviewPanel: read('../CartPreviewPanel.tsx'),
   CartSummary: read('../CartSummary.tsx'),
 };
 

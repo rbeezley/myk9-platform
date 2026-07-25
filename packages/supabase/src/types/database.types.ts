@@ -802,6 +802,7 @@ export type Database = {
           reopened_after_closeout_at: string | null
           results_released_at: string | null
           results_released_by: string | null
+          revised_expected_start: string | null
           scored_count: number | null
           section: string | null
           start_time: string | null
@@ -858,6 +859,7 @@ export type Database = {
           reopened_after_closeout_at?: string | null
           results_released_at?: string | null
           results_released_by?: string | null
+          revised_expected_start?: string | null
           scored_count?: number | null
           section?: string | null
           start_time?: string | null
@@ -914,6 +916,7 @@ export type Database = {
           reopened_after_closeout_at?: string | null
           results_released_at?: string | null
           results_released_by?: string | null
+          revised_expected_start?: string | null
           scored_count?: number | null
           section?: string | null
           start_time?: string | null
@@ -1746,6 +1749,9 @@ export type Database = {
           preferred_judge: string | null
           promo_code_id: string | null
           refund_amount: number | null
+          refund_decided_at: string | null
+          refund_decided_by: string | null
+          refund_decision: string | null
           refund_notes: string | null
           refunded_at: string | null
           registration_id: string | null
@@ -1833,6 +1839,9 @@ export type Database = {
           preferred_judge?: string | null
           promo_code_id?: string | null
           refund_amount?: number | null
+          refund_decided_at?: string | null
+          refund_decided_by?: string | null
+          refund_decision?: string | null
           refund_notes?: string | null
           refunded_at?: string | null
           registration_id?: string | null
@@ -1920,6 +1929,9 @@ export type Database = {
           preferred_judge?: string | null
           promo_code_id?: string | null
           refund_amount?: number | null
+          refund_decided_at?: string | null
+          refund_decided_by?: string | null
+          refund_decision?: string | null
           refund_notes?: string | null
           refunded_at?: string | null
           registration_id?: string | null
@@ -3962,6 +3974,200 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      paperwork_prints: {
+        Row: {
+          class_id: string | null
+          coverage: Json
+          created_at: string
+          fingerprint: string
+          id: string
+          printed_at: string
+          printed_by: string
+          printed_by_name: string
+          report_id: string
+          scope_kind: string
+          show_id: string
+          trial_id: string | null
+          updated_at: string
+          version: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          class_id?: string | null
+          coverage: Json
+          created_at?: string
+          fingerprint: string
+          id: string
+          printed_at: string
+          printed_by: string
+          printed_by_name: string
+          report_id: string
+          scope_kind: string
+          show_id: string
+          trial_id?: string | null
+          updated_at?: string
+          version?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          class_id?: string | null
+          coverage?: Json
+          created_at?: string
+          fingerprint?: string
+          id?: string
+          printed_at?: string
+          printed_by?: string
+          printed_by_name?: string
+          report_id?: string
+          scope_kind?: string
+          show_id?: string
+          trial_id?: string | null
+          updated_at?: string
+          version?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paperwork_prints_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "trials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "paperwork_prints_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["trial_id"]
+          },
+        ]
       }
       pedigree_ancestors: {
         Row: {
@@ -7261,6 +7467,47 @@ export type Database = {
           },
         ]
       }
+      stripe_order_refunds: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          kind: string
+          order_id: string | null
+          state: string
+          stripe_payment_intent_id: string
+          stripe_refund_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          kind: string
+          order_id?: string | null
+          state?: string
+          stripe_payment_intent_id: string
+          stripe_refund_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          kind?: string
+          order_id?: string | null
+          state?: string
+          stripe_payment_intent_id?: string
+          stripe_refund_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_order_refunds_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stripe_orders: {
         Row: {
           amount_cents: number
@@ -7269,15 +7516,21 @@ export type Database = {
           customer_id: string | null
           enrollment_id: string | null
           entry_ids: string[] | null
+          entry_subtotal_cents: number | null
           id: string
+          make_whole_refunded_cents: number
           metadata: Json | null
           order_type: string | null
           paid_at: string | null
+          platform_fee_cents: number | null
+          platform_fee_rate: number | null
           refunded_at: string | null
+          refunded_cents: number
           show_id: string | null
           status: string | null
           stripe_checkout_session_id: string | null
           stripe_payment_intent_id: string | null
+          stripe_processing_fee_cents: number | null
           updated_at: string | null
         }
         Insert: {
@@ -7287,15 +7540,21 @@ export type Database = {
           customer_id?: string | null
           enrollment_id?: string | null
           entry_ids?: string[] | null
+          entry_subtotal_cents?: number | null
           id?: string
+          make_whole_refunded_cents?: number
           metadata?: Json | null
           order_type?: string | null
           paid_at?: string | null
+          platform_fee_cents?: number | null
+          platform_fee_rate?: number | null
           refunded_at?: string | null
+          refunded_cents?: number
           show_id?: string | null
           status?: string | null
           stripe_checkout_session_id?: string | null
           stripe_payment_intent_id?: string | null
+          stripe_processing_fee_cents?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -7305,15 +7564,21 @@ export type Database = {
           customer_id?: string | null
           enrollment_id?: string | null
           entry_ids?: string[] | null
+          entry_subtotal_cents?: number | null
           id?: string
+          make_whole_refunded_cents?: number
           metadata?: Json | null
           order_type?: string | null
           paid_at?: string | null
+          platform_fee_cents?: number | null
+          platform_fee_rate?: number | null
           refunded_at?: string | null
+          refunded_cents?: number
           show_id?: string | null
           status?: string | null
           stripe_checkout_session_id?: string | null
           stripe_payment_intent_id?: string | null
+          stripe_processing_fee_cents?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -7428,6 +7693,83 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "stripe_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_entitlement_grants: {
+        Row: {
+          created_at: string
+          ends_at: string
+          grant_type: string
+          granted_by_person_id: string | null
+          id: string
+          person_id: string
+          reason: string
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by_person_id: string | null
+          starts_at: string
+          superseded_at: string | null
+          superseded_by_grant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          grant_type: string
+          granted_by_person_id?: string | null
+          id?: string
+          person_id: string
+          reason: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by_person_id?: string | null
+          starts_at: string
+          superseded_at?: string | null
+          superseded_by_grant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          grant_type?: string
+          granted_by_person_id?: string | null
+          id?: string
+          person_id?: string
+          reason?: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by_person_id?: string | null
+          starts_at?: string
+          superseded_at?: string | null
+          superseded_by_grant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_entitlement_grants_granted_by_person_id_fkey"
+            columns: ["granted_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_entitlement_grants_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_entitlement_grants_revoked_by_person_id_fkey"
+            columns: ["revoked_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_entitlement_grants_superseded_by_grant_id_fkey"
+            columns: ["superseded_by_grant_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_entitlement_grants"
             referencedColumns: ["id"]
           },
         ]
@@ -10238,6 +10580,10 @@ export type Database = {
         Args: { p_route: string }
         Returns: string
       }
+      _financial_reconciliation_authorize: {
+        Args: { p_club_id: string; p_scope: string; p_show_id: string }
+        Returns: undefined
+      }
       _generate_unique_role_code: {
         Args: { p_role: string }
         Returns: {
@@ -10285,6 +10631,21 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      admin_grant_entitlement: {
+        Args: {
+          p_ends_at: string
+          p_grant_type: string
+          p_person_id: string
+          p_reason: string
+          p_replace_active?: boolean
+          p_starts_at: string
+        }
+        Returns: string
+      }
+      admin_revoke_entitlement: {
+        Args: { p_grant_id: string; p_reason: string }
+        Returns: undefined
       }
       approve_role_request: {
         Args: {
@@ -10511,6 +10872,80 @@ export type Database = {
           waitlist_position: number
         }[]
       }
+      financial_reconciliation_orders: {
+        Args: {
+          p_after_created_at?: string
+          p_after_id?: string
+          p_club_id?: string
+          p_limit?: number
+          p_scope: string
+          p_show_id?: string
+        }
+        Returns: {
+          amount_cents: number
+          created_at: string
+          entry_subtotal_cents: number
+          make_whole_refunded_cents: number
+          order_id: string
+          order_type: string
+          paid_at: string
+          platform_fee_cents: number
+          platform_fee_rate: number
+          refunded_at: string
+          refunded_cents: number
+          show_id: string
+          show_name: string
+          status: string
+          stripe_payment_intent_id: string
+          stripe_processing_fee_cents: number
+        }[]
+      }
+      financial_reconciliation_payouts: {
+        Args: {
+          p_after_created_at?: string
+          p_after_id?: string
+          p_club_id?: string
+          p_limit?: number
+          p_scope: string
+          p_show_id?: string
+        }
+        Returns: {
+          amount_cents: number
+          completed_at: string
+          created_at: string
+          failure_reason: string
+          payout_id: string
+          scheduled_date: string
+          show_id: string
+          status: string
+          stripe_transfer_id: string
+        }[]
+      }
+      financial_reconciliation_summary: {
+        Args: { p_club_id?: string; p_scope: string; p_show_id?: string }
+        Returns: {
+          entry_subtotal_cents: number
+          gross_charged_cents: number
+          make_whole_refunded_cents: number
+          non_entry_gross_cents: number
+          non_entry_make_whole_refunded_cents: number
+          non_entry_order_count: number
+          non_entry_refunded_cents: number
+          order_count: number
+          payout_completed_cents: number
+          payout_count: number
+          payout_failed_cents: number
+          payout_failed_count: number
+          payout_pending_cents: number
+          pending_fee_platform_fee_cents: number
+          pending_fee_refunded_cents: number
+          platform_fee_cents: number
+          processing_fee_cents: number
+          processing_fee_pending_count: number
+          refunded_cents: number
+          snapshot_missing_count: number
+        }[]
+      }
       find_live_club_by_normalized_name: {
         Args: { p_exclude_id?: string; p_name: string }
         Returns: {
@@ -10626,6 +11061,7 @@ export type Database = {
           reopened_after_closeout_at: string | null
           results_released_at: string | null
           results_released_by: string | null
+          revised_expected_start: string | null
           scored_count: number | null
           section: string | null
           start_time: string | null
@@ -10865,7 +11301,36 @@ export type Database = {
         }[]
       }
       get_my_handled_dog_ids: { Args: never; Returns: string[] }
+      get_my_onboarding_requests: {
+        Args: never
+        Returns: {
+          auth_user_id: string
+          club_name: string
+          contact_email: string
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          first_show_date: string
+          id: string
+          message: string
+          organization: string
+          status: string
+        }[]
+      }
       get_my_person_id: { Args: never; Returns: string }
+      get_own_entitlement_context: {
+        Args: never
+        Returns: {
+          evaluated_at: string
+          grant_ends_at: string
+          grant_starts_at: string
+          grant_status: string
+          grant_type: string
+          paid_expires_at: string
+          paid_tier: string
+          scored_show_count: number
+        }[]
+      }
       get_show_officials: {
         Args: { p_show_id: string }
         Returns: {
@@ -10919,6 +11384,10 @@ export type Database = {
         Returns: string
       }
       hard_delete_show: { Args: { p_show_id: string }; Returns: undefined }
+      has_effective_premium_access: {
+        Args: { p_evaluated_at?: string; p_person_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: { role_name: string; scope_club_id?: string }
         Returns: boolean
@@ -10997,6 +11466,18 @@ export type Database = {
         Args: { p_class_ids: string[]; p_is_nationals?: boolean }
         Returns: undefined
       }
+      recompute_order_refund_totals: {
+        Args: { p_payment_intent_id: string }
+        Returns: {
+          fully_refunded: boolean
+          make_whole_cents: number
+          order_amount_cents: number
+          order_id: string
+          order_status: string
+          order_type: string
+          post_hoc_cents: number
+        }[]
+      }
       record_login_attempt: {
         Args: {
           p_ip_address: string
@@ -11006,6 +11487,23 @@ export type Database = {
           p_user_agent?: string
         }
         Returns: undefined
+      }
+      record_order_refund_cents: {
+        Args: {
+          p_amount_cents: number
+          p_kind?: string
+          p_payment_intent_id: string
+          p_refund_id: string
+        }
+        Returns: {
+          fully_refunded: boolean
+          make_whole_cents: number
+          order_amount_cents: number
+          order_id: string
+          order_status: string
+          order_type: string
+          post_hoc_cents: number
+        }[]
       }
       record_waitlist_push_delivery: {
         Args: {
@@ -11109,6 +11607,7 @@ export type Database = {
           reopened_after_closeout_at: string | null
           results_released_at: string | null
           results_released_by: string | null
+          revised_expected_start: string | null
           scored_count: number | null
           section: string | null
           start_time: string | null
@@ -11272,6 +11771,23 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      reverse_order_refund_cents: {
+        Args: {
+          p_amount_cents?: number
+          p_kind?: string
+          p_payment_intent_id: string
+          p_refund_id: string
+          p_terminal_state?: string
+        }
+        Returns: {
+          make_whole_cents: number
+          order_amount_cents: number
+          order_id: string
+          order_status: string
+          post_hoc_cents: number
+          reversed: boolean
+        }[]
+      }
       review_club_access_request: {
         Args: {
           p_club_name?: string
@@ -11293,6 +11809,10 @@ export type Database = {
       }
       self_checkin_entry: {
         Args: { p_entry_id: string; p_new_status: string }
+        Returns: undefined
+      }
+      set_entry_refund_decision: {
+        Args: { p_decision: string; p_entry_id: string }
         Returns: undefined
       }
       soft_delete_class: { Args: { p_class_id: string }; Returns: undefined }

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Plus, Download } from 'lucide-react';
+import { Plus, Download, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DataTable,
@@ -12,7 +12,7 @@ import { UnifiedEntryData } from '@/types/unified-entry-types';
 import { useTableConfiguration } from '@/hooks/useTableConfiguration';
 import { cn } from '@/lib/utils';
 import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
-import { FilterEmptyState } from '@/components/common/FilterEmptyState';
+import { EmptyState } from '@/components/common/EmptyState';
 import { ClassEntriesTableProps, DEFAULT_PERMISSIONS } from './types';
 import { EntryData } from '../types/classTypes';
 import { useInlineEditing } from './hooks/useInlineEditing';
@@ -283,40 +283,35 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
         {permissions.canViewStatistics && (
           <EntriesStatisticsPanel entries={entries} editData={inlineEditData} />
         )}
-        <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/20">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-              <Plus className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground mb-2">No entries yet</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Add the first entry to get started with this class.
-              </p>
-              {permissions.canAddEntries && (
-                <Button
-                  onClick={onAddEntry}
-                  className="myk9-action-button myk9-action-button-primary"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add First Entry
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
+        <EmptyState
+          icon={Plus}
+          title="No entries yet"
+          description="Add the first entry to get started with this class."
+          action={
+            permissions.canAddEntries
+              ? { label: 'Add First Entry', onClick: onAddEntry, icon: Plus }
+              : null
+          }
+          size="sm"
+        />
       </div>
     );
   }
 
   const filterEmptyState =
     displayRows.length === 0 && entries.length > 0 ? (
-      <FilterEmptyState
-        noun="entries"
-        statusFilter={statusFilter}
-        onReset={() => setStatusFilter('all')}
-        allDoneMessage="All entries have results!"
-        noneDoneMessage="No entries have results yet."
+      <EmptyState
+        icon={Search}
+        variant="filter"
+        size="sm"
+        title={
+          statusFilter === 'pending'
+            ? 'All entries have results!'
+            : statusFilter === 'completed'
+              ? 'No entries have results yet.'
+              : 'No entries match the current filter.'
+        }
+        action={{ label: 'Show all entries', onClick: () => setStatusFilter('all') }}
       />
     ) : undefined;
 

@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { List, Settings, Users } from 'lucide-react';
+import { StatusIcon } from '@/components/status';
+import { render } from '@/test/utils/testUtils';
 
 vi.mock('@/components/ui/tabs', () => import('./mockTabs'));
 
@@ -78,6 +80,24 @@ describe('PrimaryTabs', () => {
     tabs.forEach(tab => {
       expect(tab.querySelector('svg')).not.toBeNull();
     });
+  });
+
+  it('renders shared semantic icon elements', () => {
+    render(
+      <PrimaryTabs
+        tabs={[
+          {
+            id: 'pending',
+            label: 'Pending',
+            icon: <StatusIcon family="entry" status="pending" size="sm" decorative />,
+          },
+        ]}
+        value="pending"
+        onValueChange={vi.fn()}
+      />
+    );
+
+    expect(document.querySelector('[data-family="entry"][data-status="pending"]')).not.toBeNull();
   });
 
   it('has min-height of 48px on tab triggers (touch target)', () => {

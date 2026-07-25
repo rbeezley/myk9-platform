@@ -2,6 +2,7 @@ import { GripVertical, Lock } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
+import { ShowMapCheckInStatusBadge, ShowMapNodeStatusBadge } from './ShowMapStatusBadge';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { cn } from '@/lib/utils';
 import type { ShowMapNode } from './showMapTypes';
@@ -111,7 +112,10 @@ export function ShowMapSortableEntryRow({
           )}
           {display ? (
             <div className="flex min-w-0 items-center gap-3">
-              <ArmbandBadge armband={display.armband} className="size-12 rounded-[10px] text-base" />
+              <ArmbandBadge
+                armband={display.armband}
+                className="size-12 rounded-[10px] text-base"
+              />
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold">{display.dogName}</div>
                 {display.breed && (
@@ -127,11 +131,9 @@ export function ShowMapSortableEntryRow({
           )}
         </div>
         <div className="flex flex-wrap gap-1">
-          {node.status && <Badge variant="secondary">{node.status.label}</Badge>}
-          {node.checkInStatus && <Badge variant="outline">{node.checkInStatus.label}</Badge>}
-          {attentionCount > 0 && (
-            <Badge variant="outline">{attentionCount} need attention</Badge>
-          )}
+          <ShowMapNodeStatusBadge node={node} />
+          <ShowMapCheckInStatusBadge node={node} />
+          {attentionCount > 0 && <Badge variant="outline">{attentionCount} need attention</Badge>}
           {!node.status && !node.checkInStatus && attentionCount === 0 && (
             <span className="text-sm text-muted-foreground">-</span>
           )}

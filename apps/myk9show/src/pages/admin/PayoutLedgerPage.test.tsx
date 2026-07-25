@@ -14,6 +14,12 @@ vi.mock('@/features/payments/usePlatformPayoutLedger', () => ({
   usePlatformPayoutLedger: () => ledgerState,
 }));
 
+// PlatformIncomeCard has its own colocated tests (features/financial/components) —
+// stub it here so this page's tests aren't exercising the shared financial RPC.
+vi.mock('@/features/financial/components/PlatformIncomeCard', () => ({
+  PlatformIncomeCard: () => <div data-testid="platform-income-card-stub" />,
+}));
+
 import PayoutLedgerPage from './PayoutLedgerPage';
 
 const row: LedgerRow = {
@@ -23,6 +29,7 @@ const row: LedgerRow = {
   clubName: 'Club One',
   onlineCollectedCents: 5000,
   refundedCents: 0,
+  unresolvedRefundDecisionCount: 0,
   netOwedCents: 5000,
   settleDate: '2026-06-13',
   payoutStatus: 'completed',
@@ -41,6 +48,12 @@ describe('PayoutLedgerPage', () => {
     render(<PayoutLedgerPage />);
     expect(screen.getByText('Platform Fee')).toBeInTheDocument();
     expect(screen.getByText('7%')).toBeInTheDocument();
+  });
+
+  it('renders the platform income section above the payout ledger', () => {
+    render(<PayoutLedgerPage />);
+    expect(screen.getByText('Platform income')).toBeInTheDocument();
+    expect(screen.getByTestId('platform-income-card-stub')).toBeInTheDocument();
   });
 
   it('renders ledger rows + summary from the hook data', () => {
@@ -74,6 +87,30 @@ describe('PayoutLedgerPage', () => {
     ledgerState.data = [{ ...row, refundedCents: 1500 }];
     render(<PayoutLedgerPage />);
     expect(screen.getByText('-$15.00')).toBeInTheDocument();
+  });
+
+  it('shows a non-blocking advisory with a link to unresolved pulled entries', () => {
+    ledgerState.data = [{ ...row, unresolvedRefundDecisionCount: 2 }];
+
+    render(<PayoutLedgerPage />);
+
+    expect(
+      screen.getByText(/2 pulled entries with unresolved refund decisions/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /review pulled entries for spring trial/i })
+    ).toHaveAttribute('href', '/shows/s1/entry-management?tab=exceptions&exception=pulls');
+    expect(screen.getByText('Spring Trial')).toBeInTheDocument();
+  });
+
+  it('omits the refund advisory when every pulled entry is resolved', () => {
+    ledgerState.data = [{ ...row, unresolvedRefundDecisionCount: 0 }];
+
+    render(<PayoutLedgerPage />);
+
+    expect(
+      screen.queryByText(/pulled entries? with unresolved refund decisions/i)
+    ).not.toBeInTheDocument();
   });
 
   it('labels a missing club and unscheduled settle date without an em dash', () => {

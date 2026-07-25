@@ -82,7 +82,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => onRemoveRegistration(reg.id)}
-                        className="text-red-600 hover:text-red-800"
+                        className="text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

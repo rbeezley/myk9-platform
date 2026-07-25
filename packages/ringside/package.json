@@ -32,6 +32,7 @@
     "@myk9/core": "workspace:*",
     "@myk9/scoring-ui": "workspace:^",
     "@myk9/ui": "workspace:*",
+    "canvas-confetti": "^1.9.4",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -39,12 +40,13 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@myk9/test-utils": "workspace:*",
-    "@supabase/supabase-js": "^2.108.2",
+    "@supabase/supabase-js": "^2.110.2",
     "@tanstack/react-query": "^5.101.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@types/canvas-confetti": "^1.9.0",
     "@vitest/coverage-v8": "^4.1.9",
     "autoprefixer": "^10.5.2",
     "jsdom": "^27.4.0",

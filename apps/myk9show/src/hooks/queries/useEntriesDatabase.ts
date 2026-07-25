@@ -12,6 +12,7 @@ import {
   getEntriesByDog,
   countActiveEntriesByDog,
   getEntriesByStatus,
+  getEntriesForShow,
   createEntry,
   updateEntry,
   deleteEntry,
@@ -20,6 +21,7 @@ import {
   getEntryStatistics,
   searchEntries,
 } from '@/services/database/entries';
+import type { SecretaryEntry } from '@/services/database/entries';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -76,6 +78,28 @@ export const useEntriesByShowQuery = (showId: string, enabled = true) => {
     ...cacheStrategies.moderate,
   });
 };
+
+/**
+ * Canonical staff read for show-scoped entry work.
+ *
+ * Show Desk, Class Details, Class Management, and Entry Management must share
+ * this cache identity so a cold per-show replica cannot look populated on one
+ * surface and confidently empty on another.
+ */
+export const useSecretaryShowEntriesQuery = (showId: string, enabled = true) =>
+  useQuery<SecretaryEntry[]>({
+    queryKey: queryKeys.showEntries(showId),
+    queryFn: async () => {
+      const { data, error } = await getEntriesForShow(showId);
+      if (error) throw error;
+      // The service normalizes both replication and PostgREST rows to the
+      // SecretaryEntry contract; Supabase's nested relation inference cannot
+      // express that normalized union at this boundary.
+      return (data ?? []) as unknown as SecretaryEntry[];
+    },
+    enabled: Boolean(showId) && enabled,
+    ...cacheStrategies.dynamic,
+  });
 
 // Get entries by class ID
 export const useEntriesByClassQuery = (classId: string, enabled = true) => {

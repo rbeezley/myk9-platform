@@ -43,7 +43,7 @@ export const NetworkStatusProvider: React.FC<NetworkStatusProviderProps> = ({ ch
     isOnline,
     quality,
     showOfflineMessage,
-    retryConnection
+    retryConnection,
   };
 
   return (
@@ -74,12 +74,7 @@ const NetworkStatusIndicator: React.FC = () => {
                 Changes will be saved locally and synced when connection is restored.
               </div>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={retryConnection}
-              className="ml-2 shrink-0"
-            >
+            <Button size="sm" variant="outline" onClick={retryConnection} className="ml-2 shrink-0">
               <RefreshCw className="h-3 w-3 mr-1" />
               Retry
             </Button>
@@ -97,9 +92,7 @@ const NetworkStatusIndicator: React.FC = () => {
           <AlertCircle className="h-4 w-4 text-yellow-600" />
           <AlertDescription>
             <div className="font-medium text-yellow-800">Slow connection detected</div>
-            <div className="text-sm text-yellow-600">
-              Some features may load slowly.
-            </div>
+            <div className="text-sm text-yellow-600">Some features may load slowly.</div>
           </AlertDescription>
         </Alert>
       </div>
@@ -115,7 +108,7 @@ export const NetworkStatusIcon: React.FC = () => {
 
   if (!isOnline) {
     return (
-      <div className="flex items-center text-red-600" title="Offline">
+      <div className="flex items-center text-destructive" title="Offline">
         <WifiOff className="h-4 w-4" />
       </div>
     );
@@ -123,7 +116,7 @@ export const NetworkStatusIcon: React.FC = () => {
 
   const getConnectionQuality = () => {
     if (!quality) return 'unknown';
-    
+
     switch (quality.effectiveType) {
       case '4g':
         return 'excellent';

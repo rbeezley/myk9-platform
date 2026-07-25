@@ -8,7 +8,7 @@ import {
   DataTableColumnToggle,
 } from '@/components/ui/data-table';
 import { ClipboardList } from 'lucide-react';
-import { getEntryStatusClasses } from '@/utils/entryManagementUtils';
+import { StatusBadge } from '@/components/status';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
 import type { CheckInStatus } from '@myk9/core';
@@ -60,19 +60,18 @@ const COLUMNS: ColumnDef<DisplayEntry, unknown>[] = [
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => (
-      <span
-        className={`inline-block px-3 py-1 text-xs font-semibold rounded-full capitalize ${getEntryStatusClasses(row.original.status)}`}
-      >
-        {row.original.status}
-      </span>
+      <StatusBadge
+        family="entry"
+        status={row.original.status}
+        className="px-3 py-1 text-xs capitalize"
+        variant="outline"
+      />
     ),
   },
   {
     id: 'checkInStatus',
     header: 'Check-in',
-    cell: ({ row }) => (
-      <CheckInStatusBadge status={row.original.checkInStatus} size="sm" />
-    ),
+    cell: ({ row }) => <CheckInStatusBadge status={row.original.checkInStatus} size="sm" />,
   },
   {
     id: 'date',

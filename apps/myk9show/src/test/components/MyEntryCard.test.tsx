@@ -25,6 +25,15 @@ const baseEntry: MyEntry = {
   dogName: 'Koda',
   dogId: 'dog-1',
   classes: [{ id: 'cls-1', name: 'Novice A', number: '101', fee: 25, status: 'entered' }],
+  dogs: [
+    {
+      id: 'entry-1',
+      dogId: 'dog-1',
+      dogName: 'Koda',
+      classes: [{ id: 'cls-1', name: 'Novice A', number: '101', fee: 25, status: 'entered' }],
+      entryStatus: EntryStatus.ACCEPTED,
+    },
+  ],
   totalFee: 25,
   entryStatus: EntryStatus.ACCEPTED,
   paymentStatus: PaymentStatus.PAID_ONLINE,

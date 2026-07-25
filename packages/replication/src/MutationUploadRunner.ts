@@ -3,12 +3,12 @@ import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { executeMutation } from './mutation-execute';
 import { OccRejectionError } from './mutation-occ';
+import { handleOccRejection } from './mutation-occ-rejection';
 import { sortMutationsByDependencies } from './mutation-ordering';
 import { getMutationQueueCapacity, QUEUE_MAX_SIZE } from './mutation-queue-capacity';
 import { classifyMutationFailure } from './mutation-retry';
 import * as rowSync from './mutation-row-sync';
 import * as uploadEvents from './mutation-upload-events';
-import { calculateBackoffDelay } from './mutation-utils';
 import { markPerf, measurePerf } from './perf';
 import type { PendingMutation, ReplicatedRow, SyncResult } from './types';
 import type { MutationQueueStore } from './MutationQueueStore';
@@ -164,6 +164,12 @@ export class MutationUploadRunner {
 
       const results: SyncResult[] = [];
       const failedMutations: PendingMutation[] = [];
+      // Skip accounting: a pass that touches nothing while the queue is
+      // non-empty must be loud (warn), because every individual skip below
+      // logs at debug level — invisible with the app's default log filter,
+      // which made a permanently-stalled queue indistinguishable from a
+      // healthy empty one (MYK9-47 restored-queue investigation).
+      const skipped = { dependency: 0, backoff: 0, conflict: 0, vanished: 0 };
       const now = Date.now();
       // Independent mutations shouldn't stall on one mutation's backoff; track the
       // earliest skipped nextRetryAt so we can self-schedule a follow-up pass.
@@ -177,6 +183,7 @@ export class MutationUploadRunner {
             (queuedMutationIds.has(dependencyId) && !uploadedMutationIds.has(dependencyId))
         );
         if (unresolvedDependencies.length > 0) {
+          skipped.dependency++;
           blockedDependencyIds.add(mutation.id);
           this.logger.log(
             `[MutationManager] Skipping ${mutation.id} — waiting on dependencies ${unresolvedDependencies.join(', ')}`
@@ -185,6 +192,7 @@ export class MutationUploadRunner {
         }
 
         if (mutation.nextRetryAt && mutation.nextRetryAt > now) {
+          skipped.backoff++;
           blockedDependencyIds.add(mutation.id);
           this.logger.log(
             `[MutationManager] Skipping ${mutation.id} — backoff until ${new Date(mutation.nextRetryAt).toISOString()}`
@@ -198,6 +206,7 @@ export class MutationUploadRunner {
         const queuedMutation = (await db.get(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id)) as
           PendingMutation | undefined;
         if (!queuedMutation) {
+          skipped.vanished++;
           continue;
         }
 
@@ -210,6 +219,7 @@ export class MutationUploadRunner {
           String(queuedMutation.rowId),
         ])) as ReplicatedRow<unknown> | undefined;
         if (replicatedRow?.syncStatus === 'conflict') {
+          skipped.conflict++;
           blockedDependencyIds.add(queuedMutation.id);
           this.logger.log(
             `[MutationManager] Skipping ${queuedMutation.id} — ${queuedMutation.tableName}/${queuedMutation.rowId} has unresolved conflict`
@@ -259,154 +269,31 @@ export class MutationUploadRunner {
           );
         } catch (error) {
           if (error instanceof OccRejectionError) {
-            // Concurrent server write rejected this stale offline mutation.
-            // Do NOT delete the mutation and do NOT clear isDirty — the row
-            // stays dirty so the download loop can detect the same-field conflict
-            // and prompt the user to reconcile.
-            //
-            // Advance the replicated row's OCC token to the authoritative server
-            // version so the app stops minting NEW writes with the stale version
-            // (queueMutation stamps serverVersion from this row). Without this the
-            // client regenerates the same conflicting write indefinitely — the
-            // ringside high-CPU conflict storm. We advance the row token only, not
-            // this queued mutation's, so the dirty offline edit still awaits user
-            // reconciliation rather than auto-overwriting the server.
-            const freshServerVersion = error.currentServerVersion ?? error.expectedVersion;
-            if (typeof freshServerVersion === 'number') {
-              await rowSync.advanceReplicatedRowServerVersion(
-                db,
-                error.tableName,
-                error.rowId,
-                freshServerVersion
-              );
-            }
-
-            // Throttle re-upload of an unresolved conflict (exponential backoff,
-            // capped) so it cannot hammer the server every flush cycle. This is a
-            // separate counter from `retries` so an ordinary conflict is not
-            // dead-lettered after 3 attempts — it slows down and keeps waiting
-            // for reconciliation. It is NOT unlimited: occRetries persists on
-            // the mutation, and at maxOccAttempts (default 50, across reloads)
-            // the mutation is PARKED into the failed-mutations store — visible
-            // and user-recoverable via retry/discard, never silently dropped,
-            // never replayed forever (2026-07-11 ringside conflict storm).
-            const occRetries = (queuedMutation.occRetries ?? 0) + 1;
-            const nextRetryAt = now + calculateBackoffDelay(occRetries - 1, this.retryBackoffBase);
-            // Re-persist the backoff ONLY if the mutation still exists. A past
-            // upload (from this tab or, before the cross-tab lock, another) may
-            // have already uploaded and deleted it; a blind put() would resurrect
-            // a deleted mutation as a zombie that loops in OCC backoff forever
-            // (audit M1). The cross-tab lock serializes uploads, so no other
-            // uploader can delete it between this get and put.
-            let occPersisted = false;
-            const stillQueued = (await db.get(
-              REPLICATION_STORES.PENDING_MUTATIONS,
-              queuedMutation.id
-            )) as PendingMutation | undefined;
-            // Lifetime cap: park ONLY RPC/delta mutations (the storm vector,
-            // ringside_update_entry). Their payload is a targeted field set, so
-            // the parked mutation can rebase onto the fresh authoritative token
-            // (already applied to the row on the first rejection) and a user
-            // Retry can actually succeed — last-write on exactly those fields.
-            //
-            // Direct full-row UPDATEs are DELIBERATELY not capped/parked: they
-            // are owned end-to-end by the existing full-row conflict-resolution
-            // subsystem (conflict surfacing, reconcileDirtyRow / same-field
-            // "Keep mine" / "Take theirs" / rebuildUpdatePayload), which operates
-            // exclusively on PENDING_MUTATIONS. Moving them to FAILED_MUTATIONS
-            // would sever them from that resolver, and advancing their whole-row
-            // token would clobber another client's change. Full-row OCC conflicts
-            // have never stormed (this incident and 2026-06-25 were both RPC), so
-            // they keep their existing behavior unchanged — see the
-            // ringside-occ-conflict-circuit-breaker design "Non-Goals" for the
-            // deferred unification of full-row parking + the resolver.
-            const occCapReached =
-              stillQueued !== undefined &&
-              stillQueued.rpc !== undefined &&
-              occRetries >= this.maxOccAttempts;
-            if (occCapReached) {
-              // Lifetime cap reached: park. The payload survives in the
-              // failed-mutations store and surfaces through the existing
-              // sync-failed toast (Retry resets the counters; Discard is
-              // explicit). Parking, not deleting — durability contract.
-              const parked: PendingMutation = {
-                ...stillQueued,
-                occRetries,
-                status: 'failed',
-                // Stamp the AUTHORITATIVE server version so a user Retry
-                // re-uploads with a fresh OCC token instead of the stale one it
-                // kept while awaiting reconciliation (Codex review, P1). Safe:
-                // this branch is RPC/delta only; the row token was already
-                // advanced on the first rejection.
-                ...(typeof freshServerVersion === 'number'
-                  ? { serverVersion: freshServerVersion }
-                  : {}),
-                error:
-                  `Version conflict persisted through ${occRetries} attempts ` +
-                  `(${error.tableName}/${error.rowId}); parked for review.`,
-                failedAt: now,
-              };
-              delete parked.nextRetryAt;
-              // Move stores in ONE transaction so an interrupted write can never
-              // leave the mutation in BOTH pending (auto-uploads) and failed
-              // (Retry/Discard toast) — which would defeat the circuit breaker
-              // and surface conflicting user actions (Codex review, P2).
-              const parkTx = db.transaction(
-                [REPLICATION_STORES.FAILED_MUTATIONS, REPLICATION_STORES.PENDING_MUTATIONS],
-                'readwrite'
-              );
-              await Promise.all([
-                parkTx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).put(parked),
-                parkTx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).delete(queuedMutation.id),
-                parkTx.done,
-              ]);
-              failedMutations.push(parked);
-              blockedDependencyIds.add(queuedMutation.id);
-              failedDependencyIds.add(queuedMutation.id);
-              this.logger.error(
-                `[MutationManager] OCC conflict for ${error.tableName}/${error.rowId} ` +
-                  `exhausted ${occRetries} lifetime attempts; mutation ${queuedMutation.id} ` +
-                  `parked for user review.`
-              );
-              results.push({
-                success: false,
-                tableName: queuedMutation.tableName,
-                operation: queuedMutation.operation,
-                rowsAffected: 0,
-                duration: 0,
-                error: error.message,
-              });
-              continue;
-            }
-            if (stillQueued) {
-              await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
-                ...stillQueued,
-                occRetries,
-                nextRetryAt,
-              });
-              occPersisted = true;
-            }
-            if (occPersisted && (earliestBackoff === null || nextRetryAt < earliestBackoff)) {
-              earliestBackoff = nextRetryAt;
-            }
-
-            this.logger.warn(
-              `[MutationManager] OCC rejection for ${error.tableName}/${error.rowId} ` +
-                `(server version ${freshServerVersion}, attempt ${occRetries}). ` +
-                (occPersisted
-                  ? `Row token advanced; mutation stays dirty, next retry after ` +
-                    `${new Date(nextRetryAt).toISOString()}.`
-                  : `Mutation was already uploaded by another tab; not re-queued.`)
-            );
-            results.push({
-              success: false,
-              tableName: queuedMutation.tableName,
-              operation: queuedMutation.operation,
-              rowsAffected: 0,
-              duration: 0,
-              error: error.message,
+            // OCC conflict handling (token advance, backoff re-queue, lifetime-cap
+            // parking) lives in a sibling module to keep this file within the
+            // source-size budget; behavior is unchanged. It mutates results /
+            // failedMutations / the dependency sets by reference and returns the
+            // re-queued mutation's nextRetryAt (or null when parked/gone) so we
+            // can advance the earliest-backoff self-schedule.
+            const backoffCandidate = await handleOccRejection({
+              db,
+              logger: this.logger,
+              error,
+              queuedMutation,
+              now,
+              retryBackoffBase: this.retryBackoffBase,
+              maxOccAttempts: this.maxOccAttempts,
+              results,
+              failedMutations,
+              blockedDependencyIds,
+              failedDependencyIds,
             });
-            blockedDependencyIds.add(queuedMutation.id);
+            if (
+              backoffCandidate !== null &&
+              (earliestBackoff === null || backoffCandidate < earliestBackoff)
+            ) {
+              earliestBackoff = backoffCandidate;
+            }
             continue;
           }
           const failure = classifyMutationFailure({
@@ -458,6 +345,15 @@ export class MutationUploadRunner {
         }
       }
 
+      if (results.length === 0 && pending.length > 0) {
+        this.logger.warn(
+          `[MutationManager] Upload pass skipped all ${pending.length} pending mutation(s) — ` +
+            `dependency: ${skipped.dependency}, backoff: ${skipped.backoff}, ` +
+            `conflict: ${skipped.conflict}, vanished mid-pass: ${skipped.vanished}. ` +
+            `Queue is stalled until the blocking condition clears.`
+        );
+      }
+
       uploadEvents.notifyUserOfSyncFailure(this.logger, failedMutations);
 
       // Persist the post-upload queue immediately. A debounced backup here can
@@ -479,8 +375,12 @@ export class MutationUploadRunner {
 
       return results;
     } catch (error) {
+      // Rethrow, don't return []: an empty array is the healthy "queue is
+      // empty" signal, and returning it here made a completely broken pass
+      // (e.g. IndexedDB open failure) indistinguishable from success — the
+      // queue stalled forever with diagnostics reporting all-clear.
       this.logger.error('[MutationManager] Failed to upload mutations:', error);
-      return [];
+      throw error;
     } finally {
       this.isUploading = false;
       measurePerf('replication:flush', 'replication:flush:start', {

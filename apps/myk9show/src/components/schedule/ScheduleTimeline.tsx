@@ -1,6 +1,7 @@
 import { useScheduleTimeline } from '@/hooks/queries/useScheduleTimeline';
 import { Card } from '@/components/ui/card';
 import { DaySection } from './DaySection';
+import { CompactScheduleTimeline } from './CompactScheduleTimeline';
 
 // Reserve vertical space while the schedule query is in flight so the rest
 // of the show detail page (the panels rendered below it) doesn't get pushed
@@ -13,9 +14,28 @@ export const SCHEDULE_TIMELINE_RESERVED_MIN_HEIGHT_PX = 420;
 
 interface ScheduleTimelineProps {
   showId: string;
+  /** Enables inline start-time editing on manager schedule views. */
+  canEditSchedule?: boolean | undefined;
+  /** Uses the compact audience-facing Overview projection. */
+  compact?: boolean | undefined;
 }
 
-export function ScheduleTimeline({ showId }: ScheduleTimelineProps) {
+export function ScheduleTimeline({
+  showId,
+  canEditSchedule = false,
+  compact = false,
+}: ScheduleTimelineProps) {
+  if (compact) {
+    return <CompactScheduleTimeline showId={showId} canEditSchedule={canEditSchedule} />;
+  }
+
+  return <FullScheduleTimeline showId={showId} canEditSchedule={canEditSchedule} />;
+}
+
+function FullScheduleTimeline({
+  showId,
+  canEditSchedule = false,
+}: Omit<ScheduleTimelineProps, 'compact'>) {
   const { data, isLoading, error, refetch } = useScheduleTimeline(showId);
 
   if (isLoading) {
@@ -87,7 +107,7 @@ export function ScheduleTimeline({ showId }: ScheduleTimelineProps) {
         {data.map((day, i) => (
           <div key={day.date}>
             {i > 0 && <hr className="mb-6 border-border" />}
-            <DaySection day={day} showId={showId} />
+            <DaySection day={day} showId={showId} canEditSchedule={canEditSchedule} />
           </div>
         ))}
       </div>

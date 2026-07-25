@@ -39,9 +39,7 @@ test.describe('Secretary Class Creation Workflow', () => {
     await expect(page.getByText('AKC selected')).toBeVisible();
     await expect(page.getByText('Scent Work selected')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Step 3: Select Template' })).toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: 'AKC Scent Work - Official 2024 Rules' })
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'AKC Scent Work - Official' })).toBeVisible();
     await expect(page.getByText(/\d+ classes/).first()).toBeVisible();
     await expect(page.getByText(/\d+ fields/).first()).toBeVisible();
   });

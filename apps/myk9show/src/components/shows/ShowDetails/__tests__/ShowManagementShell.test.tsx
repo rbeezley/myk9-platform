@@ -44,6 +44,9 @@ vi.mock('@/features/premium/PremiumDownloadCard', () => ({
 vi.mock('@/features/premium/LandingPageCard', () => ({
   LandingPageCard: () => <div data-testid="landing-page-card" />,
 }));
+vi.mock('../ShowDeskCompactContext', () => ({
+  ShowDeskCompactContext: () => <div data-testid="show-desk-compact-context" />,
+}));
 vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
   ShowEditPanel: ({ open }: { open: boolean }) =>
     open ? <div data-testid="edit-panel-open" /> : null,
@@ -117,14 +120,15 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('status-pill')).toBeInTheDocument();
   });
 
-  it('renders the management section nav with the canonical section links', () => {
+  it('renders the management section nav without Setup as a peer workflow', () => {
     renderShell();
     const nav = screen.getByTestId('canonical-show-management-nav');
     expect(nav).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: /show management section/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute(
+    expect(screen.queryByRole('link', { name: 'Setup' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute(
       'href',
-      '/shows/show-1/setup'
+      '/shows/show-1/show-desk'
     );
   });
 
@@ -151,6 +155,15 @@ describe('ShowManagementShell', () => {
     expect(anchor).toBeInTheDocument();
     expect(screen.getByTestId('premium-download-card')).toBeInTheDocument();
     expect(screen.getByTestId('landing-page-card')).toBeInTheDocument();
+  });
+
+  it('uses compact operational chrome on Show Desk without the hero or routine publish cards', () => {
+    renderShell({ activeManagementSection: 'show-desk', isManagementSection: true });
+
+    expect(screen.getByTestId('show-desk-compact-context')).toBeInTheDocument();
+    expect(screen.queryByTestId('detail-hero')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('premium-download-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('landing-page-card')).not.toBeInTheDocument();
   });
 
   it('renders the shared tabs when not on a management section', () => {

@@ -1,5 +1,11 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
 interface PhotoDialogProps {
@@ -20,7 +26,7 @@ interface PhotoDialogProps {
   isSaving?: boolean;
 }
 
-const PhotoDialog: React.FC<PhotoDialogProps> = (props) => {
+const PhotoDialog: React.FC<PhotoDialogProps> = props => {
   const {
     open,
     onOpenChange,
@@ -46,7 +52,7 @@ const PhotoDialog: React.FC<PhotoDialogProps> = (props) => {
         </DialogHeader>
         <div className="space-y-6 py-4">
           <div
-            className={`border-2 border-dashed rounded-lg p-8 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'} cursor-pointer flex flex-col items-center justify-center`}
+            className={`border-2 border-dashed rounded-lg p-8 ${isDragging ? 'border-blue-500 bg-muted' : 'border-border'} cursor-pointer flex flex-col items-center justify-center`}
             onClick={() => fileInputRef.current?.click()}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
@@ -54,8 +60,8 @@ const PhotoDialog: React.FC<PhotoDialogProps> = (props) => {
           >
             <i className="fas fa-cloud-upload-alt text-3xl text-blue-500 mb-2"></i>
             <p className="text-base font-medium">Drop your image here</p>
-            <p className="text-sm text-gray-500">or click to select a file</p>
-            <p className="text-xs text-gray-400 mt-2">Supports: JPG, PNG, WEBP (Max 5MB)</p>
+            <p className="text-sm text-muted-foreground">or click to select a file</p>
+            <p className="text-xs text-muted-foreground mt-2">Supports: JPG, PNG, WEBP (Max 5MB)</p>
           </div>
           <input
             type="file"
@@ -66,7 +72,7 @@ const PhotoDialog: React.FC<PhotoDialogProps> = (props) => {
           />
           {(previewImage || currentPhoto) && (
             <div className="flex flex-col items-center">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Preview</h3>
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">Preview</h3>
               <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-gray-200">
                 <img
                   src={previewImage || currentPhoto}
@@ -91,7 +97,7 @@ const PhotoDialog: React.FC<PhotoDialogProps> = (props) => {
             onClick={() => {
               void onSave(previewImage);
             }}
-            className="bg-gray-900 hover:bg-gray-800 !rounded-button whitespace-nowrap"
+            className="!rounded-button whitespace-nowrap"
             disabled={!previewImage || isSaving}
           >
             {isSaving ? 'Saving…' : 'Save'}

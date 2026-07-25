@@ -396,10 +396,10 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-destructive/10 rounded-lg">
                     <div className="flex items-center gap-2">
-                      <XCircle className="h-5 w-5 text-red-500" />
+                      <XCircle className="h-5 w-5 text-destructive" />
                       <span className="font-medium">Active Conflicts</span>
                     </div>
-                    <p className="text-2xl font-bold text-red-600 mt-2">{conflicts.length}</p>
+                    <p className="text-2xl font-bold text-destructive mt-2">{conflicts.length}</p>
                   </div>
 
                   <div className="p-4 bg-success/10 rounded-lg">

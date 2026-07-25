@@ -19,7 +19,7 @@ import {
 } from '@/utils/entryManagementUtils';
 import { parseShowDate } from './myEntriesStats.helpers';
 import { normalizeCheckInStatus } from './myEntriesUtils';
-import { EntryStatus } from '@/types/show-registration-types';
+import { groupEntriesByOrder } from './groupEntriesByOrder';
 import type { MyEntry, EntryClass } from './my-entries-types';
 
 interface UseMyEntriesDataReturn {
@@ -50,53 +50,6 @@ type OwnEntryResultRow = Record<string, unknown> & {
   class_results_released_at?: string | null;
   dog_image_url?: string | null;
 };
-
-// Highest-priority status wins when merging class rows for the same dog+show.
-// COMPLETED tops the scale: a scored result is the strongest positive signal.
-// ACCEPTED beats PENDING because the dog is in — the card should look "green".
-// MOVE_UP_REQUESTED ties PENDING (both "awaiting"); a plain ACCEPTED sibling
-// class still dominates. Terminal statuses (SCRATCHED, CANCELLED) lose to any
-// active status.
-const ENTRY_STATUS_PRIORITY: Record<EntryStatus, number> = {
-  [EntryStatus.COMPLETED]: 7,
-  [EntryStatus.ACCEPTED]: 6,
-  [EntryStatus.PENDING]: 5,
-  [EntryStatus.MOVE_UP_REQUESTED]: 5,
-  [EntryStatus.WAITLIST]: 4,
-  [EntryStatus.MISSING_INFO]: 3,
-  [EntryStatus.MOVED]: 2,
-  [EntryStatus.REJECTED]: 1,
-  [EntryStatus.SCRATCHED]: 0,
-  [EntryStatus.CANCELLED]: 0,
-};
-
-function dominantStatus(a: EntryStatus, b: EntryStatus): EntryStatus {
-  return (ENTRY_STATUS_PRIORITY[a] ?? 0) >= (ENTRY_STATUS_PRIORITY[b] ?? 0) ? a : b;
-}
-
-/**
- * Groups flat per-class entry rows into one card per dog per show.
- * Each DB row represents one class; a dog entered in N classes at the same show
- * produces N rows that must be merged so the card shows all classes together.
- * entryStatus is the highest-priority status across all merged rows so the
- * card and tab counts reflect the most "active" state, not just the seed row.
- */
-export function groupEntriesByShowAndDog(rawEntries: MyEntry[]): MyEntry[] {
-  const groups = new Map<string, MyEntry>();
-  for (const entry of rawEntries) {
-    const key = `${entry.registrationId}:${entry.dogId}`;
-    const existing = groups.get(key);
-    if (existing) {
-      existing.classes.push(...entry.classes);
-      existing.totalFee += entry.totalFee;
-      existing.entryStatus = dominantStatus(existing.entryStatus, entry.entryStatus);
-      existing.armband = existing.armband ?? entry.armband;
-    } else {
-      groups.set(key, { ...entry, classes: [...entry.classes] });
-    }
-  }
-  return Array.from(groups.values());
-}
 
 /**
  * Hook for managing user entries data
@@ -153,6 +106,7 @@ export function useMyEntriesData({
       ? [
           {
             id: entry.id as string,
+            entryStatus: mapEntryStatus(entry.entry_status as string),
             classId: classData.id,
             name: classData.name || 'Unknown Class',
             number: classData.class_number || '',
@@ -191,7 +145,10 @@ export function useMyEntriesData({
 
     return {
       id: entry.id as string,
-      registrationId: (entry.registration_id as string) ?? (entry.id as string),
+      // Preserve genuine nullness (secretary/mail-in entries have no online
+      // registration) — groupEntriesByOrder falls back to a show+dog key for
+      // these instead of merging them under a synthetic per-row id.
+      registrationId: (entry.registration_id as string | null) ?? null,
       showId: show?.id || '',
       showName: show?.name || 'Unknown Show',
       // Date-only DB columns ("YYYY-MM-DD") must be read as local days, not UTC,
@@ -207,6 +164,9 @@ export function useMyEntriesData({
       dogId: dog?.id || '',
       armband,
       classes,
+      // Rebuilt by groupEntriesByOrder from the top-level dog fields above —
+      // this raw per-class-row shape never renders directly.
+      dogs: [],
       totalFee: (entry.entry_fee as number) || 0,
       entryStatus,
       paymentStatus: mapPaymentStatus(effectivePaymentStatus),
@@ -237,7 +197,7 @@ export function useMyEntriesData({
         return;
       }
 
-      const userEntries = groupEntriesByShowAndDog(
+      const userEntries = groupEntriesByOrder(
         (data as OwnEntryResultRow[]).map(entry => transformEntry(entry))
       );
       setEntries(userEntries);
@@ -299,6 +259,14 @@ export function useMyEntriesData({
                 classes: e.classes.map((c): EntryClass =>
                   c.id === classId ? { ...c, checkInStatus: status, checkInTime: new Date() } : c
                 ),
+                // Keep the per-dog nested classes (rendered in the dogs grid
+                // for multi-dog orders) in lockstep with the flattened list.
+                dogs: e.dogs.map(dog => ({
+                  ...dog,
+                  classes: dog.classes.map((c): EntryClass =>
+                    c.id === classId ? { ...c, checkInStatus: status, checkInTime: new Date() } : c
+                  ),
+                })),
               };
             }
             return e;
@@ -339,6 +307,14 @@ export function useMyEntriesData({
                     ? { ...c, checkInStatus: previousStatus, checkInTime: previousTime }
                     : c
                 ),
+                dogs: e.dogs.map(dog => ({
+                  ...dog,
+                  classes: dog.classes.map((c): EntryClass =>
+                    c.id === classId
+                      ? { ...c, checkInStatus: previousStatus, checkInTime: previousTime }
+                      : c
+                  ),
+                })),
               };
             }
             return e;

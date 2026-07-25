@@ -33,14 +33,13 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { StatusBadge } from '@/components/status';
 import type { ClassDetailsPopoverProps } from '@myk9/ringside';
 import {
   badgeClass,
   formatRingTime,
   getCheckinLabel,
   getCheckinTier,
-  getClassStatusLabel,
-  getClassStatusTier,
   getVisibilityLabel,
   getVisibilityTier,
   type BadgeTier,
@@ -152,7 +151,6 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
 
   if (!isOpen) return null;
 
-  const statusLabel = getClassStatusLabel(data.status);
   const visibilityLabel = getVisibilityLabel(data.visibilityPreset);
   const maxTime = formatRingTime(data.timeLimitSeconds);
   const area2Time = formatRingTime(data.timeLimitArea2Seconds);
@@ -184,9 +182,9 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
 
         {/* Body */}
         <div className="flex flex-col gap-2.5 px-4 py-3">
-          {statusLabel && (
+          {data.status && (
             <DetailRow icon={Activity} label="Status">
-              <DetailBadge tier={getClassStatusTier(data.status)}>{statusLabel}</DetailBadge>
+              <StatusBadge family="class" status={data.status} className="ml-auto" />
             </DetailRow>
           )}
 

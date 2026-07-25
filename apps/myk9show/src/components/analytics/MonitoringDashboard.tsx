@@ -216,7 +216,7 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
               ) : systemStatus.overall === 'warning' ? (
                 <AlertTriangle className="h-6 w-6 text-yellow-500" />
               ) : (
-                <Siren className="h-6 w-6 text-red-500" />
+                <Siren className="h-6 w-6 text-destructive" />
               )}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -432,7 +432,7 @@ const ErrorsTab: React.FC = () => {
             <CardTitle className="text-lg">Critical Errors</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-red-600">
+            <div className="text-3xl font-bold text-destructive">
               {errorReport.summary.criticalErrors}
             </div>
             <p className="text-sm text-muted-foreground">Requires immediate attention</p>

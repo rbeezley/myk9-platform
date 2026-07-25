@@ -3,22 +3,26 @@ import { describe, expect, it } from 'vitest';
 import { EntryStatusLine } from '../EntryStatusLine';
 
 // UX walk remediation 2.B(2): one composed status line + at most one action
-// hint, in the viewer's voice, colored by the UI-enum lane (NOT the derived
+// hint, in the viewer's voice, shaped and colored by the UI-enum lane (NOT the derived
 // kind) so the owner-approved "paid stays pending" decision is preserved.
 
 describe('EntryStatusLine', () => {
-  it('keeps a paid-but-unreviewed entry in the amber pending lane (not teal accepted)', () => {
+  it('keeps a paid-but-unreviewed entry in the pending lane (not accepted)', () => {
     // Assertion-first, value-sensitive: getEntryStatusKind('paid') === 'accepted',
-    // but a paid entry must stay in the needs-review lane and stay amber.
+    // but a paid entry must stay in the shared warning/needs-review lane.
     render(<EntryStatusLine viewer="secretary" rawEntryStatus="paid" paymentStatus="paid" />);
-    const badge = screen.getByText('Needs review');
-    expect(badge.className).toContain('--chip-amber-bg');
-    expect(badge.className).not.toContain('--chip-teal-bg');
+    const icon = screen.getByText('Needs review').parentElement?.querySelector('[data-family]');
+    expect(icon).toHaveAttribute('data-status', 'pending');
+    expect(icon).toHaveAttribute('data-shape', 'pending');
+    expect(icon).toHaveClass('text-warning');
   });
 
-  it('colors a genuinely accepted entry teal', () => {
+  it('routes a genuinely accepted entry through the shared in-progress grammar', () => {
     render(<EntryStatusLine viewer="secretary" rawEntryStatus="confirmed" />);
-    expect(screen.getByText('Accepted').className).toContain('--chip-teal-bg');
+    const icon = screen.getByText('Accepted').parentElement?.querySelector('[data-family]');
+    expect(icon).toHaveAttribute('data-status', 'accepted');
+    expect(icon).toHaveAttribute('data-shape', 'in-progress');
+    expect(icon).toHaveClass('text-info');
   });
 
   it('folds the refund into the line and surfaces the review-lane action hint', () => {

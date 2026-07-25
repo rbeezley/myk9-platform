@@ -28,6 +28,8 @@ import {
   USER_ROLE_HIERARCHY,
 } from '../types/auth-types';
 import { ProtectedRouteProps, ConvenienceRouteProps } from './authUtils';
+import { useResetSavedViewsOnAccountChange } from '@/features/operational-views/useResetSavedViewsOnAccountChange';
+import { useResetRecentSearchesOnAccountChange } from '@/hooks/useResetRecentSearchesOnAccountChange';
 import { rbacService } from '@/services/rbac/RBACService';
 import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker';
 import { PermissionWithRole } from '@/types/rbac-types';
@@ -69,16 +71,22 @@ export interface AuthContextType {
   user: User | null;
   userWithRoles: UserWithRoles | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, captchaToken?: string) => Promise<void>;
   signUp: (
     email: string,
     password: string,
-    metadata?: { firstName?: string; lastName?: string; roles?: string[] }
+    metadata?: { firstName?: string; lastName?: string; roles?: string[] },
+    captchaToken?: string,
+    redirectTo?: string
   ) => Promise<void>;
-  resendConfirmationEmail: (email: string) => Promise<void>;
+  resendConfirmationEmail: (
+    email: string,
+    captchaToken?: string,
+    redirectTo?: string
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithGoogle: (redirectTo?: string) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  resetPassword: (email: string, captchaToken?: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   updateProfile: (updates: {
     email?: string;
@@ -208,6 +216,18 @@ function delay(ms: number): Promise<void> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
+
+  // Personal saved views (operational-views-and-display-presets, tasks.md
+  // 3.3) are device-local and namespaced by user id — clear the PRIOR user's
+  // entries whenever the authenticated user id changes (including sign-out)
+  // so a shared device never lists/restores another account's saved view.
+  useResetSavedViewsOnAccountChange(auth.user?.id);
+
+  // Recent command-palette searches (context-aware-command-menu, design.md
+  // Decision 4) are device-local and namespaced by user id — clear the
+  // PRIOR user's entries whenever the authenticated user id changes so a
+  // shared device never lists/restores another account's recent searches.
+  useResetRecentSearchesOnAccountChange(auth.user?.id);
 
   // Mock user state for development testing
   const [currentMockUser, setCurrentMockUser] = useState<string | null>(() => {

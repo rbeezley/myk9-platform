@@ -1,8 +1,5 @@
-import { Badge } from '@/components/ui/badge';
-import { chipClasses } from '@/components/base/chipClasses';
-import type { ChipColor } from '@/components/base/Chip';
+import { StatusBadge } from '@/components/status';
 import { cn } from '@/lib/utils';
-import { EntryStatus } from '@/types/show-registration-types';
 import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
 import { deriveEntryPresentation } from '@/services/entryDisplay/entryPresentation';
 
@@ -15,25 +12,13 @@ import { deriveEntryPresentation } from '@/services/entryDisplay/entryPresentati
  *  - WORDING comes from `deriveEntryPresentation`, which is voice-aware
  *    (a secretary sees "Needs review"; the exhibitor sees "Submitted — you're
  *    in") and folds the refund atom into the line ("Withdrawn · Refunded $30").
- *  - COLOUR comes from `mapEntryStatus` (the UI-enum projection), NOT from the
- *    derived `kind`. This is load-bearing: `getEntryStatusKind('paid')` is
- *    `accepted`, but a paid-yet-unreviewed entry stays in the amber PENDING /
- *    needs-review lane (the owner-approved "paid stays pending" decision).
- *    Colouring by kind would tint it teal and silently move it out of that lane.
+ *  - SHAPE + COLOUR come from the shared status grammar using `mapEntryStatus`
+ *    (the UI-enum projection), NOT from the derived `kind`. This is load-bearing:
+ *    `getEntryStatusKind('paid')` is `accepted`, but a paid-yet-unreviewed entry
+ *    stays in the PENDING / needs-review lane (the owner-approved "paid stays
+ *    pending" decision). Keying the grammar by kind would silently move it out
+ *    of that lane.
  */
-
-const STATUS_CHIP_COLOR: Record<EntryStatus, ChipColor> = {
-  [EntryStatus.ACCEPTED]: 'teal',
-  [EntryStatus.PENDING]: 'amber',
-  [EntryStatus.WAITLIST]: 'amber',
-  [EntryStatus.MISSING_INFO]: 'amber',
-  [EntryStatus.MOVE_UP_REQUESTED]: 'amber',
-  [EntryStatus.REJECTED]: 'red',
-  [EntryStatus.CANCELLED]: 'stone',
-  [EntryStatus.SCRATCHED]: 'stone',
-  [EntryStatus.MOVED]: 'stone',
-  [EntryStatus.COMPLETED]: 'blue',
-};
 
 export interface EntryStatusLineProps {
   /** Raw DB `entry_status` — drives the voice-aware wording. */
@@ -44,8 +29,7 @@ export interface EntryStatusLineProps {
   refundAmount?: number | null | undefined;
   refundedAt?: string | null | undefined;
   /**
-   * The only production caller (EntriesTableView, secretary-facing Entries
-   * Management) always passes 'secretary'. Narrowed from a wider
+   * Secretary-facing Entry presentations always pass 'secretary'. Narrowed from a wider
    * 'secretary' | 'exhibitor' union after a grep for viewer="exhibitor"
    * usages of THIS component came up empty (S8.2 cleanup) — the exhibitor
    * voice itself is still live and tested via deriveEntryPresentation
@@ -74,13 +58,10 @@ export function EntryStatusLine({
   );
 
   const uiStatus = mapEntryStatus(rawEntryStatus ?? null);
-  const color = STATUS_CHIP_COLOR[uiStatus] ?? 'stone';
 
   return (
     <div className={cn('flex flex-col gap-0.5', className)}>
-      <Badge className={cn('w-fit border', chipClasses(color, { border: true }))}>
-        {statusLine}
-      </Badge>
+      <StatusBadge family="entry" status={uiStatus} label={statusLine} className="w-fit" />
       {actionHint && <span className="text-xs text-muted-foreground">{actionHint}</span>}
     </div>
   );

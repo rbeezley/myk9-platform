@@ -212,6 +212,10 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
       rafRef.current = null;
     }
     setIsRunning(false);
+    // A genuine reset clears the once-per-run announce guard so the next run
+    // re-announces. Pausing does NOT clear it (see the warning effect) — a timer
+    // paused past the 30s threshold and resumed must not re-fire the chime.
+    has30SecondAnnouncedRef.current = false;
   };
 
   // Voice announcement and chime for 30-second warning
@@ -221,8 +225,11 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     }
 
     if (!isRunning) {
-      // Reset the flag when timer stops
-      has30SecondAnnouncedRef.current = false;
+      // Do NOT clear the announce guard on pause — a timer paused after crossing
+      // the 30s threshold and then resumed below 30s would otherwise re-fire the
+      // warning immediately. `reset()` clears the guard for a genuine new run;
+      // the `remainingSeconds > 30` branch below clears it when time rewinds
+      // above the threshold.
       return;
     }
 

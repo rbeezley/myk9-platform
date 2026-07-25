@@ -2,18 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import EntryManagementPage from '../EntryManagementPage';
 
-// Capture the entries TrialRosterView actually receives so we can assert the
-// class filter narrows the roster (P1 review fix).
-vi.mock('@/components/entries/management/TrialRosterView', () => ({
-  TrialRosterView: ({ entries }: { entries: Array<{ id: string; classId: string }> }) => (
-    <div data-testid="roster">
-      {entries.map(e => (
-        <span key={e.id} data-testid="roster-row" data-class={e.classId} />
-      ))}
-    </div>
-  ),
-}));
-
 vi.mock('../WaitlistManagementPage/index', () => ({ default: () => <div>Waitlist</div> }));
 
 vi.mock('@/hooks/useEntryManagementData', () => ({
@@ -89,7 +77,10 @@ vi.mock('@/hooks/useEntryManagementActions', () => ({
 }));
 
 vi.mock('@/hooks/queries/useShowTrials', () => ({
-  useShowTrials: () => ({ data: [{ id: 't1', name: 'Trial 1', date: null, trial_number: 1 }], isLoading: false }),
+  useShowTrials: () => ({
+    data: [{ id: 't1', name: 'Trial 1', date: null, trial_number: 1 }],
+    isLoading: false,
+  }),
 }));
 
 vi.mock('@/hooks/queries/useClassesDatabase', () => ({
@@ -106,8 +97,24 @@ vi.mock('@/hooks/queries/useClassesDatabase', () => ({
 vi.mock('@/hooks/queries/useTrialEntries', () => ({
   useTrialEntries: () => ({
     data: [
-      { id: 'r1', armband: 1, dog: { call_name: 'Rex' }, class: { name: 'Novice A' }, class_id: 'c1', is_scored: false, check_in_status: null },
-      { id: 'r2', armband: 2, dog: { call_name: 'Fido' }, class: { name: 'Open B' }, class_id: 'c2', is_scored: false, check_in_status: null },
+      {
+        id: 'r1',
+        armband: 1,
+        dog: { call_name: 'Rex' },
+        class: { name: 'Novice A' },
+        class_id: 'c1',
+        is_scored: false,
+        check_in_status: null,
+      },
+      {
+        id: 'r2',
+        armband: 2,
+        dog: { call_name: 'Fido' },
+        class: { name: 'Open B' },
+        class_id: 'c2',
+        is_scored: false,
+        check_in_status: null,
+      },
     ],
     isLoading: false,
   }),
@@ -115,14 +122,16 @@ vi.mock('@/hooks/queries/useTrialEntries', () => ({
 
 vi.mock('@/services/AuditService', () => ({ auditService: { log: vi.fn() } }));
 
-describe('EntryManagementPage roster class filter (P1)', () => {
-  it('narrows the roster to the selected class in Roster mode', () => {
+describe('EntryManagementPage legacy roster links', () => {
+  it('normalizes the retired roster presentation into the scoped registration cockpit', () => {
     render(<EntryManagementPage />, {
       initialRoute: '/secretary/entries?tab=entries&trial=t1&roster=1&class=c1',
     });
 
-    const rows = screen.getAllByTestId('roster-row');
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toHaveAttribute('data-class', 'c1');
+    expect(
+      screen.getByRole('searchbox', { name: 'Search all show registrations' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Trial filter' })).toHaveValue('t1');
+    expect(screen.getByRole('combobox', { name: 'Class filter' })).toHaveValue('c1');
   });
 });

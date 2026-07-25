@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { formatRingLabel } from '@/utils/ringLabel';
+import { StatusIcon } from '@/components/status';
 
 interface ClassCheckInProps {
   classInfo?: ExhibitorClassInfo;
@@ -218,17 +219,6 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
     }
   };
 
-  const getStatusIcon = () => {
-    switch (entry.checkInStatus) {
-      case 'checked-in':
-        return <CheckCircle2 className="h-6 w-6 text-green-600" />;
-      case 'pulled':
-        return <XCircle className="h-6 w-6 text-red-600" />;
-      default:
-        return <Clock className="h-6 w-6 text-gray-400" />;
-    }
-  };
-
   const isAlreadyCheckedIn =
     entry.checkInStatus === 'checked-in' ||
     entry.checkInStatus === 'pulled' ||
@@ -266,7 +256,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
                 Offline
               </Badge>
             )}
-            {getStatusIcon()}
+            <StatusIcon family="entry" status={entry.checkInStatus} size="lg" />
           </div>
         </div>
       </div>
@@ -339,7 +329,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
             className={
               entry.checkInStatus === 'checked-in'
                 ? 'bg-green-50 border-green-200'
-                : 'bg-red-50 border-red-200'
+                : 'bg-destructive/10 border-destructive/20'
             }
           >
             <AlertDescription>
@@ -351,7 +341,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
                   </>
                 ) : entry.checkInStatus === 'pulled' ? (
                   <>
-                    <XCircle className="h-5 w-5 text-red-600" />
+                    <XCircle className="h-5 w-5 text-destructive" />
                     <span className="font-medium">You have been pulled from this class</span>
                   </>
                 ) : (
@@ -527,8 +517,8 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
             </DialogDescription>
           </DialogHeader>
 
-          <Alert className="bg-red-50 border-red-200">
-            <AlertTriangle className="h-4 w-4 text-red-600" />
+          <Alert className="bg-destructive/10 border-destructive/20">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
             <AlertDescription>
               <p className="font-medium mb-1">Important:</p>
               <ul className="text-sm space-y-1">

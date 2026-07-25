@@ -19,6 +19,7 @@ function makeEntry(overrides: Partial<MyEntry> = {}): MyEntry {
     dogId: 'dog-1',
     armband: '27',
     classes: [],
+    dogs: [],
     totalFee: 35,
     entryStatus: EntryStatus.ACCEPTED,
     paymentStatus: PaymentStatus.PAID_ONLINE,

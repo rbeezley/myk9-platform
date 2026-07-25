@@ -19,6 +19,10 @@ export interface EnrollmentCardProps {
   onCompEntry?: (entryId: string) => void;
   onUncompEntry?: (entryId: string) => void;
   onRemoveEntry: (entryId: string) => void;
+  /** Entry Management delegates day-of check-in to the canonical Check-in desk. */
+  showCheckInStatus?: boolean | undefined;
+  /** Child Entries that matched the active whole-show search. */
+  matchingEntryIds?: ReadonlySet<string> | undefined;
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
   onBulkCheckIn: (entryIds: string[]) => void;
   onPaymentStatusChange: (

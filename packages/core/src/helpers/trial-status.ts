@@ -11,6 +11,14 @@
 import { getClassDisplayStatus, type ClassDisplayStatusInput } from './class-display-status';
 
 export type TrialCompositeKind = 'no-classes' | 'not-started' | 'in-progress' | 'completed';
+export type TrialStatusKey = TrialCompositeKind | 'cancelled';
+
+export interface TrialStatusSummary {
+  trialStatus?: string | null | undefined;
+  classCount: number;
+  completedCount?: number | undefined;
+  hasStarted?: boolean | undefined;
+}
 
 export interface TrialCompositeStatus {
   kind: TrialCompositeKind;
@@ -24,6 +32,41 @@ export interface TrialCompositeStatus {
 
 function classesNoun(count: number): string {
   return count === 1 ? 'class' : 'classes';
+}
+
+export function deriveTrialStatusKey({
+  trialStatus,
+  classCount,
+  completedCount,
+  hasStarted = false,
+}: TrialStatusSummary): TrialStatusKey {
+  const normalized =
+    trialStatus
+      ?.trim()
+      .toLowerCase()
+      .replace(/[\s_]+/g, '-') ?? '';
+
+  if (normalized === 'cancelled' || normalized === 'canceled') return 'cancelled';
+  if (classCount === 0) return 'no-classes';
+
+  if (completedCount !== undefined) {
+    if (completedCount >= classCount) return 'completed';
+    if (completedCount > 0 || hasStarted) return 'in-progress';
+  } else if (normalized === 'completed' || normalized === 'complete') {
+    return 'completed';
+  }
+
+  if (
+    hasStarted ||
+    normalized === 'in-progress' ||
+    normalized === 'inprogress' ||
+    normalized === 'briefing' ||
+    normalized === 'break'
+  ) {
+    return 'in-progress';
+  }
+
+  return 'not-started';
 }
 
 export function deriveTrialCompositeStatus(
@@ -43,7 +86,14 @@ export function deriveTrialCompositeStatus(
   const statuses = classes.map(getClassDisplayStatus);
   const completedCount = statuses.filter(status => status === 'completed').length;
 
-  if (completedCount === totalCount) {
+  const anyStarted = statuses.some(status => status !== 'not-started');
+  const kind = deriveTrialStatusKey({
+    classCount: totalCount,
+    completedCount,
+    hasStarted: anyStarted,
+  });
+
+  if (kind === 'completed') {
     return {
       kind: 'completed',
       label: 'Completed',
@@ -53,8 +103,7 @@ export function deriveTrialCompositeStatus(
     };
   }
 
-  const anyStarted = statuses.some(status => status !== 'not-started');
-  if (!anyStarted) {
+  if (kind === 'not-started') {
     return {
       kind: 'not-started',
       label: 'Not started',

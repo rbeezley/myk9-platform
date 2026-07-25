@@ -178,4 +178,131 @@ describe('entryManagementFilters', () => {
     expect(invalid.payment).toBe('all');
     expect(invalid.params.toString()).toBe('trial=t1&class=c1');
   });
+
+  // Task 2.2 — normalized URL round-trip + invalid-parameter coverage across
+  // every field the normalizer owns (show is a route param, not a query
+  // param, so its "round trip" is trial/class/roster clearing on show change,
+  // covered by useEntryManagementFilters.test.ts).
+  describe('mode round-trip and invalid values', () => {
+    it('preserves a supported ?mode=day-of', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams('mode=day-of'));
+      expect(result.mode).toBe('day-of');
+      expect(result.params.get('mode')).toBe('day-of');
+    });
+
+    it('normalizes an invalid ?mode= to the review default and drops the param', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams('mode=bogus'));
+      expect(result.mode).toBe('review');
+      expect(result.params.has('mode')).toBe(false);
+    });
+
+    it('drops the default ?mode=review from the URL (round-trips to no param)', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams('mode=review'));
+      expect(result.mode).toBe('review');
+      expect(result.params.has('mode')).toBe(false);
+    });
+  });
+
+  describe('view round-trip and invalid values', () => {
+    it('preserves a supported ?view=cards', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams('view=cards'));
+      expect(result.view).toBe('cards');
+      expect(result.params.get('view')).toBe('cards');
+    });
+
+    it('normalizes an invalid ?view= to the table default and drops the param', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams('view=bogus'));
+      expect(result.view).toBe('table');
+      expect(result.params.has('view')).toBe(false);
+    });
+  });
+
+  describe('trial/class scope pass-through', () => {
+    it('leaves opaque trial/class ids untouched — validity is the surface caller\'s job', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams('trial=t1&class=c1'));
+      expect(result.params.get('trial')).toBe('t1');
+      expect(result.params.get('class')).toBe('c1');
+    });
+  });
+
+  it('round-trips a fully populated URL idempotently (normalize(normalize(x)) === normalize(x))', () => {
+    const input = new URLSearchParams(
+      'trial=t1&class=c1&payment=pending&attention=accepted&mode=day-of&view=cards&roster=1'
+    );
+    const once = normalizeEntryManagementSearchParams(input);
+    const twice = normalizeEntryManagementSearchParams(once.params);
+
+    expect(twice.params.toString()).toBe(once.params.toString());
+    expect(twice.attention).toBe(once.attention);
+    expect(twice.payment).toBe(once.payment);
+    expect(twice.mode).toBe(once.mode);
+    expect(twice.view).toBe(once.view);
+  });
+
+  it('rejects invalid attention/payment/mode/view together and drops all four from the URL', () => {
+    const result = normalizeEntryManagementSearchParams(
+      new URLSearchParams('attention=nope&payment=nope&mode=nope&view=nope')
+    );
+    expect(result.attention).toBe('all');
+    expect(result.payment).toBe('all');
+    expect(result.mode).toBe('review');
+    expect(result.view).toBe('table');
+    expect(result.params.toString()).toBe('');
+  });
+
+  // Task 3.2 — display-preset density round-trip + invalid-value fallback.
+  describe('density round-trip and invalid values', () => {
+    it('defaults density to comfortable and drops it from the URL', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams(''));
+      expect(result.density).toBe('comfortable');
+      expect(result.params.has('density')).toBe(false);
+    });
+
+    it('preserves a supported ?density=compact', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams('density=compact'));
+      expect(result.density).toBe('compact');
+      expect(result.params.get('density')).toBe('compact');
+    });
+
+    it('normalizes an invalid ?density= to the comfortable default and drops the param', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams('density=roomy'));
+      expect(result.density).toBe('comfortable');
+      expect(result.params.has('density')).toBe(false);
+    });
+
+    it('round-trips idempotently alongside other filters', () => {
+      const input = new URLSearchParams('attention=accepted&density=compact');
+      const once = normalizeEntryManagementSearchParams(input);
+      const twice = normalizeEntryManagementSearchParams(once.params);
+      expect(twice.params.toString()).toBe(once.params.toString());
+      expect(twice.density).toBe('compact');
+    });
+  });
+
+  // Spec scenario "Show-day display is selected" — display preset round-trip
+  // + invalid-value fallback.
+  describe('display preset round-trip and invalid values', () => {
+    it('defaults display to standard and drops it from the URL', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams(''));
+      expect(result.display).toBe('standard');
+      expect(result.params.has('display')).toBe(false);
+    });
+
+    it('preserves a supported ?display=show-day and round-trips idempotently', () => {
+      const input = new URLSearchParams('display=show-day');
+      const once = normalizeEntryManagementSearchParams(input);
+      expect(once.display).toBe('show-day');
+      expect(once.params.get('display')).toBe('show-day');
+
+      const twice = normalizeEntryManagementSearchParams(once.params);
+      expect(twice.display).toBe('show-day');
+      expect(twice.params.toString()).toBe(once.params.toString());
+    });
+
+    it('normalizes an invalid ?display= to the standard default and drops the param', () => {
+      const result = normalizeEntryManagementSearchParams(new URLSearchParams('display=night'));
+      expect(result.display).toBe('standard');
+      expect(result.params.has('display')).toBe(false);
+    });
+  });
 });

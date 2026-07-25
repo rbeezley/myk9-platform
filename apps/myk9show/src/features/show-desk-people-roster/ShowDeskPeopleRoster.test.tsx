@@ -46,6 +46,14 @@ function entry(overrides: Partial<SecretaryEntry> = {}): SecretaryEntry {
     jump_height: null,
     run_order: null,
     is_in_ring: null,
+    is_scored: null,
+    result_status: null,
+    search_time_seconds: null,
+    total_faults: null,
+    final_placement: null,
+    judge_notes: null,
+    disqualification_reason: null,
+    scoring_completed_at: null,
     check_in_status: 'no-status',
     withdrawal_reason: null,
     payment_method: 'online',
@@ -152,7 +160,7 @@ describe('ShowDeskPeopleRoster', () => {
   });
 
   it('renders all exhibitors by default and expands/collapses one person row', async () => {
-    const { user } = renderRoster();
+    const { user, container } = renderRoster();
 
     expect(await screen.findByRole('button', { name: /alice martin/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /all exhibitors/i })).toBeInTheDocument();
@@ -161,6 +169,9 @@ describe('ShowDeskPeopleRoster', () => {
     expect(screen.getByText('Poppy')).toBeInTheDocument();
     expect(screen.getByText(/Container Novice A - 9:00 AM/i)).toBeInTheDocument();
     expect(screen.getByText('114')).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-status="not_checked_in"][data-shape="not-started"]')
+    ).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: /alice martin/i }));
     expect(screen.queryByText('Poppy')).not.toBeInTheDocument();
@@ -190,7 +201,7 @@ describe('ShowDeskPeopleRoster', () => {
     await waitFor(() => {
       expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
     });
-    expect(await screen.findAllByText('Checked in')).toHaveLength(2);
+    expect(await screen.findByText('Checked-in')).toBeInTheDocument();
   });
 
   it('checks in all eligible rows without touching ineligible rows', async () => {
@@ -378,7 +389,7 @@ describe('ShowDeskPeopleRoster', () => {
     await user.click(await screen.findByRole('button', { name: /alice martin/i }));
 
     expect(screen.queryByRole('button', { name: /^check in$/i })).not.toBeInTheDocument();
-    expect(screen.getAllByText('Not today')).toHaveLength(2);
+    expect(screen.getByText('Not today')).toBeInTheDocument();
   });
 
   it('collapses the expanded person when search changes', async () => {

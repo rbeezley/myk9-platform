@@ -6,24 +6,22 @@
  * from auth context scopes, same as ClubMembersPage.
  */
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { Card, CardContent } from '@/components/ui/card';
-import { useAuthContext } from '@/hooks/useAuthContext';
-import { ScopeType, UserRole } from '@/types/auth-types';
+import { Button } from '@/components/ui/button';
+import { useClubStore } from '@/store/clubStore';
+import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
 import { ClubPaymentsCard } from '@/features/payments/ClubPaymentsCard';
 
 const ClubPaymentsPage: React.FC = () => {
-  const { userWithRoles } = useAuthContext();
+  const clubContext = useCurrentValidatedClubContext();
+  const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
+  const clubId = clubContext.status === 'ready' ? clubContext.clubId : undefined;
 
-  // Detect club from auth scopes
-  const clubId = useMemo(
-    () =>
-      userWithRoles?.scopes?.find(
-        s => s.scopeType === ScopeType.CLUB && s.roleId === UserRole.CLUB_ADMIN
-      )?.scopeId,
-    [userWithRoles?.scopes]
-  );
+  React.useEffect(() => {
+    void ensureClubsReady();
+  }, [ensureClubsReady]);
 
   return (
     <div className="container mx-auto space-y-6 py-6">
@@ -39,8 +37,17 @@ const ClubPaymentsPage: React.FC = () => {
         <ClubPaymentsCard clubId={clubId} />
       ) : (
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            No club is linked to your account yet. A club admin manages payments for the club.
+          <CardContent className="flex flex-col items-center gap-4 py-8 text-center text-muted-foreground">
+            <p>
+              {clubContext.status === 'ambiguous'
+                ? 'More than one club is linked to your account. Ask an administrator to correct the club access before managing payments.'
+                : clubContext.status === 'missing'
+                  ? 'Your club access needs to be configured before you can manage payments.'
+                  : 'We could not verify your club access yet. Check your connection and try again.'}
+            </p>
+            {(clubContext.status === 'unavailable' || clubContext.status === 'loading') && (
+              <Button onClick={() => void ensureClubsReady({ force: true })}>Try again</Button>
+            )}
           </CardContent>
         </Card>
       )}

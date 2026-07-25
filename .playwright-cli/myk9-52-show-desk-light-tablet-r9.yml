@@ -1,0 +1,361 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - img [ref=e6]
+      - generic [ref=e9]:
+        - generic [ref=e10]: Install myK9Show
+        - generic [ref=e11]: One home-screen app for entries, Ringside, and alerts
+      - button "Install" [ref=e12] [cursor=pointer]
+      - button "Dismiss install banner" [ref=e13] [cursor=pointer]:
+        - img [ref=e14]
+    - navigation [ref=e18]:
+      - generic [ref=e20]:
+        - link "myK9Show" [ref=e22] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e23]: myK9Show
+        - button "Search... ⌘K" [ref=e25] [cursor=pointer]:
+          - img
+          - generic [ref=e26]: Search...
+          - generic [ref=e27]: ⌘K
+        - generic [ref=e28]:
+          - button "Message Center" [ref=e29] [cursor=pointer]:
+            - img [ref=e30]
+          - button "Switch to dark mode" [ref=e33] [cursor=pointer]:
+            - img
+          - button "AskQ Assistant" [ref=e34] [cursor=pointer]:
+            - img
+          - button "Account menu" [ref=e35] [cursor=pointer]:
+            - generic [ref=e37]: E
+            - img
+    - generic [ref=e38]:
+      - generic [ref=e40]:
+        - generic [ref=e42]:
+          - img [ref=e44]
+          - heading "myK9 Manager" [level=2] [ref=e49]
+        - navigation [ref=e51]:
+          - generic [ref=e52]:
+            - heading "Manage" [level=3] [ref=e53]
+            - generic [ref=e54]:
+              - link "Dashboard Show management dashboard" [ref=e55] [cursor=pointer]:
+                - /url: /secretary/dashboard
+                - img [ref=e57]
+                - generic [ref=e62]:
+                  - generic [ref=e63]: Dashboard
+                  - generic [ref=e64]: Show management dashboard
+              - link "Heartland Scent Work Classic Setup & scheduling" [ref=e65] [cursor=pointer]:
+                - /url: /shows/dededede-0000-0000-0000-000000000010/setup
+                - img [ref=e67]
+                - generic [ref=e68]:
+                  - generic [ref=e69]: Heartland Scent Work Classic
+                  - generic [ref=e70]: Setup & scheduling
+          - generic [ref=e71]:
+            - heading "Show Day" [level=3] [ref=e72]
+            - link "Ringside Step into the ring on show day" [ref=e74] [cursor=pointer]:
+              - /url: /at-show
+              - img [ref=e76]
+              - generic [ref=e82]:
+                - generic [ref=e83]: Ringside
+                - generic [ref=e84]: Step into the ring on show day
+          - generic [ref=e85]:
+            - heading "As Exhibitor" [level=3] [ref=e86]
+            - link "My Entries Your entries, dogs, and upcoming shows" [ref=e88] [cursor=pointer]:
+              - /url: /exhibitor/entries
+              - img [ref=e90]
+              - generic [ref=e93]:
+                - generic [ref=e94]: My Entries
+                - generic [ref=e95]: Your entries, dogs, and upcoming shows
+          - generic [ref=e96]:
+            - heading "Browse" [level=3] [ref=e97]
+            - generic [ref=e98]:
+              - link "Shows Find and explore shows" [ref=e99] [cursor=pointer]:
+                - /url: /shows
+                - img [ref=e101]
+                - generic [ref=e103]:
+                  - generic [ref=e104]: Shows
+                  - generic [ref=e105]: Find and explore shows
+              - link "Dogs Browse dogs" [ref=e106] [cursor=pointer]:
+                - /url: /dogs
+                - img [ref=e108]
+                - generic [ref=e110]:
+                  - generic [ref=e111]: Dogs
+                  - generic [ref=e112]: Browse dogs
+              - link "Clubs Browse clubs" [ref=e113] [cursor=pointer]:
+                - /url: /clubs
+                - img [ref=e115]
+                - generic [ref=e119]:
+                  - generic [ref=e120]: Clubs
+                  - generic [ref=e121]: Browse clubs
+              - link "People Browse people" [ref=e122] [cursor=pointer]:
+                - /url: /people
+                - img [ref=e124]
+                - generic [ref=e129]:
+                  - generic [ref=e130]: People
+                  - generic [ref=e131]: Browse people
+        - generic [ref=e133]:
+          - generic [ref=e134]:
+            - img [ref=e135]
+            - generic [ref=e139]: Manager Access
+          - paragraph [ref=e140]: Show management and coordination
+      - main [ref=e141]:
+        - generic [ref=e143]:
+          - generic [ref=e144]:
+            - heading "Heartland Scent Work Classic" [level=1] [ref=e145]
+            - generic [ref=e146]:
+              - navigation "Breadcrumb" [ref=e147]:
+                - link "Home" [ref=e148] [cursor=pointer]:
+                  - /url: /
+                  - img [ref=e149]
+                - generic [ref=e152]:
+                  - img [ref=e153]
+                  - link "Shows" [ref=e155] [cursor=pointer]:
+                    - /url: /shows
+                - generic [ref=e156]:
+                  - img [ref=e157]
+                  - generic [ref=e159]: Heartland Scent Work Classic
+              - generic [ref=e162]:
+                - generic [ref=e163]:
+                  - img [ref=e164]
+                  - text: Armband lookup
+                - img [ref=e167]
+                - textbox "Armband lookup" [ref=e170]:
+                  - /placeholder: "Armband #"
+          - generic [ref=e171]:
+            - generic [ref=e172]:
+              - generic [ref=e174]:
+                - generic [ref=e176]: Aug
+                - generic [ref=e178]: 1–3
+              - generic [ref=e179]:
+                - generic [ref=e180]:
+                  - heading "Heartland Scent Work Classic" [level=2] [ref=e181]
+                  - generic [ref=e182]: AKC
+                - generic [ref=e183]: Heartland Scent Work Club
+                - generic [ref=e184]:
+                  - generic "1 person here" [ref=e185]:
+                    - generic [ref=e189]: TS
+                  - button "Published show" [ref=e191] [cursor=pointer]:
+                    - generic [ref=e192]:
+                      - text: Published show
+                      - img [ref=e193]
+                  - button "More show actions" [ref=e195] [cursor=pointer]:
+                    - img
+            - generic [ref=e197]:
+              - generic [ref=e198]:
+                - generic [ref=e199]: Total Entries
+                - generic [ref=e200]: "25"
+                - generic [ref=e201]: Closes Jul 31
+              - generic [ref=e202]:
+                - generic [ref=e203]: Location
+                - generic [ref=e204]: 100 Dog Show Lane, Tulsa, OK 74101
+              - generic [ref=e205]:
+                - generic [ref=e206]: Entry Fee
+                - generic [ref=e207]: $30.00
+                - generic [ref=e208]: "Day of show: $35.00"
+              - generic [ref=e209]:
+                - generic [ref=e210]: Payment Methods
+                - generic [ref=e212]: Card
+          - generic [ref=e213]:
+            - generic [ref=e214]:
+              - img [ref=e216]
+              - generic [ref=e219]:
+                - generic [ref=e220]:
+                  - heading "Premium List" [level=3] [ref=e221]
+                  - generic [ref=e222]:
+                    - img [ref=e223]
+                    - text: Show data has changed since publish
+                - paragraph [ref=e225]: Premium PDF published July 3, 2026
+              - button "Republish premium" [ref=e226] [cursor=pointer]:
+                - img
+                - text: Republish premium
+              - link "Download PDF" [ref=e227] [cursor=pointer]:
+                - /url: https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/dededede-0000-0000-0000-000000000010.pdf
+            - generic [ref=e228]:
+              - img [ref=e230]
+              - generic:
+                - generic:
+                  - heading "Public Landing Page" [level=3]
+                  - generic [ref=e233]: Headline
+                - paragraph: http://localhost:5174/shows/dededede-0000-0000-0000-000000000010
+              - button "Copy Link" [ref=e234] [cursor=pointer]:
+                - img
+                - text: Copy Link
+          - navigation "Show management sections" [ref=e235]:
+            - generic [ref=e236]:
+              - generic [ref=e237]: Show management section
+              - combobox "Show management section" [ref=e238]:
+                - option "Choose section" [disabled]
+                - option "Setup"
+                - option "Show Desk" [selected]
+                - option "Entry Management"
+                - option "Reports"
+                - option "Results & Check-In"
+                - option "Submit Results"
+          - generic [ref=e239]:
+            - region "Show Desk" [ref=e240]:
+              - generic [ref=e241]:
+                - paragraph [ref=e242]: During the show
+                - heading "Show Desk" [level=2] [ref=e243]
+              - button "Open tools panel" [ref=e245] [cursor=pointer]:
+                - img
+                - text: Tools
+                - generic "2 items need attention" [ref=e246]: "2"
+            - generic "Show Desk header" [ref=e247]:
+              - region "Show status" [ref=e248]:
+                - generic [ref=e250]: Show in progress
+                - paragraph [ref=e251]: 0 of 5 classes complete · 7 items need attention
+              - generic [ref=e252]:
+                - region "Pending signals" [ref=e253]:
+                  - button "14 pending entries" [ref=e254] [cursor=pointer]
+                  - button "3 entries waiting for check-in" [ref=e255] [cursor=pointer]
+                - button "Manage entries (14)" [ref=e256] [cursor=pointer]:
+                  - img
+                  - text: Manage entries (14)
+              - region "Next best action" [ref=e257]:
+                - generic [ref=e258]:
+                  - generic [ref=e259]:
+                    - generic [ref=e260]: Next best action
+                    - generic [ref=e261]: "Next: Review entry"
+                    - generic [ref=e262]: Codex Daisy · Test Exhibitor — Entry is waiting for secretary review
+                  - generic [ref=e263]:
+                    - button "Start" [ref=e264] [cursor=pointer]:
+                      - img
+                      - text: Start
+                    - button "Dismiss" [ref=e265] [cursor=pointer]:
+                      - img
+              - region "Up next" [ref=e266]:
+                - generic [ref=e267]: Up next
+                - list [ref=e268]:
+                  - listitem [ref=e269]:
+                    - button "Review entry ×4 Tera · Richard Beezley, across 4 classes" [ref=e270] [cursor=pointer]:
+                      - generic [ref=e271]:
+                        - generic [ref=e272]:
+                          - generic "Review entry" [ref=e273]
+                          - generic [ref=e274]: ×4
+                        - generic "Tera · Richard Beezley, across 4 classes" [ref=e275]
+                      - img [ref=e276]
+                  - listitem [ref=e278]:
+                    - generic [ref=e279]:
+                      - generic "Review entry" [ref=e280]:
+                        - text: Review entry
+                        - generic [ref=e281]: · Container Novice
+                      - generic "Juniper · Maya Rivers — Entry is waiting for secretary review" [ref=e282]
+                    - button "Open" [ref=e283] [cursor=pointer]:
+                      - img
+                      - text: Open
+                  - listitem [ref=e284]:
+                    - generic [ref=e285]:
+                      - generic "Review entry" [ref=e286]:
+                        - text: Review entry
+                        - generic [ref=e287]: · Container Novice
+                      - generic "Buddy · Test Exhibitor — Entry is waiting for secretary review" [ref=e288]
+                    - button "Open" [ref=e289] [cursor=pointer]:
+                      - img
+                      - text: Open
+              - region "Running now" [ref=e290]:
+                - generic [ref=e291]:
+                  - img [ref=e292]
+                  - text: Running Now
+                - generic [ref=e299]:
+                  - button "Now Container Novice Test Judge 38% scored" [ref=e300] [cursor=pointer]:
+                    - generic [ref=e301]:
+                      - generic [ref=e302]: Now
+                      - generic [ref=e303]: Container Novice
+                      - generic [ref=e304]: Test Judge
+                      - generic [ref=e305]: 38% scored
+                  - button "Now Interior Advanced Test Judge 0% scored" [ref=e306] [cursor=pointer]:
+                    - generic [ref=e307]:
+                      - generic [ref=e308]: Now
+                      - generic [ref=e309]: Interior Advanced
+                      - generic [ref=e310]: Test Judge
+                      - generic [ref=e311]: 0% scored
+                  - button "Now Interior Novice Test Judge 0% scored" [ref=e312] [cursor=pointer]:
+                    - generic [ref=e313]:
+                      - generic [ref=e314]: Now
+                      - generic [ref=e315]: Interior Novice
+                      - generic [ref=e316]: Test Judge
+                      - generic [ref=e317]: 0% scored
+            - generic [ref=e318]:
+              - generic [ref=e319]:
+                - generic [ref=e320]:
+                  - heading "Show Map" [level=3] [ref=e321]
+                  - paragraph [ref=e322]: Scan the show by trial and class, then open the class you need.
+                - generic [ref=e323]:
+                  - generic [ref=e324]:
+                    - generic [ref=e325]: "2"
+                    - generic [ref=e326]: Trials
+                  - generic [ref=e327]:
+                    - generic [ref=e328]: "5"
+                    - generic [ref=e329]: Classes
+                  - generic [ref=e330]:
+                    - generic [ref=e331]: "25"
+                    - generic [ref=e332]: Entries
+                  - generic [ref=e333]:
+                    - generic [ref=e334]: "7"
+                    - generic [ref=e335]: Need Attention
+              - generic [ref=e336]:
+                - generic [ref=e337]:
+                  - generic [ref=e338]:
+                    - button "Today" [ref=e339] [cursor=pointer]
+                    - button "Tomorrow" [ref=e340] [cursor=pointer]
+                    - button "All dates" [ref=e341] [cursor=pointer]
+                  - generic [ref=e342]:
+                    - button "Active" [ref=e343] [cursor=pointer]
+                    - button "Completed" [ref=e344] [cursor=pointer]
+                  - generic [ref=e345]:
+                    - button "All" [ref=e346] [cursor=pointer]
+                    - button "In progress" [ref=e347] [cursor=pointer]
+                    - button "Attention" [ref=e348] [cursor=pointer]
+                - generic [ref=e349]:
+                  - button "Show map shortcuts" [ref=e350] [cursor=pointer]:
+                    - img
+                  - button "Collapse all" [ref=e351] [cursor=pointer]:
+                    - img
+                    - text: Collapse all
+                  - button "Expand trials" [ref=e352] [cursor=pointer]:
+                    - img
+                    - text: Expand trials
+              - tree [ref=e355]:
+                - treeitem "Expand All Exhibitors All Exhibitors 7 need attention -" [level=1] [ref=e356]:
+                  - generic [ref=e357]:
+                    - generic [ref=e358]:
+                      - button "Expand All Exhibitors" [ref=e359] [cursor=pointer]:
+                        - img
+                      - generic [ref=e361]: All Exhibitors
+                    - generic [ref=e363]: 7 need attention
+                    - generic [ref=e364]: "-"
+                - treeitem "Expand Saturday Trial Saturday Trial Sat, Aug 1, 2026 · Trial Saturday Trial In progress 5 need attention 0/3 classes complete 0% Actions for Saturday Trial" [level=1] [ref=e365]:
+                  - generic [ref=e366]:
+                    - generic [ref=e367]:
+                      - button "Expand Saturday Trial" [ref=e368] [cursor=pointer]:
+                        - img
+                      - button "Saturday Trial Sat, Aug 1, 2026 · Trial Saturday Trial" [ref=e369] [cursor=pointer]:
+                        - generic [ref=e370]: Saturday Trial
+                        - generic [ref=e371]: Sat, Aug 1, 2026 · Trial Saturday Trial
+                    - generic [ref=e372]:
+                      - generic [ref=e373]:
+                        - img [ref=e375]
+                        - generic [ref=e378]: In progress
+                      - generic [ref=e379]: 5 need attention
+                    - generic [ref=e380]:
+                      - generic [ref=e381]: 0/3 classes complete
+                      - 'progressbar "Saturday Trial progress: 0%" [ref=e382]': x
+                    - button "Actions for Saturday Trial" [ref=e385] [cursor=pointer]:
+                      - img
+                - treeitem "Expand Sunday Trial Sunday Trial Sun, Aug 2, 2026 · Trial Sunday Trial In progress 2 need attention 0/2 classes complete 0% Actions for Sunday Trial" [level=1] [ref=e386]:
+                  - generic [ref=e387]:
+                    - generic [ref=e388]:
+                      - button "Expand Sunday Trial" [ref=e389] [cursor=pointer]:
+                        - img
+                      - button "Sunday Trial Sun, Aug 2, 2026 · Trial Sunday Trial" [ref=e390] [cursor=pointer]:
+                        - generic [ref=e391]: Sunday Trial
+                        - generic [ref=e392]: Sun, Aug 2, 2026 · Trial Sunday Trial
+                    - generic [ref=e393]:
+                      - generic [ref=e394]:
+                        - img [ref=e396]
+                        - generic [ref=e399]: In progress
+                      - generic [ref=e400]: 2 need attention
+                    - generic [ref=e401]:
+                      - generic [ref=e402]: 0/2 classes complete
+                      - 'progressbar "Sunday Trial progress: 0%" [ref=e403]': x
+                    - button "Actions for Sunday Trial" [ref=e406] [cursor=pointer]:
+                      - img
+  - region "Notifications alt+T"

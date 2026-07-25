@@ -305,7 +305,6 @@ The analytics service is designed to integrate seamlessly with all existing sync
 - **BatchProcessor**: Analyzes batch operation efficiency and throughput
 - **FieldLevelSyncService**: Tracks field-level conflict patterns
 - **ConflictManager**: Monitors conflict resolution effectiveness
-- **RealtimeManager**: Tracks real-time sync performance
 - **SyncQueue**: Analyzes queue processing efficiency
 
 This comprehensive analytics system provides the foundation for continuous optimization of the sync infrastructure and proactive identification of performance issues.

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { SubscriptionManager } from '@/components/subscription/SubscriptionManager';
 import { Card, CardContent } from '@/components/ui/card';
 import { CreditCard, Crown, Star, Award, CheckCircle } from 'lucide-react';
@@ -13,6 +14,15 @@ export default function SubscriptionPage() {
   const [searchParams] = useSearchParams();
   // Stripe checkout redirects here with ?checkout=success after payment.
   const justCheckedOut = searchParams.get('checkout') === 'success';
+  // Locked-view return target persisted by PricingPage before the Stripe
+  // redirect (React Router state cannot cross it). Read once into state and
+  // clear so a later unrelated visit never resurrects a stale target.
+  const [postCheckoutReturnTo] = useState<string | null>(() => {
+    if (!justCheckedOut) return null;
+    const stored = sessionStorage.getItem('postCheckoutReturnTo');
+    sessionStorage.removeItem('postCheckoutReturnTo');
+    return stored && stored.startsWith('/') ? stored : null;
+  });
 
   return (
     <motion.div
@@ -38,11 +48,21 @@ export default function SubscriptionPage() {
           <Card className="border-green-500/60">
             <CardContent className="flex items-center gap-3 p-4">
               <CheckCircle className="h-6 w-6 shrink-0 text-green-600" />
-              <p className="text-sm">
-                <span className="font-semibold">Payment received!</span> Your premium subscription
-                is activating — this can take a few seconds. If your plan below still shows the
-                old one, refresh the page.
-              </p>
+              <div className="text-sm">
+                <p>
+                  <span className="font-semibold">Payment received!</span> Your premium subscription
+                  is activating — this can take a few seconds. If your plan below still shows the
+                  old one, refresh the page.
+                </p>
+                {postCheckoutReturnTo && (
+                  <Link
+                    to={postCheckoutReturnTo}
+                    className="mt-2 inline-block font-medium text-primary hover:underline"
+                  >
+                    ← Back to your dog
+                  </Link>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -67,8 +87,7 @@ export default function SubscriptionPage() {
               <Star className="h-8 w-8 mx-auto mb-3 text-amber-500" />
               <h3 className="font-semibold">Title Tracking</h3>
               <p className="text-sm text-muted-foreground">
-                Automatic title progress and performance statistics for every
-                dog
+                Automatic title progress and performance statistics for every dog
               </p>
             </CardContent>
           </Card>
@@ -78,8 +97,7 @@ export default function SubscriptionPage() {
               <Crown className="h-8 w-8 mx-auto mb-3 text-purple-500" />
               <h3 className="font-semibold">Health &amp; Training</h3>
               <p className="text-sm text-muted-foreground">
-                Health records, vaccinations, training journal, and pedigree
-                management
+                Health records, vaccinations, training journal, and pedigree management
               </p>
             </CardContent>
           </Card>

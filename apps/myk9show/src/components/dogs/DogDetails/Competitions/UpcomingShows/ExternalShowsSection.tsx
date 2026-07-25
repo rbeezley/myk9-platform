@@ -71,7 +71,7 @@ export default function ExternalShowsSection({
                   label: 'Delete',
                   icon: <Trash2 className="w-4 h-4 mr-2" />,
                   onClick: () => show.id && deleteShow(String(show.id)),
-                  className: 'text-red-600',
+                  className: 'text-destructive',
                 },
               ]}
             />

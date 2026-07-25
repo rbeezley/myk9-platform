@@ -48,7 +48,7 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
       testInfo,
       `/shows/${SHOW_ID}/entry-management`,
       'secretary-entry-management',
-      page.getByRole('button', { name: 'Export CSV' })
+      page.getByRole('button', { name: 'Export Full CSV' })
     );
 
     await page.getByRole('tab', { name: 'Waitlist', exact: true }).click();

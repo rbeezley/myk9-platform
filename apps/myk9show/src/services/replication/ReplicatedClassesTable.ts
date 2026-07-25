@@ -50,6 +50,7 @@ export interface ReplicatedClass {
   handlerAgeMin?: number | undefined;
   handlerAgeMax?: number | undefined;
   startTime?: string | undefined;
+  revisedExpectedStart?: string | null | undefined;
   estimatedDuration?: number | undefined;
 
   // Scent Work specific fields (camelCase)
@@ -165,6 +166,8 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     handlerAgeMin: row.handler_age_min ?? undefined,
     handlerAgeMax: row.handler_age_max ?? undefined,
     startTime: row.start_time ?? undefined,
+    revisedExpectedStart:
+      (dbRow.revised_expected_start as string | null | undefined) ?? null,
     estimatedDuration: row.estimated_duration ?? undefined,
 
     // CamelCase fields
@@ -342,6 +345,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       handler_age_min: cls.handlerAgeMin ?? null,
       handler_age_max: cls.handlerAgeMax ?? null,
       start_time: cls.startTime ?? null,
+      revised_expected_start: cls.revisedExpectedStart ?? null,
       estimated_duration: cls.estimatedDuration ?? null,
       element: cls.element ?? null,
       section: cls.section ?? null,

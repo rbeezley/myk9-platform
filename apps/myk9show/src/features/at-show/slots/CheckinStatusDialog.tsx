@@ -14,26 +14,21 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { StatusIcon, getStatusDescriptor } from '@/components/status';
 import { handleOpenChange } from './dialogHelpers';
 
 /** Statuses every user can set. */
-const BASE_STATUSES: readonly { value: CheckInStatus; label: string }[] = [
-  { value: 'no-status', label: 'No Status' },
-  { value: 'checked-in', label: 'Checked In' },
-  { value: 'conflict', label: 'Conflict' },
-  { value: 'pulled', label: 'Pulled' },
-  { value: 'at-gate', label: 'At Gate' },
-  { value: 'come-to-gate', label: 'Come to Gate' },
+const BASE_CHECK_IN_STATUSES: readonly CheckInStatus[] = [
+  'no-status',
+  'checked-in',
+  'conflict',
+  'pulled',
+  'at-gate',
+  'come-to-gate',
 ];
 
 /** Additional statuses only stewards/judges may set (ring management). */
-const RING_MANAGEMENT_STATUSES: readonly {
-  value: CheckInStatus;
-  label: string;
-}[] = [
-  { value: 'in-ring', label: 'In Ring' },
-  { value: 'completed', label: 'Completed' },
-];
+const RING_MANAGEMENT_CHECK_IN_STATUSES: readonly CheckInStatus[] = ['in-ring', 'completed'];
 
 export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
   isOpen,
@@ -45,8 +40,8 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
   if (!isOpen) return null;
 
   const statuses = showRingManagement
-    ? [...BASE_STATUSES, ...RING_MANAGEMENT_STATUSES]
-    : BASE_STATUSES;
+    ? [...BASE_CHECK_IN_STATUSES, ...RING_MANAGEMENT_CHECK_IN_STATUSES]
+    : BASE_CHECK_IN_STATUSES;
 
   return (
     <Dialog open onOpenChange={(open) => handleOpenChange(open, onClose)}>
@@ -61,15 +56,20 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
           <p>{dogInfo.handler}</p>
         </div>
         <div className="flex flex-col gap-2">
-          {statuses.map((status) => (
-            <Button
-              key={status.value}
-              variant="outline"
-              onClick={() => onStatusChange(status.value)}
-            >
-              {status.label}
-            </Button>
-          ))}
+          {statuses.map(status => {
+            const descriptor = getStatusDescriptor('entry', status);
+            return (
+              <Button
+                key={status}
+                variant="outline"
+                className="min-h-11 justify-start"
+                onClick={() => onStatusChange(status)}
+              >
+                <StatusIcon family="entry" status={status} size="sm" decorative />
+                {descriptor.label}
+              </Button>
+            );
+          })}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>

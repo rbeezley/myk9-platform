@@ -105,6 +105,31 @@ describe('HealthTimeline export', () => {
     expect(exportToCSVMock).not.toHaveBeenCalled();
   });
 
+  it('does not offer adding a record in read-only mode', () => {
+    render(<HealthTimeline dogId="dog-empty" events={[]} readOnly />);
+
+    expect(screen.queryByRole('button', { name: /add health record/i })).not.toBeInTheDocument();
+  });
+
+  it('allows deleting a mapped record from the timeline', () => {
+    const onDeleteEvent = vi.fn();
+    const event: HealthEvent = {
+      id: 'vacc-vaccination-1',
+      recordId: 'vaccination-1',
+      recordType: 'vaccination',
+      type: 'vaccination',
+      title: 'Rabies Vaccination',
+      date: new Date('2026-02-14T12:00:00Z'),
+      status: 'completed',
+    };
+
+    render(<HealthTimeline dogId="dog-123" events={[event]} onDeleteEvent={onDeleteEvent} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Rabies Vaccination' }));
+
+    expect(onDeleteEvent).toHaveBeenCalledWith(event);
+  });
+
   it('imports valid pasted CSV records', () => {
     const onImportRecords = vi.fn().mockResolvedValue({ succeeded: 1, failed: 0, errors: [] });
 

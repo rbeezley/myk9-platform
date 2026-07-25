@@ -26,6 +26,7 @@ import { ShowCheckinToggle } from './ShowCheckinToggle';
 import { OverrideTree } from './OverrideTree';
 import { BulkOperationsBar } from './BulkOperationsBar';
 import { buildResultsReadinessSummary } from './readinessSummary';
+import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 
 const getClassId = (c: { id: string }) => c.id;
 
@@ -204,6 +205,7 @@ export default function ResultsControlPage() {
   // which wraps to several rows on narrow screens.
   return (
     <div className="container mx-auto py-6 space-y-8 pb-44 sm:pb-28">
+      <ShowDeskReturnLink showId={showId} />
       <h1 className="text-3xl font-bold tracking-tight">Results &amp; Check-In</h1>
 
       <Card>

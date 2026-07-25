@@ -1,6 +1,9 @@
 import { act, renderHook, waitFor } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useEntryManagementData } from '../useEntryManagementData';
+import {
+  mapSecretaryEntryToEntryManagementEntry,
+  useEntryManagementData,
+} from '../useEntryManagementData';
 import { PaymentStatus } from '@/types/show-registration-types';
 
 const mocks = vi.hoisted(() => ({
@@ -74,12 +77,54 @@ beforeEach(() => {
     error: null,
     tablesStatus: { entries: 'success' },
   };
-  // Default: getShowById returns the show — ensures initialShowId tests are stable
-  // regardless of which async path (shows.some vs fetch) wins the race.
+  // Default: getShowById returns the show for missing-show deep links.
   mocks.getShowById.mockResolvedValue({ data: makeShow(), error: null });
 });
 
 describe('useEntryManagementData', () => {
+  it('maps pull reconciliation reason, timing, and persisted decision', () => {
+    const entry = mapSecretaryEntryToEntryManagementEntry(
+      {
+        id: 'pulled-1',
+        show_id: 'show-1',
+        entry_status: 'scratched',
+        special_requests: 'Crate near ring',
+        withdrawal_reason: 'Dog is sore',
+        withdrawn_at: '2026-06-02T04:30:00Z',
+        refund_decision: 'denied',
+        trial: { trial_type: 'Scent Work', timezone: 'America/Chicago' },
+        dog: null,
+        class: null,
+        registration: null,
+      } as never,
+      '2026-06-01'
+    );
+
+    expect(entry.pullReason).toBe('Dog is sore');
+    expect(entry.pullTiming).toBe('before_close');
+    expect(entry.refundDecision).toBe('denied');
+  });
+
+  it('does not mislabel special requests as a pull reason', () => {
+    const entry = mapSecretaryEntryToEntryManagementEntry(
+      {
+        id: 'pulled-without-reason',
+        show_id: 'show-1',
+        entry_status: 'scratched',
+        special_requests: 'Crate near ring',
+        withdrawal_reason: null,
+        dog: null,
+        class: null,
+        registration: null,
+        trial: null,
+      } as never,
+      '2026-06-01'
+    );
+
+    expect(entry.pullReason).toBeNull();
+    expect(entry.notes).toBe('Crate near ring');
+  });
+
   it('loads shows on mount', async () => {
     const { result } = renderHook(() => useEntryManagementData());
     await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
@@ -95,6 +140,67 @@ describe('useEntryManagementData', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(mocks.getEntriesForShow).toHaveBeenCalledWith('show-1');
+  });
+
+  it('marks an empty load authoritative after entry replication has succeeded', async () => {
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => result.current.setSelectedShowId('show-1'));
+
+    await waitFor(() => expect(result.current.loadedEntriesShowId).toBe('show-1'));
+    expect(result.current.entries).toEqual([]);
+  });
+
+  it('keeps an empty cold-replica load unvalidated until sync recovery', async () => {
+    mocks.syncStatus = {
+      isSyncing: false,
+      lastSyncAt: null,
+      error: null,
+      tablesStatus: { entries: 'idle' },
+    };
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => result.current.setSelectedShowId('show-1'));
+
+    await waitFor(() => expect(mocks.getEntriesForShow).toHaveBeenCalledWith('show-1'));
+    expect(result.current.loadedEntriesShowId).toBeNull();
+  });
+
+  it('surfaces a retryable plain-English message when entries cannot be loaded', async () => {
+    mocks.getEntriesForShow.mockResolvedValue({
+      data: null,
+      error: new Error("We couldn't load entries for this show. Please retry."),
+    });
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.loadError).toBe("We couldn't load entries for this show. Please retry.");
+    expect(result.current.entries).toEqual([]);
+  });
+
+  it('requests replication recovery after a cold load fails', async () => {
+    mocks.syncStatus = {
+      isSyncing: false,
+      lastSyncAt: null,
+      error: null,
+      tablesStatus: { entries: 'idle' },
+    };
+    mocks.getEntriesForShow.mockResolvedValue({
+      data: null,
+      error: new Error("We couldn't load entries for this show. Please retry."),
+    });
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+
+    await waitFor(() => expect(mocks.triggerSync).toHaveBeenCalledTimes(1));
   });
 
   it('requests replication sync when the selected show loads from an empty idle entries replica', async () => {
@@ -166,6 +272,24 @@ describe('useEntryManagementData', () => {
     await waitFor(() => expect(result.current.selectedShowId).toBe('show-deeplink'));
     expect(mocks.getShowById).toHaveBeenCalledWith('show-deeplink');
     expect(result.current.shows.some(s => s.id === 'show-deeplink')).toBe(true);
+  });
+
+  it('waits for the secretary show list before fetching a missing deep-link show', async () => {
+    let resolveShows!: (value: { data: ReturnType<typeof makeShow>[]; error: null }) => void;
+    mocks.getSecretaryShows.mockImplementation(
+      () => new Promise(resolve => (resolveShows = resolve))
+    );
+    mocks.getShowById.mockResolvedValue({ data: makeShow('show-deeplink'), error: null });
+
+    const { result } = renderHook(() => useEntryManagementData('show-deeplink'));
+
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(true));
+    expect(mocks.getShowById).not.toHaveBeenCalled();
+
+    act(() => resolveShows({ data: [], error: null }));
+
+    await waitFor(() => expect(mocks.getShowById).toHaveBeenCalledWith('show-deeplink'));
+    await waitFor(() => expect(result.current.selectedShowId).toBe('show-deeplink'));
   });
 
   it('cancels the deep-link fetch when unmounted before it resolves', async () => {

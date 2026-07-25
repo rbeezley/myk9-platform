@@ -72,9 +72,9 @@ describe('StatusPickerDialog', () => {
 
   it('shows description text for each status', () => {
     render(<StatusPickerDialog {...defaultProps} isStaff={true} />);
-    expect(screen.getByText('Dog has not checked in yet')).toBeInTheDocument();
-    expect(screen.getByText('Dog is ready to compete')).toBeInTheDocument();
-    expect(screen.getByText('Dog entered in multiple classes')).toBeInTheDocument();
+    expect(screen.getByText('Exhibitor has not checked in yet')).toBeInTheDocument();
+    expect(screen.getByText('Exhibitor has checked in and is ready')).toBeInTheDocument();
+    expect(screen.getByText('Schedule conflict detected')).toBeInTheDocument();
   });
 
   it('does not render when open is false', () => {

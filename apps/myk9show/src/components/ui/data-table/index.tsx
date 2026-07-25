@@ -85,9 +85,17 @@ interface DataTableProps<TData> {
   manualSorting?: boolean;
   className?: string;
   getRowClassName?: (data: TData) => string;
+  /**
+   * Controlled density (operational-views-and-display-presets, Design
+   * Decision 3). When provided, overrides the table's own per-`tableId`
+   * localStorage density and hides the built-in toggle — the caller (a
+   * surface-level `DensityControl`) owns density instead, so there is one
+   * density control per surface, not two.
+   */
+  density?: TableDensity;
 }
 
-type TableDensity = 'comfortable' | 'compact';
+export type TableDensity = 'comfortable' | 'compact';
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -207,6 +215,7 @@ export function DataTable<TData>({
   manualSorting = false,
   className,
   getRowClassName,
+  density: controlledDensity,
 }: DataTableProps<TData>) {
   const resolvedPageSizeOptions = pageSizeOptions ?? DEFAULT_PAGE_SIZE_OPTIONS;
   const [sorting, setSorting] = useState<SortingState>(initialSorting ?? []);
@@ -217,7 +226,10 @@ export function DataTable<TData>({
     pageIndex: 0,
     pageSize: readStoredPageSize(tableId, pageSize, resolvedPageSizeOptions),
   });
-  const [density, setDensity] = useState<TableDensity>(() => readStoredDensity(tableId));
+  const [internalDensity, setInternalDensity] = useState<TableDensity>(() =>
+    readStoredDensity(tableId)
+  );
+  const density = controlledDensity ?? internalDensity;
   const [internalGlobalFilter, setInternalGlobalFilter] = useState('');
 
   const globalFilterValue = controlledGlobalFilter ?? internalGlobalFilter;
@@ -229,9 +241,9 @@ export function DataTable<TData>({
   }, [pagination.pageSize, tableId]);
 
   useEffect(() => {
-    if (!tableId) return;
-    writeStorageValue(`datatable-density-${tableId}`, density);
-  }, [density, tableId]);
+    if (!tableId || controlledDensity) return;
+    writeStorageValue(`datatable-density-${tableId}`, internalDensity);
+  }, [internalDensity, tableId, controlledDensity]);
 
   // Prepend selection column if selectable
   const allColumns = useMemo(() => {
@@ -331,7 +343,7 @@ export function DataTable<TData>({
     setRowSelection({});
     setGlobalFilterValue('');
     setPagination({ pageIndex: 0, pageSize });
-    setDensity('comfortable');
+    if (!controlledDensity) setInternalDensity('comfortable');
   };
 
   const headerCellClassName = density === 'compact' ? 'px-3 py-2' : 'px-4 py-3';
@@ -360,16 +372,20 @@ export function DataTable<TData>({
                 <Download className="h-3.5 w-3.5 mr-1" />
                 Export CSV
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => setDensity(density === 'compact' ? 'comfortable' : 'compact')}
-                aria-pressed={density === 'compact'}
-              >
-                <Rows3 className="h-3.5 w-3.5 mr-1" />
-                {density === 'compact' ? 'Comfortable density' : 'Compact density'}
-              </Button>
+              {!controlledDensity && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() =>
+                    setInternalDensity(internalDensity === 'compact' ? 'comfortable' : 'compact')
+                  }
+                  aria-pressed={density === 'compact'}
+                >
+                  <Rows3 className="h-3.5 w-3.5 mr-1" />
+                  {density === 'compact' ? 'Comfortable density' : 'Compact density'}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"

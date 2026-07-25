@@ -98,12 +98,11 @@ vi.mock('@/services/AuditService', () => ({
 }));
 
 describe('EntryManagementPage tab consolidation', () => {
-  it('shows Entries, Move-ups, Pulls, and Waitlist tabs by default', () => {
+  it('shows Registrations and Exceptions as the only primary tabs', () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
-    expect(screen.getByRole('tab', { name: 'Entries' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Move-ups' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Pulls' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Waitlist' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Registrations' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Exceptions' })).toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(2);
   });
 
   it('shows Waitlist content when ?tab=waitlist', () => {
@@ -111,17 +110,24 @@ describe('EntryManagementPage tab consolidation', () => {
     expect(screen.getByText('Waitlist Content')).toBeInTheDocument();
   });
 
-  it('selects the Move-ups tab when ?tab=move-ups', () => {
+  it('normalizes a legacy Move-ups tab to the Exceptions workspace', () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries?tab=move-ups' });
-    expect(screen.getByRole('tab', { name: 'Move-ups' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Exceptions' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: 'Move-ups' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
   });
 
-  it('normalizes legacy pulled exception links to the Pulls tab', async () => {
+  it('normalizes legacy pulled exception links to Pulls / scratches', async () => {
     render(<EntryManagementPage />, {
       initialRoute: '/secretary/entries?tab=exceptions&queue=pulled',
     });
-    expect(await screen.findByRole('tab', { name: 'Pulls' })).toHaveAttribute(
-      'aria-selected',
+    expect(await screen.findByRole('button', { name: 'Pulls / scratches' })).toHaveAttribute(
+      'aria-pressed',
       'true'
     );
   });

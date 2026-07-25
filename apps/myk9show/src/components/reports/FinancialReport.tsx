@@ -2,11 +2,15 @@ import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatFee } from '@/utils/format';
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
+// Wired to the shared financial source of truth (unified-financial-dashboard,
+// MYK9-54, task 2.5). The barrel re-exports the SAME closeout math from
+// financialReportTotals — the renderer stays synchronous and pure and its output
+// is byte-unchanged; parity is guarded by financialReportParity.test.ts.
 import {
   calculateFinancialReportTotals,
   type FinancialReportBucket,
   type FinancialReportLine,
-} from './financialReportTotals';
+} from '@/features/financial';
 
 export const FinancialReport: React.FC<ReportProps> = ({
   showName,

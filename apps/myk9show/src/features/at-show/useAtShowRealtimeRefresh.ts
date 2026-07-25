@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import { subscribeToShowChanges } from '@/features/show-live-sync/showChangeSignal';
 
 const DEBOUNCE_MS = 1500;
 
@@ -7,9 +7,7 @@ const DEBOUNCE_MS = 1500;
  * Realtime refresh for the at-show entry lists (user decision 2026-06-11:
  * exhibitors expect myK9Q-parity live updates, not pull-to-refresh).
  *
- * Subscribes to Postgres changes on this show's `entries` plus all `classes`
- * (classes lack a direct show_id column — same caveat as
- * useNotificationMonitor's channel), and nudges the page's `refresh(true)`
+ * Subscribes to the shared show-scoped Broadcast signal and nudges the page's `refresh(true)`
  * (forceSync → replication pull → re-render) behind a debounce so a scoring
  * burst coalesces into one sync. Also refreshes immediately when the app
  * returns to the foreground — the common ringside tab-switch case.
@@ -58,15 +56,7 @@ export function useAtShowRealtimeRefresh(
       debounceTimer = setTimeout(() => void runRefresh(), DEBOUNCE_MS);
     };
 
-    const channel = supabase
-      .channel(`at-show-refresh:${showId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'entries', filter: `show_id=eq.${showId}` },
-        nudge
-      )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'classes' }, nudge)
-      .subscribe();
+    const unsubscribe = subscribeToShowChanges(showId, nudge);
 
     const onVisible = () => {
       if (document.visibilityState === 'visible') void runRefresh();
@@ -76,7 +66,7 @@ export function useAtShowRealtimeRefresh(
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
       if (debounceTimer) clearTimeout(debounceTimer);
-      void supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [showId]);
 }

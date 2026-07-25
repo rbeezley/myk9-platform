@@ -5,8 +5,14 @@
  * organization (needed by `findPairedSectionedClass` to decide A/B pairing).
  */
 
-import { useQuery } from '@tanstack/react-query';
-import { replicatedShowsTable } from '@/services/replication';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  replicatedClassesTable,
+  replicatedEntriesTable,
+  replicatedShowsTable,
+  replicatedTrialsTable,
+} from '@/services/replication';
 import { fetchAtShowClassList, type AtShowClassGroup } from './atShowClassListAdapter';
 
 export interface UseAtShowClassListResult {
@@ -21,6 +27,20 @@ export interface UseAtShowClassListResult {
 }
 
 export function useAtShowClassList(showId: string | undefined): UseAtShowClassListResult {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!showId) return;
+    const invalidate = () => {
+      void queryClient.invalidateQueries({ queryKey: ['at-show', 'classlist', showId] });
+    };
+    const unsubscribe = [
+      replicatedClassesTable.subscribe(invalidate),
+      replicatedTrialsTable.subscribe(invalidate),
+      replicatedEntriesTable.subscribe(invalidate),
+    ];
+    return () => unsubscribe.forEach(stop => stop());
+  }, [queryClient, showId]);
+
   const groupsQuery = useQuery({
     queryKey: ['at-show', 'classlist', showId],
     queryFn: () => fetchAtShowClassList(showId as string),

@@ -1,9 +1,11 @@
 # Role: Exhibitor
 
 ## Who they are
+
 A dog handler who enters their dog(s) in trials. Often retired, often entering multiple shows across multiple sanctioning bodies. Computer-savviness is low. They have trusted paper and phone for decades and are being asked to trust software with something they care about deeply.
 
 ## Emotional intent
+
 > "I trust this with my day."
 
 The exhibitor should feel the platform is a safe place for their money, their dog's record, and their show plans. **Silence after payment is the scariest state** — the platform must never leave them wondering whether something worked.
@@ -21,6 +23,7 @@ The exhibitor should feel the platform is a safe place for their money, their do
 9. **Review basic statistics** — see a summary of past performance for each of their dogs.
 
 ## Should never have to think about
+
 - Whether their entry went through — confirmation is immediate and visible.
 - Where to look for their ring time — it's on the same screen as their entry.
 - Whether they paid — paid status is always visible.
@@ -28,10 +31,15 @@ The exhibitor should feel the platform is a safe place for their money, their do
 - Setting up an account just to browse shows — discovery is open; sign-up is only required to enter.
 
 ## Primary app
+
 **myK9Show** for discovery, entry, payment, and the waiting-period experience. **myK9Q** is available for day-of check-in for exhibitors who prefer it.
 
+## Shipped since fall
+
+- Premium tier: Title Progress, Statistics, Health Records, Training Journal, Pedigree, plus an Analytics-scoped scored-show trial. Complimentary/founding access is admin-granted via User Management. See [docs/future/exhibitor-premium.md](../future/exhibitor-premium.md).
+
 ## Deferred to post-fall
-- Premium features: title tracking, training journal, health records, pedigree, advanced statistics. See [docs/future/exhibitor-premium.md](../future/exhibitor-premium.md).
+
 - Self-service withdraws and refunds.
 - Self-service move-up requests.
 - Pay-later for mail-in entries that change their mind.

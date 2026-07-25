@@ -87,6 +87,24 @@ describe('classifyMutationFailure', () => {
     expect(result.mutation.nextRetryAt).toBeUndefined();
   });
 
+  it('classifies a 42501 dead-letter as an authorization failure', () => {
+    const result = classifyMutationFailure({
+      mutation: mutation({ retries: 0 }),
+      error: {
+        code: '42501',
+        message: 'not authorized to score this class',
+      },
+      maxRetries: 3,
+      retryBackoffBase: 10,
+      now: 3_500,
+    });
+
+    expect(result.mutation).toMatchObject({
+      status: 'failed',
+      failureKind: 'authorization',
+    });
+  });
+
   it('FAIL-OPEN: an ambiguous non-Error value is retried, not dead-lettered', () => {
     const result = classifyMutationFailure({
       mutation: mutation(),

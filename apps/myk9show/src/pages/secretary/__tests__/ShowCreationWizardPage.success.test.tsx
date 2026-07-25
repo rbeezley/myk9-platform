@@ -11,12 +11,22 @@ import ShowCreationWizardPage from '../ShowCreationWizardPage';
 // plaintexts returned by insert_show_passcodes (PR #375 removed the legacy
 // client-side derivation from showId).
 let capturedOnCreated:
-  | ((id: string, name: string, passcodes: ShowPasscodes | null) => void)
+  | ((
+      id: string,
+      name: string,
+      passcodes: ShowPasscodes | null,
+      passcodeError?: string | null
+    ) => void)
   | undefined;
 
 vi.mock('@/pages/secretary/ShowCreationWizard/useShowCreationWizardActions', () => ({
   useShowCreationWizardActions: (opts: {
-    onCreated?: (id: string, name: string, passcodes: ShowPasscodes | null) => void;
+    onCreated?: (
+      id: string,
+      name: string,
+      passcodes: ShowPasscodes | null,
+      passcodeError?: string | null
+    ) => void;
     setIsLoading: (v: boolean) => void;
   }) => {
     capturedOnCreated = opts.onCreated;
@@ -95,5 +105,23 @@ describe('ShowCreationWizardPage success overlay', () => {
 
     await user.click(screen.getByRole('button', { name: /go to dashboard/i }));
     expect(mockNavigate).toHaveBeenCalledWith('/secretary/dashboard');
+  });
+
+  it('keeps passcode management available when initial generation fails', () => {
+    render(<ShowCreationWizardPage />);
+
+    act(() => {
+      capturedOnCreated?.(
+        '63165809-e025-25c6-6cf9-979f63165809',
+        'Spring Trial',
+        null,
+        'Could not generate show access codes. Please try again below.'
+      );
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Could not generate show access codes. Please try again below.'
+    );
+    expect(screen.getByRole('button', { name: /generate new codes/i })).toBeInTheDocument();
   });
 });

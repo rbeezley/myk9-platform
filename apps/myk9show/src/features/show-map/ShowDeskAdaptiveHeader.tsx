@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCheck, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { ArrowRight, CheckCheck, ChevronDown, ChevronRight, ListFilter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { chipClasses } from '@/components/base/chipClasses';
@@ -9,7 +9,11 @@ import type { ShowMapAction } from './showMapActions';
 import type { ShowMapActionGroup } from './showMapActionGroups';
 import type { ShowMapRunningNowItem } from './showMapRunningNow';
 import type { ShowDeskShowStatus } from './showDeskStatus';
-import type { ShowDeskPendingSignal, ShowDeskPendingSignalId } from './showDeskPendingSignals';
+import {
+  SHOW_DESK_SIGNAL_INTERACTION,
+  type ShowDeskPendingSignal,
+  type ShowDeskPendingSignalId,
+} from './showDeskPendingSignals';
 
 const STATUS_LABEL: Record<ShowDeskShowStatus, string> = {
   setup: 'Setup',
@@ -37,20 +41,18 @@ export interface ShowDeskAdaptiveHeaderProps {
   pendingSignals: readonly ShowDeskPendingSignal[];
   onStartAction: (action: ShowMapAction) => void;
   onDismissGuidance: () => void;
+  // Primary Running Now click — navigate straight to the class page.
+  onOpenRunning: (href: string) => void;
+  // Secondary Running Now action — expand + scroll the Show Map tree.
   onSelectRunning: (nodeId: string) => void;
   onSelectPendingSignal?: ((signalId: ShowDeskPendingSignalId) => void) | undefined;
   // When provided, the expanded view of multi-item review-entry groups
   // renders an "Approve all N" button that calls back with the group.
   // Single-entry inline approve and per-dog bulk are in-flow workbench
   // actions; show-wide bulk approve belongs to the Entries Management page
-  // (see CLAUDE.md surface-boundary rule), which is why this header only
-  // exposes a *link* to that page when there's a pending-review count.
+  // (see CLAUDE.md surface-boundary rule) — the "Review N entries" pending
+  // chip is the single route there (MYK9-64 F1).
   onBulkApproveGroup?: ((group: ShowMapActionGroup) => void) | undefined;
-  // When provided AND reviewQueueCount > 0, a "Manage entries (N)" link
-  // appears in the pending-signals row. Clicking navigates to the canonical
-  // entries surface — workbench does not duplicate its table/bulk UI.
-  onOpenEntryManagement?: (() => void) | undefined;
-  reviewQueueCount?: number;
 }
 
 const MAX_UP_NEXT = 3;
@@ -64,14 +66,12 @@ export function ShowDeskAdaptiveHeader({
   pendingSignals,
   onStartAction,
   onDismissGuidance,
+  onOpenRunning,
   onSelectRunning,
   onSelectPendingSignal,
   onBulkApproveGroup,
-  onOpenEntryManagement,
-  reviewQueueCount = 0,
 }: ShowDeskAdaptiveHeaderProps) {
   const visibleGroups = upNextGroups.slice(0, MAX_UP_NEXT);
-  const showManageEntriesLink = Boolean(onOpenEntryManagement) && reviewQueueCount > 0;
 
   // INTENT: This is the page's one elevated zone — the "now" cluster
   // (status, signals, next action, up next, running now) sits on a card
@@ -83,24 +83,8 @@ export function ShowDeskAdaptiveHeader({
     >
       <StatusPill status={showStatus} summary={statusSummary} />
 
-      {(pendingSignals.length > 0 || showManageEntriesLink) && (
-        <div className="flex flex-wrap items-center gap-2">
-          {pendingSignals.length > 0 && (
-            <PendingSignalsRow signals={pendingSignals} onSelect={onSelectPendingSignal} />
-          )}
-          {showManageEntriesLink && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onOpenEntryManagement}
-              data-testid="open-entry-management"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Manage entries ({reviewQueueCount})
-            </Button>
-          )}
-        </div>
+      {pendingSignals.length > 0 && (
+        <PendingSignalsRow signals={pendingSignals} onSelect={onSelectPendingSignal} />
       )}
 
       <ShowMapGuidanceCard
@@ -120,7 +104,11 @@ export function ShowDeskAdaptiveHeader({
         />
       )}
 
-      <ShowMapRunningNowStrip items={[...runningNow]} onSelect={onSelectRunning} />
+      <ShowMapRunningNowStrip
+        items={[...runningNow]}
+        onOpen={onOpenRunning}
+        onLocate={onSelectRunning}
+      />
     </header>
   );
 }
@@ -373,11 +361,13 @@ function PendingSignalsRow({
       data-testid="show-desk-pending-signals"
     >
       {signals.map(signal => {
-        const isInteractive = Boolean(onSelect);
+        const interaction = SHOW_DESK_SIGNAL_INTERACTION[signal.id];
+        const hasResolvingAction = interaction === 'filter' || Boolean(signal.href);
+        const isInteractive = Boolean(onSelect && hasResolvingAction);
         // INTENT: Interactive chips are filter shortcuts (Pattern 1) — they must meet
         // the 44x44px minimum from docs/INTENT.md. min-h-[44px] plus generous padding
         // keeps the chip readable on desktop while remaining tappable on tablet.
-        const className = `inline-flex min-h-[44px] items-center rounded-full border px-4 py-2 text-sm font-medium ${
+        const className = `inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium ${
           isInteractive
             ? 'cursor-pointer bg-card hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
             : 'bg-card text-foreground'
@@ -389,15 +379,23 @@ function PendingSignalsRow({
             </span>
           );
         }
+        // Distinct affordance per behavior: chips that leave Show Desk carry an
+        // arrow; chips that apply a local Show Map lens carry a filter glyph.
         return (
           <button
             key={signal.id}
             type="button"
             className={className}
             data-signal-id={signal.id}
+            data-signal-interaction={interaction}
             onClick={() => onSelect?.(signal.id)}
           >
             {signal.label}
+            {interaction === 'navigate' ? (
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+            ) : (
+              <ListFilter className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+            )}
           </button>
         );
       })}

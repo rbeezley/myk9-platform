@@ -27,6 +27,8 @@ function entry(overrides: Partial<AtShowEntryDetail>): AtShowEntryDetail {
     armband: '101',
     checkInStatus: 'no-status',
     className: 'Novice Container',
+    expectedStartLabel: null,
+    isRevisedStart: false,
     hasRunOrder: true,
     isScored: false,
     ...overrides,
@@ -44,7 +46,7 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
     ['in-ring', 'In Ring'],
     ['completed', 'Completed'],
   ] as const)('shows "%s" as "%s", not a misleading "not checked in"', async (status, label) => {
-    render(
+    const { container } = render(
       <AtShowMyEntriesToday
         showId="show-1"
         entries={[entry({ checkInStatus: status, isScored: status === 'completed' })]}
@@ -55,6 +57,7 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
     );
 
     expect(await screen.findByText(label)).toBeInTheDocument();
+    expect(container.querySelector(`[data-status="${status}"][data-shape]`)).toBeTruthy();
     expect(screen.queryByText('Not checked in yet')).not.toBeInTheDocument();
   });
 

@@ -196,6 +196,18 @@ Use the linked Linear issue as the execution contract. Keep Linear for active, P
 - Ensure the PR description follows the repository pull-request template when one exists and includes: what and why, Linear issue, checked acceptance criteria, relevant visual evidence, risk, how to test, intentional non-goals, material agent involvement, and follow-up issues.
 - Do not mark the Linear issue Done until its stated evidence gate is complete. Browser re-walks, OpenSpec verification, and operator/shared-system gates need recorded evidence or an explicit, owned acceptance.
 
+### After implementation
+
+When finished, post the implementation summary, verification results, and PR link back to the linked Linear issue. The update must include:
+
+- What changed
+- Tests and checks run
+- Branch or PR link
+- Risks or remaining work
+- Whether the acceptance criteria passed
+
+- When a PR merges, immediately close every linked Linear issue whose acceptance criteria and evidence gate are satisfied: move it to **Done**, attach the PR and merge commit, and add a concise completion comment with verification results. Keep any issue with unmet criteria or explicitly deferred work open, with the remaining work recorded.
+
 ### PR review standard
 
 Review against the linked Linear issue and its acceptance criteria. Check for scope gaps, defects, data-flow regressions, unnecessary expansion, security concerns, poor abstractions, missing loading/error states, and code that will be hard to maintain. Do not suggest unrelated improvements unless they are severe.

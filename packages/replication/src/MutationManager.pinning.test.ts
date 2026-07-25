@@ -253,7 +253,10 @@ describe('MutationManager contract pins', () => {
     expect(window.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'replication:sync-failed',
-        detail: expect.objectContaining({ count: 1 }),
+        detail: expect.objectContaining({
+          count: 1,
+          mutations: [expect.objectContaining({ failureKind: 'authorization' })],
+        }),
       })
     );
   });

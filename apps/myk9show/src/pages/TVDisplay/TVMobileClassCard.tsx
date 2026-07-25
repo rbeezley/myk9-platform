@@ -1,5 +1,5 @@
-import { cn } from '@/lib/utils';
-import { TVClass, TVEntry, getStatusBadge, getDisplayName, formatArmband } from './types';
+import { StatusBadge } from '@/components/status';
+import { TVClass, TVEntry, getTVStatusLabel, getDisplayName, formatArmband } from './types';
 
 interface TVMobileClassCardProps {
   tvClass: TVClass;
@@ -17,8 +17,13 @@ function MobileEntry({
   const displayName = getDisplayName(entry.dog);
   if (isInRing) {
     return (
-      <div className="bg-blue-950 border border-blue-600 rounded px-2.5 py-1.5 mb-1">
-        <span className="text-blue-400 text-[9px] font-semibold">IN RING</span>
+      <div className="mb-1 rounded border border-zinc-700 bg-zinc-900 px-2.5 py-1.5">
+        <StatusBadge
+          family="entry"
+          status="in-ring"
+          label="IN RING"
+          className="border-zinc-700 bg-zinc-800 text-xs font-semibold text-zinc-200"
+        />
         <span className="text-white text-sm font-semibold ml-1.5">
           {formatArmband(entry.armband)} {displayName}
         </span>
@@ -36,7 +41,7 @@ function MobileEntry({
 }
 
 export function TVMobileClassCard({ tvClass }: TVMobileClassCardProps) {
-  const { label, color } = getStatusBadge(tvClass.status, tvClass.startTime);
+  const statusLabel = getTVStatusLabel(tvClass.status, tvClass.startTime);
   const inRingEntry = tvClass.entries.find(e => e.isInRing);
   const pendingEntries = tvClass.entries.filter(e => !e.isInRing && !e.isScored).slice(0, 3);
 
@@ -49,9 +54,12 @@ export function TVMobileClassCard({ tvClass }: TVMobileClassCardProps) {
             <span className="text-zinc-600 text-[11px] ml-1.5">Judge: {tvClass.judgeName}</span>
           )}
         </div>
-        <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full font-semibold', color)}>
-          {label}
-        </span>
+        <StatusBadge
+          family="class"
+          status={tvClass.status}
+          label={statusLabel}
+          className="rounded-full border-zinc-600 bg-zinc-800 px-1.5 py-0.5 text-xs font-semibold text-zinc-200"
+        />
       </div>
       <div className="p-2">
         {inRingEntry && <MobileEntry entry={inRingEntry} isInRing isNext={false} />}

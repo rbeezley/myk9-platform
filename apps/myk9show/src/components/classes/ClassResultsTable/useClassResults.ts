@@ -12,7 +12,6 @@ import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-ty
 import type { UserPermissions } from '@/types/user-permissions';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import type { CheckInStatus } from '@myk9/core';
-import { CHECKIN_STATUS } from '@myk9/core';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { SCORE_DETAIL_CLEAR_FIELDS } from '@/services/replication/scoreResetFields';
 import {
@@ -284,8 +283,8 @@ export function useClassResults({
             is_scored: true,
             scoringCompletedAt: completedAt,
             scoring_completed_at: completedAt,
-            checkInStatus: CHECKIN_STATUS.COMPLETED.value,
-            check_in_status: CHECKIN_STATUS.COMPLETED.value,
+            checkInStatus: 'completed',
+            check_in_status: 'completed',
             ring_exit_time: ringExitTime,
           });
           succeededIds.push(row.entryId);

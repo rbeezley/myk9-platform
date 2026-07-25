@@ -8,10 +8,12 @@ export interface EntryManagementHrefInput {
   payment?:
     'all' | 'pending' | 'paid_online' | 'paid_by_check' | 'paid_by_cash' | 'waived' | 'refunded';
   mode?: 'review' | 'day-of';
+  tab?: 'entries' | 'move-ups' | 'pulls' | 'waitlist';
 }
 
 export function getEntryManagementHref(input: EntryManagementHrefInput): string {
   const params = new URLSearchParams();
+  if (input.tab && input.tab !== 'entries') params.set('tab', input.tab);
   if (input.mode) params.set('mode', input.mode);
   if (input.attention && input.attention !== 'all') params.set('attention', input.attention);
   if (input.payment && input.payment !== 'all') params.set('payment', input.payment);

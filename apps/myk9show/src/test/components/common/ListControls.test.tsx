@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ListControls } from '@/components/common/ListControls';
 import type { FilterDefinition } from '@/components/common/FilterChips';
@@ -71,12 +71,11 @@ describe('ListControls', () => {
     expect(screen.getByLabelText('Calendar view')).toBeInTheDocument();
   });
 
-  it('reports a filter selection through the FilterChips contract', async () => {
-    const user = userEvent.setup();
+  it('reports a filter selection through the FilterChips contract', () => {
     const { onFilterChange } = setup();
 
-    await user.click(screen.getByRole('button', { name: 'Role' }));
-    await user.click(screen.getByRole('button', { name: 'Judge' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Role' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Judge' }));
 
     expect(onFilterChange).toHaveBeenCalledWith('role', 'judge');
   });

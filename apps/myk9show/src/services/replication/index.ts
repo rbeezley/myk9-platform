@@ -69,6 +69,15 @@ export {
   type ShowDeskPersonInput,
 } from './ReplicatedShowDeskPeopleTable';
 
+// Paperwork print confirmations
+export {
+  ReplicatedPaperworkPrintsTable,
+  replicatedPaperworkPrintsTable,
+  rowToPaperworkPrint,
+  type ConfirmPaperworkPrintInput,
+  type ReplicatedPaperworkPrint,
+} from './ReplicatedPaperworkPrintsTable';
+
 // Judge Assignments
 export {
   ReplicatedJudgeAssignmentsTable,

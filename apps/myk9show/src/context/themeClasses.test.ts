@@ -4,6 +4,16 @@ import {
   applyFontScale,
   getStoredFontScale,
   storeFontScale,
+  applyLayoutDensity,
+  getStoredLayoutDensity,
+  storeLayoutDensity,
+  applyReduceMotion,
+  getStoredReduceMotion,
+  storeReduceMotion,
+  applyHighContrast,
+  getStoredHighContrast,
+  storeHighContrast,
+  clearAppearanceCache,
 } from './themeClasses';
 
 describe('applyThemeClasses', () => {
@@ -97,5 +107,134 @@ describe('font scale helpers', () => {
   it('applyFontScale clamps sub-1 scales to preserve the 14px text-xs floor', () => {
     applyFontScale('0.9', root);
     expect(root.style.getPropertyValue('--font-scale')).toBe('1');
+  });
+});
+
+describe('layout density helpers', () => {
+  let root: HTMLElement;
+
+  beforeEach(() => {
+    root = document.createElement('body');
+    localStorage.clear();
+  });
+
+  it('applyLayoutDensity adds a density-<value> class to the given root', () => {
+    applyLayoutDensity('compact', root);
+    expect(root.className).toContain('density-compact');
+  });
+
+  it('applyLayoutDensity replaces a previously applied density class', () => {
+    applyLayoutDensity('compact', root);
+    applyLayoutDensity('spacious', root);
+    expect(root.className).toContain('density-spacious');
+    expect(root.className).not.toContain('density-compact');
+  });
+
+  it('storeLayoutDensity persists the value and getStoredLayoutDensity reads it back', () => {
+    expect(getStoredLayoutDensity()).toBeNull();
+    storeLayoutDensity('spacious');
+    expect(getStoredLayoutDensity()).toBe('spacious');
+  });
+});
+
+describe('reduce motion helpers', () => {
+  let root: HTMLElement;
+
+  beforeEach(() => {
+    root = document.createElement('html');
+    localStorage.clear();
+  });
+
+  it('applyReduceMotion toggles the reduce-motion class', () => {
+    applyReduceMotion(true, root);
+    expect(root.classList.contains('reduce-motion')).toBe(true);
+
+    applyReduceMotion(false, root);
+    expect(root.classList.contains('reduce-motion')).toBe(false);
+  });
+
+  it('storeReduceMotion persists the flag and getStoredReduceMotion reads it back', () => {
+    expect(getStoredReduceMotion()).toBeNull();
+    storeReduceMotion(true);
+    expect(getStoredReduceMotion()).toBe(true);
+    storeReduceMotion(false);
+    expect(getStoredReduceMotion()).toBe(false);
+  });
+});
+
+describe('high contrast helpers', () => {
+  let root: HTMLElement;
+
+  beforeEach(() => {
+    root = document.createElement('html');
+    localStorage.clear();
+  });
+
+  it('applyHighContrast toggles the high-contrast class', () => {
+    applyHighContrast(true, root);
+    expect(root.classList.contains('high-contrast')).toBe(true);
+
+    applyHighContrast(false, root);
+    expect(root.classList.contains('high-contrast')).toBe(false);
+  });
+
+  it('storeHighContrast persists the flag and getStoredHighContrast reads it back', () => {
+    expect(getStoredHighContrast()).toBeNull();
+    storeHighContrast(true);
+    expect(getStoredHighContrast()).toBe(true);
+    storeHighContrast(false);
+    expect(getStoredHighContrast()).toBe(false);
+  });
+});
+
+describe('applyLayoutDensity default root', () => {
+  beforeEach(() => {
+    document.documentElement.className = '';
+    document.body.className = '';
+  });
+
+  it('applies to <html> by default so html.density-* scoped styles match', () => {
+    applyLayoutDensity('compact');
+    expect(document.documentElement.className).toContain('density-compact');
+  });
+
+  it('removes a stale density class left on <body> by older builds', () => {
+    document.body.className = 'density-spacious other-class';
+    applyLayoutDensity('compact');
+    expect(document.body.className).not.toContain('density-spacious');
+    expect(document.body.className).toContain('other-class');
+  });
+});
+
+describe('clearAppearanceCache', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('removes all cached appearance keys', () => {
+    storeFontScale('1.2');
+    storeLayoutDensity('compact');
+    storeReduceMotion(true);
+    storeHighContrast(true);
+    clearAppearanceCache();
+    expect(getStoredFontScale()).toBeNull();
+    expect(getStoredLayoutDensity()).toBeNull();
+    expect(getStoredReduceMotion()).toBeNull();
+    expect(getStoredHighContrast()).toBeNull();
+  });
+
+  it('resets live appearance state as well as cached values', () => {
+    applyFontScale('1.4');
+    applyLayoutDensity('compact');
+    applyReduceMotion(true);
+    applyHighContrast(true);
+
+    clearAppearanceCache();
+
+    expect(document.documentElement.style.getPropertyValue('--font-scale')).toBe('1');
+    expect(document.documentElement.classList.contains('density-compact')).toBe(false);
+    expect(document.documentElement.classList.contains('density-comfortable')).toBe(true);
+    expect(document.documentElement.classList.contains('reduce-motion')).toBe(false);
+    expect(document.documentElement.classList.contains('high-contrast')).toBe(false);
   });
 });

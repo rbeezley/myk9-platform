@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ClipboardCheck, MessageSquare, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
@@ -62,18 +63,20 @@ export function ShowDeskPeopleRoster({
 
   const entries = useMemo(
     () =>
-      sourceEntries.map(mapSecretaryEntryToEntryManagementEntry).map(entry =>
-        checkedInEntryIds.has(entry.id)
-          ? {
-              ...entry,
-              classes: entry.classes.map(cls => ({
-                ...cls,
-                checkInStatus: 'checked-in' as const,
-                checkInTime: new Date(),
-              })),
-            }
-          : entry
-      ),
+      sourceEntries
+        .map(entry => mapSecretaryEntryToEntryManagementEntry(entry))
+        .map(entry =>
+          checkedInEntryIds.has(entry.id)
+            ? {
+                ...entry,
+                classes: entry.classes.map(cls => ({
+                  ...cls,
+                  checkInStatus: 'checked-in' as const,
+                  checkInTime: new Date(),
+                })),
+              }
+            : entry
+        ),
     [checkedInEntryIds, sourceEntries]
   );
 
@@ -315,7 +318,12 @@ export function ShowDeskPeopleRoster({
                                 {row.className}
                                 {row.time ? ` - ${row.time}` : ''}
                               </p>
-                              <p className="text-xs text-muted-foreground">{row.statusLabel}</p>
+                              <StatusBadge
+                                family="entry"
+                                status={row.statusValue}
+                                label={row.statusLabel}
+                                className="mt-1 text-xs"
+                              />
                             </div>
                             {row.eligibleForCheckIn ? (
                               <Button
@@ -327,14 +335,7 @@ export function ShowDeskPeopleRoster({
                               >
                                 {busy ? 'Checking in...' : 'Check in'}
                               </Button>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className="justify-self-start sm:justify-self-end"
-                              >
-                                {row.statusLabel}
-                              </Badge>
-                            )}
+                            ) : null}
                           </div>
                         );
                       })}

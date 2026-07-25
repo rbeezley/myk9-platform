@@ -39,6 +39,53 @@ const DISCIPLINE_MAP: Record<string, string> = {
   obedience: 'Obedience',
 };
 
+/**
+ * Normalize a trial-type / discipline string for comparison: lowercase and
+ * strip everything but letters, so 'Scent Work', 'Scentwork', 'scent_work',
+ * and 'AKC Scent Work' all reduce to comparable tokens.
+ */
+export function normalizeDisciplineToken(value: string): string {
+  return value.toLowerCase().replace(/[^a-z]/g, '');
+}
+
+/**
+ * Whether a show's event/trial-type string matches the selected discipline's
+ * mapped show type, tolerant of casing, punctuation, and organization
+ * prefixes (e.g. an event of 'AKC Scent Work' matches discipline 'Scent Work').
+ */
+export function disciplineMatchesEvent(showType: string, event: string): boolean {
+  const normalizedShowType = normalizeDisciplineToken(showType);
+  const normalizedEvent = normalizeDisciplineToken(event);
+  if (!normalizedShowType || !normalizedEvent) return false;
+  return normalizedEvent.includes(normalizedShowType);
+}
+
+function parseLocalShowDate(value: string | undefined): Date | null {
+  if (!value) return null;
+
+  const [year, month, day] = value.split('T')[0].split('-').map(Number);
+  if (
+    ![year, month, day].every(Number.isFinite) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+
+  const parsedDate = new Date(year, month - 1, day);
+  if (
+    parsedDate.getFullYear() !== year ||
+    parsedDate.getMonth() !== month - 1 ||
+    parsedDate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsedDate;
+}
+
 interface UseBrowseShowsFiltersProps {
   shows: Show[];
   entries: SyncableShowEntry[];
@@ -119,7 +166,9 @@ export function useBrowseShowsFilters({
     if (filters.discipline !== 'all') {
       const showType = DISCIPLINE_MAP[filters.discipline];
       if (showType) {
-        filtered = filtered.filter(show => show.events.includes(showType));
+        filtered = filtered.filter(show =>
+          show.events.some(event => disciplineMatchesEvent(showType, event))
+        );
       }
     }
 
@@ -157,24 +206,26 @@ export function useBrowseShowsFilters({
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       if (filters.dateRange === 'upcoming') {
         filtered = filtered.filter(show => {
-          const [y, m, d] = (show.endDate || show.startDate).split('T')[0].split('-').map(Number);
-          return new Date(y, m - 1, d) >= startOfToday;
+          const showDate = parseLocalShowDate(show.endDate || show.startDate);
+          return showDate !== null && showDate >= startOfToday;
         });
       } else if (filters.dateRange === 'this_month') {
         const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
         filtered = filtered.filter(show => {
-          const [y, m, d] = show.startDate.split('T')[0].split('-').map(Number);
-          const showLocalDate = new Date(y, m - 1, d);
-          return showLocalDate >= startOfToday && showLocalDate <= nextMonth;
+          const showDate = parseLocalShowDate(show.startDate);
+          return showDate !== null && showDate >= startOfToday && showDate <= nextMonth;
         });
       } else if (filters.dateRange === 'next_month') {
-        // Compare YYYY-MM string prefixes to avoid UTC-vs-local boundary issues.
-        // new Date('2026-08-01') parses as UTC midnight; new Date(2026,7,1) is local
-        // midnight — they differ by the timezone offset, causing off-by-one at month
-        // boundaries in US time zones.
+        // Compare local date components to avoid UTC-vs-local boundary issues.
         const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const nextMonthKey = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}`;
-        filtered = filtered.filter(show => show.startDate.slice(0, 7) === nextMonthKey);
+        filtered = filtered.filter(show => {
+          const showDate = parseLocalShowDate(show.startDate);
+          return (
+            showDate !== null &&
+            showDate.getFullYear() === nextMonthDate.getFullYear() &&
+            showDate.getMonth() === nextMonthDate.getMonth()
+          );
+        });
       }
     }
 

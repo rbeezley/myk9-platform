@@ -19,9 +19,19 @@ import { UserRole, ScopeType, type UserWithRoles } from '@/types/auth-types';
 
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
-  replicatedTrialsTable: { getTrialsByShow: vi.fn() },
-  replicatedClassesTable: { getClassesByTrial: vi.fn() },
+  replicatedTrialsTable: { getTrialsByShow: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
+  replicatedClassesTable: { getClassesByTrial: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
   replicatedEntriesTable: { getEntriesByShow: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
+}));
+
+const mockJudgeAssignmentData = vi.hoisted(() => ({
+  getActive: vi.fn(),
+  subscribe: vi.fn(() => vi.fn()),
+}));
+
+vi.mock('@/services/database/judges', () => ({
+  getActiveJudgeAssignmentsForShow: mockJudgeAssignmentData.getActive,
+  subscribeToJudgeAssignmentChanges: mockJudgeAssignmentData.subscribe,
 }));
 
 // The "Back to Show Desk" affordance mirrors the show-desk route's admission,
@@ -31,6 +41,7 @@ vi.mock('@/services/replication', () => ({
 const mockAuthState = vi.hoisted(() => ({
   hasRole: (_role: unknown): boolean => false,
   userWithRoles: null as UserWithRoles | null,
+  user: null as { is_anonymous?: boolean } | null,
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -102,6 +113,7 @@ function seed() {
     (async (trialId: string) => CLASSES_BY_TRIAL[trialId] ?? []) as never
   );
   vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([] as never);
+  mockJudgeAssignmentData.getActive.mockResolvedValue([]);
 }
 
 const settledSyncStatus: ReplicationSyncContextValue['status'] = {
@@ -142,6 +154,7 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     seed();
     mockAuthState.hasRole = () => false;
     mockAuthState.userWithRoles = null;
+    mockAuthState.user = null;
   });
 
   it('renders class cards (Novice A/B collapsed into one, plus standalone)', async () => {
@@ -149,6 +162,48 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     // The Novice A/B pair renders as a single card.
     expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
     expect(screen.getByText(/Interior Excellent/)).toBeInTheDocument();
+    expect(document.querySelectorAll('[data-family="class"]').length).toBeGreaterThan(0);
+  });
+
+  it('shows actual Class timing to staff', async () => {
+    mockAuthState.hasRole = role => role === UserRole.SECRETARY;
+    vi.mocked(replicatedClassesTable.getClassesByTrial).mockImplementation((async (
+      trialId: string
+    ) =>
+      trialId === 'trial-1'
+        ? [
+            {
+              ...INTERIOR_EXC,
+              actual_start_time: '2026-06-01T15:00:00.000Z',
+              actual_end_time: '2026-06-01T15:30:00.000Z',
+            },
+          ]
+        : []) as never);
+
+    renderPage();
+
+    expect(await screen.findByText(/Started .* Finished/)).toBeInTheDocument();
+  });
+
+  it('keeps actual Class timing staff-only for exhibitors viewing all classes', async () => {
+    mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
+    vi.mocked(replicatedClassesTable.getClassesByTrial).mockImplementation((async (
+      trialId: string
+    ) =>
+      trialId === 'trial-1'
+        ? [
+            {
+              ...INTERIOR_EXC,
+              actual_start_time: '2026-06-01T15:00:00.000Z',
+              actual_end_time: '2026-06-01T15:30:00.000Z',
+            },
+          ]
+        : []) as never);
+
+    renderPage();
+
+    expect(await screen.findByText(/Interior Excellent/)).toBeInTheDocument();
+    expect(screen.queryByText(/Started .* Finished/)).not.toBeInTheDocument();
   });
 
   it('shows syncing copy instead of a definitive empty state while first sync is pending', async () => {

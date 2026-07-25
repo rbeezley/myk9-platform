@@ -7,9 +7,11 @@ import type { LevelDetail } from '../schedule-timeline.types';
 
 const level = (status: ClassStatusValue): LevelDetail => ({
   classId: 'c1',
+  className: 'Container Novice',
   level: 'Novice',
   status,
   entryCount: 3,
+  startTime: null,
 });
 
 describe('LevelRow', () => {

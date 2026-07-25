@@ -50,15 +50,17 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   };
 }
 
-let _corsHeaders: Record<string, string> = getCorsHeaders(null);
-
-function corsResponse(body: string | object | null, status = 200) {
+function corsResponse(
+  corsHeaders: Record<string, string>,
+  body: string | object | null,
+  status = 200
+) {
   if (status === 204) {
-    return new Response(null, { status, headers: _corsHeaders });
+    return new Response(null, { status, headers: corsHeaders });
   }
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ..._corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
 
@@ -72,20 +74,20 @@ interface RefundRequest {
 }
 
 Deno.serve(async req => {
-  _corsHeaders = getCorsHeaders(req.headers.get('origin'));
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   try {
     if (req.method === 'OPTIONS') {
-      return corsResponse({}, 204);
+      return corsResponse(corsHeaders, {}, 204);
     }
     if (req.method !== 'POST') {
-      return corsResponse({ error: 'Method not allowed' }, 405);
+      return corsResponse(corsHeaders, { error: 'Method not allowed' }, 405);
     }
 
     // Authenticate the caller
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return corsResponse({ error: 'Missing Authorization header' }, 401);
+      return corsResponse(corsHeaders, { error: 'Missing Authorization header' }, 401);
     }
     const token = authHeader.replace('Bearer ', '');
     const {
@@ -94,13 +96,13 @@ Deno.serve(async req => {
     } = await supabase.auth.getUser(token);
     if (authError || !user) {
       console.error('Authentication failed:', authError);
-      return corsResponse({ error: 'Authentication failed' }, 401);
+      return corsResponse(corsHeaders, { error: 'Authentication failed' }, 401);
     }
 
     const body: RefundRequest = await req.json();
     const { entry_id, amount_cents, notes } = body;
     if (!entry_id) {
-      return corsResponse({ error: 'Missing required parameter: entry_id' }, 400);
+      return corsResponse(corsHeaders, { error: 'Missing required parameter: entry_id' }, 400);
     }
 
     // entries carry show_id directly (denormalized alongside class_id/trial_id).
@@ -125,7 +127,7 @@ Deno.serve(async req => {
 
     if (entryError || !entry || !entry.show) {
       console.error('Entry not found or missing show:', entryError);
-      return corsResponse({ error: 'Entry not found' }, 404);
+      return corsResponse(corsHeaders, { error: 'Entry not found' }, 404);
     }
 
     // club_id is nullable (shows.club_id is ON DELETE SET NULL).
@@ -149,14 +151,19 @@ Deno.serve(async req => {
     const authorized =
       secretaryRes.data === true || clubAdminRes.data === true || siteAdminRes.data === true;
     if (!authorized) {
-      return corsResponse({ error: 'Not authorized to refund entries for this show' }, 403);
+      return corsResponse(
+        corsHeaders,
+        { error: 'Not authorized to refund entries for this show' },
+        403
+      );
     }
 
     // Live payout state for the show (the unique partial index guarantees at
-    // most one non-failed row). Accepted TOCTOU: the cron could claim
-    // pending → processing between this read and the refund write; the window
-    // is sub-second on a daily cadence, and the cron recomputes amounts from
-    // entries at transfer time, so a committed refund still drops out.
+    // most one non-failed row). This pre-lock read gives the secretary a fast,
+    // clear rejection; the authoritative check is repeated INSIDE the money
+    // lock below (MP-18) — the cron could claim + complete a payout between
+    // this read and lock acquisition, and a refund issued after the transfer
+    // would silently come out of the platform's pocket.
     const { data: payout, error: payoutError } = await supabase
       .from('show_payouts')
       .select('status')
@@ -169,6 +176,7 @@ Deno.serve(async req => {
       // refund through after the club was already paid (round-13 review).
       console.error(`Payout state read failed for show ${show.id}:`, payoutError);
       return corsResponse(
+        corsHeaders,
         { error: 'Could not verify the show’s payout state — try again in a moment.' },
         500
       );
@@ -180,7 +188,7 @@ Deno.serve(async req => {
     if (body.use_policy_snapshot === true) {
       const snapshot = (entry.withdrawal_policy_snapshot ?? null) as WithdrawalPolicy | null;
       if (!snapshot) {
-        return corsResponse({ error: 'policy_snapshot_unavailable' }, 422);
+        return corsResponse(corsHeaders, { error: 'policy_snapshot_unavailable' }, 422);
       }
 
       const rawTrial = entry.trial as
@@ -194,7 +202,7 @@ Deno.serve(async req => {
         trial?.timezone || 'America/New_York'
       );
       if (suggestion.requiresManual) {
-        return corsResponse({ error: 'policy_snapshot_manual_review' }, 422);
+        return corsResponse(corsHeaders, { error: 'policy_snapshot_manual_review' }, 422);
       }
       requestedCents = suggestion.refundCents;
     }
@@ -210,7 +218,7 @@ Deno.serve(async req => {
 
     if ('error' in validation) {
       console.log(`Refund for entry ${entry_id} rejected: ${validation.error}`);
-      return corsResponse({ error: validation.error }, 422);
+      return corsResponse(corsHeaders, { error: validation.error }, 422);
     }
 
     const moneyLock = await acquireShowMoneyLock(supabase, show.id, {
@@ -219,6 +227,7 @@ Deno.serve(async req => {
     });
     if (!moneyLock.ok) {
       return corsResponse(
+        corsHeaders,
         {
           error:
             moneyLock.reason === 'locked' ? 'money_operation_in_progress' : 'money_lock_failed',
@@ -239,6 +248,38 @@ Deno.serve(async req => {
     // from replaying the cached failure (same lesson as the cron's per-row
     // key); refunds.list remains the at-most-one-live-refund authority.
     try {
+      // MP-18: re-check payout state now that we hold the lock. The pre-lock
+      // read above races the payout cron (it could claim, transfer, and
+      // release in the gap); once completed, the next cron run early-returns
+      // without a reconcile pass, so a refund landing here would be a silent
+      // platform loss. Mirrors the per-intent in-lock re-check in
+      // stripe-refund-show. Lives inside the try so a THROWN query failure
+      // still releases the lock via the finally (Codex P2).
+      const { data: payoutInLock, error: payoutInLockError } = await supabase
+        .from('show_payouts')
+        .select('status')
+        .eq('show_id', show.id)
+        .neq('status', 'failed')
+        .maybeSingle();
+      if (payoutInLockError) {
+        console.error(`In-lock payout state read failed for show ${show.id}:`, payoutInLockError);
+        return corsResponse(
+          corsHeaders,
+          { error: 'Could not verify the show’s payout state — try again in a moment.' },
+          500
+        );
+      }
+      if (payoutInLock?.status === 'completed' || payoutInLock?.status === 'processing') {
+        return corsResponse(
+          corsHeaders,
+          {
+            error:
+              payoutInLock.status === 'completed' ? 'payout_already_sent' : 'payout_in_progress',
+          },
+          422
+        );
+      }
+
       const prior = await stripe.refunds.list({
         payment_intent: entry.stripe_payment_intent_id!,
         limit: 100,
@@ -325,6 +366,7 @@ Deno.serve(async req => {
           { source: 'stripe-refund-entry', dedupeKey: `entry-refund-not-recorded-${entry_id}` }
         );
         return corsResponse(
+          corsHeaders,
           {
             error: 'Refund issued but recording it failed — contact support',
             refund_id: refund.id,
@@ -344,7 +386,7 @@ Deno.serve(async req => {
           `Refund ${refund.id} for entry ${entry_id} matched zero rows on the payment_status='paid' ` +
             `stamp guard — the entry was already stamped by a concurrent refund. Leaving the existing stamp in place.`
         );
-        return corsResponse({ refund_id: refund.id, amount_cents: refund.amount });
+        return corsResponse(corsHeaders, { refund_id: refund.id, amount_cents: refund.amount });
       }
 
       // refund.amount, not validation.amountCents: on a reused refund the
@@ -353,13 +395,15 @@ Deno.serve(async req => {
       console.log(
         `Refunded ${refund.amount} cents for entry ${entry_id} (${refund.id}) by ${user.id}`
       );
-      return corsResponse({ refund_id: refund.id, amount_cents: refund.amount });
+      return corsResponse(corsHeaders, { refund_id: refund.id, amount_cents: refund.amount });
     } finally {
       await moneyLock.release();
     }
   } catch (error: unknown) {
+    // MP-20: log the detail (Stripe SDK messages embed intent/charge ids and
+    // internal phrasing) but return a generic body to the caller.
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('stripe-refund-entry error:', message);
-    return corsResponse({ error: message }, 500);
+    return corsResponse(corsHeaders, { error: 'refund_failed' }, 500);
   }
 });

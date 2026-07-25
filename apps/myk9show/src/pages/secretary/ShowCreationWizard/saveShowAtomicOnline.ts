@@ -15,6 +15,7 @@ import { buildCreateShowPayload } from './buildCreateShowPayload';
 import { buildRuleMap } from './buildRuleMap';
 import { formatClubAddress } from '@/utils/clubAddress';
 import { resolvePremiumStyle } from '@/types/premium-types';
+import { friendlyDbError } from '@/utils/friendlyDbError';
 import type { WizardShowData, WizardTrial } from './showCreationWizardTransformers';
 
 export interface SaveShowAtomicOnlineArgs {
@@ -38,6 +39,8 @@ export interface SaveShowAtomicOnlineResult {
    * the plaintexts cannot be recovered (only HMAC hashes are stored).
    */
   passcodes: ShowPasscodes | null;
+  /** Plain-language failure shown beside the retry action when generation fails. */
+  passcodeError: string | null;
 }
 
 /**
@@ -82,7 +85,8 @@ export async function saveShowAtomicOnline(
   // copy that will ever exist outside the database; they flow through the
   // result type for the access-card UI to display once.
   let passcodes: ShowPasscodes | null = null;
-  const { data: passcodeRows, error: passcodeError } = await (
+  let passcodeError: string | null = null;
+  const { data: passcodeRows, error: passcodeRpcError } = await (
     supabase.rpc as unknown as (
       fn: string,
       args: Record<string, unknown>
@@ -91,14 +95,18 @@ export async function saveShowAtomicOnline(
       error: { message: string } | null;
     }>
   )('insert_show_passcodes', { p_show_id: showId });
-  if (passcodeError) {
+  if (passcodeRpcError) {
     // The show row exists; a missing passcode set is recoverable via
     // regenerate_show_passcodes from the show settings UI. Surface the
     // failure as a warning and let the caller proceed.
     logger.warn('insert_show_passcodes failed — secretary must regenerate', 'wizard', {
       showId,
-      error: passcodeError.message,
+      error: passcodeRpcError.message,
     });
+    passcodeError = friendlyDbError(
+      passcodeRpcError,
+      'Could not generate show access codes. Please try again below.'
+    );
   } else if (passcodeRows && passcodeRows.length > 0) {
     const row = passcodeRows[0]!;
     passcodes = {
@@ -107,6 +115,8 @@ export async function saveShowAtomicOnline(
       steward: row.steward,
       exhibitor: row.exhibitor,
     };
+  } else {
+    passcodeError = 'Could not generate show access codes. Please try again below.';
   }
 
   try {
@@ -208,5 +218,5 @@ export async function saveShowAtomicOnline(
 
   queryClient.invalidateQueries({ queryKey: ['shows', showId, 'schedule-timeline'] });
 
-  return { showId, savedShow, passcodes };
+  return { showId, savedShow, passcodes, passcodeError };
 }

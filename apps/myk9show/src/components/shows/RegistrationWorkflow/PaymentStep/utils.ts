@@ -1,12 +1,5 @@
-import type {
-  ClassSelectionData,
-  PaymentStatus,
-  EntryStatus,
-} from '@/types/show-registration-types';
-import {
-  PaymentStatus as PaymentStatusEnum,
-  EntryStatus as EntryStatusEnum,
-} from '@/types/show-registration-types';
+import type { ClassSelectionData, PaymentStatus } from '@/types/show-registration-types';
+import { PaymentStatus as PaymentStatusEnum } from '@/types/show-registration-types';
 import type { FeeCalculationResult, FeeBreakdownItem } from './types';
 import { getDogDisplayName } from '@/types/dog-types';
 
@@ -199,24 +192,6 @@ export function formatExpiryDate(value: string): string {
  */
 export function stripNonDigits(value: string): string {
   return value.replace(/\D/g, '');
-}
-
-/**
- * Get the Tailwind badge color classes for an EntryStatus.
- */
-export function getEntryStatusBadgeColor(status: EntryStatus): string {
-  switch (status) {
-    case EntryStatusEnum.ACCEPTED:
-      return 'bg-teal-100 text-teal-800 border-teal-200';
-    case EntryStatusEnum.REJECTED:
-      return 'bg-red-100 text-red-800 border-red-200';
-    case EntryStatusEnum.WAITLIST:
-      return 'bg-amber-100 text-amber-800 border-amber-200';
-    case EntryStatusEnum.MISSING_INFO:
-      return 'bg-orange-100 text-orange-800 border-orange-200';
-    default:
-      return 'bg-gray-100 text-gray-800 border-gray-200';
-  }
 }
 
 /**

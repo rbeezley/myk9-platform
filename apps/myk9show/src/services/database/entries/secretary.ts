@@ -19,7 +19,8 @@ import { postgrestGetSecretaryEntriesForShow } from './secretaryPostgrest';
 import { logger } from '@/services/LoggingService';
 import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 import { isRawEntryInEntryManagementPendingBucket } from '@/utils/entryCountSelectors';
-
+import { SECRETARY_ENTRIES_READ_ERROR } from './secretaryReadErrors';
+import { hydrateSecretaryEntriesForShow } from './secretaryReadHydration';
 export type { PendingEntry, SecretaryEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 
 function toPendingEntry(row: Record<string, unknown>): PendingEntry {
@@ -65,9 +66,6 @@ export const getPendingEntries = async (showIdFilter?: string): Promise<PendingE
   return (data ?? []).map(toPendingEntry).filter(isRawEntryInEntryManagementPendingBucket);
 };
 
-/**
- * Get all entries for a show (for secretary management)
- */
 export const getEntriesForShow = async (showId: string) => {
   const startTime = Date.now();
 
@@ -77,12 +75,13 @@ export const getEntriesForShow = async (showId: string) => {
       logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
       return { data: result.data, error: null };
     }
-    // Cold store: zero raw rows for this show (never synced in at-show context).
-    // Fall through to PostgREST so entry management agrees with the attention strip.
-    logger.warn('Secretary entries replication cold; falling back to PostGREST', 'database', {
+    // Hydrate directly; the app-wide sync provider has no show scope.
+    logger.warn('Secretary entries replication cold; hydrating scoped replica', 'database', {
       showId,
       operation: 'get_entries_for_show',
     });
+    const hydratedData = await hydrateSecretaryEntriesForShow(showId, startTime);
+    if (hydratedData) return { data: hydratedData, error: null };
   } catch (error) {
     const replicationError = error instanceof Error ? error : new Error(String(error));
     logger.warn(
@@ -103,7 +102,7 @@ export const getEntriesForShow = async (showId: string) => {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'get_entries_for_show');
     logQuery('entries', 'get_entries_for_show', duration, dbError.message);
-    return { data: [], error: dbError };
+    return { data: null, error: { ...dbError, message: SECRETARY_ENTRIES_READ_ERROR } };
   }
 };
 

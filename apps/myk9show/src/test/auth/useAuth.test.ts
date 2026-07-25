@@ -108,13 +108,36 @@ describe('useAuth', () => {
       const { result } = renderHook(() => useAuth());
 
       await act(async () => {
-        await result.current.signUp('test@example.com', 'password123');
+        await result.current.signUp('test@example.com', 'password123', undefined, 'captcha-token');
       });
 
       expect(mockSupabase.auth.signUp).toHaveBeenCalledWith(
         expect.objectContaining({
           email: 'test@example.com',
           password: 'password123',
+          options: expect.objectContaining({ captchaToken: 'captcha-token' }),
+        })
+      );
+    });
+
+    it('includes the auth callback redirect in the confirmation email when provided', async () => {
+      const { result } = renderHook(() => useAuth());
+
+      await act(async () => {
+        await result.current.signUp(
+          'test@example.com',
+          'password123',
+          undefined,
+          undefined,
+          '/?onboarding=true#get-started'
+        );
+      });
+
+      expect(mockSupabase.auth.signUp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: expect.objectContaining({
+            emailRedirectTo: `${window.location.origin}/auth/callback?redirectTo=%2F%3Fonboarding%3Dtrue%23get-started`,
+          }),
         })
       );
     });
@@ -177,12 +200,33 @@ describe('useAuth', () => {
       const { result } = renderHook(() => useAuth());
 
       await act(async () => {
-        await result.current.resendConfirmationEmail('test@example.com');
+        await result.current.resendConfirmationEmail('test@example.com', 'captcha-token');
       });
 
       expect(mockSupabase.auth.resend).toHaveBeenCalledWith({
         type: 'signup',
         email: 'test@example.com',
+        options: { captchaToken: 'captcha-token' },
+      });
+    });
+
+    it('preserves the auth callback redirect when resending confirmation', async () => {
+      const { result } = renderHook(() => useAuth());
+
+      await act(async () => {
+        await result.current.resendConfirmationEmail(
+          'test@example.com',
+          undefined,
+          '/?onboarding=true#get-started'
+        );
+      });
+
+      expect(mockSupabase.auth.resend).toHaveBeenCalledWith({
+        type: 'signup',
+        email: 'test@example.com',
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?redirectTo=%2F%3Fonboarding%3Dtrue%23get-started`,
+        },
       });
     });
 
@@ -208,12 +252,13 @@ describe('useAuth', () => {
       const { result } = renderHook(() => useAuth());
 
       await act(async () => {
-        await result.current.signIn('test@example.com', 'password');
+        await result.current.signIn('test@example.com', 'password', 'captcha-token');
       });
 
       expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalledWith({
         email: 'test@example.com',
         password: 'password',
+        options: { captchaToken: 'captcha-token' },
       });
     });
 
@@ -303,11 +348,12 @@ describe('useAuth', () => {
       const { result } = renderHook(() => useAuth());
 
       await act(async () => {
-        await result.current.resetPassword('test@example.com');
+        await result.current.resetPassword('test@example.com', 'captcha-token');
       });
 
       expect(mockSupabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('test@example.com', {
         redirectTo: `${window.location.origin}/auth/callback`,
+        captchaToken: 'captcha-token',
       });
     });
 

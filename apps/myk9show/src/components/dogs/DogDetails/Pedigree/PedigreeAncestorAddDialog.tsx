@@ -18,6 +18,10 @@ interface PedigreeAncestorAddDialogProps {
   ownerId: string;
   onClose: () => void;
   onAdd: (data: CreatePedigreeAncestorData) => void;
+  /** True while the create mutation is in flight; disables the Save button. */
+  isSaving?: boolean;
+  /** Set when the create mutation was rejected; rendered as a retryable error. */
+  saveError?: string | null;
 }
 
 const FORM_ID = 'add-ancestor-form';
@@ -29,6 +33,8 @@ const PedigreeAncestorAddDialog: React.FC<PedigreeAncestorAddDialogProps> = ({
   ownerId,
   onClose,
   onAdd,
+  isSaving = false,
+  saveError = null,
 }) => {
   const formRef = useRef<PedigreeAncestorFormRef>(null);
 
@@ -56,7 +62,9 @@ const PedigreeAncestorAddDialog: React.FC<PedigreeAncestorAddDialogProps> = ({
       registration_numbers: registrationNumbers,
       health_info: values.healthInfo || null,
     });
-    formRef.current?.reset();
+    // Do NOT reset here: the mutation runs asynchronously in the parent and
+    // may fail. Values are only cleared on cancel/close or after the dialog
+    // unmounts on confirmed success (StandardDialog unmounts on close).
   };
 
   const handleClose = () => {
@@ -68,20 +76,25 @@ const PedigreeAncestorAddDialog: React.FC<PedigreeAncestorAddDialogProps> = ({
     <StandardDialog
       open={open}
       onClose={handleClose}
-      onSave={() =>
-        document
-          .getElementById(FORM_ID)
-          ?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
-      }
+      onSave={() => {
+        const form = document.getElementById(FORM_ID);
+        if (form instanceof HTMLFormElement) form.requestSubmit();
+      }}
       title={position ? `Add ${POSITION_DISPLAY_NAMES[position]}` : 'Add Ancestor'}
       description="Required fields are marked with *. Other fields are optional."
       formId={FORM_ID}
+      isSubmitting={isSaving}
       saveLabel={
         <>
           <Plus className="mr-2 h-4 w-4" /> Add
         </>
       }
     >
+      {saveError && (
+        <p role="alert" aria-live="assertive" className="text-sm text-destructive mb-3">
+          {saveError} The ancestor was not saved. Adjust the form and try again.
+        </p>
+      )}
       <PedigreeAncestorForm
         ref={formRef}
         formId={FORM_ID}

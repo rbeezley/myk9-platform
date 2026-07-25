@@ -1,5 +1,4 @@
-import { AlertCircle, Calendar, CheckSquare, Clock, Clock4, Dog, Hash, MapPin, User, XCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Calendar, Dog, Hash, MapPin, User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -8,8 +7,12 @@ import { useTrialStore } from '@/store/trialStore';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { formatRingLabel } from '@/utils/ringLabel';
 import { EntryStatus, type ClassSelectionData } from '@/types/show-registration-types';
-import { getStatusBadgeVariant } from './ConfirmationStep.helpers';
-import type { ArmbandAssignment, DogClassDetails, HandlerAssignment } from './ConfirmationStep.types';
+import type {
+  ArmbandAssignment,
+  DogClassDetails,
+  HandlerAssignment,
+} from './ConfirmationStep.types';
+import { StatusBadge } from '@/components/status';
 
 interface ConfirmationEntryDetailsProps {
   showId: string;
@@ -17,21 +20,6 @@ interface ConfirmationEntryDetailsProps {
   armbandAssignments: ArmbandAssignment[];
   handlers: HandlerAssignment[];
   entryStatus: EntryStatus;
-}
-
-function getStatusIcon(status: EntryStatus) {
-  switch (status) {
-    case EntryStatus.ACCEPTED:
-      return <CheckSquare className="h-4 w-4" />;
-    case EntryStatus.REJECTED:
-      return <XCircle className="h-4 w-4" />;
-    case EntryStatus.WAITLIST:
-      return <Clock className="h-4 w-4" />;
-    case EntryStatus.MISSING_INFO:
-      return <AlertCircle className="h-4 w-4" />;
-    default:
-      return <Clock4 className="h-4 w-4" />;
-  }
 }
 
 export function ConfirmationEntryDetails({
@@ -128,13 +116,7 @@ export function ConfirmationEntryDetails({
                           `Born ${formatDateMMDDYYYY(details.dog.dateOfBirth)}`}
                       </p>
                     </div>
-                    <Badge
-                      variant={getStatusBadgeVariant(entryStatus)}
-                      className="flex items-center gap-1"
-                    >
-                      {getStatusIcon(entryStatus)}
-                      {entryStatus}
-                    </Badge>
+                    <StatusBadge family="entry" status={entryStatus} variant="outline" />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

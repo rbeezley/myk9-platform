@@ -69,6 +69,13 @@ vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
     isError: mockShowEntriesError,
     refetch: refetchShowEntriesMock,
   }),
+  useSecretaryShowEntriesQuery: () => ({
+    data: mockShowEntries,
+    isLoading: mockShowEntriesLoading,
+    isSuccess: !mockShowEntriesLoading && !mockShowEntriesError,
+    isError: mockShowEntriesError,
+    refetch: refetchShowEntriesMock,
+  }),
 }));
 
 vi.mock('@/services/database/entries', async () => {
@@ -138,6 +145,10 @@ vi.mock('@/features/banner/landing/BannerLandingPage', () => ({
 // Mock navigation performance
 vi.mock('@/hooks/useNavigationPerformance', () => ({
   useNavigationPerformance: () => ({ endNavigation: vi.fn() }),
+}));
+
+vi.mock('@/hooks/useGlobalSyncStatus', () => ({
+  useGlobalSyncStatus: () => ({ status: 'synced', queueSize: 0 }),
 }));
 
 // Mock trial store
@@ -251,9 +262,7 @@ function renderPage(showId = 'show-1', subPath = '', query = '') {
   );
 }
 
-function seedOwnedEntry(
-  overrides: Partial<(typeof mockShowEntries)[number]> = {}
-): void {
+function seedOwnedEntry(overrides: Partial<(typeof mockShowEntries)[number]> = {}): void {
   mockDogs = [{ id: 'dog-1', ownerId: 'person-1' }];
   mockShowEntries = [
     {
@@ -390,7 +399,9 @@ describe('ShowDetailsPage', () => {
     mockShowEntriesError = true;
     renderPage();
 
-    expect(screen.getByText("We couldn't load your entries. Please try again.")).toBeInTheDocument();
+    expect(
+      screen.getByText("We couldn't load your entries. Please try again.")
+    ).toBeInTheDocument();
     expect(screen.queryByTestId('monogram-landing')).toBeNull();
     expect(screen.queryByText('My Entries 0')).toBeNull();
   });
@@ -608,10 +619,7 @@ describe('ShowDetailsPage', () => {
     const nav = screen.getByTestId('canonical-show-management-nav');
     expect(nav).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: /show management section/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/setup'
-    );
+    expect(screen.queryByRole('link', { name: 'Setup' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute(
       'href',
       '/shows/show-1/show-desk'
@@ -670,25 +678,21 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('link', { name: /manage in workbench/i })).not.toBeInTheDocument();
   });
 
-  it('renders canonical child sections below the show hero', () => {
+  it('renders Show Desk below its compact context instead of the full hero', () => {
     mockAuthContext.isSecretary = true;
 
     renderPage('show-1', '/show-desk');
 
-    expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
+    expect(screen.queryByTestId('detail-hero')).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Show Desk context' })).toBeInTheDocument();
     expect(screen.getByTestId('canonical-child')).toHaveTextContent('Show Desk child');
     expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute('aria-current', 'page');
   });
 
-  // Regression: the Setup readiness chip "Exhibitor info not published yet" is a
-  // hash link to #setup-publish. That anchor lives in ShowDetailsPage (the
-  // parent route that hosts the Setup page via <Outlet>), NOT in the Setup
-  // page itself. This locks the half of the invariant that the chip-source
-  // tests (setupReadinessSignals.test / SetupAdaptiveHeader.test) can't see:
-  // the target element is in the DOM while /shows/:id/setup is active, so the
-  // chip resolves instead of scrolling to nothing. If the Setup route is ever
-  // un-nested from ShowDetailsPage, this fails — which is the point.
-  it('renders the #setup-publish anchor target on the Setup route so its chip resolves', () => {
+  // Regression: the Show Desk publish exception links to #setup-publish on the
+  // primary Overview. The anchor must remain in the shared management shell so
+  // the exception lands on the existing publish cards rather than a dead route.
+  it('renders the #setup-publish anchor target on the primary Overview', () => {
     // isSecretary=true makes canManageShow true, which is the gate the anchor
     // renders under — so this also implicitly asserts that auth gate. If a
     // refactor moves the anchor behind a different gate, expect this to fail.
@@ -696,15 +700,17 @@ describe('ShowDetailsPage', () => {
     // mockShow (beforeEach) has no publishedPremiumUrl/At/experienceIsPublished,
     // so the unpublished chip is what a secretary sees here.
 
-    renderPage('show-1', '/setup');
+    renderPage('show-1');
 
-    expect(screen.getByTestId('canonical-setup-child')).toBeInTheDocument();
+    expect(screen.queryByTestId('canonical-setup-child')).not.toBeInTheDocument();
     const anchorTarget = document.getElementById('setup-publish');
     expect(anchorTarget).toBeInTheDocument();
-    // The chip emits href="#setup-publish" (see SetupAdaptiveHeader.test);
-    // a matching element holding the Premium List card means the fragment
-    // jump lands on the fix, not on an empty div.
-    expect(anchorTarget).toHaveTextContent('Premium List');
+    // The chips emit href="#setup-publish-premium" / "#setup-publish-landing"
+    // (see SetupAdaptiveHeader.test / setupReadinessSignals.test); matching
+    // elements holding the actual cards mean the fragment jump lands on the
+    // fix, not on an empty div.
+    expect(document.getElementById('setup-publish-premium')).toHaveTextContent('Premium List');
+    expect(document.getElementById('setup-publish-landing')).toBeInTheDocument();
   });
 
   it('renders canonical child sections instead of styled landing for direct management URLs', () => {
@@ -746,6 +752,7 @@ describe('ShowDetailsPage', () => {
       { id: 'replicated-entry-1', show_id: 'show-1', class_id: 'class-1' },
       { id: 'replicated-entry-2', show_id: 'show-1', class_id: 'class-1' },
     ];
+    mockShowEntriesError = true;
     mockTrials = [
       {
         id: 'trial-1',
@@ -758,7 +765,6 @@ describe('ShowDetailsPage', () => {
     mockTrialClasses = {
       'trial-1': [{ id: 'class-1', element: 'Container', level: 'Novice' }],
     };
-    getEntriesForShowMock.mockRejectedValue(new Error('offline'));
 
     renderPage('show-1', '', '?tab=map');
 

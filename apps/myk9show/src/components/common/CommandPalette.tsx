@@ -1,7 +1,7 @@
-import React, { useState, useMemo, startTransition } from 'react';
+import { useState, useMemo, startTransition } from 'react';
 import { Command } from 'cmdk';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Search, Dog, Users, Calendar, Building, Plus, Clock } from 'lucide-react';
+import { Search, Dog, Users, Calendar, Building, Plus, Clock, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Kbd } from '@/components/ui/kbd';
 import { useNavigate } from 'react-router-dom';
 import { useDogStore } from '@/store/dogStore';
@@ -11,22 +11,19 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
 import { getDogDisplayName } from '@/types/dog-types';
 import { PERMISSIONS, UserRole } from '@/types/auth-types';
+import { useCommandMenuCommands } from '@/features/command-menu/useCommandMenuCommands';
+import { adaptCommandMenuCommand, type CommandAction } from '@/features/command-menu/commandPaletteAdapter';
+import { getShortcutKeysForCommand } from '@/components/layout/appShortcuts';
 
 interface CommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Opens the keyboard-shortcuts overlay. When provided, the footer renders
+   * an "All shortcuts" button (pointer-primary — the `?` shortcut is
+   * suppressed while the palette's input is focused, so a button is the
+   * honest affordance here). When absent, the footer segment is hidden. */
+  onShowShortcuts?: () => void;
 }
-
-type CommandAction = {
-  id: string;
-  title: string;
-  subtitle?: string;
-  icon: React.ReactNode;
-  action: () => void;
-  keywords?: string[];
-  category: 'navigation' | 'data' | 'actions';
-  shortcut?: string;
-};
 
 const MAX_DATA_RESULTS = 5;
 
@@ -35,6 +32,16 @@ const groupHeadingClass =
 
 const itemClass =
   'flex items-center px-2 py-2 text-sm rounded-sm cursor-pointer hover:bg-muted aria-selected:bg-muted text-foreground';
+
+/** Spreadable `{ shortcut }` for a `CommandAction`, or `{}` when the
+ * given command has no registered shortcut in `appShortcuts.ts` — kept as a
+ * spread (rather than `shortcut: string | undefined`) because
+ * `exactOptionalPropertyTypes` forbids assigning `undefined` to an optional
+ * property. */
+function shortcutProp(commandId: string): { shortcut: string } | Record<string, never> {
+  const keys = getShortcutKeysForCommand(commandId);
+  return keys ? { shortcut: keys } : {};
+}
 
 function ShortcutBadge({ keys }: { keys: string }) {
   return (
@@ -46,12 +53,13 @@ function ShortcutBadge({ keys }: { keys: string }) {
   );
 }
 
-export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
+export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandPaletteProps) {
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
   const { userWithRoles, hasPermission } = useAuthContext();
 
   const { addSearch, getSuggestions } = useRecentSearches({ context: 'command-palette' });
+  const { navigationCommands: contextualNavCommands, checkInCommand } = useCommandMenuCommands();
 
   const dogs = useDogStore(state => state.dogs);
   const people = useUserStore(state => state.people);
@@ -88,7 +96,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['dogs', 'pets', 'animals'],
         category: 'navigation' as const,
-        shortcut: 'G D',
+        ...shortcutProp('nav-dogs'),
       },
       {
         id: 'nav-people',
@@ -102,7 +110,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['people', 'contacts', 'owners'],
         category: 'navigation' as const,
-        shortcut: 'G P',
+        ...shortcutProp('nav-people'),
       },
       {
         id: 'nav-shows',
@@ -116,7 +124,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['shows', 'events', 'competitions'],
         category: 'navigation' as const,
-        shortcut: 'G S',
+        ...shortcutProp('nav-shows'),
       },
       {
         id: 'nav-clubs',
@@ -130,7 +138,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['clubs', 'organizations'],
         category: 'navigation' as const,
-        shortcut: 'G C',
+        ...shortcutProp('nav-clubs'),
       },
     ],
     [navigate, onOpenChange]
@@ -234,7 +242,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['add', 'new', 'create', 'dog'],
         category: 'actions',
-        shortcut: 'C D',
+        ...shortcutProp('add-dog'),
       },
     ];
 
@@ -250,7 +258,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['add', 'new', 'create', 'person', 'contact'],
         category: 'actions',
-        shortcut: 'C P',
+        ...shortcutProp('add-person'),
       });
     }
 
@@ -266,16 +274,44 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           }),
         keywords: ['add', 'new', 'create', 'show', 'event'],
         category: 'actions',
-        shortcut: 'C S',
+        ...shortcutProp('add-show'),
       });
     }
 
+    if (checkInCommand) {
+      commands.push(
+        adaptCommandMenuCommand(
+          checkInCommand,
+          navigate,
+          onOpenChange,
+          <CheckCircle2 className="h-4 w-4" />,
+          'actions'
+        )
+      );
+    }
+
     return commands;
-  }, [canCreateShows, canManageUsers, navigate, onOpenChange]);
+  }, [canCreateShows, canManageUsers, checkInCommand, navigate, onOpenChange]);
+
+  // Contextual "current show" navigation (task 2.1/2.3) — only present when an
+  // owner surface has registered a command-menu context (commandMenuContextStore).
+  const contextualCommands: CommandAction[] = useMemo(
+    () =>
+      contextualNavCommands.map(command =>
+        adaptCommandMenuCommand(
+          command,
+          navigate,
+          onOpenChange,
+          <ArrowRight className="h-4 w-4" />,
+          'navigation'
+        )
+      ),
+    [contextualNavCommands, navigate, onOpenChange]
+  );
 
   const allCommands = useMemo(
-    () => [...visibleNavigationCommands, ...dataCommands, ...actionCommands],
-    [visibleNavigationCommands, dataCommands, actionCommands]
+    () => [...visibleNavigationCommands, ...contextualCommands, ...dataCommands, ...actionCommands],
+    [visibleNavigationCommands, contextualCommands, dataCommands, actionCommands]
   );
 
   const handleSelect = (commandId: string) => {
@@ -358,6 +394,31 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
               ))}
             </Command.Group>
 
+            {/* Current show — contextual navigation from a registered command-menu
+                context (task 2.1/2.3). Absent when no owner surface has registered. */}
+            {contextualCommands.length > 0 && (
+              <Command.Group heading="Current show" className={groupHeadingClass}>
+                {contextualCommands.map(command => (
+                  <Command.Item
+                    key={command.id}
+                    value={`${command.title} ${command.subtitle} ${command.keywords?.join(' ')}`}
+                    onSelect={() => handleSelect(command.id)}
+                    className={itemClass}
+                  >
+                    <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                      {command.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-foreground">{command.title}</div>
+                      {command.subtitle && (
+                        <div className="text-xs text-muted-foreground">{command.subtitle}</div>
+                      )}
+                    </div>
+                  </Command.Item>
+                ))}
+              </Command.Group>
+            )}
+
             {/* Go to (data) */}
             {dataCommands.length > 0 && (
               <Command.Group heading="Go to" className={groupHeadingClass}>
@@ -417,10 +478,19 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
               <Kbd size="sm">esc</Kbd>
               Close
             </span>
-            <span className="ml-auto flex items-center gap-1">
-              <Kbd size="sm">?</Kbd>
-              All shortcuts
-            </span>
+            {onShowShortcuts && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenChange(false);
+                  onShowShortcuts();
+                }}
+                className="ml-auto flex items-center gap-1 rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Kbd size="sm">?</Kbd>
+                All shortcuts
+              </button>
+            )}
           </div>
         </Command>
       </DialogContent>

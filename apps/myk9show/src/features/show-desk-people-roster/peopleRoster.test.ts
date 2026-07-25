@@ -287,7 +287,7 @@ describe('peopleRoster', () => {
 
     expect(roster[0]?.eligibleCount).toBe(1);
     expect(roster[0]?.classRows.map(row => [row.className, row.statusLabel])).toEqual([
-      ['Container Novice A', 'Needs check-in'],
+      ['Container Novice A', 'Not checked in'],
       ['Exterior Novice A', 'Not today'],
     ]);
   });

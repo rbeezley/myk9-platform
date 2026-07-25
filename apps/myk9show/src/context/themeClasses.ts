@@ -65,3 +65,107 @@ export function storeFontScale(scale: string): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(FONT_SCALE_STORAGE_KEY, scale);
 }
+
+/**
+ * Layout density / Reduce Motion / High Contrast persistence + application.
+ *
+ * These three accessibility/display preferences are stored server-side via
+ * userPreferencesService, same as fontSize — too slow for a synchronous
+ * app-boot apply. This mirrors the fontScale pattern above: cache the
+ * last-applied value in localStorage so it can be re-applied immediately on
+ * boot (before the async preferences load resolves), and re-apply again once
+ * the loaded server preference lands (so it wins over a stale cache).
+ */
+const LAYOUT_DENSITY_STORAGE_KEY = 'layoutDensity';
+const REDUCE_MOTION_STORAGE_KEY = 'reduceMotion';
+const HIGH_CONTRAST_STORAGE_KEY = 'highContrast';
+
+// Density must live on <html>: the scoring stylesheet scopes its rules to
+// `html.density-*`, while theme-preferences.css selectors work from either.
+export function applyLayoutDensity(
+  density: string,
+  root: HTMLElement = document.documentElement
+): void {
+  root.className = root.className.replace(/\bdensity-\w+\b/g, '').concat(` density-${density}`);
+  // Clean up any stale copy left on <body> by older builds that applied it there.
+  if (root === document.documentElement) {
+    document.body.className = document.body.className.replace(/\s*\bdensity-\w+\b/g, '');
+  }
+}
+
+export function getStoredLayoutDensity(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(LAYOUT_DENSITY_STORAGE_KEY);
+}
+
+export function storeLayoutDensity(density: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LAYOUT_DENSITY_STORAGE_KEY, density);
+}
+
+export function applyReduceMotion(
+  enabled: boolean,
+  root: HTMLElement = document.documentElement
+): void {
+  root.classList.toggle('reduce-motion', enabled);
+}
+
+export function getStoredReduceMotion(): boolean | null {
+  if (typeof window === 'undefined') return null;
+  const stored = localStorage.getItem(REDUCE_MOTION_STORAGE_KEY);
+  return stored === null ? null : stored === 'true';
+}
+
+export function storeReduceMotion(enabled: boolean): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(REDUCE_MOTION_STORAGE_KEY, String(enabled));
+}
+
+export function applyHighContrast(
+  enabled: boolean,
+  root: HTMLElement = document.documentElement
+): void {
+  root.classList.toggle('high-contrast', enabled);
+}
+
+export function getStoredHighContrast(): boolean | null {
+  if (typeof window === 'undefined') return null;
+  const stored = localStorage.getItem(HIGH_CONTRAST_STORAGE_KEY);
+  return stored === null ? null : stored === 'true';
+}
+
+/**
+ * The cached appearance values are per-user server preferences, but the
+ * localStorage cache is global. Clear it on sign-out so the next user on a
+ * shared browser doesn't boot with the previous user's density/motion/
+ * contrast/font settings before their own preferences load.
+ *
+ * INTENT: theme mode and accent color (settingsStore, `myK9Q_settings`) are
+ * deliberately NOT cleared here — they are device-level, like the OS dark-mode
+ * setting, not per-user. theme-init.js must apply them synchronously before
+ * auth exists (flash-free boot), anonymous passcode ringside users have no
+ * user_preferences row to hydrate from, and there is no server hydrate-back
+ * path — so resetting them on sign-out would wipe the owner's dark mode on a
+ * personal device to save a shared browser from inheriting a color choice.
+ * See the settingsStore module docstring before changing this.
+ */
+export function clearAppearanceCache(): void {
+  if (typeof window === 'undefined') return;
+  for (const key of [
+    FONT_SCALE_STORAGE_KEY,
+    LAYOUT_DENSITY_STORAGE_KEY,
+    REDUCE_MOTION_STORAGE_KEY,
+    HIGH_CONTRAST_STORAGE_KEY,
+  ]) {
+    localStorage.removeItem(key);
+  }
+  applyFontScale('1');
+  applyLayoutDensity('comfortable');
+  applyReduceMotion(false);
+  applyHighContrast(false);
+}
+
+export function storeHighContrast(enabled: boolean): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(enabled));
+}

@@ -13,6 +13,7 @@
 @import './styles/form-field.css';
 @import './styles/legal.css';
 @import './styles/landing.css';
+@import './styles/manager-responsive.css';
 
 @tailwind base;
 @tailwind components;
@@ -256,15 +257,6 @@
     --app-shell-page-bottom: 2rem;
     --app-shell-page-padding: 1rem;
     --app-shell-safe-bottom: env(safe-area-inset-bottom, 0px);
-
-    /* Canonical semantic tokens — use these */
-    --success: 22 101 52; /* green-800 — WCAG AA everywhere incl. the bg-success/10 + text-success tint pattern (5.2:1 tinted, 6.3:1 white, 6.3:1 white-on-solid); green-700 (21 128 61) passed on plain white but failed the /10 tint at ~4.2:1 */
-    --success-foreground: 255 255 255;
-    --warning: 146 64 14; /* amber-800 — WCAG AA everywhere incl. the bg-warning/10 + text-warning tint pattern (5.7:1 page-tinted, 6.1:1 white-tinted, 7.1:1 white-on-solid); amber-700 (180 83 9) passed solid text but the /10 tint was only ~4.1:1 */
-    --warning-foreground: 255 255 255;
-    --info: 27 94 231; /* blue-600 adjusted — WCAG AA for bg-info/10 + text-info tint pattern */
-    --info-strong: 30 64 175; /* blue-800 — WCAG AA for small text on bg-info/10 tint */
-    --info-foreground: 255 255 255;
   }
 
   /* Semantic status tokens registered in tailwind.config.js as success/warning/info/destructive */
@@ -462,6 +454,15 @@ select:hover {
        ~3.6:1 here; red-700 clears 6.1:1. Theme-aware: the .dark value flips
        to a LIGHT red because no single shade passes on both surfaces. */
     --destructive-strong: 185 28 28; /* red-700 #b91c1c — 6.1:1 on light popover */
+    /* Canonical semantic status tokens. Keep these in the base layer so the
+       matching .dark declarations below can override them. */
+    --success: 22 101 52; /* green-800 — WCAG AA on light tints and surfaces */
+    --success-foreground: 255 255 255;
+    --warning: 146 64 14; /* amber-800 — WCAG AA on light tints and surfaces */
+    --warning-foreground: 255 255 255;
+    --info: 27 94 231; /* blue-600 adjusted — WCAG AA on light tints */
+    --info-strong: 30 64 175; /* blue-800 — WCAG AA for small text on light tints */
+    --info-foreground: 255 255 255;
     --border: #e4dccc; /* was #e8e6dc — v2 ivory-200 */
     --input: #ffffff; /* was #f5f4ed — inputs match card */
     --input-border: #e4dccc; /* was #e8e6dc */

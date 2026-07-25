@@ -67,6 +67,13 @@ export interface ClassInfo {
   timeLimit3?: string;
   areas?: number;
   visibilityPreset?: 'open' | 'standard' | 'review' | 'custom';
+  /** Server timestamp that authorizes released-results presentation. */
+  resultsReleasedAt?: string | null;
+  /** Server-authoritative completion; never infer this from raw entry counts. */
+  isScoringFinalized?: boolean;
+  /** Server class timing, with entry timestamps used only as an offline fallback. */
+  actualStartTime?: string;
+  actualEndTime?: string;
   /** Class-aggregate scoring rules (one value per class, not per area). */
   hidesKnown?: boolean;
   distractionCount?: number;

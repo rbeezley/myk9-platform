@@ -1,64 +1,40 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { RotateCcw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
+
 import { PhaseShell } from '@/features/show-workbench/PhaseShell';
-import { ShowDeskAdaptiveHeader } from './ShowDeskAdaptiveHeader';
-import { ShowDeskCloseoutSection } from './ShowDeskCloseoutSection';
+
+import { SecretaryCockpit } from './cockpit/SecretaryCockpit';
+import { buildSecretaryCockpitSnapshot } from './cockpit/buildSecretaryCockpitSnapshot';
+import { buildClassPaperworkMap } from './cockpit/buildClassPaperworkMap';
+import { useShowPaperworkPrints } from './cockpit/useShowPaperworkPrints';
 import { ShowDeskToolsSheet, type ShowDeskToolSection } from './ShowDeskToolsSheet';
-import type { ShowDeskActionableTone } from './showDeskActionable';
-import { ShowMapReorderBanner } from './ShowMapReorderBanner';
 import { ShowMapEntryReviewSheet } from './ShowMapEntryReviewSheet';
-import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
-import { buildMoveUpTargets } from './buildMoveUpTargets';
-import { getTrialRegistry } from '@/features/registries';
-import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
+import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
-import ShowMapTab from './ShowMapTab';
-import { resolveShowMapActionExecution } from './showMapActionExecution';
-import { entryIdFromShowMapNodeId } from './showMapActionMutations';
+import { buildMoveUpTargets } from './buildMoveUpTargets';
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { computeShowDeskStatus } from './showDeskStatus';
+import { getRankedActions } from './showMapActions';
+import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { useShowMapWorkbenchState } from './useShowMapWorkbenchState';
-import type { ShowMapActionGroup } from './showMapActionGroups';
+import type { ShowDeskActionableTone } from './showDeskActionable';
 import type { BuildShowMapTreeInput } from './showMapTypes';
-import type { ShowMapAction } from './showMapActions';
-import type { ShowDeskPendingSignalId } from './showDeskPendingSignals';
-
-const BULK_APPROVE_CONFIRMATION_THRESHOLD = 10;
+import { getTrialRegistry } from '@/features/registries';
+import type { DbClass, DbEntry } from '@/types/database-mappings';
 
 interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
   scopeNow?: Date | undefined;
-  // Composed at the page level so this panel never needs to know about
-  // judges, incident options, broadcast classes, or other tool-specific
-  // data dependencies. When omitted, the Tools sheet is not rendered.
   tools?: readonly ShowDeskToolSection[];
-  // Aggregated attention count + tone for the Tools trigger badge, computed at
-  // the page level (incidents + hospitality + tasks). The panel only forwards
-  // it — it owns none of those data sources.
-  actionableCount?: number;
-  actionableTone?: ShowDeskActionableTone;
-  // Composed at the page level — the closeout section renders only when
-  // at least one class is wrap-up-eligible (see ShowDeskCloseoutSection).
-  closeoutContent?: ReactNode;
+  actionableCount?: number | undefined;
+  actionableTone?: ShowDeskActionableTone | undefined;
 }
 
-// INTENT: Show Desk surface for Phase B2a. Owns the shared workbench state so
-// the adaptive header and the compact-mode Show Map tree agree on tree,
-// expandedNodeIds, dismissedGuidanceKeys, and executor. Dialogs render here
-// (not inside the compact tree) so the header's action triggers share one
-// dialog root with row-action triggers.
+// INTENT: This is the secretary's live operations cockpit. It projects the
+// existing Show Map data and action engine by Trial and Class; it does not own
+// duplicate entry, score, report, or result workflows. Those remain deep links
+// to their canonical pages.
 export default function ShowDeskPanel({
   show,
   trials,
@@ -69,32 +45,19 @@ export default function ShowDeskPanel({
   tools,
   actionableCount,
   actionableTone,
-  closeoutContent,
 }: ShowDeskPanelProps) {
+  const location = useLocation();
   const state = useShowMapWorkbenchState({
     show,
     trials,
     classes,
     entries,
     showId: show.id,
-    // Show Desk uses the unified (merged) action set — no phase fork.
     ...(scopeNow !== undefined && { scopeNow }),
     initialDayScope: 'all',
     initialCompletionScope: 'active',
   });
-
-  const {
-    tree,
-    executor,
-    navigateTo,
-    guidanceAction,
-    upNextGroups,
-    runningNowItems,
-    selectRunningNowClass,
-    dismissGuidanceAction,
-    runOrderAutoSort,
-    reorderMode,
-  } = state;
+  const { tree, executor, navigateTo, effectiveScopeNow } = state;
   const {
     executeAction,
     moveUpAction,
@@ -110,132 +73,79 @@ export default function ShowDeskPanel({
     closeReviewSheet,
     confirmReviewApprove,
     isApprovingReview,
-    bulkApproveEntries,
-    isBulkApproving,
     isExecuting,
   } = executor;
 
-  const reviewNode = reviewAction ? tree.nodesById[reviewAction.nodeId] : undefined;
-  const reviewParent = reviewNode?.parentId ? tree.nodesById[reviewNode.parentId] : undefined;
-  const reviewParentClassLabel =
-    reviewNode?.type === 'dog-entry' ? reviewNode.dogEntryDisplay?.classLabel : reviewParent?.label;
-
-  const [bulkApproveRequest, setBulkApproveRequest] = useState<{
-    entryIds: string[];
-    label: string;
-    classId?: string | undefined;
-  } | null>(null);
-
-  const dispatchBulkApprove = useCallback(
-    (entryIds: string[], classId: string | undefined) => {
-      if (entryIds.length === 0) return;
-      bulkApproveEntries(entryIds, classId);
-    },
-    [bulkApproveEntries]
-  );
-
-  const requestBulkApprove = useCallback(
-    (entryIds: string[], label: string, classId: string | undefined) => {
-      if (entryIds.length === 0) return;
-      if (entryIds.length >= BULK_APPROVE_CONFIRMATION_THRESHOLD) {
-        setBulkApproveRequest({
-          entryIds,
-          label,
-          ...(classId ? { classId } : {}),
-        });
-      } else {
-        dispatchBulkApprove(entryIds, classId);
-      }
-    },
-    [dispatchBulkApprove]
-  );
-
-  const handleBulkApproveGroup = useCallback(
-    (group: ShowMapActionGroup) => {
-      const entryIds = group.items
-        .map(item => entryIdFromShowMapNodeId(item.action.nodeId))
-        .filter((id): id is string => Boolean(id));
-      const repNode = tree.nodesById[group.representative.nodeId];
-      const dogName = repNode?.entryDisplay?.dogName ?? 'this dog';
-      const label = `${entryIds.length} ${entryIds.length === 1 ? 'entry' : 'entries'} for ${dogName}`;
-      requestBulkApprove(entryIds, label, group.representative.classId);
-    },
-    [requestBulkApprove, tree]
-  );
-
-  const confirmBulkApprove = useCallback(() => {
-    if (!bulkApproveRequest) return;
-    dispatchBulkApprove(bulkApproveRequest.entryIds, bulkApproveRequest.classId);
-    setBulkApproveRequest(null);
-  }, [bulkApproveRequest, dispatchBulkApprove]);
-
-  const openEntryManagement = useCallback(() => {
-    navigateTo(getEntryManagementHref({ showId: show.id, attention: 'pending', mode: 'review' }));
-  }, [navigateTo, show.id]);
-
-  const desk = useMemo(
-    () =>
-      computeShowDeskStatus({
-        show,
-        trials,
-        tree,
-        ...(scopeNow !== undefined && { now: scopeNow }),
-      }),
-    [scopeNow, show, trials, tree]
-  );
   const pendingSignals = useMemo(
-    () => computeShowDeskPendingSignals({ tree, entries }),
-    [entries, tree]
+    () => (canManageShow ? computeShowDeskPendingSignals({ showId: show.id, tree, entries }) : []),
+    [canManageShow, entries, show.id, tree]
   );
-  // Reuse the existing pending-signal computation as the source of truth for
-  // "N entries waiting" — no second counter, no risk of the two going out of
-  // sync. The "Manage entries" button surfaces this count and deep-links to
-  // Entries Management, which owns the show-wide bulk operations.
-  const pendingReviewCount = useMemo(
-    () => pendingSignals.find(s => s.id === 'entries-waiting-review')?.count ?? 0,
-    [pendingSignals]
+  const returnTo = `${location.pathname}${location.search}`;
+  const paperworkPrints = useShowPaperworkPrints(show.id);
+  const paperworkByClassId = useMemo(
+    () =>
+      buildClassPaperworkMap({
+        showId: show.id,
+        classes: classes.map(classItem => ({
+          ...classItem,
+          trial_id: classItem.trialId,
+        })) as unknown as DbClass[],
+        trials: trials.map(trialItem => ({ id: trialItem.id, trialDate: trialItem.trialDate })),
+        entries: entries as unknown as DbEntry[],
+        records: paperworkPrints.data ?? [],
+        returnTo,
+      }),
+    [classes, entries, paperworkPrints.data, returnTo, show.id, trials]
   );
-  // A show's trials always share one registry (scoping §7) — resolve once from the
-  // first trial so move-up recognizes UKC/ASCA-only levels (Superior/Elite, Open).
-  const registryId = useMemo(() => getTrialRegistry(trials[0]).id, [trials]);
-  const moveUpTargets = useMemo(
-    () => buildMoveUpTargets(classes, moveUpAction?.classId, registryId),
-    [classes, moveUpAction?.classId, registryId]
+  const snapshot = useMemo(
+    () =>
+      buildSecretaryCockpitSnapshot({
+        showId: show.id,
+        trials,
+        classes,
+        tree,
+        pendingSignals,
+        returnTo,
+        now: effectiveScopeNow,
+        paperworkByClassId,
+      }),
+    [
+      classes,
+      effectiveScopeNow,
+      paperworkByClassId,
+      pendingSignals,
+      returnTo,
+      show.id,
+      tree,
+      trials,
+    ]
   );
-  const moveUpCurrentClass = moveUpAction?.classId
-    ? tree.nodesById[`class:${moveUpAction.classId}`]
-    : undefined;
+  const desk = useMemo(
+    () => computeShowDeskStatus({ show, trials, tree, now: effectiveScopeNow }),
+    [effectiveScopeNow, show, tree, trials]
+  );
 
-  // Resolve each action's execution shape so the header can dispatch them.
-  const startAction = useCallback(
-    (action: ShowMapAction) => {
+  const runCommand = useCallback(
+    (commandId: string) => {
+      const action = getRankedActions('root', { tree, now: effectiveScopeNow }).find(
+        candidate => `${candidate.id}:${candidate.nodeId}` === commandId
+      );
+      if (!action) return;
       const execution = resolveShowMapActionExecution(action);
       if (execution.kind === 'disabled') return;
       if (execution.kind === 'navigate') navigateTo(execution.href);
       else executeAction(action, execution);
     },
-    [executeAction, navigateTo]
+    [effectiveScopeNow, executeAction, navigateTo, tree]
   );
 
-  // INTENT: Pending-signal chips lead to the canonical owner of that work.
-  // Entry review belongs to Entries Management; closeout belongs to Results &
-  // Check-In. The Show Map attention lens stays a fallback for signals that
-  // are genuinely represented in the tree.
-  const { setFilter } = state;
-  const handlePendingSignal = useCallback(
-    (signalId: ShowDeskPendingSignalId) => {
-      if (signalId === 'entries-waiting-review') {
-        openEntryManagement();
-        return;
-      }
-      if (signalId === 'results-pending-closeout') {
-        navigateTo(`/shows/${show.id}/results-control`);
-        return;
-      }
-      setFilter('needs-attention');
-    },
-    [navigateTo, openEntryManagement, setFilter, show.id]
-  );
+  const registryId = getTrialRegistry(trials[0]).id;
+  const moveUpTargets = buildMoveUpTargets(classes, moveUpAction?.classId, registryId);
+  const moveUpCurrentClass = moveUpAction?.classId
+    ? tree.nodesById[`class:${moveUpAction.classId}`]
+    : undefined;
+  const reviewNode = reviewAction ? tree.nodesById[reviewAction.nodeId] : undefined;
+  const reviewParent = reviewNode?.parentId ? tree.nodesById[reviewNode.parentId] : undefined;
 
   return (
     <div className="space-y-4">
@@ -255,142 +165,52 @@ export default function ShowDeskPanel({
       />
       {desk.status === 'setup' && (
         <div
-          className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
+          className="rounded-md border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
           role="status"
-          data-testid="show-desk-dormant-notice"
         >
-          Show-day sections are waiting until the show window opens. Setup work stays in Setup;
-          entries and readiness links remain available here.
+          Show-day work has not started. Setup and entry work remain available from their normal
+          pages.
         </div>
       )}
-      <ShowDeskAdaptiveHeader
-        showStatus={desk.status}
-        statusSummary={desk.summary}
-        guidanceAction={guidanceAction}
-        upNextGroups={upNextGroups}
-        runningNow={runningNowItems}
-        pendingSignals={pendingSignals}
-        onStartAction={startAction}
-        onDismissGuidance={dismissGuidanceAction}
-        onSelectRunning={selectRunningNowClass}
-        onSelectPendingSignal={handlePendingSignal}
-        onBulkApproveGroup={canManageShow ? handleBulkApproveGroup : undefined}
-        onOpenEntryManagement={canManageShow ? openEntryManagement : undefined}
-        reviewQueueCount={pendingReviewCount}
-      />
-      {canManageShow && reorderMode.active && (
-        <ShowMapReorderBanner
-          active={reorderMode.active}
-          isPersisting={reorderMode.isPersisting}
-          onDone={reorderMode.exit}
-        />
-      )}
-      {canManageShow && !reorderMode.active && runOrderAutoSort.lastAutoSort && (
-        <div className="rounded-md border bg-muted/20 px-3 py-2">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 text-sm">
-              <span className="font-medium">Run order updated.</span>
-              {runOrderAutoSort.lastAutoSort.classLabel && (
-                <span className="text-muted-foreground">
-                  {' '}
-                  {runOrderAutoSort.lastAutoSort.classLabel}.
-                </span>
-              )}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={runOrderAutoSort.undoLastAutoSort}
-              disabled={runOrderAutoSort.isUndoingAutoSort}
-            >
-              <RotateCcw className="h-4 w-4" />
-              {runOrderAutoSort.isUndoingAutoSort ? 'Undoing...' : 'Undo'}
-            </Button>
-          </div>
-        </div>
-      )}
-      <ShowMapTab
-        show={show}
-        trials={trials}
-        classes={classes}
-        entries={entries}
-        canManageShow={canManageShow}
-        compact
-        workbenchState={state}
-      />
-      {closeoutContent && (
-        <ShowDeskCloseoutSection tree={tree}>{closeoutContent}</ShowDeskCloseoutSection>
-      )}
+      <SecretaryCockpit snapshot={snapshot} canManageShow={canManageShow} onCommand={runCommand} />
+
       {canManageShow && (
         <>
           <ShowMapMoveUpDialog
-            key={moveUpAction?.nodeId ?? 'move-up-dialog'}
             open={Boolean(moveUpAction)}
             node={moveUpAction ? tree.nodesById[moveUpAction.nodeId] : undefined}
             currentClass={moveUpCurrentClass}
             targets={moveUpTargets}
             isSubmitting={isExecuting}
-            onOpenChange={open => {
-              if (!open) closeMoveUpDialog();
-            }}
+            onOpenChange={open => !open && closeMoveUpDialog()}
             onConfirm={confirmMoveUp}
           />
           <ShowMapScratchNoShowDialog
-            key={scratchAction?.nodeId ?? 'scratch-dialog'}
             open={Boolean(scratchAction)}
             node={scratchAction ? tree.nodesById[scratchAction.nodeId] : undefined}
             isSubmitting={isExecuting}
-            onOpenChange={open => {
-              if (!open) closeScratchDialog();
-            }}
+            onOpenChange={open => !open && closeScratchDialog()}
             onConfirm={confirmScratchNoShow}
           />
           <ShowMapMessageHandlerDialog
-            key={messageAction?.nodeId ?? 'message-handler-dialog'}
             open={Boolean(messageAction)}
             node={messageAction ? tree.nodesById[messageAction.nodeId] : undefined}
             isSubmitting={isExecuting}
-            onOpenChange={open => {
-              if (!open) closeMessageDialog();
-            }}
+            onOpenChange={open => !open && closeMessageDialog()}
             onConfirm={body => confirmMessageHandler({ body })}
           />
           <ShowMapEntryReviewSheet
-            key={reviewAction?.nodeId ?? 'review-sheet'}
             open={Boolean(reviewAction)}
             onClose={closeReviewSheet}
             onApprove={confirmReviewApprove}
             isApproving={isApprovingReview}
             entryDisplay={reviewNode?.entryDisplay}
-            parentClassLabel={reviewParentClassLabel}
+            parentClassLabel={
+              reviewNode?.type === 'dog-entry'
+                ? reviewNode.dogEntryDisplay?.classLabel
+                : reviewParent?.label
+            }
           />
-          <AlertDialog
-            open={bulkApproveRequest !== null}
-            onOpenChange={open => {
-              if (!open) setBulkApproveRequest(null);
-            }}
-          >
-            <AlertDialogContent data-testid="bulk-approve-confirmation">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Approve {bulkApproveRequest?.label}?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  These entries will be marked as confirmed. Handlers will see their registrations
-                  move from "submitted" to "confirmed."
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isBulkApproving}>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={confirmBulkApprove}
-                  disabled={isBulkApproving}
-                  data-testid="bulk-approve-confirm"
-                >
-                  Approve
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </>
       )}
     </div>

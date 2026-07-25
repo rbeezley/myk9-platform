@@ -1,11 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
@@ -207,175 +201,175 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
   const organizationError = form.getError('organization');
   const breedError = form.getError('breed');
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle>{initialData ? 'Edit Registration' : 'Add New Registration'}</DialogTitle>
-        </DialogHeader>
+  const footer = (
+    <div className="flex items-center justify-end gap-2">
+      <Button variant="outline" onClick={() => onOpenChange(false)}>
+        Cancel
+      </Button>
+      <Button onClick={handleSubmit}>Save Registration</Button>
+    </div>
+  );
 
-        <div className="space-y-4 overflow-y-auto flex-1 -mx-1 px-3 py-1">
-          <FormField
-            label="Registration Organization"
-            fieldId="organization"
-            required
-            error={organizationError}
-          >
-            <Select value={form.data.organization} onValueChange={handleOrganizationChange}>
-              <SelectTrigger
-                id="organization"
-                aria-invalid={!!organizationError}
-                aria-describedby={organizationError ? 'organization-error' : undefined}
+  return (
+    <SlideOverPanel
+      open={open}
+      onClose={() => onOpenChange(false)}
+      title={initialData ? 'Edit Registration' : 'Add New Registration'}
+      size="md"
+      footer={footer}
+    >
+      <div className="space-y-4 p-6">
+        <FormField
+          label="Registration Organization"
+          fieldId="organization"
+          required
+          error={organizationError}
+        >
+          <Select value={form.data.organization} onValueChange={handleOrganizationChange}>
+            <SelectTrigger
+              id="organization"
+              aria-invalid={!!organizationError}
+              aria-describedby={organizationError ? 'organization-error' : undefined}
+            >
+              <SelectValue placeholder="Select organization" />
+            </SelectTrigger>
+            <SelectContent>
+              {REGISTRATION_ORGS.map(org => (
+                <SelectItem key={org} value={org}>
+                  {org}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
+
+        <FormField
+          label="Registered Name"
+          fieldId="registeredName"
+          required
+          error={form.getError('registeredName')}
+        >
+          <Input
+            id="registeredName"
+            value={form.data.registeredName}
+            onChange={e => handleFieldChange('registeredName', e.target.value)}
+            placeholder="Full registered name"
+            {...form.getFieldProps('registeredName')}
+          />
+        </FormField>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField label="Registered Breed" fieldId="breed" required error={breedError}>
+            {form.data.organization ? (
+              <SearchablePopover
+                id="breed"
+                aria-invalid={!!breedError}
+                aria-describedby={breedError ? 'breed-error' : undefined}
+                open={breedPickerOpen}
+                onOpenChange={next => {
+                  setBreedPickerOpen(next);
+                  if (!next) setBreedSearch('');
+                }}
+                triggerLabel={form.data.breed || 'Select breed'}
+                searchPlaceholder="Search breeds…"
+                searchTerm={breedSearch}
+                onSearchChange={setBreedSearch}
+                items={filteredBreeds}
+                emptyMessage="No breeds match your search"
+                renderItem={breed => (
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex w-full items-center justify-between gap-2 p-3 text-left text-sm hover:bg-muted border-b last:border-b-0',
+                      breed.id === form.data.breed && 'bg-muted/60 font-medium'
+                    )}
+                    onClick={() => {
+                      handleBreedChange(breed.id);
+                      setBreedPickerOpen(false);
+                      setBreedSearch('');
+                    }}
+                  >
+                    {breed.id}
+                    {breed.id === form.data.breed && <Check className="h-4 w-4 text-primary" />}
+                  </button>
+                )}
+              />
+            ) : (
+              <Button
+                id="breed"
+                type="button"
+                variant="outline"
+                disabled
+                className="w-full justify-start text-muted-foreground"
               >
-                <SelectValue placeholder="Select organization" />
-              </SelectTrigger>
-              <SelectContent>
-                {REGISTRATION_ORGS.map(org => (
-                  <SelectItem key={org} value={org}>
-                    {org}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                Select organization first
+              </Button>
+            )}
           </FormField>
 
+          <FormField label="Variety" fieldId="variety">
+            {availableVarieties.length > 0 ? (
+              <Select
+                value={form.data.variety || ''}
+                onValueChange={value => handleFieldChange('variety', value)}
+              >
+                <SelectTrigger id="variety">
+                  <SelectValue placeholder="Select variety" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableVarieties.map(variety => (
+                    <SelectItem key={variety} value={variety}>
+                      {variety}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                id="variety"
+                value={form.data.variety || ''}
+                onChange={e => handleFieldChange('variety', e.target.value)}
+                placeholder={form.data.breed ? 'No varieties for this breed' : 'Select breed first'}
+                disabled={!form.data.breed}
+              />
+            )}
+          </FormField>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <FormField
-            label="Registered Name"
-            fieldId="registeredName"
+            label="Registration Number"
+            fieldId="registrationNumber"
             required
-            error={form.getError('registeredName')}
+            error={form.getError('registrationNumber')}
           >
             <Input
-              id="registeredName"
-              value={form.data.registeredName}
-              onChange={e => handleFieldChange('registeredName', e.target.value)}
-              placeholder="Full registered name"
-              {...form.getFieldProps('registeredName')}
+              id="registrationNumber"
+              value={form.data.registrationNumber}
+              onChange={e => handleFieldChange('registrationNumber', e.target.value)}
+              placeholder="Enter registration number"
+              {...form.getFieldProps('registrationNumber')}
             />
           </FormField>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Registered Breed" fieldId="breed" required error={breedError}>
-              {form.data.organization ? (
-                <SearchablePopover
-                  id="breed"
-                  aria-invalid={!!breedError}
-                  aria-describedby={breedError ? 'breed-error' : undefined}
-                  open={breedPickerOpen}
-                  onOpenChange={next => {
-                    setBreedPickerOpen(next);
-                    if (!next) setBreedSearch('');
-                  }}
-                  triggerLabel={form.data.breed || 'Select breed'}
-                  searchPlaceholder="Search breeds…"
-                  searchTerm={breedSearch}
-                  onSearchChange={setBreedSearch}
-                  items={filteredBreeds}
-                  emptyMessage="No breeds match your search"
-                  renderItem={breed => (
-                    <button
-                      type="button"
-                      className={cn(
-                        'flex w-full items-center justify-between gap-2 p-3 text-left text-sm hover:bg-muted border-b last:border-b-0',
-                        breed.id === form.data.breed && 'bg-muted/60 font-medium'
-                      )}
-                      onClick={() => {
-                        handleBreedChange(breed.id);
-                        setBreedPickerOpen(false);
-                        setBreedSearch('');
-                      }}
-                    >
-                      {breed.id}
-                      {breed.id === form.data.breed && <Check className="h-4 w-4 text-primary" />}
-                    </button>
-                  )}
-                />
-              ) : (
-                <Button
-                  id="breed"
-                  type="button"
-                  variant="outline"
-                  disabled
-                  className="w-full justify-start text-muted-foreground"
-                >
-                  Select organization first
-                </Button>
-              )}
-            </FormField>
-
-            <FormField label="Variety" fieldId="variety">
-              {availableVarieties.length > 0 ? (
-                <Select
-                  value={form.data.variety || ''}
-                  onValueChange={value => handleFieldChange('variety', value)}
-                >
-                  <SelectTrigger id="variety">
-                    <SelectValue placeholder="Select variety" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableVarieties.map(variety => (
-                      <SelectItem key={variety} value={variety}>
-                        {variety}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  id="variety"
-                  value={form.data.variety || ''}
-                  onChange={e => handleFieldChange('variety', e.target.value)}
-                  placeholder={
-                    form.data.breed ? 'No varieties for this breed' : 'Select breed first'
-                  }
-                  disabled={!form.data.breed}
-                />
-              )}
-            </FormField>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              label="Registration Number"
-              fieldId="registrationNumber"
-              required
-              error={form.getError('registrationNumber')}
+          <FormField label="Status" fieldId="registrationStatus">
+            <Select
+              value={form.data.status}
+              onValueChange={value => handleFieldChange('status', value)}
             >
-              <Input
-                id="registrationNumber"
-                value={form.data.registrationNumber}
-                onChange={e => handleFieldChange('registrationNumber', e.target.value)}
-                placeholder="Enter registration number"
-                {...form.getFieldProps('registrationNumber')}
-              />
-            </FormField>
-
-            <FormField label="Status" fieldId="registrationStatus">
-              <Select
-                value={form.data.status}
-                onValueChange={value => handleFieldChange('status', value)}
-              >
-                <SelectTrigger id="registrationStatus">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Expired">Expired</SelectItem>
-                  <SelectItem value="Under review">Under review</SelectItem>
-                </SelectContent>
-              </Select>
-            </FormField>
-          </div>
+              <SelectTrigger id="registrationStatus">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Pending">Pending</SelectItem>
+                <SelectItem value="Expired">Expired</SelectItem>
+                <SelectItem value="Under review">Under review</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormField>
         </div>
-
-        <DialogFooter className="flex-shrink-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit}>Save Registration</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </SlideOverPanel>
   );
 };

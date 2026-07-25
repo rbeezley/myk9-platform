@@ -146,7 +146,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                   </SelectItem>
                   <SelectItem value="cancelled">
                     <div>
-                      <div className="font-medium text-red-600">Cancelled</div>
+                      <div className="font-medium text-destructive">Cancelled</div>
                       <div className="text-xs text-muted-foreground">Show has been cancelled</div>
                     </div>
                   </SelectItem>

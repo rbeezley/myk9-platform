@@ -117,19 +117,32 @@ export function formatLevelRange(levels: string[]): string {
 
 interface ClassRowLike {
   classId: string;
+  className: string;
   level: string | null;
   status: string;
   totalEntriesCount: number;
   startTime: string | null;
+  judgePersonId: string | null;
+  judgeFirstName: string | null;
+  judgeLastName: string | null;
+}
+
+function getJudgeName(row: ClassRowLike): string | null {
+  const name = [row.judgeFirstName, row.judgeLastName].filter(Boolean).join(' ').trim();
+  return name || null;
 }
 
 function buildElementSummary(elementName: string, classes: ClassRowLike[]): ElementSummary {
   // Build level details with normalized statuses
   const levelDetails: LevelDetail[] = classes.map(c => ({
     classId: c.classId,
+    className: c.className,
     level: c.level ?? elementName,
     status: normalizeClassStatus(c.status),
     entryCount: c.totalEntriesCount,
+    startTime: c.startTime,
+    judgeId: c.judgePersonId,
+    judgeName: getJudgeName(c),
   }));
 
   // Sort by progression order

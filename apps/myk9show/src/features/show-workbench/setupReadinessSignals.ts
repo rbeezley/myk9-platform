@@ -1,14 +1,22 @@
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ShowWorkbenchClassSummary } from './showWorkbenchTypes';
-import { classifyPremiumPublishState } from './premiumPublishState';
+import { classifyPremiumPublishState, type PremiumPublishStateInput } from './premiumPublishState';
+import {
+  isShowListingLive,
+  PREMIUM_CARD_ANCHOR,
+  SHOW_STATUS_CONTROL_ANCHOR,
+} from './publishReadiness';
+import { getClassManagementHref } from '@/components/classes/classManagementFilters';
 
 export type SetupReadinessSignalId =
   | 'show-details-missing'
   | 'no-trials'
   | 'no-classes'
   | 'judges-missing'
-  | 'exhibitor-materials-unpublished';
+  | 'show-not-visible'
+  | 'exhibitor-materials-unpublished'
+  | 'landing-content-unpublished';
 
 export interface SetupReadinessSignal {
   id: SetupReadinessSignalId;
@@ -17,13 +25,9 @@ export interface SetupReadinessSignal {
   href: string;
 }
 
-// Anchor id for the publish section. The cards render in ShowDetailsPage —
-// the PARENT route that hosts the Setup page via <Outlet> — so the element
-// is in the same document while /shows/:id/setup is active, and a `#`-href
-// chip resolves to it. See ShowDetailsPage.tsx (id={SETUP_PUBLISH_ANCHOR})
-// and the regression test in src/test/pages/ShowDetailsPage.test.tsx
-// ("renders the #setup-publish anchor target on the Setup route ..."). Keep
-// them nested: if the Setup route is ever un-nested, this anchor dies.
+// Anchor id for the publish section. The cards render in the shared manager
+// shell on the primary Overview, so exception links can land on the existing
+// publishing controls without reviving a Setup-only destination.
 export const SETUP_PUBLISH_ANCHOR = 'setup-publish';
 
 export interface SetupReadinessInput {
@@ -31,6 +35,12 @@ export interface SetupReadinessInput {
   trials: SyncableTrial[];
   classes: ShowWorkbenchClassSummary[];
   judges: unknown[];
+  /**
+   * Fresher premium-publish columns fetched directly (usePublishInfo). The
+   * replicated show row doesn't carry published_premium_url/at, so without
+   * this override a published premium would always read as unpublished.
+   */
+  premiumInfo?: PremiumPublishStateInput & { experienceIsPublished?: boolean | null };
 }
 
 function hasText(value: string | null | undefined): boolean {
@@ -65,9 +75,12 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
   const showId = input.show.id;
   const firstTrialId = input.trials[0]?.id;
   // Classes and judges are managed per trial; until a trial exists, the
-  // Trials tab is the right starting point for both.
+  // Trials tab is the right starting point for both. Route through the
+  // canonical Class Management href builder (not a hand-assembled path) so
+  // this link stays consistent with the surface's own normalizer even though
+  // neither signal maps to a curated status filter today.
   const classWorkHref = firstTrialId
-    ? `/shows/${showId}/classes/${firstTrialId}`
+    ? getClassManagementHref({ showId, trialId: firstTrialId })
     : `/shows/${showId}?tab=trials`;
   if (!showDetailsComplete(input.show)) {
     signals.push({
@@ -89,18 +102,42 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
   if (!judgesAssigned(input)) {
     signals.push({ id: 'judges-missing', label: 'Judges not assigned', href: classWorkHref });
   }
-  const premiumState = classifyPremiumPublishState(input.show);
+  if (!isShowListingLive(input.show.status)) {
+    signals.push({
+      id: 'show-not-visible',
+      label: 'Show not visible to exhibitors',
+      href: `#${SHOW_STATUS_CONTROL_ANCHOR}`,
+    });
+  }
+  const premiumState = classifyPremiumPublishState(input.premiumInfo ?? input.show);
   if (premiumState === 'published-stale') {
     signals.push({
       id: 'exhibitor-materials-unpublished',
-      label: 'Exhibitor info changed since publish',
-      href: `#${SETUP_PUBLISH_ANCHOR}`,
+      label: 'Premium changed since publish',
+      href: `#${PREMIUM_CARD_ANCHOR}`,
     });
   } else if (premiumState === 'unpublished') {
     signals.push({
       id: 'exhibitor-materials-unpublished',
-      label: 'Exhibitor info not published yet',
-      href: `#${SETUP_PUBLISH_ANCHOR}`,
+      label: 'Premium not published yet',
+      href: `#${PREMIUM_CARD_ANCHOR}`,
+    });
+  }
+  // Publishing the premium also snapshots the landing content, so while a
+  // premium signal is open its fix clears both — a separate landing chip
+  // would be a duplicate task. Only when the PDF is current but the
+  // experience snapshot is not published (the snapshot write failed) does
+  // the landing chip appear, and it points at the premium card, which is
+  // where the "Publish landing page" action lives (PremiumDownloadCard) —
+  // the landing card itself has no publish control, so linking there would
+  // be a dead end.
+  const experienceIsPublished =
+    input.premiumInfo?.experienceIsPublished ?? input.show.experienceIsPublished;
+  if (premiumState === 'published-current' && !experienceIsPublished) {
+    signals.push({
+      id: 'landing-content-unpublished',
+      label: 'Landing page not published',
+      href: `#${PREMIUM_CARD_ANCHOR}`,
     });
   }
   return signals;

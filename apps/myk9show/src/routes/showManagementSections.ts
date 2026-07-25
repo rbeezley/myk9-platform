@@ -8,3 +8,11 @@ export const SHOW_MANAGEMENT_SECTIONS = [
 ] as const;
 
 export type ShowManagementSectionPath = (typeof SHOW_MANAGEMENT_SECTIONS)[number]['path'];
+
+/**
+ * Setup remains in the route registry for compatibility, but its information
+ * now lives on the primary Overview and it is no longer a peer workflow.
+ */
+export const SHOW_MANAGEMENT_NAV_SECTIONS = SHOW_MANAGEMENT_SECTIONS.filter(
+  section => section.path !== 'setup'
+);

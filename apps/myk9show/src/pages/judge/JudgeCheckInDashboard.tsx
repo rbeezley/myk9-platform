@@ -6,17 +6,16 @@ import { Badge } from '@/components/ui/badge';
 import { JudgeCheckInInterface } from '@/components/judges/JudgeCheckInInterface';
 import { GateStewardInterface } from '@/components/stewards/GateStewardInterface';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { StatusIcon } from '@/components/status';
 import { useJudgeAssignments } from '@/hooks/queries/useJudgeAssignments';
 import { splitJudgeAssignments } from '@/pages/judgeStatsUtils';
 import {
   Users,
   Clock,
-  CheckCircle2,
   AlertTriangle,
   ArrowRight,
   MapPin,
   Calendar,
-  Eye,
 } from 'lucide-react';
 import { formatRingLabel } from '@/utils/ringLabel';
 
@@ -73,7 +72,7 @@ const JudgeCheckInDashboard: React.FC = () => {
   };
 
   const getStatusColor = (checked: number, total: number, conflicts: number) => {
-    if (conflicts > 0) return 'border-red-200 bg-destructive/10 ';
+    if (conflicts > 0) return 'border-destructive/20 bg-destructive/10 ';
     if (total === 0) return 'border-gray-200 bg-gray-50 dark:bg-gray-950/20';
     const percentage = (checked / total) * 100;
     if (percentage >= 80) return 'border-green-200 bg-success/10 ';
@@ -192,9 +191,9 @@ const JudgeCheckInDashboard: React.FC = () => {
           )}
 
           {!isLoadingRingAssignments && ringAssignmentsError && (
-            <Card className="border-red-200 bg-red-50/50">
+            <Card className="border-destructive/20 bg-destructive/10">
               <CardContent className="p-8 text-center">
-                <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
                 <h2 className="text-lg font-semibold mb-2">Couldn't load ring assignments</h2>
                 <p className="text-muted-foreground">{ringAssignmentsError}</p>
               </CardContent>
@@ -221,7 +220,7 @@ const JudgeCheckInDashboard: React.FC = () => {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Checked In</CardTitle>
-                    <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                    <StatusIcon family="entry" status="checked-in" size="sm" decorative />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{overallStats.checkedIn}</div>
@@ -233,10 +232,14 @@ const JudgeCheckInDashboard: React.FC = () => {
                   </CardContent>
                 </Card>
 
-                <Card className={overallStats.conflicts > 0 ? 'border-red-200 bg-red-50/50' : ''}>
+                <Card
+                  className={
+                    overallStats.conflicts > 0 ? 'border-destructive/20 bg-destructive/10' : ''
+                  }
+                >
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Conflicts</CardTitle>
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                    <StatusIcon family="entry" status="conflict" size="sm" decorative />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{overallStats.conflicts}</div>
@@ -247,7 +250,7 @@ const JudgeCheckInDashboard: React.FC = () => {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">At Gate</CardTitle>
-                    <Eye className="h-4 w-4 text-muted-foreground" />
+                    <StatusIcon family="entry" status="at-gate" size="sm" decorative />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{overallStats.atGate}</div>
@@ -342,7 +345,7 @@ const JudgeCheckInDashboard: React.FC = () => {
                                 <div>
                                   <div
                                     className={`text-lg font-bold ${
-                                      ring.conflictCount > 0 ? 'text-red-600' : 'text-gray-400'
+                                      ring.conflictCount > 0 ? 'text-destructive' : 'text-gray-400'
                                     }`}
                                   >
                                     {ring.conflictCount}

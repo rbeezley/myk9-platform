@@ -8,20 +8,13 @@ import { ClassCard } from './ClassCard';
 import { Button } from '@/components/ui/button';
 import { Search, Plus } from 'lucide-react';
 import { useRBAC } from '@/hooks/useRBAC';
-import { cn } from '@/lib/utils';
-import {
-  getClassStatusDisplay,
-  getClassStatusBadgeClasses,
-  getClassDisplayStatus,
-  type ClassStatusValue,
-  type ClassDisplayStatus,
-} from '@myk9/core';
+import { getClassDisplayStatus, type ClassStatusValue, type ClassDisplayStatus } from '@myk9/core';
 import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
-import { FilterEmptyState } from '@/components/common/FilterEmptyState';
 import { formatEntryDate } from '@/lib/format/dates';
 import { compareLevels } from '@/utils/schedule-summary';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
+import { StatusBadge } from '@/components/status';
 
 export interface ClassInfo {
   id: string;
@@ -233,16 +226,13 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
         accessorKey: 'status',
         header: 'Status',
         cell: ({ row }) => {
-          const statusDisplay = getClassStatusDisplay(row.original.status);
           return (
-            <span
-              className={cn(
-                'px-2 py-0.5 rounded text-xs font-medium',
-                getClassStatusBadgeClasses(row.original.status)
-              )}
-            >
-              {statusDisplay.label}
-            </span>
+            <StatusBadge
+              family="class"
+              status={row.original.status}
+              className="px-2 py-0.5 rounded text-xs font-medium"
+              variant="outline"
+            />
           );
         },
       },
@@ -261,6 +251,16 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
         icon={Search}
         title="No classes scheduled"
         description="Classes for this show haven't been set up yet."
+        action={
+          canManage
+            ? {
+                label: 'New Class',
+                onClick: () =>
+                  navigate(`/secretary/create-show/wizard?showId=${showId}&mode=add-classes`),
+                icon: Plus,
+              }
+            : null
+        }
       />
     );
   }
@@ -308,10 +308,18 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
       </div>
 
       {filteredClasses.length === 0 && classes.length > 0 ? (
-        <FilterEmptyState
-          noun="classes"
-          statusFilter={statusFilter}
-          onReset={() => setStatusFilter('all')}
+        <EmptyState
+          icon={Search}
+          variant="filter"
+          size="sm"
+          title={
+            statusFilter === 'pending'
+              ? 'All classes completed!'
+              : statusFilter === 'completed'
+                ? 'No classes completed yet.'
+                : 'No classes match the current filter.'
+          }
+          action={{ label: 'Show all classes', onClick: () => setStatusFilter('all') }}
         />
       ) : viewMode === 'table' ? (
         <DataTable

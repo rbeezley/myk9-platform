@@ -31,9 +31,8 @@ export interface BrowseClubsData {
 
 export function useBrowseClubsData(): BrowseClubsData {
   const clubs = useClubStore(state => state.clubs);
-  const isLoading = useClubStore(state => state.isLoading);
-  const error = useClubStore(state => state.error);
-  const loadClubs = useClubStore(state => state.loadClubs);
+  const readiness = useClubStore(state => state.clubReadiness);
+  const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
   const shows = useShowStore(state => state.shows);
   const { userWithRoles } = useAuthContext();
   const visibleClubs = useMemo(
@@ -41,17 +40,19 @@ export function useBrowseClubsData(): BrowseClubsData {
     [clubs, userWithRoles?.roles]
   );
 
-  const hasError = !!error;
+  const isLoading = readiness === 'loading' && clubs.length === 0;
+  const hasError = readiness === 'unavailable' && clubs.length === 0;
   const handleRetry = useCallback(() => {
-    loadClubs();
-  }, [loadClubs]);
+    void ensureClubsReady({ force: true });
+  }, [ensureClubsReady]);
 
   const [filters, setFilters] = useState<ClubFilters>(INITIAL_FILTERS);
 
-  // Load clubs on mount if empty
+  // Public browse uses a narrow club-only readiness path. It works for guests
+  // without enabling the full anonymous replication provider.
   useEffect(() => {
-    if (clubs.length === 0 && !isLoading) loadClubs();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- load once on mount
+    void ensureClubsReady();
+  }, [ensureClubsReady]);
 
   // Compute upcoming show counts per club
   const clubShowCounts = useMemo(() => {

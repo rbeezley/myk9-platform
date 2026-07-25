@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
+import { subscribeToShowChanges } from '@/features/show-live-sync/showChangeSignal';
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -22,31 +22,22 @@ export function useTVRealtime(showId: string): TVRealtimeState {
       queryClient.invalidateQueries({ queryKey: queryKeys.tvResults(showId) });
     };
 
-    const channel = supabase.channel(`tv:${showId}`);
+    const unsubscribe = subscribeToShowChanges(showId, invalidate, status => {
+      const connected = status === 'SUBSCRIBED';
+      setIsConnected(connected);
 
-    channel
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'entries', filter: `show_id=eq.${showId}` },
-        invalidate
-      )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'classes' }, invalidate)
-      .subscribe(status => {
-        const connected = status === 'SUBSCRIBED';
-        setIsConnected(connected);
-
-        if (!connected && !pollRef.current) {
-          pollRef.current = setInterval(invalidate, POLL_INTERVAL_MS);
-        }
-        if (connected && pollRef.current) {
-          clearInterval(pollRef.current);
-          pollRef.current = null;
-          invalidate(); // Refresh immediately on reconnect
-        }
-      });
+      if (!connected && !pollRef.current) {
+        pollRef.current = setInterval(invalidate, POLL_INTERVAL_MS);
+      }
+      if (connected && pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+        invalidate(); // Refresh immediately on reconnect
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribe();
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;

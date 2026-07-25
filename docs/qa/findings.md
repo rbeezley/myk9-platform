@@ -77,7 +77,85 @@ Copy this block for each new finding.
 - **Notes:** optional context, linked PR, migration number, or deferral reason
 ```
 
+## Closed Findings
+
+### QA-CLUB-TABS-038
+
+- **Status:** fixed (2026-07-18 — MYK9-62)
+- **Severity:** blocker
+- **Role:** club-admin, admin
+- **Surface:** `/clubs/dededede-0000-0000-0000-000000000001` club profile tabs and statistic cards
+- **Suite category:** manual-debug
+- **Pattern:** silent-no-op
+- **Detected by:** Playwright
+- **Evidence:** Assertion-first Vitest coverage plus the read-only Chromium replay in `apps/myk9show/src/test/e2e/club-surface-integrity.spec.ts`: all four non-default tabs and both stat cards updated the selected trigger, panel, and `?tab=` state; the suite passed 5/5 on desktop and included a 375px pass.
+- **User impact:** Club admins cannot reach the profile's About, Members, or Branding panels from the visible controls.
+- **Intent check:** Harms the club-admin workflow by making routine club management feel unreliable and hidden.
+- **Fix owner:** Club profile `PrimaryTabs` state wiring and stat-card tab-change handler.
+- **Proof required:** Satisfied by the named Vitest files and the MYK9-62 Chromium replay (`5 passed`, `--retries=0`).
+- **Notes:** The shared Tabs primitive remained unchanged; the defect was local profile state wiring/stat-card composition.
+
+### QA-CLUB-ROLE-SCOPE-039
+
+- **Status:** fixed (2026-07-18 — client guard; data cleanup separate)
+- **Severity:** high
+- **Role:** club-admin, admin
+- **Surface:** `/club-admin/members` My Club sidebar links
+- **Suite category:** manual-debug
+- **Pattern:** role-scope-empty
+- **Detected by:** Playwright
+- **Evidence:** The authenticated Chromium replay now proves the seeded account never emits a dead `My Club` link: it shows explicit multiple-club access guidance when validation is ambiguous. The selector tests also prove stale scopes are ignored, duplicate IDs are deduplicated, and no first-club fallback occurs.
+- **User impact:** A club admin cannot reliably open their own club from navigation.
+- **Intent check:** Harms the club-admin expectation that the software already knows which club they manage.
+- **Fix owner:** Auth scope/club assignment projection and shared sidebar club-link builder.
+- **Proof required:** Satisfied for client behavior by `unifiedSidebarConfig.test.ts`, `useValidatedClubContext.test.tsx`, and the MYK9-62 Chromium replay. The underlying seeded account still has stale/ambiguous scopes and needs a separately approved data-cleanup issue; this change made no shared-data mutation.
+
+### QA-CLUB-PUBLIC-040
+
+- **Status:** fixed (2026-07-18 — MYK9-62)
+- **Severity:** high
+- **Role:** public
+- **Surface:** `/clubs` and `/clubs/:id`
+- **Suite category:** manual-debug
+- **Pattern:** public-replication-bootstrap
+- **Detected by:** Playwright
+- **Evidence:** The read-only Chromium replay reached the seeded guest list, valid detail route, and explicit invalid-ID not-found state; the 375px re-walk also passed with no horizontal overflow. Store tests cover empty-success, cache-first, offline, rejection, timeout, requested-ID refresh, deduplication, and sanitized logging.
+- **User impact:** Public visitors cannot browse clubs or view a valid club detail page.
+- **Intent check:** Harms public trust and makes the club directory appear empty or broken.
+- **Fix owner:** Guest-safe club replication bootstrap and club-detail terminal states; confirm the existing public RLS contract without changing it unless evidence proves otherwise.
+- **Proof required:** Satisfied by `club-surface-integrity.spec.ts` (`5 passed`, `--retries=0`) and the named Vitest readiness/page files. The existing `clubs_select USING (true)` policy and table-specific `replicatedClubsTable.sync()` path were retained.
+
+### QA-CLUB-CONTACT-042
+
+- **Status:** fixed (2026-07-18 — MYK9-62)
+- **Severity:** medium
+- **Role:** public, club-admin
+- **Surface:** `/clubs/:id` Club options menu
+- **Suite category:** manual-debug
+- **Pattern:** validation-visible-mismatch
+- **Detected by:** Playwright
+- **Evidence:** `ClubHeader.test.tsx` and `contactDestinations.test.ts` prove blank/unsafe values omit actions while valid partial data remains callable. The read-only Chromium replay opens the seeded options menu and confirms `Email Club` is present while `Call Club` is absent.
+- **User impact:** Users see a contact action that cannot work.
+- **Intent check:** Harms calm, trustworthy club discovery by exposing a dead action.
+- **Fix owner:** Club profile header contact-action guards and empty-contact copy.
+- **Proof required:** Satisfied by the focused component/helper tests and the MYK9-62 Chromium replay (`5 passed`, `--retries=0`).
+
 ## Open Findings
+
+### QA-CLUB-PAYMENTS-041
+
+- **Status:** open
+- **Severity:** high
+- **Role:** club-admin
+- **Surface:** `/club-admin/payments` payment setup checklist
+- **Suite category:** manual-debug
+- **Pattern:** silent-no-op
+- **Detected by:** Playwright
+- **Evidence:** With no connected Stripe account, normal browser pointer clicks on `Connect payment account` and `Not now` left the visible state unchanged; DOM `.click()` changed the state. The button was the element at the pointer coordinate. Replay is documented in `docs/qa/club-pages-audit-2026-07-18.md`.
+- **User impact:** A treasurer may be unable to start or cancel the payment-account setup flow and receives no feedback.
+- **Intent check:** Harms the club treasurer's need for a calm, obvious setup flow before leaving for Stripe.
+- **Fix owner:** `ClubPaymentsCard` interaction path and shared Button/event handling.
+- **Proof required:** Headed/manual replay against a club with no connected Stripe account plus Playwright assertion that pointer activation opens the checklist, closes it with `Not now`, and does not start Stripe without an explicit `Continue to Stripe` click. The current seeded account is context-ambiguous, so the browser suite could only prove the page fails closed; unit coverage is green.
 
 ### QA-INFRA-OCC-STORM-037
 

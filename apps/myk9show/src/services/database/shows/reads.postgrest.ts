@@ -258,7 +258,8 @@ export async function postgrestGetSecretaryShows() {
       id,
       name,
       start_date,
-      end_date
+      end_date,
+      entry_close_date
     `
     )
     .is('deleted_at', null)

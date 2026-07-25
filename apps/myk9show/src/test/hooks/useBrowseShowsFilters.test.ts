@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
+import { useBrowseShowsFilters, disciplineMatchesEvent } from '@/hooks/useBrowseShowsFilters';
 import type { Show } from '@/types/show-types';
 
 // ISO date-only string built from local calendar components — mirrors how DB values arrive
@@ -52,8 +52,38 @@ function isoDate(d: Date): string {
 const ANCHOR = makeShow({ id: 'anchor', startDate: '2099-01-01', endDate: '2099-01-02' });
 
 describe('useBrowseShowsFilters — upcoming filter (UTC/local boundary regression)', () => {
+  it('skips a show with no usable dates instead of throwing', async () => {
+    const malformedShow = {
+      ...makeShow({ id: 'malformed' }),
+      startDate: undefined,
+      endDate: undefined,
+    } as unknown as Show;
+    const impossibleDateShow = makeShow({
+      id: 'impossible-date',
+      startDate: '2099-02-31',
+      endDate: '2099-02-31',
+    });
+
+    const { result } = renderHook(() =>
+      useBrowseShowsFilters({
+        shows: [ANCHOR, malformedShow, impossibleDateShow],
+        entries: [],
+        userContext: null,
+        selectedTab: 'all',
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.filteredShows.map(show => show.id)).toEqual(['anchor']);
+    });
+  });
+
   it('includes a show whose startDate is today', async () => {
-    const todayShow = makeShow({ id: 'today', startDate: localISODate(0), endDate: localISODate(0) });
+    const todayShow = makeShow({
+      id: 'today',
+      startDate: localISODate(0),
+      endDate: localISODate(0),
+    });
 
     const { result } = renderHook(() =>
       useBrowseShowsFilters({
@@ -71,7 +101,11 @@ describe('useBrowseShowsFilters — upcoming filter (UTC/local boundary regressi
   });
 
   it('excludes a show whose startDate is yesterday', async () => {
-    const pastShow = makeShow({ id: 'yesterday', startDate: localISODate(-1), endDate: localISODate(-1) });
+    const pastShow = makeShow({
+      id: 'yesterday',
+      startDate: localISODate(-1),
+      endDate: localISODate(-1),
+    });
 
     const { result } = renderHook(() =>
       useBrowseShowsFilters({
@@ -116,11 +150,25 @@ describe('useBrowseShowsFilters — date range filter', () => {
     const now = new Date();
     const midNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 15);
     const midMonthAfter = new Date(now.getFullYear(), now.getMonth() + 2, 15);
+    const nextMonthPrefix = `${midNextMonth.getFullYear()}-${String(midNextMonth.getMonth() + 1).padStart(2, '0')}`;
+    const impossibleNextMonthShow = makeShow({
+      id: 'impossible-next-month',
+      startDate: `${nextMonthPrefix}-32`,
+    });
 
     const shows = [
       makeShow({ id: 'this-month', startDate: isoDate(now), endDate: isoDate(now) }),
-      makeShow({ id: 'next-month', startDate: isoDate(midNextMonth), endDate: isoDate(midNextMonth) }),
-      makeShow({ id: 'month-after', startDate: isoDate(midMonthAfter), endDate: isoDate(midMonthAfter) }),
+      makeShow({
+        id: 'next-month',
+        startDate: isoDate(midNextMonth),
+        endDate: isoDate(midNextMonth),
+      }),
+      makeShow({
+        id: 'month-after',
+        startDate: isoDate(midMonthAfter),
+        endDate: isoDate(midMonthAfter),
+      }),
+      impossibleNextMonthShow,
     ];
 
     const { result } = renderHook(() =>
@@ -165,6 +213,19 @@ describe('useBrowseShowsFilters — date range filter', () => {
       expect(ids).toContain('first-of-next');
       expect(ids).not.toContain('first-of-after');
     });
+  });
+});
+
+describe('disciplineMatchesEvent — trial-type variant normalization', () => {
+  it.each(['Scent Work', 'Scentwork', 'scent_work', 'AKC Scent Work'])(
+    'matches "Scent Work" discipline against event %s',
+    event => {
+      expect(disciplineMatchesEvent('Scent Work', event)).toBe(true);
+    }
+  );
+
+  it('does not match an unrelated discipline', () => {
+    expect(disciplineMatchesEvent('Scent Work', 'Agility')).toBe(false);
   });
 });
 

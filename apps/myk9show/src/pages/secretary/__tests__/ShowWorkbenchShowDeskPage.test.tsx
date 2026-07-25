@@ -1,9 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShowWorkbenchShowDeskPage } from '@/pages/secretary/ShowWorkbenchShowDeskPage';
 import type { ReactNode } from 'react';
+import { queryKeys } from '@/lib/queryClient';
 
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
 const trialStoreState = vi.hoisted<{
@@ -75,20 +76,21 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
     entries,
     classes,
     tools,
-    closeoutContent,
   }: {
     entries: unknown[];
-    classes: Array<{ entryCount: number }>;
+    classes: Array<{ entryCount: number; scoredCount: number }>;
     tools: Array<{ id: string; content: ReactNode }>;
-    closeoutContent: ReactNode;
   }) => (
     <div data-testid="show-desk-panel">
       <div data-testid="panel-entry-count">{entries.length}</div>
       <div data-testid="panel-class-entry-counts">
         {classes.map(cls => cls.entryCount).join(',')}
       </div>
+      <div data-testid="panel-class-scored-counts">
+        {classes.map(cls => cls.scoredCount).join(',')}
+      </div>
       {tools.find(tool => tool.id === 'people-at-show')?.content}
-      {closeoutContent}
+      {tools.find(tool => tool.id === 'show-closeout')?.content}
     </div>
   ),
 }));
@@ -116,12 +118,15 @@ vi.mock('@/features/show-workbench/ShowCloseoutSummary', () => ({
   ),
 }));
 
-function renderPage() {
+function renderPage(initialEntries?: unknown[]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  if (initialEntries) {
+    queryClient.setQueryData(queryKeys.showEntries('show-1'), initialEntries);
+  }
 
-  return render(
+  const result = render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={['/shows/show-1/show-desk']}>
         <Routes>
@@ -130,6 +135,8 @@ function renderPage() {
       </MemoryRouter>
     </QueryClientProvider>
   );
+
+  return { ...result, queryClient };
 }
 
 describe('ShowWorkbenchShowDeskPage', () => {
@@ -169,20 +176,63 @@ describe('ShowWorkbenchShowDeskPage', () => {
       ],
     };
     getEntriesForShowMock.mockResolvedValue({
-      data: [
-        { id: 'entry-1', show_id: 'show-1', class_id: 'class-1' },
-        { id: 'entry-2', show_id: 'show-1', class_id: 'class-1' },
-      ],
+      data: Array.from({ length: 8 }, (_, index) => ({
+        id: `entry-${index + 1}`,
+        show_id: 'show-1',
+        class_id: 'class-1',
+        is_scored: index < 3,
+      })),
       error: null,
     });
 
     renderPage();
 
     expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
-    expect(screen.getByTestId('panel-entry-count')).toHaveTextContent('2');
-    expect(screen.getByTestId('panel-class-entry-counts')).toHaveTextContent('2');
-    expect(screen.getByTestId('people-roster-entry-count')).toHaveTextContent('2');
-    expect(screen.getByTestId('people-roster-class-entry-counts')).toHaveTextContent('2');
-    expect(screen.getByTestId('closeout-entry-count')).toHaveTextContent('2');
+    expect(screen.getByTestId('panel-entry-count')).toHaveTextContent('8');
+    expect(screen.getByTestId('panel-class-entry-counts')).toHaveTextContent('8');
+    expect(screen.getByTestId('panel-class-scored-counts')).toHaveTextContent('3');
+    expect(screen.getByTestId('people-roster-entry-count')).toHaveTextContent('8');
+    expect(screen.getByTestId('people-roster-class-entry-counts')).toHaveTextContent('8');
+    expect(screen.getByTestId('closeout-entry-count')).toHaveTextContent('8');
+  });
+
+  it('keeps cached Show Desk counts visible when a background refresh fails', async () => {
+    trialStoreState.trials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    trialStoreState.trialClasses = {
+      'trial-1': [
+        {
+          id: 'class-1',
+          element: 'Container',
+          level: 'Novice',
+          status: 'Scheduled',
+        },
+      ],
+    };
+    const cachedEntries = Array.from({ length: 8 }, (_, index) => ({
+      id: `entry-${index + 1}`,
+      show_id: 'show-1',
+      class_id: 'class-1',
+      is_scored: index < 3,
+    }));
+    getEntriesForShowMock.mockResolvedValue({ data: null, error: new Error('Refresh failed') });
+
+    const { queryClient } = renderPage(cachedEntries);
+
+    expect(await screen.findByTestId('panel-class-entry-counts')).toHaveTextContent('8');
+    void queryClient.invalidateQueries({ queryKey: queryKeys.showEntries('show-1') });
+
+    await waitFor(() => expect(getEntriesForShowMock).toHaveBeenCalled());
+    expect(screen.getByTestId('show-desk-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('panel-class-entry-counts')).toHaveTextContent('8');
+    expect(screen.getByTestId('panel-class-scored-counts')).toHaveTextContent('3');
+    expect(screen.queryByText("Couldn't load show entries.")).not.toBeInTheDocument();
   });
 });

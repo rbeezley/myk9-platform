@@ -1,8 +1,9 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ShowCardVertical, ShowCardVerticalSkeleton } from './ShowCardVertical';
 import type { Show } from '@/types/show-types';
+import { EmptyState } from '@/components/common/EmptyState';
 
 export type UpcomingShowsVariant = 'carousel' | 'grid';
 
@@ -35,31 +36,6 @@ const LoadingSkeleton = ({ variant }: LoadingSkeletonProps) => (
           <ShowCardVerticalSkeleton key={i} />
         ))}
       </div>
-    )}
-  </div>
-);
-
-// Extracted EmptyState component
-interface EmptyStateProps {
-  onAddShow?: (() => void) | undefined;
-}
-
-const EmptyState = ({ onAddShow }: EmptyStateProps) => (
-  <div className="text-center py-12">
-    <div className="w-16 h-16 bg-muted rounded-full mx-auto mb-4 flex items-center justify-center">
-      <span className="text-2xl text-muted-foreground">📅</span>
-    </div>
-    <h3 className="text-lg font-medium text-foreground mb-2">No shows scheduled</h3>
-    <p className="text-muted-foreground mb-4">
-      There are no upcoming shows to display at the moment.
-    </p>
-    {onAddShow && (
-      <button
-        onClick={onAddShow}
-        className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
-      >
-        Create Your First Show
-      </button>
     )}
   </div>
 );
@@ -147,7 +123,15 @@ export const UpcomingShows: React.FC<UpcomingShowsProps> = ({
   }
 
   if (isEmpty || shows.length === 0) {
-    return <EmptyState onAddShow={onAddShow} />;
+    return (
+      <EmptyState
+        icon={Calendar}
+        title="No shows scheduled"
+        description="There are no upcoming shows to display at the moment."
+        action={onAddShow ? { label: 'Create Your First Show', onClick: onAddShow } : null}
+        size="sm"
+      />
+    );
   }
 
   // Grid layout

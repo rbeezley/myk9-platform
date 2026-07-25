@@ -33,6 +33,15 @@ export type { SuccessToastProps } from './SuccessToast';
 // is a required slot prop (passed through to SortableEntryCard).
 export { EntryListContent } from './EntryListContent';
 export type { EntryListContentProps } from './EntryListContent';
+export {
+  ClassCompletionPresentation,
+  ClassPodium,
+  markClassCompletionPending,
+} from './ClassCompletionPresentation';
+export type {
+  ClassCompletionPresentationProps,
+  ClassPodiumProps,
+} from './ClassCompletionPresentation';
 
 // PR E2d-2b — EntryListHeader. Six UI primitives are required slot
 // props (HamburgerMenu, CompactOfflineIndicator, SyncIndicator,

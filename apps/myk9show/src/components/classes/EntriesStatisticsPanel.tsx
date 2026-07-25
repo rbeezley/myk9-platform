@@ -6,14 +6,13 @@
 import React from 'react';
 import {
   Users,
-  CheckCircle,
-  Clock,
   AlertCircle,
   Edit3,
   Trophy,
   type LucideIcon,
 } from 'lucide-react';
 import { StatCard, StatsGrid, type StatColor } from '@myk9/ui';
+import { StatusIcon } from '@/components/status';
 import { cn } from '@/lib/utils';
 import { EntryData } from './types/classTypes';
 
@@ -44,7 +43,7 @@ interface StatisticCard {
   title: string;
   value: number;
   total?: number;
-  icon: LucideIcon;
+  icon: LucideIcon | React.ReactElement;
   color: StatColor;
   description: string;
   percentage?: number;
@@ -107,7 +106,7 @@ export const EntriesStatisticsPanel: React.FC<EntriesStatisticsPanelProps> = ({
         title: 'With Results',
         value: statistics.entriesWithResults,
         total: statistics.totalEntries,
-        icon: CheckCircle,
+        icon: <StatusIcon family="entry" status="completed" size="md" decorative />,
         color: 'emerald',
         description: 'Entries that have results entered',
         percentage: statistics.completionRate,
@@ -127,7 +126,7 @@ export const EntriesStatisticsPanel: React.FC<EntriesStatisticsPanelProps> = ({
         title: 'Pending',
         value: statistics.pendingEntries,
         total: statistics.totalEntries,
-        icon: Clock,
+        icon: <StatusIcon family="entry" status="pending" size="md" decorative />,
         color: 'amber',
         description: 'Entries waiting for results',
         percentage:
@@ -211,13 +210,13 @@ export const EntriesStatisticsPanel: React.FC<EntriesStatisticsPanelProps> = ({
           className={cn(
             'p-4 rounded-lg border-l-4',
             statistics.invalidChanges > 0
-              ? 'bg-destructive/10 border-l-red-500 '
+              ? 'bg-destructive/10 border-l-destructive '
               : 'bg-info/10 border-l-blue-500 '
           )}
         >
           <div className="flex items-center space-x-2">
             {statistics.invalidChanges > 0 ? (
-              <AlertCircle className="h-5 w-5 text-red-600" />
+              <AlertCircle className="h-5 w-5 text-destructive" />
             ) : (
               <Edit3 className="h-5 w-5 text-blue-600" />
             )}
@@ -227,7 +226,7 @@ export const EntriesStatisticsPanel: React.FC<EntriesStatisticsPanelProps> = ({
                 ready to save
               </span>
               {statistics.invalidChanges > 0 && (
-                <span className="text-red-600 ml-2">
+                <span className="text-destructive ml-2">
                   &bull; {statistics.invalidChanges} error
                   {statistics.invalidChanges !== 1 ? 's' : ''} need attention
                 </span>

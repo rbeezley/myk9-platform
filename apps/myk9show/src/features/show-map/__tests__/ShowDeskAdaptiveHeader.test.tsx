@@ -5,6 +5,19 @@ import { ShowDeskAdaptiveHeader } from '../ShowDeskAdaptiveHeader';
 import type { ShowMapAction } from '../showMapActions';
 import type { ShowMapActionGroup } from '../showMapActionGroups';
 import type { ShowDeskShowStatus } from '../showDeskStatus';
+import type { ShowDeskPendingSignal } from '../showDeskPendingSignals';
+
+function makeSignal(overrides: Partial<ShowDeskPendingSignal>): ShowDeskPendingSignal {
+  return {
+    id: 'entries-waiting-review',
+    count: 1,
+    priority: 'highest',
+    label: '1 pending entry',
+    href: null,
+    scope: { kind: 'show', showId: 'show-1' },
+    ...overrides,
+  };
+}
 
 function makeAction(overrides: Partial<ShowMapAction> = {}): ShowMapAction {
   return {
@@ -49,6 +62,7 @@ const baseProps = {
   pendingSignals: [],
   onStartAction: vi.fn(),
   onDismissGuidance: vi.fn(),
+  onOpenRunning: vi.fn(),
   onSelectRunning: vi.fn(),
 };
 
@@ -224,24 +238,19 @@ describe('ShowDeskAdaptiveHeader', () => {
 
   it('renders a chip per pending signal with its label', () => {
     const signals = [
-      {
-        id: 'entries-waiting-review' as const,
-        count: 5,
-        priority: 'highest' as const,
-        label: '5 pending entries',
-      },
-      {
-        id: 'entries-waiting-checkin' as const,
+      makeSignal({ id: 'entries-waiting-review', count: 5, label: '5 pending entries' }),
+      makeSignal({
+        id: 'entries-waiting-checkin',
         count: 2,
-        priority: 'high' as const,
+        priority: 'high',
         label: '2 entries waiting for check-in',
-      },
-      {
-        id: 'classes-needing-signature' as const,
+      }),
+      makeSignal({
+        id: 'classes-needing-signature',
         count: 1,
-        priority: 'high' as const,
+        priority: 'high',
         label: '1 class needs judge signature',
-      },
+      }),
     ];
     const { getByText, getByTestId } = render(
       <ShowDeskAdaptiveHeader {...baseProps} pendingSignals={signals} />
@@ -257,14 +266,7 @@ describe('ShowDeskAdaptiveHeader', () => {
     // Regression: chips started life as px-3 py-1 text-xs which is well under the
     // 44x44px minimum from docs/INTENT.md. They are filter shortcuts and need to be
     // tappable on tablet before B2 mounts them.
-    const signals = [
-      {
-        id: 'entries-waiting-review' as const,
-        count: 1,
-        priority: 'highest' as const,
-        label: '1 pending entry',
-      },
-    ];
+    const signals = [makeSignal({ href: '/shows/show-1/entry-management' })];
     const onSelectPendingSignal = vi.fn();
     const { container } = render(
       <ShowDeskAdaptiveHeader
@@ -281,12 +283,11 @@ describe('ShowDeskAdaptiveHeader', () => {
   it('invokes onSelectPendingSignal when a chip is clicked', async () => {
     const onSelectPendingSignal = vi.fn();
     const signals = [
-      {
-        id: 'entries-waiting-review' as const,
+      makeSignal({
         count: 5,
-        priority: 'highest' as const,
         label: '5 pending entries',
-      },
+        href: '/shows/show-1/entry-management',
+      }),
     ];
     const { user, getByText } = render(
       <ShowDeskAdaptiveHeader
@@ -299,37 +300,54 @@ describe('ShowDeskAdaptiveHeader', () => {
     expect(onSelectPendingSignal).toHaveBeenCalledWith('entries-waiting-review');
   });
 
-  it('renders Manage entries link when reviewQueueCount > 0 and onOpenEntryManagement is provided', () => {
-    const onOpenEntryManagement = vi.fn();
-    const { getByTestId } = render(
+  it('marks navigating chips with an arrow and filter chips with a filter glyph (MYK9-64 F3)', () => {
+    const signals = [
+      makeSignal({
+        id: 'entries-waiting-review',
+        count: 5,
+        label: 'Review 5 entries',
+        href: '/shows/show-1/entry-management',
+      }),
+      makeSignal({
+        id: 'entries-waiting-checkin',
+        count: 2,
+        priority: 'high',
+        label: 'Check in 2 entries',
+        href: '/shows/show-1/entry-management?mode=day-of',
+      }),
+    ];
+    const { container } = render(
       <ShowDeskAdaptiveHeader
         {...baseProps}
-        onOpenEntryManagement={onOpenEntryManagement}
-        reviewQueueCount={42}
+        pendingSignals={signals}
+        onSelectPendingSignal={vi.fn()}
       />
     );
-    const button = getByTestId('open-entry-management');
-    expect(button.textContent).toContain('Manage entries (42)');
+    const review = container.querySelector('[data-signal-id="entries-waiting-review"]');
+    const checkin = container.querySelector('[data-signal-id="entries-waiting-checkin"]');
+    expect(review?.getAttribute('data-signal-interaction')).toBe('navigate');
+    expect(checkin?.getAttribute('data-signal-interaction')).toBe('navigate');
   });
 
-  it('does not render Manage entries link when reviewQueueCount is 0', () => {
-    const { queryByTestId } = render(
-      <ShowDeskAdaptiveHeader {...baseProps} onOpenEntryManagement={vi.fn()} reviewQueueCount={0} />
-    );
-    expect(queryByTestId('open-entry-management')).toBeNull();
-  });
-
-  it('invokes onOpenEntryManagement when the Manage entries link is clicked', async () => {
-    const onOpenEntryManagement = vi.fn();
-    const { user, getByTestId } = render(
+  it('renders a navigating signal without a verified href as non-actionable information', () => {
+    const { container } = render(
       <ShowDeskAdaptiveHeader
         {...baseProps}
-        onOpenEntryManagement={onOpenEntryManagement}
-        reviewQueueCount={5}
+        pendingSignals={[
+          makeSignal({
+            id: 'results-pending-closeout',
+            label: 'Close out 1 result',
+            href: null,
+          }),
+        ]}
+        onSelectPendingSignal={vi.fn()}
       />
     );
-    await user.click(getByTestId('open-entry-management'));
-    expect(onOpenEntryManagement).toHaveBeenCalledTimes(1);
+
+    expect(container.querySelector('button[data-signal-id="results-pending-closeout"]')).toBeNull();
+    expect(
+      container.querySelector('span[data-signal-id="results-pending-closeout"]')
+    ).not.toBeNull();
   });
 
   it('renders "Approve all N" button on expanded multi-item review-entry groups', async () => {
@@ -401,13 +419,15 @@ describe('ShowDeskAdaptiveHeader', () => {
     expect(queryByTestId('up-next-group-bulk-approve')).toBeNull();
   });
 
-  it('renders running now items and invokes onSelectRunning', async () => {
+  it('opens the class page directly when a running-now card is clicked (MYK9-64 F4)', async () => {
+    const onOpenRunning = vi.fn();
     const onSelectRunning = vi.fn();
     const runningNow = [
       {
         nodeId: 'class:class-1',
         label: 'Container Novice',
         ringLabel: 'Ring 1',
+        href: '/shows/show-1/trials/trial-1/classes/class-1',
         progressLabel: '12/20 scored',
         percentScored: 60,
       },
@@ -416,10 +436,57 @@ describe('ShowDeskAdaptiveHeader', () => {
       <ShowDeskAdaptiveHeader
         {...baseProps}
         runningNow={runningNow}
+        onOpenRunning={onOpenRunning}
         onSelectRunning={onSelectRunning}
       />
     );
     await user.click(getByText('Container Novice'));
+    expect(onOpenRunning).toHaveBeenCalledWith('/shows/show-1/trials/trial-1/classes/class-1');
+    expect(onSelectRunning).not.toHaveBeenCalled();
+  });
+
+  it('keeps Locate in Show Map as the secondary running-now action', async () => {
+    const onOpenRunning = vi.fn();
+    const onSelectRunning = vi.fn();
+    const runningNow = [
+      {
+        nodeId: 'class:class-1',
+        label: 'Container Novice',
+        ringLabel: 'Ring 1',
+        href: '/shows/show-1/trials/trial-1/classes/class-1',
+      },
+    ];
+    const { user, getByTestId } = render(
+      <ShowDeskAdaptiveHeader
+        {...baseProps}
+        runningNow={runningNow}
+        onOpenRunning={onOpenRunning}
+        onSelectRunning={onSelectRunning}
+      />
+    );
+    await user.click(getByTestId('locate-in-show-map-class:class-1'));
     expect(onSelectRunning).toHaveBeenCalledWith('class:class-1');
+    expect(onOpenRunning).not.toHaveBeenCalled();
+  });
+
+  it('falls back to locating in the tree when a running-now item has no href', async () => {
+    const onOpenRunning = vi.fn();
+    const onSelectRunning = vi.fn();
+    const runningNow = [
+      { nodeId: 'class:class-1', label: 'Container Novice', ringLabel: 'Ring 1' },
+    ];
+    const { user, getByText, queryByTestId } = render(
+      <ShowDeskAdaptiveHeader
+        {...baseProps}
+        runningNow={runningNow}
+        onOpenRunning={onOpenRunning}
+        onSelectRunning={onSelectRunning}
+      />
+    );
+    // No href → no separate locate button; the card itself locates.
+    expect(queryByTestId('locate-in-show-map-class:class-1')).toBeNull();
+    await user.click(getByText('Container Novice'));
+    expect(onSelectRunning).toHaveBeenCalledWith('class:class-1');
+    expect(onOpenRunning).not.toHaveBeenCalled();
   });
 });

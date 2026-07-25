@@ -381,21 +381,6 @@
   white-space: nowrap;
 }
 
-.myk9-trial-status-upcoming {
-  background: rgba(52, 199, 89, 0.1);
-  color: var(--myk9-green);
-}
-
-.myk9-trial-status-in-progress {
-  background: rgba(255, 149, 0, 0.1);
-  color: var(--myk9-orange);
-}
-
-.myk9-trial-status-completed {
-  background: rgba(88, 86, 214, 0.1);
-  color: var(--myk9-purple);
-}
-
 /* Optimized Action Buttons */
 .myk9-action-button {
   background: var(--background);

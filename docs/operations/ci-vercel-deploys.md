@@ -1,5 +1,18 @@
 # CI-gated staging and explicit production releases
 
+## Current pre-launch mode
+
+Until real users are onboarded, myK9Show uses the Hobby-compatible fast path:
+successful merges to `main` automatically update `myk9show.com`. Pull requests
+still receive preview deployments for review. Keep `STAGING_RELEASE_ENABLED`
+set to `false` while the Vercel staging environment is not configured.
+
+This is a temporary development/demo mode. The CI-gated process below remains
+the launch target for real users and should be re-enabled only after the
+required Vercel staging environment and production approval gates are ready.
+
+## Launch-ready release process
+
 The repository has two separate release paths:
 
 1. A successful `main` push run of `CI` triggers

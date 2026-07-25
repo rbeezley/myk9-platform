@@ -3,23 +3,7 @@ import { formatFee } from '@/utils/format';
 import type { ClassData } from './types/classTypes';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { formatClassTitle, shouldShowSection } from './ClassDetailsMain.helpers';
-
-// --- Status badge variant mapping (mirrors DetailHero) ---
-
-type BadgeVariant = 'success' | 'warning' | 'destructive' | 'default';
-
-const STATUS_VARIANT_MAP: Record<string, BadgeVariant> = {
-  'In Progress': 'warning',
-  Completed: 'success',
-  Cancelled: 'destructive',
-};
-
-const badgeStyles: Record<BadgeVariant, string> = {
-  success: 'bg-green-500/10 text-green-600 border-green-500/20',
-  warning: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-  destructive: 'bg-destructive/10 text-destructive border-destructive/20',
-  default: 'bg-muted text-muted-foreground border-border',
-};
+import { StatusBadge } from '@/components/status';
 
 // --- Metadata item sub-component ---
 
@@ -63,8 +47,6 @@ export function ClassCompactHeader({
   actions,
   className,
 }: ClassCompactHeaderProps) {
-  const variant: BadgeVariant = STATUS_VARIANT_MAP[classData.status] || 'default';
-
   // Build class display name from element + level (hides level for Detective)
   const className_ = formatClassTitle(classData) || 'Class';
 
@@ -103,14 +85,11 @@ export function ClassCompactHeader({
         <div className="space-y-1.5">
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-xl font-bold">{className_}</h2>
-            <span
-              className={cn(
-                'inline-flex items-center rounded-full border px-2.5 py-0.5 text-sm font-medium',
-                badgeStyles[variant]
-              )}
-            >
-              {classData.status}
-            </span>
+            <StatusBadge
+              family="class"
+              status={classData.status}
+              className="rounded-full px-2.5 py-0.5 text-sm font-medium"
+            />
           </div>
           {shouldShowSection(classData) && (
             <div className="text-sm text-muted-foreground">Section {classData.section}</div>

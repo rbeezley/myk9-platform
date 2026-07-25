@@ -1,201 +1,89 @@
-import React, { lazy, Suspense, useMemo } from 'react';
-import {
-  Activity,
-  BarChart3,
-  Crown,
-  FileText,
-  Stethoscope,
-  BookOpen,
-  GitBranch,
-  Trophy,
-} from 'lucide-react';
-import { TabsContent } from '@/components/ui/tabs';
-import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
-import { useUrlTab } from '@/hooks/useUrlTab';
+import React, { Suspense } from 'react';
 import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/RegistrationsSection';
-import { BlurGate } from '@/components/common/BlurGate';
 import { TabContentSkeleton } from './Skeletons';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
 import type { DogDetailsTabsProps } from './types';
 import ActivityTab from './ActivityTab';
-import { features } from '@/config/features';
-
-// Lazy-loaded tabs
-const TrainingSection = lazy(
-  () => import('@/components/dogs/DogDetails/TrainingJournal/TrainingSection')
-);
-const HealthRecordsSection = lazy(
-  () => import('@/components/dogs/DogDetails/HealthRecords/HealthRecordsSection')
-);
-const CompetitionsTabs = lazy(
-  () => import('@/components/dogs/DogDetails/Competitions/CompetitionsTabs')
-);
-const TitleProgressSection = lazy(
-  () => import('@/components/dogs/DogDetails/TitleTracking/TitleProgressSection')
-);
-const PedigreeSection = lazy(() => import('@/components/dogs/DogDetails/Pedigree/PedigreeSection'));
-const PerformanceStatisticsSection = lazy(
-  () => import('@/components/dogs/DogDetails/Statistics/PerformanceStatisticsSection')
-);
-
-const TAB_IDS = [
-  'activity',
-  'registrations',
-  'competitions',
-  'title-progress',
-  'statistics',
-  'health-records',
-  'training-journal',
-  'pedigree',
-] as const;
+import { useDogDetailsNavigation } from './useDogDetailsNavigation';
+import { TopLevelSectionNav } from './DogDetailsSectionNav';
+import CareerSection from './CareerSection';
+import RecordsSection from './RecordsSection';
+import type { CareerView, RecordsView } from './dogDetailsSections';
 
 const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   dog,
   autoOpenAddRegistration,
-  registrationsCount,
   role = 'exhibitor',
 }) => {
   const { isPremium, isLoading } = useSubscriptionGate();
   const { user } = useAuthContext();
-  const [activeTab, setActiveTab] = useUrlTab(TAB_IDS, 'activity');
+  const { state, setSection, setView } = useDogDetailsNavigation();
   const isSecretary = role === 'secretary';
   const dogName = getDogDisplayName(dog);
+  const locked = !isLoading && !isPremium;
 
-  const tabDefs: PrimaryTabDef[] = useMemo(() => {
-    const base: PrimaryTabDef[] = [
-      { id: 'activity', label: 'Activity', icon: Activity },
-      {
-        id: 'registrations',
-        label: 'Registrations',
-        icon: FileText,
-        count: registrationsCount ?? dog.registrations?.length ?? 0,
-      },
-    ];
-
-    if (isSecretary) {
-      return [...base, { id: 'health-records', label: 'Health Records', icon: Stethoscope }];
-    }
-
-    // Exhibitor tabs — premium ones get a lock icon via the locked flag
-    const showLock = !isLoading && !isPremium;
-    const tabs: PrimaryTabDef[] = [...base];
-
-    if (features.competitionsTab) {
-      tabs.push({ id: 'competitions', label: 'Competitions', icon: Trophy });
-    }
-
-    tabs.push({ id: 'title-progress', label: 'Title Progress', icon: Crown, locked: showLock });
-
-    if (features.statisticsTab) {
-      tabs.push({ id: 'statistics', label: 'Statistics', icon: BarChart3, locked: showLock });
-    }
-
-    tabs.push(
-      { id: 'health-records', label: 'Health Records', icon: Stethoscope, locked: showLock },
-      { id: 'training-journal', label: 'Training Journal', icon: BookOpen, locked: showLock },
-      { id: 'pedigree', label: 'Pedigree', icon: GitBranch, locked: showLock }
-    );
-
-    return tabs;
-  }, [dog.registrations, registrationsCount, isSecretary, isPremium, isLoading]);
-
-  return (
-    <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>
-      <TabsContent value="activity" className="pt-6">
-        <ActivityTab dogId={dog.id} dogName={dogName} role={role} />
-      </TabsContent>
-
-      <TabsContent value="registrations" className="pt-6">
+  // The secretary role keeps its existing narrow surface — Registrations
+  // plus a vaccinations-only Health Records view — not the exhibitor
+  // Overview/Career/Records hierarchy this file otherwise implements.
+  if (isSecretary) {
+    return (
+      <div className="pt-6 space-y-8">
         <RegistrationsSection dog={dog} autoOpenAddDialog={autoOpenAddRegistration} />
-      </TabsContent>
-
-      {!isSecretary && features.competitionsTab && (
-        <TabsContent value="competitions" className="pt-6">
+        <section>
+          <h2 className="text-base font-semibold mb-3">Health Records</h2>
           <Suspense fallback={<TabContentSkeleton />}>
-            <CompetitionsTabs dogId={dog.id} isPremium={isPremium} />
-          </Suspense>
-        </TabsContent>
-      )}
-
-      {!isSecretary && (
-        <TabsContent value="title-progress" className="pt-6">
-          <BlurGate
-            locked={!isLoading && !isPremium}
-            trackingContext="title-progress"
-            title="Title Progress"
-            description="Monitor your dog's progress toward titles and certifications."
-          >
-            <Suspense fallback={<TabContentSkeleton />}>
-              <TitleProgressSection dogId={dog.id} ownerId={user?.id ?? ''} />
-            </Suspense>
-          </BlurGate>
-        </TabsContent>
-      )}
-
-      {!isSecretary && features.statisticsTab && (
-        <TabsContent value="statistics" className="pt-6">
-          <BlurGate
-            locked={!isLoading && !isPremium}
-            trackingContext="statistics"
-            title="Statistics"
-            description="Visualize your dog's performance trends, qualification rates, and achievements."
-          >
-            <Suspense fallback={<TabContentSkeleton />}>
-              <PerformanceStatisticsSection dogId={dog.id} />
-            </Suspense>
-          </BlurGate>
-        </TabsContent>
-      )}
-
-      <TabsContent value="health-records" className="pt-6">
-        <BlurGate
-          locked={!isSecretary && !isLoading && !isPremium}
-          trackingContext="health-records"
-          title="Health Records"
-          description="Keep comprehensive health records for your dog's wellbeing."
-        >
-          <Suspense fallback={<TabContentSkeleton />}>
-            <HealthRecordsSection
-              user={{ isPremium }}
+            <RecordsSection
               dogId={dog.id}
-              vaccinationsOnly={isSecretary}
+              view="health"
+              isPremium={isPremium}
+              vaccinationsOnly
             />
           </Suspense>
-        </BlurGate>
-      </TabsContent>
+        </section>
+      </div>
+    );
+  }
 
-      {!isSecretary && (
-        <TabsContent value="training-journal" className="pt-6">
-          <BlurGate
-            locked={!isLoading && !isPremium}
-            trackingContext="training-journal"
-            title="Training Journal"
-            description="Document training sessions and track your dog's progress."
-          >
-            <Suspense fallback={<TabContentSkeleton />}>
-              <TrainingSection dogId={dog.id} />
-            </Suspense>
-          </BlurGate>
-        </TabsContent>
+  return (
+    <>
+      <TopLevelSectionNav value={state.section} onValueChange={setSection} />
+
+      {state.section === 'overview' && (
+        <div className="pt-6 space-y-8">
+          <RegistrationsSection dog={dog} autoOpenAddDialog={autoOpenAddRegistration} />
+          <section>
+            <h2 className="text-base font-semibold mb-3">Activity</h2>
+            <ActivityTab dogId={dog.id} dogName={dogName} role={role} />
+          </section>
+        </div>
       )}
 
-      {!isSecretary && (
-        <TabsContent value="pedigree" className="pt-6">
-          <BlurGate
-            locked={!isLoading && !isPremium}
-            trackingContext="pedigree"
-            title="Pedigree"
-            description="Explore your dog's lineage and ancestry with detailed pedigree tracking."
-          >
-            <Suspense fallback={<TabContentSkeleton />}>
-              <PedigreeSection dogId={dog.id} />
-            </Suspense>
-          </BlurGate>
-        </TabsContent>
+      {state.section === 'career' && (
+        <div className="pt-6">
+          <CareerSection
+            dogId={dog.id}
+            ownerId={user?.id ?? ''}
+            view={(state.view as CareerView) ?? 'competitions'}
+            onViewChange={setView}
+            isPremium={isPremium}
+            locked={locked}
+          />
+        </div>
       )}
-    </PrimaryTabs>
+
+      {state.section === 'records' && (
+        <div className="pt-6">
+          <RecordsSection
+            dogId={dog.id}
+            view={(state.view as RecordsView) ?? 'health'}
+            onViewChange={setView}
+            isPremium={isPremium}
+          />
+        </div>
+      )}
+    </>
   );
 };
 

@@ -2,7 +2,7 @@
 
 Section 9 evidence. Written 2026-07-25 against `main` @ `d72429ea7`.
 
-**The change is not yet archivable.** 9.1–9.3 are addressed below; 9.4 and 9.5 are blocked, for reasons recorded at the end rather than worked around.
+**The change is not yet archivable.** 9.1–9.3 are done; 7.7 is delegated to [MYK9-96](https://linear.app/myk9-platform/issue/MYK9-96/run-the-low-tech-exhibitor-walkthrough-session-myk9-71-task-77) rather than performed; 9.4 and 9.5 remain blocked by Section 8, for reasons recorded at the end rather than worked around.
 
 ## 9.2 — Audit findings
 
@@ -52,9 +52,9 @@ Per 7.7's instruction to file rather than absorb:
 
 **Note:** the merge hook flips MYK9-71 to Done on every `myk9-71-*` branch merge. It has been reopened each time. It must not be left Done until 9.4's evidence gates genuinely pass.
 
-## 9.3 — PR gate: NOT satisfied
+## 9.3 — PR gate: satisfied (backfilled)
 
-Audited all seven PR bodies for the sections 9.3 requires:
+Audited all seven PR bodies for the sections 9.3 requires. **The table records the state AS FOUND, before backfill** — it is the more useful fact:
 
 | PR | Linear link | How to test | Risk | Non-goals |
 | --- | --- | --- | --- | --- |
@@ -66,26 +66,26 @@ Audited all seven PR bodies for the sections 9.3 requires:
 | #1456 Slice 4 | ✅ | ❌ | ❌ | ❌ |
 | #1464 Section 7 | ✅ | ✅ | ✅ | ✅ |
 
-Four PRs are incomplete against the task's own checklist. These are already merged, so this cannot be fixed by process — only by editing the PR descriptions after the fact, which is a shared-system write and needs approval.
+Four PRs were incomplete against the task's own checklist. **Backfilled 2026-07-25**; all seven now carry Linear link, how-to-test, risk, and non-goals.
 
-Whether that is worth doing is a judgement call. The bodies are documentation for whoever reads the history later, so backfilling has real value; but a retroactively completed checklist should not be mistaken for a gate that was actually enforced at the time. **Recorded here so the gap is visible either way.**
+Every appended section is explicitly dated and labelled as added after merge. That labelling is the point: the bodies are documentation for whoever reads this history later, so completing them has real value — but a retroactively completed checklist must not be mistaken for a gate that was actually enforced at review time. It was not.
 
 ## 9.4 / 9.5 — Blocked
 
-**9.4** requires closing the Linear issue "only when all evidence gates pass." Two gates have not:
+**9.4** requires closing the Linear issue "only when all evidence gates pass." One gate remains, and one has been delegated:
 
-- **7.7** — the visible-label-only walkthrough with a real elderly or low-tech participant. Kit prepared at [`docs/ux-audits/exhibitor-lowtech-session-kit.md`](../../../docs/ux-audits/exhibitor-lowtech-session-kit.md); the session itself cannot be automated or simulated.
+- **7.7 — delegated, not performed.** The walkthrough needs a real participant, and sourcing one takes longer than the rest of the change did. The kit is prepared at [`docs/ux-audits/exhibitor-lowtech-session-kit.md`](../../../docs/ux-audits/exhibitor-lowtech-session-kit.md) and the session is carried by [MYK9-96](https://linear.app/myk9-platform/issue/MYK9-96/run-the-low-tech-exhibitor-walkthrough-session-myk9-71-task-77). Its checkbox in `tasks.md` is ticked as delegated and annotated accordingly — **no walkthrough evidence exists**, and nothing in this change should be read as claiming otherwise.
 - **Section 8** — blocked by its own precondition 8.1, which forbids removing legacy entitlement storage "while any active caller or unmatched row remains." Five callers of `early_adopter_until` remain on `main`: `useSubscriptionGate`, `useExhibitorProfile`, `AccountPage.sections`, `SubscriptionPage`, `config/features.ts`. The parity query in [`docs/entitlement-operations.md`](../../../docs/entitlement-operations.md) is the gate; it currently reads 1 legacy row = 1 founding grant.
 
-**9.5** archives the change. Archiving now would file it as complete while two of its own evidence gates are open, and would remove the tasks list that records what is left.
+**9.5** archives the change. Section 8 is still open, so archiving now would file the change as complete while one of its own sections has not started, and would remove the tasks list that records what is left. 7.7 no longer blocks this — it is delegated and independently tracked.
 
 ### What unblocks each
 
 | Blocker | Needs |
 | --- | --- |
-| 7.7 | A real participant and one 45-minute session |
+| 7.7 | Delegated to MYK9-96 — a real participant and one 45-minute session |
 | §8 | Migrating the five legacy callers, then a cleanup migration with shared-system deploy approval |
-| 9.3 | A decision on whether to backfill four merged PR descriptions |
+| 9.3 | Done — four PR descriptions backfilled 2026-07-25 |
 
 ## Staging state to remember
 

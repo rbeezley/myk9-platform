@@ -98,19 +98,25 @@ function isAnonymousFrame(filename: string | undefined): boolean {
 }
 
 /**
- * True when the frame that actually threw has no real source file. Every frame from our
- * own bundle carries an `/assets/...` filename, so a bare `<anonymous>` throw site means
- * the code came from a browser extension or other injected script, not from myK9Show.
+ * True when the stack contains script code that came from no source file at all — the
+ * signature of a browser extension or other injected script running on our page.
+ *
+ * The discriminator is the position, not just the filename. A native builtin renders as
+ * `at JSON.stringify (<anonymous>)` with no line or column, so an anonymous frame WITHOUT
+ * a `lineno` is ordinary JS engine machinery and says nothing about who called it. An
+ * anonymous frame WITH a `lineno` (`at None (<anonymous>:25:21)`) is real script the
+ * browser executed from a source we never served — code we neither own nor can fix.
+ *
+ * Keeping the `lineno` requirement is what stops this from swallowing our own bugs: if
+ * myK9Show code calls `JSON.stringify` on a circular object, the only anonymous frame is
+ * the positionless native one, and the event is still reported.
  */
 export function isInjectedScriptEvent(event: SentryErrorEvent): boolean {
   const values = event.exception?.values ?? [];
+  // Sentry orders chained exceptions oldest-first; the last value is the surfaced error.
+  const frames = values[values.length - 1]?.stacktrace?.frames ?? [];
 
-  return values.some(value => {
-    const frames = value.stacktrace?.frames ?? [];
-    if (frames.length === 0) return false;
-    // Sentry orders frames outermost-first, so the throw site is last.
-    return isAnonymousFrame(frames[frames.length - 1]?.filename);
-  });
+  return frames.some(frame => isAnonymousFrame(frame.filename) && typeof frame.lineno === 'number');
 }
 
 export function scrubSentryEvent(

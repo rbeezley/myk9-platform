@@ -15,7 +15,18 @@ const PedigreeSection = lazy(() => import('@/components/dogs/DogDetails/Pedigree
 interface RecordsSectionProps {
   dogId: string;
   view: RecordsView;
+  /**
+   * DISPLAY tier. Also enables the Premium-only health statistics/alerts
+   * READS, so an untrusted entitlement must not turn this off — the panel
+   * would go blank for an exhibitor who really is Premium.
+   */
   isPremium: boolean;
+  /**
+   * Premium AUTHORIZATION (`canAuthorizePremium`) — the only value that may
+   * expose add/edit controls, so an untrusted read never offers a write the
+   * server rejects. Separate from `isPremium` on purpose.
+   */
+  canWrite: boolean;
   onViewChange?: (view: RecordsView) => void;
   /** Secretary surface: Health only, no Premium gate, vaccinations-only content. */
   vaccinationsOnly?: boolean;
@@ -30,6 +41,7 @@ const RecordsSection: React.FC<RecordsSectionProps> = ({
   dogId,
   view,
   isPremium,
+  canWrite,
   onViewChange,
   vaccinationsOnly = false,
 }) => {
@@ -46,7 +58,9 @@ const RecordsSection: React.FC<RecordsSectionProps> = ({
     { id: 'training', label: 'Training Journal' },
     { id: 'pedigree', label: 'Pedigree' },
   ];
-  const readOnly = !isPremium;
+  // Writes key on authorization; the Premium-only READS above stay on the
+  // display tier so an untrusted refresh doesn't blank real Premium content.
+  const readOnly = !canWrite;
 
   return (
     <div className="space-y-4">

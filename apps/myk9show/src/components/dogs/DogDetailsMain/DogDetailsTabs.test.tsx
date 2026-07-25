@@ -65,6 +65,7 @@ const mockDog = fromPartial<Dog>({
 function setFree() {
   vi.mocked(useSubscriptionGate).mockReturnValue({
     isPremium: false,
+    canAuthorizePremium: false,
     tier: 'free',
     isExpired: false,
     isInTrial: false,
@@ -76,6 +77,20 @@ function setFree() {
 function setPremium() {
   vi.mocked(useSubscriptionGate).mockReturnValue({
     isPremium: true,
+    canAuthorizePremium: true,
+    tier: 'premium',
+    isExpired: false,
+    isInTrial: false,
+    isEarlyAdopter: false,
+    isLoading: false,
+  });
+}
+
+/** Display tier says Premium, but the entitlement read is not trusted. */
+function setUntrustedPremium() {
+  vi.mocked(useSubscriptionGate).mockReturnValue({
+    isPremium: true,
+    canAuthorizePremium: false,
     tier: 'premium',
     isExpired: false,
     isInTrial: false,
@@ -264,6 +279,25 @@ describe('DogDetailsTabs navigation', () => {
       setPremium();
       renderAt('/dogs/dog-1?section=records&view=pedigree');
       expect(await screen.findByText('pedigree section')).toBeInTheDocument();
+      expect(screen.queryByText('Premium Feature')).not.toBeInTheDocument();
+    });
+
+    it('untrusted entitlement: Records stays read-only even though display says Premium', async () => {
+      // The legacy profile fallback can keep `isPremium` true when the trusted
+      // entitlement read is unavailable. Offering add/edit there would surface
+      // controls the server rejects, so writes key on `canAuthorizePremium`.
+      setUntrustedPremium();
+      renderAt('/dogs/dog-1?section=records');
+      expect(screen.getByRole('heading', { name: 'Records are read-only' })).toBeInTheDocument();
+      expect(await screen.findByText('health records section')).toBeInTheDocument();
+    });
+
+    it('untrusted entitlement: the DISPLAY lock on Title Progress stays open', async () => {
+      // Display and authorization are separate axes — an untrusted read must
+      // not slam a blur gate over a view-only Premium panel.
+      setUntrustedPremium();
+      renderAt('/dogs/dog-1?section=career&view=titles');
+      expect(await screen.findByText('title progress section')).toBeInTheDocument();
       expect(screen.queryByText('Premium Feature')).not.toBeInTheDocument();
     });
   });

@@ -66,6 +66,8 @@ interface UseMyEntriesDataOptions {
 type OwnEntryResultRow = Record<string, unknown> & {
   class_results_released_at?: string | null;
   dog_image_url?: string | null;
+  /** Present on BOTH read paths (USER_ENTRIES_SELECT and the replication mapper). */
+  show_id?: string | null;
 };
 
 /**
@@ -186,7 +188,10 @@ export function useMyEntriesData({
       // registration) — groupEntriesByOrder falls back to a show+dog key for
       // these instead of merging them under a synthetic per-row id.
       registrationId: (entry.registration_id as string | null) ?? null,
-      showId: show?.id || '',
+      // The show RELATION can be unresolved during the partial-replication
+      // window while the row's own `show_id` is already present — prefer it, or
+      // every show-scoped action (payment cart, show link) loses its target.
+      showId: show?.id || entry.show_id || '',
       showName: show?.name || 'Unknown Show',
       // Date-only DB columns ("YYYY-MM-DD") must be read as local days, not UTC,
       // or a show ending today is misread as yesterday (see parseShowDate).

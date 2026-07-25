@@ -38,6 +38,18 @@ const PAID_STATUSES: PaymentStatus[] = [
 /** Methods the exhibitor settles in person rather than online. */
 const PAY_AT_SHOW_METHODS = new Set(['cash', 'check']);
 
+/**
+ * Raw `entries.payment_method` values that are NOT settled through the online
+ * cart. Mirrors `getEntryPaymentPrompt`'s vocabulary, including its rule that a
+ * null/unknown method is treated as online (a card entry pending its webhook).
+ */
+const NON_ONLINE_METHODS = new Set([
+  ...PAY_AT_SHOW_METHODS,
+  'waived',
+  'secretary_paid',
+  'group_payment',
+]);
+
 export interface OrderBalanceContext {
   showId: string;
   showName: string;
@@ -212,13 +224,53 @@ export function getOrderPayAtShowPrompt(entry: MyEntry): EntryPaymentPrompt {
 }
 
 /**
- * Pay link for an order card. Targets ONLY the entry rows that actually owe an
- * online balance — never the whole order, which would re-charge paid rows.
+ * Whether a row could still be settled through the ONLINE cart: pending, and
+ * carrying a method the exhibitor pays online (or none yet). Used only for the
+ * partial-replication recovery path below, where there is no balance to slice.
  */
-export function buildOrderPaymentHref(entry: MyEntry): string {
+function isOnlineRecoverableRow(
+  row: { paymentStatus?: PaymentStatus | undefined; paymentMethod?: string | null | undefined },
+  ctx: { paymentStatus: PaymentStatus; paymentMethod: string | null }
+): boolean {
+  const paymentStatus = row.paymentStatus ?? ctx.paymentStatus;
+  if (paymentStatus !== PaymentStatus.PENDING) return false;
+  const paymentMethod = row.paymentMethod !== undefined ? row.paymentMethod : ctx.paymentMethod;
+  return !NON_ONLINE_METHODS.has(paymentMethod ?? '');
+}
+
+/**
+ * Pay link for an order card, or `null` when no online cart can be built
+ * safely. Targets ONLY the entry rows that actually owe an online balance —
+ * never the whole order, which would re-charge paid rows or drag a pending
+ * cash/check row into an online checkout.
+ *
+ * `null` (rather than a best-effort href) is the point: a cart missing the show
+ * relation, or one that could only be filled with rows the exhibitor settles in
+ * person, is not a recovery — it is a wrong charge. Callers render no action.
+ */
+export function buildOrderPaymentHref(entry: MyEntry): string | null {
+  // A cart without a show is unresolvable; `showId` is '' when the show
+  // relation has not replicated and the row carried no show_id.
+  if (!entry.showId) return null;
+
   const dueIds = entry.balance?.dueEntryIds ?? [];
   if (dueIds.length > 0) return buildFinishPaymentHref(entry.showId, dueIds);
+  // A balance that resolved to an EMPTY due list is authoritative: this order
+  // owes nothing online, so there is nothing to recover.
+  if (entry.balance) return null;
+
+  // No balance at all — the documented partial-replication window. Recover
+  // only from rows that are themselves online-payable.
   // EntryClass.id is the underlying entries-row id in useMyEntriesData.
-  const classIds = entry.classes.map(cls => cls.id).filter(Boolean);
-  return buildFinishPaymentHref(entry.showId, classIds.length > 0 ? classIds : [entry.id]);
+  const ctx = { paymentStatus: entry.paymentStatus, paymentMethod: entry.paymentMethod ?? null };
+  const recoverableIds = entry.classes
+    .filter(cls => isOnlineRecoverableRow(cls, ctx))
+    .map(cls => cls.id)
+    .filter(Boolean);
+  if (recoverableIds.length > 0) return buildFinishPaymentHref(entry.showId, recoverableIds);
+  if (entry.classes.length > 0) return null;
+
+  // No class rows at all: fall back to the entry row itself, still only when
+  // the entry's own money is online-payable.
+  return isOnlineRecoverableRow({}, ctx) ? buildFinishPaymentHref(entry.showId, [entry.id]) : null;
 }

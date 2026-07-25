@@ -33,7 +33,12 @@ export interface SubscriptionGateOptions {
  */
 export function useSubscriptionGate(options?: SubscriptionGateOptions) {
   const { profile, isLoading: isProfileLoading } = useExhibitorProfile();
-  const { effective: newEffective, isTrusted, isLoading: isEntitlementLoading } = useEntitlement();
+  const {
+    effective: newEffective,
+    isTrusted,
+    canAuthorizePremium,
+    isLoading: isEntitlementLoading,
+  } = useEntitlement();
 
   const rawTier: PlanType = profile?.subscription_tier ?? 'free';
   const expiresAt = profile?.subscription_expires_at;
@@ -92,7 +97,16 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
 
   return {
     tier,
+    /** DISPLAY only. May be true off the untrusted legacy fallback. */
     isPremium: tier === 'premium',
+    /**
+     * The ONLY value that may unlock a Premium create/edit control. Comes
+     * straight from the trusted resolver, so it fails closed exactly where the
+     * server does — the legacy profile fallback (and the caller-driven trial)
+     * can keep a lock open for DISPLAY without promising a write that the
+     * server will reject.
+     */
+    canAuthorizePremium,
     isExpired,
     isInTrial,
     isEarlyAdopter,

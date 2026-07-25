@@ -17,11 +17,15 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   autoOpenAddRegistration,
   role = 'exhibitor',
 }) => {
-  const { isPremium, isLoading } = useSubscriptionGate();
+  const { isPremium, isLoading, canAuthorizePremium } = useSubscriptionGate();
   const { user } = useAuthContext();
   const { state, setSection, setView } = useDogDetailsNavigation();
   const isSecretary = role === 'secretary';
   const dogName = getDogDisplayName(dog);
+  // `locked` is the DISPLAY treatment (blur gate on view-only Premium panels)
+  // and may use the optimistic legacy value. Anything that unlocks a WRITE
+  // takes `canAuthorizePremium` instead: an untrusted entitlement read must not
+  // surface create/edit controls the server will reject.
   const locked = !isLoading && !isPremium;
 
   // The secretary role keeps its existing narrow surface — Registrations
@@ -38,6 +42,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
               dogId={dog.id}
               view="health"
               isPremium={isPremium}
+              canWrite={canAuthorizePremium}
               vaccinationsOnly
             />
           </Suspense>
@@ -67,7 +72,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
             ownerId={user?.id ?? ''}
             view={(state.view as CareerView) ?? 'competitions'}
             onViewChange={setView}
-            isPremium={isPremium}
+            isPremium={canAuthorizePremium}
             locked={locked}
           />
         </div>
@@ -80,6 +85,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
             view={(state.view as RecordsView) ?? 'health'}
             onViewChange={setView}
             isPremium={isPremium}
+            canWrite={canAuthorizePremium}
           />
         </div>
       )}

@@ -87,8 +87,8 @@
 
 ## 9. Tracking, Final PR Gate, and Archive
 
-- [ ] 9.1 Update the linked Linear issue after each slice with changes, tests, PR, risks, and acceptance-criteria status; keep the launch-readiness goal, Premium docs, audit index, and debt register consistent with actual completion.
-- [ ] 9.2 Complete a final diff review against the OpenSpec and audit, remove superseded code/flags/teasers, and confirm every audit finding is closed, delegated to an already-owned active change with evidence, or filed as an explicit follow-up.
+- [x] 9.1 Update the linked Linear issue after each slice with changes, tests, PR, risks, and acceptance-criteria status; keep the launch-readiness goal, Premium docs, audit index, and debt register consistent with actual completion.
+- [x] 9.2 Complete a final diff review against the OpenSpec and audit, remove superseded code/flags/teasers, and confirm every audit finding is closed, delegated to an already-owned active change with evidence, or filed as an explicit follow-up.
 - [ ] 9.3 Ensure every implementation PR includes the repository template, Linear link, checked acceptance criteria, visual evidence, risk, how to test, intentional non-goals, material agent involvement, and follow-up issues.
 - [ ] 9.4 Wait for final CI and independent review, fix actionable failures, merge every slice, and close the Linear issue only when all evidence gates pass.
 - [ ] 9.5 Sync the completed delta specs, archive `exhibitor-journey-completion`, validate the archive, and perform branch/worktree cleanup.

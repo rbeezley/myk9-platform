@@ -76,6 +76,20 @@ export {
 } from './dogsAheadInList';
 export type { DogsAheadResult, EntryListOwnership } from './dogsAheadInList';
 
+// ── Shared run-queue primitive (who's in the ring, who's next, in what order) ──
+// One ordering rule for the class-row next-up preview, the post-save
+// quick-advance chips, and favorite-dog push proximity. Typed structurally so
+// at-show can pass replicated rows through it.
+export {
+  compareByRunOrder,
+  findInRingEntry,
+  isInQueue,
+  isInRingEntry,
+  nextPendingCandidates,
+  pendingByRunOrder,
+} from './runQueue';
+export type { RunQueueEntry } from './runQueue';
+
 // ── Hooks ────────────────────────────────────────────────────────────────
 export { useEntryListFilters } from './hooks/useEntryListFilters';
 export type { TabType, SortType, SectionFilter } from './hooks/useEntryListFilters';

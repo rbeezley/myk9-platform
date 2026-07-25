@@ -239,6 +239,20 @@ export {
 } from './pages/EntryList';
 export type { DogsAheadResult, EntryListOwnership } from './pages/EntryList';
 
+// Shared run-queue primitive — one ordering rule ("who's in the ring, who runs
+// next") for the at-show class-row preview, post-save quick-advance chips, and
+// favorite-dog push proximity. Typed structurally, so hosts can pass their own
+// row type (e.g. replicated entries) and get it back with display fields intact.
+export {
+  compareByRunOrder,
+  findInRingEntry,
+  isInQueue,
+  isInRingEntry,
+  nextPendingCandidates,
+  pendingByRunOrder,
+} from './pages/EntryList';
+export type { RunQueueEntry } from './pages/EntryList';
+
 export { useResetScore } from './pages/EntryList';
 
 export { useDragAndDropEntries } from './pages/EntryList';

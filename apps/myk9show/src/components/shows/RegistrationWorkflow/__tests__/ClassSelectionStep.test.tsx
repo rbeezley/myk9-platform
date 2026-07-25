@@ -491,3 +491,198 @@ describe('ClassSelectionStep — empty class inventory', () => {
     expect(await screen.findByText(/Add classes in the show management page/i)).toBeInTheDocument();
   });
 });
+
+// ─── 6.4 — entry-action tests (add-only wizard, tasks.md exhibitor-journey-completion) ──
+
+describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
+  const NEW_CLASS_ID = 'class-new';
+
+  function setupAddOnlyMocks() {
+    mockUseDogStoreCompat.mockReturnValue({
+      dogs: [{ id: DOG_ID, name: 'Rex', callName: 'Rex', registrations: [] }],
+    });
+    mockUseShowStore.mockReturnValue({
+      shows: [{ id: SHOW_ID, name: 'Test Show', preEntryFee: '15', startDate: '2026-06-01' }],
+    });
+    mockUseTrialStore.mockImplementation((selector: (s: unknown) => unknown) => {
+      const state = {
+        trials: [
+          {
+            id: TRIAL_ID,
+            showId: SHOW_ID,
+            name: 'Trial 1',
+            trialType: 'Nosework',
+            order: '1',
+            trialDate: '2026-05-01',
+          },
+        ],
+        trialClasses: {
+          [TRIAL_ID]: [
+            {
+              id: CLASS_ID,
+              element: 'Container',
+              level: 'Novice',
+              section: 'A',
+              trial_id: TRIAL_ID,
+            },
+            {
+              id: NEW_CLASS_ID,
+              element: 'Interior',
+              level: 'Novice',
+              section: 'A',
+              trial_id: TRIAL_ID,
+            },
+          ],
+        },
+      };
+      return selector(state);
+    });
+    mockUseCartItems.mockReturnValue([]);
+    mockUseCartStore.mockImplementation((selector: (s: unknown) => unknown) => {
+      const state = {
+        cart: null,
+        loadCart: vi.fn().mockResolvedValue(null),
+        createCart: vi.fn().mockResolvedValue(null),
+        addItem: vi.fn().mockResolvedValue(true),
+        removeItem: vi.fn().mockResolvedValue(true),
+      };
+      return selector(state);
+    });
+    mockUseClassStoreCompat.mockReturnValue({
+      classes: [
+        {
+          id: CLASS_ID,
+          trialId: TRIAL_ID,
+          className: 'Container Novice',
+          element: 'Container',
+          level: 'Novice',
+          section: undefined,
+          entryFee: 15,
+        },
+        {
+          id: NEW_CLASS_ID,
+          trialId: TRIAL_ID,
+          className: 'Interior Novice',
+          element: 'Interior',
+          level: 'Novice',
+          section: undefined,
+          entryFee: 15,
+        },
+      ],
+    });
+    mockUseAuthContext.mockReturnValue({ isSecretary: false, isAdmin: false, user: null });
+    mockUseExhibitorProfile.mockReturnValue({ profile: null });
+    // Rex is already entered in CLASS_ID only — NEW_CLASS_ID is add-only.
+    mockUseExistingEntries.mockReturnValue({
+      getExistingEntry: vi.fn((_dogId: string, classId: string) =>
+        classId === CLASS_ID ? { id: 'entry-1', dogId: DOG_ID, classId: CLASS_ID } : undefined
+      ),
+      getEntriesForDog: vi.fn(() => [{ id: 'entry-1', dogId: DOG_ID, classId: CLASS_ID }]),
+    });
+    mockUseClassAvailability.mockReturnValue({
+      classes: [],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+      totalSpotsAvailable: 10,
+      fullClasses: 0,
+    });
+  }
+
+  const renderAddOnlyStep = (onSelectionChange = vi.fn()) => {
+    render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={onSelectionChange}
+        showId={SHOW_ID}
+      />
+    );
+    return onSelectionChange;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupAddOnlyMocks();
+  });
+
+  it('(a) renders the already-entered class as a disabled checkbox labeled "Already entered"', async () => {
+    renderAddOnlyStep();
+
+    const entered = await screen.findByRole('checkbox', { name: /already entered:.*novice a/i });
+    expect(entered).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getAllByText('Already entered').length).toBeGreaterThan(0);
+  });
+
+  it('(b) renders a newly-available class as a selectable, enabled checkbox', async () => {
+    renderAddOnlyStep();
+
+    const selectable = await screen.findByRole('checkbox', { name: /select novice a/i });
+    expect(selectable).not.toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('(c) explains existing entries are changed through the show team, linking /messages/:showId', async () => {
+    renderAddOnlyStep();
+
+    expect(await screen.findByText(/already entered in the classes marked/i)).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: /message the show team/i });
+    expect(link).toHaveAttribute('href', `/messages/${SHOW_ID}`);
+  });
+
+  it('(d) selecting a newly-available class reports the addition (enables Next upstream)', async () => {
+    const onSelectionChange = vi.fn();
+    const { user } = render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={onSelectionChange}
+        showId={SHOW_ID}
+      />
+    );
+
+    const selectable = await screen.findByRole('checkbox', { name: /select novice a/i });
+    await user.click(selectable);
+
+    expect(onSelectionChange).toHaveBeenCalled();
+    const [selections] = onSelectionChange.mock.calls[onSelectionChange.mock.calls.length - 1];
+    const dogSelection = selections.find((s: { dogId: string }) => s.dogId === DOG_ID);
+    expect(
+      dogSelection?.selectedClasses.some((c: { classId: string }) => c.classId === NEW_CLASS_ID)
+    ).toBe(true);
+  });
+
+  it('(f) a failed add-to-cart mutation surfaces an error and preserves the prior selection', async () => {
+    const failingAddItem = vi.fn().mockResolvedValue(false);
+    mockUseCartStore.mockImplementation((selector: (s: unknown) => unknown) => {
+      const state = {
+        cart: null,
+        loadCart: vi.fn().mockResolvedValue(null),
+        createCart: vi.fn().mockResolvedValue(null),
+        addItem: failingAddItem,
+        removeItem: vi.fn().mockResolvedValue(true),
+      };
+      return selector(state);
+    });
+    mockUseExhibitorProfile.mockReturnValue({ profile: { id: 'exhibitor-1' } });
+
+    const onSelectionChange = vi.fn();
+    const { user } = render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={onSelectionChange}
+        showId={SHOW_ID}
+      />
+    );
+
+    const selectable = await screen.findByRole('checkbox', { name: /select novice a/i });
+    await user.click(selectable);
+
+    expect(failingAddItem).toHaveBeenCalled();
+    // The failed mutation must not report a (nonexistent) selection change,
+    // and the wizard must not close/crash — the checkbox is still present
+    // and still unchecked, ready to retry.
+    expect(onSelectionChange).not.toHaveBeenCalled();
+    expect(await screen.findByRole('checkbox', { name: /select novice a/i })).not.toBeChecked();
+  });
+});

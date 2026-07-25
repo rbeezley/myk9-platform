@@ -37,6 +37,7 @@ import {
   ElementCard,
   DogCartSummary,
   OverallCartSummary,
+  AlreadyEnteredNotice,
 } from './ClassSelectionStep.components';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import '@/styles/myk9-registration-workflow.css';
@@ -364,11 +365,17 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
         {selectedDogs.map(dogId => {
           const dogCartCount = getCartCountForDog(cartItems, dogId);
+          const existingEntryCount = getEntriesForDog(dogId).length;
+          const dog = getDogById(dogs, dogId);
+          const dogName = dog?.callName || dog?.name || 'This dog';
 
           return (
             <TabsContent key={dogId} value={dogId}>
               <Card>
                 <CardContent className="pt-4">
+                  {existingEntryCount > 0 && (
+                    <AlreadyEnteredNotice showId={showId} dogName={dogName} />
+                  )}
                   {showTrials.length === 0 && isTrialsSyncing ? (
                     <div role="status" aria-label="Loading trials" className="space-y-3 py-2">
                       {Array.from({ length: 3 }).map((_, index) => (

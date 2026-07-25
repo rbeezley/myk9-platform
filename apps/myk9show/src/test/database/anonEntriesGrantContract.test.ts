@@ -3,24 +3,28 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * MYK9-93 regression guard.
+ * MYK9-93 regression guard for anon's effective grants on public tables.
  *
  * `publicResultsReleaseGateRlsContract.test.ts` pins migration 20260616120000 in
  * isolation, so it stayed green while a LATER migration (20260725160000) undid the
  * invariant it protects — first with `REVOKE ALL ON ALL TABLES ... FROM anon`, which
  * silently drops column grants, then with a table-wide `GRANT SELECT ON public.entries
- * TO anon`. Anon could read total_score, payment_status and stripe_payment_intent_id
- * directly, routing around view_public_entry_results.
+ * TO anon`. Anon could read total_score, payment_status and stripe_payment_intent_id.
  *
- * This test replays every migration in apply order and asserts the FINAL anon grant
- * state on public.entries, so no future migration can re-open it.
+ * The same class of bug then shipped a second time on the embed side: PostgREST needs
+ * table-level SELECT on every EMBEDDED relation, so a missing dogs/people column grant
+ * is a hard 42501 that fails the whole anon request.
+ *
+ * So this file replays EVERY migration in apply order, folding grants and revokes, and
+ * asserts the final effective state. Deliberately conservative: anything it cannot prove
+ * safe, it treats as unsafe.
  */
 const MIGRATIONS_DIR = resolve(__dirname, '../../../../../supabase/migrations');
 
 /**
  * The exact 14-column security boundary established by the release gate
  * (20260616120000) and restored by 20260725170000. Asserted as an exact set: a
- * denylist only catches the sensitive columns someone remembered to enumerate.
+ * denylist can only catch the sensitive columns someone remembered to enumerate.
  */
 const ANON_ENTRY_COLUMN_ALLOWLIST = [
   'id',
@@ -54,79 +58,124 @@ const FORBIDDEN_ANON_COLUMNS = [
   'judge_notes',
 ];
 
-type AnonGrant = { kind: 'none' } | { kind: 'table-wide' } | { kind: 'columns'; columns: string[] };
+/** Grantees through which anon receives privileges: itself, or the PUBLIC pseudo-role. */
+const ANON_GRANTEE = String.raw`(?:anon|PUBLIC)`;
+/** Optional `TABLE` keyword and optional `public.` schema qualifier. */
+const TABLE_REF = (table: string) => String.raw`(?:TABLE\s+)?(?:public\.)?${table}`;
+/** A privilege list containing SELECT or ALL, e.g. `SELECT`, `ALL PRIVILEGES`, `INSERT, SELECT`. */
+const SELECTISH = String.raw`(?:[A-Z]+\s*,\s*)*(?:SELECT|ALL)(?:\s+PRIVILEGES)?(?:\s*,\s*[A-Z]+)*`;
 
-/** Replay every migration in filename (= apply) order and fold anon's grant state. */
-function finalAnonGrantOnEntries(): { state: AnonGrant; tableWideSources: string[] } {
+type TableGrant = { tableWide: boolean; columns: Set<string> };
+
+/**
+ * Split a migration into analysable statements.
+ *
+ * Two things matter for correctness here:
+ *  - `EXECUTE '...'` payloads inside DO blocks are real statements. This repo's own
+ *    migrations use that idiom for ALTER DEFAULT PRIVILEGES, so a future migration could
+ *    plausibly grant from inside one. They are extracted and analysed.
+ *  - Everywhere else, single-quoted literals are prose, not statements. A COMMENT ON
+ *    ... 'never GRANT SELECT ON public.entries TO anon' must not read as a grant.
+ */
+function statementsOf(sql: string): string[] {
+  const withoutLineComments = sql.replace(/--[^\n]*/g, '');
+
+  const executed: string[] = [];
+  for (const match of withoutLineComments.matchAll(/\bEXECUTE\s+((?:'(?:[^']|'')*'\s*)+)/gi)) {
+    // Concatenate the adjacent string literals making up one EXECUTE payload.
+    const payload = [...match[1].matchAll(/'((?:[^']|'')*)'/g)]
+      .map(m => m[1].replace(/''/g, "'"))
+      .join('');
+    if (payload.trim()) executed.push(payload);
+  }
+
+  const plain = withoutLineComments
+    .replace(/'(?:[^']|'')*'/g, "''")
+    .split(';')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  return [...plain, ...executed].map(s => s.replace(/\s+/g, ' '));
+}
+
+/** Replay every migration in filename (= apply) order and fold anon's effective grants. */
+function foldAnonGrants(tables: string[]): {
+  state: Map<string, TableGrant>;
+  tableWideSources: Map<string, string[]>;
+} {
+  const state = new Map<string, TableGrant>(
+    tables.map(t => [t, { tableWide: false, columns: new Set<string>() }])
+  );
+  const tableWideSources = new Map<string, string[]>(tables.map(t => [t, []]));
+
   const files = readdirSync(MIGRATIONS_DIR)
     .filter(f => f.endsWith('.sql'))
     .sort();
 
-  let state: AnonGrant = { kind: 'none' };
-  const tableWideSources: string[] = [];
-
   for (const file of files) {
-    const sql = readFileSync(resolve(MIGRATIONS_DIR, file), 'utf8');
-
-    // Strip line comments AND single-quoted literals, so prose *about* a statement
-    // — a `--` note, or a COMMENT ON ... 'never GRANT ...' string — is never parsed
-    // as the statement itself. Dollar-quoted bodies are left alone; no DO block in
-    // this repo grants on entries.
-    const statements = sql
-      .replace(/--[^\n]*/g, '')
-      .replace(/'(?:[^']|'')*'/g, "''")
-      .split(';')
-      .map(s => s.trim())
-      .filter(Boolean);
-
-    for (const statement of statements) {
-      const normalized = statement.replace(/\s+/g, ' ');
-
+    for (const statement of statementsOf(readFileSync(resolve(MIGRATIONS_DIR, file), 'utf8'))) {
+      // Blanket revoke: drops column grants too. This is the trap that caused the bug.
       if (
-        /REVOKE\s+ALL\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public\s+FROM\s+(anon|PUBLIC)/i.test(
-          normalized
-        )
+        new RegExp(
+          String.raw`REVOKE\s+.*\bON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public\s+FROM\s+[^;]*\b${ANON_GRANTEE}\b`,
+          'i'
+        ).test(statement)
       ) {
-        // Blanket revokes drop column grants too — the trap that caused this bug.
-        state = { kind: 'none' };
-        continue;
-      }
-      if (
-        /REVOKE\s+(SELECT|ALL)[^]*?\bON\s+(TABLE\s+)?(public\.)?entries\s+FROM\s+(anon|PUBLIC)/i.test(
-          normalized
-        )
-      ) {
-        state = { kind: 'none' };
+        for (const entry of state.values()) {
+          entry.tableWide = false;
+          entry.columns.clear();
+        }
         continue;
       }
 
-      const columnGrant = normalized.match(
-        /GRANT\s+SELECT\s*\(([^)]*)\)\s*ON\s+(?:TABLE\s+)?(?:public\.)?entries\s+TO\s+[^;]*\b(anon|PUBLIC)\b/i
-      );
-      if (columnGrant) {
-        // Postgres UNIONs column grants; it does not replace them. Accumulate, so an
-        // unsafe grant followed by the safe allowlist cannot hide behind the last write.
-        const added = columnGrant[1]
-          .split(',')
-          .map(c => c.trim())
-          .filter(Boolean);
-        const existing: string[] = state.kind === 'columns' ? state.columns : [];
-        state = { kind: 'columns', columns: [...new Set([...existing, ...added])] };
-        continue;
-      }
+      for (const table of tables) {
+        const entry = state.get(table);
+        if (!entry) continue;
 
-      // Any table-wide route to anon, including inheritance via the PUBLIC pseudo-role
-      // and schema-wide grants. Each of these re-opens the hole.
-      if (
-        /GRANT\s+(SELECT|ALL)(\s+PRIVILEGES)?\s+ON\s+(?:TABLE\s+)?(?:public\.)?entries\s+TO\s+[^;]*\b(anon|PUBLIC)\b/i.test(
-          normalized
-        ) ||
-        /GRANT\s+(SELECT|ALL)(\s+PRIVILEGES)?\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public\s+TO\s+[^;]*\b(anon|PUBLIC)\b/i.test(
-          normalized
-        )
-      ) {
-        state = { kind: 'table-wide' };
-        tableWideSources.push(file);
+        // Any revoke touching this table resets it. Conservative: a column-scoped revoke
+        // is treated as clearing everything, which can only make the test stricter.
+        if (
+          new RegExp(
+            String.raw`REVOKE\s+.*\bON\s+${TABLE_REF(table)}\s+FROM\s+[^;]*\b${ANON_GRANTEE}\b`,
+            'i'
+          ).test(statement)
+        ) {
+          entry.tableWide = false;
+          entry.columns.clear();
+          continue;
+        }
+
+        const columnGrant = statement.match(
+          new RegExp(
+            String.raw`GRANT\s+SELECT\s*\(([^)]*)\)\s*ON\s+${TABLE_REF(table)}\s+TO\s+[^;]*\b${ANON_GRANTEE}\b`,
+            'i'
+          )
+        );
+        if (columnGrant) {
+          // Postgres UNIONs column grants; it does not replace them.
+          for (const column of columnGrant[1].split(',')) {
+            const trimmed = column.trim();
+            if (trimmed) entry.columns.add(trimmed);
+          }
+          continue;
+        }
+
+        // Table-wide, including a multi-privilege list, `ON TABLE`, an unqualified name,
+        // a schema-wide grant, or inheritance via PUBLIC. Persists until a revoke —
+        // adding a column grant afterwards does NOT narrow an existing table-wide grant.
+        if (
+          new RegExp(
+            String.raw`GRANT\s+${SELECTISH}\s+ON\s+${TABLE_REF(table)}\s+TO\s+[^;]*\b${ANON_GRANTEE}\b`,
+            'i'
+          ).test(statement) ||
+          new RegExp(
+            String.raw`GRANT\s+${SELECTISH}\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public\s+TO\s+[^;]*\b${ANON_GRANTEE}\b`,
+            'i'
+          ).test(statement)
+        ) {
+          entry.tableWide = true;
+          tableWideSources.get(table)?.push(file);
+        }
       }
     }
   }
@@ -134,93 +183,114 @@ function finalAnonGrantOnEntries(): { state: AnonGrant; tableWideSources: string
   return { state, tableWideSources };
 }
 
-describe('anon grant contract on public.entries', () => {
-  const { state, tableWideSources } = finalAnonGrantOnEntries();
+/** The final `CREATE POLICY <name> ON public.<table>` text across all migrations. */
+function finalPolicyDefinition(policy: string, table: string): string | null {
+  const files = readdirSync(MIGRATIONS_DIR)
+    .filter(f => f.endsWith('.sql'))
+    .sort();
 
+  let latest: string | null = null;
+  const pattern = new RegExp(
+    String.raw`CREATE\s+POLICY\s+"?${policy}"?\s+ON\s+public\.${table}\b[^;]*`,
+    'gi'
+  );
+  for (const file of files) {
+    const sql = readFileSync(resolve(MIGRATIONS_DIR, file), 'utf8').replace(/--[^\n]*/g, '');
+    for (const match of sql.matchAll(pattern)) latest = match[0].replace(/\s+/g, ' ');
+  }
+  return latest;
+}
+
+const TRACKED = ['entries', 'dogs', 'people'];
+const { state, tableWideSources } = foldAnonGrants(TRACKED);
+const entries = state.get('entries');
+
+describe('anon grant contract on public.entries', () => {
   it('leaves anon with a column-scoped grant, never a table-wide one', () => {
     expect(
-      state.kind,
-      `anon must end with a column-scoped SELECT on public.entries. ` +
-        `Table-wide grants seen in: ${tableWideSources.join(', ') || '(none)'}`
-    ).toBe('columns');
+      entries?.tableWide,
+      `anon must not hold a table-wide SELECT on public.entries. ` +
+        `Table-wide grants seen in: ${tableWideSources.get('entries')?.join(', ') || '(none)'}`
+    ).toBe(false);
+    expect(entries && entries.columns.size > 0, 'anon must retain the board column grant').toBe(
+      true
+    );
   });
 
   it('matches the release gate allowlist EXACTLY — no column added, none dropped', () => {
-    expect(state.kind).toBe('columns');
-    if (state.kind !== 'columns') return;
-
-    // Exact-set equality, not a sample. A denylist can only catch the sensitive
-    // columns someone thought to enumerate; this catches any column at all.
-    expect([...state.columns].sort()).toEqual([...ANON_ENTRY_COLUMN_ALLOWLIST].sort());
+    expect([...(entries?.columns ?? [])].sort()).toEqual([...ANON_ENTRY_COLUMN_ALLOWLIST].sort());
   });
 
   it('excludes every known scored/PII column (redundant with the exact check, kept explicit)', () => {
-    expect(state.kind).toBe('columns');
-    if (state.kind !== 'columns') return;
-
     for (const column of FORBIDDEN_ANON_COLUMNS) {
-      expect(state.columns, `anon must not reach public.entries.${column}`).not.toContain(column);
+      expect([...(entries?.columns ?? [])], `anon must not reach entries.${column}`).not.toContain(
+        column
+      );
     }
   });
 });
 
 /**
- * The other half of the MYK9-93 regression: PostgREST requires table-level SELECT on
- * every EMBEDDED relation, so a missing column grant on dogs/people is a hard 42501
- * that fails the whole anon request. This got shipped wrong twice — once for dogs and
- * people entirely, then again for people.email — so pin the granted sets.
- *
- * These grants convey no data today: dogs_select and people_select are TO authenticated,
- * so anon matches zero rows. They exist only so the embed resolves to null.
+ * The other half of the MYK9-93 regression. These grants convey no data today: dogs_select
+ * and people_select are TO authenticated, so anon matches zero rows. They exist only so an
+ * anon PostgREST embed resolves to null instead of 42501.
  */
 describe('anon embed grants on dogs / people', () => {
-  const migrations = readdirSync(MIGRATIONS_DIR)
-    .filter(f => f.endsWith('.sql'))
-    .sort()
-    .map(f => readFileSync(resolve(MIGRATIONS_DIR, f), 'utf8'))
-    .join('\n');
-
-  function grantedColumns(table: string): string[] {
-    const columns = new Set<string>();
-    const pattern = new RegExp(
-      `GRANT\\s+SELECT\\s*\\(([^)]*)\\)\\s*ON\\s+(?:TABLE\\s+)?public\\.${table}\\s+TO\\s+anon`,
-      'gi'
-    );
-    for (const match of migrations.replace(/--[^\n]*/g, '').matchAll(pattern)) {
-      for (const column of match[1].split(',')) {
-        const trimmed = column.trim();
-        if (trimmed) columns.add(trimmed);
-      }
-    }
-    return [...columns];
-  }
-
   it('covers every dogs column embedded by the public TV board', () => {
     // services/database/tv-display/postgrest.ts — entries(... dogs(...))
+    const dogs = [...(state.get('dogs')?.columns ?? [])];
     for (const column of ['id', 'name', 'call_name', 'breed', 'image_url']) {
-      expect(grantedColumns('dogs')).toContain(column);
+      expect(dogs, `dogs.${column} must stay granted or the TV board 42501s`).toContain(column);
     }
   });
 
   it('covers every people column embedded by the public show pages', () => {
     // hooks/queries/useShowJudges.ts — people!inner(id, first_name, last_name)
     // services/database/shows/reads.postgrest.ts — judge:people!...(id, first_name,
-    // last_name, email). The email column was missed on the first repair.
+    // last_name, email). `email` was missed on the first repair and 42501'd /shows/:id.
+    const people = [...(state.get('people')?.columns ?? [])];
     for (const column of ['id', 'first_name', 'last_name', 'email']) {
-      expect(grantedColumns('people')).toContain(column);
+      expect(people, `people.${column} must stay granted or /shows/:id 42501s`).toContain(column);
     }
   });
 
   it('keeps those grants column-scoped — never table-wide', () => {
     for (const table of ['dogs', 'people']) {
-      const tableWide = new RegExp(
-        `GRANT\\s+(SELECT|ALL)(\\s+PRIVILEGES)?\\s+ON\\s+(?:TABLE\\s+)?public\\.${table}\\s+TO\\s+[^;]*\\banon\\b`,
-        'i'
-      );
       expect(
-        tableWide.test(migrations.replace(/--[^\n]*/g, '').replace(/'(?:[^']|'')*'/g, "''")),
-        `${table} must never carry a table-wide anon grant`
+        state.get(table)?.tableWide,
+        `${table} must never carry a table-wide anon grant. Seen in: ` +
+          `${tableWideSources.get(table)?.join(', ') || '(none)'}`
       ).toBe(false);
+    }
+  });
+
+  /**
+   * The column grants above are only safe because RLS admits no anon rows. If either
+   * policy is ever recreated admitting anon or PUBLIC, these grants become a live leak —
+   * judge email addresses, dog names and photos. Pin the policies themselves.
+   */
+  it('keeps dogs_select and people_select restricted to authenticated', () => {
+    for (const [policy, table] of [
+      ['dogs_select', 'dogs'],
+      ['people_select', 'people'],
+    ]) {
+      const definition = finalPolicyDefinition(policy, table);
+      expect(definition, `${policy} must be defined by a migration`).toBeTruthy();
+
+      // Only the role list directly after TO — not the whole statement, or the
+      // `public.` schema prefix inside USING would read as the PUBLIC role.
+      const roleClause = definition?.match(
+        /\bTO\s+([A-Za-z0-9_", ]+?)\s*(?:USING|WITH\s+CHECK|$)/i
+      );
+      expect(roleClause, `${policy} must carry an explicit TO clause`).toBeTruthy();
+
+      const roles = (roleClause?.[1] ?? '')
+        .split(',')
+        .map(r => r.trim().replace(/"/g, '').toLowerCase())
+        .filter(Boolean);
+      expect(roles, `${policy} must be TO authenticated — anon must match zero rows`).toEqual([
+        'authenticated',
+      ]);
     }
   });
 });

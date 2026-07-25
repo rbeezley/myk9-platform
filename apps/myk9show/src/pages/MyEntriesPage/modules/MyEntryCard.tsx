@@ -297,12 +297,15 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
             </Button>
           ) : (
             // INTENT: an exhibitor who owes money must never face a dead end.
-            // The order owes an online balance but no cart can be built safely
-            // yet (show relation still replicating), so say so rather than
-            // rendering nothing — or sending them to a cart for the wrong rows.
-            <Button disabled className="min-h-[44px]" aria-live="polite">
+            // The order owes an online balance but no cart can be built safely,
+            // so say which kind of "not yet" this is rather than rendering
+            // nothing — or sending them to a cart for the wrong rows. An empty
+            // showId is the replication window and WILL resolve; anything else
+            // is a data inconsistency that waiting cannot fix, so that copy
+            // points at the secretary instead of promising a spinner.
+            <Button disabled className="min-h-[44px]">
               <CreditCard className="h-5 w-5 mr-1.5" />
-              Payment options loading…
+              {entry.showId ? 'Contact the show secretary to pay' : 'Payment options loading…'}
             </Button>
           ))}
 

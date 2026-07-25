@@ -165,6 +165,42 @@ describe('MyEntryCard payment recovery', () => {
     );
   });
 
+  it('offers a waiting affordance, not a cart, while the show relation is unreplicated', () => {
+    // showId '' — no cart can name a show yet, but the exhibitor still owes
+    // money, so the card must not go silent. This one resolves on its own.
+    renderCard(
+      makeEntry({
+        showId: '',
+        paymentStatus: PaymentStatus.PENDING,
+        totalFee: 85,
+        classes: [makeClass({ id: 'entry-1' })],
+      })
+    );
+
+    expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Payment options loading/i })).toBeDisabled();
+  });
+
+  it('points at the secretary when the online balance can never resolve to a cart', () => {
+    // Online-payable at the order level, but every replicated class row is
+    // pay-at-show: a data inconsistency, not a timing window, so promising a
+    // spinner would be a lie.
+    renderCard(
+      makeEntry({
+        showId: 'show-1',
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'online',
+        totalFee: 85,
+        classes: [
+          makeClass({ id: 'entry-1', paymentStatus: PaymentStatus.PENDING, paymentMethod: 'cash' }),
+        ],
+      })
+    );
+
+    expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Contact the show secretary/i })).toBeDisabled();
+  });
+
   it('does not show Finish Payment for paid entries', () => {
     renderCard(makeEntry({ paymentStatus: PaymentStatus.PAID_ONLINE, totalFee: 85 }));
 

@@ -33,6 +33,69 @@ describe('Sentry observability helpers', () => {
     );
   });
 
+  describe('injected third-party script filtering', () => {
+    type TestFrame = { filename?: string; function?: string; lineno?: number; colno?: number };
+
+    function eventWithStacks(...stacks: TestFrame[][]): SentryErrorEvent {
+      return {
+        type: undefined,
+        exception: {
+          values: stacks.map(frames => ({
+            type: 'TypeError',
+            value: 'boom',
+            stacktrace: { frames },
+          })),
+        },
+      } as unknown as SentryErrorEvent;
+    }
+
+    // Frames are outermost-first, matching Sentry's ordering.
+    const APP_FRAME = { filename: '/assets/scripts/index-abc123.js', function: 'renderRow' };
+    const NATIVE_FRAME = { filename: '<anonymous>', function: 'JSON.stringify' };
+    const INJECTED_FRAME = { filename: '<anonymous>', function: 'None', lineno: 25, colno: 21 };
+
+    it('drops the reported extension-patched appendChild stack', () => {
+      // Sentry issue cc5b6d49d9c3451981eded1928cf4903: an extension replaced
+      // HTMLElement.appendChild and JSON.stringify'd the node React was appending.
+      const event = eventWithStacks([
+        { filename: '/assets/scripts/vendor-react-dom-CuqAsU7i.js', function: 'Sl' },
+        { filename: '<anonymous>', function: 'HTMLElement.appendChild', lineno: 103, colno: 11 },
+        { filename: '<anonymous>', function: 'None', lineno: 45, colno: 9 },
+        INJECTED_FRAME,
+        NATIVE_FRAME,
+      ]);
+
+      expect(scrubSentryEvent(event)).toBeNull();
+    });
+
+    it('keeps our own circular JSON.stringify bug, whose only anonymous frame is native', () => {
+      expect(scrubSentryEvent(eventWithStacks([APP_FRAME, NATIVE_FRAME]))).not.toBeNull();
+    });
+
+    it('keeps errors passing through positionless native frames such as Array.map', () => {
+      const event = eventWithStacks([
+        APP_FRAME,
+        { filename: '<anonymous>', function: 'Array.map' },
+        { filename: '/assets/scripts/index-abc123.js', function: 'mapRow' },
+      ]);
+
+      expect(scrubSentryEvent(event)).not.toBeNull();
+    });
+
+    it('judges the surfaced error, not an older link in a cause chain', () => {
+      // Sentry orders chained values oldest-first, so ours being last must win.
+      expect(scrubSentryEvent(eventWithStacks([INJECTED_FRAME], [APP_FRAME]))).not.toBeNull();
+      expect(scrubSentryEvent(eventWithStacks([APP_FRAME], [INJECTED_FRAME]))).toBeNull();
+    });
+
+    it('keeps events with no usable stack rather than guessing', () => {
+      expect(scrubSentryEvent(eventWithStacks([]))).not.toBeNull();
+      expect(scrubSentryEvent(eventWithStacks())).not.toBeNull();
+      expect(scrubSentryEvent(eventWithStacks([{ function: 'anonymousArrow' }]))).not.toBeNull();
+      expect(scrubSentryEvent({ type: undefined } as SentryErrorEvent)).not.toBeNull();
+    });
+  });
+
   it('scrubs user, request, breadcrumb, and domain-specific PII before sending', () => {
     const event: SentryErrorEvent = {
       type: undefined,
@@ -68,7 +131,7 @@ describe('Sentry observability helpers', () => {
       ],
     };
 
-    const scrubbed = scrubSentryEvent(event);
+    const scrubbed = scrubSentryEvent(event)!;
 
     expect(scrubbed.message).toBe(
       'Handler [Filtered] hit dog [Filtered] with [Filtered] at [Filtered]'
@@ -104,7 +167,7 @@ describe('Sentry observability helpers', () => {
       },
     };
 
-    const scrubbed = scrubSentryEvent(event);
+    const scrubbed = scrubSentryEvent(event)!;
 
     expect(scrubbed.message).toBe('Auth refresh failed [redacted-token] [redacted-secret]');
     expect(scrubbed.extra).toEqual({

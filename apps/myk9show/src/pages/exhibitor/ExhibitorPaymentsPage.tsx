@@ -95,8 +95,15 @@ function PaymentActionContent({ row }: { row: PaymentDisplayRow }) {
     );
   }
 
-  // Match the link's min height so rows stay vertically even.
-  return <span className="inline-flex min-h-11 items-center text-muted-foreground">{EMPTY}</span>;
+  // No retry and no receipt (refunded, or an order with no linked entries) —
+  // say so explicitly rather than a bare dash, which an assistive-tech user
+  // hovering "Receipt: -" can't distinguish from a truncated reference
+  // number. Match the link's min height so rows stay vertically even.
+  return (
+    <span className="inline-flex min-h-11 items-center text-sm text-muted-foreground">
+      {isRefundedPaymentStatus(row.status) ? 'No receipt (refunded)' : 'No receipt available'}
+    </span>
+  );
 }
 
 function PaymentRow({ row }: { row: PaymentDisplayRow }) {

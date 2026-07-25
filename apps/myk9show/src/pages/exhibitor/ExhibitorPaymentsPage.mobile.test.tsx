@@ -118,6 +118,36 @@ describe('ExhibitorPaymentsPage on a 390px phone', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
+  it('states no receipt is available for a refunded row instead of a bare dash', () => {
+    useElementWidthMock.mockReturnValue({ ref: { current: null }, width: 390 });
+    state.data = [
+      {
+        ...payment,
+        netPaidCents: 2300,
+        refunds: [
+          {
+            entryId: 'e1',
+            amountCents: 3000,
+            date: '2026-06-12T00:00:00Z',
+            label: 'Copper - Advanced A',
+          },
+        ],
+      },
+    ];
+    render(<ExhibitorPaymentsPage />);
+
+    const groups = screen.getAllByRole('group');
+    const refundCard = groups.find(g => within(g).queryByText(/refund - copper/i));
+    expect(refundCard).toBeTruthy();
+    // The "Receipt" dt/dd pairing must announce an explicit reason, not just
+    // "-", which a screen-reader user can't distinguish from a truncated
+    // reference number.
+    expect(within(refundCard!).getByText('No receipt (refunded)')).toBeInTheDocument();
+    expect(
+      within(refundCard!).queryByRole('link', { name: /receipt for/i })
+    ).not.toBeInTheDocument();
+  });
+
   it('still renders the full desktop table at a wide container width', () => {
     useElementWidthMock.mockReturnValue({ ref: { current: null }, width: 1024 });
     render(<ExhibitorPaymentsPage />);

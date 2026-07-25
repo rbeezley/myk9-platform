@@ -101,11 +101,22 @@ describe('ExhibitorPaymentsPage', () => {
     );
   });
 
-  it('falls back to a plain dash for a failed order with no show or entries', () => {
+  it('states no receipt is available for a failed order with no show or entries, instead of a bare dash', () => {
     state.data = [{ ...payment, status: 'failed', showId: null, entryIds: [] }];
     render(<ExhibitorPaymentsPage />);
     expect(screen.queryByRole('link', { name: /finish payment/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /my shows/i })).not.toBeInTheDocument();
+    expect(screen.getByText('No receipt available')).toBeInTheDocument();
+  });
+
+  it('gives a refund-specific reason instead of a generic "no receipt" for the split-off refund row, while the original charge keeps its receipt link', () => {
+    // A legacy fully-refunded order with no itemized `refunds` splits into a
+    // charge row (the original payment still legitimately has a receipt) and
+    // a separate refund row (which doesn't).
+    state.data = [{ ...payment, status: 'refunded', netPaidCents: 0, entryIds: ['e1'] }];
+    render(<ExhibitorPaymentsPage />);
+    expect(screen.getByRole('link', { name: /receipt for/i })).toBeInTheDocument();
+    expect(screen.getByText('No receipt (refunded)')).toBeInTheDocument();
   });
 
   it('renders a refunded amount as a signed deduction, distinct from a charge', () => {

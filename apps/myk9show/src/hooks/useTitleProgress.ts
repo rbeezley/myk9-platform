@@ -14,16 +14,43 @@ import {
 } from '@/services/titleEngine';
 
 export function useTitleProgress(dogId: string) {
-  const { data: exhibitorResults = [], isLoading: loadingResults } = useExhibitorResults();
-  const { data: manualResults = [], isLoading: loadingManual } =
-    useQualifyingManualResultsQuery(dogId);
-  const { data: templates = [], isLoading: loadingTemplates } = useSportTemplatesQuery();
-  const { data: allTitles = [], isLoading: loadingTitles } = useAllSportTitlesQuery();
+  const {
+    data: exhibitorResults = [],
+    isLoading: loadingResults,
+    isError: errorResults,
+    refetch: refetchResults,
+  } = useExhibitorResults();
+  const {
+    data: manualResults = [],
+    isLoading: loadingManual,
+    isError: errorManual,
+    refetch: refetchManual,
+  } = useQualifyingManualResultsQuery(dogId);
+  const {
+    data: templates = [],
+    isLoading: loadingTemplates,
+    isError: errorTemplates,
+    refetch: refetchTemplates,
+  } = useSportTemplatesQuery();
+  const {
+    data: allTitles = [],
+    isLoading: loadingTitles,
+    isError: errorTitles,
+    refetch: refetchTitles,
+  } = useAllSportTitlesQuery();
 
   const isLoading = loadingResults || loadingManual || loadingTemplates || loadingTitles;
+  const isError = errorResults || errorManual || errorTemplates || errorTitles;
+
+  const refetch = () => {
+    void refetchResults();
+    void refetchManual();
+    void refetchTemplates();
+    void refetchTitles();
+  };
 
   const progressBySport = useMemo(() => {
-    if (isLoading) return {};
+    if (isLoading || isError) return {};
 
     // Build legs for this specific dog
     const platformLegs: QualifyingLeg[] = exhibitorResults
@@ -56,7 +83,7 @@ export function useTitleProgress(dogId: string) {
     }
 
     return result;
-  }, [isLoading, exhibitorResults, manualResults, templates, allTitles, dogId]);
+  }, [isLoading, isError, exhibitorResults, manualResults, templates, allTitles, dogId]);
 
   const earnedAbbreviations = useMemo(
     () =>
@@ -72,6 +99,8 @@ export function useTitleProgress(dogId: string) {
     progressBySport,
     templates,
     isLoading,
+    isError,
+    refetch,
     earnedAbbreviations,
   };
 }

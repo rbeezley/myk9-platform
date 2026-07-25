@@ -131,6 +131,8 @@ export function mapSecretaryEntryToEntryManagementEntry(
     }),
     entryStatus: mapEntryStatus(entry.entry_status),
     rawEntryStatus: entry.entry_status ?? null,
+    isScored: entry.is_scored ?? null,
+    resultStatus: entry.result_status ?? null,
     paymentStatus: mapPaymentStatus(entry.payment_status),
     submittedAt: entry.submitted_at
       ? new Date(entry.submitted_at)

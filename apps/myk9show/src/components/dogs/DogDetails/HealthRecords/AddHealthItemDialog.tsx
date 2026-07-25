@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
@@ -6,21 +6,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import DatePickerField from '@/components/common/DatePickerField';
 import { Plus, Trash2 } from 'lucide-react';
+import { validateAddHealthItem } from './AddHealthItemDialog.validation';
 
 export type HealthItemType =
-  | 'vaccination'
-  | 'medication'
-  | 'allergy'
-  | 'vet_visit'
-  | 'ofa_screening'
-  | 'genetic_screening';
+  'vaccination' | 'medication' | 'allergy' | 'vet_visit' | 'ofa_screening' | 'genetic_screening';
 
 interface AddHealthItemDialogProps {
   open: boolean;
   type: HealthItemType;
   dogId: string;
   onClose: () => void;
-  onAdd: (type: HealthItemType, data: Record<string, unknown>) => void;
+  /** Runs the create mutation; must reject on failure so the dialog can stay open. */
+  onAdd: (type: HealthItemType, data: Record<string, unknown>) => Promise<void>;
+  /** Set by the parent when the last create mutation was rejected. */
+  saveError?: string | null;
 }
 
 const typeLabels: Record<HealthItemType, string> = {
@@ -56,9 +55,15 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
   dogId,
   onClose,
   onAdd,
+  saveError = null,
 }) => {
   // Shared fields
   const [notes, setNotes] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // In-flight guard: Button's `loading` prop already blocks re-activation,
+  // but this also protects the requestSubmit()-triggered native submit path.
+  const submittingRef = useRef(false);
 
   // Vaccination fields
   const [vaccineName, setVaccineName] = useState('');
@@ -152,6 +157,27 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
+
+    // Validate at the form boundary in addition to native `required`
+    // attributes so an invalid submission never reaches the mutation.
+    const validationMessage = validateAddHealthItem(type, {
+      vaccineName,
+      dateGiven,
+      medicationName,
+      allergen,
+      visitDate,
+      reason,
+      ofaTestDate,
+      geneticProvider,
+      geneticTestDate,
+      geneticMarkers,
+    });
+    if (validationMessage) {
+      setValidationError(validationMessage);
+      return;
+    }
+    setValidationError(null);
 
     let data: Record<string, unknown> = { dog_id: dogId };
 
@@ -224,33 +250,60 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
         break;
     }
 
-    onAdd(type, data);
-    resetForm();
-    onClose();
+    // Preserve entered values while the mutation is in flight; only reset
+    // and close once the mutation is confirmed successful.
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    onAdd(type, data)
+      .then(() => {
+        resetForm();
+        onClose();
+      })
+      .catch(() => {
+        // Parent surfaces the failure via `saveError`; the dialog stays
+        // open and the entered values are left untouched for retry.
+      })
+      .finally(() => {
+        submittingRef.current = false;
+        setIsSubmitting(false);
+      });
   };
 
   const formId = 'add-health-item-form';
 
+  const handleClose = () => {
+    // Block every close path (header ×, Cancel, backdrop) while a mutation
+    // is in flight. Without this, closing mid-submit and reopening the
+    // dialog for a new item lets the stale request's `.then()` reset and
+    // close the *new* dialog instance out from under the user.
+    if (submittingRef.current) return;
+    resetForm();
+    setValidationError(null);
+    onClose();
+  };
+
   return (
     <StandardDialog
       open={open}
-      onClose={() => {
-        resetForm();
-        onClose();
+      onClose={handleClose}
+      onSave={() => {
+        const form = document.getElementById(formId);
+        if (form instanceof HTMLFormElement) form.requestSubmit();
       }}
-      onSave={() =>
-        document
-          .getElementById(formId)
-          ?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
-      }
       title={`Add ${typeLabels[type]}`}
       formId={formId}
+      isSubmitting={isSubmitting}
       saveLabel={
         <>
           <Plus className="mr-2 h-4 w-4" /> Add
         </>
       }
     >
+      {(validationError || saveError) && (
+        <p role="alert" aria-live="assertive" className="text-sm text-destructive mb-3">
+          {validationError ?? `${saveError} The record was not saved. Please try again.`}
+        </p>
+      )}
       <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-4">
         {type === 'vaccination' && (
           <>
@@ -287,10 +340,18 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
               onChange={setExpirationDate}
             />
             <FormField label="Veterinarian" fieldId="healthVaccineVet">
-              <Input id="healthVaccineVet" value={vetName} onChange={e => setVetName(e.target.value)} />
+              <Input
+                id="healthVaccineVet"
+                value={vetName}
+                onChange={e => setVetName(e.target.value)}
+              />
             </FormField>
             <FormField label="Lot Number" fieldId="healthVaccineLot">
-              <Input id="healthVaccineLot" value={lotNumber} onChange={e => setLotNumber(e.target.value)} />
+              <Input
+                id="healthVaccineLot"
+                value={lotNumber}
+                onChange={e => setLotNumber(e.target.value)}
+              />
             </FormField>
           </>
         )}
@@ -389,14 +450,26 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
               />
             </FormField>
             <FormField label="Diagnosis" fieldId="healthVisitDiagnosis">
-              <Textarea id="healthVisitDiagnosis" value={diagnosis} onChange={e => setDiagnosis(e.target.value)} />
+              <Textarea
+                id="healthVisitDiagnosis"
+                value={diagnosis}
+                onChange={e => setDiagnosis(e.target.value)}
+              />
             </FormField>
             <FormField label="Treatment" fieldId="healthVisitTreatment">
-              <Textarea id="healthVisitTreatment" value={treatment} onChange={e => setTreatment(e.target.value)} />
+              <Textarea
+                id="healthVisitTreatment"
+                value={treatment}
+                onChange={e => setTreatment(e.target.value)}
+              />
             </FormField>
             <div className="grid grid-cols-2 gap-4">
               <FormField label="Veterinarian" fieldId="healthVisitVet">
-                <Input id="healthVisitVet" value={vetName} onChange={e => setVetName(e.target.value)} />
+                <Input
+                  id="healthVisitVet"
+                  value={vetName}
+                  onChange={e => setVetName(e.target.value)}
+                />
               </FormField>
               <FormField label="Cost ($)" fieldId="healthVisitCost">
                 <Input

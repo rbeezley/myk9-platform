@@ -159,6 +159,15 @@ export { SortableEntryCard } from './pages/EntryList';
 export type { SortableEntryCardProps } from './pages/EntryList';
 export { EntryListContent } from './pages/EntryList';
 export type { EntryListContentProps } from './pages/EntryList';
+export {
+  ClassCompletionPresentation,
+  ClassPodium,
+  markClassCompletionPending,
+} from './pages/EntryList';
+export type {
+  ClassCompletionPresentationProps,
+  ClassPodiumProps,
+} from './pages/EntryList';
 export { EntryListHeader } from './pages/EntryList';
 export type { EntryListHeaderProps } from './pages/EntryList';
 export { EntryListDialogs } from './pages/EntryList';

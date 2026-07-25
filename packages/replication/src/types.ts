@@ -121,6 +121,11 @@ export interface PendingMutation {
   retries: number; // Retry attempts
   status: MutationStatus;
   error?: string; // Last error message
+  /**
+   * Why a mutation moved to the failed-mutation store. Preserved with the dead
+   * letter so user-facing recovery does not have to parse display text.
+   */
+  failureKind?: 'authorization' | 'permanent' | 'max-retries';
 
   /** Causal dependency tracking */
   dependsOn?: string[]; // IDs of mutations that must complete before this one

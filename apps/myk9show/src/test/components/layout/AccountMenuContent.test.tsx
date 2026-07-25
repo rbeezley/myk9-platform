@@ -179,7 +179,7 @@ describe('AccountMenuContent organization', () => {
 
     expect(screen.getByRole('menuitem', { name: 'Plan & billing' })).toHaveAttribute(
       'href',
-      '/subscription'
+      '/account?section=billing'
     );
     expect(screen.queryByRole('menuitem', { name: /view plans/i })).not.toBeInTheDocument();
   });

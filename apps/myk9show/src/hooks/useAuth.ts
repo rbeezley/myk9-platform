@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { rbacService } from '@/services/rbac/RBACService';
+import { clearAppearanceCache } from '@/context/themeClasses';
 import type { User } from '@supabase/supabase-js';
 
 /**
@@ -18,6 +19,12 @@ import type { User } from '@supabase/supabase-js';
  */
 
 const SIGN_IN_TIMEOUT_MS = 15_000;
+
+function buildAuthCallbackUrl(redirectTo?: string): string {
+  const callbackUrl = new URL('/auth/callback', window.location.origin);
+  if (redirectTo) callbackUrl.searchParams.set('redirectTo', redirectTo);
+  return callbackUrl.toString();
+}
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -129,6 +136,13 @@ export function useAuth() {
           });
         }
       }
+
+      // Clear the cached per-user appearance preferences on ANY sign-out —
+      // explicit signOut, suspension-forced, session expiry, or another tab —
+      // so the next user on a shared browser doesn't inherit them.
+      if (_event === 'SIGNED_OUT') {
+        clearAppearanceCache();
+      }
     });
 
     return () => {
@@ -148,7 +162,8 @@ export function useAuth() {
       email: string,
       password: string,
       metadata?: { firstName?: string; lastName?: string; roles?: string[] },
-      captchaToken?: string
+      captchaToken?: string,
+      redirectTo?: string
     ) => {
       const { error } = await supabase.auth.signUp({
         email,
@@ -160,6 +175,7 @@ export function useAuth() {
             ...(metadata?.roles?.length ? { intended_roles: metadata.roles } : {}),
           },
           ...(captchaToken ? { captchaToken } : {}),
+          ...(redirectTo ? { emailRedirectTo: buildAuthCallbackUrl(redirectTo) } : {}),
         },
       });
 
@@ -182,16 +198,24 @@ export function useAuth() {
    * @param {string} email - The address that registered but hasn't confirmed
    * @throws {AuthError} If the resend fails (e.g. rate-limited or unknown email)
    */
-  const resendConfirmationEmail = useCallback(async (email: string, captchaToken?: string) => {
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email,
-      ...(captchaToken ? { options: { captchaToken } } : {}),
-    });
-    if (error) {
-      throw error;
-    }
-  }, []);
+  const resendConfirmationEmail = useCallback(
+    async (email: string, captchaToken?: string, redirectTo?: string) => {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        ...((captchaToken || redirectTo) && {
+          options: {
+            ...(captchaToken ? { captchaToken } : {}),
+            ...(redirectTo ? { emailRedirectTo: buildAuthCallbackUrl(redirectTo) } : {}),
+          },
+        }),
+      });
+      if (error) {
+        throw error;
+      }
+    },
+    []
+  );
 
   /**
    * Signs in a user with email and password
@@ -249,6 +273,9 @@ export function useAuth() {
     if (error) {
       throw error;
     }
+    // Appearance cache holds the signed-out user's per-user preferences;
+    // clear it so the next user on this browser doesn't inherit them.
+    clearAppearanceCache();
     window.location.href = '/';
   }, []);
 

@@ -37,7 +37,7 @@ export const BACKOFF_JITTER = 0.1;
 export class TimeoutError extends Error {
   constructor(
     message: string,
-    public timeoutMs: number,
+    public timeoutMs: number
   ) {
     super(message);
     this.name = 'TimeoutError';
@@ -68,7 +68,7 @@ export class TimeoutError extends Error {
 export async function withTimeout<T>(
   promiseLike: PromiseLike<T>,
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
-  operationName: string = 'operation',
+  operationName: string = 'operation'
 ): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
@@ -114,7 +114,7 @@ export async function withTimeout<T>(
 export function calculateBackoffDelay(
   attempt: number,
   baseDelayMs: number = DEFAULT_BACKOFF_BASE_MS,
-  maxDelayMs: number = MAX_BACKOFF_MS,
+  maxDelayMs: number = MAX_BACKOFF_MS
 ): number {
   // Exponential backoff: base * 2^attempt
   const exponentialDelay = baseDelayMs * Math.pow(2, attempt);
@@ -138,13 +138,13 @@ export function calculateBackoffDelay(
 export function backoffDelay(
   attempt: number,
   baseDelayMs: number = DEFAULT_BACKOFF_BASE_MS,
-  logger?: Logger,
+  logger?: Logger
 ): Promise<void> {
   const delay = calculateBackoffDelay(attempt, baseDelayMs);
   if (logger) {
     logger.log(`[Backoff] Waiting ${delay.toFixed(0)}ms before retry (attempt ${attempt + 1})`);
   }
-  return new Promise((resolve) => setTimeout(resolve, delay));
+  return new Promise(resolve => setTimeout(resolve, delay));
 }
 
 // ============================================
@@ -172,6 +172,37 @@ function isSupabaseError(error: unknown): error is SupabaseError {
     return false;
   }
   return true;
+}
+
+/**
+ * Whether an error is an authorization/permission rejection.
+ *
+ * Kept separate from retryability so a dead letter can preserve the reason
+ * after the original structured error has been reduced to a display string.
+ */
+export function isAuthorizationError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+
+  const candidate = error as Record<string, unknown>;
+  const code = typeof candidate.code === 'string' ? candidate.code : undefined;
+  const message =
+    typeof candidate.message === 'string' ? candidate.message.toLowerCase() : undefined;
+  const isExplicitPermissionRejection =
+    message?.includes('row-level security') === true ||
+    message?.includes('rls policy') === true ||
+    message?.includes('permission denied') === true;
+
+  if (code === '42501' || isExplicitPermissionRejection) return true;
+
+  // Broad authorization wording is trustworthy only when it comes with a
+  // structured server code. Plain Error messages such as an expired-session
+  // gateway "Unauthorized" are ambiguous and must retain fail-open retries.
+  return (
+    code !== undefined &&
+    (message?.includes('not authorized') === true ||
+      message?.includes('unauthorized') === true ||
+      message?.includes('forbidden') === true)
+  );
 }
 
 /**
@@ -227,15 +258,7 @@ export function isRetryableError(error: unknown): boolean {
     }
 
     // RLS / insufficient-privilege denials need a role/permission fix.
-    if (
-      code === '42501' ||
-      message.includes('row-level security') ||
-      message.includes('rls policy') ||
-      message.includes('permission denied') ||
-      message.includes('not authorized') ||
-      message.includes('unauthorized') ||
-      message.includes('forbidden')
-    ) {
+    if (isAuthorizationError(error)) {
       return false;
     }
 
@@ -252,12 +275,7 @@ export function isRetryableError(error: unknown): boolean {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
 
-    if (
-      message.includes('rls policy blocked') ||
-      message.includes('row-level security') ||
-      message.includes('permission denied') ||
-      message.includes('violates') // constraint/check violation text
-    ) {
+    if (isAuthorizationError(error) || message.includes('violates')) {
       return false;
     }
   }

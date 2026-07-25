@@ -12,15 +12,22 @@ interface UseAvatarUploadOptions {
 
 export function useAvatarUpload({ onSuccess }: UseAvatarUploadOptions) {
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const upload = async (file: File) => {
+    setError(null);
+
     if (!ALLOWED_TYPES.includes(file.type)) {
-      notifications.error('Please select a JPG, PNG, or WebP image.');
+      const message = 'Please select a JPG, PNG, or WebP image.';
+      notifications.error(message);
+      setError(message);
       return;
     }
 
     if (file.size > MAX_SIZE_BYTES) {
-      notifications.error('Image must be under 5MB.');
+      const message = 'Image must be under 5MB.';
+      notifications.error(message);
+      setError(message);
       return;
     }
 
@@ -31,7 +38,9 @@ export function useAvatarUpload({ onSuccess }: UseAvatarUploadOptions) {
       } = await supabase.auth.getSession();
       const authUid = session?.user?.id;
       if (!authUid) {
-        notifications.error('Not authenticated.');
+        const message = 'Not authenticated.';
+        notifications.error(message);
+        setError(message);
         return;
       }
 
@@ -52,11 +61,13 @@ export function useAvatarUpload({ onSuccess }: UseAvatarUploadOptions) {
       await onSuccess?.(publicUrl);
       notifications.success('Profile photo updated.');
     } catch (err) {
-      notifications.error(friendlyDbError(err, 'Failed to save profile photo.'));
+      const message = friendlyDbError(err, 'Failed to save profile photo.');
+      notifications.error(message);
+      setError(message);
     } finally {
       setUploading(false);
     }
   };
 
-  return { upload, uploading };
+  return { upload, uploading, error };
 }

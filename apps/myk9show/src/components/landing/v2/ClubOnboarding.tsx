@@ -10,8 +10,6 @@ import {
 import { logger } from '@/services/LoggingService';
 import { buildSignInPathForRedirect, buildSignUpPathForRedirect } from '@/pages/SignInPage.helpers';
 
-const CLUB_ONBOARDING_RETURN_TO = '/?onboarding=true#get-started';
-
 // Club-onboarding lead form for the marketing homepage. Restyled onto the
 // editorial l-* system so it reads as one page with the waitlist / feature
 // sections — it reuses the `.l-waitlist` form styles (inputs, labels,
@@ -83,11 +81,7 @@ export function ClubOnboarding() {
   }, [user]);
 
   const handleSignIn = useCallback(() => {
-    navigate(buildSignInPathForRedirect(CLUB_ONBOARDING_RETURN_TO));
-  }, [navigate]);
-
-  const handleSignUp = useCallback(() => {
-    navigate(buildSignUpPathForRedirect(CLUB_ONBOARDING_RETURN_TO));
+    navigate(buildSignInPathForRedirect('/?onboarding=true#get-started'));
   }, [navigate]);
 
   const handleSubmit = useCallback(
@@ -134,7 +128,11 @@ export function ClubOnboarding() {
         setSubmitted(true);
       } catch (err) {
         const isAuthError = err instanceof Error && /401|403|JWT|auth/i.test(err.message);
-        if (isAuthError) {
+        const isDuplicateRequest =
+          typeof err === 'object' && err !== null && 'code' in err && err.code === '23505';
+        if (isDuplicateRequest) {
+          setError('You already have a request under review.');
+        } else if (isAuthError) {
           setError('Your session has expired. Please sign in again.');
         } else {
           setError('Something went wrong. Please try again.');
@@ -158,8 +156,8 @@ export function ClubOnboarding() {
             skip under the section's own <h2>. */}
         <p className="l-success-title">Create your free account</p>
         <p>
-          Requesting club onboarding takes a myK9Show account — it's free. Sign in or sign up, and
-          you'll return here to submit your request.
+          Requesting club onboarding takes a myK9Show account — it's free. Sign in or sign up, then
+          your request form will be ready when you return.
         </p>
         <div className="l-submit-row">
           <button type="button" className="l-btn l-btn-primary l-btn-lg" onClick={handleSignIn}>
@@ -169,7 +167,11 @@ export function ClubOnboarding() {
         </div>
         <p className="l-fineprint">
           Don't have an account?{' '}
-          <button type="button" className="l-btn-text" onClick={handleSignUp}>
+          <button
+            type="button"
+            className="l-btn-text"
+            onClick={() => navigate(buildSignUpPathForRedirect('/?onboarding=true#get-started'))}
+          >
             Create one for free
           </button>
         </p>

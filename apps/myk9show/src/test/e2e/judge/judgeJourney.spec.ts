@@ -10,7 +10,7 @@ import { signInAsJudge } from '../uat/shared/auth';
  * no entry data is mutated.
  *
  * NOT covered here — "assignment acceptance": judge_assignments supports an
- * 'invited' status (see useJudgeAssignments.ts ACTIVE_ASSIGNMENT_STATUSES), but
+ * 'invited' status (see assignmentStatus.ts ACTIVE_JUDGE_ASSIGNMENT_STATUSES), but
  * no UI anywhere accepts/declines an invited assignment; every seeded
  * assignment for e2e-judge is pre-'confirmed'. This is a feature gap, not a
  * seed gap — see SUMMARY (MYK9-42) for detail. "Judge book" and "results

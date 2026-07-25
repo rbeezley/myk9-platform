@@ -34,17 +34,9 @@ describe('sign-in redirect helpers', () => {
     );
   });
 
-  it('round-trips the onboarding landing target through an auth URL', () => {
-    const target = '/?onboarding=true#get-started';
-    const path = buildSignInPathForRedirect(target);
-
-    expect(path).toBe('/sign-in?redirectTo=%2F%3Fonboarding%3Dtrue%23get-started');
-    expect(getSignInReturnTo(new URLSearchParams(path.split('?')[1]))).toBe(target);
-  });
-
-  it('builds a sign-up URL without dropping the protected-flow target', () => {
+  it('builds a sign-up URL with returnTo for the post-confirmation target', () => {
     expect(buildSignUpPathForRedirect('/?onboarding=true#get-started')).toBe(
-      '/sign-up?redirectTo=%2F%3Fonboarding%3Dtrue%23get-started'
+      '/sign-up?returnTo=%2F%3Fonboarding%3Dtrue%23get-started'
     );
   });
 

@@ -27,7 +27,17 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTheme } from '@/hooks/useTheme';
-import { applyFontScale, storeFontScale, FONT_SIZE_SCALES } from '@/context/themeClasses';
+import {
+  applyFontScale,
+  storeFontScale,
+  FONT_SIZE_SCALES,
+  applyLayoutDensity,
+  storeLayoutDensity,
+  applyReduceMotion,
+  storeReduceMotion,
+  applyHighContrast,
+  storeHighContrast,
+} from '@/context/themeClasses';
 import type {
   ThemePreferences,
   ThemeMode,
@@ -64,6 +74,19 @@ const colorSchemes: Array<{
   { value: 'dusk', label: 'Dusk', color: '#3d6d8c', description: 'Dusty slate blue' },
   { value: 'heather', label: 'Heather', color: '#7b5aa6', description: 'Aubergine purple' },
 ];
+
+// Drives the reactive Preview card below — keeps its spacing in visible sync
+// with the selected Layout Density option instead of being static.
+const DENSITY_PREVIEW_PADDING: Record<LayoutDensity, string> = {
+  compact: '0.75rem',
+  comfortable: '1rem',
+  spacious: '1.5rem',
+};
+const DENSITY_PREVIEW_GAP: Record<LayoutDensity, string> = {
+  compact: '0.5rem',
+  comfortable: '0.75rem',
+  spacious: '1.25rem',
+};
 
 const densityOptions: Array<{ value: LayoutDensity; label: string; description: string }> = [
   { value: 'compact', label: 'Compact', description: 'Dense layout, more content' },
@@ -120,10 +143,10 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
   const handleDensityChange = (layoutDensity: LayoutDensity) => {
     onUpdate({ layoutDensity });
 
-    // Apply density class to body
-    document.body.className = document.body.className
-      .replace(/\bdensity-\w+\b/g, '')
-      .concat(` density-${layoutDensity}`);
+    // Apply the density class immediately and cache it so it survives a
+    // reload (see getStoredLayoutDensity boot hydration in ThemeContext).
+    applyLayoutDensity(layoutDensity);
+    storeLayoutDensity(layoutDensity);
   };
 
   /**
@@ -148,12 +171,15 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
   ) => {
     onUpdate({ [setting]: enabled });
 
-    // Apply accessibility settings
-    const root = document.documentElement;
+    // Apply accessibility setting immediately and cache it so it survives a
+    // reload (see getStoredReduceMotion/getStoredHighContrast boot hydration
+    // in ThemeContext).
     if (setting === 'reduceMotion') {
-      root.classList.toggle('reduce-motion', enabled);
+      applyReduceMotion(enabled);
+      storeReduceMotion(enabled);
     } else if (setting === 'highContrast') {
-      root.classList.toggle('high-contrast', enabled);
+      applyHighContrast(enabled);
+      storeHighContrast(enabled);
     }
   };
 
@@ -263,7 +289,11 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
           >
             {densityOptions.map(option => (
               <div key={option.value} className="flex items-center space-x-3">
-                <RadioGroupItem value={option.value} id={`density-${option.value}`} />
+                <RadioGroupItem
+                  value={option.value}
+                  id={`density-${option.value}`}
+                  aria-label={option.label}
+                />
                 <Label htmlFor={`density-${option.value}`} className="flex-1">
                   <div className="font-medium">{option.label}</div>
                   <div className="text-sm text-muted-foreground">{option.description}</div>
@@ -335,6 +365,7 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
               </div>
             </div>
             <Switch
+              aria-label="Reduce Motion"
               checked={preferences?.reduceMotion || false}
               onCheckedChange={checked => handleAccessibilityChange('reduceMotion', checked)}
             />
@@ -350,6 +381,7 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
               </div>
             </div>
             <Switch
+              aria-label="High Contrast"
               checked={preferences?.highContrast || false}
               onCheckedChange={checked => handleAccessibilityChange('highContrast', checked)}
             />
@@ -364,11 +396,22 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
             <Eye className="h-5 w-5" />
             Preview
           </CardTitle>
-          <CardDescription>Preview how your theme settings will look</CardDescription>
+          <CardDescription>
+            Preview reacts to font size and layout density below — other options apply app-wide.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="border rounded-lg p-4 bg-background">
-            <div className="space-y-3">
+          <div
+            className="border rounded-lg bg-background"
+            style={{
+              padding: DENSITY_PREVIEW_PADDING[preferences?.layoutDensity ?? 'comfortable'],
+              fontSize: `calc(1em * ${FONT_SIZE_SCALES[preferences?.fontSize ?? 'medium'] ?? '1.0'})`,
+            }}
+          >
+            <div
+              className="flex flex-col"
+              style={{ gap: DENSITY_PREVIEW_GAP[preferences?.layoutDensity ?? 'comfortable'] }}
+            >
               <div className="flex items-center justify-between">
                 <h4 className="font-semibold">Sample Content</h4>
                 <Badge>New</Badge>

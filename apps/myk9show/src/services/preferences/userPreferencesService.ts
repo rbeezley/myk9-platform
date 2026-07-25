@@ -4,13 +4,7 @@
  * Preferences are stored as a single JSONB blob in the `preferences` column.
  */
 
-import type {
-  UserPreferences,
-  PreferencesUpdate,
-  DeviceInfo,
-  SyncState,
-  DeviceOverrides,
-} from '@/types/user-preferences';
+import type { UserPreferences, PreferencesUpdate, DeviceOverrides } from '@/types/user-preferences';
 import {
   DEFAULT_THEME_PREFERENCES,
   DEFAULT_COMPETITION_PREFERENCES,
@@ -22,16 +16,6 @@ import { logger } from '@/services/LoggingService';
 import { supabase } from '@/lib/supabase';
 
 const APP_ID = 'myk9show';
-
-// Simple DeviceInfo for backward compatibility
-export interface SimpleDeviceInfo {
-  deviceId: string;
-  deviceName: string;
-  deviceType: 'desktop' | 'mobile' | 'tablet';
-  platform: string;
-  userAgent: string;
-  lastSeen: Date;
-}
 
 /**
  * Build a full UserPreferences object from defaults for the given userId.
@@ -150,12 +134,6 @@ function toStoredPreferences(prefs: UserPreferences): StoredPreferences {
 
 export class UserPreferencesService {
   private static instance: UserPreferencesService;
-  private syncState: SyncState = {
-    status: 'idle',
-    lastSyncAt: null,
-    pendingChanges: false,
-    conflictCount: 0,
-  };
 
   private constructor() {}
 
@@ -164,99 +142,6 @@ export class UserPreferencesService {
       UserPreferencesService.instance = new UserPreferencesService();
     }
     return UserPreferencesService.instance;
-  }
-
-  async getUserPreferences(userId: string): Promise<UserPreferences> {
-    try {
-      logger.debug('Loading user preferences', 'preferences', { userId });
-      return await this.loadPreferences(userId);
-    } catch (error) {
-      logger.error(
-        'Failed to load user preferences, returning defaults',
-        'preferences',
-        { userId },
-        error as Error
-      );
-      return buildDefaults(userId);
-    }
-  }
-
-  async updateUserPreferences(
-    userId: string,
-    updates: Partial<Omit<UserPreferences, 'userId' | 'createdAt' | 'updatedAt'>>
-  ): Promise<boolean> {
-    try {
-      logger.debug('Updating user preferences', 'preferences', { userId, updates });
-
-      // Load current, merge updates, persist
-      const current = await this.loadPreferences(userId);
-      const merged: UserPreferences = {
-        ...current,
-        theme: updates.theme ? { ...current.theme, ...updates.theme } : current.theme,
-        competition: updates.competition
-          ? { ...current.competition, ...updates.competition }
-          : current.competition,
-        notifications: updates.notifications
-          ? { ...current.notifications, ...updates.notifications }
-          : current.notifications,
-        data: updates.data ? { ...current.data, ...updates.data } : current.data,
-        privacy: updates.privacy ? { ...current.privacy, ...updates.privacy } : current.privacy,
-        deviceOverrides:
-          updates.deviceOverrides != null
-            ? ({ ...current.deviceOverrides, ...updates.deviceOverrides } as Record<
-                string,
-                DeviceOverrides
-              >)
-            : current.deviceOverrides,
-        version: updates.version ?? current.version,
-        lastModifiedBy: updates.lastModifiedBy ?? current.lastModifiedBy,
-        syncConflicts: updates.syncConflicts ?? current.syncConflicts ?? [],
-        updatedAt: new Date(),
-      };
-
-      await this.upsertPreferences(userId, merged);
-      return true;
-    } catch (error) {
-      logger.error('Failed to update user preferences', 'preferences', { userId }, error as Error);
-      return false;
-    }
-  }
-
-  async resetUserPreferences(userId: string): Promise<boolean> {
-    try {
-      logger.debug('Resetting user preferences', 'preferences', { userId });
-      const defaults = buildDefaults(userId);
-      await this.upsertPreferences(userId, defaults);
-      return true;
-    } catch (error) {
-      logger.error('Failed to reset user preferences', 'preferences', { userId }, error as Error);
-      return false;
-    }
-  }
-
-  async logDeviceInfo(userId: string, deviceInfo: Partial<DeviceInfo>): Promise<boolean> {
-    try {
-      logger.debug('Logging device info (mock)', 'preferences', { userId, deviceInfo });
-      return true;
-    } catch (error) {
-      logger.error('Failed to log device info', 'preferences', { userId }, error as Error);
-      return false;
-    }
-  }
-
-  async getUserDevices(userId: string): Promise<SimpleDeviceInfo[]> {
-    try {
-      logger.debug('Loading user devices (mock)', 'preferences', { userId });
-      return [];
-    } catch (error) {
-      logger.error('Failed to load user devices', 'preferences', { userId }, error as Error);
-      return [];
-    }
-  }
-
-  // New methods required by useUserPreferences hook
-  getSyncState(): SyncState {
-    return { ...this.syncState };
   }
 
   async loadPreferences(userId: string): Promise<UserPreferences> {
@@ -289,16 +174,10 @@ export class UserPreferencesService {
 
       // data.preferences is a Json blob — cast to our known shape
       const stored = data.preferences as unknown as StoredPreferences;
-      const merged = mergeWithDefaults(userId, stored, {
+      return mergeWithDefaults(userId, stored, {
         created_at: data.created_at,
         updated_at: data.updated_at,
       });
-
-      this.syncState.lastSyncAt = new Date();
-      this.syncState.status = 'idle';
-      this.syncState.pendingChanges = false;
-
-      return merged;
     } catch (error) {
       logger.error('Failed to load user preferences', 'preferences', { userId }, error as Error);
       throw error;
@@ -375,61 +254,6 @@ export class UserPreferencesService {
     }
   }
 
-  async exportPreferences(userId: string): Promise<string> {
-    try {
-      logger.debug('Exporting user preferences', 'preferences', { userId });
-      const preferences = await this.loadPreferences(userId);
-      return JSON.stringify(preferences, null, 2);
-    } catch (error) {
-      logger.error('Failed to export user preferences', 'preferences', { userId }, error as Error);
-      throw error;
-    }
-  }
-
-  async importPreferences(userId: string, data: string): Promise<UserPreferences> {
-    try {
-      logger.debug('Importing user preferences', 'preferences', { userId });
-      const imported = JSON.parse(data) as UserPreferences;
-      imported.userId = userId;
-      imported.updatedAt = new Date();
-
-      await this.upsertPreferences(userId, imported);
-      return imported;
-    } catch (error) {
-      logger.error('Failed to import user preferences', 'preferences', { userId }, error as Error);
-      throw error;
-    }
-  }
-
-  async forceSync(userId: string): Promise<UserPreferences> {
-    try {
-      logger.debug('Force syncing user preferences', 'preferences', { userId });
-      this.syncState.status = 'syncing';
-
-      const preferences = await this.loadPreferences(userId);
-
-      this.syncState.status = 'idle';
-      this.syncState.lastSyncAt = new Date();
-      this.syncState.pendingChanges = false;
-
-      return preferences;
-    } catch (error) {
-      logger.error(
-        'Failed to force sync user preferences',
-        'preferences',
-        { userId },
-        error as Error
-      );
-      this.syncState.status = 'error';
-      this.syncState.errorMessage = error instanceof Error ? error.message : 'Sync failed';
-      throw error;
-    }
-  }
-
-  getDefaultPreferences(): UserPreferences {
-    return buildDefaults('default');
-  }
-
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
@@ -474,8 +298,6 @@ export class UserPreferencesService {
       throw error;
     }
 
-    this.syncState.lastSyncAt = new Date();
-    this.syncState.pendingChanges = false;
     logger.debug('Preferences persisted to database', 'preferences', { userId });
   }
 }

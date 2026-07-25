@@ -128,6 +128,138 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     );
   });
 
+  it('explains how to fix a permanent score authorization failure before retrying', () => {
+    renderProvider();
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('replication:sync-failed', {
+          detail: {
+            count: 1,
+            mutations: [
+              {
+                id: 'score-mut-1',
+                tableName: 'entries',
+                operation: 'UPDATE',
+                error: 'Non-retryable error: not authorized to score this class',
+                failureKind: 'authorization',
+                rpc: {
+                  name: 'ringside_update_entry',
+                  fields: { result_status: 'qualified', is_scored: true },
+                },
+              },
+            ],
+            message: '',
+          },
+        })
+      );
+    });
+
+    expect(toast.error).toHaveBeenCalledWith(
+      "Score not saved — you're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.",
+      expect.objectContaining({
+        duration: Infinity,
+        action: expect.objectContaining({ label: 'Retry after access is fixed' }),
+        cancel: expect.objectContaining({ label: 'Discard' }),
+      })
+    );
+    const options = vi.mocked(toast.error).mock.calls[0]?.[1] as ToastOptions;
+    act(() => {
+      options.action!.onClick();
+    });
+    expect(retryFailedMutationMock).toHaveBeenCalledWith('score-mut-1');
+    expect(toast.dismiss).toHaveBeenCalledWith('sync-failed:score-mut-1');
+  });
+
+  it('keeps unrelated failures retryable when a batch also contains a score authorization failure', () => {
+    renderProvider();
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('replication:sync-failed', {
+          detail: {
+            count: 2,
+            mutations: [
+              {
+                id: 'score-mut-1',
+                tableName: 'entries',
+                operation: 'UPDATE',
+                failureKind: 'authorization',
+                rpc: {
+                  name: 'ringside_update_entry',
+                  fields: { scoring_completed_at: '2026-07-24T12:00:00Z' },
+                },
+              },
+              {
+                id: 'show-mut-1',
+                tableName: 'shows',
+                operation: 'UPDATE',
+                error: 'Max retries exceeded: timeout',
+                failureKind: 'max-retries',
+              },
+            ],
+            message: '',
+          },
+        })
+      );
+    });
+
+    const calls = vi.mocked(toast.error).mock.calls;
+    expect(calls).toHaveLength(2);
+    const authorizationCall = calls.find(([message]) =>
+      String(message).startsWith('Score not saved')
+    );
+    const retryableCall = calls.find(([message]) =>
+      String(message).startsWith("We couldn't update this show")
+    );
+    expect((authorizationCall?.[1] as ToastOptions).action?.label).toBe(
+      'Retry after access is fixed'
+    );
+    expect((retryableCall?.[1] as ToastOptions).action?.label).toBe('Retry');
+
+    act(() => {
+      (retryableCall?.[1] as ToastOptions).action?.onClick();
+    });
+    expect(retryFailedMutationMock).toHaveBeenCalledWith('show-mut-1');
+    expect(retryFailedMutationMock).not.toHaveBeenCalledWith('score-mut-1');
+  });
+
+  it('uses distinct fallback toast IDs when split failures have no mutation IDs', () => {
+    renderProvider();
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('replication:sync-failed', {
+          detail: {
+            count: 2,
+            mutations: [
+              {
+                tableName: 'entries',
+                operation: 'UPDATE',
+                failureKind: 'authorization',
+                rpc: {
+                  name: 'ringside_update_entry',
+                  fields: { result_status: 'qualified' },
+                },
+              },
+              {
+                tableName: 'shows',
+                operation: 'UPDATE',
+                failureKind: 'max-retries',
+              },
+            ],
+            message: '',
+          },
+        })
+      );
+    });
+
+    const ids = vi
+      .mocked(toast.error)
+      .mock.calls.map(([, options]) => (options as ToastOptions).id);
+    expect(ids).toEqual(['sync-failed:authorization:unknown', 'sync-failed:other:unknown']);
+  });
+
   it('caps failed-sync toasts so repeated failures do not stack endlessly', () => {
     renderProvider();
 

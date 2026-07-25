@@ -32,7 +32,7 @@ export function buildSignInPathForRedirect(target: string): string {
 }
 
 export function buildSignUpPathForRedirect(target: string): string {
-  const params = new URLSearchParams({ redirectTo: target });
+  const params = new URLSearchParams({ returnTo: target });
   return `/sign-up?${params.toString()}`;
 }
 

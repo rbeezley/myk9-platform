@@ -45,7 +45,10 @@ export function LandingFooter() {
                 <a href="mailto:hello@myk9show.com">Contact</a>
               </li>
               <li>
-                <Link to="/legal">Legal</Link>
+                <Link to="/terms">Terms</Link>
+              </li>
+              <li>
+                <Link to="/privacy">Privacy</Link>
               </li>
             </ul>
           </div>

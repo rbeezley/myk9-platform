@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PremiumButton } from './PremiumButton';
@@ -24,6 +24,7 @@ export function BlurGate({
   className,
 }: BlurGateProps) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   if (!locked) {
     return <>{children}</>;
@@ -33,7 +34,12 @@ export function BlurGate({
     logger.debug('Upgrade to Premium clicked', 'premium', {
       feature: trackingContext ?? title,
     });
-    navigate('/pricing-page');
+    // Preserve the locked page (e.g. a dog's Career/Records secondary view)
+    // so a return trip after upgrading can restore it. See
+    // exhibitor-dog-management "User upgrades and returns".
+    navigate('/pricing-page', {
+      state: { from: `${location.pathname}${location.search}` },
+    });
   };
 
   return (

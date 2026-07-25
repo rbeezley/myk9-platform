@@ -5,13 +5,17 @@ import { notifications } from '@/lib/notifications';
 import { testSound, isSpeechSupported, speakWithConfig } from '@myk9/notifications';
 import type { VoiceCategories } from '@myk9/notifications';
 import { groupVoices, detectPlatform, getEnhancedVoiceInstructions } from '@/lib/voice-utils';
+import { useSettingsStore } from '@/store/settingsStore';
+import { useHapticFeedback } from '@myk9/scoring-ui';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Bell, Volume2, Smartphone, Send, Mic, RefreshCw } from 'lucide-react';
+import { Bell, Volume2, Smartphone, Vibrate, Send, Mic, RefreshCw } from 'lucide-react';
+
+const ALWAYS_ENABLED = () => true;
 
 const CHANNEL_TOGGLES = [
   { key: 'soundEnabled', label: 'Sound', desc: 'Play an alert tone', icon: Volume2 },
@@ -35,6 +39,16 @@ export function NotificationSettings() {
   const updatePreferences = useNotificationStore(s => s.updatePreferences);
   const { subscribe, unsubscribe, isSupported: isPushSupported } = usePushSubscription();
   const [isPushLoading, setIsPushLoading] = useState(false);
+  const hapticFeedback = useSettingsStore(s => s.settings.hapticFeedback);
+  const updateSettings = useSettingsStore(s => s.updateSettings);
+  const haptic = useHapticFeedback(ALWAYS_ENABLED);
+
+  const handleHapticToggle = (checked: boolean) => {
+    updateSettings({ hapticFeedback: checked });
+    if (checked && haptic.isSupported) {
+      haptic.light();
+    }
+  };
   const [voiceRateDisplay, setVoiceRateDisplay] = useState(preferences.voiceRate);
   const voiceRateTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -173,6 +187,26 @@ export function NotificationSettings() {
               />
             </div>
           ))}
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Vibrate className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <label htmlFor="haptic-feedback" className="text-sm font-medium">
+                  Haptic Feedback
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Vibrate on touch interactions (mobile)
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="haptic-feedback"
+              aria-label="Haptic Feedback"
+              checked={hapticFeedback}
+              onCheckedChange={handleHapticToggle}
+            />
+          </div>
 
           <Separator />
 

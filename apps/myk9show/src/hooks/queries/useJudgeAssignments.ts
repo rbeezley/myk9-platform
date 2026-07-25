@@ -8,15 +8,16 @@ import {
   replicatedClassesTable,
   type ReplicatedJudgeAssignment,
 } from '@/services/replication';
+import {
+  ACTIVE_JUDGE_ASSIGNMENT_STATUSES,
+  isActiveJudgeAssignmentStatus,
+} from '@/services/database/judges/assignmentStatus';
 import { zonedWallTimeToInstant, type JudgeClass } from '@/pages/judgeStatsUtils';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = supabaseClient as any;
 
 const DEFAULT_TIMEZONE = 'America/New_York';
-
-/** Assignment-lifecycle statuses that put a class on the judge's plate. */
-const ACTIVE_ASSIGNMENT_STATUSES = ['confirmed', 'invited'];
 
 /** Columns selected by the PostgREST fallback — pinned by a test to catch embed drift. */
 export const JUDGE_ASSIGNMENTS_SELECT = `
@@ -160,7 +161,7 @@ async function fetchFromPostgrest(personId: string): Promise<JudgeClass[]> {
     .from('judge_assignments')
     .select(JUDGE_ASSIGNMENTS_SELECT)
     .eq('person_id', personId)
-    .in('status', ACTIVE_ASSIGNMENT_STATUSES);
+    .in('status', [...ACTIVE_JUDGE_ASSIGNMENT_STATUSES]);
 
   if (error) throw error;
 
@@ -194,7 +195,7 @@ export async function fetchJudgeAssignments(personId: string): Promise<JudgeClas
       const liveByClassId = new Map(liveClasses.map(c => [c.id, c]));
 
       const mine = all
-        .filter(a => a.personId === personId && ACTIVE_ASSIGNMENT_STATUSES.includes(a.status ?? ''))
+        .filter(a => a.personId === personId && isActiveJudgeAssignmentStatus(a.status))
         .map(a => {
           const jc = mapReplicatedAssignmentToJudgeClass(a);
           if (!jc) return null;

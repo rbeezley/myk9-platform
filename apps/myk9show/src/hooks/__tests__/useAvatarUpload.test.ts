@@ -32,7 +32,9 @@ describe('useAvatarUpload', () => {
       error: null,
     });
     mockSupabase.storage.from.mockReturnValue({
-      upload: vi.fn().mockResolvedValue({ data: { path: `profiles/${AUTH_UID}/avatar.jpg` }, error: null }),
+      upload: vi
+        .fn()
+        .mockResolvedValue({ data: { path: `profiles/${AUTH_UID}/avatar.jpg` }, error: null }),
       getPublicUrl: vi.fn().mockReturnValue({
         data: { publicUrl: `https://storage.test/profiles/${AUTH_UID}/avatar.jpg` },
       }),
@@ -77,13 +79,12 @@ describe('useAvatarUpload', () => {
     expect(mockSupabase.storage.from).toHaveBeenCalledWith('images');
     const storageBucket = mockSupabase.storage.from.mock.results[0]!.value;
     // Path must be profiles/{auth.uid()}/... — Storage RLS checks foldername[2] = auth.uid()
-    expect(storageBucket.upload).toHaveBeenCalledWith(
-      `profiles/${AUTH_UID}/avatar.png`,
-      file,
-      { upsert: true, contentType: 'image/png' },
-    );
+    expect(storageBucket.upload).toHaveBeenCalledWith(`profiles/${AUTH_UID}/avatar.png`, file, {
+      upsert: true,
+      contentType: 'image/png',
+    });
     expect(onSuccess).toHaveBeenCalledWith(
-      expect.stringContaining(`https://storage.test/profiles/${AUTH_UID}/avatar.jpg`),
+      expect.stringContaining(`https://storage.test/profiles/${AUTH_UID}/avatar.jpg`)
     );
     expect(notifications.success).toHaveBeenCalledWith('Profile photo updated.');
   });
@@ -122,11 +123,12 @@ describe('useAvatarUpload', () => {
 
     expect(notifications.error).toHaveBeenCalledWith('Failed to save profile photo.');
     expect(onSuccess).not.toHaveBeenCalled();
+    expect(result.current.error).toBe('Failed to save profile photo.');
   });
 
   it('sets uploading to true during upload and false after', async () => {
     let resolveUpload!: (value: unknown) => void;
-    const uploadPromise = new Promise((resolve) => {
+    const uploadPromise = new Promise(resolve => {
       resolveUpload = resolve;
     });
 

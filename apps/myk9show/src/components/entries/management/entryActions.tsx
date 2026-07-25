@@ -16,6 +16,7 @@ import type { BulkActionResult, EntryManagementEntry } from '@/types/entry-manag
 import { isPaymentRequestable } from './paymentRequestEligibility';
 import { isStripeRefundable } from './refundEligibility';
 import { getEligibleForBulkAction } from './bulkActionEligibility';
+import { STATUS_COMMAND_LABELS } from './reviewStateLabels';
 
 /** Handlers an EntityAction<EntryManagementEntry, ...> definition may call. Every
  * handler is optional — a page wires up only the callbacks it supports, and
@@ -103,7 +104,7 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
   },
   {
     id: 'accept',
-    label: 'Accept entry',
+    label: STATUS_COMMAND_LABELS[EntryStatus.ACCEPTED],
     sectionLabel: 'Entry',
     icon: <CheckCircle2 className="h-4 w-4" />,
     statusTarget: EntryStatus.ACCEPTED,
@@ -138,7 +139,7 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
   },
   {
     id: 'pending',
-    label: 'Pending',
+    label: STATUS_COMMAND_LABELS[EntryStatus.PENDING],
     sectionLabel: 'Entry',
     icon: <Undo2 className="h-4 w-4" />,
     statusTarget: EntryStatus.PENDING,
@@ -148,7 +149,7 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
   },
   {
     id: 'missing-info',
-    label: 'Missing Info',
+    label: STATUS_COMMAND_LABELS[EntryStatus.MISSING_INFO],
     sectionLabel: 'Entry',
     icon: <Ticket className="h-4 w-4" />,
     statusTarget: EntryStatus.MISSING_INFO,
@@ -158,7 +159,7 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
   },
   {
     id: 'pull',
-    label: 'Pulled',
+    label: STATUS_COMMAND_LABELS[EntryStatus.SCRATCHED],
     sectionLabel: 'Entry',
     icon: <XCircle className="h-4 w-4" />,
     statusTarget: EntryStatus.SCRATCHED,
@@ -240,7 +241,7 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
   },
   {
     id: 'reject',
-    label: 'Reject entry',
+    label: STATUS_COMMAND_LABELS[EntryStatus.REJECTED],
     sectionLabel: 'Danger',
     icon: <XCircle className="h-4 w-4" />,
     statusTarget: EntryStatus.REJECTED,

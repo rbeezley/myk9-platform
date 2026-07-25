@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { LABEL_TEMPLATES, DEFAULT_TEMPLATE_ID, getAllTemplates } from '@/lib/labels/labelTemplates';
 import { buildLabelPages } from '@/lib/labels/labelLayout';
@@ -16,12 +16,12 @@ import {
 } from '@/features/show-map/cockpit/paperworkPrintState';
 import { ArmbandLabelCell } from './ArmbandLabelCell';
 import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
+import { LabelCalibrationPanel } from './LabelCalibrationPanel';
 import { generatePasscodesFromShowId } from '@myk9/core';
 import { useLabelPreferences } from '@/hooks/useLabelPreferences';
 import { useArmbandLabelData } from '@/hooks/queries/useArmbandLabelData';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 
 // A full-width, 44px-tall tappable row keeps native-sized controls but gives
@@ -48,13 +48,14 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
   });
   const [specificArmband, setSpecificArmband] = useState('');
   const [showSpecific, setShowSpecific] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Derive from prefs — single source of truth
   const templateId = prefs.templateId ?? DEFAULT_TEMPLATE_ID;
   const config = prefs.contentConfig;
   const skip = prefs.skip;
   const pitchAdjustment = prefs.pitchAdjustment;
+  const offsetTop = prefs.offsetTop;
+  const offsetLeft = prefs.offsetLeft;
 
   const { entries: allEntries, wifiNetwork, wifiPassword, isLoading } = useArmbandLabelData(showId);
   const template = LABEL_TEMPLATES[templateId];
@@ -130,9 +131,16 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     [config, template.labelHeight, passcodes, wifiNetwork, wifiPassword]
   );
 
-  useEffect(() => {
+  const writeLabelIframe = useCallback(() => {
     const iframe = externalIframeRef?.current;
-    if (!iframe || pages.length === 0) return;
+    if (!iframe) return;
+
+    if (pages.length === 0) {
+      iframe.contentDocument?.open();
+      iframe.contentDocument?.write('<!DOCTYPE html><html><head></head><body></body></html>');
+      iframe.contentDocument?.close();
+      return;
+    }
 
     const sheetsHtml = pages
       .map(page => {
@@ -151,13 +159,17 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
       })
       .join('');
 
-    const css = buildLabelStylesheet(template, pitchAdjustment);
+    const css = buildLabelStylesheet(template, pitchAdjustment, offsetTop, offsetLeft);
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Armband Labels</title><style>${css}</style></head><body>${sheetsHtml}</body></html>`;
 
     iframe.contentDocument?.open();
     iframe.contentDocument?.write(html);
     iframe.contentDocument?.close();
-  }, [pages, sharedCellProps, template, pitchAdjustment, externalIframeRef]);
+  }, [pages, sharedCellProps, template, pitchAdjustment, offsetTop, offsetLeft, externalIframeRef]);
+
+  useEffect(() => {
+    writeLabelIframe();
+  }, [writeLabelIframe]);
 
   useEffect(() => {
     onDescriptorChange?.(paperworkDescriptor);
@@ -351,49 +363,14 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
           </span>
         </div>
 
-        {/* Advanced — Pitch Adjustment */}
-        <div>
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="text-xs text-muted-foreground hover:text-foreground underline min-h-[44px]"
-          >
-            {showAdvanced ? 'Hide' : 'Show'} Advanced
-          </button>
-          {showAdvanced && (
-            <div className="mt-2 p-3 border rounded bg-background space-y-2">
-              <SetupEyebrow>Vertical Pitch Adjustment</SetupEyebrow>
-              <p className="text-xs text-muted-foreground">
-                If labels drift out of alignment toward the bottom of the page, adjust this value.
-                Positive = more space between rows, negative = less. Saved per browser.
-              </p>
-              <div className="flex items-center gap-3 min-h-[44px]">
-                <Slider
-                  min={-20}
-                  max={20}
-                  step={1}
-                  value={[pitchAdjustment]}
-                  onValueChange={([v]) => setPrefs(p => ({ ...p, pitchAdjustment: v ?? 0 }))}
-                  className="w-48"
-                  aria-label="Vertical pitch adjustment"
-                />
-                <span className="text-sm font-mono w-20">
-                  {pitchAdjustment > 0 ? '+' : ''}
-                  {pitchAdjustment}/1000&quot;
-                </span>
-                {pitchAdjustment !== 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setPrefs(p => ({ ...p, pitchAdjustment: 0 }))}
-                    className="text-xs text-muted-foreground hover:text-foreground underline min-h-[44px]"
-                  >
-                    Reset
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Advanced — Printer Calibration */}
+        <LabelCalibrationPanel
+          prefs={prefs}
+          setPrefs={setPrefs}
+          template={template}
+          iframeRef={externalIframeRef}
+          onAfterTestPrint={writeLabelIframe}
+        />
       </LabelSetupSection>
 
       {/* Empty state */}

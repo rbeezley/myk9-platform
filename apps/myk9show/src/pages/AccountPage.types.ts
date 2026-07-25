@@ -2,11 +2,9 @@ import type React from 'react';
 
 export type Section =
   | 'profile'
-  | 'dogs'
+  | 'billing'
   | 'appearance'
-  | 'general'
   | 'notifications'
-  | 'privacy'
   | 'security'
   | 'data'
   | 'install'

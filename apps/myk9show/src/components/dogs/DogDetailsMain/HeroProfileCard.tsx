@@ -17,6 +17,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   onDeleteDialogOpen,
   onStatusDialogOpen,
   canDelete = true,
+  headingRef,
 }) => {
   const isSecretary = role === 'secretary';
 
@@ -53,7 +54,18 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
 
         {/* Name + status */}
         <div className="flex-1 min-w-0">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">{dog.callName}</h1>
+          {/* tabIndex=-1: not in tab order, only a route-entry focus target
+              (task 3.8). focus-visible:* matches this app's existing
+              mouse-vs-keyboard focus-ring convention (see the photo button
+              above) so a route-entry landing never shows a visible ring for
+              mouse users. */}
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-3xl font-bold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+          >
+            {dog.callName}
+          </h1>
           {registeredName && (
             <p className="text-sm italic text-muted-foreground mt-0.5">{registeredName}</p>
           )}

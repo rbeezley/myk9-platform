@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { LABEL_TEMPLATES, getAllTemplates, getLabelTemplate } from '@/lib/labels/labelTemplates';
 import { buildLabelPages } from '@/lib/labels/labelLayout';
@@ -10,9 +10,10 @@ import type { Show } from '@/types/show-types';
 import type { ReportScope } from '@/lib/reports/types';
 import { ResultLabelCell } from './ResultLabelCell';
 import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
+import { LabelCalibrationPanel } from './LabelCalibrationPanel';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
+import { useLabelPreferences } from '@/hooks/useLabelPreferences';
 
 // A full-width, 44px-tall tappable row keeps native-sized controls but gives
 // each option a mobile-friendly hit area (WCAG 2.5.5 / 44px touch floor).
@@ -45,7 +46,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
 }) => {
   const [templateId, setTemplateId] = useState(DEFAULT_RESULT_TEMPLATE_ID);
   const [skip, setSkip] = useState(0);
-  const [pitch, setPitch] = useState(0);
+  const [prefs, setPrefs] = useLabelPreferences();
 
   const template =
     LABEL_TEMPLATES[templateId] ??
@@ -73,7 +74,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
   // Write the print-ready sheet into the hidden iframe. The cell content uses
   // inline styles, so serializing it here preserves the exact layout; the
   // stylesheet only supplies the fixed-dimension grid + @page geometry.
-  useEffect(() => {
+  const writeLabelIframe = useCallback(() => {
     const iframe = iframeRef?.current;
     if (!iframe) return;
 
@@ -103,13 +104,22 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
       })
       .join('');
 
-    const css = buildLabelStylesheet(template, pitch);
+    const css = buildLabelStylesheet(
+      template,
+      prefs.pitchAdjustment,
+      prefs.offsetTop,
+      prefs.offsetLeft
+    );
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Result Labels</title><style>${css}</style></head><body>${sheetsHtml}</body></html>`;
 
     iframe.contentDocument?.open();
     iframe.contentDocument?.write(html);
     iframe.contentDocument?.close();
-  }, [pages, template, pitch, iframeRef]);
+  }, [pages, template, prefs.pitchAdjustment, prefs.offsetTop, prefs.offsetLeft, iframeRef]);
+
+  useEffect(() => {
+    writeLabelIframe();
+  }, [writeLabelIframe]);
 
   const templates = getAllTemplates();
 
@@ -156,38 +166,14 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
           </span>
         </div>
 
-        {/* Pitch adjustment — corrects printer drift toward the bottom of the sheet */}
-        <div>
-          <SetupEyebrow className="mb-1">Vertical Pitch Adjustment</SetupEyebrow>
-          <p className="text-xs text-muted-foreground mb-2">
-            If labels drift out of alignment toward the bottom of the page, nudge this. Positive =
-            more space between rows, negative = less.
-          </p>
-          <div className="flex items-center gap-3 min-h-[44px]">
-            <Slider
-              min={-20}
-              max={20}
-              step={1}
-              value={[pitch]}
-              onValueChange={([v]) => setPitch(v ?? 0)}
-              className="w-48"
-              aria-label="Vertical pitch adjustment"
-            />
-            <span className="text-sm font-mono w-20">
-              {pitch > 0 ? '+' : ''}
-              {pitch}/1000&quot;
-            </span>
-            {pitch !== 0 && (
-              <button
-                type="button"
-                onClick={() => setPitch(0)}
-                className="text-xs text-muted-foreground hover:text-foreground underline min-h-[44px]"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-        </div>
+        {/* Advanced — Printer Calibration */}
+        <LabelCalibrationPanel
+          prefs={prefs}
+          setPrefs={setPrefs}
+          template={template}
+          iframeRef={iframeRef}
+          onAfterTestPrint={writeLabelIframe}
+        />
       </LabelSetupSection>
 
       {/* Loading state — render before the empty state so the preview doesn't

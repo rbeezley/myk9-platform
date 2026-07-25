@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -9,20 +9,12 @@ import {
   type TurnstileChallengeHandle,
 } from '@/components/security/TurnstileChallenge';
 import { getTurnstileSiteKey } from '@/config/turnstile';
-import {
-  buildSignInPathForRedirect,
-  getSignInReturnTo,
-  persistSignInRedirect,
-} from './SignInPage.helpers';
+import { buildSignInPathForRedirect, getSignInReturnTo } from './SignInPage.helpers';
 
 /** Seconds to disable the resend button, aligned with Supabase's email rate limit. */
 const RESEND_COOLDOWN_SECONDS = 60;
 
 const SignUp: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const signUpReturnTo = useMemo(() => getSignInReturnTo(searchParams), [searchParams]);
-  const signInPath =
-    signUpReturnTo === '/' ? '/sign-in' : buildSignInPathForRedirect(signUpReturnTo);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -48,10 +40,14 @@ const SignUp: React.FC = () => {
   const turnstileRef = useRef<TurnstileChallengeHandle>(null);
   const submissionPendingRef = useRef(false);
   const resendPendingRef = useRef(false);
+  const [searchParams] = useSearchParams();
 
   const isLoading = loading || authLoading;
   const turnstileSiteKey = getTurnstileSiteKey();
   const captchaRequired = turnstileSiteKey.length > 0;
+  const hasRedirectTarget = searchParams.has('redirectTo') || searchParams.has('returnTo');
+  const signUpReturnTo = getSignInReturnTo(searchParams);
+  const signInPath = hasRedirectTarget ? buildSignInPathForRedirect(signUpReturnTo) : '/sign-in';
 
   // Tick the resend cooldown down to zero. setState lives inside the interval
   // callback with a functional updater, so it doesn't trip the repo's
@@ -72,9 +68,17 @@ const SignUp: React.FC = () => {
     try {
       if (captchaRequired) {
         if (!captchaToken) return;
-        await resendConfirmationEmail(email, captchaToken);
+        if (hasRedirectTarget) {
+          await resendConfirmationEmail(email, captchaToken, signUpReturnTo);
+        } else {
+          await resendConfirmationEmail(email, captchaToken);
+        }
       } else {
-        await resendConfirmationEmail(email);
+        if (hasRedirectTarget) {
+          await resendConfirmationEmail(email, undefined, signUpReturnTo);
+        } else {
+          await resendConfirmationEmail(email);
+        }
       }
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
       notifications.success('Confirmation email resent', {
@@ -95,8 +99,7 @@ const SignUp: React.FC = () => {
     setError('');
     setGoogleLoading(true);
     try {
-      persistSignInRedirect(signUpReturnTo);
-      await signInWithGoogle(signUpReturnTo);
+      await signInWithGoogle(hasRedirectTarget ? signUpReturnTo : undefined);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Google sign-in failed');
       setGoogleLoading(false);
@@ -130,18 +133,23 @@ const SignUp: React.FC = () => {
     setLoading(true);
 
     try {
-      // Email confirmation returns through AuthCallbackPage, which consumes
-      // this same-browser redirect when Supabase's default callback URL is used.
-      persistSignInRedirect(signUpReturnTo);
       const metadata = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         roles: selectedRoles,
       };
       if (captchaRequired) {
-        await signUp(email, password, metadata, captchaToken ?? undefined);
+        if (hasRedirectTarget) {
+          await signUp(email, password, metadata, captchaToken ?? undefined, signUpReturnTo);
+        } else {
+          await signUp(email, password, metadata, captchaToken ?? undefined);
+        }
       } else {
-        await signUp(email, password, metadata);
+        if (hasRedirectTarget) {
+          await signUp(email, password, metadata, undefined, signUpReturnTo);
+        } else {
+          await signUp(email, password, metadata);
+        }
       }
       setEmailSent(true);
     } catch (error: unknown) {

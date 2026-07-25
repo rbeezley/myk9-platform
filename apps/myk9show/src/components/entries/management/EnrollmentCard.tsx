@@ -9,6 +9,7 @@ import { groupEnrollmentEntriesByDog } from './enrollmentDogGroups';
 import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EnrollmentCardProps } from './EnrollmentCard.types';
+import { BULK_COMMAND_LABELS } from './reviewStateLabels';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -164,7 +165,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                       )
                     }
                   >
-                    Accept All
+                    {BULK_COMMAND_LABELS[EntryStatus.ACCEPTED]}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() =>
@@ -174,7 +175,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                       )
                     }
                   >
-                    Reject All
+                    {BULK_COMMAND_LABELS[EntryStatus.REJECTED]}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() =>
@@ -184,7 +185,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                       )
                     }
                   >
-                    Missing Info
+                    {BULK_COMMAND_LABELS[EntryStatus.MISSING_INFO]}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

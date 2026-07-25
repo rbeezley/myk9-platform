@@ -3,10 +3,14 @@ import type { LabelTemplate } from './labelTemplates';
 /**
  * @param template - Avery label template
  * @param pitchAdjustment - thousandths of an inch added to vertical row gap
+ * @param offsetTop - thousandths of an inch added to the top page margin (calibration shift)
+ * @param offsetLeft - thousandths of an inch added to the left page margin (calibration shift)
  */
 export function buildLabelStylesheet(
   template: LabelTemplate,
-  pitchAdjustment = 0
+  pitchAdjustment = 0,
+  offsetTop = 0,
+  offsetLeft = 0
 ): string {
   const {
     labelWidth,
@@ -21,10 +25,17 @@ export function buildLabelStylesheet(
   } = template;
   const adjustedGapY = gapY + pitchAdjustment / 1000;
 
+  const round = (value: number): number => Math.round(value * 1e6) / 1e6;
+
+  const effectiveTop = Math.max(0, round(pageMarginTop + offsetTop / 1000));
+  const effectiveLeft = Math.max(0, round(pageMarginLeft + offsetLeft / 1000));
+  const effectiveBottom = Math.max(0, round(pageMarginBottom - (effectiveTop - pageMarginTop)));
+  const effectiveRight = Math.max(0, round(pageMarginRight - (effectiveLeft - pageMarginLeft)));
+
   return `
 @page {
   size: letter;
-  margin: ${pageMarginTop}in ${pageMarginRight}in ${pageMarginBottom}in ${pageMarginLeft}in;
+  margin: ${effectiveTop}in ${effectiveRight}in ${effectiveBottom}in ${effectiveLeft}in;
 }
 
 body {

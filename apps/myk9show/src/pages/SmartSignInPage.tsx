@@ -5,8 +5,8 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';
 import {
-  getShowEntryRedirectShowId,
   buildSignUpPathForRedirect,
+  getShowEntryRedirectShowId,
   getSignInReturnTo,
   persistSignInRedirect,
 } from './SignInPage.helpers';
@@ -87,6 +87,13 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
     : kind === 'email' || kind === 'passcode';
   const canContinue = validCredential && (!anonymousPasscodeNeedsCaptcha || !!captchaToken);
   const signInReturnTo = useMemo(() => getSignInReturnTo(searchParams), [searchParams]);
+  const signUpPath = useMemo(
+    () =>
+      searchParams.has('redirectTo') || searchParams.has('returnTo')
+        ? buildSignUpPathForRedirect(signInReturnTo)
+        : '/sign-up',
+    [searchParams, signInReturnTo]
+  );
   const entryShowId = useMemo(() => getShowEntryRedirectShowId(signInReturnTo), [signInReturnTo]);
   const { data: entryShow } = useShowQuery(entryShowId ?? '');
   const heading =
@@ -261,10 +268,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
         {!passcodeOnly && (
           <div className="text-muted-foreground text-center mb-6">
             Don't have an account?{' '}
-            <Link
-              to={buildSignUpPathForRedirect(signInReturnTo)}
-              className="text-primary hover:underline font-medium"
-            >
+            <Link to={signUpPath} className="text-primary hover:underline font-medium">
               Sign up
             </Link>
           </div>

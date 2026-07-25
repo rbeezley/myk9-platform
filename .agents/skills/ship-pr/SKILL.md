@@ -13,6 +13,21 @@ Use when a feature branch is ready to ship — whether it has an open PR or not.
 - "address review and merge", "fix review comments"
 - `/ship-pr`
 
+## Authorization
+
+An explicit `/ship-pr`, “ship this branch,” or “create a PR” request authorizes
+the GitHub operations required to open the PR:
+
+- push the current feature branch;
+- create the pull request;
+- apply the `codex` and `codex-automation` labels when available; and
+- update the PR description as part of the shipping workflow.
+
+Do not ask for confirmation again before these steps. Merging, enabling
+auto-merge, closing a PR, or deploying a shared system requires separate
+explicit authorization unless the user explicitly requests merge or shipping
+through completion.
+
 ## Workflow
 
 ### Step 0: Establish Context
@@ -37,8 +52,13 @@ Invoke `/simplify` against all uncommitted changes. Wait for it to complete. If 
 #### Step B: Commit
 
 Invoke `/commit` — it handles staging, typecheck, lint, scoped tests, commit message, and push.
+The explicit ship-pr request already authorizes the branch push; do not ask for
+another confirmation before invoking it.
 
 #### Step C: Open PR
+
+Create the PR directly under the authorization above; do not pause for a
+second confirmation before the GitHub write.
 
 ```bash
 gh pr create --title "<conventional-commit-style title>" --body "$(cat <<'EOF'

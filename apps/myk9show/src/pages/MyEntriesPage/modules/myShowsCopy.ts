@@ -29,7 +29,7 @@ export const ENTRIES_LOAD_ERROR =
 
 /**
  * One-line reassurance shown on the `MyEntryCard` summary band while an
- * entry's status is "Pending Review" — calms the "did this vanish into a
- * void?" anxiety before the exhibitor expands details.
+ * entry's status is "Pending secretary approval" — calms the "did this vanish
+ * into a void?" anxiety before the exhibitor expands details.
  */
 export const PENDING_REVIEW_REASSURANCE = 'The show secretary is reviewing this entry.';

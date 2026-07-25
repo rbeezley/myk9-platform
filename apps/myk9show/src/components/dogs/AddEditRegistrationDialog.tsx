@@ -215,7 +215,12 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
       open={open}
       onClose={() => onOpenChange(false)}
       title={initialData ? 'Edit Registration' : 'Add New Registration'}
-      size="md"
+      // User testing: at "md" (max-w-lg) the two-column breed/variety and
+      // number/status rows were too cramped to read, forcing a scroll through
+      // what is only six fields. "lg" (max-w-2xl) fits the form without
+      // scrolling while staying narrower than the "xl" Add Dog wizard it
+      // layers on top of, so the nesting still reads as a sub-step.
+      size="lg"
       footer={footer}
     >
       <div className="space-y-4 p-6">
@@ -343,11 +348,20 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
             required
             error={form.getError('registrationNumber')}
           >
+            {/* User testing: nothing signalled that the organization must be
+                chosen first, so exhibitors typed a number into a field whose
+                format depends on a registry they hadn't picked yet. Gate it
+                the same way the breed picker above is gated — one consistent
+                "organization first" rule across the whole form, stated in the
+                placeholder rather than only discovered on validation. */}
             <Input
               id="registrationNumber"
               value={form.data.registrationNumber}
               onChange={e => handleFieldChange('registrationNumber', e.target.value)}
-              placeholder="Enter registration number"
+              placeholder={
+                form.data.organization ? 'Enter registration number' : 'Select organization first'
+              }
+              disabled={!form.data.organization}
               {...form.getFieldProps('registrationNumber')}
             />
           </FormField>

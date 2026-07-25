@@ -173,6 +173,11 @@ export const ENTRY_STATUS_DESCRIPTORS = {
     'complete',
     'text-destructive'
   ),
+  // INTENT: stays the bare, role-neutral "Pending". Exhibitor surfaces pass an
+  // explicit label naming the actor ("Pending secretary approval"); the
+  // secretary's own queue keeps this shorter form, since telling the approver
+  // an entry awaits their approval is noise in a dense table. See
+  // services/entryDisplay/entryDisplaySelectors.ts on the per-surface voice.
   pending: descriptor('pending', 'Pending', 'pending', 'text-warning'),
   accepted: descriptor('accepted', 'Accepted', 'in-progress', 'text-info'),
   waitlist: descriptor('waitlist', 'Wait list', 'pending', 'text-warning'),

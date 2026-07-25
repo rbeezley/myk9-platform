@@ -100,3 +100,25 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
     expect(screen.getByRole('button', { name: 'Golden Retriever' })).toBeInTheDocument();
   });
 });
+
+// User testing: exhibitors typed a registration number before picking a
+// registry, then hit a validation error for a field whose format depends on
+// the registry. The organization-first rule already governed the breed picker;
+// these pin it to the number field too, so the sequence is one consistent rule.
+describe('AddEditRegistrationDialog registration number gating', () => {
+  it('disables the registration number until an organization is chosen', () => {
+    renderDialog();
+
+    const input = document.getElementById('registrationNumber');
+    expect(input).toBeDisabled();
+    expect(input).toHaveAttribute('placeholder', 'Select organization first');
+  });
+
+  it('enables the registration number once an organization is chosen', () => {
+    renderDialog(akcRegistration);
+
+    const input = document.getElementById('registrationNumber');
+    expect(input).toBeEnabled();
+    expect(input).toHaveAttribute('placeholder', 'Enter registration number');
+  });
+});

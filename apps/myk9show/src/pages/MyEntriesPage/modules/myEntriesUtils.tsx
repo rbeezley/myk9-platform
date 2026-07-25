@@ -46,7 +46,10 @@ export function getEntryStatusBadge(
   let contextualLabel: string | undefined;
   switch (status) {
     case EntryStatus.PENDING:
-      contextualLabel = options.isPastShow ? 'Review incomplete' : 'Pending Review';
+      // Matches ENTRY_STATUS_DESCRIPTORS.pending so My Shows and every other
+      // surface name the same actor; the past-show variant stays distinct
+      // because by then the wait is an anomaly, not the normal queue.
+      contextualLabel = options.isPastShow ? 'Review incomplete' : 'Pending secretary approval';
       break;
     case EntryStatus.WAITLIST:
       contextualLabel = 'Waitlist';

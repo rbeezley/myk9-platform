@@ -475,264 +475,20 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const allEligibleSelected =
     eligibleVisible.length > 0 && eligibleVisible.every(d => selectedDogs.includes(d.id));
 
-  if (dogsLoading) {
-    return (
-      <div role="status" aria-label="Loading dogs" className="space-y-4 py-2">
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-56" />
-          <Skeleton className="h-4 w-80 max-w-full" />
-        </div>
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-24 rounded-lg" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // Only bail to the "no dogs" state for roles that can't search the full
-  // system. Secretaries/admins keep the search interface so they can find
-  // and register mail-in dogs they don't own.
-  if (accessibleDogs.length === 0 && !workflowConfig.features.advancedSearch) {
-    return (
-      <div className="space-y-4">
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold">Select Dogs to Register</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            No dogs are available for registration yet.
-          </p>
-        </div>
-        <div className="text-center py-8 space-y-4">
-          <p className="text-muted-foreground">No dogs found.</p>
-          <p className="text-sm text-muted-foreground">
-            Search for an existing dog or create a new exhibitor and dog.
-          </p>
-          {canCreateNew && (
-            <div className="space-y-3">
-              <Alert>
-                <UserPlus className="h-4 w-4" />
-                <AlertDescription>
-                  As a secretary, you can create new exhibitors and dogs for registration.
-                </AlertDescription>
-              </Alert>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Button
-                  onClick={() => setShowQuickCreateFlow(true)}
-                  className="flex items-center gap-2"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Create Exhibitor & Dog(s)
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowExhibitorDialog(true)}
-                  className="flex items-center gap-2"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Create Exhibitor Only
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold">Select Dogs to Register</h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          Search and filter to find dogs, then select which ones to register.
-          {` (Max: ${getMaxDogsPerRegistration()} dogs)`}
-        </p>
-      </div>
-
-      {/* Unified search + list card */}
-      <Card>
-        <CardContent className="p-0">
-          {/* Search section */}
-          {workflowConfig.features.advancedSearch && (
-            <div className="p-4 pb-0">
-              <DogSearchInterface
-                dogs={searchableDogs}
-                onDogsFiltered={setFilteredDogs}
-                onSearchQueryChange={setSearchQuery}
-                onActiveFilterChange={setActiveQuickFilter}
-                showQuickFilters={true}
-                showAdvancedFilters={true}
-                placeholder="Search all dogs by name, breed, or AKC number..."
-              />
-            </div>
-          )}
-
-          {/* Actions bar + count */}
-          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b border-border">
-            <div className="flex flex-wrap gap-2">
-              {canBulkOperations && visibleDogs.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Users className="h-4 w-4 mr-2" />
-                      Bulk Select
-                      <ChevronDown className="h-4 w-4 ml-2" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => handleBulkSelect('eligible')}>
-                      Select All Eligible
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleBulkSelect('all')}>
-                      Select All Visible
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handleBulkSelect('none')}>
-                      Clear Selection
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-              {canCreateNew && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create New
-                      <ChevronDown className="h-4 w-4 ml-2" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => setShowQuickCreateFlow(true)}>
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Exhibitor & Dog(s)
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setShowExhibitorDialog(true)}>
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Exhibitor Only
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setShowDogDialog(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Dog Only
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {visibleDogs.length} dog{visibleDogs.length !== 1 ? 's' : ''}
-              {serverHitLimit && (
-                <span className="ml-2 text-xs text-warning ">
-                  (showing top {SEARCH_ALL_DOGS_LIMIT} — refine your search for more)
-                </span>
-              )}
-              {selectedDogs.length > 0 && (
-                <span className="ml-2 font-medium text-primary">
-                  &bull; {selectedDogs.length} selected
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Dense secretary data table — scroll horizontally on small screens
-              instead of crushing the six columns. The min-width keeps the grid
-              template legible; the outer container scrolls. Only the populated
-              table gets the min-width wrapper — the empty/searching state stays
-              full-width so phones don't get a phantom horizontal scrollbar. */}
-          {visibleDogs.length > 0 ? (
-            <div className="overflow-x-auto">
-              <div className="min-w-[640px]">
-                {/* Table header */}
-                <div
-                  style={DOG_TABLE_GRID}
-                  className="grid items-center gap-x-3 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b border-border select-none"
-                >
-                  <Checkbox
-                    checked={allEligibleSelected}
-                    onCheckedChange={handleSelectAllToggle}
-                    className="shrink-0"
-                  />
-                  <SortableHeader
-                    column="callName"
-                    label="Call Name"
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
-                    onSort={handleSort}
-                  />
-                  <SortableHeader
-                    column="breed"
-                    label="Breed"
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
-                    onSort={handleSort}
-                  />
-                  <SortableHeader
-                    column="owner"
-                    label="Owner"
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
-                    onSort={handleSort}
-                  />
-                  <span>Org</span>
-                  <SortableHeader
-                    column="regNumber"
-                    label="Reg #"
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
-                    onSort={handleSort}
-                  />
-                </div>
-
-                {/* Dog list */}
-                <List
-                  height={Math.min(visibleDogs.length * 44, 440)}
-                  width="100%"
-                  itemCount={visibleDogs.length}
-                  itemSize={44}
-                  itemData={{
-                    dogs: visibleDogs,
-                    selectedDogs,
-                    onToggle: handleDogToggle,
-                    getDogEligibilityStatus,
-                  }}
-                >
-                  {DogRow}
-                </List>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              {isServerSearching ? (
-                <p className="text-muted-foreground">Searching…</p>
-              ) : (
-                <p className="text-muted-foreground">
-                  {getEmptyStateMessage(
-                    searchQuery,
-                    activeQuickFilter,
-                    workflowConfig.features.advancedSearch
-                  )}
-                </p>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Selection summary */}
-      {selectedDogs.length > 0 && (
-        <div className="p-3 bg-primary/10 rounded-lg">
-          <p className="text-sm font-medium">
-            {selectedDogs.length} dog{selectedDogs.length > 1 ? 's' : ''} selected
-            {selectedDogs.length >= getMaxDogsPerRegistration() && (
-              <span className="ml-2 text-yellow-600">(Maximum reached)</span>
-            )}
-          </p>
-        </div>
-      )}
-
-      {/* Creation Dialogs */}
+  // INTENT: the creation dialogs are siblings of the dog list, never children
+  // of it. The list re-enters `dogsLoading` on its own schedule — a new
+  // useDogsQuery cache key from the RBAC poll, or createMutation.isPending
+  // folded into useDogStoreCompat's isLoading — and an early `return` above
+  // these would unmount an Add Dog wizard the user is halfway through,
+  // silently resetting it to the first tab with an empty form.
+  //
+  // Rendering them in every branch is NOT enough: three different top-level
+  // trees reconcile as different elements, which remounts the dialogs anyway.
+  // They must hold a STABLE position in a STABLE parent, so this component
+  // returns one fragment whose second child is always these dialogs and whose
+  // first child is the swappable body. Do not reintroduce an early `return`.
+  const creationDialogs = (
+    <>
       <QuickCreateFlow
         open={showQuickCreateFlow}
         onOpenChange={setShowQuickCreateFlow}
@@ -757,6 +513,275 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         currentUserPersonId={createdExhibitorId}
         offlineDependsOn={createdExhibitorMutationIds}
       />
-    </div>
+    </>
+  );
+
+  const renderBody = () => {
+    if (dogsLoading) {
+      return (
+        <div role="status" aria-label="Loading dogs" className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-56" />
+            <Skeleton className="h-4 w-80 max-w-full" />
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-24 rounded-lg" />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Only bail to the "no dogs" state for roles that can't search the full
+    // system. Secretaries/admins keep the search interface so they can find
+    // and register mail-in dogs they don't own.
+    if (accessibleDogs.length === 0 && !workflowConfig.features.advancedSearch) {
+      return (
+        <div className="space-y-4">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold">Select Dogs to Register</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              No dogs are available for registration yet.
+            </p>
+          </div>
+          <div className="text-center py-8 space-y-4">
+            <p className="text-muted-foreground">No dogs found.</p>
+            <p className="text-sm text-muted-foreground">
+              Search for an existing dog or create a new exhibitor and dog.
+            </p>
+            {canCreateNew && (
+              <div className="space-y-3">
+                <Alert>
+                  <UserPlus className="h-4 w-4" />
+                  <AlertDescription>
+                    As a secretary, you can create new exhibitors and dogs for registration.
+                  </AlertDescription>
+                </Alert>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button
+                    onClick={() => setShowQuickCreateFlow(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Create Exhibitor & Dog(s)
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowExhibitorDialog(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Create Exhibitor Only
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold">Select Dogs to Register</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Search and filter to find dogs, then select which ones to register.
+            {` (Max: ${getMaxDogsPerRegistration()} dogs)`}
+          </p>
+        </div>
+
+        {/* Unified search + list card */}
+        <Card>
+          <CardContent className="p-0">
+            {/* Search section */}
+            {workflowConfig.features.advancedSearch && (
+              <div className="p-4 pb-0">
+                <DogSearchInterface
+                  dogs={searchableDogs}
+                  onDogsFiltered={setFilteredDogs}
+                  onSearchQueryChange={setSearchQuery}
+                  onActiveFilterChange={setActiveQuickFilter}
+                  showQuickFilters={true}
+                  showAdvancedFilters={true}
+                  placeholder="Search all dogs by name, breed, or AKC number..."
+                />
+              </div>
+            )}
+
+            {/* Actions bar + count */}
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b border-border">
+              <div className="flex flex-wrap gap-2">
+                {canBulkOperations && visibleDogs.length > 0 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Users className="h-4 w-4 mr-2" />
+                        Bulk Select
+                        <ChevronDown className="h-4 w-4 ml-2" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => handleBulkSelect('eligible')}>
+                        Select All Eligible
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBulkSelect('all')}>
+                        Select All Visible
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleBulkSelect('none')}>
+                        Clear Selection
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+                {canCreateNew && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create New
+                        <ChevronDown className="h-4 w-4 ml-2" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => setShowQuickCreateFlow(true)}>
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Exhibitor & Dog(s)
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setShowExhibitorDialog(true)}>
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Exhibitor Only
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowDogDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Dog Only
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {visibleDogs.length} dog{visibleDogs.length !== 1 ? 's' : ''}
+                {serverHitLimit && (
+                  <span className="ml-2 text-xs text-warning ">
+                    (showing top {SEARCH_ALL_DOGS_LIMIT} — refine your search for more)
+                  </span>
+                )}
+                {selectedDogs.length > 0 && (
+                  <span className="ml-2 font-medium text-primary">
+                    &bull; {selectedDogs.length} selected
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Dense secretary data table — scroll horizontally on small screens
+              instead of crushing the six columns. The min-width keeps the grid
+              template legible; the outer container scrolls. Only the populated
+              table gets the min-width wrapper — the empty/searching state stays
+              full-width so phones don't get a phantom horizontal scrollbar. */}
+            {visibleDogs.length > 0 ? (
+              <div className="overflow-x-auto">
+                <div className="min-w-[640px]">
+                  {/* Table header */}
+                  <div
+                    style={DOG_TABLE_GRID}
+                    className="grid items-center gap-x-3 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b border-border select-none"
+                  >
+                    <Checkbox
+                      checked={allEligibleSelected}
+                      onCheckedChange={handleSelectAllToggle}
+                      className="shrink-0"
+                    />
+                    <SortableHeader
+                      column="callName"
+                      label="Call Name"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      column="breed"
+                      label="Breed"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      column="owner"
+                      label="Owner"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <span>Org</span>
+                    <SortableHeader
+                      column="regNumber"
+                      label="Reg #"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    />
+                  </div>
+
+                  {/* Dog list */}
+                  <List
+                    height={Math.min(visibleDogs.length * 44, 440)}
+                    width="100%"
+                    itemCount={visibleDogs.length}
+                    itemSize={44}
+                    itemData={{
+                      dogs: visibleDogs,
+                      selectedDogs,
+                      onToggle: handleDogToggle,
+                      getDogEligibilityStatus,
+                    }}
+                  >
+                    {DogRow}
+                  </List>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                {isServerSearching ? (
+                  <p className="text-muted-foreground">Searching…</p>
+                ) : (
+                  <p className="text-muted-foreground">
+                    {getEmptyStateMessage(
+                      searchQuery,
+                      activeQuickFilter,
+                      workflowConfig.features.advancedSearch
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Selection summary */}
+        {selectedDogs.length > 0 && (
+          <div className="p-3 bg-primary/10 rounded-lg">
+            <p className="text-sm font-medium">
+              {selectedDogs.length} dog{selectedDogs.length > 1 ? 's' : ''} selected
+              {selectedDogs.length >= getMaxDogsPerRegistration() && (
+                <span className="ml-2 text-yellow-600">(Maximum reached)</span>
+              )}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Stable shape: body swaps at child 0, the dialogs never move from child 1.
+  return (
+    <>
+      {renderBody()}
+      {creationDialogs}
+    </>
   );
 };

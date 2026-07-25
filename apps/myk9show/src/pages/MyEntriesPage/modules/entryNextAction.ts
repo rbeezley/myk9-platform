@@ -28,11 +28,17 @@ export interface DeriveEntryNextActionOptions {
   selfCheckinByClassId?: Record<string, boolean>;
 }
 
+// Must match isCurrentSummaryEntry's entryStatus set (entryBalanceSummary.ts)
+// — that selector is what My Shows totals and My Payments derive amount-due
+// from, so a COMPLETED-but-unpaid class (scored mid-show, fee still owed)
+// must stay payment-eligible here too, or the dashboard reports money due
+// that no card ever offers a way to pay.
 function isPaymentEligibleStatus(status: EntryStatus): boolean {
   return (
     status === EntryStatus.PENDING ||
     status === EntryStatus.ACCEPTED ||
-    status === EntryStatus.MOVE_UP_REQUESTED
+    status === EntryStatus.MOVE_UP_REQUESTED ||
+    status === EntryStatus.COMPLETED
   );
 }
 

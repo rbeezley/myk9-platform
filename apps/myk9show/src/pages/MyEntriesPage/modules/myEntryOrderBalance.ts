@@ -130,8 +130,23 @@ export function buildOrderBalance(
       PAY_AT_SHOW_METHODS.has(source.paymentMethod ?? '')
   );
 
+  // Reconcile status from `eligible` PLUS any refunded row, even one whose
+  // entryStatus is terminal (a withdrawn entry commonly moves to
+  // CANCELLED/SCRATCHED while its paymentStatus becomes REFUNDED). Money
+  // that came back must stay visible — otherwise `eligible` silently drops
+  // that row and a remaining paid sibling wins, rendering "Paid" with an
+  // enabled receipt for an order that actually had a refund. Amount-due
+  // totals (`summary` above) are unaffected — they still run on the raw,
+  // unfiltered `sources` via `isCurrentSummaryEntry`.
+  const reconciliationSources = sources.filter(
+    source =>
+      isCurrentSummaryEntry(source, now) ||
+      source.paymentStatus === PaymentStatus.REFUNDED ||
+      source.paymentStatus === PaymentStatus.PARTIAL_REFUND
+  );
+
   return {
-    paymentStatus: reconcileOrderPaymentStatus(eligible) ?? ctx.paymentStatus,
+    paymentStatus: reconcileOrderPaymentStatus(reconciliationSources) ?? ctx.paymentStatus,
     paymentMethod: payAtShowSource?.paymentMethod ?? ctx.paymentMethod,
     amountDueCents: summary.amountDueCents,
     onlineDueCents: summary.onlineDueCents,

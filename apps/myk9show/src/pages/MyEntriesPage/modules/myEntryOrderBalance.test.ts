@@ -79,6 +79,33 @@ describe('buildOrderBalance', () => {
     expect(balance!.payAtShowDueCents).toBe(2500);
     expect(balance!.onlineDueCents).toBe(0);
   });
+
+  it('reconciles a refund from a terminal-status sibling instead of losing it behind a paid row', () => {
+    // A withdrawn class commonly moves to a terminal entryStatus (CANCELLED)
+    // while its paymentStatus becomes REFUNDED. `eligible` (used for
+    // amount-due) correctly drops it, but reconciliation must still see it —
+    // otherwise the remaining paid sibling wins and the card renders "Paid"
+    // with an enabled receipt for an order that actually had a refund.
+    const classes = [
+      makeClass({
+        id: 'c1',
+        entryStatus: EntryStatus.ACCEPTED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        fee: 30,
+      }),
+      makeClass({
+        id: 'c2',
+        entryStatus: EntryStatus.CANCELLED,
+        paymentStatus: PaymentStatus.REFUNDED,
+        fee: 20,
+      }),
+    ];
+    const ctx = makeCtx();
+
+    const balance = buildOrderBalance(classes, ctx, NOW);
+
+    expect(balance!.paymentStatus).toBe(PaymentStatus.PARTIAL_REFUND);
+  });
 });
 
 describe('reconcileOrderPaymentStatus', () => {

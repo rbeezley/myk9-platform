@@ -99,6 +99,11 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                       title={isCollapsed ? item.title : undefined}
                       className={cn(
                         'group flex items-center gap-3 rounded-lg text-sm transition-all duration-200',
+                        // Keyboard users had NO focus indicator here: the link
+                        // carried hover styling only, so tabbing through the
+                        // sidebar moved an invisible cursor (WCAG 2.4.7).
+                        // Matches the ring pattern used elsewhere in the app.
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
                         isCollapsed ? 'justify-center p-3' : 'px-3 py-2.5',
                         active
                           ? 'bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm border-l-2 border-primary'

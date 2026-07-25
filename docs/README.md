@@ -42,6 +42,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [admin-mcp-local-setup.md](admin-mcp-local-setup.md)                                                             | Reference | Site-Admin MCP — local setup (read-only diagnostics)                         |
 | [ai-ux-adaptation.md](ai-ux-adaptation.md)                                                                       | Reference | myK9 Adaptation Notes — "4 AI UX Prompts" Guide                              |
 | [codex-review-playbook.md](codex-review-playbook.md)                                                             | Reference | Codex review playbook                                                        |
+| [entitlement-operations.md](entitlement-operations.md)                                                           | Reference | Entitlement Operations                                                       |
 | [feature-audit-2026.md](feature-audit-2026.md)                                                                   | Reference | Feature Audit — Fall 2026                                                    |
 | [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                                         | Active    | IA Review: Entry-Status Surfaces (cross-role)                                |
 | [ia-review-secretary-entry-management.md](ia-review-secretary-entry-management.md)                               | Active    | IA Review: Secretary Entry Management (cognitive-load track)                 |

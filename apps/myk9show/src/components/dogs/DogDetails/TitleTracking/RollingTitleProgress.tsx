@@ -30,10 +30,13 @@ interface PipsProps {
 
 function Pips({ filled, total }: PipsProps) {
   return (
-    <span
-      className="inline-flex gap-1.5 items-center"
-      aria-label={`${filled} of ${total} qualifying runs`}
-    >
+    // Purely decorative: the caller renders "{filled}/{total} Qs" as visible
+    // text right beside this, so the pips restate a value assistive tech has
+    // already been given. Labelling them (role="img" + aria-label) makes every
+    // progress row announce its count twice; leaving aria-label on a role-less
+    // <span> is worse still, since the attribute is PROHIBITED there and gets
+    // dropped entirely. aria-hidden is the honest option.
+    <span aria-hidden className="inline-flex gap-1.5 items-center">
       {Array.from({ length: total }).map((_, i) => (
         <span
           key={i}

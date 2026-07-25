@@ -13,7 +13,7 @@
  */
 
 import { EntryStatus } from '@/types/show-registration-types';
-import { getEntryPaymentPrompt } from '@/features/payments/entryPaymentPrompt';
+import { getOrderOnlinePrompt } from './myEntryOrderBalance';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import { findOwningDog } from './myEntryDogView';
 import type { MyEntry } from './my-entries-types';
@@ -28,12 +28,38 @@ export interface DeriveEntryNextActionOptions {
   selfCheckinByClassId?: Record<string, boolean>;
 }
 
+// Must match isCurrentSummaryEntry's entryStatus set (entryBalanceSummary.ts)
+// — that selector is what My Shows totals and My Payments derive amount-due
+// from, so a COMPLETED-but-unpaid class (scored mid-show, fee still owed)
+// must stay payment-eligible here too, or the dashboard reports money due
+// that no card ever offers a way to pay.
 function isPaymentEligibleStatus(status: EntryStatus): boolean {
   return (
     status === EntryStatus.PENDING ||
     status === EntryStatus.ACCEPTED ||
-    status === EntryStatus.MOVE_UP_REQUESTED
+    status === EntryStatus.MOVE_UP_REQUESTED ||
+    status === EntryStatus.COMPLETED
   );
+}
+
+/**
+ * Whether ANY class row on this order can still owe money — never the order's
+ * own dominant `entryStatus`. A registration can contain several dogs/classes,
+ * and its display status may be COMPLETED because one sibling has a result
+ * while another accepted or pending row still owes an online or pay-at-show
+ * balance, so payment eligibility must be derived below the order summary.
+ * Shared by `deriveEntryNextAction` and `MyEntryCard` so the summary-band
+ * action and the card's payment prompts never disagree about eligibility.
+ */
+export function hasPaymentEligibleClass(entry: MyEntry): boolean {
+  return entry.classes.length > 0
+    ? entry.classes.some(cls => {
+        const owningDog = findOwningDog(entry, cls.id);
+        return isPaymentEligibleStatus(
+          cls.entryStatus ?? owningDog?.entryStatus ?? entry.entryStatus
+        );
+      })
+    : isPaymentEligibleStatus(entry.entryStatus);
 }
 
 /**
@@ -46,26 +72,10 @@ export function deriveEntryNextAction(
   const now = options.now ?? new Date();
   const selfCheckinByClassId = options.selfCheckinByClassId ?? {};
 
-  // A registration can contain several dogs/classes. Its display status may
-  // be COMPLETED because one sibling has a result while another accepted or
-  // pending row still owes an online balance, so payment eligibility must be
-  // derived below the order summary.
-  const canPayStatus =
-    entry.classes.length > 0
-      ? entry.classes.some(cls => {
-          const owningDog = findOwningDog(entry, cls.id);
-          return isPaymentEligibleStatus(
-            cls.entryStatus ?? owningDog?.entryStatus ?? entry.entryStatus
-          );
-        })
-      : isPaymentEligibleStatus(entry.entryStatus);
-  const paymentPrompt = canPayStatus
-    ? getEntryPaymentPrompt({
-        paymentMethod: entry.paymentMethod,
-        paymentStatus: entry.paymentStatus,
-        totalFee: entry.totalFee,
-      })
-    : ({ kind: 'none' } as const);
+  const canPayStatus = hasPaymentEligibleClass(entry);
+  // Same row-level order balance the card renders from — the summary-band
+  // action can never disagree with the amount shown (exhibitor-money-clarity).
+  const paymentPrompt = canPayStatus ? getOrderOnlinePrompt(entry) : ({ kind: 'none' } as const);
 
   if (paymentPrompt.kind === 'finish-online') {
     return { kind: 'finish-payment' };
@@ -78,7 +88,7 @@ export function deriveEntryNextAction(
   // fixtures or partially replicated rows.
   if (!isPastShowEntry(entry, now)) {
     const eligibleClass = entry.classes.find(cls => {
-      if (cls.isScored || cls.status !== 'entered') return false;
+      if (cls.unresolved || cls.isScored || cls.status !== 'entered') return false;
 
       const owningDog = findOwningDog(entry, cls.id);
       const classEntryStatus = cls.entryStatus ?? owningDog?.entryStatus ?? entry.entryStatus;

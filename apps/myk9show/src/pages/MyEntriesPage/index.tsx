@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { isPastShowEntry } from './modules/myEntriesStats.helpers';
+import { countUpcomingClassesByDog } from './modules/myEntriesStats.helpers';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
@@ -68,13 +68,21 @@ const MyEntriesPage: React.FC = () => {
   const { status: syncStatus } = useReplicationSync();
 
   // Data and filters
-  const { entries, isLoading, isError, refreshing, refreshEntries, updateEntryCheckIn } =
-    useMyEntriesData({
-      persistCheckInStatus: checkInMutation.mutateAsync,
-    });
+  const {
+    entries,
+    balanceSummary,
+    isLoading,
+    isError,
+    refreshing,
+    refreshEntries,
+    updateEntryCheckIn,
+  } = useMyEntriesData({
+    persistCheckInStatus: checkInMutation.mutateAsync,
+  });
   const { filteredEntries, selectedTab, setSelectedTab, entryStats, tabCounts } =
     useMyEntriesFilters({
       entries,
+      balanceSummary,
     });
 
   // Resolve the secretary's self-check-in cascade (class ?? trial ?? show ?? true)
@@ -130,26 +138,20 @@ const MyEntriesPage: React.FC = () => {
     [tabCounts]
   );
 
-  const upcomingClassCountByDog = useMemo(() => {
-    const now = new Date();
-    return entries.reduce<Record<string, number>>((counts, entry) => {
-      if (isPastShowEntry(entry, now)) return counts;
-      // An order can span several dogs — attribute each dog's own classes to
-      // its own dogId instead of lumping the whole order onto the lead dog.
-      for (const dog of entry.dogs) {
-        counts[dog.dogId] = (counts[dog.dogId] ?? 0) + dog.classes.length;
-      }
-      return counts;
-    }, {});
-  }, [entries]);
+  const upcomingClassCountByDog = useMemo(() => countUpcomingClassesByDog(entries), [entries]);
 
   const isInitialEntriesSyncing =
     entries.length === 0 &&
     areReplicationTablesPendingFirstSync(syncStatus, ['entries', 'dogs', 'classes', 'shows']);
 
-  const currentFeesHref = useMemo(() => {
-    return buildEntryBalanceRecoveryHref(summarizeEntryBalances(entries));
-  }, [entries]);
+  // The pay link must target the SAME debt the amount-due figure describes.
+  // `balanceSummary` comes from the raw ungrouped rows (exhibitor-money-clarity);
+  // deriving the href from the grouped entries instead could send the exhibitor
+  // to a cart that disagrees with the amount they were just shown.
+  const currentFeesHref = useMemo(
+    () => buildEntryBalanceRecoveryHref(balanceSummary ?? summarizeEntryBalances(entries)),
+    [balanceSummary, entries]
+  );
 
   // Dialog states
   const [checkInDialog, setCheckInDialog] = useState<CheckInDialogState>({

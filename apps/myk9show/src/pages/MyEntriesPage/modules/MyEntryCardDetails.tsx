@@ -307,9 +307,14 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
           {/* Check-in Status Controls — gated by the secretary's
               self-check-in toggle (cascade resolved per class; defaults
               open). When off, show a non-interactive indicator with a
-              reason instead of a tappable button the RPC would reject. */}
+              reason instead of a tappable button the RPC would reject.
+              An `unresolved` placeholder row (class join not yet replicated)
+              gets the same non-interactive treatment: its `classId` is
+              missing because the class isn't known yet, not because the
+              toggle is open. */}
           {!cls.isScored &&
-            ((cls.classId ? (selfCheckinByClassId[cls.classId] ?? true) : true) ? (
+            (!cls.unresolved &&
+            (cls.classId ? (selfCheckinByClassId[cls.classId] ?? true) : true) ? (
               <button
                 type="button"
                 onClick={() => onCheckInClick(dogView, cls)}
@@ -326,7 +331,11 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             ) : (
               <span
                 className="cursor-not-allowed opacity-60"
-                title="Self check-in isn't available for this class right now."
+                title={
+                  cls.unresolved
+                    ? 'This class is still syncing — check-in will be available shortly.'
+                    : "Self check-in isn't available for this class right now."
+                }
                 aria-label="Self check-in not available"
               >
                 <CheckInStatusIndicator

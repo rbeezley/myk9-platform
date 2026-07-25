@@ -1,4 +1,5 @@
 import type { ClassSelectionData, HandlerInfo } from '@/types/show-registration-types';
+import type { WorkflowMode } from './RegistrationWorkflow.types';
 
 export interface ClassSelectionStepProps {
   selectedDogs: string[];
@@ -8,6 +9,13 @@ export interface ClassSelectionStepProps {
   /** When provided, renders an inline handler section (used when handler-assignment step is removed) */
   handlerAssignments?: Record<string, HandlerInfo>;
   onHandlerAssignmentChange?: (assignments: Record<string, HandlerInfo>) => void;
+  /**
+   * Which flow is rendering this shared step. Drives the already-entered
+   * recovery path: exhibitors are pointed at the show team, staff at Entry
+   * Management (telling a secretary to message the show team would open a
+   * thread with themselves). Defaults to the exhibitor wizard.
+   */
+  workflowMode?: WorkflowMode | undefined;
 }
 
 export interface LevelInfo {

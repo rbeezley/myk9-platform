@@ -7,7 +7,10 @@
 import { useState, useMemo } from 'react';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { isPendingEntry, isWaitlistEntry } from '@/utils/entryPredicates';
-import { summarizeEntryBalances } from '@/features/payments/entryBalanceSummary';
+import {
+  summarizeEntryBalances,
+  type EntryBalanceSummary,
+} from '@/features/payments/entryBalanceSummary';
 import { computeMyEntriesShowDateStats, isPastShowEntry } from './myEntriesStats.helpers';
 import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
 
@@ -28,6 +31,15 @@ function isExhibitorInEntry(e: { entryStatus: EntryStatus }): boolean {
 
 interface UseMyEntriesFiltersProps {
   entries: MyEntry[];
+  /**
+   * Amount-due summary computed from the RAW ungrouped rows (see
+   * `useMyEntriesData`'s `balanceSummary`) — the same money math My Payments
+   * uses. When omitted (e.g. existing unit tests that construct `MyEntry[]`
+   * directly with no raw-row source), falls back to summarizing the grouped
+   * `entries` passed in, which is accurate as long as every row in an order
+   * shares one payment status.
+   */
+  balanceSummary?: EntryBalanceSummary;
 }
 
 interface UseMyEntriesFiltersReturn {
@@ -43,6 +55,7 @@ interface UseMyEntriesFiltersReturn {
  */
 export function useMyEntriesFilters({
   entries,
+  balanceSummary: externalBalanceSummary,
 }: UseMyEntriesFiltersProps): UseMyEntriesFiltersReturn {
   const [selectedTab, setSelectedTab] = useState<EntryTabFilter>('all');
   // Derive filtered and sorted entries from current tab and entries
@@ -118,9 +131,12 @@ export function useMyEntriesFilters({
     const totalFees = entries.reduce((sum, entry) => sum + entry.totalFee, 0);
     const paidFees = paidEntries.reduce((sum, e) => sum + e.totalFee, 0);
     const unpaidFees = unpaidEntries.reduce((sum, e) => sum + e.totalFee, 0);
-    const balanceSummary = summarizeEntryBalances(entries, now);
-    const currentFees = balanceSummary.currentFeesCents / 100;
-    const currentAmountDue = balanceSummary.amountDueCents / 100;
+    // Prefer the caller-supplied summary (derived from raw, ungrouped rows —
+    // matches My Payments exactly). Fall back to summarizing the grouped
+    // `entries` themselves only when no raw-row summary was provided.
+    const resolvedBalanceSummary = externalBalanceSummary ?? summarizeEntryBalances(entries, now);
+    const currentFees = resolvedBalanceSummary.currentFeesCents / 100;
+    const currentAmountDue = resolvedBalanceSummary.amountDueCents / 100;
 
     return {
       entryStats: {
@@ -155,7 +171,7 @@ export function useMyEntriesFilters({
         completed: entries.length - currentEntries.length,
       },
     };
-  }, [entries]);
+  }, [entries, externalBalanceSummary]);
 
   return {
     filteredEntries,

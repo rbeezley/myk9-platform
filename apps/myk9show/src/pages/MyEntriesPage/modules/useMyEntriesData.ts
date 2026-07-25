@@ -17,6 +17,12 @@ import {
   mapPaymentStatus,
   mapClassEntryStatus,
 } from '@/utils/entryManagementUtils';
+import {
+  mapEntryRowToBalanceSource,
+  summarizeEntryBalances,
+  type EntryBalanceRawRow,
+  type EntryBalanceSummary,
+} from '@/features/payments/entryBalanceSummary';
 import { parseShowDate } from './myEntriesStats.helpers';
 import { normalizeCheckInStatus } from './myEntriesUtils';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
@@ -24,6 +30,17 @@ import type { MyEntry, EntryClass } from './my-entries-types';
 
 interface UseMyEntriesDataReturn {
   entries: MyEntry[];
+  /**
+   * Amount-due summary computed from the same RAW, ungrouped per-class rows
+   * (via `mapEntryRowToBalanceSource` + `summarizeEntryBalances`) that My
+   * Payments uses — not from the grouped `entries` cards above. Grouping
+   * cards by order/dog (see `groupEntriesByOrder`) is lossy for money math:
+   * it only keeps the first row's `payment_status` per order, so a
+   * registration-less order whose class rows have different payment
+   * statuses would otherwise show a different amount due here than on My
+   * Payments. See `exhibitor-money-clarity` spec + `crossSurfaceAmountDue.test.ts`.
+   */
+  balanceSummary: EntryBalanceSummary;
   isLoading: boolean;
   isError: boolean;
   refreshing: boolean;
@@ -62,6 +79,9 @@ export function useMyEntriesData({
   const legacyPersonId = useCurrentUserPersonId();
   const personId = legacyPersonId ?? userWithRoles?.databaseUserId ?? null;
   const [entries, setEntries] = useState<MyEntry[]>([]);
+  const [balanceSummary, setBalanceSummary] = useState<EntryBalanceSummary>(() =>
+    summarizeEntryBalances([])
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -98,50 +118,67 @@ export function useMyEntriesData({
       trial_number?: string | null;
     } | null;
     const armband = entry.armband ? String(entry.armband) : undefined;
+    // Per-ROW payment facts, carried onto the class row so the grouped card can
+    // reconcile money across rows instead of inheriting the first row's status
+    // (exhibitor-money-clarity). Mirrors mapEntryRowToBalanceSource's
+    // registration-overrides-row precedence.
+    const rowRegistration = entry.registration as {
+      id?: string;
+      confirmation_number?: string;
+      payment_status?: string | null;
+    } | null;
+    const rowPaymentStatus = mapPaymentStatus(
+      rowRegistration?.payment_status ?? (entry.payment_status as string)
+    );
+    const rowPaymentMethod = (entry.payment_method as string | null) ?? null;
     const trialDate = parseShowDate(trialData?.date ?? classData?.trial?.date);
     const trialNumber = trialData?.trial_number ?? classData?.trial?.trial_number ?? undefined;
 
-    // Build a single-element classes array from this entry row's own data
-    const classes: EntryClass[] = classData
-      ? [
-          {
-            id: entry.id as string,
-            entryStatus: mapEntryStatus(entry.entry_status as string),
-            classId: classData.id,
-            name: classData.name || 'Unknown Class',
-            number: classData.class_number || '',
-            fee: (entry.entry_fee as number) || 0,
-            trialDate,
-            trialNumber,
-            jumpHeight: (entry.jump_height as string) || undefined,
-            trialType: trialData?.trial_type || classData.trial?.trial_type || undefined,
-            runOrder: (entry.run_order as number) || undefined,
-            status: mapClassEntryStatus(entry.entry_status as string),
-            handler: (entry.handler as string) || undefined,
-            // Read the persisted check-in status instead of hardcoding undefined,
-            // or the card always shows "Not Checked In" even after a check-in.
-            checkInStatus: normalizeCheckInStatus(entry.check_in_status),
-            isScored: (entry.is_scored as boolean) || false,
-            resultStatus: (entry.result_status as EntryClass['resultStatus']) ?? undefined,
-            searchTimeSeconds: (entry.search_time_seconds as number) ?? undefined,
-            totalFaults: (entry.total_faults as number) ?? undefined,
-            finalPlacement: (entry.final_placement as number) ?? undefined,
-            resultsReleasedAt: (entry.class_results_released_at as string | null) ?? undefined,
-            dogImageUrl: (entry.dog_image_url as string | null) ?? undefined,
-          },
-        ]
-      : [];
+    // Build a single-element classes array from this entry row's own data.
+    // The `class:class_id` join can be unresolved during the partial-
+    // replication window (the entry row synced before its class relation),
+    // but the row's own fee/status/payment fields are still real — dropping
+    // the row here (an empty `classes` array) is what let a mixed order's
+    // balance undercount the raw-row `balanceSummary` used elsewhere on this
+    // page. Emit the row with placeholder class-identity fields instead so
+    // its money still flows into `groupEntriesByOrder` / `buildOrderBalance`.
+    const classes: EntryClass[] = [
+      {
+        id: entry.id as string,
+        entryStatus: mapEntryStatus(entry.entry_status as string),
+        classId: classData?.id,
+        // Money flows through even when the class join hasn't replicated yet,
+        // but class-scoped actions (check-in) must not — see EntryClass.unresolved.
+        unresolved: !classData,
+        name: classData?.name || 'Unknown Class',
+        number: classData?.class_number || '',
+        fee: (entry.entry_fee as number) || 0,
+        trialDate,
+        trialNumber,
+        jumpHeight: (entry.jump_height as string) || undefined,
+        trialType: trialData?.trial_type || classData?.trial?.trial_type || undefined,
+        runOrder: (entry.run_order as number) || undefined,
+        status: mapClassEntryStatus(entry.entry_status as string),
+        handler: (entry.handler as string) || undefined,
+        paymentStatus: rowPaymentStatus,
+        paymentMethod: rowPaymentMethod,
+        // Read the persisted check-in status instead of hardcoding undefined,
+        // or the card always shows "Not Checked In" even after a check-in.
+        checkInStatus: normalizeCheckInStatus(entry.check_in_status),
+        isScored: (entry.is_scored as boolean) || false,
+        resultStatus: (entry.result_status as EntryClass['resultStatus']) ?? undefined,
+        searchTimeSeconds: (entry.search_time_seconds as number) ?? undefined,
+        totalFaults: (entry.total_faults as number) ?? undefined,
+        finalPlacement: (entry.final_placement as number) ?? undefined,
+        resultsReleasedAt: (entry.class_results_released_at as string | null) ?? undefined,
+        dogImageUrl: (entry.dog_image_url as string | null) ?? undefined,
+      },
+    ];
 
     const entryStatus = mapEntryStatus(entry.entry_status as string);
     // Use real confirmation number from joined registration, fall back to UUID slice for legacy entries
-    const registration = entry.registration as {
-      id: string;
-      confirmation_number: string;
-      payment_status?: string | null;
-    } | null;
     const confirmationNumber =
-      registration?.confirmation_number ?? (entry.id as string).slice(0, 8).toUpperCase();
-    const effectivePaymentStatus = registration?.payment_status ?? (entry.payment_status as string);
+      rowRegistration?.confirmation_number ?? (entry.id as string).slice(0, 8).toUpperCase();
 
     return {
       id: entry.id as string,
@@ -169,8 +206,8 @@ export function useMyEntriesData({
       dogs: [],
       totalFee: (entry.entry_fee as number) || 0,
       entryStatus,
-      paymentStatus: mapPaymentStatus(effectivePaymentStatus),
-      paymentMethod: (entry.payment_method as string | null) ?? null,
+      paymentStatus: rowPaymentStatus,
+      paymentMethod: rowPaymentMethod,
       confirmationNumber,
       entryCloseDate: show?.entry_close_date ? new Date(show.entry_close_date) : undefined,
       submittedAt: new Date((entry.submitted_at as string) || (entry.created_at as string)),
@@ -197,15 +234,22 @@ export function useMyEntriesData({
         return;
       }
 
-      const userEntries = groupEntriesByOrder(
-        (data as OwnEntryResultRow[]).map(entry => transformEntry(entry))
-      );
+      const rawRows = data as OwnEntryResultRow[];
+      const userEntries = groupEntriesByOrder(rawRows.map(entry => transformEntry(entry)));
       setEntries(userEntries);
+      // Money math runs on the same raw, ungrouped rows My Payments uses —
+      // see the `balanceSummary` doc comment above.
+      setBalanceSummary(
+        summarizeEntryBalances(
+          rawRows.map(row => mapEntryRowToBalanceSource(row as EntryBalanceRawRow))
+        )
+      );
       setIsError(false);
     } catch (error) {
       logger.error('Failed to load entries:', 'pages', {}, error as Error);
       setIsError(true);
       setEntries([]);
+      setBalanceSummary(summarizeEntryBalances([]));
     } finally {
       setIsLoading(false);
     }
@@ -328,6 +372,7 @@ export function useMyEntriesData({
 
   return {
     entries,
+    balanceSummary,
     isLoading,
     isError,
     refreshing,

@@ -21,8 +21,11 @@ import {
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { type ResultCardModel } from '@/features/result-card';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
-import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
-import { getEntryPaymentPrompt } from '@/features/payments/entryPaymentPrompt';
+import {
+  buildOrderPaymentHref,
+  getOrderOnlinePrompt,
+  getOrderPayAtShowPrompt,
+} from './myEntryOrderBalance';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import {
   getEntryStatusBadge,
@@ -32,7 +35,7 @@ import {
 } from './myEntriesUtils';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import { formatEntryDate, formatShortDate } from '@/lib/format/dates';
-import { deriveEntryNextAction } from './entryNextAction';
+import { deriveEntryNextAction, hasPaymentEligibleClass } from './entryNextAction';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
 import { MyEntryCardDetails } from './MyEntryCardDetails';
 import { findOwningDog, toDogEntryView } from './myEntryDogView';
@@ -50,12 +53,6 @@ interface MyEntryCardProps {
   onReceiptClick: (entry: MyEntry) => void;
   onResultRevealClick?: (model: ResultCardModel) => void;
   seenResultReleaseKeys?: Set<string>;
-}
-
-function buildEntryPaymentHref(entry: MyEntry): string {
-  // EntryClass.id is the underlying entries-row id in useMyEntriesData.
-  const entryIds = entry.classes.map(cls => cls.id).filter(Boolean);
-  return buildFinishPaymentHref(entry.showId, entryIds.length > 0 ? entryIds : [entry.id]);
 }
 
 /**
@@ -143,16 +140,22 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
   // move-up request is a confirmed entry that can still owe its fee even though
   // it isn't editable while awaiting secretary approval. Waitlisted entries stay
   // out — they pay on promotion, not before.
-  const canPayStatus = hasEditableStatus || entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED;
+  // Derived per class ROW (shared with deriveEntryNextAction), not the order's
+  // dominant entryStatus — a COMPLETED sibling can otherwise mask a still-owed
+  // accepted/pending row and silently drop its payment prompt.
+  const canPayStatus = hasPaymentEligibleClass(entry);
   // "Finish Payment" is an ONLINE action — cash/check exhibitors chose to pay at
   // the show and must see a calm status, not a debt CTA (4.C). No payment prompt
   // at all unless the entry status is one that can still owe its fee.
-  const paymentPrompt = canPayStatus
-    ? getEntryPaymentPrompt({
-        paymentMethod: entry.paymentMethod,
-        paymentStatus: entry.paymentStatus,
-        totalFee: entry.totalFee,
-      })
+  // Amount, status and method all come from the ROW-level order balance, so a
+  // mixed paid/pending order can never claim "Paid" while the page summary
+  // shows money due (exhibitor-money-clarity).
+  // An order can owe BOTH ways at once (one class online, another cash), so the
+  // two prompts are independent and each quotes only its own portion. Merging
+  // them told a mixed-method exhibitor to bring the online balance in cash.
+  const onlinePrompt = canPayStatus ? getOrderOnlinePrompt(entry) : ({ kind: 'none' } as const);
+  const payAtShowPrompt = canPayStatus
+    ? getOrderPayAtShowPrompt(entry)
     : ({ kind: 'none' } as const);
 
   // Build a "Get directions" link from the full venue address (venue, city,
@@ -216,8 +219,11 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
               Payments amount-due figure that already derives from
               getEntryPaymentPrompt (exhibitor-money-clarity). */}
           {!(
-            entry.paymentStatus === PaymentStatus.PENDING && paymentPrompt.kind !== 'finish-online'
-          ) && getPaymentStatusBadge(entry.paymentStatus, { isPastShow })}
+            entry.paymentStatus === PaymentStatus.PENDING && onlinePrompt.kind !== 'finish-online'
+          ) &&
+            getPaymentStatusBadge(entry.balance?.paymentStatus ?? entry.paymentStatus, {
+              isPastShow,
+            })}
         </div>
       </div>
 
@@ -265,10 +271,10 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         <span className={statusMessage.className}>{statusMessage.message}</span>
       </div>
 
-      {paymentPrompt.kind === 'pay-at-show' && (
+      {payAtShowPrompt.kind === 'pay-at-show' && (
         <p className="flex min-h-[44px] items-center gap-1.5 text-sm text-muted-foreground">
           <Wallet className="h-4 w-4 flex-shrink-0" />
-          {paymentPrompt.text}
+          {payAtShowPrompt.text}
         </p>
       )}
 
@@ -279,7 +285,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
       <div className="myk9-entries-action-buttons">
         {nextAction.kind === 'finish-payment' && (
           <Button asChild className="min-h-[44px] transition-all duration-200">
-            <Link to={buildEntryPaymentHref(entry)}>
+            <Link to={buildOrderPaymentHref(entry)}>
               <CreditCard className="h-5 w-5 mr-1.5" />
               Finish Payment
             </Link>

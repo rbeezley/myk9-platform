@@ -412,7 +412,7 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('tab', { name: /Overview/ })).toBeNull();
   });
 
-  it('shows Add or Change Entries when an owned dog has an active entry', () => {
+  it('shows Add Classes when an owned dog has an active entry', () => {
     mockDogs = [{ id: 'dog-1', ownerId: 'person-1' }];
     mockShowEntries = [
       {
@@ -424,7 +424,7 @@ describe('ShowDetailsPage', () => {
       },
     ];
     renderPage();
-    expect(screen.getByRole('button', { name: 'Add or Change Entries' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Classes' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /My Entries/ })).toHaveTextContent('1');
   });
 
@@ -466,7 +466,7 @@ describe('ShowDetailsPage', () => {
     ];
     renderPage();
     expect(screen.getByRole('tab', { name: /My Entries/ })).toHaveTextContent('2');
-    expect(screen.queryByRole('button', { name: 'Add or Change Entries' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add Classes' })).toBeNull();
   });
 
   it('renders the default public landing for unauthenticated users', () => {
@@ -534,7 +534,7 @@ describe('ShowDetailsPage', () => {
     expect(within(secondary).getByRole('button', { name: /see classes/i })).toBeInTheDocument();
     // Still alongside the primary entry action — the deep-link is additive.
     expect(
-      within(secondary).getByRole('button', { name: 'Add or Change Entries' })
+      within(secondary).getByRole('button', { name: 'Add Classes' })
     ).toBeInTheDocument();
   });
 
@@ -556,10 +556,10 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('button', { name: /see classes/i })).not.toBeInTheDocument();
   });
 
-  it('shows "Add or Change Entries" button when user has entries and entries are open', () => {
+  it('shows "Add Classes" button when user has entries and entries are open', () => {
     seedOwnedEntry();
     renderPage();
-    expect(screen.getByRole('button', { name: 'Add or Change Entries' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Classes' })).toBeInTheDocument();
   });
 
   it('shows "View Entry" button when user has entries and entries are closed', () => {
@@ -582,7 +582,7 @@ describe('ShowDetailsPage', () => {
     renderPage();
     expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Enter This Show' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Add or Change Entries' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add Classes' })).not.toBeInTheDocument();
   });
 
   it('does not render a separate Premium List edit button for show managers', () => {

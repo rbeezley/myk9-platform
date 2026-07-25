@@ -108,9 +108,14 @@ export function ShowExhibitorView({
               // siblings keeps it the dominant action.
               <Button size="sm" className="min-h-[44px] sm:min-h-8" onClick={onRegister}>
                 {/* UX walk 4.D — the label states what the tap does. "Manage
-                    Entry" was vague (and singular when they may hold several);
-                    "Add or Change Entries" names both jobs this CTA opens. */}
-                {hasUserEntries ? 'Add or Change Entries' : 'Enter This Show'}
+                    Entry" was vague (and singular when they may hold several).
+                    "Add or Change Entries" replaced it, but the wizard is
+                    add-only: existing classes render disabled with no
+                    withdraw/move-up path. Audit row 11 (exhibitor-elderly-novice
+                    2026-07-23) flagged the promise as false. "Add Classes" now
+                    names the real capability; the wizard itself explains that
+                    existing entries are changed through the show team. */}
+                {hasUserEntries ? 'Add Classes' : 'Enter This Show'}
               </Button>
             ) : hasUserEntries ? (
               <Button

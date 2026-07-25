@@ -5,12 +5,12 @@ import { SubscriptionManager } from '@/components/subscription/SubscriptionManag
 import { Card, CardContent } from '@/components/ui/card';
 import { CreditCard, Crown, Star, Award, CheckCircle } from 'lucide-react';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
-import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 
 export default function SubscriptionPage() {
-  const { isEarlyAdopter } = useSubscriptionGate();
-  const { profile } = useExhibitorProfile();
-  const foundingUntil = profile?.person?.early_adopter_until;
+  // Both values come from the entitlement resolver via the gate — the founding
+  // end date used to be read straight off `people.early_adopter_until`, which
+  // no longer exists (task 8.2).
+  const { isEarlyAdopter, foundingUntil } = useSubscriptionGate();
   const [searchParams] = useSearchParams();
   // Stripe checkout redirects here with ?checkout=success after payment.
   const justCheckedOut = searchParams.get('checkout') === 'success';

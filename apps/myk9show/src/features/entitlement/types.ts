@@ -25,6 +25,19 @@ interface EffectiveEntitlementBase {
   /** Upper bound until which this result may be trusted without a refresh. */
   trustedUntil: string;
   analyticsTrial: AnalyticsTrialState;
+  /**
+   * Active founding grant, reported INDEPENDENTLY of which source wins
+   * precedence — `source` answers "what is paying for Premium right now?",
+   * which is a different question from "is this person a founding member?".
+   *
+   * They come apart when someone holds both an active founding grant and an
+   * active paid subscription: `source` is 'paid' (paid outranks grants), and
+   * reading founding status off it would silently drop the founding-member
+   * banner from Account and Subscription for exactly the people most likely to
+   * care about it. The legacy `early_adopter_until` column was independent of
+   * the paid tier, and this preserves that.
+   */
+  foundingGrant: { endsAt: string } | null;
 }
 
 export interface EffectiveEntitlementActive extends EffectiveEntitlementBase {

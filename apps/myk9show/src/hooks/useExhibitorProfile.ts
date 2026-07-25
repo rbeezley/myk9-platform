@@ -26,13 +26,6 @@ export interface ExhibitorProfile {
     email: string;
     phone: string | null;
     profile_image: string | null;
-    /**
-     * Founding-member premium grant end. `null` = never granted;
-     * `undefined` = the column was omitted from the read (DB missing the
-     * founding-member migration — see the column-absent fallback below).
-     * Consumers must treat both as "not an early adopter".
-     */
-    early_adopter_until?: string | null;
   };
 }
 
@@ -43,38 +36,17 @@ export interface CreateExhibitorProfileData {
   phone?: string;
 }
 
-// Postgres "undefined_column" — raised when a selected column is absent from
-// the schema (e.g. a DB that has not yet applied the early_adopter_until
-// migration). PostgREST surfaces this as an HTTP 400 with this code.
-const PG_UNDEFINED_COLUMN = '42703';
-
-// Person columns that always exist. early_adopter_until is appended only when
-// the optional founding-member migration is present (see selectProfile below).
-const BASE_PERSON_COLUMNS = 'id, first_name, last_name, email, phone, profile_image';
-
-// Build the nested exhibitor_profiles select. When includeEarlyAdopter is
-// false we omit the optional early_adopter_until column so a DB missing that
-// migration does not 400.
-function buildProfileSelect(includeEarlyAdopter: boolean): string {
-  const personColumns = includeEarlyAdopter
-    ? `${BASE_PERSON_COLUMNS},\n            early_adopter_until`
-    : BASE_PERSON_COLUMNS;
-
-  return `
+// Founding-member status is no longer read from `people.early_adopter_until`
+// — that column, and the optional-column machinery that guarded it (a
+// conditional select, a Postgres 42703 detector, and a retry-without-column
+// path), were removed with the legacy storage in task 8.2. Founding
+// entitlement now comes from its grant via `useEntitlement`.
+const PROFILE_SELECT = `
           *,
           person:people!person_id(
-            ${personColumns}
+            id, first_name, last_name, email, phone, profile_image
           )
         `;
-}
-
-function isUndefinedColumnError(error: { code?: string; message?: string } | null): boolean {
-  if (!error) return false;
-  if (error.code === PG_UNDEFINED_COLUMN) return true;
-  // Defensive: some transport layers drop the structured code; fall back to
-  // matching the column name in the message.
-  return /early_adopter_until/.test(error.message ?? '');
-}
 
 // Helper to map database result to ExhibitorProfile type
 function mapToExhibitorProfile(data: Record<string, unknown>): ExhibitorProfile {
@@ -120,30 +92,11 @@ export function useExhibitorProfile() {
     queryFn: async (): Promise<ExhibitorProfile | null> => {
       if (!user?.id) return null;
 
-      const runSelect = (includeEarlyAdopter: boolean) =>
-        supabase
-          .from('exhibitor_profiles')
-          .select(buildProfileSelect(includeEarlyAdopter))
-          .eq('auth_user_id', user.id)
-          .maybeSingle();
-
-      let { data, error } = await runSelect(true);
-
-      // Fail safe when the founding-member migration (early_adopter_until) is
-      // absent: a missing column returns Postgres 42703 / HTTP 400. Instead of
-      // throwing — which would null out `profile`, false-trigger the onboarding
-      // redirect, and re-fire on every retry (a 400 flood) — retry once without
-      // the optional column. The profile then loads with early_adopter_until
-      // undefined, which useSubscriptionGate already treats as "not an early
-      // adopter" (the safe default).
-      if (isUndefinedColumnError(error)) {
-        logger.warn(
-          'exhibitor profile early_adopter_until column missing; retrying without it',
-          'useExhibitorProfile',
-          { code: error?.code, message: error?.message }
-        );
-        ({ data, error } = await runSelect(false));
-      }
+      const { data, error } = await supabase
+        .from('exhibitor_profiles')
+        .select(PROFILE_SELECT)
+        .eq('auth_user_id', user.id)
+        .maybeSingle();
 
       if (error) {
         logger.error('Error fetching exhibitor profile', 'useExhibitorProfile', {

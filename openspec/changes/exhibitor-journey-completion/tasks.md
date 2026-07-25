@@ -62,7 +62,7 @@
 - [x] 6.4 Add entry-action tests for editable existing classes, add-only classes, already-entered explanations, newly selected classes enabling Next, post-close contact recovery, and mutation failure.
 - [x] 6.5 Rename or reroute misleading `Add or Change Entries` actions according to actual capability, using the existing edit, add-class, or show-team contact surface without adding a workflow.
 - [x] 6.6 Add a 390px Payments disclosure test and make amount, status, and receipt information discoverable with accessible labels and 44px targets without duplicating the desktop table.
-- [ ] 6.7 Verify Slice 4 with focused payment selector/page, count selector/page, entry action/wizard, and mobile Payments tests plus `pnpm typecheck`, `pnpm lint`, and a no-horizontal-overflow browser pass.
+- [x] 6.7 Verify Slice 4 with focused payment selector/page, count selector/page, entry action/wizard, and mobile Payments tests plus `pnpm typecheck`, `pnpm lint`, and a no-horizontal-overflow browser pass.
 - [ ] 6.8 Open the Slice 4 PR with explicit overlap notes for the active entry-scan and financial changes; wait for CI/review, resolve findings, and merge.
 
 ## 7. Full Journey Verification and Evidence

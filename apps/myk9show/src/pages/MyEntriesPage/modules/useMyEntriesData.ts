@@ -106,6 +106,7 @@ export function useMyEntriesData({
       ? [
           {
             id: entry.id as string,
+            entryStatus: mapEntryStatus(entry.entry_status as string),
             classId: classData.id,
             name: classData.name || 'Unknown Class',
             number: classData.class_number || '',

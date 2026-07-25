@@ -28,6 +28,14 @@ export interface DeriveEntryNextActionOptions {
   selfCheckinByClassId?: Record<string, boolean>;
 }
 
+function isPaymentEligibleStatus(status: EntryStatus): boolean {
+  return (
+    status === EntryStatus.PENDING ||
+    status === EntryStatus.ACCEPTED ||
+    status === EntryStatus.MOVE_UP_REQUESTED
+  );
+}
+
 /**
  * Derive the single primary action for an entry's summary band.
  */
@@ -38,12 +46,19 @@ export function deriveEntryNextAction(
   const now = options.now ?? new Date();
   const selfCheckinByClassId = options.selfCheckinByClassId ?? {};
 
-  // Same gate MyEntryCard uses before consulting getEntryPaymentPrompt: a
-  // move-up request can still owe its fee though it isn't editable; waitlisted
-  // entries pay on promotion and stay out.
-  const hasEditableStatus =
-    entry.entryStatus === EntryStatus.PENDING || entry.entryStatus === EntryStatus.ACCEPTED;
-  const canPayStatus = hasEditableStatus || entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED;
+  // A registration can contain several dogs/classes. Its display status may
+  // be COMPLETED because one sibling has a result while another accepted or
+  // pending row still owes an online balance, so payment eligibility must be
+  // derived below the order summary.
+  const canPayStatus =
+    entry.classes.length > 0
+      ? entry.classes.some(cls => {
+          const owningDog = findOwningDog(entry, cls.id);
+          return isPaymentEligibleStatus(
+            cls.entryStatus ?? owningDog?.entryStatus ?? entry.entryStatus
+          );
+        })
+      : isPaymentEligibleStatus(entry.entryStatus);
   const paymentPrompt = canPayStatus
     ? getEntryPaymentPrompt({
         paymentMethod: entry.paymentMethod,
@@ -56,33 +71,26 @@ export function deriveEntryNextAction(
     return { kind: 'finish-payment' };
   }
 
-  // Check-in is only a live next action for an ACCEPTED entry at a non-past
-  // show: terminal/waitlisted/pending entries have no confirmed spot to check
-  // in for even when a class row is unscored, and a scratched/moved/absent
-  // class is no longer participating. `entry.entryStatus` is the dominant
-  // status across every dog on the order, so it alone isn't enough for a
-  // mixed-status order (accepted dog + pending dog) — a pending dog's class
-  // must never be offered as the summary check-in action. When every dog
-  // shares the dominant status this per-dog check is a no-op (fast path).
-  const allDogsAccepted =
-    entry.dogs.length === 0 || entry.dogs.every(dog => dog.entryStatus === EntryStatus.ACCEPTED);
-  if (entry.entryStatus === EntryStatus.ACCEPTED && !isPastShowEntry(entry, now)) {
+  // Check-in is only a live next action for an accepted class row at a
+  // non-past show. Dog and order statuses are display summaries: COMPLETED can
+  // dominate ACCEPTED when a sibling class already has a result, so use the
+  // row status when available and retain the dog/order fallback for legacy
+  // fixtures or partially replicated rows.
+  if (!isPastShowEntry(entry, now)) {
     const eligibleClass = entry.classes.find(cls => {
-      if (cls.isScored) return false;
-      if (cls.status !== 'entered') return false;
-      if (!allDogsAccepted) {
-        const owningDog = findOwningDog(entry, cls.id);
-        if (!owningDog || owningDog.entryStatus !== EntryStatus.ACCEPTED) return false;
-      }
+      if (cls.isScored || cls.status !== 'entered') return false;
+
+      const owningDog = findOwningDog(entry, cls.id);
+      const classEntryStatus = cls.entryStatus ?? owningDog?.entryStatus ?? entry.entryStatus;
+      if (classEntryStatus !== EntryStatus.ACCEPTED) return false;
+
       // Same cascade MyEntryCard reads: class-scoped toggle, defaulting open
       // when the class id or map entry is missing.
       if (!cls.classId) return true;
       return selfCheckinByClassId[cls.classId] ?? true;
     });
 
-    if (eligibleClass) {
-      return { kind: 'check-in', classId: eligibleClass.id };
-    }
+    if (eligibleClass) return { kind: 'check-in', classId: eligibleClass.id };
   }
 
   return { kind: 'view-show' };

@@ -171,11 +171,24 @@ Full mechanics: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.m
 - Before writing a migration that references existing rows (e.g., permissions), QUERY the target table first to confirm referenced values exist.
 - Run migration commands from the worktree linked to Supabase, not the main repo.
 - **Every `CREATE TABLE public.<name>` must include explicit `GRANT`s** to `anon` / `authenticated` / `service_role` as appropriate. As of Oct 30, 2026 Supabase no longer auto-exposes new `public` tables to the Data API (PostgREST / GraphQL / `supabase-js`); without a grant the table will silently 404 from the client. Template:
+
   ```sql
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table> TO authenticated;
   GRANT SELECT ON public.<table> TO anon;  -- only if anon should read
+  REVOKE ALL ON public.<table> FROM anon;  -- REQUIRED if anon should have NO access
   ```
+
   Match the access level the table actually needs — never blanket-grant write to `anon`. Grants are orthogonal to RLS; both are still required.
+
+- **Omitting a `GRANT` does NOT keep `anon` out — you must `REVOKE` explicitly.** This project carries `ALTER DEFAULT PRIVILEGES` in schema `public` granting `anon` full CRUD (`arwdDxtm`) on **every newly created table** (verified via `pg_default_acl`; grantors are both `postgres` and `supabase_admin`). Those default privileges take precedence over the Oct 30 change above, so a table meant to exclude `anon` gets full anon CRUD unless the migration says otherwise. Discovered 2026-07-25 on `dog_favorites`, which shipped with anon holding full privileges despite deliberately granting it none (migration `20260725130000` fixed it; RLS had masked the gap because every policy was `TO authenticated`). Wider audit: MYK9-93.
+
+- **Verify grants against the applied database, not the migration text.** A correct migration file does not prove a correct ACL — the file above passed review and still produced anon CRUD. After `db push`:
+
+  ```sql
+  select unnest(relacl)::text from pg_class where oid = 'public.<table>'::regclass;
+  ```
+
+  Do **not** use `information_schema.role_table_grants` for this: it only shows grants visible to the querying role and returns empty over the MCP connection, so it cannot prove absence.
 
 ## Auto Mode — shared-system writes
 

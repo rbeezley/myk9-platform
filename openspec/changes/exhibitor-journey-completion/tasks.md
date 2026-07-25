@@ -68,7 +68,7 @@
 ## 7. Full Journey Verification and Evidence
 
 - [x] 7.1 Run all focused test files added or changed by Slices 1–4, then run `pnpm typecheck`, `pnpm lint`, `pnpm build:show`, and `pnpm openspec validate exhibitor-journey-completion --type change --strict --no-interactive`.
-- [ ] 7.2 Run database/RLS smoke and entitlement authorization tests against an isolated environment; verify direct grant writes and Premium-record bypasses are denied, RPC authorization, concurrency, backfill parity, server-time expiry, and no Stripe-row mutation.
+- [x] 7.2 Run database/RLS smoke and entitlement authorization tests against an isolated environment; verify direct grant writes and Premium-record bypasses are denied, RPC authorization, concurrency, backfill parity, server-time expiry, and no Stripe-row mutation.
 - [ ] 7.3 Re-walk the elderly/low-tech exhibitor journey at 390x844, 834x1112, tablet landscape, and 1280x800 in light and dark modes for free, complimentary Premium, revoked, expired, paid, and trial states.
 - [ ] 7.4 Exercise all five Premium capabilities through invalid input, valid save, edit, delete/undo, empty, loading, error/retry, long content, and deep-link/refresh states; record screenshots and console/network results.
 - [ ] 7.5 Verify My Shows, My Payments, Dog Activity, Subscription, and Pricing using one seeded account and record a reconciliation table for amounts, counts, entitlement source, and available action.

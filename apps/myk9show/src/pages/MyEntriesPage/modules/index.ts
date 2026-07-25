@@ -26,5 +26,10 @@ export { ALL_ENTRIES_LABEL, ALL_ENTRIES_SCOPE_NOTE } from './myShowsCopy';
 export { MyEntryCard } from './MyEntryCard';
 export { EntriesEmptyState } from './EntriesEmptyState';
 export { EntriesLoadErrorCard } from './EntriesLoadErrorCard';
-export { CheckInDialog, EditEntryDialog, ReceiptEntryDialog } from './MyEntriesDialogs';
+export {
+  CheckInDialog,
+  EditEntryDialog,
+  ReceiptEntryDialog,
+  MyEntriesDialogGroup,
+} from './MyEntriesDialogs';
 export { WaitListSection } from './WaitListSection';

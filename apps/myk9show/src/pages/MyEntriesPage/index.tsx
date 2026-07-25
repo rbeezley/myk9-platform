@@ -22,13 +22,11 @@ import {
   summarizeEntryBalances,
 } from '@/features/payments/entryBalanceSummary';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
-import { AddDogPanel } from '@/components/panels/edit';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { CheckInStatus } from '@/types/check-in-types';
 import {
   buildResultCardModel,
   buildResultCardVisibility,
-  ResultRevealDialog,
   hasSeenResultReveal,
   markResultRevealSeen,
   type ResultCardModel,
@@ -47,9 +45,7 @@ import {
   MyEntryCard,
   EntriesEmptyState,
   EntriesLoadErrorCard,
-  CheckInDialog,
-  EditEntryDialog,
-  ReceiptEntryDialog,
+  MyEntriesDialogGroup,
   WaitListSection,
   ENTRY_TAB_DEFS,
   ALL_ENTRIES_LABEL,
@@ -476,43 +472,24 @@ const MyEntriesPage: React.FC = () => {
     <>
       {renderBody()}
 
-      {/* Dialogs — see the renderBody INTENT note above: these live outside the
-          body so a loading or error transition can never unmount them. */}
-      <CheckInDialog
-        dialog={checkInDialog}
+      <MyEntriesDialogGroup
         user={user}
-        onClose={() => setCheckInDialog({ open: false, entry: null, classEntry: null })}
-        onUpdateStatus={handleCheckInStatusUpdate}
-      />
-
-      <EditEntryDialog
-        dialog={editDialog}
-        onClose={() => setEditDialog({ open: false, entry: null })}
-        onUpdate={async () => {
+        checkInDialog={checkInDialog}
+        onCloseCheckIn={() => setCheckInDialog({ open: false, entry: null, classEntry: null })}
+        onUpdateCheckInStatus={handleCheckInStatusUpdate}
+        editDialog={editDialog}
+        onCloseEdit={() => setEditDialog({ open: false, entry: null })}
+        onEntryUpdated={async () => {
           await refreshEntries();
           setEditDialog({ open: false, entry: null });
         }}
-      />
-
-      <ReceiptEntryDialog
-        dialog={receiptDialog}
-        user={user}
-        onClose={() => setReceiptDialog({ open: false, entry: null })}
-      />
-
-      <ResultRevealDialog
-        open={resultRevealModel != null}
-        onOpenChange={open => {
-          if (!open) setResultRevealModel(null);
-        }}
-        model={resultRevealModel}
-        onSeen={handleResultRevealSeen}
-      />
-
-      <AddDogPanel
-        open={addDogOpen}
-        onClose={() => setAddDogOpen(false)}
-        onDogCreated={() => setAddDogOpen(false)}
+        receiptDialog={receiptDialog}
+        onCloseReceipt={() => setReceiptDialog({ open: false, entry: null })}
+        resultRevealModel={resultRevealModel}
+        onCloseResultReveal={() => setResultRevealModel(null)}
+        onResultRevealSeen={handleResultRevealSeen}
+        addDogOpen={addDogOpen}
+        onCloseAddDog={() => setAddDogOpen(false)}
         currentUserPersonId={currentUserPersonId ?? undefined}
       />
     </>

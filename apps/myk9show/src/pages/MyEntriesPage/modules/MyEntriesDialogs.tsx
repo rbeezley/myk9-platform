@@ -14,6 +14,8 @@ import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { EntryReceipt } from '@/components/entries/EntryReceipt';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { PaymentStatus } from '@/types/show-registration-types';
+import { AddDogPanel } from '@/components/panels/edit';
+import { ResultRevealDialog, type ResultCardModel } from '@/features/result-card';
 import type { CheckInDialogState, EditDialogState, ReceiptDialogState } from './my-entries-types';
 
 interface CheckInDialogProps {
@@ -150,3 +152,84 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
     />
   );
 };
+
+interface MyEntriesDialogGroupProps {
+  user: { email?: string; id?: string } | null;
+  checkInDialog: CheckInDialogState;
+  onCloseCheckIn: () => void;
+  onUpdateCheckInStatus: (status: CheckInStatus, notes?: string) => Promise<void>;
+  editDialog: EditDialogState;
+  onCloseEdit: () => void;
+  onEntryUpdated: () => void;
+  receiptDialog: ReceiptDialogState;
+  onCloseReceipt: () => void;
+  resultRevealModel: ResultCardModel | null;
+  onCloseResultReveal: () => void;
+  /** Receives the model's release key so the "already seen" marker is per-release. */
+  onResultRevealSeen: (releaseKey: string) => void;
+  addDogOpen: boolean;
+  onCloseAddDog: () => void;
+  currentUserPersonId: string | undefined;
+}
+
+/**
+ * INTENT: every dialog the My Shows page can open, as one unit rendered
+ * OUTSIDE the page body.
+ *
+ * The page swaps its body between loading, error, and loaded trees.
+ * `isInitialEntriesSyncing` flips on replication sync ticks the exhibitor
+ * never triggered, so if these dialogs lived inside the body an ordinary
+ * background sync would unmount an Add Dog wizard mid-edit and silently
+ * reset it to its first tab with an empty form.
+ *
+ * Grouping them here is what lets `index.tsx` render one stable child at a
+ * fixed position — merely duplicating the dialogs into each branch would
+ * still remount them, because differently shaped trees reconcile as
+ * different elements. Keep this rendered unconditionally by the page.
+ */
+export const MyEntriesDialogGroup: React.FC<MyEntriesDialogGroupProps> = ({
+  user,
+  checkInDialog,
+  onCloseCheckIn,
+  onUpdateCheckInStatus,
+  editDialog,
+  onCloseEdit,
+  onEntryUpdated,
+  receiptDialog,
+  onCloseReceipt,
+  resultRevealModel,
+  onCloseResultReveal,
+  onResultRevealSeen,
+  addDogOpen,
+  onCloseAddDog,
+  currentUserPersonId,
+}) => (
+  <>
+    <CheckInDialog
+      dialog={checkInDialog}
+      user={user}
+      onClose={onCloseCheckIn}
+      onUpdateStatus={onUpdateCheckInStatus}
+    />
+
+    <EditEntryDialog dialog={editDialog} onClose={onCloseEdit} onUpdate={onEntryUpdated} />
+
+    <ReceiptEntryDialog dialog={receiptDialog} user={user} onClose={onCloseReceipt} />
+
+    <ResultRevealDialog
+      open={resultRevealModel != null}
+      onOpenChange={open => {
+        if (!open) onCloseResultReveal();
+      }}
+      model={resultRevealModel}
+      onSeen={onResultRevealSeen}
+    />
+
+    <AddDogPanel
+      open={addDogOpen}
+      onClose={onCloseAddDog}
+      onDogCreated={onCloseAddDog}
+      currentUserPersonId={currentUserPersonId}
+    />
+  </>
+);

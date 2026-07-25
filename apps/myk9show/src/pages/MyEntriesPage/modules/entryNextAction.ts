@@ -28,6 +28,14 @@ export interface DeriveEntryNextActionOptions {
   selfCheckinByClassId?: Record<string, boolean>;
 }
 
+function isPaymentEligibleStatus(status: EntryStatus): boolean {
+  return (
+    status === EntryStatus.PENDING ||
+    status === EntryStatus.ACCEPTED ||
+    status === EntryStatus.MOVE_UP_REQUESTED
+  );
+}
+
 /**
  * Derive the single primary action for an entry's summary band.
  */
@@ -38,12 +46,19 @@ export function deriveEntryNextAction(
   const now = options.now ?? new Date();
   const selfCheckinByClassId = options.selfCheckinByClassId ?? {};
 
-  // Same gate MyEntryCard uses before consulting getEntryPaymentPrompt: a
-  // move-up request can still owe its fee though it isn't editable; waitlisted
-  // entries pay on promotion and stay out.
-  const hasEditableStatus =
-    entry.entryStatus === EntryStatus.PENDING || entry.entryStatus === EntryStatus.ACCEPTED;
-  const canPayStatus = hasEditableStatus || entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED;
+  // A registration can contain several dogs/classes. Its display status may
+  // be COMPLETED because one sibling has a result while another accepted or
+  // pending row still owes an online balance, so payment eligibility must be
+  // derived below the order summary.
+  const canPayStatus =
+    entry.classes.length > 0
+      ? entry.classes.some(cls => {
+          const owningDog = findOwningDog(entry, cls.id);
+          return isPaymentEligibleStatus(
+            cls.entryStatus ?? owningDog?.entryStatus ?? entry.entryStatus
+          );
+        })
+      : isPaymentEligibleStatus(entry.entryStatus);
   const paymentPrompt = canPayStatus
     ? getEntryPaymentPrompt({
         paymentMethod: entry.paymentMethod,
@@ -56,21 +71,18 @@ export function deriveEntryNextAction(
     return { kind: 'finish-payment' };
   }
 
-  // Check-in is only a live next action for an accepted dog at a non-past
-  // show. The order-level status is a display summary: COMPLETED can dominate
-  // ACCEPTED when one dog has a result, so eligibility must be resolved from
-  // the dog that owns each class. Orders without dog groups retain the legacy
-  // order-level fallback.
+  // Check-in is only a live next action for an accepted class row at a
+  // non-past show. Dog and order statuses are display summaries: COMPLETED can
+  // dominate ACCEPTED when a sibling class already has a result, so use the
+  // row status when available and retain the dog/order fallback for legacy
+  // fixtures or partially replicated rows.
   if (!isPastShowEntry(entry, now)) {
     const eligibleClass = entry.classes.find(cls => {
       if (cls.isScored || cls.status !== 'entered') return false;
 
       const owningDog = findOwningDog(entry, cls.id);
-      if (entry.dogs.length > 0) {
-        if (!owningDog || owningDog.entryStatus !== EntryStatus.ACCEPTED) return false;
-      } else if (entry.entryStatus !== EntryStatus.ACCEPTED) {
-        return false;
-      }
+      const classEntryStatus = cls.entryStatus ?? owningDog?.entryStatus ?? entry.entryStatus;
+      if (classEntryStatus !== EntryStatus.ACCEPTED) return false;
 
       // Same cascade MyEntryCard reads: class-scoped toggle, defaulting open
       // when the class id or map entry is missing.

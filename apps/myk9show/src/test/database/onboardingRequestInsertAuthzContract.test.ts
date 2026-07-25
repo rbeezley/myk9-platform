@@ -13,7 +13,7 @@ const migration = readFileSync(
 describe('onboarding request insert authorization contract', () => {
   it('allows owners to insert only pending requests without admin notes', () => {
     expect(migration).toMatch(
-      /create policy "Authenticated users can submit onboarding request"[\s\S]*with check \(\s*auth\.uid\(\) = auth_user_id and status = 'pending' and notes is null\s*\)/i
+      /create policy "Authenticated users can submit onboarding request"[\s\S]*for insert\s+to authenticated\s+with check \(\s*auth\.uid\(\) = auth_user_id and status = 'pending' and notes is null\s*\)/i
     );
   });
 

@@ -61,6 +61,28 @@ export interface RawProbeFacts {
   migration_count?: unknown;
   cron_jobs?: unknown;
   ringside_conflict_counter?: unknown;
+  anon_grants?: unknown;
+}
+
+/** Raw `anon_grants` fact block from the probe (MYK9-93). */
+export interface RawAnonGrants {
+  tables?: unknown;
+  columns?: unknown;
+  defaults?: unknown;
+}
+
+/** One anon ACL row. `privs` is the aclitem privilege letters: r = SELECT,
+ * a = INSERT, w = UPDATE, d = DELETE, D = TRUNCATE, x = REFERENCES, t = TRIGGER. */
+interface AnonGrantRow {
+  name: string;
+  column: string | null;
+  privs: string;
+}
+
+interface AnonDefaultRow {
+  grantor: string;
+  objtype: string;
+  privs: string;
 }
 
 export interface BuildSnapshotOptions {
@@ -90,6 +112,47 @@ export const DEFAULT_SOURCE = 'cron-health-check';
 // while staying orders of magnitude above honest traffic.
 export const RINGSIDE_CONFLICTS_WARN_DELTA = 1_000;
 export const RINGSIDE_CONFLICTS_FAIL_DELTA = 10_000;
+
+/**
+ * MYK9-93 anon-grant allowlist — table name → the exact aclitem privilege letters
+ * anon may hold. Mirrors 20260725160000/170000/180000. `r` = SELECT, `a` = INSERT.
+ *
+ * `public.entries` is deliberately ABSENT: it carries a 14-column grant and must have
+ * no table-level SELECT, so its presence here at all is a failure (see anonGrantsCheck).
+ * `dogs` and `people` are likewise column-only — grants that exist purely so anon
+ * PostgREST embeds resolve to null instead of 42501; RLS admits them zero rows.
+ */
+export const ANON_TABLE_ALLOWLIST: Readonly<Record<string, string>> = {
+  // Public reference data.
+  rule_organizations: 'r',
+  rule_sports: 'r',
+  rulebooks: 'r',
+  rules: 'r',
+  sport_class_rules: 'r',
+  sport_templates: 'r',
+  sport_titles: 'r',
+  show_templates: 'r',
+  template_fields: 'r',
+  user_guide: 'r',
+  // Published show data, further row-filtered by RLS on show status.
+  shows: 'r',
+  trials: 'r',
+  classes: 'r',
+  armbands: 'r',
+  judge_assignments: 'r',
+  clubs: 'r',
+  achievements: 'r',
+  show_visibility_settings: 'r',
+  trial_visibility_overrides: 'r',
+  class_visibility_overrides: 'r',
+  // The one anon write path: the pre-launch waitlist signup form. INSERT only.
+  platform_waitlist: 'a',
+  // The definer-rights public results release gate.
+  view_public_entry_results: 'r',
+};
+
+/** Tables where anon legitimately holds COLUMN-level (never table-level) grants. */
+export const ANON_COLUMN_TABLES: readonly string[] = ['entries', 'dogs', 'people'];
 
 const RANK: Record<HealthStatus, number> = { ok: 0, warn: 1, fail: 2 };
 
@@ -138,6 +201,26 @@ function parseCronJob(raw: unknown): CronJob {
     lastStatus: asIsoOrNull(entry.last_status),
     lastRunAt: lastEnd ?? lastStart,
     lastMessage: asIsoOrNull(entry.last_message),
+  };
+}
+
+/** Tolerant like parseCronJob: any malformed row degrades to empty strings, which the
+ * allowlist comparison then reports as drift rather than silently skipping. */
+function parseAnonGrant(raw: unknown): AnonGrantRow {
+  const row = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return {
+    name: asString(row.name, '(unknown)'),
+    column: typeof row.column === 'string' ? row.column : null,
+    privs: asString(row.privs),
+  };
+}
+
+function parseAnonDefault(raw: unknown): AnonDefaultRow {
+  const row = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return {
+    grantor: asString(row.grantor, '(unknown)'),
+    objtype: asString(row.objtype),
+    privs: asString(row.privs),
   };
 }
 
@@ -353,6 +436,76 @@ function ringsideConflictsCheck(
 }
 
 /**
+ * MYK9-93 — anon-grant drift against the APPLIED ACLs.
+ *
+ * The migration-text contract test can only see grants written in a committed .sql
+ * file. It cannot see one that arrives from an ALTER DEFAULT PRIVILEGES, the dashboard,
+ * or a restore — which is how `dog_favorites` shipped with anon holding full CRUD
+ * despite a migration granting it nothing. This check reads what the database actually
+ * has, so drift from ANY source surfaces on /admin/health within a day.
+ *
+ * Both halves matter. `public.entries` deliberately carries a column-level allowlist
+ * with NO table-level SELECT: a table-only check would call a blanket re-grant healthy.
+ */
+function anonGrantsCheck(facts: RawProbeFacts, probedAt: string): SnapshotCheck {
+  const base = { key: 'anon_grants', label: 'Anon grants', checked_at: probedAt } as const;
+  const raw = facts.anon_grants;
+  if (!raw || typeof raw !== 'object') {
+    // Probe predates this fact (function not yet redeployed) — visible, not alarming.
+    return { ...base, status: 'warn', detail: 'probe returned no anon_grants facts' };
+  }
+
+  const { tables, columns, defaults } = raw as RawAnonGrants;
+  const tableRows = Array.isArray(tables) ? tables.map(parseAnonGrant) : [];
+  const columnRows = Array.isArray(columns) ? columns.map(parseAnonGrant) : [];
+  const defaultRows = Array.isArray(defaults) ? defaults.map(parseAnonDefault) : [];
+
+  const problems: string[] = [];
+
+  for (const row of tableRows) {
+    const expected = ANON_TABLE_ALLOWLIST[row.name];
+    if (expected === undefined) {
+      problems.push(`${row.name} (${row.privs}) not on the anon allowlist`);
+    } else if (row.privs !== expected) {
+      problems.push(`${row.name} has '${row.privs}', expected '${expected}'`);
+    }
+  }
+
+  // entries must stay column-scoped. Its absence from the table list IS the invariant.
+  if (tableRows.some(row => row.name === 'entries')) {
+    problems.push('entries has a TABLE-level anon grant — the release-gate allowlist is bypassed');
+  }
+
+  for (const row of columnRows) {
+    if (!ANON_COLUMN_TABLES.includes(row.name)) {
+      problems.push(`unexpected column grant ${row.name}.${row.column ?? '?'} (${row.privs})`);
+    } else if (row.privs !== 'r') {
+      problems.push(`${row.name}.${row.column ?? '?'} has '${row.privs}', expected read-only`);
+    }
+  }
+
+  // Any grantor other than supabase_admin means a revoked default came back.
+  for (const row of defaultRows) {
+    if (row.grantor !== 'supabase_admin') {
+      problems.push(`default privileges for anon restored by ${row.grantor} (${row.objtype})`);
+    }
+  }
+
+  if (problems.length > 0) {
+    return { ...base, status: 'fail', detail: problems.join('; ') };
+  }
+
+  const writeable = tableRows.filter(row => /[awdDxt]/.test(row.privs)).length;
+  return {
+    ...base,
+    status: 'ok',
+    detail:
+      `${tableRows.length} table grants (${writeable} write), ` +
+      `${columnRows.length} column grants, all on the allowlist`,
+  };
+}
+
+/**
  * Build the snapshot row from raw probe facts. Never throws: a non-object facts
  * payload (probe errored or returned nothing) becomes a single `fail` check.
  */
@@ -387,6 +540,7 @@ export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): Healt
     backgroundJobsCheck(jobs, opts.now, staleAfterMs, probedAt),
     migrationsCheck(f, probedAt),
     ringsideConflictsCheck(f, opts.previousConflictCounter, probedAt),
+    anonGrantsCheck(f, probedAt),
   ];
 
   return {

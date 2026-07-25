@@ -53,8 +53,10 @@ export function useMyAtShowJudgeAssignments(
     const previous = lastJudgeTableStatus.current;
     lastJudgeTableStatus.current = judgeTableStatus;
     if (!isApplicable || previous === judgeTableStatus) return;
+    // ANY status -> success, not just idle/syncing: a first sync that fails and
+    // then recovers goes syncing -> error -> success, which would otherwise
+    // reproduce the same stuck-empty result one retry later.
     if (judgeTableStatus !== 'success') return;
-    if (previous !== 'idle' && previous !== 'syncing') return;
     void queryClient.invalidateQueries({
       queryKey: ['at-show', 'judge-assignments', showId, personId],
     });

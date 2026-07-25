@@ -80,6 +80,29 @@ describe('useMyAtShowJudgeAssignments', () => {
     await waitFor(() => expect(result.current.assignedClassIds.has('class-1')).toBe(true));
   });
 
+  it('refetches when a FAILED first sync later recovers', async () => {
+    // syncing -> error -> success. Gating the invalidation on an idle/syncing
+    // predecessor would leave the judge stuck on the empty result one retry
+    // later — the exact symptom, just deferred.
+    getActiveJudgeAssignmentsForShow.mockResolvedValue([]);
+
+    const { result, rerender } = renderHook(() => useMyAtShowJudgeAssignments('show-1'), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(getActiveJudgeAssignmentsForShow).toHaveBeenCalled());
+
+    judgeTableStatus = 'error';
+    rerender();
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+
+    getActiveJudgeAssignmentsForShow.mockResolvedValue([{ id: 'a1', classId: 'class-1' }]);
+    judgeTableStatus = 'success';
+    rerender();
+
+    await waitFor(() => expect(result.current.assignedClassIds.has('class-1')).toBe(true));
+  });
+
   it('does not invalidate while the table stays in the same status', async () => {
     getActiveJudgeAssignmentsForShow.mockResolvedValue([{ id: 'a1', classId: 'class-1' }]);
     judgeTableStatus = 'success';

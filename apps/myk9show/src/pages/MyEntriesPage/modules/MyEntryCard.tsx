@@ -287,14 +287,24 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           onCheckInClick(entry, cls) handler the per-class details control
           calls — never a separate write path. */}
       <div className="myk9-entries-action-buttons">
-        {nextAction.kind === 'finish-payment' && paymentHref && (
-          <Button asChild className="min-h-[44px] transition-all duration-200">
-            <Link to={paymentHref}>
+        {nextAction.kind === 'finish-payment' &&
+          (paymentHref ? (
+            <Button asChild className="min-h-[44px] transition-all duration-200">
+              <Link to={paymentHref}>
+                <CreditCard className="h-5 w-5 mr-1.5" />
+                Finish Payment
+              </Link>
+            </Button>
+          ) : (
+            // INTENT: an exhibitor who owes money must never face a dead end.
+            // The order owes an online balance but no cart can be built safely
+            // yet (show relation still replicating), so say so rather than
+            // rendering nothing — or sending them to a cart for the wrong rows.
+            <Button disabled className="min-h-[44px]" aria-live="polite">
               <CreditCard className="h-5 w-5 mr-1.5" />
-              Finish Payment
-            </Link>
-          </Button>
-        )}
+              Payment options loading…
+            </Button>
+          ))}
 
         {nextAction.kind === 'check-in' && nextActionClass && (
           <Button

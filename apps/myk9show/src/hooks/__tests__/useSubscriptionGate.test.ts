@@ -336,4 +336,47 @@ describe('useSubscriptionGate', () => {
       expect(result.current.isLoading).toBe(true);
     });
   });
+
+  describe('canAuthorizePremium (write gate, separate from the display tier)', () => {
+    it('stays false when display Premium comes from the untrusted legacy fallback', () => {
+      mockPremiumProfile(futureDate);
+      trustedEntitlement('free', 'none');
+      entitlementHolder.isTrusted = false;
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.isPremium).toBe(true);
+      expect(result.current.canAuthorizePremium).toBe(false);
+    });
+
+    it('stays false when the entitlement read failed outright', () => {
+      mockEarlyAdopterProfile();
+      entitlementHolder.effective = null;
+      entitlementHolder.isError = true;
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.isPremium).toBe(true);
+      expect(result.current.canAuthorizePremium).toBe(false);
+    });
+
+    it('is true when the trusted resolver says premium', () => {
+      mockFreeProfile();
+      trustedEntitlement('premium', 'complimentary');
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.canAuthorizePremium).toBe(true);
+    });
+
+    it('is never granted by the caller-driven trial axis alone', () => {
+      mockFreeProfile();
+
+      const { result } = renderHook(() => useSubscriptionGate({ trialShowCount: 1 }));
+
+      expect(result.current.isInTrial).toBe(true);
+      expect(result.current.isPremium).toBe(true);
+      expect(result.current.canAuthorizePremium).toBe(false);
+    });
+  });
 });

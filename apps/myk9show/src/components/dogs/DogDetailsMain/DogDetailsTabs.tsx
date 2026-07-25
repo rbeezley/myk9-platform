@@ -41,7 +41,8 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
             <RecordsSection
               dogId={dog.id}
               view="health"
-              isPremium={canAuthorizePremium}
+              isPremium={isPremium}
+              canWrite={canAuthorizePremium}
               vaccinationsOnly
             />
           </Suspense>
@@ -83,7 +84,8 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
             dogId={dog.id}
             view={(state.view as RecordsView) ?? 'health'}
             onViewChange={setView}
-            isPremium={canAuthorizePremium}
+            isPremium={isPremium}
+            canWrite={canAuthorizePremium}
           />
         </div>
       )}

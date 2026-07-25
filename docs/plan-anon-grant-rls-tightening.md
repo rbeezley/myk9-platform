@@ -18,11 +18,11 @@ despite the migration deliberately granting it none.
 
 ## Corrections to the issue text (verified against the applied DB)
 
-| Issue claim | Reality |
-| -- | -- |
-| "`entries` correctly has no anon SELECT" | **False.** `entries_anon_select_for_tv` grants anon SELECT on entries for any show in status `published`/`upcoming`/`in_progress`/`completed`. Deliberate — it backs the TV / at-show boards. |
-| `nationals_*` need reconciling with the release gate | They have **zero application callers** (they appear only in generated `database.types.ts`). Delete the anon SELECT outright rather than scope it. |
-| Scope items 4 & 5 (migration template, `CLAUDE.md`) | Already shipped in `ba55179da`. |
+| Issue claim                                          | Reality                                                                                                                                                                                       |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "`entries` correctly has no anon SELECT"             | **False.** `entries_anon_select_for_tv` grants anon SELECT on entries for any show in status `published`/`upcoming`/`in_progress`/`completed`. Deliberate — it backs the TV / at-show boards. |
+| `nationals_*` need reconciling with the release gate | They have **zero application callers** (they appear only in generated `database.types.ts`). Delete the anon SELECT outright rather than scope it.                                             |
+| Scope items 4 & 5 (migration template, `CLAUDE.md`)  | Already shipped in `ba55179da`.                                                                                                                                                               |
 
 ## Anon-reachable surface (derived: policy `USING` satisfiable with `auth.uid()` null)
 
@@ -42,17 +42,17 @@ authenticated-only in practice, despite the missing `TO authenticated` clause. `
 a Postgres role, not a synonym for anon.
 
 **Views.** 9 of 11 public views are `security_invoker = true`, so they need base-table grants
-for the *caller*; anon's RLS already returns nothing from them. `view_public_entry_results`
+for the _caller_; anon's RLS already returns nothing from them. `view_public_entry_results`
 is the definer-rights release gate and keeps anon SELECT. `view_authenticated_entry_results`
 already carries anon ACL `awdDxtm` — no `r` — and stays that way.
 
 ## Findings to fix
 
-| Table | Policy | Exposed to anon | Rows |
-| -- | -- | -- | -- |
-| `dog_registrations` | `dog_registrations_select USING (true)` | `registration_number`, `certificate`, `registered_name`, `breed`, `status` | 8 (demo) |
-| `judge_certifications` | `judge_certifications_select USING (true)` | `certification_number`, `person_id`, `expiration_date` | 0 |
-| `nationals_scores` / `_rankings` / `_advancement` | `*_select USING (true)` | full score / ranking rows | 0 |
+| Table                                             | Policy                                     | Exposed to anon                                                            | Rows     |
+| ------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------- | -------- |
+| `dog_registrations`                               | `dog_registrations_select USING (true)`    | `registration_number`, `certificate`, `registered_name`, `breed`, `status` | 8 (demo) |
+| `judge_certifications`                            | `judge_certifications_select USING (true)` | `certification_number`, `person_id`, `expiration_date`                     | 0        |
+| `nationals_scores` / `_rankings` / `_advancement` | `*_select USING (true)`                    | full score / ranking rows                                                  | 0        |
 
 No application code path requires anon access to any of them: every `dog_registrations` read
 arrives through a `dog:dog_id(...)` join and `dogs_select` is `{authenticated}` only; the
@@ -83,6 +83,29 @@ arrives through a `dog:dog_id(...)` join and `dogs_select` is `{authenticated}` 
 4. Leave `authenticated` and `service_role` untouched — out of scope, and both are gated by
    RLS on every table.
 
+### Phase 2b — Review repairs (`20260725170000`)
+
+Review of `20260725160000` found two regressions it introduced. Both were reproduced
+against staging over real PostgREST before being fixed.
+
+1. **Critical, data exposure.** `entries` had a deliberate **column-level** anon grant from
+   the release gate (`20260616120000`): 14 safe columns, table-level SELECT revoked.
+   `REVOKE ALL ON ALL TABLES` drops column grants too, and the re-grant was table-wide — so
+   anon could read `total_score`, `result_status`, `judge_notes`, `payment_status`,
+   `stripe_payment_intent_id` directly, routing around `view_public_entry_results`.
+   Fixed by restoring the 14-column allowlist. **The Phase 3 probe missed this because
+   `select=*` returns 200 either way; column grants live in `pg_attribute.attacl`, not
+   `pg_class.relacl`.**
+2. **High, availability.** PostgREST requires table-level SELECT on every _embedded_
+   relation. Revoking anon on `dogs`/`people` turned null embeds into a hard `42501` that
+   failed the whole request for `/tv/:showId`, the public show-detail judge roster, and the
+   guest cold-store classes tab. Fixed with column-scoped grants on just the embedded
+   columns; these convey no data, since `dogs_select`/`people_select` are `TO authenticated`
+   and anon still matches zero rows.
+
+Also closed: the `FUNCTIONS` half of the default-privilege revoke (Phase 2.1 specified it;
+`20260725160000` omitted it) and `NOTIFY pgrst, 'reload schema'`.
+
 ### Phase 3 — Testing
 
 A phase is not complete until its tests pass.
@@ -91,11 +114,13 @@ A phase is not complete until its tests pass.
    direct PostgREST reads with the publishable key, asserting 200 + rows for the 21 allowed
    tables and 401/403/empty for `dog_registrations`, `judge_certifications`, `nationals_*`,
    `dogs`, `people`.
-2. **SQL assertions on the applied DB**, not the migration text
+2. **Column-level ACLs**, not just table-level: `pg_attribute.attacl`. A `select=*` probe
+   cannot distinguish a column allowlist from a table-wide grant — check named columns.
+3. **SQL assertions on the applied DB**, not the migration text
    (`select unnest(relacl)::text from pg_class where oid = 'public.<t>'::regclass`) —
    `information_schema.role_table_grants` returns empty over MCP and cannot prove absence.
-3. **Regression**: at-show / TV board and the public show-detail pages still load anonymously.
-4. `pnpm typecheck`, `pnpm lint`, and the myk9show unit suite.
+4. **Regression**: at-show / TV board and the public show-detail pages still load anonymously.
+5. `pnpm typecheck`, `pnpm lint`, and the myk9show unit suite.
 
 ### Phase 4 — Ship
 

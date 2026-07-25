@@ -1348,6 +1348,80 @@ export type Database = {
         }
         Relationships: []
       }
+      dog_favorites: {
+        Row: {
+          armband: number
+          created_at: string
+          id: string
+          show_id: string
+          user_id: string
+        }
+        Insert: {
+          armband: number
+          created_at?: string
+          id?: string
+          show_id: string
+          user_id: string
+        }
+        Update: {
+          armband?: number
+          created_at?: string
+          id?: string
+          show_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dog_favorites_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dog_favorites_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "dog_favorites_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "dog_favorites_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "dog_favorites_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "dog_favorites_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "dog_favorites_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+        ]
+      }
       dog_registrations: {
         Row: {
           application_number: string | null
@@ -4254,7 +4328,6 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
-          early_adopter_until: string | null
           email: string | null
           first_name: string
           id: string
@@ -4277,7 +4350,6 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
-          early_adopter_until?: string | null
           email?: string | null
           first_name: string
           id?: string
@@ -4300,7 +4372,6 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
-          early_adopter_until?: string | null
           email?: string | null
           first_name?: string
           id?: string
@@ -11133,7 +11204,6 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
-          early_adopter_until: string | null
           email: string | null
           first_name: string
           id: string
@@ -11534,6 +11604,16 @@ export type Database = {
         Args: { p_claim_token: string; p_event_id: string }
         Returns: boolean
       }
+      reserve_operator_support_query: {
+        Args: never
+        Returns: {
+          allowed: boolean
+          daily_limit: number
+          log_id: string
+          remaining: number
+          resets_at: string
+        }[]
+      }
       resolve_class_result_visibility: {
         Args: { p_class_id: string }
         Returns: {
@@ -11679,7 +11759,6 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
-          early_adopter_until: string | null
           email: string | null
           first_name: string
           id: string
@@ -11828,7 +11907,6 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
-          early_adopter_until: string | null
           email: string | null
           first_name: string
           id: string

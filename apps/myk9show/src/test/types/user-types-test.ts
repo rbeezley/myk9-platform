@@ -11,7 +11,6 @@ const personRow: PersonTable['Row'] = {
   created_at: null,
   deleted_at: null,
   deleted_by: null,
-  early_adopter_until: null,
   email: 'john@example.com',
   first_name: 'John',
   id: 'person-1',
@@ -34,7 +33,10 @@ const personInsert: PersonTable['Insert'] = {
 
 const personUpdate: PersonTable['Update'] = {
   country: 'Mexico',
-  early_adopter_until: '2026-12-31T00:00:00Z',
+  // `early_adopter_until` was dropped in task 8.2; founding membership lives in
+  // subscription_entitlement_grants. Any nullable column exercises Update the
+  // same way, so the fixture uses one that still exists.
+  bio: 'Updated bio',
 };
 
 export const personTypeFixtures = { personRow, personInsert, personUpdate };

@@ -31,6 +31,15 @@ export interface EntryClass {
   status: 'entered' | 'scratched' | 'moved' | 'absent';
   /** Denormalized handler display name; may differ from the dog owner when a proxy handles the dog. */
   handler?: string | undefined;
+  /**
+   * This ROW's own payment status. Money math must run per row: an order can
+   * mix paid and pending class rows, and collapsing them to the first row's
+   * status is what produced the My Shows vs My Payments contradiction
+   * (exhibitor-money-clarity). See `buildOrderBalance`.
+   */
+  paymentStatus?: PaymentStatus | undefined;
+  /** This ROW's own raw `entries.payment_method` (DB vocabulary). */
+  paymentMethod?: string | null | undefined;
   checkInStatus?: CheckInStatus | undefined;
   checkInTime?: Date | undefined;
   /** Whether this entry has been scored */
@@ -67,6 +76,30 @@ export interface MyEntryDogGroup {
 }
 
 /**
+ * Row-level money truth for one grouped order card.
+ *
+ * `groupEntriesByOrder` merges per-class rows for display, but the money
+ * figures below are derived from the RAW per-class rows via the same
+ * `summarizeEntryBalances` selector the page summary and My Payments use, so
+ * a mixed-payment order tells ONE story: card status, card amount, card pay
+ * link and the page summary all agree (exhibitor-money-clarity).
+ */
+export interface MyEntryBalance {
+  /** Reconciled order payment status — PENDING if ANY row is still pending. */
+  paymentStatus: PaymentStatus;
+  /** Method of the first still-pending row, else the first row's method. */
+  paymentMethod: string | null;
+  /** Fees (cents) of rows whose own payment status is still pending. */
+  unpaidFeeCents: number;
+  /** Amount due (cents) per the canonical selector — matches the page summary. */
+  amountDueCents: number;
+  onlineDueCents: number;
+  payAtShowDueCents: number;
+  /** Entry-row ids that actually owe an ONLINE balance — the pay link's target. */
+  dueEntryIds: string[];
+}
+
+/**
  * Represents a user's entry — grouped to one card per online order
  * (`registrationId`; entries with no registration fall back to a show+dog
  * grouping so nothing disappears — see `groupEntriesByOrder`). `dogName` /
@@ -100,7 +133,18 @@ export interface MyEntry {
   dogs: MyEntryDogGroup[];
   totalFee: number;
   entryStatus: EntryStatus;
+  /**
+   * Order-level payment status. Populated by `groupEntriesByOrder` from the
+   * reconciled `balance` below — never "first row wins". Optional `balance`
+   * absence (hand-built fixtures) falls back to this value.
+   */
   paymentStatus: PaymentStatus;
+  /**
+   * Row-level money truth for this order. Absent only on hand-built fixtures
+   * that never went through `groupEntriesByOrder`; consumers must fall back to
+   * `paymentStatus`/`totalFee` (see `getOrderPaymentPrompt`).
+   */
+  balance?: MyEntryBalance | undefined;
   /** Raw `entries.payment_method` (DB vocabulary: 'online' | 'cash' | 'check' |
    * 'waived' | 'secretary_paid' | 'group_payment' | null). Drives the cash/check
    * "pay at show" status vs the online "Finish Payment" CTA (4.C). */

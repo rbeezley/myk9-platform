@@ -15,6 +15,7 @@
  */
 
 import { EntryStatus } from '@/types/show-registration-types';
+import { buildOrderBalance } from './myEntryOrderBalance';
 import type { MyEntry, MyEntryDogGroup } from './my-entries-types';
 
 // Highest-priority status wins when merging class rows for the same dog, and
@@ -74,7 +75,7 @@ function orderKeyFor(row: MyEntry): string {
 /**
  * Groups flat per-class-per-dog rows into one card per order.
  */
-export function groupEntriesByOrder(rawEntries: MyEntry[]): MyEntry[] {
+export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date()): MyEntry[] {
   const orders = new Map<string, OrderAccum>();
   const orderKeys: string[] = [];
 
@@ -136,6 +137,22 @@ export function groupEntriesByOrder(rawEntries: MyEntry[]): MyEntry[] {
       primary.entryStatus
     );
 
+    // Money is reconciled from the per-class ROWS, never from the first row's
+    // status — see myEntryOrderBalance (exhibitor-money-clarity).
+    const balance = buildOrderBalance(
+      classes,
+      {
+        showId: order.showId,
+        showName: order.showName,
+        showDate: order.showDate,
+        showEndDate: order.showEndDate,
+        entryStatus,
+        paymentStatus: order.paymentStatus,
+        paymentMethod: order.paymentMethod,
+      },
+      now
+    );
+
     const entry: MyEntry = {
       id: primary.id,
       registrationId: order.registrationId,
@@ -151,8 +168,9 @@ export function groupEntriesByOrder(rawEntries: MyEntry[]): MyEntry[] {
       dogs,
       totalFee,
       entryStatus,
-      paymentStatus: order.paymentStatus,
-      paymentMethod: order.paymentMethod,
+      paymentStatus: balance.paymentStatus,
+      paymentMethod: balance.paymentMethod,
+      balance,
       confirmationNumber: order.confirmationNumber,
       entryCloseDate: order.entryCloseDate,
       submittedAt: order.submittedAt,

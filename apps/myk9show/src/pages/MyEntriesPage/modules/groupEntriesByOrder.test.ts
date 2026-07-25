@@ -307,3 +307,69 @@ describe('groupEntriesByOrder — one card per online order (D1)', () => {
     expect(result[0].dogs.find(d => d.dogName === 'Ziva')?.entryStatus).toBe(EntryStatus.ACCEPTED);
   });
 });
+
+describe('groupEntriesByOrder — money is reconciled from rows, not first-row-wins', () => {
+  /**
+   * The regression Codex caught on PR #1456: fixing only the PAGE SUMMARY to
+   * read raw rows left the card reading the grouped first-row paymentStatus,
+   * so a mixed-payment mail-in order could show "Paid" on the only card while
+   * the summary said money was due (or vice versa) purely from row order.
+   *
+   * The card's money must therefore be ORDER-INDEPENDENT: same rows, either
+   * sequence, same answer.
+   */
+  const paidRow = () =>
+    makeRow({
+      id: 'entry-paid',
+      totalFee: 100,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      classes: [
+        makeClass({ id: 'entry-paid', fee: 100, paymentStatus: PaymentStatus.PAID_ONLINE }),
+      ],
+    });
+
+  const pendingRow = () =>
+    makeRow({
+      id: 'entry-pending',
+      totalFee: 50,
+      paymentStatus: PaymentStatus.PENDING,
+      classes: [
+        makeClass({
+          id: 'entry-pending',
+          name: 'Exterior Search',
+          fee: 50,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: 'card',
+        }),
+      ],
+    });
+
+  it('reports the same order balance whichever row sorts first', () => {
+    const paidFirst = groupEntriesByOrder([paidRow(), pendingRow()]);
+    const pendingFirst = groupEntriesByOrder([pendingRow(), paidRow()]);
+
+    expect(paidFirst).toHaveLength(1);
+    expect(pendingFirst).toHaveLength(1);
+    expect(paidFirst[0].balance).toEqual(pendingFirst[0].balance);
+  });
+
+  it('a partially paid order is PENDING and owes only the unpaid row', () => {
+    const [order] = groupEntriesByOrder([paidRow(), pendingRow()]);
+
+    // Not "paid" just because the paid row happened to be first.
+    expect(order.balance?.paymentStatus).toBe(PaymentStatus.PENDING);
+    // Owes the pending row's $50 — never the $150 whole-order total.
+    expect(order.balance?.unpaidFeeCents).toBe(5000);
+    expect(order.balance?.amountDueCents).toBe(5000);
+    // The pay link targets only the row that actually owes.
+    expect(order.balance?.dueEntryIds).toEqual(['entry-pending']);
+  });
+
+  it('a fully paid order owes nothing and offers no payable rows', () => {
+    const [order] = groupEntriesByOrder([paidRow()]);
+
+    expect(order.balance?.paymentStatus).toBe(PaymentStatus.PAID_ONLINE);
+    expect(order.balance?.amountDueCents).toBe(0);
+    expect(order.balance?.dueEntryIds).toEqual([]);
+  });
+});

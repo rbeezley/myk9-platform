@@ -13,7 +13,7 @@
  */
 
 import { EntryStatus } from '@/types/show-registration-types';
-import { getEntryPaymentPrompt } from '@/features/payments/entryPaymentPrompt';
+import { getOrderPaymentPrompt } from './myEntryOrderBalance';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import { findOwningDog } from './myEntryDogView';
 import type { MyEntry } from './my-entries-types';
@@ -59,13 +59,9 @@ export function deriveEntryNextAction(
           );
         })
       : isPaymentEligibleStatus(entry.entryStatus);
-  const paymentPrompt = canPayStatus
-    ? getEntryPaymentPrompt({
-        paymentMethod: entry.paymentMethod,
-        paymentStatus: entry.paymentStatus,
-        totalFee: entry.totalFee,
-      })
-    : ({ kind: 'none' } as const);
+  // Same row-level order balance the card renders from — the summary-band
+  // action can never disagree with the amount shown (exhibitor-money-clarity).
+  const paymentPrompt = canPayStatus ? getOrderPaymentPrompt(entry) : ({ kind: 'none' } as const);
 
   if (paymentPrompt.kind === 'finish-online') {
     return { kind: 'finish-payment' };

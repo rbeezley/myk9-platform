@@ -118,6 +118,19 @@ export function useMyEntriesData({
       trial_number?: string | null;
     } | null;
     const armband = entry.armband ? String(entry.armband) : undefined;
+    // Per-ROW payment facts, carried onto the class row so the grouped card can
+    // reconcile money across rows instead of inheriting the first row's status
+    // (exhibitor-money-clarity). Mirrors mapEntryRowToBalanceSource's
+    // registration-overrides-row precedence.
+    const rowRegistration = entry.registration as {
+      id?: string;
+      confirmation_number?: string;
+      payment_status?: string | null;
+    } | null;
+    const rowPaymentStatus = mapPaymentStatus(
+      rowRegistration?.payment_status ?? (entry.payment_status as string)
+    );
+    const rowPaymentMethod = (entry.payment_method as string | null) ?? null;
     const trialDate = parseShowDate(trialData?.date ?? classData?.trial?.date);
     const trialNumber = trialData?.trial_number ?? classData?.trial?.trial_number ?? undefined;
 
@@ -138,6 +151,8 @@ export function useMyEntriesData({
             runOrder: (entry.run_order as number) || undefined,
             status: mapClassEntryStatus(entry.entry_status as string),
             handler: (entry.handler as string) || undefined,
+            paymentStatus: rowPaymentStatus,
+            paymentMethod: rowPaymentMethod,
             // Read the persisted check-in status instead of hardcoding undefined,
             // or the card always shows "Not Checked In" even after a check-in.
             checkInStatus: normalizeCheckInStatus(entry.check_in_status),
@@ -154,14 +169,8 @@ export function useMyEntriesData({
 
     const entryStatus = mapEntryStatus(entry.entry_status as string);
     // Use real confirmation number from joined registration, fall back to UUID slice for legacy entries
-    const registration = entry.registration as {
-      id: string;
-      confirmation_number: string;
-      payment_status?: string | null;
-    } | null;
     const confirmationNumber =
-      registration?.confirmation_number ?? (entry.id as string).slice(0, 8).toUpperCase();
-    const effectivePaymentStatus = registration?.payment_status ?? (entry.payment_status as string);
+      rowRegistration?.confirmation_number ?? (entry.id as string).slice(0, 8).toUpperCase();
 
     return {
       id: entry.id as string,
@@ -189,8 +198,8 @@ export function useMyEntriesData({
       dogs: [],
       totalFee: (entry.entry_fee as number) || 0,
       entryStatus,
-      paymentStatus: mapPaymentStatus(effectivePaymentStatus),
-      paymentMethod: (entry.payment_method as string | null) ?? null,
+      paymentStatus: rowPaymentStatus,
+      paymentMethod: rowPaymentMethod,
       confirmationNumber,
       entryCloseDate: show?.entry_close_date ? new Date(show.entry_close_date) : undefined,
       submittedAt: new Date((entry.submitted_at as string) || (entry.created_at as string)),

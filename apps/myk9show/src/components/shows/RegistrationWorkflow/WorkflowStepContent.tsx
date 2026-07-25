@@ -268,6 +268,7 @@ export function WorkflowStepContent({
             classSelections={optimisticState.classSelections}
             onSelectionChange={onClassSelectionChange}
             showId={showId}
+            workflowMode={currentWorkflowMode}
             {...(!hasHandlerStep && {
               handlerAssignments: optimisticState.handlerAssignments,
               onHandlerAssignmentChange,

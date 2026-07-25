@@ -37,8 +37,8 @@ import {
   ElementCard,
   DogCartSummary,
   OverallCartSummary,
-  AlreadyEnteredNotice,
 } from './ClassSelectionStep.components';
+import { AlreadyEnteredNotice } from './AlreadyEnteredNotice';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import '@/styles/myk9-registration-workflow.css';
 
@@ -59,6 +59,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   showId,
   handlerAssignments,
   onHandlerAssignmentChange,
+  workflowMode,
 }) => {
   const { dogs } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
@@ -374,7 +375,11 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
               <Card>
                 <CardContent className="pt-4">
                   {existingEntryCount > 0 && (
-                    <AlreadyEnteredNotice showId={showId} dogName={dogName} />
+                    <AlreadyEnteredNotice
+                      showId={showId}
+                      dogName={dogName}
+                      workflowMode={workflowMode}
+                    />
                   )}
                   {showTrials.length === 0 && isTrialsSyncing ? (
                     <div role="status" aria-label="Loading trials" className="space-y-3 py-2">

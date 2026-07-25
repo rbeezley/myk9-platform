@@ -21,8 +21,7 @@ import {
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { type ResultCardModel } from '@/features/result-card';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
-import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
-import { getEntryPaymentPrompt } from '@/features/payments/entryPaymentPrompt';
+import { buildOrderPaymentHref, getOrderPaymentPrompt } from './myEntryOrderBalance';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import {
   getEntryStatusBadge,
@@ -50,12 +49,6 @@ interface MyEntryCardProps {
   onReceiptClick: (entry: MyEntry) => void;
   onResultRevealClick?: (model: ResultCardModel) => void;
   seenResultReleaseKeys?: Set<string>;
-}
-
-function buildEntryPaymentHref(entry: MyEntry): string {
-  // EntryClass.id is the underlying entries-row id in useMyEntriesData.
-  const entryIds = entry.classes.map(cls => cls.id).filter(Boolean);
-  return buildFinishPaymentHref(entry.showId, entryIds.length > 0 ? entryIds : [entry.id]);
 }
 
 /**
@@ -147,13 +140,10 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
   // "Finish Payment" is an ONLINE action — cash/check exhibitors chose to pay at
   // the show and must see a calm status, not a debt CTA (4.C). No payment prompt
   // at all unless the entry status is one that can still owe its fee.
-  const paymentPrompt = canPayStatus
-    ? getEntryPaymentPrompt({
-        paymentMethod: entry.paymentMethod,
-        paymentStatus: entry.paymentStatus,
-        totalFee: entry.totalFee,
-      })
-    : ({ kind: 'none' } as const);
+  // Amount, status and method all come from the ROW-level order balance, so a
+  // mixed paid/pending order can never claim "Paid" while the page summary
+  // shows money due (exhibitor-money-clarity).
+  const paymentPrompt = canPayStatus ? getOrderPaymentPrompt(entry) : ({ kind: 'none' } as const);
 
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.
@@ -279,7 +269,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
       <div className="myk9-entries-action-buttons">
         {nextAction.kind === 'finish-payment' && (
           <Button asChild className="min-h-[44px] transition-all duration-200">
-            <Link to={buildEntryPaymentHref(entry)}>
+            <Link to={buildOrderPaymentHref(entry)}>
               <CreditCard className="h-5 w-5 mr-1.5" />
               Finish Payment
             </Link>

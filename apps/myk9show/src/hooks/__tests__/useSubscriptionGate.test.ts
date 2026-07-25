@@ -33,12 +33,24 @@ vi.mock('@/features/entitlement/useEntitlement', () => ({
 function trustedEntitlement(
   tier: 'free' | 'premium',
   source: 'paid' | 'founding' | 'complimentary' | 'none',
-  endsAt?: string
+  endsAt?: string,
+  /**
+   * Active founding grant, INDEPENDENT of `source`. Defaults to mirroring a
+   * 'founding' source, but can be passed explicitly to model the case that
+   * matters: an active founding grant while PAID wins precedence.
+   */
+  foundingGrant?: { endsAt: string } | null
 ) {
   entitlementHolder.effective = {
     tier,
     status: tier === 'premium' ? 'active' : 'free',
     source,
+    foundingGrant:
+      foundingGrant !== undefined
+        ? foundingGrant
+        : source === 'founding' && endsAt !== undefined
+          ? { endsAt }
+          : null,
     ...(endsAt !== undefined ? { endsAt } : {}),
     evaluatedAt: new Date().toISOString(),
     trustedUntil: new Date(Date.now() + 60_000).toISOString(),
@@ -241,6 +253,20 @@ describe('useSubscriptionGate', () => {
 
       expect(result.current.isEarlyAdopter).toBe(false);
       expect(result.current.isPremium).toBe(false);
+    });
+
+    it('stays a founding member when an active PAID subscription wins precedence', () => {
+      // The resolver reports source 'paid' because paid outranks grants. The
+      // person is still a founding member, and Account/Subscription must keep
+      // showing that — the legacy column was independent of the paid tier.
+      mockPremiumProfile(futureDate);
+      trustedEntitlement('premium', 'paid', futureDate, { endsAt: futureDate });
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.isPremium).toBe(true);
+      expect(result.current.isEarlyAdopter).toBe(true);
+      expect(result.current.foundingUntil).toBe(futureDate);
     });
 
     it('an active founding grant outlives an expired paid subscription', () => {

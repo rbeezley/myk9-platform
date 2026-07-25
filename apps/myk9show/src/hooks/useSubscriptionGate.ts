@@ -61,11 +61,14 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
   // The resolver also handles expiry for us — an elapsed grant resolves to
   // status 'expired', which is identical to never having had one, so there is
   // no date comparison to get wrong here any more.
-  const foundingActive =
-    isTrusted && newEffective?.status === 'active' && newEffective.source === 'founding';
-  const isEarlyAdopter = foundingActive;
-  /** Founding grant end date, for display. Null unless founding is active. */
-  const foundingUntil = foundingActive ? newEffective.endsAt : null;
+  // Read the founding GRANT, not the winning source. `source` is 'paid' when a
+  // paid subscription outranks an active founding grant, so keying off it
+  // would hide the founding-member banner from anyone holding both — the
+  // legacy column was independent of the paid tier and this preserves that.
+  const foundingGrant = isTrusted ? (newEffective?.foundingGrant ?? null) : null;
+  const isEarlyAdopter = foundingGrant !== null;
+  /** Founding grant end date, for display. Null unless a founding grant is active. */
+  const foundingUntil = foundingGrant?.endsAt ?? null;
 
   const isInTrial =
     !isPaidPremium &&

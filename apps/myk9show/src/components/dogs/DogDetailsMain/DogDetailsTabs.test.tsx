@@ -70,6 +70,7 @@ function setFree() {
     isExpired: false,
     isInTrial: false,
     isEarlyAdopter: false,
+    foundingUntil: null,
     isLoading: false,
   });
 }
@@ -82,6 +83,7 @@ function setPremium() {
     isExpired: false,
     isInTrial: false,
     isEarlyAdopter: false,
+    foundingUntil: null,
     isLoading: false,
   });
 }
@@ -95,6 +97,7 @@ function setUntrustedPremium() {
     isExpired: false,
     isInTrial: false,
     isEarlyAdopter: false,
+    foundingUntil: null,
     isLoading: false,
   });
 }

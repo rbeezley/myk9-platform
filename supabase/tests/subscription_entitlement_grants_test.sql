@@ -552,18 +552,31 @@ END;
 $$;
 
 -- ===========================================================================
--- H. Backfill parity (whatever legacy rows exist) + Stripe isolation
+-- H. Backfill survival + Stripe isolation
 -- ===========================================================================
+-- This used to compare the founding grants against `people.early_adopter_until`.
+-- That column was dropped in task 8.2 (20260725200000), and its own preflight
+-- proved the parity at drop time — re-asserting it here is impossible, because
+-- there is no longer a second source to compare against.
+--
+-- What still matters, and is checked instead: the backfilled grants SURVIVED
+-- the drop with their end dates. If the migration had taken the grants with
+-- the column, this is where it would show.
 DO $$
-DECLARE v_legacy integer; v_backfill integer;
+DECLARE v_backfill integer; v_dateless integer;
 BEGIN
-  SELECT count(*) INTO v_legacy FROM public.people WHERE early_adopter_until IS NOT NULL;
   SELECT count(*) INTO v_backfill FROM public.subscription_entitlement_grants
     WHERE grant_type='founding' AND reason='Backfilled from early_adopter_until';
-  IF v_legacy <> v_backfill THEN
-    RAISE EXCEPTION 'FAIL backfill parity: % legacy vs % founding grants', v_legacy, v_backfill;
+  SELECT count(*) INTO v_dateless FROM public.subscription_entitlement_grants
+    WHERE grant_type='founding' AND ends_at IS NULL;
+
+  IF v_backfill = 0 THEN
+    RAISE EXCEPTION 'FAIL no backfilled founding grants remain — the legacy data did not survive the column drop';
   END IF;
-  RAISE NOTICE 'PASS backfill parity holds (% legacy = % founding grants)', v_legacy, v_backfill;
+  IF v_dateless > 0 THEN
+    RAISE EXCEPTION 'FAIL % founding grant(s) lost their end date', v_dateless;
+  END IF;
+  RAISE NOTICE 'PASS % backfilled founding grant(s) survived the column drop with end dates intact', v_backfill;
 END;
 $$;
 

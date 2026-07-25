@@ -57,6 +57,15 @@ export function resolveEntitlement(
   const paidEnded = isPaidTier && paidExpiresAtMs != null && paidExpiresAtMs <= evaluatedAtMs;
 
   const grantActive = context.grant_status === 'active' && context.grant_type != null;
+
+  // Computed BEFORE the precedence branches and attached to every result:
+  // founding membership is a fact about the person, not about which source is
+  // currently paying. Deriving it from the winning `source` would erase it
+  // whenever an active paid subscription outranks the grant.
+  const foundingGrant: { endsAt: string } | null =
+    grantActive && context.grant_type === 'founding' && context.grant_ends_at != null
+      ? { endsAt: context.grant_ends_at }
+      : null;
   const grantEnded =
     context.grant_type != null &&
     context.grant_status != null &&
@@ -73,6 +82,7 @@ export function resolveEntitlement(
       trustedUntil: trustedUntilBoundedBy(endsAtMs),
       canManageBilling: true,
       analyticsTrial: resolveAnalyticsTrial(context.scored_show_count, 'premium'),
+      foundingGrant,
     };
   }
 
@@ -87,6 +97,7 @@ export function resolveEntitlement(
       trustedUntil: trustedUntilBoundedBy(endsAtMs),
       canManageBilling: false,
       analyticsTrial: resolveAnalyticsTrial(context.scored_show_count, 'premium'),
+      foundingGrant,
     };
   }
 
@@ -116,6 +127,7 @@ export function resolveEntitlement(
       trustedUntil: new Date(staleBoundaryMs).toISOString(),
       canManageBilling: false,
       analyticsTrial: resolveAnalyticsTrial(context.scored_show_count, 'free'),
+      foundingGrant,
     };
   }
 
@@ -128,5 +140,6 @@ export function resolveEntitlement(
     trustedUntil: new Date(staleBoundaryMs).toISOString(),
     canManageBilling: false,
     analyticsTrial: resolveAnalyticsTrial(context.scored_show_count, 'free'),
+    foundingGrant,
   };
 }

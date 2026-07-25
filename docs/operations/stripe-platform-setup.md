@@ -337,24 +337,48 @@ entry's refund columns" (refund issued but not recorded, or a refund that later
 **failed**), a plain SQL-editor UPDATE will hit `permission denied`. The exact reconciliation
 `UPDATE` statements and the privileged role-elevation wrapper they require are kept in the
 **private operator notes** (out of this public repo) — they only run with the service-role
-credential, so the recipe is useless without that key. The same wrapper applies to any other
-service-role-guarded column (e.g. `people.early_adopter_until` when granting founding members
-by SQL).
+credential, so the recipe is useless without that key.
 
 ## Granting a founding member (12-month free premium)
 
-Site-admin-only, manual by design (Supabase dashboard → SQL editor):
+Site-admin-only, manual by design. **`people.early_adopter_until` no longer
+exists** — it was dropped in migration `20260725200000`, and any `update` against
+it fails with `42703`. Founding access is now a row in
+`subscription_entitlement_grants`, which additionally records who granted it,
+why, and any later revocation or supersession.
+
+Preferred path — the admin UI: **/people/:id → Edit → Complimentary Premium**.
+
+By SQL, the grant RPC is site-admin-only and the dashboard's `postgres` role is
+NOT a site admin, so impersonate one:
 
 ```sql
-update public.people
-   set early_adopter_until = now() + interval '12 months'
- where email = 'person@example.com';
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claims',
+  json_build_object('sub','<site-admin auth_user_id>','role','authenticated')::text, true);
+
+SELECT public.admin_grant_entitlement(
+  (SELECT id FROM public.people WHERE email = 'person@example.com'),
+  'founding', now(), now() + interval '12 months',
+  'Founding member', false);
+COMMIT;
 ```
 
-A write-guard trigger rejects this for non-site-admins. The member sees a
-"Founding member — premium until <date>" banner on their Subscription page and
-drops to free automatically when the date passes. To revoke early, set the
-column to `now()`; to extend, set a later date.
+The member sees a "Founding member — premium is on us until <date>" banner and
+drops to free automatically when the date passes. Note the banner now survives a
+paid subscription: founding status is reported independently of whichever source
+currently pays for Premium.
+
+To revoke early, use `public.admin_revoke_entitlement(<grant_id>, '<reason>')`
+rather than editing a date — revocation is recorded as revocation, and is
+deliberately distinct from natural expiry. To extend, issue a new
+non-overlapping grant, or replace the active one explicitly (recorded as
+supersession, not revocation).
+
+Operational queries — who currently has access, what lapses soon, and the
+PII posture of each surface — are in
+[`../entitlement-operations.md`](../entitlement-operations.md).
 
 ## What you never configure
 

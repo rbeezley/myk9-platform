@@ -30,13 +30,19 @@ interface PipsProps {
 
 function Pips({ filled, total }: PipsProps) {
   return (
+    // role="img" is required for aria-label to apply: on a role-less <span>
+    // the attribute is prohibited and screen readers drop it, announcing
+    // nothing at all for the progress dots. The dots themselves are
+    // decorative — the label already carries the whole meaning.
     <span
+      role="img"
       className="inline-flex gap-1.5 items-center"
       aria-label={`${filled} of ${total} qualifying runs`}
     >
       {Array.from({ length: total }).map((_, i) => (
         <span
           key={i}
+          aria-hidden
           className={cn(
             'inline-block w-3 h-3 rounded-full border-2 transition-colors',
             i < filled

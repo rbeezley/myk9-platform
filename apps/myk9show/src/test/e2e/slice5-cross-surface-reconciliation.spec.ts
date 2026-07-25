@@ -43,16 +43,20 @@ const EVIDENCE_DIR = process.env.SLICE5_EVIDENCE_DIR ?? 'test-results/slice5-evi
  */
 const SEED = {
   /**
-   * Free tier and no early_adopter_until, but FOUR ended grants (expired /
-   * revoked / superseded) left behind by the Slice 3B transition walk. The
-   * resolver therefore reports 'expired', not 'free' — an account that once
-   * had Premium and no longer does. Both are "no active Premium"; the two
-   * surfaces just use different vocabularies for it, which is why the
-   * assertion below compares active-access rather than the label.
+   * Free TIER, but an active complimentary GRANT (2026-07-25 → 2026-10-23),
+   * issued through admin_grant_entitlement for tasks 7.3/7.4 so the Premium
+   * states and unlocked record forms are reachable. Five grants total: this
+   * one active, plus four revoked ones from the Slice 3B transition walk that
+   * remain as history.
+   *
+   * Entitlement is therefore 'complimentary', NOT the tier — the whole point
+   * of the grant model is that a free-tier account can hold real Premium
+   * access. When this grant lapses the account reverts to 'expired' and this
+   * fixture must be updated with it.
    */
-  entitlement: 'expired',
-  /** Neither surface may claim the user currently has Premium. */
-  hasActivePremium: false,
+  entitlement: 'complimentary',
+  /** Both surfaces must agree the user currently HAS Premium. */
+  hasActivePremium: true,
   /** Dog carrying the widest status spread (paid, refunded, waived, confirmed). */
   dogId: 'dededede-0000-0000-0000-000000000041',
   dogName: 'Willow',

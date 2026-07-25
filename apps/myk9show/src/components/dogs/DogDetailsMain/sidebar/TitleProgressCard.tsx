@@ -13,13 +13,19 @@ interface TitleProgressCardProps {
 
 function Pips({ filled, total }: { filled: number; total: number }) {
   return (
+    // role="img" is required for aria-label to apply: on a role-less <span>
+    // the attribute is prohibited and screen readers drop it, announcing
+    // nothing at all for the progress dots. The dots themselves are
+    // decorative — the label already carries the whole meaning.
     <span
+      role="img"
       className="inline-flex gap-1 items-center"
       aria-label={`${filled} of ${total} qualifying runs`}
     >
       {Array.from({ length: total }).map((_, i) => (
         <span
           key={i}
+          aria-hidden
           className={cn(
             'inline-block w-2.5 h-2.5 rounded-full border-2 transition-colors',
             i < filled ? 'bg-primary border-primary' : 'bg-transparent border-muted-foreground/30'

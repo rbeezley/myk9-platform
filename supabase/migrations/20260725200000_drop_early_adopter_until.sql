@@ -15,6 +15,13 @@
 --
 -- The preflight below ABORTS the migration rather than losing data if the
 -- grants do not fully account for the column's contents.
+--
+-- NOTE: applied to staging 2026-07-25, then amended in review to add the
+-- explicit LOCK statements below and to correct the rollback recipe. The
+-- staging run therefore executed without those locks — harmless there, because
+-- by then no application code wrote the column and parity was verified 0/0/0
+-- immediately beforehand. The locks matter for a clean replay into any new
+-- environment, which is what this file is now the source of truth for.
 
 BEGIN;
 
@@ -29,6 +36,14 @@ BEGIN;
 -- disagree, and a disagreement here is exactly what task 8.1 forbids
 -- proceeding through. Fail loudly instead of guessing which side is right.
 -- ---------------------------------------------------------------------------
+-- Take the locks the DDL will need anyway BEFORE counting. Without this the
+-- preflight reads hold only ACCESS SHARE, so a privileged writer could commit
+-- a new early_adopter_until value after the check passed and before the
+-- ALTER TABLE acquires its exclusive lock — and that unchecked value would
+-- then be dropped, defeating the guard this preflight exists to provide.
+LOCK TABLE public.people IN ACCESS EXCLUSIVE MODE;
+LOCK TABLE public.subscription_entitlement_grants IN SHARE MODE;
+
 DO $$
 DECLARE
   v_unmatched_legacy integer;
@@ -106,9 +121,14 @@ COMMIT;
 --   ALTER TABLE public.people
 --     ADD COLUMN IF NOT EXISTS early_adopter_until timestamptz;
 --
---   -- Latest unrevoked founding grant per person. MAX() rather than an
---   -- arbitrary row: a person may have received a later non-overlapping gift,
---   -- and the column only ever held one date.
+--   -- Latest STARTED, unrevoked founding grant per person. MAX() rather than
+--   -- an arbitrary row: a person may have received a later non-overlapping
+--   -- gift, and the column only ever held one date.
+--   --
+--   -- `starts_at <= now()` matters: a SCHEDULED grant has not begun, but the
+--   -- legacy column encoded only an end date. Reconstructing a future-dated
+--   -- grant without its start would grant Premium immediately instead of when
+--   -- it was due to begin.
 --   UPDATE public.people p
 --   SET early_adopter_until = g.ends_at
 --   FROM (
@@ -117,6 +137,7 @@ COMMIT;
 --     WHERE grant_type = 'founding'
 --       AND revoked_at IS NULL
 --       AND superseded_at IS NULL
+--       AND starts_at <= now()
 --     GROUP BY person_id
 --   ) g
 --   WHERE g.person_id = p.id;
@@ -148,9 +169,14 @@ COMMIT;
 --     BEFORE UPDATE ON public.people
 --     FOR EACH ROW EXECUTE FUNCTION public.people_protect_early_adopter();
 --
+--   -- The WHEN guard is REQUIRED on the insert trigger. The function
+--   -- authorizes only privileged roles, so without it every ordinary signup
+--   -- INSERT (which sets early_adopter_until NULL) would raise 42501.
 --   CREATE TRIGGER people_protect_early_adopter_insert_trigger
 --     BEFORE INSERT ON public.people
---     FOR EACH ROW EXECUTE FUNCTION public.people_protect_early_adopter();
+--     FOR EACH ROW
+--     WHEN (new.early_adopter_until IS NOT NULL)
+--     EXECUTE FUNCTION public.people_protect_early_adopter();
 --
 --   COMMIT;
 --

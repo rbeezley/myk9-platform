@@ -42,14 +42,14 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
     healthByTest.delete(testInfo.testId);
   });
 
-  test('walks Setup, Show Desk row actions, and closeout without blockers', async ({
+  test('walks the Overview, Show Desk row actions, and closeout without blockers', async ({
     page,
   }, testInfo) => {
     await openShowSetup(page);
 
-    await expect(page.getByRole('link', { name: 'Setup' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Setup' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Show Desk' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'About Setup' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Show schedule' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Premium List' })).toBeVisible();
 
     await page.getByRole('link', { name: 'Show Desk' }).click();
@@ -69,7 +69,9 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
 
     await expect(page.getByRole('heading', { name: 'Show-day reconciliation' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Incident closeout' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Results & Check-In Verify results' })).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Results & Check-In Verify results' })
+    ).toBeVisible();
     await expect(page.getByRole('link', { name: 'Reports Print and export' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Submit Results Send final files' })).toBeVisible();
 
@@ -95,8 +97,8 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
 
 async function openShowSetup(page: Page) {
   await signInAsSecretary(page, SETUP_PATH);
-  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/setup`));
-  await expect(page.getByRole('heading', { name: 'Setup', exact: true })).toBeVisible({
+  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}$`));
+  await expect(page.getByRole('heading', { name: 'Show schedule' })).toBeVisible({
     timeout: 15000,
   });
 }

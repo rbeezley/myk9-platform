@@ -5,6 +5,7 @@ import ReportsPage, { resolveInitialReportId, resolveInitialReportScope } from '
 
 const mockReportState = vi.hoisted(() => ({
   trialOneRegistryId: 'AKC',
+  isLoading: false,
 }));
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
@@ -29,53 +30,57 @@ vi.mock('@/hooks/queries/useReportData', () => ({
       },
       { id: 'trial-2', trial_number: 2, date: '2026-04-13' },
     ],
-    classes: [
-      {
-        id: 'class-1',
-        element: 'Buried',
-        level: 'Novice',
-        section: '',
-        trial_id: 'trial-1',
-        judge_name: 'Pat Judge',
-        time_limit_seconds: 120,
-        time_limit_area2_seconds: null,
-        time_limit_area3_seconds: null,
-        num_areas: 1,
-      },
-      {
-        id: 'class-2',
-        element: 'Interior',
-        level: 'Advanced',
-        section: '',
-        trial_id: 'trial-2',
-        judge_name: 'Sam Judge',
-      },
-    ],
-    entries: [
-      {
-        id: 'entry-1',
-        class_id: 'class-1',
-        armband: 101,
-        run_order: 1,
-        check_in_status: 'checked-in',
-        is_scored: false,
-        result_status: null,
-        search_time_seconds: null,
-        total_faults: null,
-        final_placement: null,
-        entry_fee: null,
-        payment_status: null,
-        payment_method: null,
-        entry_source: null,
-        is_day_of_show: false,
-        dog: {
-          call_name: 'Star',
-          breed: 'Golden Retriever',
-          owner: { first_name: 'Sarah', last_name: 'Johnson' },
-        },
-      },
-    ],
-    isLoading: false,
+    classes: mockReportState.isLoading
+      ? undefined
+      : [
+          {
+            id: 'class-1',
+            element: 'Buried',
+            level: 'Novice',
+            section: '',
+            trial_id: 'trial-1',
+            judge_name: 'Pat Judge',
+            time_limit_seconds: 120,
+            time_limit_area2_seconds: null,
+            time_limit_area3_seconds: null,
+            num_areas: 1,
+          },
+          {
+            id: 'class-2',
+            element: 'Interior',
+            level: 'Advanced',
+            section: '',
+            trial_id: 'trial-2',
+            judge_name: 'Sam Judge',
+          },
+        ],
+    entries: mockReportState.isLoading
+      ? undefined
+      : [
+          {
+            id: 'entry-1',
+            class_id: 'class-1',
+            armband: 101,
+            run_order: 1,
+            check_in_status: 'checked-in',
+            is_scored: false,
+            result_status: null,
+            search_time_seconds: null,
+            total_faults: null,
+            final_placement: null,
+            entry_fee: null,
+            payment_status: null,
+            payment_method: null,
+            entry_source: null,
+            is_day_of_show: false,
+            dog: {
+              call_name: 'Star',
+              breed: 'Golden Retriever',
+              owner: { first_name: 'Sarah', last_name: 'Johnson' },
+            },
+          },
+        ],
+    isLoading: mockReportState.isLoading,
     isError: false,
     refetch: vi.fn(),
   }),
@@ -152,11 +157,20 @@ vi.mock('../ReportPreview', () => ({
 describe('ReportsPage', () => {
   beforeEach(() => {
     mockReportState.trialOneRegistryId = 'AKC';
+    mockReportState.isLoading = false;
   });
 
   it('renders "Reports" title', () => {
     render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
     expect(screen.getByText('Reports')).toBeInTheDocument();
+  });
+
+  it('renders while report classes and entries are still loading', () => {
+    mockReportState.isLoading = true;
+
+    render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
+
+    expect(screen.getByRole('heading', { name: 'Reports' })).toBeInTheDocument();
   });
 
   it('renders Print button', () => {

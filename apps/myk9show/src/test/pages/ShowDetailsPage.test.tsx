@@ -147,6 +147,10 @@ vi.mock('@/hooks/useNavigationPerformance', () => ({
   useNavigationPerformance: () => ({ endNavigation: vi.fn() }),
 }));
 
+vi.mock('@/hooks/useGlobalSyncStatus', () => ({
+  useGlobalSyncStatus: () => ({ status: 'synced', queueSize: 0 }),
+}));
+
 // Mock trial store
 let mockTrials: Array<Record<string, unknown>> = [];
 let mockTrialClasses: Record<string, Array<Record<string, unknown>>> = {};
@@ -615,10 +619,7 @@ describe('ShowDetailsPage', () => {
     const nav = screen.getByTestId('canonical-show-management-nav');
     expect(nav).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: /show management section/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/setup'
-    );
+    expect(screen.queryByRole('link', { name: 'Setup' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute(
       'href',
       '/shows/show-1/show-desk'
@@ -677,25 +678,21 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('link', { name: /manage in workbench/i })).not.toBeInTheDocument();
   });
 
-  it('renders canonical child sections below the show hero', () => {
+  it('renders Show Desk below its compact context instead of the full hero', () => {
     mockAuthContext.isSecretary = true;
 
     renderPage('show-1', '/show-desk');
 
-    expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
+    expect(screen.queryByTestId('detail-hero')).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Show Desk context' })).toBeInTheDocument();
     expect(screen.getByTestId('canonical-child')).toHaveTextContent('Show Desk child');
     expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute('aria-current', 'page');
   });
 
-  // Regression: the Setup readiness chip "Premium not published yet" is a
-  // hash link to #setup-publish. That anchor lives in ShowDetailsPage (the
-  // parent route that hosts the Setup page via <Outlet>), NOT in the Setup
-  // page itself. This locks the half of the invariant that the chip-source
-  // tests (setupReadinessSignals.test / SetupAdaptiveHeader.test) can't see:
-  // the target element is in the DOM while /shows/:id/setup is active, so the
-  // chip resolves instead of scrolling to nothing. If the Setup route is ever
-  // un-nested from ShowDetailsPage, this fails — which is the point.
-  it('renders the #setup-publish anchor target on the Setup route so its chip resolves', () => {
+  // Regression: the Show Desk publish exception links to #setup-publish on the
+  // primary Overview. The anchor must remain in the shared management shell so
+  // the exception lands on the existing publish cards rather than a dead route.
+  it('renders the #setup-publish anchor target on the primary Overview', () => {
     // isSecretary=true makes canManageShow true, which is the gate the anchor
     // renders under — so this also implicitly asserts that auth gate. If a
     // refactor moves the anchor behind a different gate, expect this to fail.
@@ -703,9 +700,9 @@ describe('ShowDetailsPage', () => {
     // mockShow (beforeEach) has no publishedPremiumUrl/At/experienceIsPublished,
     // so the unpublished chip is what a secretary sees here.
 
-    renderPage('show-1', '/setup');
+    renderPage('show-1');
 
-    expect(screen.getByTestId('canonical-setup-child')).toBeInTheDocument();
+    expect(screen.queryByTestId('canonical-setup-child')).not.toBeInTheDocument();
     const anchorTarget = document.getElementById('setup-publish');
     expect(anchorTarget).toBeInTheDocument();
     // The chips emit href="#setup-publish-premium" / "#setup-publish-landing"

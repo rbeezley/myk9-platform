@@ -11,6 +11,10 @@ interface EditVetVisitDialogProps {
   record: VetVisitRecord | null;
   onClose: () => void;
   onSave: (record: VetVisitRecord) => void;
+  /** True while the update mutation is in flight; disables the Save button. */
+  isSaving?: boolean;
+  /** Set when the update mutation was rejected; rendered as a retryable error. */
+  saveError?: string | null;
 }
 
 const EditVetVisitDialog: React.FC<EditVetVisitDialogProps> = ({
@@ -18,6 +22,8 @@ const EditVetVisitDialog: React.FC<EditVetVisitDialogProps> = ({
   record,
   onClose,
   onSave,
+  isSaving = false,
+  saveError = null,
 }) => {
   const [reason, setReason] = useState(record?.reason || '');
   const [visitDate, setVisitDate] = useState(record?.visit_date || '');
@@ -26,10 +32,18 @@ const EditVetVisitDialog: React.FC<EditVetVisitDialogProps> = ({
   const [clinicName, setClinicName] = useState(record?.clinic_name || '');
   const [diagnosis, setDiagnosis] = useState(record?.diagnosis || '');
   const [treatment, setTreatment] = useState(record?.treatment || '');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!record) return;
+    // Validate at the form boundary in addition to native `required`
+    // attributes so an invalid submission never reaches the mutation.
+    if (!reason.trim() || !visitDate || !vetName.trim()) {
+      setValidationError('Reason, Date, and Vet Name are required.');
+      return;
+    }
+    setValidationError(null);
     onSave({
       ...record,
       visit_date: visitDate,
@@ -46,16 +60,21 @@ const EditVetVisitDialog: React.FC<EditVetVisitDialogProps> = ({
     <StandardDialog
       open={open}
       onClose={onClose}
-      onSave={() =>
-        document
-          .getElementById('edit-vet-visit-form')
-          ?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
-      }
+      onSave={() => {
+        const form = document.getElementById('edit-vet-visit-form');
+        if (form instanceof HTMLFormElement) form.requestSubmit();
+      }}
       title="Edit Vet Visit"
       description="All fields are required."
       formId="edit-vet-visit-form"
       saveLabel="Save"
+      isSubmitting={isSaving}
     >
+      {(validationError || saveError) && (
+        <p role="alert" aria-live="assertive" className="text-sm text-destructive mb-3">
+          {validationError ?? `${saveError} The record was not saved. Please try again.`}
+        </p>
+      )}
       <form id="edit-vet-visit-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
         <FormField label="Reason" fieldId="editVetVisitReason" required>
           <Input

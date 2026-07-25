@@ -1,12 +1,20 @@
 import { useCallback, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Check } from 'lucide-react';
+import { Check, Crown } from 'lucide-react';
 import { products, annualPriceId } from '../stripe-config';
 import { createCheckoutSession } from '../lib/stripe';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import Footer from '../components/layout/Footer';
 import { logger } from '@/services/LoggingService';
+import { useEntitlement } from '@/features/entitlement/useEntitlement';
+import type { EntitlementSource } from '@/features/entitlement/types';
+
+const CURRENT_ACCESS_LABEL: Record<Exclude<EntitlementSource, 'none'>, string> = {
+  paid: 'You have Premium',
+  founding: 'You have Founding Member Premium',
+  complimentary: 'You have Complimentary Premium',
+};
 
 // INTENT: Two tiers only — Free (results log) and Premium ($4.99/mo, all capabilities).
 // Per-person subscription, not per-dog.
@@ -56,6 +64,22 @@ const tiers = [
 export default function PricingPage() {
   const { user } = useAuthContext();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { effective, isTrusted, isError: isEntitlementError, refetch } = useEntitlement();
+  // Purchase-vs-current-access may ONLY be decided from a trusted result:
+  // otherwise a complimentary user could enter paid checkout before their
+  // grant resolves. Signed-out visitors have no entitlement to resolve, so
+  // they keep the normal (sign-in redirecting) purchase path.
+  const trusted = isTrusted ? effective : null;
+  const activeSource = trusted?.status === 'active' ? trusted.source : null;
+  const isAccessUnresolved = !!user && !trusted;
+  // Set by BlurGate when the user upgraded from a locked Career/Records
+  // secondary view — lets them return to the same dog and view afterward
+  // instead of the return path only being the browser Back button.
+  const returnTo =
+    typeof (location.state as { from?: unknown } | null)?.from === 'string'
+      ? (location.state as { from: string }).from
+      : null;
   // Annual exists only when VITE_STRIPE_PRICE_ANNUAL is configured; the
   // toggle hides entirely otherwise (premium launch plan, Task 3).
   // INVARIANT: the Stripe annual price MUST be $49.00/yr (unit_amount=4900) —
@@ -82,6 +106,13 @@ export default function PricingPage() {
       if (checkoutInFlightRef.current) return;
       checkoutInFlightRef.current = true;
       try {
+        // React Router state cannot survive Stripe's full-page redirect, so
+        // persist the locked-view return target for the post-checkout
+        // Subscription page to consume (exhibitor-dog-management "User
+        // upgrades and returns").
+        if (returnTo) {
+          sessionStorage.setItem('postCheckoutReturnTo', returnTo);
+        }
         await createCheckoutSession(priceId, 'subscription');
       } catch (error) {
         logger.error('Failed to create checkout session:', 'pages', {}, error as Error);
@@ -90,7 +121,7 @@ export default function PricingPage() {
         checkoutInFlightRef.current = false;
       }
     },
-    [user, navigate]
+    [user, navigate, returnTo]
   );
 
   return (
@@ -101,6 +132,14 @@ export default function PricingPage() {
           <section className="py-16 md:py-24 bg-background">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="text-center max-w-3xl mx-auto mb-16">
+                {returnTo && (
+                  <Link
+                    to={returnTo}
+                    className="mb-4 inline-block text-sm font-medium text-primary hover:underline"
+                  >
+                    ← Back to your dog
+                  </Link>
+                )}
                 <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
                   Simple, Transparent Pricing
                 </h1>
@@ -144,6 +183,11 @@ export default function PricingPage() {
                   const price = isPaidTier && annualActive ? '$49' : tier.price;
                   const period = isPaidTier && annualActive ? '/year' : tier.period;
                   const priceId = isPaidTier && annualActive ? annualPriceId! : tier.priceId;
+                  // Per spec ("Active Premium user opens Pricing"): an active
+                  // source shows the current-access action instead of a
+                  // duplicate purchase button. Free/expired users keep the
+                  // real checkout path unchanged.
+                  const hasActiveAccess = isPaidTier && activeSource;
                   return (
                     <div
                       key={tier.name}
@@ -163,16 +207,47 @@ export default function PricingPage() {
                         </div>
                         <p className="text-muted-foreground mb-6">{tier.description}</p>
 
-                        <button
-                          onClick={() => handleSubscribe(priceId)}
-                          className={`w-full py-3 px-6 rounded-xl font-medium transition-colors ${
-                            tier.buttonVariant === 'solid'
-                              ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                              : 'bg-accent text-accent-foreground hover:bg-accent/80'
-                          }`}
-                        >
-                          {tier.buttonText}
-                        </button>
+                        {isPaidTier && isAccessUnresolved ? (
+                          <div className="space-y-2">
+                            <button
+                              type="button"
+                              disabled
+                              className="w-full py-3 px-6 rounded-xl font-medium bg-muted text-muted-foreground cursor-not-allowed"
+                            >
+                              {isEntitlementError
+                                ? "Couldn't check your access"
+                                : 'Checking your access…'}
+                            </button>
+                            {isEntitlementError && (
+                              <button
+                                type="button"
+                                onClick={() => refetch()}
+                                className="w-full py-2 px-6 rounded-xl text-sm font-medium bg-accent text-accent-foreground hover:bg-accent/80"
+                              >
+                                Retry
+                              </button>
+                            )}
+                          </div>
+                        ) : hasActiveAccess ? (
+                          <button
+                            onClick={() => navigate('/subscription')}
+                            className="w-full py-3 px-6 rounded-xl font-medium transition-colors bg-accent text-accent-foreground hover:bg-accent/80 flex items-center justify-center gap-2"
+                          >
+                            <Crown size={18} className="text-amber-500" />
+                            {CURRENT_ACCESS_LABEL[activeSource!]}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleSubscribe(priceId)}
+                            className={`w-full py-3 px-6 rounded-xl font-medium transition-colors ${
+                              tier.buttonVariant === 'solid'
+                                ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                                : 'bg-accent text-accent-foreground hover:bg-accent/80'
+                            }`}
+                          >
+                            {tier.buttonText}
+                          </button>
+                        )}
 
                         <ul className="mt-8 space-y-4">
                           {tier.features.map(feature => (

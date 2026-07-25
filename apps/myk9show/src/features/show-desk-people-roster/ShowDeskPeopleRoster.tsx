@@ -63,18 +63,20 @@ export function ShowDeskPeopleRoster({
 
   const entries = useMemo(
     () =>
-      sourceEntries.map(mapSecretaryEntryToEntryManagementEntry).map(entry =>
-        checkedInEntryIds.has(entry.id)
-          ? {
-              ...entry,
-              classes: entry.classes.map(cls => ({
-                ...cls,
-                checkInStatus: 'checked-in' as const,
-                checkInTime: new Date(),
-              })),
-            }
-          : entry
-      ),
+      sourceEntries
+        .map(entry => mapSecretaryEntryToEntryManagementEntry(entry))
+        .map(entry =>
+          checkedInEntryIds.has(entry.id)
+            ? {
+                ...entry,
+                classes: entry.classes.map(cls => ({
+                  ...cls,
+                  checkInStatus: 'checked-in' as const,
+                  checkInTime: new Date(),
+                })),
+              }
+            : entry
+        ),
     [checkedInEntryIds, sourceEntries]
   );
 

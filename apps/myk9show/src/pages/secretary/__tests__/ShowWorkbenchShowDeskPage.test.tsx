@@ -76,12 +76,10 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
     entries,
     classes,
     tools,
-    closeoutContent,
   }: {
     entries: unknown[];
     classes: Array<{ entryCount: number; scoredCount: number }>;
     tools: Array<{ id: string; content: ReactNode }>;
-    closeoutContent: ReactNode;
   }) => (
     <div data-testid="show-desk-panel">
       <div data-testid="panel-entry-count">{entries.length}</div>
@@ -92,7 +90,7 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
         {classes.map(cls => cls.scoredCount).join(',')}
       </div>
       {tools.find(tool => tool.id === 'people-at-show')?.content}
-      {closeoutContent}
+      {tools.find(tool => tool.id === 'show-closeout')?.content}
     </div>
   ),
 }));

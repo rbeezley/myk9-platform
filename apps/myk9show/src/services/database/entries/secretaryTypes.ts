@@ -27,10 +27,13 @@ export interface SecretaryEntry {
   scoring_completed_at: string | null;
   check_in_status: string | null;
   withdrawal_reason: string | null;
+  withdrawn_at?: string | null;
   payment_method: string | null;
   refund_amount: number | null;
   refunded_at: string | null;
   stripe_payment_intent_id: string | null;
+  refund_decision?: string | null;
+  refund_decided_at?: string | null;
   registration_id: string | null;
   registration: {
     id: string;
@@ -45,6 +48,7 @@ export interface SecretaryEntry {
   } | null;
   trial: {
     trial_type: string | null;
+    timezone?: string | null;
   } | null;
   /** Joined person for handler_id — online entries set the FK, not the legacy text. */
   handler_person: {

@@ -2,7 +2,7 @@ import { mapDbEntryToReportEntry } from '@/lib/reports/reportUtils';
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
 import { resolveClassJudgeName, resolveTrialJudgeName } from '@/utils/classJudgeDisplay';
-import type { ReportEntry, ReportProps } from '@/lib/reports/types';
+import type { ReportEntry, ReportProps, ReportScope } from '@/lib/reports/types';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
@@ -35,8 +35,7 @@ export function mapScopedReportEntries(
   dbEntries: DbEntry[],
   trials: DbTrial[],
   classes: DbClass[],
-  trialId: string,
-  classId: string,
+  scope: ReportScope,
   assignedJudges: ReadonlyArray<ShowJudgeAssignment> = []
 ): ReportEntry[] {
   const classById = new Map(classes.map(c => [c.id, c] as const));
@@ -48,14 +47,16 @@ export function mapScopedReportEntries(
     return mapReportEntry(e, trial, cls, assignedJudges);
   };
 
-  if (classId !== 'all') {
-    const cls = classById.get(classId);
+  if (scope.kind === 'class') {
+    const cls = classById.get(scope.classId);
     const trial = cls?.trial_id != null ? trialById.get(cls.trial_id) : undefined;
-    return dbEntries.map(e => mapReportEntry(e, trial, cls, assignedJudges));
+    return dbEntries
+      .filter(entry => entry.class_id === scope.classId)
+      .map(entry => mapReportEntry(entry, trial, cls, assignedJudges));
   }
 
-  if (trialId !== 'all') {
-    const trialClassIds = new Set(classes.filter(c => c.trial_id === trialId).map(c => c.id));
+  if (scope.kind === 'trial') {
+    const trialClassIds = new Set(classes.filter(c => c.trial_id === scope.trialId).map(c => c.id));
     return dbEntries
       .filter(e => e.class_id != null && trialClassIds.has(e.class_id))
       .map(enrichByEntryClass);
@@ -166,12 +167,14 @@ export function buildTrialReportProps(input: {
   trials: DbTrial[] | null | undefined;
   classes: DbClass[] | null | undefined;
   entries: DbEntry[] | null | undefined;
-  trialId: string;
+  scope: Extract<ReportScope, { kind: 'show' | 'trial' }>;
   sortOrder: string;
 }): ReportProps[] {
-  const { show, trials, classes, entries, trialId, sortOrder } = input;
+  const { show, trials, classes, entries, scope, sortOrder } = input;
   const targetTrials =
-    trialId === 'all' ? (trials ?? []) : (trials ?? []).filter(trial => trial.id === trialId);
+    scope.kind === 'show'
+      ? (trials ?? [])
+      : (trials ?? []).filter(trial => trial.id === scope.trialId);
 
   const allClasses = (classes ?? []).map(c => ({
     id: c.id,
@@ -211,20 +214,18 @@ export function buildClassReportProps(input: {
   trials: DbTrial[] | null | undefined;
   classes: DbClass[] | null | undefined;
   entries: DbEntry[] | null | undefined;
-  trialId: string;
-  classId: string;
+  scope: Extract<ReportScope, { kind: 'class' }>;
   sortOrder: string;
 }): ReportProps | null {
-  const { show, trials, classes, entries, trialId, classId, sortOrder } = input;
-  if (trialId === 'all' || classId === 'all') return null;
+  const { show, trials, classes, entries, scope, sortOrder } = input;
 
-  const classData = (classes ?? []).find(cls => cls.id === classId);
+  const classData = (classes ?? []).find(cls => cls.id === scope.classId);
   if (!classData) return null;
 
-  const trial = (trials ?? []).find(item => item.id === (classData.trial_id ?? trialId));
+  const trial = (trials ?? []).find(item => item.id === (classData.trial_id ?? scope.trialId));
   if (!trial) return null;
 
-  const classEntries = (entries ?? []).filter(entry => entry.class_id === classId);
+  const classEntries = (entries ?? []).filter(entry => entry.class_id === scope.classId);
 
   return {
     showId: show.id,

@@ -1,30 +1,29 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ExternalLink, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useAskQ } from '@/hooks/useAskQ';
+import { sendOperatorSupportQuery } from '@/services/askqService';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AskQExampleQueries } from './AskQExampleQueries';
 import { AskQInput } from './AskQInput';
-import { AskQAnswer, AskQAnswerSkeleton } from './AskQAnswer';
+import { AskQAnswer } from './AskQAnswer';
 import { AskQSources } from './AskQSources';
 import { AskQFeedback } from './AskQFeedback';
 import {
-  QUESTION_MODE_LABELS,
   RATE_LIMIT_DEFAULTS,
   RULEBOOK_SCOPE_OPTIONS,
   type AskQPanelMode,
   type ExampleQuery,
 } from './askq-config';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { SupportTicketThread } from '@/features/support/SupportTicketThread';
 import { useSupportHelp } from '@/features/support/useSupportHelp';
-
-const SUPPORT_TICKET_NEXT_STEP =
-  'Use the box below, then click Create ticket so we can follow up in the app.';
+import { UserRole } from '@/types/auth-types';
+import { AskQAppHelpContent } from './AskQAppHelpContent';
+import { AskQModeSelector } from './AskQModeSelector';
 
 export function AskQPanel() {
   const { isOpen, close, suggestedPrompt, promptRequestId, clearSuggestedPrompt } =
@@ -33,7 +32,9 @@ export function AskQPanel() {
   const location = useLocation();
   const { user, userWithRoles } = useAuthContext();
   const askq = useAskQ();
+  const operator = useAskQ(sendOperatorSupportQuery);
   const support = useSupportHelp(user, userWithRoles);
+  const isSiteAdmin = userWithRoles?.roles.includes(UserRole.SITE_ADMIN) ?? false;
 
   const showId = useMemo(
     () =>
@@ -46,7 +47,10 @@ export function AskQPanel() {
   const [rulebookOrganization, setRulebookOrganization] = useState('');
   const [rulebookSport, setRulebookSport] = useState('');
   const activeMode: AskQPanelMode =
-    mode === 'show-data' && !showId ? 'app-help' : (mode ?? defaultMode);
+    (mode === 'show-data' && !showId) || (mode === 'operator-support' && !isSiteAdmin)
+      ? 'app-help'
+      : (mode ?? defaultMode);
+  const activeAskQ = activeMode === 'operator-support' ? operator : askq;
 
   const limit = isPremium ? RATE_LIMIT_DEFAULTS.premium : RATE_LIMIT_DEFAULTS.free;
   const remaining = askq.remaining ?? limit;
@@ -55,7 +59,7 @@ export function AskQPanel() {
   )}`;
 
   const buildSubmitOptions = useCallback(
-    (questionMode?: Exclude<AskQPanelMode, 'app-help'>) => ({
+    (questionMode?: 'rules' | 'show-data') => ({
       ...(showId ? { showId } : {}),
       ...(questionMode ? { questionMode } : {}),
       ...(questionMode === 'rules' && (rulebookOrganization || rulebookSport)
@@ -78,11 +82,17 @@ export function AskQPanel() {
         return;
       }
 
+      if (activeMode === 'operator-support') {
+        operator.submitQuery(query);
+        clearSuggestedPrompt();
+        return;
+      }
+
       const questionMode = mode === 'rules' || mode === 'show-data' ? mode : undefined;
       askq.submitQuery(query, buildSubmitOptions(questionMode));
       clearSuggestedPrompt();
     },
-    [activeMode, askq, buildSubmitOptions, clearSuggestedPrompt, mode, support]
+    [activeMode, askq, buildSubmitOptions, clearSuggestedPrompt, mode, operator, support]
   );
 
   const handleExampleQuery = useCallback(
@@ -114,19 +124,31 @@ export function AskQPanel() {
   const handleModeChange = useCallback(
     (nextMode: AskQPanelMode) => {
       if (nextMode === 'show-data' && !showId) return;
-      if (nextMode === 'app-help') askq.reset();
-      else support.reset();
+      if (nextMode === 'operator-support' && !isSiteAdmin) return;
+      if (nextMode === 'operator-support' || activeMode === 'operator-support') {
+        clearSuggestedPrompt();
+      }
+
+      if (nextMode === 'operator-support') {
+        askq.reset();
+        support.reset();
+      } else {
+        operator.reset();
+        if (nextMode === 'app-help') askq.reset();
+        else support.reset();
+      }
       setMode(nextMode);
     },
-    [askq, showId, support]
+    [activeMode, askq, clearSuggestedPrompt, isSiteAdmin, operator, showId, support]
   );
 
   const handleClose = useCallback(() => {
     askq.reset();
+    operator.reset();
     support.reset();
     setMode(null);
     close();
-  }, [askq, close, support]);
+  }, [askq, close, operator, support]);
 
   const handleDone = useCallback(() => {
     support.reset();
@@ -191,24 +213,26 @@ export function AskQPanel() {
         disabled={
           activeMode === 'app-help'
             ? support.state.status === 'streaming'
-            : askq.status === 'streaming' || askq.status === 'rate-limited'
+            : activeAskQ.status === 'streaming' || activeAskQ.status === 'rate-limited'
         }
         initialValue={suggestedPrompt ?? ''}
         {...(activeMode === 'app-help'
           ? { placeholder: 'Ask about using myK9Show...' }
-          : mode === null
-            ? { placeholder: 'Ask about rules, your results, or the app...' }
-            : activeMode === 'rules'
-              ? { placeholder: 'Ask about the selected rulebook...' }
-              : askq.status === 'rate-limited'
-                ? { placeholder: 'Daily limit reached. Resets at midnight.' }
-                : askq.status === 'done'
-                  ? { placeholder: 'Ask another question...' }
-                  : {})}
+          : activeMode === 'operator-support'
+            ? { placeholder: 'Ask about platform alerts...' }
+            : mode === null
+              ? { placeholder: 'Ask about rules, your results, or the app...' }
+              : activeMode === 'rules'
+                ? { placeholder: 'Ask about the selected rulebook...' }
+                : activeAskQ.status === 'rate-limited'
+                  ? { placeholder: 'Daily limit reached. Resets at midnight.' }
+                  : activeAskQ.status === 'done'
+                    ? { placeholder: 'Ask another question...' }
+                    : {})}
       />
     );
   }, [
-    askq.status,
+    activeAskQ.status,
     escalationQuestion,
     handleDone,
     handleSubmit,
@@ -269,37 +293,59 @@ export function AskQPanel() {
         </div>
       )}
 
-      {askq.status === 'idle' && (
+      {activeMode === 'operator-support' && (
+        <Alert>
+          <AlertDescription className="space-y-2">
+            <p>
+              Read-only access to unresolved operator alerts and the latest automated System Health
+              snapshot. This snapshot does not guarantee complete platform health.
+            </p>
+            <p>
+              No user lookup, payment tracing, or write actions are available. Do not paste user or
+              payment details into this mode yet.
+            </p>
+            <Link className="inline-block text-xs underline" to="/admin/health">
+              Open full System Health
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {activeMode !== 'operator-support' && activeAskQ.status === 'idle' && (
         <AskQExampleQueries onSelectQuery={handleExampleQuery} category={activeMode} />
       )}
 
-      {askq.query && (
+      {activeAskQ.query && (
         <>
           <AskQAnswer
-            query={askq.query}
-            answer={askq.answer}
-            toolsUsed={askq.toolsUsed}
-            isStreaming={askq.status === 'streaming'}
+            query={activeAskQ.query}
+            answer={activeAskQ.answer}
+            toolsUsed={activeAskQ.toolsUsed}
+            isStreaming={activeAskQ.status === 'streaming'}
           />
 
-          {askq.status === 'done' && (
+          {activeAskQ.status === 'done' && activeMode !== 'operator-support' && (
             <>
-              <AskQSources sources={askq.sources} />
-              <AskQFeedback queryLogId={askq.queryLogId} />
+              <AskQSources sources={activeAskQ.sources} />
+              <AskQFeedback queryLogId={activeAskQ.queryLogId} />
             </>
           )}
         </>
       )}
 
-      {askq.status === 'error' && (
+      {activeAskQ.status === 'error' && (
         <Alert variant="destructive">
           <AlertDescription className="flex items-center justify-between">
-            <span>{askq.error}</span>
+            <span>{activeAskQ.error}</span>
             <button
               onClick={() =>
-                askq.submitQuery(
-                  askq.query,
-                  buildSubmitOptions(mode === 'rules' || mode === 'show-data' ? mode : undefined)
+                activeAskQ.submitQuery(
+                  activeAskQ.query,
+                  activeMode === 'operator-support'
+                    ? {}
+                    : buildSubmitOptions(
+                        mode === 'rules' || mode === 'show-data' ? mode : undefined
+                      )
                 )
               }
               className="text-xs underline"
@@ -310,10 +356,13 @@ export function AskQPanel() {
         </Alert>
       )}
 
-      {askq.status === 'rate-limited' && (
+      {activeAskQ.status === 'rate-limited' && (
         <div className="bg-warning/10 text-warning text-sm rounded-lg px-3.5 py-2.5">
-          <p>Daily limit reached. Resets at midnight.</p>
-          {!isPremium && (
+          <p>
+            Daily limit reached. Resets at midnight
+            {activeMode === 'operator-support' ? ' UTC' : ''}.
+          </p>
+          {!isPremium && activeMode !== 'operator-support' && (
             <a href="/subscription" className="mt-1 text-xs underline block">
               Upgrade for more queries
             </a>
@@ -341,122 +390,28 @@ export function AskQPanel() {
       title="AskQ Assistant"
       size="sm"
       headerActions={
-        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-          {remaining} of {limit} remaining
-        </span>
+        activeMode === 'operator-support' ? (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            Admin-only · read-only
+          </span>
+        ) : (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            {remaining} of {limit} remaining
+          </span>
+        )
       }
       footer={footer}
     >
       <div className="space-y-4 p-4">
-        <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
-          {(['app-help', 'rules', 'show-data'] as AskQPanelMode[]).map(option => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => handleModeChange(option)}
-              aria-pressed={mode === option}
-              disabled={option === 'show-data' && !showId}
-              className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
-                activeMode === option
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45'
-              }`}
-            >
-              {QUESTION_MODE_LABELS[option]}
-            </button>
-          ))}
-        </div>
+        <AskQModeSelector
+          activeMode={activeMode}
+          selectedMode={mode}
+          hasShowContext={Boolean(showId)}
+          isSiteAdmin={isSiteAdmin}
+          onChange={handleModeChange}
+        />
         {content}
       </div>
     </SlideOverPanel>
-  );
-}
-
-function AskQAppHelpContent({
-  currentUserId,
-  onEscalate,
-  state,
-}: {
-  currentUserId: string | null;
-  onEscalate: () => void;
-  state: ReturnType<typeof useSupportHelp>['state'];
-}) {
-  return (
-    <>
-      {state.question && (
-        <AskQAnswer query={state.question} answer="" toolsUsed={[]} isStreaming={false} />
-      )}
-
-      {state.status === 'streaming' &&
-        (state.answer ? (
-          <div className="rounded-xl rounded-tl-sm bg-muted/50 px-3.5 py-3">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed">{state.answer}</p>
-          </div>
-        ) : (
-          <AskQAnswerSkeleton />
-        ))}
-
-      {state.route?.kind === 'answer' && (
-        <div className="space-y-3 rounded-xl rounded-tl-sm bg-muted/50 px-3.5 py-3">
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">{state.route.answer}</p>
-          {state.route.deepLink && (
-            <Button asChild variant="outline" size="sm" className="gap-2">
-              <Link to={state.route.deepLink.href}>
-                {state.route.deepLink.label}
-                <ExternalLink className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="px-0 text-muted-foreground"
-            onClick={onEscalate}
-          >
-            Still need help?
-          </Button>
-        </div>
-      )}
-
-      {state.status === 'escalating' && (
-        <Alert>
-          <AlertDescription className="space-y-1">
-            {currentUserId ? (
-              <>
-                <p>
-                  {state.route?.kind === 'escalate'
-                    ? state.route.message
-                    : "I couldn't answer that confidently."}
-                </p>
-                <p>{SUPPORT_TICKET_NEXT_STEP}</p>
-              </>
-            ) : (
-              'Sign in to create a support ticket so we can reply in the app.'
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {state.status === 'created' && (
-        <>
-          <div className="rounded-lg border bg-muted/30 p-4">
-            <p className="text-sm font-medium">Ticket created</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              We will reply in the app. Ticket {state.ticket?.id.slice(0, 8)}
-            </p>
-          </div>
-          {state.ticket && currentUserId && (
-            <SupportTicketThread ticketId={state.ticket.id} currentUserId={currentUserId} />
-          )}
-        </>
-      )}
-
-      {state.error && (
-        <Alert variant="destructive">
-          <AlertDescription>{state.error}</AlertDescription>
-        </Alert>
-      )}
-    </>
   );
 }

@@ -9,6 +9,37 @@ import {
   type LedgerRow,
   type PayoutStatus,
 } from './payoutLedger';
+import { isPullRefundSchemaUnavailable } from './pullRefundSchemaCompatibility';
+
+const LEDGER_ENTRY_BASE_SELECT =
+  'show_id, entry_status, entry_fee, payment_method, payment_status, refund_amount';
+const LEDGER_ENTRY_PULL_SELECT = `${LEDGER_ENTRY_BASE_SELECT}, refund_decision`;
+
+type LedgerEntryWithoutDecision = Omit<LedgerEntryRow, 'refund_decision'> & {
+  refund_decision?: string | null;
+};
+
+export async function loadPlatformPayoutLedgerEntryPage(
+  from: number,
+  to: number
+): Promise<LedgerEntryRow[]> {
+  const runSelect = (includeRefundDecision: boolean) =>
+    supabase
+      .from('entries')
+      .select(includeRefundDecision ? LEDGER_ENTRY_PULL_SELECT : LEDGER_ENTRY_BASE_SELECT)
+      .eq('payment_method', 'online')
+      .order('id')
+      .range(from, to);
+
+  let response = await runSelect(true);
+  if (isPullRefundSchemaUnavailable(response.error)) {
+    response = await runSelect(false);
+  }
+  if (response.error) throw response.error;
+
+  const rows = (response.data ?? []) as unknown as LedgerEntryWithoutDecision[];
+  return rows.map(row => ({ ...row, refund_decision: row.refund_decision ?? null }));
+}
 
 /**
  * Cross-club payout ledger for site admins: per show, what the club is owed from
@@ -30,20 +61,14 @@ export function usePlatformPayoutLedger() {
       const entriesByShow = new Map<string, LedgerEntryRow[]>();
       const PAGE = 1000;
       for (let from = 0; ; from += PAGE) {
-        const { data: entryRows, error: entriesError } = await supabase
-          .from('entries')
-          .select('show_id, entry_fee, payment_method, payment_status, refund_amount')
-          .eq('payment_method', 'online')
-          .order('id')
-          .range(from, from + PAGE - 1);
-        if (entriesError) throw entriesError;
-        for (const row of entryRows ?? []) {
+        const entryRows = await loadPlatformPayoutLedgerEntryPage(from, from + PAGE - 1);
+        for (const row of entryRows) {
           if (!row.show_id) continue;
           const list = entriesByShow.get(row.show_id) ?? [];
           list.push(row as LedgerEntryRow);
           entriesByShow.set(row.show_id, list);
         }
-        if ((entryRows?.length ?? 0) < PAGE) break;
+        if (entryRows.length < PAGE) break;
       }
 
       const showIds = [...entriesByShow.keys()];

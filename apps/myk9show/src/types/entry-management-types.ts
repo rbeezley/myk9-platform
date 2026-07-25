@@ -1,5 +1,6 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
+import type { PullRefundDecision, PullTiming } from '@/features/payments/pullReconciliation';
 
 export type BulkActionResult = boolean | void;
 
@@ -45,6 +46,12 @@ export interface EntryManagementEntry {
    * `deriveEntryPresentation` for the owner-approved review-lane overrides
    * (`paid`/`promotion-expired`) that the UI enum folds away. */
   rawEntryStatus?: string | null;
+  /** Scoring facts (entries.is_scored / entries.result_status) — a scored
+   * entry can carry these while entryStatus is still ACCEPTED (scoring
+   * doesn't always flip lifecycle status to COMPLETED), so guards that only
+   * check entryStatus === COMPLETED can miss a real recorded result. */
+  isScored?: boolean | null;
+  resultStatus?: string | null;
   paymentStatus: PaymentStatus;
   submittedAt: Date;
   lastUpdated: Date;
@@ -69,6 +76,11 @@ export interface EntryManagementEntry {
   /** Stripe charge this entry was paid under — the per-ORDER grouping key for
    * online entries, which have no registrationId */
   stripePaymentIntentId?: string | null;
+  /** Post-show pull reconciliation metadata. Null timing deliberately disables a default. */
+  pullReason?: string | null;
+  pulledAt?: string | null;
+  pullTiming?: PullTiming;
+  refundDecision?: PullRefundDecision | null;
 }
 
 export interface EntryManagementShow {
@@ -76,6 +88,7 @@ export interface EntryManagementShow {
   name: string | null;
   start_date: string | null;
   end_date: string | null;
+  entry_close_date?: string | null;
 }
 
 export interface BulkAction {

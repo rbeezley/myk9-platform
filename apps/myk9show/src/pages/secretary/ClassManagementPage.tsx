@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -42,6 +42,7 @@ import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkBut
 import { ClassManagementViewControls } from '@/components/classes/ClassManagementViewControls';
 import type { ClassManagementOperationalView } from '@/features/operational-views/operationalViews';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 
 export const ClassManagementPage: React.FC = () => {
@@ -95,10 +96,19 @@ export const ClassManagementPage: React.FC = () => {
     element: elementFilter,
     setElement: setElementFilter,
     density,
+    focusClassId,
     setDensity,
     applyView,
     clearFilters,
   } = useClassManagementFilters();
+
+  useEffect(() => {
+    if (isLoading || !focusClassId) return;
+    const row = document.getElementById(`class-management-row-${focusClassId}`);
+    if (!row) return;
+    row.scrollIntoView({ block: 'center' });
+    row.focus({ preventScroll: true });
+  }, [focusClassId, isLoading]);
 
   const allClasses = useMemo(() => (rawClasses as DbClassRow[]) ?? [], [rawClasses]);
   const entryCountsByClassId = useMemo(() => {
@@ -178,7 +188,7 @@ export const ClassManagementPage: React.FC = () => {
     // bulk action to rows they can no longer see (Design Decision 4). `density`
     // is deliberately excluded — it never changes which rows are visible, only
     // how tightly they're laid out, so it must not clear an in-progress
-    // selection (see RegistrationView.tsx for the mirrored Entry Management note).
+    // selection (the Entry Management cockpit follows the same rule).
     resetKey: `${statusFilter}|${searchTerm}|${elementFilter}`,
   });
 
@@ -251,6 +261,7 @@ export const ClassManagementPage: React.FC = () => {
 
   return (
     <div className="manager-content-container mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <ShowDeskReturnLink showId={showId} className="mb-2" />
       <div className="manager-page-header mb-6">
         <div className="min-w-0 flex-1">
           <nav
@@ -404,6 +415,7 @@ export const ClassManagementPage: React.FC = () => {
                 <ClassManagementRow
                   key={cls.id}
                   cls={cls}
+                  focused={focusClassId === cls.id}
                   entryCount={
                     entryCountsByClassId?.get(cls.id) ?? (entryCountsByClassId ? 0 : null)
                   }

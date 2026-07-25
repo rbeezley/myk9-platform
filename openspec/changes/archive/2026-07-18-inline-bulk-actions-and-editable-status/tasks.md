@@ -33,7 +33,7 @@
 ## 4. Inline status editing + undo
 
 - [x] 4.1 Extract the shared `showUndoToast` helper from the inlined show-map sonner pattern (time-boxed, action button); migrate show-map scratch/move-up undo toasts onto it
-- [ ] 4.2 **DEFERRED to follow-up PR** — Inline entry-status edit popover on Entry Management: badge (rendered via `StatusIcon` from MYK9-52) becomes a button opening eligible frequent transitions resolved from entry `EntityAction` definitions; 44px touch targets, focusable items. Blocked on MYK9-52 (`StatusIcon`) merging; this change ships without it and is NOT archived/synced until 4.2 lands, so main specs never claim the unbuilt capability.
+- [x] 4.2 **Completed in MYK9-66** — Inline entry-status edit popover on Entry Management: the badge uses the shared `StatusIcon` grammar and opens eligible frequent transitions resolved from the shared entry `EntityAction` definitions; the real button and focusable menu items meet the 44px touch-target contract. Focused coverage lives in `components/entries/management/__tests__/EntryStatusPopover.test.tsx`; replicated dispatch, offline-queued messaging, failure, retry, and undo wiring remain on the existing entry-management seams.
 - [x] 4.3 Implement undo dispatch: inverse transition through `updateSecretaryLifecycleStatus` seam with supersession check (current status must equal the status our action produced, else "changed by someone else"); never call `restore_entry_status`
 - [x] 4.4 Offline honesty: queued-offline messaging; enqueue inverse only where local queue ordering is guaranteed, otherwise withhold undo with explicit messaging
 - [x] 4.5 Bulk undo: revert succeeded subset item-by-item, each with supersession check

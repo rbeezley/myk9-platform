@@ -109,6 +109,10 @@ export interface ShowMapClassInput {
   section?: string | undefined;
   judgeName?: string | undefined;
   time?: string | undefined;
+  revisedExpectedStart?: string | null | undefined;
+  actualStartTime?: string | undefined;
+  actualFinishTime?: string | undefined;
+  displayOrder?: number | undefined;
   status?: string | undefined;
   entryCount?: number | undefined;
   scoredCount?: number | undefined;

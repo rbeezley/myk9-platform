@@ -126,4 +126,35 @@ describe('prepareResultLabelItems', () => {
     );
     expect(items.map(i => i.armband)).toEqual([10, 20, 30]);
   });
+
+  it('keeps one Result Label per Entry even when the same Dog is in multiple Classes', () => {
+    const items = prepareResultLabelItems(
+      [
+        entry({
+          id: 'entry-class-1',
+          dogId: 'dog-1',
+          armband: 101,
+          classId: 'class-1',
+          classElement: 'Container',
+          classLevel: 'Novice',
+        }),
+        entry({
+          id: 'entry-class-2',
+          dogId: 'dog-1',
+          armband: 101,
+          classId: 'class-2',
+          classElement: 'Interior',
+          classLevel: 'Advanced',
+        }),
+      ],
+      'armband',
+      ctx
+    );
+
+    expect(items).toHaveLength(2);
+    expect(items.map(item => item.trialClassLine)).toEqual([
+      'Trial 1 — Container Novice',
+      'Trial 1 — Interior Advanced',
+    ]);
+  });
 });

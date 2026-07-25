@@ -17,18 +17,17 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, User, ChevronRight, Star, ArrowLeft } from 'lucide-react';
+import { AlertCircle, ChevronRight, ArrowLeft } from 'lucide-react';
 import {
+  getEffectiveClassStatus,
   groupSectionedClasses,
   getClassIds,
-  getEffectiveClassStatus,
   type ClassEntry,
 } from '@myk9/ringside';
 import { formatTrialDate } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
-import { StatusBadge } from '@/components/status';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
@@ -41,6 +40,10 @@ import { useMyAtShowEntryDetails } from './useMyAtShowEntryDetails';
 import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
 import { isExhibitorOnlyForAtShow, type AtShowClassSummary } from './myAtShowEntryDetails.helpers';
 import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListState';
+import { formatAtShowClassTime } from './atShowClassTiming';
+import { getTrialTimezone } from '@/features/registries';
+import { AtShowClassRow } from './AtShowClassRow';
+import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
 
 const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
   'briefing',
@@ -103,6 +106,36 @@ function sortClassesForAtShowScan(classes: ClassEntry[]): ClassEntry[] {
   });
 }
 
+function yourRingScanPriority(entry: ClassEntry): number {
+  const effectiveStatus = getEffectiveClassStatus(entry);
+  if (
+    effectiveStatus === 'briefing' ||
+    effectiveStatus === 'start_time' ||
+    effectiveStatus === 'in-progress' ||
+    effectiveStatus === 'offline-scoring'
+  ) {
+    return 0;
+  }
+  if (entry.entry_count > 0) return 1;
+  return 2;
+}
+
+interface YourRingClass {
+  entry: ClassEntry;
+  scanPriority: number;
+  trialTimeZone: string;
+}
+
+function sortClassesForYourRing(classes: YourRingClass[]): YourRingClass[] {
+  return [...classes].sort((a, b) => {
+    const priorityDelta = a.scanPriority - b.scanPriority;
+    if (priorityDelta !== 0) return priorityDelta;
+    const orderDelta = a.entry.class_order - b.entry.class_order;
+    if (orderDelta !== 0) return orderDelta;
+    return a.entry.class_name.localeCompare(b.entry.class_name);
+  });
+}
+
 function BackToRingsideExitButton({
   showId,
   clubId,
@@ -139,6 +172,12 @@ export const AtShowClassListPage: React.FC = () => {
     useAtShowClassList(showId);
   const { status: syncStatus } = useReplicationSync();
   const { hasRole } = useAuthContext();
+  const {
+    assignedClassIds,
+    error: assignmentError,
+    isLoading: assignmentsLoading,
+    retry: retryAssignments,
+  } = useMyAtShowJudgeAssignments(showId);
 
   // Group Novice A/B pairs into single combined entries per trial.
   const groupedByTrial = useMemo(
@@ -150,6 +189,31 @@ export const AtShowClassListPage: React.FC = () => {
     [groups, organization]
   );
 
+  // Filter before A/B grouping so a judge assigned to only one section never
+  // gets an unassigned partner pulled into the pinned section.
+  const yourRingClasses = useMemo(
+    () =>
+      sortClassesForYourRing(
+        groups.flatMap(group => {
+          const assignedClasses = group.classes.filter(cls => assignedClassIds.has(cls.id));
+          const scanPriorities = new Map(
+            assignedClasses.map(cls => [cls.id, yourRingScanPriority(cls)])
+          );
+
+          return groupSectionedClasses(assignedClasses, organization).map(entry => ({
+            entry,
+            scanPriority: Math.min(
+              ...getClassIds(entry).map(
+                classId => scanPriorities.get(classId) ?? yourRingScanPriority(entry)
+              )
+            ),
+            trialTimeZone: getTrialTimezone(group.trial),
+          }));
+        })
+      ),
+    [assignedClassIds, groups, organization]
+  );
+
   // Exhibitor show day starts from owned entries, not ringside class
   // administration (design decision, section 3 of the elderly-UX remediation).
   // Staff accounts — including a secretary who also exhibits — keep the
@@ -159,8 +223,16 @@ export const AtShowClassListPage: React.FC = () => {
   const classesById = useMemo(() => {
     const map = new Map<string, AtShowClassSummary>();
     for (const group of groups) {
+      const timeZone = getTrialTimezone(group.trial);
       for (const cls of group.classes) {
-        map.set(cls.id, { className: cls.class_name, classStatus: cls.class_status });
+        map.set(cls.id, {
+          className: cls.class_name,
+          classStatus: cls.class_status,
+          ...(cls.start_time
+            ? { expectedStartLabel: formatAtShowClassTime(cls.start_time, timeZone) }
+            : {}),
+          isRevisedStart: Boolean(cls.revised_expected_start),
+        });
       }
     }
     return map;
@@ -227,7 +299,7 @@ export const AtShowClassListPage: React.FC = () => {
     groups.length === 0 &&
     areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
 
-  if (isLoading || isClassDataStillSyncing) {
+  if (isLoading || isClassDataStillSyncing || assignmentsLoading) {
     return <AtShowClassListSkeleton />;
   }
 
@@ -288,12 +360,54 @@ export const AtShowClassListPage: React.FC = () => {
 
       {showName && <h1 className="mb-4 text-center text-lg font-semibold">{showName}</h1>}
 
+      {assignmentError && (
+        <section
+          aria-label="Your ring unavailable"
+          className="mb-6 flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 p-3 text-warning"
+        >
+          <p className="min-w-0 flex-1 text-base">
+            We couldn&apos;t load your assigned classes. The full class list is still available.
+          </p>
+          <Button type="button" variant="outline" className="min-h-11" onClick={retryAssignments}>
+            Try again
+          </Button>
+        </section>
+      )}
+
+      {yourRingClasses.length > 0 && (
+        <section
+          aria-labelledby="your-ring-heading"
+          className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-3"
+        >
+          <div className="mb-2 flex min-h-11 items-center gap-2 px-1">
+            <h2 id="your-ring-heading" className="min-w-0 flex-1 text-sm font-semibold">
+              Your ring
+            </h2>
+            <span className="shrink-0 rounded-full bg-[color:var(--chip-stone-bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--chip-stone-fg)]">
+              {yourRingClasses.length}
+            </span>
+          </div>
+          <ul className="space-y-2">
+            {yourRingClasses.map(({ entry, trialTimeZone }) => (
+              <AtShowClassRow
+                key={entry.id}
+                entry={entry}
+                isExhibitorOnly={isExhibitorOnly}
+                onClick={handleClassClick}
+                trialTimeZone={trialTimeZone}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+
       {groupedByTrial.map(({ trial, classes }) => {
         if (classes.length === 0) return null;
         const trialNumber = trial.trialNumber ?? trial.trial_number;
         const trialDate = trial.date ?? trial.trial_date;
         const isOpen = !collapsedTrialIds.has(trial.id);
         const trialDateLabel = trialDate ? formatTrialDate(trialDate) : '';
+        const trialTimeZone = getTrialTimezone(trial);
         const trialLabel = `${trialNumber ? `Trial ${trialNumber}` : 'Trial'}${
           trialDateLabel ? ` · ${trialDateLabel}` : ''
         }`;
@@ -324,50 +438,15 @@ export const AtShowClassListPage: React.FC = () => {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <ul className="mt-2 space-y-2">
-                {classes.map(entry => {
-                  const status = getEffectiveClassStatus(entry);
-                  return (
-                    <li key={entry.id}>
-                      {/* INTENT: in-ring gloved taps want ~48px rows — hence min-h-12. */}
-                      <button
-                        type="button"
-                        onClick={() => handleClassClick(entry)}
-                        className={cn(
-                          'flex min-h-12 w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md active:scale-[0.99]',
-                          // #923 tokenized the favorite (theme-aware, calm in
-                          // dark); keep that and add this PR's 48px tap floor.
-                          entry.is_favorite && 'border-primary bg-primary/5'
-                        )}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            {entry.is_favorite && (
-                              <Star size={15} className="shrink-0 fill-primary text-primary" />
-                            )}
-                            <span className="truncate font-medium">{entry.class_name}</span>
-                          </div>
-                          {entry.judge_name && entry.judge_name !== 'No Judge Assigned' && (
-                            <div className="mt-0.5 flex items-center gap-1 truncate text-sm text-muted-foreground">
-                              <User size={13} className="shrink-0" />
-                              {entry.judge_name}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1">
-                          <StatusBadge
-                            family="class"
-                            status={status}
-                            className="px-2 py-0.5 text-xs font-medium"
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            {entry.completed_count} / {entry.entry_count}
-                          </span>
-                        </div>
-                        <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
-                      </button>
-                    </li>
-                  );
-                })}
+                {classes.map(entry => (
+                  <AtShowClassRow
+                    key={entry.id}
+                    entry={entry}
+                    isExhibitorOnly={isExhibitorOnly}
+                    onClick={handleClassClick}
+                    trialTimeZone={trialTimeZone}
+                  />
+                ))}
               </ul>
             </CollapsibleContent>
           </Collapsible>

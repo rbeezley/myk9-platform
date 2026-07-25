@@ -1,10 +1,12 @@
-import { screen } from '@/test/utils/testUtils';
+import { act, fireEvent, screen, waitFor } from '@/test/utils/testUtils';
 import { createTestQueryClient, render } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PremiumDownloadCard } from '../PremiumDownloadCard';
 
 const maybeSingleMock = vi.hoisted(() => vi.fn());
 const generateMock = vi.hoisted(() => vi.fn());
+const publishExperienceMock = vi.hoisted(() => vi.fn());
+const notificationErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -28,7 +30,14 @@ vi.mock('../useGeneratePremium', () => ({
 }));
 
 vi.mock('@/features/experience/publishExperience', () => ({
-  publishExperience: vi.fn(),
+  publishExperience: publishExperienceMock,
+}));
+
+vi.mock('@/lib/notifications', () => ({
+  notifications: {
+    success: vi.fn(),
+    error: notificationErrorMock,
+  },
 }));
 
 function renderCard(showStaleBadge = false) {
@@ -41,6 +50,8 @@ describe('PremiumDownloadCard', () => {
   beforeEach(() => {
     maybeSingleMock.mockReset();
     generateMock.mockReset();
+    publishExperienceMock.mockReset();
+    notificationErrorMock.mockReset();
   });
 
   it('renders a primary publish action when no premium list is published', async () => {
@@ -96,6 +107,196 @@ describe('PremiumDownloadCard', () => {
     expect(await screen.findByRole('button', { name: /republish premium/i })).toBeInTheDocument();
     expect(screen.getByText(/show data has changed since publish/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /download pdf/i })).toBeInTheDocument();
+  });
+
+  it('refreshes the published timestamp and clears the stale warning after republishing', async () => {
+    maybeSingleMock
+      .mockResolvedValueOnce({
+        data: {
+          published_premium_url: 'https://example.test/premium.pdf',
+          published_premium_at: '2026-05-09T12:00:00.000Z',
+          updated_at: '2026-05-09T12:05:01.000Z',
+          experience_is_published: true,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          published_premium_url: 'https://example.test/premium.pdf',
+          published_premium_at: '2026-05-10T12:06:00.000Z',
+          updated_at: '2026-05-10T12:06:00.000Z',
+          experience_is_published: true,
+        },
+        error: null,
+      });
+    generateMock.mockResolvedValue({});
+    publishExperienceMock.mockResolvedValue({
+      premiumUrl: 'https://example.test/premium.pdf',
+      publishedAt: '2026-05-10T12:06:00.000Z',
+    });
+
+    const { user } = renderCard(true);
+    await user.click(await screen.findByRole('button', { name: /republish premium/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/premium pdf published may 10, 2026/i)).toBeInTheDocument();
+      expect(screen.queryByText(/show data has changed since publish/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /republish premium/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it('preserves an authoritative stale warning from the refetched show row', async () => {
+    maybeSingleMock
+      .mockResolvedValueOnce({
+        data: {
+          published_premium_url: 'https://example.test/premium.pdf',
+          published_premium_at: '2026-05-09T12:00:00.000Z',
+          updated_at: '2026-05-09T12:05:01.000Z',
+          experience_is_published: true,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          published_premium_url: 'https://example.test/premium.pdf',
+          published_premium_at: '2026-05-10T12:06:00.000Z',
+          updated_at: '2026-05-10T12:07:00.000Z',
+          experience_is_published: true,
+        },
+        error: null,
+      });
+    generateMock.mockResolvedValue({});
+    publishExperienceMock.mockResolvedValue({
+      premiumUrl: 'https://example.test/premium.pdf',
+      publishedAt: '2026-05-10T12:06:00.000Z',
+    });
+
+    const { user } = renderCard(true);
+    await user.click(await screen.findByRole('button', { name: /republish premium/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/show data has changed since publish/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /republish premium/i })).toBeInTheDocument();
+    });
+  });
+
+  it('starts only one publish attempt for same-mount double-submit', async () => {
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        published_premium_url: null,
+        published_premium_at: null,
+        updated_at: '2026-05-09T12:00:00.000Z',
+      },
+      error: null,
+    });
+    let resolveGeneration: ((value: unknown) => void) | undefined;
+    generateMock.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          resolveGeneration = resolve;
+        })
+    );
+    publishExperienceMock.mockResolvedValue({
+      premiumUrl: 'https://example.test/premium.pdf',
+      publishedAt: '2026-05-09T12:00:00.000Z',
+    });
+
+    renderCard();
+    const button = await screen.findByRole('button', { name: /generate & publish premium/i });
+
+    await act(async () => {
+      fireEvent.click(button);
+      fireEvent.click(button);
+    });
+
+    expect(generateMock).toHaveBeenCalledTimes(1);
+    resolveGeneration?.({});
+    await waitFor(() => expect(publishExperienceMock).toHaveBeenCalledTimes(1));
+  });
+
+  it('shows a secretary-friendly retry without exposing the failure payload', async () => {
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        published_premium_url: null,
+        published_premium_at: null,
+        updated_at: '2026-05-09T12:00:00.000Z',
+      },
+      error: null,
+    });
+    generateMock
+      .mockRejectedValueOnce(
+        new Error('Edge Function returned 500: {"detail":"permission denied"}')
+      )
+      .mockResolvedValueOnce({});
+    publishExperienceMock.mockResolvedValue({
+      premiumUrl: 'https://example.test/premium.pdf',
+      publishedAt: '2026-05-09T12:01:00.000Z',
+    });
+
+    const { user } = renderCard();
+    await user.click(await screen.findByRole('button', { name: /generate & publish premium/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /we couldn't publish the premium list\. please try again\./i
+    );
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+    expect(
+      screen.queryByText(/permission denied|edge function returned 500/i)
+    ).not.toBeInTheDocument();
+    expect(notificationErrorMock).toHaveBeenCalledWith('Could not publish the premium list');
+
+    await user.click(screen.getByRole('button', { name: /try again/i }));
+    await waitFor(() => {
+      expect(generateMock).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows a secretary-friendly retry when publishing the experience fails and recovers', async () => {
+    maybeSingleMock
+      .mockResolvedValueOnce({
+        data: {
+          published_premium_url: null,
+          published_premium_at: null,
+          updated_at: '2026-05-09T12:00:00.000Z',
+          experience_is_published: false,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          published_premium_url: 'https://example.test/premium.pdf',
+          published_premium_at: '2026-05-09T12:01:00.000Z',
+          updated_at: '2026-05-09T12:01:00.000Z',
+          experience_is_published: true,
+        },
+        error: null,
+      });
+    generateMock.mockResolvedValue({});
+    publishExperienceMock
+      .mockRejectedValueOnce(new Error('Edge Function returned 500: {"detail":"db down"}'))
+      .mockResolvedValueOnce({
+        premiumUrl: 'https://example.test/premium.pdf',
+        publishedAt: '2026-05-09T12:01:00.000Z',
+      });
+
+    const { user } = renderCard(true);
+    await user.click(await screen.findByRole('button', { name: /generate & publish premium/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /we couldn't publish the premium list\. please try again\./i
+    );
+    expect(screen.getByRole('button', { name: /try again/i })).toHaveClass('min-h-[44px]');
+    expect(screen.queryByText(/db down|edge function returned 500/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /try again/i }));
+
+    await waitFor(() => {
+      expect(generateMock).toHaveBeenCalledTimes(2);
+      expect(publishExperienceMock).toHaveBeenCalledTimes(2);
+      expect(screen.getByRole('link', { name: /download pdf/i })).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
   });
 
   it('offers a publish action when the PDF is current but the landing page is unpublished', async () => {

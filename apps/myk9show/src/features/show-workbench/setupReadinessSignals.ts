@@ -25,13 +25,9 @@ export interface SetupReadinessSignal {
   href: string;
 }
 
-// Anchor id for the publish section. The cards render in ShowDetailsPage —
-// the PARENT route that hosts the Setup page via <Outlet> — so the element
-// is in the same document while /shows/:id/setup is active, and a `#`-href
-// chip resolves to it. See ShowDetailsPage.tsx (id={SETUP_PUBLISH_ANCHOR})
-// and the regression test in src/test/pages/ShowDetailsPage.test.tsx
-// ("renders the #setup-publish anchor target on the Setup route ..."). Keep
-// them nested: if the Setup route is ever un-nested, this anchor dies.
+// Anchor id for the publish section. The cards render in the shared manager
+// shell on the primary Overview, so exception links can land on the existing
+// publishing controls without reviving a Setup-only destination.
 export const SETUP_PUBLISH_ANCHOR = 'setup-publish';
 
 export interface SetupReadinessInput {

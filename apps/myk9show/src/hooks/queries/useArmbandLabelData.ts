@@ -22,6 +22,10 @@ export function mapEntryToArmbandLabelEntry(
 
   return {
     id: raw.id as string,
+    dogId: (raw.dog_id as string) ?? '',
+    trialId: (trial?.id as string) ?? '',
+    classId: (cls?.id as string) ?? '',
+    calendarDay: rawDate,
     armband,
     callName: (dog?.call_name as string) ?? '',
     handler: owner ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim() : '',
@@ -45,7 +49,7 @@ export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDat
       const { data } = await supabase
         .from('entries')
         .select(
-          'id, armband, is_day_of_show, dog:dogs!inner(call_name, owner:people!dogs_owner_id_fkey(first_name, last_name)), class:classes!left(trial:trials!left(date))'
+          'id, dog_id, armband, is_day_of_show, dog:dogs!inner(call_name, owner:people!dogs_owner_id_fkey(first_name, last_name)), class:classes!left(id, trial:trials!left(id, date))'
         )
         .eq('show_id', showId)
         .is('deleted_at', null)

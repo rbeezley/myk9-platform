@@ -7,4 +7,3 @@ export { ThemeSelector } from './ThemeSelector';
 export { NotificationSettings } from '@/components/notifications/NotificationSettings';
 export { CompetitionSettings } from './CompetitionSettings';
 export { DataSettings } from './DataSettings';
-export { PrivacySettings } from './PrivacySettings';

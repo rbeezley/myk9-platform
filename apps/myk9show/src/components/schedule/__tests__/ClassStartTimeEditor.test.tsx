@@ -53,6 +53,14 @@ describe('ClassStartTimeEditor', () => {
     expect(screen.getByRole('button', { name: /edit start time/i })).toHaveTextContent('9:00 AM');
   });
 
+  it('formats a time without time zone as the same local input time', async () => {
+    const { user } = render(<ClassStartTimeEditor {...baseProps} startTime="09:00:00" />);
+
+    await user.click(screen.getByRole('button', { name: /edit start time/i }));
+
+    expect(screen.getByLabelText('Start time')).toHaveValue('09:00');
+  });
+
   it('shows TBD when there is no start time yet', () => {
     render(<ClassStartTimeEditor {...baseProps} startTime={null} />);
     expect(screen.getByRole('button', { name: /edit start time/i })).toHaveTextContent('TBD');

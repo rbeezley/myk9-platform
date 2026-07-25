@@ -21,6 +21,13 @@ export interface SlideOverPanelProps {
   preventClose?: boolean;
 }
 
+// Module-level stack of currently-open SlideOverPanel instances, in open
+// order. Each instance registers its own document `keydown` listener, so with
+// two panels open (e.g. the Add-a-Dog wizard + a nested registration
+// slide-over), a single Escape press would otherwise fire both listeners and
+// close both panels. Only the topmost (last-pushed) instance should respond.
+let openPanelIds: symbol[] = [];
+
 const sizeClasses = {
   sm: 'max-w-md w-full',
   md: 'max-w-lg w-full',
@@ -67,6 +74,8 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   preventClose = false,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  // Stable per-instance id for the open-panel stack (topmost-only Escape).
+  const panelIdRef = useRef<symbol>(Symbol('slide-over-panel'));
   // Initialize mounted to true - portal is always ready in modern React
   const [mounted] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -104,12 +113,37 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     }
   }, [open]);
 
+  // Track this instance's position in the open-panel stack, and lock body
+  // scroll while ANY panel is open. Deliberately depends ONLY on `open` — an
+  // inline `onClose`/`preventClose` prop (new identity every parent render)
+  // must not re-push this panel's id while another panel is open above it, or
+  // it would jump to the top of the stack and steal Escape from the panel
+  // that actually opened later. Same reasoning applies to body-scroll lock:
+  // closing a nested panel must not unlock scroll while an outer panel is
+  // still open, so `overflow` only resets to 'unset' once the stack is empty.
+  useEffect(() => {
+    const panelId = panelIdRef.current;
+    if (open) {
+      openPanelIds.push(panelId);
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      openPanelIds = openPanelIds.filter(id => id !== panelId);
+      if (openPanelIds.length === 0) {
+        document.body.style.overflow = 'unset';
+      }
+    };
+  }, [open]);
+
   // Handle escape key and focus trapping
   useEffect(() => {
+    const panelId = panelIdRef.current;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!open || !panelRef.current) return;
 
       if (e.key === 'Escape' && !preventClose) {
+        // Only the topmost open panel responds — see openPanelIds above.
+        if (openPanelIds[openPanelIds.length - 1] !== panelId) return;
         onClose();
         return;
       }
@@ -140,13 +174,10 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
 
     if (open) {
       document.addEventListener('keydown', handleKeyDown);
-      // Prevent body scroll
-      document.body.style.overflow = 'hidden';
     }
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
     };
   }, [open, onClose, preventClose]);
 

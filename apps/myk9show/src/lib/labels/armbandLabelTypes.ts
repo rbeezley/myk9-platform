@@ -1,5 +1,9 @@
 export interface ArmbandLabelEntry {
   id: string;
+  dogId: string;
+  trialId: string;
+  classId: string;
+  calendarDay: string;
   armband: number;
   callName: string;
   handler: string;

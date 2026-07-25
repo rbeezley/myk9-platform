@@ -143,6 +143,10 @@ export function ShowWorkbenchShowDeskPage() {
           judgeName: cls.judgeName || '',
           trialId: trial.id,
           time: cls.startTime || '',
+          revisedExpectedStart: cls.revisedExpectedStart ?? null,
+          actualStartTime: cls.actualStartTime,
+          actualFinishTime: cls.actualFinishTime,
+          displayOrder: cls.displayOrder,
           status: cls.status || CLASS_STATUS.SCHEDULED,
           entryCount: showEntries.filter(entry => entry.class_id === cls.id).length,
           scoredCount: showEntries.filter(
@@ -342,14 +346,58 @@ export function ShowWorkbenchShowDeskPage() {
         summary: 'Keep show-specific reminders together',
         content: <TasksNotesCard showId={currentShow.id} clubId={currentShow.clubId} />,
       },
+      {
+        id: 'show-closeout',
+        title: 'Show closeout',
+        summary: 'Verify final work and close the Show',
+        layout: 'wide',
+        content: (
+          <div className="space-y-4">
+            <ShowCloseoutSummary showId={currentShow.id} entries={reconciliationEntries} />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+                <Link to={`/shows/${currentShow.id}/results-control`}>
+                  <ListChecks className="h-5 w-5" />
+                  <span className="text-left">Results visibility</span>
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+                <Link to={`/shows/${currentShow.id}/reports`}>
+                  <FileBarChart className="h-5 w-5" />
+                  <span className="text-left">Reports</span>
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+                <Link to={`/shows/${currentShow.id}/submit-results`}>
+                  <Send className="h-5 w-5" />
+                  <span className="text-left">Submit results</span>
+                </Link>
+              </Button>
+            </div>
+            <CloseOutShowAction
+              show={{ id: currentShow.id, status: currentShow.status }}
+              trials={closeoutTrials}
+              classes={closeoutClasses}
+              entries={reconciliationEntries}
+              incidents={incidentSummary}
+              submissions={resultSubmissions}
+            />
+          </div>
+        ),
+      },
     ];
   }, [
     currentShow,
+    closeoutClasses,
+    closeoutTrials,
     effectiveJudges,
     hospitalityJudges,
     incidentAttentionLabel,
     incidentEntryOptions,
+    incidentSummary,
+    reconciliationEntries,
     refetchShowEntries,
+    resultSubmissions,
     showClasses,
     showEntries,
     showEntriesError,
@@ -396,48 +444,6 @@ export function ShowWorkbenchShowDeskPage() {
         tools={showDeskTools}
         actionableCount={actionable.count}
         actionableTone={actionable.tone}
-        closeoutContent={
-          <>
-            <ShowCloseoutSummary showId={currentShow.id} entries={reconciliationEntries} />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to={`/shows/${currentShow.id}/results-control`}>
-                  <ListChecks className="h-5 w-5" />
-                  <span className="text-left">
-                    <span className="block font-medium">Results &amp; Check-In</span>
-                    <span className="block text-xs text-muted-foreground">Verify results</span>
-                  </span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to={`/shows/${currentShow.id}/reports`}>
-                  <FileBarChart className="h-5 w-5" />
-                  <span className="text-left">
-                    <span className="block font-medium">Reports</span>
-                    <span className="block text-xs text-muted-foreground">Print and export</span>
-                  </span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to={`/shows/${currentShow.id}/submit-results`}>
-                  <Send className="h-5 w-5" />
-                  <span className="text-left">
-                    <span className="block font-medium">Submit Results</span>
-                    <span className="block text-xs text-muted-foreground">Send final files</span>
-                  </span>
-                </Link>
-              </Button>
-            </div>
-            <CloseOutShowAction
-              show={{ id: currentShow.id, status: currentShow.status }}
-              trials={closeoutTrials}
-              classes={closeoutClasses}
-              entries={reconciliationEntries}
-              incidents={incidentSummary}
-              submissions={resultSubmissions}
-            />
-          </>
-        }
       />
     </Suspense>
   );

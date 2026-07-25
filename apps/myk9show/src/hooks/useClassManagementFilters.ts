@@ -15,6 +15,7 @@ interface UseClassManagementFiltersReturn {
   element: string;
   setElement: (value: string) => void;
   density: OperationalViewDensity;
+  focusClassId: string | null;
   setDensity: (value: OperationalViewDensity) => void;
   /** Apply a full restored/saved view in one URL update (Design Decision 1 adapter). */
   applyView: (view: ClassManagementOperationalView) => void;
@@ -142,6 +143,7 @@ export function useClassManagementFilters(): UseClassManagementFiltersReturn {
     element: normalized.element,
     setElement,
     density: normalized.density,
+    focusClassId: normalized.focusClassId,
     setDensity,
     applyView,
     clearFilters,

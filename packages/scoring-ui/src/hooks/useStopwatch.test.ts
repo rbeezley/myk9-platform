@@ -114,9 +114,7 @@ describe('useStopwatch', () => {
 
   describe('maxTime', () => {
     it('should parse maxTime and return it in milliseconds', () => {
-      const { result } = renderHook(() =>
-        useStopwatch({ maxTime: '3:00' })
-      );
+      const { result } = renderHook(() => useStopwatch({ maxTime: '3:00' }));
       expect(result.current.getMaxTimeMs()).toBe(180000);
     });
 
@@ -126,9 +124,7 @@ describe('useStopwatch', () => {
     });
 
     it('should calculate remaining time', () => {
-      const { result } = renderHook(() =>
-        useStopwatch({ maxTime: '3:00' })
-      );
+      const { result } = renderHook(() => useStopwatch({ maxTime: '3:00' }));
 
       // At time 0, remaining should be full max time
       expect(result.current.getRemainingTimeMs()).toBe(180000);
@@ -141,9 +137,7 @@ describe('useStopwatch', () => {
 
     it('should auto-stop when maxTime is reached', () => {
       const onTimeExpired = vi.fn();
-      const { result } = renderHook(() =>
-        useStopwatch({ maxTime: '0:02', onTimeExpired })
-      );
+      const { result } = renderHook(() => useStopwatch({ maxTime: '0:02', onTimeExpired }));
 
       act(() => {
         result.current.start();
@@ -165,18 +159,14 @@ describe('useStopwatch', () => {
     });
 
     it('should return false when time is below max', () => {
-      const { result } = renderHook(() =>
-        useStopwatch({ maxTime: '3:00' })
-      );
+      const { result } = renderHook(() => useStopwatch({ maxTime: '3:00' }));
       expect(result.current.isTimeExpired()).toBe(false);
     });
   });
 
   describe('30-second warning', () => {
     it('should not show warning for Master level', () => {
-      const { result } = renderHook(() =>
-        useStopwatch({ maxTime: '3:00', level: 'Master' })
-      );
+      const { result } = renderHook(() => useStopwatch({ maxTime: '3:00', level: 'Master' }));
 
       act(() => {
         result.current.start();
@@ -191,16 +181,12 @@ describe('useStopwatch', () => {
     });
 
     it('should not show warning when timer is not running', () => {
-      const { result } = renderHook(() =>
-        useStopwatch({ maxTime: '3:00', level: 'Novice' })
-      );
+      const { result } = renderHook(() => useStopwatch({ maxTime: '3:00', level: 'Novice' }));
       expect(result.current.shouldShow30SecondWarning()).toBe(false);
     });
 
     it('should not show warning when no maxTime', () => {
-      const { result } = renderHook(() =>
-        useStopwatch({ level: 'Novice' })
-      );
+      const { result } = renderHook(() => useStopwatch({ level: 'Novice' }));
 
       act(() => {
         result.current.start();
@@ -257,14 +243,96 @@ describe('useStopwatch', () => {
 
       expect(onWarningChime).not.toHaveBeenCalled();
     });
+
+    // MYK9-76: the Master silence rule must cover BOTH the chime AND the voice
+    // announcement, for both the singular and plural spellings — exhibitors at a
+    // Master search must never hear the 30-second warning.
+    it.each(['Master', 'masters'])('fires neither chime nor voice for level "%s"', levelValue => {
+      const onWarningChime = vi.fn();
+      const onVoiceAnnouncement = vi.fn();
+      const { result } = renderHook(() =>
+        useStopwatch({
+          maxTime: '1:00',
+          level: levelValue,
+          enableVoiceAnnouncements: true,
+          onWarningChime,
+          onVoiceAnnouncement,
+        })
+      );
+
+      act(() => {
+        result.current.start();
+      });
+      act(() => {
+        vi.advanceTimersByTime(31000);
+      });
+
+      expect(onWarningChime).not.toHaveBeenCalled();
+      expect(onVoiceAnnouncement).not.toHaveBeenCalled();
+    });
+  });
+
+  // MYK9-76: the 30-second warning is a once-per-run event. Pausing must NOT
+  // re-arm it — a timer paused past the threshold and resumed below 30s would
+  // otherwise chime again immediately. A genuine reset DOES re-arm it.
+  describe('warning guard across pause/resume/reset', () => {
+    const advance = (steps: number) => {
+      for (let i = 0; i < steps; i++) {
+        act(() => {
+          vi.advanceTimersByTime(100);
+        });
+      }
+    };
+
+    it('does not re-fire the warning after pausing past 30s and resuming', () => {
+      const onWarningChime = vi.fn();
+      const { result } = renderHook(() =>
+        useStopwatch({ maxTime: '1:00', level: 'Novice', onWarningChime })
+      );
+
+      act(() => {
+        result.current.start();
+      });
+      advance(310); // ~31s elapsed → ~29s remaining, chime fires once
+      expect(onWarningChime).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        result.current.pause();
+      });
+      act(() => {
+        result.current.start(); // resume, still below 30s remaining
+      });
+      advance(20); // +2s
+      expect(onWarningChime).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-arms the warning after a reset (a fresh run announces again)', () => {
+      const onWarningChime = vi.fn();
+      const { result } = renderHook(() =>
+        useStopwatch({ maxTime: '1:00', level: 'Novice', onWarningChime })
+      );
+
+      act(() => {
+        result.current.start();
+      });
+      advance(310);
+      expect(onWarningChime).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        result.current.reset();
+      });
+      act(() => {
+        result.current.start();
+      });
+      advance(310);
+      expect(onWarningChime).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('onScoringActiveChange callback', () => {
     it('should call onScoringActiveChange when running state changes', () => {
       const onScoringActiveChange = vi.fn();
-      const { result } = renderHook(() =>
-        useStopwatch({ onScoringActiveChange })
-      );
+      const { result } = renderHook(() => useStopwatch({ onScoringActiveChange }));
 
       act(() => {
         result.current.start();

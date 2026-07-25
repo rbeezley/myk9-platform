@@ -164,7 +164,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             fieldId="dateOfBirth"
             required
             error={form.getError('dateOfBirth')}
-            hint="Not sure of the exact date? An approximate one is fine."
           >
             <Input
               id="dateOfBirth"
@@ -179,20 +178,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 Age: {calculateAge(formData.dateOfBirth)}
               </div>
             )}
-          </FormField>
-
-          <FormField
-            label="Color & Markings"
-            fieldId="color"
-            className="md:col-span-2"
-            hint="Describe the primary color and any distinctive markings"
-          >
-            <Input
-              id="color"
-              value={formData.color}
-              onChange={e => form.setValue('color', e.target.value)}
-              placeholder="e.g., Black & White, Red, Blue Merle"
-            />
           </FormField>
         </div>
 

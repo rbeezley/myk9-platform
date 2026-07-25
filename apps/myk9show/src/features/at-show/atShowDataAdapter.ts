@@ -83,6 +83,7 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
   const resultText = re.resultStatus ?? re.result_status;
   const faultCount = re.totalFaults ?? re.total_faults;
   const totalPoints = re.totalPoints ?? re.total_points;
+  const scoredAt = re.scoringCompletedAt ?? re.scoring_completed_at;
   const areas = cls?.areaCount ?? cls?.area_count ?? re.areas;
   const timeLimit = timeLimitString(cls?.timeLimitSeconds ?? cls?.time_limit_seconds);
   const timeLimit2 = timeLimitString(cls?.timeLimitArea2Seconds ?? cls?.time_limit_area2_seconds);
@@ -135,6 +136,9 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
     ...(faultCount != null && { faultCount }),
     ...(finalPlacement != null && { placement: Number(finalPlacement) }),
     ...(totalPoints != null && { totalPoints }),
+    ...(scoredAt != null && { scoredAt }),
+    ...(re.ring_entry_time != null && { ringEntryTime: re.ring_entry_time }),
+    ...(re.ring_exit_time != null && { ringExitTime: re.ring_exit_time }),
     ...(re.disqualification_reason != null && { nqReason: re.disqualification_reason }),
     ...(timeLimit != null && { timeLimit }),
     ...(timeLimit2 != null && { timeLimit2 }),
@@ -158,6 +162,7 @@ export function buildClassInfo(
   const timeLimit = timeLimitString(cls.timeLimitSeconds ?? cls.time_limit_seconds);
   const timeLimit2 = timeLimitString(cls.timeLimitArea2Seconds ?? cls.time_limit_area2_seconds);
   const timeLimit3 = timeLimitString(cls.timeLimitArea3Seconds ?? cls.time_limit_area3_seconds);
+  const resultsReleasedAt = cls.resultsReleasedAt ?? cls.results_released_at;
 
   return {
     className: buildClassName(cls),
@@ -176,6 +181,12 @@ export function buildClassInfo(
     completedEntries: entries.filter(e => e.isScored).length,
     visibilityPreset: (cls.visibilityPreset as ClassInfo['visibilityPreset']) ?? 'standard',
 
+    ...(cls.isScoringFinalized !== undefined && {
+      isScoringFinalized: cls.isScoringFinalized,
+    }),
+    ...(resultsReleasedAt !== undefined && { resultsReleasedAt }),
+    ...(cls.actual_start_time != null && { actualStartTime: cls.actual_start_time }),
+    ...(cls.actual_end_time != null && { actualEndTime: cls.actual_end_time }),
     ...(trialId != null && { trialId }),
     ...(trialNumber != null && { trialNumber: String(trialNumber) }),
     ...(timeLimit != null && { timeLimit }),

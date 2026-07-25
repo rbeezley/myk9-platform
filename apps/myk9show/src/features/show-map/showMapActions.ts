@@ -1,6 +1,10 @@
 import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
 import { getClassAttention } from './attention';
-import { getShowMapReportHref, getShowMapTrialScheduleHref } from './showMapRoutes';
+import {
+  getShowMapClassHref,
+  getShowMapReportHref,
+  getShowMapTrialScheduleHref,
+} from './showMapRoutes';
 import {
   ArrowUpCircle,
   Ban,
@@ -178,9 +182,7 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
           showId && trialId && classId
             ? getShowMapReportHref({
                 reportId: 'result-catalog',
-                showId,
-                trialId,
-                classId,
+                scope: { kind: 'class', showId, trialId, classId },
               })
             : undefined
         ),
@@ -195,10 +197,12 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
         {
           id: 'review-results',
           nodeId: node.id,
-          label: 'Review results',
-          why: 'Confirm placements before final submission',
+          label: 'View entries and results',
+          why: 'Inspect entered result values before final submission',
           priority: 52,
-          ...(showId ? { href: `/shows/${showId}/results-control` } : {}),
+          ...(showId && trialId && classId
+            ? { href: getShowMapClassHref(showId, trialId, classId) }
+            : {}),
           icon: FileText,
           recommended: true,
           createsAttention: true,
@@ -456,9 +460,7 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         showId && trialId && classId
           ? getShowMapReportHref({
               reportId: 'check-in-sheet',
-              showId,
-              trialId,
-              classId,
+              scope: { kind: 'class', showId, trialId, classId },
             })
           : undefined
       )
@@ -494,8 +496,7 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         showId && trialId
           ? getShowMapReportHref({
               reportId: 'trial-secretary-report',
-              showId,
-              trialId,
+              scope: { kind: 'trial', showId, trialId },
             })
           : undefined
       ),

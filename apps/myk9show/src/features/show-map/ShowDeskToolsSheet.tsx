@@ -1,5 +1,6 @@
 import { ChevronRight, Wrench } from 'lucide-react';
 import { useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -43,6 +44,7 @@ interface ShowDeskToolsSheetProps {
   // pass a count without a tone.
   actionableTone?: ShowDeskActionableTone;
   tools: readonly ShowDeskToolSection[];
+  requestedToolId?: string;
 }
 
 // INTENT: Phase B3 — collapse the 7 scattered desk-tool cards from the
@@ -53,12 +55,29 @@ interface ShowDeskToolsSheetProps {
 // content so this component never needs judge, class, incident, or access-code
 // data dependencies.
 export function ShowDeskToolsSheet({
+  ...props
+}: ShowDeskToolsSheetProps) {
+  const [searchParams] = useSearchParams();
+  const effectiveRequestedToolId =
+    props.requestedToolId ?? searchParams.get('tool') ?? undefined;
+
+  return (
+    <ShowDeskToolsSheetState
+      key={effectiveRequestedToolId ?? ''}
+      {...props}
+      effectiveRequestedToolId={effectiveRequestedToolId}
+    />
+  );
+}
+
+function ShowDeskToolsSheetState({
+  effectiveRequestedToolId,
   showId,
   toolCount,
   actionableCount,
   actionableTone = 'urgent',
   tools,
-}: ShowDeskToolsSheetProps) {
+}: ShowDeskToolsSheetProps & { effectiveRequestedToolId: string | undefined }) {
   const effectiveToolCount = toolCount ?? tools.length;
   const hasActionable = typeof actionableCount === 'number' && actionableCount > 0;
   const badgeValue = hasActionable ? actionableCount : effectiveToolCount;
@@ -83,8 +102,11 @@ export function ShowDeskToolsSheet({
     }))
   );
 
+  const requestedToolExists = tools.some(tool => tool.id === effectiveRequestedToolId);
+  const [open, setOpen] = useState(requestedToolExists);
+
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button
           type="button"
@@ -106,9 +128,12 @@ export function ShowDeskToolsSheet({
         </Button>
       </SheetTrigger>
       <ShowDeskToolsSheetContent
-        key={`${showId}:${toolStateSignature}`}
+        key={`${showId}:${toolStateSignature}:${effectiveRequestedToolId ?? ''}`}
         showId={showId}
         tools={tools}
+        {...(requestedToolExists && effectiveRequestedToolId
+          ? { requestedToolId: effectiveRequestedToolId }
+          : {})}
       />
     </Sheet>
   );
@@ -117,14 +142,20 @@ export function ShowDeskToolsSheet({
 function ShowDeskToolsSheetContent({
   showId,
   tools,
+  requestedToolId,
 }: {
   showId: string;
   tools: readonly ShowDeskToolSection[];
+  requestedToolId?: string;
 }) {
   const [openToolIds, setOpenToolIds] = useState<Set<string>>(
-    () => new Set(loadOpenToolIds(showId, tools))
+    () =>
+      new Set([...loadOpenToolIds(showId, tools), ...(requestedToolId ? [requestedToolId] : [])])
   );
-  const activeWideTool = tools.some(tool => tool.layout === 'wide' && openToolIds.has(tool.id));
+
+  const activeWideTool = tools.some(
+    tool => tool.layout === 'wide' && (openToolIds.has(tool.id) || tool.id === requestedToolId)
+  );
 
   return (
     <SheetContent
@@ -147,6 +178,7 @@ function ShowDeskToolsSheetContent({
         tools={tools}
         openToolIds={openToolIds}
         setOpenToolIds={setOpenToolIds}
+        {...(requestedToolId ? { requestedToolId } : {})}
       />
     </SheetContent>
   );
@@ -157,11 +189,13 @@ function ShowDeskToolSections({
   tools,
   openToolIds,
   setOpenToolIds,
+  requestedToolId,
 }: {
   showId: string;
   tools: readonly ShowDeskToolSection[];
   openToolIds: Set<string>;
   setOpenToolIds: Dispatch<SetStateAction<Set<string>>>;
+  requestedToolId?: string;
 }) {
   const toggleTool = (toolId: string, open: boolean) => {
     setOpenToolIds(current => {
@@ -176,7 +210,7 @@ function ShowDeskToolSections({
   return (
     <div className="flex-1 space-y-3 overflow-y-auto px-6 py-4">
       {tools.map(tool => {
-        const isOpen = openToolIds.has(tool.id);
+        const isOpen = openToolIds.has(tool.id) || tool.id === requestedToolId;
 
         return (
           <Collapsible

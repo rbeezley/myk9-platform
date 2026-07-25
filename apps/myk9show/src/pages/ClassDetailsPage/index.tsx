@@ -48,6 +48,7 @@ import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvi
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
 import { buildClassDetailsRelatedLinks } from './classDetailsRelatedLinks';
+import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -303,6 +304,7 @@ const ClassDetailsPage: React.FC = () => {
     // for anonymous viewers with no presence identity). One channel per show/tab.
     <ShowPresenceProvider showId={parentShow?.id}>
       <PageShell>
+        <ShowDeskReturnLink showId={parentShow?.id} />
         <PageHeader breadcrumbs={breadcrumbs} title={className} />
 
         <ClassCompactHeader

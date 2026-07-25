@@ -6,12 +6,9 @@
 export { ArmbandDialog } from './ArmbandDialog';
 export { AutoArmbandDialog } from './AutoArmbandDialog';
 export { BulkCheckInDialog } from './BulkCheckInDialog';
-export { EntryStatsCards } from './EntryStatsCards';
 export { EntryListCard } from './EntryListCard';
-export { EntriesTableView } from './EntriesTableView';
 export { CompEntryDialog } from './CompEntryDialog';
 export { FilterBreadcrumb } from './FilterBreadcrumb';
 export { TrialClassFilters } from './TrialClassFilters';
 export { TrialRosterView } from './TrialRosterView';
 export { TrialScopeBar } from './TrialScopeBar';
-export { RegistrationView } from './RegistrationView';

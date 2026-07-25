@@ -35,6 +35,7 @@ import { formatEntryDate, formatShortDate } from '@/lib/format/dates';
 import { deriveEntryNextAction } from './entryNextAction';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
 import { MyEntryCardDetails } from './MyEntryCardDetails';
+import { findOwningDog, toDogEntryView } from './myEntryDogView';
 
 interface MyEntryCardProps {
   entry: MyEntry;
@@ -133,6 +134,11 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
     nextAction.kind === 'check-in'
       ? entry.classes.find(cls => cls.id === nextAction.classId)
       : undefined;
+  // Scope the check-in click to the dog that actually owns this class — an
+  // order can span several dogs, and the check-in dialog must show the right
+  // dog's name/armband, not just the order's lead dog.
+  const nextActionDog = nextActionClass ? findOwningDog(entry, nextActionClass.id) : undefined;
+  const isMultiDogOrder = entry.dogs.length > 1;
   // Payment eligibility is intentionally split from edit eligibility: a
   // move-up request is a confirmed entry that can still owe its fee even though
   // it isn't editable while awaiting secretary approval. Waitlisted entries stay
@@ -177,11 +183,26 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
             {getStatusIcon(entry.entryStatus, entry.paymentStatus)}
             {entry.showName}
           </div>
-          <div className="myk9-entries-card-subtitle flex flex-wrap items-center gap-2">
-            {entry.armband && (
-              <ArmbandBadge armband={entry.armband} className="size-8 rounded-lg text-xs" />
+          <div className="myk9-entries-card-subtitle flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            {isMultiDogOrder ? (
+              // Every dog's identity stays visible on the always-shown summary
+              // band (exhibitor-my-shows-legibility) — wraps, never scrolls.
+              entry.dogs.map(dog => (
+                <span key={dog.dogId} className="inline-flex items-center gap-1.5">
+                  {dog.armband && (
+                    <ArmbandBadge armband={dog.armband} className="size-8 rounded-lg text-xs" />
+                  )}
+                  <span>{dog.dogName}</span>
+                </span>
+              ))
+            ) : (
+              <>
+                {entry.armband && (
+                  <ArmbandBadge armband={entry.armband} className="size-8 rounded-lg text-xs" />
+                )}
+                <span>{entry.dogName}</span>
+              </>
             )}
-            <span>{entry.dogName}</span>
           </div>
         </div>
         <div className="myk9-entries-badges">
@@ -268,7 +289,12 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         {nextAction.kind === 'check-in' && nextActionClass && (
           <Button
             type="button"
-            onClick={() => onCheckInClick(entry, nextActionClass)}
+            onClick={() =>
+              onCheckInClick(
+                nextActionDog ? toDogEntryView(entry, nextActionDog) : entry,
+                nextActionClass
+              )
+            }
             className="min-h-[44px] transition-all duration-200"
           >
             <ClipboardCheck className="h-5 w-5 mr-1.5" />

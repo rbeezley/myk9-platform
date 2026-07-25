@@ -11,6 +11,10 @@ interface EditAncestorDialogProps {
   ancestor: PedigreeAncestor | null;
   onClose: () => void;
   onSave: (ancestor: PedigreeAncestor) => void;
+  /** True while the update mutation is in flight; disables the Save button. */
+  isSaving?: boolean;
+  /** Set when the update mutation was rejected; rendered as a retryable error. */
+  saveError?: string | null;
 }
 
 const FORM_ID = 'edit-ancestor-form';
@@ -37,6 +41,8 @@ const EditAncestorDialog: React.FC<EditAncestorDialogProps> = ({
   ancestor,
   onClose,
   onSave,
+  isSaving = false,
+  saveError = null,
 }) => {
   const formRef = useRef<PedigreeAncestorFormRef>(null);
 
@@ -73,11 +79,10 @@ const EditAncestorDialog: React.FC<EditAncestorDialogProps> = ({
     <StandardDialog
       open={open}
       onClose={onClose}
-      onSave={() =>
-        document
-          .getElementById(FORM_ID)
-          ?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
-      }
+      onSave={() => {
+        const form = document.getElementById(FORM_ID);
+        if (form instanceof HTMLFormElement) form.requestSubmit();
+      }}
       title={ancestor ? `Edit ${POSITION_DISPLAY_NAMES[ancestor.position]}` : 'Edit Ancestor'}
       description={
         <span className="text-xs text-muted-foreground">
@@ -87,7 +92,13 @@ const EditAncestorDialog: React.FC<EditAncestorDialogProps> = ({
       saveLabel="Save"
       cancelLabel="Cancel"
       formId={FORM_ID}
+      isSubmitting={isSaving}
     >
+      {saveError && (
+        <p role="alert" aria-live="assertive" className="text-sm text-destructive mb-3">
+          {saveError} The ancestor was not saved. Adjust the form and try again.
+        </p>
+      )}
       {ancestor && (
         <PedigreeAncestorForm
           key={ancestor.id}

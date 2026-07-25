@@ -65,7 +65,7 @@ const PRIORITY_ORDER: Record<ShowDeskPendingSignalPriority, number> = {
 export const SHOW_DESK_SIGNAL_INTERACTION: Record<ShowDeskPendingSignalId, 'navigate' | 'filter'> =
   {
     'entries-waiting-review': 'navigate',
-    'entries-waiting-checkin': 'filter',
+    'entries-waiting-checkin': 'navigate',
     'entries-payment-due': 'navigate',
     'classes-needing-signature': 'filter',
     'results-pending-closeout': 'navigate',

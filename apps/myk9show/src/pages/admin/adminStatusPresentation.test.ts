@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getOnboardingFilterLabel,
+  getOnboardingStatusPresentation,
   getPayoutStatusPresentation,
   getRoleRequestFilterLabel,
   getRoleRequestStatusPresentation,
+  ONBOARDING_STATUS_FILTERS,
   ROLE_REQUEST_STATUS_FILTERS,
 } from './adminStatusPresentation';
 
@@ -27,6 +30,35 @@ describe('adminStatusPresentation', () => {
     });
     expect(getRoleRequestStatusPresentation('denied')).toMatchObject({
       label: 'Denied',
+      className: expect.stringContaining('text-destructive'),
+    });
+  });
+
+  it('keeps onboarding filter labels in the same order as the page tabs', () => {
+    expect(ONBOARDING_STATUS_FILTERS.map(getOnboardingFilterLabel)).toEqual([
+      'All',
+      'Pending',
+      'Contacted',
+      'Onboarded',
+      'Declined',
+    ]);
+  });
+
+  it('maps onboarding statuses onto the shared admin tone vocabulary', () => {
+    expect(getOnboardingStatusPresentation('pending')).toMatchObject({
+      label: 'Pending',
+      className: expect.stringContaining('text-warning'),
+    });
+    expect(getOnboardingStatusPresentation('contacted')).toMatchObject({
+      label: 'Contacted',
+      className: expect.stringContaining('text-info'),
+    });
+    expect(getOnboardingStatusPresentation('onboarded')).toMatchObject({
+      label: 'Onboarded',
+      className: expect.stringContaining('text-success'),
+    });
+    expect(getOnboardingStatusPresentation('declined')).toMatchObject({
+      label: 'Declined',
       className: expect.stringContaining('text-destructive'),
     });
   });

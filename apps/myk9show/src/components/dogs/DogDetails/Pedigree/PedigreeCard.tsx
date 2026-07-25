@@ -12,7 +12,7 @@ interface PedigreeCardProps {
   ancestor: PedigreeAncestor | undefined;
   position: PedigreePosition;
   displayRole: string;
-  onAdd: () => void;
+  onAdd?: (() => void) | undefined;
   onView?: (() => void) | undefined;
   onEdit?: (() => void) | undefined;
   onDelete?: (() => void) | undefined;
@@ -26,8 +26,22 @@ const PedigreeCard: React.FC<PedigreeCardProps> = ({
   onEdit,
   onDelete,
 }) => {
-  // Empty slot — show "Add" affordance
+  // Empty slot — show "Add" affordance when editing is available.
   if (!ancestor) {
+    if (!onAdd) {
+      return (
+        <div
+          className="bg-muted/50 border border-dashed rounded-xl p-4 min-w-[180px] max-w-[220px] mx-auto
+                     flex flex-col items-center justify-center"
+          style={{ minHeight: 110 }}
+        >
+          <div className="text-sm font-medium text-muted-foreground">
+            No {displayRole} recorded
+          </div>
+        </div>
+      );
+    }
+
     return (
       <button
         type="button"
@@ -48,6 +62,32 @@ const PedigreeCard: React.FC<PedigreeCardProps> = ({
   // Filled slot
   const name = ancestor.call_name || ancestor.registered_name;
   const regDisplay = formatRegistrationNumbers(ancestor.registration_numbers);
+  const menuItems = [
+    {
+      label: 'View',
+      icon: <Eye className="w-4 h-4 mr-2" />,
+      onClick: onView ?? (() => {}),
+    },
+    ...(onEdit
+      ? [
+          {
+            label: 'Edit',
+            icon: <Pencil className="w-4 h-4 mr-2" />,
+            onClick: onEdit,
+          },
+        ]
+      : []),
+    ...(onDelete
+      ? [
+          {
+            label: 'Delete',
+            icon: <Trash2 className="w-4 h-4 mr-2 text-destructive" />,
+            onClick: onDelete,
+            className: 'text-destructive',
+          },
+        ]
+      : []),
+  ];
 
   return (
     <div
@@ -57,24 +97,7 @@ const PedigreeCard: React.FC<PedigreeCardProps> = ({
     >
       <div className="absolute top-2 right-2 z-10">
         <ThreeDotMenu
-          items={[
-            {
-              label: 'View',
-              icon: <Eye className="w-4 h-4 mr-2" />,
-              onClick: onView ?? (() => {}),
-            },
-            {
-              label: 'Edit',
-              icon: <Pencil className="w-4 h-4 mr-2" />,
-              onClick: onEdit ?? (() => {}),
-            },
-            {
-              label: 'Delete',
-              icon: <Trash2 className="w-4 h-4 mr-2 text-destructive" />,
-              onClick: onDelete ?? (() => {}),
-              className: 'text-destructive',
-            },
-          ]}
+          items={menuItems}
         />
       </div>
       <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center mb-2">

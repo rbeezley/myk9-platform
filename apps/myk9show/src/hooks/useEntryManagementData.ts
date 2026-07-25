@@ -19,6 +19,8 @@ import {
   mapClassEntryStatus,
 } from '@/utils/entryManagementUtils';
 import { getEntryManagementCountSummary } from '@/utils/entryCountSelectors';
+import { derivePullTiming, type PullRefundDecision } from '@/features/payments/pullReconciliation';
+import { getTrialTimezone } from '@/features/registries';
 
 interface UseEntryManagementDataReturn {
   // Auth
@@ -36,6 +38,8 @@ interface UseEntryManagementDataReturn {
   entries: EntryManagementEntry[];
   setEntries: React.Dispatch<React.SetStateAction<EntryManagementEntry[]>>;
   isLoading: boolean;
+  /** Show whose entries have completed at least one successful load. */
+  loadedEntriesShowId: string | null;
   /**
    * Action errors — failures from `useEntryManagementActions` (export,
    * bulk status, comp/uncomp, etc.). Rendered inline at the top of
@@ -80,7 +84,8 @@ function personName(
 }
 
 export function mapSecretaryEntryToEntryManagementEntry(
-  entry: SecretaryEntry
+  entry: SecretaryEntry,
+  entryCloseDate?: string | null
 ): EntryManagementEntry {
   return {
     id: entry.id,
@@ -126,6 +131,8 @@ export function mapSecretaryEntryToEntryManagementEntry(
     }),
     entryStatus: mapEntryStatus(entry.entry_status),
     rawEntryStatus: entry.entry_status ?? null,
+    isScored: entry.is_scored ?? null,
+    resultStatus: entry.result_status ?? null,
     paymentStatus: mapPaymentStatus(entry.payment_status),
     submittedAt: entry.submitted_at
       ? new Date(entry.submitted_at)
@@ -160,6 +167,17 @@ export function mapSecretaryEntryToEntryManagementEntry(
     refundAmount: entry.refund_amount ?? null,
     refundedAt: entry.refunded_at ?? null,
     stripePaymentIntentId: entry.stripe_payment_intent_id ?? null,
+    pullReason: entry.entry_status === 'scratched' ? (entry.withdrawal_reason ?? null) : null,
+    pulledAt: entry.withdrawn_at ?? null,
+    pullTiming:
+      entry.entry_status === 'scratched'
+        ? derivePullTiming({
+            pulledAt: entry.withdrawn_at,
+            entryCloseDate,
+            timeZone: getTrialTimezone(entry.trial),
+          })
+        : null,
+    refundDecision: (entry.refund_decision as PullRefundDecision | null) ?? null,
   };
 }
 
@@ -168,6 +186,7 @@ interface EntryManagementShowRow {
   name: string | null;
   start_date: string | null;
   end_date: string | null;
+  entry_close_date: string | null;
 }
 
 /**
@@ -177,10 +196,13 @@ interface EntryManagementShowRow {
 export function useEntryManagementData(initialShowId?: string): UseEntryManagementDataReturn {
   const { user, hasRole } = useAuthContext();
   const { status: syncStatus, triggerSync } = useReplicationSync();
+  const entriesSyncStatusRef = useRef(syncStatus.tablesStatus.entries);
+  entriesSyncStatusRef.current = syncStatus.tablesStatus.entries;
 
   // Show selection — resolve from URL param, localStorage, or empty.
   // Defer applying until shows load so the Select can resolve the display name.
   const [shows, setShows] = useState<EntryManagementShow[]>([]);
+  const showsRef = useRef<EntryManagementShow[]>([]);
   const [selectedShowId, setSelectedShowId] = useState<string>('');
   const [isLoadingShows, setIsLoadingShows] = useState(true);
   const [didApplyInitial, setDidApplyInitial] = useState(false);
@@ -188,6 +210,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
   // Entry data
   const [entries, setEntries] = useState<EntryManagementEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadedEntriesShowId, setLoadedEntriesShowId] = useState<string | null>(null);
   // Action errors (multiplexed channel — see interface doc).
   const [error, setError] = useState<string | null>(null);
   // Load-specific errors (only set by `loadEntries`; never by actions).
@@ -202,7 +225,9 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       if (queryError) {
         logger.error('Error loading shows:', 'secretary', {}, queryError as Error);
       } else {
-        setShows(data || []);
+        const nextShows = data || [];
+        showsRef.current = nextShows;
+        setShows(nextShows);
       }
     } catch (err) {
       logger.error('Error loading shows:', 'secretary', {}, err as Error);
@@ -225,14 +250,16 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
 
       // Transform database entries to UI format
       // SecretaryEntry is a flat row (one per class entry), not a grouped structure
-      // `as unknown` bridge: entries.refund_amount/refunded_at (migration
-      // 20260609220000) aren't in the generated Database types yet — drop the
-      // bridge after the next `supabase gen types` run.
-      const transformedEntries: EntryManagementEntry[] = (
-        (data || []) as unknown as SecretaryEntry[]
-      ).map(mapSecretaryEntryToEntryManagementEntry);
+      const entryCloseDate =
+        showsRef.current.find(show => show.id === showId)?.entry_close_date ?? null;
+      const transformedEntries: EntryManagementEntry[] = ((data || []) as SecretaryEntry[]).map(
+        entry => mapSecretaryEntryToEntryManagementEntry(entry, entryCloseDate)
+      );
 
       setEntries(transformedEntries);
+      setLoadedEntriesShowId(
+        transformedEntries.length > 0 || entriesSyncStatusRef.current === 'success' ? showId : null
+      );
     } catch (err) {
       setLoadError(SECRETARY_ENTRIES_READ_ERROR);
       logger.error('Error loading entries:', 'secretary', {}, err as Error);
@@ -257,6 +284,11 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       return;
     }
 
+    // Let the scoped secretary list resolve before falling back to a direct
+    // show lookup. This avoids racing loadShows and dropping the linked show
+    // (and its entry-close date) from the mirrored ref.
+    if (isLoadingShows) return;
+
     if (shows.some(s => s.id === candidate)) {
       setSelectedShowId(candidate);
       setDidApplyInitial(true);
@@ -280,10 +312,13 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           name: row.name,
           start_date: row.start_date,
           end_date: row.end_date,
+          entry_close_date: row.entry_close_date,
         };
-        setShows(prev =>
-          prev.some(show => show.id === linkedShow.id) ? prev : [linkedShow, ...prev]
-        );
+        const nextShows = showsRef.current.some(show => show.id === linkedShow.id)
+          ? showsRef.current
+          : [linkedShow, ...showsRef.current];
+        showsRef.current = nextShows;
+        setShows(nextShows);
         setSelectedShowId(initialShowId);
       }
 
@@ -308,6 +343,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       loadEntries(selectedShowId);
     } else {
       setEntries([]);
+      setLoadedEntriesShowId(null);
     }
   }, [selectedShowId, loadEntries]);
 
@@ -386,6 +422,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     entries,
     setEntries,
     isLoading,
+    loadedEntriesShowId,
     error,
     setError,
     loadError,

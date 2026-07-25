@@ -4,17 +4,22 @@ describe('mapEntryToArmbandLabelEntry', () => {
   it('maps a raw entry row to ArmbandLabelEntry shape', () => {
     const raw = {
       id: 'e1',
+      dog_id: 'dog-1',
       armband: 101,
       is_day_of_show: false,
       dog: {
         call_name: 'Storm',
         owner: { first_name: 'Jane', last_name: 'Smith' },
       },
-      class: { trial: { date: '2025-06-11' } },
+      class: { id: 'class-1', trial: { id: 'trial-1', date: '2025-06-11' } },
     };
     const result = mapEntryToArmbandLabelEntry(raw);
     expect(result).toEqual({
       id: 'e1',
+      dogId: 'dog-1',
+      trialId: 'trial-1',
+      classId: 'class-1',
+      calendarDay: '2025-06-11',
       armband: 101,
       callName: 'Storm',
       handler: 'Jane Smith',

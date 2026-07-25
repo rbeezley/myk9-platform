@@ -266,7 +266,7 @@ describe('ShowDeskAdaptiveHeader', () => {
     // Regression: chips started life as px-3 py-1 text-xs which is well under the
     // 44x44px minimum from docs/INTENT.md. They are filter shortcuts and need to be
     // tappable on tablet before B2 mounts them.
-    const signals = [makeSignal({})];
+    const signals = [makeSignal({ href: '/shows/show-1/entry-management' })];
     const onSelectPendingSignal = vi.fn();
     const { container } = render(
       <ShowDeskAdaptiveHeader
@@ -282,7 +282,13 @@ describe('ShowDeskAdaptiveHeader', () => {
 
   it('invokes onSelectPendingSignal when a chip is clicked', async () => {
     const onSelectPendingSignal = vi.fn();
-    const signals = [makeSignal({ count: 5, label: '5 pending entries' })];
+    const signals = [
+      makeSignal({
+        count: 5,
+        label: '5 pending entries',
+        href: '/shows/show-1/entry-management',
+      }),
+    ];
     const { user, getByText } = render(
       <ShowDeskAdaptiveHeader
         {...baseProps}
@@ -296,12 +302,18 @@ describe('ShowDeskAdaptiveHeader', () => {
 
   it('marks navigating chips with an arrow and filter chips with a filter glyph (MYK9-64 F3)', () => {
     const signals = [
-      makeSignal({ id: 'entries-waiting-review', count: 5, label: 'Review 5 entries' }),
+      makeSignal({
+        id: 'entries-waiting-review',
+        count: 5,
+        label: 'Review 5 entries',
+        href: '/shows/show-1/entry-management',
+      }),
       makeSignal({
         id: 'entries-waiting-checkin',
         count: 2,
         priority: 'high',
         label: 'Check in 2 entries',
+        href: '/shows/show-1/entry-management?mode=day-of',
       }),
     ];
     const { container } = render(
@@ -314,7 +326,28 @@ describe('ShowDeskAdaptiveHeader', () => {
     const review = container.querySelector('[data-signal-id="entries-waiting-review"]');
     const checkin = container.querySelector('[data-signal-id="entries-waiting-checkin"]');
     expect(review?.getAttribute('data-signal-interaction')).toBe('navigate');
-    expect(checkin?.getAttribute('data-signal-interaction')).toBe('filter');
+    expect(checkin?.getAttribute('data-signal-interaction')).toBe('navigate');
+  });
+
+  it('renders a navigating signal without a verified href as non-actionable information', () => {
+    const { container } = render(
+      <ShowDeskAdaptiveHeader
+        {...baseProps}
+        pendingSignals={[
+          makeSignal({
+            id: 'results-pending-closeout',
+            label: 'Close out 1 result',
+            href: null,
+          }),
+        ]}
+        onSelectPendingSignal={vi.fn()}
+      />
+    );
+
+    expect(container.querySelector('button[data-signal-id="results-pending-closeout"]')).toBeNull();
+    expect(
+      container.querySelector('span[data-signal-id="results-pending-closeout"]')
+    ).not.toBeNull();
   });
 
   it('renders "Approve all N" button on expanded multi-item review-entry groups', async () => {

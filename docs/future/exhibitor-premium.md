@@ -1,24 +1,23 @@
-# Parked: Exhibitor Premium Features
+# Shipped: Exhibitor Premium Features
 
 ## Status
-**Deferred from fall 2026 role definition.** These features were listed in the original Exhibitor duty brainstorm but struck from the fall role definition during the 2026-04-11 role-definition session.
 
-Rationale: fall 2026 is about getting two primary roles (Secretary, Exhibitor) to a trustworthy baseline for non-computer-savvy retired users. Monetization and paid-tier features are a separate, post-fall initiative with their own scope decision.
+**Shipped.** These features were originally parked post-fall-2026 (see git history for the prior "Deferred" version of this doc) and have since been built and released as the myK9Show Premium tier ($4.99/mo, with a founding-member 12-month discount).
 
-## Parked feature list
-- **Title tracking per dog** — record and display titles earned by each dog across sanctioning bodies.
-- **Training journal per dog** — exhibitor notes tied to individual dogs: sessions, progress, observations.
-- **Health information per dog** — vaccinations, medical history, vet contact.
-- **Pedigree per dog** — sire/dam lineage with links to other dogs in the platform.
-- **Advanced competition statistics per dog** — deeper analytics than the free-tier summary: trending, class-by-class breakdown, head-to-head vs other dogs, percentile rankings.
+## Shipped feature list
 
-## When to revisit
-After fall 2026 launch, once the free-tier Exhibitor experience has been validated with real users and the platform has reliable analytics to build on. Any premium feature work requires its own design discussion covering:
-- Free vs paid boundary on each page.
-- Stripe subscription plumbing and billing.
-- Upsell moments and messaging.
-- Whether premium is per-user or per-dog.
-- Grandfathering policy for early users.
+- **Title Progress** — titles earned by each dog across sanctioning bodies.
+- **Training Journal** — exhibitor notes tied to individual dogs: sessions, progress, observations.
+- **Health Records** — vaccinations, medical history, vet contact.
+- **Pedigree** — sire/dam lineage with links to other dogs in the platform.
+- **Statistics** — per-dog competition statistics.
+
+An additional **Analytics** capability (scored-show trial insights) is scoped separately from the five capabilities above — it is gated on its own trial, not the general Premium grant.
+
+## Admin grant workflow
+
+Complimentary/founding Premium access is administered as durable `subscription_entitlement_grants` rows, managed from User Management's `UserEditPanel` via admin RPCs (grant / revoke / explicit-replace with reason + history). This replaced ad hoc `early_adopter_until` misuse (PR #1439/#1442, MYK9-75).
 
 ## Not in scope
-Do not build any of these for fall. Do not add `// TODO premium` comments in free-tier code. Do not add feature flags for them. When in doubt, treat these features as if they live in a different application.
+
+Free vs paid boundary, billing, and upsell messaging live in the `@/features/entitlement` gate (`useSubscriptionGate`) and the Subscription/Pricing pages — see those surfaces for current behavior rather than duplicating it here.

@@ -401,6 +401,7 @@ export const getSecretaryShows = async (_userId: string) => {
           name: show.name,
           start_date: show.startDate,
           end_date: show.endDate,
+          entry_close_date: show.entryCloseDate ?? null,
         }));
         return { data, error: null };
       },

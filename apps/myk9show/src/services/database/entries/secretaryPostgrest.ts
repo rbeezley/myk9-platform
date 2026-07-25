@@ -1,6 +1,15 @@
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
+import { isPullRefundSchemaUnavailable } from '@/features/payments/pullRefundSchemaCompatibility';
+import type { SecretaryEntry } from './secretaryTypes';
 
-const SECRETARY_ENTRIES_SELECT = `
+export interface SecretaryPullMetadata {
+  id: string;
+  withdrawn_at: string | null;
+  refund_decision: string | null;
+  refund_decided_at: string | null;
+}
+
+const SECRETARY_ENTRIES_BASE_SELECT = `
         id,
         dog_id,
         class_id,
@@ -29,6 +38,7 @@ const SECRETARY_ENTRIES_SELECT = `
         scoring_completed_at,
         check_in_status,
         withdrawal_reason,
+        withdrawn_at,
         payment_method,
         refund_amount,
         refunded_at,
@@ -52,7 +62,8 @@ const SECRETARY_ENTRIES_SELECT = `
           refunded_at
         ),
         trial:trial_id (
-          trial_type
+          trial_type,
+          timezone
         ),
         dog:dog_id (
           id,
@@ -75,17 +86,28 @@ const SECRETARY_ENTRIES_SELECT = `
         )
       `;
 
+const SECRETARY_ENTRIES_SELECT = `${SECRETARY_ENTRIES_BASE_SELECT},
+        refund_decision,
+        refund_decided_at`;
+
 export async function postgrestGetSecretaryEntriesForShow(
   showId: string,
   startTime: number,
   operation: string
-) {
-  const { data, error } = await supabase
-    .from('entries')
-    .select(SECRETARY_ENTRIES_SELECT)
-    .eq('show_id', showId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true });
+): Promise<{ data: SecretaryEntry[]; error: null }> {
+  const runSelect = (includeRefundDecision: boolean) =>
+    supabase
+      .from('entries')
+      .select(includeRefundDecision ? SECRETARY_ENTRIES_SELECT : SECRETARY_ENTRIES_BASE_SELECT)
+      .eq('show_id', showId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true });
+
+  let response = await runSelect(true);
+  if (isPullRefundSchemaUnavailable(response.error)) {
+    response = await runSelect(false);
+  }
+  const { data, error } = response;
 
   const duration = Date.now() - startTime;
   logQuery('entries', operation, duration, error?.message);
@@ -94,5 +116,47 @@ export async function postgrestGetSecretaryEntriesForShow(
     throw createDatabaseError(error, 'entries', operation);
   }
 
-  return { data: data || [], error: null };
+  return { data: (data ?? []) as unknown as SecretaryEntry[], error: null };
+}
+
+/** Online-only reconciliation metadata layered over the offline entry replica. */
+export async function postgrestGetSecretaryPullMetadataMap(
+  showId: string
+): Promise<Map<string, SecretaryPullMetadata>> {
+  const runSelect = (includeRefundDecision: boolean) =>
+    supabase
+      .from('entries')
+      .select(
+        includeRefundDecision
+          ? 'id, withdrawn_at, refund_decision, refund_decided_at'
+          : 'id, withdrawn_at'
+      )
+      .eq('show_id', showId)
+      .eq('entry_status', 'scratched');
+
+  let response = await runSelect(true);
+  if (isPullRefundSchemaUnavailable(response.error)) {
+    response = await runSelect(false);
+  }
+  const { data, error } = response;
+
+  if (error) {
+    throw createDatabaseError(error, 'entries', 'get_secretary_pull_metadata');
+  }
+
+  const rows = (data ?? []) as unknown as Array<
+    Pick<SecretaryPullMetadata, 'id' | 'withdrawn_at'> &
+      Partial<Pick<SecretaryPullMetadata, 'refund_decision' | 'refund_decided_at'>>
+  >;
+  return new Map(
+    rows.map(metadata => [
+      metadata.id,
+      {
+        id: metadata.id,
+        withdrawn_at: metadata.withdrawn_at,
+        refund_decision: metadata.refund_decision ?? null,
+        refund_decided_at: metadata.refund_decided_at ?? null,
+      },
+    ])
+  );
 }

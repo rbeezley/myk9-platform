@@ -70,6 +70,19 @@ describe('BlurGate', () => {
       </BlurGate>
     );
     await user.click(screen.getByRole('button', { name: /upgrade to premium/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('/pricing-page');
+    expect(mockNavigate).toHaveBeenCalledWith('/pricing-page', expect.any(Object));
+  });
+
+  it('preserves the current dog and secondary-view path as return state', async () => {
+    const { user } = render(
+      <BlurGate locked={true} title="Title Progress" description="Track your titles">
+        <div>premium content</div>
+      </BlurGate>,
+      { initialRoute: '/dogs/dog-1?section=career&view=titles' }
+    );
+    await user.click(screen.getByRole('button', { name: /upgrade to premium/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/pricing-page', {
+      state: { from: '/dogs/dog-1?section=career&view=titles' },
+    });
   });
 });

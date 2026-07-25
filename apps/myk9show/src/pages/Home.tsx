@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   LandingHeader,
   HeroPhotoLed,
@@ -7,6 +7,7 @@ import {
   ClubFeatures,
   ExhibitorFeatures,
   OfflineCallout,
+  ClubOnboarding,
   ClosingWaitlist,
   LandingFooter,
 } from '@/components/landing/v2';
@@ -14,6 +15,19 @@ import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 
 const Home: React.FC = () => {
   const closingRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (window.location.hash !== '#get-started') return;
+    const target = document.getElementById('get-started');
+    if (!target) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      target.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   const scrollToWaitlist = useCallback(() => {
     const node = closingRef.current ?? document.getElementById('closing');
@@ -64,6 +78,7 @@ const Home: React.FC = () => {
       <ClubFeatures />
       <ExhibitorFeatures />
       <OfflineCallout />
+      <ClubOnboarding />
       <ClosingWaitlist ref={closingRef} />
       <LandingFooter />
     </div>

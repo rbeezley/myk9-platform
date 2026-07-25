@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase as supabaseClient } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { queryKeys } from '@/lib/queryClient';
+import { ACTIVE_JUDGE_ASSIGNMENT_STATUSES } from '@/services/database/judges/assignmentStatus';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = supabaseClient as any;
@@ -50,7 +51,7 @@ export function useJudgeCheckInStats(): JudgeCheckInStatsResult {
         `
         )
         .eq('person_id', personId)
-        .in('status', ['confirmed', 'invited']);
+        .in('status', [...ACTIVE_JUDGE_ASSIGNMENT_STATUSES]);
 
       if (queryError) throw queryError;
 

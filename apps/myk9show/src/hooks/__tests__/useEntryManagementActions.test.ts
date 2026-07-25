@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   autoAssignArmbands: vi.fn(),
   getEntryArmbandById: vi.fn(),
   getNextArmbandForShow: vi.fn(),
+  changeSecretaryEntryStatus: vi.fn(),
+  showUndoToast: vi.fn(),
 }));
 
 vi.mock('@/services/database/armbands', () => ({
@@ -40,6 +42,14 @@ vi.mock('@/services/database/entries', async importOriginal => {
 
 vi.mock('@/services/notifications/ccSecretary', () => ({
   resolveSecretaryCc: vi.fn(),
+}));
+
+vi.mock('@/services/secretary/entry-workflow', () => ({
+  changeSecretaryEntryStatus: mocks.changeSecretaryEntryStatus,
+}));
+
+vi.mock('@/lib/undoToast', () => ({
+  showUndoToast: mocks.showUndoToast,
 }));
 
 vi.mock('@/services/show-day/checkInStatus', () => ({
@@ -94,6 +104,65 @@ describe('useEntryManagementActions', () => {
       error: null,
     });
     vi.mocked(updateReplicatedCheckInStatus).mockResolvedValue('mutation-1');
+    mocks.changeSecretaryEntryStatus.mockResolvedValue({});
+  });
+
+  it('reports a failed status mutation so the badge can offer retry', async () => {
+    mocks.changeSecretaryEntryStatus.mockRejectedValueOnce(new Error('offline write failed'));
+    const entry = makeEntry();
+    const setEntries = vi.fn();
+
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [entry],
+        setEntries,
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        loadEntries: vi.fn(),
+        setError: vi.fn(),
+        user: { id: 'secretary-1' },
+      })
+    );
+
+    let saved: boolean | undefined;
+    await act(async () => {
+      saved = await result.current.handleStatusChange('entry-1', EntryStatus.ACCEPTED);
+    });
+
+    expect(saved).toBe(false);
+    expect(mocks.showUndoToast).not.toHaveBeenCalled();
+  });
+
+  it('marks an accepted status change as queued when offline while keeping undo on the same seam', async () => {
+    const originalOnline = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    const entry = makeEntry();
+    const setEntries = vi.fn();
+
+    try {
+      const { result } = renderHook(() =>
+        useEntryManagementActions({
+          entries: [entry],
+          setEntries,
+          selectedShowId: 'show-1',
+          selectedShow: null,
+          loadEntries: vi.fn(),
+          setError: vi.fn(),
+          user: { id: 'secretary-1' },
+        })
+      );
+
+      await act(async () => {
+        await result.current.handleStatusChange('entry-1', EntryStatus.ACCEPTED);
+      });
+
+      expect(mocks.changeSecretaryEntryStatus).toHaveBeenCalled();
+      expect(mocks.showUndoToast).toHaveBeenCalledWith(
+        expect.objectContaining({ description: 'Queued — will sync when online' })
+      );
+    } finally {
+      Object.defineProperty(navigator, 'onLine', { configurable: true, value: originalOnline });
+    }
   });
 
   it('assigns secretary armbands by entry id and requested armband number', async () => {

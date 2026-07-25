@@ -12,7 +12,7 @@ import {
  * Feature-audit smoke for the canonical secretary show management routes.
  *
  * This intentionally avoids posting announcements, messages, incidents, or late
- * entries. It proves the real secretary route renders the setup and Show Desk
+ * entries. It proves the real secretary route renders the Overview and Show Desk
  * surfaces together without console errors or owned 4xx/5xx responses.
  */
 
@@ -41,20 +41,15 @@ test.describe('Secretary show management UI', () => {
     healthByTest.delete(testInfo.testId);
   });
 
-  test('renders setup and show desk phases for a managed show', async ({
-    page,
-  }, testInfo) => {
+  test('renders Overview and Show Desk phases for a managed show', async ({ page }, testInfo) => {
     await openShowSetup(page);
 
     await expect(page.getByTestId('canonical-show-management-nav')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Setup' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Setup' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Show Desk' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'More show actions' }).first()).toBeVisible();
 
-    await expect(page.getByRole('region', { name: 'Setup', exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Setup', exact: true })).toBeVisible();
-    await expect(page.getByRole('region', { name: 'Setup readiness' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /Finish setup|Setup ready/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Show schedule' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Premium List' }).first()).toBeVisible();
 
     await page.getByRole('link', { name: 'Show Desk' }).click();
@@ -104,8 +99,8 @@ test.describe('Secretary show management UI', () => {
 
 async function openShowSetup(page: Page) {
   await signInAsSecretary(page, `/shows/${SHOW_ID}/setup`);
-  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/setup`));
-  await expect(page.getByRole('heading', { name: 'Setup', exact: true })).toBeVisible({
+  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}$`));
+  await expect(page.getByRole('heading', { name: 'Show schedule' })).toBeVisible({
     timeout: 15000,
   });
 }

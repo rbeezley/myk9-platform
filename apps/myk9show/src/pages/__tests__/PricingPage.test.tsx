@@ -37,12 +37,43 @@ vi.mock('@/components/layout/AppHeader', () => ({
 }));
 vi.mock('@/components/layout/Footer', () => ({ default: () => null }));
 
+// Mutable holder so tests can exercise active-access current-action states.
+const entitlementHolder: {
+  effective: Record<string, unknown> | null;
+  isTrusted: boolean;
+  isLoading: boolean;
+  isError: boolean;
+} = { effective: null, isTrusted: true, isLoading: false, isError: false };
+const entitlementRefetch = vi.fn();
+vi.mock('@/features/entitlement/useEntitlement', () => ({
+  useEntitlement: () => ({
+    effective: entitlementHolder.effective,
+    isTrusted: entitlementHolder.isTrusted,
+    canAuthorizePremium: false,
+    isLoading: entitlementHolder.isLoading,
+    isError: entitlementHolder.isError,
+    refetch: entitlementRefetch,
+  }),
+}));
+
 const mockedCheckout = vi.mocked(createCheckoutSession);
 
 beforeEach(() => {
   vi.clearAllMocks();
   configHolder.annual = 'price_annual_test';
   authHolder.user = { id: 'user-1' };
+  entitlementHolder.isTrusted = true;
+  entitlementHolder.isLoading = false;
+  entitlementHolder.isError = false;
+  entitlementHolder.effective = {
+    tier: 'free',
+    status: 'free',
+    source: 'none',
+    endsAt: null,
+    evaluatedAt: new Date().toISOString(),
+    trustedUntil: new Date(Date.now() + 60_000).toISOString(),
+    analyticsTrial: { status: 'unavailable', scoredShowCount: null, showLimit: 3 },
+  };
 });
 
 describe('PricingPage billing interval', () => {
@@ -97,5 +128,128 @@ describe('PricingPage billing interval', () => {
 
     expect(screen.queryByRole('button', { name: /annual/i })).not.toBeInTheDocument();
     expect(screen.getByText('$4.99')).toBeInTheDocument();
+  });
+});
+
+describe('PricingPage entitlement-aware action', () => {
+  function activeEntitlement(source: 'paid' | 'founding' | 'complimentary') {
+    return {
+      tier: 'premium',
+      status: 'active',
+      source,
+      endsAt: new Date(Date.now() + 86_400_000).toISOString(),
+      evaluatedAt: new Date().toISOString(),
+      trustedUntil: new Date(Date.now() + 60_000).toISOString(),
+      canManageBilling: source === 'paid',
+      analyticsTrial: { status: 'unavailable', scoredShowCount: null, showLimit: 3 },
+    };
+  }
+
+  it('shows current-access action instead of a purchase button for an active paid source', async () => {
+    entitlementHolder.effective = activeEntitlement('paid');
+    const user = userEvent.setup();
+    render(<PricingPage />);
+
+    expect(screen.getByRole('button', { name: /you have premium/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /subscribe now/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /you have premium/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/subscription');
+    expect(mockedCheckout).not.toHaveBeenCalled();
+  });
+
+  it('shows current-access action for an active founding source', () => {
+    entitlementHolder.effective = activeEntitlement('founding');
+    render(<PricingPage />);
+
+    expect(
+      screen.getByRole('button', { name: /you have founding member premium/i })
+    ).toBeInTheDocument();
+  });
+
+  it('shows current-access action for an active complimentary source', () => {
+    entitlementHolder.effective = activeEntitlement('complimentary');
+    render(<PricingPage />);
+
+    expect(
+      screen.getByRole('button', { name: /you have complimentary premium/i })
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the real checkout path for an expired user', async () => {
+    entitlementHolder.effective = {
+      tier: 'free',
+      status: 'expired',
+      source: 'none',
+      endsAt: new Date(Date.now() - 86_400_000).toISOString(),
+      evaluatedAt: new Date().toISOString(),
+      trustedUntil: new Date(Date.now() + 60_000).toISOString(),
+      canManageBilling: false,
+      analyticsTrial: { status: 'unavailable', scoredShowCount: null, showLimit: 3 },
+    };
+    const user = userEvent.setup();
+    render(<PricingPage />);
+
+    await user.click(screen.getByRole('button', { name: /subscribe now/i }));
+
+    await waitFor(() => {
+      expect(mockedCheckout).toHaveBeenCalledWith('price_monthly_test', 'subscription');
+    });
+  });
+
+  it('keeps the real checkout path for a free user', async () => {
+    const user = userEvent.setup();
+    render(<PricingPage />);
+
+    await user.click(screen.getByRole('button', { name: /subscribe now/i }));
+
+    await waitFor(() => {
+      expect(mockedCheckout).toHaveBeenCalledWith('price_monthly_test', 'subscription');
+    });
+  });
+});
+
+describe('PricingPage unresolved entitlement', () => {
+  it('does not offer paid checkout while the entitlement is still loading', () => {
+    entitlementHolder.effective = null;
+    entitlementHolder.isTrusted = false;
+    entitlementHolder.isLoading = true;
+    render(<PricingPage />);
+
+    expect(screen.queryByRole('button', { name: /subscribe now/i })).not.toBeInTheDocument();
+    const neutral = screen.getByRole('button', { name: /checking your access/i });
+    expect(neutral).toBeDisabled();
+    expect(mockedCheckout).not.toHaveBeenCalled();
+  });
+
+  it('does not offer paid checkout when the entitlement read is untrusted', () => {
+    entitlementHolder.isTrusted = false;
+    render(<PricingPage />);
+
+    expect(screen.queryByRole('button', { name: /subscribe now/i })).not.toBeInTheDocument();
+  });
+
+  it('offers a retry instead of checkout when the entitlement read errored', async () => {
+    entitlementHolder.effective = null;
+    entitlementHolder.isTrusted = false;
+    entitlementHolder.isError = true;
+    const user = userEvent.setup();
+    render(<PricingPage />);
+
+    expect(screen.getByRole('button', { name: /couldn't check your access/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /subscribe now/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /retry/i }));
+    expect(entitlementRefetch).toHaveBeenCalled();
+    expect(mockedCheckout).not.toHaveBeenCalled();
+  });
+
+  it('signed-out visitors keep the normal purchase path even with no entitlement', () => {
+    authHolder.user = null;
+    entitlementHolder.effective = null;
+    entitlementHolder.isTrusted = false;
+    render(<PricingPage />);
+
+    expect(screen.getByRole('button', { name: /subscribe now/i })).toBeInTheDocument();
   });
 });

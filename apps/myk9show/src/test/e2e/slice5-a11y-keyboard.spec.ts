@@ -139,7 +139,9 @@ test.describe('Slice 5: accessibility', () => {
    * focus guards rather than anything about the form.
    */
   const PREMIUM_FORMS = [
-    { view: 'health', trigger: /^Add (Health Record|Vaccination)$/i },
+    // The health timeline names its add CTA for the content state: "Add Health
+    // Record" when empty, "Add Event" once entries exist.
+    { view: 'health', trigger: /^Add (Health Record|Event)$/i },
     { view: 'training', trigger: /^Add (Training Session|First Session)$/i },
     // Pedigree has no generic "add ancestor" — Slice 3.5's grouped layout
     // gives each slot its own relationship-named trigger.

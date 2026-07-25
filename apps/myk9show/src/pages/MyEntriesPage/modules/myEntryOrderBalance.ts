@@ -130,17 +130,23 @@ export function buildOrderBalance(
       PAY_AT_SHOW_METHODS.has(source.paymentMethod ?? '')
   );
 
-  // Reconcile status from `eligible` PLUS any refunded row, even one whose
-  // entryStatus is terminal (a withdrawn entry commonly moves to
-  // CANCELLED/SCRATCHED while its paymentStatus becomes REFUNDED). Money
-  // that came back must stay visible — otherwise `eligible` silently drops
-  // that row and a remaining paid sibling wins, rendering "Paid" with an
-  // enabled receipt for an order that actually had a refund. Amount-due
-  // totals (`summary` above) are unaffected — they still run on the raw,
-  // unfiltered `sources` via `isCurrentSummaryEntry`.
+  // Reconcile status from `eligible` PLUS any row whose payment status is
+  // already a settled fact — paid, refunded, or partial-refund — regardless
+  // of entryStatus or whether the show is now in the past. A withdrawn class
+  // commonly moves to a terminal entryStatus (CANCELLED/SCRATCHED) while its
+  // paymentStatus becomes REFUNDED, and `isCurrentSummaryEntry` excludes
+  // EVERY row once the show has ended — so a plain "keep refunded rows"
+  // filter would itself drop a past paid sibling and misreport a
+  // partially-refunded order as fully REFUNDED. A row merely defaulted to
+  // PENDING with no real payment history (e.g. a rejected entry) is
+  // deliberately excluded here unless it's also `eligible` — it never had a
+  // settled status to reconcile. Amount-due totals (`summary` above) are
+  // unaffected — they still run on the raw, unfiltered `sources` via
+  // `isCurrentSummaryEntry`.
   const reconciliationSources = sources.filter(
     source =>
       isCurrentSummaryEntry(source, now) ||
+      PAID_STATUSES.includes(source.paymentStatus) ||
       source.paymentStatus === PaymentStatus.REFUNDED ||
       source.paymentStatus === PaymentStatus.PARTIAL_REFUND
   );

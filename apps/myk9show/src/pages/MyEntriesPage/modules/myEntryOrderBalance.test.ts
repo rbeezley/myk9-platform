@@ -106,6 +106,31 @@ describe('buildOrderBalance', () => {
 
     expect(balance!.paymentStatus).toBe(PaymentStatus.PARTIAL_REFUND);
   });
+
+  it('reconciles a past order with a paid class and a refunded class as PARTIAL_REFUND, not REFUNDED', () => {
+    // Once a show is in the past, isCurrentSummaryEntry excludes every row —
+    // reconciliation must still recognize the paid sibling as a settled fact,
+    // or the order reads as fully refunded and its receipt is suppressed.
+    const classes = [
+      makeClass({
+        id: 'c1',
+        entryStatus: EntryStatus.ACCEPTED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        fee: 30,
+      }),
+      makeClass({
+        id: 'c2',
+        entryStatus: EntryStatus.CANCELLED,
+        paymentStatus: PaymentStatus.REFUNDED,
+        fee: 20,
+      }),
+    ];
+    const ctx = makeCtx({ showDate: new Date('2026-08-01') });
+
+    const balance = buildOrderBalance(classes, ctx, NOW);
+
+    expect(balance!.paymentStatus).toBe(PaymentStatus.PARTIAL_REFUND);
+  });
 });
 
 describe('reconcileOrderPaymentStatus', () => {

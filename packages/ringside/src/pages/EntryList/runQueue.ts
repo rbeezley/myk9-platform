@@ -5,9 +5,11 @@
  * INTENT (user decision 2026-06-11, inherited from dogsAheadInList): the in-ring
  * dog is NOT part of the waiting queue. `pendingByRunOrder` therefore excludes
  * it, which is why "You're next" shows while a dog is still running — that is
- * how exhibitors think about the queue ("I'm next after this one"). Several
- * app-side helpers (utils/conflictDetection.ts, hooks/useNotificationMonitor.ts)
- * still count *from* the in-ring dog; they are the divergent ones, not this.
+ * how exhibitors think about the queue ("I'm next after this one"). The
+ * app-side helpers that once counted *from* the in-ring dog
+ * (utils/conflictDetection.ts, hooks/useNotificationMonitor.ts) now normalize
+ * through utils/showEntryRunQueue.ts onto this rule, so a push notification can
+ * never state a different number than the screen.
  *
  * Typed structurally rather than on ringside's `Entry` so at-show callers can
  * pass replicated rows (which carry breed/call name the scoresheet chips need)

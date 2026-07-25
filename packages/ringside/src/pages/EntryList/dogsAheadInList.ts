@@ -6,8 +6,9 @@
  * INTENT (user decision 2026-06-11): the in-ring dog is EXCLUDED from the
  * count — "You're next" shows while a dog is still in the ring, because that is
  * how exhibitors think about the queue ("I'm next after this one"). This
- * deliberately diverges from the legacy `computeDogsAhead` convention in
- * apps/myk9show/src/utils/dogsAhead.ts, which counted the in-ring dog.
+ * deliberately diverges from the legacy `computeDogsAhead` convention, which
+ * counted the in-ring dog; every app-side counterpart has since been
+ * consolidated onto this rule and the legacy helper deleted.
  *
  * The ordering rule itself now lives in ./runQueue — this module is the
  * exhibitor-facing "how far away am I" projection of it.

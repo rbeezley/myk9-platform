@@ -17,6 +17,12 @@ import {
   mapPaymentStatus,
   mapClassEntryStatus,
 } from '@/utils/entryManagementUtils';
+import {
+  mapEntryRowToBalanceSource,
+  summarizeEntryBalances,
+  type EntryBalanceRawRow,
+  type EntryBalanceSummary,
+} from '@/features/payments/entryBalanceSummary';
 import { parseShowDate } from './myEntriesStats.helpers';
 import { normalizeCheckInStatus } from './myEntriesUtils';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
@@ -24,6 +30,17 @@ import type { MyEntry, EntryClass } from './my-entries-types';
 
 interface UseMyEntriesDataReturn {
   entries: MyEntry[];
+  /**
+   * Amount-due summary computed from the same RAW, ungrouped per-class rows
+   * (via `mapEntryRowToBalanceSource` + `summarizeEntryBalances`) that My
+   * Payments uses — not from the grouped `entries` cards above. Grouping
+   * cards by order/dog (see `groupEntriesByOrder`) is lossy for money math:
+   * it only keeps the first row's `payment_status` per order, so a
+   * registration-less order whose class rows have different payment
+   * statuses would otherwise show a different amount due here than on My
+   * Payments. See `exhibitor-money-clarity` spec + `crossSurfaceAmountDue.test.ts`.
+   */
+  balanceSummary: EntryBalanceSummary;
   isLoading: boolean;
   isError: boolean;
   refreshing: boolean;
@@ -62,6 +79,9 @@ export function useMyEntriesData({
   const legacyPersonId = useCurrentUserPersonId();
   const personId = legacyPersonId ?? userWithRoles?.databaseUserId ?? null;
   const [entries, setEntries] = useState<MyEntry[]>([]);
+  const [balanceSummary, setBalanceSummary] = useState<EntryBalanceSummary>(() =>
+    summarizeEntryBalances([])
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -196,15 +216,22 @@ export function useMyEntriesData({
         return;
       }
 
-      const userEntries = groupEntriesByOrder(
-        (data as OwnEntryResultRow[]).map(entry => transformEntry(entry))
-      );
+      const rawRows = data as OwnEntryResultRow[];
+      const userEntries = groupEntriesByOrder(rawRows.map(entry => transformEntry(entry)));
       setEntries(userEntries);
+      // Money math runs on the same raw, ungrouped rows My Payments uses —
+      // see the `balanceSummary` doc comment above.
+      setBalanceSummary(
+        summarizeEntryBalances(
+          rawRows.map(row => mapEntryRowToBalanceSource(row as EntryBalanceRawRow))
+        )
+      );
       setIsError(false);
     } catch (error) {
       logger.error('Failed to load entries:', 'pages', {}, error as Error);
       setIsError(true);
       setEntries([]);
+      setBalanceSummary(summarizeEntryBalances([]));
     } finally {
       setIsLoading(false);
     }
@@ -327,6 +354,7 @@ export function useMyEntriesData({
 
   return {
     entries,
+    balanceSummary,
     isLoading,
     isError,
     refreshing,

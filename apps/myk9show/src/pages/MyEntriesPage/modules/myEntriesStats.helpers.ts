@@ -99,3 +99,24 @@ export function computeMyEntriesShowDateStats(
     upcomingEntries,
   };
 }
+
+/**
+ * Upcoming (non-past) class count per dog, keyed by `dogId`.
+ *
+ * An order can span several dogs, so each dog's own classes are attributed to
+ * its own `dogId` rather than lumped onto the order's lead dog — this is the
+ * count `DogStrip` renders, and `exhibitor-count-integrity` requires it to
+ * match the dog's own activity view.
+ */
+export function countUpcomingClassesByDog(
+  entries: MyEntry[],
+  now: Date = new Date()
+): Record<string, number> {
+  return entries.reduce<Record<string, number>>((counts, entry) => {
+    if (isPastShowEntry(entry, now)) return counts;
+    for (const dog of entry.dogs) {
+      counts[dog.dogId] = (counts[dog.dogId] ?? 0) + dog.classes.length;
+    }
+    return counts;
+  }, {});
+}

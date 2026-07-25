@@ -1,4 +1,6 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { mapEntryStatus, mapPaymentStatus } from '@/utils/entryManagementUtils';
+import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import { buildFinishPaymentHref } from './finishPaymentHref';
 import { getEntryPaymentPrompt } from './entryPaymentPrompt';
 
@@ -36,6 +38,57 @@ export interface EntryBalanceSummary {
   onlineDueCents: number;
   payAtShowDueCents: number;
   onlineShowBalances: EntryBalanceShowSummary[];
+}
+
+/**
+ * Raw per-class-per-dog row shape returned by `getUserEntries` — the single
+ * query both My Shows and My Payments load from. Kept intentionally loose
+ * (`Record<string, unknown>` base) since callers only need the fields below;
+ * both surfaces cast their query rows to this shape.
+ */
+export type EntryBalanceRawRow = Record<string, unknown> & {
+  id: string;
+  show_id?: string | null;
+  entry_status?: string | null;
+  payment_status?: string | null;
+  payment_method?: string | null;
+  entry_fee?: number | null;
+  show?: {
+    id?: string | null;
+    name?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
+  } | null;
+  registration?: {
+    payment_status?: string | null;
+  } | null;
+};
+
+/**
+ * Canonical raw-row → `EntryBalanceSource` mapping (exhibitor-money-clarity).
+ * My Shows and My Payments must both derive their amount-due figure from this
+ * SAME mapping over the SAME ungrouped per-class rows, or they can disagree
+ * whenever a registration-less (secretary/mail-in) order has per-class rows
+ * with different `payment_status` values — see
+ * `__tests__/crossSurfaceAmountDue.test.ts`. Grouping rows into one order/dog
+ * card for *display* (see `groupEntriesByOrder`) is fine, but money math must
+ * run on the raw rows, not a lossy "first row wins" grouped summary.
+ */
+export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanceSource {
+  const show = row.show;
+  const paymentStatus = row.registration?.payment_status ?? row.payment_status ?? 'pending';
+
+  return {
+    id: row.id,
+    showId: show?.id ?? row.show_id ?? '',
+    showName: show?.name ?? null,
+    showDate: parseShowDate(show?.start_date) ?? new Date(),
+    showEndDate: parseShowDate(show?.end_date),
+    entryStatus: mapEntryStatus(row.entry_status ?? 'pending'),
+    paymentStatus: mapPaymentStatus(paymentStatus),
+    paymentMethod: row.payment_method ?? null,
+    totalFee: row.entry_fee ?? 0,
+  };
 }
 
 function startOfLocalDay(date: Date): Date {

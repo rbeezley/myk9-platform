@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useElementWidth } from '@/hooks/useElementWidth';
 import { useMyPayments } from '@/features/payments/useMyPayments';
 import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceSummary';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
@@ -55,6 +56,49 @@ function statusBadge(status: string) {
   return <Badge variant="outline">{paymentStatusLabel(status)}</Badge>;
 }
 
+/**
+ * The row's action affordance — retry link, receipt link, or a dash. Shared
+ * between the desktop table cell and the mobile card summary so the two
+ * layouts never drift on what a row can do.
+ */
+function PaymentActionContent({ row }: { row: PaymentDisplayRow }) {
+  if (isRetryablePaymentStatus(row.status) && row.showId && row.entryIds.length > 0) {
+    // Failed/cancelled: deep-link straight to the cart-recovery flow,
+    // scoped to this order's show + entries, so the exhibitor can retry the
+    // exact payment rather than rebuilding it from scratch under My Shows.
+    return (
+      <Link
+        to={buildFinishPaymentHref(row.showId, row.entryIds)}
+        className="inline-flex min-h-11 items-center gap-1.5 text-sm text-primary hover:underline focus-visible:underline"
+      >
+        <CreditCard className="h-4 w-4 shrink-0" aria-hidden="true" />
+        Finish payment
+      </Link>
+    );
+  }
+
+  if (row.entryIds.length > 0 && !isRefundedPaymentStatus(row.status)) {
+    // Settled orders: the per-entry printable receipt lives on My Shows.
+    // My Entries has no inbound entry/show filter, so this is a plain link
+    // to that page (where the per-entry printable receipt lives), not a
+    // row-scoped filter. The accessible name names the show so each link
+    // is distinguishable when tabbing through the column.
+    return (
+      <Link
+        to="/exhibitor/entries"
+        aria-label={`Receipt for ${row.showName ?? 'this payment'} under My Shows`}
+        className="inline-flex min-h-11 items-center gap-1.5 text-sm text-primary hover:underline focus-visible:underline"
+      >
+        <ReceiptIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+        Receipt
+      </Link>
+    );
+  }
+
+  // Match the link's min height so rows stay vertically even.
+  return <span className="inline-flex min-h-11 items-center text-muted-foreground">{EMPTY}</span>;
+}
+
 function PaymentRow({ row }: { row: PaymentDisplayRow }) {
   const showName = row.showName ?? EMPTY;
   const dateLabel = formatPaymentDate(row.date);
@@ -72,37 +116,65 @@ function PaymentRow({ row }: { row: PaymentDisplayRow }) {
       </TableCell>
       <TableCell>{statusBadge(row.status)}</TableCell>
       <TableCell>
-        {isRetryablePaymentStatus(row.status) && row.showId && row.entryIds.length > 0 ? (
-          // Failed/cancelled: deep-link straight to the cart-recovery flow,
-          // scoped to this order's show + entries, so the exhibitor can retry the
-          // exact payment rather than rebuilding it from scratch under My Shows.
-          <Link
-            to={buildFinishPaymentHref(row.showId, row.entryIds)}
-            className="inline-flex min-h-11 items-center gap-1.5 text-sm text-primary hover:underline focus-visible:underline"
-          >
-            <CreditCard className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Finish payment
-          </Link>
-        ) : row.entryIds.length > 0 && !isRefundedPaymentStatus(row.status) ? (
-          // Settled orders: the per-entry printable receipt lives on My Shows.
-          // My Entries has no inbound entry/show filter, so this is a plain link
-          // to that page (where the per-entry printable receipt lives), not a
-          // row-scoped filter. The accessible name names the show so each link
-          // is distinguishable when tabbing through the column.
-          <Link
-            to="/exhibitor/entries"
-            aria-label={`Receipt for ${row.showName ?? 'this payment'} under My Shows`}
-            className="inline-flex min-h-11 items-center gap-1.5 text-sm text-primary hover:underline focus-visible:underline"
-          >
-            <ReceiptIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Receipt
-          </Link>
-        ) : (
-          // Match the link's min height so rows stay vertically even.
-          <span className="inline-flex min-h-11 items-center text-muted-foreground">{EMPTY}</span>
-        )}
+        <PaymentActionContent row={row} />
       </TableCell>
     </TableRow>
+  );
+}
+
+/**
+ * Phone-width disclosure for a single payment. The desktop table hides
+ * amount/status/receipt past the viewport edge on a 390px phone (MYK9-71
+ * elderly/novice audit finding) — this stacks the same three facts as
+ * labeled rows instead, so nothing that already renders in `PaymentRow` is
+ * duplicated, only reshaped.
+ */
+function PaymentCard({ row }: { row: PaymentDisplayRow }) {
+  const showName = row.showName ?? EMPTY;
+  const dateLabel = formatPaymentDate(row.date);
+  return (
+    <div
+      role="group"
+      aria-label={`Payment for ${showName} on ${dateLabel}`}
+      className="space-y-2 border-b border-border/60 px-4 py-4 last:border-b-0"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-medium" title={showName}>
+            {showName}
+          </p>
+          <p className="truncate text-sm text-muted-foreground" title={row.description}>
+            {row.description}
+          </p>
+        </div>
+        <p className="whitespace-nowrap text-sm tabular-nums text-muted-foreground">{dateLabel}</p>
+      </div>
+      <dl className="flex items-center justify-between gap-3">
+        <div>
+          <dt className="text-xs text-muted-foreground">Amount</dt>
+          <dd
+            className="text-lg font-semibold tabular-nums"
+            aria-label={`Amount: ${formatPaymentCents(row.amountCents, row.currency)}`}
+          >
+            {formatPaymentCents(row.amountCents, row.currency)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Status</dt>
+          <dd aria-label={`Status: ${paymentStatusLabel(row.status)}`}>
+            {statusBadge(row.status)}
+          </dd>
+        </div>
+      </dl>
+      <div>
+        <span id={`payment-receipt-label-${row.id}`} className="text-xs text-muted-foreground">
+          Receipt
+        </span>
+        <div aria-labelledby={`payment-receipt-label-${row.id}`}>
+          <PaymentActionContent row={row} />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -262,6 +334,56 @@ function AmountDueSection({
   );
 }
 
+/** Below this measured container width the desktop table's Description and
+ * Date columns no longer fit alongside Amount/Status/Receipt, so those three
+ * facts are reshaped into stacked cards instead. */
+const MOBILE_BREAKPOINT = 640;
+
+/**
+ * Payment history, container-width aware. Desktop keeps the existing table;
+ * a measured-narrow container (phones) reshapes the same rows into labeled
+ * cards so amount/status/receipt stay discoverable without a horizontal
+ * scroll or hidden columns. `PaymentRow` and `PaymentCard` share the same
+ * action logic (`PaymentActionContent`) so nothing is duplicated, only
+ * relaid out.
+ */
+function PaymentsHistoryList({ rows }: { rows: PaymentDisplayRow[] }) {
+  const { ref, width } = useElementWidth<HTMLDivElement>();
+  const isNarrow = width !== null && width < MOBILE_BREAKPOINT;
+
+  return (
+    <Card>
+      <CardContent ref={ref} className="p-0">
+        {isNarrow ? (
+          <div>
+            {rows.map(row => (
+              <PaymentCard key={row.id} row={row} />
+            ))}
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Show</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Receipt</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map(row => (
+                <PaymentRow key={row.id} row={row} />
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ExhibitorPaymentsPage() {
   const { data: payments, isLoading, isError } = useMyPayments();
   const {
@@ -314,27 +436,7 @@ export default function ExhibitorPaymentsPage() {
       ) : (
         <>
           <PaymentsSummary rows={paymentRows} />
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Show</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Receipt</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paymentRows.map(row => (
-                    <PaymentRow key={row.id} row={row} />
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <PaymentsHistoryList rows={paymentRows} />
         </>
       )}
     </div>

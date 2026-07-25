@@ -17,6 +17,8 @@
  * so they are covered assertion-first in systemHealthChecks.test.ts.
  */
 
+import { anonGrantsCheck } from './anonGrantChecks.ts';
+
 export type HealthStatus = 'ok' | 'warn' | 'fail';
 
 /** One check as stored in the snapshot's `checks` JSONB (snake_case keys — the
@@ -61,6 +63,7 @@ export interface RawProbeFacts {
   migration_count?: unknown;
   cron_jobs?: unknown;
   ringside_conflict_counter?: unknown;
+  anon_grants?: unknown;
 }
 
 export interface BuildSnapshotOptions {
@@ -387,6 +390,7 @@ export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): Healt
     backgroundJobsCheck(jobs, opts.now, staleAfterMs, probedAt),
     migrationsCheck(f, probedAt),
     ringsideConflictsCheck(f, opts.previousConflictCounter, probedAt),
+    anonGrantsCheck(f.anon_grants, probedAt),
   ];
 
   return {

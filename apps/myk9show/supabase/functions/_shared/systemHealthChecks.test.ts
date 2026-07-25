@@ -30,12 +30,68 @@ const job = (over: Partial<RawCronJob> = {}): RawCronJob => ({
 const payoutJob = (over: Partial<RawCronJob> = {}): RawCronJob =>
   job({ jobname: PAYOUT_CRON_JOB, dispatches_http: true, ...over });
 
+/**
+ * A healthy `anon_grants` block, transcribed from the APPLIED staging ACLs after
+ * MYK9-93 (migrations 20260725150000–180000). Table-level grants for the 21
+ * allowlisted relations plus the release-gate view; column-level grants for the
+ * three embed/allowlist tables; the one inert supabase_admin default that cannot be
+ * revoked on a hosted project.
+ */
+const anonGrants = (over: Record<string, unknown> = {}) => ({
+  tables: [
+    ...[
+      'achievements',
+      'armbands',
+      'class_visibility_overrides',
+      'classes',
+      'clubs',
+      'judge_assignments',
+      'rule_organizations',
+      'rule_sports',
+      'rulebooks',
+      'rules',
+      'show_templates',
+      'show_visibility_settings',
+      'shows',
+      'sport_class_rules',
+      'sport_templates',
+      'sport_titles',
+      'template_fields',
+      'trial_visibility_overrides',
+      'trials',
+      'user_guide',
+    ].map(name => ({ name, kind: 'r', privs: 'r' })),
+    { name: 'platform_waitlist', kind: 'r', privs: 'a' },
+    { name: 'view_public_entry_results', kind: 'v', privs: 'r' },
+  ],
+  columns: [
+    ...['id', 'name', 'call_name', 'breed', 'image_url'].map(column => ({
+      name: 'dogs',
+      column,
+      privs: 'r',
+    })),
+    ...['id', 'first_name', 'last_name', 'email'].map(column => ({
+      name: 'people',
+      column,
+      privs: 'r',
+    })),
+    ...['id', 'armband', 'run_order', 'is_in_ring', 'is_scored'].map(column => ({
+      name: 'entries',
+      column,
+      privs: 'r',
+    })),
+  ],
+  defaults: [{ grantor: 'supabase_admin', objtype: 'r', privs: 'arwdDxtm' }],
+  ...over,
+});
+
 const facts = (over: Record<string, unknown> = {}) => ({
   probed_at: iso(0),
   latest_migration: '20260704140000',
   migration_count: 331,
   cron_jobs: [payoutJob()],
   ringside_conflict_counter: 0,
+  anon_grants: anonGrants(),
   ...over,
 });
 
@@ -67,6 +123,7 @@ describe('buildSnapshot — contract shape', () => {
       'background_jobs',
       'migrations',
       'ringside_conflicts',
+      'anon_grants',
     ]);
     for (const c of snap.checks) {
       expect(typeof c.checked_at).toBe('string');
@@ -414,5 +471,82 @@ describe('extractConflictCounter', () => {
     expect(extractConflictCounter([])).toBeNull();
     expect(extractConflictCounter([null, 3, { key: 'other' }])).toBeNull();
     expect(extractConflictCounter([{ key: 'ringside_conflicts', counter_value: '42' }])).toBeNull();
+  });
+});
+
+describe('anon_grants check (MYK9-93 drift against applied ACLs)', () => {
+  it('is ok on the post-MYK9-93 baseline', () => {
+    const check = find(buildSnapshot(facts(), { now: NOW }), 'anon_grants');
+    expect(check.status).toBe('ok');
+    expect(check.detail).toContain('22 table grants (1 write)');
+    expect(check.detail).toContain('14 column grants');
+  });
+
+  it('fails when a table not on the allowlist gains an anon grant (the dog_favorites case)', () => {
+    const grants = anonGrants();
+    grants.tables.push({ name: 'dog_favorites', kind: 'r', privs: 'arwdDxtm' });
+    const check = find(buildSnapshot(facts({ anon_grants: grants }), { now: NOW }), 'anon_grants');
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain('dog_favorites');
+    expect(check.detail).toContain('not on the anon allowlist');
+  });
+
+  it('fails when an allowlisted table gains a write privilege', () => {
+    const grants = anonGrants();
+    grants.tables = grants.tables.map(t => (t.name === 'shows' ? { ...t, privs: 'rw' } : t));
+    const check = find(buildSnapshot(facts({ anon_grants: grants }), { now: NOW }), 'anon_grants');
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain("shows has 'rw', expected 'r'");
+  });
+
+  it('fails when entries gains a TABLE-level grant — the regression MYK9-93 shipped', () => {
+    const grants = anonGrants();
+    grants.tables.push({ name: 'entries', kind: 'r', privs: 'r' });
+    const check = find(buildSnapshot(facts({ anon_grants: grants }), { now: NOW }), 'anon_grants');
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain('release-gate allowlist is bypassed');
+  });
+
+  it('fails when a column grant appears on an unexpected table', () => {
+    const grants = anonGrants();
+    grants.columns.push({ name: 'dog_registrations', column: 'registration_number', privs: 'r' });
+    const check = find(buildSnapshot(facts({ anon_grants: grants }), { now: NOW }), 'anon_grants');
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain('dog_registrations.registration_number');
+  });
+
+  it('fails when a revoked default privilege comes back under another grantor', () => {
+    const grants = anonGrants();
+    grants.defaults.push({ grantor: 'postgres', objtype: 'r', privs: 'arwdDxtm' });
+    const check = find(buildSnapshot(facts({ anon_grants: grants }), { now: NOW }), 'anon_grants');
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain('restored by postgres');
+  });
+
+  it('tolerates the inert supabase_admin default without flagging it', () => {
+    const check = find(buildSnapshot(facts(), { now: NOW }), 'anon_grants');
+    expect(check.status).toBe('ok');
+    expect(check.detail).not.toContain('supabase_admin');
+  });
+
+  it('warns (not fails) when the probe predates the fact — function not yet redeployed', () => {
+    const check = find(buildSnapshot(facts({ anon_grants: undefined }), { now: NOW }), 'anon_grants');
+    expect(check.status).toBe('warn');
+    expect(check.detail).toContain('no anon_grants facts');
+  });
+
+  it('never throws on malformed rows; degrades to a visible fail', () => {
+    for (const bad of [{ tables: 'nope' }, { tables: [null, 42] }, { columns: [{}] }]) {
+      const snap = buildSnapshot(facts({ anon_grants: bad }), { now: NOW });
+      expect(['ok', 'warn', 'fail']).toContain(find(snap, 'anon_grants').status);
+    }
+    const snap = buildSnapshot(facts({ anon_grants: { tables: [null] } }), { now: NOW });
+    expect(find(snap, 'anon_grants').status).toBe('fail');
+  });
+
+  it('drags overall_status to fail so /admin/health goes red', () => {
+    const grants = anonGrants();
+    grants.tables.push({ name: 'people', kind: 'r', privs: 'r' });
+    expect(buildSnapshot(facts({ anon_grants: grants }), { now: NOW }).overall_status).toBe('fail');
   });
 });

@@ -72,7 +72,7 @@
 - [ ] 7.3 Re-walk the elderly/low-tech exhibitor journey at 390x844, 834x1112, tablet landscape, and 1280x800 in light and dark modes for free, complimentary Premium, revoked, expired, paid, and trial states.
 - [ ] 7.4 Exercise all five Premium capabilities through invalid input, valid save, edit, delete/undo, empty, loading, error/retry, long content, and deep-link/refresh states; record screenshots and console/network results.
 - [ ] 7.5 Verify My Shows, My Payments, Dog Activity, Subscription, and Pricing using one seeded account and record a reconciliation table for amounts, counts, entitlement source, and available action.
-- [ ] 7.6 Run an automated accessibility pass plus keyboard-only walkthrough over Dog Details, all Premium forms, Payments mobile disclosure, Subscription/Pricing, and the admin grant control; resolve serious/critical findings.
+- [x] 7.6 Run an automated accessibility pass plus keyboard-only walkthrough over Dog Details, all Premium forms, Payments mobile disclosure, Subscription/Pricing, and the admin grant control; resolve serious/critical findings.
 - [ ] 7.7 Conduct one visible-label-only walkthrough with an elderly or low-tech test user, record confusion and completion evidence, and open follow-up issues for non-blocking findings rather than silently expanding this change.
 - [ ] 7.8 Confirm there are no new routes, duplicate dashboards, fake metrics, placeholder links, stale locks, horizontal clipping, console errors, or unhandled mutation failures in scope.
 - [ ] 7.9 Review structured entitlement logs and the admin grant-history query for PII-safe visibility of grants, revocations, denials, fallback mismatches, and expiry transitions; add the operational check to the runbook.

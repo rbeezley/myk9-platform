@@ -163,7 +163,10 @@ export const ComplimentaryPremiumSection: React.FC<ComplimentaryPremiumSectionPr
   };
 
   return (
-    <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
+    <Card
+      data-testid="complimentary-premium-section"
+      className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5"
+    >
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Gift className="h-5 w-5" />

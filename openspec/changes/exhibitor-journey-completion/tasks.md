@@ -74,9 +74,9 @@
 - [x] 7.5 Verify My Shows, My Payments, Dog Activity, Subscription, and Pricing using one seeded account and record a reconciliation table for amounts, counts, entitlement source, and available action.
 - [x] 7.6 Run an automated accessibility pass plus keyboard-only walkthrough over Dog Details, all Premium forms, Payments mobile disclosure, Subscription/Pricing, and the admin grant control; resolve serious/critical findings.
 - [ ] 7.7 Conduct one visible-label-only walkthrough with an elderly or low-tech test user, record confusion and completion evidence, and open follow-up issues for non-blocking findings rather than silently expanding this change.
-- [ ] 7.8 Confirm there are no new routes, duplicate dashboards, fake metrics, placeholder links, stale locks, horizontal clipping, console errors, or unhandled mutation failures in scope.
-- [ ] 7.9 Review structured entitlement logs and the admin grant-history query for PII-safe visibility of grants, revocations, denials, fallback mismatches, and expiry transitions; add the operational check to the runbook.
-- [ ] 7.10 Regress the previously audited but not repeated paths: dog delete/refetch, exhibitor check-in vocabulary, stale-cart recovery, and Developer-menu visibility; record pass evidence or open a blocking follow-up before calling the journey complete.
+- [x] 7.8 Confirm there are no new routes, duplicate dashboards, fake metrics, placeholder links, stale locks, horizontal clipping, console errors, or unhandled mutation failures in scope.
+- [x] 7.9 Review structured entitlement logs and the admin grant-history query for PII-safe visibility of grants, revocations, denials, fallback mismatches, and expiry transitions; add the operational check to the runbook.
+- [x] 7.10 Regress the previously audited but not repeated paths: dog delete/refetch, exhibitor check-in vocabulary, stale-cart recovery, and Developer-menu visibility; record pass evidence or open a blocking follow-up before calling the journey complete.
 
 ## 8. Compatibility Cleanup and Rollback Readiness
 

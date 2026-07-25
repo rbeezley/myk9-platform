@@ -34,13 +34,50 @@ const SEED_DOG_ID = 'dededede-0000-0000-0000-000000000041';
 /** The demo exhibitor's person row — the grant control's subject. */
 const SEED_PERSON_ID = '6fd402f4-88fb-447d-876e-7c6ae3c429d1';
 
-/** Surfaces in 7.6's scope that a non-entitled exhibitor can reach. */
+/**
+ * Every exhibitor surface 7.6 names, including each Records view in its own
+ * right. Scanning only the default Dog Details Overview would leave Health,
+ * Training and Pedigree unscanned as PAGES — the Premium-form cases below open
+ * their dialogs, but a dialog scan is scoped to the dialog and says nothing
+ * about the page behind it.
+ *
+ * `ready` is the surface's own content, not the app shell. `waitForAppShell`
+ * only proves the route chunk mounted; a slow query can leave a skeleton or an
+ * error state on screen, and axe would happily scan that and report it clean.
+ */
 const SURFACES = [
-  { name: 'Dog Details', path: `/dogs/${SEED_DOG_ID}` },
-  { name: 'My Payments', path: '/exhibitor/payments' },
-  { name: 'Subscription', path: '/subscription' },
-  { name: 'Pricing', path: '/pricing-page' },
+  { name: 'Dog Details', path: `/dogs/${SEED_DOG_ID}`, ready: /Willow/ },
+  {
+    name: 'Dog Health',
+    path: `/dogs/${SEED_DOG_ID}?section=records&view=health`,
+    ready: /Add (Health Record|Event)/,
+  },
+  {
+    name: 'Dog Training',
+    path: `/dogs/${SEED_DOG_ID}?section=records&view=training`,
+    ready: /Add (Training Session|First Session)/,
+  },
+  {
+    name: 'Dog Pedigree',
+    path: `/dogs/${SEED_DOG_ID}?section=records&view=pedigree`,
+    ready: /Add (Sire|Dam)/,
+  },
+  { name: 'My Payments', path: '/exhibitor/payments', ready: /Amount due|paid up/ },
+  { name: 'Subscription', path: '/subscription', ready: /free plan|Premium/ },
+  { name: 'Pricing', path: '/pricing-page', ready: /Subscribe Now|You have/ },
 ] as const;
+
+/**
+ * Waits for the SURFACE's own content, not merely the route shell. Without
+ * this a slow data request lets axe scan a skeleton — and a skeleton has no
+ * violations, so the scan reports clean while proving nothing.
+ */
+async function waitForSurface(page: Page, ready: RegExp, label: string) {
+  await expect(
+    page.locator('body'),
+    `${label}: surface content never rendered — scan would have hit a skeleton`
+  ).toHaveText(ready, { timeout: 25000 });
+}
 
 async function waitForAppShell(page: Page) {
   await page.waitForLoadState('domcontentloaded');
@@ -105,6 +142,7 @@ test.describe('Slice 5: accessibility', () => {
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto(surface.path);
       await waitForAppShell(page);
+      await waitForSurface(page, surface.ready, surface.name);
       await assertNoBlockingViolations(page, surface.name);
     });
   }
@@ -208,8 +246,93 @@ test.describe('Slice 5: accessibility', () => {
   });
 });
 
+/**
+ * Walks tab order and returns the number of distinct stops reached.
+ *
+ * Two things here are deliberate, both because the obvious versions produce
+ * false passes:
+ *
+ *  1. Revisits are detected by marking the ELEMENT (a data attribute), not by
+ *     hashing its tag and label. Repeated row actions — "Remove", "Edit" — share
+ *     a label, so a label-keyed set treats the second one as a completed cycle
+ *     and stops walking a page it has barely entered.
+ *  2. A focus indicator is confirmed by COMPARING focused against unfocused
+ *     styling on the same element. Accepting any non-empty box-shadow passes
+ *     controls that carry `shadow-sm` while unfocused, so deleting their focus
+ *     ring entirely would leave the assertion green.
+ */
+async function walkTabOrder(page: Page, label: string, maxStops = 40): Promise<number> {
+  let stops = 0;
+
+  for (let i = 0; i < maxStops; i += 1) {
+    await page.keyboard.press('Tab');
+
+    const info = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el || el === document.body) return null;
+      if (el.dataset.kbSeen === '1') return { revisited: true } as const;
+      el.dataset.kbSeen = '1';
+
+      const focused = window.getComputedStyle(el);
+      const focusedStyle = {
+        outlineStyle: focused.outlineStyle,
+        outlineWidth: focused.outlineWidth,
+        outlineColor: focused.outlineColor,
+        boxShadow: focused.boxShadow,
+        backgroundColor: focused.backgroundColor,
+      };
+
+      // Measure the same element without focus, then restore it, so the
+      // comparison isolates what focus actually changes.
+      el.blur();
+      const blurred = window.getComputedStyle(el);
+      const blurredStyle = {
+        outlineStyle: blurred.outlineStyle,
+        outlineWidth: blurred.outlineWidth,
+        boxShadow: blurred.boxShadow,
+      };
+      el.focus();
+
+      return {
+        revisited: false as const,
+        tag: el.tagName.toLowerCase(),
+        name: el.getAttribute('aria-label') ?? el.textContent?.slice(0, 40) ?? '',
+        focusedStyle,
+        blurredStyle,
+      };
+    });
+
+    if (!info) continue;
+    if (info.revisited) break;
+
+    // A ring can be drawn by width, by colour on a constant-width transparent
+    // outline, by box-shadow (Tailwind's focus-visible:ring-*), or by a
+    // background change. Any DIFFERENCE between focused and unfocused counts;
+    // sameness in all of them means focus is invisible.
+    const gainedOutline =
+      info.focusedStyle.outlineStyle !== 'none' &&
+      info.focusedStyle.outlineWidth !== '0px' &&
+      (info.focusedStyle.outlineWidth !== info.blurredStyle.outlineWidth ||
+        info.focusedStyle.outlineColor !== info.blurredStyle.outlineColor);
+    const gainedShadow = info.focusedStyle.boxShadow !== info.blurredStyle.boxShadow;
+    const gainedBackground =
+      info.focusedStyle.backgroundColor !== info.blurredStyle.backgroundColor;
+
+    expect(
+      gainedOutline || gainedShadow || gainedBackground,
+      `${label}: focusing <${info.tag}> "${info.name}" changed nothing visually ` +
+        `(outline ${info.blurredStyle.outlineWidth} -> ${info.focusedStyle.outlineWidth}, ` +
+        `shadow unchanged: ${info.focusedStyle.boxShadow === info.blurredStyle.boxShadow})`
+    ).toBe(true);
+
+    stops += 1;
+  }
+
+  return stops;
+}
+
 test.describe('Slice 5: keyboard-only walkthrough', () => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
 
   for (const surface of SURFACES) {
     test(`${surface.name} is reachable and focus stays visible by keyboard`, async ({ page }) => {
@@ -217,58 +340,44 @@ test.describe('Slice 5: keyboard-only walkthrough', () => {
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto(surface.path);
       await waitForAppShell(page);
+      await waitForSurface(page, surface.ready, surface.name);
 
-      const seen = new Set<string>();
-      let cycled = false;
+      const stops = await walkTabOrder(page, surface.name);
 
-      // Walk a bounded number of stops. Every stop must land on a real
-      // interactive element that carries a visible focus indicator.
-      for (let i = 0; i < 40; i += 1) {
-        await page.keyboard.press('Tab');
-        const info = await page.evaluate(() => {
-          const el = document.activeElement as HTMLElement | null;
-          if (!el || el === document.body) return null;
-          const style = window.getComputedStyle(el);
-          return {
-            tag: el.tagName.toLowerCase(),
-            // Identity must NOT include the tab index, or every stop looks
-            // unique and the revisit check below can never fire.
-            key: `${el.tagName}:${el.getAttribute('aria-label') ?? el.textContent?.slice(0, 24) ?? ''}`,
-            outline: style.outlineStyle,
-            outlineWidth: style.outlineWidth,
-            boxShadow: style.boxShadow,
-            disabled: (el as HTMLButtonElement).disabled === true,
-          };
-        });
-
-        if (!info) continue;
-        // Revisiting a stop means tab order wrapped — that is normal, and the
-        // point at which the cycle is fully enumerated. Stop walking.
-        if (seen.has(info.key)) {
-          cycled = true;
-          break;
-        }
-        seen.add(info.key);
-
-        // A focused control must be distinguishable. Base UI focus rings land
-        // as either an outline or a ring-style box-shadow depending on the
-        // primitive, so accept either.
-        const hasIndicator =
-          (info.outline !== 'none' && info.outlineWidth !== '0px') ||
-          (info.boxShadow !== 'none' && info.boxShadow !== '');
-        expect(
-          hasIndicator,
-          `${surface.name}: focused <${info.tag}> has no visible focus indicator`
-        ).toBe(true);
-      }
-
-      // No dialog is open on these routes, so a cycle of only a couple of
-      // stops means focus is penned in — a trap or a broken tab order — rather
-      // than a legitimately short page. Sign-in alone exposes far more.
+      // No dialog is open on these routes, so a cycle of only a couple of stops
+      // means focus is penned in — a trap or broken tab order — rather than a
+      // legitimately short page. The signed-in shell alone exposes more.
       expect(
-        seen.size,
-        `${surface.name} exposed only ${seen.size} keyboard stops${cycled ? ' before wrapping' : ''} — focus appears penned in`
+        stops,
+        `${surface.name} exposed only ${stops} keyboard stops — focus appears penned in`
       ).toBeGreaterThan(5);
     });
   }
+
+  /** 7.6 names the Payments mobile layout specifically, not just its desktop form. */
+  test('My Payments is keyboard operable at 390px', async ({ page }) => {
+    await signInAsTestUser(page, 'DEMO_EXHIBITOR');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/exhibitor/payments');
+    await waitForAppShell(page);
+    await waitForSurface(page, /Amount due|paid up/, 'My Payments (390px)');
+
+    const stops = await walkTabOrder(page, 'My Payments (390px)');
+    expect(stops, `My Payments (390px) exposed only ${stops} keyboard stops`).toBeGreaterThan(3);
+  });
+
+  /** The admin grant control is a required 7.6 surface for keyboard too. */
+  test('admin grant control is keyboard operable', async ({ page }) => {
+    await signInAsTestUser(page, 'SITE_ADMIN');
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(`/people/${SEED_PERSON_ID}`);
+    await waitForAppShell(page);
+    await page.getByRole('button', { name: /^edit/i }).first().click();
+    await expect(
+      page.getByPlaceholder(/Why is this user receiving complimentary Premium\?/i)
+    ).toBeVisible({ timeout: 20000 });
+
+    const stops = await walkTabOrder(page, 'Admin grant control');
+    expect(stops, `Admin grant control exposed only ${stops} keyboard stops`).toBeGreaterThan(3);
+  });
 });

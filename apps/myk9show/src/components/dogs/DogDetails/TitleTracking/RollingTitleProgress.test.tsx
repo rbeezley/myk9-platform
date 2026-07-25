@@ -179,10 +179,27 @@ describe('RollingTitleProgress', () => {
     expect(screen.getByText('Interior Novice')).toBeInTheDocument();
   });
 
-  it('renders correct pip count accessible label', () => {
+  /**
+   * The pips are decorative and the visible "2/3 Qs" text is what conveys the
+   * count to everyone, sighted or not.
+   *
+   * This test previously asserted `getByLabelText('2 of 3 qualifying runs')`.
+   * That passed while the markup was actually inaccessible: `aria-label` on a
+   * role-less <span> is PROHIBITED and dropped by assistive tech, but
+   * testing-library matches the attribute regardless of role — so the test
+   * pinned the attribute's presence, not its effect. axe caught it; the unit
+   * test could not. Labelling the pips also made every row announce its count
+   * twice, once from the label and once from the adjacent text.
+   */
+  it('conveys the pip count through visible text, with the pips decorative', () => {
     mockTitleProgress({ sport1: [makeTrack({ earnedLegs: 2, requiredLegs: 3 })] });
-    render(<RollingTitleProgress dogId="dog-1" />);
-    expect(screen.getByLabelText('2 of 3 qualifying runs')).toBeInTheDocument();
+    const { container } = render(<RollingTitleProgress dogId="dog-1" />);
+
+    expect(screen.getByText('2/3 Qs')).toBeInTheDocument();
+    expect(screen.queryByLabelText('2 of 3 qualifying runs')).not.toBeInTheDocument();
+
+    const pipGroup = container.querySelector('span[aria-hidden]');
+    expect(pipGroup, 'pip group should be hidden from assistive tech').not.toBeNull();
   });
 
   it('falls back to fullName as row label when legs have no element/level', () => {

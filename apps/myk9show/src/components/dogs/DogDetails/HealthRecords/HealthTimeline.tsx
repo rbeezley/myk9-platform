@@ -307,6 +307,7 @@ export function HealthTimeline({
                   value={filterType}
                   onChange={e => setFilterType(e.target.value)}
                   className={cn('px-3 py-2 border rounded-md text-sm', isNarrow && 'w-full')}
+                  aria-label="Filter by record type"
                 >
                   <option value="all">All Types</option>
                   {Object.entries(eventTypeConfig).map(([key, config]) => (

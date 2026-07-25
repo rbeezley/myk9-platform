@@ -324,8 +324,8 @@ async function walkTabOrder(page: Page, label: string, maxStops = 40): Promise<n
     //
     // So this asserts the weaker, honest property: a focused control renders
     // SOME outline or shadow. Proving the ring appears BECAUSE of focus needs a
-    // different technique — visual diffing, or axe's own focus rules — and is
-    // tracked as a follow-up rather than faked here.
+    // different technique — visual diffing, or tabbing away instead of calling
+    // blur() — and is tracked in MYK9-95 rather than faked here.
     const hasIndicator =
       (info.focusedStyle.outlineStyle !== 'none' && info.focusedStyle.outlineWidth !== '0px') ||
       (info.focusedStyle.boxShadow !== 'none' && info.focusedStyle.boxShadow !== '');

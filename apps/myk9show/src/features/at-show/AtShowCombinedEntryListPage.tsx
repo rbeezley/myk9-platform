@@ -56,7 +56,9 @@ import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
 import { atShowDialogSlots } from './slots/atShowDialogSlots';
-import { useAtShowDogFavorites } from './ringsideDogFavorites';
+import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
+import { useAtShowFavoriteAlertNudge } from './useAtShowFavoriteAlertNudge';
+import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
@@ -72,7 +74,11 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // show-scoped passcode grant overriding the mapping. Shared with the
   // single-class and scoresheet shims via `useRingsideEffectiveRole`.
   const { showRole, grantRole, ringsideRole, hasPermission } = useRingsideEffectiveRole(showId);
-  const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavorites(showId);
+  // Device-local favorites, mirrored to `dog_favorites` when signed in so the
+  // notification monitor can watch them for "your turn" push (MYK9-79).
+  const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavoritesSynced(showId);
+  const { showAddToHomeNudge, nudgeReason, installInstructions, dismissNudge } =
+    useAtShowFavoriteAlertNudge(favoriteArmbands);
 
   // ── Show metadata + provider value ─────────────────────────────────────
   const { data: show } = useQuery({
@@ -270,6 +276,13 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   return (
     <RingsideProvider value={contextValue}>
       <div className="ringside-root">
+        {showAddToHomeNudge && (
+          <AtShowAddToHomeNudge
+            reason={nudgeReason}
+            installInstructions={installInstructions}
+            onDismiss={dismissNudge}
+          />
+        )}
         <CombinedEntryListPage
           classIds={{ a: classIdA, b: classIdB }}
           data={{ entries, classInfo }}

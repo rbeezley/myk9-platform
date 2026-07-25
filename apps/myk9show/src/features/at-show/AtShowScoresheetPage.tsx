@@ -42,6 +42,7 @@ import {
 } from '@/pages/scoring/types';
 import { useAtShowScoresheet } from './useAtShowScoresheet';
 import { useAtShowStoragePersistence } from './useAtShowStoragePersistence';
+import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
 import { useAtShowAudioMute } from './useAtShowAudioMute';
@@ -266,7 +267,8 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   } = useAtShowScoresheet({ showId, classId, entryId, onScored: handleScored });
   // Requests persistent storage on entering the scoring surface; may surface an
   // iOS "Add to Home Screen" nudge when durable storage isn't granted.
-  const { showAddToHomeNudge, installInstructions, dismissNudge } = useAtShowStoragePersistence();
+  const { showAddToHomeNudge, nudgeReason, installInstructions, dismissNudge } =
+    useAtShowStoragePersistence();
   const isLoadedRoute = loadedClassId === classId && loadedEntryId === entryId;
   const hasAnyScoresheetState = Boolean(entry || classInfo || rules);
 
@@ -364,19 +366,11 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         // iOS Safari, not installed, persistence not granted: without Add-to-Home
         // the browser purges IndexedDB (and the backup) after 7 days idle, which
         // would lose queued scores. Calm, dismissible — this is guidance, not an error.
-        <div
-          role="status"
-          className={`flex items-start justify-between gap-3 rounded-lg px-3 py-2 text-sm ${badgeClass(
-            'neutral'
-          )}`}
-        >
-          <span>
-            <strong>Add to Home Screen</strong> for reliable offline scoring. {installInstructions}
-          </span>
-          <button type="button" onClick={dismissNudge} className="shrink-0 underline">
-            Dismiss
-          </button>
-        </div>
+        <AtShowAddToHomeNudge
+          reason={nudgeReason}
+          installInstructions={installInstructions}
+          onDismiss={dismissNudge}
+        />
       )}
       {submitError && (
         // A genuine "score not saved" failure — the durable queue write threw or

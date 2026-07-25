@@ -41,8 +41,18 @@ export function writeDogFavoriteArmbands(showId: string, armbands: Iterable<numb
   localStorage.setItem(buildDogFavoritesKey(showId), JSON.stringify(Array.from(armbands)));
 }
 
-function emitDogFavoritesChanged(showId: string): void {
+export function emitDogFavoritesChanged(showId: string): void {
   window.dispatchEvent(new CustomEvent(DOG_FAVORITES_CHANGED_EVENT, { detail: { showId } }));
+}
+
+/**
+ * Overwrite the device-local favorites for a show and notify subscribers.
+ * Used by the signed-in server reconciliation (`dogFavoritesSync`) to write the
+ * resolved set back; the local store stays the single thing the at-show UI reads.
+ */
+export function replaceDogFavoriteArmbands(showId: string, armbands: Iterable<number>): void {
+  writeDogFavoriteArmbands(showId, armbands);
+  emitDogFavoritesChanged(showId);
 }
 
 export function useAtShowDogFavorites(showId: string | undefined) {

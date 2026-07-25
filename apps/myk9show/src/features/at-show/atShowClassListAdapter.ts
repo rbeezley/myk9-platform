@@ -22,11 +22,14 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 import { toRingsideClassStatus } from './ringsideClassStatusMap';
 import { getFavoriteClassIdsForTrial } from '@/features/show-today/accountTodayEntries.helpers';
 import { composeClassTitle } from '@/services/entryDisplay/entryDisplaySelectors';
+import { buildNextUpPreview, type AtShowNextUpPreview } from './atShowNextUpPreview';
 
 /** A trial and its classes (mapped to ringside `ClassEntry`), for grouped display. */
 export interface AtShowClassGroup {
   trial: ReplicatedTrial;
   classes: ClassEntry[];
+  /** Per-class "in ring / next up" row preview, keyed by class id. */
+  nextUpByClassId: Map<string, AtShowNextUpPreview>;
 }
 
 /** Render the class name from element + level (+ section). The '-' "no section" sentinel is handled by resolveClassSection inside composeClassTitle. */
@@ -105,11 +108,16 @@ export async function fetchAtShowClassList(showId: string): Promise<AtShowClassG
     trials.map(async trial => {
       const classes = await replicatedClassesTable.getClassesByTrial(trial.id);
       const favoriteClassIds = getFavoriteClassIdsForTrial(showId, trial.id);
-      const classEntries = classes.map(cls =>
-        toClassEntry(cls, entriesByClass.get(cls.id) ?? [], favoriteClassIds)
-      );
+      const nextUpByClassId = new Map<string, AtShowNextUpPreview>();
+      const classEntries = classes.map(cls => {
+        // Same grouped-entries pass that feeds the counts — no extra fetch, so
+        // the preview stays offline-first and costs nothing on show day.
+        const classEntriesForClass = entriesByClass.get(cls.id) ?? [];
+        nextUpByClassId.set(cls.id, buildNextUpPreview(classEntriesForClass));
+        return toClassEntry(cls, classEntriesForClass, favoriteClassIds);
+      });
       classEntries.sort((a, b) => a.class_order - b.class_order);
-      return { trial, classes: classEntries };
+      return { trial, classes: classEntries, nextUpByClassId };
     })
   );
 }

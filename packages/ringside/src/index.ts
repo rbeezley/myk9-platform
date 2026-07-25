@@ -52,18 +52,12 @@ export type {
   ClassStatusInput,
   EffectiveClassStatus,
 } from './utils/classStatus';
-export {
-  getClassDisplayStatus,
-  getEffectiveClassStatus,
-} from './utils/classStatus';
+export { getClassDisplayStatus, getEffectiveClassStatus } from './utils/classStatus';
 
 // Level sort + stale-data helpers (moved from apps/myk9q in PR E1a)
 export { getLevelSortOrder } from './utils/levelSort';
 export type { StaleDataStatus } from './utils/staleDataUtils';
-export {
-  getStaleDataStatus,
-  formatStaleTime,
-} from './utils/staleDataUtils';
+export { getStaleDataStatus, formatStaleTime } from './utils/staleDataUtils';
 
 // ── Stores ───────────────────────────────────────────────────────────────
 export { useEntryStore, createEntryStore } from './stores/entryStore';
@@ -105,17 +99,10 @@ export {
 
 // Presentational + hook surface (PR E1b)
 export { ClassCardSkeleton, ClassCardSkeletonList } from './pages/ClassList';
-export {
-  useClassDialogs,
-  type PopupPosition,
-  type UseClassDialogsReturn,
-} from './pages/ClassList';
+export { useClassDialogs, type PopupPosition, type UseClassDialogsReturn } from './pages/ClassList';
 
 // Favorites hook (PR E1c — dedupe + move)
-export {
-  useFavoriteClasses,
-  type UseFavoriteClassesReturn,
-} from './pages/ClassList';
+export { useFavoriteClasses, type UseFavoriteClassesReturn } from './pages/ClassList';
 
 // ── Pages: EntryList (PR E2a + E2b) ──────────────────────────────────────
 // E2a moved pure helpers + state hooks. E2b moved `useEntryListData` (the
@@ -164,10 +151,7 @@ export {
   ClassPodium,
   markClassCompletionPending,
 } from './pages/EntryList';
-export type {
-  ClassCompletionPresentationProps,
-  ClassPodiumProps,
-} from './pages/EntryList';
+export type { ClassCompletionPresentationProps, ClassPodiumProps } from './pages/EntryList';
 export { EntryListHeader } from './pages/EntryList';
 export type { EntryListHeaderProps } from './pages/EntryList';
 export { EntryListDialogs } from './pages/EntryList';
@@ -238,6 +222,34 @@ export {
   buildEntryListOwnership,
 } from './pages/EntryList';
 export type { DogsAheadResult, EntryListOwnership } from './pages/EntryList';
+
+// Shared run-queue primitive — one ordering rule ("who's in the ring, who runs
+// next") for the at-show class-row preview, post-save quick-advance chips, and
+// favorite-dog push proximity. Typed structurally, so hosts can pass their own
+// row type (e.g. replicated entries) and get it back with display fields intact.
+export {
+  compareByRunOrder,
+  findInRingEntry,
+  isInQueue,
+  isInRingEntry,
+  nextPendingCandidates,
+  pendingByRunOrder,
+} from './pages/EntryList';
+export type { RunQueueEntry } from './pages/EntryList';
+
+// Quick-advance ranking (MYK9-83) — the post-save "up next" chips and the
+// pending-tab gate bubble share this one gate-aware layer over the run queue.
+export {
+  DEFAULT_QUICK_ADVANCE_LIMIT,
+  GATE_PRIORITY_STATUSES,
+  gatePromotedPending,
+  gateRank,
+  gateStatusLabel,
+  gateStatusOf,
+  hasAnyGateStatus,
+  quickAdvanceCandidates,
+} from './pages/EntryList';
+export type { GateStatus, QuickAdvanceEntry } from './pages/EntryList';
 
 export { useResetScore } from './pages/EntryList';
 

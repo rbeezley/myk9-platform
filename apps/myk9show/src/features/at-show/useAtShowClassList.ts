@@ -5,7 +5,7 @@
  * organization (needed by `findPairedSectionedClass` to decide A/B pairing).
  */
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   replicatedClassesTable,
@@ -14,9 +14,12 @@ import {
   replicatedTrialsTable,
 } from '@/services/replication';
 import { fetchAtShowClassList, type AtShowClassGroup } from './atShowClassListAdapter';
+import type { AtShowNextUpPreview } from './atShowNextUpPreview';
 
 export interface UseAtShowClassListResult {
   groups: AtShowClassGroup[];
+  /** In-ring / next-up row previews across every trial, keyed by class id. */
+  nextUpByClassId: Map<string, AtShowNextUpPreview>;
   organization: string;
   showName: string;
   /** Owning club, needed to match the show-desk route's club-scoped gate. */
@@ -52,8 +55,21 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     enabled: !!showId,
   });
 
+  // Keyed off the query data (not a `?? []` fallback) so the merged map keeps a
+  // stable identity across renders where nothing refetched.
+  const groupsData = groupsQuery.data;
+  const groups = useMemo(() => groupsData ?? [], [groupsData]);
+  const nextUpByClassId = useMemo(() => {
+    const merged = new Map<string, AtShowNextUpPreview>();
+    for (const group of groups) {
+      for (const [classId, preview] of group.nextUpByClassId) merged.set(classId, preview);
+    }
+    return merged;
+  }, [groups]);
+
   return {
-    groups: groupsQuery.data ?? [],
+    groups,
+    nextUpByClassId,
     organization: showQuery.data?.organization ?? '',
     showName: showQuery.data?.name ?? '',
     clubId: showQuery.data?.clubId ?? undefined,

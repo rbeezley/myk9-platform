@@ -92,7 +92,6 @@ vi.mock('@myk9/notifications', () => ({
   buildCheckInReminderPayload: vi.fn(() => ({ id: '3', type: 'check_in_reminder' })),
   buildResultsPostedPayload: vi.fn(() => ({ id: '4', type: 'results_posted' })),
 }));
-vi.mock('@/utils/runOrderUtils', () => ({ getRunOrder: vi.fn((entries: unknown[]) => entries) }));
 vi.mock('@/utils/conflictDetection', () => ({ detectConflicts: vi.fn(() => []) }));
 
 function entry(overrides: Record<string, unknown> = {}) {
@@ -204,8 +203,11 @@ describe('useNotificationMonitor', () => {
 
     await emitShowChange();
 
+    // Scout is in the ring and is NOT part of the waiting queue (shared
+    // run-queue INTENT), so Ditto is at its head: 0 dogs ahead. The push used to
+    // say 1 — distance from the in-ring dog — contradicting the entry-list pill.
     expect(buildYourTurnPayload).toHaveBeenCalledWith(
-      expect.objectContaining({ dogName: 'Ditto', className: 'Container Novice A', dogsAhead: 1 })
+      expect.objectContaining({ dogName: 'Ditto', className: 'Container Novice A', dogsAhead: 0 })
     );
     expect(mockDeliver).toHaveBeenCalledWith(expect.objectContaining({ type: 'your_turn' }));
   });

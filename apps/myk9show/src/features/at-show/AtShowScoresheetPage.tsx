@@ -52,6 +52,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { useAudioWarnings } from '@/hooks/useAudioWarnings';
 import { DEFAULT_AUDIO_SETTINGS } from '@/constants/audioSettings';
 import { speakRemainingSeconds } from './atShowVoiceAnnouncement';
+import { QuickAdvancePanel } from './quickAdvancePanel';
 
 export const AtShowScoresheetPage: React.FC = () => {
   const { showId, classId, entryId } = useParams<{
@@ -229,6 +230,22 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   entryId,
   onBack,
 }) => {
+  const navigate = useNavigate();
+  // MYK9-83: saving lands on a "Saved" state with optional up-next chips
+  // instead of navigating away on its own. NOTHING here auto-advances — the
+  // judge either taps a candidate or goes back to the list (the default).
+  const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
+  const handleScored = useCallback(() => setSavedEntryId(entryId ?? null), [entryId]);
+  const handlePickEntry = useCallback(
+    (nextEntryId: string) => {
+      setSavedEntryId(null);
+      // The normal scoresheet route, so the picked dog goes through the same
+      // load + `transitionToInRing` path as a tap from the entry list.
+      navigate(`/at-show/${showId}/class/${classId}/score/${nextEntryId}`);
+    },
+    [navigate, showId, classId]
+  );
+
   const {
     entry,
     classInfo,
@@ -246,7 +263,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     hasSyncError,
     submitError,
     clearSubmitError,
-  } = useAtShowScoresheet({ showId, classId, entryId, onScored: onBack });
+  } = useAtShowScoresheet({ showId, classId, entryId, onScored: handleScored });
   // Requests persistent storage on entering the scoring surface; may surface an
   // iOS "Add to Home Screen" nudge when durable storage isn't granted.
   const { showAddToHomeNudge, installInstructions, dismissNudge } = useAtShowStoragePersistence();
@@ -272,6 +289,17 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     },
     [audioMuted]
   );
+
+  if (savedEntryId) {
+    return (
+      <QuickAdvancePanel
+        classId={classId}
+        scoredEntryId={savedEntryId}
+        onBackToList={onBack}
+        onPickEntry={handlePickEntry}
+      />
+    );
+  }
 
   if (
     isLoading ||

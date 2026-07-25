@@ -12,7 +12,7 @@ import {
   isRunnableScheduleStatus,
   resolveClassSection,
 } from '@/services/entryDisplay/entryDisplaySelectors';
-import { entryIsScored } from '@/utils/entryPredicates';
+import { dogsAheadInClass } from '@/utils/showEntryRunQueue';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import { resolveMoveUpDisplay } from '@/hooks/moveUpDisplay';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
@@ -273,7 +273,9 @@ export function useShowEntriesForUser(
     const allShowEntries = canonicalSource
       ? canonicalSource.rows.flatMap(row => {
           const canonical = normalizeCanonicalEntry(row);
-          return canonical ? [mergeCanonicalEntry(canonical, storeEntryById.get(canonical.id))] : [];
+          return canonical
+            ? [mergeCanonicalEntry(canonical, storeEntryById.get(canonical.id))]
+            : [];
         })
       : storeEntries.filter(e => e.showId === showId);
     let myEntries = allShowEntries;
@@ -331,22 +333,18 @@ export function useShowEntriesForUser(
       const cls = classMap.get(entry.classId);
       const canonicalRow = canonicalRowById.get(entry.id);
       if (!cls && !canonicalRow) continue;
-      const fallbackClassTitle = relatedString(canonicalRow, 'class', 'name') ?? 'Class details pending';
+      const fallbackClassTitle =
+        relatedString(canonicalRow, 'class', 'name') ?? 'Class details pending';
       const fallbackDogName =
         relatedString(canonicalRow, 'dog', 'call_name') ??
         relatedString(canonicalRow, 'dog', 'name') ??
         'Unknown Dog';
 
       const runOrder = entry.registrationData.runOrder ?? 0;
-      const dogsAhead =
-        runOrder > 0
-          ? (entriesByClassId.get(entry.classId) ?? []).filter(
-              e =>
-                (e.registrationData.runOrder ?? 0) > 0 &&
-                (e.registrationData.runOrder ?? 0) < runOrder &&
-                !entryIsScored(e)
-            ).length
-          : 0;
+      // Shared run queue (see utils/showEntryRunQueue): the in-ring dog is
+      // excluded, so this is the same number the entry-list pill, the ring
+      // conflict label and the "your turn" push all report.
+      const dogsAhead = dogsAheadInClass(entriesByClassId.get(entry.classId) ?? [], entry.id) ?? 0;
 
       const movedUpFromClassId = movedUpFromClassIdByEntryId.get(entry.id);
       const movedUpFromClass = movedUpFromClassId ? classMap.get(movedUpFromClassId) : undefined;
@@ -376,9 +374,7 @@ export function useShowEntriesForUser(
         dayLabel: trialDate ? formatDayLabel(trialDate) : '',
         trialName: cls?.trial ?? '',
         startTime: cls?.startTime ?? '',
-        judgeName: cls
-          ? resolveClassJudgeName(cls, currentShow?.assignedJudges ?? [])
-          : '',
+        judgeName: cls ? resolveClassJudgeName(cls, currentShow?.assignedJudges ?? []) : '',
         dogsAhead,
         entryStatus: entry.status,
         paymentStatus: entry.registrationData.paymentStatus,

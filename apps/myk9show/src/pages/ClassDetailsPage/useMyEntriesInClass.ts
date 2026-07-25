@@ -3,7 +3,7 @@ import { useEntryStore } from '@/store/entryStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
-import { entryIsScored } from '@/utils/entryPredicates';
+import { dogsAheadInClass } from '@/utils/showEntryRunQueue';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
@@ -73,14 +73,6 @@ export function useMyEntriesInClass(
     // Build position map once (O(N)) rather than calling findIndex per entry (O(N²)).
     const positionByEntryId = new Map(sorted.map((e, i) => [e.id, i + 1]));
 
-    const aheadCountByRunOrder = new Map<number, number>();
-    for (const e of classEntries) {
-      const ro = e.registrationData.runOrder ?? 0;
-      if (ro > 0 && !entryIsScored(e)) {
-        aheadCountByRunOrder.set(ro, (aheadCountByRunOrder.get(ro) ?? 0) + 1);
-      }
-    }
-
     // Build the result shape from a directly-read released row.
     const releasedResult = (r: RawEntryRow): NonNullable<MyClassEntry['result']> => {
       const time = dbSecondsToInputFormat(r.search_time_seconds);
@@ -101,12 +93,9 @@ export function useMyEntriesInClass(
 
       const runOrder = entry.registrationData.runOrder ?? 0;
       const position = runOrder > 0 ? (positionByEntryId.get(entry.id) ?? 0) : 0;
-      const dogsAhead =
-        runOrder > 0
-          ? Array.from(aheadCountByRunOrder.entries())
-              .filter(([ro]) => ro < runOrder)
-              .reduce((sum, [, count]) => sum + count, 0)
-          : 0;
+      // Shared run queue (see utils/showEntryRunQueue): the in-ring dog is
+      // excluded, so this matches the entry-list pill and the push notification.
+      const dogsAhead = dogsAheadInClass(classEntries, entry.id) ?? 0;
 
       // Prefer released results (direct read) over the replication store: the
       // store is stale for a post-show exhibitor whose entries were scored

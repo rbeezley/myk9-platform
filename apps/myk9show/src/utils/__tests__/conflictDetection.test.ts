@@ -70,7 +70,11 @@ describe('detectConflicts', () => {
     ];
     const conflicts = detectConflicts('dog-1', 'class-A', classes, 3);
     expect(conflicts).toHaveLength(1);
-    expect(conflicts[0]).toEqual({ className: 'Excellent B', dogsAhead: 1 });
+    // dog-X is in the ring and is NOT counted (shared run-queue INTENT), so
+    // dog-1 is at the head of the waiting queue: 0 dogs ahead, "You're next".
+    // This used to report 1 (distance from the in-ring dog), which disagreed
+    // with the entry-list pill for the same dog in the same class state.
+    expect(conflicts[0]).toEqual({ className: 'Excellent B', dogsAhead: 0 });
   });
 
   it('returns empty array when no conflicts', () => {

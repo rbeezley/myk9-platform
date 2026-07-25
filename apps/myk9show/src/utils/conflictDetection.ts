@@ -1,5 +1,5 @@
 import type { ShowEntry } from '@/store/entry-store-types';
-import { getRunOrder } from './runOrderUtils';
+import { dogsAheadInClass } from './showEntryRunQueue';
 
 export interface ConflictInfo {
   className: string;
@@ -16,6 +16,12 @@ export interface ClassContext {
 /**
  * Scan other in-progress classes for the same dog.
  * Returns conflict info for each class where the dog is within leadDogs range.
+ *
+ * `dogsAhead` is the shared run-queue count (`dogsAheadInClass`), the same
+ * number the entry list pill and the "your turn" push notification report — it
+ * counts the dogs still waiting ahead of this one and excludes the dog in the
+ * ring. It used to be measured *from* the in-ring dog here, which made the
+ * conflict label disagree by one with every other surface.
  */
 export function detectConflicts(
   dogId: string,
@@ -32,17 +38,11 @@ export function detectConflicts(
     const dogEntry = cls.entries.find(e => e.dogId === dogId && !e.competitionData);
     if (!dogEntry) continue;
 
-    const runOrder = getRunOrder(cls.entries);
-    const inRingIndex = runOrder.findIndex(e => e.checkInStatus === 'in-ring');
-    const dogIndex = runOrder.findIndex(e => e.dogId === dogId);
+    const dogsAhead = dogsAheadInClass(cls.entries, dogEntry.id);
+    if (dogsAhead === null) continue;
 
-    if (dogIndex === -1) continue;
-
-    // If a dog is in the ring, dogsAhead = distance from that dog.
-    // If no dog is in the ring, dogsAhead = position from front of run order.
-    const dogsAhead = inRingIndex >= 0 ? dogIndex - inRingIndex : dogIndex;
-
-    if (dogsAhead >= 0 && dogsAhead <= leadDogs) {
+    // Same window the push monitor uses: the next `leadDogs` waiting dogs.
+    if (dogsAhead < leadDogs) {
       conflicts.push({ className: cls.className, dogsAhead });
     }
   }

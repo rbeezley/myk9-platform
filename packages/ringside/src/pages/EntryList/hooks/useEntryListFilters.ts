@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { Entry } from '../../../stores/entryStore';
+import { gateRank } from '../quickAdvanceCandidates';
 
 /**
  * Shared filter/sort/search hook for EntryList and CombinedEntryList views.
@@ -66,18 +67,23 @@ const sortComparators: Record<SortType, SortComparator> = {
 
   handler: (a, b) => (a.handler || '').localeCompare(b.handler || ''),
 
-  breed: (a, b) => (a.breed || '').localeCompare(b.breed || '')
+  breed: (a, b) => (a.breed || '').localeCompare(b.breed || ''),
 };
 
 /**
- * Apply priority sorting (in-ring first, pulled last).
+ * Apply priority sorting (in-ring first, pulled last, gate dogs bubbled).
  * Returns 0 if no priority difference, otherwise -1/1.
+ *
+ * The gate bubble (MYK9-83) is opportunistic: every entry ranks the same when
+ * no dog carries `at-gate` / `come-to-gate`, so a class with no check-in data —
+ * the common paper-gate case — sorts exactly as it did before.
  */
 function getPriorityDiff(
   a: Entry,
   b: Entry,
   prioritizeInRing: boolean,
-  deprioritizePulled: boolean
+  deprioritizePulled: boolean,
+  prioritizeAtGate: boolean
 ): number {
   // In-ring dogs ALWAYS come first (if enabled)
   if (prioritizeInRing) {
@@ -95,6 +101,13 @@ function getPriorityDiff(
     if (!aIsPulled && bIsPulled) return -1;
   }
 
+  // Gate dogs bubble above plain pending — but only ever demote a dog relative
+  // to one that actually carries a gate status, never reorder statusless dogs.
+  if (prioritizeAtGate) {
+    const rankDiff = gateRank(a) - gateRank(b);
+    if (rankDiff !== 0) return rankDiff < 0 ? -1 : 1;
+  }
+
   return 0; // No priority difference
 }
 
@@ -108,6 +121,12 @@ interface UseEntryListFiltersOptions {
   prioritizeInRing?: boolean;
   /** Sort pulled dogs last (default: false) */
   deprioritizePulled?: boolean;
+  /**
+   * Bubble dogs flagged `at-gate` / `come-to-gate` above plain pending dogs
+   * (default: follows `prioritizeInRing`, i.e. on for the ringside entry list).
+   * No-op when no entry carries a gate status.
+   */
+  prioritizeAtGate?: boolean;
   /** External manual order array (for drag-and-drop state) */
   manualOrder?: Entry[];
   /** Default sort type (default: 'armband') */
@@ -155,8 +174,9 @@ export const useEntryListFilters = ({
   supportSectionFilter = false,
   prioritizeInRing = false,
   deprioritizePulled = false,
+  prioritizeAtGate = prioritizeInRing,
   manualOrder,
-  defaultSort = 'armband'
+  defaultSort = 'armband',
 }: UseEntryListFiltersOptions) => {
   // Filter and sort state
   const [activeTab, setActiveTab] = useState<TabType>('pending');
@@ -193,10 +213,13 @@ export const useEntryListFilters = ({
   }, []);
 
   /** Filter entries by section (for combined view) */
-  const filterBySection = useCallback((entry: Entry, section: SectionFilter): boolean => {
-    if (!supportSectionFilter || section === 'all') return true;
-    return entry.section === section;
-  }, [supportSectionFilter]);
+  const filterBySection = useCallback(
+    (entry: Entry, section: SectionFilter): boolean => {
+      if (!supportSectionFilter || section === 'all') return true;
+      return entry.section === section;
+    },
+    [supportSectionFilter]
+  );
 
   /** Filter entries by search term */
   const filterBySearch = useCallback((entry: Entry, term: string): boolean => {
@@ -218,15 +241,24 @@ export const useEntryListFilters = ({
    * Sort entries with priority handling and type-specific comparators.
    * Uses pre-computed manualOrderMap for O(1) lookups.
    */
-  const sortEntries = useCallback((a: Entry, b: Entry, sortType: SortType): number => {
-    // Check priority first (in-ring first, pulled last)
-    const priorityDiff = getPriorityDiff(a, b, prioritizeInRing, deprioritizePulled);
-    if (priorityDiff !== 0) return priorityDiff;
+  const sortEntries = useCallback(
+    (a: Entry, b: Entry, sortType: SortType): number => {
+      // Check priority first (in-ring first, pulled last)
+      const priorityDiff = getPriorityDiff(
+        a,
+        b,
+        prioritizeInRing,
+        deprioritizePulled,
+        prioritizeAtGate
+      );
+      if (priorityDiff !== 0) return priorityDiff;
 
-    // Apply sort-type specific comparator
-    const comparator = sortComparators[sortType];
-    return comparator(a, b, { manualOrderMap });
-  }, [prioritizeInRing, deprioritizePulled, manualOrderMap]);
+      // Apply sort-type specific comparator
+      const comparator = sortComparators[sortType];
+      return comparator(a, b, { manualOrderMap });
+    },
+    [prioritizeInRing, deprioritizePulled, prioritizeAtGate, manualOrderMap]
+  );
 
   // ==========================================================================
   // COMPUTED VALUES
@@ -234,22 +266,33 @@ export const useEntryListFilters = ({
 
   /** Filtered and sorted entries */
   const filteredEntries = useMemo(() => {
-    const filtered = entries.filter((entry) =>
-      filterByTab(entry, activeTab) &&
-      filterBySection(entry, sectionFilter) &&
-      filterBySearch(entry, searchTerm)
+    const filtered = entries.filter(
+      entry =>
+        filterByTab(entry, activeTab) &&
+        filterBySection(entry, sectionFilter) &&
+        filterBySearch(entry, searchTerm)
     );
 
     // Sort the filtered entries (create copy to avoid mutating)
     return [...filtered].sort((a, b) => sortEntries(a, b, sortBy));
-  }, [entries, activeTab, sectionFilter, searchTerm, sortBy, filterByTab, filterBySection, filterBySearch, sortEntries]);
+  }, [
+    entries,
+    activeTab,
+    sectionFilter,
+    searchTerm,
+    sortBy,
+    filterByTab,
+    filterBySection,
+    filterBySearch,
+    sortEntries,
+  ]);
 
   /**
    * Count entries by tab
    */
   const entryCounts = useMemo(() => {
-    const pending = entries.filter((e) => filterByTab(e, 'pending')).length;
-    const completed = entries.filter((e) => filterByTab(e, 'completed')).length;
+    const pending = entries.filter(e => filterByTab(e, 'pending')).length;
+    const completed = entries.filter(e => filterByTab(e, 'completed')).length;
     return { pending, completed };
   }, [entries, filterByTab]);
 
@@ -257,7 +300,10 @@ export const useEntryListFilters = ({
    * Pending and completed entries (filtered by tab, search, section)
    */
   const pendingEntries = useMemo(() => filteredEntries.filter(e => !e.isScored), [filteredEntries]);
-  const completedEntries = useMemo(() => filteredEntries.filter(e => e.isScored), [filteredEntries]);
+  const completedEntries = useMemo(
+    () => filteredEntries.filter(e => e.isScored),
+    [filteredEntries]
+  );
 
   /**
    * Count entries by section (for combined view)
@@ -266,8 +312,8 @@ export const useEntryListFilters = ({
     if (!supportSectionFilter) return null;
     return {
       all: entries.length,
-      A: entries.filter((e) => e.section === 'A').length,
-      B: entries.filter((e) => e.section === 'B').length
+      A: entries.filter(e => e.section === 'A').length,
+      B: entries.filter(e => e.section === 'B').length,
     };
   }, [entries, supportSectionFilter]);
 
@@ -305,6 +351,6 @@ export const useEntryListFilters = ({
 
     // Helpers
     supportManualSort,
-    supportSectionFilter
+    supportSectionFilter,
   };
 };

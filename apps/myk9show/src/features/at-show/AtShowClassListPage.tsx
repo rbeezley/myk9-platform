@@ -43,6 +43,7 @@ import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListS
 import { formatAtShowClassTime } from './atShowClassTiming';
 import { getTrialTimezone } from '@/features/registries';
 import { AtShowClassRow } from './AtShowClassRow';
+import { selectNextUpForCard } from './atShowNextUpPreview';
 import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
 
 const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
@@ -168,7 +169,7 @@ function BackToRingsideExitButton({
 export const AtShowClassListPage: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
-  const { groups, organization, showName, clubId, isLoading, error, refresh } =
+  const { groups, nextUpByClassId, organization, showName, clubId, isLoading, error, refresh } =
     useAtShowClassList(showId);
   const { status: syncStatus } = useReplicationSync();
   const { hasRole } = useAuthContext();
@@ -395,6 +396,7 @@ export const AtShowClassListPage: React.FC = () => {
                 isExhibitorOnly={isExhibitorOnly}
                 onClick={handleClassClick}
                 trialTimeZone={trialTimeZone}
+                nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
               />
             ))}
           </ul>
@@ -445,6 +447,7 @@ export const AtShowClassListPage: React.FC = () => {
                     isExhibitorOnly={isExhibitorOnly}
                     onClick={handleClassClick}
                     trialTimeZone={trialTimeZone}
+                    nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
                   />
                 ))}
               </ul>

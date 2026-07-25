@@ -6,39 +6,26 @@
  * INTENT (user decision 2026-06-11): the in-ring dog is EXCLUDED from the
  * count — "You're next" shows while a dog is still in the ring, because that is
  * how exhibitors think about the queue ("I'm next after this one"). This
- * deliberately diverges from the legacy `computeDogsAhead` convention in
- * apps/myk9show/src/utils/dogsAhead.ts, which counted the in-ring dog.
+ * deliberately diverges from the legacy `computeDogsAhead` convention, which
+ * counted the in-ring dog; every app-side counterpart has since been
+ * consolidated onto this rule and the legacy helper deleted.
+ *
+ * The ordering rule itself now lives in ./runQueue — this module is the
+ * exhibitor-facing "how far away am I" projection of it.
  */
 
 import type { Entry } from '../../stores/entryStore';
+import { isInQueue, isInRingEntry, pendingByRunOrder } from './runQueue';
 
 export type DogsAheadResult = { kind: 'in-ring' } | { kind: 'waiting'; dogsAhead: number } | null;
-
-function isInRing(entry: Entry): boolean {
-  return entry.inRing === true || entry.status === 'in-ring';
-}
-
-/** Entries still due to run: unscored and not pulled from the class. */
-function isInQueue(entry: Entry): boolean {
-  return !entry.isScored && entry.status !== 'pulled';
-}
-
-/** Run-order comparator (mirrors the `run` sort: exhibitorOrder, armband fallback). */
-function byRunOrder(a: Entry, b: Entry): number {
-  return (a.exhibitorOrder || a.armband) - (b.exhibitorOrder || b.armband);
-}
 
 export function computeDogsAheadInList(entries: Entry[], entryId: string): DogsAheadResult {
   const target = entries.find(entry => entry.id === entryId);
   if (!target || !isInQueue(target)) return null;
-  if (isInRing(target)) return { kind: 'in-ring' };
+  if (isInRingEntry(target)) return { kind: 'in-ring' };
 
   // Waiting queue only — the in-ring dog is excluded (see INTENT above).
-  const queue = entries
-    .filter(entry => isInQueue(entry) && !isInRing(entry))
-    .sort(byRunOrder);
-
-  const position = queue.findIndex(entry => entry.id === entryId);
+  const position = pendingByRunOrder(entries).findIndex(entry => entry.id === entryId);
   if (position === -1) return null;
   return { kind: 'waiting', dogsAhead: position };
 }

@@ -86,6 +86,10 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
     differenceInDays
   );
   const isPastShow = isPastShowEntry(entry, new Date(currentTime));
+  // null when no online cart can be built safely (unresolved show, or nothing
+  // online-payable to recover) — the Finish Payment action is suppressed rather
+  // than pointing at a cart that would charge the wrong rows.
+  const paymentHref = buildOrderPaymentHref(entry);
 
   const isPaid =
     entry.paymentStatus === PaymentStatus.PAID_ONLINE ||
@@ -283,14 +287,27 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           onCheckInClick(entry, cls) handler the per-class details control
           calls — never a separate write path. */}
       <div className="myk9-entries-action-buttons">
-        {nextAction.kind === 'finish-payment' && (
-          <Button asChild className="min-h-[44px] transition-all duration-200">
-            <Link to={buildOrderPaymentHref(entry)}>
+        {nextAction.kind === 'finish-payment' &&
+          (paymentHref ? (
+            <Button asChild className="min-h-[44px] transition-all duration-200">
+              <Link to={paymentHref}>
+                <CreditCard className="h-5 w-5 mr-1.5" />
+                Finish Payment
+              </Link>
+            </Button>
+          ) : (
+            // INTENT: an exhibitor who owes money must never face a dead end.
+            // The order owes an online balance but no cart can be built safely,
+            // so say which kind of "not yet" this is rather than rendering
+            // nothing — or sending them to a cart for the wrong rows. An empty
+            // showId is the replication window and WILL resolve; anything else
+            // is a data inconsistency that waiting cannot fix, so that copy
+            // points at the secretary instead of promising a spinner.
+            <Button disabled className="min-h-[44px]">
               <CreditCard className="h-5 w-5 mr-1.5" />
-              Finish Payment
-            </Link>
-          </Button>
-        )}
+              {entry.showId ? 'Contact the show secretary to pay' : 'Payment options loading…'}
+            </Button>
+          ))}
 
         {nextAction.kind === 'check-in' && nextActionClass && (
           <Button

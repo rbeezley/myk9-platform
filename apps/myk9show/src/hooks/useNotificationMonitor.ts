@@ -14,7 +14,7 @@ import {
   buildCheckInReminderPayload,
   buildResultsPostedPayload,
 } from '@myk9/notifications';
-import { getRunOrder } from '@/utils/runOrderUtils';
+import { pendingShowEntriesByRunOrder } from '@/utils/showEntryRunQueue';
 import { detectConflicts } from '@/utils/conflictDetection';
 import type { ClassContext } from '@/utils/conflictDetection';
 import type { ShowEntry } from '@/store/entry-store-types';
@@ -170,16 +170,16 @@ export function useNotificationMonitor(): void {
     const context = classContextRef.current.get(classId);
     if (!context) return;
 
-    const runOrder = getRunOrder(context.entries);
-    const inRingIndex = runOrder.findIndex(entry => entry.id === inRingEntryId);
-    if (inRingIndex === -1) return;
+    if (!context.entries.some(entry => entry.id === inRingEntryId)) return;
 
     const leadDogs = preferencesRef.current.leadDogs;
     const allClasses = [...classContextRef.current.values()];
-    const lastIndex = Math.min(runOrder.length - 1, inRingIndex + leadDogs);
+    // The shared run queue — in-ring, scored and pulled dogs already excluded —
+    // so `index` IS the dogs-ahead count the entry list pill shows for this dog.
+    const upcoming = pendingShowEntriesByRunOrder(context.entries).slice(0, leadDogs);
 
-    for (let index = inRingIndex + 1; index <= lastIndex; index += 1) {
-      const entry = runOrder[index];
+    for (let index = 0; index < upcoming.length; index += 1) {
+      const entry = upcoming[index];
       if (!userDogIdsRef.current.has(entry.dogId)) continue;
 
       const now = Date.now();
@@ -191,7 +191,7 @@ export function useNotificationMonitor(): void {
       const notification = buildYourTurnPayload({
         dogName: dogNameMap.current.get(entry.dogId) ?? 'Your dog',
         className: context.className,
-        dogsAhead: index - inRingIndex,
+        dogsAhead: index,
         armband: entry.registrationData?.armband ?? null,
         ...(conflicts.length > 0 ? { conflicts } : {}),
       });

@@ -1,5 +1,9 @@
 import { getTrialRegistry } from '@/features/registries';
 import {
+  resolveDogIdentityForOrganization,
+  type DogRegistrationLike,
+} from '@/features/dogs/identity';
+import {
   getScentWorkSport,
   scentWorkGrid,
   scentWorkSpecialElementLabels,
@@ -77,11 +81,17 @@ interface EntryInput {
 interface DogInput {
   name?: string | null;
   call_name?: string | null;
-  breed?: string | null;
   color?: string | null;
   sex?: string | null;
   date_of_birth?: string | null;
-  akc_number?: string | null;
+  /**
+   * The dog's `dog_registrations` rows. Registered name, breed, variety, and
+   * registration number are read from the registration for the TRIAL'S
+   * sanctioning organization — never from `dogs.akc_number` (which nothing in
+   * the app writes; the flat column is NULL for every row) and never from
+   * another organization's registration. MYK9-90.
+   */
+  registrations?: readonly DogRegistrationLike[] | null;
 }
 
 interface PersonInput {
@@ -221,16 +231,25 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
     });
   }
 
-  // §I — dog
+  // §I — dog.
+  // Identity comes from the registration held with THIS trial's sanctioning
+  // organization. No cross-organization fallback: this form is mailed to that
+  // body, and a borrowed registration number or breed is worse than a blank.
+  // A dog with no registration for the organization prints blank and raises
+  // `missingRegistration` so the operator sees it before mailing.
+  const dogIdentity = resolveDogIdentityForOrganization(dog?.registrations, registry.id);
   const dogProps: EntryBlankDog = {
-    registeredName: dog?.name ?? null,
+    registeredName: dogIdentity.registeredName,
     callName: dog?.call_name ?? null,
-    breed: dog?.breed ?? null,
-    variety: dog?.color ?? null,
+    breed: dogIdentity.breed,
+    // `variety` is a registration attribute; `dogs.color` is the legacy source
+    // and is used only when the registration records no variety.
+    variety: dogIdentity.variety ?? dog?.color ?? null,
     sex: dog?.sex ?? null,
     dateOfBirth: dog?.date_of_birth ?? null,
     placeOfBirth: null,
-    registrationNumber: dog?.akc_number ?? null,
+    registrationNumber: dogIdentity.registrationNumber,
+    missingRegistration: dog != null && dogIdentity.registrationNumber == null,
     sire: null,
     dam: null,
     breeder: null,

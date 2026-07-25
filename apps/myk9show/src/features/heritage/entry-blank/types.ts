@@ -40,6 +40,15 @@ export interface EntryBlankDog {
   dam: null;
   breeder: string | null;
   actualOwners: string | null;
+  /**
+   * True when a dog was supplied but holds no registration with the trial's
+   * sanctioning organization, so §I's registered name, breed, variety, and
+   * registration number are all blank. Surfaced so the operator learns this
+   * before mailing the form to the sanctioning body — a silently blank
+   * registration number is a rejected entry. Always false in blank mode
+   * (no dog was supplied, so nothing is missing).
+   */
+  missingRegistration: boolean;
 }
 
 /** Pre-filled owner/handler (§III). All nullable. */

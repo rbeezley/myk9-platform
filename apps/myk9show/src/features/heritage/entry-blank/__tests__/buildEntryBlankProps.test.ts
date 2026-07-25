@@ -121,16 +121,29 @@ describe('buildEntryBlankProps — blank mode', () => {
 
 // ─── Pre-filled mode ──────────────────────────────────────────────────────────
 
+// MYK9-90: registered name, breed, variety, and registration number come from
+// the dog's registration with the trial's sanctioning organization (AKC here),
+// not from `dogs.name` / `dogs.breed` / `dogs.akc_number`.
 const DOG = {
   id: 'dog-1',
-  name: 'Riverside Quantum Leap',
+  name: 'Quill',
   call_name: 'Quill',
-  breed: 'Labrador Retriever',
   color: 'Black',
   sex: 'M',
   date_of_birth: '2021-03-15',
-  akc_number: 'DN70123456',
   owner_id: 'person-1',
+  registrations: [
+    {
+      id: 'reg-akc',
+      organization: 'AKC (American Kennel Club)',
+      registration_number: 'DN70123456',
+      registered_name: 'Riverside Quantum Leap',
+      breed: 'Labrador Retriever',
+      variety: null,
+      is_primary: true,
+      created_at: '2022-01-01T00:00:00Z',
+    },
+  ],
 };
 
 const HANDLER = {
@@ -185,6 +198,63 @@ describe('buildEntryBlankProps — pre-filled mode', () => {
     expect(props.dog.breed).toBe('Labrador Retriever');
     expect(props.dog.registrationNumber).toBe('DN70123456');
     expect(props.dog.sex).toBe('M');
+  });
+
+  // MYK9-90 regression (tasks 3.2 / 8.3.1). Before this change the builder read
+  // `dog.akc_number` — a column nothing writes, NULL for every row — so every
+  // printed entry blank carried a blank registration number.
+  it('carries the registration number and flags nothing missing', () => {
+    expect(props.dog.registrationNumber).not.toBeNull();
+    expect(props.dog.missingRegistration).toBe(false);
+  });
+
+  it('leaves §I blank and raises missingRegistration for the wrong organization', () => {
+    const ukcOnly = buildEntryBlankProps({
+      show: SHOW,
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+      entry: ENTRY,
+      dog: {
+        ...DOG,
+        registrations: [
+          {
+            id: 'reg-ukc',
+            organization: 'UKC (United Kennel Club)',
+            registration_number: 'P-999',
+            registered_name: 'Some Other Name',
+            breed: 'Retriever (Labrador)',
+            variety: null,
+            is_primary: true,
+            created_at: '2022-01-01T00:00:00Z',
+          },
+        ],
+      },
+      handler: HANDLER,
+    });
+    // No cross-organization fallback: this AKC form must not borrow UKC values.
+    expect(ukcOnly.dog.registrationNumber).toBeNull();
+    expect(ukcOnly.dog.registeredName).toBeNull();
+    expect(ukcOnly.dog.breed).toBeNull();
+    expect(ukcOnly.dog.missingRegistration).toBe(true);
+  });
+
+  it('emits no substitute breed for a dog with no registration at all', () => {
+    const unregistered = buildEntryBlankProps({
+      show: SHOW,
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+      entry: ENTRY,
+      dog: { ...DOG, registrations: [] },
+      handler: HANDLER,
+    });
+    expect(unregistered.dog.breed).toBeNull();
+    expect(unregistered.dog.missingRegistration).toBe(true);
   });
 
   it('populates owner from handler fixture', () => {

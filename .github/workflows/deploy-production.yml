@@ -99,7 +99,7 @@ jobs:
         with:
           ref: ${{ needs.preflight.outputs.commit_sha }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           run_install: false
 

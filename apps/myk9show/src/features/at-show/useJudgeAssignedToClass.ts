@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole as ShowRole } from '@/types/auth-types';
 import { replicatedJudgeAssignmentsTable } from '@/services/replication';
-
-/** Assignment-lifecycle statuses that put a class on the judge's plate — mirrors useJudgeAssignments. */
-const ACTIVE_ASSIGNMENT_STATUSES = ['confirmed', 'invited'];
+import { isActiveJudgeAssignmentStatus } from '@/services/database/judges/assignmentStatus';
 
 export type JudgeAssignmentGateResult =
   | { status: 'not-applicable' }
@@ -85,7 +83,7 @@ export function useJudgeAssignedToClass({
         a =>
           a.personId === personId &&
           a.classId === classId &&
-          ACTIVE_ASSIGNMENT_STATUSES.includes(a.status ?? '')
+          isActiveJudgeAssignmentStatus(a.status)
       );
 
     const resolve = async () => {

@@ -14,6 +14,7 @@ import path from 'node:path';
 const read = (p: string) => readFileSync(path.join(__dirname, p), 'utf8');
 const scoresheet = read('AtShowScoresheetPage.tsx');
 const classList = read('AtShowClassListPage.tsx');
+const classRow = read('AtShowClassRow.tsx');
 
 describe('At-Show ringside — calm offline + tokenized status', () => {
   it('renders the offline state in a calm neutral tone, not alarm-orange', () => {
@@ -41,8 +42,8 @@ describe('At-Show ringside — calm offline + tokenized status', () => {
   });
 
   it('highlights a favorite class with the accent token, not raw green', () => {
-    expect(classList).toContain('border-primary bg-primary/5');
-    expect(classList).toContain('fill-primary text-primary');
-    expect(classList).not.toContain('emerald');
+    expect(classRow).toContain('border-primary bg-primary/5');
+    expect(classRow).toContain('fill-primary text-primary');
+    expect(classRow).not.toContain('emerald');
   });
 });

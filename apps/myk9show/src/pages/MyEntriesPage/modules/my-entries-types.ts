@@ -13,6 +13,8 @@ import type { ResultStatus } from '@/components/common/ResultBadge';
 export interface EntryClass {
   /** Entry row id (one dog in one class) — used as `p_entry_id` for check-in. */
   id: string;
+  /** Status of this entry row; dog/order summaries may be dominated by a sibling row. */
+  entryStatus?: EntryStatus | undefined;
   /** The class being entered. Distinct from `id`; drives the self-check-in cascade. */
   classId?: string | undefined;
   name: string;

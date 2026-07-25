@@ -234,5 +234,122 @@ describe('deriveEntryNextAction', () => {
 
       expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'view-show' });
     });
+
+    it('offers check-in when a completed dog shares an order with an accepted dog', () => {
+      const completedClass = makeClass({
+        id: 'completed-1',
+        entryStatus: EntryStatus.COMPLETED,
+        classId: 'class-completed',
+        isScored: true,
+      });
+      const acceptedClass = makeClass({
+        id: 'accepted-1',
+        entryStatus: EntryStatus.ACCEPTED,
+        classId: 'class-accepted',
+        isScored: false,
+      });
+      const entry = makeEntry({
+        // COMPLETED is the dominant order status, but the accepted dog still
+        // owns a live class that can be checked in.
+        entryStatus: EntryStatus.COMPLETED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        classes: [completedClass, acceptedClass],
+        dogs: [
+          {
+            id: 'completed-1',
+            dogId: 'dog-completed',
+            dogName: 'Completed Dog',
+            classes: [completedClass],
+            entryStatus: EntryStatus.COMPLETED,
+          },
+          {
+            id: 'accepted-1',
+            dogId: 'dog-accepted',
+            dogName: 'Accepted Dog',
+            classes: [acceptedClass],
+            entryStatus: EntryStatus.ACCEPTED,
+          },
+        ],
+      });
+
+      expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({
+        kind: 'check-in',
+        classId: 'accepted-1',
+      });
+    });
+
+    it('offers check-in for an accepted class when the same dog also has a completed class', () => {
+      const completedClass = makeClass({
+        id: 'completed-1',
+        entryStatus: EntryStatus.COMPLETED,
+        classId: 'class-completed',
+        isScored: true,
+      });
+      const acceptedClass = makeClass({
+        id: 'accepted-1',
+        entryStatus: EntryStatus.ACCEPTED,
+        classId: 'class-accepted',
+        isScored: false,
+      });
+      const entry = makeEntry({
+        entryStatus: EntryStatus.COMPLETED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        classes: [completedClass, acceptedClass],
+        dogs: [
+          {
+            id: 'completed-1',
+            dogId: 'dog-1',
+            dogName: 'Mixed Status Dog',
+            classes: [completedClass, acceptedClass],
+            entryStatus: EntryStatus.COMPLETED,
+          },
+        ],
+      });
+
+      expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({
+        kind: 'check-in',
+        classId: 'accepted-1',
+      });
+    });
+
+    it('prefers payment when a completed order still contains an accepted unpaid class', () => {
+      const completedClass = makeClass({
+        id: 'completed-1',
+        entryStatus: EntryStatus.COMPLETED,
+        classId: 'class-completed',
+        isScored: true,
+      });
+      const acceptedClass = makeClass({
+        id: 'accepted-1',
+        entryStatus: EntryStatus.ACCEPTED,
+        classId: 'class-accepted',
+        isScored: false,
+      });
+      const entry = makeEntry({
+        entryStatus: EntryStatus.COMPLETED,
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'online',
+        totalFee: 50,
+        classes: [completedClass, acceptedClass],
+        dogs: [
+          {
+            id: 'completed-1',
+            dogId: 'dog-completed',
+            dogName: 'Completed Dog',
+            classes: [completedClass],
+            entryStatus: EntryStatus.COMPLETED,
+          },
+          {
+            id: 'accepted-1',
+            dogId: 'dog-accepted',
+            dogName: 'Accepted Dog',
+            classes: [acceptedClass],
+            entryStatus: EntryStatus.ACCEPTED,
+          },
+        ],
+      });
+
+      expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'finish-payment' });
+    });
   });
 });

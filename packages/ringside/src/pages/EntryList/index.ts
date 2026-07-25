@@ -90,6 +90,21 @@ export {
 } from './runQueue';
 export type { RunQueueEntry } from './runQueue';
 
+// ── Quick-advance ranking (MYK9-83) ──────────────────────────────────────
+// Gate-aware layer over the run queue: opportunistic at-gate promotion that
+// degrades to plain run order when no check-in statuses exist.
+export {
+  DEFAULT_QUICK_ADVANCE_LIMIT,
+  GATE_PRIORITY_STATUSES,
+  gatePromotedPending,
+  gateRank,
+  gateStatusLabel,
+  gateStatusOf,
+  hasAnyGateStatus,
+  quickAdvanceCandidates,
+} from './quickAdvanceCandidates';
+export type { GateStatus, QuickAdvanceEntry } from './quickAdvanceCandidates';
+
 // ── Hooks ────────────────────────────────────────────────────────────────
 export { useEntryListFilters } from './hooks/useEntryListFilters';
 export type { TabType, SortType, SectionFilter } from './hooks/useEntryListFilters';

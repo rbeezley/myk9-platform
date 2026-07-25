@@ -14,7 +14,12 @@ import {
   buildCheckInReminderPayload,
   buildResultsPostedPayload,
 } from '@myk9/notifications';
-import { pendingShowEntriesByRunOrder } from '@/utils/showEntryRunQueue';
+import { useFavoriteArmbandsByShow } from '@/features/at-show/dogFavoritesSync';
+import {
+  watchSetSize,
+  watchedUpcomingEntries,
+  type NotificationWatchSet,
+} from '@/hooks/notificationWatchSet';
 import { detectConflicts } from '@/utils/conflictDetection';
 import type { ClassContext } from '@/utils/conflictDetection';
 import type { ShowEntry } from '@/store/entry-store-types';
@@ -98,6 +103,16 @@ export function useNotificationMonitor(): void {
   );
   const userDogIds = useMemo(() => new Set(dogIdsKey ? dogIdsKey.split(',') : []), [dogIdsKey]);
 
+  // The watch set is owned dogs UNION favorited armbands (MYK9-79). Favorites
+  // come from the server mirror, so they survive a backgrounded PWA; the query
+  // is disabled when signed out, which keeps anonymous passcode sessions on the
+  // owned-only (i.e. empty) watch set with no push path.
+  const favoriteArmbandsByShow = useFavoriteArmbandsByShow(showIds);
+  const watchSet = useMemo<NotificationWatchSet>(
+    () => ({ ownedDogIds: userDogIds, favoriteArmbandsByShow }),
+    [userDogIds, favoriteArmbandsByShow]
+  );
+
   const snapshotQuery = useQuery({
     queryKey: ['notification-monitor', 'entries', showIds],
     queryFn: async (): Promise<NotificationSnapshot> => {
@@ -142,10 +157,12 @@ export function useNotificationMonitor(): void {
   const deliverRef = useRef(deliver);
   const preferencesRef = useRef(preferences);
   const userDogIdsRef = useRef(userDogIds);
+  const watchSetRef = useRef(watchSet);
   useLayoutEffect(() => {
     deliverRef.current = deliver;
     preferencesRef.current = preferences;
     userDogIdsRef.current = userDogIds;
+    watchSetRef.current = watchSet;
   });
 
   const sendPush = useCallback(
@@ -174,14 +191,13 @@ export function useNotificationMonitor(): void {
 
     const leadDogs = preferencesRef.current.leadDogs;
     const allClasses = [...classContextRef.current.values()];
-    // The shared run queue — in-ring, scored and pulled dogs already excluded —
-    // so `index` IS the dogs-ahead count the entry list pill shows for this dog.
-    const upcoming = pendingShowEntriesByRunOrder(context.entries).slice(0, leadDogs);
+    // Watched = owned dogs UNION favorited armbands, deduped to one entry each.
+    // `dogsAhead` is the index into the shared run queue — in-ring, scored and
+    // pulled dogs already excluded — so it is the same number the entry-list
+    // pill shows for this dog.
+    const upcoming = watchedUpcomingEntries(context.entries, leadDogs, watchSetRef.current);
 
-    for (let index = 0; index < upcoming.length; index += 1) {
-      const entry = upcoming[index];
-      if (!userDogIdsRef.current.has(entry.dogId)) continue;
-
+    for (const { entry, dogsAhead } of upcoming) {
       const now = Date.now();
       const lastAlerted = lastYourTurnAlert.current.get(entry.id);
       if (lastAlerted && now - lastAlerted < DEDUP_WINDOW_MS) continue;
@@ -191,7 +207,7 @@ export function useNotificationMonitor(): void {
       const notification = buildYourTurnPayload({
         dogName: dogNameMap.current.get(entry.dogId) ?? 'Your dog',
         className: context.className,
-        dogsAhead: index,
+        dogsAhead,
         armband: entry.registrationData?.armband ?? null,
         ...(conflicts.length > 0 ? { conflicts } : {}),
       });
@@ -326,7 +342,14 @@ export function useNotificationMonitor(): void {
 
   const refetchSnapshot = snapshotQuery.refetch;
   useEffect(() => {
-    if (!preferences.enabled || !userWithRoles || showIds.length === 0 || userDogIds.size === 0) {
+    // Nothing to watch means nothing to poll for — but "nothing" is now the
+    // union: a user who owns no dogs still gets alerts for favorited armbands.
+    if (
+      !preferences.enabled ||
+      !userWithRoles ||
+      showIds.length === 0 ||
+      watchSetSize(watchSet) === 0
+    ) {
       return undefined;
     }
 
@@ -369,5 +392,5 @@ export function useNotificationMonitor(): void {
       if (timer) clearTimeout(timer);
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
-  }, [preferences.enabled, userWithRoles, showIds, userDogIds, refetchSnapshot, processSnapshot]);
+  }, [preferences.enabled, userWithRoles, showIds, watchSet, refetchSnapshot, processSnapshot]);
 }

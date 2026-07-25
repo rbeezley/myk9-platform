@@ -52,7 +52,9 @@ import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
 import { useAtShowEntryListUiState } from './useAtShowEntryListUiState';
 import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
 import { atShowDialogSlots } from './slots/atShowDialogSlots';
-import { useAtShowDogFavorites } from './ringsideDogFavorites';
+import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
+import { useAtShowFavoriteAlertNudge } from './useAtShowFavoriteAlertNudge';
+import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
@@ -69,7 +71,11 @@ export const AtShowEntryListPage: React.FC = () => {
   // `grantRole` below) so all three agree. Shared with the combined-list and
   // scoresheet shims via `useRingsideEffectiveRole`.
   const { showRole, grantRole, ringsideRole, hasPermission } = useRingsideEffectiveRole(showId);
-  const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavorites(showId);
+  // Device-local favorites, mirrored to `dog_favorites` when signed in so the
+  // notification monitor can watch them for "your turn" push (MYK9-79).
+  const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavoritesSynced(showId);
+  const { showAddToHomeNudge, nudgeReason, installInstructions, dismissNudge } =
+    useAtShowFavoriteAlertNudge(favoriteArmbands);
 
   // ── Show metadata (org/name/date) for the ringside show context ────────
   const { data: show } = useQuery({
@@ -281,6 +287,13 @@ export const AtShowEntryListPage: React.FC = () => {
       {/* `.ringside-root` scopes the ported myK9Q visual layer (@myk9/ringside
           styles) to this subtree only — no bleed into the rest of myK9Show. */}
       <div className="ringside-root">
+        {showAddToHomeNudge && (
+          <AtShowAddToHomeNudge
+            reason={nudgeReason}
+            installInstructions={installInstructions}
+            onDismiss={dismissNudge}
+          />
+        )}
         <EntryListPage
           classId={classId}
           data={{ entries, classInfo }}

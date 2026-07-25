@@ -89,12 +89,12 @@ export interface MyEntryBalance {
   paymentStatus: PaymentStatus;
   /** Method of the first still-pending row, else the first row's method. */
   paymentMethod: string | null;
-  /** Fees (cents) of rows whose own payment status is still pending. */
-  unpaidFeeCents: number;
   /** Amount due (cents) per the canonical selector — matches the page summary. */
   amountDueCents: number;
   onlineDueCents: number;
   payAtShowDueCents: number;
+  /** Method of the rows carrying the pay-at-show portion, if any. */
+  payAtShowMethod: string | null;
   /** Entry-row ids that actually owe an ONLINE balance — the pay link's target. */
   dueEntryIds: string[];
 }
@@ -142,7 +142,7 @@ export interface MyEntry {
   /**
    * Row-level money truth for this order. Absent only on hand-built fixtures
    * that never went through `groupEntriesByOrder`; consumers must fall back to
-   * `paymentStatus`/`totalFee` (see `getOrderPaymentPrompt`).
+   * `paymentStatus`/`totalFee` (see `getOrderOnlinePrompt`).
    */
   balance?: MyEntryBalance | undefined;
   /** Raw `entries.payment_method` (DB vocabulary: 'online' | 'cash' | 'check' |

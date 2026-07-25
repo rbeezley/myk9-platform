@@ -103,7 +103,15 @@ function isPastShowEntry(entry: EntryBalanceSource, now: Date): boolean {
   return startOfLocalDay(showLastDay(entry)).getTime() < startOfLocalDay(now).getTime();
 }
 
-function isCurrentSummaryEntry(entry: EntryBalanceSource, now: Date): boolean {
+/**
+ * Whether a row counts toward exhibitor balances at `now`.
+ *
+ * Exported so callers derive eligibility from the SAME rule the totals use.
+ * Re-implementing it (e.g. filtering purely on `paymentStatus === PENDING`)
+ * silently includes withdrawn/rejected/past rows the totals exclude, which is
+ * how a card ends up offering payment while the page summary says $0 due.
+ */
+export function isCurrentSummaryEntry(entry: EntryBalanceSource, now: Date): boolean {
   if (isPastShowEntry(entry, now)) return false;
   return (
     entry.entryStatus === EntryStatus.ACCEPTED ||

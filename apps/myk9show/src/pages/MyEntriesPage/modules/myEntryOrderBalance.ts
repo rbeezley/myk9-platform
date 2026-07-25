@@ -4,16 +4,20 @@
  * `groupEntriesByOrder` merges per-class rows into one card for DISPLAY. Money
  * must not be merged that way: assigning the order the first row's
  * `paymentStatus` is lossy and produced the "$150 due in the summary vs a Paid
- * card with no pay action" contradiction (exhibitor-money-clarity). Everything
- * money-shaped on the card — its status, its amount, and its pay link — is
- * derived here from the SAME per-class rows, through the SAME
- * `summarizeEntryBalances` selector the page summary and My Payments use.
+ * card with no pay action" contradiction (exhibitor-money-clarity).
+ *
+ * Everything money-shaped on the card is derived here from the SAME per-class
+ * rows, through the SAME `summarizeEntryBalances` selector the page summary and
+ * My Payments use — including its eligibility rule (`isCurrentSummaryEntry`).
+ * Re-implementing eligibility here is what let a withdrawn-but-pending sibling
+ * make a card offer payment while the summary said $0 due.
  *
  * @module MyEntriesPage/modules/myEntryOrderBalance
  */
 
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import {
+  isCurrentSummaryEntry,
   summarizeEntryBalances,
   type EntryBalanceSource,
 } from '@/features/payments/entryBalanceSummary';
@@ -31,14 +35,15 @@ const PAID_STATUSES: PaymentStatus[] = [
   PaymentStatus.PAID_BY_CASH,
 ];
 
+/** Methods the exhibitor settles in person rather than online. */
+const PAY_AT_SHOW_METHODS = new Set(['cash', 'check']);
+
 export interface OrderBalanceContext {
   showId: string;
   showName: string;
   showDate: Date;
   showEndDate?: Date | undefined;
-  /** Order-level entry status, used when a class row carries none. */
   entryStatus: EntryStatus;
-  /** Order-level payment status/method, used when a class row carries none. */
   paymentStatus: PaymentStatus;
   paymentMethod: string | null;
 }
@@ -58,69 +63,120 @@ function toBalanceSources(classes: EntryClass[], ctx: OrderBalanceContext): Entr
 }
 
 /**
- * Reconcile an order's payment status across its rows.
+ * Reconcile an order's payment status across the rows the selector counts.
  *
- * Precedence, deliberately conservative: a partially-paid order is NOT "paid".
- * Any row still PENDING makes the whole order pending, because the exhibitor
- * still owes something. Only when nothing is pending do we surface a settled
- * status (a real PAID_* if one exists, else the first row's — waived/refunded).
+ * Precedence, deliberately conservative:
+ *  1. any eligible row still PENDING -> PENDING (a partly paid order is not paid)
+ *  2. a mix of refunded and paid rows -> PARTIAL_REFUND (a partial withdrawal;
+ *     calling it "Paid" would expose a full-order receipt for money returned)
+ *  3. all refunded -> REFUNDED
+ *  4. otherwise a real paid status if present, else the first row's
  */
-export function reconcileOrderPaymentStatus(sources: EntryBalanceSource[]): PaymentStatus | null {
-  if (sources.length === 0) return null;
-  if (sources.some(source => source.paymentStatus === PaymentStatus.PENDING)) {
+export function reconcileOrderPaymentStatus(eligible: EntryBalanceSource[]): PaymentStatus | null {
+  if (eligible.length === 0) return null;
+  if (eligible.some(source => source.paymentStatus === PaymentStatus.PENDING)) {
     return PaymentStatus.PENDING;
   }
-  const paid = sources.find(source => PAID_STATUSES.includes(source.paymentStatus));
-  return paid ? paid.paymentStatus : sources[0].paymentStatus;
-}
 
-function reconcileOrderPaymentMethod(sources: EntryBalanceSource[]): string | null {
-  const pending = sources.find(source => source.paymentStatus === PaymentStatus.PENDING);
-  const chosen = pending ?? sources[0];
-  return chosen?.paymentMethod ?? null;
-}
+  const refunded = eligible.filter(source => source.paymentStatus === PaymentStatus.REFUNDED);
+  const paid = eligible.filter(source => PAID_STATUSES.includes(source.paymentStatus));
+  if (refunded.length > 0) {
+    if (paid.length > 0) return PaymentStatus.PARTIAL_REFUND;
+    if (refunded.length === eligible.length) return PaymentStatus.REFUNDED;
+  }
 
-function feeCents(feeDollars: number): number {
-  return Math.max(0, Math.round(feeDollars * 100));
+  return paid[0]?.paymentStatus ?? eligible[0].paymentStatus;
 }
 
 /**
- * Build the order's money slice from its per-class rows.
+ * Build the order's money slice from its per-class rows, or `null` when there
+ * is nothing trustworthy to build from.
+ *
+ * Returning null matters during the documented partial-replication window: an
+ * entry can render before its class relation arrives, leaving `classes: []`
+ * while the top-level row still carries a fee and a pending status. A zeroed
+ * balance would suppress the card's Payment Due and its recovery action while
+ * the raw-row page summary still reported the debt — so callers keep their
+ * top-level fallback instead.
  */
 export function buildOrderBalance(
   classes: EntryClass[],
   ctx: OrderBalanceContext,
   now: Date = new Date()
-): MyEntryBalance {
+): MyEntryBalance | null {
   const sources = toBalanceSources(classes, ctx);
+  if (sources.length === 0) return null;
+
+  const eligible = sources.filter(source => isCurrentSummaryEntry(source, now));
   const summary = summarizeEntryBalances(sources, now);
   const onlineShow = summary.onlineShowBalances[0];
-  const unpaidFeeCents = sources
-    .filter(source => source.paymentStatus === PaymentStatus.PENDING)
-    .reduce((sum, source) => sum + feeCents(source.totalFee), 0);
+
+  // The pay-at-show instruction must quote only the in-person portion and name
+  // the method of the rows that actually carry it — a mixed cash+online order
+  // previously told the exhibitor to bring the combined total in cash.
+  const payAtShowSource = eligible.find(
+    source =>
+      source.paymentStatus === PaymentStatus.PENDING &&
+      PAY_AT_SHOW_METHODS.has(source.paymentMethod ?? '')
+  );
 
   return {
-    paymentStatus: reconcileOrderPaymentStatus(sources) ?? ctx.paymentStatus,
-    paymentMethod: reconcileOrderPaymentMethod(sources) ?? ctx.paymentMethod,
-    unpaidFeeCents,
+    paymentStatus: reconcileOrderPaymentStatus(eligible) ?? ctx.paymentStatus,
+    paymentMethod: payAtShowSource?.paymentMethod ?? ctx.paymentMethod,
     amountDueCents: summary.amountDueCents,
     onlineDueCents: summary.onlineDueCents,
     payAtShowDueCents: summary.payAtShowDueCents,
+    payAtShowMethod: payAtShowSource?.paymentMethod ?? null,
     dueEntryIds: onlineShow?.entryIds ?? [],
   };
 }
 
 /**
- * The card's payment prompt, derived from the row-level balance rather than
- * the (lossy) grouped status + whole-order fee. A mixed order prompts for what
- * is actually still owed, not the full order total.
+ * The card's ONLINE payment prompt, quoting only the online portion.
+ *
+ * Amounts come from the selector's eligible balances, so a withdrawn or
+ * rejected sibling that is still "pending" never conjures a Finish Payment
+ * action the page summary disagrees with.
  */
-export function getOrderPaymentPrompt(entry: MyEntry): EntryPaymentPrompt {
+export function getOrderOnlinePrompt(entry: MyEntry): EntryPaymentPrompt {
   const balance = entry.balance;
+  if (!balance) {
+    return getEntryPaymentPrompt({
+      paymentMethod: entry.paymentMethod,
+      paymentStatus: entry.paymentStatus,
+      totalFee: entry.totalFee,
+    });
+  }
+  if (balance.onlineDueCents <= 0) return { kind: 'none' };
   return getEntryPaymentPrompt({
-    paymentMethod: balance?.paymentMethod ?? entry.paymentMethod,
-    paymentStatus: balance?.paymentStatus ?? entry.paymentStatus,
-    totalFee: balance ? balance.unpaidFeeCents / 100 : entry.totalFee,
+    paymentMethod: 'credit_card',
+    paymentStatus: PaymentStatus.PENDING,
+    totalFee: balance.onlineDueCents / 100,
+  });
+}
+
+/**
+ * The card's PAY-AT-SHOW instruction, quoting only the in-person portion.
+ * Independent of the online prompt so a mixed-method order shows both truths.
+ */
+export function getOrderPayAtShowPrompt(entry: MyEntry): EntryPaymentPrompt {
+  const balance = entry.balance;
+  // Same partial-replication fallback as the online prompt: with no class rows
+  // there is no balance to slice, and the entry's own pending cash/check
+  // instruction must not vanish.
+  if (!balance) {
+    const prompt = getEntryPaymentPrompt({
+      paymentMethod: entry.paymentMethod,
+      paymentStatus: entry.paymentStatus,
+      totalFee: entry.totalFee,
+    });
+    return prompt.kind === 'pay-at-show' ? prompt : { kind: 'none' };
+  }
+  if (balance.payAtShowDueCents <= 0) return { kind: 'none' };
+  return getEntryPaymentPrompt({
+    paymentMethod: balance.payAtShowMethod,
+    paymentStatus: PaymentStatus.PENDING,
+    totalFee: balance.payAtShowDueCents / 100,
   });
 }
 

@@ -13,7 +13,7 @@
  */
 
 import { EntryStatus } from '@/types/show-registration-types';
-import { getOrderPaymentPrompt } from './myEntryOrderBalance';
+import { getOrderOnlinePrompt } from './myEntryOrderBalance';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import { findOwningDog } from './myEntryDogView';
 import type { MyEntry } from './my-entries-types';
@@ -61,7 +61,7 @@ export function deriveEntryNextAction(
       : isPaymentEligibleStatus(entry.entryStatus);
   // Same row-level order balance the card renders from — the summary-band
   // action can never disagree with the amount shown (exhibitor-money-clarity).
-  const paymentPrompt = canPayStatus ? getOrderPaymentPrompt(entry) : ({ kind: 'none' } as const);
+  const paymentPrompt = canPayStatus ? getOrderOnlinePrompt(entry) : ({ kind: 'none' } as const);
 
   if (paymentPrompt.kind === 'finish-online') {
     return { kind: 'finish-payment' };

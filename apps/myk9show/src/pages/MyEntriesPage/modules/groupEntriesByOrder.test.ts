@@ -359,7 +359,6 @@ describe('groupEntriesByOrder — money is reconciled from rows, not first-row-w
     // Not "paid" just because the paid row happened to be first.
     expect(order.balance?.paymentStatus).toBe(PaymentStatus.PENDING);
     // Owes the pending row's $50 — never the $150 whole-order total.
-    expect(order.balance?.unpaidFeeCents).toBe(5000);
     expect(order.balance?.amountDueCents).toBe(5000);
     // The pay link targets only the row that actually owes.
     expect(order.balance?.dueEntryIds).toEqual(['entry-pending']);
@@ -371,5 +370,114 @@ describe('groupEntriesByOrder — money is reconciled from rows, not first-row-w
     expect(order.balance?.paymentStatus).toBe(PaymentStatus.PAID_ONLINE);
     expect(order.balance?.amountDueCents).toBe(0);
     expect(order.balance?.dueEntryIds).toEqual([]);
+  });
+});
+
+describe('groupEntriesByOrder — row combinations Codex found on PR #1456', () => {
+  it('a withdrawn-but-pending sibling never conjures a payable balance', () => {
+    // summarizeEntryBalances excludes terminal rows; re-filtering on
+    // paymentStatus alone counted this fee, so the card offered payment while
+    // the page summary showed $0 due.
+    const paid = makeRow({
+      id: 'entry-paid',
+      totalFee: 100,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      classes: [makeClass({ id: 'entry-paid', fee: 100, paymentStatus: PaymentStatus.PAID_ONLINE })],
+    });
+    const withdrawn = makeRow({
+      id: 'entry-withdrawn',
+      totalFee: 50,
+      entryStatus: EntryStatus.CANCELLED,
+      paymentStatus: PaymentStatus.PENDING,
+      classes: [
+        makeClass({
+          id: 'entry-withdrawn',
+          fee: 50,
+          entryStatus: EntryStatus.CANCELLED,
+          paymentStatus: PaymentStatus.PENDING,
+        }),
+      ],
+    });
+
+    const [order] = groupEntriesByOrder([paid, withdrawn]);
+
+    expect(order.balance?.amountDueCents).toBe(0);
+    expect(order.balance?.dueEntryIds).toEqual([]);
+    expect(order.balance?.paymentStatus).toBe(PaymentStatus.PAID_ONLINE);
+  });
+
+  it('keeps mixed pending methods separate instead of quoting one combined total', () => {
+    const online = makeRow({
+      id: 'entry-online',
+      totalFee: 100,
+      paymentStatus: PaymentStatus.PENDING,
+      classes: [
+        makeClass({
+          id: 'entry-online',
+          fee: 100,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: 'credit_card',
+        }),
+      ],
+    });
+    const cash = makeRow({
+      id: 'entry-cash',
+      totalFee: 40,
+      paymentStatus: PaymentStatus.PENDING,
+      classes: [
+        makeClass({
+          id: 'entry-cash',
+          fee: 40,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: 'cash',
+        }),
+      ],
+    });
+
+    const [order] = groupEntriesByOrder([cash, online]);
+
+    // Each portion keeps its own amount — never $140 quoted as cash.
+    expect(order.balance?.onlineDueCents).toBe(10000);
+    expect(order.balance?.payAtShowDueCents).toBe(4000);
+    expect(order.balance?.payAtShowMethod).toBe('cash');
+    // Only the online row is chargeable through the pay link.
+    expect(order.balance?.dueEntryIds).toEqual(['entry-online']);
+  });
+
+  it('reports PARTIAL_REFUND when some rows were refunded and others stayed paid', () => {
+    const paid = makeRow({
+      id: 'entry-paid',
+      totalFee: 100,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      classes: [makeClass({ id: 'entry-paid', fee: 100, paymentStatus: PaymentStatus.PAID_ONLINE })],
+    });
+    const refunded = makeRow({
+      id: 'entry-refunded',
+      totalFee: 50,
+      paymentStatus: PaymentStatus.REFUNDED,
+      classes: [
+        makeClass({ id: 'entry-refunded', fee: 50, paymentStatus: PaymentStatus.REFUNDED }),
+      ],
+    });
+
+    const [order] = groupEntriesByOrder([paid, refunded]);
+
+    expect(order.balance?.paymentStatus).toBe(PaymentStatus.PARTIAL_REFUND);
+  });
+
+  it('falls back to the top-level row when no class has replicated yet', () => {
+    // Partial replication: the entry arrives before its class relation. A
+    // zeroed balance would hide the debt the page summary still reports.
+    const unreplicated = makeRow({
+      id: 'entry-1',
+      totalFee: 75,
+      paymentStatus: PaymentStatus.PENDING,
+      classes: [],
+    });
+
+    const [order] = groupEntriesByOrder([unreplicated]);
+
+    expect(order.balance).toBeUndefined();
+    expect(order.paymentStatus).toBe(PaymentStatus.PENDING);
   });
 });

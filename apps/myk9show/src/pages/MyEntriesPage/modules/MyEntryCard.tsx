@@ -21,7 +21,11 @@ import {
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { type ResultCardModel } from '@/features/result-card';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
-import { buildOrderPaymentHref, getOrderPaymentPrompt } from './myEntryOrderBalance';
+import {
+  buildOrderPaymentHref,
+  getOrderOnlinePrompt,
+  getOrderPayAtShowPrompt,
+} from './myEntryOrderBalance';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import {
   getEntryStatusBadge,
@@ -143,7 +147,13 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
   // Amount, status and method all come from the ROW-level order balance, so a
   // mixed paid/pending order can never claim "Paid" while the page summary
   // shows money due (exhibitor-money-clarity).
-  const paymentPrompt = canPayStatus ? getOrderPaymentPrompt(entry) : ({ kind: 'none' } as const);
+  // An order can owe BOTH ways at once (one class online, another cash), so the
+  // two prompts are independent and each quotes only its own portion. Merging
+  // them told a mixed-method exhibitor to bring the online balance in cash.
+  const onlinePrompt = canPayStatus ? getOrderOnlinePrompt(entry) : ({ kind: 'none' } as const);
+  const payAtShowPrompt = canPayStatus
+    ? getOrderPayAtShowPrompt(entry)
+    : ({ kind: 'none' } as const);
 
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.
@@ -206,8 +216,11 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
               Payments amount-due figure that already derives from
               getEntryPaymentPrompt (exhibitor-money-clarity). */}
           {!(
-            entry.paymentStatus === PaymentStatus.PENDING && paymentPrompt.kind !== 'finish-online'
-          ) && getPaymentStatusBadge(entry.paymentStatus, { isPastShow })}
+            entry.paymentStatus === PaymentStatus.PENDING && onlinePrompt.kind !== 'finish-online'
+          ) &&
+            getPaymentStatusBadge(entry.balance?.paymentStatus ?? entry.paymentStatus, {
+              isPastShow,
+            })}
         </div>
       </div>
 
@@ -255,10 +268,10 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         <span className={statusMessage.className}>{statusMessage.message}</span>
       </div>
 
-      {paymentPrompt.kind === 'pay-at-show' && (
+      {payAtShowPrompt.kind === 'pay-at-show' && (
         <p className="flex min-h-[44px] items-center gap-1.5 text-sm text-muted-foreground">
           <Wallet className="h-4 w-4 flex-shrink-0" />
-          {paymentPrompt.text}
+          {payAtShowPrompt.text}
         </p>
       )}
 

@@ -168,9 +168,12 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
       dogs,
       totalFee,
       entryStatus,
-      paymentStatus: balance.paymentStatus,
-      paymentMethod: balance.paymentMethod,
-      balance,
+      // `balance` is null only when no class row has replicated yet; keep the
+      // order's own top-level status/method as the fallback so the card still
+      // shows the debt the page summary reports.
+      paymentStatus: balance?.paymentStatus ?? order.paymentStatus,
+      paymentMethod: balance?.paymentMethod ?? order.paymentMethod,
+      ...(balance ? { balance } : {}),
       confirmationNumber: order.confirmationNumber,
       entryCloseDate: order.entryCloseDate,
       submittedAt: order.submittedAt,

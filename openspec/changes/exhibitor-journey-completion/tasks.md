@@ -80,8 +80,8 @@
 
 ## 8. Compatibility Cleanup and Rollback Readiness
 
-- [ ] 8.1 Review fallback telemetry and staging/production parity after one compatibility release; do not remove legacy entitlement storage while any active caller or unmatched row remains.
-- [ ] 8.2 Add the cleanup migration to remove the `early_adopter_until` fallback, protection trigger, and column, including a preflight query and documented reconstruction rollback from grant history.
+- [x] 8.1 Review fallback telemetry and staging/production parity after one compatibility release; do not remove legacy entitlement storage while any active caller or unmatched row remains. **(Parity verified live 2026-07-25: 0 unmatched legacy rows, 0 orphan founding grants, 0 end-date drift. All application callers removed — see the task 8.1 commit. Caveat: the `useSubscriptionGate` legacy/resolver mismatch logger writes to the app logger only; there is no historical query for it, so 'no mismatches observed' is not evidence of none — see the known gap in `docs/entitlement-operations.md`.)**
+- [x] 8.2 Add the cleanup migration to remove the `early_adopter_until` fallback, protection trigger, and column, including a preflight query and documented reconstruction rollback from grant history. **(`20260725190000_drop_early_adopter_until.sql` — NOT deployed. Dry-run against staging inside a rolled-back transaction: preflight passed, both triggers/function/column dropped, verified 0 remaining. Guard proven non-vacuous by deliberately breaking parity — it aborted with `unmatched_legacy=1`. Rollback documented in-file.)**
 - [ ] 8.3 Run clean database replay, regenerated-type checks, entitlement tests, RLS smoke, `pnpm typecheck`, and staging free/Premium/revoked verification against the cleanup migration.
 - [ ] 8.4 Obtain explicit shared-system approval before deploying the cleanup migration and record post-deploy parity/authorization evidence.
 

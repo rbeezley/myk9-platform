@@ -32,12 +32,14 @@ vi.mock('@/features/entitlement/useEntitlement', () => ({
 
 function trustedEntitlement(
   tier: 'free' | 'premium',
-  source: 'paid' | 'founding' | 'complimentary' | 'none'
+  source: 'paid' | 'founding' | 'complimentary' | 'none',
+  endsAt?: string
 ) {
   entitlementHolder.effective = {
     tier,
     status: tier === 'premium' ? 'active' : 'free',
     source,
+    ...(endsAt !== undefined ? { endsAt } : {}),
     evaluatedAt: new Date().toISOString(),
     trustedUntil: new Date(Date.now() + 60_000).toISOString(),
     analyticsTrial: { status: 'unavailable', scoredShowCount: null, showLimit: 3 },
@@ -61,17 +63,6 @@ function mockFreeProfile() {
 function mockPremiumProfile(expiresAt: string) {
   mockUseExhibitorProfile.mockReturnValue({
     profile: { subscription_tier: 'premium', subscription_expires_at: expiresAt, person: null },
-    isLoading: false,
-  });
-}
-
-function mockEarlyAdopterProfile(until: string = futureDate) {
-  mockUseExhibitorProfile.mockReturnValue({
-    profile: {
-      subscription_tier: 'free',
-      subscription_expires_at: null,
-      person: { early_adopter_until: until },
-    },
     isLoading: false,
   });
 }
@@ -199,37 +190,52 @@ describe('useSubscriptionGate', () => {
     });
   });
 
-  describe('early adopter access', () => {
-    it('grants premium to early adopter with free subscription tier', () => {
-      mockEarlyAdopterProfile();
+  // Founding membership is read from its GRANT via the resolver as of task 8.2
+  // — `people.early_adopter_until` no longer exists. These cases keep the
+  // original intents (founding grants premium, an elapsed one does not, and a
+  // founding grant outlives an expired paid subscription) re-expressed against
+  // the source that now decides them.
+  describe('founding membership (resolver-backed)', () => {
+    it('grants premium and exposes the grant end date', () => {
+      mockFreeProfile();
+      trustedEntitlement('premium', 'founding', futureDate);
 
       const { result } = renderHook(() => useSubscriptionGate());
 
       expect(result.current.tier).toBe('premium');
       expect(result.current.isPremium).toBe(true);
       expect(result.current.isEarlyAdopter).toBe(true);
+      expect(result.current.foundingUntil).toBe(futureDate);
       expect(result.current.isInTrial).toBe(false);
       expect(result.current.isExpired).toBe(false);
     });
 
-    it('isEarlyAdopter is false when person is null', () => {
+    it('isEarlyAdopter is false when no trusted entitlement exists', () => {
       mockFreeProfile();
 
       const { result } = renderHook(() => useSubscriptionGate());
 
       expect(result.current.isEarlyAdopter).toBe(false);
+      expect(result.current.foundingUntil).toBeNull();
       expect(result.current.isPremium).toBe(false);
     });
 
-    it('isEarlyAdopter is false when early_adopter_until is null (never granted)', () => {
-      mockUseExhibitorProfile.mockReturnValue({
-        profile: {
-          subscription_tier: 'free',
-          subscription_expires_at: null,
-          person: { early_adopter_until: null },
-        },
-        isLoading: false,
-      });
+    it('isEarlyAdopter is false for a premium account from a NON-founding source', () => {
+      mockFreeProfile();
+      trustedEntitlement('premium', 'complimentary', futureDate);
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.isPremium).toBe(true);
+      expect(result.current.isEarlyAdopter).toBe(false);
+      expect(result.current.foundingUntil).toBeNull();
+    });
+
+    it('founding membership EXPIRES: an ended grant no longer grants premium', () => {
+      mockFreeProfile();
+      // The resolver reports an elapsed grant as status 'expired', which is
+      // exactly equivalent to never having had one.
+      trustedEntitlement('free', 'none');
 
       const { result } = renderHook(() => useSubscriptionGate());
 
@@ -237,24 +243,9 @@ describe('useSubscriptionGate', () => {
       expect(result.current.isPremium).toBe(false);
     });
 
-    it('founding membership EXPIRES: a past early_adopter_until no longer grants premium', () => {
-      mockEarlyAdopterProfile(pastDate);
-
-      const { result } = renderHook(() => useSubscriptionGate());
-
-      expect(result.current.isEarlyAdopter).toBe(false);
-      expect(result.current.isPremium).toBe(false);
-    });
-
-    it('early adopter with expired paid subscription still gets premium via founding grant', () => {
-      mockUseExhibitorProfile.mockReturnValue({
-        profile: {
-          subscription_tier: 'premium',
-          subscription_expires_at: pastDate,
-          person: { early_adopter_until: futureDate },
-        },
-        isLoading: false,
-      });
+    it('an active founding grant outlives an expired paid subscription', () => {
+      mockPremiumProfile(pastDate);
+      trustedEntitlement('premium', 'founding', futureDate);
 
       const { result } = renderHook(() => useSubscriptionGate());
 
@@ -266,8 +257,8 @@ describe('useSubscriptionGate', () => {
 
   describe('server-backed entitlement (trusted resolver is authoritative)', () => {
     it('grant-only account is premium: no legacy profile Premium signal at all', () => {
-      // subscription_tier 'free', no early_adopter_until — the ONLY Premium
-      // source is an active complimentary grant, visible only to the resolver.
+      // subscription_tier 'free' and no grant on the profile — the ONLY
+      // Premium source is an active complimentary grant, seen by the resolver.
       mockFreeProfile();
       trustedEntitlement('premium', 'complimentary');
 
@@ -288,7 +279,7 @@ describe('useSubscriptionGate', () => {
     });
 
     it('a trusted free result locks an account the legacy fields would have called premium', () => {
-      mockEarlyAdopterProfile();
+      mockPremiumProfile(futureDate);
       trustedEntitlement('free', 'none');
 
       const { result } = renderHook(() => useSubscriptionGate());
@@ -308,15 +299,18 @@ describe('useSubscriptionGate', () => {
       expect(result.current.isPremium).toBe(true);
     });
 
-    it('failed entitlement read falls back to the legacy calculation', () => {
-      mockEarlyAdopterProfile();
+    it('failed entitlement read falls back to the legacy PAID calculation only', () => {
+      mockPremiumProfile(futureDate);
       entitlementHolder.effective = null;
       entitlementHolder.isError = true;
 
       const { result } = renderHook(() => useSubscriptionGate());
 
       expect(result.current.isPremium).toBe(true);
-      expect(result.current.isEarlyAdopter).toBe(true);
+      // Founding can no longer be recovered from the profile, so a failed
+      // resolver read means founding status is unknown — reported false rather
+      // than guessed. This is the fail-closed half of dropping the column.
+      expect(result.current.isEarlyAdopter).toBe(false);
     });
 
     it('loading is neutral until BOTH the profile and entitlement reads settle', () => {
@@ -350,7 +344,7 @@ describe('useSubscriptionGate', () => {
     });
 
     it('stays false when the entitlement read failed outright', () => {
-      mockEarlyAdopterProfile();
+      mockPremiumProfile(futureDate);
       entitlementHolder.effective = null;
       entitlementHolder.isError = true;
 

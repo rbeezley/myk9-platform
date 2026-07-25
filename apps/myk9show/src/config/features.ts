@@ -8,9 +8,9 @@
  *  - features.*       → shows a "coming soon" screen (feature not ready yet)
  *  - BlurGate/premium → blurs content, shows upgrade CTA (premium upsell)
  *
- * Founding members bypass BlurGate while `people.early_adopter_until` is in
- * the future (see useSubscriptionGate), but still see "coming soon" for
- * flagged features.
+ * Founding members bypass BlurGate while their founding grant is active (see
+ * useSubscriptionGate, which reads it from the entitlement resolver), but
+ * still see "coming soon" for flagged features.
  */
 export const features = {
   // Dog Details tabs — hidden until show management is ready

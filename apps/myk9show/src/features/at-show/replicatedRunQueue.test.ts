@@ -43,6 +43,35 @@ describe('toRunQueueEntry', () => {
     expect(toRunQueueEntry(row({ id: 'e1', entryStatus: 'pulled' })).status).toBe('pulled');
   });
 
+  // Replicated rows carry two status axes. `pulled` and `in-ring` only ever
+  // appear on check_in_status — entry_status (migration 003) has neither — so
+  // reading the lifecycle axis alone left gate-pulled dogs looking pending.
+  it('takes pulled from the check-in axis, not the lifecycle axis', () => {
+    expect(toRunQueueEntry(row({ id: 'e1', check_in_status: 'pulled' })).status).toBe('pulled');
+    expect(toRunQueueEntry(row({ id: 'e2', checkInStatus: 'pulled' })).status).toBe('pulled');
+  });
+
+  it('treats a check-in status of in-ring as in the ring', () => {
+    const normalized = toRunQueueEntry(row({ id: 'e1', check_in_status: 'in-ring' }));
+    expect(normalized.inRing).toBe(true);
+    expect(normalized.status).toBe('in-ring');
+  });
+
+  it('folds non-running lifecycle states onto pulled', () => {
+    for (const lifecycle of ['withdrawn', 'scratched', 'absent']) {
+      expect(toRunQueueEntry(row({ id: `e-${lifecycle}`, entryStatus: lifecycle })).status).toBe(
+        'pulled'
+      );
+    }
+  });
+
+  it('does not let a benign lifecycle state mask an active check-in status', () => {
+    const normalized = toRunQueueEntry(
+      row({ id: 'e1', entryStatus: 'confirmed', check_in_status: 'at-gate' })
+    );
+    expect(normalized.status).toBe('at-gate');
+  });
+
   it('carries the original row through for display fields', () => {
     const original = row({ id: 'e1', armband: '412', dogCallName: 'Bella', dogBreed: 'Golden' });
     expect(toRunQueueEntry(original).entry).toBe(original);
@@ -61,6 +90,24 @@ describe('pendingReplicatedByRunOrder / nextPendingReplicated', () => {
 
   it('excludes in-ring, scored, and pulled rows', () => {
     expect(pendingReplicatedByRunOrder(entries).map(e => e.id)).toEqual(['e2', 'e5', 'e6']);
+  });
+
+  it('excludes a dog pulled at the gate on show day', () => {
+    const withGatePull = [
+      row({ id: 'e1', armband: '1' }),
+      row({ id: 'e2', armband: '2', entryStatus: 'confirmed', check_in_status: 'pulled' }),
+      row({ id: 'e3', armband: '3' }),
+    ];
+    expect(pendingReplicatedByRunOrder(withGatePull).map(e => e.id)).toEqual(['e1', 'e3']);
+  });
+
+  it('excludes the in-ring dog when only the check-in status marks it', () => {
+    const inRingViaCheckIn = [
+      row({ id: 'e1', armband: '1', entryStatus: 'competing', check_in_status: 'in-ring' }),
+      row({ id: 'e2', armband: '2' }),
+    ];
+    expect(pendingReplicatedByRunOrder(inRingViaCheckIn).map(e => e.id)).toEqual(['e2']);
+    expect(inRingReplicated(inRingViaCheckIn)?.id).toBe('e1');
   });
 
   it('orders by runOrder ahead of armband', () => {

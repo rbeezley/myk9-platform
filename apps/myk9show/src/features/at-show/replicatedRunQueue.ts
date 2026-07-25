@@ -32,6 +32,36 @@ function parseArmband(entry: ReplicatedEntry): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+/**
+ * Entry-lifecycle states that mean "this dog is not going to run", but which
+ * the show-day check-in flow never sets. `entry_status` (migration 003) allows
+ * no-status / draft / submitted / paid / confirmed / checked-in / competing /
+ * completed / withdrawn / scratched / absent — note it contains neither
+ * `pulled` nor `in-ring`.
+ */
+const NOT_RUNNING_LIFECYCLE = new Set(['withdrawn', 'scratched', 'absent']);
+
+/**
+ * The status the run queue actually cares about.
+ *
+ * Replicated rows carry TWO status axes: `check_in_status` (the show-day flow —
+ * this is where `pulled` and `in-ring` live, see CheckInStatus in @myk9/core)
+ * and `entry_status` (the registration lifecycle). `isInQueue` / `isInRingEntry`
+ * test for `pulled` / `in-ring`, so the check-in axis must win — reading the
+ * lifecycle axis alone would leave a dog pulled at the gate still showing as
+ * pending. Lifecycle states that also mean "won't run" are folded onto `pulled`
+ * so a single field answers queue membership.
+ */
+function queueStatus(entry: ReplicatedEntry): string | undefined {
+  const checkIn = entry.checkInStatus ?? entry.check_in_status;
+  if (checkIn === 'pulled' || checkIn === 'in-ring') return checkIn;
+
+  const lifecycle = entry.status ?? entry.entryStatus;
+  if (lifecycle !== undefined && NOT_RUNNING_LIFECYCLE.has(lifecycle)) return 'pulled';
+
+  return checkIn ?? lifecycle;
+}
+
 export function toRunQueueEntry(entry: ReplicatedEntry): ReplicatedQueueEntry {
   return {
     id: entry.id,
@@ -40,8 +70,12 @@ export function toRunQueueEntry(entry: ReplicatedEntry): ReplicatedQueueEntry {
     // `exhibitorOrder`, so map it across rather than adding a second sort key.
     exhibitorOrder: entry.runOrder ?? null,
     isScored: entry.isScored ?? entry.is_scored ?? false,
-    status: entry.status ?? entry.entryStatus,
-    inRing: entry.isInRing ?? entry.is_in_ring ?? false,
+    status: queueStatus(entry),
+    // A dog sent into the ring on show day may be flagged only by the check-in
+    // status, with neither boolean alias set.
+    inRing:
+      (entry.isInRing ?? entry.is_in_ring ?? false) ||
+      (entry.checkInStatus ?? entry.check_in_status) === 'in-ring',
     entry,
   };
 }
@@ -52,7 +86,10 @@ export function pendingReplicatedByRunOrder(entries: ReplicatedEntry[]): Replica
 }
 
 /** The next `limit` replicated entries due to run, in run order. */
-export function nextPendingReplicated(entries: ReplicatedEntry[], limit: number): ReplicatedEntry[] {
+export function nextPendingReplicated(
+  entries: ReplicatedEntry[],
+  limit: number
+): ReplicatedEntry[] {
   return nextPendingCandidates(entries.map(toRunQueueEntry), limit).map(row => row.entry);
 }
 

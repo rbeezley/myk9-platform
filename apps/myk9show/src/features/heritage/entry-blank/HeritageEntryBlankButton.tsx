@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { HeritageEntryBlankDocument } from './HeritageEntryBlankDocument';
 import type { BuildEntryBlankOptions } from './buildEntryBlankProps';
 import { buildEntryBlankProps } from './buildEntryBlankProps';
+import { MissingRegistrationNotice } from './MissingRegistrationNotice';
 
 interface Props extends BuildEntryBlankOptions {
   /** Button label. Defaults to "Download Entry Blank". */
@@ -27,6 +28,8 @@ export function HeritageEntryBlankButton({
       .replace(/[^a-z0-9-]/g, '')}-entry-blank.pdf`;
 
   return (
+    <>
+    <MissingRegistrationNotice dog={props.dog} />
     <PDFDownloadLink
       document={<HeritageEntryBlankDocument {...props} />}
       fileName={pdfFilename}
@@ -44,5 +47,6 @@ export function HeritageEntryBlankButton({
         </Button>
       )}
     </PDFDownloadLink>
+    </>
   );
 }

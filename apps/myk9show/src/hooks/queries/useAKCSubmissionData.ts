@@ -144,7 +144,23 @@ export function useAKCSubmissionData(showId: string) {
         supabase.from('dogs').select('id, sex, owner_id, name, call_name').in('id', dogIds),
         supabase
           .from('dog_registrations')
-          .select('dog_id, organization, registration_number, registered_name, breed, variety')
+          // `id` and `created_at` are the resolver's tiebreak fields and must be
+          // selected, not just the display columns. `UNIQUE (dog_id,
+          // organization)` is an EXACT-STRING constraint (verified against the
+          // applied schema), so one dog may legitimately hold both an `AKC` row
+          // and an `AKC (American Kennel Club)` row. Both normalize to AKC, so
+          // the resolver sees two candidates; without these fields the
+          // comparator ties and falls back to unspecified PostgREST row order,
+          // and the submitted registration number could vary between runs.
+          //
+          // `is_primary` is deliberately NOT selected: its migration is written
+          // but unpushed, and selecting a nonexistent column would fail every
+          // submission. `created_at` then `id` is fully deterministic on its
+          // own, and the backfill marks the earliest row primary anyway, so the
+          // two orderings agree. Add `is_primary` here when the migration lands.
+          .select(
+            'dog_id, id, created_at, organization, registration_number, registered_name, breed, variety'
+          )
           .in('dog_id', dogIds),
       ]);
 

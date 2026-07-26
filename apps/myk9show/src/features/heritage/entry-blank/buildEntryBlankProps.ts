@@ -90,6 +90,14 @@ interface DogInput {
    * sanctioning organization — never from `dogs.akc_number` (which nothing in
    * the app writes; the flat column is NULL for every row) and never from
    * another organization's registration. MYK9-90.
+   *
+   * Callers must include `id` and `created_at` on these rows (selecting
+   * `dog_registrations(*)`, as every `reads.ts` embed does, satisfies this).
+   * They are the resolver's tiebreak fields: `UNIQUE (dog_id, organization)`
+   * is an exact-string constraint, so one dog can hold both `AKC` and
+   * `AKC (American Kennel Club)` rows, and without the ordering fields the
+   * comparator ties and the printed registration number becomes dependent on
+   * row order.
    */
   registrations?: readonly DogRegistrationLike[] | null;
 }
@@ -163,6 +171,8 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   const { show, trials, classes, judges, club, secretary, entry, dog, handler } = opts;
   // Bind to the trial's registry via the shared selector (trims + defaults to AKC for
   // blank/missing registry_id; throws in dev / falls back to AKC in prod for unknown ids).
+  // NOTE: this drives the §II grid, which is form-wide and therefore keyed off the first
+  // trial. Dog identity is resolved against the ENTRY'S trial instead — see below.
   const registry = getTrialRegistry(trials[0]);
   const sport = getScentWorkSport(registry.id);
   const ownerDisplayName = handler
@@ -232,12 +242,22 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   }
 
   // §I — dog.
-  // Identity comes from the registration held with THIS trial's sanctioning
-  // organization. No cross-organization fallback: this form is mailed to that
-  // body, and a borrowed registration number or breed is worse than a blank.
-  // A dog with no registration for the organization prints blank and raises
+  //
+  // Identity comes from the registration held with the sanctioning organization
+  // of the trial THIS ENTRY IS FOR — not `trials[0]`. A show may carry trials
+  // bound to different registries (`trials.registry_id`), so keying off the
+  // first trial would print, say, the dog's AKC registered name and number on a
+  // form for a UKC trial. That is the cross-organization leak this whole
+  // change exists to prevent. In blank mode there is no entry, so the first
+  // trial is the only available answer and the fields print empty regardless.
+  //
+  // No cross-organization fallback: this form is mailed to that body, and a
+  // borrowed registration number or breed is worse than a blank. A dog with no
+  // registration for the organization prints blank and raises
   // `missingRegistration` so the operator sees it before mailing.
-  const dogIdentity = resolveDogIdentityForOrganization(dog?.registrations, registry.id);
+  const entryTrial = entryTrialId ? (trials.find(t => t.id === entryTrialId) ?? null) : null;
+  const identityRegistry = entryTrial ? getTrialRegistry(entryTrial) : registry;
+  const dogIdentity = resolveDogIdentityForOrganization(dog?.registrations, identityRegistry.id);
   const dogProps: EntryBlankDog = {
     registeredName: dogIdentity.registeredName,
     callName: dog?.call_name ?? null,

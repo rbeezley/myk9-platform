@@ -563,11 +563,18 @@ export const searchAllDogs = async (
     // PostgREST cannot OR a parent-column filter with an embedded-table filter
     // in one request, so resolve matching dog ids first and fold them into the
     // same `.or(...)` as an id list.
-    const { data: regMatches } = await supabase
+    //
+    // The pre-query's error is thrown, NOT swallowed. Treating a failed
+    // registration lookup as "no matches" would make a transient PostgREST,
+    // network, or authorization failure indistinguishable from "no such dog":
+    // a registration-number search would return an empty list with
+    // `error: null` while the backend was actually broken.
+    const { data: regMatches, error: regError } = await supabase
       .from('dog_registrations')
       .select('dog_id')
       .or(`registration_number.ilike.%${sanitized}%,registered_name.ilike.%${sanitized}%`)
       .limit(limit);
+    if (regError) throw createDatabaseError(regError, 'dog', 'search_all');
     const registrationDogIds = [
       ...new Set(
         ((regMatches ?? []) as Array<{ dog_id?: string | null }>)

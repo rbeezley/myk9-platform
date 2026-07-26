@@ -363,6 +363,26 @@ describe('Dog Queries', () => {
       expect(result.hitLimit).toBe(false);
     });
 
+    // MYK9-90 review finding: a failed registration pre-query must not be
+    // silently downgraded to "no registration matches". Otherwise a broken
+    // backend is indistinguishable from "no such dog" — the caller sees an
+    // empty list with error: null and reports "not found" to the operator.
+    it('propagates an error from the registration pre-query instead of returning empty', async () => {
+      const regError = { message: 'PostgREST unavailable', code: '503' };
+      const regChain = createChainableQuery({ data: null, error: regError });
+      const dogsChain = createChainableQuery({ data: [{ id: '1' }], error: null });
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'dog_registrations' ? regChain : dogsChain
+      );
+
+      const result = await searchAllDogs('rang');
+
+      expect(result.error).not.toBeNull();
+      expect(result.data).toEqual([]);
+      // The dogs query must not have been treated as the authoritative answer.
+      expect(result.hitLimit).toBe(false);
+    });
+
     it('flags hitLimit when the result count meets the requested limit', async () => {
       const mockResults = Array.from({ length: 5 }, (_, i) => ({
         id: `${i}`,

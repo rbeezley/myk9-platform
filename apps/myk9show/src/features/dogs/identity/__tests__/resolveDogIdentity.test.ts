@@ -143,6 +143,58 @@ describe('resolveDogIdentity (generic)', () => {
     expect(identity.registeredName).toBeNull();
   });
 
+  // MYK9-90 review finding. `UNIQUE (dog_id, organization)` is an exact-string
+  // constraint, so one dog can legitimately hold BOTH `AKC` and
+  // `AKC (American Kennel Club)` rows — the drift that exists in production.
+  // Both normalize to AKC, so the resolver sees two candidates and the answer
+  // must not depend on the order PostgREST happened to return them in.
+  it('is deterministic when a dog holds two rows for the same organization', () => {
+    const shortSpelling: DogRegistrationLike = {
+      id: 'reg-b',
+      organization: 'AKC',
+      registration_number: 'NEWER-2',
+      registered_name: 'Newer Row',
+      breed: 'Dutch Shepherd',
+      variety: null,
+      is_primary: false,
+      created_at: '2026-06-01T00:00:00Z',
+    };
+    const longSpelling: DogRegistrationLike = {
+      id: 'reg-a',
+      organization: 'AKC (American Kennel Club)',
+      registration_number: 'OLDER-1',
+      registered_name: 'Older Row',
+      breed: 'Dutch Shepherd',
+      variety: null,
+      is_primary: false,
+      created_at: '2026-01-01T00:00:00Z',
+    };
+
+    const forward = resolveDogIdentityForOrganization([shortSpelling, longSpelling], 'AKC');
+    const reversed = resolveDogIdentityForOrganization([longSpelling, shortSpelling], 'AKC');
+
+    expect(forward).toEqual(reversed);
+    // Earliest-created wins, matching what the is_primary backfill will mark.
+    expect(forward.registrationNumber).toBe('OLDER-1');
+  });
+
+  it('breaks a created_at tie on id rather than on row order', () => {
+    const a: DogRegistrationLike = {
+      id: 'aaa',
+      organization: 'AKC',
+      registration_number: 'A',
+      created_at: '2026-01-01T00:00:00Z',
+    };
+    const b: DogRegistrationLike = {
+      id: 'bbb',
+      organization: 'AKC (American Kennel Club)',
+      registration_number: 'B',
+      created_at: '2026-01-01T00:00:00Z',
+    };
+    expect(resolveDogIdentityForOrganization([a, b], 'AKC').registrationNumber).toBe('A');
+    expect(resolveDogIdentityForOrganization([b, a], 'AKC').registrationNumber).toBe('A');
+  });
+
   it('does not mutate the caller’s array', () => {
     const rows = [ukc, akc];
     resolveDogIdentity(rows);

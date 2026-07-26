@@ -215,6 +215,9 @@ const regRegisteredName = (reg: Record<string, unknown>): string =>
   ((reg.registered_name as string) || (reg.registeredName as string)) ?? '';
 const regNumber = (reg: Record<string, unknown>): string =>
   ((reg.registration_number as string) || (reg.registrationNumber as string)) ?? '';
+/** Variety keeps the same key in both casings; normalized here for symmetry (#1480). */
+const regVariety = (reg: Record<string, unknown>): string | null =>
+  (reg.variety as string | null) || null;
 
 export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
   const sex = dbDog.sex as 'male' | 'female' | null;
@@ -255,14 +258,15 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
       id: reg.id as string,
       organization: (reg.organization as string) || '',
       registeredName: regRegisteredName(reg),
-      // Never backfill from `dogs.breed`: that would turn the dog record into a
-      // breed claim made to this sanctioning organization.
+      // Never backfill from `dogs.breed` (as `main` still did here): that turns
+      // the dog record into a breed claim made to a sanctioning organization.
       breed: (reg.breed as string) || '',
       // Carry the resolver's ordering fields through the mapping, or anything
       // that re-resolves from `Dog.registrations` orders by `id` instead and
       // disagrees with `identity` above. Both casings are accepted because this
       // list is the MERGE of snake_case PostgREST rows and camelCase rows from
       // the offline replica (`loadRegistrationsMap`).
+      ...(regVariety(reg) != null ? { variety: regVariety(reg) as string } : {}),
       ...(regCreatedAt(reg) != null ? { createdAt: regCreatedAt(reg) as string } : {}),
       ...(regIsPrimary(reg) != null ? { isPrimary: regIsPrimary(reg) as boolean } : {}),
       registrationNumber: regNumber(reg),

@@ -50,6 +50,7 @@ describe('ReplicatedDogRegistrationsTable', () => {
         organization: 'AKC',
         registrationNumber: 'SW123456',
         registeredName: 'Beacon Hill Fast Lane',
+        createdAt: expect.any(String),
         _syncStatus: 'pending',
         _localOnly: true,
       }),
@@ -65,6 +66,7 @@ describe('ReplicatedDogRegistrationsTable', () => {
         registration_number: 'SW123456',
         registered_name: 'Beacon Hill Fast Lane',
         breed: 'Border Collie',
+        created_at: expect.any(String),
         status: 'pending',
       }),
       ['dog-mutation-1']
@@ -102,6 +104,7 @@ describe('ReplicatedDogRegistrationsTable', () => {
       expect.objectContaining({
         dogId: 'dog-local-1',
         registrationNumber: 'SW123456',
+        createdAt: expect.any(String),
       }),
       false
     );

@@ -164,20 +164,29 @@ export interface BuildEntryBlankOptions {
   /** Omit for blank mode; provide for pre-filled mode. */
   entry?: EntryInput | null;
   dog?: DogInput | null;
+  owner?: PersonInput | null;
   handler?: PersonInput | null;
 }
 
+// Existing single-pass form assembly is intentionally kept intact for this
+// narrow owner/handler contract fix; decomposing it is separate refactor work.
 export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankProps {
-  const { show, trials, classes, judges, club, secretary, entry, dog, handler } = opts;
+  const { show, trials, classes, judges, club, secretary, entry, dog, owner, handler } = opts;
   // Bind to the trial's registry via the shared selector (trims + defaults to AKC for
   // blank/missing registry_id; throws in dev / falls back to AKC in prod for unknown ids).
   // NOTE: this drives the §II grid, which is form-wide and therefore keyed off the first
   // trial. Dog identity is resolved against the ENTRY'S trial instead — see below.
   const registry = getTrialRegistry(trials[0]);
   const sport = getScentWorkSport(registry.id);
-  const ownerDisplayName = handler
-    ? [handler.first_name, handler.last_name].filter(Boolean).join(' ')
+  // Older callers supplied only `handler` when the handler was also the owner.
+  // Keep that shape compatible while allowing designated handlers to remain
+  // distinct from the registered owner on pre-filled forms.
+  const ownerPerson = owner ?? handler;
+  const ownerDisplayName = ownerPerson
+    ? [ownerPerson.first_name, ownerPerson.last_name].filter(Boolean).join(' ')
     : null;
+  const handlerDisplayName =
+    owner && handler ? [handler.first_name, handler.last_name].filter(Boolean).join(' ') : null;
   const entryClassId = entry?.class_id ?? null;
   const entryTrialId = entry?.trial_id ?? null;
 
@@ -279,13 +288,13 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   // §III — owner/handler
   const ownerProps: EntryBlankOwner = {
     ownerName: ownerDisplayName,
-    handlerName: null,
-    mailingAddress: handler?.address ?? null,
-    city: handler?.city ?? null,
-    state: handler?.state ?? null,
-    zip: handler?.zip_code ?? null,
-    telephone: handler?.phone ?? null,
-    email: handler?.email ?? null,
+    handlerName: handlerDisplayName,
+    mailingAddress: ownerPerson?.address ?? null,
+    city: ownerPerson?.city ?? null,
+    state: ownerPerson?.state ?? null,
+    zip: ownerPerson?.zip_code ?? null,
+    telephone: ownerPerson?.phone ?? null,
+    email: ownerPerson?.email ?? null,
     juniorHandlerAge: null,
   };
 

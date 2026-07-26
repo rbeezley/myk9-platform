@@ -49,6 +49,7 @@ export function PosterEntryReceived({
   totalFeesFormatted,
   registrationNumber,
   confirmationDateLabel,
+  entryBlankActions,
   onPrintEntryBlank,
 }: PosterEntryReceivedProps) {
   const navigate = useNavigate();
@@ -229,27 +230,29 @@ export function PosterEntryReceived({
           zIndex: 1,
         }}
       >
-        <Button
-          onClick={onPrintEntryBlank}
-          disabled={!onPrintEntryBlank}
-          style={{
-            background: posterColors.ink,
-            color: posterColors.cream,
-            fontFamily: POSTER_DISPLAY_FAMILY,
-            fontWeight: 400,
-            fontSize: 15,
-            letterSpacing: '-0.015em',
-            border: 'none',
-            borderRadius: 0,
-            padding: '16px 18px',
-            height: 'auto',
-          }}
-          className="w-full"
-          aria-label="Print my entry blank"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          PRINT MY ENTRY BLANK
-        </Button>
+        {entryBlankActions ?? (
+          <Button
+            onClick={onPrintEntryBlank}
+            disabled={!onPrintEntryBlank}
+            style={{
+              background: posterColors.ink,
+              color: posterColors.cream,
+              fontFamily: POSTER_DISPLAY_FAMILY,
+              fontWeight: 400,
+              fontSize: 15,
+              letterSpacing: '-0.015em',
+              border: 'none',
+              borderRadius: 0,
+              padding: '16px 18px',
+              height: 'auto',
+            }}
+            className="w-full"
+            aria-label="Print my entry blank"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            PRINT MY ENTRY BLANK
+          </Button>
+        )}
         <Button
           variant="outline"
           onClick={() => navigate('/')}

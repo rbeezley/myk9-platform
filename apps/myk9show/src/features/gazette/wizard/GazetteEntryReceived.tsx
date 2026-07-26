@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,8 @@ export interface GazetteEntryReceivedProps {
   registrationNumber: string | null;
   /** Formatted confirmation date, e.g. "Jun 6, 2026". Null if none set. */
   confirmationDateLabel: string | null;
+  /** Entry-specific download controls rendered in the existing primary CTA slot. */
+  entryBlankActions?: ReactNode;
   /** Called when "Print my entry blank" is clicked. Disabled when omitted. */
   onPrintEntryBlank?: (() => void) | undefined;
 }
@@ -46,6 +49,7 @@ export function GazetteEntryReceived({
   totalFeesFormatted,
   registrationNumber,
   confirmationDateLabel,
+  entryBlankActions,
   onPrintEntryBlank,
 }: GazetteEntryReceivedProps) {
   const navigate = useNavigate();
@@ -162,25 +166,27 @@ export function GazetteEntryReceived({
 
       {/* ── CTAs ── */}
       <div className="flex flex-col gap-2.5 px-7 py-5">
-        <Button
-          onClick={onPrintEntryBlank}
-          disabled={!onPrintEntryBlank}
-          className="w-full"
-          style={{
-            background: INK,
-            color: PAPER,
-            fontFamily: DISPLAY,
-            fontWeight: 700,
-            fontSize: 14,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            border: 'none',
-          }}
-          aria-label="Print my entry blank"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Print my entry blank
-        </Button>
+        {entryBlankActions ?? (
+          <Button
+            onClick={onPrintEntryBlank}
+            disabled={!onPrintEntryBlank}
+            className="w-full"
+            style={{
+              background: INK,
+              color: PAPER,
+              fontFamily: DISPLAY,
+              fontWeight: 700,
+              fontSize: 14,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              border: 'none',
+            }}
+            aria-label="Print my entry blank"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Print my entry blank
+          </Button>
+        )}
         <Button
           variant="outline"
           onClick={() => navigate('/')}

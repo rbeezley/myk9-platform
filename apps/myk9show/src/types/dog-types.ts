@@ -74,11 +74,14 @@ export interface Registration {
   breed: string;
   variety?: string;
   /**
-   * The identity resolver's ordering fields. They must survive mapping: without
-   * them `resolveDogIdentity` cannot tell the primary/earliest registration
-   * from the rest and silently falls back to ordering by `id`, which picks a
-   * different registration — and therefore a different breed — than every
-   * unmapped surface (MYK9-90 review round 2).
+   * Deterministic identity-resolution fields retained from `dog_registrations`.
+   *
+   * They must survive mapping: without them `resolveDogIdentity` cannot tell the
+   * primary/earliest registration from the rest and silently falls back to
+   * ordering by `id`, which picks a different registration — and therefore a
+   * different breed — than every unmapped surface (MYK9-90 review round 2).
+   * `entryBlankOptions` (#1480) feeds them back into the resolver so a prefilled
+   * entry blank resolves the same registration as every other surface.
    */
   createdAt?: string | undefined;
   isPrimary?: boolean | undefined;

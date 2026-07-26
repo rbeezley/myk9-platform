@@ -1,12 +1,6 @@
-import { PDFDownloadLink } from '@react-pdf/renderer';
-import { Download } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { EntryBlankDownloadControl } from '@/features/_shared/EntryBlankDownloadControl';
 import { MagazineEntryBlankDocument } from './MagazineEntryBlankDocument';
-import {
-  buildEntryBlankProps,
-  MissingRegistrationNotice,
-  type BuildEntryBlankOptions,
-} from '@/features/heritage/entry-blank';
+import { buildEntryBlankProps, type BuildEntryBlankOptions } from '@/features/heritage/entry-blank';
 
 interface Props extends BuildEntryBlankOptions {
   /** Button label. Defaults to "Download Entry Blank". */
@@ -20,8 +14,7 @@ interface Props extends BuildEntryBlankOptions {
  *
  * Wraps `@react-pdf/renderer`'s `PDFDownloadLink` around a shadcn `Button`
  * to keep the button styling consistent with the rest of the wizard
- * surface. The PDF is generated lazily by react-pdf when the user clicks
- * the link — no upfront render cost.
+ * surface.
  *
  * Reads `buildEntryBlankProps` from the Heritage entry-blank module
  * (re-exported via Magazine's barrel). The data shape is identical across
@@ -42,25 +35,12 @@ export function MagazineEntryBlankButton({
       .replace(/[^a-z0-9-]/g, '')}-entry-blank.pdf`;
 
   return (
-    <>
-    <MissingRegistrationNotice dog={props.dog} />
-    <PDFDownloadLink
+    <EntryBlankDownloadControl
+      dog={props.dog}
       document={<MagazineEntryBlankDocument {...props} />}
       fileName={pdfFilename}
-      className="block"
-    >
-      {({ loading }) => (
-        <Button
-          variant="outline"
-          className={className}
-          disabled={loading}
-          aria-label={loading ? 'Preparing entry blank…' : label}
-        >
-          <Download className="mr-2 h-4 w-4" />
-          {loading ? 'Preparing…' : label}
-        </Button>
-      )}
-    </PDFDownloadLink>
-    </>
+      label={label}
+      className={className}
+    />
   );
 }

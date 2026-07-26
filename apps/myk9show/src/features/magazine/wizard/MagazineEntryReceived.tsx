@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,8 @@ export interface MagazineEntryReceivedProps {
   registrationNumber: string | null;
   /** Formatted confirmation date, e.g. "6 June 2026". Null if none set. */
   confirmationDateLabel: string | null;
+  /** Entry-specific download controls rendered in the existing primary CTA slot. */
+  entryBlankActions?: ReactNode;
   /** Called when "Print my entry blank" is clicked. If omitted, button is
    *  disabled. */
   onPrintEntryBlank?: (() => void) | undefined;
@@ -74,6 +77,7 @@ export function MagazineEntryReceived({
   totalFeesFormatted,
   registrationNumber,
   confirmationDateLabel,
+  entryBlankActions,
   onPrintEntryBlank,
 }: MagazineEntryReceivedProps) {
   const navigate = useNavigate();
@@ -253,26 +257,28 @@ export function MagazineEntryReceived({
           padding: '20px 28px 16px',
         }}
       >
-        <Button
-          onClick={onPrintEntryBlank}
-          disabled={!onPrintEntryBlank}
-          style={{
-            background: INK,
-            color: PAPER,
-            fontFamily: DISPLAY,
-            fontStyle: 'italic',
-            fontWeight: 500,
-            fontSize: '16px',
-            border: 'none',
-            padding: '14px 18px',
-            height: 'auto',
-          }}
-          className="w-full"
-          aria-label="Print my entry blank"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Print my entry blank
-        </Button>
+        {entryBlankActions ?? (
+          <Button
+            onClick={onPrintEntryBlank}
+            disabled={!onPrintEntryBlank}
+            style={{
+              background: INK,
+              color: PAPER,
+              fontFamily: DISPLAY,
+              fontStyle: 'italic',
+              fontWeight: 500,
+              fontSize: '16px',
+              border: 'none',
+              padding: '14px 18px',
+              height: 'auto',
+            }}
+            className="w-full"
+            aria-label="Print my entry blank"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Print my entry blank
+          </Button>
+        )}
 
         <Button
           variant="outline"

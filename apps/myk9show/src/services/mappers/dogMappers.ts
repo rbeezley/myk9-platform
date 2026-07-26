@@ -70,28 +70,53 @@ function mapHealthRecords(raw: unknown): Dog['healthRecords'] {
 }
 
 /**
+ * The single place the call-name normalisation rule lives. Trimming is part of
+ * the rule, not a step some callers apply and others skip — `"   "` is not a
+ * name, and `"  Tera  "` and `"Tera"` are the same name.
+ */
+const normalizeCallName = (value: string | null | undefined): string => (value ?? '').trim();
+
+/**
  * Resolve the call name for a dog about to be created.
  *
  * MYK9-90 §5.1 — `dogs.call_name` is NOT NULL after 20260727110000, so this is
  * the one rule that decides whether a dog may be created at all. It lives in a
- * single function on purpose: the previous rounds of this change scattered the
- * check across two mappers, a replication payload builder and two Postgres
- * functions, each seeing the value at a different point in the write lifecycle,
- * and a whitespace-only name slipped through the gaps between them.
+ * single function on purpose: earlier rounds of this change scattered the check
+ * across two mappers, a replication payload builder and two Postgres functions,
+ * each seeing the value at a different point in the write lifecycle, and a
+ * whitespace-only name slipped through the gaps between them.
  *
- * Trimming is part of the rule, not a later normalisation step — `"   "` is not
- * a name. A caller that supplied only one name supplied the call name (safe
- * direction: name -> call_name; the reverse copy is what §5.3 removes).
+ * A caller that supplied only one name supplied the call name (safe direction:
+ * name -> call_name; the reverse copy is what §5.3 removes).
  *
  * Throws rather than returning empty so callers cannot accidentally persist or
  * queue a row first and discover the problem afterwards.
  */
 export const resolveRequiredCallName = (input: Pick<DogInput, 'callName' | 'name'>): string => {
-  const callName = input.callName?.trim() || input.name?.trim() || '';
+  const callName = normalizeCallName(input.callName) || normalizeCallName(input.name);
   if (!callName) {
     throw new Error('A dog needs a call name.');
   }
   return callName;
+};
+
+/**
+ * Normalise a dog patch ONCE, before it is written anywhere.
+ *
+ * MYK9-90 §5.1 — the update-path analogue of `resolveRequiredCallName`. The
+ * IndexedDB write (`mapPartialDogInputToReplicated`) and the Supabase write
+ * (`mapDogInputToUpdate`) are two mappers fed from the same patch, and when
+ * each decided independently how to normalise, they drifted: a padded
+ * `"  Tera  "` was stored trimmed locally and sent padded to the server, so a
+ * later sync reverted the local value. Normalising here, above both, is what
+ * makes that class of divergence impossible rather than merely fixed.
+ *
+ * Neither mapper trims any more — deliberately. If this function is somehow
+ * bypassed the two still agree (both untrimmed); they can no longer disagree.
+ */
+export const normalizeDogInputForWrite = <T extends Partial<DogInput>>(updates: T): T => {
+  if (updates.callName === undefined) return updates;
+  return { ...updates, callName: normalizeCallName(updates.callName) };
 };
 
 /**
@@ -335,11 +360,12 @@ export const mapPartialDogInputToReplicated = (
 ): Partial<ReplicatedDog> => {
   const partial: Partial<ReplicatedDog> = {};
   if (updates.name !== undefined) partial.name = updates.name;
-  // MYK9-90 §5.1 — mirrors `mapDogInputToUpdate`: a blank call name is skipped,
-  // never cleared. Clearing it here would blank the local row while the queued
-  // UPDATE (which omits the column) left the database value intact — a silent
-  // divergence between the offline and online reads of the same dog.
-  if (updates.callName?.trim()) partial.callName = updates.callName.trim();
+  // MYK9-90 §5.1 — must stay byte-for-byte identical to the `call_name` line in
+  // `mapDogInputToUpdate`: same skip-when-blank rule, and NO trimming here.
+  // Normalisation belongs to `normalizeDogInputForWrite`, above both writes —
+  // trimming in one mapper and not the other is exactly how the local copy and
+  // the server copy drifted apart.
+  if (updates.callName) partial.callName = updates.callName;
   if (updates.breed !== undefined) partial.breed = updates.breed;
   if (updates.birthDate !== undefined) partial.dateOfBirth = updates.birthDate || undefined;
   if (updates.sex !== undefined) partial.sex = updates.sex || undefined;

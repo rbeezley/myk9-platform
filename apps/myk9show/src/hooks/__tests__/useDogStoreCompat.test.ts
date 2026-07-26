@@ -17,6 +17,8 @@ const {
   mockDeleteMutateAsync,
   mockCreateReplicatedDogRegistrationsForDog,
   mockCreateLocalReplicatedDogRegistrationsForDog,
+  mockUpdateMutateAsync,
+  mockGetReplicatedDogById,
 } = vi.hoisted(() => ({
   mockSetReplicatedDog: vi.fn(),
   mockCreateReplicatedDogWithId: vi.fn(),
@@ -28,6 +30,8 @@ const {
   mockDeleteMutateAsync: vi.fn(),
   mockCreateReplicatedDogRegistrationsForDog: vi.fn(),
   mockCreateLocalReplicatedDogRegistrationsForDog: vi.fn(),
+  mockUpdateMutateAsync: vi.fn(),
+  mockGetReplicatedDogById: vi.fn(),
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -36,6 +40,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
     set: mockSetReplicatedDog,
     createDogWithId: mockCreateReplicatedDogWithId,
     createDogWithRegistrationsRpc: mockCreateReplicatedDogWithRegistrationsRpc,
+    getDogById: mockGetReplicatedDogById,
     getPendingMutationIdsForRow: mockGetPendingDogMutationIdsForRow,
     delete: mockDeleteReplicatedDog,
     get: vi.fn().mockResolvedValue(null),
@@ -65,7 +70,11 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
     isPending: false,
     error: null,
   }),
-  useUpdateDogMutation: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
+  useUpdateDogMutation: () => ({
+    mutateAsync: mockUpdateMutateAsync,
+    isPending: false,
+    error: null,
+  }),
   useDeleteDogMutation: () => ({
     mutateAsync: mockDeleteMutateAsync,
     isPending: false,
@@ -445,5 +454,69 @@ describe('useDogStoreCompat.deleteDog — soft-delete + IndexedDB cleanup', () =
     });
 
     expect(mockDeleteReplicatedDog).not.toHaveBeenCalled();
+  });
+});
+
+describe('useDogStoreCompat.updateDog — one normalized value reaches both destinations', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUpdateMutateAsync.mockResolvedValue(mockDbDog);
+    mockGetReplicatedDogById.mockResolvedValue({
+      id: 'dog-123',
+      name: 'Biscuit',
+      callName: 'Biscuit',
+      breed: 'Beagle',
+      ownerId: 'person-123',
+    });
+  });
+
+  // MYK9-90 §5.1 — asserts BOTH destinations in ONE test on purpose. Two tests
+  // each checking their own side would both have passed while the values
+  // silently disagreed: IndexedDB stored the trimmed "Tera" while Supabase was
+  // sent the padded "  Tera  ", so the next server-backed sync reverted the
+  // local value. This caller bypasses the form schema, which is the only other
+  // place the value is normalized.
+  it('sends the identical trimmed call name to IndexedDB and to Supabase', async () => {
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await result.current.updateDog('dog-123', { callName: '  Tera  ' });
+    });
+
+    expect(mockSetReplicatedDog).toHaveBeenCalledTimes(1);
+    expect(mockUpdateMutateAsync).toHaveBeenCalledTimes(1);
+
+    const indexedDbCallName = (
+      mockSetReplicatedDog.mock.calls[0]?.[1] as { callName?: string } | undefined
+    )?.callName;
+    const supabaseCallName = (
+      mockUpdateMutateAsync.mock.calls[0]?.[0] as { updates?: { call_name?: string } } | undefined
+    )?.updates?.call_name;
+
+    // The invariant: one value, not two that happen to look similar.
+    expect(indexedDbCallName).toBe(supabaseCallName);
+    expect(indexedDbCallName).toBe('Tera');
+  });
+
+  it('still skips a whitespace-only call name on both destinations', async () => {
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await result.current.updateDog('dog-123', { callName: '   ', breed: 'Border Collie' });
+    });
+
+    const localPatch = mockSetReplicatedDog.mock.calls[0]?.[1] as {
+      callName?: string;
+      breed?: string;
+    };
+    const dbPatch = (
+      mockUpdateMutateAsync.mock.calls[0]?.[0] as { updates?: Record<string, unknown> } | undefined
+    )?.updates;
+
+    // Neither clears the required identifier; the rest of the edit still lands.
+    expect(localPatch?.callName).toBe('Biscuit');
+    expect(dbPatch).not.toHaveProperty('call_name');
+    expect(localPatch?.breed).toBe('Border Collie');
+    expect(dbPatch?.breed).toBe('Border Collie');
   });
 });

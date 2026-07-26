@@ -23,6 +23,7 @@ import {
   mapDatabaseDogsArray,
   mapReplicatedDogToDbRow,
   mapPartialDogInputToReplicated,
+  normalizeDogInputForWrite,
 } from '@/services/mappers/dogMappers';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { logger } from '@/services/LoggingService';
@@ -239,18 +240,25 @@ export const useDogStoreCompat = () => {
       registrationsCount: updates.registrations?.length || 0,
     });
 
+    // MYK9-90 §5.1 — normalise ONCE, above both writes. The IndexedDB mapper and
+    // the Supabase mapper are fed from the same patch, and when each trimmed (or
+    // did not) on its own, a padded "  Tera  " was stored trimmed locally and
+    // sent padded to the server — so the next server-backed sync reverted the
+    // local value. Both mappers below receive this identical normalised patch.
+    const normalizedUpdates = normalizeDogInputForWrite(updates);
+
     // Write to IndexedDB first so getAllDogs() reads fresh data on the next React Query refetch.
     const current = await replicatedDogsTable.getDogById(id);
     let localDog: Dog | null = null;
     if (current) {
-      const updated = { ...current, ...mapPartialDogInputToReplicated(updates) };
+      const updated = { ...current, ...mapPartialDogInputToReplicated(normalizedUpdates) };
       await replicatedDogsTable.set(id, updated, false);
       localDog = mapDatabaseToDog(mapReplicatedDogToDbRow(updated));
     }
 
     // Background Supabase sync — onSuccess invalidates the list query, which refetches from
     // the now-fresh IndexedDB instead of returning stale data.
-    const dbUpdates = mapDogInputToUpdate(updates);
+    const dbUpdates = mapDogInputToUpdate(normalizedUpdates);
     runDogMutation(() => updateMutation.mutateAsync({ id, updates: dbUpdates })).catch(err => {
       logger.error(
         'Background Supabase sync failed for dog update',

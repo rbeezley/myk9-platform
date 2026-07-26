@@ -28,7 +28,23 @@ export interface ReplicatedDogRegistration {
   _localOnly?: boolean;
 }
 
-function normalizeRegistration(input: RegistrationInput): Omit<ReplicatedDogRegistration, 'id'> {
+/**
+ * Distinct, ordered creation timestamps for a batch.
+ *
+ * A plain `new Date().toISOString()` per row ties when several registrations are
+ * created in the same millisecond — which is the normal case for a batch — and a
+ * tie sends the resolver to its `id` (random UUID) tiebreak. Offsetting by index
+ * keeps creation ORDER, so the first registration entered stays primary.
+ */
+function creationTimestamps(count: number): string[] {
+  const base = Date.now();
+  return Array.from({ length: count }, (_, i) => new Date(base + i).toISOString());
+}
+
+function normalizeRegistration(
+  input: RegistrationInput,
+  createdAt: string
+): Omit<ReplicatedDogRegistration, 'id'> {
   return {
     dogId: '',
     organization: input.organization || 'AKC',
@@ -37,6 +53,11 @@ function normalizeRegistration(input: RegistrationInput): Omit<ReplicatedDogRegi
     breed: input.type || null,
     status: input.status || 'pending',
     verified: false,
+    // Stamped at construction, NOT left for the server default. The identity
+    // resolver orders by `created_at`, so without it a dog created offline with
+    // several registrations resolved by random UUID rather than creation order
+    // until a server round trip (MYK9-90 review round 3).
+    createdAt,
   };
 }
 
@@ -62,8 +83,9 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   ): Promise<ReplicatedDogRegistration[]> {
     const saved: ReplicatedDogRegistration[] = [];
 
-    for (const input of registrations) {
-      const normalized = normalizeRegistration(input);
+    const createdAts = creationTimestamps(registrations.length);
+    for (const [index, input] of registrations.entries()) {
+      const normalized = normalizeRegistration(input, createdAts[index]!);
       const registration: ReplicatedDogRegistration = {
         ...normalized,
         dogId,
@@ -93,8 +115,9 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   ): Promise<ReplicatedDogRegistration[]> {
     const saved: ReplicatedDogRegistration[] = [];
 
-    for (const input of registrations) {
-      const normalized = normalizeRegistration(input);
+    const createdAts = creationTimestamps(registrations.length);
+    for (const [index, input] of registrations.entries()) {
+      const normalized = normalizeRegistration(input, createdAts[index]!);
       const registration: ReplicatedDogRegistration = {
         ...normalized,
         dogId,

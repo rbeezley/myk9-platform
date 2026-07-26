@@ -21,6 +21,7 @@ const {
   mockGetDogById,
   mockGetRegistrationsForDogs,
   mockUpdateMutateAsync,
+  mockServerRegistrationsIn,
 } = vi.hoisted(() => ({
   mockSetReplicatedDog: vi.fn(),
   mockCreateReplicatedDogWithId: vi.fn(),
@@ -35,6 +36,13 @@ const {
   mockGetDogById: vi.fn(),
   mockGetRegistrationsForDogs: vi.fn(),
   mockUpdateMutateAsync: vi.fn(),
+  mockServerRegistrationsIn: vi.fn(),
+}));
+
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: { from: () => ({ select: () => ({ in: mockServerRegistrationsIn }) }) },
+  logQuery: vi.fn(),
+  createDatabaseError: (e: unknown) => e,
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -74,7 +82,11 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
     isPending: false,
     error: null,
   }),
-  useUpdateDogMutation: () => ({ mutateAsync: mockUpdateMutateAsync, isPending: false, error: null }),
+  useUpdateDogMutation: () => ({
+    mutateAsync: mockUpdateMutateAsync,
+    isPending: false,
+    error: null,
+  }),
   useDeleteDogMutation: () => ({
     mutateAsync: mockDeleteMutateAsync,
     isPending: false,
@@ -434,11 +446,29 @@ describe('useDogStoreCompat.deleteDog — soft-delete + IndexedDB cleanup', () =
   });
 });
 
-// MYK9-90 review round 2, finding 3. `updateDog` returns a locally-mapped dog
-// straight to `DogDialogs`, which replaces detail state with it. Because breed
-// is now resolved from `dog_registrations`, mapping a bare replicated row
-// yielded "Breed not set" for a registered dog until the next refetch.
+// MYK9-90 review round 3, finding 3 — REALISTIC-DATA proof.
+//
+// `updateDog` returns a locally-mapped dog straight to `DogDialogs`, which
+// replaces detail state with it. Breed is resolved from `dog_registrations`, so
+// mapping a bare replicated row yields "Breed not set" for a registered dog.
+//
+// The round-2 fix hydrated from `replicatedDogRegistrationsTable` ALONE, which
+// is inert in production: that table's `sync()` is a no-op and server reads are
+// never written into it, so it only holds registrations created locally. These
+// tests therefore model production — the LOCAL table returns nothing and the
+// registrations exist only on the server. A fixture that seeded the local table
+// would have passed against the broken code.
 describe('useDogStoreCompat.updateDog — breed survives the local re-map', () => {
+  const serverRegistration = {
+    id: 'reg-akc',
+    dog_id: 'dog-1',
+    created_at: '2024-01-01T00:00:00Z',
+    organization: 'AKC',
+    registered_name: 'Ziva of the North',
+    registration_number: 'DN61191906',
+    breed: 'Belgian Malinois',
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockUpdateMutateAsync.mockResolvedValue({});
@@ -449,33 +479,39 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
       breed: 'Belgian Malinois',
       ownerId: 'person-1',
     });
-    mockGetRegistrationsForDogs.mockResolvedValue([
-      {
-        id: 'reg-akc',
-        dog_id: 'dog-1',
-        created_at: '2024-01-01T00:00:00Z',
-        organization: 'AKC',
-        registered_name: 'Ziva of the North',
-        registration_number: 'DN61191906',
-        breed: 'Belgian Malinois',
-      },
-    ]);
+    // Production reality: the replica holds no server-originated registrations.
+    mockGetRegistrationsForDogs.mockResolvedValue([]);
+    mockServerRegistrationsIn.mockResolvedValue({ data: [serverRegistration], error: null });
   });
 
-  it('hydrates registrations so the returned dog keeps its breed', async () => {
+  it('keeps the breed for a dog whose registrations came from the SERVER', async () => {
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
 
     const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
 
-    expect(mockGetRegistrationsForDogs).toHaveBeenCalledWith(['dog-1']);
+    // Assert the user-visible symptom first: with a local-replica-only
+    // hydration this label is the "Breed not set" placeholder.
+    expect(getDogBreedLabel(updated!)).toBe('Belgian Malinois');
     expect(updated?.breed).toBe('Belgian Malinois');
+    // The local table was consulted and returned nothing; the server answered.
+    expect(mockServerRegistrationsIn).toHaveBeenCalledWith('dog_id', ['dog-1']);
+  });
+
+  it('still works offline, from a locally-created registration alone', async () => {
+    mockServerRegistrationsIn.mockResolvedValue({ data: null, error: new Error('offline') });
+    mockGetRegistrationsForDogs.mockResolvedValue([serverRegistration]);
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+    const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
+
     expect(getDogBreedLabel(updated!)).toBe('Belgian Malinois');
   });
 
   it('reports no breed for a dog that genuinely has no registration', async () => {
+    mockServerRegistrationsIn.mockResolvedValue({ data: [], error: null });
     mockGetRegistrationsForDogs.mockResolvedValue([]);
-    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
 
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
     const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
 
     expect(getDogBreedLabel(updated!)).toBe(BREED_NOT_SET);

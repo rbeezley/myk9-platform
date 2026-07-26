@@ -33,6 +33,7 @@ import { translateDogDbError } from '@/hooks/translateDogDbError';
 import { supabase } from '@/lib/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
+import { loadDogRegistrations } from '@/services/database/dogs/reads';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 
 /**
@@ -43,8 +44,13 @@ import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
  * bare row and handed the result straight to `DogDialogs`, which flipped a
  * registered dog's breed label to "Breed not set" until the next refetch.
  *
- * The registrations are read from the offline replica, so this stays correct
- * with no network and adds no PostgREST round-trip.
+ * Reads through `loadDogRegistrations`, the MERGED server+replica path. Round 2
+ * used `replicatedDogRegistrationsTable` alone, which was inert in production:
+ * that table's `sync()` is a no-op and server reads are never written into it,
+ * so it only ever holds registrations created locally. For the common dog —
+ * whose registrations came from PostgREST — it returned nothing and the label
+ * still flipped to "Breed not set". The merged read answers from the server when
+ * online and from the replica when not.
  *
  * NOTE on the alternative: making the mapper treat "registrations key absent"
  * as "not loaded" and fall back to `dbDog.breed` was rejected. That fallback is
@@ -54,8 +60,8 @@ import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
  * the dog genuinely has none.
  */
 async function mapReplicatedDogWithRegistrations(dog: ReplicatedDog): Promise<Dog> {
-  const registrations = await replicatedDogRegistrationsTable
-    .getRegistrationsForDogs([dog.id])
+  const registrations = await loadDogRegistrations([dog.id])
+    .then(result => result.byDog.get(dog.id) ?? [])
     .catch(() => [] as Record<string, unknown>[]);
   return mapDatabaseToDog(mapReplicatedDogToDbRow(dog, { registrations }));
 }

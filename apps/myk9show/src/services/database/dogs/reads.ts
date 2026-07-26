@@ -88,22 +88,50 @@ function appendRegistrations(
   }
 }
 
+/**
+ * Registrations merged from the server and the offline replica, plus whether
+ * the server leg failed.
+ *
+ * The flag matters because `ReplicatedDogRegistrationsTable.sync()` is a no-op:
+ * the replica only ever holds registrations CREATED locally, so for a dog whose
+ * registrations came from PostgREST the local leg returns nothing. An empty
+ * result is therefore ambiguous — "this dog has no registrations" and "we could
+ * not read them" look identical — and callers that print paperwork must be able
+ * to tell those apart rather than rendering a blank (MYK9-90 review round 3).
+ */
+export interface DogRegistrationsResult {
+  byDog: Map<string, Record<string, unknown>[]>;
+  serverError: unknown | null;
+}
+
 // Registrations can exist as pending local rows before PostGREST can see them.
 // Merge the local replica with server rows so offline-created dogs keep their
 // registration data after refresh and while the queue is waiting to upload.
-async function loadRegistrationsMap(
-  dogIds: string[]
-): Promise<Map<string, Record<string, unknown>[]>> {
-  if (dogIds.length === 0) return new Map();
+export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistrationsResult> {
+  if (dogIds.length === 0) return { byDog: new Map(), serverError: null };
   const map = new Map<string, Record<string, unknown>[]>();
   const [localRegistrations, serverResult] = await Promise.all([
-    replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds),
-    supabase.from('dog_registrations').select('*').in('dog_id', dogIds),
+    replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds).catch(() => []),
+    // A thrown network error must surface as `serverError`, not reject the whole
+    // read — the replica may still be able to answer.
+    (async (): Promise<{ data: unknown; error: unknown }> => {
+      try {
+        return await supabase.from('dog_registrations').select('*').in('dog_id', dogIds);
+      } catch (error) {
+        return { data: null, error };
+      }
+    })(),
   ]);
 
   appendRegistrations(map, serverResult.data as Record<string, unknown>[] | null | undefined);
   appendRegistrations(map, localRegistrations);
-  return map;
+  return { byDog: map, serverError: serverResult.error ?? null };
+}
+
+async function loadRegistrationsMap(
+  dogIds: string[]
+): Promise<Map<string, Record<string, unknown>[]>> {
+  return (await loadDogRegistrations(dogIds)).byDog;
 }
 
 /**

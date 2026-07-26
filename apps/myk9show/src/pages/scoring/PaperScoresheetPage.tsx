@@ -7,18 +7,10 @@ import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { ScoresheetLoadingSkeleton } from '@/components/scoring/ScoringLoadingSkeletons';
 import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
-import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
-import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
-import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
-import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
-import { supabase } from '@/services/database/supabaseClient';
-import {
-  resolveDogIdentityForOrganization,
-  type DogRegistrationLike,
-} from '@/features/dogs/identity';
+import { loadEntriesWithDogs } from './paperScoresheetData';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { toScoringEntry, calculatePlacements } from './types';
+import { calculatePlacements } from './types';
 import { usePaperScoring } from './hooks/usePaperScoring';
 import { SessionToolbar } from './components/SessionToolbar';
 import { SplitPanelView } from './components/SplitPanelView';
@@ -27,75 +19,6 @@ import { sortByExhibitorOrder } from './paper-scoring-types';
 import { cn } from '@/lib/utils';
 import type { ScoringEntry } from './types';
 import type { PaperResult, PaperScoringMode } from './paper-scoring-types';
-
-/** Fetch all entries for a class with their dog data, parallelising dog lookups. */
-async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry[]> {
-  const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
-  const uniqueDogIds = [...new Set(rawEntries.map(e => e.dogId).filter(Boolean))] as string[];
-  const dogs = await Promise.all(uniqueDogIds.map(id => replicatedDogsTable.get(id)));
-  const dogsMap = new Map(uniqueDogIds.map((id, i) => [id, dogs[i] ?? null]));
-  const organization = await loadShowOrganizationForClass(classId);
-  const registeredBreedByDogId = await loadRegisteredBreedsByDogId(uniqueDogIds, organization);
-  return rawEntries.map((e, i) =>
-    toScoringEntry(
-      e,
-      dogsMap.get(e.dogId ?? '') ?? null,
-      i,
-      e.dogId ? registeredBreedByDogId.get(e.dogId) : undefined
-    )
-  );
-}
-
-async function loadShowOrganizationForClass(classId: string): Promise<string | undefined> {
-  const cls = await replicatedClassesTable.getClassById(classId);
-  if (!cls?.trialId) return undefined;
-  const trial = await replicatedTrialsTable.getTrialById(cls.trialId);
-  if (!trial?.showId) return undefined;
-  const show = await replicatedShowsTable.get(trial.showId);
-  return show?.organization || undefined;
-}
-
-async function loadRegisteredBreedsByDogId(
-  dogIds: string[],
-  organization: string | undefined
-): Promise<Map<string, string | null>> {
-  // No organization in context means this is not an organization-scoped render,
-  // so leave the map empty and let the caller's generic fallback answer.
-  if (!organization || dogIds.length === 0) return new Map();
-
-  const { data, error } = await supabase
-    .from('dog_registrations')
-    // `id` / `created_at` are the resolver's tiebreak fields, so the breed
-    // printed on a paper scoresheet is stable between runs when a dog holds two
-    // rows that normalize to the same organization (e.g. `AKC` and
-    // `AKC (American Kennel Club)`).
-    .select('dog_id, id, created_at, organization, breed')
-    .in('dog_id', dogIds);
-
-  // A failed lookup is NOT permission to borrow another organization's breed
-  // onto this form. Mark every dog explicitly absent so the render is blank
-  // rather than wrong — this output goes on paper.
-  if (error || !data) return new Map(dogIds.map(id => [id, null]));
-
-  const byDog = new Map<string, DogRegistrationLike[]>();
-  for (const registration of data) {
-    if (!registration.dog_id) continue;
-    const rows = byDog.get(registration.dog_id) ?? [];
-    rows.push(registration as DogRegistrationLike);
-    byDog.set(registration.dog_id, rows);
-  }
-
-  // Every requested dog gets an ENTRY, `null` when it holds no registration
-  // with this organization. An absent map key would let `toScoringEntry` fall
-  // back to `dogs.breed` / the view's `dog_breed`, which is how a UKC-only dog
-  // ended up printing its UKC breed on an AKC scoresheet.
-  const breeds = new Map<string, string | null>();
-  for (const dogId of dogIds) {
-    const rows = byDog.get(dogId) ?? [];
-    breeds.set(dogId, resolveDogIdentityForOrganization(rows, organization).breed);
-  }
-  return breeds;
-}
 
 function getClassDetailsHref({
   showId,

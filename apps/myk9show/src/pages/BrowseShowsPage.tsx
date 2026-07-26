@@ -20,7 +20,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { EntryClosedNotice } from '@/components/shows/browse/EntryClosedNotice';
-import { ShowCalendar } from '@/components/common/LazyComponents';
+import { ShowCalendar, ShowsMapView } from '@/components/common/LazyComponents';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import '@/styles/myk9-show-details.css';
 import { UserRole, type UserWithRoles } from '@/types/auth-types';
@@ -49,12 +49,13 @@ import { ShowCardGrid, ShowsTableView, ShowBulkActionsBar } from '@/components/s
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
 
-type ViewMode = 'cards' | 'table' | 'calendar';
+type ViewMode = 'cards' | 'table' | 'calendar' | 'map';
 
 const VIEW_MODES = [
   { key: 'cards', label: 'Cards', icon: 'grid' as const },
   { key: 'table', label: 'Table', icon: 'table' as const },
   { key: 'calendar', label: 'Calendar', icon: 'calendar' as const },
+  { key: 'map', label: 'Map', icon: 'map' as const },
 ];
 
 const VALID_VIEW_MODES: ReadonlySet<string> = new Set(VIEW_MODES.map(mode => mode.key));
@@ -325,7 +326,6 @@ const BrowseShowsPage: React.FC = () => {
             </Button>
           );
         })}
-
       </div>
     ),
     [tabQuickActions]
@@ -381,9 +381,7 @@ const BrowseShowsPage: React.FC = () => {
               ? 'Try clearing a filter or broadening your search.'
               : 'Shows will appear here as they are added. Try searching by discipline or club name above.'
           }
-          action={
-            hasActiveFilters ? { label: 'Clear Filters', onClick: clearAllFilters } : null
-          }
+          action={hasActiveFilters ? { label: 'Clear Filters', onClick: clearAllFilters } : null}
           variant={hasActiveFilters ? 'filter' : 'default'}
         />
       );
@@ -400,6 +398,16 @@ const BrowseShowsPage: React.FC = () => {
               />
             </Suspense>
           </div>
+        );
+
+      case 'map':
+        return (
+          <Suspense fallback={<ShowCalendarSkeleton />}>
+            <ShowsMapView
+              shows={enhancedShows}
+              onSwitchToCards={() => handleViewModeChange('cards')}
+            />
+          </Suspense>
         );
 
       case 'table':

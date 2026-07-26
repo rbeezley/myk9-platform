@@ -17,10 +17,10 @@
 
 ## 3. Map view mode
 
-- [ ] 3.1 Write `deriveShowMarkerStatus` pure function + unit tests covering all five states and the closing-soon boundaries (7-day window, 90% capacity)
-- [ ] 3.2 Add `'map'` to `ViewMode` union / `VIEW_MODES` / `parseViewMode` test; extend `renderShowsView()` with a lazy-loaded `ShowsMapView` (Suspense, calendar pattern)
-- [ ] 3.3 Build `ShowsMapView`: status-colored markers from `enhancedShows` with coordinates, legend, popup card (name, dates, venue/city, fee, status, details link), "N shows not mappable" note, zero-mappable empty state linking back to cards
-- [ ] 3.4 Component tests (custom testUtils render): marker-per-located-show, omission note, empty state, popup link target
+- [x] 3.1 Write `deriveShowMarkerStatus` pure function + unit tests covering all five states and the closing-soon boundaries (7-day window, 90% capacity)
+- [x] 3.2 Add `'map'` to `ViewMode` union / `VIEW_MODES` / `parseViewMode` test; extend `renderShowsView()` with a lazy-loaded `ShowsMapView` (Suspense, calendar pattern)
+- [x] 3.3 Build `ShowsMapView`: status-colored markers from `enhancedShows` with coordinates, legend, popup card (name, dates, venue/city, fee, status, details link), "N shows not mappable" note, zero-mappable empty state linking back to cards
+- [x] 3.4 Component tests (custom testUtils render): marker-per-located-show, omission note, empty state, popup link target
 
 ## 4. Verify + ship
 

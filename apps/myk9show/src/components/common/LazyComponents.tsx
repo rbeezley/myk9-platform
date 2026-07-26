@@ -20,6 +20,11 @@ export const ShowCalendar = lazy(() =>
   import('@/components/shows/ShowCalendar/ShowCalendar').then(m => ({ default: m.ShowCalendar }))
 );
 
+// Shows map view (Leaflet dependency)
+export const ShowsMapView = lazy(() =>
+  import('@/components/shows/browse/ShowsMapView').then(m => ({ default: m.ShowsMapView }))
+);
+
 // Rich Text Editor (TipTap dependency)
 export const RichTextEditor = lazy(() =>
   import('@/components/dogs/DogDetails/TrainingJournal/RichTextEditor').then(m => ({

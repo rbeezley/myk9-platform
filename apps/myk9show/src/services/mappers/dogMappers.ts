@@ -6,6 +6,7 @@ import type { Dog, DogStatus } from '@/types/dog-types';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 import type { DogInput } from '@/store/dogStore';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
+import { resolveDogIdentity, type DogRegistrationLike } from '@/features/dogs/identity';
 
 /**
  * Health record row from the database (health_records table)
@@ -70,11 +71,68 @@ function mapHealthRecords(raw: unknown): Dog['healthRecords'] {
 }
 
 /**
+ * The single place the call-name normalisation rule lives. Trimming is part of
+ * the rule, not a step some callers apply and others skip — `"   "` is not a
+ * name, and `"  Tera  "` and `"Tera"` are the same name.
+ */
+const normalizeCallName = (value: string | null | undefined): string => (value ?? '').trim();
+
+/**
+ * Resolve the call name for a dog about to be created.
+ *
+ * MYK9-90 §5.1 — `dogs.call_name` is NOT NULL after 20260727110000, so this is
+ * the one rule that decides whether a dog may be created at all. It lives in a
+ * single function on purpose: earlier rounds of this change scattered the check
+ * across two mappers, a replication payload builder and two Postgres functions,
+ * each seeing the value at a different point in the write lifecycle, and a
+ * whitespace-only name slipped through the gaps between them.
+ *
+ * A caller that supplied only one name supplied the call name (safe direction:
+ * name -> call_name; the reverse copy is what §5.3 removes).
+ *
+ * Throws rather than returning empty so callers cannot accidentally persist or
+ * queue a row first and discover the problem afterwards.
+ */
+export const resolveRequiredCallName = (input: Pick<DogInput, 'callName' | 'name'>): string => {
+  const callName = normalizeCallName(input.callName) || normalizeCallName(input.name);
+  if (!callName) {
+    throw new Error('A dog needs a call name.');
+  }
+  return callName;
+};
+
+/**
+ * Normalise a dog patch ONCE, before it is written anywhere.
+ *
+ * MYK9-90 §5.1 — the update-path analogue of `resolveRequiredCallName`. The
+ * IndexedDB write (`mapPartialDogInputToReplicated`) and the Supabase write
+ * (`mapDogInputToUpdate`) are two mappers fed from the same patch, and when
+ * each decided independently how to normalise, they drifted: a padded
+ * `"  Tera  "` was stored trimmed locally and sent padded to the server, so a
+ * later sync reverted the local value. Normalising here, above both, is what
+ * makes that class of divergence impossible rather than merely fixed.
+ *
+ * Neither mapper trims any more — deliberately. If this function is somehow
+ * bypassed the two still agree (both untrimmed); they can no longer disagree.
+ */
+export const normalizeDogInputForWrite = <T extends Partial<DogInput>>(updates: T): T => {
+  if (updates.callName === undefined) return updates;
+  return { ...updates, callName: normalizeCallName(updates.callName) };
+};
+
+/**
  * Convert DogInput (from dogStore) to DbDogInsert (for database)
  */
 export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
+  const callName = resolveRequiredCallName(input);
+
   const dbInsert: DbDogInsert = {
-    name: input.name,
+    // MYK9-90 §5.3 — `dogs.name` is a nullable legacy alias, not a name the app
+    // owns. It is deliberately NOT fed `input.name`: that field carries the call
+    // name on most create paths, and copying it here is exactly the duplicated
+    // identity storage this change removes. The call name goes to `call_name`;
+    // the registered name goes to `dog_registrations.registered_name`.
+    name: null,
     breed: input.breed,
     date_of_birth: input.birthDate || null,
     sex: input.sex,
@@ -84,7 +142,7 @@ export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
     owner_id: input.ownerId,
     microchip_number: input.microchipNumber || null,
     image_url: input.imageUrl || null,
-    call_name: input.callName || null, // Use callName from input if provided
+    call_name: callName,
     spayed_neutered: input.spayedNeutered ?? null,
     deceased: input.status === 'deceased',
     deceased_date: input.deceasedDate || null,
@@ -111,8 +169,16 @@ export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
 export const mapDogInputToUpdate = (input: Partial<DogInput>): DbDogUpdate => {
   const update: DbDogUpdate = {};
 
-  if (input.name !== undefined) update.name = input.name;
-  if (input.callName !== undefined) update.call_name = input.callName || null;
+  // MYK9-90 §5.3 — `input.name` is deliberately not written back to `dogs.name`.
+  // `Dog.name` is a read-side display alias that falls back to the call name
+  // (see `mapDatabaseToDog`), so echoing it into the column would silently
+  // re-copy the call name into the legacy column on every edit.
+  // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL, so an update can change it but
+  // never clear it. A blank incoming call name is skipped rather than sent as
+  // NULL: an edit that leaves the field empty must not strip the dog's only
+  // required identifier, and failing the whole save (which may be changing an
+  // unrelated field) would be worse than leaving the existing name in place.
+  if (input.callName) update.call_name = input.callName;
   if (input.breed !== undefined) update.breed = input.breed;
   if (input.birthDate !== undefined) update.date_of_birth = input.birthDate || null;
   if (input.sex !== undefined) update.sex = input.sex;
@@ -166,6 +232,9 @@ export const mapReplicatedDogToDbRow = (
   }
 ): Record<string, unknown> => {
   const row: Record<string, unknown> = {
+    // Read-side adapter only (it also carries `owner` / `registrations` embeds):
+    // it reshapes a replicated row for `mapDatabaseToDog`, it is not a write
+    // path, so carrying `name` through is fidelity rather than a re-copy.
     ...mapFields(d as unknown as Record<string, unknown>, {
       id: 'id',
       name: 'name',
@@ -201,15 +270,47 @@ export const mapReplicatedDogToDbRow = (
 /**
  * Convert database dog result to Dog type (for backward compatibility)
  */
+/**
+ * Registration rows reach this mapper in snake_case (PostgREST, offline replica
+ * rows via `toSupabaseRow`) or camelCase (already-mapped `Registration[]` taken
+ * from the dogs query cache). Read both so no path silently loses a field.
+ */
+const regCreatedAt = (reg: Record<string, unknown>): string | null =>
+  (reg.created_at as string | null) ?? (reg.createdAt as string | null) ?? null;
+const regIsPrimary = (reg: Record<string, unknown>): boolean | null =>
+  (reg.is_primary as boolean | null) ?? (reg.isPrimary as boolean | null) ?? null;
+const regRegisteredName = (reg: Record<string, unknown>): string =>
+  ((reg.registered_name as string) || (reg.registeredName as string)) ?? '';
+const regNumber = (reg: Record<string, unknown>): string =>
+  ((reg.registration_number as string) || (reg.registrationNumber as string)) ?? '';
+/** Variety keeps the same key in both casings; normalized here for symmetry (#1480). */
+const regVariety = (reg: Record<string, unknown>): string | null =>
+  (reg.variety as string | null) || null;
+
 export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
   const sex = dbDog.sex as 'male' | 'female' | null;
   const dateOfBirth = dbDog.date_of_birth as string | null;
 
+  const registrationRows: Record<string, unknown>[] = Array.isArray(dbDog.registrations)
+    ? (dbDog.registrations as Record<string, unknown>[])
+    : [];
+
+  // Breed belongs to a registration, not to the dog. This is a generic surface
+  // (no organization in context), so the primary registration answers — and an
+  // unregistered dog has no breed rather than a guessed one. Callers render the
+  // absence via `getDogBreedLabel`; nothing substitutes a value.
+  const identity = resolveDogIdentity(registrationRows as DogRegistrationLike[]);
+
   return {
     id: dbDog.id as string,
-    name: dbDog.name as string,
+    // MYK9-90 §5.2 — `dogs.name` is a nullable legacy alias and is NULL for
+    // every dog created after that migration. `Dog.name` stays a non-empty
+    // display alias by falling back to the (now NOT NULL) call name, so no
+    // surface that renders `dog.name` blanks out. It is NOT a registered name:
+    // that lives on `dog_registrations`, resolved via `@/features/dogs/identity`.
+    name: ((dbDog.name as string | null) ?? (dbDog.call_name as string | null) ?? '') as string,
     callName: (dbDog.call_name as string) || (dbDog.name as string), // Use call_name if available, fallback to name
-    breed: dbDog.breed as string,
+    breed: identity.breed ?? '',
     birthDate: dateOfBirth ?? undefined,
     dateOfBirth: dateOfBirth ?? undefined, // Also set dateOfBirth for backward compatibility
     sex: sex ?? 'male', // Default to male if not set (required field)
@@ -226,21 +327,24 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
     spayedNeutered: (dbDog.spayed_neutered as boolean) ?? undefined,
     status: (dbDog.status as string as DogStatus) || 'active',
     deceasedDate: (dbDog.deceased_date as string) || undefined,
-    registrations: Array.isArray(dbDog.registrations)
-      ? dbDog.registrations.map((reg: Record<string, unknown>) => ({
-          id: reg.id as string,
-          organization: (reg.organization as string) || '',
-          registeredName: (reg.registered_name as string) || '',
-          breed: (reg.breed as string) || (dbDog.breed as string),
-          registrationNumber: (reg.registration_number as string) || '',
-          status: (reg.status as string) || 'active',
-          ...((reg.variety as string | null) ? { variety: reg.variety as string } : {}),
-          ...((reg.is_primary as boolean | null) != null
-            ? { isPrimary: reg.is_primary as boolean }
-            : {}),
-          ...((reg.created_at as string | null) ? { createdAt: reg.created_at as string } : {}),
-        }))
-      : [],
+    registrations: registrationRows.map((reg: Record<string, unknown>) => ({
+      id: reg.id as string,
+      organization: (reg.organization as string) || '',
+      registeredName: regRegisteredName(reg),
+      // Never backfill from `dogs.breed` (as `main` still did here): that turns
+      // the dog record into a breed claim made to a sanctioning organization.
+      breed: (reg.breed as string) || '',
+      // Carry the resolver's ordering fields through the mapping, or anything
+      // that re-resolves from `Dog.registrations` orders by `id` instead and
+      // disagrees with `identity` above. Both casings are accepted because this
+      // list is the MERGE of snake_case PostgREST rows and camelCase rows from
+      // the offline replica (`loadRegistrationsMap`).
+      ...(regVariety(reg) != null ? { variety: regVariety(reg) as string } : {}),
+      ...(regCreatedAt(reg) != null ? { createdAt: regCreatedAt(reg) as string } : {}),
+      ...(regIsPrimary(reg) != null ? { isPrimary: regIsPrimary(reg) as boolean } : {}),
+      registrationNumber: regNumber(reg),
+      status: (reg.status as string) || 'active',
+    })),
     healthRecords: mapHealthRecords(dbDog.health_records),
     // Sync metadata - no longer needed with React Query, but kept for compatibility
     _version: 1,
@@ -267,7 +371,12 @@ export const mapDogInputToReplicated = (input: DogInput, id: string): Replicated
   return {
     id,
     name: input.name,
-    callName: input.callName || undefined,
+    // MYK9-90 §5.1 — throws on a missing or whitespace-only call name. This is
+    // the FIRST statement of `addDogOfflineFirst`, so a rejected dog is never
+    // written to IndexedDB and never queued for sync; on the offline-first
+    // show-day path there is no rollback and no user left to correct a mutation
+    // that dies at the server hours later.
+    callName: resolveRequiredCallName(input),
     breed: input.breed,
     sex: input.sex || undefined,
     dateOfBirth: input.birthDate || undefined,
@@ -287,7 +396,12 @@ export const mapPartialDogInputToReplicated = (
 ): Partial<ReplicatedDog> => {
   const partial: Partial<ReplicatedDog> = {};
   if (updates.name !== undefined) partial.name = updates.name;
-  if (updates.callName !== undefined) partial.callName = updates.callName || undefined;
+  // MYK9-90 §5.1 — must stay byte-for-byte identical to the `call_name` line in
+  // `mapDogInputToUpdate`: same skip-when-blank rule, and NO trimming here.
+  // Normalisation belongs to `normalizeDogInputForWrite`, above both writes —
+  // trimming in one mapper and not the other is exactly how the local copy and
+  // the server copy drifted apart.
+  if (updates.callName) partial.callName = updates.callName;
   if (updates.breed !== undefined) partial.breed = updates.breed;
   if (updates.birthDate !== undefined) partial.dateOfBirth = updates.birthDate || undefined;
   if (updates.sex !== undefined) partial.sex = updates.sex || undefined;

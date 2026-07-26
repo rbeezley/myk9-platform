@@ -7,15 +7,10 @@ import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { ScoresheetLoadingSkeleton } from '@/components/scoring/ScoringLoadingSkeletons';
 import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
-import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
-import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
-import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
-import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
-import { supabase } from '@/services/database/supabaseClient';
-import { organizationMatches } from '@/lib/dogRegistrationBreed';
+import { loadEntriesWithDogs } from './paperScoresheetData';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { toScoringEntry, calculatePlacements } from './types';
+import { calculatePlacements } from './types';
 import { usePaperScoring } from './hooks/usePaperScoring';
 import { SessionToolbar } from './components/SessionToolbar';
 import { SplitPanelView } from './components/SplitPanelView';
@@ -24,57 +19,6 @@ import { sortByExhibitorOrder } from './paper-scoring-types';
 import { cn } from '@/lib/utils';
 import type { ScoringEntry } from './types';
 import type { PaperResult, PaperScoringMode } from './paper-scoring-types';
-
-/** Fetch all entries for a class with their dog data, parallelising dog lookups. */
-async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry[]> {
-  const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
-  const uniqueDogIds = [...new Set(rawEntries.map(e => e.dogId).filter(Boolean))] as string[];
-  const dogs = await Promise.all(uniqueDogIds.map(id => replicatedDogsTable.get(id)));
-  const dogsMap = new Map(uniqueDogIds.map((id, i) => [id, dogs[i] ?? null]));
-  const organization = await loadShowOrganizationForClass(classId);
-  const registeredBreedByDogId = await loadRegisteredBreedsByDogId(uniqueDogIds, organization);
-  return rawEntries.map((e, i) =>
-    toScoringEntry(
-      e,
-      dogsMap.get(e.dogId ?? '') ?? null,
-      i,
-      e.dogId ? registeredBreedByDogId.get(e.dogId) : undefined
-    )
-  );
-}
-
-async function loadShowOrganizationForClass(classId: string): Promise<string | undefined> {
-  const cls = await replicatedClassesTable.getClassById(classId);
-  if (!cls?.trialId) return undefined;
-  const trial = await replicatedTrialsTable.getTrialById(cls.trialId);
-  if (!trial?.showId) return undefined;
-  const show = await replicatedShowsTable.get(trial.showId);
-  return show?.organization || undefined;
-}
-
-async function loadRegisteredBreedsByDogId(
-  dogIds: string[],
-  organization: string | undefined
-): Promise<Map<string, string>> {
-  if (!organization || dogIds.length === 0) return new Map();
-
-  const { data, error } = await supabase
-    .from('dog_registrations')
-    .select('dog_id, organization, breed')
-    .in('dog_id', dogIds);
-
-  if (error || !data) return new Map();
-
-  const breeds = new Map<string, string>();
-  for (const registration of data) {
-    if (!registration.dog_id || !registration.breed || !registration.organization) continue;
-    if (breeds.has(registration.dog_id)) continue;
-    if (organizationMatches(registration.organization, organization)) {
-      breeds.set(registration.dog_id, registration.breed);
-    }
-  }
-  return breeds;
-}
 
 function getClassDetailsHref({
   showId,

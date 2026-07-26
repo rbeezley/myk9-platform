@@ -20,9 +20,14 @@ export interface TVShowInfo {
 export interface TVDogInfo {
   name: string;
   callName: string | null;
-  breed: string | null;
   imageUrl: string | null;
 }
+// MYK9-90: `breed` was carried here but never rendered by any TV component. It
+// came from `dogs.breed` (live query) and the view's `dog_breed` (placements) —
+// both readers of a column that is going away. Rather than re-plumb it through
+// `dog_registrations`, which the public `/tv/:showId` route cannot read (anon
+// holds no SELECT on that table, and PostgREST fails the WHOLE request on an
+// ungranted embed), the dead field is dropped.
 
 export interface TVEntry {
   id: string;
@@ -80,12 +85,11 @@ export function mapDogInfo(
   raw: {
     name: string;
     call_name: string | null;
-    breed: string | null;
     image_url: string | null;
   } | null
 ): TVDogInfo | null {
   if (!raw) return null;
-  return { name: raw.name, callName: raw.call_name, breed: raw.breed, imageUrl: raw.image_url };
+  return { name: raw.name, callName: raw.call_name, imageUrl: raw.image_url };
 }
 
 export function getDisplayName(dog: TVDogInfo | null): string {

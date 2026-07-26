@@ -29,10 +29,10 @@ export interface SlideOverPanelProps {
 let openPanelIds: symbol[] = [];
 
 const sizeClasses = {
-  sm: 'max-w-md w-full',
-  md: 'max-w-lg w-full',
-  lg: 'max-w-2xl w-full',
-  xl: 'max-w-4xl w-full',
+  sm: 'max-w-md w-full md:max-w-md',
+  md: 'max-w-lg w-full md:max-w-lg',
+  lg: 'max-w-2xl w-full md:max-w-2xl',
+  xl: 'max-w-4xl w-full md:max-w-4xl',
 };
 
 // Premium design constants - solid, consistent with our design system
@@ -229,8 +229,8 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
           sizeClasses[size],
           // Mobile: Full screen on small devices
           isLeft
-            ? 'sm:max-w-none sm:w-full sm:rounded-none md:max-w-lg md:rounded-r-xl lg:max-w-2xl xl:max-w-4xl'
-            : 'sm:max-w-none sm:w-full sm:rounded-none md:max-w-lg md:rounded-l-xl lg:max-w-2xl xl:max-w-4xl',
+            ? 'sm:max-w-none sm:w-full sm:rounded-none md:rounded-r-xl'
+            : 'sm:max-w-none sm:w-full sm:rounded-none md:rounded-l-xl',
           // Animation - remove transform when open to prevent stacking context issues
           // (transforms create new containing blocks that break Select dropdown positioning)
           `transition-all ${appleDesign.animation.duration} ${appleDesign.animation.easing}`,

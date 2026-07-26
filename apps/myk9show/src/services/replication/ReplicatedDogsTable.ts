@@ -28,6 +28,19 @@ interface DogRegistrationRpcInput {
   registration_number?: string | null;
   breed?: string | null;
   status?: string | null;
+  /**
+   * Ordered creation timestamp, so the identity resolver can pick the PRIMARY
+   * registration by creation order after sync.
+   *
+   * IMPORTANT (MYK9-90 review round 4): `create_dog_with_registrations` does
+   * NOT currently read this key — its INSERT omits `created_at`, so PostgreSQL
+   * stamps every row in the transaction identically and ordering falls back to
+   * a random server UUID. Sending it here is forward-compatible and costs
+   * nothing, but the cross-device fix needs that function to insert it. That is
+   * a migration, which is out of scope for task 2.3 and belongs to the owner of
+   * `create_dog_with_registrations` (sections 4-5). See the PR notes.
+   */
+  created_at?: string | null;
 }
 
 /**
@@ -69,7 +82,13 @@ export interface ReplicatedDog {
 export function rowToDog(row: DogRow): ReplicatedDog {
   return {
     id: String(row.id),
-    name: row.name,
+    // MYK9-90 §5.2 — `dogs.name` is a nullable legacy alias and is NULL for
+    // every dog created after that migration, so the replicated read falls back
+    // to the (now NOT NULL) call name. This keeps the offline read identical to
+    // the online one (`mapDatabaseToDog` applies the same fallback) and stops
+    // any surface rendering `dog.name` from going blank. It is NOT a registered
+    // name — that lives on `dog_registrations`.
+    name: row.name ?? row.call_name ?? '',
     callName: row.call_name ?? undefined,
     breed: row.breed,
     sex: row.sex ?? undefined,
@@ -85,6 +104,28 @@ export function rowToDog(row: DogRow): ReplicatedDog {
     deletedAt: row.deleted_at ?? undefined,
     deleted_at: row.deleted_at ?? undefined,
   };
+}
+
+/**
+ * MYK9-90 §5.1 — refuse to create a dog that cannot satisfy the `dogs.call_name`
+ * NOT NULL constraint, BEFORE anything is written to IndexedDB or queued.
+ *
+ * This is the last line of defence, not the first: `addDogSchema` rejects a
+ * blank or whitespace-only call name at the form, and `resolveRequiredCallName`
+ * rejects it at the mapper. It exists because this layer is the point of no
+ * return — past `set` + `queueMutation` the user has been told the dog is saved
+ * and, on the offline-first show-day path, there is no rollback and nobody left
+ * to correct a mutation that dies at the server whenever sync next runs.
+ *
+ * A whitespace-only name is rejected here too. Trimming it into `''` and then
+ * omitting the column (what `toSupabaseRow` does) is right for an UPDATE and
+ * catastrophic for an INSERT.
+ */
+function assertQueueableCallName(dog: ReplicatedDog): void {
+  const callName = dog.callName?.trim() || dog.name?.trim() || '';
+  if (!callName) {
+    throw new Error('A dog needs a call name.');
+  }
 }
 
 export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
@@ -105,10 +146,25 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    * Strips sync metadata fields. Dogs have no FK dependencies.
    */
   private toSupabaseRow(dog: ReplicatedDog): Record<string, unknown> {
+    // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL after 20260727110000. This
+    // method returns `Record<string, unknown>`, so TypeScript cannot catch a
+    // null here the way it does on the `DbDogInsert` paths — the queued
+    // mutation would only fail when it reached the database, offline, after the
+    // user had already been told the dog was saved. `ReplicatedDog.name` is a
+    // derived non-empty display alias (see `rowToDog`), so it is the fallback.
+    const callName = dog.callName?.trim() || dog.name?.trim() || '';
+
     return {
       id: dog.id,
-      name: dog.name,
-      call_name: dog.callName ?? null,
+      // MYK9-90 §5.3 — `name` is deliberately not written back. `ReplicatedDog.name`
+      // is a read-side display alias that falls back to the call name (see
+      // `rowToDog`), so writing it would copy the call name into the legacy
+      // `dogs.name` column on every sync.
+      //
+      // Omitted rather than nulled when empty: on an UPDATE that leaves the
+      // existing call name in place, and an INSERT with no name at all is
+      // already prevented upstream (`mapDogInputToInsert` throws).
+      ...(callName && { call_name: callName }),
       breed: dog.breed,
       sex: dog.sex ?? null,
       date_of_birth: dog.dateOfBirth ?? null,
@@ -165,9 +221,14 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 
-    const result = await syncReplicatedTable(this, adapter, { value: syncScopeId }, {
-      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
-    });
+    const result = await syncReplicatedTable(
+      this,
+      adapter,
+      { value: syncScopeId },
+      {
+        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+      }
+    );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
@@ -257,7 +318,9 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     }
 
     // Hit the page cap without a short page — treat as incomplete and prune nothing.
-    logger.warn(`[${this.getTableName()}] reconcileDeleted exceeded ${MAX_PAGES} pages; skipping prune`);
+    logger.warn(
+      `[${this.getTableName()}] reconcileDeleted exceeded ${MAX_PAGES} pages; skipping prune`
+    );
     return 0;
   }
 
@@ -348,6 +411,8 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     dog: ReplicatedDog,
     options: { dependsOn?: string[] } = {}
   ): Promise<ReplicatedDog> {
+    assertQueueableCallName(dog);
+
     const newDog: ReplicatedDog = {
       ...dog,
       _version: 1,
@@ -373,6 +438,8 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     registrations: DogRegistrationRpcInput[],
     options: { dependsOn?: string[] } = {}
   ): Promise<ReplicatedDog> {
+    assertQueueableCallName(dog);
+
     const newDog: ReplicatedDog = {
       ...dog,
       _version: 1,
@@ -383,20 +450,14 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     const dogRow = this.toSupabaseRow(newDog);
 
     await this.set(newDog.id, newDog, true);
-    const mutationId = await this.queueMutation(
-      'INSERT',
-      newDog.id,
-      dogRow,
-      options.dependsOn,
-      {
-        name: 'create_dog_with_registrations',
-        args: {
-          p_dog: dogRow,
-          p_registrations: registrations,
-        },
-        expectRowId: true,
-      }
-    );
+    const mutationId = await this.queueMutation('INSERT', newDog.id, dogRow, options.dependsOn, {
+      name: 'create_dog_with_registrations',
+      args: {
+        p_dog: dogRow,
+        p_registrations: registrations,
+      },
+      expectRowId: true,
+    });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new dog ${newDog.id} via registration RPC`);
     return newDog;

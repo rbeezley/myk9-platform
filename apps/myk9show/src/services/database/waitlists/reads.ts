@@ -35,7 +35,10 @@ export interface WaitlistEntry {
   // Joined data
   dog: {
     id: string;
-    name: string;
+    // MYK9-90 §5.2 — `dogs.name` is a nullable legacy alias. `call_name` is the
+    // required identifier; render that and fall back to `name` only when it
+    // says something different.
+    name: string | null;
     call_name: string | null;
   } | null;
   class: {

@@ -9,7 +9,18 @@ export interface ReplicatedDogRegistration {
   dogId: string;
   organization: string;
   registrationNumber: string;
+  /**
+   * The identity resolver's ordering fields. Locally-cached registrations are
+   * merged with server rows before breed resolution, so dropping these made the
+   * comparator fall back to ordering by `id` for any dog with an offline
+   * registration (MYK9-90 review round 2).
+   *
+   * `createdAt` is REQUIRED (#1480) because both creation paths now always stamp
+   * it. `isPrimary` stays optional and read-only here until its migration is
+   * pushed — see `toSupabaseRow`.
+   */
   createdAt: string;
+  isPrimary?: boolean | null;
   registeredName?: string | null;
   breed?: string | null;
   status?: string | null;
@@ -20,9 +31,23 @@ export interface ReplicatedDogRegistration {
   _localOnly?: boolean;
 }
 
+/**
+ * Distinct, ordered creation timestamps for a batch.
+ *
+ * A plain `new Date().toISOString()` per row ties when several registrations are
+ * created in the same millisecond — which is the normal case for a batch — and a
+ * tie sends the resolver to its `id` (random UUID) tiebreak. Offsetting by index
+ * keeps creation ORDER, so the first registration entered stays primary.
+ */
+function creationTimestamps(count: number): string[] {
+  const base = Date.now();
+  return Array.from({ length: count }, (_, i) => new Date(base + i).toISOString());
+}
+
 function normalizeRegistration(
-  input: RegistrationInput
-): Omit<ReplicatedDogRegistration, 'id' | 'createdAt'> {
+  input: RegistrationInput,
+  createdAt: string
+): Omit<ReplicatedDogRegistration, 'id'> {
   return {
     dogId: '',
     organization: input.organization || 'AKC',
@@ -31,6 +56,11 @@ function normalizeRegistration(
     breed: input.type || null,
     status: input.status || 'pending',
     verified: false,
+    // Stamped at construction, NOT left for the server default. The identity
+    // resolver orders by `created_at`, so without it a dog created offline with
+    // several registrations resolved by random UUID rather than creation order
+    // until a server round trip (MYK9-90 review round 3).
+    createdAt,
   };
 }
 
@@ -56,16 +86,18 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   ): Promise<ReplicatedDogRegistration[]> {
     const saved: ReplicatedDogRegistration[] = [];
 
-    for (const input of registrations) {
-      const normalized = normalizeRegistration(input);
-      const now = new Date();
+    // `createdAt` comes from `creationTimestamps`, NOT from a per-row
+    // `new Date()`: rows created in the same millisecond would tie, and a tie
+    // sends the resolver back to its random-UUID tiebreak.
+    const createdAts = creationTimestamps(registrations.length);
+    for (const [index, input] of registrations.entries()) {
+      const normalized = normalizeRegistration(input, createdAts[index]!);
       const registration: ReplicatedDogRegistration = {
         ...normalized,
         dogId,
         id: crypto.randomUUID(),
-        createdAt: now.toISOString(),
         _version: 1,
-        _lastModified: now,
+        _lastModified: new Date(normalized.createdAt),
         _syncStatus: 'pending',
         _localOnly: true,
       };
@@ -89,16 +121,18 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   ): Promise<ReplicatedDogRegistration[]> {
     const saved: ReplicatedDogRegistration[] = [];
 
-    for (const input of registrations) {
-      const normalized = normalizeRegistration(input);
-      const now = new Date();
+    // `createdAt` comes from `creationTimestamps`, NOT from a per-row
+    // `new Date()`: rows created in the same millisecond would tie, and a tie
+    // sends the resolver back to its random-UUID tiebreak.
+    const createdAts = creationTimestamps(registrations.length);
+    for (const [index, input] of registrations.entries()) {
+      const normalized = normalizeRegistration(input, createdAts[index]!);
       const registration: ReplicatedDogRegistration = {
         ...normalized,
         dogId,
         id: crypto.randomUUID(),
-        createdAt: now.toISOString(),
         _version: 1,
-        _lastModified: now,
+        _lastModified: new Date(normalized.createdAt),
         _syncStatus: 'pending',
         _localOnly: true,
       };
@@ -148,6 +182,9 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       dog_id: registration.dogId,
       organization: registration.organization,
       registration_number: registration.registrationNumber,
+      // Carried so the merged local+server list keeps the resolver's ordering.
+      // `is_primary` is deliberately NOT written: its migration is unpushed, so
+      // emitting it would fail against the live schema.
       created_at: registration.createdAt,
       registered_name: registration.registeredName ?? null,
       breed: registration.breed ?? null,

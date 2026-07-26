@@ -3,6 +3,8 @@ import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import type { DogInput } from '@/store/dogStore';
+import { getDogBreedLabel, BREED_NOT_SET } from '@/types/dog-types';
+import { queryKeys } from '@/lib/queryClient';
 
 // ── Mocks (hoisted so factories can reference them) ──────────────────────────
 
@@ -17,6 +19,11 @@ const {
   mockDeleteMutateAsync,
   mockCreateReplicatedDogRegistrationsForDog,
   mockCreateLocalReplicatedDogRegistrationsForDog,
+  mockGetRegistrationsForDogs,
+  mockUpdateMutateAsync,
+  mockServerRegistrationsIn,
+  mockDogsQueryData,
+  mockGetReplicatedDogById,
 } = vi.hoisted(() => ({
   mockSetReplicatedDog: vi.fn(),
   mockCreateReplicatedDogWithId: vi.fn(),
@@ -28,6 +35,17 @@ const {
   mockDeleteMutateAsync: vi.fn(),
   mockCreateReplicatedDogRegistrationsForDog: vi.fn(),
   mockCreateLocalReplicatedDogRegistrationsForDog: vi.fn(),
+  mockGetRegistrationsForDogs: vi.fn(),
+  mockUpdateMutateAsync: vi.fn(),
+  mockServerRegistrationsIn: vi.fn(),
+  mockDogsQueryData: vi.fn(() => [] as unknown[]),
+  mockGetReplicatedDogById: vi.fn(),
+}));
+
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: { from: () => ({ select: () => ({ in: mockServerRegistrationsIn }) }) },
+  logQuery: vi.fn(),
+  createDatabaseError: (e: unknown) => e,
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -39,6 +57,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
     getPendingMutationIdsForRow: mockGetPendingDogMutationIdsForRow,
     delete: mockDeleteReplicatedDog,
     get: vi.fn().mockResolvedValue(null),
+    getDogById: mockGetReplicatedDogById,
     getAll: mockGetAllReplicatedDogs,
   },
 }));
@@ -48,12 +67,13 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
     createRegistrationsForDog: mockCreateReplicatedDogRegistrationsForDog,
     createLocalRegistrationsForDog: mockCreateLocalReplicatedDogRegistrationsForDog,
     toSupabaseRow: (registration: Record<string, unknown>) => registration,
+    getRegistrationsForDogs: mockGetRegistrationsForDogs,
   },
 }));
 
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useDogsQuery: () => ({
-    data: [],
+    data: mockDogsQueryData(),
     isLoading: false,
     error: null,
     isStale: false,
@@ -65,7 +85,11 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
     isPending: false,
     error: null,
   }),
-  useUpdateDogMutation: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
+  useUpdateDogMutation: () => ({
+    mutateAsync: mockUpdateMutateAsync,
+    isPending: false,
+    error: null,
+  }),
   useDeleteDogMutation: () => ({
     mutateAsync: mockDeleteMutateAsync,
     isPending: false,
@@ -167,6 +191,29 @@ describe('useDogStoreCompat.addDog — local-first', () => {
     expect(indexedDbWriteOrder).toBeGreaterThan(0);
     expect(postgrestCallOrder).toBeGreaterThan(0);
     expect(indexedDbWriteOrder).toBeLessThan(postgrestCallOrder);
+  });
+
+  // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL, and the mappers are what
+  // reject a dog that cannot satisfy it. They now run BEFORE the local write:
+  // called after it, the throw fired from outside `addDog`'s rollback `try`,
+  // so creation reported an error while leaving the row behind in IndexedDB.
+  // "   " is the specific input — it is truthy, so it survived every `||`.
+  it.each([
+    ['whitespace-only', '   '],
+    ['empty', ''],
+  ])('leaves no ghost dog in IndexedDB when the call name is %s', async (_label, callName) => {
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await expect(
+        result.current.addDog({ ...baseDogInput, name: callName, callName })
+      ).rejects.toThrow(/call name/i);
+    });
+
+    // The invariant: nothing was persisted locally, so nothing needs rolling back.
+    expect(mockSetReplicatedDog).not.toHaveBeenCalled();
+    expect(mockDeleteReplicatedDog).not.toHaveBeenCalled();
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
   });
 
   it('writes to IndexedDB with isDirty=false (synced status)', async () => {
@@ -320,6 +367,7 @@ describe('useDogStoreCompat.addDog — local-first', () => {
         registeredName: 'Beacon Hill Fast Lane',
         breed: 'Border Collie',
         status: 'pending',
+        createdAt: '2024-01-01T00:00:00.000Z',
       },
     ]);
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
@@ -341,6 +389,10 @@ describe('useDogStoreCompat.addDog — local-first', () => {
         ownerId: 'person-123',
       })
     );
+    // MYK9-90 round 4: the RPC payload must carry the ordered creation
+    // timestamp from the local mirror. Without it every registration in the
+    // RPC's transaction gets an identical server `created_at` and the primary
+    // registration is decided by a random server UUID.
     expect(registrationRows).toEqual([
       {
         organization: 'AKC',
@@ -348,6 +400,7 @@ describe('useDogStoreCompat.addDog — local-first', () => {
         registration_number: 'SW123456',
         breed: 'Border Collie',
         status: 'pending',
+        created_at: '2024-01-01T00:00:00.000Z',
       },
     ]);
     expect(options).toEqual({ dependsOn: ['person-mutation-1'] });
@@ -422,5 +475,187 @@ describe('useDogStoreCompat.deleteDog — soft-delete + IndexedDB cleanup', () =
     });
 
     expect(mockDeleteReplicatedDog).not.toHaveBeenCalled();
+  });
+});
+
+// MYK9-90 review round 3, finding 3 — REALISTIC-DATA proof.
+//
+// `updateDog` returns a locally-mapped dog straight to `DogDialogs`, which
+// replaces detail state with it. Breed is resolved from `dog_registrations`, so
+// mapping a bare replicated row yields "Breed not set" for a registered dog.
+//
+// The round-2 fix hydrated from `replicatedDogRegistrationsTable` ALONE, which
+// is inert in production: that table's `sync()` is a no-op and server reads are
+// never written into it, so it only holds registrations created locally. These
+// tests therefore model production — the LOCAL table returns nothing and the
+// registrations exist only on the server. A fixture that seeded the local table
+// would have passed against the broken code.
+describe('useDogStoreCompat.updateDog — breed survives the local re-map', () => {
+  const serverRegistration = {
+    id: 'reg-akc',
+    dog_id: 'dog-1',
+    created_at: '2024-01-01T00:00:00Z',
+    organization: 'AKC',
+    registered_name: 'Ziva of the North',
+    registration_number: 'DN61191906',
+    breed: 'Belgian Malinois',
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUpdateMutateAsync.mockResolvedValue({});
+    mockGetReplicatedDogById.mockResolvedValue({
+      id: 'dog-1',
+      name: 'Ziva',
+      callName: 'Ziva',
+      breed: 'Belgian Malinois',
+      ownerId: 'person-1',
+    });
+    // Production reality: the replica holds no server-originated registrations.
+    mockGetRegistrationsForDogs.mockResolvedValue([]);
+    // The dogs query has already loaded this dog WITH its registrations, which
+    // is where the immediate return now gets the breed from.
+    mockDogsQueryData.mockReturnValue([
+      {
+        id: 'dog-1',
+        name: 'Ziva',
+        call_name: 'Ziva',
+        owner_id: 'person-1',
+        registrations: [serverRegistration],
+      },
+    ]);
+  });
+
+  it('keeps the breed for a dog whose registrations came from the SERVER', async () => {
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
+
+    expect(getDogBreedLabel(updated!)).toBe('Belgian Malinois');
+    expect(updated?.breed).toBe('Belgian Malinois');
+  });
+
+  // MYK9-90 review round 4, finding 3. `updateDog` is local-first: a
+  // call-name-only edit at a venue must not wait on PostgREST to fail or time
+  // out before the UI updates.
+  it('does NOT hit the network on the save path', async () => {
+    let networkCalled = false;
+    mockServerRegistrationsIn.mockImplementation(() => {
+      networkCalled = true;
+      return new Promise(() => {}); // never settles — a hung venue connection
+    });
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    // Would hang forever if the save path awaited the registration read.
+    const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
+
+    expect(updated?.callName).toBe('Zee');
+    expect(getDogBreedLabel(updated!)).toBe('Belgian Malinois');
+    expect(networkCalled).toBe(false);
+  });
+
+  it('reports no breed for a dog that genuinely has no registration', async () => {
+    mockDogsQueryData.mockReturnValue([
+      { id: 'dog-1', name: 'Ziva', call_name: 'Ziva', owner_id: 'person-1', registrations: [] },
+    ]);
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+    const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
+
+    expect(getDogBreedLabel(updated!)).toBe(BREED_NOT_SET);
+  });
+
+  // MYK9-90 review round 5. React Query keeps serving an invalidated-but-
+  // INACTIVE query's old data, so `registrationsByDog` can still hold a
+  // registration the user just deleted. A loaded dogs list that shows zero
+  // registrations is authoritative and must win over that stale cache.
+  it('does not resurrect a deleted registration when an UNRELATED field is edited', async () => {
+    // The dogs query has refreshed after the deletion: the dog is present, with
+    // an authoritative empty registration list.
+    mockDogsQueryData.mockReturnValue([
+      { id: 'dog-1', name: 'Ziva', call_name: 'Ziva', owner_id: 'person-1', registrations: [] },
+    ]);
+
+    // ...but the per-dog registrations query is invalidated-and-inactive, so it
+    // still serves the deleted row.
+    const staleQueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    staleQueryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), [serverRegistration]);
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: staleQueryClient }, children);
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper });
+
+    // Edit something that has nothing to do with registrations.
+    const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
+
+    expect(updated?.callName).toBe('Zee');
+    expect(updated?.registrations).toEqual([]);
+    expect(updated?.breed).toBe('');
+    expect(getDogBreedLabel(updated!)).toBe(BREED_NOT_SET);
+  });
+});
+
+describe('useDogStoreCompat.updateDog — one normalized value reaches both destinations', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUpdateMutateAsync.mockResolvedValue(mockDbDog);
+    mockGetReplicatedDogById.mockResolvedValue({
+      id: 'dog-123',
+      name: 'Biscuit',
+      callName: 'Biscuit',
+      breed: 'Beagle',
+      ownerId: 'person-123',
+    });
+  });
+
+  // MYK9-90 §5.1 — asserts BOTH destinations in ONE test on purpose. Two tests
+  // each checking their own side would both have passed while the values
+  // silently disagreed: IndexedDB stored the trimmed "Tera" while Supabase was
+  // sent the padded "  Tera  ", so the next server-backed sync reverted the
+  // local value. This caller bypasses the form schema, which is the only other
+  // place the value is normalized.
+  it('sends the identical trimmed call name to IndexedDB and to Supabase', async () => {
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await result.current.updateDog('dog-123', { callName: '  Tera  ' });
+    });
+
+    expect(mockSetReplicatedDog).toHaveBeenCalledTimes(1);
+    expect(mockUpdateMutateAsync).toHaveBeenCalledTimes(1);
+
+    const indexedDbCallName = (
+      mockSetReplicatedDog.mock.calls[0]?.[1] as { callName?: string } | undefined
+    )?.callName;
+    const supabaseCallName = (
+      mockUpdateMutateAsync.mock.calls[0]?.[0] as { updates?: { call_name?: string } } | undefined
+    )?.updates?.call_name;
+
+    // The invariant: one value, not two that happen to look similar.
+    expect(indexedDbCallName).toBe(supabaseCallName);
+    expect(indexedDbCallName).toBe('Tera');
+  });
+
+  it('still skips a whitespace-only call name on both destinations', async () => {
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await result.current.updateDog('dog-123', { callName: '   ', breed: 'Border Collie' });
+    });
+
+    const localPatch = mockSetReplicatedDog.mock.calls[0]?.[1] as {
+      callName?: string;
+      breed?: string;
+    };
+    const dbPatch = (
+      mockUpdateMutateAsync.mock.calls[0]?.[0] as { updates?: Record<string, unknown> } | undefined
+    )?.updates;
+
+    // Neither clears the required identifier; the rest of the edit still lands.
+    expect(localPatch?.callName).toBe('Biscuit');
+    expect(dbPatch).not.toHaveProperty('call_name');
+    expect(localPatch?.breed).toBe('Border Collie');
+    expect(dbPatch?.breed).toBe('Border Collie');
   });
 });

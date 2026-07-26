@@ -88,22 +88,99 @@ function appendRegistrations(
   }
 }
 
+/**
+ * Copy the local replica's ordered `created_at` onto the matching server row.
+ *
+ * `create_dog_with_registrations` inserts every registration in one transaction
+ * without `created_at`, so PostgreSQL stamps them all identically and the
+ * identity resolver's comparator ties — falling through to a random server
+ * UUID. The local mirror holds the real creation ORDER, so once a server row is
+ * recognised as the same registration (same organization + number), the local
+ * timestamp is the better answer.
+ *
+ * This restores creation order on the device that created the dog. It does NOT
+ * fix another device, which has no local mirror — that needs the RPC function
+ * itself to insert `created_at`, which is a migration and out of scope here.
+ */
+function overlayLocalCreationOrder(
+  map: Map<string, Record<string, unknown>[]>,
+  localRegistrations: Record<string, unknown>[]
+): void {
+  for (const local of localRegistrations) {
+    const dogId = local.dog_id as string | undefined;
+    const localCreatedAt = local.created_at as string | undefined;
+    if (!dogId || !localCreatedAt) continue;
+    const organization = normalizeDogRegistrationOrganization(local.organization as string | null);
+    const number = normalizeDogRegistrationNumber(local.registration_number as string | null);
+    if (organization === '' || number === '') continue;
+
+    const rows = map.get(dogId);
+    if (!rows) continue;
+    // Replace with a shallow COPY rather than mutating: these objects come
+    // straight off the PostgREST response, and mutating a caller's input is how
+    // one read silently changes what another sees.
+    map.set(
+      dogId,
+      rows.map(row => {
+        if (row === local) return row;
+        if (
+          normalizeDogRegistrationOrganization(row.organization as string | null) ===
+            organization &&
+          normalizeDogRegistrationNumber(row.registration_number as string | null) === number
+        ) {
+          return { ...row, created_at: localCreatedAt };
+        }
+        return row;
+      })
+    );
+  }
+}
+
+/**
+ * Registrations merged from the server and the offline replica, plus whether
+ * the server leg failed.
+ *
+ * The flag matters because `ReplicatedDogRegistrationsTable.sync()` is a no-op:
+ * the replica only ever holds registrations CREATED locally, so for a dog whose
+ * registrations came from PostgREST the local leg returns nothing. An empty
+ * result is therefore ambiguous — "this dog has no registrations" and "we could
+ * not read them" look identical — and callers that print paperwork must be able
+ * to tell those apart rather than rendering a blank (MYK9-90 review round 3).
+ */
+export interface DogRegistrationsResult {
+  byDog: Map<string, Record<string, unknown>[]>;
+  serverError: unknown | null;
+}
+
 // Registrations can exist as pending local rows before PostGREST can see them.
 // Merge the local replica with server rows so offline-created dogs keep their
 // registration data after refresh and while the queue is waiting to upload.
-async function loadRegistrationsMap(
-  dogIds: string[]
-): Promise<Map<string, Record<string, unknown>[]>> {
-  if (dogIds.length === 0) return new Map();
+export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistrationsResult> {
+  if (dogIds.length === 0) return { byDog: new Map(), serverError: null };
   const map = new Map<string, Record<string, unknown>[]>();
   const [localRegistrations, serverResult] = await Promise.all([
-    replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds),
-    supabase.from('dog_registrations').select('*').in('dog_id', dogIds),
+    replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds).catch(() => []),
+    // A thrown network error must surface as `serverError`, not reject the whole
+    // read — the replica may still be able to answer.
+    (async (): Promise<{ data: unknown; error: unknown }> => {
+      try {
+        return await supabase.from('dog_registrations').select('*').in('dog_id', dogIds);
+      } catch (error) {
+        return { data: null, error };
+      }
+    })(),
   ]);
 
   appendRegistrations(map, serverResult.data as Record<string, unknown>[] | null | undefined);
   appendRegistrations(map, localRegistrations);
-  return map;
+  overlayLocalCreationOrder(map, localRegistrations);
+  return { byDog: map, serverError: serverResult.error ?? null };
+}
+
+async function loadRegistrationsMap(
+  dogIds: string[]
+): Promise<Map<string, Record<string, unknown>[]>> {
+  return (await loadDogRegistrations(dogIds)).byDog;
 }
 
 /**
@@ -203,7 +280,16 @@ async function postgrestGetDogById(id: string) {
 async function postgrestGetDogsByOwner(ownerId: string) {
   const { data, error } = await supabase
     .from('dogs')
-    .select('*, registrations:dog_registrations(id,breed,organization,status)')
+    // `My Dogs` is a generic surface, so `mapDatabaseToDog` resolves the PRIMARY
+    // registration. That needs the resolver's ordering/tiebreak fields
+    // (`created_at`, `id`) and the identity fields themselves — the old embed
+    // picked whichever registration PostgREST happened to return first, with no
+    // organization scoping at all. `is_primary` is deliberately not selected
+    // while its migration is unpushed; `created_at` then `id` is deterministic
+    // on its own and agrees with what the backfill will mark.
+    .select(
+      '*, registrations:dog_registrations(id,created_at,breed,variety,registered_name,registration_number,organization,status)'
+    )
     .eq('owner_id', ownerId)
     .is('deleted_at', null)
     .order('name', { ascending: true });
@@ -212,13 +298,42 @@ async function postgrestGetDogsByOwner(ownerId: string) {
   return { data: data || [], error: null };
 }
 
+/**
+ * Resolve `dog_id`s whose REGISTRATION matches the term on breed. Breed lives on
+ * `dog_registrations`, not on `dogs`, so a breed search is a two-step: PostgREST
+ * cannot OR a parent-column filter against an embedded-table filter in one
+ * request. The error is thrown rather than swallowed — silently downgrading a
+ * backend failure to "no breed matches" makes it indistinguishable from "no such
+ * dog".
+ */
+async function dogIdsMatchingRegistrationBreed(sanitized: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('dog_registrations')
+    .select('dog_id')
+    .ilike('breed', `%${sanitized}%`);
+  if (error) throw createDatabaseError(error, 'dog', 'search_registration_breed');
+  return [
+    ...new Set(
+      ((data ?? []) as Array<{ dog_id?: string | null }>)
+        .map(r => r.dog_id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    ),
+  ];
+}
+
 async function postgrestSearchDogs(searchTerm: string, personId: string) {
   const sanitized = sanitizePostgRESTFilter(searchTerm);
+  const breedDogIds = await dogIdsMatchingRegistrationBreed(sanitized);
+  const orFilters = [`name.ilike.%${sanitized}%`, `call_name.ilike.%${sanitized}%`];
+  if (breedDogIds.length > 0) {
+    orFilters.push(`id.in.(${breedDogIds.join(',')})`);
+  }
+
   const { data, error } = await supabase
     .from('dogs')
     .select('*')
     .or(ownedByPerson(personId))
-    .or(`name.ilike.%${sanitized}%,breed.ilike.%${sanitized}%,call_name.ilike.%${sanitized}%`)
+    .or(orFilters.join(','))
     .is('deleted_at', null)
     .order('name', { ascending: true });
 
@@ -440,6 +555,15 @@ export const createDog = async (dogData: DbDogInsert) => {
 };
 
 // Update dog
+/**
+ * `registrations` is embedded because `useUpdateDogMutation.onSuccess` maps this
+ * response and writes it straight into the `dogs` LIST cache. Breed is resolved
+ * from `dog_registrations` (MYK9-90), so without the embed that cache write
+ * replaced a dog with a registration-less copy and its breed read as
+ * "Breed not set" until the follow-up invalidation refetched. Harmless before
+ * this change, when breed came from the `dogs.breed` column that `*` already
+ * covered — which is exactly why it had to be added with it.
+ */
 export const updateDog = async (id: string, updates: DbDogUpdate) => {
   const startTime = Date.now();
 
@@ -459,7 +583,8 @@ export const updateDog = async (id: string, updates: DbDogUpdate) => {
           first_name,
           last_name,
           email
-        )
+        ),
+        registrations:dog_registrations(*)
       `
       )
       .single();
@@ -572,7 +697,11 @@ export const searchAllDogs = async (
     const { data: regMatches, error: regError } = await supabase
       .from('dog_registrations')
       .select('dog_id')
-      .or(`registration_number.ilike.%${sanitized}%,registered_name.ilike.%${sanitized}%`)
+      // Breed is a registration attribute, so it is matched here alongside the
+      // number and registered name rather than against `dogs.breed`.
+      .or(
+        `registration_number.ilike.%${sanitized}%,registered_name.ilike.%${sanitized}%,breed.ilike.%${sanitized}%`
+      )
       .limit(limit);
     if (regError) throw createDatabaseError(regError, 'dog', 'search_all');
     const registrationDogIds = [
@@ -583,11 +712,7 @@ export const searchAllDogs = async (
       ),
     ];
 
-    const orFilters = [
-      `name.ilike.%${sanitized}%`,
-      `call_name.ilike.%${sanitized}%`,
-      `breed.ilike.%${sanitized}%`,
-    ];
+    const orFilters = [`name.ilike.%${sanitized}%`, `call_name.ilike.%${sanitized}%`];
     if (registrationDogIds.length > 0) {
       orFilters.push(`id.in.(${registrationDogIds.join(',')})`);
     }
@@ -636,8 +761,13 @@ export const searchDogs = async (searchTerm: string, personId: string) => {
         filtered,
         compareStringAsc(dog => dog.name)
       );
-      // No joins needed — minimal query matching original select('*')
-      const data = sortedDogs.map(dog => mapReplicatedDogToDbRow(dog));
+      // Registrations ARE needed even though the original query was select('*'):
+      // breed lives on `dog_registrations`, so without them every offline result
+      // would render "Breed not set".
+      const registrationsMap = await loadRegistrationsMap(sortedDogs.map(d => d.id));
+      const data = sortedDogs.map(dog =>
+        mapReplicatedDogToDbRow(dog, { registrations: registrationsMap.get(dog.id) ?? [] })
+      );
       return { data, error: null };
     },
     postgrest: () => postgrestSearchDogs(searchTerm, personId),
@@ -659,14 +789,22 @@ export const getDogsWithUpcomingShows = async (personId: string) => {
       );
       // Batch-load owner names from PostgREST
       const ownerIds = sortedDogs.map(d => d.ownerId).filter((id): id is string => !!id);
-      const ownersMap = await loadOwnersMap(ownerIds);
+      const [ownersMap, registrationsMap] = await Promise.all([
+        loadOwnersMap(ownerIds),
+        // Breed comes from the registration, so it has to be loaded even though
+        // the original query only joined the owner.
+        loadRegistrationsMap(sortedDogs.map(d => d.id)),
+      ]);
       // Original query only selects owner(first_name, last_name) — attach minimal owner
       const data = sortedDogs.map(dog => {
         const ownerRow = dog.ownerId ? (ownersMap.get(dog.ownerId) ?? null) : null;
         const owner = ownerRow
           ? { first_name: ownerRow.first_name, last_name: ownerRow.last_name }
           : null;
-        return mapReplicatedDogToDbRow(dog, { owner });
+        return mapReplicatedDogToDbRow(dog, {
+          owner,
+          registrations: registrationsMap.get(dog.id) ?? [],
+        });
       });
       return { data, error: null };
     },

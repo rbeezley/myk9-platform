@@ -45,7 +45,7 @@ vi.mock('@/lib/supabase', () => {
   };
 });
 
-import { verifyCheckoutSession } from '@/lib/stripe';
+import { type CheckoutVerificationResult, verifyCheckoutSession } from '@/lib/stripe';
 import CheckoutSuccessPage from '@/pages/CheckoutSuccessPage';
 
 // ---------------------------------------------------------------------------
@@ -68,6 +68,20 @@ function mockAuthSession() {
   });
 }
 
+function expectSuccessfulVerification(
+  result: CheckoutVerificationResult
+): asserts result is Extract<CheckoutVerificationResult, { success: true }> {
+  expect(result.success).toBe(true);
+  if (!result.success) throw new Error(`Expected success, received ${result.verificationStatus}`);
+}
+
+function expectUnsuccessfulVerification(
+  result: CheckoutVerificationResult
+): asserts result is Extract<CheckoutVerificationResult, { success: false }> {
+  expect(result.success).toBe(false);
+  if (result.success) throw new Error('Expected an unsuccessful verification result');
+}
+
 // ---------------------------------------------------------------------------
 // verifyCheckoutSession unit tests
 // ---------------------------------------------------------------------------
@@ -88,6 +102,7 @@ describe('verifyCheckoutSession', () => {
         entry_ids: ['entry-1'],
         show_id: 'show-uuid',
         paid_at: '2026-04-13T10:00:00Z',
+        metadata: { cart_id: 'cart-uuid' },
         shows: { name: 'Spring Invitational' },
         enrollment: { confirmation_number: 'MK9-000042' },
       },
@@ -96,9 +111,10 @@ describe('verifyCheckoutSession', () => {
 
     const result = await verifyCheckoutSession('cs_test_abc123');
 
-    expect(result.success).toBe(true);
+    expectSuccessfulVerification(result);
     expect(result.confirmationNumber).toBe('MK9-000042');
     expect(result.showName).toBe('Spring Invitational');
+    expect(result.cartId).toBe('cart-uuid');
     expect(result.totalAmountCents).toBe(7500);
   });
 
@@ -120,7 +136,7 @@ describe('verifyCheckoutSession', () => {
 
     const result = await verifyCheckoutSession('cs_test_abc123');
 
-    expect(result.success).toBe(true);
+    expectSuccessfulVerification(result);
     expect(result.confirmationNumber).toBe('pi_3TgoK2AIej2Q9UtX3HSHZh3M');
   });
 
@@ -142,11 +158,11 @@ describe('verifyCheckoutSession', () => {
 
     const result = await verifyCheckoutSession('cs_test_abc123');
 
-    expect(result.success).toBe(true);
+    expectSuccessfulVerification(result);
     expect(result.confirmationNumber).toBeUndefined();
   });
 
-  it('returns failure when order status is not succeeded', async () => {
+  it('classifies a pending order as still processing', async () => {
     mockSingle.mockResolvedValue({
       data: {
         id: 'order-uuid',
@@ -163,8 +179,55 @@ describe('verifyCheckoutSession', () => {
 
     const result = await verifyCheckoutSession('cs_test_abc123');
 
-    expect(result.success).toBe(false);
-    expect(result.error).toMatch(/pending/i);
+    expectUnsuccessfulVerification(result);
+    expect(result.verificationStatus).toBe('processing');
+    expect(result.error).toMatch(/still processing/i);
+  });
+
+  it('classifies a failed order as a terminal payment failure', async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'order-uuid',
+        status: 'failed',
+        amount_cents: 7500,
+        entry_ids: [],
+        show_id: 'show-uuid',
+        paid_at: null,
+        shows: { name: 'Spring Invitational' },
+        enrollment: null,
+      },
+      error: null,
+    });
+
+    const result = await verifyCheckoutSession('cs_test_abc123');
+
+    expectUnsuccessfulVerification(result);
+    expect(result.verificationStatus).toBe('failed');
+    expect(result.error).toMatch(/not completed/i);
+  });
+
+  it('classifies a refunded order separately from an unpaid failure', async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'order-refunded',
+        status: 'refunded',
+        amount_cents: 7500,
+        entry_ids: [],
+        show_id: 'show-uuid',
+        paid_at: '2026-04-13T10:00:00Z',
+        refunded_at: '2026-04-13T10:05:00Z',
+        metadata: {},
+        shows: { name: 'Spring Invitational' },
+        enrollment: null,
+      },
+      error: null,
+    });
+
+    const result = await verifyCheckoutSession('cs_refunded');
+
+    expectUnsuccessfulVerification(result);
+    expect(result.verificationStatus).toBe('refunded');
+    expect(result.error).toMatch(/was refunded/i);
   });
 
   it('returns a full overflow refund outcome after the order is marked refunded', async () => {
@@ -193,7 +256,7 @@ describe('verifyCheckoutSession', () => {
 
     const result = await verifyCheckoutSession('cs_test_abc123');
 
-    expect(result.success).toBe(true);
+    expectSuccessfulVerification(result);
     expect(result.checkoutOutcome).toBe('full_overflow_refund');
     expect(result.refundAmount).toBe(7500);
     expect(result.refundStatus).toBe('issued');
@@ -226,17 +289,43 @@ describe('verifyCheckoutSession', () => {
 
     const result = await verifyCheckoutSession('cs_test_abc123');
 
-    expect(result.success).toBe(true);
+    expectSuccessfulVerification(result);
     expect(result.checkoutOutcome).toBe('full_overflow_refund');
     expect(result.refundStatus).toBe('processing');
   });
 
-  it('returns failure when order is not found', async () => {
-    mockSingle.mockResolvedValue({ data: null, error: { message: 'Not found' } });
+  it('classifies an order that is not created yet as still processing', async () => {
+    mockSingle.mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' },
+    });
 
     const result = await verifyCheckoutSession('cs_test_abc123');
 
-    expect(result.success).toBe(false);
+    expectUnsuccessfulVerification(result);
+    expect(result.verificationStatus).toBe('processing');
+  });
+
+  it('classifies an unexpected order query failure as verification unavailable', async () => {
+    mockSingle.mockResolvedValue({
+      data: null,
+      error: { code: 'XX000', message: 'Database unavailable' },
+    });
+
+    const result = await verifyCheckoutSession('cs_test_abc123');
+
+    expectUnsuccessfulVerification(result);
+    expect(result.verificationStatus).toBe('unavailable');
+    expect(result.error).toMatch(/could not check/i);
+  });
+
+  it('classifies a missing auth session as verification unavailable', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+
+    const result = await verifyCheckoutSession('cs_test_abc123');
+
+    expectUnsuccessfulVerification(result);
+    expect(result.verificationStatus).toBe('unavailable');
   });
 });
 

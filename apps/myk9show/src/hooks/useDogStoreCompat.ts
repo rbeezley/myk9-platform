@@ -23,6 +23,7 @@ import {
   mapDatabaseDogsArray,
   mapReplicatedDogToDbRow,
   mapPartialDogInputToReplicated,
+  normalizeDogInputForWrite,
 } from '@/services/mappers/dogMappers';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { logger } from '@/services/LoggingService';
@@ -33,6 +34,10 @@ import { translateDogDbError } from '@/hooks/translateDogDbError';
 import { supabase } from '@/lib/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
+import {
+  cachedRegistrationRowsForDog,
+  mapReplicatedDogWithRegistrations,
+} from '@/hooks/dogRegistrationHydration';
 
 /**
  * Compatibility hook that provides dogStore-like API using React Query
@@ -94,10 +99,16 @@ export const useDogStoreCompat = () => {
   const addDog = async (dogData: DogInput): Promise<Dog> => {
     const dogId = crypto.randomUUID();
 
+    // MYK9-90 §5.1 — both mappers run BEFORE the local write, not after. They
+    // are the layer that rejects a dog with no usable call name (a NOT NULL
+    // column), and `mapDogInputToInsert` throws. Called after
+    // `replicatedDogsTable.set` it threw from outside the rollback `try` below,
+    // leaving a ghost dog in IndexedDB that no cleanup path removed. Nothing is
+    // persisted until the payload is known to be acceptable.
     const replicatedDog = mapDogInputToReplicated(dogData, dogId);
-    await replicatedDogsTable.set(dogId, replicatedDog, false);
-
     const dbData = { ...mapDogInputToInsert(dogData), id: dogId };
+
+    await replicatedDogsTable.set(dogId, replicatedDog, false);
 
     try {
       if (dogData.registrations && dogData.registrations.length > 0) {
@@ -133,7 +144,7 @@ export const useDogStoreCompat = () => {
           const existingLoadedDog = dogs.find(dog => dog.id === savedDogId);
 
           if (existingLocalDog) {
-            return mapDatabaseToDog(mapReplicatedDogToDbRow(existingLocalDog));
+            return await mapReplicatedDogWithRegistrations(existingLocalDog);
           }
 
           if (existingLoadedDog) {
@@ -145,7 +156,7 @@ export const useDogStoreCompat = () => {
           });
 
           return {
-            ...mapDatabaseToDog(mapReplicatedDogToDbRow(replicatedDog)),
+            ...(await mapReplicatedDogWithRegistrations(replicatedDog)),
             id: savedDogId,
           };
         }
@@ -155,7 +166,7 @@ export const useDogStoreCompat = () => {
           queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(dbData.owner_id) });
         }
         queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(dogId) });
-        return mapDatabaseToDog(mapReplicatedDogToDbRow(replicatedDog));
+        return await mapReplicatedDogWithRegistrations(replicatedDog);
       }
 
       const result = await runDogMutation(() => createMutation.mutateAsync(dbData));
@@ -179,25 +190,36 @@ export const useDogStoreCompat = () => {
     options: { dependsOn?: string[] } = {}
   ): Promise<Dog> => {
     const dogId = crypto.randomUUID();
+    // MUST stay the first statement: `mapDogInputToReplicated` calls
+    // `resolveRequiredCallName`, which THROWS on a missing or whitespace-only
+    // call name (§5.1). Nothing below it — including the registration mirror —
+    // may write to IndexedDB or queue a mutation before that check has run.
     const replicatedDog = mapDogInputToReplicated(dogData, dogId);
 
     let registrations: Record<string, unknown>[] = [];
     if (dogData.registrations && dogData.registrations.length > 0) {
-      const registrationRows = dogData.registrations.map(registration => ({
+      // Create the local mirror FIRST so the RPC payload can carry the same
+      // ordered creation timestamps. Without them every registration in the
+      // RPC's transaction gets an identical server `created_at` and the primary
+      // is decided by a random UUID (MYK9-90 review round 4). Safe with respect
+      // to §5.1: the call-name check above has already thrown by this point.
+      const savedRegistrations =
+        await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
+          dogId,
+          dogData.registrations
+        );
+      const registrationRows = dogData.registrations.map((registration, index) => ({
         organization: registration.organization || 'AKC',
         registered_name: registration.registeredName || null,
         registration_number: registration.number || '',
         breed: registration.type || null,
         status: registration.status || 'pending',
+        created_at: savedRegistrations[index]?.createdAt ?? null,
       }));
       const savedDog = await replicatedDogsTable.createDogWithRegistrationsRpc(
         replicatedDog,
         registrationRows,
         options.dependsOn ? { dependsOn: options.dependsOn } : {}
-      );
-      const savedRegistrations = await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
-        savedDog.id,
-        dogData.registrations
       );
       registrations = savedRegistrations.map(registration =>
         replicatedDogRegistrationsTable.toSupabaseRow(registration)
@@ -222,7 +244,7 @@ export const useDogStoreCompat = () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(savedDog.ownerId) });
     }
 
-    return mapDatabaseToDog(mapReplicatedDogToDbRow(savedDog));
+    return await mapReplicatedDogWithRegistrations(savedDog);
   };
 
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {
@@ -232,18 +254,31 @@ export const useDogStoreCompat = () => {
       registrationsCount: updates.registrations?.length || 0,
     });
 
+    // MYK9-90 §5.1 — normalise ONCE, above both writes. The IndexedDB mapper and
+    // the Supabase mapper are fed from the same patch, and when each trimmed (or
+    // did not) on its own, a padded "  Tera  " was stored trimmed locally and
+    // sent padded to the server — so the next server-backed sync reverted the
+    // local value. Both mappers below receive this identical normalised patch.
+    const normalizedUpdates = normalizeDogInputForWrite(updates);
+
     // Write to IndexedDB first so getAllDogs() reads fresh data on the next React Query refetch.
     const current = await replicatedDogsTable.getDogById(id);
     let localDog: Dog | null = null;
     if (current) {
-      const updated = { ...current, ...mapPartialDogInputToReplicated(updates) };
+      const updated = { ...current, ...mapPartialDogInputToReplicated(normalizedUpdates) };
       await replicatedDogsTable.set(id, updated, false);
-      localDog = mapDatabaseToDog(mapReplicatedDogToDbRow(updated));
+      // Local-first: resolve the breed from data already in memory rather than
+      // awaiting a PostgREST round-trip on the save path.
+      localDog = mapDatabaseToDog(
+        mapReplicatedDogToDbRow(updated, {
+          registrations: cachedRegistrationRowsForDog(id, dogs, queryClient),
+        })
+      );
     }
 
     // Background Supabase sync — onSuccess invalidates the list query, which refetches from
     // the now-fresh IndexedDB instead of returning stale data.
-    const dbUpdates = mapDogInputToUpdate(updates);
+    const dbUpdates = mapDogInputToUpdate(normalizedUpdates);
     runDogMutation(() => updateMutation.mutateAsync({ id, updates: dbUpdates })).catch(err => {
       logger.error(
         'Background Supabase sync failed for dog update',

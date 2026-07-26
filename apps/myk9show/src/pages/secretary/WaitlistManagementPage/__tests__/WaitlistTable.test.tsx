@@ -77,8 +77,28 @@ describe('WaitlistTable', () => {
 
   it('renders entry data rows with dog names', () => {
     render(<WaitlistTable {...defaultProps} />);
-    expect(screen.getByText('Rex')).toBeInTheDocument();
+    // MYK9-90 §5.2 — the call name leads. `dogs.name` is a nullable legacy alias
+    // shown only in parentheses when it says something different, so a dog with
+    // no legacy name (d2) still renders a name rather than "Unknown Dog".
+    expect(screen.getByText('Rexy')).toBeInTheDocument();
+    expect(screen.getByText('(Rex)')).toBeInTheDocument();
     expect(screen.getByText('Bella')).toBeInTheDocument();
+  });
+
+  it('renders the call name when the legacy dogs.name is null', () => {
+    render(
+      <WaitlistTable
+        {...defaultProps}
+        entries={[
+          {
+            ...defaultProps.entries[0]!,
+            dog: { id: 'd3', name: null, call_name: 'Tera' },
+          },
+        ]}
+      />
+    );
+    expect(screen.getByText('Tera')).toBeInTheDocument();
+    expect(screen.queryByText('Unknown Dog')).not.toBeInTheDocument();
   });
 
   it('renders position badges', () => {

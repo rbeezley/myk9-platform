@@ -4,6 +4,28 @@ import { fireEvent, screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { SlideOverPanel } from '../SlideOverPanel';
 
+describe('SlideOverPanel responsive sizing', () => {
+  it.each([
+    ['sm', 'md:max-w-md'],
+    ['md', 'md:max-w-lg'],
+    ['lg', 'md:max-w-2xl'],
+    ['xl', 'md:max-w-4xl'],
+  ] as const)('keeps the %s width from tablet through desktop breakpoints', (size, expected) => {
+    render(
+      <SlideOverPanel open onClose={vi.fn()} title={`${size} panel`} size={size}>
+        <p>Body</p>
+      </SlideOverPanel>
+    );
+
+    const panel = screen.getByRole('dialog').querySelector('.slide-over-panel');
+    const responsiveMaxWidths = [...(panel?.classList ?? [])].filter(className =>
+      /^(sm|md|lg|xl):max-w-/.test(className)
+    );
+
+    expect(responsiveMaxWidths.sort()).toEqual(['sm:max-w-none', expected].sort());
+  });
+});
+
 describe('SlideOverPanel side support', () => {
   it('defaults to a right-side panel', () => {
     render(

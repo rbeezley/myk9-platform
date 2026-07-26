@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { render } from '@/test/utils/testUtils';
 import { STORAGE_KEYS } from '@/constants/storageKeys';
 
@@ -106,7 +107,7 @@ describe('CheckoutSuccessPage split checkout summary', () => {
     expect(screen.getByText(/Waitlisted: 1 entry/i)).toBeInTheDocument();
     expect(screen.getByText(/Full Class #2/i)).toBeInTheDocument();
     expect(resetCartMock).toHaveBeenCalled();
-    expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toBeNull();
+    expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toContain('split-1');
   });
 
   it('renders the existing success page as a waitlist-only confirmation', async () => {
@@ -141,7 +142,42 @@ describe('CheckoutSuccessPage split checkout summary', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText('Order Total')).not.toBeInTheDocument();
     expect(verifyCheckoutSessionMock).not.toHaveBeenCalled();
-    expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toBeNull();
+    expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toContain('split-2');
+  });
+
+  it('keeps waitlist-only confirmation stable across StrictMode effect replay', async () => {
+    sessionStorage.setItem(
+      STORAGE_KEYS.CART_SPLIT_CHECKOUT,
+      JSON.stringify({
+        correlationId: 'split-strict',
+        showId: 'show-1',
+        confirmedEntryCount: 0,
+        waitlistEntries: [
+          {
+            id: 'wait-strict',
+            class_id: 'class-full',
+            dog_id: 'dog-1',
+            exhibitor_id: 'exhibitor-1',
+            handler_id: null,
+            position: 1,
+            status: 'waiting',
+            className: 'Full Class',
+          },
+        ],
+      })
+    );
+
+    render(
+      <StrictMode>
+        <CheckoutSuccessPage />
+      </StrictMode>,
+      { initialRoute: '/checkout/success?waitlist=1&split=split-strict' }
+    );
+
+    await waitFor(() => expect(screen.getByText('Added to Wait List')).toBeInTheDocument());
+    expect(
+      screen.queryByRole('heading', { name: 'Wait List Confirmation Unavailable' })
+    ).not.toBeInTheDocument();
   });
 
   it('does not render stale same-show same-count waitlist data for a later Stripe return', async () => {
@@ -190,6 +226,6 @@ describe('CheckoutSuccessPage split checkout summary', () => {
     await waitFor(() => expect(screen.getByText('pi_456')).toBeInTheDocument());
     expect(screen.queryByText(/Entry Summary:/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Old Full Class #9/i)).not.toBeInTheDocument();
-    expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toBeNull();
+    expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toContain('split-stale');
   });
 });

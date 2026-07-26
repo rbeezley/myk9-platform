@@ -239,6 +239,7 @@ describe('Dog Queries', () => {
     it('should handle validation errors', async () => {
       const dogData: DbDogInsert = {
         name: '', // Invalid empty name
+        call_name: '',
         breed: 'Labrador',
         owner_id: 'owner-123',
       };
@@ -286,6 +287,21 @@ describe('Dog Queries', () => {
 
       expect(result.data).toEqual(mockUpdatedDog);
       expect(result.error).toBeNull();
+    });
+
+    // MYK9-90 review round 5. `useUpdateDogMutation.onSuccess` maps this
+    // response and writes it into the `dogs` LIST cache. Breed now resolves from
+    // `dog_registrations`, so without the embed that write replaces the dog with
+    // a registration-less copy and its breed reads "Breed not set" until the
+    // follow-up invalidation refetches.
+    it('embeds registrations so the cached dog keeps its breed', async () => {
+      const chain = createChainableQuery({ data: { id: 'dog-123' }, error: null });
+      mockSupabase.from.mockReturnValue(chain);
+
+      await updateDog('dog-123', { name: 'Updated Name' });
+
+      const selectArg = chain.select.mock.calls[0]?.[0] as string;
+      expect(selectArg).toContain('registrations:dog_registrations(*)');
     });
 
     it('should handle update of non-existent dog', async () => {

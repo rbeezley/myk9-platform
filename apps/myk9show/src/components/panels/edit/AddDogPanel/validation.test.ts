@@ -108,6 +108,24 @@ describe('addDogSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  // MYK9-90 §5.1 — `"   "` is the input that got past two earlier rounds of
+  // this change. A bare `min(1)` accepted it, and it was only normalised to
+  // empty further downstream — after the dog had been written to IndexedDB and
+  // queued for sync against a NOT NULL column. The form is the earliest point
+  // in the write lifecycle and the only one that runs before any persistence.
+  it('rejects a whitespace-only call name', () => {
+    const result = addDogSchema.safeParse(validFormData({ callName: '   ' }));
+    expect(result.success).toBe(false);
+  });
+
+  it('trims the call name it hands downstream', () => {
+    const result = addDogSchema.safeParse(validFormData({ callName: '  Tera  ' }));
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.callName).toBe('Tera');
+    }
+  });
+
   it('rejects call name longer than 120 chars', () => {
     const result = addDogSchema.safeParse(validFormData({ callName: 'a'.repeat(121) }));
     expect(result.success).toBe(false);

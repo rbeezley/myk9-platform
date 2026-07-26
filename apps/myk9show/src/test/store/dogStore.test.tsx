@@ -58,6 +58,10 @@ vi.mock('@/services/mappers/dogMappers', () => ({
   mapDogInputToUpdate: vi.fn(input => ({ ...input })),
   mapDatabaseToDog: vi.fn(dbDog => ({ ...dbDog })),
   mapDatabaseDogsArray: vi.fn(dbDogs => dbDogs || []),
+  // MYK9-90 §5.1 — mirrors the real normaliser: one trim, above both writes.
+  normalizeDogInputForWrite: vi.fn(updates =>
+    updates.callName === undefined ? updates : { ...updates, callName: updates.callName.trim() }
+  ),
 }));
 
 // Mock the replicated dogs table (local-first path in addDog/updateDog)

@@ -19,7 +19,7 @@ const mockCompleted: TVCompletedClass = {
       handler: 'J. Martinez',
       searchTime: 35.1,
       totalScore: null,
-      dog: { name: 'Luna', callName: 'Luna', breed: 'Lab', imageUrl: null },
+      dog: { name: 'Luna', callName: 'Luna', imageUrl: null },
     },
     {
       placement: 2,
@@ -27,7 +27,7 @@ const mockCompleted: TVCompletedClass = {
       handler: 'S. Johnson',
       searchTime: 38.2,
       totalScore: null,
-      dog: { name: 'Rex', callName: 'Rex', breed: 'GSD', imageUrl: null },
+      dog: { name: 'Rex', callName: 'Rex', imageUrl: null },
     },
     {
       placement: 3,
@@ -35,7 +35,7 @@ const mockCompleted: TVCompletedClass = {
       handler: 'T. Williams',
       searchTime: 41.7,
       totalScore: null,
-      dog: { name: 'Bella', callName: 'Bella', breed: 'Golden', imageUrl: null },
+      dog: { name: 'Bella', callName: 'Bella', imageUrl: null },
     },
     {
       placement: 4,
@@ -43,7 +43,7 @@ const mockCompleted: TVCompletedClass = {
       handler: 'R. Chen',
       searchTime: 44.0,
       totalScore: null,
-      dog: { name: 'Max', callName: 'Max', breed: 'Beagle', imageUrl: null },
+      dog: { name: 'Max', callName: 'Max', imageUrl: null },
     },
   ],
 };

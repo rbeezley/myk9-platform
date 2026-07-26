@@ -4,5 +4,10 @@ export {
   registrationMatchesOrganization,
   resolveDogIdentity,
   resolveDogIdentityForOrganization,
+  toDogRegistrationLike,
 } from './resolveDogIdentity';
-export type { DogIdentity, DogRegistrationLike } from './resolveDogIdentity';
+export type {
+  DogIdentity,
+  DogRegistrationLike,
+  MappedDogRegistrationLike,
+} from './resolveDogIdentity';

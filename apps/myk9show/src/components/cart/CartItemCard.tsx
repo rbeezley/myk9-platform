@@ -5,7 +5,6 @@
  * Used in the full cart review page for detailed display.
  */
 
-
 import { Trash2, Dog, Users, Ruler, Loader2 } from 'lucide-react';
 import { getDogBreedLabel } from '@/types/dog-types';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,23 +20,16 @@ interface CartItemCardProps {
   className?: string;
 }
 
-export function CartItemCard({
-  item,
-  onRemove,
-  isRemoving = false,
-  className,
-}: CartItemCardProps) {
+export function CartItemCard({ item, onRemove, isRemoving = false, className }: CartItemCardProps) {
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
   };
 
   const dogName = item.dog?.call_name || item.dog?.name || 'Unknown Dog';
-  const dogBreed = getDogBreedLabel({ breed: item.dog?.breed });
+  const dogBreed = getDogBreedLabel({ registrations: item.dog?.registrations });
   const className_ = item.class?.name || 'Unknown Class';
   const classLevel = item.class?.level;
-  const handlerName = item.handler
-    ? `${item.handler.first_name} ${item.handler.last_name}`
-    : null;
+  const handlerName = item.handler ? `${item.handler.first_name} ${item.handler.last_name}` : null;
 
   return (
     <Card className={cn('overflow-hidden', className)}>
@@ -92,9 +84,7 @@ export function CartItemCard({
 
           {/* Price and Remove */}
           <div className="flex flex-col items-end gap-2">
-            <span className="text-lg font-semibold">
-              {formatCurrency(item.entry_fee_cents)}
-            </span>
+            <span className="text-lg font-semibold">{formatCurrency(item.entry_fee_cents)}</span>
             <Button
               variant="ghost"
               size="sm"

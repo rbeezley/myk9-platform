@@ -1,4 +1,5 @@
-import { sendResendEmailWithRetry, type ResendEmailRequestInit } from '../_shared/resendEmail.ts';
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import type { ResendEmailRequestInit } from '../_shared/resendEmail.ts';
 import type {
   AuthEmailActionType,
   AuthEmailFailureAlertInput,

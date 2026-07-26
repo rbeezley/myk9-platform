@@ -91,17 +91,13 @@ export async function handleResendEmailEvent(
   }
 
   if (isAuthEmailType(existing.email_type) && isDeliveryFailureStatus(newStatus)) {
-    try {
-      await dependencies.persistAuthFailureAlert({
-        emailType: existing.email_type,
-        messageId: event.data.email_id,
-        recipientEmail: existing.recipient_email,
-        status: newStatus,
-        errorMessage: errorMessage ?? `Auth email ${newStatus}`,
-      });
-    } catch (alertError) {
-      logError('Failed to write auth email delivery alert', alertError);
-    }
+    await dependencies.persistAuthFailureAlert({
+      emailType: existing.email_type,
+      messageId: event.data.email_id,
+      recipientEmail: existing.recipient_email,
+      status: newStatus,
+      errorMessage: errorMessage ?? `Auth email ${newStatus}`,
+    });
   }
 }
 

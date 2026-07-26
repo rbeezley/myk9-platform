@@ -25,9 +25,10 @@ Then configure webhook URL in Resend Dashboard → Webhooks.
 4. **Valid failed event:** Receives `email.failed` → records the provider reason and raises an auth-email operator alert
 5. **Valid suppressed event:** Receives `email.suppressed` → records the suppression reason and raises an auth-email operator alert
 6. **Replay/backfill:** A replayed terminal failure skips the redundant log update but retries the deduplicated operator alert
-7. **Invalid signature:** Wrong Svix signature → returns 401
-8. **Missing signature headers:** No svix-id/timestamp/signature → returns 401
-9. **Stale timestamp:** svix-timestamp > 5 minutes old → returns 401
-10. **Unknown event type:** Receives unrecognized event → returns 200 (acknowledged, not processed)
-11. **No webhook secret configured:** RESEND_WEBHOOK_SECRET not set → logs warning, processes event anyway
-12. **Non-POST method:** GET/HEAD returns 200 for Resend endpoint validation; other methods return 405
+7. **Alert write failure:** Returns 500 so Resend retries the signed event instead of silently losing the operator alert
+8. **Invalid signature:** Wrong Svix signature → returns 401
+9. **Missing signature headers:** No svix-id/timestamp/signature → returns 401
+10. **Stale timestamp:** svix-timestamp > 5 minutes old → returns 401
+11. **Unknown event type:** Receives unrecognized event → returns 200 (acknowledged, not processed)
+12. **No webhook secret configured:** RESEND_WEBHOOK_SECRET not set → logs warning, processes event anyway
+13. **Non-POST method:** GET/HEAD returns 200 for Resend endpoint validation; other methods return 405

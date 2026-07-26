@@ -67,6 +67,7 @@ describe('handleResendEmailEvent', () => {
   });
 
   it.each([
+    ['email.complained', {}, 'complained', 'Recipient complaint reported by Resend'],
     [
       'email.failed',
       { failed: { reason: 'reached_daily_quota' } },
@@ -116,6 +117,15 @@ describe('handleResendEmailEvent', () => {
 
     expect(deps.updateEmailLog).not.toHaveBeenCalled();
     expect(deps.persistAuthFailureAlert).toHaveBeenCalledTimes(1);
+  });
+
+  it('propagates an alert-write failure so Resend retries the webhook', async () => {
+    const deps = dependencies();
+    deps.persistAuthFailureAlert.mockRejectedValue(new Error('operator_alerts unavailable'));
+
+    await expect(handleResendEmailEvent(event('email.complained'), deps)).rejects.toThrow(
+      'operator_alerts unavailable'
+    );
   });
 
   it('updates non-auth delivery logs without creating auth alerts', async () => {

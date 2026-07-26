@@ -167,6 +167,58 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
     expect(rebuilt).not.toHaveProperty('name');
   });
 
+  it('dogs: round-trips the deceased date and re-derives `deceased` from the status', () => {
+    // The write half of this pairs with `mapDogInputToUpdate`: a status change
+    // reaches the server either through that mapper or, offline, by having its
+    // payload rebuilt here from the cached row. Both share
+    // `deriveDeceasedColumns`, so `status` and `deceased` cannot disagree —
+    // this pins the replication side of that, which the mapper-level tests
+    // (they mock `replicatedDogsTable`) cannot see.
+    const row = {
+      id: 'dog-3',
+      name: null,
+      call_name: 'Bandit',
+      breed: 'Border Collie',
+      sex: null,
+      date_of_birth: null,
+      owner_id: 'owner-1',
+      height: null,
+      weight: null,
+      color: null,
+      microchip_number: null,
+      spayed_neutered: null,
+      image_url: null,
+      status: 'deceased',
+      deceased: true,
+      deceased_date: '2026-07-01',
+      deleted_at: null,
+    };
+
+    const domain = rowToDog(row as never);
+    // Carried into IndexedDB: without it the offline read drops the date, and
+    // the next edit sends `deceased_date: null` back to the server.
+    expect(domain.deceasedDate).toBe('2026-07-01');
+    // `deceased` is NOT stored locally — it is the status restated.
+    expect(domain).not.toHaveProperty('deceased');
+
+    const table = new TestableDogsTable();
+    expect(table.publicRebuildUpdatePayload(domain)).toMatchObject({
+      status: 'deceased',
+      deceased: true,
+      deceased_date: '2026-07-01',
+    });
+
+    // Retiring the dog clears the date and the flag together, so the rebuilt
+    // payload can never say "not deceased" while carrying a deceased date.
+    expect(
+      table.publicRebuildUpdatePayload({ ...domain, status: 'retired', deceasedDate: undefined })
+    ).toMatchObject({
+      status: 'retired',
+      deceased: false,
+      deceased_date: null,
+    });
+  });
+
   it('dogs: a row with no legacy name still yields a display name, and never writes one back', () => {
     // Every dog created after the §5.2 migration has `dogs.name = NULL`; only
     // `call_name` is populated (it is NOT NULL from that migration on).

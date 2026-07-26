@@ -123,9 +123,9 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
       entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED);
 
   const canShowReceipt = entry.confirmationNumber && isPaid;
-  // Pending Review reassurance line — only while the badge itself reads
-  // "Pending Review" (never for a past/unresolved history card, which uses
-  // "Review incomplete" wording instead).
+  // Secretary-approval reassurance line — only while the badge itself reads
+  // "Pending Review" (never for a past/unresolved history card,
+  // which uses "Review incomplete" wording instead).
   const isPendingReview = entry.entryStatus === EntryStatus.PENDING && !isPastShow;
   const nextAction = deriveEntryNextAction(entry, {
     now: new Date(currentTime),

@@ -44,6 +44,14 @@ vi.mock('@/services/LoggingService', () => ({
       info: vi.fn(),
     }),
   },
+  // useMyEntriesData's catch block calls the `logger` named export; without it
+  // the mock throws inside the error path and masks whatever is being tested.
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
 }));
 vi.mock('@/services/database/entries', () => ({
   getUserEntries: vi.fn().mockResolvedValue({ data: [], error: null }),
@@ -74,7 +82,7 @@ vi.mock('@/hooks/useRoleBasedData', () => ({
   useCurrentUserPersonId: () => mockUseCurrentUserPersonId(),
 }));
 vi.mock('@/components/panels/edit', () => ({
-  AddDogPanel: () => null,
+  AddDogPanel: () => <div data-testid="add-dog-panel" />,
 }));
 
 // Mock entry data
@@ -719,5 +727,37 @@ describe('Current Status Integration', () => {
     expect(screen.queryByText('Entry Progress')).not.toBeInTheDocument();
     expect(screen.queryByText(/\d+%$/)).not.toBeInTheDocument(); // No percentage displays
     expect(container.querySelector('.entry-status-stepper')).not.toBeInTheDocument();
+  });
+});
+
+describe('Add Dog panel survives page loading states', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseDogsByOwnerQuery.mockReturnValue({ data: [], isLoading: false });
+    mockUseCurrentUserPersonId.mockReturnValue(null);
+    seedAuthWithPerson();
+  });
+
+  // The page re-enters its loading branch on replication sync ticks, which are
+  // driven by a timer the exhibitor can't see. If that branch returns early
+  // above the dialogs, an in-progress Add Dog wizard is torn down and silently
+  // reset to its first tab with an empty form.
+  it('keeps the Add Dog panel mounted while entries are still loading', async () => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
+
+    renderWithProviders(<MyEntriesPage />);
+
+    expect(await screen.findByTestId('add-dog-panel')).toBeInTheDocument();
+  });
+
+  it('keeps the Add Dog panel mounted when entries fail to load', async () => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+      error: new Error('network down'),
+    });
+
+    renderWithProviders(<MyEntriesPage />);
+
+    expect(await screen.findByTestId('add-dog-panel')).toBeInTheDocument();
   });
 });

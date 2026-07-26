@@ -22,13 +22,11 @@ import {
   summarizeEntryBalances,
 } from '@/features/payments/entryBalanceSummary';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
-import { AddDogPanel } from '@/components/panels/edit';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { CheckInStatus } from '@/types/check-in-types';
 import {
   buildResultCardModel,
   buildResultCardVisibility,
-  ResultRevealDialog,
   hasSeenResultReveal,
   markResultRevealSeen,
   type ResultCardModel,
@@ -47,9 +45,7 @@ import {
   MyEntryCard,
   EntriesEmptyState,
   EntriesLoadErrorCard,
-  CheckInDialog,
-  EditEntryDialog,
-  ReceiptEntryDialog,
+  MyEntriesDialogGroup,
   WaitListSection,
   ENTRY_TAB_DEFS,
   ALL_ENTRIES_LABEL,
@@ -271,228 +267,232 @@ const MyEntriesPage: React.FC = () => {
     });
   }, []);
 
-  // Error state
-  if (isError && !isLoading) {
-    return <EntriesLoadErrorCard refreshing={refreshing} onRetry={refreshEntries} />;
-  }
+  // INTENT: the dialogs below are siblings of the page body, never children of
+  // it. `isInitialEntriesSyncing` flips on replication sync ticks the exhibitor
+  // never triggered, and an early `return` above the dialogs would unmount an
+  // Add Dog wizard they are halfway through — silently resetting it to the
+  // first tab with an empty form. The body swaps at child 0 of a stable
+  // fragment; the dialogs never move from child 1. Do not reintroduce an early
+  // `return` here, and do not merely duplicate the dialogs into each branch —
+  // differently shaped top-level trees remount them just the same.
+  const renderBody = () => {
+    // Error state
+    if (isError && !isLoading) {
+      return <EntriesLoadErrorCard refreshing={refreshing} onRetry={refreshEntries} />;
+    }
 
-  // Loading state
-  if (isLoading || isInitialEntriesSyncing) {
-    return (
-      <div className="bg-background">
-        <div className="container mx-auto px-6 py-6 max-w-7xl">
-          <div className="grid gap-8">
-            <div className="h-8 bg-muted/50 rounded-lg animate-pulse" />
-            <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />
-            <div className="space-y-4">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-32 bg-muted/50 rounded-xl animate-pulse" />
-              ))}
+    // Loading state
+    if (isLoading || isInitialEntriesSyncing) {
+      return (
+        <div className="bg-background">
+          <div className="container mx-auto px-6 py-6 max-w-7xl">
+            <div className="grid gap-8">
+              <div className="h-8 bg-muted/50 rounded-lg animate-pulse" />
+              <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />
+              <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-32 bg-muted/50 rounded-xl animate-pulse" />
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-6 py-6 max-w-7xl">
-        {/* Flex stack (not space-y) so the dog strip and the entries section can
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-6 py-6 max-w-7xl">
+          {/* Flex stack (not space-y) so the dog strip and the entries section can
             swap order on phones. On mobile the schedule (entries) sits directly
             under the collapsed stats; the dog strip drops below the first fold.
             Desktop keeps source order (dog strip above entries) — INTENT.md
             Exhibitor: "this respects my time". gap-8 == the prior space-y-8. */}
-        <div className="flex flex-col gap-8">
-          <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/10 p-5 sm:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                  My Shows
-                </h1>
-                <DashboardGreeting
-                  firstName={firstName}
-                  subtitle="Here's what's happening with your shows"
-                  className="text-base font-medium text-muted-foreground mt-1"
-                />
+          <div className="flex flex-col gap-8">
+            <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/10 p-5 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                    My Shows
+                  </h1>
+                  <DashboardGreeting
+                    firstName={firstName}
+                    subtitle="Here's what's happening with your shows"
+                    className="text-base font-medium text-muted-foreground mt-1"
+                  />
+                </div>
+                <Button onClick={() => navigate('/shows')} className="min-h-[44px]">
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  Enter a Show
+                </Button>
               </div>
-              <Button onClick={() => navigate('/shows')} className="min-h-[44px]">
-                <CalendarIcon className="h-4 w-4 mr-2" />
-                Enter a Show
-              </Button>
             </div>
-          </div>
 
-          {/* Canonical "Show today" entry point into /at-show (auto-favorites
+            {/* Canonical "Show today" entry point into /at-show (auto-favorites
               today's dogs). Replaces a stale ad-hoc card that linked to the
               retired /exhibitor/show-day route. Renders nothing when no show is
               today. This is the surface an entered exhibitor actually lands on,
               since HomeRedirect keeps them off Home (where the banner also mounts). */}
-          <ShowTodayBanner />
+            <ShowTodayBanner />
 
-          {/* First-run zero-state: a brand-new exhibitor with no entries would
+            {/* First-run zero-state: a brand-new exhibitor with no entries would
               otherwise see all-zero stat cards, an empty dog-strip gap, and an
               empty tab — noise that reads as a data-entry chore. Suppress the
               whole stack and present one calm, adaptive call-to-action instead.
               INTENT: Exhibitor first run must feel frictionless ("respects my
               time"), never like a form to fill. */}
-          {entries.length === 0 ? (
-            <FirstRunZeroState hasDogs={hasDogs} onAddDog={() => setAddDogOpen(true)} />
-          ) : (
-            <>
-              <CompactStatsRow
-                acceptedEntries={entryStats.currentAcceptedEntries}
-                pendingEntries={entryStats.currentPendingEntries}
-                upcomingShows={entryStats.upcomingShows}
-                pastShows={entryStats.pastShows}
-                currentFees={entryStats.currentFees}
-                amountDue={entryStats.currentAmountDue}
-                currentFeesHref={currentFeesHref}
-                onNavigate={navigate}
-              />
+            {entries.length === 0 ? (
+              <FirstRunZeroState hasDogs={hasDogs} onAddDog={() => setAddDogOpen(true)} />
+            ) : (
+              <>
+                <CompactStatsRow
+                  acceptedEntries={entryStats.currentAcceptedEntries}
+                  pendingEntries={entryStats.currentPendingEntries}
+                  upcomingShows={entryStats.upcomingShows}
+                  pastShows={entryStats.pastShows}
+                  currentFees={entryStats.currentFees}
+                  amountDue={entryStats.currentAmountDue}
+                  currentFeesHref={currentFeesHref}
+                  onNavigate={navigate}
+                />
 
-              {/* order-2 on mobile pushes the dog strip below the entries section
+                {/* order-2 on mobile pushes the dog strip below the entries section
                   (which is order-1). On desktop both are order-0, so source order
                   keeps the dog strip above the entries. */}
-              <div className="max-[720px]:order-2">
-                <DogStrip
-                  dogs={
-                    (dogs ?? []) as {
-                      id: string;
-                      call_name?: string;
-                      name?: string;
-                      registrations?: { breed?: string; organization?: string; status?: string }[];
-                    }[]
-                  }
-                  upcomingClassCountByDog={upcomingClassCountByDog}
-                  onAddDog={() => setAddDogOpen(true)}
-                />
-              </div>
+                <div className="max-[720px]:order-2">
+                  <DogStrip
+                    dogs={
+                      (dogs ?? []) as {
+                        id: string;
+                        call_name?: string;
+                        name?: string;
+                        registrations?: {
+                          breed?: string;
+                          organization?: string;
+                          status?: string;
+                        }[];
+                      }[]
+                    }
+                    upcomingClassCountByDog={upcomingClassCountByDog}
+                    onAddDog={() => setAddDogOpen(true)}
+                  />
+                </div>
 
-              {/* Entries section — order-1 on mobile lifts the schedule above the dog
+                {/* Entries section — order-1 on mobile lifts the schedule above the dog
                   strip. Label + tabs move as one unit; space-y-8 preserves the prior
                   spacing between them. */}
-              <div className="space-y-8 max-[720px]:order-1">
-                {/* This branch only renders when entries.length > 0, so the count
+                <div className="space-y-8 max-[720px]:order-1">
+                  {/* This branch only renders when entries.length > 0, so the count
                     badge is always shown here. The scope note distinguishes this
                     all-time count from the "Current entries" stat card above,
                     which is scoped to upcoming/in-review only. */}
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex flex-wrap items-center gap-2">
-                  {ALL_ENTRIES_LABEL}
-                  <span
-                    aria-hidden="true"
-                    className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5"
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex flex-wrap items-center gap-2">
+                    {ALL_ENTRIES_LABEL}
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5"
+                    >
+                      {entries.length}
+                    </span>
+                    <span className="normal-case tracking-normal font-normal text-muted-foreground/80">
+                      {ALL_ENTRIES_SCOPE_NOTE}
+                    </span>
+                  </p>
+
+                  {/* Entries List */}
+                  <PrimaryTabs
+                    tabs={entryTabs}
+                    value={selectedTab}
+                    onValueChange={value => setSelectedTab(value as EntryTabFilter)}
+                    className="space-y-6"
                   >
-                    {entries.length}
-                  </span>
-                  <span className="normal-case tracking-normal font-normal text-muted-foreground/80">
-                    {ALL_ENTRIES_SCOPE_NOTE}
-                  </span>
-                </p>
-
-                {/* Entries List */}
-                <PrimaryTabs
-                  tabs={entryTabs}
-                  value={selectedTab}
-                  onValueChange={value => setSelectedTab(value as EntryTabFilter)}
-                  className="space-y-6"
-                >
-                  <TabsContent value={selectedTab} className="space-y-4">
-                    {filteredEntries.length === 0 ? (
-                      <EntriesEmptyState selectedTab={selectedTab} onSwitchTab={setSelectedTab} />
-                    ) : (
-                      filteredEntries.map(entry => (
-                        <MyEntryCard
-                          key={entry.id}
-                          entry={entry}
-                          selfCheckinByClassId={selfCheckinByClassId}
-                          onCheckInClick={handleCheckInClick}
-                          onEditClick={handleEditClick}
-                          onReceiptClick={handleReceiptClick}
-                          onResultRevealClick={setResultRevealModel}
-                          seenResultReleaseKeys={seenResultReleaseKeys}
-                        />
-                      ))
-                    )}
-                  </TabsContent>
-                </PrimaryTabs>
-              </div>
-            </>
-          )}
+                    <TabsContent value={selectedTab} className="space-y-4">
+                      {filteredEntries.length === 0 ? (
+                        <EntriesEmptyState selectedTab={selectedTab} onSwitchTab={setSelectedTab} />
+                      ) : (
+                        filteredEntries.map(entry => (
+                          <MyEntryCard
+                            key={entry.id}
+                            entry={entry}
+                            selfCheckinByClassId={selfCheckinByClassId}
+                            onCheckInClick={handleCheckInClick}
+                            onEditClick={handleEditClick}
+                            onReceiptClick={handleReceiptClick}
+                            onResultRevealClick={setResultRevealModel}
+                            seenResultReleaseKeys={seenResultReleaseKeys}
+                          />
+                        ))
+                      )}
+                    </TabsContent>
+                  </PrimaryTabs>
+                </div>
+              </>
+            )}
+          </div>
         </div>
+
+        {/* Wait List Queue */}
+        {(waitlistLoading || waitlistEntries.length > 0) && (
+          <WaitListSection
+            entries={waitlistEntries}
+            isLoading={waitlistLoading}
+            onWithdraw={id => withdraw.mutate(id)}
+            isWithdrawing={withdraw.isPending}
+            onStartPayment={(entryId, waitlistEntryId) => {
+              const next = new URLSearchParams(searchParams);
+              next.set('waitlistOffer', waitlistEntryId);
+              setSearchParams(next, { replace: true });
+              startPayment.mutate({ entryId, waitlistEntryId });
+            }}
+            onDecline={id => {
+              const next = new URLSearchParams(searchParams);
+              next.set('waitlistOffer', id);
+              setSearchParams(next, { replace: true });
+              decline.mutate(id);
+            }}
+            payingEntryId={
+              startPayment.isPending ? (startPayment.variables?.entryId ?? null) : null
+            }
+            decliningOfferId={decline.isPending ? (decline.variables ?? null) : null}
+            paymentError={startPayment.error?.message ?? null}
+            paymentErrorOfferId={
+              startPayment.isError ? (startPayment.variables?.waitlistEntryId ?? null) : null
+            }
+            declineError={decline.error?.message ?? null}
+            declineErrorOfferId={decline.isError ? (decline.variables ?? null) : null}
+            focusedOfferId={focusedWaitlistOfferId}
+            onOfferDeadlineElapsed={handleWaitlistOfferDeadlineElapsed}
+          />
+        )}
       </div>
+    );
+  };
 
-      {/* Wait List Queue */}
-      {(waitlistLoading || waitlistEntries.length > 0) && (
-        <WaitListSection
-          entries={waitlistEntries}
-          isLoading={waitlistLoading}
-          onWithdraw={id => withdraw.mutate(id)}
-          isWithdrawing={withdraw.isPending}
-          onStartPayment={(entryId, waitlistEntryId) => {
-            const next = new URLSearchParams(searchParams);
-            next.set('waitlistOffer', waitlistEntryId);
-            setSearchParams(next, { replace: true });
-            startPayment.mutate({ entryId, waitlistEntryId });
-          }}
-          onDecline={id => {
-            const next = new URLSearchParams(searchParams);
-            next.set('waitlistOffer', id);
-            setSearchParams(next, { replace: true });
-            decline.mutate(id);
-          }}
-          payingEntryId={startPayment.isPending ? (startPayment.variables?.entryId ?? null) : null}
-          decliningOfferId={decline.isPending ? (decline.variables ?? null) : null}
-          paymentError={startPayment.error?.message ?? null}
-          paymentErrorOfferId={
-            startPayment.isError ? (startPayment.variables?.waitlistEntryId ?? null) : null
-          }
-          declineError={decline.error?.message ?? null}
-          declineErrorOfferId={decline.isError ? (decline.variables ?? null) : null}
-          focusedOfferId={focusedWaitlistOfferId}
-          onOfferDeadlineElapsed={handleWaitlistOfferDeadlineElapsed}
-        />
-      )}
+  return (
+    <>
+      {renderBody()}
 
-      {/* Dialogs */}
-      <CheckInDialog
-        dialog={checkInDialog}
+      <MyEntriesDialogGroup
         user={user}
-        onClose={() => setCheckInDialog({ open: false, entry: null, classEntry: null })}
-        onUpdateStatus={handleCheckInStatusUpdate}
-      />
-
-      <EditEntryDialog
-        dialog={editDialog}
-        onClose={() => setEditDialog({ open: false, entry: null })}
-        onUpdate={async () => {
+        checkInDialog={checkInDialog}
+        onCloseCheckIn={() => setCheckInDialog({ open: false, entry: null, classEntry: null })}
+        onUpdateCheckInStatus={handleCheckInStatusUpdate}
+        editDialog={editDialog}
+        onCloseEdit={() => setEditDialog({ open: false, entry: null })}
+        onEntryUpdated={async () => {
           await refreshEntries();
           setEditDialog({ open: false, entry: null });
         }}
-      />
-
-      <ReceiptEntryDialog
-        dialog={receiptDialog}
-        user={user}
-        onClose={() => setReceiptDialog({ open: false, entry: null })}
-      />
-
-      <ResultRevealDialog
-        open={resultRevealModel != null}
-        onOpenChange={open => {
-          if (!open) setResultRevealModel(null);
-        }}
-        model={resultRevealModel}
-        onSeen={handleResultRevealSeen}
-      />
-
-      <AddDogPanel
-        open={addDogOpen}
-        onClose={() => setAddDogOpen(false)}
-        onDogCreated={() => setAddDogOpen(false)}
+        receiptDialog={receiptDialog}
+        onCloseReceipt={() => setReceiptDialog({ open: false, entry: null })}
+        resultRevealModel={resultRevealModel}
+        onCloseResultReveal={() => setResultRevealModel(null)}
+        onResultRevealSeen={handleResultRevealSeen}
+        addDogOpen={addDogOpen}
+        onCloseAddDog={() => setAddDogOpen(false)}
         currentUserPersonId={currentUserPersonId ?? undefined}
       />
-    </div>
+    </>
   );
 };
 

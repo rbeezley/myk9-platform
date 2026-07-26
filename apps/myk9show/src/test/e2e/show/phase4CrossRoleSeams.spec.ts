@@ -135,7 +135,9 @@ test.describe('Phase 4 cross-role seams — render-only (exhibitor)', () => {
     // (Show/dog NAMES read "Unknown" here — the scored-entry path bypasses the
     // replication name join; documented cosmetic gap, same as the secretary
     // pull card. The seam STATUSES below are the cross-role evidence.)
-    await expect(page.getByText(/Withdrawn|Scratched|Pending Review/i).first()).toBeVisible({
+    await expect(
+      page.getByText(/Withdrawn|Scratched|Pending Review/i).first()
+    ).toBeVisible({
       timeout: 9000,
     });
     await page.waitForTimeout(800);

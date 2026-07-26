@@ -63,6 +63,12 @@ export async function deliverAuthEmail(
           to: input.recipientEmail,
           subject: input.subject,
           html: input.html,
+          tags: [
+            {
+              name: 'myk9_email_type',
+              value: input.actionType === 'recovery' ? 'password_reset' : 'auth_confirmation',
+            },
+          ],
         }),
       });
 

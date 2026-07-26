@@ -32,9 +32,8 @@ function dependencies(
 
 describe('deliverAuthEmail', () => {
   it('records a successful Resend acceptance without raising an alert', async () => {
-    const deps = dependencies(() =>
-      Promise.resolve(Response.json({ id: 'email-1' }, { status: 200 }))
-    );
+    const sendEmail = vi.fn().mockResolvedValue(Response.json({ id: 'email-1' }, { status: 200 }));
+    const deps = dependencies(sendEmail);
 
     await expect(deliverAuthEmail(input, deps)).resolves.toEqual({
       status: 'sent',
@@ -42,6 +41,13 @@ describe('deliverAuthEmail', () => {
       failureCategory: undefined,
       errorMessage: undefined,
     });
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining(
+          '"tags":[{"name":"myk9_email_type","value":"auth_confirmation"}]'
+        ),
+      })
+    );
     expect(deps.writeEmailLog).toHaveBeenCalledWith(
       expect.objectContaining({
         resend_message_id: 'email-1',

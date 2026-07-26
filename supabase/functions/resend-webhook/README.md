@@ -25,7 +25,7 @@ Then configure webhook URL in Resend Dashboard → Webhooks.
 4. **Valid failed event:** Receives `email.failed` → records the provider reason and raises an auth-email operator alert
 5. **Valid suppressed event:** Receives `email.suppressed` → records the suppression reason and raises an auth-email operator alert
 6. **Replay/backfill:** A replayed terminal failure skips the redundant log update but retries the deduplicated operator alert
-7. **Persistence failure or missing log:** Returns 500 so Resend retries the signed event instead of silently losing the status or operator alert; this also covers a webhook that races the initial email-log insert
+7. **Persistence failure or missing auth log:** Returns 500 so Resend retries the signed event instead of silently losing the status or operator alert; auth sends carry a `myk9_email_type` tag so a webhook that races the initial email-log insert can be retried without blocking unrelated Resend traffic
 8. **Invalid signature:** Wrong Svix signature → returns 401
 9. **Missing signature headers:** No svix-id/timestamp/signature → returns 401
 10. **Stale timestamp:** svix-timestamp > 5 minutes old → returns 401

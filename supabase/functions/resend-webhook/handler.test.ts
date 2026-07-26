@@ -140,12 +140,26 @@ describe('handleResendEmailEvent', () => {
     );
   });
 
-  it('retries a recognized event when its email log has not been inserted yet', async () => {
+  it('retries a tagged auth event when its email log has not been inserted yet', async () => {
     const deps = dependencies(null);
 
-    await expect(handleResendEmailEvent(event('email.suppressed'), deps)).rejects.toThrow(
-      'Email log not found for Resend message email-1'
-    );
+    await expect(
+      handleResendEmailEvent(
+        event('email.suppressed', {
+          tags: { myk9_email_type: 'auth_confirmation' },
+        }),
+        deps
+      )
+    ).rejects.toThrow('Email log not found for tracked auth message email-1');
+  });
+
+  it('acknowledges untracked email events that have no email log', async () => {
+    const deps = dependencies(null);
+
+    await expect(handleResendEmailEvent(event('email.suppressed'), deps)).resolves.toBeUndefined();
+
+    expect(deps.updateEmailLog).not.toHaveBeenCalled();
+    expect(deps.persistAuthFailureAlert).not.toHaveBeenCalled();
   });
 
   it('propagates an email-log update failure so Resend retries the webhook', async () => {

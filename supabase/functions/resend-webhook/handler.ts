@@ -20,6 +20,7 @@ export interface ResendEmailEvent {
       message?: string;
       type?: string;
     };
+    tags?: Record<string, string>;
   };
 }
 
@@ -76,7 +77,10 @@ export async function handleResendEmailEvent(
     throw new Error('Failed to read email_log', { cause: readError });
   }
   if (!existing) {
-    throw new Error(`Email log not found for Resend message ${event.data.email_id}`);
+    if (isTrackedAuthEvent(event)) {
+      throw new Error(`Email log not found for tracked auth message ${event.data.email_id}`);
+    }
+    return;
   }
 
   const errorMessage = deliveryErrorMessage(event);
@@ -137,4 +141,8 @@ function isAuthEmailType(value: string): value is AuthEmailType {
 
 function isDeliveryFailureStatus(value: EmailStatus): value is DeliveryFailureStatus {
   return DELIVERY_FAILURE_STATUSES.has(value);
+}
+
+function isTrackedAuthEvent(event: ResendEmailEvent): boolean {
+  return isAuthEmailType(event.data.tags?.myk9_email_type ?? '');
 }

@@ -1,11 +1,8 @@
-import { PDFDownloadLink } from '@react-pdf/renderer';
-import { Download } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { EntryBlankDownloadControl } from '@/features/_shared/EntryBlankDownloadControl';
 import {
   buildEntryBlankProps,
   type BuildEntryBlankOptions,
 } from '@/features/heritage/entry-blank/buildEntryBlankProps';
-import { MissingRegistrationNotice } from '@/features/heritage/entry-blank/MissingRegistrationNotice';
 import { BannerEntryBlankDocument } from './BannerEntryBlankDocument';
 
 interface Props extends BuildEntryBlankOptions {
@@ -37,25 +34,12 @@ export function BannerEntryBlankButton({
       .replace(/[^a-z0-9-]/g, '')}-entry-blank.pdf`;
 
   return (
-    <>
-    <MissingRegistrationNotice dog={props.dog} />
-    <PDFDownloadLink
+    <EntryBlankDownloadControl
+      dog={props.dog}
       document={<BannerEntryBlankDocument {...props} brandColor={brandColor} />}
       fileName={pdfFilename}
-      className="block"
-    >
-      {({ loading }) => (
-        <Button
-          variant="outline"
-          className={className}
-          disabled={loading}
-          aria-label={loading ? 'Preparing entry blank…' : label}
-        >
-          <Download className="mr-2 h-4 w-4" />
-          {loading ? 'Preparing…' : label}
-        </Button>
-      )}
-    </PDFDownloadLink>
-    </>
+      label={label}
+      className={className}
+    />
   );
 }

@@ -45,6 +45,7 @@ export function MonogramEntryReceived({
   totalFeesFormatted,
   registrationNumber,
   confirmationDateLabel,
+  entryBlankActions,
   onPrintEntryBlank,
   monogramLetters,
 }: MonogramEntryReceivedProps) {
@@ -220,24 +221,26 @@ export function MonogramEntryReceived({
           padding: '22px 28px 16px',
         }}
       >
-        <Button
-          onClick={onPrintEntryBlank}
-          disabled={!onPrintEntryBlank}
-          style={{
-            background: INK,
-            color: PAPER,
-            fontFamily: MONOGRAM_DISPLAY_FAMILY,
-            fontStyle: 'italic',
-            letterSpacing: '0.02em',
-            border: 'none',
-            borderRadius: 0,
-          }}
-          className="w-full"
-          aria-label="Print my entry blank"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Print my entry blank
-        </Button>
+        {entryBlankActions ?? (
+          <Button
+            onClick={onPrintEntryBlank}
+            disabled={!onPrintEntryBlank}
+            style={{
+              background: INK,
+              color: PAPER,
+              fontFamily: MONOGRAM_DISPLAY_FAMILY,
+              fontStyle: 'italic',
+              letterSpacing: '0.02em',
+              border: 'none',
+              borderRadius: 0,
+            }}
+            className="w-full"
+            aria-label="Print my entry blank"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Print my entry blank
+          </Button>
+        )}
         <Button
           variant="outline"
           onClick={() => navigate('/')}

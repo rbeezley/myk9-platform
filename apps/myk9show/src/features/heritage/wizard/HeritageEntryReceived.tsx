@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,8 @@ export interface HeritageEntryReceivedProps {
   registrationNumber: string | null;
   /** Formatted confirmation date, e.g. "6 June 2026". Null if none set. */
   confirmationDateLabel: string | null;
+  /** Entry-specific download controls rendered in the existing primary CTA slot. */
+  entryBlankActions?: ReactNode;
   /** Called when "Print my entry blank" is clicked. If omitted, button is disabled. */
   onPrintEntryBlank?: (() => void) | undefined;
 }
@@ -40,6 +43,7 @@ export function HeritageEntryReceived({
   totalFeesFormatted,
   registrationNumber,
   confirmationDateLabel,
+  entryBlankActions,
   onPrintEntryBlank,
 }: HeritageEntryReceivedProps) {
   const navigate = useNavigate();
@@ -225,23 +229,25 @@ export function HeritageEntryReceived({
 
       {/* ── CTAs ── */}
       <div className="px-8 pb-6 flex flex-col gap-3">
-        <Button
-          onClick={onPrintEntryBlank}
-          disabled={!onPrintEntryBlank}
-          style={{
-            background: INK,
-            color: PAPER,
-            fontFamily: "'Cormorant Garamond', Georgia, serif",
-            fontStyle: 'italic',
-            letterSpacing: '0.06em',
-            border: 'none',
-          }}
-          className="w-full"
-          aria-label="Print my entry blank"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Print my entry blank
-        </Button>
+        {entryBlankActions ?? (
+          <Button
+            onClick={onPrintEntryBlank}
+            disabled={!onPrintEntryBlank}
+            style={{
+              background: INK,
+              color: PAPER,
+              fontFamily: "'Cormorant Garamond', Georgia, serif",
+              fontStyle: 'italic',
+              letterSpacing: '0.06em',
+              border: 'none',
+            }}
+            className="w-full"
+            aria-label="Print my entry blank"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Print my entry blank
+          </Button>
+        )}
 
         <Button
           variant="outline"

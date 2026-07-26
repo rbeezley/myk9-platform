@@ -12,9 +12,9 @@ import type { EntryBlankProps } from './types';
  * mail it — a flag nothing renders is the original defect moved up a layer.
  *
  * Rendered by every entry-blank download button, above the download control.
- * Deliberately does NOT block the download: a secretary may legitimately want
- * the partly-filled form to hand to an exhibitor to complete by hand. The
- * requirement is that nobody mails it *unknowingly*.
+ * It does not permanently block the download: callers can require an explicit
+ * acknowledgement before mounting the PDF so the warning is visible before
+ * generation while still allowing a partly filled form.
  *
  * Plain DOM (not `@react-pdf/renderer`), because it renders in the app next to
  * the button rather than inside the generated PDF.

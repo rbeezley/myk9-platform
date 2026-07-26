@@ -9,10 +9,12 @@ import { HandlerAssignmentStep } from './HandlerAssignmentStep';
 import { SearchErrorBoundary, PaymentErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
+import { useUserStore } from '@/store/userStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { getShowStyle } from '@/features/registries';
 import { STYLED_RECEIPT_BY_STYLE } from '@/features/_shared/styledReceiptRegistry';
+import { STYLED_ENTRY_BLANK_BY_STYLE } from '@/features/_shared/styledEntryBlankRegistry';
 import {
   ClassSelectionData,
   RegistrationFormData,
@@ -35,6 +37,7 @@ import {
   getCreatedOutcomeTotalFees,
   hasCreatedEntryOutcome,
 } from './entrySubmissionOutcomes';
+import { buildRegistrationEntryBlankDownloads } from './entryBlankOptions';
 
 interface OptimisticRegistrationState {
   formData: RegistrationFormData;
@@ -120,12 +123,13 @@ export function WorkflowStepContent({
   // expensive .find() lookups are memoized and only compute during confirmation step.
   const shows = useShowStore(s => s.shows);
   const allTrials = useTrialStore(s => s.trials);
+  const people = useUserStore(s => s.people);
   const { dogs } = useDogStoreCompat();
   const { classes } = useClassStoreCompat();
+  const currentShow = shows.find(show => show.id === showId);
 
   const styledReceipt = useMemo(() => {
     if (currentStepId !== 'confirmation') return null;
-    const currentShow = shows.find(s => s.id === showId);
     // getShowStyle always narrows to a known ShowStyle value, and the
     // STYLED_RECEIPT_BY_STYLE registry is exhaustive over that union
     // (typecheck-enforced) — every show resolves to a renderer. The
@@ -185,18 +189,79 @@ export function WorkflowStepContent({
   }, [
     currentStepId,
     showId,
-    shows,
     allTrials,
     dogs,
     classes,
     receiptSelectedDogs,
     receiptClassSelections,
+    currentShow,
+  ]);
+
+  const entryBlankResult = useMemo(() => {
+    if (
+      currentStepId !== 'confirmation' ||
+      currentWorkflowMode === 'exhibitor' ||
+      !hasCreatedCapacityOutcome
+    ) {
+      return { downloads: [], unavailable: [] };
+    }
+
+    return buildRegistrationEntryBlankDownloads({
+      show: currentShow,
+      trials: allTrials,
+      classes,
+      dogs,
+      people,
+      outcomes: entryOutcomes,
+      handlerAssignments: optimisticState.handlerAssignments,
+      paymentMethod: optimisticState.formData.paymentMethod,
+    });
+  }, [
+    currentStepId,
+    currentWorkflowMode,
+    hasCreatedCapacityOutcome,
+    currentShow,
+    allTrials,
+    classes,
+    dogs,
+    people,
+    entryOutcomes,
+    optimisticState.handlerAssignments,
+    optimisticState.formData.paymentMethod,
   ]);
 
   const printEntryBlankUnavailable = () =>
     notifications.info('Entry blank', {
       description: 'A printable entry blank will be available after the draw is complete.',
     });
+
+  const entryBlankActions =
+    styledReceipt !== null && currentWorkflowMode !== 'exhibitor' ? (
+      <div className="space-y-3" aria-label="Entry blanks">
+        {entryBlankResult.downloads.map(download => (
+          <div key={download.entryId}>
+            {STYLED_ENTRY_BLANK_BY_STYLE[styledReceipt.style](
+              {
+                ...download.options,
+                label: `Download ${download.label}`,
+                filename: `${download.entryId}-entry-blank.pdf`,
+                className: 'min-h-11 w-full',
+              },
+              { brandColor: styledReceipt.brandColor }
+            )}
+          </div>
+        ))}
+        {entryBlankResult.unavailable.map(item => (
+          <div
+            key={item.key}
+            role="alert"
+            className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+          >
+            {item.reason}
+          </div>
+        ))}
+      </div>
+    ) : undefined;
 
   const styledReceiptProps =
     styledReceipt === null
@@ -211,11 +276,12 @@ export function WorkflowStepContent({
           totalFeesFormatted: `$${receiptTotalFees.toFixed(2)}`,
           registrationNumber: registrationNumber ?? null,
           confirmationDateLabel: styledReceipt.confirmationDateLabel,
-          // INTENT: The entry blank is printed after the draw, not at entry time.
-          // Full pre-filled PDF (Phase 3 HeritageEntryBlankButton) requires judge
-          // assignments that don't exist until the draw — replaced by informational
-          // toast here. Wire to the style-specific entry blank button once draw data is available.
-          onPrintEntryBlank: printEntryBlankUnavailable,
+          // INTENT: Exhibitor self-service still waits for the post-draw blank.
+          // Staff workflows can print a specific created entry here because the
+          // replication-backed class data already carries its judge assignment.
+          ...(entryBlankActions
+            ? { entryBlankActions }
+            : { onPrintEntryBlank: printEntryBlankUnavailable }),
         };
   return (
     <div className="min-h-[300px]">

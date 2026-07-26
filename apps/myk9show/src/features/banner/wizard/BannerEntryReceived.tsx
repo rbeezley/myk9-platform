@@ -38,6 +38,7 @@ export function BannerEntryReceived({
   totalFeesFormatted,
   registrationNumber,
   confirmationDateLabel,
+  entryBlankActions,
   onPrintEntryBlank,
   brandColor,
 }: BannerEntryReceivedProps) {
@@ -205,25 +206,27 @@ export function BannerEntryReceived({
           padding: '20px 28px 16px',
         }}
       >
-        <Button
-          onClick={onPrintEntryBlank}
-          disabled={!onPrintEntryBlank}
-          style={{
-            background: colors.flag,
-            color: colors.textOnFlag,
-            fontFamily: BANNER_DISPLAY_FAMILY,
-            fontWeight: 700,
-            fontSize: 14,
-            letterSpacing: '-0.005em',
-            border: 'none',
-            borderRadius: 0,
-          }}
-          className="w-full"
-          aria-label="Print my entry blank"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Print my entry blank
-        </Button>
+        {entryBlankActions ?? (
+          <Button
+            onClick={onPrintEntryBlank}
+            disabled={!onPrintEntryBlank}
+            style={{
+              background: colors.flag,
+              color: colors.textOnFlag,
+              fontFamily: BANNER_DISPLAY_FAMILY,
+              fontWeight: 700,
+              fontSize: 14,
+              letterSpacing: '-0.005em',
+              border: 'none',
+              borderRadius: 0,
+            }}
+            className="w-full"
+            aria-label="Print my entry blank"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Print my entry blank
+          </Button>
+        )}
         <Button
           variant="outline"
           onClick={() => navigate('/')}

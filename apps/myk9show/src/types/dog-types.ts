@@ -69,6 +69,9 @@ export interface Registration {
   breed: string;
   variety?: string;
   registrationNumber: string;
+  /** Deterministic identity-resolution fields retained from dog_registrations. */
+  isPrimary?: boolean;
+  createdAt?: string;
   status: 'Active' | 'Expired' | 'Pending' | 'Under review' | string;
   applicationNumber?: string;
   submissionDate?: string;

@@ -234,6 +234,11 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
           breed: (reg.breed as string) || (dbDog.breed as string),
           registrationNumber: (reg.registration_number as string) || '',
           status: (reg.status as string) || 'active',
+          ...((reg.variety as string | null) ? { variety: reg.variety as string } : {}),
+          ...((reg.is_primary as boolean | null) != null
+            ? { isPrimary: reg.is_primary as boolean }
+            : {}),
+          ...((reg.created_at as string | null) ? { createdAt: reg.created_at as string } : {}),
         }))
       : [],
     healthRecords: mapHealthRecords(dbDog.health_records),

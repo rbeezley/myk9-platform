@@ -24,13 +24,13 @@ function buildStatusIcon(status: ShowMarkerStatus): L.DivIcon {
   const { color } = STATUS_META[status];
   return L.divIcon({
     className: '',
-    html: `<svg width="28" height="38" viewBox="0 0 28 38" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.4))">
-      <path d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 24 14 24S28 24.5 28 14C28 6.3 21.7 0 14 0z" fill="${color}"/>
-      <circle cx="14" cy="14" r="5" fill="white"/>
+    html: `<svg width="44" height="44" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.4))">
+      <path d="M22 3C14.3 3 8 9.3 8 17c0 10.5 14 24 14 24s14-13.5 14-24C36 9.3 29.7 3 22 3z" fill="${color}"/>
+      <circle cx="22" cy="17" r="5" fill="white"/>
     </svg>`,
-    iconSize: [28, 38],
-    iconAnchor: [14, 38],
-    popupAnchor: [0, -34],
+    iconSize: [44, 44],
+    iconAnchor: [22, 44],
+    popupAnchor: [0, -40],
   });
 }
 
@@ -47,10 +47,10 @@ interface LocatedShow {
 }
 
 /** Split filtered shows into mappable pins and an omitted count. Exported for tests. */
-export function partitionMappableShows(
-  shows: EnhancedShow[],
-  now: Date
-): { located: LocatedShow[]; omittedCount: number } {
+export function partitionMappableShows(shows: EnhancedShow[]): {
+  located: LocatedShow[];
+  omittedCount: number;
+} {
   const located: LocatedShow[] = [];
   let omittedCount = 0;
   for (const show of shows) {
@@ -59,14 +59,7 @@ export function partitionMappableShows(
         show,
         lat: show.latitude,
         lng: show.longitude,
-        status: deriveShowMarkerStatus(
-          {
-            status: show.status,
-            entryCloseDate: show.entryCloseDate,
-            maxTotalEntries: show.maxTotalEntries ?? null,
-          },
-          now
-        ),
+        status: deriveShowMarkerStatus(show),
       });
     } else {
       omittedCount += 1;
@@ -84,7 +77,9 @@ function FitToPins({ located }: { located: LocatedShow[] }) {
   // effect on a content signature stops refits from yanking the user's pan/zoom.
   const pinsKey = located.map(p => `${p.show.id}:${p.lat}:${p.lng}`).join('|');
   const locatedRef = useRef(located);
-  locatedRef.current = located;
+  useEffect(() => {
+    locatedRef.current = located;
+  }, [located]);
   useEffect(() => {
     const pins = locatedRef.current;
     if (pins.length === 0) return;
@@ -131,8 +126,7 @@ interface ShowsMapViewProps {
  * useBrowseShowsFilters, identical to the cards/table/calendar views.
  */
 export function ShowsMapView({ shows, onSwitchToCards }: ShowsMapViewProps) {
-  const now = useMemo(() => new Date(), []);
-  const { located, omittedCount } = useMemo(() => partitionMappableShows(shows, now), [shows, now]);
+  const { located, omittedCount } = useMemo(() => partitionMappableShows(shows), [shows]);
 
   if (located.length === 0) {
     return (

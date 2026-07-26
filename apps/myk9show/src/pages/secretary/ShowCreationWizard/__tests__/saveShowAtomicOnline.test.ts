@@ -62,6 +62,8 @@ const baseShow: WizardShowData = {
   startDate: '2026-06-01',
   endDate: '2026-06-02',
   location: 'Somewhere',
+  latitude: 36.15,
+  longitude: -95.99,
   clubId: 'aaaaaaaa-0000-4000-8000-000000000001',
   entryOpenDate: '2026-04-01',
   entryCloseDate: '2026-05-15',
@@ -114,6 +116,8 @@ describe('saveShowAtomicOnline', () => {
         p_show: expect.objectContaining({
           name: 'Test Show',
           club_id: baseShow.clubId,
+          latitude: 36.15,
+          longitude: -95.99,
           status: 'draft',
           style: 'monogram',
         }),
@@ -122,6 +126,22 @@ describe('saveShowAtomicOnline', () => {
         p_judge_ids: [],
       })
     );
+  });
+
+  it('keeps venue coordinates in the immediate saved-show cache', async () => {
+    rpcMock.mockResolvedValue({ error: null });
+
+    const result = await saveShowAtomicOnline({
+      show: baseShow,
+      trials: baseTrials,
+      judgeDetails: {},
+      clubs: [],
+      status: 'unpublished',
+      queryClient: makeQueryClient(),
+      triggerSync: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(result.savedShow).toMatchObject({ latitude: 36.15, longitude: -95.99 });
   });
 
   it('returns and caches the selected premium list style on the saved show', async () => {

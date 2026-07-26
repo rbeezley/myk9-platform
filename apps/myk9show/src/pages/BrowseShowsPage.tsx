@@ -357,7 +357,7 @@ const BrowseShowsPage: React.FC = () => {
 
   // Render shows in different view modes
   const renderShowsView = () => {
-    if (enhancedShows.length === 0) {
+    if (enhancedShows.length === 0 && viewMode !== 'map') {
       return (
         <EmptyState
           icon={Search}

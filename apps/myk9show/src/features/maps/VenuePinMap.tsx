@@ -81,18 +81,26 @@ export function VenuePinMap({ value, onChange, address, className }: VenuePinMap
   const [notice, setNotice] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<FlyTarget | null>(null);
 
-  // Mirrors the latest pin so a slow geocode can detect it was superseded by a
-  // manual click/drag made while the request was in flight.
+  // Mirror the latest pin and address so a slow geocode can detect it was
+  // superseded — by a manual click/drag, or by an address edit — mid-flight.
   const latestValueRef = useRef<VenuePinValue | null>(value);
-  latestValueRef.current = value;
+  const latestAddressRef = useRef(address);
+  useEffect(() => {
+    latestValueRef.current = value;
+  }, [value]);
+  useEffect(() => {
+    latestAddressRef.current = address;
+  }, [address]);
 
   const handleLocate = useCallback(async () => {
     setNotice(null);
     setIsLocating(true);
     const valueAtRequest = latestValueRef.current;
+    const addressAtRequest = address;
     const result = await geocodeAddress(address);
     setIsLocating(false);
     if (latestValueRef.current !== valueAtRequest) return;
+    if (latestAddressRef.current !== addressAtRequest) return;
     if (result) {
       const normalized = normalizePinValue(result.lat, result.lng);
       onChange(normalized);
@@ -121,7 +129,6 @@ export function VenuePinMap({ value, onChange, address, className }: VenuePinMap
         <Button
           type="button"
           variant="outline"
-          size="sm"
           onClick={handleLocate}
           disabled={isLocating || !address.trim()}
         >
@@ -134,7 +141,7 @@ export function VenuePinMap({ value, onChange, address, className }: VenuePinMap
         </Button>
       </div>
       {notice && (
-        <p className="mb-2 text-sm text-amber-600 dark:text-amber-500" role="status">
+        <p className="mb-2 text-sm text-warning" role="status">
           {notice}
         </p>
       )}

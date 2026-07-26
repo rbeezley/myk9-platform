@@ -98,7 +98,7 @@ export function VenueLocationCard({ showId }: VenueLocationCardProps) {
           </p>
         )}
         <div className="flex justify-end">
-          <Button type="button" size="sm" onClick={handleSave} disabled={!isDirty || isSaving}>
+          <Button type="button" onClick={handleSave} disabled={!isDirty || isSaving}>
             {isSaving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
             Save pin
           </Button>

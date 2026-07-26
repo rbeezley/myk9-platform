@@ -1,48 +1,45 @@
+import type { Show } from '@/types/show-types';
+import { getEntryStatus } from '@/utils/entryStatusUtils';
+
 export type ShowMarkerStatus = 'open' | 'closing-soon' | 'full' | 'waitlist' | 'closed';
 
-export interface MarkerStatusInput {
-  /** DB show status (draft | published | accepting_entries | closed | in_progress | completed | cancelled) */
-  status: string;
-  /** Entry close date/datetime string; absent = no deadline signal */
-  entryCloseDate?: string | null;
-  /** Live entry count for the show; absent = capacity signal unavailable */
-  totalEntryCount?: number | null;
-  maxTotalEntries?: number | null;
+/**
+ * Optional live-capacity signal. The browse pipeline doesn't carry entry
+ * counts yet, so callers omit this today — 'full'/'waitlist' pins activate
+ * when counts are plumbed through, without another marker-logic change.
+ */
+export interface MarkerCapacityInput {
+  totalEntryCount: number;
+  maxTotalEntries: number;
   waitlistEnabled?: boolean;
 }
 
-// Same 7-day "closing soon" rule as getEntryStatus in utils/entryStatusUtils.ts
-// (kept separate: that helper is timezone-aware per trial; markers use UTC ms).
-const CLOSING_SOON_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-const CLOSING_SOON_CAPACITY_RATIO = 0.9;
+/** Show statuses whose entry availability is decided by the entry window. */
+const ENTERABLE_STATUSES: ReadonlySet<string> = new Set(['published', 'accepting_entries']);
 
 /**
- * Marker color status for the Find Shows map, derived from the same
- * status/deadline/capacity data the browse cards display.
+ * Marker color status for the Find Shows map.
  *
- * Only `accepting_entries` counts as enterable — every other status renders
- * closed. "Closing soon" = enterable AND (entry close within 7 days OR >= 90%
- * of capacity filled). Missing count or deadline data degrades toward 'open'
- * rather than guessing.
+ * Entry availability delegates to getEntryStatus — the same timezone-aware,
+ * close-date-inclusive rule the browse cards display — so a pin and its card
+ * never disagree. Lifecycle statuses outside the enterable pair (draft,
+ * cancelled, completed, ...) always render closed.
  */
-export function deriveShowMarkerStatus(input: MarkerStatusInput, now: Date): ShowMarkerStatus {
-  if (input.status !== 'accepting_entries') return 'closed';
+export function deriveShowMarkerStatus(
+  show: Show,
+  capacity?: MarkerCapacityInput
+): ShowMarkerStatus {
+  if (!ENTERABLE_STATUSES.has(show.status)) return 'closed';
 
-  const closeTime = input.entryCloseDate ? Date.parse(input.entryCloseDate) : NaN;
-  if (Number.isFinite(closeTime) && closeTime <= now.getTime()) return 'closed';
+  const entry = getEntryStatus(show);
+  if (!entry.canEnter) return 'closed';
 
-  const hasCapacityData =
-    input.totalEntryCount != null && input.maxTotalEntries != null && input.maxTotalEntries > 0;
-
-  if (hasCapacityData && input.totalEntryCount! >= input.maxTotalEntries!) {
-    return input.waitlistEnabled ? 'waitlist' : 'full';
+  if (capacity && capacity.maxTotalEntries > 0) {
+    if (capacity.totalEntryCount >= capacity.maxTotalEntries) {
+      return capacity.waitlistEnabled ? 'waitlist' : 'full';
+    }
+    if (capacity.totalEntryCount / capacity.maxTotalEntries >= 0.9) return 'closing-soon';
   }
 
-  const closingByDate =
-    Number.isFinite(closeTime) && closeTime - now.getTime() <= CLOSING_SOON_WINDOW_MS;
-  const closingByCapacity =
-    hasCapacityData &&
-    input.totalEntryCount! / input.maxTotalEntries! >= CLOSING_SOON_CAPACITY_RATIO;
-
-  return closingByDate || closingByCapacity ? 'closing-soon' : 'open';
+  return entry.status === 'closing_soon' ? 'closing-soon' : 'open';
 }

@@ -18,8 +18,6 @@ vi.mock('react-leaflet', () => ({
   useMap: () => ({ fitBounds: vi.fn(), setView: vi.fn(), getZoom: () => 4 }),
 }));
 
-const NOW = new Date('2026-07-26T12:00:00Z');
-
 function makeShow(overrides: Partial<EnhancedShow>): EnhancedShow {
   return {
     id: 'show-1',
@@ -52,7 +50,7 @@ describe('partitionMappableShows', () => {
       makeShow({ id: 'c', latitude: undefined, longitude: undefined }),
     ];
 
-    const { located, omittedCount } = partitionMappableShows(shows, NOW);
+    const { located, omittedCount } = partitionMappableShows(shows);
 
     expect(located.map(p => p.show.id)).toEqual(['a']);
     expect(omittedCount).toBe(2);
@@ -60,8 +58,7 @@ describe('partitionMappableShows', () => {
 
   it('derives a marker status per located show', () => {
     const { located } = partitionMappableShows(
-      [makeShow({ id: 'closed-show', status: 'completed' })],
-      NOW
+      [makeShow({ id: 'closed-show', status: 'completed' })]
     );
     expect(located[0].status).toBe('closed');
   });

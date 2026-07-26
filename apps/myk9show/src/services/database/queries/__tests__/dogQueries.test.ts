@@ -335,16 +335,51 @@ describe('Dog Queries', () => {
         },
       ];
       const chain = createChainableQuery({ data: mockResults, error: null });
-      mockSupabase.from.mockReturnValue(chain);
+      // MYK9-90: registration number and registered name live on
+      // `dog_registrations`, so the search resolves matching dog ids there
+      // first. `dogs.akc_number` is NULL for every row and no longer searched.
+      const regChain = createChainableQuery({ data: [{ dog_id: '1' }], error: null });
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'dog_registrations' ? regChain : chain
+      );
 
       const result = await searchAllDogs('rang');
 
+      expect(mockSupabase.from).toHaveBeenCalledWith('dog_registrations');
+      expect(regChain.or).toHaveBeenCalledWith(
+        expect.stringContaining('registration_number.ilike.%rang%')
+      );
+      expect(regChain.or).toHaveBeenCalledWith(
+        expect.stringContaining('registered_name.ilike.%rang%')
+      );
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
       expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('name.ilike.%rang%'));
-      expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('akc_number.ilike.%rang%'));
+      // Registration matches are folded into the dogs query as an id list.
+      expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('id.in.(1)'));
+      expect(chain.or).not.toHaveBeenCalledWith(expect.stringContaining('akc_number'));
       expect(chain.limit).toHaveBeenCalledWith(50);
       expect(result.data).toEqual(mockResults);
       expect(result.error).toBeNull();
+      expect(result.hitLimit).toBe(false);
+    });
+
+    // MYK9-90 review finding: a failed registration pre-query must not be
+    // silently downgraded to "no registration matches". Otherwise a broken
+    // backend is indistinguishable from "no such dog" — the caller sees an
+    // empty list with error: null and reports "not found" to the operator.
+    it('propagates an error from the registration pre-query instead of returning empty', async () => {
+      const regError = { message: 'PostgREST unavailable', code: '503' };
+      const regChain = createChainableQuery({ data: null, error: regError });
+      const dogsChain = createChainableQuery({ data: [{ id: '1' }], error: null });
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'dog_registrations' ? regChain : dogsChain
+      );
+
+      const result = await searchAllDogs('rang');
+
+      expect(result.error).not.toBeNull();
+      expect(result.data).toEqual([]);
+      // The dogs query must not have been treated as the authoritative answer.
       expect(result.hitLimit).toBe(false);
     });
 

@@ -1,5 +1,9 @@
 import { getTrialRegistry } from '@/features/registries';
 import {
+  resolveDogIdentityForOrganization,
+  type DogRegistrationLike,
+} from '@/features/dogs/identity';
+import {
   getScentWorkSport,
   scentWorkGrid,
   scentWorkSpecialElementLabels,
@@ -77,11 +81,25 @@ interface EntryInput {
 interface DogInput {
   name?: string | null;
   call_name?: string | null;
-  breed?: string | null;
   color?: string | null;
   sex?: string | null;
   date_of_birth?: string | null;
-  akc_number?: string | null;
+  /**
+   * The dog's `dog_registrations` rows. Registered name, breed, variety, and
+   * registration number are read from the registration for the TRIAL'S
+   * sanctioning organization — never from `dogs.akc_number` (which nothing in
+   * the app writes; the flat column is NULL for every row) and never from
+   * another organization's registration. MYK9-90.
+   *
+   * Callers must include `id` and `created_at` on these rows (selecting
+   * `dog_registrations(*)`, as every `reads.ts` embed does, satisfies this).
+   * They are the resolver's tiebreak fields: `UNIQUE (dog_id, organization)`
+   * is an exact-string constraint, so one dog can hold both `AKC` and
+   * `AKC (American Kennel Club)` rows, and without the ordering fields the
+   * comparator ties and the printed registration number becomes dependent on
+   * row order.
+   */
+  registrations?: readonly DogRegistrationLike[] | null;
 }
 
 interface PersonInput {
@@ -153,6 +171,8 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   const { show, trials, classes, judges, club, secretary, entry, dog, handler } = opts;
   // Bind to the trial's registry via the shared selector (trims + defaults to AKC for
   // blank/missing registry_id; throws in dev / falls back to AKC in prod for unknown ids).
+  // NOTE: this drives the §II grid, which is form-wide and therefore keyed off the first
+  // trial. Dog identity is resolved against the ENTRY'S trial instead — see below.
   const registry = getTrialRegistry(trials[0]);
   const sport = getScentWorkSport(registry.id);
   const ownerDisplayName = handler
@@ -221,16 +241,35 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
     });
   }
 
-  // §I — dog
+  // §I — dog.
+  //
+  // Identity comes from the registration held with the sanctioning organization
+  // of the trial THIS ENTRY IS FOR — not `trials[0]`. A show may carry trials
+  // bound to different registries (`trials.registry_id`), so keying off the
+  // first trial would print, say, the dog's AKC registered name and number on a
+  // form for a UKC trial. That is the cross-organization leak this whole
+  // change exists to prevent. In blank mode there is no entry, so the first
+  // trial is the only available answer and the fields print empty regardless.
+  //
+  // No cross-organization fallback: this form is mailed to that body, and a
+  // borrowed registration number or breed is worse than a blank. A dog with no
+  // registration for the organization prints blank and raises
+  // `missingRegistration` so the operator sees it before mailing.
+  const entryTrial = entryTrialId ? (trials.find(t => t.id === entryTrialId) ?? null) : null;
+  const identityRegistry = entryTrial ? getTrialRegistry(entryTrial) : registry;
+  const dogIdentity = resolveDogIdentityForOrganization(dog?.registrations, identityRegistry.id);
   const dogProps: EntryBlankDog = {
-    registeredName: dog?.name ?? null,
+    registeredName: dogIdentity.registeredName,
     callName: dog?.call_name ?? null,
-    breed: dog?.breed ?? null,
-    variety: dog?.color ?? null,
+    breed: dogIdentity.breed,
+    // `variety` is a registration attribute; `dogs.color` is the legacy source
+    // and is used only when the registration records no variety.
+    variety: dogIdentity.variety ?? dog?.color ?? null,
     sex: dog?.sex ?? null,
     dateOfBirth: dog?.date_of_birth ?? null,
     placeOfBirth: null,
-    registrationNumber: dog?.akc_number ?? null,
+    registrationNumber: dogIdentity.registrationNumber,
+    missingRegistration: dog != null && dogIdentity.registrationNumber == null,
     sire: null,
     dam: null,
     breeder: null,

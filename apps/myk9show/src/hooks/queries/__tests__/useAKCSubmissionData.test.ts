@@ -268,15 +268,14 @@ describe('useAKCSubmissionData', () => {
         return {
           select: vi.fn().mockReturnThis(),
           in: vi.fn().mockResolvedValue({
-            data: [{ id: 'd1', akc_number: 'HP99', sex: 'Female', owner_id: null, name: 'Bella' }],
+            data: [{ id: 'd1', sex: 'Female', owner_id: null, name: 'Bella', call_name: 'Bella' }],
             error: null,
           }),
         };
       if (table === 'dog_registrations')
         return {
           select: vi.fn().mockReturnThis(),
-          in: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          in: vi.fn().mockResolvedValue({ data: [], error: null }),
         };
       return {
         select: vi.fn().mockReturnThis(),
@@ -366,16 +365,34 @@ describe('useAKCSubmissionData', () => {
         return {
           select: vi.fn().mockReturnThis(),
           in: vi.fn().mockResolvedValue({
-            data: [{ id: 'd1', akc_number: 'HP99', sex: 'Male', owner_id: null, name: 'CallName' }],
+            data: [{ id: 'd1', sex: 'Male', owner_id: null, name: 'CallName', call_name: 'Call' }],
             error: null,
           }),
         };
       if (table === 'dog_registrations')
         return {
           select: vi.fn().mockReturnThis(),
-          in: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
-            data: [{ dog_id: 'd1', registered_name: 'Registered Name Here' }],
+          in: vi.fn().mockResolvedValue({
+            data: [
+              {
+                dog_id: 'd1',
+                // Long-form spelling — the drift that the old
+                // `.eq('organization', 'AKC')` filter silently missed.
+                organization: 'AKC (American Kennel Club)',
+                registration_number: 'HP12345601',
+                registered_name: 'Registered Name Here',
+                breed: 'Labrador Retriever',
+                variety: null,
+              },
+              {
+                dog_id: 'd1',
+                organization: 'UKC (United Kennel Club)',
+                registration_number: 'P-999',
+                registered_name: 'Some Other Name',
+                breed: 'Retriever (Labrador)',
+                variety: null,
+              },
+            ],
             error: null,
           }),
         };
@@ -388,6 +405,130 @@ describe('useAKCSubmissionData', () => {
     const { result } = renderHook(() => useAKCSubmissionData('show-1'), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data?.entries[0]?.dogRegisteredName).toBe('Registered Name Here');
+    const entry = result.current.data?.entries[0];
+    expect(entry?.dogRegisteredName).toBe('Registered Name Here');
+    // MYK9-90 regression (tasks 3.1 / 8.3.1). Before this change the hook read
+    // `dogs.akc_number` — a column nothing writes and that is NULL for every
+    // row — so every AKC submission carried a blank registration number.
+    expect(entry?.registrationNumber).toBe('HP12345601');
+    // Breed comes from the AKC registration, not the hardcoded 'Unknown'
+    // placeholder, and NOT from the dog's UKC registration.
+    expect(entry?.breed).toBe('Labrador Retriever');
+    expect(entry?.registrationNumber).not.toBe('P-999');
+  });
+
+  it('emits no registration number or breed for a dog with no AKC registration', async () => {
+    // A UKC-only dog must not have its UKC number or breed borrowed onto an AKC
+    // submission — a wrong number on paperwork is worse than a blank field.
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'shows')
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'show-1', name: 'T', club_id: null, clubs: null },
+            error: null,
+          }),
+        };
+      if (table === 'people')
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          in: vi.fn().mockReturnThis(),
+        };
+      if (table === 'trials')
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          is: vi.fn().mockReturnThis(),
+          order: vi.fn().mockResolvedValue({
+            data: [
+              { id: 't1', event_number: null, date: '2026-05-10', trial_number: '1', name: 'T1' },
+            ],
+            error: null,
+          }),
+        };
+      if (table === 'classes')
+        return {
+          select: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          is: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 'c1',
+                element: 'Container',
+                level: 'Novice',
+                section: 'A',
+                time_limit_seconds: 90,
+                trial_id: 't1',
+                name: 'N',
+              },
+            ],
+            error: null,
+          }),
+        };
+      if (table === 'view_authenticated_entry_results')
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          is: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 'e1',
+                dog_id: 'd1',
+                class_id: 'c1',
+                trial_id: 't1',
+                armband: '101',
+                search_time_seconds: 10,
+                final_placement: null,
+                result_status: 'Q',
+                entry_status: 'accepted',
+                check_in_status: 'present',
+                run_order: 1,
+              },
+            ],
+            error: null,
+          }),
+        };
+      if (table === 'dogs')
+        return {
+          select: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
+            data: [{ id: 'd1', sex: 'Male', owner_id: null, name: 'Rex', call_name: 'Rex' }],
+            error: null,
+          }),
+        };
+      if (table === 'dog_registrations')
+        return {
+          select: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
+            data: [
+              {
+                dog_id: 'd1',
+                organization: 'UKC (United Kennel Club)',
+                registration_number: 'P-999',
+                registered_name: 'Rex Of Somewhere',
+                breed: 'Retriever (Labrador)',
+                variety: null,
+              },
+            ],
+            error: null,
+          }),
+        };
+      return {
+        select: vi.fn().mockReturnThis(),
+        in: vi.fn().mockResolvedValue({ data: [], error: null }),
+      };
+    });
+
+    const { result } = renderHook(() => useAKCSubmissionData('show-1'), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const entry = result.current.data?.entries[0];
+    expect(entry?.registrationNumber).toBeNull();
+    expect(entry?.dogRegisteredName).toBeNull();
+    // Empty, never 'Unknown' or any other substitute.
+    expect(entry?.breed).toBe('');
   });
 });

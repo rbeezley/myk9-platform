@@ -3,6 +3,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import {
+  resolveDogIdentityForOrganization,
+  type DogRegistrationLike,
+} from '@/features/dogs/identity';
 import type {
   AKCSubmissionData,
   AKCSubmissionEntry,
@@ -125,14 +129,39 @@ export function useAKCSubmissionData(showId: string) {
         return { show, trials, entries: [] };
       }
 
-      // Round 3: dogs + dog registrations (AKC org) — parallel
+      // Round 3: dogs + dog registrations — parallel.
+      //
+      // MYK9-90: registration number, registered name, and breed come from the
+      // AKC `dog_registrations` row, NOT from `dogs.akc_number` (a
+      // pre-normalization column nothing writes — NULL for every row, which is
+      // why every submission shipped a blank registration number).
+      //
+      // The organization filter is applied in TypeScript rather than as
+      // `.eq('organization', 'AKC')`, because that column is free text and has
+      // drifted: the database holds both `AKC` and `AKC (American Kennel
+      // Club)`. The old equality filter matched only the minority spelling.
       const [dogsRes, dogRegsRes] = await Promise.all([
-        supabase.from('dogs').select('id, akc_number, sex, owner_id, name').in('id', dogIds),
+        supabase.from('dogs').select('id, sex, owner_id, name, call_name').in('id', dogIds),
         supabase
           .from('dog_registrations')
-          .select('dog_id, registered_name')
-          .in('dog_id', dogIds)
-          .eq('organization', 'AKC'),
+          // `id` and `created_at` are the resolver's tiebreak fields and must be
+          // selected, not just the display columns. `UNIQUE (dog_id,
+          // organization)` is an EXACT-STRING constraint (verified against the
+          // applied schema), so one dog may legitimately hold both an `AKC` row
+          // and an `AKC (American Kennel Club)` row. Both normalize to AKC, so
+          // the resolver sees two candidates; without these fields the
+          // comparator ties and falls back to unspecified PostgREST row order,
+          // and the submitted registration number could vary between runs.
+          //
+          // `is_primary` is deliberately NOT selected: its migration is written
+          // but unpushed, and selecting a nonexistent column would fail every
+          // submission. `created_at` then `id` is fully deterministic on its
+          // own, and the backfill marks the earliest row primary anyway, so the
+          // two orderings agree. Add `is_primary` here when the migration lands.
+          .select(
+            'dog_id, id, created_at, organization, registration_number, registered_name, breed, variety'
+          )
+          .in('dog_id', dogIds),
       ]);
 
       if (dogsRes.error) throw dogsRes.error;
@@ -142,18 +171,22 @@ export function useAKCSubmissionData(showId: string) {
         (
           (dogsRes.data ?? []) as Array<{
             id: string;
-            akc_number: string | null;
             sex: string | null;
             owner_id: string | null;
             name: string;
+            call_name: string | null;
           }>
         ).map(d => [d.id, d])
       );
-      const dogRegMap = new Map(
-        ((dogRegsRes.data ?? []) as Array<{ dog_id: string; registered_name: string | null }>).map(
-          r => [r.dog_id, r.registered_name]
-        )
-      );
+
+      const registrationsByDog = new Map<string, DogRegistrationLike[]>();
+      for (const row of (dogRegsRes.data ?? []) as Array<
+        DogRegistrationLike & { dog_id: string }
+      >) {
+        const list = registrationsByDog.get(row.dog_id);
+        if (list) list.push(row);
+        else registrationsByDog.set(row.dog_id, [row]);
+      }
 
       const ownerIds = [
         ...new Set(
@@ -201,7 +234,10 @@ export function useAKCSubmissionData(showId: string) {
         const cls = classMap.get(e.class_id!)!;
         const dog = dogMap.get(e.dog_id!);
         const owner = dog?.owner_id ? ownerMap.get(dog.owner_id) : null;
-        const registeredName = dogRegMap.get(e.dog_id!) ?? null;
+        const akcIdentity = resolveDogIdentityForOrganization(
+          registrationsByDog.get(e.dog_id!),
+          'AKC'
+        );
 
         const dogGender: 'D' | 'B' | null =
           dog?.sex === 'Male' ? 'D' : dog?.sex === 'Female' ? 'B' : null;
@@ -209,8 +245,11 @@ export function useAKCSubmissionData(showId: string) {
         return {
           // SubmissionEntry base fields
           dogName: dog?.name ?? '',
-          breed: 'Unknown',
-          registrationNumber: dog?.akc_number ?? null,
+          // Empty, never a placeholder. `SubmissionEntry.breed` is a non-null
+          // string in @myk9/secretary, so an unregistered dog contributes ''
+          // rather than a guess — the app must not invent a breed.
+          breed: akcIdentity.breed ?? '',
+          registrationNumber: akcIdentity.registrationNumber,
           handlerName: '',
           className: cls.name,
           element: cls.element ?? '',
@@ -224,7 +263,7 @@ export function useAKCSubmissionData(showId: string) {
           trialId: e.trial_id ?? '',
           classId: e.class_id ?? '',
           // AKCSubmissionEntry fields
-          dogRegisteredName: registeredName,
+          dogRegisteredName: akcIdentity.registeredName,
           dogGender,
           ownerName: owner?.name ?? null,
           ownerAddress: owner?.address ?? null,

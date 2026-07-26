@@ -5,6 +5,7 @@ import {
   buildEntryBlankProps,
   type BuildEntryBlankOptions,
 } from '@/features/heritage/entry-blank/buildEntryBlankProps';
+import { MissingRegistrationNotice } from '@/features/heritage/entry-blank/MissingRegistrationNotice';
 import { PosterEntryBlankDocument } from './PosterEntryBlankDocument';
 
 interface Props extends BuildEntryBlankOptions {
@@ -33,6 +34,8 @@ export function PosterEntryBlankButton({
       .replace(/[^a-z0-9-]/g, '')}-entry-blank.pdf`;
 
   return (
+    <>
+    <MissingRegistrationNotice dog={props.dog} />
     <PDFDownloadLink
       document={<PosterEntryBlankDocument {...props} />}
       fileName={pdfFilename}
@@ -50,5 +53,6 @@ export function PosterEntryBlankButton({
         </Button>
       )}
     </PDFDownloadLink>
+    </>
   );
 }

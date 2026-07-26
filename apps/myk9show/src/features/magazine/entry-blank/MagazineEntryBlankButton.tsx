@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { MagazineEntryBlankDocument } from './MagazineEntryBlankDocument';
 import {
   buildEntryBlankProps,
+  MissingRegistrationNotice,
   type BuildEntryBlankOptions,
 } from '@/features/heritage/entry-blank';
 
@@ -41,6 +42,8 @@ export function MagazineEntryBlankButton({
       .replace(/[^a-z0-9-]/g, '')}-entry-blank.pdf`;
 
   return (
+    <>
+    <MissingRegistrationNotice dog={props.dog} />
     <PDFDownloadLink
       document={<MagazineEntryBlankDocument {...props} />}
       fileName={pdfFilename}
@@ -58,5 +61,6 @@ export function MagazineEntryBlankButton({
         </Button>
       )}
     </PDFDownloadLink>
+    </>
   );
 }

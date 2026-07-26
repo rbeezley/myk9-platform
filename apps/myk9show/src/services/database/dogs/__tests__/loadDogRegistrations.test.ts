@@ -72,8 +72,9 @@ describe('loadDogRegistrations', () => {
       },
     ]);
 
-    const { byDog } = await loadDogRegistrations(['dog-1']);
+    const { byDog, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
     expect(resolveDogIdentity(byDog.get('dog-1')!).breed).toBe('Belgian Malinois');
+    expect(registrationsReadComplete).toBe(true);
   });
 
   it('without a local mirror the tie falls to server UUID order (known gap)', async () => {
@@ -88,20 +89,51 @@ describe('loadDogRegistrations', () => {
     expect(resolveDogIdentity(byDog.get('dog-1')!).breed).toBe('Belgian Shepherd Dog');
   });
 
+  it('marks partial rows as incomplete when the server also reports an error', async () => {
+    mockServerIn.mockResolvedValue({ data: [serverRows[0]], error: new Error('partial read') });
+    mockLocalGet.mockResolvedValue([]);
+
+    const { byDog, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
+
+    expect(byDog.get('dog-1')).toEqual([serverRows[0]]);
+    expect(registrationsReadComplete).toBe(false);
+  });
+
+  it('treats a successful empty server read as authoritative', async () => {
+    mockServerIn.mockResolvedValue({ data: [], error: null });
+    mockLocalGet.mockResolvedValue([]);
+
+    const { byDog, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
+
+    expect(byDog.get('dog-1')).toBeUndefined();
+    expect(registrationsReadComplete).toBe(true);
+  });
+
   it('reports the server error so callers can refuse rather than assume absence', async () => {
     mockServerIn.mockResolvedValue({ data: null, error: new Error('offline') });
     mockLocalGet.mockResolvedValue([]);
 
-    const { byDog, serverError } = await loadDogRegistrations(['dog-1']);
+    const { byDog, serverError, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
     expect(serverError).toBeInstanceOf(Error);
     expect(byDog.size).toBe(0);
+    expect(registrationsReadComplete).toBe(false);
   });
 
   it('surfaces a THROWN network failure as serverError instead of rejecting', async () => {
     mockServerIn.mockRejectedValue(new Error('network down'));
     mockLocalGet.mockResolvedValue([]);
 
-    const { serverError } = await loadDogRegistrations(['dog-1']);
+    const { serverError, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
     expect(serverError).toBeInstanceOf(Error);
+    expect(registrationsReadComplete).toBe(false);
+  });
+
+  it('marks the merged read incomplete when the local replica read fails', async () => {
+    mockServerIn.mockResolvedValue({ data: [], error: null });
+    mockLocalGet.mockRejectedValue(new Error('local replica unavailable'));
+
+    const { registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
+
+    expect(registrationsReadComplete).toBe(false);
   });
 });

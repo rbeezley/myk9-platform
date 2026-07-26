@@ -594,6 +594,31 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
     expect(updated?.breed).toBe('');
     expect(getDogBreedLabel(updated!)).toBe(BREED_NOT_SET);
   });
+
+  it('keeps the cached registration when the dog-list registration read is incomplete', async () => {
+    mockDogsQueryData.mockReturnValue([
+      {
+        id: 'dog-1',
+        name: 'Ziva',
+        call_name: 'Ziva',
+        owner_id: 'person-1',
+        registrations: [],
+        registrations_read_complete: false,
+      },
+    ]);
+
+    const staleQueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    staleQueryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), [serverRegistration]);
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: staleQueryClient }, children);
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper });
+    const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
+
+    expect(updated?.callName).toBe('Zee');
+    expect(getDogBreedLabel(updated!)).toBe('Belgian Malinois');
+    expect(updated?.registrations?.[0]?.breed).toBe('Belgian Malinois');
+  });
 });
 
 describe('useDogStoreCompat.updateDog — one normalized value reaches both destinations', () => {

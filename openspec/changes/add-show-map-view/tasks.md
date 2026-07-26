@@ -9,11 +9,11 @@
 
 ## 2. Geocoding + VenuePinMap
 
-- [ ] 2.1 Add `leaflet`, `react-leaflet`, `@types/leaflet` to `apps/myk9show`
-- [ ] 2.2 Write `geocodeAddress` helper (Nominatim search, response → `{lat, lng} | null`) with unit tests (mocked fetch: hit, miss, error/timeout)
-- [ ] 2.3 Build `VenuePinMap` component: OSM tiles, draggable single marker, `onChange(lat, lng)`, manual placement by map click when geocode misses, non-blocking failure notice
-- [ ] 2.4 Embed `VenuePinMap` in the show-creation wizard venue step; persist pin position with the show (nullable — never blocks save)
-- [ ] 2.5 Embed `VenuePinMap` in Show Settings so existing shows can gain coordinates; run colocated tests for both edited surfaces
+- [x] 2.1 Add `leaflet`, `react-leaflet`, `@types/leaflet` to `apps/myk9show`
+- [x] 2.2 Write `geocodeAddress` helper (Nominatim search, response → `{lat, lng} | null`) with unit tests (mocked fetch: hit, miss, error/timeout)
+- [x] 2.3 Build `VenuePinMap` component: OSM tiles, draggable single marker, `onChange(lat, lng)`, manual placement by map click when geocode misses, non-blocking failure notice
+- [x] 2.4 Embed `VenuePinMap` in the show-creation wizard venue step; persist pin position with the show (nullable — never blocks save)
+- [x] 2.5 Embed `VenuePinMap` in Show Settings so existing shows can gain coordinates; run colocated tests for both edited surfaces
 
 ## 3. Map view mode
 

@@ -42,6 +42,8 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     startDate: replicated.startDate,
     endDate: replicated.endDate,
     location: replicated.location || '',
+    latitude: replicated.latitude ?? null,
+    longitude: replicated.longitude ?? null,
     status: replicated.status || 'draft',
     events: [], // Local-only: events managed separately
     source: 'external', // From sync = external
@@ -171,6 +173,8 @@ export interface ShowInput {
   startDate: string;
   endDate: string;
   location: string;
+  latitude?: number | null;
+  longitude?: number | null;
   status: string;
   events: string[];
   source: 'myK9Show' | 'external';
@@ -255,6 +259,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         startDate: showData.startDate,
         endDate: showData.endDate,
         location: showData.location || undefined,
+        latitude: showData.latitude ?? null,
+        longitude: showData.longitude ?? null,
         status: showData.status || undefined,
         entryOpenDate: showData.entryOpenDate || undefined,
         entryCloseDate: showData.entryCloseDate || undefined,
@@ -376,6 +382,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.startDate !== undefined) replicatedUpdates.startDate = updates.startDate;
       if (updates.endDate !== undefined) replicatedUpdates.endDate = updates.endDate;
       if (updates.location !== undefined) replicatedUpdates.location = updates.location;
+      if (updates.latitude !== undefined) replicatedUpdates.latitude = updates.latitude;
+      if (updates.longitude !== undefined) replicatedUpdates.longitude = updates.longitude;
       if (updates.status !== undefined) replicatedUpdates.status = updates.status;
       if (updates.entryOpenDate !== undefined)
         replicatedUpdates.entryOpenDate = updates.entryOpenDate;
@@ -416,6 +424,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.startDate !== undefined) definedUpdates.startDate = updates.startDate;
       if (updates.endDate !== undefined) definedUpdates.endDate = updates.endDate;
       if (updates.location !== undefined) definedUpdates.location = updates.location;
+      if (updates.latitude !== undefined) definedUpdates.latitude = updates.latitude;
+      if (updates.longitude !== undefined) definedUpdates.longitude = updates.longitude;
       if (updates.status !== undefined) definedUpdates.status = updates.status;
       if (updates.events !== undefined) definedUpdates.events = updates.events;
       if (updates.source !== undefined) definedUpdates.source = updates.source;

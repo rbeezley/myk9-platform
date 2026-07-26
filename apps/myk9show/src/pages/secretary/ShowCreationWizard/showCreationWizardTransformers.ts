@@ -15,6 +15,8 @@ export interface WizardShowData {
   startDate: string;
   endDate: string;
   location: string;
+  latitude?: number | null;
+  longitude?: number | null;
   clubId: string;
   entryOpenDate: string;
   entryCloseDate: string;

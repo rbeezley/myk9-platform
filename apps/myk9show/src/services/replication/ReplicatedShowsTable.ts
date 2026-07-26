@@ -37,6 +37,8 @@ export interface ReplicatedShow {
   startDate: string;
   endDate: string;
   location?: string | undefined;
+  latitude?: number | null | undefined;
+  longitude?: number | null | undefined;
   venueName?: string | undefined;
   city?: string | undefined;
   state?: string | undefined;
@@ -83,6 +85,8 @@ export function rowToShow(row: ShowRow): ReplicatedShow {
     startDate: row.start_date,
     endDate: row.end_date,
     location: row.location ?? undefined,
+    latitude: row.latitude ?? null,
+    longitude: row.longitude ?? null,
     venueName: row.venue_name ?? undefined,
     city: row.city ?? undefined,
     state: row.state ?? undefined,
@@ -166,6 +170,8 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       start_date: show.startDate,
       end_date: show.endDate,
       location: show.location ?? null,
+      latitude: show.latitude ?? null,
+      longitude: show.longitude ?? null,
       status: this.mapShowStatusToDb(show.status),
       entry_open_date: show.entryOpenDate || null,
       entry_close_date: show.entryCloseDate || null,
@@ -230,9 +236,14 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       resolveConflict: (_local, remote) => remote,
     };
 
-    const result = await syncReplicatedTable(this, adapter, { value: syncScopeId }, {
-      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
-    });
+    const result = await syncReplicatedTable(
+      this,
+      adapter,
+      { value: syncScopeId },
+      {
+        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+      }
+    );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
@@ -327,7 +338,8 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     if (!('experienceIsPublished' in updates)) delete updatePayload.experience_is_published;
     if (!('experiencePublishedAt' in updates)) delete updatePayload.experience_published_at;
     if (!('experiencePublishedStyle' in updates)) delete updatePayload.experience_published_style;
-    if (!('experiencePublishedContent' in updates)) delete updatePayload.experience_published_content;
+    if (!('experiencePublishedContent' in updates))
+      delete updatePayload.experience_published_content;
 
     const mutationId = await this.queueMutation('UPDATE', showId, updatePayload);
     this._lastMutationId = mutationId;

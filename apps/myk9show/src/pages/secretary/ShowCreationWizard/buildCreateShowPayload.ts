@@ -20,6 +20,8 @@ export interface ShowRpcPayload {
   start_date: string;
   end_date: string;
   location: string | null;
+  latitude: number | null;
+  longitude: number | null;
   status: string;
   club_id: string;
   entry_open_date: string | null;
@@ -185,6 +187,8 @@ export function buildCreateShowPayload(
     startDate: show.startDate,
     endDate: show.endDate,
     location: show.location || undefined,
+    latitude: show.latitude ?? null,
+    longitude: show.longitude ?? null,
     status: dbStatus,
     clubId: show.clubId,
     entryOpenDate: show.entryOpenDate || undefined,
@@ -251,6 +255,8 @@ export function buildCreateShowPayload(
         start_date: toLocalDateOnly(show.startDate),
         end_date: toLocalDateOnly(show.endDate),
         location: show.location || null,
+        latitude: show.latitude ?? null,
+        longitude: show.longitude ?? null,
         status: dbStatus,
         club_id: show.clubId,
         entry_open_date: show.entryOpenDate ? toLocalDateOnly(show.entryOpenDate) : null,

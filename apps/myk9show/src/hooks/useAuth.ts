@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { rbacService } from '@/services/rbac/RBACService';
+import { captureAuthEmailRequestFailure } from '@/services/observability/sentry';
 import { clearAppearanceCache } from '@/context/themeClasses';
 import type { User } from '@supabase/supabase-js';
 
@@ -180,6 +181,7 @@ export function useAuth() {
       });
 
       if (error) {
+        captureAuthEmailRequestFailure(error, 'signup');
         throw error;
       }
       // people record, exhibitor_profiles, and exhibitor role are created by the
@@ -211,6 +213,7 @@ export function useAuth() {
         }),
       });
       if (error) {
+        captureAuthEmailRequestFailure(error, 'resend');
         throw error;
       }
     },

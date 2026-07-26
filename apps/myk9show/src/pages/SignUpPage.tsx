@@ -176,11 +176,12 @@ const SignUp: React.FC = () => {
           <Mail className="mx-auto h-12 w-12 text-primary mb-4" />
           <h2 className="text-2xl font-bold mb-2">Check your email</h2>
           <p className="text-muted-foreground mb-4">
-            We sent a confirmation link to <strong>{email}</strong>. Click the link in the email to
-            activate your account.
+            If this is a new account, we sent a confirmation link to <strong>{email}</strong>. Click
+            the link in the email to activate your account.
           </p>
           <p className="text-sm text-muted-foreground mb-4">
-            Didn&apos;t receive it? Check your spam folder, or resend the email below.
+            Already registered? No new confirmation email will arrive—sign in or reset your password
+            below. Otherwise, check your spam folder or resend the email.
           </p>
           {captchaRequired && (
             <TurnstileChallenge
@@ -202,9 +203,14 @@ const SignUp: React.FC = () => {
                 ? `Resend email in ${resendCooldown}s`
                 : 'Resend email'}
           </button>
-          <Link to={signInPath} className="text-primary hover:underline font-medium">
-            Back to sign in
-          </Link>
+          <div className="flex items-center justify-center gap-4">
+            <Link to={signInPath} className="text-primary hover:underline font-medium">
+              Sign in instead
+            </Link>
+            <Link to="/forgot-password" className="text-primary hover:underline font-medium">
+              Reset password
+            </Link>
+          </div>
         </div>
       </div>
     );

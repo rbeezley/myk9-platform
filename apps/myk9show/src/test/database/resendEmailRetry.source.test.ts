@@ -10,7 +10,6 @@ const helperPaths = [
 ] as const;
 
 const callerPaths = [
-  'supabase/functions/send-auth-email/index.ts',
   'supabase/functions/send-confirmation-email/index.ts',
   'supabase/functions/send-email/index.ts',
   'supabase/functions/send-lifecycle-email/lifecycle-email-handler.ts',
@@ -46,6 +45,15 @@ describe('Resend retry source contract', () => {
       /import \{ sendResendEmailWithRetry \} from ['"].*resendEmail\.ts['"]/
     );
     expect(contents).toContain('sendResendEmailWithRetry(');
+  });
+
+  it('defaults the injectable auth-email sender to the shared retry helper', () => {
+    const contents = source('supabase/functions/send-auth-email/delivery.ts');
+
+    expect(contents).toMatch(
+      /import \{ sendResendEmailWithRetry \} from ['"].*resendEmail\.ts['"]/
+    );
+    expect(contents).toContain('dependencies.sendEmail ?? sendResendEmailWithRetry');
   });
 
   it('allows the Resend emails endpoint only inside the shared helpers', () => {

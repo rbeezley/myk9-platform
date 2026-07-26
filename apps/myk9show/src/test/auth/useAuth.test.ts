@@ -4,6 +4,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 import type { User } from '@supabase/supabase-js';
 
+const captureAuthEmailRequestFailure = vi.hoisted(() => vi.fn());
+
+vi.mock('@/services/observability/sentry', () => ({
+  captureAuthEmailRequestFailure,
+}));
+
 describe('useAuth', () => {
   const mockUser: User = {
     id: 'test-user-id',
@@ -143,7 +149,10 @@ describe('useAuth', () => {
     });
 
     it('should handle signUp errors', async () => {
-      const mockError = new Error('Registration failed');
+      const mockError = Object.assign(new Error('Email rate limit exceeded'), {
+        code: 'over_email_send_rate_limit',
+        status: 429,
+      });
       mockSupabase.auth.signUp.mockResolvedValue({
         data: { user: null },
         error: mockError,
@@ -155,7 +164,9 @@ describe('useAuth', () => {
         await act(async () => {
           await result.current.signUp('test@example.com', 'weak');
         });
-      }).rejects.toThrow('Registration failed');
+      }).rejects.toThrow('Email rate limit exceeded');
+
+      expect(captureAuthEmailRequestFailure).toHaveBeenCalledWith(mockError, 'signup');
     });
 
     it('should handle network errors during signUp', async () => {
@@ -231,7 +242,13 @@ describe('useAuth', () => {
     });
 
     it('should propagate resend errors (e.g. rate limit)', async () => {
-      const mockError = new Error('For security purposes, you can only request this after 60s');
+      const mockError = Object.assign(
+        new Error('For security purposes, you can only request this after 60s'),
+        {
+          code: 'over_email_send_rate_limit',
+          status: 429,
+        }
+      );
       mockSupabase.auth.resend.mockResolvedValue({
         data: {},
         error: mockError,
@@ -244,6 +261,8 @@ describe('useAuth', () => {
           await result.current.resendConfirmationEmail('test@example.com');
         });
       }).rejects.toThrow('For security purposes');
+
+      expect(captureAuthEmailRequestFailure).toHaveBeenCalledWith(mockError, 'resend');
     });
   });
 

@@ -330,6 +330,17 @@ describe('SignUpPage', () => {
       expect(screen.getByRole('button', { name: /resend email/i })).toBeInTheDocument();
     });
 
+    it('does not promise an email for an existing address and links to account recovery', async () => {
+      const user = userEvent.setup();
+      await reachConfirmationScreen(user);
+
+      expect(screen.getByText(/if this is a new account/i)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /reset password/i })).toHaveAttribute(
+        'href',
+        '/forgot-password'
+      );
+    });
+
     it('resends to the registered email when clicked', async () => {
       const user = userEvent.setup();
       mockResendConfirmationEmail.mockResolvedValue(undefined);

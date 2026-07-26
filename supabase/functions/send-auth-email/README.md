@@ -25,3 +25,7 @@ Then configure as Auth Hook in Supabase Dashboard → Authentication → Hooks �
 5. **Network error:** fetch throws → writes email_log with status "failed" → returns `{ success: true }`
 6. **XSS in firstName:** user_metadata.first_name contains `<script>` → escapeHtml sanitizes it
 7. **Magic link type:** email_action_type is "magiclink" → uses "Sign in to myK9Show" copy
+
+Any failed send also creates a deduplicated `operator_alerts` row for the site-admin
+System Health board. The recipient is masked in the alert detail; the full address
+remains available only in the service-role `email_log` record.

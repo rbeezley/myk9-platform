@@ -11,6 +11,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { verifyStandardWebhookSignature } from '../_shared/standardWebhookSignature.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { persistAuthEmailFailureAlert, type AuthEmailFailureCategory } from './authEmailFailure.ts';
 
 const siteUrl = Deno.env.get('SITE_URL') || 'http://localhost:5173';
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -155,10 +156,12 @@ Deno.serve(async (req: Request) => {
     let resendMessageId: string | undefined;
     let sendStatus = 'sent';
     let errorMessage: string | undefined;
+    let failureCategory: AuthEmailFailureCategory = 'unknown';
 
     if (!resendApiKey) {
       console.error('RESEND_API_KEY not configured');
       sendStatus = 'failed';
+      failureCategory = 'configuration';
       errorMessage = 'RESEND_API_KEY not configured';
     } else {
       try {
@@ -181,14 +184,16 @@ Deno.serve(async (req: Request) => {
           resendMessageId = result.id;
           console.log(`Auth email sent: ${result.id} to ${user.email}`);
         } else {
-          const err = await response.json();
+          const err = await response.text();
           sendStatus = 'failed';
-          errorMessage = JSON.stringify(err);
+          failureCategory = response.status === 429 ? 'rate_limited' : 'provider_error';
+          errorMessage = err || `Resend API returned ${response.status}`;
           console.error('Resend API error:', err);
         }
       } catch (err) {
         sendStatus = 'failed';
-        errorMessage = (err as Error).message;
+        failureCategory = 'network_error';
+        errorMessage = err instanceof Error ? err.message : String(err);
         console.error('Resend fetch error:', err);
       }
     }
@@ -205,6 +210,19 @@ Deno.serve(async (req: Request) => {
 
     if (logError) {
       console.error('Failed to write email_log:', logError);
+    }
+
+    if (sendStatus === 'failed') {
+      try {
+        await persistAuthEmailFailureAlert(supabase, {
+          actionType: email_data.email_action_type,
+          recipientEmail: user.email,
+          category: failureCategory,
+          errorMessage: errorMessage ?? 'Auth email delivery failed',
+        });
+      } catch (alertError) {
+        console.error('Failed to write auth email operator alert:', alertError);
+      }
     }
   } catch (err) {
     // Always swallow errors so the auth flow completes.

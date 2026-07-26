@@ -31,6 +31,8 @@ built-in mailer and not Custom SMTP:
   missing.
 - That function sends via the **Resend HTTP API** (`POST https://api.resend.com/emails`)
   using the `RESEND_API_KEY` secret, from `notifications@myk9show.com`.
+- A failed send is recorded in `email_log` and raises a deduplicated operator alert
+  on the site-admin **System Health** board. The alert masks the recipient address.
 - The user clicks the link → `/auth/callback` → `supabase.auth.verifyOtp(...)`.
 
 So: **we use Resend** — but through the _hook_ (Resend's API), which is a

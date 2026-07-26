@@ -55,10 +55,17 @@ import { queryKeys } from '@/lib/queryClient';
  * the dog genuinely has none.
  */
 export async function mapReplicatedDogWithRegistrations(dog: ReplicatedDog): Promise<Dog> {
-  const registrations = await loadDogRegistrations([dog.id])
-    .then(result => result.byDog.get(dog.id) ?? [])
-    .catch(() => [] as Record<string, unknown>[]);
-  return mapDatabaseToDog(mapReplicatedDogToDbRow(dog, { registrations }));
+  const result = await loadDogRegistrations([dog.id]).catch(() => ({
+    byDog: new Map<string, Record<string, unknown>[]>(),
+    registrationsReadComplete: false,
+  }));
+  const registrations = result.byDog.get(dog.id) ?? [];
+  return mapDatabaseToDog(
+    mapReplicatedDogToDbRow(dog, {
+      registrations,
+      registrationsReadComplete: result.registrationsReadComplete,
+    })
+  );
 }
 
 /**
@@ -73,7 +80,7 @@ export async function mapReplicatedDogWithRegistrations(dog: ReplicatedDog): Pro
  * refreshes from the server asynchronously.
  *
  * `alreadyLoadedDogs` comes from the caller's dogs query. BOTH of that query's
- * paths embed registrations — the replication path via `loadRegistrationsMap`,
+ * paths embed registrations — the replication path via `loadDogRegistrations`,
  * the PostgREST fallback via `registrations:dog_registrations(*)` — so a dog
  * PRESENT in the list carries an authoritative registration array, including
  * when that array is empty.
@@ -89,25 +96,12 @@ export async function mapReplicatedDogWithRegistrations(dog: ReplicatedDog): Pro
  * have exactly one meaning: the dog genuinely has none. The cache fallback had
  * reintroduced the ambiguity one layer up.
  *
- * KNOWN GAP (MYK9-104, deliberately not fixed here).
- * Presence is a proxy for completeness, not proof of it. `loadRegistrationsMap`
- * discards the `serverError` that `loadDogRegistrations` returns, so when the
- * PostgREST leg of `getAllDogs` fails the dogs list still contains the dog with
- * `registrations: []`. This function then treats that as authoritative and
- * discards a good `registrationsByDog` entry, so an unrelated local-first edit
- * on a flaky connection renders the dog with no breed until the next refetch.
- * Transient and self-healing, but wrong.
- *
- * The real fix is to propagate registration-read completeness rather than infer
- * it. That was measured and deliberately deferred: it changes what
- * `Dog.registrations` MEANS (adding an "unknown" state alongside "none"), which
- * every one of its ~191 read sites and all 9 `getDogBreedLabel` callers would
- * have to honour — otherwise a failed read renders "Breed not set" across the
- * dogs list, which is the same blank-where-knowable bug one layer out. Routing
- * the failure through the query error instead was rejected on evidence:
- * `readWithReplicationFallback` falls back to PostgREST and then returns
- * `errorData`, so offline it would empty the entire dog list rather than lose
- * one breed. Tracked as follow-up work on the hydration mechanism.
+ * Registration completeness is now propagated alongside the list. A failed
+ * read keeps the registrations collected before the failure for display, but
+ * marks `registrationsReadComplete` false so an unrelated local-first edit can
+ * prefer a good per-dog cache without discarding known rows. The existing 191
+ * read sites continue to use the same registration array contract; only this
+ * cache authority decision needs the extra bit.
  */
 export function cachedRegistrationRowsForDog(
   dogId: string,
@@ -115,12 +109,15 @@ export function cachedRegistrationRowsForDog(
   queryClient: QueryClient
 ): Record<string, unknown>[] {
   const loadedDog = alreadyLoadedDogs.find(d => d.id === dogId);
-  if (loadedDog) {
+  if (loadedDog && loadedDog.registrationsReadComplete !== false) {
     return (loadedDog.registrations ?? []) as unknown as Record<string, unknown>[];
   }
 
-  // Only when the dog is not in the loaded list at all is the per-dog query
-  // cache the best available answer.
   const cached = queryClient.getQueryData(queryKeys.registrationsByDog(dogId));
-  return Array.isArray(cached) ? (cached as Record<string, unknown>[]) : [];
+  if (Array.isArray(cached)) return cached as Record<string, unknown>[];
+
+  // A failed merged read may still contain server rows. Preserve those rows
+  // when no better per-dog cache exists; completeness remains false for
+  // callers that require a verified read.
+  return (loadedDog?.registrations ?? []) as unknown as Record<string, unknown>[];
 }

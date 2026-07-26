@@ -7,28 +7,24 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 // available when vi.mock factories execute (vi.mock is hoisted above const).
 // ---------------------------------------------------------------------------
 
-const {
-  mockDogsTable,
-  mockEntriesTable,
-  mockDogRegistrationsTable,
-  mockServerRegistrationRows,
-} = vi.hoisted(() => ({
-  mockDogsTable: {
-    getAllDogs: vi.fn(),
-    getDogById: vi.fn(),
-    getDogsByOwner: vi.fn(),
-    searchDogs: vi.fn(),
-    getAll: vi.fn(),
-  },
-  mockEntriesTable: {
-    getAll: vi.fn(),
-  },
-  mockDogRegistrationsTable: {
-    getRegistrationsForDogs: vi.fn(),
-    getRegistrationsForDog: vi.fn(),
-  },
-  mockServerRegistrationRows: vi.fn(() => [] as Record<string, unknown>[]),
-}));
+const { mockDogsTable, mockEntriesTable, mockDogRegistrationsTable, mockServerRegistrationRows } =
+  vi.hoisted(() => ({
+    mockDogsTable: {
+      getAllDogs: vi.fn(),
+      getDogById: vi.fn(),
+      getDogsByOwner: vi.fn(),
+      searchDogs: vi.fn(),
+      getAll: vi.fn(),
+    },
+    mockEntriesTable: {
+      getAll: vi.fn(),
+    },
+    mockDogRegistrationsTable: {
+      getRegistrationsForDogs: vi.fn(),
+      getRegistrationsForDog: vi.fn(),
+    },
+    mockServerRegistrationRows: vi.fn(() => [] as Record<string, unknown>[]),
+  }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: mockDogsTable,
@@ -316,7 +312,7 @@ describe('dogQueries (replication)', () => {
     it('includes local pending registrations in dog detail reads', async () => {
       mockDogsTable.getDogById.mockResolvedValue(makeDog());
       mockEntriesTable.getAll.mockResolvedValue([]);
-      mockDogRegistrationsTable.getRegistrationsForDog.mockResolvedValue([
+      mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([
         {
           id: 'registration-local-1',
           dog_id: 'dog-1',

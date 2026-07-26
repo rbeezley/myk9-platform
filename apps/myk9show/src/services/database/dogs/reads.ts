@@ -138,7 +138,7 @@ function overlayLocalCreationOrder(
 
 /**
  * Registrations merged from the server and the offline replica, plus whether
- * the server leg failed.
+ * either read leg failed.
  *
  * The flag matters because `ReplicatedDogRegistrationsTable.sync()` is a no-op:
  * the replica only ever holds registrations CREATED locally, so for a dog whose
@@ -150,16 +150,28 @@ function overlayLocalCreationOrder(
 export interface DogRegistrationsResult {
   byDog: Map<string, Record<string, unknown>[]>;
   serverError: unknown | null;
+  registrationsReadComplete: boolean;
 }
 
 // Registrations can exist as pending local rows before PostGREST can see them.
 // Merge the local replica with server rows so offline-created dogs keep their
 // registration data after refresh and while the queue is waiting to upload.
 export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistrationsResult> {
-  if (dogIds.length === 0) return { byDog: new Map(), serverError: null };
+  if (dogIds.length === 0) {
+    return { byDog: new Map(), serverError: null, registrationsReadComplete: true };
+  }
   const map = new Map<string, Record<string, unknown>[]>();
-  const [localRegistrations, serverResult] = await Promise.all([
-    replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds).catch(() => []),
+  const [localResult, serverResult] = await Promise.all([
+    (async (): Promise<{ data: Record<string, unknown>[]; error: unknown | null }> => {
+      try {
+        return {
+          data: await replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds),
+          error: null,
+        };
+      } catch (error) {
+        return { data: [], error };
+      }
+    })(),
     // A thrown network error must surface as `serverError`, not reject the whole
     // read — the replica may still be able to answer.
     (async (): Promise<{ data: unknown; error: unknown }> => {
@@ -172,15 +184,17 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
   ]);
 
   appendRegistrations(map, serverResult.data as Record<string, unknown>[] | null | undefined);
-  appendRegistrations(map, localRegistrations);
-  overlayLocalCreationOrder(map, localRegistrations);
-  return { byDog: map, serverError: serverResult.error ?? null };
-}
-
-async function loadRegistrationsMap(
-  dogIds: string[]
-): Promise<Map<string, Record<string, unknown>[]>> {
-  return (await loadDogRegistrations(dogIds)).byDog;
+  appendRegistrations(map, localResult.data);
+  overlayLocalCreationOrder(map, localResult.data);
+  return {
+    byDog: map,
+    serverError: serverResult.error ?? null,
+    // A local replica failure may hide a pending local-only row, even when the
+    // server returned registrations. Keep those rows for display, but mark the
+    // merged read incomplete so callers that require verified data can refuse
+    // to proceed.
+    registrationsReadComplete: !serverResult.error && !localResult.error,
+  };
 }
 
 /**
@@ -190,7 +204,8 @@ async function loadRegistrationsMap(
 function mapDogsWithOwners(
   dogs: ReplicatedDog[],
   ownersMap: Map<string, OwnerRow>,
-  registrationsMap: Map<string, Record<string, unknown>[]>
+  registrationsMap: Map<string, Record<string, unknown>[]>,
+  registrationsReadComplete: boolean
 ): Record<string, unknown>[] {
   return dogs.map(dog => {
     const owner = dog.ownerId ? (ownersMap.get(dog.ownerId) ?? null) : null;
@@ -198,6 +213,7 @@ function mapDogsWithOwners(
     return mapReplicatedDogToDbRow(dog, {
       owner: owner as Record<string, unknown> | null,
       registrations,
+      registrationsReadComplete,
     });
   });
 }
@@ -331,7 +347,7 @@ async function postgrestSearchDogs(searchTerm: string, personId: string) {
 
   const { data, error } = await supabase
     .from('dogs')
-    .select('*')
+    .select('*, registrations:dog_registrations(*)')
     .or(ownedByPerson(personId))
     .or(orFilters.join(','))
     .is('deleted_at', null)
@@ -347,7 +363,8 @@ async function postgrestGetDogsWithUpcomingShows(personId: string) {
     .select(
       `
       *,
-      owner:people!dogs_owner_id_fkey(first_name, last_name)
+      owner:people!dogs_owner_id_fkey(first_name, last_name),
+      registrations:dog_registrations(*)
     `
     )
     .or(ownedByPerson(personId))
@@ -388,11 +405,16 @@ export const getAllDogs = async (personId: string, showAll = false) => {
       // Batch-load owner and registration data from PostgREST (not replicated)
       const dogIds = sortedDogs.map(d => d.id);
       const ownerIds = sortedDogs.map(d => d.ownerId).filter((id): id is string => !!id);
-      const [ownersMap, registrationsMap] = await Promise.all([
+      const [ownersMap, registrationsResult] = await Promise.all([
         loadOwnersMap(ownerIds),
-        loadRegistrationsMap(dogIds),
+        loadDogRegistrations(dogIds),
       ]);
-      const data = mapDogsWithOwners(sortedDogs, ownersMap, registrationsMap);
+      const data = mapDogsWithOwners(
+        sortedDogs,
+        ownersMap,
+        registrationsResult.byDog,
+        registrationsResult.registrationsReadComplete
+      );
       return { data, error: null };
     },
     postgrest: () => postgrestGetAllDogs(personId, showAll),
@@ -415,8 +437,8 @@ export const getDogById = async (id: string) => {
       const allEntries = await replicatedEntriesTable.getAll();
       const dogEntries = allEntries.filter(e => e.dogId === id);
 
-      const [localRegistrations, supplementalResult] = await Promise.all([
-        replicatedDogRegistrationsTable.getRegistrationsForDog(id),
+      const [registrationsResult, supplementalResult] = await Promise.all([
+        loadDogRegistrations([id]),
         supabase
           .from('dogs')
           .select(
@@ -432,7 +454,6 @@ export const getDogById = async (id: string) => {
               state,
               zip_code
             ),
-            registrations:dog_registrations(*),
             health_records(*)
           `
           )
@@ -442,14 +463,7 @@ export const getDogById = async (id: string) => {
 
       const supplemental = supplementalResult.data;
       const owner = (supplemental as Record<string, unknown>)?.owner ?? null;
-      const registrationsMap = new Map<string, Record<string, unknown>[]>();
-      appendRegistrations(
-        registrationsMap,
-        ((supplemental as Record<string, unknown>)?.registrations as Record<string, unknown>[]) ??
-          []
-      );
-      appendRegistrations(registrationsMap, localRegistrations);
-      const registrations = registrationsMap.get(id) ?? [];
+      const registrations = registrationsResult.byDog.get(id) ?? [];
       const healthRecords =
         ((supplemental as Record<string, unknown>)?.health_records as Record<string, unknown>[]) ??
         [];
@@ -480,6 +494,7 @@ export const getDogById = async (id: string) => {
       const data = mapReplicatedDogToDbRow(dog, {
         owner: owner as Record<string, unknown> | null,
         registrations,
+        registrationsReadComplete: registrationsResult.registrationsReadComplete,
         entries,
         healthRecords,
       });
@@ -501,9 +516,12 @@ export const getDogsByOwner = async (ownerId: string) => {
         dogs,
         compareStringAsc(dog => dog.name)
       );
-      const registrationsMap = await loadRegistrationsMap(sortedDogs.map(d => d.id));
+      const registrationsResult = await loadDogRegistrations(sortedDogs.map(d => d.id));
       const data = sortedDogs.map(dog =>
-        mapReplicatedDogToDbRow(dog, { registrations: registrationsMap.get(dog.id) ?? [] })
+        mapReplicatedDogToDbRow(dog, {
+          registrations: registrationsResult.byDog.get(dog.id) ?? [],
+          registrationsReadComplete: registrationsResult.registrationsReadComplete,
+        })
       );
       return { data, error: null };
     },
@@ -764,9 +782,12 @@ export const searchDogs = async (searchTerm: string, personId: string) => {
       // Registrations ARE needed even though the original query was select('*'):
       // breed lives on `dog_registrations`, so without them every offline result
       // would render "Breed not set".
-      const registrationsMap = await loadRegistrationsMap(sortedDogs.map(d => d.id));
+      const registrationsResult = await loadDogRegistrations(sortedDogs.map(d => d.id));
       const data = sortedDogs.map(dog =>
-        mapReplicatedDogToDbRow(dog, { registrations: registrationsMap.get(dog.id) ?? [] })
+        mapReplicatedDogToDbRow(dog, {
+          registrations: registrationsResult.byDog.get(dog.id) ?? [],
+          registrationsReadComplete: registrationsResult.registrationsReadComplete,
+        })
       );
       return { data, error: null };
     },
@@ -789,11 +810,11 @@ export const getDogsWithUpcomingShows = async (personId: string) => {
       );
       // Batch-load owner names from PostgREST
       const ownerIds = sortedDogs.map(d => d.ownerId).filter((id): id is string => !!id);
-      const [ownersMap, registrationsMap] = await Promise.all([
+      const [ownersMap, registrationsResult] = await Promise.all([
         loadOwnersMap(ownerIds),
         // Breed comes from the registration, so it has to be loaded even though
         // the original query only joined the owner.
-        loadRegistrationsMap(sortedDogs.map(d => d.id)),
+        loadDogRegistrations(sortedDogs.map(d => d.id)),
       ]);
       // Original query only selects owner(first_name, last_name) — attach minimal owner
       const data = sortedDogs.map(dog => {
@@ -803,7 +824,8 @@ export const getDogsWithUpcomingShows = async (personId: string) => {
           : null;
         return mapReplicatedDogToDbRow(dog, {
           owner,
-          registrations: registrationsMap.get(dog.id) ?? [],
+          registrations: registrationsResult.byDog.get(dog.id) ?? [],
+          registrationsReadComplete: registrationsResult.registrationsReadComplete,
         });
       });
       return { data, error: null };

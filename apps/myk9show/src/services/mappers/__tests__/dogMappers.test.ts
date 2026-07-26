@@ -1,7 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { mapDatabaseToDog } from '../dogMappers';
+import { mapDatabaseToDog, mapReplicatedDogToDbRow } from '../dogMappers';
 
 describe('mapDatabaseToDog', () => {
+  it('preserves incomplete registration-read metadata without changing the array contract', () => {
+    const row = mapReplicatedDogToDbRow(
+      {
+        id: 'dog-1',
+        name: 'Ziva',
+        callName: 'Ziva',
+        breed: '',
+      },
+      { registrations: [], registrationsReadComplete: false }
+    );
+
+    const dog = mapDatabaseToDog(row);
+
+    expect(dog.registrations).toEqual([]);
+    expect(dog.registrationsReadComplete).toBe(false);
+  });
+
   it('preserves registration identity ordering fields for official paperwork', () => {
     const dog = mapDatabaseToDog({
       id: 'dog-1',

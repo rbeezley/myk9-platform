@@ -83,7 +83,7 @@ export async function loadRegisteredBreedsByDogId(
   // leave the map empty and let the caller's generic fallback answer.
   if (!organization || dogIds.length === 0) return new Map();
 
-  const { byDog, serverError } = await loadDogRegistrations(dogIds);
+  const { byDog, serverError, registrationsReadComplete } = await loadDogRegistrations(dogIds);
 
   // Every requested dog gets an ENTRY, `null` when it holds no registration
   // with this registry. An absent map key would let `toScoringEntry` fall back
@@ -95,7 +95,7 @@ export async function loadRegisteredBreedsByDogId(
     breeds.set(dogId, resolveDogIdentityForOrganization(rows, organization).breed);
   }
 
-  if (serverError) {
+  if (serverError || registrationsReadComplete === false) {
     const unverifiable = dogIds.filter(id => breeds.get(id) == null);
     if (unverifiable.length > 0) {
       throw new Error(

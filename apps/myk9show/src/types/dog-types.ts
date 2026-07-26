@@ -169,6 +169,8 @@ export interface Dog {
   birthDate?: string | undefined; // Alternative naming
   imageUrl?: string | undefined;
   registrations?: Registration[] | undefined; // Added from LegacyDog, made optional
+  /** False when the registration read was incomplete; [] is then not authoritative. */
+  registrationsReadComplete?: boolean | undefined;
   color?: string | undefined;
   microchip?: string | undefined;
   spayedNeutered?: boolean | undefined;

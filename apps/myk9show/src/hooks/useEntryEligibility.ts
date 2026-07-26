@@ -9,6 +9,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
+import { resolveDogIdentity } from '@/features/dogs/identity';
 
 // Eligibility result for a single dog/class combination
 export interface EligibilityResult {
@@ -65,7 +66,8 @@ interface DogData {
   id: string;
   name: string;
   callName: string | null;
-  breed: string;
+  /** Null when the dog holds no registration — absence, never a guess. */
+  breed: string | null;
   heightInches: number | null;
   dateOfBirth: string | null;
   titles: string[];
@@ -120,20 +122,18 @@ export function useEntryEligibility({
         return [];
       }
 
-      return (data || []).map(
-        (c): ClassRequirements => ({
-          classId: c.id,
-          className: c.name || 'Unknown',
-          level: c.level,
-          breedRestrictions: c.breed_restrictions || [],
-          minHeightInches: c.height_min,
-          maxHeightInches: c.height_max,
-          requiredTitles: [], // Not stored in classes table
-          minAgeMonths: c.age_min,
-          maxAgeMonths: c.age_max,
-          requiresHandler: false, // Not stored in classes table
-        })
-      );
+      return (data || []).map((c): ClassRequirements => ({
+        classId: c.id,
+        className: c.name || 'Unknown',
+        level: c.level,
+        breedRestrictions: c.breed_restrictions || [],
+        minHeightInches: c.height_min,
+        maxHeightInches: c.height_max,
+        requiredTitles: [], // Not stored in classes table
+        minAgeMonths: c.age_min,
+        maxAgeMonths: c.age_max,
+        requiresHandler: false, // Not stored in classes table
+      }));
     },
     enabled: classIds.length > 0,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -152,10 +152,9 @@ export function useEntryEligibility({
           id,
           name,
           call_name,
-          breed,
           height,
           date_of_birth,
-          registrations:dog_registrations(registration_number, organization)
+          registrations:dog_registrations(id, created_at, registration_number, organization, breed)
         `
         )
         .in('id', dogIds);
@@ -166,17 +165,23 @@ export function useEntryEligibility({
       }
 
       return (data || []).map((d): DogData => {
-        const firstReg = d.registrations?.[0];
+        // MYK9-90: breed, registration number and organization all come from
+        // the PRIMARY registration. The previous `registrations[0]` pick had no
+        // ordering and no organization scoping, and `breed` was read off
+        // `dogs.breed`. A dog with no registration has no breed — `null`, not
+        // the old `'Unknown'`, which is a value that can silently satisfy or
+        // fail a breed restriction.
+        const identity = resolveDogIdentity(d.registrations);
         return {
           id: d.id,
           name: d.name || 'Unknown',
           callName: d.call_name,
-          breed: d.breed || 'Unknown',
+          breed: identity.breed,
           heightInches: d.height ? parseFloat(d.height) : null,
           dateOfBirth: d.date_of_birth,
           titles: [], // Not stored in dogs table
-          registrationNumber: firstReg?.registration_number ?? null,
-          registrationOrganization: firstReg?.organization ?? null,
+          registrationNumber: identity.registrationNumber,
+          registrationOrganization: identity.organization,
         };
       });
     },
@@ -250,9 +255,13 @@ function validateEligibility(dog: DogData, classReq: ClassRequirements): Eligibi
 
   // Check breed restrictions
   if (classReq.breedRestrictions.length > 0) {
-    const isBreedAllowed = classReq.breedRestrictions.some(br =>
-      dog.breed.toLowerCase().includes(br.toLowerCase())
-    );
+    // An unregistered dog has no breed, so it cannot be shown to satisfy a
+    // breed restriction. Fail closed — the same outcome the old `'Unknown'`
+    // placeholder produced, but without asserting a breed the dog never had.
+    const dogBreed = dog.breed;
+    const isBreedAllowed =
+      dogBreed != null &&
+      classReq.breedRestrictions.some(br => dogBreed.toLowerCase().includes(br.toLowerCase()));
     if (!isBreedAllowed) {
       reasons.push({
         code: 'BREED_RESTRICTED',

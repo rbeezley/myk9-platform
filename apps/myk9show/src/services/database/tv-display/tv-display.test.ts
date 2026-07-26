@@ -43,7 +43,7 @@ const activeEntryRows = [
     dogs: {
       name: 'Luna Star',
       call_name: 'Luna',
-      breed: 'Labrador',
+     
       image_url: null,
     },
   },
@@ -58,7 +58,7 @@ const activeEntryRows = [
     dogs: {
       name: 'Comet Dash',
       call_name: 'Comet',
-      breed: 'Border Collie',
+     
       image_url: null,
     },
   },
@@ -87,7 +87,6 @@ const placementRows = [
     result_status: 'qualified',
     dog_name: 'Luna Star',
     dog_call_name: 'Luna',
-    dog_breed: 'Labrador',
     dog_image_url: null,
   },
   {
@@ -101,7 +100,6 @@ const placementRows = [
     result_status: 'qualified',
     dog_name: 'Comet Dash',
     dog_call_name: 'Comet',
-    dog_breed: 'Border Collie',
     dog_image_url: null,
   },
 ];

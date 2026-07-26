@@ -9,7 +9,11 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
-import { resolveDogIdentity } from '@/features/dogs/identity';
+import {
+  resolveDogIdentityForOrganization,
+  type DogRegistrationLike,
+} from '@/features/dogs/identity';
+import { getTrialRegistry } from '@/features/registries';
 
 // Eligibility result for a single dog/class combination
 export interface EligibilityResult {
@@ -52,6 +56,8 @@ interface ClassRequirements {
   classId: string;
   className: string;
   level: string | null;
+  /** Sanctioning organization of this class's trial registry. */
+  organization: string;
   breedRestrictions: string[];
   minHeightInches: number | null;
   maxHeightInches: number | null;
@@ -66,13 +72,15 @@ interface DogData {
   id: string;
   name: string;
   callName: string | null;
-  /** Null when the dog holds no registration — absence, never a guess. */
-  breed: string | null;
   heightInches: number | null;
   dateOfBirth: string | null;
   titles: string[];
-  registrationNumber: string | null;
-  registrationOrganization: string | null;
+  /**
+   * Raw registrations, NOT a pre-resolved breed/number. Eligibility is judged
+   * per class against that class's sanctioning organization, so resolution has
+   * to happen where the class is known.
+   */
+  registrations: DogRegistrationLike[];
 }
 
 interface UseEntryEligibilityOptions {
@@ -112,7 +120,9 @@ export function useEntryEligibility({
           height_min,
           height_max,
           age_min,
-          age_max
+          age_max,
+          trial_id,
+          trials(registry_id)
         `
         )
         .in('id', classIds);
@@ -126,6 +136,12 @@ export function useEntryEligibility({
         classId: c.id,
         className: c.name || 'Unknown',
         level: c.level,
+        // A show can mix registries across trials. Eligibility must be judged
+        // against THIS class's sanctioning organization, not the dog's primary
+        // registration — otherwise a dog whose primary is UKC gets its UKC breed
+        // checked against an AKC class's restrictions (MYK9-90 review round 2).
+        organization: getTrialRegistry((c.trials as { registry_id?: string | null } | null) ?? null)
+          .id,
         breedRestrictions: c.breed_restrictions || [],
         minHeightInches: c.height_min,
         maxHeightInches: c.height_max,
@@ -164,26 +180,15 @@ export function useEntryEligibility({
         return [];
       }
 
-      return (data || []).map((d): DogData => {
-        // MYK9-90: breed, registration number and organization all come from
-        // the PRIMARY registration. The previous `registrations[0]` pick had no
-        // ordering and no organization scoping, and `breed` was read off
-        // `dogs.breed`. A dog with no registration has no breed — `null`, not
-        // the old `'Unknown'`, which is a value that can silently satisfy or
-        // fail a breed restriction.
-        const identity = resolveDogIdentity(d.registrations);
-        return {
-          id: d.id,
-          name: d.name || 'Unknown',
-          callName: d.call_name,
-          breed: identity.breed,
-          heightInches: d.height ? parseFloat(d.height) : null,
-          dateOfBirth: d.date_of_birth,
-          titles: [], // Not stored in dogs table
-          registrationNumber: identity.registrationNumber,
-          registrationOrganization: identity.organization,
-        };
-      });
+      return (data || []).map((d): DogData => ({
+        id: d.id,
+        name: d.name || 'Unknown',
+        callName: d.call_name,
+        heightInches: d.height ? parseFloat(d.height) : null,
+        dateOfBirth: d.date_of_birth,
+        titles: [], // Not stored in dogs table
+        registrations: (d.registrations ?? []) as DogRegistrationLike[],
+      }));
     },
     enabled: dogIds.length > 0,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -253,12 +258,19 @@ function validateEligibility(dog: DogData, classReq: ClassRequirements): Eligibi
   const reasons: EligibilityReason[] = [];
   const warnings: EligibilityWarning[] = [];
 
+  // Resolve the dog's identity against THIS class's sanctioning organization.
+  // No cross-organization fallback: a UKC breed must not be judged against an
+  // AKC class's restrictions, and holding a registration with some OTHER
+  // organization must not suppress the missing-registration warning for this one.
+  const identity = resolveDogIdentityForOrganization(dog.registrations, classReq.organization);
+
   // Check breed restrictions
   if (classReq.breedRestrictions.length > 0) {
-    // An unregistered dog has no breed, so it cannot be shown to satisfy a
-    // breed restriction. Fail closed — the same outcome the old `'Unknown'`
-    // placeholder produced, but without asserting a breed the dog never had.
-    const dogBreed = dog.breed;
+    // A dog with no registration for this organization has no breed here, so it
+    // cannot be shown to satisfy a restriction. Fail closed — the same outcome
+    // the old `'Unknown'` placeholder produced, but without asserting a breed
+    // the dog never had.
+    const dogBreed = identity.breed;
     const isBreedAllowed =
       dogBreed != null &&
       classReq.breedRestrictions.some(br => dogBreed.toLowerCase().includes(br.toLowerCase()));
@@ -329,11 +341,14 @@ function validateEligibility(dog: DogData, classReq: ClassRequirements): Eligibi
     }
   }
 
-  // Warn if no registration number on file (informational only)
-  if (!dog.registrationNumber) {
+  // Warn if no registration number on file WITH THIS ORGANIZATION (informational
+  // only). Scoped deliberately: a dog registered only with UKC still needs an
+  // AKC number before it can appear on AKC paperwork, so holding some other
+  // organization's registration must not silence this.
+  if (!identity.registrationNumber) {
     warnings.push({
       code: 'MISSING_REGISTRATION_NUMBER',
-      message: 'No registration number on file',
+      message: `No ${classReq.organization} registration number on file`,
       details: 'Consider adding registration for official records',
     });
   }

@@ -3,6 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import type { DogInput } from '@/store/dogStore';
+import { getDogBreedLabel, BREED_NOT_SET } from '@/types/dog-types';
 
 // ── Mocks (hoisted so factories can reference them) ──────────────────────────
 
@@ -17,6 +18,9 @@ const {
   mockDeleteMutateAsync,
   mockCreateReplicatedDogRegistrationsForDog,
   mockCreateLocalReplicatedDogRegistrationsForDog,
+  mockGetDogById,
+  mockGetRegistrationsForDogs,
+  mockUpdateMutateAsync,
 } = vi.hoisted(() => ({
   mockSetReplicatedDog: vi.fn(),
   mockCreateReplicatedDogWithId: vi.fn(),
@@ -28,6 +32,9 @@ const {
   mockDeleteMutateAsync: vi.fn(),
   mockCreateReplicatedDogRegistrationsForDog: vi.fn(),
   mockCreateLocalReplicatedDogRegistrationsForDog: vi.fn(),
+  mockGetDogById: vi.fn(),
+  mockGetRegistrationsForDogs: vi.fn(),
+  mockUpdateMutateAsync: vi.fn(),
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -39,6 +46,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
     getPendingMutationIdsForRow: mockGetPendingDogMutationIdsForRow,
     delete: mockDeleteReplicatedDog,
     get: vi.fn().mockResolvedValue(null),
+    getDogById: mockGetDogById,
     getAll: mockGetAllReplicatedDogs,
   },
 }));
@@ -48,6 +56,7 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
     createRegistrationsForDog: mockCreateReplicatedDogRegistrationsForDog,
     createLocalRegistrationsForDog: mockCreateLocalReplicatedDogRegistrationsForDog,
     toSupabaseRow: (registration: Record<string, unknown>) => registration,
+    getRegistrationsForDogs: mockGetRegistrationsForDogs,
   },
 }));
 
@@ -65,7 +74,7 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
     isPending: false,
     error: null,
   }),
-  useUpdateDogMutation: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
+  useUpdateDogMutation: () => ({ mutateAsync: mockUpdateMutateAsync, isPending: false, error: null }),
   useDeleteDogMutation: () => ({
     mutateAsync: mockDeleteMutateAsync,
     isPending: false,
@@ -422,5 +431,53 @@ describe('useDogStoreCompat.deleteDog — soft-delete + IndexedDB cleanup', () =
     });
 
     expect(mockDeleteReplicatedDog).not.toHaveBeenCalled();
+  });
+});
+
+// MYK9-90 review round 2, finding 3. `updateDog` returns a locally-mapped dog
+// straight to `DogDialogs`, which replaces detail state with it. Because breed
+// is now resolved from `dog_registrations`, mapping a bare replicated row
+// yielded "Breed not set" for a registered dog until the next refetch.
+describe('useDogStoreCompat.updateDog — breed survives the local re-map', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUpdateMutateAsync.mockResolvedValue({});
+    mockGetDogById.mockResolvedValue({
+      id: 'dog-1',
+      name: 'Ziva',
+      callName: 'Ziva',
+      breed: 'Belgian Malinois',
+      ownerId: 'person-1',
+    });
+    mockGetRegistrationsForDogs.mockResolvedValue([
+      {
+        id: 'reg-akc',
+        dog_id: 'dog-1',
+        created_at: '2024-01-01T00:00:00Z',
+        organization: 'AKC',
+        registered_name: 'Ziva of the North',
+        registration_number: 'DN61191906',
+        breed: 'Belgian Malinois',
+      },
+    ]);
+  });
+
+  it('hydrates registrations so the returned dog keeps its breed', async () => {
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
+
+    expect(mockGetRegistrationsForDogs).toHaveBeenCalledWith(['dog-1']);
+    expect(updated?.breed).toBe('Belgian Malinois');
+    expect(getDogBreedLabel(updated!)).toBe('Belgian Malinois');
+  });
+
+  it('reports no breed for a dog that genuinely has no registration', async () => {
+    mockGetRegistrationsForDogs.mockResolvedValue([]);
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
+
+    expect(getDogBreedLabel(updated!)).toBe(BREED_NOT_SET);
   });
 });

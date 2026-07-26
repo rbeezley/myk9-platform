@@ -58,7 +58,9 @@ async function loadShowOrganizationForClass(classId: string): Promise<string | u
 async function loadRegisteredBreedsByDogId(
   dogIds: string[],
   organization: string | undefined
-): Promise<Map<string, string>> {
+): Promise<Map<string, string | null>> {
+  // No organization in context means this is not an organization-scoped render,
+  // so leave the map empty and let the caller's generic fallback answer.
   if (!organization || dogIds.length === 0) return new Map();
 
   const { data, error } = await supabase
@@ -70,7 +72,10 @@ async function loadRegisteredBreedsByDogId(
     .select('dog_id, id, created_at, organization, breed')
     .in('dog_id', dogIds);
 
-  if (error || !data) return new Map();
+  // A failed lookup is NOT permission to borrow another organization's breed
+  // onto this form. Mark every dog explicitly absent so the render is blank
+  // rather than wrong — this output goes on paper.
+  if (error || !data) return new Map(dogIds.map(id => [id, null]));
 
   const byDog = new Map<string, DogRegistrationLike[]>();
   for (const registration of data) {
@@ -80,11 +85,14 @@ async function loadRegisteredBreedsByDogId(
     byDog.set(registration.dog_id, rows);
   }
 
-  const breeds = new Map<string, string>();
-  for (const [dogId, rows] of byDog) {
-    // Organization-scoped paperwork: no cross-organization fallback.
-    const breed = resolveDogIdentityForOrganization(rows, organization).breed;
-    if (breed) breeds.set(dogId, breed);
+  // Every requested dog gets an ENTRY, `null` when it holds no registration
+  // with this organization. An absent map key would let `toScoringEntry` fall
+  // back to `dogs.breed` / the view's `dog_breed`, which is how a UKC-only dog
+  // ended up printing its UKC breed on an AKC scoresheet.
+  const breeds = new Map<string, string | null>();
+  for (const dogId of dogIds) {
+    const rows = byDog.get(dogId) ?? [];
+    breeds.set(dogId, resolveDogIdentityForOrganization(rows, organization).breed);
   }
   return breeds;
 }

@@ -202,6 +202,12 @@ export const mapReplicatedDogToDbRow = (
 /**
  * Convert database dog result to Dog type (for backward compatibility)
  */
+/** Registration rows reach this mapper in snake_case (PostgREST) or camelCase (offline replica). */
+const regCreatedAt = (reg: Record<string, unknown>): string | null =>
+  (reg.created_at as string | null) ?? (reg.createdAt as string | null) ?? null;
+const regIsPrimary = (reg: Record<string, unknown>): boolean | null =>
+  (reg.is_primary as boolean | null) ?? (reg.isPrimary as boolean | null) ?? null;
+
 export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
   const sex = dbDog.sex as 'male' | 'female' | null;
   const dateOfBirth = dbDog.date_of_birth as string | null;
@@ -244,6 +250,13 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
       // Never backfill from `dogs.breed`: that would turn the dog record into a
       // breed claim made to this sanctioning organization.
       breed: (reg.breed as string) || '',
+      // Carry the resolver's ordering fields through the mapping, or anything
+      // that re-resolves from `Dog.registrations` orders by `id` instead and
+      // disagrees with `identity` above. Both casings are accepted because this
+      // list is the MERGE of snake_case PostgREST rows and camelCase rows from
+      // the offline replica (`loadRegistrationsMap`).
+      ...(regCreatedAt(reg) != null ? { createdAt: regCreatedAt(reg) as string } : {}),
+      ...(regIsPrimary(reg) != null ? { isPrimary: regIsPrimary(reg) as boolean } : {}),
       registrationNumber: (reg.registration_number as string) || '',
       status: (reg.status as string) || 'active',
     })),

@@ -44,6 +44,51 @@ export interface DogRegistrationLike {
   id?: string | null;
 }
 
+/**
+ * The same registration as it appears after passing through an app-level mapper,
+ * which renames the columns to camelCase. Kept structural for the same reason as
+ * `DogRegistrationLike`.
+ */
+export interface MappedDogRegistrationLike {
+  organization?: string | null;
+  registrationNumber?: string | null;
+  registeredName?: string | null;
+  breed?: string | null;
+  variety?: string | null;
+  isPrimary?: boolean | null;
+  createdAt?: string | null;
+  id?: string | null;
+}
+
+/**
+ * Accept a registration in either casing and return the snake_case shape the
+ * resolvers compare on.
+ *
+ * This exists because of a real defect (MYK9-90 review round 2): mapped
+ * registrations carry `createdAt` / `isPrimary`, which do not match the
+ * comparator's `created_at` / `is_primary`. Passing them in unnormalized made
+ * the comparator silently fall through to ordering by `id`, so a
+ * multi-registration dog whose earliest registration is not the
+ * lexicographically smallest id resolved to a DIFFERENT registration on mapped
+ * surfaces than on raw ones. Normalizing at the boundary keeps one ordering
+ * rule rather than two.
+ */
+export function toDogRegistrationLike(
+  registration: DogRegistrationLike | MappedDogRegistrationLike
+): DogRegistrationLike {
+  const r = registration as DogRegistrationLike & MappedDogRegistrationLike;
+  return {
+    organization: r.organization ?? null,
+    registration_number: r.registration_number ?? r.registrationNumber ?? null,
+    registered_name: r.registered_name ?? r.registeredName ?? null,
+    breed: r.breed ?? null,
+    variety: r.variety ?? null,
+    is_primary: r.is_primary ?? r.isPrimary ?? null,
+    created_at: r.created_at ?? r.createdAt ?? null,
+    id: r.id ?? null,
+  };
+}
+
 /** Resolved identity. Every field is nullable — absence is a legitimate answer. */
 export interface DogIdentity {
   /** The organization whose registration supplied these values, if any. */
@@ -150,13 +195,14 @@ function compareRegistrations(a: DogRegistrationLike, b: DogRegistrationLike): n
  * same ordering as the generic resolver so the two never disagree.
  */
 export function resolveDogIdentityForOrganization(
-  registrations: readonly DogRegistrationLike[] | null | undefined,
+  registrations: readonly (DogRegistrationLike | MappedDogRegistrationLike)[] | null | undefined,
   organization: string | null | undefined
 ): DogIdentity {
   if (!registrations || registrations.length === 0) return { ...EMPTY_DOG_IDENTITY };
-  const matching = registrations.filter(r => registrationMatchesOrganization(r, organization));
+  const rows = registrations.map(toDogRegistrationLike);
+  const matching = rows.filter(r => registrationMatchesOrganization(r, organization));
   if (matching.length === 0) return { ...EMPTY_DOG_IDENTITY };
-  const [chosen] = [...matching].sort(compareRegistrations);
+  const [chosen] = matching.sort(compareRegistrations);
   return toIdentity(chosen);
 }
 
@@ -167,9 +213,9 @@ export function resolveDogIdentityForOrganization(
  * empty identity when the dog has no registration at all.
  */
 export function resolveDogIdentity(
-  registrations: readonly DogRegistrationLike[] | null | undefined
+  registrations: readonly (DogRegistrationLike | MappedDogRegistrationLike)[] | null | undefined
 ): DogIdentity {
   if (!registrations || registrations.length === 0) return { ...EMPTY_DOG_IDENTITY };
-  const [chosen] = [...registrations].sort(compareRegistrations);
+  const [chosen] = registrations.map(toDogRegistrationLike).sort(compareRegistrations);
   return toIdentity(chosen);
 }

@@ -33,6 +33,32 @@ import { translateDogDbError } from '@/hooks/translateDogDbError';
 import { supabase } from '@/lib/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
+import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
+
+/**
+ * Map a replicated dog to a `Dog`, hydrating its registrations first.
+ *
+ * MYK9-90: breed is resolved from `dog_registrations`, so mapping a dog with no
+ * registrations attached yields "Breed not set". `updateDog` fed the mapper a
+ * bare row and handed the result straight to `DogDialogs`, which flipped a
+ * registered dog's breed label to "Breed not set" until the next refetch.
+ *
+ * The registrations are read from the offline replica, so this stays correct
+ * with no network and adds no PostgREST round-trip.
+ *
+ * NOTE on the alternative: making the mapper treat "registrations key absent"
+ * as "not loaded" and fall back to `dbDog.breed` was rejected. That fallback is
+ * a read of `dogs.breed`, the exact column this change exists to stop reading,
+ * and section 6 drops it — so the branch would silently become a blank anyway.
+ * Hydrating at the caller keeps one meaning for an empty registration list:
+ * the dog genuinely has none.
+ */
+async function mapReplicatedDogWithRegistrations(dog: ReplicatedDog): Promise<Dog> {
+  const registrations = await replicatedDogRegistrationsTable
+    .getRegistrationsForDogs([dog.id])
+    .catch(() => [] as Record<string, unknown>[]);
+  return mapDatabaseToDog(mapReplicatedDogToDbRow(dog, { registrations }));
+}
 
 /**
  * Compatibility hook that provides dogStore-like API using React Query
@@ -133,7 +159,7 @@ export const useDogStoreCompat = () => {
           const existingLoadedDog = dogs.find(dog => dog.id === savedDogId);
 
           if (existingLocalDog) {
-            return mapDatabaseToDog(mapReplicatedDogToDbRow(existingLocalDog));
+            return await mapReplicatedDogWithRegistrations(existingLocalDog);
           }
 
           if (existingLoadedDog) {
@@ -145,7 +171,7 @@ export const useDogStoreCompat = () => {
           });
 
           return {
-            ...mapDatabaseToDog(mapReplicatedDogToDbRow(replicatedDog)),
+            ...(await mapReplicatedDogWithRegistrations(replicatedDog)),
             id: savedDogId,
           };
         }
@@ -155,7 +181,7 @@ export const useDogStoreCompat = () => {
           queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(dbData.owner_id) });
         }
         queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(dogId) });
-        return mapDatabaseToDog(mapReplicatedDogToDbRow(replicatedDog));
+        return await mapReplicatedDogWithRegistrations(replicatedDog);
       }
 
       const result = await runDogMutation(() => createMutation.mutateAsync(dbData));
@@ -195,10 +221,11 @@ export const useDogStoreCompat = () => {
         registrationRows,
         options.dependsOn ? { dependsOn: options.dependsOn } : {}
       );
-      const savedRegistrations = await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
-        savedDog.id,
-        dogData.registrations
-      );
+      const savedRegistrations =
+        await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
+          savedDog.id,
+          dogData.registrations
+        );
       registrations = savedRegistrations.map(registration =>
         replicatedDogRegistrationsTable.toSupabaseRow(registration)
       );
@@ -222,7 +249,7 @@ export const useDogStoreCompat = () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(savedDog.ownerId) });
     }
 
-    return mapDatabaseToDog(mapReplicatedDogToDbRow(savedDog));
+    return await mapReplicatedDogWithRegistrations(savedDog);
   };
 
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {
@@ -238,7 +265,7 @@ export const useDogStoreCompat = () => {
     if (current) {
       const updated = { ...current, ...mapPartialDogInputToReplicated(updates) };
       await replicatedDogsTable.set(id, updated, false);
-      localDog = mapDatabaseToDog(mapReplicatedDogToDbRow(updated));
+      localDog = await mapReplicatedDogWithRegistrations(updated);
     }
 
     // Background Supabase sync — onSuccess invalidates the list query, which refetches from

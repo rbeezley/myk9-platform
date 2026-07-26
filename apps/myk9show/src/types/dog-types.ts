@@ -1,6 +1,10 @@
 // Re-export User type for components that import from dog-types
 export type { User, UserRole, JudgeQualification } from './user-types';
-import { resolveDogIdentity, type DogRegistrationLike } from '@/features/dogs/identity';
+import {
+  resolveDogIdentity,
+  type DogRegistrationLike,
+  type MappedDogRegistrationLike,
+} from '@/features/dogs/identity';
 
 export type DogStatus = 'active' | 'retired' | 'deceased';
 
@@ -69,6 +73,15 @@ export interface Registration {
   registeredName: string;
   breed: string;
   variety?: string;
+  /**
+   * The identity resolver's ordering fields. They must survive mapping: without
+   * them `resolveDogIdentity` cannot tell the primary/earliest registration
+   * from the rest and silently falls back to ordering by `id`, which picks a
+   * different registration — and therefore a different breed — than every
+   * unmapped surface (MYK9-90 review round 2).
+   */
+  createdAt?: string | undefined;
+  isPrimary?: boolean | undefined;
   registrationNumber: string;
   status: 'Active' | 'Expired' | 'Pending' | 'Under review' | string;
   applicationNumber?: string;
@@ -319,7 +332,7 @@ function isMeaningfulBreed(breed: string | null | undefined): breed is string {
  */
 export function getDogBreedLabel(dog: {
   breed?: string | null | undefined;
-  registrations?: readonly DogRegistrationLike[] | null | undefined;
+  registrations?: readonly (DogRegistrationLike | MappedDogRegistrationLike)[] | null | undefined;
 }): string {
   const breed = resolveDogIdentity(dog.registrations).breed;
   return isMeaningfulBreed(breed) ? breed : BREED_NOT_SET;

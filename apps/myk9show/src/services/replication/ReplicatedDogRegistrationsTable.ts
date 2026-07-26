@@ -13,6 +13,15 @@ export interface ReplicatedDogRegistration {
   breed?: string | null;
   status?: string | null;
   verified?: boolean | null;
+  /**
+   * The identity resolver's ordering fields. Locally-cached registrations are
+   * merged with server rows before breed resolution, so dropping these made the
+   * comparator fall back to ordering by `id` for any dog with an offline
+   * registration (MYK9-90 review round 2). `isPrimary` is read-only here until
+   * its migration is pushed — see `toSupabaseRow`.
+   */
+  createdAt?: string | null;
+  isPrimary?: boolean | null;
   _version?: number;
   _lastModified?: Date;
   _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
@@ -104,7 +113,9 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   }
 
   async getPendingMutationIdsForDog(dogId: string): Promise<string[]> {
-    const registrations = (await this.getAll()).filter(registration => registration.dogId === dogId);
+    const registrations = (await this.getAll()).filter(
+      registration => registration.dogId === dogId
+    );
     const pendingIds = await Promise.all(
       registrations.map(registration => this.getPendingMutationIdsForRow(registration.id))
     );
@@ -143,6 +154,10 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       breed: registration.breed ?? null,
       status: registration.status ?? 'pending',
       verified: registration.verified ?? false,
+      // Carried so the merged local+server list keeps the resolver's ordering.
+      // `is_primary` is deliberately NOT written: its migration is unpushed, so
+      // emitting it would fail against the live schema.
+      ...(registration.createdAt != null ? { created_at: registration.createdAt } : {}),
       updated_at: new Date().toISOString(),
     };
   }

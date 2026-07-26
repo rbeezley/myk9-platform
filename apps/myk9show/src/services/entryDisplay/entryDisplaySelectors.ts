@@ -9,7 +9,7 @@
  * See docs/ia-review-entry-status-surfaces.md.
  *
  * The fix is one classifier. Every surface keeps its own wording/voice (the page
- * says "Pending Review", the secretary says "Pending" — intentional), but they
+ * says "Pending Secretary Approval", the secretary says "Pending" — intentional), but they
  * all derive the underlying KIND, removal classification, refund, and section
  * from here, so the same DB row can never land in two different buckets.
  *
@@ -41,6 +41,32 @@ export type EntryStatusKind =
   | 'moved' // source row of a move-up
   | 'move_up_requested' // exhibitor requested a move-up; in the approval queue
   | 'unknown'; // unrecognized — never treated as terminal
+
+/**
+ * Classify the exhibitor-facing state from both lifecycle columns. Show-day
+ * progress is stored in `check_in_status` while the entry remains
+ * `confirmed`, so using only `entry_status` would still fold an in-ring dog
+ * into the accepted/pending projection.
+ */
+export function getEntryStatusKindForDisplay(
+  entryStatus: string | null | undefined,
+  checkInStatus: string | null | undefined
+): EntryStatusKind {
+  const entryKind = getEntryStatusKind(entryStatus);
+  if (
+    entryKind === 'completed' ||
+    entryKind === 'withdrawn' ||
+    entryKind === 'not_accepted' ||
+    entryKind === 'scratched' ||
+    entryKind === 'moved' ||
+    entryKind === 'absent'
+  ) {
+    return entryKind;
+  }
+
+  const checkInKind = getEntryStatusKind(checkInStatus);
+  return checkInKind === 'in_ring' || checkInKind === 'completed' ? checkInKind : entryKind;
+}
 
 /**
  * THE classifier. Maps a raw `entry_status` string (canonical values from

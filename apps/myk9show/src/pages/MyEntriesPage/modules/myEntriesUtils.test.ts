@@ -11,6 +11,65 @@ import {
   normalizeCheckInStatus,
 } from './myEntriesUtils';
 
+describe('getEntryStatusBadge — preserved status kind', () => {
+  it('names the secretary for a genuinely submitted and unreviewed entry', () => {
+    render(
+      React.createElement(
+        React.Fragment,
+        null,
+        getEntryStatusBadge(EntryStatus.PENDING, { statusKind: 'pending' })
+      )
+    );
+
+    expect(screen.getByText('Pending Secretary Approval')).toBeInTheDocument();
+  });
+
+  it.each(['accepted', 'not_accepted'] as const)(
+    'keeps the secretary wording for the %s review-lane override',
+    statusKind => {
+      render(
+        React.createElement(
+          React.Fragment,
+          null,
+          getEntryStatusBadge(EntryStatus.PENDING, { statusKind })
+        )
+      );
+
+      expect(screen.getByText('Pending Secretary Approval')).toBeInTheDocument();
+    }
+  );
+
+  it.each([
+    ['in_ring', 'In Ring'],
+    ['absent', 'Absent'],
+    ['unknown', 'Status unavailable'],
+  ] as const)('does not call a %s entry pending', (statusKind, label) => {
+    render(
+      React.createElement(
+        React.Fragment,
+        null,
+        getEntryStatusBadge(EntryStatus.PENDING, { statusKind })
+      )
+    );
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.queryByText(/pending/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps past pending entries distinct from the active approval queue', () => {
+    render(
+      React.createElement(
+        React.Fragment,
+        null,
+        getEntryStatusBadge(EntryStatus.PENDING, { statusKind: 'pending', isPastShow: true })
+      )
+    );
+
+    expect(screen.getByText('Review incomplete')).toBeInTheDocument();
+    expect(screen.queryByText(/secretary approval/i)).not.toBeInTheDocument();
+  });
+});
+
 describe('formatTrialLabel', () => {
   it('prefixes a bare numeric trial number', () => {
     expect(formatTrialLabel('2')).toBe('Trial 2');

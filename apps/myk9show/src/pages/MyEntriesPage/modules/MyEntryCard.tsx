@@ -102,7 +102,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
       <div className="myk9-entries-card-header">
         <div>
           <div className="myk9-entries-card-title">
-            {getStatusIcon(entry.entryStatus, entry.paymentStatus)}
+            {getStatusIcon(entry.entryStatus, entry.paymentStatus, entry.entryStatusKind)}
             {entry.showName}
           </div>
           <div className="myk9-entries-card-subtitle flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -128,7 +128,10 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           </div>
         </div>
         <div className="myk9-entries-badges">
-          {getEntryStatusBadge(entry.entryStatus, { isPastShow })}
+          {getEntryStatusBadge(entry.entryStatus, {
+            isPastShow,
+            statusKind: entry.entryStatusKind,
+          })}
           {/* Cash/check "pay at show" entries carry their own calm status line
               below — the red "Payment Due" debt chip would contradict it (4.C).
               A raw PENDING paymentStatus with no actionable online balance

@@ -663,9 +663,14 @@ async function handleEntryCheckout(
         console.log(`Expired stale checkout session ${existing.id} (cart ${cart_id} changed)`);
       }
     } catch (err) {
-      // Unknown/foreign session id (e.g. created under the other key mode):
-      // fall through and create a fresh one.
-      console.log(`Could not inspect prior session for cart ${cart_id}:`, err);
+      // A prior session may be open or already paid. Creating another one when
+      // Stripe is unavailable would fail open into a duplicate-payment path.
+      console.error(`Could not safely inspect or expire prior session for cart ${cart_id}:`, err);
+      return corsResponse(
+        corsHeaders,
+        { error: 'We could not safely resume checkout. Please try again in a moment.' },
+        503
+      );
     }
   }
 

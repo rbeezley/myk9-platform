@@ -190,6 +190,6 @@ describe('CheckoutSuccessPage split checkout summary', () => {
     await waitFor(() => expect(screen.getByText('pi_456')).toBeInTheDocument());
     expect(screen.queryByText(/Entry Summary:/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Old Full Class #9/i)).not.toBeInTheDocument();
-    expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toBeNull();
+    expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toContain('split-stale');
   });
 });

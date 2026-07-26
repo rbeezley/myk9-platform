@@ -1,26 +1,22 @@
-/**
- * Checkout Success Page
- *
- * Displayed after successful payment on Stripe.
- * Verifies the checkout session and shows entry confirmation.
- */
+/** Verifies the Stripe return and shows entry confirmation. */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { CheckCircle, AlertCircle, Receipt, Calendar, Dog, ArrowRight } from 'lucide-react';
+import { CheckCircle, Receipt, Calendar, Dog, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
-import { verifyCheckoutSession } from '@/lib/stripe';
+import { type CheckoutVerificationResult } from '@/lib/stripe';
 import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/lib/supabase';
 import {
   type CartSplitCheckoutSummary,
-  clearCartSplitCheckoutSummary,
   consumeCartSplitCheckoutSummary,
 } from '@/features/payments/cartSplitCheckoutStorage';
+import { checkCheckoutSession } from '@/features/payments/checkoutVerification';
+import { CheckoutVerificationIssueCard } from '@/features/payments/CheckoutVerificationIssueCard';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
 
 interface EntryDetails {
@@ -33,6 +29,12 @@ interface EntryDetails {
   armband_number: string | null;
 }
 
+type SuccessfulCheckoutVerification = Extract<CheckoutVerificationResult, { success: true }>;
+type VerificationIssue = Extract<CheckoutVerificationResult, { success: false }>;
+
+const MAX_VERIFICATION_ATTEMPTS = 11;
+const VERIFICATION_POLL_INTERVAL_MS = 2000;
+
 export default function CheckoutSuccessPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -42,8 +44,8 @@ export default function CheckoutSuccessPage() {
   const [splitSummary, setSplitSummary] = useState<CartSplitCheckoutSummary | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [_isVerified, setIsVerified] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [verificationIssue, setVerificationIssue] = useState<VerificationIssue | null>(null);
   const [orderDetails, setOrderDetails] = useState<{
     orderId?: string;
     showName?: string;
@@ -57,90 +59,69 @@ export default function CheckoutSuccessPage() {
   } | null>(null);
   const [entries, setEntries] = useState<EntryDetails[]>([]);
 
-  // Reset cart on successful payment
+  const activeCartId = useCartStore(state => state.cart?.id ?? null);
   const resetCart = useCartStore(state => state.reset);
+  const activeCartIdRef = useRef(activeCartId);
+  const verificationGenerationRef = useRef(0);
+  const manualCheckInFlightRef = useRef(false);
+  activeCartIdRef.current = activeCartId;
 
-  useEffect(() => {
-    const verifyPayment = async () => {
-      if (!sessionId) {
-        const pendingSummary = splitCheckoutId
-          ? consumeCartSplitCheckoutSummary(splitCheckoutId)
-          : null;
-        if (isWaitlistOnly && pendingSummary && pendingSummary.confirmedEntryCount === 0) {
-          setOrderDetails({
-            showId: pendingSummary.showId,
-          });
-          setSplitSummary(pendingSummary);
-          setIsVerified(true);
-          resetCart();
-          setIsLoading(false);
-          return;
-        }
-        clearCartSplitCheckoutSummary();
-        setError('No checkout session found. Please try again.');
-        setIsLoading(false);
-        return;
+  const completeCheckout = useCallback(
+    (result: SuccessfulCheckoutVerification, generation: number) => {
+      if (verificationGenerationRef.current !== generation) return;
+
+      const nextSplitSummary = splitCheckoutId
+        ? consumeCartSplitCheckoutSummary(splitCheckoutId)
+        : null;
+      setOrderDetails({
+        ...(result.orderId !== undefined && { orderId: result.orderId }),
+        ...(result.showName !== undefined && { showName: result.showName }),
+        ...(result.showId !== undefined && { showId: result.showId }),
+        ...(result.totalAmountCents !== undefined && { totalAmountCents: result.totalAmountCents }),
+        ...(result.entryIds !== undefined && { entryIds: result.entryIds }),
+        ...(result.checkoutOutcome !== undefined && {
+          checkoutOutcome: result.checkoutOutcome,
+        }),
+        ...(result.refundAmount !== undefined && { refundAmount: result.refundAmount }),
+        ...(result.refundStatus !== undefined && { refundStatus: result.refundStatus }),
+        ...(result.confirmationNumber !== undefined && {
+          confirmationNumber: result.confirmationNumber,
+        }),
+      });
+      if (
+        nextSplitSummary &&
+        nextSplitSummary.showId === result.showId &&
+        nextSplitSummary.confirmedEntryCount === (result.entryIds?.length ?? 0)
+      ) {
+        setSplitSummary(nextSplitSummary);
+      } else {
+        setSplitSummary(null);
       }
 
-      // Poll for order completion (webhook may have slight delay)
-      let attempts = 0;
-      const maxAttempts = 10;
-      const pollInterval = 2000; // 2 seconds
+      setVerificationIssue(null);
+      setIsLoading(false);
+      const currentCartId = activeCartIdRef.current;
+      if (!currentCartId || (result.cartId && currentCartId === result.cartId)) {
+        resetCart();
+      }
 
-      const poll = async (): Promise<boolean> => {
-        const result = await verifyCheckoutSession(sessionId);
-
-        if (result.success) {
-          const nextSplitSummary = splitCheckoutId
-            ? consumeCartSplitCheckoutSummary(splitCheckoutId)
-            : null;
-          setOrderDetails({
-            ...(result.orderId !== undefined && { orderId: result.orderId }),
-            ...(result.showName !== undefined && { showName: result.showName }),
-            ...(result.showId !== undefined && { showId: result.showId }),
-            ...(result.totalAmountCents !== undefined && { totalAmountCents: result.totalAmountCents }),
-            ...(result.entryIds !== undefined && { entryIds: result.entryIds }),
-            ...(result.checkoutOutcome !== undefined && {
-              checkoutOutcome: result.checkoutOutcome,
-            }),
-            ...(result.refundAmount !== undefined && { refundAmount: result.refundAmount }),
-            ...(result.refundStatus !== undefined && { refundStatus: result.refundStatus }),
-            ...(result.confirmationNumber !== undefined && {
-              confirmationNumber: result.confirmationNumber,
-            }),
-          });
-          if (
-            nextSplitSummary &&
-            nextSplitSummary.showId === result.showId &&
-            nextSplitSummary.confirmedEntryCount === (result.entryIds?.length ?? 0)
-          ) {
-            setSplitSummary(nextSplitSummary);
-          } else {
-            clearCartSplitCheckoutSummary();
-            setSplitSummary(null);
-          }
-          setIsVerified(true);
-
-          // Fetch entry details
-          if (result.entryIds && result.entryIds.length > 0) {
+      if (result.entryIds && result.entryIds.length > 0) {
+        const entryIds = result.entryIds;
+        void (async () => {
+          try {
             const { data } = await supabase
               .from('entries')
               .select(
                 `
-                id,
-                armband,
-                dogs:dog_id (name, call_name),
-                classes:class_id (name, level)
-              `
+                  id,
+                  armband,
+                  dogs:dog_id (name, call_name),
+                  classes:class_id (name, level)
+                `
               )
-              .in('id', result.entryIds);
+              .in('id', entryIds);
 
-            if (data) {
-              // Armbands are claimed at registration and denormalized onto the
-              // entry row, so read the already-assigned number straight from this
-              // authoritative DB query rather than telling the exhibitor it
-              // happens later. (A replication-cache read could be stale on the
-              // Stripe return and falsely report "not yet assigned".)
+            if (data && verificationGenerationRef.current === generation) {
               setEntries(
                 data.map(e => ({
                   id: e.id,
@@ -154,47 +135,107 @@ export default function CheckoutSuccessPage() {
                 }))
               );
             }
+          } catch {
+            // Payment confirmation is authoritative; entry details are optional.
           }
+        })();
+      }
+    },
+    [resetCart, splitCheckoutId]
+  );
 
-          // Clear the cart since payment succeeded
+  useLayoutEffect(() => {
+    const generation = verificationGenerationRef.current + 1;
+    verificationGenerationRef.current = generation;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    setIsLoading(true);
+    setIsCheckingStatus(false);
+    setVerificationIssue(null);
+    setOrderDetails(null);
+    setEntries([]);
+    setSplitSummary(null);
+
+    const verifyPayment = async () => {
+      if (!sessionId) {
+        const pendingSummary = splitCheckoutId
+          ? consumeCartSplitCheckoutSummary(splitCheckoutId)
+          : null;
+        if (isWaitlistOnly && pendingSummary && pendingSummary.confirmedEntryCount === 0) {
+          setOrderDetails({
+            showId: pendingSummary.showId,
+          });
+          setSplitSummary(pendingSummary);
           resetCart();
-
-          return true;
+          setIsLoading(false);
+          return;
         }
-
-        return false;
-      };
-
-      // Initial check
-      if (await poll()) {
+        setVerificationIssue({
+          success: false,
+          verificationStatus: 'unavailable',
+          error: isWaitlistOnly
+            ? 'We could not show your wait list confirmation. No payment was submitted.'
+            : 'No checkout session was found, so we could not confirm this payment.',
+        });
         setIsLoading(false);
         return;
       }
 
-      // Poll with retries
-      const intervalId = setInterval(async () => {
-        attempts++;
+      // Stripe can redirect before the webhook-created order is visible. Poll
+      // sequentially so slow checks never overlap, then land in a stable state.
+      for (let attempt = 1; attempt <= MAX_VERIFICATION_ATTEMPTS; attempt += 1) {
+        const result = await checkCheckoutSession(sessionId);
+        if (verificationGenerationRef.current !== generation) return;
 
-        if (await poll()) {
-          clearInterval(intervalId);
+        if (result.success) {
+          completeCheckout(result, generation);
+          return;
+        }
+
+        if (result.verificationStatus !== 'processing' || attempt === MAX_VERIFICATION_ATTEMPTS) {
+          setVerificationIssue(result);
           setIsLoading(false);
           return;
         }
 
-        if (attempts >= maxAttempts) {
-          clearInterval(intervalId);
-          setError(
-            'Payment verification is taking longer than expected. Your payment was likely successful - please check your email for confirmation or contact support.'
-          );
-          setIsLoading(false);
-        }
-      }, pollInterval);
-
-      return () => clearInterval(intervalId);
+        await new Promise<void>(resolve => {
+          timeoutId = setTimeout(resolve, VERIFICATION_POLL_INTERVAL_MS);
+        });
+      }
     };
 
-    verifyPayment();
-  }, [isWaitlistOnly, resetCart, sessionId, splitCheckoutId]);
+    void verifyPayment();
+
+    return () => {
+      if (verificationGenerationRef.current === generation) {
+        verificationGenerationRef.current += 1;
+      }
+      manualCheckInFlightRef.current = false;
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    };
+  }, [completeCheckout, isWaitlistOnly, resetCart, sessionId, splitCheckoutId]);
+
+  const handleCheckPaymentStatus = async () => {
+    if (!sessionId || manualCheckInFlightRef.current) return;
+
+    manualCheckInFlightRef.current = true;
+    const generation = verificationGenerationRef.current;
+    setIsCheckingStatus(true);
+
+    try {
+      const result = await checkCheckoutSession(sessionId);
+      if (verificationGenerationRef.current !== generation) return;
+      if (result.success) {
+        completeCheckout(result, generation);
+      } else {
+        setVerificationIssue(result);
+      }
+    } finally {
+      if (verificationGenerationRef.current === generation) {
+        manualCheckInFlightRef.current = false;
+        setIsCheckingStatus(false);
+      }
+    }
+  };
 
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
@@ -215,7 +256,6 @@ export default function CheckoutSuccessPage() {
       ? 'The remaining spots filled before your paid entries could be created.'
       : 'Your payment has been processed and your entries are confirmed.';
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="bg-background pt-6">
@@ -232,32 +272,28 @@ export default function CheckoutSuccessPage() {
     );
   }
 
-  // Error state
-  if (error) {
+  if (verificationIssue) {
     return (
-      <div className="bg-background pt-6">
-        <div className="max-w-2xl mx-auto px-4 py-16">
-          <Card>
-            <CardContent className="py-16 text-center">
-              <div className="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="h-8 w-8 text-warning " />
-              </div>
-              <h2 className="text-xl font-semibold mb-2">Verification Pending</h2>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">{error}</p>
-              <div className="flex gap-3 justify-center">
-                <Button variant="outline" onClick={() => navigate('/shows')}>
-                  Browse Shows
-                </Button>
-                <Button onClick={() => window.location.reload()}>Retry Verification</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <CheckoutVerificationIssueCard
+        issue={verificationIssue}
+        {...(isWaitlistOnly &&
+          !sessionId && { titleOverride: 'Wait List Confirmation Unavailable' })}
+        canCheckStatus={
+          Boolean(sessionId) &&
+          (verificationIssue.verificationStatus === 'processing' ||
+            verificationIssue.verificationStatus === 'unavailable')
+        }
+        isCheckingStatus={isCheckingStatus}
+        warnAgainstNewPayment={
+          Boolean(sessionId) &&
+          (verificationIssue.verificationStatus === 'processing' ||
+            verificationIssue.verificationStatus === 'unavailable')
+        }
+        onCheckStatus={handleCheckPaymentStatus}
+      />
     );
   }
 
-  // Success state
   return (
     <div className="bg-background pt-6">
       <div className="max-w-2xl mx-auto px-4 py-16">
@@ -295,7 +331,9 @@ export default function CheckoutSuccessPage() {
                   <div className="flex justify-between items-center">
                     <span>Order Total</span>
                     <span className="font-semibold">
-                      {orderDetails.totalAmountCents ? formatCurrency(orderDetails.totalAmountCents) : '—'}
+                      {orderDetails.totalAmountCents
+                        ? formatCurrency(orderDetails.totalAmountCents)
+                        : '—'}
                     </span>
                   </div>
                 </AlertDescription>

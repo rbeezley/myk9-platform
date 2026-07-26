@@ -53,14 +53,14 @@ export function consumeCartSplitCheckoutSummary(
 ): CartSplitCheckoutSummary | null {
   const summary = readStoredCartSplitCheckoutSummary();
 
+  if (!summary || summary.correlationId !== correlationId) {
+    return null;
+  }
+
   try {
     sessionStorage.removeItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT);
   } catch {
     // sessionStorage can be unavailable in some browser contexts.
-  }
-
-  if (!summary || summary.correlationId !== correlationId) {
-    return null;
   }
 
   return summary;

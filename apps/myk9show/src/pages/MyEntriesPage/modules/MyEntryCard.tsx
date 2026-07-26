@@ -7,7 +7,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { PaymentStatus } from '@/types/show-registration-types';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import {
   Calendar,
@@ -18,27 +18,14 @@ import {
   ClipboardCheck,
   Wallet,
 } from 'lucide-react';
-import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { type ResultCardModel } from '@/features/result-card';
-import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
-import {
-  buildOrderPaymentHref,
-  getOrderOnlinePrompt,
-  getOrderPayAtShowPrompt,
-} from './myEntryOrderBalance';
 import type { MyEntry, EntryClass } from './my-entries-types';
-import {
-  getEntryStatusBadge,
-  getPaymentStatusBadge,
-  getStatusIcon,
-  getContextualStatusMessage,
-} from './myEntriesUtils';
-import { isPastShowEntry } from './myEntriesStats.helpers';
+import { getEntryStatusBadge, getPaymentStatusBadge, getStatusIcon } from './myEntriesUtils';
 import { formatEntryDate, formatShortDate } from '@/lib/format/dates';
-import { deriveEntryNextAction, hasPaymentEligibleClass } from './entryNextAction';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
 import { MyEntryCardDetails } from './MyEntryCardDetails';
-import { findOwningDog, toDogEntryView } from './myEntryDogView';
+import { toDogEntryView } from './myEntryDogView';
+import { deriveMyEntryCardState } from './myEntryCardState';
 
 interface MyEntryCardProps {
   entry: MyEntry;
@@ -77,100 +64,28 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
   // effect involved.
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const detailsId = `entry-details-${entry.id}`;
-  const statusMessage = getContextualStatusMessage(
-    entry,
-    formatDistanceToNow,
-    format,
-    isToday,
-    isTomorrow,
-    differenceInDays
-  );
-  const isPastShow = isPastShowEntry(entry, new Date(currentTime));
-  // null when no online cart can be built safely (unresolved show, or nothing
-  // online-payable to recover) — the Finish Payment action is suppressed rather
-  // than pointing at a cart that would charge the wrong rows.
-  const paymentHref = buildOrderPaymentHref(entry);
-
-  const isPaid =
-    entry.paymentStatus === PaymentStatus.PAID_ONLINE ||
-    entry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
-    entry.paymentStatus === PaymentStatus.PAID_BY_CASH;
-
-  const isPastEntryDeadline = entry.entryCloseDate
-    ? entry.entryCloseDate.getTime() < currentTime
-    : false;
-  const hasEditableStatus =
-    entry.entryStatus === EntryStatus.PENDING || entry.entryStatus === EntryStatus.ACCEPTED;
-  const canEdit = hasEditableStatus && !isPastEntryDeadline;
-  const canRequestPostDeadlineHelp = hasEditableStatus && isPastEntryDeadline;
-
-  // Terminal statuses have no active workflow — "Confirmation # Pending" reads as
-  // a contradictory status label next to Withdrawn/Refunded badges (P1-04w-1).
-  const isTerminalStatus =
-    entry.entryStatus === EntryStatus.CANCELLED ||
-    entry.entryStatus === EntryStatus.SCRATCHED ||
-    entry.entryStatus === EntryStatus.REJECTED ||
-    entry.entryStatus === EntryStatus.MOVED ||
-    entry.entryStatus === EntryStatus.COMPLETED;
-
-  // Run order link: show once the secretary has assigned run orders (at least one
-  // class has a run_order number) and the exhibitor has a confirmed spot.
-  const hasRunOrder = entry.classes.some(cls => cls.runOrder != null);
-  const canViewRunOrder =
-    !isPastShow &&
-    hasRunOrder &&
-    (entry.entryStatus === EntryStatus.ACCEPTED ||
-      entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED);
-
-  const canShowReceipt = entry.confirmationNumber && isPaid;
-  // Secretary-approval reassurance line — only while the badge itself reads
-  // "Pending Review" (never for a past/unresolved history card,
-  // which uses "Review incomplete" wording instead).
-  const isPendingReview = entry.entryStatus === EntryStatus.PENDING && !isPastShow;
-  const nextAction = deriveEntryNextAction(entry, {
-    now: new Date(currentTime),
-    selfCheckinByClassId,
-  });
-  const nextActionClass =
-    nextAction.kind === 'check-in'
-      ? entry.classes.find(cls => cls.id === nextAction.classId)
-      : undefined;
-  // Scope the check-in click to the dog that actually owns this class — an
-  // order can span several dogs, and the check-in dialog must show the right
-  // dog's name/armband, not just the order's lead dog.
-  const nextActionDog = nextActionClass ? findOwningDog(entry, nextActionClass.id) : undefined;
-  const isMultiDogOrder = entry.dogs.length > 1;
-  // Payment eligibility is intentionally split from edit eligibility: a
-  // move-up request is a confirmed entry that can still owe its fee even though
-  // it isn't editable while awaiting secretary approval. Waitlisted entries stay
-  // out — they pay on promotion, not before.
-  // Derived per class ROW (shared with deriveEntryNextAction), not the order's
-  // dominant entryStatus — a COMPLETED sibling can otherwise mask a still-owed
-  // accepted/pending row and silently drop its payment prompt.
-  const canPayStatus = hasPaymentEligibleClass(entry);
-  // "Finish Payment" is an ONLINE action — cash/check exhibitors chose to pay at
-  // the show and must see a calm status, not a debt CTA (4.C). No payment prompt
-  // at all unless the entry status is one that can still owe its fee.
-  // Amount, status and method all come from the ROW-level order balance, so a
-  // mixed paid/pending order can never claim "Paid" while the page summary
-  // shows money due (exhibitor-money-clarity).
-  // An order can owe BOTH ways at once (one class online, another cash), so the
-  // two prompts are independent and each quotes only its own portion. Merging
-  // them told a mixed-method exhibitor to bring the online balance in cash.
-  const onlinePrompt = canPayStatus ? getOrderOnlinePrompt(entry) : ({ kind: 'none' } as const);
-  const payAtShowPrompt = canPayStatus
-    ? getOrderPayAtShowPrompt(entry)
-    : ({ kind: 'none' } as const);
-
+  const {
+    statusMessage,
+    isPastShow,
+    paymentHref,
+    canEdit,
+    canRequestPostDeadlineHelp,
+    isTerminalStatus,
+    canViewRunOrder,
+    canShowReceipt,
+    isPendingReview,
+    nextAction,
+    nextActionClass,
+    nextActionDog,
+    isMultiDogOrder,
+    onlinePrompt,
+    payAtShowPrompt,
+    mapAddress,
+    directionsUrl,
+  } = deriveMyEntryCardState(entry, new Date(currentTime), selfCheckinByClassId);
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.
   // Falls back to a non-interactive row when no address parts are available.
-  const mapAddress = formatVenueAddress([
-    entry.location.venue,
-    entry.location.city,
-    entry.location.state,
-  ]);
-  const directionsUrl = mapAddress ? buildVenueMapsUrls(mapAddress).directionsUrl : null;
   const locationContent = (
     <>
       <MapPin className="h-4 w-4" />

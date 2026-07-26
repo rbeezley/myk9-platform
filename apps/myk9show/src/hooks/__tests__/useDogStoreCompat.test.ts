@@ -729,6 +729,38 @@ describe('useDogStoreCompat.updateDog — one normalized value reaches both dest
     expect(db?.deceased).toBe(false);
   });
 
+  it('drops a stale deceased date when the status moves off deceased', async () => {
+    // The realistic shape of this edit, and the one the first retire test missed
+    // by omitting the date: `mapDogToDogInput` carries `deceasedDate` alongside
+    // `status`, so `UserDetailsTabs` sends BOTH — the old date rides along with
+    // the new status. Passing it through would store `deceased: false` next to a
+    // populated `deceased_date`: a row contradicting itself, on both paths.
+    mockGetReplicatedDogById.mockResolvedValue({
+      id: 'dog-123',
+      name: 'Biscuit',
+      callName: 'Biscuit',
+      breed: 'Beagle',
+      ownerId: 'person-123',
+      status: 'deceased',
+      deceasedDate: '2026-07-01',
+    });
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await result.current.updateDog('dog-123', {
+        status: 'retired',
+        deceasedDate: '2026-07-01',
+      });
+    });
+
+    const { local, db } = bothDestinations();
+
+    expect(db?.deceased).toBe(false);
+    expect(db?.deceased_date).toBeNull();
+    expect(local?.deceasedDate).toBeUndefined();
+  });
+
   it('treats a 0 measurement as cleared on both destinations', async () => {
     // Seed real values so "cleared" is observable in the merged local row rather
     // than indistinguishable from a field that was never there.

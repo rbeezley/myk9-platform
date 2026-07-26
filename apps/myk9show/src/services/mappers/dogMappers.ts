@@ -11,6 +11,7 @@ import { resolveDogIdentity, type DogRegistrationLike } from '@/features/dogs/id
 // every mapper, in one module, so two mappers cannot state them differently.
 import {
   DEFAULT_DOG_STATUS,
+  deceasedDateForReplicated,
   deriveDeceasedColumns,
   emptyToNull,
   measurementForWrite,
@@ -362,7 +363,7 @@ export const mapDogInputToReplicated = (input: DogInput, id: string): Replicated
     // Same default as `mapDogInputToInsert`, so a dog created offline reads back
     // with the status it will have once the queued insert lands.
     status: input.status || DEFAULT_DOG_STATUS,
-    deceasedDate: input.deceasedDate || undefined,
+    deceasedDate: deceasedDateForReplicated(input.status || DEFAULT_DOG_STATUS, input.deceasedDate),
   };
 };
 
@@ -408,7 +409,7 @@ export const mapPartialDogInputToReplicated = (
   // round-trips that gap back to the server as `deceased_date: null`.
   if (updates.status !== undefined) {
     partial.status = updates.status;
-    partial.deceasedDate = updates.deceasedDate || undefined;
+    partial.deceasedDate = deceasedDateForReplicated(updates.status, updates.deceasedDate);
   }
   return partial;
 };

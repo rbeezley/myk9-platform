@@ -209,10 +209,10 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
     });
 
     // Retiring the dog clears the date and the flag together, so the rebuilt
-    // payload can never say "not deceased" while carrying a deceased date.
-    expect(
-      table.publicRebuildUpdatePayload({ ...domain, status: 'retired', deceasedDate: undefined })
-    ).toMatchObject({
+    // payload can never say "not deceased" while carrying a deceased date —
+    // including when the cached row still HOLDS the date, which is the case a
+    // queued offline mutation actually replays.
+    expect(table.publicRebuildUpdatePayload({ ...domain, status: 'retired' })).toMatchObject({
       status: 'retired',
       deceased: false,
       deceased_date: null,

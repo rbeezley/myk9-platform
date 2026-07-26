@@ -106,11 +106,31 @@ export const DEFAULT_DOG_STATUS: DogStatus = 'active';
  * rule in one function is what stops those two paths from writing different
  * things; the pair of "must stay in lockstep" comments this replaced could only
  * ask.
+ *
+ * The date is dropped for any non-deceased status rather than passed through.
+ * That is not defensive tidying — it is the reachable case: `mapDogToDogInput`
+ * carries `deceasedDate` alongside `status`, so a `UserDetailsTabs` edit moving
+ * a dog from deceased back to retired arrives here with the old date still
+ * attached, and passing it through would store `deceased: false` next to a
+ * populated `deceased_date` on every write path at once.
  */
 export const deriveDeceasedColumns = (
   status: string,
   deceasedDate: string | null | undefined
-): { deceased: boolean; deceased_date: string | null } => ({
-  deceased: status === 'deceased',
-  deceased_date: deceasedDate || null,
-});
+): { deceased: boolean; deceased_date: string | null } => {
+  const deceased = status === 'deceased';
+  return { deceased, deceased_date: deceased ? deceasedDate || null : null };
+};
+
+/**
+ * The IndexedDB statement of the rule above: same "only a deceased dog has a
+ * deceased date" decision, expressed in `ReplicatedDog`'s vocabulary where
+ * absent is `undefined` rather than `null`. Sharing the decision (not just the
+ * shape) is what keeps the local row from holding a date the server just
+ * cleared.
+ */
+export const deceasedDateForReplicated = (
+  status: string | undefined,
+  deceasedDate: string | null | undefined
+): string | undefined =>
+  deriveDeceasedColumns(status ?? '', deceasedDate).deceased_date ?? undefined;

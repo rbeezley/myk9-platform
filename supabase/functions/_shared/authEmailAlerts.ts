@@ -9,19 +9,14 @@ export interface AuthEmailFailureAlertInput {
 }
 
 export interface AuthEmailFailureAlert {
-  source: 'send-auth-email';
+  source: 'send-auth-email' | 'resend-webhook';
   severity: 'error';
   title: string;
-  detail: {
-    email_action_type: AuthEmailFailureAlertInput['actionType'];
-    failure_category: AuthEmailFailureCategory;
-    recipient_email: string;
-    error: string;
-  };
+  detail: Record<string, string>;
   dedupe_key: string;
 }
 
-interface AuthEmailFailureAlertClient {
+interface AuthEmailAlertClient {
   from(table: string): {
     insert(
       value: AuthEmailFailureAlert
@@ -55,10 +50,50 @@ export function buildAuthEmailFailureAlert(
 }
 
 export async function persistAuthEmailFailureAlert(
-  client: AuthEmailFailureAlertClient,
+  client: AuthEmailAlertClient,
   input: AuthEmailFailureAlertInput
 ): Promise<void> {
-  const { error } = await client.from('operator_alerts').insert(buildAuthEmailFailureAlert(input));
+  await persistAlert(client, buildAuthEmailFailureAlert(input));
+}
+
+export interface AuthEmailDeliveryFailureAlertInput {
+  emailType: 'auth_confirmation' | 'password_reset';
+  recipientEmail: string;
+  status: 'bounced' | 'complained';
+  errorMessage: string;
+}
+
+export function buildAuthEmailDeliveryFailureAlert(
+  input: AuthEmailDeliveryFailureAlertInput
+): AuthEmailFailureAlert {
+  const emailLabel = input.emailType === 'password_reset' ? 'Password reset' : 'Auth confirmation';
+
+  return {
+    source: 'resend-webhook',
+    severity: 'error',
+    title: `${emailLabel} email ${input.status}`,
+    detail: {
+      email_type: input.emailType,
+      delivery_status: input.status,
+      recipient_email: maskEmail(input.recipientEmail),
+      error: truncate(redactEmails(input.errorMessage)),
+    },
+    dedupe_key: `auth-email-delivery:${input.emailType}:${input.status}`,
+  };
+}
+
+export async function persistAuthEmailDeliveryFailureAlert(
+  client: AuthEmailAlertClient,
+  input: AuthEmailDeliveryFailureAlertInput
+): Promise<void> {
+  await persistAlert(client, buildAuthEmailDeliveryFailureAlert(input));
+}
+
+async function persistAlert(
+  client: AuthEmailAlertClient,
+  alert: AuthEmailFailureAlert
+): Promise<void> {
+  const { error } = await client.from('operator_alerts').insert(alert);
   if (error && error.code !== '23505') {
     throw new Error(error.message ?? 'operator_alerts insert failed');
   }

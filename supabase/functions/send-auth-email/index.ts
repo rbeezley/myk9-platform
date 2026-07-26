@@ -11,7 +11,10 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { verifyStandardWebhookSignature } from '../_shared/standardWebhookSignature.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
-import { persistAuthEmailFailureAlert, type AuthEmailFailureCategory } from './authEmailFailure.ts';
+import {
+  persistAuthEmailFailureAlert,
+  type AuthEmailFailureCategory,
+} from '../_shared/authEmailAlerts.ts';
 
 const siteUrl = Deno.env.get('SITE_URL') || 'http://localhost:5173';
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';

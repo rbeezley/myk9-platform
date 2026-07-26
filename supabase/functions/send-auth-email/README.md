@@ -29,3 +29,7 @@ Then configure as Auth Hook in Supabase Dashboard → Authentication → Hooks �
 Any failed send also creates a deduplicated `operator_alerts` row for the site-admin
 System Health board. The recipient is masked in the alert detail; the full address
 remains available only in the service-role `email_log` record.
+
+Failures rejected by Supabase Auth before this hook executes are reported by the
+frontend's Sentry integration. Later auth-email bounces and complaints are surfaced
+by `resend-webhook` on the same System Health board.

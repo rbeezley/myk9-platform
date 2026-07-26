@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  buildAuthEmailDeliveryFailureAlert,
   buildAuthEmailFailureAlert,
+  persistAuthEmailDeliveryFailureAlert,
   persistAuthEmailFailureAlert,
-} from '../send-auth-email/authEmailFailure.ts';
+} from './authEmailAlerts.ts';
 
 describe('buildAuthEmailFailureAlert', () => {
   it('creates a deduplicated operator alert without storing the full recipient address', () => {
@@ -79,5 +81,51 @@ describe('buildAuthEmailFailureAlert', () => {
         }
       )
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('auth-email delivery failure alerts', () => {
+  it('builds a masked alert for a bounced confirmation email', () => {
+    expect(
+      buildAuthEmailDeliveryFailureAlert({
+        emailType: 'auth_confirmation',
+        recipientEmail: 'alexandra@example.com',
+        status: 'bounced',
+        errorMessage: 'Mailbox rejected alexandra@example.com',
+      })
+    ).toEqual({
+      source: 'resend-webhook',
+      severity: 'error',
+      title: 'Auth confirmation email bounced',
+      detail: {
+        email_type: 'auth_confirmation',
+        delivery_status: 'bounced',
+        recipient_email: 'a***@example.com',
+        error: 'Mailbox rejected [redacted]',
+      },
+      dedupe_key: 'auth-email-delivery:auth_confirmation:bounced',
+    });
+  });
+
+  it('persists a complaint alert on the operator board', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    const from = vi.fn(() => ({ insert }));
+
+    await persistAuthEmailDeliveryFailureAlert(
+      { from },
+      {
+        emailType: 'password_reset',
+        recipientEmail: 'alexandra@example.com',
+        status: 'complained',
+        errorMessage: 'Recipient complaint reported by Resend',
+      }
+    );
+
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'resend-webhook',
+        dedupe_key: 'auth-email-delivery:password_reset:complained',
+      })
+    );
   });
 });

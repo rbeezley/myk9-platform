@@ -2,6 +2,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { verifyStandardWebhookSignature } from '../_shared/standardWebhookSignature.ts';
+import { persistAuthEmailDeliveryFailureAlert } from '../_shared/authEmailAlerts.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -61,12 +62,14 @@ async function handleEvent(event: {
   const errorMessage =
     event.type === 'email.bounced'
       ? `${event.data.bounce_type || 'unknown'}: ${event.data.error?.message || ''}`
-      : undefined;
+      : event.type === 'email.complained'
+        ? 'Recipient complaint reported by Resend'
+        : undefined;
 
   // Only update if the status would actually change (idempotent)
   const { data: existing } = await supabase
     .from('email_log')
-    .select('status')
+    .select('status, recipient_email, email_type')
     .eq('resend_message_id', event.data.email_id)
     .maybeSingle();
 
@@ -86,6 +89,24 @@ async function handleEvent(event: {
 
   if (error) {
     console.error('Failed to update email_log:', error);
+    return new Response('OK', { status: 200 });
+  }
+
+  if (
+    existing &&
+    (existing.email_type === 'auth_confirmation' || existing.email_type === 'password_reset') &&
+    (newStatus === 'bounced' || newStatus === 'complained')
+  ) {
+    try {
+      await persistAuthEmailDeliveryFailureAlert(supabase, {
+        emailType: existing.email_type,
+        recipientEmail: existing.recipient_email,
+        status: newStatus,
+        errorMessage: errorMessage ?? `Auth email ${newStatus}`,
+      });
+    } catch (alertError) {
+      console.error('Failed to write auth email delivery alert:', alertError);
+    }
   }
 
   return new Response('OK', { status: 200 });

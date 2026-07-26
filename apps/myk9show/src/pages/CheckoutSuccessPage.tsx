@@ -15,7 +15,10 @@ import {
   type CartSplitCheckoutSummary,
   readCartSplitCheckoutSummary,
 } from '@/features/payments/cartSplitCheckoutStorage';
-import { checkCheckoutSession } from '@/features/payments/checkoutVerification';
+import {
+  checkCheckoutSession,
+  pollCheckoutSession,
+} from '@/features/payments/checkoutVerification';
 import { CheckoutVerificationIssueCard } from '@/features/payments/CheckoutVerificationIssueCard';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
 
@@ -31,9 +34,6 @@ interface EntryDetails {
 
 type SuccessfulCheckoutVerification = Extract<CheckoutVerificationResult, { success: true }>;
 type VerificationIssue = Extract<CheckoutVerificationResult, { success: false }>;
-
-const MAX_VERIFICATION_ATTEMPTS = 11;
-const VERIFICATION_POLL_INTERVAL_MS = 2000;
 
 export default function CheckoutSuccessPage() {
   const [searchParams] = useSearchParams();
@@ -147,7 +147,7 @@ export default function CheckoutSuccessPage() {
   useLayoutEffect(() => {
     const generation = verificationGenerationRef.current + 1;
     verificationGenerationRef.current = generation;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const abortController = new AbortController();
     setIsLoading(true);
     setIsCheckingStatus(false);
     setVerificationIssue(null);
@@ -180,26 +180,13 @@ export default function CheckoutSuccessPage() {
         return;
       }
 
-      // Stripe can redirect before the webhook-created order is visible. Poll
-      // sequentially so slow checks never overlap, then land in a stable state.
-      for (let attempt = 1; attempt <= MAX_VERIFICATION_ATTEMPTS; attempt += 1) {
-        const result = await checkCheckoutSession(sessionId);
-        if (verificationGenerationRef.current !== generation) return;
-
-        if (result.success) {
-          completeCheckout(result, generation);
-          return;
-        }
-
-        if (result.verificationStatus !== 'processing' || attempt === MAX_VERIFICATION_ATTEMPTS) {
-          setVerificationIssue(result);
-          setIsLoading(false);
-          return;
-        }
-
-        await new Promise<void>(resolve => {
-          timeoutId = setTimeout(resolve, VERIFICATION_POLL_INTERVAL_MS);
-        });
+      const result = await pollCheckoutSession(sessionId, abortController.signal);
+      if (!result || verificationGenerationRef.current !== generation) return;
+      if (result.success) {
+        completeCheckout(result, generation);
+      } else {
+        setVerificationIssue(result);
+        setIsLoading(false);
       }
     };
 
@@ -210,7 +197,7 @@ export default function CheckoutSuccessPage() {
         verificationGenerationRef.current += 1;
       }
       manualCheckInFlightRef.current = false;
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      abortController.abort();
     };
   }, [completeCheckout, isWaitlistOnly, resetCart, sessionId, splitCheckoutId]);
 
@@ -263,8 +250,8 @@ export default function CheckoutSuccessPage() {
           <Card role="status" aria-label="Verifying payment">
             <CardContent className="py-16 text-center">
               <Skeleton className="mx-auto mb-4 h-12 w-12 rounded-full" />
-              <Skeleton className="mx-auto mb-3 h-6 w-56" />
-              <Skeleton className="mx-auto h-4 w-80 max-w-full" />
+              <p className="font-medium">Checking your payment status</p>
+              <p className="mt-2 text-sm text-muted-foreground">This can take up to 30 seconds.</p>
             </CardContent>
           </Card>
         </div>

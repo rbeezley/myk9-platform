@@ -666,6 +666,12 @@ async function handleEntryCheckout(
   });
 
   if (resolution.kind === 'blocked') {
+    const diagnostic = `Checkout Session guard blocked cart ${cart_id} (${resolution.reason}): ${resolution.diagnostic}`;
+    if (resolution.status === 503) {
+      console.error(diagnostic);
+    } else {
+      console.log(diagnostic);
+    }
     return corsResponse(corsHeaders, { error: resolution.error }, resolution.status);
   }
   if (resolution.reused) {
@@ -674,6 +680,11 @@ async function handleEntryCheckout(
       sessionId: resolution.session.id,
       url: resolution.session.url,
     });
+  }
+  if (resolution.expiredSessionId) {
+    console.log(
+      `Expired stale checkout session ${resolution.expiredSessionId} (cart ${cart_id} changed)`
+    );
   }
   const session = resolution.session;
 

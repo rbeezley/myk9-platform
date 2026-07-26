@@ -119,6 +119,67 @@ describe('CheckoutSuccessPage terminal verification states', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('retries one transient unavailable result before showing a terminal state', async () => {
+    verifyCheckoutSessionMock
+      .mockResolvedValueOnce({
+        success: false,
+        verificationStatus: 'unavailable',
+        error: 'We could not check your payment status right now.',
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        verificationStatus: 'succeeded',
+        orderId: 'order-after-retry',
+        entryIds: [],
+        confirmationNumber: 'pi_after_retry',
+      });
+
+    render(<CheckoutSuccessPage />, {
+      initialRoute: '/checkout/success?session_id=cs_transient',
+    });
+
+    await finishVerificationTimers();
+
+    expect(verifyCheckoutSessionMock).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('pi_after_retry')).toBeInTheDocument();
+  });
+
+  it('explains the bounded wait while payment verification is loading', () => {
+    verifyCheckoutSessionMock.mockReturnValue(new Promise(() => {}));
+
+    render(<CheckoutSuccessPage />, {
+      initialRoute: '/checkout/success?session_id=cs_slow',
+    });
+
+    expect(screen.getByText(/can take up to 30 seconds/i)).toBeInTheDocument();
+  });
+
+  it('stops slow processing checks at the overall 30-second deadline', async () => {
+    verifyCheckoutSessionMock.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          setTimeout(
+            () =>
+              resolve({
+                success: false,
+                verificationStatus: 'processing',
+                error: 'Your payment is still processing.',
+              }),
+            7000
+          );
+        })
+    );
+
+    render(<CheckoutSuccessPage />, {
+      initialRoute: '/checkout/success?session_id=cs_slow_processing',
+    });
+
+    await finishVerificationTimers();
+
+    expect(verifyCheckoutSessionMock).toHaveBeenCalledTimes(4);
+    expect(screen.getByRole('heading', { name: 'Payment Status Unavailable' })).toBeInTheDocument();
+  });
+
   it('ends in unavailable when a verification request never settles', async () => {
     verifyCheckoutSessionMock.mockReturnValue(new Promise(() => {}));
 

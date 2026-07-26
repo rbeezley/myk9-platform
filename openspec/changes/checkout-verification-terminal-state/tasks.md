@@ -17,7 +17,7 @@
 - [x] 3.2 Write failing component tests for the bounded still-processing state, terminal failure, unavailable state, and same-session recheck
 - [x] 3.3 Run the focused checkout Vitest suites and app TypeScript check
 - [x] 3.4 [ADDED] Grep every `verifyCheckoutSession` caller, run the myK9Show build, and record any unrelated broad-check failures
-- [x] 3.5 [ADDED] Cover stalled/rejected checks, delayed entry hydration, cart identity, unmount and StrictMode safety, refunded status, and prior-session fail-closed behavior
+- [x] 3.5 [ADDED] Cover stalled/rejected checks, the overall 30-second deadline, transient unavailable recovery, delayed entry hydration, cart identity, unmount and StrictMode safety, refunded status, prior-session fail-closed behavior, and safe `resource_missing` recovery
 
 ## 4. Verification and Delivery
 
@@ -36,7 +36,7 @@
 ## Verification Evidence
 
 - OpenSpec strict validation passed for both modified capabilities and all scenarios.
-- Focused checkout and prior-session safety coverage passed: 4 files, 40 tests.
+- Focused checkout and prior-session safety coverage passed: 4 files, 44 tests.
 - myK9Show app/test TypeScript checks, changed-file lint, production build, and `git diff --check` passed.
 - The broad myK9Show unit suite was stopped at the repository's 60-second hang limit after 55 seconds; no failures had been reported before interruption.
 - Three adversarial payment reviewers approved the patched behavior after request-timeout, lifecycle, cart-identity, fail-closed, and copy findings were resolved.

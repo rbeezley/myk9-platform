@@ -29,6 +29,27 @@ function setup(existing: CheckoutSessionLike | Error) {
 }
 
 describe('resolveCheckoutSession', () => {
+  it('replaces a definitively missing prior session', async () => {
+    const missing = Object.assign(new Error('No such checkout session'), {
+      code: 'resource_missing',
+    });
+    const mocks = setup(missing);
+
+    const result = await resolveCheckoutSession({
+      priorSessionId: 'cs_missing',
+      expectedAmountCents: 5000,
+      sessions: mocks,
+      createReplacement: mocks.createReplacement,
+    });
+
+    expect(result).toMatchObject({
+      kind: 'ready',
+      reused: false,
+      session: { id: 'cs_new' },
+    });
+    expect(mocks.createReplacement).toHaveBeenCalledTimes(1);
+  });
+
   it('fails closed without creating when the prior session cannot be retrieved', async () => {
     const mocks = setup(new Error('Stripe unavailable'));
 
@@ -39,10 +60,12 @@ describe('resolveCheckoutSession', () => {
       createReplacement: mocks.createReplacement,
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       kind: 'blocked',
       status: 503,
       error: 'We could not safely resume checkout. Please try again in a moment.',
+      reason: 'retrieve_failed',
+      diagnostic: 'Stripe unavailable',
     });
     expect(mocks.createReplacement).not.toHaveBeenCalled();
   });
@@ -59,7 +82,11 @@ describe('resolveCheckoutSession', () => {
     });
 
     expect(result.kind).toBe('blocked');
-    expect(result).toMatchObject({ status: 503 });
+    expect(result).toMatchObject({
+      status: 503,
+      reason: 'expire_failed',
+      diagnostic: 'expiration failed',
+    });
     expect(mocks.createReplacement).not.toHaveBeenCalled();
   });
 

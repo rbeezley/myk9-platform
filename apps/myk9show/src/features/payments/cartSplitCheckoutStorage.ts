@@ -51,6 +51,8 @@ function readStoredCartSplitCheckoutSummary(): CartSplitCheckoutSummary | null {
 export function readCartSplitCheckoutSummary(
   correlationId: string
 ): CartSplitCheckoutSummary | null {
+  // Keep a matching summary through refresh and StrictMode effect replay; the
+  // next checkout overwrites it with a new correlation ID.
   const summary = readStoredCartSplitCheckoutSummary();
 
   if (!summary || summary.correlationId !== correlationId) {

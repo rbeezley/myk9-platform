@@ -52,10 +52,11 @@ would blur payment state with query failures.
 ### Use bounded sequential polling
 
 The page will perform one verification request at a time with a bounded delay between attempts.
-Each request has a deadline; transport rejection or timeout becomes verification-unavailable.
-After the final processing result it renders a stable "still processing" state. This avoids
-overlapping `setInterval` requests when a query itself takes longer than the interval and makes
-unmount cleanup explicit.
+Each request has a deadline; transport rejection or timeout becomes verification-unavailable. The
+page retries one transient unavailable result, then lands in a stable terminal state within about
+30 seconds. After the final processing result it renders a stable "still processing" state. This
+avoids overlapping `setInterval` requests when a query itself takes longer than the interval and
+makes unmount cleanup explicit.
 
 Continuous polling was rejected because an indefinitely active page recreates the reported hang and
 provides no clear user decision point.
@@ -72,6 +73,11 @@ duplicate-charge protection. If Stripe cannot inspect or expire that prior sessi
 returns an error instead of creating another payable session. No new client-persisted idempotency
 token is introduced because the Stripe Checkout Session and persisted cart link already provide
 that identity.
+
+A Stripe `resource_missing` response is the safe exception: it definitively proves that the
+referenced Checkout Session cannot be paid, so the guard creates a replacement and heals carts
+that retained an ID from another Stripe key mode. Other retrieval and expiration failures remain
+fail-closed and return diagnostics to the function log.
 
 ### Keep the cart until success is confirmed
 

@@ -45,8 +45,18 @@ const DogCard: React.FC<DogCardProps> = ({
       <div className="absolute top-3 right-3 z-50">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <MoreVertical className="h-4 w-4" />
+            {/*
+              Named for what the menu DOES, and per-dog, so a screen-reader
+              user hearing seven of these on one page can tell them apart
+              (MYK9-92 — axe `button-name`, 7 critical nodes).
+            */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              aria-label={`Dog actions for ${dog.callName}`}
+            >
+              <MoreVertical className="h-4 w-4" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

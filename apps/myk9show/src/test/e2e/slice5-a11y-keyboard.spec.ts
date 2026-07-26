@@ -26,6 +26,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { signInAsTestUser } from './helpers/testUsers';
+import { ringSignature, scopePrefixes, type StyleReading } from '../utils/focusIndicator';
 
 /** Serious and critical block; moderate and minor are logged as advisory. */
 const BLOCKING_IMPACTS = ['serious', 'critical'];
@@ -233,109 +234,248 @@ test.describe('Slice 5: accessibility', () => {
     await page.waitForLoadState('networkidle').catch(() => undefined);
     await page.waitForTimeout(1000);
 
-    // Scoped to the grant control itself. The surrounding UserEditPanel carries
-    // pre-existing debt unrelated to this change — 7 unnamed Base UI buttons
-    // and the hardcoded `bg-[#1a365d]` registry badge in registrationUtils.ts —
-    // which is tracked as its own follow-up rather than silently widening this
-    // change's scope.
-    await assertNoBlockingViolations(
-      page,
-      'Admin grant control',
-      '[data-testid="complimentary-premium-section"]'
-    );
+    // UNSCOPED (MYK9-92). This used to scan only
+    // `[data-testid="complimentary-premium-section"]`, which hid the
+    // surrounding UserEditPanel's own debt — 7 unnamed Base UI buttons and the
+    // hardcoded `bg-[#1a365d]` registry badge in registrationUtils.ts. Both are
+    // fixed, so the whole panel is now in scope and must stay clean.
+    await assertNoBlockingViolations(page, 'Admin grant control');
   });
 });
 
 /**
- * Walks tab order and returns the number of distinct stops reached.
+ * MYK9-95 — the focus-indicator check, and why it is shaped like this.
  *
- * Two things here are deliberate, both because the obvious versions produce
- * false passes:
+ * The property under test is WCAG 2.4.7: a keyboard user must be able to SEE
+ * where focus is. That is a statement about a DIFFERENCE — focused vs not — so
+ * a check that only looks at the focused state cannot express it. The previous
+ * revision accepted any non-empty outline or box-shadow, which every control
+ * carrying `shadow-sm` (SelectTrigger, selected tabs, most cards) satisfies
+ * with its focus ring deleted outright.
  *
- *  1. Revisits are detected by marking the ELEMENT (a data attribute), not by
- *     hashing its tag and label. Repeated row actions — "Remove", "Edit" — share
- *     a label, so a label-keyed set treats the second one as a completed cycle
- *     and stops walking a page it has barely entered.
- *  2. A focus indicator is confirmed by COMPARING focused against unfocused
- *     styling on the same element. Accepting any non-empty box-shadow passes
- *     controls that carry `shadow-sm` while unfocused, so deleting their focus
- *     ring entirely would leave the assertion green.
+ * Three techniques were considered:
+ *
+ *  1. VISUAL DIFFING — screenshot the element focused and unfocused, compare
+ *     pixels. Rejected. This app animates almost everything it styles
+ *     (`transition-all duration-300`, `hover:-translate-y-[1px]`,
+ *     `animate-in slide-in-from-bottom-2`), and avatars/images decode
+ *     asynchronously. Ambient pixel churn between the two captures reads as
+ *     "the indicator changed", so a deleted focus ring would still PASS. The
+ *     failure mode is the one that matters here, so noise is disqualifying.
+ *  2. AXE — rejected: axe-core ships no focus-appearance rule. Focus
+ *     visibility is explicitly on its "cannot be automatically detected" list,
+ *     and a custom rule would still need its own before/after measurement,
+ *     which is exactly the problem being solved rather than an answer to it.
+ *  3. REAL KEYBOARD INPUT ONLY — chosen. Never call `el.focus()` or
+ *     `el.blur()`. Tab to the element, let it settle, measure; press Tab again
+ *     and measure THE SAME element, which is now genuinely unfocused, having
+ *     been unfocused by the keyboard. This is what killed the earlier
+ *     attempts: programmatic `blur()` is precisely what does not clear
+ *     `:focus-visible` reliably, which is why they saw an implausible constant
+ *     3px outline in "both" states. Nothing here is programmatic, so nothing
+ *     depends on how `blur()` interacts with focus modality.
+ *
+ * The unconditional-pass trap is closed STRUCTURALLY, not by care. Both
+ * readings come from the same `readFocusStyle()` over the same `STYLE_PROPS`
+ * list, and `diffKeys` iterates that list rather than naming properties. There
+ * is no way to compare a captured property against an absent one, because
+ * neither side can capture a different set from the other.
+ *
+ * Both halves are asserted: the focused state must render SOME ring (a diff
+ * alone would accept a ring that merely disappears on focus), and the diff must
+ * be non-empty (presence alone is the weak check being replaced).
+ *
+ * Ancestors are included in the reading because a ring is often drawn by a
+ * wrapper via `:focus-within` rather than by the focused node itself.
+ *
+ * Revisits are detected by marking the ELEMENT, not by hashing tag and label:
+ * repeated row actions ("Remove", "Edit") share a label, so a label-keyed set
+ * treats the second one as a completed cycle and stops walking a page it has
+ * barely entered.
  */
+const STYLE_PROPS = [
+  'outlineStyle',
+  'outlineWidth',
+  'outlineColor',
+  'outlineOffset',
+  'boxShadow',
+  'backgroundColor',
+  'borderColor',
+  'borderWidth',
+  'textDecorationLine',
+  'filter',
+  'content',
+] as const;
+
+/**
+ * `ringSignature` reduces one scope's computed styles to only what is VISIBLY
+ * drawn, so a transparent `outline-none` outline and Tailwind's transparent
+ * placeholder shadow layers both collapse to nothing.
+ *
+ * It lives in `src/test/utils/` rather than here because vitest excludes
+ * `**\/e2e\/**`, and this parser must be unit tested directly: two colour
+ * -parsing bugs shipped in the first cut precisely because it was exercised
+ * only through a browser walk, whose pages happened not to produce the inputs
+ * that break it. See `focusIndicator.test.ts`.
+ */
+
+interface StopRecord {
+  tag: string;
+  name: string;
+  focused: StyleReading;
+}
+
+/** Style transitions run up to 300ms in this app; measure only once settled. */
+const SETTLE_MS = 380;
+
 async function walkTabOrder(page: Page, label: string, maxStops = 40): Promise<number> {
-  let stops = 0;
+  /**
+   * Installed into the page once per walk. Both the focused and the unfocused
+   * reading go through this single function, so the two sides are guaranteed to
+   * carry identical keys — the vacuous-pass trap is closed by construction.
+   */
+  await page.evaluate(props => {
+    (
+      window as unknown as { __readFocusStyle: (el: Element) => Record<string, string> }
+    ).__readFocusStyle = (el: Element) => {
+      const reading: Record<string, string> = {};
+      // The focused node plus two ancestors: rings are frequently drawn by a
+      // wrapper via :focus-within rather than by the control itself.
+      const scopes = [el, el.parentElement, el.parentElement?.parentElement ?? null];
+      scopes.forEach((node, depth) => {
+        if (!node) return;
+        ([null, '::before', '::after'] as const).forEach(pseudo => {
+          const cs = window.getComputedStyle(node, pseudo);
+          props.forEach(p => {
+            reading[`${depth}|${pseudo ?? 'self'}|${p}`] = String(
+              cs[p as keyof CSSStyleDeclaration]
+            );
+          });
+          if (pseudo) reading[`${depth}|${pseudo}|content`] = String(cs.content);
+        });
+      });
+      return reading;
+    };
+  }, STYLE_PROPS as unknown as string[]);
 
-  for (let i = 0; i < maxStops; i += 1) {
-    await page.keyboard.press('Tab');
-
-    const info = await page.evaluate(() => {
+  const readFocused = async (index: number) =>
+    page.evaluate(idx => {
       const el = document.activeElement as HTMLElement | null;
       if (!el || el === document.body) return null;
-      if (el.dataset.kbSeen === '1') return { revisited: true } as const;
-      el.dataset.kbSeen = '1';
-
-      const focused = window.getComputedStyle(el);
-      const focusedStyle = {
-        outlineStyle: focused.outlineStyle,
-        outlineWidth: focused.outlineWidth,
-        outlineColor: focused.outlineColor,
-        boxShadow: focused.boxShadow,
-        backgroundColor: focused.backgroundColor,
-      };
-
-      // Measure the same element without focus, then restore it, so the
-      // comparison isolates what focus actually changes.
-      el.blur();
-      const blurred = window.getComputedStyle(el);
-      // Must capture EVERY property compared below. Omitting one makes its
-      // comparison `string !== undefined` — permanently true — and the whole
-      // focus-indicator assertion passes unconditionally.
-      const blurredStyle = {
-        outlineStyle: blurred.outlineStyle,
-        outlineWidth: blurred.outlineWidth,
-        outlineColor: blurred.outlineColor,
-        boxShadow: blurred.boxShadow,
-        backgroundColor: blurred.backgroundColor,
-      };
-      el.focus();
-
+      if (el.dataset.kbIdx !== undefined) return { revisited: true } as const;
+      el.dataset.kbIdx = String(idx);
+      const read = (window as unknown as { __readFocusStyle: (n: Element) => StyleReading })
+        .__readFocusStyle;
       return {
         revisited: false as const,
         tag: el.tagName.toLowerCase(),
-        name: el.getAttribute('aria-label') ?? el.textContent?.slice(0, 40) ?? '',
-        focusedStyle,
-        blurredStyle,
+        name: (el.getAttribute('aria-label') ?? el.textContent ?? '').trim().slice(0, 40),
+        focused: read(el),
       };
-    });
+    }, index);
 
-    if (!info) continue;
-    if (info.revisited) break;
+  /** Re-measures a previously visited element, which the keyboard has now left. */
+  const readUnfocused = async (index: number) =>
+    page.evaluate(idx => {
+      const el = document.querySelector(`[data-kb-idx="${idx}"]`) as HTMLElement | null;
+      if (!el) return null;
+      if (document.activeElement === el) return null; // still focused — not a valid reading
+      const read = (window as unknown as { __readFocusStyle: (n: Element) => StyleReading })
+        .__readFocusStyle;
+      return read(el);
+    }, index);
 
-    // NOTE — deliberately a presence check, not a focused-vs-unfocused diff.
-    //
-    // Codex correctly flagged that accepting any non-empty box-shadow is weak:
-    // a control with `shadow-sm` passes even with its focus ring deleted. The
-    // obvious stricter version — blur the element, re-measure, compare — did
-    // not survive scrutiny. It reported a CONSTANT non-zero outline in both
-    // states for unrelated components (a sidebar link at 3px, the cart button
-    // at 2px), which is not plausible and indicates the post-blur measurement
-    // does not reflect what a user sees. Shipping it would have meant either a
-    // vacuous pass (an earlier revision compared an undefined property and was
-    // unconditionally true) or failures on a measurement artifact.
-    //
-    // So this asserts the weaker, honest property: a focused control renders
-    // SOME outline or shadow. Proving the ring appears BECAUSE of focus needs a
-    // different technique — visual diffing, or tabbing away instead of calling
-    // blur() — and is tracked in MYK9-95 rather than faked here.
-    const hasIndicator =
-      (info.focusedStyle.outlineStyle !== 'none' && info.focusedStyle.outlineWidth !== '0px') ||
-      (info.focusedStyle.boxShadow !== 'none' && info.focusedStyle.boxShadow !== '');
+  /**
+   * Property keys whose value differs. Driven by the readings' own keys, so a
+   * property can never be compared against an absent one.
+   */
+  const diffKeys = (focused: StyleReading, unfocused: StyleReading): string[] => {
+    const keys = Object.keys(focused);
+    expect(
+      Object.keys(unfocused).sort(),
+      `${label}: focused and unfocused readings captured different properties — ` +
+        'a comparison against an absent value is always true and would pass vacuously'
+    ).toEqual(keys.slice().sort());
+    return keys.filter(k => focused[k] !== unfocused[k]);
+  };
+
+  const assertStop = (index: number, rec: StopRecord, unfocused: StyleReading) => {
+    // Runs purely for its structural guard: it proves both readings carry the
+    // identical key set, so no comparison below can be against an absent value.
+    diffKeys(rec.focused, unfocused);
+
+    // A raw property delta is NOT enough on its own. Tabbing away also drops
+    // `:focus-within` from the ancestors, and `outline-none` toggles a
+    // transparent outline — both produce a real delta with nothing visible.
+    // So compare VISIBLE ring signatures, and require the focused side to be
+    // the one that renders something (a ring which vanishes on focus is not an
+    // indicator).
+    const evidence: string[] = [];
+    const identical: string[] = [];
+
+    for (const prefix of scopePrefixes(rec.focused)) {
+      const focusedSig = ringSignature(rec.focused, prefix);
+      const unfocusedSig = ringSignature(unfocused, prefix);
+      if (focusedSig !== '' && focusedSig !== unfocusedSig) {
+        evidence.push(`${prefix} → ${focusedSig || '(nothing)'}  (unfocused: ${unfocusedSig || '(nothing)'})`);
+      } else if (focusedSig !== '') {
+        identical.push(`${prefix} → ${focusedSig}`);
+      }
+    }
+
+    if (process.env.KB_DEBUG) {
+      console.log(
+        `[kbdebug] stop ${index} <${rec.tag}> "${rec.name}" evidence=${JSON.stringify(evidence)}`
+      );
+    }
 
     expect(
-      hasIndicator,
-      `${label}: focused <${info.tag}> "${info.name}" renders no outline or shadow at all`
-    ).toBe(true);
+      evidence.length,
+      `${label}: <${rec.tag}> "${rec.name}" (stop ${index}) draws NO focus indicator.\n` +
+        '        Nothing visible — outline, box-shadow, underline, border, an ::after bar —\n' +
+        '        appears when it is focused that is not already there when it is not.\n' +
+        '        A keyboard user cannot see where focus is (WCAG 2.4.7).\n' +
+        `        Styling it carries in BOTH states: ${identical.slice(0, 4).join(' ;; ') || '(none)'}`
+    ).toBeGreaterThan(0);
+  };
 
+  const pending = new Map<number, StopRecord>();
+  let stops = 0;
+  let done = false;
+
+  for (let i = 0; i < maxStops && !done; i += 1) {
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(SETTLE_MS);
+
+    // The element visited on the PREVIOUS iteration is now unfocused by
+    // keyboard action alone. Measure it before anything else moves.
+    for (const [idx, rec] of Array.from(pending.entries())) {
+      const unfocused = await readUnfocused(idx);
+      if (!unfocused) continue; // detached or somehow still focused — no honest reading
+      pending.delete(idx);
+      assertStop(idx, rec, unfocused);
+    }
+
+    const info = await readFocused(i);
+    if (!info) continue;
+    if (info.revisited) {
+      done = true;
+      break;
+    }
+
+    pending.set(i,{ tag: info.tag, name: info.name, focused: info.focused });
     stops += 1;
+  }
+
+  // Drain the final stop: one more Tab so it too is unfocused by the keyboard.
+  if (pending.size > 0) {
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(SETTLE_MS);
+    for (const [idx, rec] of Array.from(pending.entries())) {
+      const unfocused = await readUnfocused(idx);
+      pending.delete(idx);
+      if (unfocused) assertStop(idx, rec, unfocused);
+    }
   }
 
   return stops;

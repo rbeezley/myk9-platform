@@ -108,12 +108,15 @@ describe('loadDogRegistrations', () => {
   });
 
   it('marks partial rows as incomplete when the server also reports an error', async () => {
-    mockServerIn.mockResolvedValue({ data: [serverRows[0]], error: new Error('partial read') });
+    mockServerIn.mockResolvedValue({
+      data: [serverRowsWithCreationOrder[0]],
+      error: new Error('partial read'),
+    });
     mockLocalGet.mockResolvedValue([]);
 
     const { byDog, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
 
-    expect(byDog.get('dog-1')).toEqual([serverRows[0]]);
+    expect(byDog.get('dog-1')).toEqual([serverRowsWithCreationOrder[0]]);
     expect(registrationsReadComplete).toBe(false);
   });
 
@@ -147,12 +150,12 @@ describe('loadDogRegistrations', () => {
   });
 
   it('marks the merged read incomplete when the local replica read fails', async () => {
-    mockServerIn.mockResolvedValue({ data: [serverRows[0]], error: null });
+    mockServerIn.mockResolvedValue({ data: [serverRowsWithCreationOrder[0]], error: null });
     mockLocalGet.mockRejectedValue(new Error('local replica unavailable'));
 
     const { byDog, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
 
-    expect(byDog.get('dog-1')).toEqual([serverRows[0]]);
+    expect(byDog.get('dog-1')).toEqual([serverRowsWithCreationOrder[0]]);
     expect(registrationsReadComplete).toBe(false);
   });
 });

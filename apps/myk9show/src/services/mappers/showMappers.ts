@@ -19,6 +19,8 @@ export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
     start_date: input.startDate,
     end_date: input.endDate,
     location: input.location,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
     status: input.status,
     entry_open_date: input.entryOpenDate,
     entry_close_date: input.entryCloseDate,
@@ -53,6 +55,8 @@ export const mapShowInputToUpdate = (input: Partial<ShowInput>): DbShowUpdate =>
   if (input.startDate !== undefined) update.start_date = input.startDate;
   if (input.endDate !== undefined) update.end_date = input.endDate;
   if (input.location !== undefined) update.location = input.location;
+  if (input.latitude !== undefined) update.latitude = input.latitude;
+  if (input.longitude !== undefined) update.longitude = input.longitude;
   if (input.status !== undefined) update.status = input.status;
   if (input.entryOpenDate !== undefined) update.entry_open_date = input.entryOpenDate;
   if (input.entryCloseDate !== undefined) update.entry_close_date = input.entryCloseDate;
@@ -206,6 +210,8 @@ export const mapDatabaseToShow = (
     startDate: dbShow.start_date,
     endDate: dbShow.end_date,
     location: dbShow.location || '',
+    latitude: dbShow.latitude ?? null,
+    longitude: dbShow.longitude ?? null,
     status: dbShow.status || 'upcoming',
     // Extract unique trial types (e.g., "Scent Work", "Agility")
     // Uses trial_type (user-friendly), falls back to organization
@@ -312,6 +318,8 @@ export const mapShowToShowInput = (show: Show): ShowInput => {
     startDate: show.startDate,
     endDate: show.endDate,
     location: show.location,
+    latitude: show.latitude ?? null,
+    longitude: show.longitude ?? null,
     status: show.status,
     events: show.events,
     source: show.source,

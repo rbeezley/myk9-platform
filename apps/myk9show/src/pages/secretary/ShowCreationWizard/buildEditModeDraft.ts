@@ -106,6 +106,8 @@ export function buildEditModeDraft({
       startDate: existingShow.startDate,
       endDate: existingShow.endDate,
       location: existingShow.location,
+      latitude: existingShow.latitude ?? null,
+      longitude: existingShow.longitude ?? null,
       clubId: existingShow.clubId,
       entryOpenDate: existingShow.entryOpenDate,
       entryCloseDate: existingShow.entryCloseDate,

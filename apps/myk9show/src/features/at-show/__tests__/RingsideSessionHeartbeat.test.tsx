@@ -3,7 +3,10 @@ import { Route, Routes } from 'react-router-dom';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { RingsideSessionHeartbeat } from '../RingsideSessionHeartbeat';
 
-const { getExistingSubscriptionMock, rpcMock } = vi.hoisted(() => ({
+const { authContextMock, getExistingSubscriptionMock, rpcMock } = vi.hoisted(() => ({
+  authContextMock: {
+    user: null as { id: string; is_anonymous?: boolean } | null,
+  },
   getExistingSubscriptionMock: vi.fn(),
   rpcMock: vi.fn((_name: string, _args?: Record<string, unknown>) =>
     Promise.resolve({ data: null, error: null })
@@ -38,6 +41,10 @@ vi.mock('@/hooks/useAuth', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => authContextMock,
+}));
+
 function setVisibilityState(value: DocumentVisibilityState) {
   Object.defineProperty(document, 'visibilityState', {
     configurable: true,
@@ -64,6 +71,7 @@ function renderHeartbeat() {
 describe('RingsideSessionHeartbeat', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authContextMock.user = null;
     localStorage.clear();
     setVisibilityState('visible');
     getExistingSubscriptionMock.mockResolvedValue({
@@ -133,6 +141,22 @@ describe('RingsideSessionHeartbeat', () => {
         'upsert_ringside_session',
         expect.objectContaining({
           p_favorited_armbands: [],
+        })
+      )
+    );
+  });
+
+  it('sends account-scoped favorites for a non-anonymous user', async () => {
+    authContextMock.user = { id: 'user-1', is_anonymous: false };
+    localStorage.setItem('dog_favorites_user-1_show-1', JSON.stringify([202]));
+
+    renderHeartbeat();
+
+    await waitFor(() =>
+      expect(rpcMock).toHaveBeenCalledWith(
+        'upsert_ringside_session',
+        expect.objectContaining({
+          p_favorited_armbands: ['202'],
         })
       )
     );

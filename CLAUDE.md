@@ -22,14 +22,14 @@ Single-context — root `CONTEXT.md` + `docs/adr/`, extended with `docs/INTENT.m
 
 When I correct you or you catch yourself making a mistake, before continuing, add the lesson as a one-line rule under LESSONS so it never happens again.
 
+A LESSON may be **retired** once the trap is structurally impossible — a guard, test, lint rule, or type now catches it, or the code path no longer exists. Delete the line and cite the PR that made it unreachable in the commit message. LESSONS is for traps only a human could have known about; anything a check already enforces is noise.
+
 ## LESSONS
 
 - `supabase functions deploy --workdir apps/myk9show` follows that dir's stale `.temp/project-ref` (myK9Show-Working, defunct) — ALWAYS pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly and confirm the "Deployed Functions on project ..." line names the right ref.
 - `codex review --commit <SHA>` reviews ONLY that one commit — on a multi-commit PR, run it per code commit (or against the range); reviewing the branch tip alone can hit a docs-only commit and vacuously pass.
-- `git branch -D <branch>` fails while any worktree (including the current one) is checked out on it, including as the silent local-delete half of `gh pr merge --delete-branch` — always remove the worktree first, then delete the branch.
 - If work flagged as a background-task chip gets absorbed into the current session (e.g., it turns out to block the main task), dismiss the chip IMMEDIATELY — before continuing — or the user may start it and duplicate the work (PR #1441/#1442).
 - When adding a `docs/plan-*.md`, add its status line and `docs/README.md` index row in the same edit.
-- `REVOKE ALL ON ALL TABLES ... FROM anon` also drops COLUMN-level grants — verify `pg_attribute.attacl`, not just `pg_class.relacl`; a `select=*` PostgREST probe returns 200 either way and cannot see the difference (MYK9-93 briefly exposed `entries.total_score`/`payment_status`/`stripe_payment_intent_id` to anon on staging this way).
 - PostgREST requires table-level SELECT on every EMBEDDED relation — revoking anon on a table only ever reached via `table(col,...)` / `table!inner(...)` embeds turns a null embed into a hard 42501 that fails the WHOLE request. Grep for embeds, not just `.from('table')`.
 - A "missing" column is NOT automatically drift — before writing a repair migration, check `supabase_migrations.schema_migrations` AND recently merged PRs for a deliberate `drop_*`. A stale branch makes an intentional deletion look like an unapplied migration; re-adding the column silently reverts merged work (nearly happened with `20260725200000_drop_early_adopter_until`, already removed by #1470).
 - `tsc` errors about generated DB types (`Database['public']['Tables'][...]`) can come from a STALE `packages/supabase/dist/index.d.ts`, not your code — rebuild `pnpm --filter @myk9/supabase build` before believing them. Same built-`dist` trap as the app-test rule, but it produces a false FAILURE rather than a false pass.
@@ -56,11 +56,10 @@ The mental model: the user's experience is a single coherent workflow, not a men
 
 ## Development Principles
 
-1. **Don't guess or assume** — Verify facts, check actual code, ask if uncertain
-2. **Follow DRY principles** — Don't Repeat Yourself. Create reusable components if possible
-3. **Follow SLC** — Simple, Lovable, Complete. Avoid feature bloat (Simple). Prioritize UX polish, error states, and "delight" (Lovable). Deliver end-to-end functionality with zero placeholders or TODOs (Complete)
-4. **Keep files under 500 lines** — Extract types, helpers, and constants into sibling modules
-5. **Protect intent** — When code looks "wrong" but has an `// INTENT:` comment, it's deliberate (see "Intent & Emotional Design" above)
+1. **Follow DRY principles** — Don't Repeat Yourself. Create reusable components if possible
+2. **Follow SLC** — Simple, Lovable, Complete. Avoid feature bloat (Simple). Prioritize UX polish, error states, and "delight" (Lovable). Deliver end-to-end functionality with zero placeholders or TODOs (Complete)
+3. **Keep files under 500 lines** — Extract types, helpers, and constants into sibling modules
+4. **Protect intent** — When code looks "wrong" but has an `// INTENT:` comment, it's deliberate (see "Intent & Emotional Design" above)
 
 ## Worktrees
 
@@ -139,7 +138,7 @@ await replicatedClassesTable.updateClassStatus(classId, status);
 
 ## Testing
 
-Always ensure generated test code compiles cleanly: no `await` outside `async`, no unused variables (remove them, don't underscore-prefix), and run the test suite before considering work complete.
+Remove unused variables in tests rather than underscore-prefixing them — the prefix silences the lint rule without removing the dead binding.
 
 When test runners hang or appear stuck for more than 30 seconds, stop and report the issue rather than retrying in a loop. Known issue: test suite has pre-existing timeout/hanging problems.
 
@@ -168,7 +167,7 @@ Full mechanics: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.m
 1. **Work in a worktree, never the primary checkout,** whenever concurrent agents may be active — `.githooks/pre-commit` enforces this. Bypass once with `MYK9_ALLOW_PRIMARY_COMMIT=1 git commit ...` only for the docs-only-direct-to-`main` flow.
 2. **Never run `gh pr merge` from inside a feature worktree** — run it from the main repo directory.
 3. **After a merge, verify the local branch survived** (`git branch --list <branch>`) before assuming `--delete-branch` cleaned it up.
-4. **If the branch has a worktree, remove the worktree before deleting the branch** — git refuses `branch -D` on a branch any worktree still has checked out. Delete with `git branch -D <branch>` (not `-d`, squash rewrites SHAs).
+4. **If the branch has a worktree, remove the worktree before deleting the branch** — git refuses `branch -D` on a branch any worktree still has checked out, including the current one, and including as the silent local-delete half of `gh pr merge --delete-branch`. Delete with `git branch -D <branch>` (not `-d`, squash rewrites SHAs).
 5. **Worktree removal is always the final command of the cleanup sequence**, run from a path that still exists.
 6. **Before a destructive history rewrite** (`reset --hard`, rebase drops, force-push), check for uncommitted edits in the working tree first — they get wiped, not carried.
 
@@ -194,7 +193,7 @@ Full mechanics: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.m
   select unnest(relacl)::text from pg_class where oid = 'public.<table>'::regclass;
   ```
 
-  Table-level ACLs are only half the picture — check column-level grants too (a broad `REVOKE ... FROM anon` drops them, and `pg_class.relacl` will not show it):
+  Table-level ACLs are only half the picture — check column-level grants too. A broad `REVOKE ALL ON ALL TABLES ... FROM anon` silently drops them, `pg_class.relacl` will not show it, and a `select=*` PostgREST probe returns 200 either way so it cannot see the difference (MYK9-93 briefly exposed `entries.total_score` / `payment_status` / `stripe_payment_intent_id` to anon on staging this way):
 
   ```sql
   select a.attname, unnest(a.attacl)::text
@@ -206,7 +205,7 @@ Full mechanics: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.m
 
 ## Auto Mode — shared-system writes
 
-When Auto Mode is active, the "execute immediately" guidance does NOT extend to mutations of shared systems. Before running any of the following, pause and confirm even if the user's initial request implied consent:
+Auto Mode's "execute immediately" guidance does NOT extend to shared-system mutations. Confirm before each of these even when the initial request implied consent — adding rows to a shared DB counts, "not destructive" is not the test:
 
 - `supabase db push` on a linked project (writes to staging/prod DB)
 - `supabase functions deploy`
@@ -214,6 +213,6 @@ When Auto Mode is active, the "execute immediately" guidance does NOT extend to 
 - Creating/closing PRs, issues, or comments on GitHub
 - Posting to Slack, email, or any external service
 
-Adding rows to a shared DB is not "destructive" but is still shared-system mutation. One up-front confirmation covers a sequence of related pushes in the same session; re-confirm when switching to a new system or operation type.
+One up-front confirmation covers a sequence of related pushes in the same session; re-confirm when switching to a new system or operation type.
 
 **Exception — docs-only changes may go direct to `main`.** When a commit touches _only_ documentation files, skip the PR ceremony: commit on `main` (or fast-forward a feature commit into `main`) and push directly. No confirmation needed beyond the user's request to commit/push. `CLAUDE.md` and `.claude/**`/`.github/**` are always out of scope for this exception — they need a PR regardless of how small the change. Full in-scope/out-of-scope file list and the bypass mechanism: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.md) § "Docs-only direct-to-`main`." Verify the commit's filelist matches the scope before pushing.

@@ -86,6 +86,11 @@ const SPELLED_OUT_ORGANIZATIONS: Readonly<Record<string, string>> = Object.freez
   'UNITED KENNEL CLUB': 'UKC',
   'AUSTRALIAN SHEPHERD CLUB OF AMERICA': 'ASCA',
   'CANADIAN KENNEL CLUB': 'CKC',
+  // Carried over from the former `lib/dogRegistrationBreed.ts`, which this
+  // module replaced (MYK9-90 task 2.3). That helper matched organizations
+  // without stripping the parenthetical, so it missed the live
+  // `AKC (American Kennel Club)` rows entirely.
+  'FEDERATION CYNOLOGIQUE INTERNATIONALE': 'FCI',
 });
 
 /** True when a registration row belongs to `organization`, tolerating naming drift. */

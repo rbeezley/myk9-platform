@@ -1,5 +1,6 @@
 // Re-export User type for components that import from dog-types
 export type { User, UserRole, JudgeQualification } from './user-types';
+import { resolveDogIdentity, type DogRegistrationLike } from '@/features/dogs/identity';
 
 export type DogStatus = 'active' | 'retired' | 'deceased';
 
@@ -300,18 +301,28 @@ function isMeaningfulBreed(breed: string | null | undefined): breed is string {
 }
 
 /**
- * Resolve a dog's breed for display: prefer a registration breed, then the
- * dog's own breed, then the shared not-set placeholder. Centralizes the
- * field-priority + placeholder so every surface reads the same.
+ * Resolve a dog's breed for DISPLAY on a generic (not organization-scoped)
+ * surface.
+ *
+ * MYK9-90: breed belongs to a registration with a sanctioning organization, not
+ * to the dog. This reads the PRIMARY registration via `resolveDogIdentity` and
+ * **never** falls back to `dogs.breed` — a dog with no registration has no
+ * breed, and `BREED_NOT_SET` is an explicit "not recorded" affordance rather
+ * than a substitute value. Nothing here may reach paperwork: organization-scoped
+ * surfaces (entry blanks, AKC/UKC submissions) resolve through
+ * `resolveDogIdentityForOrganization` instead, which returns a blank rather than
+ * borrowing another organization's breed.
+ *
+ * The legacy `breed` field is still accepted in the parameter type but ignored,
+ * so callers passing a whole `Dog` keep compiling; `Dog.breed` is itself now
+ * populated from the primary registration by `mapDatabaseToDog`.
  */
 export function getDogBreedLabel(dog: {
   breed?: string | null | undefined;
-  registrations?: Array<{ breed?: string | null | undefined }> | null | undefined;
+  registrations?: readonly DogRegistrationLike[] | null | undefined;
 }): string {
-  const registrationBreed = dog.registrations?.find(r => isMeaningfulBreed(r.breed))?.breed;
-  if (isMeaningfulBreed(registrationBreed)) return registrationBreed;
-  if (isMeaningfulBreed(dog.breed)) return dog.breed;
-  return BREED_NOT_SET;
+  const breed = resolveDogIdentity(dog.registrations).breed;
+  return isMeaningfulBreed(breed) ? breed : BREED_NOT_SET;
 }
 
 export interface PersonInput {

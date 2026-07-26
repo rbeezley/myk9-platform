@@ -6,6 +6,7 @@ import type { Dog, DogStatus } from '@/types/dog-types';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 import type { DogInput } from '@/store/dogStore';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
+import { resolveDogIdentity, type DogRegistrationLike } from '@/features/dogs/identity';
 
 /**
  * Health record row from the database (health_records table)
@@ -205,11 +206,21 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
   const sex = dbDog.sex as 'male' | 'female' | null;
   const dateOfBirth = dbDog.date_of_birth as string | null;
 
+  const registrationRows: Record<string, unknown>[] = Array.isArray(dbDog.registrations)
+    ? (dbDog.registrations as Record<string, unknown>[])
+    : [];
+
+  // Breed belongs to a registration, not to the dog. This is a generic surface
+  // (no organization in context), so the primary registration answers — and an
+  // unregistered dog has no breed rather than a guessed one. Callers render the
+  // absence via `getDogBreedLabel`; nothing substitutes a value.
+  const identity = resolveDogIdentity(registrationRows as DogRegistrationLike[]);
+
   return {
     id: dbDog.id as string,
     name: dbDog.name as string,
     callName: (dbDog.call_name as string) || (dbDog.name as string), // Use call_name if available, fallback to name
-    breed: dbDog.breed as string,
+    breed: identity.breed ?? '',
     birthDate: dateOfBirth ?? undefined,
     dateOfBirth: dateOfBirth ?? undefined, // Also set dateOfBirth for backward compatibility
     sex: sex ?? 'male', // Default to male if not set (required field)
@@ -226,16 +237,16 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
     spayedNeutered: (dbDog.spayed_neutered as boolean) ?? undefined,
     status: (dbDog.status as string as DogStatus) || 'active',
     deceasedDate: (dbDog.deceased_date as string) || undefined,
-    registrations: Array.isArray(dbDog.registrations)
-      ? dbDog.registrations.map((reg: Record<string, unknown>) => ({
-          id: reg.id as string,
-          organization: (reg.organization as string) || '',
-          registeredName: (reg.registered_name as string) || '',
-          breed: (reg.breed as string) || (dbDog.breed as string),
-          registrationNumber: (reg.registration_number as string) || '',
-          status: (reg.status as string) || 'active',
-        }))
-      : [],
+    registrations: registrationRows.map((reg: Record<string, unknown>) => ({
+      id: reg.id as string,
+      organization: (reg.organization as string) || '',
+      registeredName: (reg.registered_name as string) || '',
+      // Never backfill from `dogs.breed`: that would turn the dog record into a
+      // breed claim made to this sanctioning organization.
+      breed: (reg.breed as string) || '',
+      registrationNumber: (reg.registration_number as string) || '',
+      status: (reg.status as string) || 'active',
+    })),
     healthRecords: mapHealthRecords(dbDog.health_records),
     // Sync metadata - no longer needed with React Query, but kept for compatibility
     _version: 1,

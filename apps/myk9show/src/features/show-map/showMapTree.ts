@@ -17,7 +17,11 @@ import {
   getShowMapTrialHref,
 } from './showMapRoutes';
 import { addAllExhibitorsBranch } from './showMapDogBranch';
-import { getRegisteredBreedForOrganization } from '@/lib/dogRegistrationBreed';
+import {
+  resolveDogIdentity,
+  resolveDogIdentityForOrganization,
+  type DogRegistrationLike,
+} from '@/features/dogs/identity';
 import { formatEntryDate } from '@/lib/format/dates';
 import { formatRingLabel } from '@/utils/ringLabel';
 import type {
@@ -89,17 +93,19 @@ function entryRegisteredBreed(entry: ShowMapEntryInput, organization?: string): 
   if (!dog || typeof dog !== 'object') return undefined;
   const dogRecord = dog as Record<string, unknown>;
   const registrations = dogRecord.registrations;
-  if (organization && Array.isArray(registrations)) {
-    const registrationBreed = getRegisteredBreedForOrganization(
-      registrations.filter(registration => registration && typeof registration === 'object') as {
-        organization?: string | null | undefined;
-        breed?: string | null | undefined;
-      }[],
-      organization
-    );
-    if (registrationBreed) return registrationBreed;
-  }
-  return readString(dogRecord, 'breed') ?? readString(entry, 'dog_breed');
+  if (!Array.isArray(registrations)) return undefined;
+  const rows = registrations.filter(
+    registration => registration && typeof registration === 'object'
+  ) as DogRegistrationLike[];
+
+  // The show map is scoped to a sanctioning organization, so the breed shown is
+  // the one recorded with THAT organization. No cross-organization fallback and
+  // no `dogs.breed` / `entry.dog_breed` fallback: a borrowed breed is worse than
+  // a blank, and `dogs.breed` is not a breed claim anyone made (MYK9-90).
+  const identity = organization
+    ? resolveDogIdentityForOrganization(rows, organization)
+    : resolveDogIdentity(rows);
+  return identity.breed ?? undefined;
 }
 
 function entryDisplay(entry: ShowMapEntryInput, organization?: string): ShowMapEntryDisplay {

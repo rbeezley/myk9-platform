@@ -203,7 +203,16 @@ async function postgrestGetDogById(id: string) {
 async function postgrestGetDogsByOwner(ownerId: string) {
   const { data, error } = await supabase
     .from('dogs')
-    .select('*, registrations:dog_registrations(id,breed,organization,status)')
+    // `My Dogs` is a generic surface, so `mapDatabaseToDog` resolves the PRIMARY
+    // registration. That needs the resolver's ordering/tiebreak fields
+    // (`created_at`, `id`) and the identity fields themselves — the old embed
+    // picked whichever registration PostgREST happened to return first, with no
+    // organization scoping at all. `is_primary` is deliberately not selected
+    // while its migration is unpushed; `created_at` then `id` is deterministic
+    // on its own and agrees with what the backfill will mark.
+    .select(
+      '*, registrations:dog_registrations(id,created_at,breed,variety,registered_name,registration_number,organization,status)'
+    )
     .eq('owner_id', ownerId)
     .is('deleted_at', null)
     .order('name', { ascending: true });
@@ -212,13 +221,42 @@ async function postgrestGetDogsByOwner(ownerId: string) {
   return { data: data || [], error: null };
 }
 
+/**
+ * Resolve `dog_id`s whose REGISTRATION matches the term on breed. Breed lives on
+ * `dog_registrations`, not on `dogs`, so a breed search is a two-step: PostgREST
+ * cannot OR a parent-column filter against an embedded-table filter in one
+ * request. The error is thrown rather than swallowed — silently downgrading a
+ * backend failure to "no breed matches" makes it indistinguishable from "no such
+ * dog".
+ */
+async function dogIdsMatchingRegistrationBreed(sanitized: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('dog_registrations')
+    .select('dog_id')
+    .ilike('breed', `%${sanitized}%`);
+  if (error) throw createDatabaseError(error, 'dog', 'search_registration_breed');
+  return [
+    ...new Set(
+      ((data ?? []) as Array<{ dog_id?: string | null }>)
+        .map(r => r.dog_id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    ),
+  ];
+}
+
 async function postgrestSearchDogs(searchTerm: string, personId: string) {
   const sanitized = sanitizePostgRESTFilter(searchTerm);
+  const breedDogIds = await dogIdsMatchingRegistrationBreed(sanitized);
+  const orFilters = [`name.ilike.%${sanitized}%`, `call_name.ilike.%${sanitized}%`];
+  if (breedDogIds.length > 0) {
+    orFilters.push(`id.in.(${breedDogIds.join(',')})`);
+  }
+
   const { data, error } = await supabase
     .from('dogs')
     .select('*')
     .or(ownedByPerson(personId))
-    .or(`name.ilike.%${sanitized}%,breed.ilike.%${sanitized}%,call_name.ilike.%${sanitized}%`)
+    .or(orFilters.join(','))
     .is('deleted_at', null)
     .order('name', { ascending: true });
 
@@ -572,7 +610,11 @@ export const searchAllDogs = async (
     const { data: regMatches, error: regError } = await supabase
       .from('dog_registrations')
       .select('dog_id')
-      .or(`registration_number.ilike.%${sanitized}%,registered_name.ilike.%${sanitized}%`)
+      // Breed is a registration attribute, so it is matched here alongside the
+      // number and registered name rather than against `dogs.breed`.
+      .or(
+        `registration_number.ilike.%${sanitized}%,registered_name.ilike.%${sanitized}%,breed.ilike.%${sanitized}%`
+      )
       .limit(limit);
     if (regError) throw createDatabaseError(regError, 'dog', 'search_all');
     const registrationDogIds = [
@@ -583,11 +625,7 @@ export const searchAllDogs = async (
       ),
     ];
 
-    const orFilters = [
-      `name.ilike.%${sanitized}%`,
-      `call_name.ilike.%${sanitized}%`,
-      `breed.ilike.%${sanitized}%`,
-    ];
+    const orFilters = [`name.ilike.%${sanitized}%`, `call_name.ilike.%${sanitized}%`];
     if (registrationDogIds.length > 0) {
       orFilters.push(`id.in.(${registrationDogIds.join(',')})`);
     }
@@ -636,8 +674,13 @@ export const searchDogs = async (searchTerm: string, personId: string) => {
         filtered,
         compareStringAsc(dog => dog.name)
       );
-      // No joins needed — minimal query matching original select('*')
-      const data = sortedDogs.map(dog => mapReplicatedDogToDbRow(dog));
+      // Registrations ARE needed even though the original query was select('*'):
+      // breed lives on `dog_registrations`, so without them every offline result
+      // would render "Breed not set".
+      const registrationsMap = await loadRegistrationsMap(sortedDogs.map(d => d.id));
+      const data = sortedDogs.map(dog =>
+        mapReplicatedDogToDbRow(dog, { registrations: registrationsMap.get(dog.id) ?? [] })
+      );
       return { data, error: null };
     },
     postgrest: () => postgrestSearchDogs(searchTerm, personId),
@@ -659,14 +702,22 @@ export const getDogsWithUpcomingShows = async (personId: string) => {
       );
       // Batch-load owner names from PostgREST
       const ownerIds = sortedDogs.map(d => d.ownerId).filter((id): id is string => !!id);
-      const ownersMap = await loadOwnersMap(ownerIds);
+      const [ownersMap, registrationsMap] = await Promise.all([
+        loadOwnersMap(ownerIds),
+        // Breed comes from the registration, so it has to be loaded even though
+        // the original query only joined the owner.
+        loadRegistrationsMap(sortedDogs.map(d => d.id)),
+      ]);
       // Original query only selects owner(first_name, last_name) — attach minimal owner
       const data = sortedDogs.map(dog => {
         const ownerRow = dog.ownerId ? (ownersMap.get(dog.ownerId) ?? null) : null;
         const owner = ownerRow
           ? { first_name: ownerRow.first_name, last_name: ownerRow.last_name }
           : null;
-        return mapReplicatedDogToDbRow(dog, { owner });
+        return mapReplicatedDogToDbRow(dog, {
+          owner,
+          registrations: registrationsMap.get(dog.id) ?? [],
+        });
       });
       return { data, error: null };
     },

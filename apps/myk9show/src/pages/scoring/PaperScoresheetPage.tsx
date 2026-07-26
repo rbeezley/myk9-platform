@@ -13,7 +13,10 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { supabase } from '@/services/database/supabaseClient';
-import { organizationMatches } from '@/lib/dogRegistrationBreed';
+import {
+  resolveDogIdentityForOrganization,
+  type DogRegistrationLike,
+} from '@/features/dogs/identity';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { toScoringEntry, calculatePlacements } from './types';
 import { usePaperScoring } from './hooks/usePaperScoring';
@@ -60,18 +63,28 @@ async function loadRegisteredBreedsByDogId(
 
   const { data, error } = await supabase
     .from('dog_registrations')
-    .select('dog_id, organization, breed')
+    // `id` / `created_at` are the resolver's tiebreak fields, so the breed
+    // printed on a paper scoresheet is stable between runs when a dog holds two
+    // rows that normalize to the same organization (e.g. `AKC` and
+    // `AKC (American Kennel Club)`).
+    .select('dog_id, id, created_at, organization, breed')
     .in('dog_id', dogIds);
 
   if (error || !data) return new Map();
 
-  const breeds = new Map<string, string>();
+  const byDog = new Map<string, DogRegistrationLike[]>();
   for (const registration of data) {
-    if (!registration.dog_id || !registration.breed || !registration.organization) continue;
-    if (breeds.has(registration.dog_id)) continue;
-    if (organizationMatches(registration.organization, organization)) {
-      breeds.set(registration.dog_id, registration.breed);
-    }
+    if (!registration.dog_id) continue;
+    const rows = byDog.get(registration.dog_id) ?? [];
+    rows.push(registration as DogRegistrationLike);
+    byDog.set(registration.dog_id, rows);
+  }
+
+  const breeds = new Map<string, string>();
+  for (const [dogId, rows] of byDog) {
+    // Organization-scoped paperwork: no cross-organization fallback.
+    const breed = resolveDogIdentityForOrganization(rows, organization).breed;
+    if (breed) breeds.set(dogId, breed);
   }
   return breeds;
 }

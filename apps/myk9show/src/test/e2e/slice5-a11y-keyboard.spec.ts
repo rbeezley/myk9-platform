@@ -26,6 +26,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { signInAsTestUser } from './helpers/testUsers';
+import { ringSignature, scopePrefixes, type StyleReading } from '../utils/focusIndicator';
 
 /** Serious and critical block; moderate and minor are logged as advisory. */
 const BLOCKING_IMPACTS = ['serious', 'critical'];
@@ -306,85 +307,17 @@ const STYLE_PROPS = [
   'content',
 ] as const;
 
-/** `transparent`, or any rgb/rgba whose alpha is 0. */
-const isTransparent = (color: string): boolean =>
-  color === 'transparent' || /,\s*0\s*\)\s*$/.test(color);
-
 /**
- * Reduces one scope's raw properties to only what a sighted user can SEE as a
- * ring. Everything invisible is dropped, which is the whole trick:
+ * `ringSignature` reduces one scope's computed styles to only what is VISIBLY
+ * drawn, so a transparent `outline-none` outline and Tailwind's transparent
+ * placeholder shadow layers both collapse to nothing.
  *
- *  - Tailwind's `outline-none` does not remove the outline, it sets
- *    `outline: 2px solid transparent` (so Windows forced-colors mode keeps a
- *    ring). Chromium therefore reports a 2px outline on focus and none when
- *    blurred — for a control with NO focus styling at all. That artifact is
- *    what produced the earlier attempts' implausible "constant 2px/3px
- *    outline", and on the first cut of this check it let a deliberately
- *    deleted focus ring pass: the property-level delta was real, the pixels
- *    were not.
- *  - Tailwind's ring machinery likewise emits fully transparent box-shadow
- *    layers (`rgba(0,0,0,0) 0 0 0 0`) as placeholders.
- *
- * So a transparent outline, a transparent shadow layer and a zero-width border
- * all reduce to nothing, and a signature that stays empty means nothing is
- * drawn.
+ * It lives in `src/test/utils/` rather than here because vitest excludes
+ * `**\/e2e\/**`, and this parser must be unit tested directly: two colour
+ * -parsing bugs shipped in the first cut precisely because it was exercised
+ * only through a browser walk, whose pages happened not to produce the inputs
+ * that break it. See `focusIndicator.test.ts`.
  */
-function ringSignature(reading: StyleReading, prefix: string): string {
-  const get = (prop: string) => reading[`${prefix}|${prop}`] ?? '';
-  const parts: string[] = [];
-
-  const outlineVisible =
-    get('outlineStyle') !== 'none' &&
-    get('outlineWidth') !== '0px' &&
-    !isTransparent(get('outlineColor'));
-  if (outlineVisible) {
-    parts.push(
-      `outline:${get('outlineStyle')}/${get('outlineWidth')}/${get('outlineColor')}/${get('outlineOffset')}`
-    );
-  }
-
-  const shadow = get('boxShadow');
-  if (shadow && shadow !== 'none') {
-    // Split top-level commas only — colours carry their own commas.
-    const layers: string[] = [];
-    let depth = 0;
-    let current = '';
-    for (const ch of shadow) {
-      if (ch === '(') depth += 1;
-      if (ch === ')') depth -= 1;
-      if (ch === ',' && depth === 0) {
-        layers.push(current);
-        current = '';
-      } else {
-        current += ch;
-      }
-    }
-    layers.push(current);
-    const visible = layers.map(l => l.trim()).filter(l => l && !isTransparent(l.split(' ')[0]));
-    if (visible.length > 0) parts.push(`shadow:${visible.join(' | ')}`);
-  }
-
-  if (get('textDecorationLine') && get('textDecorationLine') !== 'none') {
-    parts.push(`underline:${get('textDecorationLine')}`);
-  }
-
-  if (get('borderWidth') !== '0px' && !isTransparent(get('borderColor'))) {
-    parts.push(`border:${get('borderWidth')}/${get('borderColor')}`);
-  }
-
-  const content = get('content');
-  if (content && content !== 'none' && content !== 'normal') {
-    parts.push(`content:${content}`);
-  }
-
-  return parts.join(' ; ');
-}
-
-/** Every scope (`depth|pseudo`) present in a reading. */
-const scopePrefixes = (reading: StyleReading): string[] =>
-  Array.from(new Set(Object.keys(reading).map(k => k.split('|').slice(0, 2).join('|'))));
-
-type StyleReading = Record<string, string>;
 
 interface StopRecord {
   tag: string;

@@ -138,7 +138,7 @@ function overlayLocalCreationOrder(
 
 /**
  * Registrations merged from the server and the offline replica, plus whether
- * the server leg failed.
+ * either read leg failed.
  *
  * The flag matters because `ReplicatedDogRegistrationsTable.sync()` is a no-op:
  * the replica only ever holds registrations CREATED locally, so for a dog whose
@@ -189,10 +189,11 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
   return {
     byDog: map,
     serverError: serverResult.error ?? null,
-    // Completeness describes the authoritative server leg. A local replica
-    // failure may hide a pending local-only row, but it must not make valid
-    // server registrations look unusable to callers that already have them.
-    registrationsReadComplete: !serverResult.error,
+    // A local replica failure may hide a pending local-only row, even when the
+    // server returned registrations. Keep those rows for display, but mark the
+    // merged read incomplete so callers that require verified data can refuse
+    // to proceed.
+    registrationsReadComplete: !serverResult.error && !localResult.error,
   };
 }
 

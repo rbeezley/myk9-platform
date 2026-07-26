@@ -97,11 +97,11 @@ export async function mapReplicatedDogWithRegistrations(dog: ReplicatedDog): Pro
  * reintroduced the ambiguity one layer up.
  *
  * Registration completeness is now propagated alongside the list. A failed
- * server read keeps `registrations` as an empty array for compatibility, but
+ * read keeps the registrations collected before the failure for display, but
  * marks `registrationsReadComplete` false so an unrelated local-first edit can
- * prefer a good per-dog cache instead of treating that empty array as proof of
- * absence. The existing 191 read sites continue to use the same registration
- * array contract; only this cache authority decision needs the extra bit.
+ * prefer a good per-dog cache without discarding known rows. The existing 191
+ * read sites continue to use the same registration array contract; only this
+ * cache authority decision needs the extra bit.
  */
 export function cachedRegistrationRowsForDog(
   dogId: string,
@@ -113,8 +113,11 @@ export function cachedRegistrationRowsForDog(
     return (loadedDog.registrations ?? []) as unknown as Record<string, unknown>[];
   }
 
-  // Only when the dog is not in the loaded list at all is the per-dog query
-  // cache the best available answer.
   const cached = queryClient.getQueryData(queryKeys.registrationsByDog(dogId));
-  return Array.isArray(cached) ? (cached as Record<string, unknown>[]) : [];
+  if (Array.isArray(cached)) return cached as Record<string, unknown>[];
+
+  // A failed merged read may still contain server rows. Preserve those rows
+  // when no better per-dog cache exists; completeness remains false for
+  // callers that require a verified read.
+  return (loadedDog?.registrations ?? []) as unknown as Record<string, unknown>[];
 }

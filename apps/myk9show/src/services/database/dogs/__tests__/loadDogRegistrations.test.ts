@@ -147,7 +147,7 @@ describe('loadDogRegistrations', () => {
     const { byDog, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
 
     expect(byDog.get('dog-1')).toEqual([serverRows[0]]);
-    expect(registrationsReadComplete).toBe(true);
+    expect(registrationsReadComplete).toBe(false);
   });
 });
 

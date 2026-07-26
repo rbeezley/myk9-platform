@@ -54,6 +54,8 @@ export async function pollCheckoutSession(
   const deadlineAt = Date.now() + CHECKOUT_VERIFICATION_DEADLINE_MS;
 
   for (let attempt = 1; attempt <= MAX_VERIFICATION_ATTEMPTS; attempt += 1) {
+    if (signal.aborted) return null;
+
     const remainingMs = deadlineAt - Date.now();
     if (remainingMs <= 0) return unavailableResult();
 

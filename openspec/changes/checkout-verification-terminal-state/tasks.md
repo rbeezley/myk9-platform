@@ -36,7 +36,7 @@
 ## Verification Evidence
 
 - OpenSpec strict validation passed for both modified capabilities and all scenarios.
-- Focused checkout and prior-session safety coverage passed: 4 files, 44 tests.
+- Focused checkout and prior-session safety coverage passed: 4 files, 45 tests.
 - myK9Show app/test TypeScript checks, changed-file lint, production build, and `git diff --check` passed.
 - The broad myK9Show unit suite was stopped at the repository's 60-second hang limit after 55 seconds; no failures had been reported before interruption.
 - Three adversarial payment reviewers approved the patched behavior after request-timeout, lifecycle, cart-identity, fail-closed, and copy findings were resolved.

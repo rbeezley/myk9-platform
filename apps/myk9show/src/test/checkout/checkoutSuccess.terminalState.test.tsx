@@ -180,6 +180,28 @@ describe('CheckoutSuccessPage terminal verification states', () => {
     expect(screen.getByRole('heading', { name: 'Payment Status Unavailable' })).toBeInTheDocument();
   });
 
+  it('does not start another verification after unmount aborts the polling delay', async () => {
+    verifyCheckoutSessionMock.mockResolvedValue({
+      success: false,
+      verificationStatus: 'processing',
+      error: 'Your payment is still processing.',
+    });
+
+    const view = render(<CheckoutSuccessPage />, {
+      initialRoute: '/checkout/success?session_id=cs_unmount_during_delay',
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(verifyCheckoutSessionMock).toHaveBeenCalledTimes(1);
+
+    view.unmount();
+    await finishVerificationTimers();
+
+    expect(verifyCheckoutSessionMock).toHaveBeenCalledTimes(1);
+  });
+
   it('ends in unavailable when a verification request never settles', async () => {
     verifyCheckoutSessionMock.mockReturnValue(new Promise(() => {}));
 

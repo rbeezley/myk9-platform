@@ -95,7 +95,13 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
     const weight = formData.weight ? parseFloat(formData.weight) : undefined;
     const height = formData.height ? parseFloat(formData.height) : undefined;
     const dogInput: DogInput = {
-      name: formData.callName,
+      // MYK9-90 §5.3 — the call name is no longer copied here. `DogInput.name`
+      // now only ever carries a registered name, and the create path does not
+      // persist it to the legacy `dogs.name` column at all: the registered name
+      // is written to `dog_registrations.registered_name` from `registrations`
+      // below. Left as the registration's registered name (or empty) so the
+      // in-memory input stays honest about what the field means.
+      name: formData.registrations?.[0]?.registeredName || '',
       callName: formData.callName,
       // No-registration dogs are saved as "Mixed Breed" — a disclosed default
       // the RegistrationTab empty state states explicitly (task 4.E). Keep it in

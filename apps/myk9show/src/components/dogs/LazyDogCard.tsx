@@ -287,7 +287,11 @@ export function LazyDogCard({
               </div>
               <div>
                 <h3 className="font-semibold text-lg">{getDogDisplayName(dog)}</h3>
-                <p className="text-sm text-muted-foreground">{dog.name}</p>
+                {/* MYK9-90 §5.2 — `Dog.name` now falls back to the call name, so
+                    only show it when it actually says something different. */}
+                {dog.name && dog.name !== getDogDisplayName(dog) && (
+                  <p className="text-sm text-muted-foreground">{dog.name}</p>
+                )}
               </div>
             </div>
 

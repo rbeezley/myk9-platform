@@ -69,7 +69,13 @@ export interface ReplicatedDog {
 export function rowToDog(row: DogRow): ReplicatedDog {
   return {
     id: String(row.id),
-    name: row.name,
+    // MYK9-90 §5.2 — `dogs.name` is a nullable legacy alias and is NULL for
+    // every dog created after that migration, so the replicated read falls back
+    // to the (now NOT NULL) call name. This keeps the offline read identical to
+    // the online one (`mapDatabaseToDog` applies the same fallback) and stops
+    // any surface rendering `dog.name` from going blank. It is NOT a registered
+    // name — that lives on `dog_registrations`.
+    name: row.name ?? row.call_name ?? '',
     callName: row.call_name ?? undefined,
     breed: row.breed,
     sex: row.sex ?? undefined,
@@ -107,7 +113,10 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
   private toSupabaseRow(dog: ReplicatedDog): Record<string, unknown> {
     return {
       id: dog.id,
-      name: dog.name,
+      // MYK9-90 §5.3 — `name` is deliberately not written back. `ReplicatedDog.name`
+      // is a read-side display alias that falls back to the call name (see
+      // `rowToDog`), so writing it would copy the call name into the legacy
+      // `dogs.name` column on every sync.
       call_name: dog.callName ?? null,
       breed: dog.breed,
       sex: dog.sex ?? null,
@@ -165,9 +174,14 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 
-    const result = await syncReplicatedTable(this, adapter, { value: syncScopeId }, {
-      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
-    });
+    const result = await syncReplicatedTable(
+      this,
+      adapter,
+      { value: syncScopeId },
+      {
+        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+      }
+    );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
@@ -257,7 +271,9 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     }
 
     // Hit the page cap without a short page — treat as incomplete and prune nothing.
-    logger.warn(`[${this.getTableName()}] reconcileDeleted exceeded ${MAX_PAGES} pages; skipping prune`);
+    logger.warn(
+      `[${this.getTableName()}] reconcileDeleted exceeded ${MAX_PAGES} pages; skipping prune`
+    );
     return 0;
   }
 
@@ -383,20 +399,14 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     const dogRow = this.toSupabaseRow(newDog);
 
     await this.set(newDog.id, newDog, true);
-    const mutationId = await this.queueMutation(
-      'INSERT',
-      newDog.id,
-      dogRow,
-      options.dependsOn,
-      {
-        name: 'create_dog_with_registrations',
-        args: {
-          p_dog: dogRow,
-          p_registrations: registrations,
-        },
-        expectRowId: true,
-      }
-    );
+    const mutationId = await this.queueMutation('INSERT', newDog.id, dogRow, options.dependsOn, {
+      name: 'create_dog_with_registrations',
+      args: {
+        p_dog: dogRow,
+        p_registrations: registrations,
+      },
+      expectRowId: true,
+    });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new dog ${newDog.id} via registration RPC`);
     return newDog;

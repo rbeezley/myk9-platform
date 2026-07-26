@@ -116,7 +116,9 @@ export async function createDayOfEntryDog(
   return {
     data: {
       id: dog.id,
-      name: dog.name,
+      // MYK9-90 §5.2 — `dogs.name` is a nullable legacy alias; fall back to the
+      // (NOT NULL) call name so this row never surfaces a dog with no name.
+      name: dog.name ?? dog.call_name ?? '',
       call_name: dog.call_name ?? null,
       breed: dog.breed ?? null,
       owner: {

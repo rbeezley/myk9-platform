@@ -333,7 +333,7 @@ export const checkArmbandConflicts = async (showId: string) => {
   try {
     const { data: entries, error } = await supabase
       .from('entries')
-      .select('id, armband, dog:dog_id(name)')
+      .select('id, armband, dog:dog_id(name, call_name)')
       .eq('show_id', showId)
       .is('deleted_at', null)
       .not('armband', 'is', null);
@@ -353,7 +353,10 @@ export const checkArmbandConflicts = async (showId: string) => {
         const existing = armbandMap.get(armband) || [];
         existing.push({
           id: entry.id,
-          dogName: (entry.dog as { name: string } | null)?.name || 'Unknown',
+          dogName:
+            (entry.dog as { name: string | null; call_name: string | null } | null)?.call_name ||
+            (entry.dog as { name: string | null } | null)?.name ||
+            'Unknown',
         });
         armbandMap.set(armband, existing);
       }

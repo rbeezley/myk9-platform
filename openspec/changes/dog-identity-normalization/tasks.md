@@ -4,6 +4,8 @@ Source: 2026-07-24 exhibitor audit + product-owner clarifications on MYK9-88. Si
 
 **Order matters.** Sections 1–3 are additive and independently shippable. Sections 4–6 are the breaking half and require the shared-system approval gate before `db push`. Do not start section 6 until section 2's helpers own every breed read.
 
+> **Status (2026-07-26).** Sections 4 and 5 are now implemented on top of 0–3. Their two migrations are **written but NOT pushed** — `supabase db push` was not run, and it needs the shared-system approval gate before these DROP COLUMN / SET NOT NULL statements touch staging. Unlike sections 0–3, **this code is not safe to deploy against the un-migrated schema**: §5.3 stops sending `dogs.name`, which is still `NOT NULL` until `20260727110000` is applied. Sections 6, 7 and 9 remain untouched; section 6 is still blocked on deferred task 2.3.
+>
 > **Status (2026-07-25).** Sections 0–3 are done, plus the parts of section 8 that cover them. Sections 4–7 and 9 are untouched. Task 2.3 (the ~258 display-only `.breed` read sites) is deliberately deferred — it gates section 6, not section 3's correctness fix. **The section-1 migration is written but NOT pushed**; `supabase db push` was not run and needs the shared-system approval gate. Nothing in sections 0–3 selects `is_primary` from the database, so this code is safe to run against the un-migrated schema.
 
 ## 0. Pre-flight
@@ -58,16 +60,33 @@ Source: 2026-07-24 exhibitor audit + product-owner clarifications on MYK9-88. Si
 
 ## 4. Drop the dead flat registry columns
 
-- [ ] 4.1 Confirm 0.2 is answered and nothing outside app source reads them.
-- [ ] 4.2 Migration: drop `dogs.akc_number`, `ukc_number`, `other_registry`, `other_registry_number`. They are `NULL` for every row, so no backfill is needed.
-- [ ] 4.3 Remove their TypeScript types and any remaining references.
+> **Both migrations in sections 4 and 5 are written but NOT pushed.** `supabase db push` was deliberately not run: these DROP COLUMN / SET NOT NULL statements hit a shared staging database and need the shared-system approval gate. **The application code in this section must not deploy ahead of the migrations** — §5.3 stops sending `dogs.name`, and the pre-migration column is still `NOT NULL`.
+
+- [x] 4.1 Confirmed. The 0.2 sweep was **re-run independently against the applied database on 2026-07-26**, not trusted:
+  - `information_schema.views` where the definition matches `/akc_number|ukc_number|other_registry/` → **0 rows**.
+  - `pg_get_functiondef` over every `public` function (`prokind in ('f','p')`) → **1 hit**, `public.create_show_managed_dog`; it **writes** `akc_number` / `ukc_number` and never reads them, and has no application caller.
+  - `pg_indexes` on `public` → **1 hit**, `dogs_akc_number_idx` (the performance advisor already reported it unused).
+  - `pg_constraint` on `public.dogs` and `pg_policies` → **0 rows** each.
+  - `supabase/functions/` and `apps/myk9show/supabase/functions/` → **0 matches**.
+  - Repo-wide source grep → only `packages/supabase/src/types/database.types.ts` (generated), archived advisor JSON under `docs/audits/`, and explanatory comments/tests written by section 3. The `akcNumber` hits in `features/organization-forms/` are AKC **PDF AcroForm field names**, unrelated to the columns.
+  - `public.dogs` column ACLs grant `anon` SELECT on `id` / `name` / `call_name` / `breed` / `image_url` only — none of the dropped columns carried a grant, so nothing needs restoring after the drop.
+- [x] 4.2 [`20260727100000_drop_dog_flat_registry_columns.sql`](../../../supabase/migrations/20260727100000_drop_dog_flat_registry_columns.sql) — drops `dogs_akc_number_idx`, then `akc_number` / `ukc_number` / `other_registry` / `other_registry_number`. No backfill: see 8.2.2. The same migration **replaces `create_show_managed_dog`** without `p_akc_number` / `p_ukc_number` (a `DROP` + `CREATE`, since the parameter list changes), reproducing its prior ACL exactly. The parameters are removed rather than accepted-and-ignored — silently discarding a registration number a caller supplied would be worse than a signature change.
+- [x] 4.3 Types and references removed: the four columns are gone from all five `dogs`-shaped blocks in `database.types.ts` (table `Row` / `Insert` / `Update`, plus the `get_deleted_dogs` and `restore_dog` setof returns), and `p_akc_number` / `p_ukc_number` are gone from the `create_show_managed_dog` args. Repo grep for the column names now returns **0 hits** outside archived audit JSON and explanatory comments.
 
 ## 5. Call name becomes the required identifier
 
-- [ ] 5.1 Migration: backfill `dogs.call_name` from `dogs.name` where null, then `SET NOT NULL` on `call_name`.
-- [ ] 5.2 Migration: make `dogs.name` nullable and update its column comment — it is a legacy alias, **not** a registered name.
-- [ ] 5.3 Stop writing the call name into `dogs.name` in [`AddDogPanel/index.tsx`](../../../apps/myk9show/src/components/panels/edit/AddDogPanel/index.tsx) and in `create_dog_with_registrations`.
-- [ ] 5.4 Record how many readers of `dogs.name` remain, to inform whether it is dropped later (design open question 2).
+- [x] 5.1 [`20260727110000_dog_call_name_required.sql`](../../../supabase/migrations/20260727110000_dog_call_name_required.sql) — backfills `call_name` from `name` where null, then `SET NOT NULL`. The backfill is a no-op against today's data (see 8.2.1) and is kept only so the statement cannot abort mid-migration if the data drifts before it is pushed.
+- [x] 5.2 Same migration: `dogs.name` `DROP NOT NULL`, plus column comments on **both** `name` (legacy alias, explicitly _not_ a registered name, candidate for a later `DROP`) and `call_name` (the required identifier).
+- [x] 5.3 The call name is no longer copied into `dogs.name`:
+  - `create_dog_with_registrations` writes `NULLIF(btrim(p_dog->>'name'), '')` and derives `call_name` from the caller's `call_name`, falling back to `name` only so a caller written against the old shape still produces a valid row; a create with neither raises an explicit `22023` rather than a bare `23502`.
+  - [`AddDogPanel/index.tsx`](../../../apps/myk9show/src/components/panels/edit/AddDogPanel/index.tsx) no longer sets `name: formData.callName`.
+  - The write is also stopped at the **mapper layer**, which is what actually covers every writer: `mapDogInputToInsert` sends `name: null`, `mapDogInputToUpdate` omits `name` entirely, and `ReplicatedDogsTable.toSupabaseRow` omits it too. Without that, an edit-and-save on any surface would have re-copied the call name into the legacy column.
+  - The safe direction (`name` → `call_name`) is kept where a legacy caller supplied only one name, because `call_name` is now `NOT NULL`.
+- [x] 5.4 **`dogs.name` reader inventory (design open question 2).** Non-test app-source reads of a dog's `.name`: **121** across **75 files**. Of those, **69** already prefer the call name at the site (`call_name ?? name`, `callName || name`, or `getDogDisplayName`). The remaining **~48** read the alias alone.
+      **None of them break**, because the fallback is applied at the two mapper boundaries instead of at 121 call sites: `mapDatabaseToDog` and `ReplicatedDogsTable.rowToDog` both resolve `name` to `name ?? call_name ?? ''`, so `Dog.name` / `ReplicatedDog.name` are never blank. Raw PostgREST rows that bypass those mappers were fixed individually — `armbands/reads.ts`, `entries/secretary.ts`, `entries/admin.ts` (two selects gained `call_name`), `useAKCSubmissionData`, `useEntryEligibility`, `useEntryManagementData`, `classMappers`, `DeletedEntitiesTab`, `WaitlistTable`, `WaitlistActionDialog`, `useWaitlistManagementData`, `MoveUpRequestsTab`, `PullManagementTab`, `late-entry-dog`.
+      DB-level surface still naming the column: **21** `from('dogs')` call sites and **36** `dogs` embeds.
+      Three deliberate readers remain, and they are the argument for **keeping** `name` for now rather than dropping it: the waitlist table and the move-up / pull request lists render it in parentheses _only when it differs from the call name_, which is the one place a legacy registered name is still visible. Two more (`features/heritage/email/buildConfirmationProps.ts`, `features/magazine/email/buildConfirmationProps.ts`) still map it to `dogRegisteredName`; those now emit `null` for a new dog, which is **correct** — the registered name belongs to a registration — and they move to the resolver with deferred task 2.4.
+      **Recommendation:** drop `dogs.name` once 2.4 lands and the three parenthetical readers are removed. Nothing depends on it for a displayed name today.
 
 ## 6. Remove breed from the dog record
 
@@ -88,12 +107,34 @@ Source: 2026-07-24 exhibitor audit + product-owner clarifications on MYK9-88. Si
 
 - [x] 8.1.1 Organization-scoped resolver — covered in [`resolveDogIdentity.test.ts`](../../../apps/myk9show/src/features/dogs/identity/__tests__/resolveDogIdentity.test.ts).
 - [x] 8.1.2 Generic resolver — covered, including order-independence and "unchanged by adding a non-primary registration".
-- [x] 8.1.3 Earliest-created-is-primary fallback covered in the resolver tests. The *database* half of the invariant (at most one primary per dog) is the partial unique index in the unpushed migration and cannot be proven until it is applied.
+- [x] 8.1.3 Earliest-created-is-primary fallback covered in the resolver tests. The _database_ half of the invariant (at most one primary per dog) is the partial unique index in the unpushed migration and cannot be proven until it is applied.
 
 ### 8.2 Data and migration verification
 
-- [ ] 8.2.1 Post-migration query proving no dog lost identity data: every dog still has a call name, and every registration retains its number, registered name, and breed.
-- [ ] 8.2.2 Confirm the flat registry columns were `NULL` for every row immediately before being dropped.
+- [x] 8.2.1 **Pre-migration verification, run against the applied database (`sojmvhhwsjxmfistvzbe`) on 2026-07-26 immediately before writing the §5 migration.** The `SET NOT NULL` cannot fail: there is nothing to backfill.
+
+  ```sql
+  select count(*)                                                  as total_dogs,
+         count(*) filter (where call_name is null)                 as null_call_name,
+         count(*) filter (where call_name is null and name is null) as null_call_name_and_name,
+         count(*) filter (where name is null)                      as null_name
+    from public.dogs;
+  -- total_dogs 19 | null_call_name 0 | null_call_name_and_name 0 | null_name 0
+  ```
+
+  Every one of the 19 rows already has a call name (0 need the backfill), and every row still has a legacy `name`, so nothing loses a displayed identity when `name` becomes nullable. The post-migration half of this task (that every registration retains its number, registered name, and breed) cannot be run until the migrations are pushed — `dog_registrations` is untouched by both files, so no registration column is at risk.
+
+- [x] 8.2.2 **The flat registry columns are `NULL` for every row.** Same session, same connection:
+
+  ```sql
+  select count(*) from public.dogs
+   where akc_number is not null or ukc_number is not null
+      or other_registry is not null or other_registry_number is not null;
+  -- 0
+  ```
+
+  0 of 19. The "always NULL" premise holds, so the drop destroys no data. (The 2026-07-25 pass recorded 16 dogs; the count has since drifted to 19 and the answer is unchanged.)
+
 - [ ] 8.2.3 Confirm no dog is left with a stored `"Mixed Breed"` placeholder.
 
 ### 8.3 Regression tests

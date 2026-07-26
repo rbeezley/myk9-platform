@@ -1489,7 +1489,6 @@ export type Database = {
       }
       dogs: {
         Row: {
-          akc_number: string | null
           breed: string
           breeder_id: string | null
           call_name: string | null
@@ -1506,20 +1505,16 @@ export type Database = {
           image_url: string | null
           license_key: string | null
           microchip_number: string | null
-          name: string
-          other_registry: string | null
-          other_registry_number: string | null
+          name: string | null
           owner_id: string | null
           sex: string | null
           spayed_neutered: boolean | null
           status: string | null
-          ukc_number: string | null
           updated_at: string | null
           version: number
           weight: string | null
         }
         Insert: {
-          akc_number?: string | null
           breed: string
           breeder_id?: string | null
           call_name?: string | null
@@ -1536,20 +1531,16 @@ export type Database = {
           image_url?: string | null
           license_key?: string | null
           microchip_number?: string | null
-          name: string
-          other_registry?: string | null
-          other_registry_number?: string | null
+          name?: string | null
           owner_id?: string | null
           sex?: string | null
           spayed_neutered?: boolean | null
           status?: string | null
-          ukc_number?: string | null
           updated_at?: string | null
           version?: number
           weight?: string | null
         }
         Update: {
-          akc_number?: string | null
           breed?: string
           breeder_id?: string | null
           call_name?: string | null
@@ -1566,14 +1557,11 @@ export type Database = {
           image_url?: string | null
           license_key?: string | null
           microchip_number?: string | null
-          name?: string
-          other_registry?: string | null
-          other_registry_number?: string | null
+          name?: string | null
           owner_id?: string | null
           sex?: string | null
           spayed_neutered?: boolean | null
           status?: string | null
-          ukc_number?: string | null
           updated_at?: string | null
           version?: number
           weight?: string | null
@@ -10868,7 +10856,6 @@ export type Database = {
       }
       create_show_managed_dog: {
         Args: {
-          p_akc_number?: string
           p_breed: string
           p_call_name?: string
           p_microchip_number?: string
@@ -10876,7 +10863,6 @@ export type Database = {
           p_owner_id: string
           p_sex?: string
           p_show_id: string
-          p_ukc_number?: string
         }
         Returns: string
       }
@@ -11157,7 +11143,6 @@ export type Database = {
       get_deleted_dogs: {
         Args: never
         Returns: {
-          akc_number: string | null
           breed: string
           breeder_id: string | null
           call_name: string | null
@@ -11174,14 +11159,11 @@ export type Database = {
           image_url: string | null
           license_key: string | null
           microchip_number: string | null
-          name: string
-          other_registry: string | null
-          other_registry_number: string | null
+          name: string | null
           owner_id: string | null
           sex: string | null
           spayed_neutered: boolean | null
           status: string | null
-          ukc_number: string | null
           updated_at: string | null
           version: number
           weight: string | null
@@ -11712,7 +11694,6 @@ export type Database = {
       restore_dog: {
         Args: { p_dog_id: string }
         Returns: {
-          akc_number: string | null
           breed: string
           breeder_id: string | null
           call_name: string | null
@@ -11729,14 +11710,11 @@ export type Database = {
           image_url: string | null
           license_key: string | null
           microchip_number: string | null
-          name: string
-          other_registry: string | null
-          other_registry_number: string | null
+          name: string | null
           owner_id: string | null
           sex: string | null
           spayed_neutered: boolean | null
           status: string | null
-          ukc_number: string | null
           updated_at: string | null
           version: number
           weight: string | null

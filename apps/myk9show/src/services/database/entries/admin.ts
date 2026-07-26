@@ -48,6 +48,7 @@ export const restoreEntry = async (id: string, restoredBy?: string) => {
         dog:dog_id (
           id,
           name,
+          call_name,
           breed
         ),
         class:class_id (
@@ -87,6 +88,7 @@ export const getDeletedEntries = async () => {
         dog:dog_id (
           id,
           name,
+          call_name,
           breed,
           owner:owner_id (
             id,

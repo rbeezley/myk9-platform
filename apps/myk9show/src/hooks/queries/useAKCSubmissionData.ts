@@ -244,7 +244,12 @@ export function useAKCSubmissionData(showId: string) {
 
         return {
           // SubmissionEntry base fields
-          dogName: dog?.name ?? '',
+          // MYK9-90 §5.2 — the call name leads. `dogs.name` is a nullable legacy
+          // alias that is NULL for every dog created after that migration, so
+          // reading it alone would put a blank dog name on an AKC submission.
+          // The registered name is separate and comes from the AKC registration
+          // (`dogRegisteredName` below).
+          dogName: dog?.call_name ?? dog?.name ?? '',
           // Empty, never a placeholder. `SubmissionEntry.breed` is a non-null
           // string in @myk9/secretary, so an unregistered dog contributes ''
           // rather than a guess — the app must not invent a breed.

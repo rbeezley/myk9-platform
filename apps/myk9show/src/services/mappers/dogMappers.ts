@@ -74,7 +74,12 @@ function mapHealthRecords(raw: unknown): Dog['healthRecords'] {
  */
 export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
   const dbInsert: DbDogInsert = {
-    name: input.name,
+    // MYK9-90 §5.3 — `dogs.name` is a nullable legacy alias, not a name the app
+    // owns. It is deliberately NOT fed `input.name`: that field carries the call
+    // name on most create paths, and copying it here is exactly the duplicated
+    // identity storage this change removes. The call name goes to `call_name`;
+    // the registered name goes to `dog_registrations.registered_name`.
+    name: null,
     breed: input.breed,
     date_of_birth: input.birthDate || null,
     sex: input.sex,
@@ -84,7 +89,11 @@ export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
     owner_id: input.ownerId,
     microchip_number: input.microchipNumber || null,
     image_url: input.imageUrl || null,
-    call_name: input.callName || null, // Use callName from input if provided
+    // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL. A caller that supplied only
+    // one name supplied the call name, so fall back to it rather than insert a
+    // NULL. (Safe direction: name -> call_name; the reverse copy is what §5.3
+    // removes above.)
+    call_name: input.callName || input.name || null,
     spayed_neutered: input.spayedNeutered ?? null,
     deceased: input.status === 'deceased',
     deceased_date: input.deceasedDate || null,
@@ -111,7 +120,10 @@ export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
 export const mapDogInputToUpdate = (input: Partial<DogInput>): DbDogUpdate => {
   const update: DbDogUpdate = {};
 
-  if (input.name !== undefined) update.name = input.name;
+  // MYK9-90 §5.3 — `input.name` is deliberately not written back to `dogs.name`.
+  // `Dog.name` is a read-side display alias that falls back to the call name
+  // (see `mapDatabaseToDog`), so echoing it into the column would silently
+  // re-copy the call name into the legacy column on every edit.
   if (input.callName !== undefined) update.call_name = input.callName || null;
   if (input.breed !== undefined) update.breed = input.breed;
   if (input.birthDate !== undefined) update.date_of_birth = input.birthDate || null;
@@ -166,6 +178,9 @@ export const mapReplicatedDogToDbRow = (
   }
 ): Record<string, unknown> => {
   const row: Record<string, unknown> = {
+    // Read-side adapter only (it also carries `owner` / `registrations` embeds):
+    // it reshapes a replicated row for `mapDatabaseToDog`, it is not a write
+    // path, so carrying `name` through is fidelity rather than a re-copy.
     ...mapFields(d as unknown as Record<string, unknown>, {
       id: 'id',
       name: 'name',
@@ -207,7 +222,12 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
 
   return {
     id: dbDog.id as string,
-    name: dbDog.name as string,
+    // MYK9-90 §5.2 — `dogs.name` is a nullable legacy alias and is NULL for
+    // every dog created after that migration. `Dog.name` stays a non-empty
+    // display alias by falling back to the (now NOT NULL) call name, so no
+    // surface that renders `dog.name` blanks out. It is NOT a registered name:
+    // that lives on `dog_registrations`, resolved via `@/features/dogs/identity`.
+    name: ((dbDog.name as string | null) ?? (dbDog.call_name as string | null) ?? '') as string,
     callName: (dbDog.call_name as string) || (dbDog.name as string), // Use call_name if available, fallback to name
     breed: dbDog.breed as string,
     birthDate: dateOfBirth ?? undefined,
@@ -262,7 +282,11 @@ export const mapDogInputToReplicated = (input: DogInput, id: string): Replicated
   return {
     id,
     name: input.name,
-    callName: input.callName || undefined,
+    // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL, and `create_dog_with_registrations`
+    // now rejects a create with no call name. A caller that supplied only one
+    // name supplied the call name, so fall back to it here. (This is the safe
+    // direction: name -> call_name. The reverse copy is what §5.3 removes.)
+    callName: input.callName || input.name || undefined,
     breed: input.breed,
     sex: input.sex || undefined,
     dateOfBirth: input.birthDate || undefined,

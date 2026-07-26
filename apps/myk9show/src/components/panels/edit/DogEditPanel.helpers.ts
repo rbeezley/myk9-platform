@@ -27,8 +27,11 @@ export const dogFormSchema = z.object({
 
 /** Convert DogType to form data for the edit panel. */
 export const dogToFormData = (dog: Partial<DogType>): DogFormData => {
-  // Get registered name from first registration if available, fall back to dog name
-  const registeredName = dog.registrations?.[0]?.registeredName || dog.name || '';
+  // MYK9-90 §5.2 — the registered name comes from the registration and nowhere
+  // else. The old `|| dog.name` fallback is gone: `Dog.name` now falls back to
+  // the call name, so keeping it here would prefill the registered-name field
+  // with the call name and let an edit-and-save write that guess back out.
+  const registeredName = dog.registrations?.[0]?.registeredName || '';
 
   // Derive gender from sex if not set (use lowercase to match Select values)
   const gender =

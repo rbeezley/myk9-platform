@@ -31,6 +31,10 @@ When I correct you or you catch yourself making a mistake, before continuing, ad
 - When adding a `docs/plan-*.md`, add its status line and `docs/README.md` index row in the same edit.
 - `REVOKE ALL ON ALL TABLES ... FROM anon` also drops COLUMN-level grants — verify `pg_attribute.attacl`, not just `pg_class.relacl`; a `select=*` PostgREST probe returns 200 either way and cannot see the difference (MYK9-93 briefly exposed `entries.total_score`/`payment_status`/`stripe_payment_intent_id` to anon on staging this way).
 - PostgREST requires table-level SELECT on every EMBEDDED relation — revoking anon on a table only ever reached via `table(col,...)` / `table!inner(...)` embeds turns a null embed into a hard 42501 that fails the WHOLE request. Grep for embeds, not just `.from('table')`.
+- A "missing" column is NOT automatically drift — before writing a repair migration, check `supabase_migrations.schema_migrations` AND recently merged PRs for a deliberate `drop_*`. A stale branch makes an intentional deletion look like an unapplied migration; re-adding the column silently reverts merged work (nearly happened with `20260725200000_drop_early_adopter_until`, already removed by #1470).
+- `tsc` errors about generated DB types (`Database['public']['Tables'][...]`) can come from a STALE `packages/supabase/dist/index.d.ts`, not your code — rebuild `pnpm --filter @myk9/supabase build` before believing them. Same built-`dist` trap as the app-test rule, but it produces a false FAILURE rather than a false pass.
+- Migration-parsing tests (e.g. `anonEntriesGrantContract`) read the whole `supabase/migrations/` directory, so an UNTRACKED scratch `.sql` left there fails them with a confusing ACL error. Keep experiments out of that directory.
+- `SlideOverPanel`'s `size` prop is currently inert — a fixed `sm:/md:/lg:/xl:` chain overrides the size-derived width at every breakpoint, so all panels render the same. Override via `className` for a single panel; see MYK9-99 before "fixing" it globally.
 
 ## Intent & Emotional Design
 

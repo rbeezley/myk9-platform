@@ -189,7 +189,10 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
   return {
     byDog: map,
     serverError: serverResult.error ?? null,
-    registrationsReadComplete: !serverResult.error && !localResult.error,
+    // Completeness describes the authoritative server leg. A local replica
+    // failure may hide a pending local-only row, but it must not make valid
+    // server registrations look unusable to callers that already have them.
+    registrationsReadComplete: !serverResult.error,
   };
 }
 
@@ -435,12 +438,10 @@ export const getDogById = async (id: string) => {
 
       const [registrationsResult, supplementalResult] = await Promise.all([
         loadDogRegistrations([id]),
-        (async () => {
-          try {
-            return await supabase
-              .from('dogs')
-              .select(
-                `
+        supabase
+          .from('dogs')
+          .select(
+            `
             owner:people!dogs_owner_id_fkey(
               id,
               first_name,
@@ -454,13 +455,9 @@ export const getDogById = async (id: string) => {
             ),
             health_records(*)
           `
-              )
-              .eq('id', id)
-              .single();
-          } catch (error) {
-            return { data: null, error };
-          }
-        })(),
+          )
+          .eq('id', id)
+          .single(),
       ]);
 
       const supplemental = supplementalResult.data;

@@ -141,12 +141,13 @@ describe('loadDogRegistrations', () => {
   });
 
   it('marks the merged read incomplete when the local replica read fails', async () => {
-    mockServerIn.mockResolvedValue({ data: [], error: null });
+    mockServerIn.mockResolvedValue({ data: [serverRows[0]], error: null });
     mockLocalGet.mockRejectedValue(new Error('local replica unavailable'));
 
-    const { registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
+    const { byDog, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
 
-    expect(registrationsReadComplete).toBe(false);
+    expect(byDog.get('dog-1')).toEqual([serverRows[0]]);
+    expect(registrationsReadComplete).toBe(true);
   });
 });
 

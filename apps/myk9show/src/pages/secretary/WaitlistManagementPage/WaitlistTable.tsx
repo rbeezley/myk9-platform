@@ -42,14 +42,16 @@ function buildColumns(
     {
       id: 'dog',
       header: 'Dog',
-      accessorFn: row => row.dog?.name ?? '',
+      accessorFn: row => row.dog?.call_name ?? row.dog?.name ?? '',
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <Dog className="h-4 w-4 text-muted-foreground shrink-0" />
           <div>
-            <span className="font-medium">{row.original.dog?.name || 'Unknown Dog'}</span>
-            {row.original.dog?.call_name && (
-              <span className="text-muted-foreground ml-1">({row.original.dog.call_name})</span>
+            <span className="font-medium">
+              {row.original.dog?.call_name || row.original.dog?.name || 'Unknown Dog'}
+            </span>
+            {row.original.dog?.name && row.original.dog.name !== row.original.dog.call_name && (
+              <span className="text-muted-foreground ml-1">({row.original.dog.name})</span>
             )}
           </div>
         </div>

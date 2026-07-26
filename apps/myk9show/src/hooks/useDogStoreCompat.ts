@@ -23,6 +23,7 @@ import {
   mapDatabaseDogsArray,
   mapReplicatedDogToDbRow,
   mapPartialDogInputToReplicated,
+  normalizeDogInputForWrite,
 } from '@/services/mappers/dogMappers';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { logger } from '@/services/LoggingService';
@@ -98,10 +99,16 @@ export const useDogStoreCompat = () => {
   const addDog = async (dogData: DogInput): Promise<Dog> => {
     const dogId = crypto.randomUUID();
 
+    // MYK9-90 §5.1 — both mappers run BEFORE the local write, not after. They
+    // are the layer that rejects a dog with no usable call name (a NOT NULL
+    // column), and `mapDogInputToInsert` throws. Called after
+    // `replicatedDogsTable.set` it threw from outside the rollback `try` below,
+    // leaving a ghost dog in IndexedDB that no cleanup path removed. Nothing is
+    // persisted until the payload is known to be acceptable.
     const replicatedDog = mapDogInputToReplicated(dogData, dogId);
-    await replicatedDogsTable.set(dogId, replicatedDog, false);
-
     const dbData = { ...mapDogInputToInsert(dogData), id: dogId };
+
+    await replicatedDogsTable.set(dogId, replicatedDog, false);
 
     try {
       if (dogData.registrations && dogData.registrations.length > 0) {
@@ -183,6 +190,10 @@ export const useDogStoreCompat = () => {
     options: { dependsOn?: string[] } = {}
   ): Promise<Dog> => {
     const dogId = crypto.randomUUID();
+    // MUST stay the first statement: `mapDogInputToReplicated` calls
+    // `resolveRequiredCallName`, which THROWS on a missing or whitespace-only
+    // call name (§5.1). Nothing below it — including the registration mirror —
+    // may write to IndexedDB or queue a mutation before that check has run.
     const replicatedDog = mapDogInputToReplicated(dogData, dogId);
 
     let registrations: Record<string, unknown>[] = [];
@@ -190,7 +201,8 @@ export const useDogStoreCompat = () => {
       // Create the local mirror FIRST so the RPC payload can carry the same
       // ordered creation timestamps. Without them every registration in the
       // RPC's transaction gets an identical server `created_at` and the primary
-      // is decided by a random UUID (MYK9-90 review round 4).
+      // is decided by a random UUID (MYK9-90 review round 4). Safe with respect
+      // to §5.1: the call-name check above has already thrown by this point.
       const savedRegistrations =
         await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
           dogId,
@@ -242,11 +254,18 @@ export const useDogStoreCompat = () => {
       registrationsCount: updates.registrations?.length || 0,
     });
 
+    // MYK9-90 §5.1 — normalise ONCE, above both writes. The IndexedDB mapper and
+    // the Supabase mapper are fed from the same patch, and when each trimmed (or
+    // did not) on its own, a padded "  Tera  " was stored trimmed locally and
+    // sent padded to the server — so the next server-backed sync reverted the
+    // local value. Both mappers below receive this identical normalised patch.
+    const normalizedUpdates = normalizeDogInputForWrite(updates);
+
     // Write to IndexedDB first so getAllDogs() reads fresh data on the next React Query refetch.
     const current = await replicatedDogsTable.getDogById(id);
     let localDog: Dog | null = null;
     if (current) {
-      const updated = { ...current, ...mapPartialDogInputToReplicated(updates) };
+      const updated = { ...current, ...mapPartialDogInputToReplicated(normalizedUpdates) };
       await replicatedDogsTable.set(id, updated, false);
       // Local-first: resolve the breed from data already in memory rather than
       // awaiting a PostgREST round-trip on the save path.
@@ -259,7 +278,7 @@ export const useDogStoreCompat = () => {
 
     // Background Supabase sync — onSuccess invalidates the list query, which refetches from
     // the now-fresh IndexedDB instead of returning stale data.
-    const dbUpdates = mapDogInputToUpdate(updates);
+    const dbUpdates = mapDogInputToUpdate(normalizedUpdates);
     runDogMutation(() => updateMutation.mutateAsync({ id, updates: dbUpdates })).catch(err => {
       logger.error(
         'Background Supabase sync failed for dog update',

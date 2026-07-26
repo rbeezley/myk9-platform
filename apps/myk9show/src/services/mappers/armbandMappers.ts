@@ -52,7 +52,9 @@ export function mapArmbandLookup(
     armband_number: armband.armbandNumber,
     dog: {
       id: dog.id,
-      name: dog.name,
+      // MYK9-90 §5.2 — mirrors the PostgREST half in services/database/armbands/reads.ts:
+      // call name first, legacy `dogs.name` only as a fallback.
+      name: dog.callName ?? dog.name,
       breed: dog.breed,
       sex: dog.sex ?? '',
     },

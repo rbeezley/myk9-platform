@@ -88,28 +88,53 @@ export async function createEntryCheckoutSession(
  * @param sessionId - The Stripe checkout session ID
  * @returns Order details including entry IDs
  */
-export async function verifyCheckoutSession(sessionId: string): Promise<{
-  success: boolean;
-  checkoutOutcome?: 'paid_entries' | 'full_overflow_refund';
-  orderId?: string;
-  entryIds?: string[];
-  showId?: string;
-  showName?: string;
-  totalAmountCents?: number;
-  refundAmount?: number;
-  refundStatus?: 'issued' | 'processing';
-  confirmationNumber?: string;
-  error?: string;
-}> {
+export type CheckoutVerificationResult =
+  | {
+      success: true;
+      verificationStatus: 'succeeded';
+      checkoutOutcome?: 'paid_entries' | 'full_overflow_refund';
+      orderId?: string;
+      entryIds?: string[];
+      showId?: string;
+      showName?: string;
+      cartId?: string;
+      totalAmountCents?: number;
+      refundAmount?: number;
+      refundStatus?: 'issued' | 'processing';
+      confirmationNumber?: string;
+    }
+  | {
+      success: false;
+      verificationStatus: 'processing' | 'failed' | 'refunded' | 'unavailable';
+      error: string;
+    };
+
+function getOrderCartId(metadata: unknown): string | undefined {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return undefined;
+  const cartId = (metadata as Record<string, unknown>).cart_id;
+  return typeof cartId === 'string' ? cartId : undefined;
+}
+
+export async function verifyCheckoutSession(
+  sessionId: string
+): Promise<CheckoutVerificationResult> {
   if (!sessionId) {
-    return { success: false, error: 'No session ID provided' };
+    return {
+      success: false,
+      verificationStatus: 'unavailable',
+      error: 'No checkout session was provided.',
+    };
   }
 
   const session = await supabase.auth.getSession();
   const accessToken = session.data.session?.access_token;
 
   if (!accessToken) {
-    return { success: false, error: 'Please sign in to view order details' };
+    return {
+      success: false,
+      verificationStatus: 'unavailable',
+      error: 'Please sign in to check your payment status.',
+    };
   }
 
   // Query the stripe_orders table for this checkout session
@@ -133,42 +158,100 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
     .eq('stripe_checkout_session_id', sessionId)
     .single();
 
-  if (error || !order) {
-    // Order might not be created yet (webhook delay)
-    return { success: false, error: 'Order not found. It may still be processing.' };
+  if (!order) {
+    if (!error || error.code === 'PGRST116') {
+      return {
+        success: false,
+        verificationStatus: 'processing',
+        error: 'Your payment is still processing.',
+      };
+    }
+
+    return {
+      success: false,
+      verificationStatus: 'unavailable',
+      error: 'We could not check your payment status right now.',
+    };
+  }
+
+  if (error) {
+    return {
+      success: false,
+      verificationStatus: 'unavailable',
+      error: 'We could not check your payment status right now.',
+    };
   }
 
   const overflowRefund = getFullOverflowRefund(order.metadata);
   if (overflowRefund && (order.status === 'refunded' || order.status === 'succeeded')) {
+    const cartId = getOrderCartId(order.metadata);
     return {
       success: true,
+      verificationStatus: 'succeeded',
       checkoutOutcome: 'full_overflow_refund',
       orderId: order.id,
       entryIds: [],
       ...(order.show_id != null && { showId: order.show_id }),
       ...(order.shows && { showName: (order.shows as { name: string }).name }),
+      ...(cartId !== undefined && { cartId }),
       ...(overflowRefund.amountCents != null && { refundAmount: overflowRefund.amountCents }),
       refundStatus: order.status === 'refunded' ? 'issued' : 'processing',
       ...(order.stripe_payment_intent_id && { confirmationNumber: order.stripe_payment_intent_id }),
     };
   }
 
+  if (order.status === 'pending' || order.status === 'processing') {
+    return {
+      success: false,
+      verificationStatus: 'processing',
+      error: 'Your payment is still processing.',
+    };
+  }
+
+  if (order.status === 'refunded') {
+    return {
+      success: false,
+      verificationStatus: 'refunded',
+      error: 'Your payment was refunded.',
+    };
+  }
+
+  if (order.status === 'failed' || order.status === 'cancelled') {
+    const terminalMessage =
+      order.status === 'cancelled'
+        ? 'Your payment was cancelled.'
+        : 'Your payment was not completed.';
+
+    return {
+      success: false,
+      verificationStatus: 'failed',
+      error: terminalMessage,
+    };
+  }
+
   if (order.status !== 'succeeded') {
-    return { success: false, error: `Payment status: ${order.status}` };
+    return {
+      success: false,
+      verificationStatus: 'unavailable',
+      error: 'We could not confirm your payment status right now.',
+    };
   }
 
   const enrollment = order.enrollment as { confirmation_number: string } | null;
   // Online cart orders have no enrollment record; the payment intent id is the
   // reference that support, refunds, and the Stripe dashboard all pivot on.
   const confirmationNumber = enrollment?.confirmation_number || order.stripe_payment_intent_id;
+  const cartId = getOrderCartId(order.metadata);
 
   return {
     success: true,
+    verificationStatus: 'succeeded',
     checkoutOutcome: 'paid_entries',
     orderId: order.id,
     entryIds: order.entry_ids || [],
     ...(order.show_id != null && { showId: order.show_id }),
     ...(order.shows && { showName: (order.shows as { name: string }).name }),
+    ...(cartId !== undefined && { cartId }),
     ...(order.amount_cents != null && { totalAmountCents: order.amount_cents }),
     ...(confirmationNumber && { confirmationNumber }),
   };

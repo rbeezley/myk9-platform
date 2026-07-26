@@ -182,11 +182,18 @@ export function useEntryEligibility({
 
       return (data || []).map((d): DogData => ({
         id: d.id,
-        name: d.name || 'Unknown',
+        // MYK9-90 §5.2 — `dogs.name` is a nullable legacy alias; the call name
+        // is the required identifier, so it leads here.
+        name: d.call_name || d.name || 'Unknown',
         callName: d.call_name,
         heightInches: d.height ? parseFloat(d.height) : null,
         dateOfBirth: d.date_of_birth,
         titles: [], // Not stored in dogs table
+        // Raw registrations, NOT a pre-resolved breed/number: eligibility is
+        // judged per class against that class's registry, so resolution has to
+        // happen where the class is known. The `registrations[0]` pick this
+        // replaces had no ordering and no organization scoping, and `breed` was
+        // read off `dogs.breed`, which this select no longer fetches.
         registrations: (d.registrations ?? []) as DogRegistrationLike[],
       }));
     },

@@ -130,6 +130,7 @@ describe('Comprehensive Database Test Suite', () => {
       // Test createDog
       const newDogData: DbDogInsert = {
         name: 'New Dog',
+        call_name: 'New Dog',
         breed: 'Beagle',
         owner_id: 'owner-3',
       };
@@ -433,6 +434,7 @@ describe('Comprehensive Database Test Suite', () => {
 
       const dogData: DbDogInsert = {
         name: 'Test Dog',
+        call_name: 'Test Dog',
         breed: 'Test Breed',
         owner_id: 'non-existent-owner',
       };

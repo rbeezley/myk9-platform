@@ -42,6 +42,7 @@ async function postgrestLookupDogByArmband(showId: string, armbandNumber: string
       dog:dogs (
         id,
         name,
+        call_name,
         breed,
         sex,
         owner:people!dogs_owner_fkey (
@@ -68,7 +69,8 @@ async function postgrestLookupDogByArmband(showId: string, armbandNumber: string
 
   const dog = armbandData.dog as unknown as {
     id: string;
-    name: string;
+    name: string | null;
+    call_name: string | null;
     breed: string;
     sex: string;
     owner: { first_name: string; last_name: string } | null;
@@ -124,7 +126,17 @@ async function postgrestLookupDogByArmband(showId: string, armbandNumber: string
   return {
     data: {
       armband_number: armbandData.armband_number,
-      dog: { id: dog.id, name: dog.name, breed: dog.breed, sex: dog.sex },
+      // MYK9-90 §5.2 — this is the PostgREST half of the armband lookup; the
+      // replicated half (`mapArmbandLookupResult`) reads `ReplicatedDog.name`,
+      // which `rowToDog` already falls back to the call name. Both paths must
+      // apply the same fallback or an offline lookup and an online lookup show
+      // different names for the same dog.
+      dog: {
+        id: dog.id,
+        name: dog.call_name ?? dog.name ?? '',
+        breed: dog.breed,
+        sex: dog.sex,
+      },
       owner,
       entries,
     },

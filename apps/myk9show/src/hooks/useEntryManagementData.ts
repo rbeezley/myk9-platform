@@ -93,7 +93,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
     entryNumber: entry.armband || entry.id.slice(0, 8).toUpperCase(),
     showId: entry.show_id || '',
     dogId: entry.dog_id || '',
-    dogName: entry.dog?.name || 'Unknown Dog',
+    dogName: entry.dog?.call_name || entry.dog?.name || 'Unknown Dog',
     // Online (webhook-created) entries set handler_id/dog.owner FKs but
     // never the legacy `handler` text; mail-in entries set the text only.
     ownerName: personName(entry.dog?.owner) || entry.handler || 'Unknown',

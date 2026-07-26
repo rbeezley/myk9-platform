@@ -34,6 +34,7 @@ interface JoinedTrial {
 /** Shape of a dog object when joined via Supabase select */
 interface JoinedDog {
   name?: string | null;
+  call_name?: string | null;
 }
 
 /** Shape of a result object when joined via Supabase select */
@@ -321,7 +322,7 @@ export const mapDatabaseToEntry = (dbEntry: DbEntryWithRelations): SyncableEntry
     id: dbEntry.id,
     armband: dbEntry.armband || '',
     handler: dbEntry.handler || 'Unknown',
-    dog: dog?.name || 'Unknown Dog',
+    dog: dog?.call_name || dog?.name || 'Unknown Dog',
     status: mapDatabaseEntryStatus(dbEntry.entry_status ?? null),
     score: result?.score || '',
     time: result?.time_seconds?.toString() || '',

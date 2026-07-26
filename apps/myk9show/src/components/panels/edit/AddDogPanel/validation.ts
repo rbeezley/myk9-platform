@@ -58,7 +58,14 @@ const isRegistration = (v: unknown): v is Registration => {
  * Replaces the legacy validateDogData function.
  */
 export const addDogSchema = z.object({
-  callName: z.string().min(1, 'Please enter a call name').max(120, 'Call name is too long'),
+  // MYK9-90 §5.1 — `.trim()` BEFORE `.min(1)`, deliberately. A bare `min(1)`
+  // accepts "   ", and the call name is now a NOT NULL database column, so a
+  // whitespace-only value was normalised to empty further downstream — after
+  // the dog had already been written to IndexedDB and queued for sync. This is
+  // the earliest point in the write lifecycle, and it is the only one that runs
+  // before anything is persisted on either the online or the offline-first
+  // path. Trimming here also means every consumer receives a normalised value.
+  callName: z.string().trim().min(1, 'Please enter a call name').max(120, 'Call name is too long'),
   gender: z
     .enum(['Male', 'Female', ''] as const, { message: 'Please select a gender' })
     .refine(v => v !== '', 'Please select a gender'),

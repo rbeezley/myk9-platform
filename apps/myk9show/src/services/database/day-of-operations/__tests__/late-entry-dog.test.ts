@@ -104,7 +104,7 @@ describe('createDayOfEntryDog', () => {
       data: {
         id: 'dog-1',
         name: 'Rocket Fuel',
-        call_name: null,
+        call_name: 'Rocket Fuel',
         breed: 'Mixed Breed',
       },
       error: null,
@@ -117,9 +117,13 @@ describe('createDayOfEntryDog', () => {
     });
 
     expect(createUserMock).not.toHaveBeenCalled();
+    // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL after 20260727110000. The
+    // call name is optional in this input, so it falls back to the dog name;
+    // sending null here would fail the insert at the database on show day,
+    // where this is the late-entry desk.
     expect(createDogMock).toHaveBeenCalledWith({
       name: 'Rocket Fuel',
-      call_name: null,
+      call_name: 'Rocket Fuel',
       breed: 'Mixed Breed',
       owner_id: 'person-existing',
       status: 'active',

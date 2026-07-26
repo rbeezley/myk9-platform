@@ -137,7 +137,17 @@ describe('useDogStoreCompat.addDog — atomic RPC path (with registrations)', ()
     expect(mockSupabase.rpc).toHaveBeenCalledWith(
       'create_dog_with_registrations',
       expect.objectContaining({
-        p_dog: expect.objectContaining({ name: 'Buddy', owner_id: 'owner-123' }),
+        // MYK9-90 §5.3 — the RPC payload carries the call name and NOT the
+        // legacy `dogs.name`. `minimalDogInput` supplies only `name`, which the
+        // input mapper treats as the call name (the required identifier).
+        p_dog: expect.not.objectContaining({ name: expect.anything() }),
+        p_registrations: expect.anything(),
+      })
+    );
+    expect(mockSupabase.rpc).toHaveBeenCalledWith(
+      'create_dog_with_registrations',
+      expect.objectContaining({
+        p_dog: expect.objectContaining({ call_name: 'Buddy', owner_id: 'owner-123' }),
         p_registrations: expect.arrayContaining([
           expect.objectContaining({
             organization: 'AKC',

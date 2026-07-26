@@ -57,6 +57,7 @@ export function FieldGuideEntryReceived({
   totalFeesFormatted,
   registrationNumber,
   confirmationDateLabel,
+  entryBlankActions,
   onPrintEntryBlank,
 }: FieldGuideEntryReceivedProps) {
   const navigate = useNavigate();
@@ -229,26 +230,28 @@ export function FieldGuideEntryReceived({
           padding: '18px 28px 16px',
         }}
       >
-        <Button
-          onClick={onPrintEntryBlank}
-          disabled={!onPrintEntryBlank}
-          style={{
-            background: fieldGuideColors.orange,
-            color: fieldGuideColors.paper,
-            fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
-            fontWeight: 700,
-            fontSize: 13,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            border: 'none',
-            borderRadius: 0,
-          }}
-          className="w-full"
-          aria-label="Print my entry blank"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Print my entry blank
-        </Button>
+        {entryBlankActions ?? (
+          <Button
+            onClick={onPrintEntryBlank}
+            disabled={!onPrintEntryBlank}
+            style={{
+              background: fieldGuideColors.orange,
+              color: fieldGuideColors.paper,
+              fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
+              fontWeight: 700,
+              fontSize: 13,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              border: 'none',
+              borderRadius: 0,
+            }}
+            className="w-full"
+            aria-label="Print my entry blank"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Print my entry blank
+          </Button>
+        )}
         <Button
           variant="outline"
           onClick={() => navigate('/')}

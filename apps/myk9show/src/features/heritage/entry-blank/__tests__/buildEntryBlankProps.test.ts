@@ -158,6 +158,18 @@ const HANDLER = {
   zip_code: '78205',
 };
 
+const DESIGNATED_HANDLER = {
+  id: 'person-2',
+  first_name: 'Jamie',
+  last_name: 'Smith',
+  email: 'jamie@example.com',
+  phone: '608-555-0100',
+  address: '12 Main Street',
+  city: 'Madison',
+  state: 'WI',
+  zip_code: '53703',
+};
+
 const ENTRY = {
   id: 'entry-1',
   dog_id: 'dog-1',
@@ -329,6 +341,26 @@ describe('buildEntryBlankProps — pre-filled mode', () => {
   it('populates owner from handler fixture', () => {
     expect(props.owner.ownerName).toBe('Sarah Nakamura');
     expect(props.owner.email).toBe('sarah@example.com');
+  });
+
+  it('keeps a designated handler distinct from the actual owner', () => {
+    const designatedHandlerProps = buildEntryBlankProps({
+      show: SHOW,
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+      entry: ENTRY,
+      dog: DOG,
+      owner: HANDLER,
+      handler: DESIGNATED_HANDLER,
+    });
+
+    expect(designatedHandlerProps.dog.actualOwners).toBe('Sarah Nakamura');
+    expect(designatedHandlerProps.owner.ownerName).toBe('Sarah Nakamura');
+    expect(designatedHandlerProps.owner.handlerName).toBe('Jamie Smith');
+    expect(designatedHandlerProps.owner.email).toBe('sarah@example.com');
   });
 
   it('sets totalAmount from entry_fee', () => {

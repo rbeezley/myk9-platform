@@ -28,6 +28,7 @@ export function HeadlineEntryReceived({
   totalFeesFormatted,
   registrationNumber,
   confirmationDateLabel,
+  entryBlankActions,
   onPrintEntryBlank,
 }: HeadlineEntryReceivedProps) {
   const navigate = useNavigate();
@@ -232,24 +233,26 @@ export function HeadlineEntryReceived({
       </div>
 
       <div className="flex flex-col gap-2.5 px-7 pb-4 pt-5">
-        <Button
-          onClick={onPrintEntryBlank}
-          disabled={!onPrintEntryBlank}
-          style={{
-            background: INK,
-            color: PAPER,
-            fontFamily: DISPLAY,
-            fontWeight: 700,
-            letterSpacing: '0',
-            border: 'none',
-            borderRadius: 0,
-          }}
-          className="w-full transition-transform duration-150 hover:-translate-y-px hover:bg-[#c4302b]"
-          aria-label="Print my entry blank"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Print my entry blank
-        </Button>
+        {entryBlankActions ?? (
+          <Button
+            onClick={onPrintEntryBlank}
+            disabled={!onPrintEntryBlank}
+            style={{
+              background: INK,
+              color: PAPER,
+              fontFamily: DISPLAY,
+              fontWeight: 700,
+              letterSpacing: '0',
+              border: 'none',
+              borderRadius: 0,
+            }}
+            className="w-full transition-transform duration-150 hover:-translate-y-px hover:bg-[#c4302b]"
+            aria-label="Print my entry blank"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Print my entry blank
+          </Button>
+        )}
 
         <Button
           variant="outline"

@@ -123,12 +123,23 @@ describe('MyEntryCard current status summary', () => {
       makeEntry({ entryStatus: EntryStatus.PENDING, paymentStatus: PaymentStatus.PENDING })
     );
     expect(container.querySelector('.entry-status-stepper')).not.toBeInTheDocument();
-    expect(screen.getByText('Pending Review')).toBeInTheDocument();
+    expect(screen.getByText('Pending Secretary Approval')).toBeInTheDocument();
     expect(screen.getByText('Payment Due')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Finish Payment/i })).toHaveAttribute(
       'href',
       '/cart?showId=s1&entryIds=e1'
     );
+  });
+
+  it('uses the preserved day-of kind instead of pending copy', () => {
+    const { container } = renderCard(
+      makeEntry({ entryStatus: EntryStatus.PENDING, entryStatusKind: 'in_ring' })
+    );
+
+    expect(screen.getByText('In Ring')).toBeInTheDocument();
+    expect(screen.queryByText(/Pending/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(PENDING_REVIEW_REASSURANCE)).not.toBeInTheDocument();
+    expect(container.querySelector('[data-status="in_ring"]')).toBeInTheDocument();
   });
 
   it('does not render the four-step lifecycle strip for a waitlisted entry', () => {
@@ -371,7 +382,7 @@ describe('MyEntryCard history status clarity', () => {
 
     expect(screen.getByText('Review incomplete')).toBeInTheDocument();
     expect(screen.getByText('Payment unresolved')).toBeInTheDocument();
-    expect(screen.queryByText('Pending Review')).not.toBeInTheDocument();
+    expect(screen.queryByText('Pending Secretary Approval')).not.toBeInTheDocument();
     expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
   });
 });

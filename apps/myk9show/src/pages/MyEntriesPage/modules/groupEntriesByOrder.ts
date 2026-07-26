@@ -15,6 +15,7 @@
  */
 
 import { EntryStatus } from '@/types/show-registration-types';
+import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
 import { buildOrderBalance } from './myEntryOrderBalance';
 import type { MyEntry, MyEntryDogGroup } from './my-entries-types';
 
@@ -40,6 +41,42 @@ const ENTRY_STATUS_PRIORITY: Record<EntryStatus, number> = {
 
 export function dominantStatus(a: EntryStatus, b: EntryStatus): EntryStatus {
   return (ENTRY_STATUS_PRIORITY[a] ?? 0) >= (ENTRY_STATUS_PRIORITY[b] ?? 0) ? a : b;
+}
+
+// When the legacy UI projection ties at PENDING, prefer the more informative
+// canonical kind. Day-of states must win over a genuinely pending row so an
+// order card never tells an exhibitor that a dog already in the ring awaits
+// secretary approval.
+const TIED_STATUS_KIND_PRIORITY: Record<EntryStatusKind, number> = {
+  in_ring: 6,
+  absent: 5,
+  unknown: 4,
+  pending: 3,
+  move_up_requested: 2,
+  accepted: 1,
+  waitlist: 1,
+  completed: 1,
+  withdrawn: 1,
+  not_accepted: 1,
+  scratched: 1,
+  moved: 1,
+};
+
+export function dominantStatusKind(
+  aStatus: EntryStatus,
+  aKind: EntryStatusKind | undefined,
+  bStatus: EntryStatus,
+  bKind: EntryStatusKind | undefined
+): EntryStatusKind | undefined {
+  const dominant = dominantStatus(aStatus, bStatus);
+  if (dominant === aStatus && dominant !== bStatus) return aKind;
+  if (dominant === bStatus && dominant !== aStatus) return bKind;
+
+  const resolvedA = aKind ?? 'unknown';
+  const resolvedB = bKind ?? 'unknown';
+  return (TIED_STATUS_KIND_PRIORITY[resolvedA] ?? 0) >= (TIED_STATUS_KIND_PRIORITY[resolvedB] ?? 0)
+    ? aKind
+    : bKind;
 }
 
 interface OrderAccum {
@@ -116,10 +153,17 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
         armband: row.armband,
         classes: [],
         entryStatus: row.entryStatus,
+        entryStatusKind: row.entryStatusKind,
       };
       order.dogsByDogId.set(row.dogId, dog);
       order.dogOrder.push(row.dogId);
     } else {
+      dog.entryStatusKind = dominantStatusKind(
+        dog.entryStatus,
+        dog.entryStatusKind,
+        row.entryStatus,
+        row.entryStatusKind
+      );
       dog.entryStatus = dominantStatus(dog.entryStatus, row.entryStatus);
       dog.armband = dog.armband ?? row.armband;
     }
@@ -132,10 +176,17 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
     const primary = dogs[0];
     const classes = dogs.flatMap(dog => dog.classes);
     const totalFee = classes.reduce((sum, cls) => sum + cls.fee, 0);
-    const entryStatus = dogs.reduce(
-      (acc, dog) => dominantStatus(acc, dog.entryStatus),
-      primary.entryStatus
-    );
+    let entryStatus = primary.entryStatus;
+    let entryStatusKind = primary.entryStatusKind;
+    for (const dog of dogs.slice(1)) {
+      entryStatusKind = dominantStatusKind(
+        entryStatus,
+        entryStatusKind,
+        dog.entryStatus,
+        dog.entryStatusKind
+      );
+      entryStatus = dominantStatus(entryStatus, dog.entryStatus);
+    }
 
     // Money is reconciled from the per-class ROWS, never from the first row's
     // status — see myEntryOrderBalance (exhibitor-money-clarity).
@@ -168,6 +219,7 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
       dogs,
       totalFee,
       entryStatus,
+      entryStatusKind,
       // `balance` is null only when no class row has replicated yet; keep the
       // order's own top-level status/method as the fallback so the card still
       // shows the debt the page summary reports.

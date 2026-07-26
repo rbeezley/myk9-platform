@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import { StatusBadge, StatusIcon } from '@/components/status';
+import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
 
 /**
  * Normalize a raw DB check-in status into the dialog's model. Both `null` and
@@ -34,6 +35,24 @@ export function formatTrialLabel(trialNumber: string): string {
 
 interface StatusBadgeOptions {
   isPastShow?: boolean;
+  statusKind?: EntryStatusKind | undefined;
+}
+
+function getStatusBadgeValue(status: EntryStatus, statusKind?: EntryStatusKind): string {
+  switch (statusKind) {
+    case 'in_ring':
+      return 'in_ring';
+    case 'absent':
+      return 'absent';
+    case 'unknown':
+      return 'no-status';
+    default:
+      return status;
+  }
+}
+
+function isSecretaryReviewKind(statusKind: EntryStatusKind): boolean {
+  return statusKind === 'pending' || statusKind === 'accepted' || statusKind === 'not_accepted';
 }
 
 /**
@@ -43,20 +62,17 @@ export function getEntryStatusBadge(
   status: EntryStatus,
   options: StatusBadgeOptions = {}
 ): React.ReactNode {
+  const statusKind = options.statusKind ?? (status === EntryStatus.PENDING ? 'pending' : undefined);
   let contextualLabel: string | undefined;
   switch (status) {
     case EntryStatus.PENDING:
-      // DELIBERATELY does NOT name the secretary, even though user testing
-      // asked for "Pending Secretary Approval". EntryStatus.PENDING is a
-      // catch-all: mapEntryStatusKindToUi folds `in_ring` (checked-in, at-gate,
-      // in-ring, competing), `absent`, and `unknown` into it because the UI
-      // enum has no value for those kinds. Claiming "awaiting secretary
-      // approval" would therefore lie to an exhibitor whose dog is in the ring
-      // right now — a worse error than the vagueness it fixes.
-      //
-      // Naming the actor requires the raw status kind to survive this far;
-      // today it is folded away in `MyEntry.entryStatus`. See MYK9 follow-up.
-      contextualLabel = options.isPastShow ? 'Review incomplete' : 'Pending Review';
+      if (statusKind === 'in_ring') contextualLabel = 'In Ring';
+      else if (statusKind === 'absent') contextualLabel = 'Absent';
+      else if (statusKind === 'unknown') contextualLabel = 'Status unavailable';
+      else if (options.isPastShow) contextualLabel = 'Review incomplete';
+      else if (statusKind && isSecretaryReviewKind(statusKind)) {
+        contextualLabel = 'Pending Secretary Approval';
+      } else contextualLabel = 'Pending Review';
       break;
     case EntryStatus.WAITLIST:
       contextualLabel = 'Waitlist';
@@ -71,7 +87,14 @@ export function getEntryStatusBadge(
       contextualLabel = 'Move-Up Requested';
       break;
   }
-  return <StatusBadge family="entry" status={status} variant="outline" label={contextualLabel} />;
+  return (
+    <StatusBadge
+      family="entry"
+      status={getStatusBadgeValue(status, statusKind)}
+      variant="outline"
+      label={contextualLabel}
+    />
+  );
 }
 
 /**
@@ -112,12 +135,19 @@ export function getPaymentStatusBadge(
  */
 export function getStatusIcon(
   entryStatus: EntryStatus,
-  paymentStatus: PaymentStatus
+  paymentStatus: PaymentStatus,
+  statusKind?: EntryStatusKind
 ): React.ReactNode {
   const status =
-    entryStatus === EntryStatus.ACCEPTED && paymentStatus === PaymentStatus.PENDING
-      ? 'pending-payment'
-      : entryStatus;
+    statusKind === 'in_ring'
+      ? 'in_ring'
+      : statusKind === 'absent'
+        ? 'absent'
+        : statusKind === 'unknown'
+          ? 'no-status'
+          : entryStatus === EntryStatus.ACCEPTED && paymentStatus === PaymentStatus.PENDING
+            ? 'pending-payment'
+            : entryStatus;
   return <StatusIcon family="entry" status={status} size="lg" />;
 }
 
@@ -128,6 +158,7 @@ export function getContextualStatusMessage(
   entry: {
     showDate: Date;
     entryStatus: EntryStatus;
+    entryStatusKind?: EntryStatusKind | undefined;
     paymentStatus: PaymentStatus;
     submittedAt: Date;
     lastUpdated: Date;
@@ -140,6 +171,16 @@ export function getContextualStatusMessage(
 ): { message: string; className?: string } {
   const showDate = new Date(entry.showDate);
   const daysUntilShow = differenceInDays(showDate, new Date());
+
+  if (entry.entryStatusKind === 'in_ring') {
+    return { message: 'In ring', className: 'text-info' };
+  }
+  if (entry.entryStatusKind === 'absent') {
+    return { message: 'Absent', className: 'text-muted-foreground' };
+  }
+  if (entry.entryStatusKind === 'unknown') {
+    return { message: 'Status unavailable', className: 'text-muted-foreground' };
+  }
 
   if (entry.entryStatus === EntryStatus.CANCELLED || entry.entryStatus === EntryStatus.SCRATCHED) {
     if (entry.paymentStatus === PaymentStatus.REFUNDED) {

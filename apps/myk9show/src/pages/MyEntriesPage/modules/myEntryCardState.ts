@@ -84,7 +84,10 @@ export function deriveMyEntryCardState(
     (entry.entryStatus === EntryStatus.ACCEPTED ||
       entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED);
   const canShowReceipt = Boolean(entry.confirmationNumber && isPaid);
-  const isPendingReview = entry.entryStatus === EntryStatus.PENDING && !isPastShow;
+  const isPendingReview =
+    entry.entryStatus === EntryStatus.PENDING &&
+    (entry.entryStatusKind ?? 'pending') === 'pending' &&
+    !isPastShow;
   const nextAction = deriveEntryNextAction(entry, {
     now: currentTime,
     selfCheckinByClassId,

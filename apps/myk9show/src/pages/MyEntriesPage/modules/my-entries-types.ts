@@ -6,6 +6,7 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import type { ResultStatus } from '@/components/common/ResultBadge';
+import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
 
 /**
  * Represents a class entry within a show registration
@@ -15,6 +16,8 @@ export interface EntryClass {
   id: string;
   /** Status of this entry row; dog/order summaries may be dominated by a sibling row. */
   entryStatus?: EntryStatus | undefined;
+  /** Canonical kind retained beside the lossy UI enum for honest display copy. */
+  entryStatusKind?: EntryStatusKind | undefined;
   /** The class being entered. Distinct from `id`; drives the self-check-in cascade. */
   classId?: string | undefined;
   /**
@@ -82,6 +85,8 @@ export interface MyEntryDogGroup {
   classes: EntryClass[];
   /** Dominant status across this dog's own classes (see `dominantStatus`). */
   entryStatus: EntryStatus;
+  /** Dominant canonical kind retained beside the lossy UI enum. */
+  entryStatusKind?: EntryStatusKind | undefined;
 }
 
 /**
@@ -142,6 +147,8 @@ export interface MyEntry {
   dogs: MyEntryDogGroup[];
   totalFee: number;
   entryStatus: EntryStatus;
+  /** Canonical kind retained beside the lossy UI enum for honest display copy. */
+  entryStatusKind?: EntryStatusKind | undefined;
   /**
    * Order-level payment status. Populated by `groupEntriesByOrder` from the
    * reconciled `balance` below — never "first row wins". Optional `balance`

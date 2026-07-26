@@ -27,6 +27,7 @@ import { parseShowDate } from './myEntriesStats.helpers';
 import { normalizeCheckInStatus } from './myEntriesUtils';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
 import type { MyEntry, EntryClass } from './my-entries-types';
+import { getEntryStatusKindForDisplay } from '@/services/entryDisplay/entryDisplaySelectors';
 
 interface UseMyEntriesDataReturn {
   entries: MyEntry[];
@@ -135,6 +136,11 @@ export function useMyEntriesData({
     const rowPaymentMethod = (entry.payment_method as string | null) ?? null;
     const trialDate = parseShowDate(trialData?.date ?? classData?.trial?.date);
     const trialNumber = trialData?.trial_number ?? classData?.trial?.trial_number ?? undefined;
+    const rawEntryStatus = entry.entry_status as string | null | undefined;
+    const entryStatusKind = getEntryStatusKindForDisplay(
+      rawEntryStatus,
+      entry.check_in_status as string | null | undefined
+    );
 
     // Build a single-element classes array from this entry row's own data.
     // The `class:class_id` join can be unresolved during the partial-
@@ -148,6 +154,7 @@ export function useMyEntriesData({
       {
         id: entry.id as string,
         entryStatus: mapEntryStatus(entry.entry_status as string),
+        entryStatusKind,
         classId: classData?.id,
         // Money flows through even when the class join hasn't replicated yet,
         // but class-scoped actions (check-in) must not — see EntryClass.unresolved.
@@ -211,6 +218,7 @@ export function useMyEntriesData({
       dogs: [],
       totalFee: (entry.entry_fee as number) || 0,
       entryStatus,
+      entryStatusKind,
       paymentStatus: rowPaymentStatus,
       paymentMethod: rowPaymentMethod,
       confirmationNumber,

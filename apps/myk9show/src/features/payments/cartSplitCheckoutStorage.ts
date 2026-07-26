@@ -48,28 +48,16 @@ function readStoredCartSplitCheckoutSummary(): CartSplitCheckoutSummary | null {
   }
 }
 
-export function consumeCartSplitCheckoutSummary(
+export function readCartSplitCheckoutSummary(
   correlationId: string
 ): CartSplitCheckoutSummary | null {
+  // Keep a matching summary through refresh and StrictMode effect replay; the
+  // next checkout overwrites it with a new correlation ID.
   const summary = readStoredCartSplitCheckoutSummary();
-
-  try {
-    sessionStorage.removeItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT);
-  } catch {
-    // sessionStorage can be unavailable in some browser contexts.
-  }
 
   if (!summary || summary.correlationId !== correlationId) {
     return null;
   }
 
   return summary;
-}
-
-export function clearCartSplitCheckoutSummary(): void {
-  try {
-    sessionStorage.removeItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT);
-  } catch {
-    // sessionStorage can be unavailable in some browser contexts.
-  }
 }

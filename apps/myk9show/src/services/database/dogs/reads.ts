@@ -555,6 +555,15 @@ export const createDog = async (dogData: DbDogInsert) => {
 };
 
 // Update dog
+/**
+ * `registrations` is embedded because `useUpdateDogMutation.onSuccess` maps this
+ * response and writes it straight into the `dogs` LIST cache. Breed is resolved
+ * from `dog_registrations` (MYK9-90), so without the embed that cache write
+ * replaced a dog with a registration-less copy and its breed read as
+ * "Breed not set" until the follow-up invalidation refetched. Harmless before
+ * this change, when breed came from the `dogs.breed` column that `*` already
+ * covered — which is exactly why it had to be added with it.
+ */
 export const updateDog = async (id: string, updates: DbDogUpdate) => {
   const startTime = Date.now();
 
@@ -574,7 +583,8 @@ export const updateDog = async (id: string, updates: DbDogUpdate) => {
           first_name,
           last_name,
           email
-        )
+        ),
+        registrations:dog_registrations(*)
       `
       )
       .single();

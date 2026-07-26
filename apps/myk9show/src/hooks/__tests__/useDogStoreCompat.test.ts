@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import type { DogInput } from '@/store/dogStore';
 import { getDogBreedLabel, BREED_NOT_SET } from '@/types/dog-types';
+import { queryKeys } from '@/lib/queryClient';
 
 // ── Mocks (hoisted so factories can reference them) ──────────────────────────
 
@@ -539,6 +540,35 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
     const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
 
+    expect(getDogBreedLabel(updated!)).toBe(BREED_NOT_SET);
+  });
+
+  // MYK9-90 review round 5. React Query keeps serving an invalidated-but-
+  // INACTIVE query's old data, so `registrationsByDog` can still hold a
+  // registration the user just deleted. A loaded dogs list that shows zero
+  // registrations is authoritative and must win over that stale cache.
+  it('does not resurrect a deleted registration when an UNRELATED field is edited', async () => {
+    // The dogs query has refreshed after the deletion: the dog is present, with
+    // an authoritative empty registration list.
+    mockDogsQueryData.mockReturnValue([
+      { id: 'dog-1', name: 'Ziva', call_name: 'Ziva', owner_id: 'person-1', registrations: [] },
+    ]);
+
+    // ...but the per-dog registrations query is invalidated-and-inactive, so it
+    // still serves the deleted row.
+    const staleQueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    staleQueryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), [serverRegistration]);
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: staleQueryClient }, children);
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper });
+
+    // Edit something that has nothing to do with registrations.
+    const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
+
+    expect(updated?.callName).toBe('Zee');
+    expect(updated?.registrations).toEqual([]);
+    expect(updated?.breed).toBe('');
     expect(getDogBreedLabel(updated!)).toBe(BREED_NOT_SET);
   });
 });

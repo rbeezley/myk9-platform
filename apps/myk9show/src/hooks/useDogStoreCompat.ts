@@ -80,18 +80,35 @@ async function mapReplicatedDogWithRegistrations(dog: ReplicatedDog): Promise<Do
  * lookup serves the immediate return, and the existing query invalidation
  * refreshes from the server asynchronously.
  *
- * `alreadyLoadedDogs` comes from the hook's own dogs query, whose rows embed
- * their registrations; the query cache is the fallback when the dog is not in
- * that list.
+ * `alreadyLoadedDogs` comes from the hook's own dogs query. BOTH of that query's
+ * paths embed registrations — the replication path via `loadRegistrationsMap`,
+ * the PostgREST fallback via `registrations:dog_registrations(*)` — so a dog
+ * PRESENT in the list carries an authoritative registration array, including
+ * when that array is empty.
+ *
+ * Presence is therefore the test, not length (MYK9-90 review round 5). Falling
+ * through an authoritative empty list to `registrationsByDog` resurrected
+ * deleted registrations: an invalidated-but-inactive query keeps serving its old
+ * data, so after deleting a registration, editing an UNRELATED field brought the
+ * old breed back until the next refetch.
+ *
+ * This is the same "absent vs. present-and-empty" distinction settled in round
+ * 1, when hydrate-at-the-callers was chosen so an empty registration list would
+ * have exactly one meaning: the dog genuinely has none. The cache fallback had
+ * reintroduced the ambiguity one layer up.
  */
 function cachedRegistrationRowsForDog(
   dogId: string,
   alreadyLoadedDogs: Dog[],
   queryClient: ReturnType<typeof useQueryClient>
 ): Record<string, unknown>[] {
-  const fromList = alreadyLoadedDogs.find(d => d.id === dogId)?.registrations;
-  if (fromList && fromList.length > 0) return fromList as unknown as Record<string, unknown>[];
+  const loadedDog = alreadyLoadedDogs.find(d => d.id === dogId);
+  if (loadedDog) {
+    return (loadedDog.registrations ?? []) as unknown as Record<string, unknown>[];
+  }
 
+  // Only when the dog is not in the loaded list at all is the per-dog query
+  // cache the best available answer.
   const cached = queryClient.getQueryData(queryKeys.registrationsByDog(dogId));
   return Array.isArray(cached) ? (cached as Record<string, unknown>[]) : [];
 }

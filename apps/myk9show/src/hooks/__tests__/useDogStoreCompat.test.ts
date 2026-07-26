@@ -3,8 +3,9 @@ import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import type { DogInput } from '@/store/dogStore';
-import { getDogBreedLabel, BREED_NOT_SET } from '@/types/dog-types';
+import { getDogBreedLabel, BREED_NOT_SET, type Dog } from '@/types/dog-types';
 import { queryKeys } from '@/lib/queryClient';
+import { cachedRegistrationRowsForDog } from '../dogRegistrationHydration';
 
 // ── Mocks (hoisted so factories can reference them) ──────────────────────────
 
@@ -593,6 +594,74 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
     expect(updated?.registrations).toEqual([]);
     expect(updated?.breed).toBe('');
     expect(getDogBreedLabel(updated!)).toBe(BREED_NOT_SET);
+  });
+
+  it('keeps the cached registration when the dog-list registration read is incomplete', async () => {
+    mockDogsQueryData.mockReturnValue([
+      {
+        id: 'dog-1',
+        name: 'Ziva',
+        call_name: 'Ziva',
+        owner_id: 'person-1',
+        registrations: [],
+        registrations_read_complete: false,
+      },
+    ]);
+
+    const staleQueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    staleQueryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), [serverRegistration]);
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: staleQueryClient }, children);
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper });
+    const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
+
+    expect(updated?.callName).toBe('Zee');
+    expect(getDogBreedLabel(updated!)).toBe('Belgian Malinois');
+    expect(updated?.registrations?.[0]?.breed).toBe('Belgian Malinois');
+  });
+
+  it('keeps known loaded registrations when an incomplete read has no cache', async () => {
+    const loadedRegistration = {
+      id: 'reg-akc',
+      organization: 'AKC',
+      registeredName: 'Ziva of the North',
+      registrationNumber: 'DN61191906',
+      breed: 'Belgian Malinois',
+      status: 'Active' as const,
+    };
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    expect(
+      cachedRegistrationRowsForDog(
+        'dog-1',
+        [
+          {
+            id: 'dog-1',
+            name: 'Ziva',
+            breed: 'Belgian Malinois',
+            sex: 'female',
+            ownerId: 'person-1',
+            registrations: [loadedRegistration],
+            registrationsReadComplete: false,
+          } satisfies Dog,
+        ],
+        queryClient
+      )
+    ).toEqual([loadedRegistration]);
+  });
+});
+
+describe('cachedRegistrationRowsForDog', () => {
+  it('uses the per-dog cache when the dog is absent from the loaded list', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), [
+      { id: 'reg-akc', breed: 'Belgian Malinois' },
+    ]);
+
+    expect(cachedRegistrationRowsForDog('dog-1', [], queryClient)).toEqual([
+      { id: 'reg-akc', breed: 'Belgian Malinois' },
+    ]);
   });
 });
 

@@ -146,6 +146,17 @@ describe('paper scoresheet breeds', () => {
     await expect(loadEntriesWithDogs('class-1')).rejects.toThrow(/could not verify registrations/i);
   });
 
+  it('REFUSES when the merged registration read is incomplete without a server error', async () => {
+    mockGetTrialById.mockResolvedValue({ id: 'trial-1', showId: 'show-1', registryId: 'AKC' });
+    mockLoadDogRegistrations.mockResolvedValue({
+      byDog: new Map(),
+      serverError: null,
+      registrationsReadComplete: false,
+    });
+
+    await expect(loadEntriesWithDogs('class-1')).rejects.toThrow(/could not verify registrations/i);
+  });
+
   // MYK9-90 review round 4, finding 1. Refusal used to be gated on
   // `byDog.size === 0` — a per-CLASS test. One cached dog waved the whole class
   // through and every other dog printed an unverified blank.

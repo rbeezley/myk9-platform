@@ -227,6 +227,7 @@ export const mapReplicatedDogToDbRow = (
   options?: {
     owner?: Record<string, unknown> | null;
     registrations?: Record<string, unknown>[];
+    registrationsReadComplete?: boolean;
     entries?: Record<string, unknown>[];
     healthRecords?: Record<string, unknown>[];
   }
@@ -255,6 +256,9 @@ export const mapReplicatedDogToDbRow = (
     deleted_at: d.deletedAt ?? d.deleted_at ?? null,
     owner: options?.owner ?? null,
     registrations: options?.registrations ?? [],
+    ...(options?.registrationsReadComplete !== undefined
+      ? { registrations_read_complete: options.registrationsReadComplete }
+      : {}),
   };
 
   if (options?.entries) {
@@ -338,13 +342,17 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
       // that re-resolves from `Dog.registrations` orders by `id` instead and
       // disagrees with `identity` above. Both casings are accepted because this
       // list is the MERGE of snake_case PostgREST rows and camelCase rows from
-      // the offline replica (`loadRegistrationsMap`).
+      // the offline replica (`loadDogRegistrations`).
       ...(regVariety(reg) != null ? { variety: regVariety(reg) as string } : {}),
       ...(regCreatedAt(reg) != null ? { createdAt: regCreatedAt(reg) as string } : {}),
       ...(regIsPrimary(reg) != null ? { isPrimary: regIsPrimary(reg) as boolean } : {}),
       registrationNumber: regNumber(reg),
       status: (reg.status as string) || 'active',
     })),
+    registrationsReadComplete:
+      typeof dbDog.registrations_read_complete === 'boolean'
+        ? dbDog.registrations_read_complete
+        : undefined,
     healthRecords: mapHealthRecords(dbDog.health_records),
     // Sync metadata - no longer needed with React Query, but kept for compatibility
     _version: 1,

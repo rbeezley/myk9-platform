@@ -13,11 +13,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-const authState: { user: { id: string } | null } = { user: null };
+const authState: { user: { id: string; is_anonymous?: boolean } | null } = { user: null };
 const supabaseCalls: { op: string; args: unknown }[] = [];
 let failServerWrites = false;
 let serverRows: { show_id: string; armband: number }[] = [];
 let failServerRead = false;
+let holdServerWrites = false;
+let releaseServerWrites: (() => void) | null = null;
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => authState,
@@ -36,6 +38,11 @@ vi.mock('@/lib/supabase', () => {
     }),
     upsert: async (rows: unknown) => {
       supabaseCalls.push({ op: 'upsert', args: rows });
+      if (holdServerWrites) {
+        await new Promise<void>(resolve => {
+          releaseServerWrites = resolve;
+        });
+      }
       return { error: failServerWrites ? new Error('offline') : null };
     },
     delete: () => ({
@@ -60,7 +67,11 @@ import {
   useAtShowDogFavoritesSynced,
   buildFavoritesSeededKey,
 } from './dogFavoritesSync';
-import { readDogFavoriteArmbands, writeDogFavoriteArmbands } from './ringsideDogFavorites';
+import {
+  migrateAnonymousDogFavorites,
+  readDogFavoriteArmbands,
+  writeDogFavoriteArmbands,
+} from './ringsideDogFavorites';
 
 const SHOW_ID = 'show-1';
 const USER_ID = 'user-1';
@@ -78,6 +89,8 @@ beforeEach(() => {
   serverRows = [];
   failServerWrites = false;
   failServerRead = false;
+  holdServerWrites = false;
+  releaseServerWrites = null;
   authState.user = null;
 });
 
@@ -140,6 +153,17 @@ describe('useAtShowDogFavoritesSynced', () => {
     expect(supabaseCalls).toEqual([]);
   });
 
+  it('keeps anonymous passcode favorites in the legacy ringside store', async () => {
+    authState.user = { id: 'anonymous-user', is_anonymous: true };
+    const { result } = renderFavorites();
+
+    act(() => result.current.toggleFavoriteArmband(42));
+
+    await waitFor(() => expect(readDogFavoriteArmbands(SHOW_ID)).toEqual([42]));
+    expect(readDogFavoriteArmbands(SHOW_ID, 'anonymous-user')).toEqual([]);
+    expect(supabaseCalls).toEqual([]);
+  });
+
   it('keeps the local favorite when the server write fails offline', async () => {
     authState.user = { id: USER_ID };
     failServerWrites = true;
@@ -148,7 +172,7 @@ describe('useAtShowDogFavoritesSynced', () => {
     act(() => result.current.toggleFavoriteArmband(42));
 
     await waitFor(() => expect(supabaseCalls.some(call => call.op === 'upsert')).toBe(true));
-    expect(readDogFavoriteArmbands(SHOW_ID)).toEqual([42]);
+    expect(readDogFavoriteArmbands(SHOW_ID, USER_ID)).toEqual([42]);
     expect(localStorage.getItem(buildFavoritesSeededKey(USER_ID, SHOW_ID))).toBeNull();
   });
 
@@ -160,7 +184,8 @@ describe('useAtShowDogFavoritesSynced', () => {
     renderFavorites();
 
     await waitFor(() => expect(supabaseCalls.some(call => call.op === 'select')).toBe(true));
-    expect(readDogFavoriteArmbands(SHOW_ID)).toEqual([7, 8]);
+    expect(readDogFavoriteArmbands(SHOW_ID, USER_ID)).toEqual([7, 8]);
+    expect(readDogFavoriteArmbands(SHOW_ID)).toEqual([]);
     expect(localStorage.getItem(buildFavoritesSeededKey(USER_ID, SHOW_ID))).toBeNull();
   });
 
@@ -174,7 +199,51 @@ describe('useAtShowDogFavoritesSynced', () => {
     await waitFor(() =>
       expect(localStorage.getItem(buildFavoritesSeededKey(USER_ID, SHOW_ID))).toBe('1')
     );
-    expect(readDogFavoriteArmbands(SHOW_ID)).toEqual([10, 30]);
+    expect(readDogFavoriteArmbands(SHOW_ID, USER_ID)).toEqual([10, 30]);
+    expect(readDogFavoriteArmbands(SHOW_ID)).toEqual([]);
     expect(supabaseCalls.filter(call => call.op === 'upsert')).toHaveLength(1);
+  });
+
+  it('merges anonymous favorites into an existing user scope before cleanup', () => {
+    writeDogFavoriteArmbands(SHOW_ID, [10]);
+    writeDogFavoriteArmbands(SHOW_ID, [20], USER_ID);
+
+    migrateAnonymousDogFavorites(SHOW_ID, USER_ID);
+
+    expect(readDogFavoriteArmbands(SHOW_ID, USER_ID)).toEqual([20, 10]);
+    expect(readDogFavoriteArmbands(SHOW_ID)).toEqual([]);
+  });
+
+  it("keeps one account from inheriting another account's device favorites", async () => {
+    authState.user = { id: 'user-a' };
+    writeDogFavoriteArmbands(SHOW_ID, [10]);
+    const { rerender } = renderFavorites();
+
+    await waitFor(() => expect(readDogFavoriteArmbands(SHOW_ID, 'user-a')).toEqual([10]));
+    expect(readDogFavoriteArmbands(SHOW_ID)).toEqual([]);
+
+    authState.user = { id: 'user-b' };
+    rerender();
+
+    await waitFor(() => expect(readDogFavoriteArmbands(SHOW_ID, 'user-b')).toEqual([]));
+    expect(readDogFavoriteArmbands(SHOW_ID, 'user-a')).toEqual([10]);
+    expect(supabaseCalls.filter(call => call.op === 'upsert')).toHaveLength(1);
+  });
+
+  it('does not overwrite a toggle made while reconciliation is awaiting a server write', async () => {
+    authState.user = { id: USER_ID };
+    holdServerWrites = true;
+    writeDogFavoriteArmbands(SHOW_ID, [10], USER_ID);
+    const { result } = renderFavorites();
+
+    await waitFor(() => expect(supabaseCalls.filter(call => call.op === 'upsert')).toHaveLength(1));
+    act(() => result.current.toggleFavoriteArmband(20));
+    expect(readDogFavoriteArmbands(SHOW_ID, USER_ID)).toEqual([10, 20]);
+
+    holdServerWrites = false;
+    releaseServerWrites?.();
+
+    await waitFor(() => expect(supabaseCalls.filter(call => call.op === 'upsert')).toHaveLength(2));
+    expect(readDogFavoriteArmbands(SHOW_ID, USER_ID)).toEqual([10, 20]);
   });
 });

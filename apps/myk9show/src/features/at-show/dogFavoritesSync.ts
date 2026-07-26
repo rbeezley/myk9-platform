@@ -27,12 +27,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
+  migrateAnonymousDogFavorites,
   readDogFavoriteArmbands,
   replaceDogFavoriteArmbands,
   useAtShowDogFavorites,
 } from './ringsideDogFavorites';
 
 const SEEDED_KEY_PREFIX = 'dog_favorites_seeded';
+
+function getAccountUserId(user: { id: string; is_anonymous?: boolean } | null | undefined): string {
+  return user?.id && !user.is_anonymous ? user.id : '';
+}
 
 export interface DogFavoriteRow {
   show_id: string;
@@ -191,6 +196,34 @@ export async function removeFavorite(
   }
 }
 
+const favoriteWriteQueues = new Map<string, Promise<void>>();
+
+/** Serialize writes for one account/show so a toggle cannot lose to a sync insert. */
+function enqueueFavoriteWrite<T>(
+  userId: string,
+  showId: string,
+  operation: () => Promise<T>
+): Promise<T> {
+  const key = `${userId}\u0000${showId}`;
+  const previous = favoriteWriteQueues.get(key) ?? Promise.resolve();
+  const next = previous.then(operation, operation);
+  const settled = next.then(
+    () => undefined,
+    () => undefined
+  );
+  favoriteWriteQueues.set(key, settled);
+  void settled.then(() => {
+    if (favoriteWriteQueues.get(key) === settled) favoriteWriteQueues.delete(key);
+  });
+  return next;
+}
+
+function sameFavoriteArmbands(left: readonly number[], right: readonly number[]): boolean {
+  if (left.length !== right.length) return false;
+  const rightSet = new Set(right);
+  return left.every(armband => rightSet.has(armband));
+}
+
 export const dogFavoritesQueryKey = (showIds: readonly string[]) =>
   ['dog-favorites', [...showIds].sort().join(',')] as const;
 
@@ -201,7 +234,7 @@ export const dogFavoritesQueryKey = (showIds: readonly string[]) =>
  */
 export function useFavoriteArmbandsByShow(showIds: string[]): Map<string, Set<number>> {
   const { user } = useAuthContext();
-  const userId = user?.id ?? '';
+  const userId = getAccountUserId(user);
   const showIdsKey = useMemo(() => [...showIds].sort().join(','), [showIds]);
   const stableShowIds = useMemo(() => (showIdsKey ? showIdsKey.split(',') : []), [showIdsKey]);
 
@@ -222,12 +255,14 @@ export function useFavoriteArmbandsByShow(showIds: string[]): Map<string, Set<nu
  */
 export function useDogFavoritesServerSync(showId: string | undefined): void {
   const { user } = useAuthContext();
-  const userId = user?.id ?? '';
+  const userId = getAccountUserId(user);
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!userId || !showId) return undefined;
     let cancelled = false;
+
+    migrateAnonymousDogFavorites(showId, userId);
 
     void (async () => {
       let serverRows: DogFavoriteRow[];
@@ -240,17 +275,22 @@ export function useDogFavoritesServerSync(showId: string | undefined): void {
       }
       if (cancelled) return;
 
-      const local = readDogFavoriteArmbands(showId);
+      const local = readDogFavoriteArmbands(showId, userId);
       const server = serverRows.map(row => row.armband);
       const { resolved, toInsert } = reconcileFavorites(local, server, hasSeeded(userId, showId));
 
       const inserts = await Promise.all(
-        toInsert.map(armband => persistFavorite(userId, showId, armband))
+        toInsert.map(armband =>
+          enqueueFavoriteWrite(userId, showId, () => persistFavorite(userId, showId, armband))
+        )
       );
       if (cancelled) return;
 
       if (inserts.every(Boolean)) markSeeded(userId, showId);
-      replaceDogFavoriteArmbands(showId, resolved);
+      const latestLocal = readDogFavoriteArmbands(showId, userId);
+      if (sameFavoriteArmbands(local, latestLocal)) {
+        replaceDogFavoriteArmbands(showId, resolved, userId);
+      }
       void queryClient.invalidateQueries({ queryKey: ['dog-favorites'] });
     })();
 
@@ -270,8 +310,8 @@ export function useDogFavoritesServerSync(showId: string | undefined): void {
  */
 export function useAtShowDogFavoritesSynced(showId: string | undefined) {
   const { user } = useAuthContext();
-  const userId = user?.id ?? '';
-  const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavorites(showId);
+  const userId = getAccountUserId(user);
+  const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavorites(showId, userId);
   useDogFavoritesServerSync(showId);
 
   const toggle = useCallback(
@@ -279,9 +319,13 @@ export function useAtShowDogFavoritesSynced(showId: string | undefined) {
       const wasFavorited = favoriteArmbands.has(armband);
       toggleFavoriteArmband(armband);
       if (!userId || !showId) return;
-      void (wasFavorited
-        ? removeFavorite(userId, showId, armband)
-        : persistFavorite(userId, showId, armband));
+      void enqueueFavoriteWrite(
+        userId,
+        showId,
+        wasFavorited
+          ? () => removeFavorite(userId, showId, armband)
+          : () => persistFavorite(userId, showId, armband)
+      );
     },
     [favoriteArmbands, toggleFavoriteArmband, userId, showId]
   );

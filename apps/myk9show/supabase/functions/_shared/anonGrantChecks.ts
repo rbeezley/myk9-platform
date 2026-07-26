@@ -81,8 +81,36 @@ export const ANON_TABLE_ALLOWLIST: Readonly<Record<string, string>> = {
   view_public_entry_results: 'r',
 };
 
+/**
+ * Exact table → column allowlist for anon's column-level grants.
+ *
+ * These are intentionally copied from migrations 20260725170000 and 20260725180000.
+ * A table name alone is not enough: adding a sensitive column to one of these tables
+ * must make the health check fail just as adding a new table would.
+ */
+export const ANON_COLUMN_ALLOWLIST: Readonly<Record<string, readonly string[]>> = {
+  entries: [
+    'id',
+    'class_id',
+    'trial_id',
+    'show_id',
+    'dog_id',
+    'armband',
+    'handler',
+    'run_order',
+    'is_in_ring',
+    'is_scored',
+    'check_in_status',
+    'entry_status',
+    'jump_height',
+    'created_at',
+  ],
+  dogs: ['id', 'name', 'call_name', 'breed', 'image_url'],
+  people: ['id', 'first_name', 'last_name', 'email'],
+};
+
 /** Tables where anon legitimately holds COLUMN-level (never table-level) grants. */
-export const ANON_COLUMN_TABLES: readonly string[] = ['entries', 'dogs', 'people'];
+export const ANON_COLUMN_TABLES: readonly string[] = Object.keys(ANON_COLUMN_ALLOWLIST);
 
 function asString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
@@ -132,16 +160,44 @@ export function anonGrantsCheck(rawFacts: unknown, probedAt: string): SnapshotCh
     }
   }
 
+  const seenTables = new Set<string>();
+  for (const row of tableRows) {
+    if (ANON_TABLE_ALLOWLIST[row.name] === undefined) continue;
+    if (seenTables.has(row.name)) {
+      problems.push(`duplicate anon table grant ${row.name}`);
+    }
+    seenTables.add(row.name);
+  }
+  for (const [name, privs] of Object.entries(ANON_TABLE_ALLOWLIST)) {
+    if (!seenTables.has(name)) {
+      problems.push(`missing anon table grant ${name} (${privs})`);
+    }
+  }
+
   // entries must stay column-scoped. Its absence from the table list IS the invariant.
   if (tableRows.some(row => row.name === 'entries')) {
     problems.push('entries has a TABLE-level anon grant — the release-gate allowlist is bypassed');
   }
 
+  const seenColumns = new Set<string>();
   for (const row of columnRows) {
-    if (!ANON_COLUMN_TABLES.includes(row.name)) {
-      problems.push(`unexpected column grant ${row.name}.${row.column ?? '?'} (${row.privs})`);
+    const column = row.column ?? '?';
+    const key = `${row.name}.${column}`;
+    const expectedColumns = ANON_COLUMN_ALLOWLIST[row.name];
+    if (!expectedColumns?.includes(column)) {
+      problems.push(`unexpected column grant ${key} (${row.privs})`);
     } else if (row.privs !== 'r') {
-      problems.push(`${row.name}.${row.column ?? '?'} has '${row.privs}', expected read-only`);
+      problems.push(`${key} has '${row.privs}', expected read-only`);
+    } else if (seenColumns.has(key)) {
+      problems.push(`duplicate anon column grant ${key}`);
+    }
+    seenColumns.add(key);
+  }
+  for (const [name, columns] of Object.entries(ANON_COLUMN_ALLOWLIST)) {
+    for (const column of columns) {
+      if (!seenColumns.has(`${name}.${column}`)) {
+        problems.push(`missing anon column grant ${name}.${column} (r)`);
+      }
     }
   }
 

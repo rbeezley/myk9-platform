@@ -7,8 +7,8 @@ import { MapPinOff, ArrowRight } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import { deriveShowMarkerStatus, type ShowMarkerStatus } from '@/features/maps/markerStatus';
-import { OSM_TILE_URL, OSM_ATTRIBUTION } from '@/features/maps/tiles';
-import { formatShowsTableDateRange } from './ShowsTableView.helpers';
+import { OSM_TILE_URL, OSM_ATTRIBUTION, US_CENTER } from '@/features/maps/tiles';
+import { formatShowDateRange } from '@/lib/format/dates';
 
 /** Marker/legend colors — fixed palette chosen to read on OSM tiles in both themes. */
 const STATUS_META: Record<ShowMarkerStatus, { label: string; color: string }> = {
@@ -20,7 +20,7 @@ const STATUS_META: Record<ShowMarkerStatus, { label: string; color: string }> = 
 };
 
 /** Teardrop pin as a divIcon so each status gets its own color without icon assets. */
-function statusIcon(status: ShowMarkerStatus): L.DivIcon {
+function buildStatusIcon(status: ShowMarkerStatus): L.DivIcon {
   const { color } = STATUS_META[status];
   return L.divIcon({
     className: '',
@@ -33,6 +33,11 @@ function statusIcon(status: ShowMarkerStatus): L.DivIcon {
     popupAnchor: [0, -34],
   });
 }
+
+// Built once — a fresh DivIcon per marker per render would re-run setIcon on every pin.
+const STATUS_ICONS = Object.fromEntries(
+  (Object.keys(STATUS_META) as ShowMarkerStatus[]).map(st => [st, buildStatusIcon(st)])
+) as Record<ShowMarkerStatus, L.DivIcon>;
 
 interface LocatedShow {
   show: EnhancedShow;
@@ -70,7 +75,6 @@ export function partitionMappableShows(
   return { located, omittedCount };
 }
 
-const US_CENTER: [number, number] = [39.8, -98.5];
 const US_ZOOM = 4;
 
 /** Fits the viewport to the current pins whenever the filtered set changes. */
@@ -84,6 +88,16 @@ function FitToPins({ located }: { located: LocatedShow[] }) {
   return null;
 }
 
+function StatusDot({ status, className }: { status: ShowMarkerStatus; className: string }) {
+  return (
+    <span
+      className={className}
+      style={{ backgroundColor: STATUS_META[status].color }}
+      aria-hidden
+    />
+  );
+}
+
 function MapLegend() {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -92,11 +106,7 @@ function MapLegend() {
           key={status}
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
         >
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: STATUS_META[status].color }}
-            aria-hidden
-          />
+          <StatusDot status={status} className="inline-block h-2.5 w-2.5 rounded-full" />
           {STATUS_META[status].label}
         </span>
       ))}
@@ -149,22 +159,18 @@ export function ShowsMapView({ shows, onSwitchToCards }: ShowsMapViewProps) {
           <TileLayer url={OSM_TILE_URL} attribution={OSM_ATTRIBUTION} />
           <FitToPins located={located} />
           {located.map(({ show, lat, lng, status }) => (
-            <Marker key={show.id} position={[lat, lng]} icon={statusIcon(status)}>
+            <Marker key={show.id} position={[lat, lng]} icon={STATUS_ICONS[status]}>
               <Popup>
                 <div className="min-w-[200px] space-y-1">
                   <p className="font-semibold leading-snug">{show.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {formatShowsTableDateRange(show.startDate, show.endDate)}
+                    {formatShowDateRange(show.startDate, show.endDate)}
                   </p>
                   {show.location && (
                     <p className="text-xs text-muted-foreground">{show.location}</p>
                   )}
                   <p className="text-xs">
-                    <span
-                      className="mr-1.5 inline-block h-2 w-2 rounded-full"
-                      style={{ backgroundColor: STATUS_META[status].color }}
-                      aria-hidden
-                    />
+                    <StatusDot status={status} className="mr-1.5 inline-block h-2 w-2 rounded-full" />
                     {STATUS_META[status].label}
                     {show.preEntryFee && Number(show.preEntryFee) > 0 && (
                       <> &middot; entries from ${show.preEntryFee}</>
@@ -185,5 +191,3 @@ export function ShowsMapView({ shows, onSwitchToCards }: ShowsMapViewProps) {
     </div>
   );
 }
-
-export default ShowsMapView;

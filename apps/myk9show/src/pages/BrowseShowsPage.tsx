@@ -48,21 +48,7 @@ import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
 import { ShowCardGrid, ShowsTableView, ShowBulkActionsBar } from '@/components/shows/browse';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
-
-type ViewMode = 'cards' | 'table' | 'calendar' | 'map';
-
-const VIEW_MODES = [
-  { key: 'cards', label: 'Cards', icon: 'grid' as const },
-  { key: 'table', label: 'Table', icon: 'table' as const },
-  { key: 'calendar', label: 'Calendar', icon: 'calendar' as const },
-  { key: 'map', label: 'Map', icon: 'map' as const },
-];
-
-const VALID_VIEW_MODES: ReadonlySet<string> = new Set(VIEW_MODES.map(mode => mode.key));
-
-function parseViewMode(value: string | null): ViewMode | null {
-  return value && VALID_VIEW_MODES.has(value) ? (value as ViewMode) : null;
-}
+import { VIEW_MODES, parseViewMode, type ViewMode } from './browseShowsViewModes';
 
 function isExhibitorOnlyUser(user: UserWithRoles | null): boolean {
   const roles = user?.roles ?? [];

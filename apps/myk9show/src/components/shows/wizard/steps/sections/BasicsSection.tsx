@@ -13,11 +13,7 @@ import { Label } from '@/components/ui/label';
 import type { ShowDraft } from '@/store/wizardStore';
 import { ORGANIZATIONS } from '../ShowDetailsStep.types';
 import { SectionHeading } from './SectionHeading';
-
-// Lazy: keeps Leaflet (~150KB) out of the bundle until the venue map renders.
-const VenuePinMap = React.lazy(() =>
-  import('@/features/maps/VenuePinMap').then(m => ({ default: m.VenuePinMap }))
-);
+import { VenuePinMap } from '@/components/common/LazyComponents';
 
 interface BasicsSectionProps {
   show: ShowDraft;

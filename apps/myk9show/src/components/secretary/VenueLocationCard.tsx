@@ -1,15 +1,11 @@
-import React, { Suspense, useRef, useState } from 'react';
+import { Suspense, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MapPin, Loader2 } from 'lucide-react';
 import { useShowStore } from '@/store/showStore';
 import type { VenuePinValue } from '@/features/maps/VenuePinMap';
-
-// Lazy: keeps Leaflet out of the bundle until this card renders.
-const VenuePinMap = React.lazy(() =>
-  import('@/features/maps/VenuePinMap').then(m => ({ default: m.VenuePinMap }))
-);
+import { VenuePinMap } from '@/components/common/LazyComponents';
 
 interface VenueLocationCardProps {
   showId: string;

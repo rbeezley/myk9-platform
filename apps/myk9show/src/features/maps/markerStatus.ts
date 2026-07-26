@@ -11,6 +11,8 @@ export interface MarkerStatusInput {
   waitlistEnabled?: boolean;
 }
 
+// Same 7-day "closing soon" rule as getEntryStatus in utils/entryStatusUtils.ts
+// (kept separate: that helper is timezone-aware per trial; markers use UTC ms).
 const CLOSING_SOON_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const CLOSING_SOON_CAPACITY_RATIO = 0.9;
 

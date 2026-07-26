@@ -8,7 +8,7 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { MapPin, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { geocodeAddress } from './geocode';
-import { OSM_TILE_URL, OSM_ATTRIBUTION } from './tiles';
+import { OSM_TILE_URL, OSM_ATTRIBUTION, US_CENTER } from './tiles';
 
 // Leaflet's default icon URLs break under bundlers; point them at the bundled assets.
 L.Icon.Default.mergeOptions({
@@ -17,8 +17,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-/** Continental-US fallback view when no pin exists yet. */
-const US_CENTER: [number, number] = [39.8, -98.5];
 const US_ZOOM = 3;
 const PIN_ZOOM = 15;
 

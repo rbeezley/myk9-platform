@@ -41,6 +41,8 @@ export default defineConfig({
       '../../supabase/functions/_shared/standardWebhookSignature.test.ts',
       '../../supabase/functions/_shared/resendEmail.test.ts',
       '../../supabase/functions/_shared/authEmailFailure.test.ts',
+      '../../supabase/functions/send-auth-email/delivery.test.ts',
+      '../../supabase/functions/resend-webhook/handler.test.ts',
       '../../supabase/functions/_shared/webhookAuth.source.test.ts',
       '../../supabase/functions/send-confirmation-email/auth.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.test.ts',

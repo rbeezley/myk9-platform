@@ -3,18 +3,15 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { verifyStandardWebhookSignature } from '../_shared/standardWebhookSignature.ts';
 import { persistAuthEmailDeliveryFailureAlert } from '../_shared/authEmailAlerts.ts';
+import {
+  handleResendEmailEvent,
+  type EmailLogDeliveryRow,
+  type ResendEmailEvent,
+} from './handler.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const webhookSecret = Deno.env.get('RESEND_WEBHOOK_SECRET');
-
-// Map Resend event types to our status values
-const STATUS_MAP: Record<string, string> = {
-  'email.delivered': 'delivered',
-  'email.bounced': 'bounced',
-  'email.delivery_delayed': 'sent', // keep as sent, just log delay
-  'email.complained': 'complained',
-};
 
 Deno.serve(async (req: Request) => {
   // Resend validates webhook endpoints with GET/HEAD before saving
@@ -39,75 +36,31 @@ Deno.serve(async (req: Request) => {
       return new Response(verification.message, { status: verification.status });
     }
 
-    const event = JSON.parse(body);
-    return await handleEvent(event);
+    const event = JSON.parse(body) as ResendEmailEvent;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    await handleResendEmailEvent(event, {
+      findEmailLog: async messageId => {
+        const { data, error } = await supabase
+          .from('email_log')
+          .select('status, recipient_email, email_type')
+          .eq('resend_message_id', messageId)
+          .maybeSingle();
+        return { data: data as EmailLogDeliveryRow | null, error };
+      },
+      updateEmailLog: async (messageId, update) => {
+        const { error } = await supabase
+          .from('email_log')
+          .update(update)
+          .eq('resend_message_id', messageId);
+        return { error };
+      },
+      persistAuthFailureAlert: alert => persistAuthEmailDeliveryFailureAlert(supabase, alert),
+    });
+
+    return new Response('OK', { status: 200 });
   } catch (err) {
     console.error('resend-webhook error:', err);
     return new Response('Internal error', { status: 500 });
   }
 });
-
-async function handleEvent(event: {
-  type: string;
-  data: { email_id: string; bounce_type?: string; error?: { message?: string } };
-}) {
-  const newStatus = STATUS_MAP[event.type];
-  if (!newStatus) {
-    // Unknown event type — acknowledge but don't process
-    return new Response('OK', { status: 200 });
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-  const errorMessage =
-    event.type === 'email.bounced'
-      ? `${event.data.bounce_type || 'unknown'}: ${event.data.error?.message || ''}`
-      : event.type === 'email.complained'
-        ? 'Recipient complaint reported by Resend'
-        : undefined;
-
-  // Only update if the status would actually change (idempotent)
-  const { data: existing } = await supabase
-    .from('email_log')
-    .select('status, recipient_email, email_type')
-    .eq('resend_message_id', event.data.email_id)
-    .maybeSingle();
-
-  if (existing && existing.status === newStatus) {
-    // Already at this status — skip redundant write
-    return new Response('OK', { status: 200 });
-  }
-
-  const { error } = await supabase
-    .from('email_log')
-    .update({
-      status: newStatus,
-      status_updated_at: new Date().toISOString(),
-      error_message: errorMessage,
-    })
-    .eq('resend_message_id', event.data.email_id);
-
-  if (error) {
-    console.error('Failed to update email_log:', error);
-    return new Response('OK', { status: 200 });
-  }
-
-  if (
-    existing &&
-    (existing.email_type === 'auth_confirmation' || existing.email_type === 'password_reset') &&
-    (newStatus === 'bounced' || newStatus === 'complained')
-  ) {
-    try {
-      await persistAuthEmailDeliveryFailureAlert(supabase, {
-        emailType: existing.email_type,
-        recipientEmail: existing.recipient_email,
-        status: newStatus,
-        errorMessage: errorMessage ?? `Auth email ${newStatus}`,
-      });
-    } catch (alertError) {
-      console.error('Failed to write auth email delivery alert:', alertError);
-    }
-  }
-
-  return new Response('OK', { status: 200 });
-}

@@ -35,8 +35,10 @@ built-in mailer and not Custom SMTP:
   on the site-admin **System Health** board. The alert masks the recipient address.
 - Supabase Auth failures that happen before the hook runs (including Auth's own
   email/request rate limits) are reported to Sentry without recipient data.
-- Resend bounce and complaint webhooks update `email_log`; auth-email delivery
-  failures also raise a masked System Health alert.
+- Resend bounce, complaint, failed, and suppressed webhooks update `email_log`;
+  auth-email delivery failures also raise a masked System Health alert.
+- The production Resend webhook subscription must include `email.failed` and
+  `email.suppressed`; verify this in Resend when deploying `resend-webhook`.
 - The user clicks the link → `/auth/callback` → `supabase.auth.verifyOtp(...)`.
 
 So: **we use Resend** — but through the _hook_ (Resend's API), which is a

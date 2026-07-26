@@ -1,8 +1,10 @@
 export type AuthEmailFailureCategory =
   'configuration' | 'rate_limited' | 'provider_error' | 'network_error' | 'unknown';
 
+export type AuthEmailActionType = 'signup' | 'recovery' | 'magiclink';
+
 export interface AuthEmailFailureAlertInput {
-  actionType: 'signup' | 'recovery' | 'magiclink';
+  actionType: AuthEmailActionType;
   recipientEmail: string;
   category: AuthEmailFailureCategory;
   errorMessage: string;
@@ -58,8 +60,9 @@ export async function persistAuthEmailFailureAlert(
 
 export interface AuthEmailDeliveryFailureAlertInput {
   emailType: 'auth_confirmation' | 'password_reset';
+  messageId: string;
   recipientEmail: string;
-  status: 'bounced' | 'complained';
+  status: 'bounced' | 'complained' | 'failed' | 'suppressed';
   errorMessage: string;
 }
 
@@ -75,10 +78,11 @@ export function buildAuthEmailDeliveryFailureAlert(
     detail: {
       email_type: input.emailType,
       delivery_status: input.status,
+      resend_message_id: input.messageId,
       recipient_email: maskEmail(input.recipientEmail),
       error: truncate(redactEmails(input.errorMessage)),
     },
-    dedupe_key: `auth-email-delivery:${input.emailType}:${input.status}`,
+    dedupe_key: `auth-email-delivery:${input.messageId}:${input.status}`,
   };
 }
 

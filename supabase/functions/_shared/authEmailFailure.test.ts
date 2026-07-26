@@ -89,6 +89,7 @@ describe('auth-email delivery failure alerts', () => {
     expect(
       buildAuthEmailDeliveryFailureAlert({
         emailType: 'auth_confirmation',
+        messageId: 'email-1',
         recipientEmail: 'alexandra@example.com',
         status: 'bounced',
         errorMessage: 'Mailbox rejected alexandra@example.com',
@@ -100,10 +101,11 @@ describe('auth-email delivery failure alerts', () => {
       detail: {
         email_type: 'auth_confirmation',
         delivery_status: 'bounced',
+        resend_message_id: 'email-1',
         recipient_email: 'a***@example.com',
         error: 'Mailbox rejected [redacted]',
       },
-      dedupe_key: 'auth-email-delivery:auth_confirmation:bounced',
+      dedupe_key: 'auth-email-delivery:email-1:bounced',
     });
   });
 
@@ -115,6 +117,7 @@ describe('auth-email delivery failure alerts', () => {
       { from },
       {
         emailType: 'password_reset',
+        messageId: 'email-2',
         recipientEmail: 'alexandra@example.com',
         status: 'complained',
         errorMessage: 'Recipient complaint reported by Resend',
@@ -124,7 +127,7 @@ describe('auth-email delivery failure alerts', () => {
     expect(insert).toHaveBeenCalledWith(
       expect.objectContaining({
         source: 'resend-webhook',
-        dedupe_key: 'auth-email-delivery:password_reset:complained',
+        dedupe_key: 'auth-email-delivery:email-2:complained',
       })
     );
   });

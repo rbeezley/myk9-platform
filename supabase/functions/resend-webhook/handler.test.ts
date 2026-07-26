@@ -128,6 +128,35 @@ describe('handleResendEmailEvent', () => {
     );
   });
 
+  it('propagates an email-log read failure so Resend retries the webhook', async () => {
+    const deps = dependencies();
+    deps.findEmailLog.mockResolvedValue({
+      data: null,
+      error: new Error('email_log unavailable'),
+    });
+
+    await expect(handleResendEmailEvent(event('email.failed'), deps)).rejects.toThrow(
+      'Failed to read email_log'
+    );
+  });
+
+  it('retries a recognized event when its email log has not been inserted yet', async () => {
+    const deps = dependencies(null);
+
+    await expect(handleResendEmailEvent(event('email.suppressed'), deps)).rejects.toThrow(
+      'Email log not found for Resend message email-1'
+    );
+  });
+
+  it('propagates an email-log update failure so Resend retries the webhook', async () => {
+    const deps = dependencies();
+    deps.updateEmailLog.mockResolvedValue({ error: new Error('email_log unavailable') });
+
+    await expect(handleResendEmailEvent(event('email.bounced'), deps)).rejects.toThrow(
+      'Failed to update email_log'
+    );
+  });
+
   it('updates non-auth delivery logs without creating auth alerts', async () => {
     const deps = dependencies({ ...authLog, email_type: 'registration_confirmation' });
 

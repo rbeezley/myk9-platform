@@ -73,9 +73,11 @@ export async function handleResendEmailEvent(
   const { data: existing, error: readError } = await dependencies.findEmailLog(event.data.email_id);
   if (readError) {
     logError('Failed to read email_log', readError);
-    return;
+    throw new Error('Failed to read email_log', { cause: readError });
   }
-  if (!existing) return;
+  if (!existing) {
+    throw new Error(`Email log not found for Resend message ${event.data.email_id}`);
+  }
 
   const errorMessage = deliveryErrorMessage(event);
   if (shouldUpdateStatus(existing.status, newStatus)) {
@@ -86,7 +88,7 @@ export async function handleResendEmailEvent(
     });
     if (updateError) {
       logError('Failed to update email_log', updateError);
-      return;
+      throw new Error('Failed to update email_log', { cause: updateError });
     }
   }
 

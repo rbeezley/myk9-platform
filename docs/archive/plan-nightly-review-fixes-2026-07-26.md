@@ -1,6 +1,6 @@
 # Nightly review fixes — 2026-07-26
 
-> **Status:** Active
+> **Status:** Complete (2026-07-26)
 
 ## Scope
 

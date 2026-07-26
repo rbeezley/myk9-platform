@@ -1,8 +1,10 @@
 import { useEffect, type ReactNode } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { getExistingSubscription } from '@myk9/notifications';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { supabase } from '@/lib/supabase';
 import { readDogFavoriteArmbands } from './ringsideDogFavorites';
+import { getAccountUserId } from './dogFavoritesSync';
 import {
   handleRingsidePasscodeRevoked,
   revokeRingsidePasscodeAccess,
@@ -13,6 +15,8 @@ const HEARTBEAT_MS = 30_000;
 export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) {
   const { showId } = useParams<{ showId: string }>();
   const location = useLocation();
+  const { user } = useAuthContext();
+  const userId = getAccountUserId(user);
   const route = `${location.pathname}${location.search}`;
 
   useEffect(() => {
@@ -45,7 +49,7 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       const { error } = await supabase.rpc('upsert_ringside_session', {
         p_passcode_or_null: '',
         p_subscription_endpoint: endpoint,
-        p_favorited_armbands: readDogFavoriteArmbands(heartbeatShowId).map(String),
+        p_favorited_armbands: readDogFavoriteArmbands(heartbeatShowId, userId).map(String),
         p_route: route,
       });
 
@@ -84,7 +88,7 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearPresence();
     };
-  }, [route, showId]);
+  }, [route, showId, userId]);
 
   return <>{children}</>;
 }

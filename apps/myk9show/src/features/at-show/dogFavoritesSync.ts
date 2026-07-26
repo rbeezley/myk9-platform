@@ -35,7 +35,9 @@ import {
 
 const SEEDED_KEY_PREFIX = 'dog_favorites_seeded';
 
-function getAccountUserId(user: { id: string; is_anonymous?: boolean } | null | undefined): string {
+export function getAccountUserId(
+  user: { id: string; is_anonymous?: boolean } | null | undefined
+): string {
   return user?.id && !user.is_anonymous ? user.id : '';
 }
 
@@ -288,6 +290,8 @@ export function useDogFavoritesServerSync(showId: string | undefined): void {
 
       if (inserts.every(Boolean)) markSeeded(userId, showId);
       const latestLocal = readDogFavoriteArmbands(showId, userId);
+      // A toggle changed local state while the server write was in flight;
+      // preserve that immediate action and let the next sync reconcile it.
       if (sameFavoriteArmbands(local, latestLocal)) {
         replaceDogFavoriteArmbands(showId, resolved, userId);
       }

@@ -29,6 +29,8 @@ When I correct you or you catch yourself making a mistake, before continuing, ad
 - `git branch -D <branch>` fails while any worktree (including the current one) is checked out on it, including as the silent local-delete half of `gh pr merge --delete-branch` — always remove the worktree first, then delete the branch.
 - If work flagged as a background-task chip gets absorbed into the current session (e.g., it turns out to block the main task), dismiss the chip IMMEDIATELY — before continuing — or the user may start it and duplicate the work (PR #1441/#1442).
 - When adding a `docs/plan-*.md`, add its status line and `docs/README.md` index row in the same edit.
+- `REVOKE ALL ON ALL TABLES ... FROM anon` also drops COLUMN-level grants — verify `pg_attribute.attacl`, not just `pg_class.relacl`; a `select=*` PostgREST probe returns 200 either way and cannot see the difference (MYK9-93 briefly exposed `entries.total_score`/`payment_status`/`stripe_payment_intent_id` to anon on staging this way).
+- PostgREST requires table-level SELECT on every EMBEDDED relation — revoking anon on a table only ever reached via `table(col,...)` / `table!inner(...)` embeds turns a null embed into a hard 42501 that fails the WHOLE request. Grep for embeds, not just `.from('table')`.
 
 ## Intent & Emotional Design
 
@@ -186,6 +188,14 @@ Full mechanics: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.m
 
   ```sql
   select unnest(relacl)::text from pg_class where oid = 'public.<table>'::regclass;
+  ```
+
+  Table-level ACLs are only half the picture — check column-level grants too (a broad `REVOKE ... FROM anon` drops them, and `pg_class.relacl` will not show it):
+
+  ```sql
+  select a.attname, unnest(a.attacl)::text
+  from pg_attribute a
+  where a.attrelid = 'public.<table>'::regclass and a.attacl is not null;
   ```
 
   Do **not** use `information_schema.role_table_grants` for this: it only shows grants visible to the querying role and returns empty over the MCP connection, so it cannot prove absence.

@@ -46,10 +46,17 @@ export function getEntryStatusBadge(
   let contextualLabel: string | undefined;
   switch (status) {
     case EntryStatus.PENDING:
-      // Matches ENTRY_STATUS_DESCRIPTORS.pending so My Shows and every other
-      // surface name the same actor; the past-show variant stays distinct
-      // because by then the wait is an anomaly, not the normal queue.
-      contextualLabel = options.isPastShow ? 'Review incomplete' : 'Pending secretary approval';
+      // DELIBERATELY does NOT name the secretary, even though user testing
+      // asked for "Pending Secretary Approval". EntryStatus.PENDING is a
+      // catch-all: mapEntryStatusKindToUi folds `in_ring` (checked-in, at-gate,
+      // in-ring, competing), `absent`, and `unknown` into it because the UI
+      // enum has no value for those kinds. Claiming "awaiting secretary
+      // approval" would therefore lie to an exhibitor whose dog is in the ring
+      // right now — a worse error than the vagueness it fixes.
+      //
+      // Naming the actor requires the raw status kind to survive this far;
+      // today it is folded away in `MyEntry.entryStatus`. See MYK9 follow-up.
+      contextualLabel = options.isPastShow ? 'Review incomplete' : 'Pending Review';
       break;
     case EntryStatus.WAITLIST:
       contextualLabel = 'Waitlist';

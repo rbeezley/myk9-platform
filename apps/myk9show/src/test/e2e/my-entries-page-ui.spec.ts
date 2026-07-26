@@ -202,7 +202,7 @@ test.describe('My Shows Page - Current Status', () => {
         entryCards
           .first()
           .getByText(
-            /Accepted|Pending secretary approval|Review incomplete|Waitlist|Rejected|Withdrawn|Scored|Move-Up Requested|Unknown/
+            /Accepted|Pending Review|Review incomplete|Waitlist|Rejected|Withdrawn|Scored|Move-Up Requested|Unknown/
           )
           .first()
       ).toBeVisible();

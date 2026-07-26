@@ -136,7 +136,7 @@ test.describe('Phase 4 cross-role seams — render-only (exhibitor)', () => {
     // replication name join; documented cosmetic gap, same as the secretary
     // pull card. The seam STATUSES below are the cross-role evidence.)
     await expect(
-      page.getByText(/Withdrawn|Scratched|Pending secretary approval/i).first()
+      page.getByText(/Withdrawn|Scratched|Pending Review/i).first()
     ).toBeVisible({
       timeout: 9000,
     });

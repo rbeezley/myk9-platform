@@ -123,7 +123,7 @@ describe('MyEntryCard current status summary', () => {
       makeEntry({ entryStatus: EntryStatus.PENDING, paymentStatus: PaymentStatus.PENDING })
     );
     expect(container.querySelector('.entry-status-stepper')).not.toBeInTheDocument();
-    expect(screen.getByText('Pending secretary approval')).toBeInTheDocument();
+    expect(screen.getByText('Pending Review')).toBeInTheDocument();
     expect(screen.getByText('Payment Due')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Finish Payment/i })).toHaveAttribute(
       'href',
@@ -371,7 +371,7 @@ describe('MyEntryCard history status clarity', () => {
 
     expect(screen.getByText('Review incomplete')).toBeInTheDocument();
     expect(screen.getByText('Payment unresolved')).toBeInTheDocument();
-    expect(screen.queryByText('Pending secretary approval')).not.toBeInTheDocument();
+    expect(screen.queryByText('Pending Review')).not.toBeInTheDocument();
     expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
   });
 });

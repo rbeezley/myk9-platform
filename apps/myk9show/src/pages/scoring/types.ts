@@ -78,11 +78,36 @@ export interface ClassInfo {
 /**
  * Convert ReplicatedEntry + ReplicatedDog to ScoringEntry
  */
+/**
+ * Resolve the breed shown on a scoresheet.
+ *
+ * `resolvedBreed` is a THREE-state input, and the distinction is the whole
+ * point (MYK9-90 review round 2):
+ *
+ *  - `undefined` — the caller did no organization-scoped resolution. Fall back
+ *    to whatever the entry/dog record carries.
+ *  - a string    — the dog's registration with the sanctioning organization.
+ *  - `null`      — the caller DID resolve against the organization and the dog
+ *    holds no registration with it. That is an answer, not a missing input, so
+ *    no fallback may override it. Letting `??`/`||` run on past it is exactly
+ *    how a UKC-only dog printed its UKC breed on an AKC scoresheet.
+ *
+ * There is no `'Unknown Breed'` substitute: a blank is the honest render.
+ */
+function resolveScoringBreed(
+  resolvedBreed: string | null | undefined,
+  dog: ReplicatedDog | null,
+  entry: ReplicatedEntry
+): string {
+  if (resolvedBreed !== undefined) return resolvedBreed ?? '';
+  return dog?.breed || entry.dogBreed || entry.dog_breed || '';
+}
+
 export function toScoringEntry(
   entry: ReplicatedEntry,
   dog: ReplicatedDog | null,
   index: number,
-  breedOverride?: string | undefined
+  resolvedBreed?: string | null | undefined
 ): ScoringEntry {
   const armband = parseInt(entry.armband || '0', 10) || 0;
   const status = mapEntryStatus(entry.status);
@@ -115,7 +140,7 @@ export function toScoringEntry(
     // Display fields
     callName: dog?.callName || dog?.name || entry.dogCallName || entry.dog_call_name || 'Unknown',
     handler: entry.handler || 'Unknown Handler',
-    breed: breedOverride || dog?.breed || entry.dogBreed || entry.dog_breed || 'Unknown Breed',
+    breed: resolveScoringBreed(resolvedBreed, dog, entry),
     armband,
 
     // Status

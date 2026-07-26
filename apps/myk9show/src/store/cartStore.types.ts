@@ -22,7 +22,17 @@ export interface CartItemWithDetails extends EntryCartItem {
         id: string;
         name: string;
         call_name: string | null;
-        breed: string;
+        // MYK9-90: breed belongs to a registration, not to the dog. The cart is
+        // a generic surface, so the PRIMARY registration answers — resolve it
+        // with `getDogBreedLabel` rather than reading a `breed` off the dog.
+        registrations?:
+          | Array<{
+              id?: string | null;
+              created_at?: string | null;
+              breed?: string | null;
+            }>
+          | null
+          | undefined;
       }
     | undefined;
   class?:

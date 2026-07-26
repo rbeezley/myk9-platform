@@ -6,6 +6,7 @@ import type { Dog, DogStatus } from '@/types/dog-types';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 import type { DogInput } from '@/store/dogStore';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
+import { resolveDogIdentity, type DogRegistrationLike } from '@/features/dogs/identity';
 
 /**
  * Health record row from the database (health_records table)
@@ -269,9 +270,36 @@ export const mapReplicatedDogToDbRow = (
 /**
  * Convert database dog result to Dog type (for backward compatibility)
  */
+/**
+ * Registration rows reach this mapper in snake_case (PostgREST, offline replica
+ * rows via `toSupabaseRow`) or camelCase (already-mapped `Registration[]` taken
+ * from the dogs query cache). Read both so no path silently loses a field.
+ */
+const regCreatedAt = (reg: Record<string, unknown>): string | null =>
+  (reg.created_at as string | null) ?? (reg.createdAt as string | null) ?? null;
+const regIsPrimary = (reg: Record<string, unknown>): boolean | null =>
+  (reg.is_primary as boolean | null) ?? (reg.isPrimary as boolean | null) ?? null;
+const regRegisteredName = (reg: Record<string, unknown>): string =>
+  ((reg.registered_name as string) || (reg.registeredName as string)) ?? '';
+const regNumber = (reg: Record<string, unknown>): string =>
+  ((reg.registration_number as string) || (reg.registrationNumber as string)) ?? '';
+/** Variety keeps the same key in both casings; normalized here for symmetry (#1480). */
+const regVariety = (reg: Record<string, unknown>): string | null =>
+  (reg.variety as string | null) || null;
+
 export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
   const sex = dbDog.sex as 'male' | 'female' | null;
   const dateOfBirth = dbDog.date_of_birth as string | null;
+
+  const registrationRows: Record<string, unknown>[] = Array.isArray(dbDog.registrations)
+    ? (dbDog.registrations as Record<string, unknown>[])
+    : [];
+
+  // Breed belongs to a registration, not to the dog. This is a generic surface
+  // (no organization in context), so the primary registration answers — and an
+  // unregistered dog has no breed rather than a guessed one. Callers render the
+  // absence via `getDogBreedLabel`; nothing substitutes a value.
+  const identity = resolveDogIdentity(registrationRows as DogRegistrationLike[]);
 
   return {
     id: dbDog.id as string,
@@ -282,7 +310,7 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
     // that lives on `dog_registrations`, resolved via `@/features/dogs/identity`.
     name: ((dbDog.name as string | null) ?? (dbDog.call_name as string | null) ?? '') as string,
     callName: (dbDog.call_name as string) || (dbDog.name as string), // Use call_name if available, fallback to name
-    breed: dbDog.breed as string,
+    breed: identity.breed ?? '',
     birthDate: dateOfBirth ?? undefined,
     dateOfBirth: dateOfBirth ?? undefined, // Also set dateOfBirth for backward compatibility
     sex: sex ?? 'male', // Default to male if not set (required field)
@@ -299,21 +327,24 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
     spayedNeutered: (dbDog.spayed_neutered as boolean) ?? undefined,
     status: (dbDog.status as string as DogStatus) || 'active',
     deceasedDate: (dbDog.deceased_date as string) || undefined,
-    registrations: Array.isArray(dbDog.registrations)
-      ? dbDog.registrations.map((reg: Record<string, unknown>) => ({
-          id: reg.id as string,
-          organization: (reg.organization as string) || '',
-          registeredName: (reg.registered_name as string) || '',
-          breed: (reg.breed as string) || (dbDog.breed as string),
-          registrationNumber: (reg.registration_number as string) || '',
-          status: (reg.status as string) || 'active',
-          ...((reg.variety as string | null) ? { variety: reg.variety as string } : {}),
-          ...((reg.is_primary as boolean | null) != null
-            ? { isPrimary: reg.is_primary as boolean }
-            : {}),
-          ...((reg.created_at as string | null) ? { createdAt: reg.created_at as string } : {}),
-        }))
-      : [],
+    registrations: registrationRows.map((reg: Record<string, unknown>) => ({
+      id: reg.id as string,
+      organization: (reg.organization as string) || '',
+      registeredName: regRegisteredName(reg),
+      // Never backfill from `dogs.breed` (as `main` still did here): that turns
+      // the dog record into a breed claim made to a sanctioning organization.
+      breed: (reg.breed as string) || '',
+      // Carry the resolver's ordering fields through the mapping, or anything
+      // that re-resolves from `Dog.registrations` orders by `id` instead and
+      // disagrees with `identity` above. Both casings are accepted because this
+      // list is the MERGE of snake_case PostgREST rows and camelCase rows from
+      // the offline replica (`loadRegistrationsMap`).
+      ...(regVariety(reg) != null ? { variety: regVariety(reg) as string } : {}),
+      ...(regCreatedAt(reg) != null ? { createdAt: regCreatedAt(reg) as string } : {}),
+      ...(regIsPrimary(reg) != null ? { isPrimary: regIsPrimary(reg) as boolean } : {}),
+      registrationNumber: regNumber(reg),
+      status: (reg.status as string) || 'active',
+    })),
     healthRecords: mapHealthRecords(dbDog.health_records),
     // Sync metadata - no longer needed with React Query, but kept for compatibility
     _version: 1,

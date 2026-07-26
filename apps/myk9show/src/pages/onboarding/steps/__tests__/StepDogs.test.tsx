@@ -71,12 +71,44 @@ describe('StepDogs', () => {
   it("shows only this user's dogs (owner-scoped query)", async () => {
     mockSupabase.from.mockReturnValueOnce(
       createChainableQuery({
-        data: [{ id: 'd1', call_name: 'Rex', name: 'Rex', breed: 'Labrador', registrations: [] }],
+        data: [
+          {
+            id: 'd1',
+            call_name: 'Rex',
+            name: 'Rex',
+            // MYK9-90: breed is read from the registration, not from the dog.
+            registrations: [
+              {
+                id: 'r1',
+                created_at: '2024-01-01T00:00:00Z',
+                organization: 'AKC',
+                breed: 'Labrador',
+              },
+            ],
+          },
+        ],
         error: null,
       })
     );
     render(<StepDogs {...makeProps()} />);
     expect(await screen.findByText('Rex')).toBeInTheDocument();
     expect(screen.getByText(/labrador/i)).toBeInTheDocument();
+    expect(screen.getByText(/AKC/)).toBeInTheDocument();
+  });
+
+  // MYK9-90 task 8.3.4: a dog with no registration has no breed. Rendering a
+  // guess here is a claim about someone's dog, and this list is one hop from
+  // the paperwork paths.
+  it('claims no breed for a dog with no registration', async () => {
+    mockSupabase.from.mockReturnValueOnce(
+      createChainableQuery({
+        data: [{ id: 'd1', call_name: 'Rex', name: 'Rex', registrations: [] }],
+        error: null,
+      })
+    );
+    render(<StepDogs {...makeProps()} />);
+    expect(await screen.findByText('Rex')).toBeInTheDocument();
+    expect(screen.getByText(/breed not set/i)).toBeInTheDocument();
+    expect(screen.queryByText(/mixed breed/i)).not.toBeInTheDocument();
   });
 });

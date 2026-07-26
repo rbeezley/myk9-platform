@@ -20,7 +20,6 @@ function mapPostgrestEntry(raw: Record<string, unknown>): TVEntry {
       raw.dogs as {
         name: string;
         call_name: string | null;
-        breed: string | null;
         image_url: string | null;
       } | null
     ),
@@ -58,7 +57,7 @@ export async function getPostgrestTVDisplayData(
   const { data: entryData } = await supabase
     .from('entries')
     .select(
-      'id, class_id, armband, handler, run_order, is_in_ring, is_scored, dogs(name, call_name, breed, image_url)'
+      'id, class_id, armband, handler, run_order, is_in_ring, is_scored, dogs(name, call_name, image_url)'
     )
     .in('class_id', classIds)
     .or('is_scored.eq.false,is_in_ring.eq.true')
@@ -130,7 +129,7 @@ export async function getPostgrestTVDisplayResults(
   const { data: placementData } = await supabase
     .from('view_public_entry_results')
     .select(
-      'id, class_id, armband, handler, final_placement, search_time_seconds, total_score, result_status, dog_name, dog_call_name, dog_breed, dog_image_url'
+      'id, class_id, armband, handler, final_placement, search_time_seconds, total_score, result_status, dog_name, dog_call_name, dog_image_url'
     )
     .in('class_id', classIds)
     .gte('final_placement', 1)
@@ -156,7 +155,6 @@ export async function getPostgrestTVDisplayResults(
       dog: mapJoinedDog({
         name: p.dog_name as string,
         call_name: (p.dog_call_name as string | null) ?? null,
-        breed: (p.dog_breed as string | null) ?? null,
         image_url: (p.dog_image_url as string | null) ?? null,
       }),
     });

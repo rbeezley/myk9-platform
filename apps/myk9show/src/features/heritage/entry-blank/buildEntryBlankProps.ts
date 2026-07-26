@@ -170,7 +170,6 @@ export interface BuildEntryBlankOptions {
 
 // Existing single-pass form assembly is intentionally kept intact for this
 // narrow owner/handler contract fix; decomposing it is separate refactor work.
-// eslint-disable-next-line complexity
 export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankProps {
   const { show, trials, classes, judges, club, secretary, entry, dog, owner, handler } = opts;
   // Bind to the trial's registry via the shared selector (trims + defaults to AKC for

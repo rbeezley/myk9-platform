@@ -23,7 +23,7 @@ const mockClass: TVClass = {
       runOrder: 4,
       isInRing: true,
       isScored: false,
-      dog: { name: 'Luna Star', callName: 'Luna', breed: 'Labrador', imageUrl: null },
+      dog: { name: 'Luna Star', callName: 'Luna', imageUrl: null },
     },
     {
       id: 'e2',
@@ -32,7 +32,7 @@ const mockClass: TVClass = {
       runOrder: 5,
       isInRing: false,
       isScored: false,
-      dog: { name: 'Rex', callName: 'Rex', breed: 'GSD', imageUrl: null },
+      dog: { name: 'Rex', callName: 'Rex', imageUrl: null },
     },
     {
       id: 'e3',
@@ -41,7 +41,7 @@ const mockClass: TVClass = {
       runOrder: 6,
       isInRing: false,
       isScored: false,
-      dog: { name: 'Bella', callName: 'Bella', breed: 'Golden', imageUrl: null },
+      dog: { name: 'Bella', callName: 'Bella', imageUrl: null },
     },
   ],
 };

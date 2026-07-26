@@ -17,14 +17,14 @@
 - [x] 3.2 Write failing component tests for the bounded still-processing state, terminal failure, unavailable state, and same-session recheck
 - [x] 3.3 Run the focused checkout Vitest suites and app TypeScript check
 - [x] 3.4 [ADDED] Grep every `verifyCheckoutSession` caller, run the myK9Show build, and record any unrelated broad-check failures
-- [x] 3.5 [ADDED] Cover stalled/rejected checks, delayed entry hydration, cart identity, unmount safety, refunded status, and prior-session fail-closed behavior
+- [x] 3.5 [ADDED] Cover stalled/rejected checks, delayed entry hydration, cart identity, unmount and StrictMode safety, refunded status, and prior-session fail-closed behavior
 
 ## 4. Verification and Delivery
 
 - [x] 4.1 Validate the OpenSpec change and verify implementation against every requirement and task
 - [x] 4.2 Run payment-flow second-opinion review and resolve blocking findings
 - [ ] 4.3 Commit the scoped change, open a PR with MYK9-98 acceptance evidence, and verify CI
-- [ ] 4.4 Move MYK9-98 to In Review and post the implementation summary, checks, PR, risks, and acceptance result
+- [x] 4.4 Move MYK9-98 to In Review and post the implementation summary, checks, PR, risks, and acceptance result
 - [ ] 4.5 Merge only after approval and green gates, then mark MYK9-98 Done, archive the OpenSpec change, and clean up the branch/worktree
 
 ## Validation Profile
@@ -36,7 +36,7 @@
 ## Verification Evidence
 
 - OpenSpec strict validation passed for both modified capabilities and all scenarios.
-- Focused checkout and prior-session safety coverage passed: 4 files, 36 tests.
+- Focused checkout and prior-session safety coverage passed: 4 files, 40 tests.
 - myK9Show app/test TypeScript checks, changed-file lint, production build, and `git diff --check` passed.
 - The broad myK9Show unit suite was stopped at the repository's 60-second hang limit after 55 seconds; no failures had been reported before interruption.
 - Three adversarial payment reviewers approved the patched behavior after request-timeout, lifecycle, cart-identity, fail-closed, and copy findings were resolved.

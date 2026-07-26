@@ -13,7 +13,7 @@ import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/lib/supabase';
 import {
   type CartSplitCheckoutSummary,
-  consumeCartSplitCheckoutSummary,
+  readCartSplitCheckoutSummary,
 } from '@/features/payments/cartSplitCheckoutStorage';
 import { checkCheckoutSession } from '@/features/payments/checkoutVerification';
 import { CheckoutVerificationIssueCard } from '@/features/payments/CheckoutVerificationIssueCard';
@@ -71,7 +71,7 @@ export default function CheckoutSuccessPage() {
       if (verificationGenerationRef.current !== generation) return;
 
       const nextSplitSummary = splitCheckoutId
-        ? consumeCartSplitCheckoutSummary(splitCheckoutId)
+        ? readCartSplitCheckoutSummary(splitCheckoutId)
         : null;
       setOrderDetails({
         ...(result.orderId !== undefined && { orderId: result.orderId }),
@@ -158,7 +158,7 @@ export default function CheckoutSuccessPage() {
     const verifyPayment = async () => {
       if (!sessionId) {
         const pendingSummary = splitCheckoutId
-          ? consumeCartSplitCheckoutSummary(splitCheckoutId)
+          ? readCartSplitCheckoutSummary(splitCheckoutId)
           : null;
         if (isWaitlistOnly && pendingSummary && pendingSummary.confirmedEntryCount === 0) {
           setOrderDetails({

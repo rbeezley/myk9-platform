@@ -5,6 +5,7 @@ import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
+import { resolveCheckoutSession } from '../_shared/priorCheckoutSession.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -629,51 +630,6 @@ async function handleEntryCheckout(
     });
   }
 
-  // Two tabs / a retry must converge on ONE payable session — a second
-  // session on the same cart double-charges, and the webhook's cart claim
-  // makes the second payment vanish silently (Codex P1). Reuse the open
-  // session when the cart is unchanged; expire it (so it can't be paid
-  // later) and recreate when the items/total differ.
-  if (cart.stripe_checkout_session_id) {
-    try {
-      const existing = await stripe.checkout.sessions.retrieve(cart.stripe_checkout_session_id);
-      // Paid but the webhook hasn't claimed the cart yet (it's still active):
-      // creating a replacement session here would re-point the cart and make
-      // the REAL payment fail the webhook's current-session guard (Codex
-      // round-4 P1). Tell the caller to wait instead.
-      if (existing.status === 'complete') {
-        console.log(
-          `Cart ${cart_id} session ${existing.id} already paid — webhook processing, no new session`
-        );
-        return corsResponse(
-          corsHeaders,
-          {
-            error:
-              'Your payment for this cart is already processing. Give it a few seconds, then check My Entries.',
-          },
-          409
-        );
-      }
-      if (existing.status === 'open') {
-        if (existing.amount_total === subtotal + platformFeeCents && existing.url) {
-          console.log(`Reusing open checkout session ${existing.id} for cart ${cart_id}`);
-          return corsResponse(corsHeaders, { sessionId: existing.id, url: existing.url });
-        }
-        await stripe.checkout.sessions.expire(existing.id);
-        console.log(`Expired stale checkout session ${existing.id} (cart ${cart_id} changed)`);
-      }
-    } catch (err) {
-      // A prior session may be open or already paid. Creating another one when
-      // Stripe is unavailable would fail open into a duplicate-payment path.
-      console.error(`Could not safely inspect or expire prior session for cart ${cart_id}:`, err);
-      return corsResponse(
-        corsHeaders,
-        { error: 'We could not safely resume checkout. Please try again in a moment.' },
-        503
-      );
-    }
-  }
-
   // Create checkout session. Stripe pages default to 24h payable; an app
   // cart lives ~30 min — without clamping, a user could pay a page whose
   // cart expired hours earlier (round-12 P1). Stripe's MINIMUM expires_at is
@@ -682,29 +638,44 @@ async function handleEntryCheckout(
   // 31 minutes buys the buffer; the cart is then aligned below to the expiry
   // Stripe actually RETURNS, so page and cart still die at the same instant.
   const sessionExpiresAtEpoch = Math.floor(Date.now() / 1000) + 31 * 60;
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    line_items: lineItems,
-    mode: 'payment',
-    payment_method_types: ['card'],
-    expires_at: sessionExpiresAtEpoch,
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    metadata: {
-      cart_id: cart_id,
-      type: 'entry',
-      // Stamp the fee rate this charge was computed with so the webhook
-      // validates against the exact rate, not a live re-read that could drift
-      // if a site admin changes platform_settings between charge and webhook.
-      platform_fee_percent: String(platformFeePercent),
-    },
-    payment_intent_data: {
-      metadata: {
-        cart_id: cart_id,
-        type: 'entry',
-      },
-    },
+  const resolution = await resolveCheckoutSession({
+    priorSessionId: cart.stripe_checkout_session_id,
+    expectedAmountCents: subtotal + platformFeeCents,
+    sessions: stripe.checkout.sessions,
+    createReplacement: () =>
+      stripe.checkout.sessions.create({
+        customer: customerId,
+        line_items: lineItems,
+        mode: 'payment',
+        payment_method_types: ['card'],
+        expires_at: sessionExpiresAtEpoch,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: {
+          cart_id: cart_id,
+          type: 'entry',
+          platform_fee_percent: String(platformFeePercent),
+        },
+        payment_intent_data: {
+          metadata: {
+            cart_id: cart_id,
+            type: 'entry',
+          },
+        },
+      }),
   });
+
+  if (resolution.kind === 'blocked') {
+    return corsResponse(corsHeaders, { error: resolution.error }, resolution.status);
+  }
+  if (resolution.reused) {
+    console.log(`Reusing open checkout session ${resolution.session.id} for cart ${cart_id}`);
+    return corsResponse(corsHeaders, {
+      sessionId: resolution.session.id,
+      url: resolution.session.url,
+    });
+  }
+  const session = resolution.session;
 
   // Update cart with checkout session
   const { data: updated, error: updateError } = await supabase

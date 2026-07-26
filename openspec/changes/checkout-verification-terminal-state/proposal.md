@@ -48,4 +48,4 @@ None.
 - `apps/myk9show/src/lib/stripe.ts`
 - `apps/myk9show/supabase/functions/stripe-checkout/index.ts`
 - Focused Vitest coverage under `apps/myk9show/src/test/checkout/`
-- Source-contract coverage under `apps/myk9show/src/test/database/`
+- Behavioral prior-session guard coverage under `apps/myk9show/supabase/functions/_shared/`

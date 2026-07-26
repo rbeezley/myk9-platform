@@ -9,6 +9,7 @@ const migration = readFileSync(
   ),
   'utf8'
 );
+const dogStoreCompat = readFileSync(resolve(__dirname, '../../hooks/useDogStoreCompat.ts'), 'utf8');
 
 describe('create_dog_with_registrations created_at migration', () => {
   it('writes each client-supplied registration timestamp', () => {
@@ -21,5 +22,10 @@ describe('create_dog_with_registrations created_at migration', () => {
   it('replaces the current call-name-aware function definition', () => {
     expect(migration).toContain("NULLIF(btrim(p_dog->>'call_name'), '')");
     expect(migration).toContain('dog_registrations_live_org_number_unique');
+  });
+
+  it('stamps the normal online registration RPC payload in client order', () => {
+    expect(dogStoreCompat).toContain('createRegistrationTimestamps');
+    expect(dogStoreCompat).toContain('created_at: createdAts[index]!');
   });
 });

@@ -2,10 +2,10 @@
 
 ## 1. Database
 
-- [ ] 1.1 Check remote migration state (`supabase migration list`) then add migration `NNN_add_show_coordinates.sql`: nullable `latitude` / `longitude` (double precision) on `public.shows`
-- [ ] 1.2 Run the `migration-auditor` agent on the new migration
-- [ ] 1.3 Push via db-push skill (confirm before push per Auto Mode rules); verify applied ACLs with the `pg_attribute.attacl` / `pg_class.relacl` queries and an anon PostgREST probe selecting `latitude,longitude`
-- [ ] 1.4 Regenerate/refresh DB types and rebuild `pnpm --filter @myk9/supabase build` (stale-dist lesson)
+- [x] 1.1 Check remote migration state (`supabase migration list`) then add migration `NNN_add_show_coordinates.sql`: nullable `latitude` / `longitude` (double precision) on `public.shows`
+- [x] 1.2 Run the `migration-auditor` agent on the new migration
+- [x] 1.3 Push via db-push skill (confirm before push per Auto Mode rules); verify applied ACLs with the `pg_attribute.attacl` / `pg_class.relacl` queries and an anon PostgREST probe selecting `latitude,longitude`
+- [x] 1.4 Regenerate/refresh DB types and rebuild `pnpm --filter @myk9/supabase build` (stale-dist lesson)
 
 ## 2. Geocoding + VenuePinMap
 

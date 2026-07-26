@@ -1431,6 +1431,7 @@ export type Database = {
           dog_deleted_at: string | null
           dog_id: string
           id: string
+          is_primary: boolean
           organization: string
           registered_name: string | null
           registration_date: string | null
@@ -1449,6 +1450,7 @@ export type Database = {
           dog_deleted_at?: string | null
           dog_id: string
           id?: string
+          is_primary?: boolean
           organization: string
           registered_name?: string | null
           registration_date?: string | null
@@ -1467,6 +1469,7 @@ export type Database = {
           dog_deleted_at?: string | null
           dog_id?: string
           id?: string
+          is_primary?: boolean
           organization?: string
           registered_name?: string | null
           registration_date?: string | null
@@ -7116,9 +7119,11 @@ export type Database = {
           experience_published_style: string | null
           id: string
           is_nationals: boolean
+          latitude: number | null
           license_key: string | null
           location: string | null
           logo_url: string | null
+          longitude: number | null
           mail_in_auto_release: boolean
           mail_in_deadline: string | null
           mail_in_release_date: string | null
@@ -7178,9 +7183,11 @@ export type Database = {
           experience_published_style?: string | null
           id?: string
           is_nationals?: boolean
+          latitude?: number | null
           license_key?: string | null
           location?: string | null
           logo_url?: string | null
+          longitude?: number | null
           mail_in_auto_release?: boolean
           mail_in_deadline?: string | null
           mail_in_release_date?: string | null
@@ -7240,9 +7247,11 @@ export type Database = {
           experience_published_style?: string | null
           id?: string
           is_nationals?: boolean
+          latitude?: number | null
           license_key?: string | null
           location?: string | null
           logo_url?: string | null
+          longitude?: number | null
           mail_in_auto_release?: boolean
           mail_in_deadline?: string | null
           mail_in_release_date?: string | null
@@ -11253,9 +11262,11 @@ export type Database = {
           experience_published_style: string | null
           id: string
           is_nationals: boolean
+          latitude: number | null
           license_key: string | null
           location: string | null
           logo_url: string | null
+          longitude: number | null
           mail_in_auto_release: boolean
           mail_in_deadline: string | null
           mail_in_release_date: string | null
@@ -11808,9 +11819,11 @@ export type Database = {
           experience_published_style: string | null
           id: string
           is_nationals: boolean
+          latitude: number | null
           license_key: string | null
           location: string | null
           logo_url: string | null
+          longitude: number | null
           mail_in_auto_release: boolean
           mail_in_deadline: string | null
           mail_in_release_date: string | null

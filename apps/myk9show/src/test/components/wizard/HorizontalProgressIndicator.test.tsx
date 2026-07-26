@@ -61,6 +61,13 @@ describe('HorizontalProgressIndicator', () => {
     expect(screen.getByRole('button', { name: 'Review' })).toBeDisabled();
   });
 
+  it('does not make a later step reachable when completed state has a gap', () => {
+    renderIndicator({ currentStep: 1, completedSteps: [0, 2] });
+
+    expect(screen.getByRole('button', { name: 'Classes (completed)' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Review' })).toBeDisabled();
+  });
+
   it('makes the whole step (including the label) the hit target', async () => {
     const user = userEvent.setup();
     const { onStepClick } = renderIndicator({ currentStep: 1, completedSteps: [0] });
@@ -75,8 +82,20 @@ describe('HorizontalProgressIndicator', () => {
   it('gives each step a >=44px-tall, full-width hit area (touch-target guardrail)', () => {
     renderIndicator({ currentStep: 1, completedSteps: [0] });
     const button = screen.getByRole('button', { name: 'Trials (current)' });
-    expect(button.className).toContain('min-h-[44px]');
+    expect(button.className).toContain('min-h-[64px]');
     expect(button.className).toContain('w-full');
+  });
+
+  it('shows the current position and completed progress explicitly', () => {
+    renderIndicator({ currentStep: 1, completedSteps: [0] });
+
+    expect(screen.getByText('Step 2 of 4')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuetext',
+      '1 of 4 steps complete'
+    );
+    expect(screen.getByText('Complete each step in order')).toBeInTheDocument();
   });
 
   it('keeps connectors between the outer edges of adjacent circles', () => {
@@ -87,7 +106,7 @@ describe('HorizontalProgressIndicator', () => {
   });
 });
 
-describe('HorizontalProgressIndicator — many steps (mobile compaction)', () => {
+describe('HorizontalProgressIndicator — many steps remain discoverable on mobile', () => {
   const SIX_STEPS = [
     { id: 0, label: 'Exhibitor' },
     { id: 1, label: 'Dogs' },
@@ -97,21 +116,17 @@ describe('HorizontalProgressIndicator — many steps (mobile compaction)', () =>
     { id: 5, label: 'Confirm' },
   ];
 
-  it('keeps the current label visible but hides the rest on mobile when >4 steps', () => {
+  it('keeps every step label visible in a horizontally scrollable list', () => {
     render(
       <HorizontalProgressIndicator steps={SIX_STEPS} currentStep={2} completedSteps={[0, 1]} />
     );
-    // Current step's label is always shown.
-    expect(screen.getByText('Classes').className).not.toContain('hidden');
-    // A non-current label is hidden on mobile, revealed at sm:.
-    const other = screen.getByText('Payment');
-    expect(other.className).toContain('hidden');
-    expect(other.className).toContain('sm:block');
-  });
+    for (const step of SIX_STEPS) {
+      expect(screen.getByText(step.label)).toBeInTheDocument();
+    }
 
-  it('keeps every label visible when there are 4 or fewer steps', () => {
-    render(<HorizontalProgressIndicator steps={STEPS} currentStep={1} completedSteps={[0]} />);
-    // No mobile-hide class on a non-current label at <=4 steps.
-    expect(screen.getByText('Show Details').className).not.toContain('hidden');
+    const stepList = screen.getByTestId('wizard-step-list');
+    expect(stepList).toHaveClass('overflow-x-auto');
+    expect(stepList.querySelector('ol')).toHaveClass('md:min-w-0');
+    expect(screen.getByText('Exhibitor').closest('li')).toHaveClass('md:min-w-0');
   });
 });

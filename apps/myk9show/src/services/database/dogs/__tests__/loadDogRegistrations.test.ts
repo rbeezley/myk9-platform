@@ -27,13 +27,14 @@ import { resolveDogIdentity } from '@/features/dogs/identity';
 describe('loadDogRegistrations', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  // The UUIDs sort opposite to the order the exhibitor entered the rows. The
-  // server timestamps are the ordered values written by the RPC migration.
-  const serverRows = [
+  // The UUIDs sort opposite to the order the exhibitor entered the rows. This
+  // fixture keeps equal server timestamps so the local mirror is the only
+  // source of creation order for this test.
+  const serverRowsWithTiedTimestamps = [
     {
       id: 'aaaaaaaa-0000-4000-8000-000000000000',
       dog_id: 'dog-1',
-      created_at: '2025-06-01T11:59:59.000Z',
+      created_at: '2025-06-01T12:00:00.000Z',
       organization: 'UKC',
       registration_number: 'P935-254',
       breed: 'Belgian Shepherd Dog',
@@ -41,15 +42,26 @@ describe('loadDogRegistrations', () => {
     {
       id: 'zzzzzzzz-0000-4000-8000-000000000000',
       dog_id: 'dog-1',
-      created_at: '2025-06-01T11:59:58.000Z',
+      created_at: '2025-06-01T12:00:00.000Z',
       organization: 'AKC',
       registration_number: 'DN61191906',
       breed: 'Belgian Malinois',
     },
   ];
 
+  const serverRowsWithCreationOrder = [
+    {
+      ...serverRowsWithTiedTimestamps[0],
+      created_at: '2025-06-01T11:59:59.000Z',
+    },
+    {
+      ...serverRowsWithTiedTimestamps[1],
+      created_at: '2025-06-01T11:59:58.000Z',
+    },
+  ];
+
   it('overlays the local creation order onto identical server timestamps', async () => {
-    mockServerIn.mockResolvedValue({ data: serverRows, error: null });
+    mockServerIn.mockResolvedValue({ data: serverRowsWithTiedTimestamps, error: null });
     // Local mirror: AKC was entered FIRST, so it is the primary.
     mockLocalGet.mockResolvedValue([
       {
@@ -75,7 +87,7 @@ describe('loadDogRegistrations', () => {
   });
 
   it('without a local mirror preserves the server creation order', async () => {
-    mockServerIn.mockResolvedValue({ data: serverRows, error: null });
+    mockServerIn.mockResolvedValue({ data: serverRowsWithCreationOrder, error: null });
     mockLocalGet.mockResolvedValue([]);
 
     const { byDog } = await loadDogRegistrations(['dog-1']);

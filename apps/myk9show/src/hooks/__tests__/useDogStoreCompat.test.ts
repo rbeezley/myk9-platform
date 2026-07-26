@@ -22,6 +22,8 @@ const {
   mockGetRegistrationsForDogs,
   mockUpdateMutateAsync,
   mockServerRegistrationsIn,
+  mockSupabaseRpc,
+  mockCreateRegistrationTimestamps,
   mockDogsQueryData,
   mockGetReplicatedDogById,
 } = vi.hoisted(() => ({
@@ -38,6 +40,8 @@ const {
   mockGetRegistrationsForDogs: vi.fn(),
   mockUpdateMutateAsync: vi.fn(),
   mockServerRegistrationsIn: vi.fn(),
+  mockSupabaseRpc: vi.fn(),
+  mockCreateRegistrationTimestamps: vi.fn(),
   mockDogsQueryData: vi.fn(() => [] as unknown[]),
   mockGetReplicatedDogById: vi.fn(),
 }));
@@ -46,6 +50,10 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: () => ({ select: () => ({ in: mockServerRegistrationsIn }) }) },
   logQuery: vi.fn(),
   createDatabaseError: (e: unknown) => e,
+}));
+
+vi.mock('@/lib/supabase', () => ({
+  supabase: { rpc: mockSupabaseRpc },
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -63,6 +71,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 }));
 
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
+  createRegistrationTimestamps: mockCreateRegistrationTimestamps,
   replicatedDogRegistrationsTable: {
     createRegistrationsForDog: mockCreateReplicatedDogRegistrationsForDog,
     createLocalRegistrationsForDog: mockCreateLocalReplicatedDogRegistrationsForDog,
@@ -166,6 +175,10 @@ describe('useDogStoreCompat.addDog — local-first', () => {
     mockSetReplicatedDog.mockResolvedValue(undefined);
     mockDeleteReplicatedDog.mockResolvedValue(undefined);
     mockGetAllReplicatedDogs.mockResolvedValue([]);
+    mockSupabaseRpc.mockResolvedValue({ data: 'dog-1', error: null });
+    mockCreateRegistrationTimestamps.mockImplementation((count: number) =>
+      Array.from({ length: count }, (_, index) => `2024-01-01T00:00:0${index}.000Z`)
+    );
   });
 
   it('writes to IndexedDB before PostgREST insert', async () => {
@@ -411,6 +424,46 @@ describe('useDogStoreCompat.addDog — local-first', () => {
     expect(mockCreateReplicatedDogWithId).not.toHaveBeenCalled();
     expect(mockCreateReplicatedDogRegistrationsForDog).not.toHaveBeenCalled();
     expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('preserves registration creation order in the normal atomic RPC path', async () => {
+    const registrations = [
+      {
+        organization: 'AKC',
+        number: 'A',
+        registeredName: 'First Registration',
+        type: 'Beagle',
+        status: 'active',
+      },
+      {
+        organization: 'UKC',
+        number: 'B',
+        registeredName: 'Second Registration',
+        type: 'Beagle',
+        status: 'active',
+      },
+    ];
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await result.current.addDog({ ...baseDogInput, registrations });
+    });
+
+    expect(mockSupabaseRpc).toHaveBeenCalledWith(
+      'create_dog_with_registrations',
+      expect.objectContaining({
+        p_registrations: [
+          expect.objectContaining({
+            registered_name: 'First Registration',
+            created_at: '2024-01-01T00:00:00.000Z',
+          }),
+          expect.objectContaining({
+            registered_name: 'Second Registration',
+            created_at: '2024-01-01T00:00:01.000Z',
+          }),
+        ],
+      })
+    );
   });
 });
 

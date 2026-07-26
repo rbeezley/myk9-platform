@@ -39,7 +39,7 @@ export interface ReplicatedDogRegistration {
  * tie sends the resolver to its `id` (random UUID) tiebreak. Offsetting by index
  * keeps creation ORDER, so the first registration entered stays primary.
  */
-function creationTimestamps(count: number): string[] {
+export function createRegistrationTimestamps(count: number): string[] {
   const base = Date.now();
   return Array.from({ length: count }, (_, i) => new Date(base + i).toISOString());
 }
@@ -89,7 +89,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     // `createdAt` comes from `creationTimestamps`, NOT from a per-row
     // `new Date()`: rows created in the same millisecond would tie, and a tie
     // sends the resolver back to its random-UUID tiebreak.
-    const createdAts = creationTimestamps(registrations.length);
+    const createdAts = createRegistrationTimestamps(registrations.length);
     for (const [index, input] of registrations.entries()) {
       const normalized = normalizeRegistration(input, createdAts[index]!);
       const registration: ReplicatedDogRegistration = {
@@ -124,7 +124,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     // `createdAt` comes from `creationTimestamps`, NOT from a per-row
     // `new Date()`: rows created in the same millisecond would tie, and a tie
     // sends the resolver back to its random-UUID tiebreak.
-    const createdAts = creationTimestamps(registrations.length);
+    const createdAts = createRegistrationTimestamps(registrations.length);
     for (const [index, input] of registrations.entries()) {
       const normalized = normalizeRegistration(input, createdAts[index]!);
       const registration: ReplicatedDogRegistration = {

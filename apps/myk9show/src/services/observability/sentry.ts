@@ -12,6 +12,16 @@ export interface SentryRuntimeConfig {
   tracesSampleRate?: string | undefined;
 }
 
+export type AuthEmailRequestAction = 'signup' | 'resend';
+
+const AUTH_EMAIL_OPERATIONAL_CODES = new Set([
+  'email_address_not_authorized',
+  'hook_timeout',
+  'hook_timeout_after_retry',
+  'over_email_send_rate_limit',
+  'over_request_rate_limit',
+]);
+
 const SENSITIVE_KEYS = new Set([
   'authorization',
   'cookie',
@@ -206,6 +216,41 @@ export function captureErrorBoundaryException(
     scope.setTag('boundary_level', context.level);
     Sentry.captureException(error);
   });
+}
+
+export function captureAuthEmailRequestFailure(
+  error: unknown,
+  action: AuthEmailRequestAction
+): void {
+  if (!isAuthEmailOperationalFailure(error)) return;
+
+  const reportableError =
+    error instanceof Error ? error : new Error('Supabase auth email request failed');
+  const details = error as { code?: unknown; status?: unknown };
+
+  Sentry.withScope(scope => {
+    scope.setTag('auth_email_action', action);
+    scope.setTag('auth_error_code', typeof details.code === 'string' ? details.code : 'unknown');
+    scope.setContext('auth_email_failure', {
+      action,
+      code: typeof details.code === 'string' ? details.code : 'unknown',
+      status: typeof details.status === 'number' ? details.status : 'unknown',
+    });
+    Sentry.captureException(reportableError);
+  });
+}
+
+export function isAuthEmailOperationalFailure(error: unknown): boolean {
+  if (!isRecord(error)) return false;
+
+  const status = typeof error.status === 'number' ? error.status : undefined;
+  const code = typeof error.code === 'string' ? error.code : undefined;
+
+  return (
+    status === 429 ||
+    (status !== undefined && status >= 500) ||
+    (code !== undefined && AUTH_EMAIL_OPERATIONAL_CODES.has(code))
+  );
 }
 
 initializeSentry();

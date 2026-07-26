@@ -68,7 +68,6 @@ describe('ShowMapStructureTable', () => {
           handler: 'Jane Handler',
           dog: {
             call_name: 'Bella',
-            breed: 'Mixed Breed',
             registrations: [{ organization: 'AKC', breed: 'Labrador Retriever' }],
           },
           entry_status: 'submitted',
@@ -153,7 +152,7 @@ describe('ShowMapStructureTable', () => {
           dog_id: 'dog-1',
           armband: '12',
           handler: 'Jane Handler',
-          dog: { id: 'dog-1', call_name: 'Bella', breed: 'Labrador Retriever' },
+          dog: { id: 'dog-1', call_name: 'Bella', registrations: [{ organization: 'AKC', breed: 'Labrador Retriever' }] },
         },
       ],
     });
@@ -191,7 +190,7 @@ describe('ShowMapStructureTable', () => {
           dog_id: 'dog-complete',
           armband: '12',
           handler: 'Jane Handler',
-          dog: { id: 'dog-complete', call_name: 'Bella', breed: 'Labrador Retriever' },
+          dog: { id: 'dog-complete', call_name: 'Bella', registrations: [{ organization: 'AKC', breed: 'Labrador Retriever' }] },
           check_in_status: 'completed',
         },
       ],
@@ -243,7 +242,7 @@ describe('ShowMapStructureTable', () => {
           handler_id: 'person-12',
           armband: '12',
           handler: 'Jane Handler',
-          dog: { id: 'dog-12', call_name: 'Bella', breed: 'Labrador Retriever' },
+          dog: { id: 'dog-12', call_name: 'Bella', registrations: [{ organization: 'AKC', breed: 'Labrador Retriever' }] },
         },
       ],
     });

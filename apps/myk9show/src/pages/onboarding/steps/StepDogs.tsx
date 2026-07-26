@@ -12,6 +12,8 @@ import { PawPrint, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AddDogPanel } from '@/components/panels/edit/AddDogPanel';
 import { supabase } from '@/lib/supabase';
+import { resolveDogIdentity } from '@/features/dogs/identity';
+import { getDogBreedLabel } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 
 interface StepDogsProps {
@@ -30,7 +32,14 @@ function useMyDogs(personId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('dogs')
-        .select('id, name, call_name, breed, registrations:dog_registrations(organization, breed)')
+        // Breed belongs to a registration, not to the dog. This is a generic
+        // surface, so the PRIMARY registration answers — which needs the
+        // resolver's ordering fields (`created_at`, `id`). The previous
+        // `registrations[0]` pick had no organization scoping and no ordering,
+        // so it showed whichever row PostgREST returned first.
+        .select(
+          'id, name, call_name, registrations:dog_registrations(id, created_at, organization, breed)'
+        )
         .eq('owner_id', personId)
         .order('name');
       if (error) throw error;
@@ -71,20 +80,21 @@ export function StepDogs({ personId, onNext, onBack, onSkip, canGoBack = true }:
         </div>
       ) : (
         <div className="space-y-3">
-          {dogs.map(dog => (
-            <div key={dog.id} className="flex items-center gap-3 rounded-md border px-4 py-3">
-              <PawPrint className="h-4 w-4 text-muted-foreground shrink-0" />
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{dog.call_name || dog.name}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {dog.registrations?.[0]?.breed ?? dog.breed}
-                  {dog.registrations?.[0]?.organization
-                    ? ` · ${dog.registrations[0].organization}`
-                    : ''}
-                </p>
+          {dogs.map(dog => {
+            const identity = resolveDogIdentity(dog.registrations);
+            return (
+              <div key={dog.id} className="flex items-center gap-3 rounded-md border px-4 py-3">
+                <PawPrint className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{dog.call_name || dog.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {getDogBreedLabel({ registrations: dog.registrations })}
+                    {identity.organization ? ` · ${identity.organization}` : ''}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <Button type="button" variant="outline" size="sm" onClick={() => setAddPanelOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />

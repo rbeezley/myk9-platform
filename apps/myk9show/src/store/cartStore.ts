@@ -86,7 +86,7 @@ export const useCartStore = create<CartState>()(
             const { data: itemsData, error: itemsError } = await supabase
               .from('entry_cart_items')
               .select(
-                `*, dog:dogs(id, name, call_name, breed), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
+                `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
               )
               .eq('cart_id', cartData.id);
 
@@ -356,7 +356,7 @@ export const useCartStore = create<CartState>()(
               .from('entry_cart_items')
               .insert(itemInsert)
               .select(
-                `*, dog:dogs(id, name, call_name, breed), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
+                `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
               )
               .single();
 

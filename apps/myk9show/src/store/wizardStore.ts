@@ -29,6 +29,9 @@ interface WizardState {
     startDate: string; // ISO datetime string
     endDate: string; // ISO datetime string
     location: string;
+    // Venue pin, secretary-confirmed via VenuePinMap; null = not placed
+    latitude: number | null;
+    longitude: number | null;
     clubId: string;
     entryOpenDate: string; // ISO datetime string
     entryCloseDate: string; // ISO datetime string
@@ -114,6 +117,8 @@ const initialState: WizardState = {
     startDate: '',
     endDate: '',
     location: '',
+    latitude: null,
+    longitude: null,
     clubId: '',
     entryOpenDate: '',
     entryCloseDate: '',

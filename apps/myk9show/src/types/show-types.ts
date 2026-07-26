@@ -75,6 +75,9 @@ export interface Show {
   startDate: string;
   endDate: string;
   location: string;
+  // Venue coordinates, secretary-confirmed via VenuePinMap; null = no pin placed
+  latitude?: number | null;
+  longitude?: number | null;
   status: string;
   events: string[];
   source: 'myK9Show' | 'external';
@@ -149,6 +152,8 @@ export interface ShowInput {
   startDate: string;
   endDate: string;
   location: string;
+  latitude?: number | null;
+  longitude?: number | null;
   status: string;
   events: string[];
   source: 'myK9Show' | 'external';

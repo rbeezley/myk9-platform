@@ -35,7 +35,7 @@ const mockCompletedClasses = [
         dog: {
           name: 'Luna Star',
           callName: 'Luna',
-          breed: 'Labrador',
+         
           imageUrl: null,
         },
       },

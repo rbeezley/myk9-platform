@@ -3,6 +3,7 @@ import {
   composeClassTitle,
   getEntryDisplay,
   getEntryStatusKind,
+  getEntryStatusKindForDisplay,
   getRefundLabel,
   getRemovedStatusLabel,
   isRemovedStatus,
@@ -51,6 +52,20 @@ describe('getEntryStatusKind — the single classifier', () => {
   });
 });
 
+describe('getEntryStatusKindForDisplay — lifecycle plus check-in state', () => {
+  it.each(['checked-in', 'at-gate', 'in-ring'])(
+    'uses %s check-in state for a confirmed entry',
+    checkInStatus => {
+      expect(getEntryStatusKindForDisplay('confirmed', checkInStatus)).toBe('in_ring');
+    }
+  );
+
+  it('does not let stale check-in data override a terminal lifecycle state', () => {
+    expect(getEntryStatusKindForDisplay('scratched', 'in-ring')).toBe('scratched');
+    expect(getEntryStatusKindForDisplay('completed', 'in-ring')).toBe('completed');
+  });
+});
+
 describe('isRemovedStatus — terminal classification (the divergence fix)', () => {
   it('treats withdrawn / scratched / not_accepted as removed', () => {
     expect(isRemovedStatus('withdrawn')).toBe(true);
@@ -59,7 +74,14 @@ describe('isRemovedStatus — terminal classification (the divergence fix)', () 
   });
 
   it('does NOT treat moved / absent / live states as removed', () => {
-    for (const kind of ['moved', 'absent', 'pending', 'accepted', 'completed', 'in_ring'] as const) {
+    for (const kind of [
+      'moved',
+      'absent',
+      'pending',
+      'accepted',
+      'completed',
+      'in_ring',
+    ] as const) {
       expect(isRemovedStatus(kind)).toBe(false);
     }
   });
@@ -101,7 +123,9 @@ describe('resolveClassSection — single phantom-A defense', () => {
 describe('getRefundLabel — prefers explicit columns, falls back to inference', () => {
   it('uses the explicit refund amount when present (secretary ground truth)', () => {
     expect(getRefundLabel({ paymentStatus: 'refunded', refundAmount: 30 })).toBe('Refunded $30');
-    expect(getRefundLabel({ paymentStatus: 'refunded', refundAmount: 30.5 })).toBe('Refunded $30.50');
+    expect(getRefundLabel({ paymentStatus: 'refunded', refundAmount: 30.5 })).toBe(
+      'Refunded $30.50'
+    );
     expect(getRefundLabel({ paymentStatus: 'partial_refund', refundAmount: 15 })).toBe(
       'Partial refund $15'
     );

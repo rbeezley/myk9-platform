@@ -2,6 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { cacheStrategies } from '@/lib/queryClient';
 import { groupEntriesByDog } from '@/lib/reports/entryFormUtils';
+import {
+  resolveDogIdentityForOrganization,
+  type DogRegistrationLike,
+} from '@/features/dogs/identity';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type {
   EntryFormDog,
@@ -152,11 +156,17 @@ async function fetchEntryFormData(
   const [{ data: dogsRaw }, { data: regsRaw }, { data: pedigreeRaw }] = await Promise.all([
     supabase
       .from('dogs')
-      .select('id, call_name, breed, sex, date_of_birth, owner_id, breeder_id')
+      .select('id, call_name, sex, date_of_birth, owner_id, breeder_id')
       .in('id', dogIds),
     supabase
       .from('dog_registrations')
-      .select('dog_id, registered_name, registration_number, organization, variety')
+      // `id` and `created_at` are the resolver's tiebreak fields: a dog may hold
+      // both an `AKC` and an `AKC (American Kennel Club)` row (the UNIQUE
+      // constraint is exact-string), and both normalize to AKC. Without them the
+      // comparator ties and the printed number could vary between runs.
+      .select(
+        'dog_id, id, created_at, registered_name, registration_number, organization, variety, breed'
+      )
       .in('dog_id', dogIds),
     supabase
       .from('pedigree_ancestors')
@@ -190,24 +200,17 @@ async function fetchEntryFormData(
     pedigreeMap.set(p.dog_id, existing);
   }
 
-  // Index registrations (prefer AKC)
-  const regMap = new Map<string, EntryFormRegistration>();
+  // Index registrations by dog. Selection is deliberately NOT done here: this
+  // hook feeds organization-scoped paperwork (AKC scent work entry/transfer
+  // forms, UKC nosework entry/change forms), so the registration is resolved
+  // strictly against `preferredRegistrationOrganization` below, with **no
+  // cross-organization fallback**. Printing a UKC number or a UKC breed on an
+  // AKC form is worse than leaving the field blank.
+  const regsByDog = new Map<string, DogRegistrationLike[]>();
   for (const r of regsRaw ?? []) {
-    const existing = regMap.get(r.dog_id);
-    const candidate = {
-      registeredName: r.registered_name,
-      registrationNumber: r.registration_number,
-      organization: r.organization,
-      variety: r.variety,
-    };
-    const selected = chooseEntryFormRegistration(
-      existing,
-      candidate,
-      preferredRegistrationOrganization
-    );
-    if (selected !== existing) {
-      regMap.set(r.dog_id, selected);
-    }
+    const list = regsByDog.get(r.dog_id) ?? [];
+    list.push(r as DogRegistrationLike);
+    regsByDog.set(r.dog_id, list);
   }
 
   // 6. Fetch secretary via the get_show_officials RPC.
@@ -270,7 +273,22 @@ async function fetchEntryFormData(
     const breederName = breederRaw ? formatPersonName(breederRaw) : null;
 
     const pedigree = pedigreeMap.get(dog.id);
-    const reg = regMap.get(dog.id) ?? null;
+    // Breed, registered name, variety and number all belong to the registration
+    // with this organization — never to the dog record, and never borrowed from
+    // another organization's registration.
+    const identity = resolveDogIdentityForOrganization(
+      regsByDog.get(dog.id),
+      preferredRegistrationOrganization
+    );
+    const reg: EntryFormRegistration | null =
+      identity.registrationNumber != null
+        ? {
+            registeredName: identity.registeredName,
+            registrationNumber: identity.registrationNumber,
+            organization: identity.organization ?? preferredRegistrationOrganization,
+            variety: identity.variety,
+          }
+        : null;
 
     const ownerFullName = formatPersonName({
       first_name: owner.firstName,
@@ -285,7 +303,7 @@ async function fetchEntryFormData(
     dogs.push({
       dogId: dog.id,
       callName: dog.call_name ?? '',
-      breed: dog.breed ?? '',
+      breed: identity.breed ?? '',
       sex: dog.sex,
       dateOfBirth: dog.date_of_birth,
       registration: reg,
@@ -301,25 +319,6 @@ async function fetchEntryFormData(
   }
 
   return { dogs, secretary, trials, classes, show };
-}
-
-export function chooseEntryFormRegistration(
-  existing: EntryFormRegistration | undefined,
-  candidate: EntryFormRegistration,
-  preferredOrganization = 'AKC'
-): EntryFormRegistration {
-  if (!existing) return candidate;
-
-  const preferred = preferredOrganization.trim().toUpperCase();
-  const existingOrg = existing.organization.trim().toUpperCase();
-  const candidateOrg = candidate.organization.trim().toUpperCase();
-
-  if (candidateOrg === preferred && existingOrg !== preferred) return candidate;
-  if (candidateOrg !== preferred && existingOrg === preferred) return existing;
-
-  // Preserve the previous AKC-first behavior as a stable fallback.
-  if (candidateOrg === 'AKC' && existingOrg !== 'AKC') return candidate;
-  return existing;
 }
 
 export function useEntryFormData({

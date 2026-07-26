@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -12,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import type { ShowDraft } from '@/store/wizardStore';
 import { ORGANIZATIONS } from '../ShowDetailsStep.types';
 import { SectionHeading } from './SectionHeading';
+import { VenuePinMap } from '@/components/common/LazyComponents';
 
 interface BasicsSectionProps {
   show: ShowDraft;
@@ -81,6 +83,20 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({ show, onUpdate, cl
           rows={3}
           className="border border-border bg-input rounded-md"
         />
+      </div>
+
+      <div className="md:col-span-2">
+        <Suspense fallback={<Skeleton className="h-[280px] w-full rounded-lg" />}>
+          <VenuePinMap
+            address={show.location || ''}
+            value={
+              show.latitude != null && show.longitude != null
+                ? { lat: show.latitude, lng: show.longitude }
+                : null
+            }
+            onChange={({ lat, lng }) => onUpdate({ latitude: lat, longitude: lng })}
+          />
+        </Suspense>
       </div>
     </div>
   </div>

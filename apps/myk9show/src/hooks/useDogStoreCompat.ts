@@ -34,6 +34,10 @@ import { translateDogDbError } from '@/hooks/translateDogDbError';
 import { supabase } from '@/lib/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
+import {
+  cachedRegistrationRowsForDog,
+  mapReplicatedDogWithRegistrations,
+} from '@/hooks/dogRegistrationHydration';
 
 /**
  * Compatibility hook that provides dogStore-like API using React Query
@@ -140,7 +144,7 @@ export const useDogStoreCompat = () => {
           const existingLoadedDog = dogs.find(dog => dog.id === savedDogId);
 
           if (existingLocalDog) {
-            return mapDatabaseToDog(mapReplicatedDogToDbRow(existingLocalDog));
+            return await mapReplicatedDogWithRegistrations(existingLocalDog);
           }
 
           if (existingLoadedDog) {
@@ -152,7 +156,7 @@ export const useDogStoreCompat = () => {
           });
 
           return {
-            ...mapDatabaseToDog(mapReplicatedDogToDbRow(replicatedDog)),
+            ...(await mapReplicatedDogWithRegistrations(replicatedDog)),
             id: savedDogId,
           };
         }
@@ -162,7 +166,7 @@ export const useDogStoreCompat = () => {
           queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(dbData.owner_id) });
         }
         queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(dogId) });
-        return mapDatabaseToDog(mapReplicatedDogToDbRow(replicatedDog));
+        return await mapReplicatedDogWithRegistrations(replicatedDog);
       }
 
       const result = await runDogMutation(() => createMutation.mutateAsync(dbData));
@@ -186,27 +190,37 @@ export const useDogStoreCompat = () => {
     options: { dependsOn?: string[] } = {}
   ): Promise<Dog> => {
     const dogId = crypto.randomUUID();
+    // MUST stay the first statement: `mapDogInputToReplicated` calls
+    // `resolveRequiredCallName`, which THROWS on a missing or whitespace-only
+    // call name (§5.1). Nothing below it — including the registration mirror —
+    // may write to IndexedDB or queue a mutation before that check has run.
     const replicatedDog = mapDogInputToReplicated(dogData, dogId);
 
     let registrations: Record<string, unknown>[] = [];
     if (dogData.registrations && dogData.registrations.length > 0) {
-      const registrationRows = dogData.registrations.map(registration => ({
+      // Create the local mirror FIRST so the RPC payload can carry the same
+      // ordered creation timestamps. Without them every registration in the
+      // RPC's transaction gets an identical server `created_at` and the primary
+      // is decided by a random UUID (MYK9-90 review round 4). Safe with respect
+      // to §5.1: the call-name check above has already thrown by this point.
+      const savedRegistrations =
+        await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
+          dogId,
+          dogData.registrations
+        );
+      const registrationRows = dogData.registrations.map((registration, index) => ({
         organization: registration.organization || 'AKC',
         registered_name: registration.registeredName || null,
         registration_number: registration.number || '',
         breed: registration.type || null,
         status: registration.status || 'pending',
+        created_at: savedRegistrations[index]?.createdAt ?? null,
       }));
       const savedDog = await replicatedDogsTable.createDogWithRegistrationsRpc(
         replicatedDog,
         registrationRows,
         options.dependsOn ? { dependsOn: options.dependsOn } : {}
       );
-      const savedRegistrations =
-        await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
-          savedDog.id,
-          dogData.registrations
-        );
       registrations = savedRegistrations.map(registration =>
         replicatedDogRegistrationsTable.toSupabaseRow(registration)
       );
@@ -230,7 +244,7 @@ export const useDogStoreCompat = () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(savedDog.ownerId) });
     }
 
-    return mapDatabaseToDog(mapReplicatedDogToDbRow(savedDog));
+    return await mapReplicatedDogWithRegistrations(savedDog);
   };
 
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {
@@ -253,7 +267,13 @@ export const useDogStoreCompat = () => {
     if (current) {
       const updated = { ...current, ...mapPartialDogInputToReplicated(normalizedUpdates) };
       await replicatedDogsTable.set(id, updated, false);
-      localDog = mapDatabaseToDog(mapReplicatedDogToDbRow(updated));
+      // Local-first: resolve the breed from data already in memory rather than
+      // awaiting a PostgREST round-trip on the save path.
+      localDog = mapDatabaseToDog(
+        mapReplicatedDogToDbRow(updated, {
+          registrations: cachedRegistrationRowsForDog(id, dogs, queryClient),
+        })
+      );
     }
 
     // Background Supabase sync — onSuccess invalidates the list query, which refetches from

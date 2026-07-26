@@ -116,6 +116,37 @@ describe('groupEntriesByOrder — dog-level merge (unchanged from groupEntriesBy
     expect(result[0].entryStatus).toBe(EntryStatus.ACCEPTED);
   });
 
+  it('preserves a day-of kind when the legacy UI status is still PENDING', () => {
+    const row = makeRow({
+      entryStatus: EntryStatus.PENDING,
+      entryStatusKind: 'in_ring',
+      classes: [makeClass({ id: 'c1', entryStatusKind: 'in_ring' })],
+    });
+
+    const result = groupEntriesByOrder([row]);
+
+    expect(result[0].entryStatus).toBe(EntryStatus.PENDING);
+    expect(result[0].entryStatusKind).toBe('in_ring');
+    expect(result[0].classes[0].entryStatusKind).toBe('in_ring');
+  });
+
+  it('prefers a day-of kind over a pending kind when rows share one card', () => {
+    const pending = makeRow({
+      id: 'pending',
+      entryStatus: EntryStatus.PENDING,
+      entryStatusKind: 'pending',
+      classes: [makeClass({ id: 'pending-class', entryStatusKind: 'pending' })],
+    });
+    const inRing = makeRow({
+      id: 'in-ring',
+      entryStatus: EntryStatus.PENDING,
+      entryStatusKind: 'in_ring',
+      classes: [makeClass({ id: 'in-ring-class', entryStatusKind: 'in_ring' })],
+    });
+
+    expect(groupEntriesByOrder([pending, inRing])[0].entryStatusKind).toBe('in_ring');
+  });
+
   it('keeps an armband from a later row when the seed row has none', () => {
     const seed = makeRow({ armband: undefined, classes: [makeClass({ id: 'c1' })] });
     const second = makeRow({ armband: '142', classes: [makeClass({ id: 'c2' })] });

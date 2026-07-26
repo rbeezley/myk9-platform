@@ -29,6 +29,19 @@ interface DogRegistrationRpcInput {
   registration_number?: string | null;
   breed?: string | null;
   status?: string | null;
+  /**
+   * Ordered creation timestamp, so the identity resolver can pick the PRIMARY
+   * registration by creation order after sync.
+   *
+   * IMPORTANT (MYK9-90 review round 4): `create_dog_with_registrations` does
+   * NOT currently read this key — its INSERT omits `created_at`, so PostgreSQL
+   * stamps every row in the transaction identically and ordering falls back to
+   * a random server UUID. Sending it here is forward-compatible and costs
+   * nothing, but the cross-device fix needs that function to insert it. That is
+   * a migration, which is out of scope for task 2.3 and belongs to the owner of
+   * `create_dog_with_registrations` (sections 4-5). See the PR notes.
+   */
+  created_at?: string | null;
 }
 
 /**

@@ -17,8 +17,10 @@ vi.mock('@sentry/react', () => ({
 
 import {
   buildSentryInitOptions,
+  captureAuthEmailRequestFailure,
   captureErrorBoundaryException,
   initializeSentry,
+  isAuthEmailOperationalFailure,
   scrubSentryEvent,
 } from './sentry';
 
@@ -221,5 +223,38 @@ describe('Sentry observability helpers', () => {
     expect(sentryMocks.setTag).toHaveBeenCalledWith('boundary_context', 'ringside surface');
     expect(sentryMocks.setTag).toHaveBeenCalledWith('boundary_level', 'section');
     expect(sentryMocks.captureException).toHaveBeenCalledWith(error);
+  });
+
+  it('captures a pre-hook Supabase email rate limit without recipient data', () => {
+    const error = Object.assign(new Error('email rate limit exceeded'), {
+      code: 'over_email_send_rate_limit',
+      status: 429,
+    });
+
+    captureAuthEmailRequestFailure(error, 'signup');
+
+    expect(sentryMocks.setTag).toHaveBeenCalledWith('auth_email_action', 'signup');
+    expect(sentryMocks.setTag).toHaveBeenCalledWith(
+      'auth_error_code',
+      'over_email_send_rate_limit'
+    );
+    expect(sentryMocks.setContext).toHaveBeenCalledWith('auth_email_failure', {
+      action: 'signup',
+      code: 'over_email_send_rate_limit',
+      status: 429,
+    });
+    expect(sentryMocks.captureException).toHaveBeenCalledWith(error);
+  });
+
+  it('does not report ordinary signup validation errors as delivery incidents', () => {
+    const error = Object.assign(new Error('Password is too short'), {
+      code: 'weak_password',
+      status: 422,
+    });
+
+    expect(isAuthEmailOperationalFailure(error)).toBe(false);
+    captureAuthEmailRequestFailure(error, 'signup');
+
+    expect(sentryMocks.captureException).not.toHaveBeenCalled();
   });
 });

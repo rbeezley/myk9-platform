@@ -17,6 +17,7 @@ import { WithdrawalPolicyCard } from '@/components/shows/WithdrawalPolicyCard';
 import { RefundAllEntriesCard } from '@/components/shows/RefundAllEntriesCard';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { VenueWifiCard } from '@/components/secretary/VenueWifiCard';
+import { VenueLocationCard } from '@/components/secretary/VenueLocationCard';
 import { useVenueWifiMutation } from '@/hooks/mutations/useVenueWifiMutation';
 import { useShowVenueWifi } from '@/hooks/queries/useShowVenueWifi';
 
@@ -122,6 +123,9 @@ export default function ShowSettingsPage() {
           {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
         />
       )}
+
+      {/* Venue Map Pin */}
+      {selectedShowId && <VenueLocationCard showId={selectedShowId} />}
 
       {/* Venue WiFi */}
       {selectedShowId && (

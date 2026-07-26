@@ -20,6 +20,15 @@ export const ShowCalendar = lazy(() =>
   import('@/components/shows/ShowCalendar/ShowCalendar').then(m => ({ default: m.ShowCalendar }))
 );
 
+// Shows map view + venue pin picker (Leaflet dependency)
+export const ShowsMapView = lazy(() =>
+  import('@/components/shows/browse/ShowsMapView').then(m => ({ default: m.ShowsMapView }))
+);
+
+export const VenuePinMap = lazy(() =>
+  import('@/features/maps/VenuePinMap').then(m => ({ default: m.VenuePinMap }))
+);
+
 // Rich Text Editor (TipTap dependency)
 export const RichTextEditor = lazy(() =>
   import('@/components/dogs/DogDetails/TrainingJournal/RichTextEditor').then(m => ({

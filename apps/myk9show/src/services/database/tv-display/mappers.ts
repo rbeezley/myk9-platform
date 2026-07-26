@@ -21,7 +21,6 @@ export function mapJoinedDog(
   raw: {
     name: string;
     call_name: string | null;
-    breed: string | null;
     image_url: string | null;
   } | null
 ): TVDogInfo | null {

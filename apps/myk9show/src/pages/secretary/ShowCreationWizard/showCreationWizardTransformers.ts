@@ -15,6 +15,8 @@ export interface WizardShowData {
   startDate: string;
   endDate: string;
   location: string;
+  latitude?: number | null;
+  longitude?: number | null;
   clubId: string;
   entryOpenDate: string;
   entryCloseDate: string;
@@ -190,6 +192,8 @@ export function showToShowInput(show: Show): ShowInput {
     startDate: show.startDate,
     endDate: show.endDate,
     location: show.location,
+    latitude: show.latitude ?? null,
+    longitude: show.longitude ?? null,
     status: show.status,
     events: show.events,
     source: show.source,
@@ -261,6 +265,8 @@ export function transformWizardDataToShow(
     startDate: show.startDate,
     endDate: show.endDate,
     location: show.location,
+    latitude: show.latitude ?? null,
+    longitude: show.longitude ?? null,
     status: status,
     events: [],
     source: 'myK9Show' as const,

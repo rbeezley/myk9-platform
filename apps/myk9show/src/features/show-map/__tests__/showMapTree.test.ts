@@ -55,7 +55,12 @@ function dogEntry(
     ...(dogId ? { dog_id: dogId } : {}),
     armband,
     ...(handler ? { handler } : {}),
-    dog: { ...(dogId ? { id: dogId } : {}), call_name: dogName, breed },
+    // MYK9-90: breed comes from a registration, never from `dogs.breed`.
+    dog: {
+      ...(dogId ? { id: dogId } : {}),
+      call_name: dogName,
+      registrations: [{ organization: 'AKC', breed }],
+    },
   };
 }
 
@@ -121,7 +126,7 @@ describe('buildShowMapTree', () => {
           handler_id: 'person-1',
           armband: '12',
           handler: 'Jane Handler',
-          dog: { id: 'dog-1', call_name: 'Bella', breed: 'Labrador Retriever' },
+          dog: { id: 'dog-1', call_name: 'Bella', registrations: [{ organization: 'AKC', breed: 'Labrador Retriever' }] },
         },
       ],
     });
@@ -195,7 +200,7 @@ describe('buildShowMapTree', () => {
           dog_id: 'dog-1',
           armband: '12',
           handler: 'Jane Handler',
-          dog: { id: 'dog-1', call_name: 'Bella', breed: 'Labrador Retriever' },
+          dog: { id: 'dog-1', call_name: 'Bella', registrations: [{ organization: 'AKC', breed: 'Labrador Retriever' }] },
         },
       ],
     });

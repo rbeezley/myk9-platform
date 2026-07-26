@@ -23,7 +23,7 @@ const mockClass: TVClass = {
       runOrder: 1,
       isInRing: true,
       isScored: false,
-      dog: { name: 'Luna', callName: 'Luna', breed: 'Lab', imageUrl: null },
+      dog: { name: 'Luna', callName: 'Luna', imageUrl: null },
     },
   ],
 };
@@ -44,7 +44,7 @@ const mockCompleted: TVCompletedClass = {
       handler: 'A. Smith',
       searchTime: 30.0,
       totalScore: null,
-      dog: { name: 'Scout', callName: 'Scout', breed: 'GSD', imageUrl: null },
+      dog: { name: 'Scout', callName: 'Scout', imageUrl: null },
     },
   ],
 };

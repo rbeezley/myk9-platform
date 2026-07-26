@@ -3,8 +3,11 @@ import { renderHook } from '@testing-library/react';
 import { createTestQueryClient } from '@/test/utils/testUtils';
 import { QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import type { EntryFormRegistration } from '@/lib/reports/entryFormTypes';
-import { chooseEntryFormRegistration, useEntryFormData } from '../useEntryFormData';
+import { useEntryFormData } from '../useEntryFormData';
+import {
+  resolveDogIdentityForOrganization,
+  type DogRegistrationLike,
+} from '@/features/dogs/identity';
 
 // Mock supabase
 vi.mock('@/lib/supabase', () => ({
@@ -29,17 +32,23 @@ function createWrapper() {
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
-const akcRegistration: EntryFormRegistration = {
+const akcRegistration: DogRegistrationLike = {
+  id: 'reg-akc',
+  created_at: '2024-01-02T00:00:00Z',
   organization: 'AKC',
-  registeredName: 'AKC Dog',
-  registrationNumber: 'AKC123',
+  registered_name: 'AKC Dog',
+  registration_number: 'AKC123',
+  breed: 'Belgian Malinois',
   variety: null,
 };
 
-const ukcRegistration: EntryFormRegistration = {
-  organization: 'UKC',
-  registeredName: 'UKC Dog',
-  registrationNumber: 'UKC123',
+const ukcRegistration: DogRegistrationLike = {
+  id: 'reg-ukc',
+  created_at: '2024-01-01T00:00:00Z',
+  organization: 'UKC (United Kennel Club)',
+  registered_name: 'UKC Dog',
+  registration_number: 'UKC123',
+  breed: 'Belgian Shepherd Dog',
   variety: null,
 };
 
@@ -60,14 +69,41 @@ describe('useEntryFormData', () => {
   });
 });
 
-describe('chooseEntryFormRegistration', () => {
-  it('preserves AKC as the default preferred registration', () => {
-    expect(chooseEntryFormRegistration(ukcRegistration, akcRegistration)).toBe(akcRegistration);
+// MYK9-90 task 2.3: `useEntryFormData` feeds the AKC scent work entry/transfer
+// forms and the UKC nosework entry/change forms. Its registration selection used
+// to be `chooseEntryFormRegistration`, which compared organizations with a bare
+// `trim().toUpperCase()` and, failing to match, fell back to whichever row it
+// already held. Two consequences it is now free of, asserted here because both
+// reach printed paperwork.
+describe('entry-form registration selection (organization-scoped)', () => {
+  const registrations = [ukcRegistration, akcRegistration];
+
+  it('picks the registration for the requested organization', () => {
+    expect(resolveDogIdentityForOrganization(registrations, 'AKC').registrationNumber).toBe(
+      'AKC123'
+    );
+    expect(resolveDogIdentityForOrganization(registrations, 'UKC').registrationNumber).toBe(
+      'UKC123'
+    );
   });
 
-  it('prefers UKC when UKC official forms request it', () => {
-    expect(chooseEntryFormRegistration(akcRegistration, ukcRegistration, 'UKC')).toBe(
-      ukcRegistration
-    );
+  it('matches organizations whose stored value carries a parenthetical', () => {
+    // The live database holds `UKC (United Kennel Club)`. The old comparison
+    // never matched it, so a UKC form fell through to the AKC row.
+    const identity = resolveDogIdentityForOrganization(registrations, 'UKC');
+    expect(identity.breed).toBe('Belgian Shepherd Dog');
+    expect(identity.registeredName).toBe('UKC Dog');
+  });
+
+  it('never borrows another organization ‑ a blank beats a wrong claim', () => {
+    // A UKC-only dog asked for AKC contributes nothing to the AKC form.
+    const identity = resolveDogIdentityForOrganization([ukcRegistration], 'AKC');
+    expect(identity.registrationNumber).toBeNull();
+    expect(identity.registeredName).toBeNull();
+    expect(identity.breed).toBeNull();
+  });
+
+  it('gives an unregistered dog no breed rather than a guess', () => {
+    expect(resolveDogIdentityForOrganization([], 'AKC').breed).toBeNull();
   });
 });

@@ -20,7 +20,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { EntryClosedNotice } from '@/components/shows/browse/EntryClosedNotice';
-import { ShowCalendar } from '@/components/common/LazyComponents';
+import { ShowCalendar, ShowsMapView } from '@/components/common/LazyComponents';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import '@/styles/myk9-show-details.css';
 import { UserRole, type UserWithRoles } from '@/types/auth-types';
@@ -48,20 +48,7 @@ import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
 import { ShowCardGrid, ShowsTableView, ShowBulkActionsBar } from '@/components/shows/browse';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
-
-type ViewMode = 'cards' | 'table' | 'calendar';
-
-const VIEW_MODES = [
-  { key: 'cards', label: 'Cards', icon: 'grid' as const },
-  { key: 'table', label: 'Table', icon: 'table' as const },
-  { key: 'calendar', label: 'Calendar', icon: 'calendar' as const },
-];
-
-const VALID_VIEW_MODES: ReadonlySet<string> = new Set(VIEW_MODES.map(mode => mode.key));
-
-function parseViewMode(value: string | null): ViewMode | null {
-  return value && VALID_VIEW_MODES.has(value) ? (value as ViewMode) : null;
-}
+import { VIEW_MODES, parseViewMode, type ViewMode } from './browseShowsViewModes';
 
 function isExhibitorOnlyUser(user: UserWithRoles | null): boolean {
   const roles = user?.roles ?? [];
@@ -325,7 +312,6 @@ const BrowseShowsPage: React.FC = () => {
             </Button>
           );
         })}
-
       </div>
     ),
     [tabQuickActions]
@@ -371,7 +357,7 @@ const BrowseShowsPage: React.FC = () => {
 
   // Render shows in different view modes
   const renderShowsView = () => {
-    if (enhancedShows.length === 0) {
+    if (enhancedShows.length === 0 && viewMode !== 'map') {
       return (
         <EmptyState
           icon={Search}
@@ -381,9 +367,7 @@ const BrowseShowsPage: React.FC = () => {
               ? 'Try clearing a filter or broadening your search.'
               : 'Shows will appear here as they are added. Try searching by discipline or club name above.'
           }
-          action={
-            hasActiveFilters ? { label: 'Clear Filters', onClick: clearAllFilters } : null
-          }
+          action={hasActiveFilters ? { label: 'Clear Filters', onClick: clearAllFilters } : null}
           variant={hasActiveFilters ? 'filter' : 'default'}
         />
       );
@@ -400,6 +384,16 @@ const BrowseShowsPage: React.FC = () => {
               />
             </Suspense>
           </div>
+        );
+
+      case 'map':
+        return (
+          <Suspense fallback={<ShowCalendarSkeleton />}>
+            <ShowsMapView
+              shows={enhancedShows}
+              onSwitchToCards={() => handleViewModeChange('cards')}
+            />
+          </Suspense>
         );
 
       case 'table':

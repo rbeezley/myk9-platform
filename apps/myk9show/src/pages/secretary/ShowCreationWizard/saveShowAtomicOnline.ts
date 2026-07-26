@@ -143,6 +143,8 @@ export async function saveShowAtomicOnline(
     startDate: show.startDate,
     endDate: show.endDate,
     location: show.location || '',
+    latitude: show.latitude ?? null,
+    longitude: show.longitude ?? null,
     status: localEntities.show.status || 'draft',
     events: [],
     source: 'myK9Show',

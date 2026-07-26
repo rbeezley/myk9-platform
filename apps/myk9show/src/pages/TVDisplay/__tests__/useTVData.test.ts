@@ -46,7 +46,7 @@ const mockTVData = {
           dog: {
             name: 'Luna Star',
             callName: 'Luna',
-            breed: 'Labrador',
+           
             imageUrl: null,
           },
         },

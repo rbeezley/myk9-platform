@@ -52,6 +52,9 @@ import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
  * still flipped to "Breed not set". The merged read answers from the server when
  * online and from the replica when not.
  *
+ * ONLY use this off the latency-critical path. `updateDog` is local-first and
+ * must not await a network read — see `cachedRegistrationRowsForDog`.
+ *
  * NOTE on the alternative: making the mapper treat "registrations key absent"
  * as "not loaded" and fall back to `dbDog.breed` was rejected. That fallback is
  * a read of `dogs.breed`, the exact column this change exists to stop reading,
@@ -64,6 +67,33 @@ async function mapReplicatedDogWithRegistrations(dog: ReplicatedDog): Promise<Do
     .then(result => result.byDog.get(dog.id) ?? [])
     .catch(() => [] as Record<string, unknown>[]);
   return mapDatabaseToDog(mapReplicatedDogToDbRow(dog, { registrations }));
+}
+
+/**
+ * Registrations for a dog from data ALREADY in memory — no network, no await.
+ *
+ * `updateDog` is local-first: a call-name-only edit at a venue must not wait on
+ * PostgREST to fail or time out before the UI updates. Round 3 solved the
+ * "Breed not set" flash by awaiting the merged read here, which fixed
+ * correctness by moving a request onto the latency-critical path. Both
+ * constraints are real, so they are satisfied separately: this synchronous
+ * lookup serves the immediate return, and the existing query invalidation
+ * refreshes from the server asynchronously.
+ *
+ * `alreadyLoadedDogs` comes from the hook's own dogs query, whose rows embed
+ * their registrations; the query cache is the fallback when the dog is not in
+ * that list.
+ */
+function cachedRegistrationRowsForDog(
+  dogId: string,
+  alreadyLoadedDogs: Dog[],
+  queryClient: ReturnType<typeof useQueryClient>
+): Record<string, unknown>[] {
+  const fromList = alreadyLoadedDogs.find(d => d.id === dogId)?.registrations;
+  if (fromList && fromList.length > 0) return fromList as unknown as Record<string, unknown>[];
+
+  const cached = queryClient.getQueryData(queryKeys.registrationsByDog(dogId));
+  return Array.isArray(cached) ? (cached as Record<string, unknown>[]) : [];
 }
 
 /**
@@ -215,23 +245,28 @@ export const useDogStoreCompat = () => {
 
     let registrations: Record<string, unknown>[] = [];
     if (dogData.registrations && dogData.registrations.length > 0) {
-      const registrationRows = dogData.registrations.map(registration => ({
+      // Create the local mirror FIRST so the RPC payload can carry the same
+      // ordered creation timestamps. Without them every registration in the
+      // RPC's transaction gets an identical server `created_at` and the primary
+      // is decided by a random UUID (MYK9-90 review round 4).
+      const savedRegistrations =
+        await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
+          dogId,
+          dogData.registrations
+        );
+      const registrationRows = dogData.registrations.map((registration, index) => ({
         organization: registration.organization || 'AKC',
         registered_name: registration.registeredName || null,
         registration_number: registration.number || '',
         breed: registration.type || null,
         status: registration.status || 'pending',
+        created_at: savedRegistrations[index]?.createdAt ?? null,
       }));
       const savedDog = await replicatedDogsTable.createDogWithRegistrationsRpc(
         replicatedDog,
         registrationRows,
         options.dependsOn ? { dependsOn: options.dependsOn } : {}
       );
-      const savedRegistrations =
-        await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
-          savedDog.id,
-          dogData.registrations
-        );
       registrations = savedRegistrations.map(registration =>
         replicatedDogRegistrationsTable.toSupabaseRow(registration)
       );
@@ -271,7 +306,13 @@ export const useDogStoreCompat = () => {
     if (current) {
       const updated = { ...current, ...mapPartialDogInputToReplicated(updates) };
       await replicatedDogsTable.set(id, updated, false);
-      localDog = await mapReplicatedDogWithRegistrations(updated);
+      // Local-first: resolve the breed from data already in memory rather than
+      // awaiting a PostgREST round-trip on the save path.
+      localDog = mapDatabaseToDog(
+        mapReplicatedDogToDbRow(updated, {
+          registrations: cachedRegistrationRowsForDog(id, dogs, queryClient),
+        })
+      );
     }
 
     // Background Supabase sync — onSuccess invalidates the list query, which refetches from

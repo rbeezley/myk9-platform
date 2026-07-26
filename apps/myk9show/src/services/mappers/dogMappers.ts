@@ -202,11 +202,19 @@ export const mapReplicatedDogToDbRow = (
 /**
  * Convert database dog result to Dog type (for backward compatibility)
  */
-/** Registration rows reach this mapper in snake_case (PostgREST) or camelCase (offline replica). */
+/**
+ * Registration rows reach this mapper in snake_case (PostgREST, offline replica
+ * rows via `toSupabaseRow`) or camelCase (already-mapped `Registration[]` taken
+ * from the dogs query cache). Read both so no path silently loses a field.
+ */
 const regCreatedAt = (reg: Record<string, unknown>): string | null =>
   (reg.created_at as string | null) ?? (reg.createdAt as string | null) ?? null;
 const regIsPrimary = (reg: Record<string, unknown>): boolean | null =>
   (reg.is_primary as boolean | null) ?? (reg.isPrimary as boolean | null) ?? null;
+const regRegisteredName = (reg: Record<string, unknown>): string =>
+  ((reg.registered_name as string) || (reg.registeredName as string)) ?? '';
+const regNumber = (reg: Record<string, unknown>): string =>
+  ((reg.registration_number as string) || (reg.registrationNumber as string)) ?? '';
 
 export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
   const sex = dbDog.sex as 'male' | 'female' | null;
@@ -246,7 +254,7 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
     registrations: registrationRows.map((reg: Record<string, unknown>) => ({
       id: reg.id as string,
       organization: (reg.organization as string) || '',
-      registeredName: (reg.registered_name as string) || '',
+      registeredName: regRegisteredName(reg),
       // Never backfill from `dogs.breed`: that would turn the dog record into a
       // breed claim made to this sanctioning organization.
       breed: (reg.breed as string) || '',
@@ -257,7 +265,7 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
       // the offline replica (`loadRegistrationsMap`).
       ...(regCreatedAt(reg) != null ? { createdAt: regCreatedAt(reg) as string } : {}),
       ...(regIsPrimary(reg) != null ? { isPrimary: regIsPrimary(reg) as boolean } : {}),
-      registrationNumber: (reg.registration_number as string) || '',
+      registrationNumber: regNumber(reg),
       status: (reg.status as string) || 'active',
     })),
     healthRecords: mapHealthRecords(dbDog.health_records),

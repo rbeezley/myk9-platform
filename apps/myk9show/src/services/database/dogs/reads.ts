@@ -89,6 +89,54 @@ function appendRegistrations(
 }
 
 /**
+ * Copy the local replica's ordered `created_at` onto the matching server row.
+ *
+ * `create_dog_with_registrations` inserts every registration in one transaction
+ * without `created_at`, so PostgreSQL stamps them all identically and the
+ * identity resolver's comparator ties — falling through to a random server
+ * UUID. The local mirror holds the real creation ORDER, so once a server row is
+ * recognised as the same registration (same organization + number), the local
+ * timestamp is the better answer.
+ *
+ * This restores creation order on the device that created the dog. It does NOT
+ * fix another device, which has no local mirror — that needs the RPC function
+ * itself to insert `created_at`, which is a migration and out of scope here.
+ */
+function overlayLocalCreationOrder(
+  map: Map<string, Record<string, unknown>[]>,
+  localRegistrations: Record<string, unknown>[]
+): void {
+  for (const local of localRegistrations) {
+    const dogId = local.dog_id as string | undefined;
+    const localCreatedAt = local.created_at as string | undefined;
+    if (!dogId || !localCreatedAt) continue;
+    const organization = normalizeDogRegistrationOrganization(local.organization as string | null);
+    const number = normalizeDogRegistrationNumber(local.registration_number as string | null);
+    if (organization === '' || number === '') continue;
+
+    const rows = map.get(dogId);
+    if (!rows) continue;
+    // Replace with a shallow COPY rather than mutating: these objects come
+    // straight off the PostgREST response, and mutating a caller's input is how
+    // one read silently changes what another sees.
+    map.set(
+      dogId,
+      rows.map(row => {
+        if (row === local) return row;
+        if (
+          normalizeDogRegistrationOrganization(row.organization as string | null) ===
+            organization &&
+          normalizeDogRegistrationNumber(row.registration_number as string | null) === number
+        ) {
+          return { ...row, created_at: localCreatedAt };
+        }
+        return row;
+      })
+    );
+  }
+}
+
+/**
  * Registrations merged from the server and the offline replica, plus whether
  * the server leg failed.
  *
@@ -125,6 +173,7 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
 
   appendRegistrations(map, serverResult.data as Record<string, unknown>[] | null | undefined);
   appendRegistrations(map, localRegistrations);
+  overlayLocalCreationOrder(map, localRegistrations);
   return { byDog: map, serverError: serverResult.error ?? null };
 }
 

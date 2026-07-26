@@ -143,8 +143,86 @@ describe('paper scoresheet breeds', () => {
     });
 
     // The page turns this into its blocking error state, so nothing prints.
-    await expect(loadEntriesWithDogs('class-1')).rejects.toThrow(
-      /could not load dog registrations/i
-    );
+    await expect(loadEntriesWithDogs('class-1')).rejects.toThrow(/could not verify registrations/i);
+  });
+
+  // MYK9-90 review round 4, finding 1. Refusal used to be gated on
+  // `byDog.size === 0` — a per-CLASS test. One cached dog waved the whole class
+  // through and every other dog printed an unverified blank.
+  describe('refusal is decided per dog, not per class', () => {
+    const akcReg = {
+      id: 'r1',
+      created_at: '2024-01-01T00:00:00Z',
+      organization: 'AKC',
+      breed: 'Belgian Malinois',
+    };
+
+    beforeEach(() => {
+      mockGetTrialById.mockResolvedValue({ id: 'trial-1', showId: 'show-1', registryId: 'AKC' });
+      mockGetEntriesByClass.mockResolvedValue([
+        { id: 'e1', classId: 'class-1', dogId: 'dog-cached', armband: '14', status: 'accepted' },
+        { id: 'e2', classId: 'class-1', dogId: 'dog-other', armband: '15', status: 'accepted' },
+      ]);
+      mockDogGet.mockResolvedValue({ id: 'dog-x', name: 'X', callName: 'X', breed: 'Mixed Breed' });
+    });
+
+    it('refuses when ONE dog is cached and another cannot be verified', async () => {
+      mockLoadDogRegistrations.mockResolvedValue({
+        byDog: new Map([['dog-cached', [akcReg]]]),
+        serverError: new Error('network down'),
+      });
+
+      await expect(loadEntriesWithDogs('class-1')).rejects.toThrow(/1 of 2 dogs/);
+    });
+
+    it('refuses when a cached dog holds only a DIFFERENT registry', async () => {
+      // Present in the map, but nothing for AKC. Under a server error that
+      // absence is unprovable, so a blank would mean "never checked".
+      mockLoadDogRegistrations.mockResolvedValue({
+        byDog: new Map([
+          ['dog-cached', [akcReg]],
+          [
+            'dog-other',
+            [{ ...akcReg, id: 'r2', organization: 'UKC', breed: 'Belgian Shepherd Dog' }],
+          ],
+        ]),
+        serverError: new Error('network down'),
+      });
+
+      await expect(loadEntriesWithDogs('class-1')).rejects.toThrow(
+        /could not verify registrations/i
+      );
+    });
+
+    it('prints when every dog in the class is fully answered offline', async () => {
+      mockLoadDogRegistrations.mockResolvedValue({
+        byDog: new Map([
+          ['dog-cached', [akcReg]],
+          ['dog-other', [{ ...akcReg, id: 'r2', breed: 'Golden Retriever' }]],
+        ]),
+        serverError: new Error('network down'),
+      });
+
+      const entries = await loadEntriesWithDogs('class-1');
+      expect(entries.map(e => e.breed)).toEqual(['Belgian Malinois', 'Golden Retriever']);
+    });
+
+    it('a verified absence still prints blank when the server answered', async () => {
+      // No server error: the blank provably means "this dog has no AKC
+      // registration", which is the correct render, not a refusal.
+      mockLoadDogRegistrations.mockResolvedValue({
+        byDog: new Map([
+          ['dog-cached', [akcReg]],
+          [
+            'dog-other',
+            [{ ...akcReg, id: 'r2', organization: 'UKC', breed: 'Belgian Shepherd Dog' }],
+          ],
+        ]),
+        serverError: null,
+      });
+
+      const entries = await loadEntriesWithDogs('class-1');
+      expect(entries.map(e => e.breed)).toEqual(['Belgian Malinois', '']);
+    });
   });
 });

@@ -22,6 +22,7 @@ const {
   mockGetRegistrationsForDogs,
   mockUpdateMutateAsync,
   mockServerRegistrationsIn,
+  mockDogsQueryData,
 } = vi.hoisted(() => ({
   mockSetReplicatedDog: vi.fn(),
   mockCreateReplicatedDogWithId: vi.fn(),
@@ -37,6 +38,7 @@ const {
   mockGetRegistrationsForDogs: vi.fn(),
   mockUpdateMutateAsync: vi.fn(),
   mockServerRegistrationsIn: vi.fn(),
+  mockDogsQueryData: vi.fn(() => [] as unknown[]),
 }));
 
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -70,7 +72,7 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
 
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useDogsQuery: () => ({
-    data: [],
+    data: mockDogsQueryData(),
     isLoading: false,
     error: null,
     isStale: false,
@@ -341,6 +343,7 @@ describe('useDogStoreCompat.addDog — local-first', () => {
         registeredName: 'Beacon Hill Fast Lane',
         breed: 'Border Collie',
         status: 'pending',
+        createdAt: '2024-01-01T00:00:00.000Z',
       },
     ]);
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
@@ -362,6 +365,10 @@ describe('useDogStoreCompat.addDog — local-first', () => {
         ownerId: 'person-123',
       })
     );
+    // MYK9-90 round 4: the RPC payload must carry the ordered creation
+    // timestamp from the local mirror. Without it every registration in the
+    // RPC's transaction gets an identical server `created_at` and the primary
+    // registration is decided by a random server UUID.
     expect(registrationRows).toEqual([
       {
         organization: 'AKC',
@@ -369,6 +376,7 @@ describe('useDogStoreCompat.addDog — local-first', () => {
         registration_number: 'SW123456',
         breed: 'Border Collie',
         status: 'pending',
+        created_at: '2024-01-01T00:00:00.000Z',
       },
     ]);
     expect(options).toEqual({ dependsOn: ['person-mutation-1'] });
@@ -481,7 +489,17 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
     });
     // Production reality: the replica holds no server-originated registrations.
     mockGetRegistrationsForDogs.mockResolvedValue([]);
-    mockServerRegistrationsIn.mockResolvedValue({ data: [serverRegistration], error: null });
+    // The dogs query has already loaded this dog WITH its registrations, which
+    // is where the immediate return now gets the breed from.
+    mockDogsQueryData.mockReturnValue([
+      {
+        id: 'dog-1',
+        name: 'Ziva',
+        call_name: 'Ziva',
+        owner_id: 'person-1',
+        registrations: [serverRegistration],
+      },
+    ]);
   });
 
   it('keeps the breed for a dog whose registrations came from the SERVER', async () => {
@@ -489,27 +507,34 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
 
     const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
 
-    // Assert the user-visible symptom first: with a local-replica-only
-    // hydration this label is the "Breed not set" placeholder.
     expect(getDogBreedLabel(updated!)).toBe('Belgian Malinois');
     expect(updated?.breed).toBe('Belgian Malinois');
-    // The local table was consulted and returned nothing; the server answered.
-    expect(mockServerRegistrationsIn).toHaveBeenCalledWith('dog_id', ['dog-1']);
   });
 
-  it('still works offline, from a locally-created registration alone', async () => {
-    mockServerRegistrationsIn.mockResolvedValue({ data: null, error: new Error('offline') });
-    mockGetRegistrationsForDogs.mockResolvedValue([serverRegistration]);
+  // MYK9-90 review round 4, finding 3. `updateDog` is local-first: a
+  // call-name-only edit at a venue must not wait on PostgREST to fail or time
+  // out before the UI updates.
+  it('does NOT hit the network on the save path', async () => {
+    let networkCalled = false;
+    mockServerRegistrationsIn.mockImplementation(() => {
+      networkCalled = true;
+      return new Promise(() => {}); // never settles — a hung venue connection
+    });
 
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    // Would hang forever if the save path awaited the registration read.
     const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });
 
+    expect(updated?.callName).toBe('Zee');
     expect(getDogBreedLabel(updated!)).toBe('Belgian Malinois');
+    expect(networkCalled).toBe(false);
   });
 
   it('reports no breed for a dog that genuinely has no registration', async () => {
-    mockServerRegistrationsIn.mockResolvedValue({ data: [], error: null });
-    mockGetRegistrationsForDogs.mockResolvedValue([]);
+    mockDogsQueryData.mockReturnValue([
+      { id: 'dog-1', name: 'Ziva', call_name: 'Ziva', owner_id: 'person-1', registrations: [] },
+    ]);
 
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
     const updated = await result.current.updateDog('dog-1', { callName: 'Zee' });

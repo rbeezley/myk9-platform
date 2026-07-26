@@ -57,12 +57,23 @@ export async function loadClassRegistryForClass(classId: string): Promise<string
  *    which `toScoringEntry` renders blank and no fallback may override. The dog
  *    genuinely has no breed here, so a blank is the CORRECT render.
  *  - Registrations NOT readable -> throw. The caller turns this into the page's
- *    blocking error state, so nothing prints. Round 2 made this case return
- *    `null` for every dog, which silently produced incomplete paperwork on a
- *    venue network blip.
+ *    blocking error state, so nothing prints.
  *
- * Reads through the merged replica+server path rather than PostgREST directly,
- * so an offline show day still resolves from the local replica.
+ * The refusal is decided PER DOG and then applied to the whole sheet.
+ *
+ * Round 3 gated refusal on `byDog.size === 0`, which is a per-CLASS test: one
+ * locally-cached dog made the map non-empty and waved the entire class through,
+ * so every other dog printed a blank that had never been verified. A blank
+ * meaning "verified absent" and a blank meaning "we never checked" rendered
+ * identically on paper, which is precisely what nobody can audit afterwards.
+ *
+ * When the server leg failed, a `null` for any single dog is unprovable — the
+ * replica only holds registrations created on THIS device
+ * (`ReplicatedDogRegistrationsTable.sync()` is a no-op), so absence there is not
+ * evidence of absence. Refusing the sheet rather than dropping the one dog is
+ * deliberate: a scoresheet silently missing one dog's breed is harder to catch
+ * than one that refuses to render. A fully-cached class still prints, which
+ * keeps the genuinely offline flow working.
  */
 export async function loadRegisteredBreedsByDogId(
   dogIds: string[],
@@ -74,15 +85,6 @@ export async function loadRegisteredBreedsByDogId(
 
   const { byDog, serverError } = await loadDogRegistrations(dogIds);
 
-  // Only refuse when the server failed AND the replica cannot answer either.
-  // With local rows present, offline paper scoring keeps working.
-  if (serverError && byDog.size === 0) {
-    throw new Error(
-      'Could not load dog registrations, so breeds cannot be verified for this scoresheet. ' +
-        'Reconnect and retry rather than printing an incomplete form.'
-    );
-  }
-
   // Every requested dog gets an ENTRY, `null` when it holds no registration
   // with this registry. An absent map key would let `toScoringEntry` fall back
   // to `dogs.breed` / the view's `dog_breed`, which is how a UKC-only dog ended
@@ -92,5 +94,16 @@ export async function loadRegisteredBreedsByDogId(
     const rows = (byDog.get(dogId) ?? []) as DogRegistrationLike[];
     breeds.set(dogId, resolveDogIdentityForOrganization(rows, organization).breed);
   }
+
+  if (serverError) {
+    const unverifiable = dogIds.filter(id => breeds.get(id) == null);
+    if (unverifiable.length > 0) {
+      throw new Error(
+        `Could not verify registrations for ${unverifiable.length} of ${dogIds.length} dogs in this class, ` +
+          'so their breeds cannot be confirmed. Reconnect and retry rather than printing a partly-verified form.'
+      );
+    }
+  }
+
   return breeds;
 }

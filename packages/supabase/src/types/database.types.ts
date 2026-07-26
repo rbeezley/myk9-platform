@@ -1491,7 +1491,7 @@ export type Database = {
         Row: {
           breed: string
           breeder_id: string | null
-          call_name: string | null
+          call_name: string
           co_owner_id: string | null
           color: string | null
           created_at: string | null
@@ -1517,7 +1517,7 @@ export type Database = {
         Insert: {
           breed: string
           breeder_id?: string | null
-          call_name?: string | null
+          call_name: string
           co_owner_id?: string | null
           color?: string | null
           created_at?: string | null
@@ -1543,7 +1543,7 @@ export type Database = {
         Update: {
           breed?: string
           breeder_id?: string | null
-          call_name?: string | null
+          call_name?: string
           co_owner_id?: string | null
           color?: string | null
           created_at?: string | null
@@ -11145,7 +11145,7 @@ export type Database = {
         Returns: {
           breed: string
           breeder_id: string | null
-          call_name: string | null
+          call_name: string
           co_owner_id: string | null
           color: string | null
           created_at: string | null
@@ -11696,7 +11696,7 @@ export type Database = {
         Returns: {
           breed: string
           breeder_id: string | null
-          call_name: string | null
+          call_name: string
           co_owner_id: string | null
           color: string | null
           created_at: string | null

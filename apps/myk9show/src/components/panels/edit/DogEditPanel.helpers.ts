@@ -4,26 +4,48 @@ import type { DogFormData, DogType, Registration } from './DogEditPanel.types';
 import { UserRole } from './DogEditPanel.types';
 
 /** Zod schema for DogFormData validation. */
-export const dogFormSchema = z.object({
-  callName: z.string().min(1, 'Please enter a call name'),
-  registeredName: z.string().min(1, 'Please enter a registered name'),
-  breed: z.string(),
-  gender: z.string().min(1, 'Please select a gender'),
-  dateOfBirth: z.string().min(1, 'Please enter a date of birth'),
-  color: z.string(),
-  weight: z.string(),
-  height: z.string(),
-  microchip: z.string(),
-  imageUrl: z.string().optional(),
-  ownerId: z.string(),
-  registrations: z.custom<Registration[]>(val => Array.isArray(val)),
-  healthRecords: z.custom<DogType['healthRecords']>(
-    val => val === undefined || val === null || typeof val === 'object'
-  ),
-  notes: z.string().optional(),
-  specialNeeds: z.string().optional(),
-  spayedNeutered: z.boolean().optional(),
-}) as unknown as z.ZodSchema<DogFormData>;
+export const dogFormSchema = z
+  .object({
+    callName: z.string().min(1, 'Please enter a call name'),
+    // MYK9-90 §5.2 — NOT unconditionally required. A registered name belongs to
+    // a registration, and adding a dog without one is an explicitly supported
+    // flow ("registration is optional when adding a dog; required when entering
+    // a show"). Requiring it here made every unregistered dog uneditable —
+    // changing an unrelated field like date of birth could not be saved. It is
+    // required only when the dog actually has a registration; see the refine
+    // below.
+    registeredName: z.string(),
+    breed: z.string(),
+    gender: z.string().min(1, 'Please select a gender'),
+    dateOfBirth: z.string().min(1, 'Please enter a date of birth'),
+    color: z.string(),
+    weight: z.string(),
+    height: z.string(),
+    microchip: z.string(),
+    imageUrl: z.string().optional(),
+    ownerId: z.string(),
+    registrations: z.custom<Registration[]>(val => Array.isArray(val)),
+    healthRecords: z.custom<DogType['healthRecords']>(
+      val => val === undefined || val === null || typeof val === 'object'
+    ),
+    notes: z.string().optional(),
+    specialNeeds: z.string().optional(),
+    spayedNeutered: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    // A registered name is required only once the dog actually has a
+    // registration — it is a property of that registration, so there is nothing
+    // to name without one. This keeps an unregistered dog fully editable while
+    // still refusing to save a registration with a blank registered name.
+    const hasRegistration = Array.isArray(data.registrations) && data.registrations.length > 0;
+    if (hasRegistration && !data.registeredName?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['registeredName'],
+        message: 'Please enter a registered name',
+      });
+    }
+  }) as unknown as z.ZodSchema<DogFormData>;
 
 /** Convert DogType to form data for the edit panel. */
 export const dogToFormData = (dog: Partial<DogType>): DogFormData => {
@@ -74,7 +96,10 @@ export const formDataToDog = (formData: DogFormData): Partial<DogType> => {
 
   return {
     callName: formData.callName,
-    name: formData.callName, // Keep both for compatibility
+    // Display alias only — `mapDogInputToUpdate` does not persist `name`
+    // (MYK9-90 §5.3), so this never reaches the legacy `dogs.name` column. It
+    // is set so the optimistic in-memory Dog keeps a non-empty `name`.
+    name: formData.callName,
     breed: formData.breed,
     gender: formData.gender as 'Male' | 'Female' | '',
     ...(formData.gender ? { sex: formData.gender.toLowerCase() as 'male' | 'female' } : {}),

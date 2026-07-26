@@ -111,13 +111,25 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    * Strips sync metadata fields. Dogs have no FK dependencies.
    */
   private toSupabaseRow(dog: ReplicatedDog): Record<string, unknown> {
+    // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL after 20260727110000. This
+    // method returns `Record<string, unknown>`, so TypeScript cannot catch a
+    // null here the way it does on the `DbDogInsert` paths — the queued
+    // mutation would only fail when it reached the database, offline, after the
+    // user had already been told the dog was saved. `ReplicatedDog.name` is a
+    // derived non-empty display alias (see `rowToDog`), so it is the fallback.
+    const callName = dog.callName?.trim() || dog.name?.trim() || '';
+
     return {
       id: dog.id,
       // MYK9-90 §5.3 — `name` is deliberately not written back. `ReplicatedDog.name`
       // is a read-side display alias that falls back to the call name (see
       // `rowToDog`), so writing it would copy the call name into the legacy
       // `dogs.name` column on every sync.
-      call_name: dog.callName ?? null,
+      //
+      // Omitted rather than nulled when empty: on an UPDATE that leaves the
+      // existing call name in place, and an INSERT with no name at all is
+      // already prevented upstream (`mapDogInputToInsert` throws).
+      ...(callName && { call_name: callName }),
       breed: dog.breed,
       sex: dog.sex ?? null,
       date_of_birth: dog.dateOfBirth ?? null,

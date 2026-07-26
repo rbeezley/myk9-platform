@@ -73,6 +73,16 @@ function mapHealthRecords(raw: unknown): Dog['healthRecords'] {
  * Convert DogInput (from dogStore) to DbDogInsert (for database)
  */
 export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
+  // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL after 20260727110000. A caller
+  // that supplied only one name supplied the call name (safe direction:
+  // name -> call_name; the reverse copy is what §5.3 removes). With neither,
+  // fail here with something readable rather than letting the insert reach the
+  // database and come back as a bare 23502 naming a column the caller never set.
+  const callName = input.callName?.trim() || input.name?.trim() || '';
+  if (!callName) {
+    throw new Error('A dog needs a call name.');
+  }
+
   const dbInsert: DbDogInsert = {
     // MYK9-90 §5.3 — `dogs.name` is a nullable legacy alias, not a name the app
     // owns. It is deliberately NOT fed `input.name`: that field carries the call
@@ -89,11 +99,7 @@ export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
     owner_id: input.ownerId,
     microchip_number: input.microchipNumber || null,
     image_url: input.imageUrl || null,
-    // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL. A caller that supplied only
-    // one name supplied the call name, so fall back to it rather than insert a
-    // NULL. (Safe direction: name -> call_name; the reverse copy is what §5.3
-    // removes above.)
-    call_name: input.callName || input.name || null,
+    call_name: callName,
     spayed_neutered: input.spayedNeutered ?? null,
     deceased: input.status === 'deceased',
     deceased_date: input.deceasedDate || null,
@@ -124,7 +130,12 @@ export const mapDogInputToUpdate = (input: Partial<DogInput>): DbDogUpdate => {
   // `Dog.name` is a read-side display alias that falls back to the call name
   // (see `mapDatabaseToDog`), so echoing it into the column would silently
   // re-copy the call name into the legacy column on every edit.
-  if (input.callName !== undefined) update.call_name = input.callName || null;
+  // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL, so an update can change it but
+  // never clear it. A blank incoming call name is skipped rather than sent as
+  // NULL: an edit that leaves the field empty must not strip the dog's only
+  // required identifier, and failing the whole save (which may be changing an
+  // unrelated field) would be worse than leaving the existing name in place.
+  if (input.callName) update.call_name = input.callName;
   if (input.breed !== undefined) update.breed = input.breed;
   if (input.birthDate !== undefined) update.date_of_birth = input.birthDate || null;
   if (input.sex !== undefined) update.sex = input.sex;

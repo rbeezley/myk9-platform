@@ -200,6 +200,30 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
     expect(rebuilt).toMatchObject({ id: 'dog-2', call_name: 'Tera' });
   });
 
+  it('dogs: the write path never sends a null call_name', () => {
+    // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL after 20260727110000. This
+    // payload is built as Record<string, unknown>, so TypeScript cannot catch a
+    // null the way it does on the DbDogInsert paths — the queued mutation would
+    // only fail when it reached the database, after the user was told the dog
+    // had been saved. `ReplicatedDog.name` is the derived fallback.
+    const table = new TestableDogsTable();
+
+    const withoutCallName = table.publicRebuildUpdatePayload({
+      id: 'dog-3',
+      name: 'Tera',
+      breed: 'Border Collie',
+    } as never);
+    expect(withoutCallName.call_name).toBe('Tera');
+
+    const withNeither = table.publicRebuildUpdatePayload({
+      id: 'dog-4',
+      name: '',
+      breed: 'Border Collie',
+    } as never);
+    // Omitted, never null: on an update this leaves the stored call name alone.
+    expect(withNeither).not.toHaveProperty('call_name');
+  });
+
   it('shows: maps optional fields, defaults, and round-trips core identity fields', () => {
     const row = {
       id: 'show-1',

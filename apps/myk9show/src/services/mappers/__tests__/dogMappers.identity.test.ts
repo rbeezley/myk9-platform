@@ -73,5 +73,28 @@ describe('dog identity mapping (MYK9-90 §4-5)', () => {
       expect(update).not.toHaveProperty('name');
       expect(update.call_name).toBe('Tera');
     });
+
+    // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL after 20260727110000. Every
+    // write path must supply one; none may send null. These fired only once the
+    // generated types were regenerated to match the migrated schema, which is
+    // why they are pinned here rather than left to typecheck.
+    it('falls back to the name when only one name was supplied', () => {
+      const insert = mapDogInputToInsert({ ...input, callName: undefined } as DogInput);
+      expect(insert.call_name).toBe('Maia TeraByte Van Neerland');
+    });
+
+    it('refuses to insert a dog with no name at all rather than sending null', () => {
+      expect(() =>
+        mapDogInputToInsert({ ...input, name: '', callName: '' } as unknown as DogInput)
+      ).toThrow(/call name/i);
+    });
+
+    it('never clears the call name on update', () => {
+      const update = mapDogInputToUpdate({ ...input, callName: '' });
+      expect(update).not.toHaveProperty('call_name');
+      // The rest of the edit still goes through — a blank call-name field must
+      // not fail a save that was changing something else.
+      expect(update.breed).toBe('Border Collie');
+    });
   });
 });

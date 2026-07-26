@@ -129,6 +129,7 @@ describe('Dog Queries', () => {
     it('should create a new dog', async () => {
       const newDog: DbDogInsert = {
         name: 'Charlie',
+        call_name: 'Charlie',
         breed: 'Beagle',
         owner_id: '1',
         sex: 'male',
@@ -155,6 +156,7 @@ describe('Dog Queries', () => {
     it('should handle validation errors', async () => {
       const invalidDog: DbDogInsert = {
         name: '',
+        call_name: '',
         breed: 'Beagle',
         owner_id: '1',
         sex: 'male',

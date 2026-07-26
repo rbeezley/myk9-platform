@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -80,11 +80,17 @@ const US_ZOOM = 4;
 /** Fits the viewport to the current pins whenever the filtered set changes. */
 function FitToPins({ located }: { located: LocatedShow[] }) {
   const map = useMap();
+  // Background refetches rebuild `located` with identical content; keying the
+  // effect on a content signature stops refits from yanking the user's pan/zoom.
+  const pinsKey = located.map(p => `${p.show.id}:${p.lat}:${p.lng}`).join('|');
+  const locatedRef = useRef(located);
+  locatedRef.current = located;
   useEffect(() => {
-    if (located.length === 0) return;
-    const bounds = L.latLngBounds(located.map(p => [p.lat, p.lng] as [number, number]));
+    const pins = locatedRef.current;
+    if (pins.length === 0) return;
+    const bounds = L.latLngBounds(pins.map(p => [p.lat, p.lng] as [number, number]));
     map.fitBounds(bounds.pad(0.2), { maxZoom: 10 });
-  }, [map, located]);
+  }, [map, pinsKey]);
   return null;
 }
 
@@ -170,10 +176,13 @@ export function ShowsMapView({ shows, onSwitchToCards }: ShowsMapViewProps) {
                     <p className="text-xs text-muted-foreground">{show.location}</p>
                   )}
                   <p className="text-xs">
-                    <StatusDot status={status} className="mr-1.5 inline-block h-2 w-2 rounded-full" />
+                    <StatusDot
+                      status={status}
+                      className="mr-1.5 inline-block h-2 w-2 rounded-full"
+                    />
                     {STATUS_META[status].label}
                     {show.preEntryFee && Number(show.preEntryFee) > 0 && (
-                      <> &middot; entries from ${show.preEntryFee}</>
+                      <> &middot; entries from ${Number(show.preEntryFee).toFixed(2)}</>
                     )}
                   </p>
                   <Link

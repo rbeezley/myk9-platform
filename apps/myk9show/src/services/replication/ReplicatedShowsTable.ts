@@ -340,6 +340,10 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     if (!('experiencePublishedStyle' in updates)) delete updatePayload.experience_published_style;
     if (!('experiencePublishedContent' in updates))
       delete updatePayload.experience_published_content;
+    // Same stale-replica clobber guard: a client whose cached show predates the
+    // coordinate columns would otherwise null out a pin saved elsewhere.
+    if (!('latitude' in updates)) delete updatePayload.latitude;
+    if (!('longitude' in updates)) delete updatePayload.longitude;
 
     const mutationId = await this.queueMutation('UPDATE', showId, updatePayload);
     this._lastMutationId = mutationId;

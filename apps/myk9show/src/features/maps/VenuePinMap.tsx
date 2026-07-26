@@ -25,6 +25,17 @@ export interface VenuePinValue {
   lng: number;
 }
 
+/**
+ * Clicks and drags on Leaflet's repeated world copies yield longitudes outside
+ * ±180, which the DB's shows_longitude_range CHECK rejects — wrap them back.
+ */
+export function normalizePinValue(lat: number, lng: number): VenuePinValue {
+  const clampedLat = Math.min(90, Math.max(-90, lat));
+  // Only wrap out-of-range longitudes — .wrap() adds float error to in-range ones.
+  const wrappedLng = lng >= -180 && lng <= 180 ? lng : L.latLng(clampedLat, lng).wrap().lng;
+  return { lat: clampedLat, lng: wrappedLng };
+}
+
 interface VenuePinMapProps {
   /** Current pin position; null = no pin placed yet. */
   value: VenuePinValue | null;
@@ -34,22 +45,25 @@ interface VenuePinMapProps {
   className?: string;
 }
 
-/** Re-centers the map when the pin moves programmatically (geocode result). */
-function RecenterOnValue({ value }: { value: VenuePinValue | null }) {
+interface FlyTarget extends VenuePinValue {
+  /** Distinguishes successive geocodes to the same coordinates. */
+  nonce: number;
+}
+
+/** Re-centers only on geocode results — drags and clicks must not yank the view. */
+function FlyToTarget({ target }: { target: FlyTarget | null }) {
   const map = useMap();
-  const lastRef = useRef<VenuePinValue | null>(value);
   useEffect(() => {
-    if (value && (lastRef.current?.lat !== value.lat || lastRef.current?.lng !== value.lng)) {
-      map.setView([value.lat, value.lng], Math.max(map.getZoom(), PIN_ZOOM));
+    if (target) {
+      map.setView([target.lat, target.lng], Math.max(map.getZoom(), PIN_ZOOM));
     }
-    lastRef.current = value;
-  }, [map, value]);
+  }, [map, target]);
   return null;
 }
 
 function ClickToPlace({ onChange }: { onChange: (v: VenuePinValue) => void }) {
   useMapEvents({
-    click: e => onChange({ lat: e.latlng.lat, lng: e.latlng.lng }),
+    click: e => onChange(normalizePinValue(e.latlng.lat, e.latlng.lng)),
   });
   return null;
 }
@@ -65,14 +79,24 @@ function ClickToPlace({ onChange }: { onChange: (v: VenuePinValue) => void }) {
 export function VenuePinMap({ value, onChange, address, className }: VenuePinMapProps) {
   const [isLocating, setIsLocating] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [flyTarget, setFlyTarget] = useState<FlyTarget | null>(null);
+
+  // Mirrors the latest pin so a slow geocode can detect it was superseded by a
+  // manual click/drag made while the request was in flight.
+  const latestValueRef = useRef<VenuePinValue | null>(value);
+  latestValueRef.current = value;
 
   const handleLocate = useCallback(async () => {
     setNotice(null);
     setIsLocating(true);
+    const valueAtRequest = latestValueRef.current;
     const result = await geocodeAddress(address);
     setIsLocating(false);
+    if (latestValueRef.current !== valueAtRequest) return;
     if (result) {
-      onChange(result);
+      const normalized = normalizePinValue(result.lat, result.lng);
+      onChange(normalized);
+      setFlyTarget({ ...normalized, nonce: Date.now() });
     } else {
       setNotice("Couldn't find that address — click the map to place the pin manually.");
     }
@@ -81,7 +105,7 @@ export function VenuePinMap({ value, onChange, address, className }: VenuePinMap
   const handleDragEnd = useCallback(
     (event: L.DragEndEvent) => {
       const position = (event.target as L.Marker).getLatLng();
-      onChange({ lat: position.lat, lng: position.lng });
+      onChange(normalizePinValue(position.lat, position.lng));
     },
     [onChange]
   );
@@ -122,7 +146,7 @@ export function VenuePinMap({ value, onChange, address, className }: VenuePinMap
           scrollWheelZoom={false}
         >
           <TileLayer url={OSM_TILE_URL} attribution={OSM_ATTRIBUTION} />
-          <RecenterOnValue value={value} />
+          <FlyToTarget target={flyTarget} />
           <ClickToPlace onChange={onChange} />
           {value && (
             <Marker

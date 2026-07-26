@@ -23,7 +23,10 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult | n
   const url = `${NOMINATIM_SEARCH_URL}?q=${encodeURIComponent(query)}&format=jsonv2&limit=1`;
 
   try {
-    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+    const response = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(10_000),
+    });
     if (!response.ok) return null;
 
     const results: unknown = await response.json();

@@ -166,5 +166,3 @@ GRANT EXECUTE ON FUNCTION public.create_show_with_children(jsonb, jsonb, jsonb, 
 
 COMMENT ON FUNCTION public.create_show_with_children(jsonb, jsonb, jsonb, uuid[]) IS
   'Atomically creates a show, trials, classes, and show-level judge assignments. Accepts p_show.style for premium experience style.';
-
-commit;

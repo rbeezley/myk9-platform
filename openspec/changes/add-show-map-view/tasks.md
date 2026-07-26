@@ -24,7 +24,7 @@
 
 ## 4. Verify + ship
 
-- [ ] 4.1 `pnpm typecheck` and `cd apps/myk9show && pnpm test` green; run dev server and visually verify map view, wizard pin, Show Settings pin (screenshot proof)
+- [x] 4.1 `pnpm typecheck` and `cd apps/myk9show && pnpm test` green; run dev server and visually verify map view, wizard pin, Show Settings pin (screenshot proof)
 - [ ] 4.2 `/simplify` then `/harden` on the changed code
 - [ ] 4.3 Commit, open PR, CI green; `/review` + Codex review (user-visible behavior + migration ⇒ default ON); fix findings; merge from main repo dir per worktree rules
 - [ ] 4.4 Archive change via `opsx:verify` → `opsx:archive` (brainstorm doc already replaced with a pointer at propose time)

@@ -174,6 +174,26 @@ describe('getAllDogs registration completeness', () => {
     expect(result.data?.[0]?.registrations_read_complete).toBe(false);
   });
 
+  it('keeps partial query results visible but marks registrations incomplete', async () => {
+    const partialRegistration = {
+      id: 'reg-akc',
+      dog_id: 'dog-1',
+      organization: 'AKC',
+      registration_number: 'DN61191906',
+      breed: 'Belgian Malinois',
+    };
+    mockServerIn.mockResolvedValue({
+      data: [partialRegistration],
+      error: new Error('partial read'),
+    });
+
+    const result = await getAllDogs('person-1', true);
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data?.[0]?.registrations).toEqual([partialRegistration]);
+    expect(result.data?.[0]?.registrations_read_complete).toBe(false);
+  });
+
   it('keeps a successful empty registration read authoritative at the query boundary', async () => {
     mockServerIn.mockResolvedValue({ data: [], error: null });
 

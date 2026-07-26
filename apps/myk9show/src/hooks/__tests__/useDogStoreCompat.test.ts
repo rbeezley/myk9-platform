@@ -5,6 +5,7 @@ import React from 'react';
 import type { DogInput } from '@/store/dogStore';
 import { getDogBreedLabel, BREED_NOT_SET } from '@/types/dog-types';
 import { queryKeys } from '@/lib/queryClient';
+import { cachedRegistrationRowsForDog } from '../dogRegistrationHydration';
 
 // ── Mocks (hoisted so factories can reference them) ──────────────────────────
 
@@ -618,6 +619,19 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
     expect(updated?.callName).toBe('Zee');
     expect(getDogBreedLabel(updated!)).toBe('Belgian Malinois');
     expect(updated?.registrations?.[0]?.breed).toBe('Belgian Malinois');
+  });
+});
+
+describe('cachedRegistrationRowsForDog', () => {
+  it('uses the per-dog cache when the dog is absent from the loaded list', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), [
+      { id: 'reg-akc', breed: 'Belgian Malinois' },
+    ]);
+
+    expect(cachedRegistrationRowsForDog('dog-1', [], queryClient)).toEqual([
+      { id: 'reg-akc', breed: 'Belgian Malinois' },
+    ]);
   });
 });
 

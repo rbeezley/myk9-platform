@@ -199,11 +199,7 @@ interface RegistrationsMapResult {
 }
 
 async function loadRegistrationsMap(dogIds: string[]): Promise<RegistrationsMapResult> {
-  const result = await loadDogRegistrations(dogIds);
-  return {
-    byDog: result.byDog,
-    registrationsReadComplete: result.registrationsReadComplete,
-  };
+  return loadDogRegistrations(dogIds);
 }
 
 /**
@@ -356,7 +352,7 @@ async function postgrestSearchDogs(searchTerm: string, personId: string) {
 
   const { data, error } = await supabase
     .from('dogs')
-    .select('*')
+    .select('*, registrations:dog_registrations(*)')
     .or(ownedByPerson(personId))
     .or(orFilters.join(','))
     .is('deleted_at', null)
@@ -372,7 +368,8 @@ async function postgrestGetDogsWithUpcomingShows(personId: string) {
     .select(
       `
       *,
-      owner:people!dogs_owner_id_fkey(first_name, last_name)
+      owner:people!dogs_owner_id_fkey(first_name, last_name),
+      registrations:dog_registrations(*)
     `
     )
     .or(ownedByPerson(personId))

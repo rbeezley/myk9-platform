@@ -124,6 +124,9 @@ describe('HorizontalProgressIndicator — many steps remain discoverable on mobi
       expect(screen.getByText(step.label)).toBeInTheDocument();
     }
 
-    expect(screen.getByTestId('wizard-step-list')).toHaveClass('overflow-x-auto');
+    const stepList = screen.getByTestId('wizard-step-list');
+    expect(stepList).toHaveClass('overflow-x-auto');
+    expect(stepList.querySelector('ol')).toHaveClass('md:min-w-0');
+    expect(screen.getByText('Exhibitor').closest('li')).toHaveClass('md:min-w-0');
   });
 });

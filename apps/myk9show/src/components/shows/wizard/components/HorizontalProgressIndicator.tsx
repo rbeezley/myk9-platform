@@ -75,7 +75,7 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
       </div>
 
       <div data-testid="wizard-step-list" className="-mx-1 overflow-x-auto px-1 pb-2">
-        <ol className="flex min-w-max items-stretch gap-2 sm:min-w-0 sm:gap-3">
+        <ol className="flex min-w-max items-stretch gap-2 sm:gap-3 md:min-w-0">
           {steps.map((step, index) => {
             const isCompleted = isStepCompleted(step.id);
             const isCurrent = isStepCurrent(step.id);
@@ -86,7 +86,7 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
             return (
               <li
                 key={step.id}
-                className="relative flex min-w-[9.5rem] flex-1 flex-col items-center sm:min-w-0"
+                className="relative flex min-w-[9.5rem] flex-1 flex-col items-center md:min-w-0"
               >
                 {/* Connecting line bridges the outer edges of adjacent circles.
                   Starting at the edge keeps it out of translucent inactive

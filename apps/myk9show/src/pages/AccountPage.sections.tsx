@@ -18,7 +18,6 @@ import { getUserFriendlyError } from '@/utils/errorMessages';
 import { Award } from 'lucide-react';
 import { SubscriptionManager } from '@/components/subscription/SubscriptionManager';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
-import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 
 const DELETE_CONFIRMATION_TEXT = 'DELETE';
 const PENDING_SELF_DELETE_REVOCATION_KEY_PREFIX = 'myk9:pending-self-delete-auth-revocation';
@@ -214,9 +213,10 @@ export function ProfileSection() {
 }
 
 export function BillingSection() {
-  const { isEarlyAdopter } = useSubscriptionGate();
-  const { profile } = useExhibitorProfile();
-  const foundingUntil = profile?.person?.early_adopter_until;
+  // Both values come from the entitlement resolver via the gate — the founding
+  // end date used to be read straight off `people.early_adopter_until`, which
+  // no longer exists (task 8.2).
+  const { isEarlyAdopter, foundingUntil } = useSubscriptionGate();
 
   return (
     <div className="space-y-6">

@@ -274,6 +274,12 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const [serverDogs, setServerDogs] = useState<Dog[]>([]);
   const [isServerSearching, setIsServerSearching] = useState(false);
   const [serverHitLimit, setServerHitLimit] = useState(false);
+  // MYK9-90: true when the system-wide search FAILED, as opposed to succeeding
+  // with no matches. `searchAllDogs` resolves with `{ data: [], error }` rather
+  // than rejecting, so the failure is invisible unless `error` is read here —
+  // and a secretary who cannot tell "backend is down" from "no such dog" will
+  // create a duplicate dog record.
+  const [serverSearchFailed, setServerSearchFailed] = useState(false);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
@@ -313,27 +319,43 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     if (!workflowConfig.features.advancedSearch) {
       setServerDogs(prev => (prev.length === 0 ? prev : []));
       setServerHitLimit(false);
+      setServerSearchFailed(false);
       return;
     }
     const query = debouncedSearchQuery.trim();
     if (query.length < 2) {
       setServerDogs(prev => (prev.length === 0 ? prev : []));
       setServerHitLimit(false);
+      setServerSearchFailed(false);
       return;
     }
     let cancelled = false;
     setIsServerSearching(true);
+    setServerSearchFailed(false);
     searchAllDogs(query)
-      .then(({ data, hitLimit }) => {
+      .then(({ data, error, hitLimit }) => {
         if (cancelled) return;
+        // `searchAllDogs` RESOLVES on failure — it returns the error in the
+        // payload instead of rejecting — so `.catch` below never sees a query
+        // failure. Reading `error` here is the only thing that separates
+        // "search broke" from "no dog matched".
+        if (error) {
+          logger.warn('searchAllDogs failed', 'shows', { data: { error: error.message } });
+          setServerDogs([]);
+          setServerHitLimit(false);
+          setServerSearchFailed(true);
+          return;
+        }
         setServerDogs(mapDatabaseDogsArray(data));
         setServerHitLimit(hitLimit);
+        setServerSearchFailed(false);
       })
       .catch(err => {
         if (cancelled) return;
-        logger.warn('searchAllDogs failed', 'shows', { data: { error: String(err) } });
+        logger.warn('searchAllDogs threw', 'shows', { data: { error: String(err) } });
         setServerDogs([]);
         setServerHitLimit(false);
+        setServerSearchFailed(true);
       })
       .finally(() => {
         if (!cancelled) setIsServerSearching(false);
@@ -678,6 +700,28 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
               </div>
             </div>
 
+            {/* System-wide search failed. Rendered OUTSIDE the results/empty
+              ternary on purpose: locally-owned dogs can still match while the
+              server search is broken, and in that case the list looks healthy
+              but is silently incomplete. A secretary who reads "no dogs found"
+              during an outage will create a duplicate dog record. */}
+            {serverSearchFailed && (
+              <div
+                role="alert"
+                className="mb-3 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+              >
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <div>
+                  <p className="font-medium">Dog search is unavailable right now.</p>
+                  <p>
+                    These results cover only dogs already loaded on this device — the system-wide
+                    search could not be reached, so a dog that exists may not appear. Try again
+                    before creating a new dog record.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Dense secretary data table — scroll horizontally on small screens
               instead of crushing the six columns. The min-width keeps the grid
               template legible; the outer container scrolls. Only the populated
@@ -748,6 +792,12 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
               <div className="text-center py-8">
                 {isServerSearching ? (
                   <p className="text-muted-foreground">Searching…</p>
+                ) : serverSearchFailed ? (
+                  // Must NOT claim "no dogs found" — that is the exact conflation
+                  // the alert above exists to prevent.
+                  <p className="text-muted-foreground">
+                    Search could not be completed. See the message above.
+                  </p>
                 ) : (
                   <p className="text-muted-foreground">
                     {getEmptyStateMessage(

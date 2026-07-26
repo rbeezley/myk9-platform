@@ -556,6 +556,42 @@ export const searchAllDogs = async (
       return { data: [], error: null, hitLimit: false };
     }
     const sanitized = sanitizePostgRESTFilter(trimmed);
+
+    // MYK9-90: registration number and registered name live on
+    // `dog_registrations`. The old filter searched `dogs.akc_number`, which is
+    // NULL for every row, so no dog was findable by registration number at all.
+    // PostgREST cannot OR a parent-column filter with an embedded-table filter
+    // in one request, so resolve matching dog ids first and fold them into the
+    // same `.or(...)` as an id list.
+    //
+    // The pre-query's error is thrown, NOT swallowed. Treating a failed
+    // registration lookup as "no matches" would make a transient PostgREST,
+    // network, or authorization failure indistinguishable from "no such dog":
+    // a registration-number search would return an empty list with
+    // `error: null` while the backend was actually broken.
+    const { data: regMatches, error: regError } = await supabase
+      .from('dog_registrations')
+      .select('dog_id')
+      .or(`registration_number.ilike.%${sanitized}%,registered_name.ilike.%${sanitized}%`)
+      .limit(limit);
+    if (regError) throw createDatabaseError(regError, 'dog', 'search_all');
+    const registrationDogIds = [
+      ...new Set(
+        ((regMatches ?? []) as Array<{ dog_id?: string | null }>)
+          .map(r => r.dog_id)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      ),
+    ];
+
+    const orFilters = [
+      `name.ilike.%${sanitized}%`,
+      `call_name.ilike.%${sanitized}%`,
+      `breed.ilike.%${sanitized}%`,
+    ];
+    if (registrationDogIds.length > 0) {
+      orFilters.push(`id.in.(${registrationDogIds.join(',')})`);
+    }
+
     const { data, error } = await supabase
       .from('dogs')
       .select(
@@ -571,9 +607,7 @@ export const searchAllDogs = async (
         registrations:dog_registrations(*)
       `
       )
-      .or(
-        `name.ilike.%${sanitized}%,call_name.ilike.%${sanitized}%,breed.ilike.%${sanitized}%,akc_number.ilike.%${sanitized}%`
-      )
+      .or(orFilters.join(','))
       .is('deleted_at', null)
       .order('name', { ascending: true })
       .limit(limit);

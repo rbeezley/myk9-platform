@@ -26,10 +26,14 @@ export interface SubscriptionGateOptions {
  * callers (design.md Decision 6). Account-level Premium now comes from the
  * TRUSTED server-backed resolver whenever one is available, so an account
  * whose only Premium source is an active founding/complimentary grant is
- * Premium on every surface. The legacy profile/early-adopter calculation is
- * kept only as the fallback for when the entitlement read is unavailable or
- * untrusted. AnalyticsPage's caller-provided `trialShowCount` axis is NOT
- * migrated here. New code should call `useEntitlement()` directly.
+ * Premium on every surface.
+ *
+ * As of task 8.2 the legacy `people.early_adopter_until` column is gone;
+ * founding membership is read from its grant. The only remaining fallback is
+ * the paid `subscription_tier` on the profile, used when the entitlement read
+ * is unavailable or untrusted. AnalyticsPage's caller-provided
+ * `trialShowCount` axis is NOT migrated here. New code should call
+ * `useEntitlement()` directly.
  */
 export function useSubscriptionGate(options?: SubscriptionGateOptions) {
   const { profile, isLoading: isProfileLoading } = useExhibitorProfile();
@@ -48,10 +52,23 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
   const paidTier: PlanType = isExpired ? 'free' : rawTier;
   const isPaidPremium = paidTier === 'premium';
 
-  // Founding member: premium for 12 months from grant (early_adopter_until),
-  // not for life — an elapsed date is identical to never having the grant.
-  const earlyAdopterUntil = profile?.person?.early_adopter_until;
-  const isEarlyAdopter = !!earlyAdopterUntil && new Date(earlyAdopterUntil) > new Date();
+  // Founding membership now comes from the entitlement resolver's founding
+  // GRANT, not the legacy `people.early_adopter_until` column (task 8.2).
+  // Equivalent by construction: the 3A backfill created exactly one founding
+  // grant per non-null legacy value, preserving its end date, and per-row
+  // parity was verified before the column was removed.
+  //
+  // The resolver also handles expiry for us — an elapsed grant resolves to
+  // status 'expired', which is identical to never having had one, so there is
+  // no date comparison to get wrong here any more.
+  // Read the founding GRANT, not the winning source. `source` is 'paid' when a
+  // paid subscription outranks an active founding grant, so keying off it
+  // would hide the founding-member banner from anyone holding both — the
+  // legacy column was independent of the paid tier and this preserves that.
+  const foundingGrant = isTrusted ? (newEffective?.foundingGrant ?? null) : null;
+  const isEarlyAdopter = foundingGrant !== null;
+  /** Founding grant end date, for display. Null unless a founding grant is active. */
+  const foundingUntil = foundingGrant?.endsAt ?? null;
 
   const isInTrial =
     !isPaidPremium &&
@@ -59,10 +76,20 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
     options?.trialShowCount !== undefined &&
     options.trialShowCount <= TRIAL_SHOW_LIMIT;
 
-  const legacyAccountPremium = isPaidPremium || isEarlyAdopter;
+  // Legacy fallback is now the PAID tier only. `isEarlyAdopter` no longer
+  // belongs here: it is derived from the resolver above, so including it would
+  // make this "fallback" depend on the very value it is meant to back up —
+  // when untrusted it is false, and OR-ing a false changes nothing.
+  //
+  // Consequence worth stating: a founding member whose resolver read fails now
+  // sees a locked UI instead of an unlocked one. That is a deliberate move to
+  // fail-closed. It never affected writes — `canAuthorizePremium` already came
+  // straight from the trusted resolver, so the old fallback could only ever
+  // unlock DISPLAY for a write the server would then refuse.
+  const legacyAccountPremium = isPaidPremium;
   // The trusted resolver is authoritative for ACCOUNT Premium — it is the only
   // source that sees founding/complimentary grants. Fall back to the legacy
-  // profile calculation only when no trusted result exists.
+  // paid-tier calculation only when no trusted result exists.
   const trustedAccountPremium = isTrusted && newEffective ? newEffective.tier === 'premium' : null;
   const accountPremium = trustedAccountPremium ?? legacyAccountPremium;
 
@@ -80,20 +107,13 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
     if (legacyAccountPremium !== newAccountPremium) {
       logger.warn('useSubscriptionGate legacy/resolver mismatch', 'useSubscriptionGate', {
         legacyAccountPremium,
-        legacySource: isPaidPremium ? 'paid' : isEarlyAdopter ? 'founding' : 'none',
+        legacySource: isPaidPremium ? 'paid' : 'none',
         newAccountPremium,
         newSource: newEffective.source,
         newStatus: newEffective.status,
       });
     }
-  }, [
-    isProfileLoading,
-    isEntitlementLoading,
-    newEffective,
-    legacyAccountPremium,
-    isPaidPremium,
-    isEarlyAdopter,
-  ]);
+  }, [isProfileLoading, isEntitlementLoading, newEffective, legacyAccountPremium, isPaidPremium]);
 
   return {
     tier,
@@ -110,6 +130,8 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
     isExpired,
     isInTrial,
     isEarlyAdopter,
+    /** Founding grant end date for display; null unless founding is active. */
+    foundingUntil,
     // Neutral until BOTH reads settle — consumers must not flash a lock/unlock.
     isLoading: isProfileLoading || isEntitlementLoading,
   } as const;

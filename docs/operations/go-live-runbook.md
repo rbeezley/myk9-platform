@@ -236,7 +236,7 @@ Importer tooling shipped (#833); the CSV is still header-only.
       _Verify:_ `select count(*) from judge_qualifications;` > 0; spot-check a known judge by name
       in the show-wizard judge picker.
       _Audit 2026-07-06:_ `pnpm qa:go-live:phase2 --allow-blocked` reports `0 judge data
-  rows after header`; importer tooling is present, but no preload migration should be
+rows after header`; importer tooling is present, but no preload migration should be
       generated or pushed until real AKC/UKC exports are added.
 
 ### 2.2 Seed / fixture verification (staging, and prod if demo data is wanted)
@@ -319,9 +319,33 @@ recorded.
       → HTTP 200, `{"eligible_shows":N,"failed":0,…}` (N=0 is fine).
 - [ ] **3.9** Real low-value entry payment + refund smoke test through the app; confirm charge +
       refund in the dashboard and entry status flips in the app.
-- [ ] **3.10** Grant founding members:
-      `update people set early_adopter_until = now() + interval '12 months' where email = '…';`
-      (site-admin write-guard; run in dashboard SQL editor).
+- [ ] **3.10** Grant founding members. `people.early_adopter_until` was dropped
+      (migration `20260725200000`) — that `update` now fails with `42703`.
+      Entitlement lives in `subscription_entitlement_grants`, which also records
+      who granted it and why.
+
+      Preferred: the admin UI — **/people/:id → Edit → Complimentary Premium**.
+
+          By SQL, the RPC is site-admin-only, and the dashboard's `postgres` role is
+          NOT a site admin, so impersonate one:
+
+          ```sql
+          BEGIN;
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims',
+            json_build_object('sub','<site-admin auth_user_id>','role','authenticated')::text, true);
+
+          SELECT public.admin_grant_entitlement(
+            (SELECT id FROM public.people WHERE email = 'person@example.com'),
+            'founding', now(), now() + interval '12 months',
+            'Founding member — go-live batch', false);
+          COMMIT;
+          ```
+
+          Verify with the queries in [`../entitlement-operations.md`](../entitlement-operations.md).
+          Note `has_effective_premium_access()` is caller-scoped: querying it as
+          `postgres` returns nothing, which is correct rather than a failure.
+
 - [ ] **3.11** Concierge-onboard the first 3–4 club treasurers by phone using
       [`stripe-treasurer-guide.md`](stripe-treasurer-guide.md); confirm Express accounts appear
       under Connected accounts.
@@ -425,15 +449,15 @@ the Edge runner. Do not treat either as live until its approval-gated steps belo
       credential solely on that disproved hypothesis. The independent watchdog and Sentry proof
       below remain required because pg_cron success alone still proves only queueing.
 - [x] **Prove the durable miss:** **SCHEDULED PATH PROVEN 2026-07-15** (approved gate 2.4
-  run, executed as `postgres` — the recorded `cron.job.username` — via the session pooler). The
-  watchdog body was run with its window fixed to the genuinely snapshot-less 2026-07-11 07:00–08:00
-  UTC day: (1) insert produced unresolved alert `aa1b43cd-66dd-4cca-a4fd-004f66b70f01` with
-  `dedupe_key = daily-health-check:2026-07-11`; (2) an identical re-run returned `INSERT 0 0`,
-  proving deduplication via the partial unique index; (3) after `resolved_at` was set, a further
-  insert created new row `c7e056d5-596d-4935-9335-833bf4a9a641`, proving recurrence after
-  resolution. Both rows are resolved with resolution notes appended to `detail` and retained as
-  durable evidence. Read-only scheduled evidence on 2026-07-15 shows jobid 12 ran at 08:00 UTC as
-  `postgres` with `cron.job_run_details.status = 'succeeded'` and `return_message = 'INSERT 0 0'`.
+      run, executed as `postgres` — the recorded `cron.job.username` — via the session pooler). The
+      watchdog body was run with its window fixed to the genuinely snapshot-less 2026-07-11 07:00–08:00
+      UTC day: (1) insert produced unresolved alert `aa1b43cd-66dd-4cca-a4fd-004f66b70f01` with
+      `dedupe_key = daily-health-check:2026-07-11`; (2) an identical re-run returned `INSERT 0 0`,
+      proving deduplication via the partial unique index; (3) after `resolved_at` was set, a further
+      insert created new row `c7e056d5-596d-4935-9335-833bf4a9a641`, proving recurrence after
+      resolution. Both rows are resolved with resolution notes appended to `detail` and retained as
+      durable evidence. Read-only scheduled evidence on 2026-07-15 shows jobid 12 ran at 08:00 UTC as
+      `postgres` with `cron.job_run_details.status = 'succeeded'` and `return_message = 'INSERT 0 0'`.
 - [x] **External path:** **PROVEN 2026-07-15.** Sentry Cron monitor `daily-health-check` is active in
       `staging` at `0 7 * * *`, timezone UTC, with a 15-minute grace period, 10-minute max runtime,
       and failure/recovery tolerance 1. Alert `Daily Health Check — missed/error/recovery` is

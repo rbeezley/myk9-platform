@@ -2,6 +2,7 @@ import { PDFDownloadLink } from '@react-pdf/renderer';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GazetteEntryBlankDocument } from './GazetteEntryBlankDocument';
+import { MissingRegistrationNotice } from '@/features/heritage/entry-blank/MissingRegistrationNotice';
 import { buildEntryBlankProps, type BuildEntryBlankOptions } from './index';
 
 interface Props extends BuildEntryBlankOptions {
@@ -32,6 +33,8 @@ export function GazetteEntryBlankButton({
       .replace(/[^a-z0-9-]/g, '')}-entry-blank.pdf`;
 
   return (
+    <>
+    <MissingRegistrationNotice dog={props.dog} />
     <PDFDownloadLink
       document={<GazetteEntryBlankDocument {...props} />}
       fileName={pdfFilename}
@@ -49,5 +52,6 @@ export function GazetteEntryBlankButton({
         </Button>
       )}
     </PDFDownloadLink>
+    </>
   );
 }

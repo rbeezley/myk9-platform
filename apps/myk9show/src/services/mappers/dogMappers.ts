@@ -342,7 +342,7 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
       // that re-resolves from `Dog.registrations` orders by `id` instead and
       // disagrees with `identity` above. Both casings are accepted because this
       // list is the MERGE of snake_case PostgREST rows and camelCase rows from
-      // the offline replica (`loadRegistrationsMap`).
+      // the offline replica (`loadDogRegistrations`).
       ...(regVariety(reg) != null ? { variety: regVariety(reg) as string } : {}),
       ...(regCreatedAt(reg) != null ? { createdAt: regCreatedAt(reg) as string } : {}),
       ...(regIsPrimary(reg) != null ? { isPrimary: regIsPrimary(reg) as boolean } : {}),

@@ -193,15 +193,6 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
   };
 }
 
-interface RegistrationsMapResult {
-  byDog: Map<string, Record<string, unknown>[]>;
-  registrationsReadComplete: boolean;
-}
-
-async function loadRegistrationsMap(dogIds: string[]): Promise<RegistrationsMapResult> {
-  return loadDogRegistrations(dogIds);
-}
-
 /**
  * Map an array of ReplicatedDog to DB-row-shaped objects, attaching owner
  * and registration sub-objects from pre-loaded maps.
@@ -412,7 +403,7 @@ export const getAllDogs = async (personId: string, showAll = false) => {
       const ownerIds = sortedDogs.map(d => d.ownerId).filter((id): id is string => !!id);
       const [ownersMap, registrationsResult] = await Promise.all([
         loadOwnersMap(ownerIds),
-        loadRegistrationsMap(dogIds),
+        loadDogRegistrations(dogIds),
       ]);
       const data = mapDogsWithOwners(
         sortedDogs,
@@ -527,7 +518,7 @@ export const getDogsByOwner = async (ownerId: string) => {
         dogs,
         compareStringAsc(dog => dog.name)
       );
-      const registrationsResult = await loadRegistrationsMap(sortedDogs.map(d => d.id));
+      const registrationsResult = await loadDogRegistrations(sortedDogs.map(d => d.id));
       const data = sortedDogs.map(dog =>
         mapReplicatedDogToDbRow(dog, {
           registrations: registrationsResult.byDog.get(dog.id) ?? [],
@@ -793,7 +784,7 @@ export const searchDogs = async (searchTerm: string, personId: string) => {
       // Registrations ARE needed even though the original query was select('*'):
       // breed lives on `dog_registrations`, so without them every offline result
       // would render "Breed not set".
-      const registrationsResult = await loadRegistrationsMap(sortedDogs.map(d => d.id));
+      const registrationsResult = await loadDogRegistrations(sortedDogs.map(d => d.id));
       const data = sortedDogs.map(dog =>
         mapReplicatedDogToDbRow(dog, {
           registrations: registrationsResult.byDog.get(dog.id) ?? [],
@@ -825,7 +816,7 @@ export const getDogsWithUpcomingShows = async (personId: string) => {
         loadOwnersMap(ownerIds),
         // Breed comes from the registration, so it has to be loaded even though
         // the original query only joined the owner.
-        loadRegistrationsMap(sortedDogs.map(d => d.id)),
+        loadDogRegistrations(sortedDogs.map(d => d.id)),
       ]);
       // Original query only selects owner(first_name, last_name) — attach minimal owner
       const data = sortedDogs.map(dog => {

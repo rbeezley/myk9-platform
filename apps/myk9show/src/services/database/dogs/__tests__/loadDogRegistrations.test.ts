@@ -1,17 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockServerIn, mockLocalGet, mockPeopleIn, mockReplicatedGetAllDogs } = vi.hoisted(() => ({
-  mockServerIn: vi.fn(),
-  mockLocalGet: vi.fn(),
-  mockPeopleIn: vi.fn(),
-  mockReplicatedGetAllDogs: vi.fn(),
-}));
+const { mockServerIn, mockLocalGet, mockPeopleIn, mockReplicatedGetAllDogs, mockPostgrestAllDogs } =
+  vi.hoisted(() => ({
+    mockServerIn: vi.fn(),
+    mockLocalGet: vi.fn(),
+    mockPeopleIn: vi.fn(),
+    mockReplicatedGetAllDogs: vi.fn(),
+    mockPostgrestAllDogs: vi.fn(),
+  }));
 
 vi.mock('../../supabaseClient', () => ({
   supabase: {
-    from: (table: string) => ({
-      select: () => ({ in: table === 'people' ? mockPeopleIn : mockServerIn }),
-    }),
+    from: (table: string) =>
+      table === 'dogs'
+        ? { select: () => ({ is: () => ({ order: () => mockPostgrestAllDogs() }) }) }
+        : { select: () => ({ in: table === 'people' ? mockPeopleIn : mockServerIn }) },
   },
   logQuery: vi.fn(),
   createDatabaseError: (e: unknown) => e,
@@ -161,6 +164,7 @@ describe('getAllDogs registration completeness', () => {
     ]);
     mockPeopleIn.mockResolvedValue({ data: [], error: null });
     mockLocalGet.mockResolvedValue([]);
+    mockPostgrestAllDogs.mockResolvedValue({ data: [], error: null });
   });
 
   it('keeps replicated dogs visible and marks registration data incomplete after a failed read', async () => {
@@ -202,5 +206,34 @@ describe('getAllDogs registration completeness', () => {
     expect(result.data).toHaveLength(1);
     expect(result.data?.[0]?.registrations).toEqual([]);
     expect(result.data?.[0]?.registrations_read_complete).toBe(true);
+  });
+
+  it('preserves registrations when the PostgREST fallback supplies the dog list', async () => {
+    const fallbackRegistration = {
+      id: 'reg-akc',
+      dog_id: 'dog-1',
+      organization: 'AKC',
+      registration_number: 'DN61191906',
+      breed: 'Belgian Malinois',
+    };
+    mockReplicatedGetAllDogs.mockRejectedValue(new Error('replica unavailable'));
+    mockPostgrestAllDogs.mockResolvedValue({
+      data: [
+        {
+          id: 'dog-1',
+          name: 'Ziva',
+          call_name: 'Ziva',
+          owner_id: 'person-1',
+          registrations: [fallbackRegistration],
+        },
+      ],
+      error: null,
+    });
+
+    const result = await getAllDogs('person-1', true);
+
+    expect(mockPostgrestAllDogs).toHaveBeenCalled();
+    expect(result.data).toHaveLength(1);
+    expect(result.data?.[0]?.registrations).toEqual([fallbackRegistration]);
   });
 });

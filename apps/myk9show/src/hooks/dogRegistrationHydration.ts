@@ -80,7 +80,7 @@ export async function mapReplicatedDogWithRegistrations(dog: ReplicatedDog): Pro
  * refreshes from the server asynchronously.
  *
  * `alreadyLoadedDogs` comes from the caller's dogs query. BOTH of that query's
- * paths embed registrations — the replication path via `loadRegistrationsMap`,
+ * paths embed registrations — the replication path via `loadDogRegistrations`,
  * the PostgREST fallback via `registrations:dog_registrations(*)` — so a dog
  * PRESENT in the list carries an authoritative registration array, including
  * when that array is empty.

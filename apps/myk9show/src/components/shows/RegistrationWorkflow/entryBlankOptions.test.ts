@@ -87,6 +87,17 @@ describe('buildRegistrationEntryBlankDownloads', () => {
       ],
       people: [
         {
+          id: 'person-2',
+          firstName: 'Morgan',
+          lastName: 'Lee',
+          email: 'morgan@example.com',
+          phone: '555-0200',
+          streetAddress: '44 Lake Street',
+          city: 'Madison',
+          state: 'WI',
+          zipCode: '53704',
+        },
+        {
           id: 'handler-2',
           firstName: 'Jamie',
           lastName: 'Smith',
@@ -161,6 +172,16 @@ describe('buildRegistrationEntryBlankDownloads', () => {
             judgeName: 'Selected Judge',
           },
         ]),
+        owner: {
+          first_name: 'Morgan',
+          last_name: 'Lee',
+          email: 'morgan@example.com',
+          phone: '555-0200',
+          address: '44 Lake Street',
+          city: 'Madison',
+          state: 'WI',
+          zip_code: '53704',
+        },
         handler: {
           first_name: 'Jamie',
           last_name: 'Smith',

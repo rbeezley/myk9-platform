@@ -9,6 +9,7 @@ export interface ReplicatedDogRegistration {
   dogId: string;
   organization: string;
   registrationNumber: string;
+  createdAt: string;
   registeredName?: string | null;
   breed?: string | null;
   status?: string | null;
@@ -19,7 +20,9 @@ export interface ReplicatedDogRegistration {
   _localOnly?: boolean;
 }
 
-function normalizeRegistration(input: RegistrationInput): Omit<ReplicatedDogRegistration, 'id'> {
+function normalizeRegistration(
+  input: RegistrationInput
+): Omit<ReplicatedDogRegistration, 'id' | 'createdAt'> {
   return {
     dogId: '',
     organization: input.organization || 'AKC',
@@ -55,12 +58,14 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
 
     for (const input of registrations) {
       const normalized = normalizeRegistration(input);
+      const now = new Date();
       const registration: ReplicatedDogRegistration = {
         ...normalized,
         dogId,
         id: crypto.randomUUID(),
+        createdAt: now.toISOString(),
         _version: 1,
-        _lastModified: new Date(),
+        _lastModified: now,
         _syncStatus: 'pending',
         _localOnly: true,
       };
@@ -86,12 +91,14 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
 
     for (const input of registrations) {
       const normalized = normalizeRegistration(input);
+      const now = new Date();
       const registration: ReplicatedDogRegistration = {
         ...normalized,
         dogId,
         id: crypto.randomUUID(),
+        createdAt: now.toISOString(),
         _version: 1,
-        _lastModified: new Date(),
+        _lastModified: now,
         _syncStatus: 'pending',
         _localOnly: true,
       };
@@ -104,7 +111,9 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   }
 
   async getPendingMutationIdsForDog(dogId: string): Promise<string[]> {
-    const registrations = (await this.getAll()).filter(registration => registration.dogId === dogId);
+    const registrations = (await this.getAll()).filter(
+      registration => registration.dogId === dogId
+    );
     const pendingIds = await Promise.all(
       registrations.map(registration => this.getPendingMutationIdsForRow(registration.id))
     );
@@ -139,6 +148,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       dog_id: registration.dogId,
       organization: registration.organization,
       registration_number: registration.registrationNumber,
+      created_at: registration.createdAt,
       registered_name: registration.registeredName ?? null,
       breed: registration.breed ?? null,
       status: registration.status ?? 'pending',

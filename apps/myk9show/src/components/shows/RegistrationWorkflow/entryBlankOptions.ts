@@ -1,4 +1,5 @@
 import type { BuildEntryBlankOptions } from '@/features/heritage/entry-blank/buildEntryBlankProps';
+import type { EntryBlankProps } from '@/features/heritage/entry-blank/types';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import type { HandlerInfo, PaymentMethod } from '@/types/show-registration-types';
 import { makeHandlerKey } from '@/types/show-registration-types';
@@ -100,7 +101,9 @@ function parseOptionalNumber(value: string | number | null | undefined): number 
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function physicalPaymentMethod(method: PaymentMethod | undefined): string | null {
+function entryBlankPaymentMethod(
+  method: PaymentMethod | undefined
+): EntryBlankProps['fees']['paymentMethod'] {
   if (method === 'check') return 'check';
   if (method === 'credit_card') return 'online';
   return null;
@@ -124,16 +127,12 @@ function splitDisplayName(name: string | null | undefined): {
   };
 }
 
-function buildHandler(
-  dog: DogSource,
-  classId: string,
-  people: readonly PersonSource[],
-  assignments: Readonly<Record<string, HandlerInfo>>
+function buildPerson(
+  personId: string | null | undefined,
+  fallbackName: string | null | undefined,
+  people: readonly PersonSource[]
 ): NonNullable<BuildEntryBlankOptions['handler']> {
-  const assignment = assignments[makeHandlerKey(dog.id, classId)];
-  const personId = assignment?.handlerId || dog.ownerId;
   const person = people.find(candidate => candidate.id === personId);
-  const fallbackName = assignment?.handlerName || dog.ownerName;
   const fallback = splitDisplayName(fallbackName);
 
   return {
@@ -145,6 +144,25 @@ function buildHandler(
     city: person?.city ?? null,
     state: person?.state ?? null,
     zip_code: person?.zipCode ?? null,
+  };
+}
+
+function buildEntryPeople(
+  dog: DogSource,
+  classId: string,
+  people: readonly PersonSource[],
+  assignments: Readonly<Record<string, HandlerInfo>>
+): Pick<BuildEntryBlankOptions, 'owner' | 'handler'> {
+  const assignment = assignments[makeHandlerKey(dog.id, classId)];
+  const owner = buildPerson(dog.ownerId, dog.ownerName, people);
+
+  if (!assignment || assignment.isOwner) {
+    return { owner };
+  }
+
+  return {
+    owner,
+    handler: buildPerson(assignment.handlerId, assignment.handlerName, people),
   };
 }
 
@@ -249,7 +267,7 @@ export function buildRegistrationEntryBlankDownloads(
           trial_id: trial.id,
           class_id: selectedClass.id,
           entry_fee: outcome.feeCents / 100,
-          payment_status: physicalPaymentMethod(input.paymentMethod),
+          payment_status: entryBlankPaymentMethod(input.paymentMethod),
         },
         dog: {
           name: dog.name ?? null,
@@ -268,7 +286,7 @@ export function buildRegistrationEntryBlankDownloads(
             created_at: registration.createdAt ?? null,
           })),
         },
-        handler: buildHandler(dog, selectedClass.id, input.people, input.handlerAssignments),
+        ...buildEntryPeople(dog, selectedClass.id, input.people, input.handlerAssignments),
       },
     });
   }

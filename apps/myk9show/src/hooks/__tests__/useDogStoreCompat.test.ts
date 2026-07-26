@@ -519,4 +519,127 @@ describe('useDogStoreCompat.updateDog — one normalized value reaches both dest
     expect(localPatch?.breed).toBe('Border Collie');
     expect(dbPatch?.breed).toBe('Border Collie');
   });
+
+  /**
+   * Reads the one patch that each destination actually received. Every test
+   * below asserts across both in a single test on purpose: split into a
+   * "writes X to IndexedDB" test and a "writes X to Supabase" test, both pass
+   * while the two values disagree, which is exactly the bug being pinned.
+   */
+  const bothDestinations = () => ({
+    local: mockSetReplicatedDog.mock.calls[0]?.[1] as Record<string, unknown> | undefined,
+    db: (mockUpdateMutateAsync.mock.calls[0]?.[0] as { updates?: Record<string, unknown> })
+      ?.updates,
+  });
+
+  it('marks a dog deceased in IndexedDB and in Supabase, not just in Supabase', async () => {
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await result.current.updateDog('dog-123', {
+        status: 'deceased',
+        deceasedDate: '2026-07-01',
+      });
+    });
+
+    const { local, db } = bothDestinations();
+
+    // The status itself: the local row used to keep its previous value while
+    // Supabase moved on, so an offline read disagreed with the server read until
+    // some unrelated refetch happened to overwrite it.
+    expect(local?.status).toBe('deceased');
+    expect(db?.status).toBe('deceased');
+    expect(local?.status).toBe(db?.status);
+
+    // And the date behind it, so the next edit does not round-trip the gap back
+    // to the server as `deceased_date: null`.
+    expect(local?.deceasedDate).toBe('2026-07-01');
+    expect(db?.deceased_date).toBe('2026-07-01');
+    expect(local?.deceasedDate).toBe(db?.deceased_date);
+
+    // `deceased` stays derived, never a second stored copy of the status.
+    expect(db?.deceased).toBe(true);
+    expect(local).not.toHaveProperty('deceased');
+  });
+
+  it('retires a dog on both destinations and clears the deceased date with it', async () => {
+    mockGetReplicatedDogById.mockResolvedValue({
+      id: 'dog-123',
+      name: 'Biscuit',
+      callName: 'Biscuit',
+      breed: 'Beagle',
+      ownerId: 'person-123',
+      status: 'deceased',
+      deceasedDate: '2026-07-01',
+    });
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await result.current.updateDog('dog-123', { status: 'retired' });
+    });
+
+    const { local, db } = bothDestinations();
+
+    expect(local?.status).toBe('retired');
+    expect(db?.status).toBe('retired');
+    // Both key the date off the status, so neither is left holding a deceased
+    // date for a dog the other one considers retired.
+    expect(local?.deceasedDate).toBeUndefined();
+    expect(db?.deceased_date).toBeNull();
+    expect(db?.deceased).toBe(false);
+  });
+
+  it('treats a 0 measurement as cleared on both destinations', async () => {
+    // Seed real values so "cleared" is observable in the merged local row rather
+    // than indistinguishable from a field that was never there.
+    mockGetReplicatedDogById.mockResolvedValue({
+      id: 'dog-123',
+      name: 'Biscuit',
+      callName: 'Biscuit',
+      breed: 'Beagle',
+      ownerId: 'person-123',
+      weight: '30',
+      height: '15',
+    });
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await result.current.updateDog('dog-123', { weight: 0, height: 0 });
+    });
+
+    const { local, db } = bothDestinations();
+
+    // Supabase nulled a 0 while IndexedDB stored the string "0" — one "no
+    // weight", one weight of zero.
+    expect(db?.weight).toBeNull();
+    expect(db?.height).toBeNull();
+    expect(local?.weight).toBeUndefined();
+    expect(local?.height).toBeUndefined();
+  });
+
+  it('treats a blank sex as cleared on both destinations', async () => {
+    mockGetReplicatedDogById.mockResolvedValue({
+      id: 'dog-123',
+      name: 'Biscuit',
+      callName: 'Biscuit',
+      breed: 'Beagle',
+      ownerId: 'person-123',
+      sex: 'female',
+    });
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      // Only reachable from a caller that bypasses the form schema, which is
+      // where this whole mapper pair gets its ill-formed input.
+      await result.current.updateDog('dog-123', { sex: '' as 'male' | 'female' });
+    });
+
+    const { local, db } = bothDestinations();
+
+    expect(db?.sex).toBeNull();
+    expect(local?.sex).toBeUndefined();
+  });
 });

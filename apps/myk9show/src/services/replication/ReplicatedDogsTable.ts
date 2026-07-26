@@ -19,6 +19,7 @@ import {
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
+import { deriveDeceasedColumns } from '@/services/mappers/dogMappers';
 import type { Database } from '@/types/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
 
@@ -53,6 +54,12 @@ export interface ReplicatedDog {
   isSpayedNeutered?: boolean | undefined;
   imageUrl?: string | undefined;
   status?: string | undefined;
+  /**
+   * The date behind `status: 'deceased'`. Replicated because it is data, unlike
+   * the `dogs.deceased` boolean, which is `status === 'deceased'` restated and is
+   * derived at write time in `toSupabaseRow`.
+   */
+  deceasedDate?: string | undefined;
   deletedAt?: string | null | undefined;
   deleted_at?: string | null | undefined;
   // Sync metadata
@@ -88,6 +95,7 @@ export function rowToDog(row: DogRow): ReplicatedDog {
     isSpayedNeutered: row.spayed_neutered ?? undefined,
     imageUrl: row.image_url ?? undefined,
     status: row.status ?? undefined,
+    deceasedDate: row.deceased_date ?? undefined,
     deletedAt: row.deleted_at ?? undefined,
     deleted_at: row.deleted_at ?? undefined,
   };
@@ -162,7 +170,14 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       microchip_number: dog.microchipNumber ?? null,
       spayed_neutered: dog.isSpayedNeutered ?? null,
       image_url: dog.imageUrl ?? null,
-      ...(dog.status !== undefined && { status: dog.status }),
+      // A queued offline mutation rebuilds its payload here rather than through
+      // `mapDogInputToUpdate`, so a status change reaches the server by whichever
+      // path wins. `deriveDeceasedColumns` is shared with that mapper so the two
+      // cannot write different things.
+      ...(dog.status !== undefined && {
+        status: dog.status,
+        ...deriveDeceasedColumns(dog.status, dog.deceasedDate),
+      }),
       ...(dog.deletedAt !== undefined
         ? { deleted_at: dog.deletedAt }
         : dog.deleted_at !== undefined

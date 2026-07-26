@@ -120,10 +120,61 @@ export const normalizeDogInputForWrite = <T extends Partial<DogInput>>(updates: 
 };
 
 /**
+ * The one rule for the optional measurements, shared by every dog write.
+ *
+ * `0` is not a weight or a height — it is an empty field that happened to parse
+ * as a number — so it clears the value instead of being stored as `"0"`. The
+ * rule lives here because the two update mappers used to each decide for
+ * themselves: the Supabase mapper nulled a `0` while the IndexedDB mapper wrote
+ * `"0"`, so the local row and the server row disagreed until the next refetch.
+ */
+const measurementForWrite = (value: number | null | undefined): string | null =>
+  value ? String(value) : null;
+
+/**
+ * An empty string is an absent value, not a value. Same reasoning as
+ * `measurementForWrite` — `sex: ''` used to be written through to Postgres while
+ * the IndexedDB mapper turned it into `undefined`.
+ *
+ * Named `emptyToNull`, not `blankToNull`, to stay distinguishable from
+ * `resolveDogIdentity`'s `blankToNull`, which also trims. This one does not:
+ * trimming here would be a behaviour change the two mappers do not need (they
+ * already agree on whitespace), and a same-named helper with different rules is
+ * how this file's divergences started.
+ */
+const emptyToNull = <T extends string>(value: T | null | undefined): T | null => value || null;
+
+/** The status a dog is created with when the caller does not choose one. */
+const DEFAULT_DOG_STATUS: DogStatus = 'active';
+
+/**
+ * `dogs.deceased` and `dogs.deceased_date` are written with `status`, never on
+ * their own — `deceased` is `status === 'deceased'` restated, and a date without
+ * a matching status is a row that contradicts itself.
+ *
+ * Exported because the direct Supabase update (`mapDogInputToUpdate`) and the
+ * replicated write (`ReplicatedDogsTable.toSupabaseRow`) both derive these, and
+ * a status change reaches the server through whichever one wins. Keeping the
+ * rule in one function is what stops those two paths from writing different
+ * things; the pair of "must stay in lockstep" comments this replaced could only
+ * ask.
+ */
+export const deriveDeceasedColumns = (
+  status: string,
+  deceasedDate: string | null | undefined
+): { deceased: boolean; deceased_date: string | null } => ({
+  deceased: status === 'deceased',
+  deceased_date: deceasedDate || null,
+});
+
+/**
  * Convert DogInput (from dogStore) to DbDogInsert (for database)
  */
 export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
   const callName = resolveRequiredCallName(input);
+  // Resolved once so the `deceased` columns are derived from the status the row
+  // will actually carry, not from the (possibly absent) input status.
+  const status = input.status || DEFAULT_DOG_STATUS;
 
   const dbInsert: DbDogInsert = {
     // MYK9-90 §5.3 — `dogs.name` is a nullable legacy alias, not a name the app
@@ -134,23 +185,20 @@ export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
     name: null,
     breed: input.breed,
     date_of_birth: input.birthDate || null,
-    sex: input.sex,
+    sex: emptyToNull(input.sex),
     color: input.color || null,
-    weight: input.weight ? String(input.weight) : null,
-    height: input.height ? String(input.height) : null,
+    weight: measurementForWrite(input.weight),
+    height: measurementForWrite(input.height),
     owner_id: input.ownerId,
     microchip_number: input.microchipNumber || null,
     image_url: input.imageUrl || null,
     call_name: callName,
     spayed_neutered: input.spayedNeutered ?? null,
-    deceased: input.status === 'deceased',
-    deceased_date: input.deceasedDate || null,
+    status,
+    ...deriveDeceasedColumns(status, input.deceasedDate),
     // Note: registrations and health records are handled in separate tables
     // Note: ID is explicitly omitted to allow database auto-generation
   };
-
-  // status column added via migration 039 — not yet in generated Supabase types
-  (dbInsert as Record<string, unknown>).status = input.status || 'active';
 
   // Strip any `id` that leaked in from DogInput — callers that need a
   // client-specified id (local-first create) spread this result and set
@@ -180,18 +228,21 @@ export const mapDogInputToUpdate = (input: Partial<DogInput>): DbDogUpdate => {
   if (input.callName) update.call_name = input.callName;
   if (input.breed !== undefined) update.breed = input.breed;
   if (input.birthDate !== undefined) update.date_of_birth = input.birthDate || null;
-  if (input.sex !== undefined) update.sex = input.sex;
+  if (input.sex !== undefined) update.sex = emptyToNull(input.sex);
   if (input.color !== undefined) update.color = input.color || null;
-  if (input.weight !== undefined) update.weight = input.weight ? String(input.weight) : null;
-  if (input.height !== undefined) update.height = input.height ? String(input.height) : null;
+  if (input.weight !== undefined) update.weight = measurementForWrite(input.weight);
+  if (input.height !== undefined) update.height = measurementForWrite(input.height);
   if (input.ownerId !== undefined) update.owner_id = input.ownerId;
   if (input.microchipNumber !== undefined) update.microchip_number = input.microchipNumber || null;
   if (input.imageUrl !== undefined) update.image_url = input.imageUrl || null;
   if (input.spayedNeutered !== undefined) update.spayed_neutered = input.spayedNeutered;
+  // The IndexedDB half of this is the `status` branch of
+  // `mapPartialDogInputToReplicated`: the same patch reaches both, and a status
+  // change that lands on only one of them leaves the offline read and the server
+  // read disagreeing until something happens to refetch.
   if (input.status !== undefined) {
-    (update as Record<string, unknown>).status = input.status;
-    update.deceased = input.status === 'deceased';
-    update.deceased_date = input.deceasedDate || null;
+    update.status = input.status;
+    Object.assign(update, deriveDeceasedColumns(input.status, input.deceasedDate));
   }
 
   return update;
@@ -220,6 +271,7 @@ export const mapReplicatedDogToDbRow = (
     isSpayedNeutered?: boolean | undefined;
     imageUrl?: string | undefined;
     status?: string | undefined;
+    deceasedDate?: string | undefined;
     deletedAt?: string | null | undefined;
     deleted_at?: string | null | undefined;
   },
@@ -249,6 +301,7 @@ export const mapReplicatedDogToDbRow = (
       spayed_neutered: 'isSpayedNeutered',
       image_url: 'imageUrl',
       status: 'status',
+      deceased_date: 'deceasedDate',
     }),
     co_owner_id: null,
     deleted_at: d.deletedAt ?? d.deleted_at ?? null,
@@ -347,15 +400,19 @@ export const mapDogInputToReplicated = (input: DogInput, id: string): Replicated
     // that dies at the server hours later.
     callName: resolveRequiredCallName(input),
     breed: input.breed,
-    sex: input.sex || undefined,
+    sex: emptyToNull(input.sex) ?? undefined,
     dateOfBirth: input.birthDate || undefined,
     ownerId: input.ownerId || undefined,
     color: input.color || undefined,
-    weight: input.weight != null ? String(input.weight) : undefined,
-    height: input.height != null ? String(input.height) : undefined,
+    weight: measurementForWrite(input.weight) ?? undefined,
+    height: measurementForWrite(input.height) ?? undefined,
     microchipNumber: input.microchipNumber || undefined,
     imageUrl: input.imageUrl || undefined,
     isSpayedNeutered: input.spayedNeutered ?? undefined,
+    // Same default as `mapDogInputToInsert`, so a dog created offline reads back
+    // with the status it will have once the queued insert lands.
+    status: input.status || DEFAULT_DOG_STATUS,
+    deceasedDate: input.deceasedDate || undefined,
   };
 };
 
@@ -373,17 +430,36 @@ export const mapPartialDogInputToReplicated = (
   if (updates.callName) partial.callName = updates.callName;
   if (updates.breed !== undefined) partial.breed = updates.breed;
   if (updates.birthDate !== undefined) partial.dateOfBirth = updates.birthDate || undefined;
-  if (updates.sex !== undefined) partial.sex = updates.sex || undefined;
+  // `?? undefined` is a vocabulary translation, not a second opinion: the rule
+  // itself (blank / `0` means cleared) lives in the shared helpers, so the DB
+  // "cleared" (`null`) and the IndexedDB "cleared" (`undefined`) can no longer
+  // drift apart into `null` on one side and `"0"` / `''` on the other.
+  if (updates.sex !== undefined) partial.sex = emptyToNull(updates.sex) ?? undefined;
   if (updates.color !== undefined) partial.color = updates.color || undefined;
   if (updates.weight !== undefined)
-    partial.weight = updates.weight != null ? String(updates.weight) : undefined;
+    partial.weight = measurementForWrite(updates.weight) ?? undefined;
   if (updates.height !== undefined)
-    partial.height = updates.height != null ? String(updates.height) : undefined;
+    partial.height = measurementForWrite(updates.height) ?? undefined;
   if (updates.ownerId !== undefined) partial.ownerId = updates.ownerId || undefined;
   if (updates.microchipNumber !== undefined)
     partial.microchipNumber = updates.microchipNumber || undefined;
   if (updates.imageUrl !== undefined) partial.imageUrl = updates.imageUrl || undefined;
   if (updates.spayedNeutered !== undefined) partial.isSpayedNeutered = updates.spayedNeutered;
+  // Mirrors the `status` branch of `mapDogInputToUpdate`, down to keying the
+  // deceased date off `status` rather than off its own presence. Retiring a dog
+  // used to update Supabase only, leaving the local replicated row on its old
+  // status until an unrelated refetch happened to overwrite it — the offline
+  // read and the server read said different things in the meantime.
+  //
+  // `deceased` is deliberately NOT carried: it is `status === 'deceased'`
+  // restated, and `ReplicatedDogsTable.toSupabaseRow` derives it at write time,
+  // so there is no second copy to fall out of step. `deceasedDate` is real data
+  // and IS carried — without it the local read drops the date, and the next edit
+  // round-trips that gap back to the server as `deceased_date: null`.
+  if (updates.status !== undefined) {
+    partial.status = updates.status;
+    partial.deceasedDate = updates.deceasedDate || undefined;
+  }
   return partial;
 };
 

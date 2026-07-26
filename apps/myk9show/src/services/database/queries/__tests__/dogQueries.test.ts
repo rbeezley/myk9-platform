@@ -231,6 +231,9 @@ describe('Dog Queries', () => {
         microchipNumber: '123456789',
         imageUrl: 'https://example.com/daisy.jpg',
         isSpayedNeutered: true,
+        // Defaulted to match `mapDogInputToInsert`, so the locally-written row
+        // reads back with the status the queued insert will give it.
+        status: 'active',
       });
     });
 

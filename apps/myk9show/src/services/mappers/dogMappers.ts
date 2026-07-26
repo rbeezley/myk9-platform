@@ -70,18 +70,35 @@ function mapHealthRecords(raw: unknown): Dog['healthRecords'] {
 }
 
 /**
- * Convert DogInput (from dogStore) to DbDogInsert (for database)
+ * Resolve the call name for a dog about to be created.
+ *
+ * MYK9-90 §5.1 — `dogs.call_name` is NOT NULL after 20260727110000, so this is
+ * the one rule that decides whether a dog may be created at all. It lives in a
+ * single function on purpose: the previous rounds of this change scattered the
+ * check across two mappers, a replication payload builder and two Postgres
+ * functions, each seeing the value at a different point in the write lifecycle,
+ * and a whitespace-only name slipped through the gaps between them.
+ *
+ * Trimming is part of the rule, not a later normalisation step — `"   "` is not
+ * a name. A caller that supplied only one name supplied the call name (safe
+ * direction: name -> call_name; the reverse copy is what §5.3 removes).
+ *
+ * Throws rather than returning empty so callers cannot accidentally persist or
+ * queue a row first and discover the problem afterwards.
  */
-export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
-  // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL after 20260727110000. A caller
-  // that supplied only one name supplied the call name (safe direction:
-  // name -> call_name; the reverse copy is what §5.3 removes). With neither,
-  // fail here with something readable rather than letting the insert reach the
-  // database and come back as a bare 23502 naming a column the caller never set.
+export const resolveRequiredCallName = (input: Pick<DogInput, 'callName' | 'name'>): string => {
   const callName = input.callName?.trim() || input.name?.trim() || '';
   if (!callName) {
     throw new Error('A dog needs a call name.');
   }
+  return callName;
+};
+
+/**
+ * Convert DogInput (from dogStore) to DbDogInsert (for database)
+ */
+export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
+  const callName = resolveRequiredCallName(input);
 
   const dbInsert: DbDogInsert = {
     // MYK9-90 §5.3 — `dogs.name` is a nullable legacy alias, not a name the app
@@ -293,11 +310,12 @@ export const mapDogInputToReplicated = (input: DogInput, id: string): Replicated
   return {
     id,
     name: input.name,
-    // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL, and `create_dog_with_registrations`
-    // now rejects a create with no call name. A caller that supplied only one
-    // name supplied the call name, so fall back to it here. (This is the safe
-    // direction: name -> call_name. The reverse copy is what §5.3 removes.)
-    callName: input.callName || input.name || undefined,
+    // MYK9-90 §5.1 — throws on a missing or whitespace-only call name. This is
+    // the FIRST statement of `addDogOfflineFirst`, so a rejected dog is never
+    // written to IndexedDB and never queued for sync; on the offline-first
+    // show-day path there is no rollback and no user left to correct a mutation
+    // that dies at the server hours later.
+    callName: resolveRequiredCallName(input),
     breed: input.breed,
     sex: input.sex || undefined,
     dateOfBirth: input.birthDate || undefined,
@@ -317,7 +335,11 @@ export const mapPartialDogInputToReplicated = (
 ): Partial<ReplicatedDog> => {
   const partial: Partial<ReplicatedDog> = {};
   if (updates.name !== undefined) partial.name = updates.name;
-  if (updates.callName !== undefined) partial.callName = updates.callName || undefined;
+  // MYK9-90 §5.1 — mirrors `mapDogInputToUpdate`: a blank call name is skipped,
+  // never cleared. Clearing it here would blank the local row while the queued
+  // UPDATE (which omits the column) left the database value intact — a silent
+  // divergence between the offline and online reads of the same dog.
+  if (updates.callName?.trim()) partial.callName = updates.callName.trim();
   if (updates.breed !== undefined) partial.breed = updates.breed;
   if (updates.birthDate !== undefined) partial.dateOfBirth = updates.birthDate || undefined;
   if (updates.sex !== undefined) partial.sex = updates.sex || undefined;

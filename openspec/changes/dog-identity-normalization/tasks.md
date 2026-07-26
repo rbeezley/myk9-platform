@@ -141,6 +141,23 @@ Source: 2026-07-24 exhibitor audit + product-owner clarifications on MYK9-88. Si
 
   **A third `call_name: null` sender did turn up**, as predicted: row 6. It is the most dangerous of the three and the only one no type could catch — `toSupabaseRow` returns `Record<string, unknown>`, and its failure mode is a _queued offline mutation_ that fails at the database long after the user was told the dog was saved. Rows 3 and 4 were also hardened; only rows 5 and 6 were live defects.
 
+- [x] 8.2.5 **Call-name write lifecycle, and where validation sits.** Rounds 1 and 2 of review both produced the same class of defect, so the third pass fixed the cause rather than the instances: `call_name` is a required identifier whose validation was scattered across two mappers, a replication payload builder and two Postgres functions — each seeing the value at a _different point in the write lifecycle_. A whitespace-only name fell through the gaps, because `min(1)` on an untrimmed string is not validating.
+
+  | Stage                | Online (`addDog`)                                   | Offline-first (`addDogOfflineFirst`) |
+  | -------------------- | --------------------------------------------------- | ------------------------------------ |
+  | validate + normalise | `addDogSchema` / `dogFormSchema` — `.trim().min(1)` | same schema                          |
+  | resolve or reject    | `resolveRequiredCallName` (throws)                  | `resolveRequiredCallName` (throws)   |
+  | last line of defence | —                                                   | `assertQueueableCallName` (throws)   |
+  | **local persist**    | `replicatedDogsTable.set`                           | `this.set`                           |
+  | queue / network      | RPC or `createMutation`                             | `queueMutation`                      |
+  | constraint           | `dogs.call_name NOT NULL`                           | same, whenever sync next runs        |
+
+  **Every reject now happens above the local-persist row.** Previously normalisation happened _below_ it: on the online path `mapDogInputToInsert` threw from outside `addDog`'s rollback `try`, leaving a ghost row in IndexedDB; on the offline-first path `toSupabaseRow` trimmed `"   "` to empty and omitted the column, reporting the dog saved while queuing an INSERT that could never succeed — the show-day late-entry desk on a flaky connection, with no rollback and no user left to correct it.
+
+  The single root fix is `.trim()` before `.min(1)` at the form. The mapper and replication guards are defence in depth, placed at the two points of no return. The rule itself now lives in one function, `resolveRequiredCallName`.
+
+  **Invariant, stated explicitly: there is no path on which a dog row is written to IndexedDB or queued for sync before its `call_name` is known valid.** Audited by enumerating every caller of `replicatedDogsTable.set` / `createDogWithId` / `createDogWithRegistrationsRpc` / `updateDog` and every internal `this.set` / `this.queueMutation`. The create paths are guarded above. The update paths cannot violate the constraint at all — the row already exists (so the column is non-null by definition), `mapDogInputToUpdate` and `mapPartialDogInputToReplicated` both _skip_ a blank rather than clearing it, and `toSupabaseRow` omits the column rather than nulling it.
+
 - [x] 8.2.2 **The flat registry columns are `NULL` for every row.** Same session, same connection:
 
   ```sql

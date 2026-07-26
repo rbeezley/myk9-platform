@@ -169,6 +169,29 @@ describe('useDogStoreCompat.addDog — local-first', () => {
     expect(indexedDbWriteOrder).toBeLessThan(postgrestCallOrder);
   });
 
+  // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL, and the mappers are what
+  // reject a dog that cannot satisfy it. They now run BEFORE the local write:
+  // called after it, the throw fired from outside `addDog`'s rollback `try`,
+  // so creation reported an error while leaving the row behind in IndexedDB.
+  // "   " is the specific input — it is truthy, so it survived every `||`.
+  it.each([
+    ['whitespace-only', '   '],
+    ['empty', ''],
+  ])('leaves no ghost dog in IndexedDB when the call name is %s', async (_label, callName) => {
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await expect(
+        result.current.addDog({ ...baseDogInput, name: callName, callName })
+      ).rejects.toThrow(/call name/i);
+    });
+
+    // The invariant: nothing was persisted locally, so nothing needs rolling back.
+    expect(mockSetReplicatedDog).not.toHaveBeenCalled();
+    expect(mockDeleteReplicatedDog).not.toHaveBeenCalled();
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+  });
+
   it('writes to IndexedDB with isDirty=false (synced status)', async () => {
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
 

@@ -458,6 +458,49 @@ describe('ReplicatedDogsTable', () => {
         expect(dogsTable.lastMutationId).toBe('dog-mutation-1');
       });
 
+      // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL. Past `set` + `queueMutation`
+      // the user has been told the dog is saved, and on this offline-first path
+      // there is no rollback and nobody left to correct a mutation that dies at
+      // the server whenever sync next runs. So the guard must fire BEFORE both.
+      // "   " specifically: it is truthy, so it survived every `||` fallback and
+      // was only normalised to empty inside `toSupabaseRow`, which then omitted
+      // the column entirely and queued an INSERT that could never succeed.
+      it.each([
+        ['whitespace-only', '   '],
+        ['empty', ''],
+        ['missing', undefined],
+      ])(
+        'refuses to persist or queue a dog with a %s call name',
+        async (_label, callName: string | undefined) => {
+          const newDog = createMockDog({
+            id: 'dog-local-bad',
+            name: '  ',
+            breed: 'Border Collie',
+            ownerId: 'person-local-1',
+          });
+          newDog.callName = callName;
+
+          const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue();
+          const queueMutation = vi
+            .spyOn(
+              dogsTable as unknown as {
+                queueMutation: (...args: unknown[]) => Promise<string | null>;
+              },
+              'queueMutation'
+            )
+            .mockResolvedValue('should-never-happen');
+
+          await expect(dogsTable.createDogWithId(newDog)).rejects.toThrow(/call name/i);
+          await expect(dogsTable.createDogWithRegistrationsRpc(newDog, [])).rejects.toThrow(
+            /call name/i
+          );
+
+          // The invariant: nothing local, nothing queued.
+          expect(setSpy).not.toHaveBeenCalled();
+          expect(queueMutation).not.toHaveBeenCalled();
+        }
+      );
+
       it('queues dog plus registrations through the atomic RPC replay path', async () => {
         const newDog = createMockDog({
           id: 'dog-local-1',

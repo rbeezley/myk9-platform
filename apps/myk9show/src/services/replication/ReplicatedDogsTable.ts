@@ -93,6 +93,28 @@ export function rowToDog(row: DogRow): ReplicatedDog {
   };
 }
 
+/**
+ * MYK9-90 §5.1 — refuse to create a dog that cannot satisfy the `dogs.call_name`
+ * NOT NULL constraint, BEFORE anything is written to IndexedDB or queued.
+ *
+ * This is the last line of defence, not the first: `addDogSchema` rejects a
+ * blank or whitespace-only call name at the form, and `resolveRequiredCallName`
+ * rejects it at the mapper. It exists because this layer is the point of no
+ * return — past `set` + `queueMutation` the user has been told the dog is saved
+ * and, on the offline-first show-day path, there is no rollback and nobody left
+ * to correct a mutation that dies at the server whenever sync next runs.
+ *
+ * A whitespace-only name is rejected here too. Trimming it into `''` and then
+ * omitting the column (what `toSupabaseRow` does) is right for an UPDATE and
+ * catastrophic for an INSERT.
+ */
+function assertQueueableCallName(dog: ReplicatedDog): void {
+  const callName = dog.callName?.trim() || dog.name?.trim() || '';
+  if (!callName) {
+    throw new Error('A dog needs a call name.');
+  }
+}
+
 export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
@@ -376,6 +398,8 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     dog: ReplicatedDog,
     options: { dependsOn?: string[] } = {}
   ): Promise<ReplicatedDog> {
+    assertQueueableCallName(dog);
+
     const newDog: ReplicatedDog = {
       ...dog,
       _version: 1,
@@ -401,6 +425,8 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     registrations: DogRegistrationRpcInput[],
     options: { dependsOn?: string[] } = {}
   ): Promise<ReplicatedDog> {
+    assertQueueableCallName(dog);
+
     const newDog: ReplicatedDog = {
       ...dog,
       _version: 1,

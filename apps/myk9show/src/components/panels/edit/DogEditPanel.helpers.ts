@@ -6,7 +6,9 @@ import { UserRole } from './DogEditPanel.types';
 /** Zod schema for DogFormData validation. */
 export const dogFormSchema = z
   .object({
-    callName: z.string().min(1, 'Please enter a call name'),
+    // MYK9-90 §5.1 — `.trim()` before `.min(1)`; see AddDogPanel/validation.ts.
+    // `dogs.call_name` is NOT NULL, so "   " is not an acceptable identifier.
+    callName: z.string().trim().min(1, 'Please enter a call name'),
     // MYK9-90 §5.2 — NOT unconditionally required. A registered name belongs to
     // a registration, and adding a dog without one is an explicitly supported
     // flow ("registration is optional when adding a dog; required when entering

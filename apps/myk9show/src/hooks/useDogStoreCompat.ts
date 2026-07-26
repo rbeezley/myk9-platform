@@ -94,10 +94,16 @@ export const useDogStoreCompat = () => {
   const addDog = async (dogData: DogInput): Promise<Dog> => {
     const dogId = crypto.randomUUID();
 
+    // MYK9-90 §5.1 — both mappers run BEFORE the local write, not after. They
+    // are the layer that rejects a dog with no usable call name (a NOT NULL
+    // column), and `mapDogInputToInsert` throws. Called after
+    // `replicatedDogsTable.set` it threw from outside the rollback `try` below,
+    // leaving a ghost dog in IndexedDB that no cleanup path removed. Nothing is
+    // persisted until the payload is known to be acceptable.
     const replicatedDog = mapDogInputToReplicated(dogData, dogId);
-    await replicatedDogsTable.set(dogId, replicatedDog, false);
-
     const dbData = { ...mapDogInputToInsert(dogData), id: dogId };
+
+    await replicatedDogsTable.set(dogId, replicatedDog, false);
 
     try {
       if (dogData.registrations && dogData.registrations.length > 0) {
@@ -195,10 +201,11 @@ export const useDogStoreCompat = () => {
         registrationRows,
         options.dependsOn ? { dependsOn: options.dependsOn } : {}
       );
-      const savedRegistrations = await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
-        savedDog.id,
-        dogData.registrations
-      );
+      const savedRegistrations =
+        await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
+          savedDog.id,
+          dogData.registrations
+        );
       registrations = savedRegistrations.map(registration =>
         replicatedDogRegistrationsTable.toSupabaseRow(registration)
       );

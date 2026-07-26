@@ -15,6 +15,7 @@ import { describe, it, expect } from 'vitest';
 import {
   mapDatabaseToDog,
   mapDogInputToInsert,
+  mapDogInputToReplicated,
   mapDogInputToUpdate,
 } from '@/services/mappers/dogMappers';
 import type { DogInput } from '@/types/dog-types';
@@ -87,6 +88,29 @@ describe('dog identity mapping (MYK9-90 §4-5)', () => {
       expect(() =>
         mapDogInputToInsert({ ...input, name: '', callName: '' } as unknown as DogInput)
       ).toThrow(/call name/i);
+    });
+
+    // MYK9-90 §5.1 — the whitespace case specifically. `"   "` is truthy, so it
+    // survived every `||` fallback in earlier rounds and was only normalised to
+    // empty at the payload builder, downstream of the local write.
+    it.each([
+      ['both whitespace', '   ', '  '],
+      ['call name whitespace, no legacy name', '   ', ''],
+    ])('refuses a whitespace-only call name (%s)', (_label, callName, name) => {
+      expect(() =>
+        mapDogInputToInsert({ ...input, callName, name } as unknown as DogInput)
+      ).toThrow(/call name/i);
+      expect(() =>
+        mapDogInputToReplicated({ ...input, callName, name } as unknown as DogInput, 'dog-1')
+      ).toThrow(/call name/i);
+    });
+
+    it('trims the call name it persists', () => {
+      const insert = mapDogInputToInsert({ ...input, callName: '  Tera  ' });
+      expect(insert.call_name).toBe('Tera');
+
+      const replicated = mapDogInputToReplicated({ ...input, callName: '  Tera  ' }, 'dog-1');
+      expect(replicated.callName).toBe('Tera');
     });
 
     it('never clears the call name on update', () => {

@@ -239,6 +239,7 @@ describe('Dog Queries', () => {
     it('should handle validation errors', async () => {
       const dogData: DbDogInsert = {
         name: '', // Invalid empty name
+        call_name: '',
         breed: 'Labrador',
         owner_id: 'owner-123',
       };

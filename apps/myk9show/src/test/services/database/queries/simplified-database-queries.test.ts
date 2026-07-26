@@ -302,6 +302,7 @@ describe('Database Queries Integration Tests', () => {
     it('should handle validation errors consistently', async () => {
       const invalidData: DbDogInsert = {
         name: '',
+        call_name: '',
         breed: 'Test',
         owner_id: 'owner-123',
       };

@@ -134,7 +134,7 @@ const mapClass = (row: any): DeletedEntity => ({
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mapEntry = (row: any): DeletedEntity => ({
   id: row.id,
-  name: `${row.dog?.name ?? 'Unknown Dog'} → ${row.class?.name ?? 'Unknown Class'}`,
+  name: `${row.dog?.call_name ?? row.dog?.name ?? 'Unknown Dog'} → ${row.class?.name ?? 'Unknown Class'}`,
   context: row.class?.name,
   deleted_at: row.deleted_at,
   deleted_by_email: row.deleted_by_user?.email ?? null,

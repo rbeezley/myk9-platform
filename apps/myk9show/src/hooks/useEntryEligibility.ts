@@ -120,20 +120,18 @@ export function useEntryEligibility({
         return [];
       }
 
-      return (data || []).map(
-        (c): ClassRequirements => ({
-          classId: c.id,
-          className: c.name || 'Unknown',
-          level: c.level,
-          breedRestrictions: c.breed_restrictions || [],
-          minHeightInches: c.height_min,
-          maxHeightInches: c.height_max,
-          requiredTitles: [], // Not stored in classes table
-          minAgeMonths: c.age_min,
-          maxAgeMonths: c.age_max,
-          requiresHandler: false, // Not stored in classes table
-        })
-      );
+      return (data || []).map((c): ClassRequirements => ({
+        classId: c.id,
+        className: c.name || 'Unknown',
+        level: c.level,
+        breedRestrictions: c.breed_restrictions || [],
+        minHeightInches: c.height_min,
+        maxHeightInches: c.height_max,
+        requiredTitles: [], // Not stored in classes table
+        minAgeMonths: c.age_min,
+        maxAgeMonths: c.age_max,
+        requiresHandler: false, // Not stored in classes table
+      }));
     },
     enabled: classIds.length > 0,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -169,7 +167,9 @@ export function useEntryEligibility({
         const firstReg = d.registrations?.[0];
         return {
           id: d.id,
-          name: d.name || 'Unknown',
+          // MYK9-90 §5.2 — `dogs.name` is a nullable legacy alias; the call name
+          // is the required identifier, so it leads here.
+          name: d.call_name || d.name || 'Unknown',
           callName: d.call_name,
           breed: d.breed || 'Unknown',
           heightInches: d.height ? parseFloat(d.height) : null,

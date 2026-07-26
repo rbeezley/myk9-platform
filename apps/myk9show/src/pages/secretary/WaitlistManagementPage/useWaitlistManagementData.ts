@@ -349,7 +349,7 @@ export function useWaitlistManagementData(showId?: string) {
     const search = searchTerm.toLowerCase();
     return waitlistEntries.filter(
       entry =>
-        entry.dog?.name?.toLowerCase().includes(search) ||
+        (entry.dog?.call_name ?? entry.dog?.name)?.toLowerCase().includes(search) ||
         entry.dog?.call_name?.toLowerCase().includes(search)
     );
   }, [waitlistEntries, searchTerm]);

@@ -164,7 +164,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
     const search = searchTerm.toLowerCase();
     return items.filter(
       request =>
-        request.dog?.name?.toLowerCase().includes(search) ||
+        (request.dog?.call_name ?? request.dog?.name)?.toLowerCase().includes(search) ||
         request.dog?.call_name?.toLowerCase().includes(search) ||
         request.handler?.toLowerCase().includes(search) ||
         request.class?.name?.toLowerCase().includes(search)
@@ -277,12 +277,10 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-medium">
-                              {request.dog?.name || 'Unknown Dog'}
+                              {request.dog?.call_name || request.dog?.name || 'Unknown Dog'}
                             </span>
-                            {request.dog?.call_name && (
-                              <span className="text-muted-foreground">
-                                ({request.dog.call_name})
-                              </span>
+                            {request.dog?.name && request.dog.name !== request.dog.call_name && (
+                              <span className="text-muted-foreground">({request.dog.name})</span>
                             )}
                             {request.armband && <Badge variant="outline">#{request.armband}</Badge>}
                           </div>
@@ -385,7 +383,8 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
           <DialogHeader>
             <DialogTitle>Approve Pull Request</DialogTitle>
             <DialogDescription>
-              Approve the pull request for {selectedRequest?.dog?.name} in{' '}
+              Approve the pull request for{' '}
+              {selectedRequest?.dog?.call_name ?? selectedRequest?.dog?.name} in{' '}
               {selectedRequest?.class?.name}.
             </DialogDescription>
           </DialogHeader>
@@ -424,7 +423,8 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
           <DialogHeader>
             <DialogTitle>Deny Pull Request</DialogTitle>
             <DialogDescription>
-              Deny the pull request for {selectedRequest?.dog?.name}. The exhibitor will be
+              Deny the pull request for{' '}
+              {selectedRequest?.dog?.call_name ?? selectedRequest?.dog?.name}. The exhibitor will be
               notified.
             </DialogDescription>
           </DialogHeader>

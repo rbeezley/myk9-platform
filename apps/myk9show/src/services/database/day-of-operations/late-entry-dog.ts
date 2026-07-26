@@ -95,8 +95,17 @@ export async function createDayOfEntryDog(
   }
 
   const { data: dog, error: dogError } = await createDog({
+    // `dogName` here is a name the secretary typed as the dog's name, not a
+    // copy of the call name, so it still populates the legacy column (same as
+    // `create_show_managed_dog`). MYK9-90 §5.3 removes the *copy*, not this.
     name: dogName,
-    call_name: dogCallName,
+    // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL after 20260727110000, and the
+    // call name is optional in this input. Fall back to the dog name rather
+    // than requiring a second field: this is the show-day late-entry desk, and
+    // a secretary taking an entry at the gate should not be blocked because
+    // they typed one name instead of two. A dog whose only known name is what
+    // was written on the form has that as its call name.
+    call_name: dogCallName ?? dogName,
     breed: dogBreed,
     owner_id: owner.id,
     status: 'active',
@@ -116,7 +125,9 @@ export async function createDayOfEntryDog(
   return {
     data: {
       id: dog.id,
-      name: dog.name,
+      // MYK9-90 §5.2 — `dogs.name` is a nullable legacy alias; fall back to the
+      // (NOT NULL) call name so this row never surfaces a dog with no name.
+      name: dog.name ?? dog.call_name ?? '',
       call_name: dog.call_name ?? null,
       breed: dog.breed ?? null,
       owner: {

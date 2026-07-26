@@ -128,12 +128,12 @@ export function findLikelyDuplicateDogCandidate(
         reasons.push('same call name');
       }
 
-      if (sameText(dog.name, input.registeredName)) {
-        score += 4;
-        reasons.push('same registered name');
-      } else if (
-        registrationRegisteredNames(dog).some(name => sameText(name, input.registeredName))
-      ) {
+      // MYK9-90 §5.2 — `dog.name` is no longer consulted for the registered
+      // name. It is a legacy alias that now falls back to the call name, so
+      // matching it against a registered name would score a call-name collision
+      // as a registered-name collision. Registered names live on the
+      // registrations.
+      if (registrationRegisteredNames(dog).some(name => sameText(name, input.registeredName))) {
         score += 4;
         reasons.push('same registered name');
       }

@@ -338,7 +338,11 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                               </Badge>
                               <Badge variant="secondary">{dog.gender}</Badge>
                             </div>
-                            <p className="text-sm text-gray-600">Registered Name: {dog.name}</p>
+                            {dog.registrations?.[0]?.registeredName && (
+                              <p className="text-sm text-gray-600">
+                                Registered Name: {dog.registrations[0].registeredName}
+                              </p>
+                            )}
                             <p className="text-sm text-gray-600">
                               Born: {dog.dateOfBirth} (Age: {dog.age})
                             </p>

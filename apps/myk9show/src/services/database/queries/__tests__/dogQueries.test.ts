@@ -129,6 +129,7 @@ describe('Dog Queries', () => {
     it('should create a new dog', async () => {
       const newDog: DbDogInsert = {
         name: 'Charlie',
+        call_name: 'Charlie',
         breed: 'Beagle',
         owner_id: '1',
         sex: 'male',
@@ -155,6 +156,7 @@ describe('Dog Queries', () => {
     it('should handle validation errors', async () => {
       const invalidDog: DbDogInsert = {
         name: '',
+        call_name: '',
         breed: 'Beagle',
         owner_id: '1',
         sex: 'male',
@@ -242,7 +244,10 @@ describe('Dog Queries', () => {
       const result = mapDogInputToReplicated(input, 'dog-uuid-000');
       expect(result.id).toBe('dog-uuid-000');
       expect(result.name).toBe('Rex');
-      expect(result.callName).toBeUndefined();
+      // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL and the create RPC rejects a
+      // dog without one. An input that supplied only `name` supplied the call
+      // name, so it fills in here rather than leaving the required column unset.
+      expect(result.callName).toBe('Rex');
       expect(result.dateOfBirth).toBeUndefined();
       expect(result.weight).toBeUndefined();
       expect(result.height).toBeUndefined();

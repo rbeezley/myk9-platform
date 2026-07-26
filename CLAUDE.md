@@ -35,6 +35,7 @@ A LESSON may be **retired** once the trap is structurally impossible — a guard
 - `tsc` errors about generated DB types (`Database['public']['Tables'][...]`) can come from a STALE `packages/supabase/dist/index.d.ts`, not your code — rebuild `pnpm --filter @myk9/supabase build` before believing them. Same built-`dist` trap as the app-test rule, but it produces a false FAILURE rather than a false pass.
 - Migration-parsing tests (e.g. `anonEntriesGrantContract`) read the whole `supabase/migrations/` directory, so an UNTRACKED scratch `.sql` left there fails them with a confusing ACL error. Keep experiments out of that directory.
 - `SlideOverPanel`'s `size` prop is currently inert — a fixed `sm:/md:/lg:/xl:` chain overrides the size-derived width at every breakpoint, so all panels render the same. Override via `className` for a single panel; see MYK9-99 before "fixing" it globally.
+- Before re-`CREATE OR REPLACE`-ing a Postgres function, `grep -l "CREATE OR REPLACE FUNCTION public.<fn>" supabase/migrations/` and copy from the LATEST hit, never from the file whose name looks canonical — rebuilding `create_show_with_children` off `20260510143000` silently reverted `registry_id` (20260630120000) and the `person_id` judge-assignment shape (20260618120000), which typecheck and tests cannot catch (#1484).
 
 ## Intent & Emotional Design
 

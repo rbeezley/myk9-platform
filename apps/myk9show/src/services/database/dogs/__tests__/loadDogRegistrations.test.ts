@@ -1,20 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockServerIn, mockLocalGet } = vi.hoisted(() => ({
+const { mockServerIn, mockLocalGet, mockPeopleIn, mockReplicatedGetAllDogs } = vi.hoisted(() => ({
   mockServerIn: vi.fn(),
   mockLocalGet: vi.fn(),
+  mockPeopleIn: vi.fn(),
+  mockReplicatedGetAllDogs: vi.fn(),
 }));
 
 vi.mock('../../supabaseClient', () => ({
-  supabase: { from: () => ({ select: () => ({ in: mockServerIn }) }) },
+  supabase: {
+    from: (table: string) => ({
+      select: () => ({ in: table === 'people' ? mockPeopleIn : mockServerIn }),
+    }),
+  },
   logQuery: vi.fn(),
   createDatabaseError: (e: unknown) => e,
 }));
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: { getRegistrationsForDogs: mockLocalGet },
 }));
+vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
+  replicatedDogsTable: { getAllDogs: mockReplicatedGetAllDogs },
+}));
 
-import { loadDogRegistrations } from '../reads';
+import { getAllDogs, loadDogRegistrations } from '../reads';
 import { resolveDogIdentity } from '@/features/dogs/identity';
 
 /**
@@ -135,5 +144,43 @@ describe('loadDogRegistrations', () => {
     const { registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
 
     expect(registrationsReadComplete).toBe(false);
+  });
+});
+
+describe('getAllDogs registration completeness', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockReplicatedGetAllDogs.mockResolvedValue([
+      {
+        id: 'dog-1',
+        name: 'Ziva',
+        callName: 'Ziva',
+        breed: '',
+        ownerId: undefined,
+      },
+    ]);
+    mockPeopleIn.mockResolvedValue({ data: [], error: null });
+    mockLocalGet.mockResolvedValue([]);
+  });
+
+  it('keeps replicated dogs visible and marks registration data incomplete after a failed read', async () => {
+    mockServerIn.mockResolvedValue({ data: null, error: new Error('offline') });
+
+    const result = await getAllDogs('person-1', true);
+
+    expect(result.error).toBeNull();
+    expect(result.data).toHaveLength(1);
+    expect(result.data?.[0]?.registrations).toEqual([]);
+    expect(result.data?.[0]?.registrations_read_complete).toBe(false);
+  });
+
+  it('keeps a successful empty registration read authoritative at the query boundary', async () => {
+    mockServerIn.mockResolvedValue({ data: [], error: null });
+
+    const result = await getAllDogs('person-1', true);
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data?.[0]?.registrations).toEqual([]);
+    expect(result.data?.[0]?.registrations_read_complete).toBe(true);
   });
 });

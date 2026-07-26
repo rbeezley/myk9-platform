@@ -445,12 +445,14 @@ export const getDogById = async (id: string) => {
       const allEntries = await replicatedEntriesTable.getAll();
       const dogEntries = allEntries.filter(e => e.dogId === id);
 
-      const [localRegistrations, supplementalResult] = await Promise.all([
-        replicatedDogRegistrationsTable.getRegistrationsForDog(id),
-        supabase
-          .from('dogs')
-          .select(
-            `
+      const [registrationsResult, supplementalResult] = await Promise.all([
+        loadDogRegistrations([id]),
+        (async () => {
+          try {
+            return await supabase
+              .from('dogs')
+              .select(
+                `
             owner:people!dogs_owner_id_fkey(
               id,
               first_name,
@@ -462,24 +464,20 @@ export const getDogById = async (id: string) => {
               state,
               zip_code
             ),
-            registrations:dog_registrations(*),
             health_records(*)
           `
-          )
-          .eq('id', id)
-          .single(),
+              )
+              .eq('id', id)
+              .single();
+          } catch (error) {
+            return { data: null, error };
+          }
+        })(),
       ]);
 
       const supplemental = supplementalResult.data;
       const owner = (supplemental as Record<string, unknown>)?.owner ?? null;
-      const registrationsMap = new Map<string, Record<string, unknown>[]>();
-      appendRegistrations(
-        registrationsMap,
-        ((supplemental as Record<string, unknown>)?.registrations as Record<string, unknown>[]) ??
-          []
-      );
-      appendRegistrations(registrationsMap, localRegistrations);
-      const registrations = registrationsMap.get(id) ?? [];
+      const registrations = registrationsResult.byDog.get(id) ?? [];
       const healthRecords =
         ((supplemental as Record<string, unknown>)?.health_records as Record<string, unknown>[]) ??
         [];
@@ -510,7 +508,7 @@ export const getDogById = async (id: string) => {
       const data = mapReplicatedDogToDbRow(dog, {
         owner: owner as Record<string, unknown> | null,
         registrations,
-        registrationsReadComplete: !supplementalResult.error,
+        registrationsReadComplete: registrationsResult.registrationsReadComplete,
         entries,
         healthRecords,
       });

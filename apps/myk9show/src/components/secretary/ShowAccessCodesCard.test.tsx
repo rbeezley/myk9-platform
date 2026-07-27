@@ -7,6 +7,7 @@ import { ShowAccessCodesCard } from './ShowAccessCodesCard';
 
 // Stable test UUID
 const TEST_SHOW_ID = '63165809-e025-25c6-6cf9-979f63165809';
+const SECOND_TEST_SHOW_ID = '2e745763-e360-4db0-b6d0-4eb89ee0b466';
 
 const renderWithProviders = render;
 
@@ -365,6 +366,77 @@ describe('ShowAccessCodesCard', () => {
     );
     expect(await screen.findByText('a1111')).toBeInTheDocument();
     expect(mockSupabase.rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears one show's codes before loading another show", async () => {
+    mockSupabase.rpc.mockImplementation((fn: string, args?: Record<string, unknown>) => {
+      if (fn !== 'get_show_access_codes') {
+        return Promise.resolve({ data: null, error: null }) as unknown as ReturnType<
+          typeof mockSupabase.rpc
+        >;
+      }
+
+      const passcode = args?.p_show_id === TEST_SHOW_ID ? 'a1111' : 'b2222';
+      return Promise.resolve({
+        data: [{ role: 'admin', passcode, recoverable: true }],
+        error: null,
+      }) as unknown as ReturnType<typeof mockSupabase.rpc>;
+    });
+
+    const { rerender } = renderWithProviders(
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes canRegenerate />
+    );
+    expect(await screen.findByText('a1111')).toBeInTheDocument();
+
+    rerender(
+      <ShowAccessCodesCard showId={SECOND_TEST_SHOW_ID} canLoadCodes canRegenerate />
+    );
+
+    expect(screen.queryByText('a1111')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading access codes');
+    expect(await screen.findByText('b2222')).toBeInTheDocument();
+    expect(mockSupabase.rpc).toHaveBeenLastCalledWith('get_show_access_codes', {
+      p_show_id: SECOND_TEST_SHOW_ID,
+    });
+  });
+
+  it("clears regenerated codes when the card changes to another show", async () => {
+    mockSupabase.rpc.mockImplementation((fn: string, args?: Record<string, unknown>) => {
+      if (fn === 'regenerate_show_passcodes') {
+        return Promise.resolve({
+          data: [{ admin: 'a1111', judge: 'j2222', steward: 's3333', exhibitor: 'e4444' }],
+          error: null,
+        }) as unknown as ReturnType<typeof mockSupabase.rpc>;
+      }
+      if (fn === 'get_show_access_codes') {
+        return Promise.resolve({
+          data:
+            args?.p_show_id === SECOND_TEST_SHOW_ID
+              ? [{ role: 'admin', passcode: 'b2222', recoverable: true }]
+              : [],
+          error: null,
+        }) as unknown as ReturnType<typeof mockSupabase.rpc>;
+      }
+      return Promise.resolve({ data: null, error: null }) as unknown as ReturnType<
+        typeof mockSupabase.rpc
+      >;
+    });
+
+    const { user, rerender } = renderWithProviders(
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes canRegenerate />
+    );
+    await user.click(await screen.findByRole('button', { name: /generate new codes/i }));
+    await user.click(await screen.findByRole('button', { name: /^generate$/i }));
+    expect(await screen.findByText('a1111')).toBeInTheDocument();
+
+    rerender(
+      <ShowAccessCodesCard showId={SECOND_TEST_SHOW_ID} canLoadCodes canRegenerate />
+    );
+
+    expect(screen.queryByText('a1111')).not.toBeInTheDocument();
+    expect(screen.queryByText('e4444')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading access codes');
+    expect(await screen.findByText('b2222')).toBeInTheDocument();
   });
 
   it('renders exactly the judge and exhibitor rows returned by the server', async () => {

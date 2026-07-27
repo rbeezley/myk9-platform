@@ -122,6 +122,13 @@ function RegenerateButton({
 
 export function ShowAccessCodesCard({
   showId,
+  ...props
+}: ShowAccessCodesCardProps) {
+  return <ShowAccessCodesCardForShow key={showId} showId={showId} {...props} />;
+}
+
+function ShowAccessCodesCardForShow({
+  showId,
   showName,
   showDate,
   visibleRoles,

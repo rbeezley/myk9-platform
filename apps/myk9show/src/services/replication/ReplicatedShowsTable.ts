@@ -20,6 +20,7 @@ import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
+import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
 import type { Database } from '@/types/supabase';
 
 /**
@@ -326,24 +327,26 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       throw new Error(`Show ${showId} not found`);
     }
 
+    const resolvedUpdates = invalidateVenuePinIfLocationChanged(currentShow.location, updates);
     const updatedShow: ReplicatedShow = {
       ...currentShow,
-      ...updates,
+      ...resolvedUpdates,
       _lastModified: new Date(),
       _syncStatus: 'pending',
     };
 
     await this.set(showId, updatedShow, true); // Mark as dirty
     const updatePayload = this.toSupabaseRow(updatedShow);
-    if (!('experienceIsPublished' in updates)) delete updatePayload.experience_is_published;
-    if (!('experiencePublishedAt' in updates)) delete updatePayload.experience_published_at;
-    if (!('experiencePublishedStyle' in updates)) delete updatePayload.experience_published_style;
-    if (!('experiencePublishedContent' in updates))
+    if (!('experienceIsPublished' in resolvedUpdates)) delete updatePayload.experience_is_published;
+    if (!('experiencePublishedAt' in resolvedUpdates)) delete updatePayload.experience_published_at;
+    if (!('experiencePublishedStyle' in resolvedUpdates))
+      delete updatePayload.experience_published_style;
+    if (!('experiencePublishedContent' in resolvedUpdates))
       delete updatePayload.experience_published_content;
     // Same stale-replica clobber guard: a client whose cached show predates the
     // coordinate columns would otherwise null out a pin saved elsewhere.
-    if (!('latitude' in updates)) delete updatePayload.latitude;
-    if (!('longitude' in updates)) delete updatePayload.longitude;
+    if (!('latitude' in resolvedUpdates)) delete updatePayload.latitude;
+    if (!('longitude' in resolvedUpdates)) delete updatePayload.longitude;
 
     const mutationId = await this.queueMutation('UPDATE', showId, updatePayload);
     this._lastMutationId = mutationId;

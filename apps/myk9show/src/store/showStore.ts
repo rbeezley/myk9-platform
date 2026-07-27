@@ -29,6 +29,7 @@ import {
 import { useClubStore } from './clubStore';
 import { useUserStore } from './userStore';
 import { buildAssignedJudges } from '@/utils/buildAssignedJudges';
+import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
 
 /**
  * Convert ReplicatedShow (database schema) to Show (app schema)
@@ -363,7 +364,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
     }
   },
 
-  updateShow: async (id: string, updates: Partial<ShowInput>): Promise<Show | null> => {
+  updateShow: async (id: string, rawUpdates: Partial<ShowInput>): Promise<Show | null> => {
     try {
       set({ isLoading: true, error: null });
 
@@ -373,6 +374,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         set({ error, isLoading: false });
         return null;
       }
+
+      const updates = invalidateVenuePinIfLocationChanged(currentShow.location, rawUpdates);
 
       // Update in replicated table (handles version increment and sync metadata)
       // Build update object with only defined values to satisfy exactOptionalPropertyTypes
@@ -471,7 +474,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       return updatedShow;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update show';
-      reportStoreError('updateShow', 'showStore', error, { showId: id, updates });
+      reportStoreError('updateShow', 'showStore', error, { showId: id, updates: rawUpdates });
       set({ error: errorMessage, isLoading: false });
       throw error;
     }

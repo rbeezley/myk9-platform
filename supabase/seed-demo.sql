@@ -220,7 +220,7 @@ ON CONFLICT (club_id) DO UPDATE
 INSERT INTO public.shows (
   id, name, organization, description,
   start_date, end_date, entry_open_date, entry_close_date,
-  location, city, state, status, club_id,
+  location, city, state, latitude, longitude, status, club_id,
   pre_entry_fee, day_of_show_fee,
   allow_non_owner_handlers, results_visible_to_all,
   starting_armband_number, default_judge_day_capacity,
@@ -240,6 +240,7 @@ VALUES (
   '2026-06-01 00:00:00+00', '2026-09-01 00:00:00+00',
   '100 Dog Show Lane, Tulsa, OK 74101',
   'Tulsa', 'Oklahoma',
+  36.15, -95.99,
   'published',
   'dededede-0000-0000-0000-000000000001',
   30.00, 35.00,

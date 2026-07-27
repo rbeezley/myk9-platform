@@ -565,6 +565,73 @@ describe('ReplicatedShowsTable', () => {
       expect(result?.startDate).toBe('2024-06-15'); // Unchanged
     });
 
+    it('should clear a confirmed venue pin when the location changes', async () => {
+      const show: ReplicatedShow = {
+        id: 'show-1',
+        name: 'Original Show',
+        organization: 'Obedience',
+        startDate: '2024-06-15',
+        endDate: '2024-06-16',
+        location: '100 Old Venue Road',
+        latitude: 36.15,
+        longitude: -95.99,
+      };
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.set('show-1', show);
+      await table.updateShow('show-1', { location: '200 New Venue Road' });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'show-1',
+        expect.objectContaining({
+          location: '200 New Venue Road',
+          latitude: null,
+          longitude: null,
+        })
+      );
+      expect(await table.get('show-1')).toMatchObject({
+        location: '200 New Venue Road',
+        latitude: null,
+        longitude: null,
+      });
+    });
+
+    it('should keep replacement coordinates supplied with a location change', async () => {
+      const show: ReplicatedShow = {
+        id: 'show-1',
+        name: 'Original Show',
+        organization: 'Obedience',
+        startDate: '2024-06-15',
+        endDate: '2024-06-16',
+        location: '100 Old Venue Road',
+        latitude: 36.15,
+        longitude: -95.99,
+      };
+
+      await table.set('show-1', show);
+      await table.updateShow('show-1', {
+        location: '200 New Venue Road',
+        latitude: 35.47,
+        longitude: -97.52,
+      });
+
+      expect(await table.get('show-1')).toMatchObject({
+        location: '200 New Venue Road',
+        latitude: 35.47,
+        longitude: -97.52,
+      });
+    });
+
     it('should mark show as dirty after update', async () => {
       const show: ReplicatedShow = {
         id: 'show-1',

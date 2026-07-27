@@ -59,21 +59,20 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     const ringsideResponses: ObservedRingsideResponse[] = [];
     page.on('response', response => {
       if (new URL(response.url()).pathname !== '/rest/v1/rpc/ringside_update_entry') return;
+      const observed: ObservedRingsideResponse = {
+        status: response.status(),
+        body: '<pending>',
+        request: response.request().postData(),
+      };
+      ringsideResponses.push(observed);
       void response
         .text()
         .then(body => {
-          ringsideResponses.push({
-            status: response.status(),
-            body,
-            request: response.request().postDataJSON(),
-          });
+          observed.body = body;
+          observed.request = response.request().postDataJSON();
         })
         .catch(error => {
-          ringsideResponses.push({
-            status: response.status(),
-            body: error instanceof Error ? error.message : String(error),
-            request: response.request().postData(),
-          });
+          observed.body = error instanceof Error ? error.message : String(error);
         });
     });
 
@@ -136,6 +135,12 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       timeout: 10_000,
     });
     await expect.poll(() => ringsideResponses.length, { timeout: 20_000 }).toBeGreaterThan(0);
+    await expect
+      .poll(
+        () => ringsideResponses.every(response => response.body !== '<pending>'),
+        { timeout: 5_000 }
+      )
+      .toBe(true);
     const failedRingsideResponse = ringsideResponses.find(response => response.status >= 400);
     if (failedRingsideResponse) {
       throw new Error(

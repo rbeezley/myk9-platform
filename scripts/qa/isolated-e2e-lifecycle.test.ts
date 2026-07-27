@@ -56,6 +56,7 @@ describe('buildJobEnvironment', () => {
       MYK9_E2E_SUPABASE_URL: local.apiUrl,
       VITE_SUPABASE_URL: local.apiUrl,
       VITE_SUPABASE_ANON_KEY: local.anonKey,
+      SUPABASE_SERVICE_ROLE_KEY: local.serviceRoleKey,
       SUPABASE_DB_URL: local.dbUrl,
     });
   });
@@ -64,6 +65,7 @@ describe('buildJobEnvironment', () => {
     const lines = buildGithubEnvLines(local);
     expect(lines).toContain('MYK9_E2E_SUPABASE_PROJECT_REF=local');
     expect(lines).toContain('VITE_SUPABASE_URL=http://127.0.0.1:54321');
+    expect(lines).toContain('SUPABASE_SERVICE_ROLE_KEY=service-role-key');
     expect(lines).not.toContain('sojmvhhwsjxmfistvzbe');
   });
 });

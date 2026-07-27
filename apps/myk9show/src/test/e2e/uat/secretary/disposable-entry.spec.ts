@@ -19,6 +19,12 @@ test.describe.configure({ mode: 'serial' });
 const healthByTest = new Map<string, BrowserHealth>();
 const seedByTest = new Map<string, SecretaryUatSeed>();
 
+interface ObservedRingsideResponse {
+  status: number;
+  body: string;
+  request: unknown;
+}
+
 test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
   test.setTimeout(90000);
 
@@ -50,6 +56,26 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     page,
   }, testInfo) => {
     const seed = seedByTest.get(testInfo.testId)!;
+    const ringsideResponses: ObservedRingsideResponse[] = [];
+    page.on('response', response => {
+      if (new URL(response.url()).pathname !== '/rest/v1/rpc/ringside_update_entry') return;
+      void response
+        .text()
+        .then(body => {
+          ringsideResponses.push({
+            status: response.status(),
+            body,
+            request: response.request().postDataJSON(),
+          });
+        })
+        .catch(error => {
+          ringsideResponses.push({
+            status: response.status(),
+            body: error instanceof Error ? error.message : String(error),
+            request: response.request().postData(),
+          });
+        });
+    });
 
     await page.goto(`/shows/${seed.showId}/entry-management`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
@@ -109,6 +135,13 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await expect(classRow.getByText('Checked-in', { exact: true })).toBeVisible({
       timeout: 10_000,
     });
+    await expect.poll(() => ringsideResponses.length, { timeout: 20_000 }).toBeGreaterThan(0);
+    const failedRingsideResponse = ringsideResponses.find(response => response.status >= 400);
+    if (failedRingsideResponse) {
+      throw new Error(
+        `Check-in RPC failed: ${JSON.stringify(failedRingsideResponse, null, 2)}`
+      );
+    }
     await expect
       .poll(() => readSecretaryEntryState(seed.entryId), { timeout: 20_000 })
       .toMatchObject({ entry_status: 'confirmed', check_in_status: 'checked-in' });

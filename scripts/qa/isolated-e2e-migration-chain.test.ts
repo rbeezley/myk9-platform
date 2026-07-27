@@ -88,6 +88,7 @@ describe('isolated E2E migration chain', () => {
     expect(isolatedGrantSeed).toContain('TO authenticated, service_role');
     expect(isolatedGrantSeed).toContain('ON TABLE public.entries TO service_role');
     expect(isolatedGrantSeed).toContain('public.entry_carts');
+    expect(isolatedGrantSeed).toContain('public.enrollments');
     expect(isolatedGrantSeed).toContain('public.show_visibility_settings');
     expect(isolatedGrantSeed).not.toContain('ON ALL TABLES IN SCHEMA public');
     expect(demoSeed).not.toContain('GRANT SELECT ON TABLE public.people TO service_role;');

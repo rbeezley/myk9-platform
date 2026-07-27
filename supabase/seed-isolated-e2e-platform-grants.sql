@@ -16,6 +16,7 @@ GRANT ALL PRIVILEGES ON TABLE
   public.clubs,
   public.dog_registrations,
   public.dogs,
+  public.enrollments,
   public.entry_cart_items,
   public.entry_carts,
   public.exhibitor_profiles,

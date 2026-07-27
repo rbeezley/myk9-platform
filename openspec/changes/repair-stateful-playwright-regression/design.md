@@ -87,6 +87,13 @@ Fresh Auth users also receive incomplete exhibitor profiles through the normal h
 
 The regression wrapper invokes the Playwright binary directly with `--workers=1 --retries=0`. Passing those flags through the package script with an extra `--` caused Playwright to retain the CI config's two retries, obscuring the deterministic failure inventory and extending a failed pass from roughly seven minutes to twenty-one.
 
+The authenticated entry read embeds the final-schema `enrollments` row through
+`registration_id`. Because PostgREST reports an embedded privilege failure on
+the top-level `/entries` request, the missing local platform grant initially
+looked like an entries column-allowlist failure. The isolated allowlist includes
+`enrollments` explicitly; it does not broaden the protected entries result
+columns.
+
 Alternative considered: grant broad table access to `service_role`. Rejected because the requirement is local deterministic setup, and changing hosted data-access grants would unnecessarily expand scope.
 
 ## Risks / Trade-offs

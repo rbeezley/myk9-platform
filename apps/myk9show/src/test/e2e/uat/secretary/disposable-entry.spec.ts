@@ -97,7 +97,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
 
     const toolsDialog = page.getByRole('dialog', { name: 'Show Desk tools' });
     await expect(toolsDialog).toBeVisible();
-    await page.getByRole('searchbox', { name: 'Search exhibitors' }).fill(seed.dogName);
+    await page.getByRole('textbox', { name: 'Search exhibitors' }).fill(seed.dogName);
 
     const personRow = page.getByRole('button').filter({ hasText: seed.dogName });
     await expect(personRow).toHaveCount(1);

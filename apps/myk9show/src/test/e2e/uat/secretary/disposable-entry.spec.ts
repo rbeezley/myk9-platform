@@ -104,7 +104,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await personRow.click();
 
     const classRow = page.getByText(seed.dogName, { exact: true }).locator('..').locator('..');
-    await expect(classRow).toContainText(seed.className);
+    await expect(classRow.getByText(seed.armband, { exact: true })).toBeVisible();
     await classRow.getByRole('button', { name: 'Check in', exact: true }).click();
     await expect(classRow.getByText('Checked-in', { exact: true })).toBeVisible({
       timeout: 10_000,

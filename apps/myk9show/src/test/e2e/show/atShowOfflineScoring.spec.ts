@@ -11,11 +11,10 @@ import {
  *
  * Offline round-trip guard for the at-show live scoresheet, run as the SECRETARY
  * (a show manager — the role the at-show data layer fully supports for read +
- * write). Reuses the Heartland Scent Work Classic demo seed instead of creating
- * live rows. Shared staging writes remain intercepted, while isolated runs
- * observe the real ringside_update_entry RPC and verify persisted state before
- * restoring the seed. If the seed is rebuilt, update the show/class/entry IDs
- * together.
+ * write). Creates a disposable entry in the Heartland Scent Work Classic demo
+ * class. Shared staging writes remain intercepted, while isolated runs observe
+ * the real ringside_update_entry RPC and verify persisted state before deleting
+ * the disposable entry.
  *
  * (Previous Heritage fixture 3b91e282… was wiped from staging — "Ringside isn't
  * enabled" — so this moved to the stable Heartland demo show.)
@@ -23,8 +22,7 @@ import {
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000032';
-const ENTRY_ID = 'dededede-0000-0000-0000-000000000053';
-const SCORE_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}/score/${ENTRY_ID}`;
+const TEMPLATE_ENTRY_ID = 'dededede-0000-0000-0000-000000000053';
 const CLASS_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}`;
 // Mirrors @myk9/replication constants: DB_NAME in packages/replication/src/constants.ts
 // and REPLICATION_STORES in packages/replication/src/core/DatabaseManager.ts.
@@ -37,7 +35,8 @@ test.describe('At-show offline scoring', () => {
     page,
     context,
   }) => {
-    const originalState = await readPersistedScoringState();
+    const seed = await seedOfflineScoringEntry();
+    const scorePath = `/at-show/${SHOW_ID}/class/${CLASS_ID}/score/${seed.entryId}`;
     const rpcCalls: GuardedRingsideRpcCall[] = [];
     await installSharedStagingWriteGuard(page, {
       observeIsolatedRingsideWrites: true,
@@ -45,11 +44,11 @@ test.describe('At-show offline scoring', () => {
     });
 
     try {
-      await signInAsSecretary(page, SCORE_PATH);
-      await expect(page).toHaveURL(new RegExp(escapeRegExp(SCORE_PATH)));
+      await signInAsSecretary(page, scorePath);
+      await expect(page).toHaveURL(new RegExp(escapeRegExp(scorePath)));
       await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
 
-      await expect.poll(() => readEntryReplica(page)).not.toBeNull();
+      await expect.poll(() => readEntryReplica(page, seed.entryId)).not.toBeNull();
 
       await context.setOffline(true);
       await page.evaluate(() => window.dispatchEvent(new Event('offline')));
@@ -71,7 +70,7 @@ test.describe('At-show offline scoring', () => {
         .poll(() => readPendingMutationCount(page), { timeout: 10_000 })
         .toBeGreaterThan(0);
       await expect
-        .poll(() => readEntryReplica(page), { timeout: 10_000 })
+        .poll(() => readEntryReplica(page, seed.entryId), { timeout: 10_000 })
         .toMatchObject({
           syncStatus: 'pending',
           isDirty: true,
@@ -88,45 +87,125 @@ test.describe('At-show offline scoring', () => {
         .poll(
           () =>
             rpcCalls.some(
-              call => call.p_entry_id === ENTRY_ID && call.p_fields?.result_status === 'qualified'
+              call =>
+                call.p_entry_id === seed.entryId && call.p_fields?.result_status === 'qualified'
             ),
           { timeout: 20_000 }
         )
         .toBe(true);
       await expect.poll(() => readPendingMutationCount(page), { timeout: 20_000 }).toBe(0);
       await expect
-        .poll(() => readPersistedScoringState(), { timeout: 20_000 })
+        .poll(() => readPersistedScoringState(seed.entryId), { timeout: 20_000 })
         .toEqual({ is_scored: true, result_status: 'qualified' });
     } finally {
-      await context.setOffline(false);
-      await restorePersistedScoringState(originalState);
+      try {
+        await context.setOffline(false);
+      } finally {
+        await cleanupOfflineScoringEntry(seed);
+      }
     }
   });
 });
+
+interface OfflineScoringSeed {
+  entryId: string;
+  dogId: string;
+}
 
 interface PersistedScoringState {
   is_scored: boolean;
   result_status: string | null;
 }
 
-async function readPersistedScoringState(): Promise<PersistedScoringState> {
+async function seedOfflineScoringEntry(): Promise<OfflineScoringSeed> {
+  const client = getIsolatedAdminClient();
+  const { data: template, error: templateError } = await client
+    .from('entries')
+    .select('trial_id, handler_id, handler, entry_fee, payment_status, dog_id')
+    .eq('id', TEMPLATE_ENTRY_ID)
+    .single();
+  if (templateError || !template) {
+    throw new Error(
+      `Could not read scoring entry template: ${templateError?.message ?? 'missing entry'}`
+    );
+  }
+
+  const { data: templateDog, error: templateDogError } = await client
+    .from('dogs')
+    .select('owner_id, breed, sex')
+    .eq('id', template.dog_id)
+    .single();
+  if (templateDogError || !templateDog) {
+    throw new Error(
+      `Could not read scoring dog template: ${templateDogError?.message ?? 'missing dog'}`
+    );
+  }
+
+  const suffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  const { data: dog, error: dogError } = await client
+    .from('dogs')
+    .insert({
+      name: `Offline Score ${suffix}`,
+      call_name: `Offline Score ${suffix}`,
+      breed: templateDog.breed,
+      sex: templateDog.sex,
+      owner_id: templateDog.owner_id,
+    })
+    .select('id')
+    .single();
+  if (dogError || !dog) {
+    throw new Error(`Could not seed scoring dog: ${dogError?.message ?? 'missing dog'}`);
+  }
+
+  const { data: entry, error: entryError } = await client
+    .from('entries')
+    .insert({
+      show_id: SHOW_ID,
+      trial_id: template.trial_id,
+      class_id: CLASS_ID,
+      dog_id: dog.id,
+      handler_id: template.handler_id,
+      handler: template.handler,
+      entry_status: 'confirmed',
+      payment_status: template.payment_status,
+      entry_fee: template.entry_fee,
+      is_scored: false,
+      result_status: 'pending',
+    })
+    .select('id')
+    .single();
+  if (entryError || !entry) {
+    await client.from('dogs').delete().eq('id', dog.id);
+    throw new Error(`Could not seed scoring entry: ${entryError?.message ?? 'missing entry'}`);
+  }
+
+  return { entryId: entry.id, dogId: dog.id };
+}
+
+async function cleanupOfflineScoringEntry(seed: OfflineScoringSeed) {
+  const client = getIsolatedAdminClient();
+  const entryResult = await client.from('entries').delete().eq('id', seed.entryId);
+  const dogResult = await client.from('dogs').delete().eq('id', seed.dogId);
+  if (entryResult.error || dogResult.error) {
+    throw new Error(
+      `Could not clean up scoring fixture: ${
+        entryResult.error?.message ?? dogResult.error?.message ?? 'unknown error'
+      }`
+    );
+  }
+}
+
+async function readPersistedScoringState(entryId: string): Promise<PersistedScoringState> {
   const client = getIsolatedAdminClient();
   const { data, error } = await client
     .from('entries')
     .select('is_scored, result_status')
-    .eq('id', ENTRY_ID)
+    .eq('id', entryId)
     .single();
   if (error || !data) {
     throw new Error(`Could not read isolated scoring state: ${error?.message ?? 'missing entry'}`);
   }
   return data;
-}
-
-async function restorePersistedScoringState(state: PersistedScoringState) {
-  const { error } = await getIsolatedAdminClient().from('entries').update(state).eq('id', ENTRY_ID);
-  if (error) {
-    throw new Error(`Could not restore isolated scoring state: ${error.message}`);
-  }
 }
 
 function getIsolatedAdminClient() {
@@ -150,7 +229,7 @@ function getIsolatedAdminClient() {
   });
 }
 
-async function readEntryReplica(page: Page) {
+async function readEntryReplica(page: Page, entryId: string) {
   return page.evaluate(
     ({ dbName, storeName, entryId }) =>
       new Promise<{
@@ -190,7 +269,7 @@ async function readEntryReplica(page: Page) {
           };
         };
       }),
-    { dbName: REPLICATION_DB_NAME, storeName: REPLICATED_TABLES_STORE, entryId: ENTRY_ID }
+    { dbName: REPLICATION_DB_NAME, storeName: REPLICATED_TABLES_STORE, entryId }
   );
 }
 

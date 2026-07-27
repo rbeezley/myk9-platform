@@ -76,6 +76,7 @@ export async function seedSecretaryEntry(testInfo: TestInfo): Promise<SecretaryU
       show_id: SHOW_ID,
       name: `UAT Secretary Trial ${suffix}`,
       date: new Date().toISOString().slice(0, 10),
+      timezone: 'UTC',
       trial_number: `UAT-${suffix}`,
       event_number: `UAT-${suffix}`,
     })

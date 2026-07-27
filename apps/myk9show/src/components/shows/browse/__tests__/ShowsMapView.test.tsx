@@ -1,8 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ShowsMapView, partitionMappableShows } from '../ShowsMapView';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
+import { US_CENTER } from '@/features/maps/tiles';
+
+const mapMocks = vi.hoisted(() => ({
+  fitBounds: vi.fn(),
+  setView: vi.fn(),
+}));
 
 // jsdom can't lay out a real Leaflet map; render structural stand-ins so the
 // view's own logic (partitioning, popups, legend, empty state) is testable.
@@ -15,7 +21,7 @@ vi.mock('react-leaflet', () => ({
     <div data-testid="map-marker">{children}</div>
   ),
   Popup: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-  useMap: () => ({ fitBounds: vi.fn(), setView: vi.fn(), getZoom: () => 4 }),
+  useMap: () => ({ ...mapMocks, getZoom: () => 4 }),
 }));
 
 function makeShow(overrides: Partial<EnhancedShow>): EnhancedShow {
@@ -57,14 +63,26 @@ describe('partitionMappableShows', () => {
   });
 
   it('derives a marker status per located show', () => {
-    const { located } = partitionMappableShows(
-      [makeShow({ id: 'closed-show', status: 'completed' })]
-    );
+    const { located } = partitionMappableShows([
+      makeShow({ id: 'closed-show', status: 'completed' }),
+    ]);
     expect(located[0].status).toBe('closed');
   });
 });
 
 describe('ShowsMapView', () => {
+  beforeEach(() => {
+    mapMocks.fitBounds.mockClear();
+    mapMocks.setView.mockClear();
+  });
+
+  it('keeps a single show at the continental-US zoom level', () => {
+    render(<ShowsMapView shows={[makeShow({})]} onSwitchToCards={vi.fn()} />);
+
+    expect(mapMocks.setView).toHaveBeenCalledWith(US_CENTER, 4);
+    expect(mapMocks.fitBounds).not.toHaveBeenCalled();
+  });
+
   it('renders one marker per located show and the omitted-count note', () => {
     const shows = [
       makeShow({ id: 'a' }),

@@ -52,12 +52,13 @@ The last pre-isolation failure was [run 29635653949](https://github.com/rbeezley
 
 Current dispatch evidence:
 
-- `pnpm qa:isolated-e2e:test` → 19 passed.
+- `pnpm qa:isolated-e2e:test` → 20 passed.
 - Playwright regression discovery → 59 tests in 15 files compile/list successfully.
 - All eight E2E credential secret names exist in GitHub Actions.
 - `MYK9SHOW_REGRESSION_CI_ENABLED=true` was enabled with operator approval on 2026-07-27.
 - [Run 30296081479](https://github.com/rbeezley/myk9-platform/actions/runs/30296081479) reached the disposable-target preparation step but failed before Playwright with an opaque `Supabase start failed`. The lifecycle now excludes optional Studio/analytics/vector/image/mail/metadata/Functions services and emits bounded sanitized startup detail without ignoring required-service health checks.
 - [Run 30296477490](https://github.com/rbeezley/myk9-platform/actions/runs/30296477490) proved the minimal stack starts, then exposed a fresh-chain migration ordering defect: migration 020 referenced `is_show_secretary()` before migration 024 defined it. Migration 016 already defines the canonical `is_trial_secretary()` dependency. Migration 020 now creates the compatibility alias before its first policy reference, with a source-contract test guarding that ordering.
 - [Run 30296908060](https://github.com/rbeezley/myk9-platform/actions/runs/30296908060) applied through migration 060, then exposed the scoped overload of the same ordering defect: migration 061 called `is_show_secretary(show_id)` before migration 099 defined it. Migration 061 now resolves the show to its owning club and delegates to `is_trial_secretary(club_id)` until migration 099 replaces the overload with the later show-role implementation. The source contract guards both helper arities at their first use.
+- [Run 30297186424](https://github.com/rbeezley/myk9-platform/actions/runs/30297186424) applied through the 2026-07-18 migrations, then failed because the Broadcast migration attempted to alter the Supabase-managed `realtime.messages` table before creating its policy. The redundant `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` is removed; the scoped policy remains, matching Supabase's managed Realtime authorization pattern.
 
 Successful dispatch: pending.

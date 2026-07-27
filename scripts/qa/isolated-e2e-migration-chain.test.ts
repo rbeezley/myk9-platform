@@ -11,6 +11,13 @@ const migration061 = readFileSync(
   resolve(process.cwd(), 'supabase/migrations/061_email_log_and_confirmation_message.sql'),
   'utf8'
 );
+const realtimeBroadcastMigration = readFileSync(
+  resolve(
+    process.cwd(),
+    'supabase/migrations/20260718210000_migrate_showday_realtime_to_broadcast.sql'
+  ),
+  'utf8'
+);
 
 describe('isolated E2E migration chain', () => {
   it('defines is_show_secretary before the first policy that references it', () => {
@@ -29,5 +36,14 @@ describe('isolated E2E migration chain', () => {
 
     expect(helperDefinition).toBeGreaterThanOrEqual(0);
     expect(firstPolicyReference).toBeGreaterThan(helperDefinition);
+  });
+
+  it('creates the managed Realtime policy without altering the managed table', () => {
+    expect(realtimeBroadcastMigration).not.toContain(
+      'ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY'
+    );
+    expect(realtimeBroadcastMigration).toContain(
+      'CREATE POLICY "show-day change signals are readable"'
+    );
   });
 });

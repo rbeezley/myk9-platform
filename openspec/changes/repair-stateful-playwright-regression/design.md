@@ -69,6 +69,12 @@ Migration 061 also calls the scoped `is_show_secretary(show_id)` overload before
 
 Alternative considered: add a new migration. Rejected because a later migration cannot repair a fresh chain that stops at migration 020 or 061. Renumbering migrations 024 or 099 was also rejected because it would change the identity of migrations already recorded by existing databases.
 
+### 8. Manage Realtime authorization through policies, not table ownership
+
+The `realtime.messages` table is owned and managed by Supabase. The 2026-07-18 Broadcast migration attempted to run `ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY` before creating its scoped `SELECT` policy, but current local images reject that managed-table alteration. Remove only the redundant `ALTER TABLE`; retain the policy, `realtime.topic()` scope, trigger function, and publication cleanup. Supabase's documented Broadcast authorization pattern likewise creates policies directly on the managed table.
+
+Alternative considered: change ownership or elevate the migration role. Rejected because that would weaken the managed-schema boundary and diverge from hosted Supabase behavior.
+
 ## Risks / Trade-offs
 
 - **The disposable local stack is slower or flaky on hosted runners** → keep the 90-minute job bound, zero retries, two reports, and fail-closed preparation so infrastructure failure remains visible.

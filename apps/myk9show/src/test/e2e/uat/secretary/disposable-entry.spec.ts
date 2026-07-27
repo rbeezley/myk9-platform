@@ -82,8 +82,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       ),
     });
     await expect(entryStatusButton).toBeVisible({ timeout: 10000 });
-    const acceptedItem = page.getByRole('menuitem', { name: 'Accept', exact: true });
-    await clickMenuItemWhenStable(() => entryStatusButton.click(), acceptedItem);
+    await entryCard.getByRole('button', { name: 'Accept', exact: true }).click();
     await expect(entryStatusButton).toContainText('Accepted', { timeout: 10000 });
   });
 });
@@ -118,22 +117,6 @@ async function clickRowActionsWhenStable(rowActions: Locator) {
 
     try {
       await rowActions.click({ timeout: 3000 });
-      return;
-    } catch (error) {
-      if (attempt === 3 || !isDetachedDuringClick(error)) {
-        throw error;
-      }
-    }
-  }
-}
-
-async function clickMenuItemWhenStable(openMenu: () => Promise<void>, menuItem: Locator) {
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    await openMenu();
-    await expect(menuItem).toBeVisible({ timeout: 10000 });
-
-    try {
-      await menuItem.click({ timeout: 3000 });
       return;
     } catch (error) {
       if (attempt === 3 || !isDetachedDuringClick(error)) {

@@ -1,5 +1,5 @@
 import { render, screen } from '@/test/utils/testUtils';
-import { within } from '@testing-library/react';
+import { fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -10,6 +10,9 @@ vi.mock('@/store/wizardStore', () => ({
     show: {
       name: '',
       organization: '',
+      location: '100 Old Venue Road',
+      latitude: 36.15,
+      longitude: -95.99,
       startDate: '',
       endDate: '',
       entryOpenDate: '',
@@ -157,6 +160,20 @@ describe('ShowDetailsStep — Step-1 grouping', () => {
     expect(screen.getByRole('heading', { name: 'Dates & Entry' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Fees & Payments' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Officials' })).toBeInTheDocument();
+  });
+
+  it('invalidates the confirmed venue pin when the address changes', () => {
+    render(<ShowDetailsStep />);
+
+    fireEvent.change(screen.getByLabelText(/location/i), {
+      target: { value: '200 New Venue Road' },
+    });
+
+    expect(mockUpdateShowData).toHaveBeenCalledWith({
+      location: '200 New Venue Road',
+      latitude: null,
+      longitude: null,
+    });
   });
 
   it('folds Host Club into Basics — no standalone Club Information heading', () => {

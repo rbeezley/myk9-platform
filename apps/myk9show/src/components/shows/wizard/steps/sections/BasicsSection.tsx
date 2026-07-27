@@ -14,6 +14,7 @@ import type { ShowDraft } from '@/store/wizardStore';
 import { ORGANIZATIONS } from '../ShowDetailsStep.types';
 import { SectionHeading } from './SectionHeading';
 import { VenuePinMap } from '@/components/common/LazyComponents';
+import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
 
 interface BasicsSectionProps {
   show: ShowDraft;
@@ -78,7 +79,10 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({ show, onUpdate, cl
         <Textarea
           id="show-location"
           value={show.location || ''}
-          onChange={e => onUpdate({ location: e.target.value })}
+          onChange={e => {
+            const location = e.target.value;
+            onUpdate(invalidateVenuePinIfLocationChanged(show.location, { location }));
+          }}
           placeholder="Enter venue name and address"
           rows={3}
           className="border border-border bg-input rounded-md"

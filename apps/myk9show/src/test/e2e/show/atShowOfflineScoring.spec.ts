@@ -38,12 +38,12 @@ test.describe('At-show offline scoring', () => {
     const seed = await seedOfflineScoringEntry();
     const scorePath = `/at-show/${SHOW_ID}/class/${CLASS_ID}/score/${seed.entryId}`;
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, {
-      observeIsolatedRingsideWrites: true,
-      ringsideRpcCalls: rpcCalls,
-    });
 
     try {
+      await installSharedStagingWriteGuard(page, {
+        observeIsolatedRingsideWrites: true,
+        ringsideRpcCalls: rpcCalls,
+      });
       await signInAsSecretary(page, scorePath);
       await expect(page).toHaveURL(new RegExp(escapeRegExp(scorePath)));
       await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });

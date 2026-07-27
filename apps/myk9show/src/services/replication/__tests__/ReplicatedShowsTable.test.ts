@@ -632,6 +632,39 @@ describe('ReplicatedShowsTable', () => {
       });
     });
 
+    it.each([
+      { label: 'undefined longitude', latitude: 35.47, longitude: undefined },
+      { label: 'mixed null and number', latitude: null, longitude: -97.52 },
+      { label: 'out-of-range latitude', latitude: 95, longitude: -97.52 },
+    ])(
+      'should clear both coordinates for an invalid replacement pin: $label',
+      async ({ latitude, longitude }) => {
+        const show: ReplicatedShow = {
+          id: 'show-1',
+          name: 'Original Show',
+          organization: 'Obedience',
+          startDate: '2024-06-15',
+          endDate: '2024-06-16',
+          location: '100 Old Venue Road',
+          latitude: 36.15,
+          longitude: -95.99,
+        };
+
+        await table.set('show-1', show);
+        await table.updateShow('show-1', {
+          location: '200 New Venue Road',
+          latitude,
+          longitude,
+        });
+
+        expect(await table.get('show-1')).toMatchObject({
+          location: '200 New Venue Road',
+          latitude: null,
+          longitude: null,
+        });
+      }
+    );
+
     it('should mark show as dirty after update', async () => {
       const show: ReplicatedShow = {
         id: 'show-1',

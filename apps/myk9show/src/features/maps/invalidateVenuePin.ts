@@ -9,7 +9,16 @@ export function invalidateVenuePinIfLocationChanged<T extends VenueLocationUpdat
   updates: T
 ): T {
   const locationChanged = updates.location !== undefined && updates.location !== currentLocation;
-  const includesReplacementPin = 'latitude' in updates && 'longitude' in updates;
+  const includesReplacementPin =
+    (updates.latitude === null && updates.longitude === null) ||
+    (typeof updates.latitude === 'number' &&
+      Number.isFinite(updates.latitude) &&
+      updates.latitude >= -90 &&
+      updates.latitude <= 90 &&
+      typeof updates.longitude === 'number' &&
+      Number.isFinite(updates.longitude) &&
+      updates.longitude >= -180 &&
+      updates.longitude <= 180);
 
   if (!locationChanged || includesReplacementPin) return updates;
 

@@ -135,6 +135,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Nightly health workflow contract
+        run: pnpm qa:nightly:workflow:test
+
       - name: Code-quality ratchets
         run: pnpm qa:code-quality-ratchet
 

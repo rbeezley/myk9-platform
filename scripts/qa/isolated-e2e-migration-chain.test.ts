@@ -75,6 +75,20 @@ describe('isolated E2E migration chain', () => {
     expect(showInsertColumns).not.toMatch(/\bchief_steward\b/);
   });
 
+  it('temporarily grants only the guarded entry insert required by the demo seed', () => {
+    const grantIndex = demoSeed.indexOf('GRANT INSERT ON TABLE public.entries TO service_role;');
+    const roleIndex = demoSeed.indexOf('SET LOCAL ROLE service_role;');
+    const resetIndex = demoSeed.indexOf('RESET ROLE;');
+    const revokeIndex = demoSeed.indexOf(
+      'REVOKE INSERT ON TABLE public.entries FROM service_role;'
+    );
+
+    expect(grantIndex).toBeGreaterThanOrEqual(0);
+    expect(roleIndex).toBeGreaterThan(grantIndex);
+    expect(resetIndex).toBeGreaterThan(roleIndex);
+    expect(revokeIndex).toBeGreaterThan(resetIndex);
+  });
+
   it('uses direct local SQL for account profiles and roles around the demo seed', () => {
     expect(existsSync(isolatedAccountSeedPath)).toBe(true);
     expect(lifecycleSource).toContain("MYK9_E2E_AUTH_ONLY: 'true'");

@@ -46,6 +46,8 @@ function getStatusBadgeValue(status: EntryStatus, statusKind?: EntryStatusKind):
       return 'absent';
     case 'unknown':
       return 'no-status';
+    case 'completed':
+      return 'completed';
     default:
       return status;
   }
@@ -64,7 +66,7 @@ export function getEntryStatusBadge(
 ): React.ReactNode {
   const statusKind = options.statusKind ?? (status === EntryStatus.PENDING ? 'pending' : undefined);
   let contextualLabel: string | undefined;
-  switch (status) {
+  switch (statusKind === 'completed' ? EntryStatus.COMPLETED : status) {
     case EntryStatus.PENDING:
       if (statusKind === 'in_ring') contextualLabel = 'In Ring';
       else if (statusKind === 'absent') contextualLabel = 'Absent';
@@ -145,9 +147,11 @@ export function getStatusIcon(
         ? 'absent'
         : statusKind === 'unknown'
           ? 'no-status'
-          : entryStatus === EntryStatus.ACCEPTED && paymentStatus === PaymentStatus.PENDING
-            ? 'pending-payment'
-            : entryStatus;
+          : statusKind === 'completed'
+            ? 'completed'
+            : entryStatus === EntryStatus.ACCEPTED && paymentStatus === PaymentStatus.PENDING
+              ? 'pending-payment'
+              : entryStatus;
   return <StatusIcon family="entry" status={status} size="lg" />;
 }
 
@@ -180,6 +184,9 @@ export function getContextualStatusMessage(
   }
   if (entry.entryStatusKind === 'unknown') {
     return { message: 'Status unavailable', className: 'text-muted-foreground' };
+  }
+  if (entry.entryStatusKind === 'completed' || entry.entryStatus === EntryStatus.COMPLETED) {
+    return { message: 'Scored', className: 'text-success' };
   }
 
   if (entry.entryStatus === EntryStatus.CANCELLED || entry.entryStatus === EntryStatus.SCRATCHED) {

@@ -83,6 +83,25 @@ describe('deriveEntryNextAction', () => {
     expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'view-show' });
   });
 
+  it('returns view-show for a completed-kind class with a legacy accepted status', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.ACCEPTED,
+      entryStatusKind: 'completed',
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      classes: [
+        makeClass({
+          id: 'entry-1',
+          classId: 'class-1',
+          entryStatus: EntryStatus.ACCEPTED,
+          entryStatusKind: 'completed',
+          isScored: false,
+        }),
+      ],
+    });
+
+    expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'view-show' });
+  });
+
   it('returns view-show for a paid entry whose only class has self-check-in disabled', () => {
     const entry = makeEntry({
       paymentStatus: PaymentStatus.PAID_ONLINE,

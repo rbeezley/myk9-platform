@@ -313,6 +313,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
               missing because the class isn't known yet, not because the
               toggle is open. */}
           {!cls.isScored &&
+            cls.entryStatusKind !== 'completed' &&
             (!cls.unresolved &&
             (cls.classId ? (selfCheckinByClassId[cls.classId] ?? true) : true) ? (
               <button

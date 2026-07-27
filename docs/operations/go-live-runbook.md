@@ -20,17 +20,17 @@ this document is the sequence, the gates, and the verification commands.
 
 ## Gate summary (the launch decision at a glance)
 
-| #   | Gate                                                                                         | Blocks                   | Status check                                                                                                                                                                                                                                                  |
-| --- | -------------------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G1  | Security remediation deployed (including 2026-07-10 SA-018…023/026/027)                      | Phase 1                  | `security-audit-remediation` merged, migration/function deployment recorded, and `OPEN-TODOS.md` updated                                                                                                                                                      |
-| G2  | Pending deploys/migrations reconciled (`ask-myk9show`, withdrawal migrations, edge-fn drift) | Phase 1                  | Phase 0 verification commands below                                                                                                                                                                                                                           |
-| G3  | Money-path hardening Phases 1–3 merged + deployed (MP-01…MP-04)                              | Phase 3 (Stripe cutover) | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md) phase table; PRs merged + fns redeployed                                                                                                                                               |
-| G4  | Tokenless staging promotion + explicit production release ready                              | Phase 4                  | `deploy-staging.yml` and protected `deploy-production.yml` source checks pass; external gates remain open                                                                                                                                                     |
-| G5  | Passcode ringside walk passes cold (`jh3k9`/`s7m2p`)                                         | Phase 4                  | Phase 2 step 2.3                                                                                                                                                                                                                                              |
-| G6  | Show-day re-walk + offline rehearsal + venue print test pass                                 | Phase 5                  | Phase 4 evidence links                                                                                                                                                                                                                                        |
-| G7  | Real-user testing complete, no confusion-level findings                                      | Launch                   | Lane 1.7 session results filed; scorecard UX-clarity row Green                                                                                                                                                                                                |
-| G8  | **Data durability proven** — backups verified enabled, one restore actually performed        | Phase 3 (Stripe cutover) | Phase 2 step 2.4; scorecard **Data durability** row **Green** (a confirmed-but-untested backup is Yellow, not a passed gate); [MYK9-110](https://linear.app/myk9-platform/issue/MYK9-110/establish-and-test-a-backup-disaster-recovery-posture-currently-one) |
-| G9  | **Capacity rehearsal PASSES** the load harness' stated targets                               | Phase 5 (launch day)     | Phase 4 step 4.2c; scorecard **Performance & capacity** row **Green** — a recorded-but-failing rehearsal does NOT close G9; [MYK9-109](https://linear.app/myk9-platform/issue/MYK9-109/assess-refresh-and-run-the-existing-load-harness-no-rehearsal-result)  |
+| #   | Gate                                                                                         | Blocks                   | Status check                                                                                                                                                                                                                                                                                              |
+| --- | -------------------------------------------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G1  | Security remediation deployed (including 2026-07-10 SA-018…023/026/027)                      | Phase 1                  | `security-audit-remediation` merged, migration/function deployment recorded, and `OPEN-TODOS.md` updated                                                                                                                                                                                                  |
+| G2  | Pending deploys/migrations reconciled (`ask-myk9show`, withdrawal migrations, edge-fn drift) | Phase 1                  | Phase 0 verification commands below                                                                                                                                                                                                                                                                       |
+| G3  | Money-path hardening Phases 1–3 merged + deployed (MP-01…MP-04)                              | Phase 3 (Stripe cutover) | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md) phase table; PRs merged + fns redeployed                                                                                                                                                                                           |
+| G4  | Tokenless staging promotion + explicit production release ready                              | Phase 4                  | `deploy-staging.yml` and protected `deploy-production.yml` source checks pass; external gates remain open                                                                                                                                                                                                 |
+| G5  | Passcode ringside walk passes cold (`jh3k9`/`s7m2p`)                                         | Phase 4                  | Phase 2 step 2.3                                                                                                                                                                                                                                                                                          |
+| G6  | Show-day re-walk + offline rehearsal + venue print test pass                                 | Phase 5                  | Phase 4 evidence links                                                                                                                                                                                                                                                                                    |
+| G7  | Real-user testing complete, no confusion-level findings                                      | Launch                   | Lane 1.7 session results filed; scorecard UX-clarity row Green                                                                                                                                                                                                                                            |
+| G8  | **Data durability proven** — backups verified enabled, one restore actually performed        | Phase 3 (Stripe cutover) | Phase 2 step 2.4; scorecard **Data durability** row **Green** (a confirmed-but-untested backup is Yellow, not a passed gate); [MYK9-110](https://linear.app/myk9-platform/issue/MYK9-110/establish-and-test-a-backup-disaster-recovery-posture-currently-one)                                             |
+| G9  | **Capacity rehearsal PASSES the Normal scenario** (100 users, ≤5% errors, p95 ≤200 ms API)   | Phase 5 (launch day)     | Phase 4 step 4.2c; scorecard **Performance & capacity** row **Green** — a recorded-but-failing rehearsal does NOT close G9, and Peak/Stress runs are informational only; [MYK9-109](https://linear.app/myk9-platform/issue/MYK9-109/assess-refresh-and-run-the-existing-load-harness-no-rehearsal-result) |
 
 Launch = all **nine** gates green + scorecard shows **all Primary dimensions Green** (hence no Red and
 no Unknown) and **no open P0/P1** in
@@ -379,25 +379,25 @@ recorded.
 
       Preferred: the admin UI — **/people/:id → Edit → Complimentary Premium**.
 
-                              By SQL, the RPC is site-admin-only, and the dashboard's `postgres` role is
-                              NOT a site admin, so impersonate one:
+                                      By SQL, the RPC is site-admin-only, and the dashboard's `postgres` role is
+                                      NOT a site admin, so impersonate one:
 
-                              ```sql
-                              BEGIN;
-                              SET LOCAL ROLE authenticated;
-                              SELECT set_config('request.jwt.claims',
-                                json_build_object('sub','<site-admin auth_user_id>','role','authenticated')::text, true);
+                                      ```sql
+                                      BEGIN;
+                                      SET LOCAL ROLE authenticated;
+                                      SELECT set_config('request.jwt.claims',
+                                        json_build_object('sub','<site-admin auth_user_id>','role','authenticated')::text, true);
 
-                              SELECT public.admin_grant_entitlement(
-                                (SELECT id FROM public.people WHERE email = 'person@example.com'),
-                                'founding', now(), now() + interval '12 months',
-                                'Founding member — go-live batch', false);
-                              COMMIT;
-                              ```
+                                      SELECT public.admin_grant_entitlement(
+                                        (SELECT id FROM public.people WHERE email = 'person@example.com'),
+                                        'founding', now(), now() + interval '12 months',
+                                        'Founding member — go-live batch', false);
+                                      COMMIT;
+                                      ```
 
-                              Verify with the queries in [`../entitlement-operations.md`](../entitlement-operations.md).
-                              Note `has_effective_premium_access()` is caller-scoped: querying it as
-                              `postgres` returns nothing, which is correct rather than a failure.
+                                      Verify with the queries in [`../entitlement-operations.md`](../entitlement-operations.md).
+                                      Note `has_effective_premium_access()` is caller-scoped: querying it as
+                                      `postgres` returns nothing, which is correct rather than a failure.
 
 - [ ] **3.11** Concierge-onboard the first 3–4 club treasurers by phone using
       [`stripe-treasurer-guide.md`](stripe-treasurer-guide.md); confirm Express accounts appear
@@ -468,6 +468,14 @@ close-out; keep those items unchecked until evidence is recorded.
         production-candidate project.
   - [ ] **d.** Record: peak CPU, peak `pg_stat_activity` count vs the **60**-connection cap, p95 on
         the scoring write path, ringside `40001` serialization-failure rate, replication queue depth.
+  - [ ] **d2. Grade against the right scenario.** The harness defines _per-scenario_ thresholds
+        (`LoadTestFramework.ts:32`): **Normal** 100 users / ≤5% errors, **Peak** 250 / ≤10%,
+        **Stress** 500 / ≤25%; p95 ≤200 ms API, ≤300 ms search, ≤500 ms realtime, ≤3 s page.
+        **G9 closes on the Normal scenario only** — 100 concurrent users already exceeds a realistic
+        show weekend of ~50 ringside devices. Peak and Stress are informational and judged against
+        their own looser numbers; they neither close nor block the gate. Beware:
+        `LoadTestFramework.ts:448` hardcodes `errorRate.normal` in its report generator, so the
+        harness stamps ✅/❌ against 5% for _every_ scenario — read Peak/Stress figures yourself.
   - [ ] **e.** State the ceiling — "N concurrent ringside sessions on a show of M entries" — and the
         compute tier it assumes. Confirm that tier is adequate or schedule an upgrade.
   - [ ] **f.** Decide whether the harness joins a workflow (even monthly). It rotted once precisely

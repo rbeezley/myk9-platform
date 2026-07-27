@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
 import { signInAsSecretary } from '../uat/shared/auth';
 import {
   installSharedStagingWriteGuard,
@@ -11,10 +12,10 @@ import {
  * Offline round-trip guard for the at-show live scoresheet, run as the SECRETARY
  * (a show manager — the role the at-show data layer fully supports for read +
  * write). Reuses the Heartland Scent Work Classic demo seed instead of creating
- * live rows, then intercepts the ringside_update_entry RPC (the routed sync
- * target for ringside-column writes — PR #886) so reconnect verification never
- * mutates the shared Supabase project. If the seed is rebuilt, update the
- * show/class/entry IDs together.
+ * live rows. Shared staging writes remain intercepted, while isolated runs
+ * observe the real ringside_update_entry RPC and verify persisted state before
+ * restoring the seed. If the seed is rebuilt, update the show/class/entry IDs
+ * together.
  *
  * (Previous Heritage fixture 3b91e282… was wiped from staging — "Ringside isn't
  * enabled" — so this moved to the stable Heartland demo show.)
@@ -36,61 +37,118 @@ test.describe('At-show offline scoring', () => {
     page,
     context,
   }) => {
+    const originalState = await readPersistedScoringState();
     const rpcCalls: GuardedRingsideRpcCall[] = [];
     await installSharedStagingWriteGuard(page, {
-      interceptIsolatedRingsideWrites: true,
+      observeIsolatedRingsideWrites: true,
       ringsideRpcCalls: rpcCalls,
     });
 
-    await signInAsSecretary(page, SCORE_PATH);
-    await expect(page).toHaveURL(new RegExp(escapeRegExp(SCORE_PATH)));
-    await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
+    try {
+      await signInAsSecretary(page, SCORE_PATH);
+      await expect(page).toHaveURL(new RegExp(escapeRegExp(SCORE_PATH)));
+      await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
 
-    await expect.poll(() => readEntryReplica(page)).not.toBeNull();
+      await expect.poll(() => readEntryReplica(page)).not.toBeNull();
 
-    await context.setOffline(true);
-    await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+      await context.setOffline(true);
+      await page.evaluate(() => window.dispatchEvent(new Event('offline')));
 
-    await page.getByTestId('result-Q').click();
-    const saveButton = page.getByRole('button', { name: /^Save$/ });
-    await expect(saveButton).toBeEnabled();
-    // Offline transitions keep the scoresheet in a short layout animation.
-    // Assert actionability, then avoid waiting for an impossible network
-    // navigation while dispatching the already-visible click.
-    await saveButton.evaluate(button => (button as HTMLButtonElement).click());
+      await page.getByTestId('result-Q').click();
+      const saveButton = page.getByRole('button', { name: /^Save$/ });
+      await expect(saveButton).toBeEnabled();
+      // Offline transitions keep the scoresheet in a short layout animation.
+      // Assert actionability, then avoid waiting for an impossible network
+      // navigation while dispatching the already-visible click.
+      await saveButton.evaluate(button => (button as HTMLButtonElement).click());
 
-    const confirmButton = page.getByRole('button', { name: /Confirm & Submit/i });
-    await expect(confirmButton).toBeEnabled();
-    await confirmButton.evaluate(button => (button as HTMLButtonElement).click());
+      const confirmButton = page.getByRole('button', { name: /Confirm & Submit/i });
+      await expect(confirmButton).toBeEnabled();
+      await confirmButton.evaluate(button => (button as HTMLButtonElement).click());
 
-    await expect(page).toHaveURL(new RegExp(escapeRegExp(CLASS_PATH)), { timeout: 15_000 });
-    await expect.poll(() => readPendingMutationCount(page), { timeout: 10_000 }).toBeGreaterThan(0);
-    await expect
-      .poll(() => readEntryReplica(page), { timeout: 10_000 })
-      .toMatchObject({
-        syncStatus: 'pending',
-        isDirty: true,
-        data: expect.objectContaining({
-          result_status: 'qualified',
-          is_scored: true,
-        }),
-      });
+      await expect(page).toHaveURL(new RegExp(escapeRegExp(CLASS_PATH)), { timeout: 15_000 });
+      await expect
+        .poll(() => readPendingMutationCount(page), { timeout: 10_000 })
+        .toBeGreaterThan(0);
+      await expect
+        .poll(() => readEntryReplica(page), { timeout: 10_000 })
+        .toMatchObject({
+          syncStatus: 'pending',
+          isDirty: true,
+          data: expect.objectContaining({
+            result_status: 'qualified',
+            is_scored: true,
+          }),
+        });
 
-    await context.setOffline(false);
-    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+      await context.setOffline(false);
+      await page.evaluate(() => window.dispatchEvent(new Event('online')));
 
-    await expect
-      .poll(
-        () =>
-          rpcCalls.some(
-            call => call.p_entry_id === ENTRY_ID && call.p_fields?.result_status === 'qualified'
-          ),
-        { timeout: 20_000 }
-      )
-      .toBe(true);
-    await expect.poll(() => readPendingMutationCount(page), { timeout: 20_000 }).toBe(0);
+      await expect
+        .poll(
+          () =>
+            rpcCalls.some(
+              call => call.p_entry_id === ENTRY_ID && call.p_fields?.result_status === 'qualified'
+            ),
+          { timeout: 20_000 }
+        )
+        .toBe(true);
+      await expect.poll(() => readPendingMutationCount(page), { timeout: 20_000 }).toBe(0);
+      await expect
+        .poll(() => readPersistedScoringState(), { timeout: 20_000 })
+        .toEqual({ is_scored: true, result_status: 'qualified' });
+    } finally {
+      await context.setOffline(false);
+      await restorePersistedScoringState(originalState);
+    }
   });
 });
+
+interface PersistedScoringState {
+  is_scored: boolean;
+  result_status: string | null;
+}
+
+async function readPersistedScoringState(): Promise<PersistedScoringState> {
+  const client = getIsolatedAdminClient();
+  const { data, error } = await client
+    .from('entries')
+    .select('is_scored, result_status')
+    .eq('id', ENTRY_ID)
+    .single();
+  if (error || !data) {
+    throw new Error(`Could not read isolated scoring state: ${error?.message ?? 'missing entry'}`);
+  }
+  return data;
+}
+
+async function restorePersistedScoringState(state: PersistedScoringState) {
+  const { error } = await getIsolatedAdminClient().from('entries').update(state).eq('id', ENTRY_ID);
+  if (error) {
+    throw new Error(`Could not restore isolated scoring state: ${error.message}`);
+  }
+}
+
+function getIsolatedAdminClient() {
+  const url = process.env.VITE_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) {
+    throw new Error('Missing isolated Supabase URL or service-role key');
+  }
+
+  const hostname = new URL(url).hostname;
+  if (hostname !== '127.0.0.1' && hostname !== 'localhost') {
+    throw new Error('Offline scoring persistence verification requires an isolated Supabase target');
+  }
+
+  return createClient(url, serviceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
 
 async function readEntryReplica(page: Page) {
   return page.evaluate(

@@ -9,6 +9,7 @@ import {
 } from '../shared/artifacts';
 import {
   cleanupSecretaryEntry,
+  readSecretaryEntryState,
   seedSecretaryEntry,
   type SecretaryUatSeed,
 } from '../shared/secretaryData';
@@ -45,7 +46,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     seedByTest.delete(testInfo.testId);
   });
 
-  test('secretary can find, assign armband, and accept a disposable entry', async ({
+  test('secretary can find, assign armband, accept, and check in a disposable entry', async ({
     page,
   }, testInfo) => {
     const seed = seedByTest.get(testInfo.testId)!;
@@ -84,6 +85,36 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await expect(entryStatusButton).toBeVisible({ timeout: 10000 });
     await entryCard.getByRole('button', { name: 'Accept', exact: true }).click();
     await expect(entryStatusButton).toContainText('Accepted', { timeout: 10000 });
+    await expect
+      .poll(() => readSecretaryEntryState(seed.entryId), { timeout: 20_000 })
+      .toMatchObject({ entry_status: 'accepted' });
+
+    await page.getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('link', { name: 'Open Check-in desk' }).click();
+    await expect(page).toHaveURL(
+      new RegExp(`/shows/${seed.showId}/show-desk\\?tool=people-at-show`)
+    );
+
+    const toolsDialog = page.getByRole('dialog', { name: 'Show Desk tools' });
+    await expect(toolsDialog).toBeVisible();
+    await toolsDialog.getByRole('searchbox', { name: 'Search exhibitors' }).fill(seed.dogName);
+
+    const personRow = toolsDialog.getByRole('button').filter({ hasText: seed.dogName });
+    await expect(personRow).toHaveCount(1);
+    await personRow.click();
+
+    const classRow = toolsDialog
+      .getByText(seed.dogName, { exact: true })
+      .locator('..')
+      .locator('..');
+    await expect(classRow).toContainText(seed.className);
+    await classRow.getByRole('button', { name: 'Check in', exact: true }).click();
+    await expect(classRow.getByText('Checked-in', { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect
+      .poll(() => readSecretaryEntryState(seed.entryId), { timeout: 20_000 })
+      .toMatchObject({ entry_status: 'accepted', check_in_status: 'checked-in' });
   });
 });
 

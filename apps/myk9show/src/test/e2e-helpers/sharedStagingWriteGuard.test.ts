@@ -71,11 +71,11 @@ describe('installSharedStagingWriteGuard', () => {
     expect(secondRoute.fulfilledBodies).toEqual(['202']);
   });
 
-  it('can capture an isolated-target RPC without changing shared-host classification', async () => {
+  it('can observe an isolated-target RPC without intercepting the write', async () => {
     const { page, handlers } = createRouteRecorder();
     const ringsideRpcCalls: GuardedRingsideRpcCall[] = [];
     await installSharedStagingWriteGuard(page, {
-      interceptIsolatedRingsideWrites: true,
+      observeIsolatedRingsideWrites: true,
       ringsideRpcCalls,
     });
 
@@ -87,7 +87,8 @@ describe('installSharedStagingWriteGuard', () => {
     const handler = getHandler(handlers, '**/rest/v1/rpc/ringside_update_entry');
     await handler(isolatedRoute.route);
 
-    expect(isolatedRoute.fulfilledBodies).toEqual(['101']);
+    expect(isolatedRoute.fulfilledBodies).toEqual([]);
+    expect(isolatedRoute.fallbackCount()).toBe(1);
     expect(ringsideRpcCalls).toEqual([{ p_entry_id: 'entry-1', p_fields: { is_scored: true } }]);
   });
 });
@@ -113,6 +114,7 @@ function getHandler(handlers: Map<string, RouteHandler>, url: string) {
 
 function createRouteDouble({ method, url }: { method: string; url: string }) {
   const fulfilledBodies: string[] = [];
+  let fallbacks = 0;
   const route = {
     request: () =>
       ({
@@ -123,8 +125,10 @@ function createRouteDouble({ method, url }: { method: string; url: string }) {
     fulfill: async (response: { body?: string }) => {
       fulfilledBodies.push(response.body ?? '');
     },
-    fallback: async () => undefined,
+    fallback: async () => {
+      fallbacks += 1;
+    },
   } as unknown as Route;
 
-  return { route, fulfilledBodies };
+  return { route, fulfilledBodies, fallbackCount: () => fallbacks };
 }

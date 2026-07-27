@@ -19,6 +19,11 @@ export interface SecretaryUatSeed {
   armband: string;
 }
 
+export interface SecretaryEntryState {
+  entry_status: string | null;
+  check_in_status: string | null;
+}
+
 export async function seedSecretaryEntry(testInfo: TestInfo): Promise<SecretaryUatSeed> {
   const client = getAdminClient();
   const runId = makeRunId();
@@ -70,7 +75,7 @@ export async function seedSecretaryEntry(testInfo: TestInfo): Promise<SecretaryU
     .insert({
       show_id: SHOW_ID,
       name: `UAT Secretary Trial ${suffix}`,
-      date: '2026-06-13',
+      date: new Date().toISOString().slice(0, 10),
       trial_number: `UAT-${suffix}`,
       event_number: `UAT-${suffix}`,
     })
@@ -126,6 +131,18 @@ export async function seedSecretaryEntry(testInfo: TestInfo): Promise<SecretaryU
 
   await writeManifest(testInfo, seed, 'created');
   return seed;
+}
+
+export async function readSecretaryEntryState(entryId: string): Promise<SecretaryEntryState> {
+  const { data, error } = await getAdminClient()
+    .from('entries')
+    .select('entry_status, check_in_status')
+    .eq('id', entryId)
+    .single();
+  if (error || !data) {
+    throw new Error(`UAT entry read failed: ${error?.message ?? 'missing entry'}`);
+  }
+  return data;
 }
 
 export async function cleanupSecretaryEntry(testInfo: TestInfo, seed: SecretaryUatSeed | null) {

@@ -9,6 +9,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import RingsideEntryPage from './RingsideEntryPage';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { UserRole } from '@/types/auth-types';
 import { useRingsideEntryShows } from './useRingsideEntryShows';
 
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: vi.fn() }));
@@ -19,6 +20,7 @@ vi.mock('@/pages/SmartSignInPage', () => ({
 
 const mockAuth = vi.mocked(useAuthContext);
 const mockShows = vi.mocked(useRingsideEntryShows);
+let mockRoles: UserRole[] = [];
 
 function RingMarker() {
   const { showId } = useParams<{ showId: string }>();
@@ -41,8 +43,13 @@ const NO_SHOWS = { liveShows: [], upcomingShows: [], isLoading: false };
 beforeEach(() => {
   mockAuth.mockReset();
   mockShows.mockReset();
+  mockRoles = [];
   // Default: signed-in user, nothing resolving.
-  mockAuth.mockReturnValue({ user: { id: 'u1' }, loading: false } as never);
+  mockAuth.mockReturnValue({
+    user: { id: 'u1' },
+    loading: false,
+    hasRole: (role: UserRole) => mockRoles.includes(role),
+  } as never);
   mockShows.mockReturnValue(NO_SHOWS);
 });
 
@@ -73,6 +80,45 @@ describe('RingsideEntryPage', () => {
     });
     renderPage();
     expect(screen.getByText('IN THE RING: show-9')).toBeInTheDocument();
+  });
+
+  it.each([
+    UserRole.SITE_ADMIN,
+    UserRole.SECRETARY,
+    UserRole.CLUB_ADMIN,
+    UserRole.CHAIRMAN,
+    UserRole.JUDGE,
+    UserRole.STEWARD,
+  ])(
+    'lets a signed-in %s verify one upcoming show without a passcode',
+    role => {
+      mockRoles = [role];
+      mockShows.mockReturnValue({
+        liveShows: [],
+        upcomingShows: [{ showId: 'show-9', showName: 'Heartland', phase: 'upcoming' }],
+        isLoading: false,
+      });
+
+      renderPage();
+
+      expect(screen.getByText('IN THE RING: show-9')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /enter a passcode/i })).not.toBeInTheDocument();
+    }
+  );
+
+  it('keeps an exhibitor on the pre-show landing with the passcode option', () => {
+    mockRoles = [UserRole.EXHIBITOR];
+    mockShows.mockReturnValue({
+      liveShows: [],
+      upcomingShows: [{ showId: 'show-9', showName: 'Heartland', phase: 'upcoming' }],
+      isLoading: false,
+    });
+
+    renderPage();
+
+    expect(screen.getByText('Heartland')).toBeInTheDocument();
+    expect(screen.queryByText('IN THE RING: show-9')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /enter a passcode/i })).toBeInTheDocument();
   });
 
   it('renders the chooser (not a jump) when several shows are live', () => {

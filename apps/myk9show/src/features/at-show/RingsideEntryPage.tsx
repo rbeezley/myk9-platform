@@ -19,6 +19,7 @@ import { LoadingEmptyState } from '@/components/common/EmptyState';
 import SmartSignInPage from '@/pages/SmartSignInPage';
 import { RingsideHome } from './RingsideHome';
 import { useRingsideEntryShows } from './useRingsideEntryShows';
+import { hasRingsideStaffRole } from './ringsideAccountAccess';
 
 function FullScreen({ children }: { children: React.ReactNode }) {
   return <div className="flex min-h-dvh items-center justify-center p-6">{children}</div>;
@@ -26,7 +27,7 @@ function FullScreen({ children }: { children: React.ReactNode }) {
 
 const RingsideEntryPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const { user, loading: authLoading } = useAuthContext();
+  const { user, loading: authLoading, hasRole } = useAuthContext();
   const entry = useRingsideEntryShows();
   const [showPasscode, setShowPasscode] = useState(() => searchParams.get('passcode') === '1');
 
@@ -52,6 +53,17 @@ const RingsideEntryPage: React.FC = () => {
   // Exactly one live show on show day → straight into the ring, no extra tap.
   if (entry.liveShows.length === 1) {
     return <Navigate to={`/at-show/${entry.liveShows[0].showId}`} replace />;
+  }
+
+  // Staff use ringside before show day to verify classes, assignments, and
+  // show-day setup. Their signed-in account is sufficient; passcodes remain
+  // the pre-show override for exhibitors and devices without an account link.
+  if (
+    entry.liveShows.length === 0 &&
+    entry.upcomingShows.length === 1 &&
+    hasRingsideStaffRole(hasRole)
+  ) {
+    return <Navigate to={`/at-show/${entry.upcomingShows[0].showId}`} replace />;
   }
 
   return (

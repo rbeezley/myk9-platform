@@ -13,11 +13,13 @@ import { useJudgeAssignments } from '@/hooks/queries/useJudgeAssignments';
 import { useShowTodayBanner } from '@/features/show-today/useShowTodayBanner';
 import { useShowStore } from '@/store/showStore';
 import { useMyShows } from '@/hooks/useMyShows';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   resolveRingsideEntry,
   type RingsideShowRef,
   type NamedShowSource,
 } from './ringsideEntryResolver';
+import { hasRingsideAccountShowAccess } from './ringsideAccountAccess';
 
 export interface RingsideEntryShows {
   liveShows: RingsideShowRef[];
@@ -26,6 +28,7 @@ export interface RingsideEntryShows {
 }
 
 export function useRingsideEntryShows(): RingsideEntryShows {
+  const { userWithRoles, hasRole } = useAuthContext();
   const judge = useJudgeAssignments();
   const banner = useShowTodayBanner();
   const shows = useShowStore(s => s.shows);
@@ -33,7 +36,11 @@ export function useRingsideEntryShows(): RingsideEntryShows {
   // own; fold in the store's so a secretary doesn't flash the "no live show"
   // home before the store hydrates and the auto-jump resolves.
   const showsLoading = useShowStore(s => s.isLoading);
-  const { today, upcoming } = useMyShows(shows);
+  const managedShows = useMemo(
+    () => shows.filter(show => hasRingsideAccountShowAccess(userWithRoles, hasRole, show)),
+    [hasRole, shows, userWithRoles]
+  );
+  const { today, upcoming } = useMyShows(managedShows);
 
   return useMemo(() => {
     const todayISO = format(new Date(), 'yyyy-MM-dd');

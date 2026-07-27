@@ -3,21 +3,12 @@ import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, KeyRound, ShieldAlert } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { LoadingEmptyState } from '@/components/common/EmptyState';
-import { UserRole } from '@/types/auth-types';
 import { selectGrantRoleForShow, useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import { useAccountTodayAutoFavorites } from '@/features/show-today/accountTodayEntries';
 import { useHasAnyEntryForShow } from './useHasAnyEntryForShow';
 import { useRehydrateRingsideGrant } from './useRehydrateRingsideGrant';
 import { AtShowAnnouncementFeed } from './AtShowAnnouncementFeed';
-
-const STAFF_ROLES = [
-  UserRole.SITE_ADMIN,
-  UserRole.SECRETARY,
-  UserRole.CLUB_ADMIN,
-  UserRole.CHAIRMAN,
-  UserRole.JUDGE,
-  UserRole.STEWARD,
-];
+import { hasRingsideStaffRole } from './ringsideAccountAccess';
 
 function FullScreen({ children }: { children: ReactNode }) {
   return <div className="flex min-h-dvh items-center justify-center p-6">{children}</div>;
@@ -30,7 +21,7 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   useRehydrateRingsideGrant(showId);
   const activeGrant = useRingsideGrantStore(state => state.activeGrant);
   const grantRole = selectGrantRoleForShow(activeGrant, showId);
-  const hasAccountStaffRole = STAFF_ROLES.some(role => hasRole(role));
+  const hasAccountStaffRole = hasRingsideStaffRole(hasRole);
   const accountToday = useAccountTodayAutoFavorites(
     user && !grantRole && !hasAccountStaffRole ? showId : undefined
   );

@@ -37,7 +37,10 @@ test.describe('At-show offline scoring', () => {
     context,
   }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls });
+    await installSharedStagingWriteGuard(page, {
+      interceptIsolatedRingsideWrites: true,
+      ringsideRpcCalls: rpcCalls,
+    });
 
     await signInAsSecretary(page, SCORE_PATH);
     await expect(page).toHaveURL(new RegExp(escapeRegExp(SCORE_PATH)));

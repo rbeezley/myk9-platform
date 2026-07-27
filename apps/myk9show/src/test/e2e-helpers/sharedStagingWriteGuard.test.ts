@@ -5,6 +5,7 @@ import {
   classifySharedStagingWrite,
   installSharedStagingWriteGuard,
   SHARED_STAGING_PROJECT_REF,
+  type GuardedRingsideRpcCall,
 } from '../e2e/helpers/sharedStagingWriteGuard';
 
 const sharedBaseUrl = `https://${SHARED_STAGING_PROJECT_REF}.supabase.co`;
@@ -68,6 +69,26 @@ describe('installSharedStagingWriteGuard', () => {
 
     expect(firstRoute.fulfilledBodies).toEqual(['201']);
     expect(secondRoute.fulfilledBodies).toEqual(['202']);
+  });
+
+  it('can capture an isolated-target RPC without changing shared-host classification', async () => {
+    const { page, handlers } = createRouteRecorder();
+    const ringsideRpcCalls: GuardedRingsideRpcCall[] = [];
+    await installSharedStagingWriteGuard(page, {
+      interceptIsolatedRingsideWrites: true,
+      ringsideRpcCalls,
+    });
+
+    const isolatedRoute = createRouteDouble({
+      method: 'POST',
+      url: 'http://127.0.0.1:54321/rest/v1/rpc/ringside_update_entry',
+    });
+
+    const handler = getHandler(handlers, '**/rest/v1/rpc/ringside_update_entry');
+    await handler(isolatedRoute.route);
+
+    expect(isolatedRoute.fulfilledBodies).toEqual(['101']);
+    expect(ringsideRpcCalls).toEqual([{ p_entry_id: 'entry-1', p_fields: { is_scored: true } }]);
   });
 });
 

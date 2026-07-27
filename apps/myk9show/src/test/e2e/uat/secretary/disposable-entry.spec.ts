@@ -45,7 +45,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     seedByTest.delete(testInfo.testId);
   });
 
-  test('secretary can find, assign armband, accept, and check in a disposable entry', async ({
+  test('secretary can find, assign armband, and accept a disposable entry', async ({
     page,
   }, testInfo) => {
     const seed = seedByTest.get(testInfo.testId)!;
@@ -55,13 +55,18 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       timeout: 15000,
     });
 
-    await page.getByRole('textbox', { name: 'Search entries' }).fill(seed.dogName);
-    await expect(page.getByText(seed.dogName).first()).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(seed.className).first()).toBeVisible();
-    await page.getByRole('button', { name: 'Cards view' }).click();
+    await page.getByRole('searchbox', { name: 'Search all show registrations' }).fill(seed.dogName);
+    const registrationRow = page
+      .getByRole('list', { name: 'Registration work queue' })
+      .getByRole('listitem')
+      .filter({ hasText: seed.dogName });
+    await expect(registrationRow).toBeVisible({ timeout: 10000 });
+    await registrationRow.click();
 
-    const entryCard = page.locator('.border.rounded-lg').filter({ hasText: seed.dogName }).first();
-    await expect(entryCard).toBeVisible({ timeout: 10000 });
+    const entryCard = page
+      .locator('section[aria-label^="Focused registration for"]')
+      .filter({ hasText: seed.dogName });
+    await expect(entryCard).toContainText(seed.className, { timeout: 10000 });
 
     await openArmbandDialog(page);
     const armbandDialog = page.getByRole('dialog', { name: 'Assign Armband' });
@@ -77,19 +82,9 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       ),
     });
     await expect(entryStatusButton).toBeVisible({ timeout: 10000 });
-    const acceptedItem = page.getByRole('menuitem', { name: 'Accepted', exact: true });
+    const acceptedItem = page.getByRole('menuitem', { name: 'Accept', exact: true });
     await clickMenuItemWhenStable(() => entryStatusButton.click(), acceptedItem);
     await expect(entryStatusButton).toContainText('Accepted', { timeout: 10000 });
-
-    const checkInStatusButton = entryCard.getByRole('button', {
-      name: new RegExp(
-        `Change check-in status for ${escapeRegExp(seed.dogName)} in ${escapeRegExp(seed.className)}`
-      ),
-    });
-    await expect(checkInStatusButton).toBeVisible({ timeout: 10000 });
-    const checkedInItem = page.getByRole('menuitem', { name: 'Checked-in' });
-    await clickMenuItemWhenStable(() => checkInStatusButton.click(), checkedInItem);
-    await expect(checkInStatusButton).toContainText(/Checked-in|Checked In/, { timeout: 10000 });
   });
 });
 

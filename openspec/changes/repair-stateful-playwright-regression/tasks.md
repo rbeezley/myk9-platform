@@ -11,7 +11,7 @@
 
 ## 3. Curated Playwright repair
 
-- [ ] 3.1 [EXPANDED] Verify the regression enablement variable and required secret names exist without exposing values, then dispatch or run the current curated suite against the isolated target; treat a skipped/failed preparation job as a configuration failure and map every browser failure to configuration, fixture drift, stale test behavior, or product behavior.
+- [x] 3.1 [EXPANDED] Verify the regression enablement variable and required secret names exist without exposing values, then dispatch or run the current curated suite against the isolated target; treat a skipped/failed preparation job as a configuration failure and map every browser failure to configuration, fixture drift, stale test behavior, or product behavior.
 - [ ] 3.2 Repair each reproduced failure narrowly, or record an explicit rewrite/delete decision with replacement coverage; do not add retries or weaken the journey.
 - [ ] 3.3 Re-run the affected specs and then the full curated isolated suite until one complete dispatch succeeds.
 

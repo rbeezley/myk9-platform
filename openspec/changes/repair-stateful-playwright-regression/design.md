@@ -94,6 +94,14 @@ looked like an entries column-allowlist failure. The isolated allowlist includes
 `enrollments` explicitly; it does not broaden the protected entries result
 columns.
 
+The former `entities/entriesUI` suite asserted the deleted entry table/card
+surface, including duplicate search, bulk check-in, and row-action controls.
+Keep Entry Management's registration cockpit as the single canonical surface:
+the curated list now runs its focused responsive/deep-link spec, while the
+disposable UAT journey covers search, armband assignment, and acceptance.
+Check-in remains covered at the existing Show Desk deep link rather than being
+reintroduced on Entry Management.
+
 Alternative considered: grant broad table access to `service_role`. Rejected because the requirement is local deterministic setup, and changing hosted data-access grants would unnecessarily expand scope.
 
 ## Risks / Trade-offs

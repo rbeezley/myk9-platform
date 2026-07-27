@@ -189,11 +189,16 @@ async function requestDiagnosticUpload(page: Page) {
 
 async function readReplicationSchedulerSnapshot(page: Page, entryId: string) {
   return page.evaluate(
-    ({ dbName, entryId: targetEntryId }) =>
-      new Promise<unknown>(resolve => {
+    async ({ dbName, entryId: targetEntryId }) => {
+      const lockState =
+        'locks' in navigator && typeof navigator.locks.query === 'function'
+          ? await navigator.locks.query()
+          : null;
+      return new Promise<unknown>(resolve => {
         const base = {
           navigatorOnline: navigator.onLine,
           visibilityState: document.visibilityState,
+          lockState,
           hasDiagnosticUpload: Boolean(
             (window as unknown as { __replicationDiag?: unknown }).__replicationDiag
           ),
@@ -272,7 +277,8 @@ async function readReplicationSchedulerSnapshot(page: Page, entryId: string) {
               resolve({ ...base, readError: String(error) });
             });
         };
-      }),
+      });
+    },
     { dbName: 'myK9_Replication', entryId }
   );
 }

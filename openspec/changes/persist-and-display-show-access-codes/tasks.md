@@ -27,7 +27,7 @@
 ## 5. Delivery Gates
 
 - [x] 5.1 Run the required security/database second-opinion review, resolve blocking findings, and commit the verified feature branch.
-- [ ] 5.2 With explicit shared-system approval, push the branch and open a PR using the repository template; include risks, migration order, legacy-show transition, agent involvement, and test evidence.
+- [x] 5.2 With explicit shared-system approval, push the branch and open a PR using the repository template; include risks, migration order, legacy-show transition, agent involvement, and test evidence.
 - [ ] 5.3 Monitor CI and review through merge, then request separate approval before any linked Supabase database push; do not mark deployment evidence complete from source-only verification.
 - [ ] 5.4 After merge and required evidence, update any linked tracking issue/doc, archive the OpenSpec change, sync `main`, prune and delete the branch, and remove the worktree last.
 

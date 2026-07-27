@@ -20,18 +20,32 @@ this document is the sequence, the gates, and the verification commands.
 
 ## Gate summary (the launch decision at a glance)
 
-| #   | Gate                                                                                         | Blocks                   | Status check                                                                                                    |
-| --- | -------------------------------------------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| G1  | Security remediation deployed (including 2026-07-10 SA-018…023/026/027)                      | Phase 1                  | `security-audit-remediation` merged, migration/function deployment recorded, and `OPEN-TODOS.md` updated        |
-| G2  | Pending deploys/migrations reconciled (`ask-myk9show`, withdrawal migrations, edge-fn drift) | Phase 1                  | Phase 0 verification commands below                                                                             |
-| G3  | Money-path hardening Phases 1–3 merged + deployed (MP-01…MP-04)                              | Phase 3 (Stripe cutover) | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md) phase table; PRs merged + fns redeployed |
-| G4  | Tokenless staging promotion + explicit production release ready                              | Phase 4                  | `deploy-staging.yml` and protected `deploy-production.yml` source checks pass; external gates remain open       |
-| G5  | Passcode ringside walk passes cold (`jh3k9`/`s7m2p`)                                         | Phase 4                  | Phase 2 step 2.3                                                                                                |
-| G6  | Show-day re-walk + offline rehearsal + venue print test pass                                 | Phase 5                  | Phase 4 evidence links                                                                                          |
-| G7  | Real-user testing complete, no confusion-level findings                                      | Launch                   | Lane 1.7 session results filed; scorecard UX-clarity row Green                                                  |
+| #   | Gate                                                                                         | Blocks                   | Status check                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| --- | -------------------------------------------------------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G1  | Security remediation deployed (including 2026-07-10 SA-018…023/026/027)                      | Phase 1                  | `security-audit-remediation` merged, migration/function deployment recorded, and `OPEN-TODOS.md` updated                                                                                                                                                                                                                                                                                                                                                                           |
+| G2  | Pending deploys/migrations reconciled (`ask-myk9show`, withdrawal migrations, edge-fn drift) | Phase 1                  | Phase 0 verification commands below                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| G3  | Money-path hardening Phases 1–3 merged + deployed (MP-01…MP-04)                              | Phase 3 (Stripe cutover) | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md) phase table; PRs merged + fns redeployed                                                                                                                                                                                                                                                                                                                                                                    |
+| G4  | Tokenless staging promotion + explicit production release ready                              | Phase 4                  | `deploy-staging.yml` and protected `deploy-production.yml` source checks pass; external gates remain open                                                                                                                                                                                                                                                                                                                                                                          |
+| G5  | Passcode ringside walk passes cold (`jh3k9`/`s7m2p`)                                         | Phase 4                  | Phase 2 step 2.3                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| G6  | Show-day re-walk + offline rehearsal + venue print test pass                                 | Phase 5                  | Phase 4 evidence links                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| G7  | Real-user testing complete, no confusion-level findings                                      | Launch                   | Lane 1.7 session results filed; scorecard UX-clarity row Green                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| G8  | **Data durability proven** — backups verified enabled, one restore actually performed        | Phase 3 (Stripe cutover) | Phase 2 step 2.4; scorecard **Data durability** row **Green** (a confirmed-but-untested backup is Yellow, not a passed gate); [MYK9-110](https://linear.app/myk9-platform/issue/MYK9-110/establish-and-test-a-backup-disaster-recovery-posture-currently-one)                                                                                                                                                                                                                      |
+| G9  | **Capacity rehearsal PASSES**, on a workload carrying **≥50 concurrent ringside sessions**   | Phase 5 (launch day)     | Phase 4 step 4.2c — all four of: ≥50 ringside sessions in the scenario, ≤5% errors, p95 ≤200 ms API, and the scenario's own `throughputMin`/`availability`. Scorecard **Performance & capacity** row **Green**; recorded-but-failing does NOT close G9; the stock `normal_load` mix (only 10 judges) does not qualify; Peak/Stress informational; [MYK9-109](https://linear.app/myk9-platform/issue/MYK9-109/assess-refresh-and-run-the-existing-load-harness-no-rehearsal-result) |
 
-Launch = all seven gates green + scorecard shows **no Red, no open P0/P1** in
+Launch = all **nine** gates green + scorecard shows **all Primary dimensions Green** (hence no Red and
+no Unknown) and **no open P0/P1** in
 [`docs/goals/fall-2026-launch-readiness-scorecard.md`](../goals/fall-2026-launch-readiness-scorecard.md).
+
+> **Do not read a gate's status check as "not Red" or "not Unknown."** Every gate closes on its
+> dimension being **Green**. A rehearsal that runs and _misses_ its latency, error-rate, or
+> connection targets moves Performance & capacity from Unknown to **Yellow**, which is progress but
+> is **not** a passed gate — same for a partially-evidenced restore. Recorded ≠ passed.
+
+> **G8/G9 added 2026-07-26** after the gate review ([`../launch/go-live-2026-07-26.md`](../launch/go-live-2026-07-26.md) § 8)
+> found that this runbook had **no data-durability and no capacity gate at all** — so "never verified
+> our backups" and "never recorded a load result" could not appear in the launch decision, and a
+> review run against G1–G7 came back all-green-but-not-ready. G8 blocks the Stripe cutover
+> deliberately: do not start taking real money before you can demonstrate you can recover the data.
 
 ---
 
@@ -272,14 +286,53 @@ Code complete (#951–#954); this is **verify, not build**. Full checklist:
       Supabase anonymous sign-in dashboard proof, cold judge/steward incognito walks, and live
       `cron.job` evidence remain operator/live-verification gates.
 
+### 2.4 Data durability — backups verified and one restore performed (G8)
+
+**Added 2026-07-26.** Owner: Operator (dashboard) + Agent (procedure + partial-recovery SQL).
+Tracked: [MYK9-110](https://linear.app/myk9-platform/issue/MYK9-110/establish-and-test-a-backup-disaster-recovery-posture-currently-one).
+
+Before this existed, the runbook's only recovery guidance was one cell of the rollback appendix:
+_"If data was corrupted, use PITR via Supabase support as last resort."_ That sentence is unverified —
+if PITR is not enabled on the project, it is not vague, it is **false**.
+
+- [ ] **a. Confirm the backup posture in the Supabase dashboard** for `sojmvhhwsjxmfistvzbe`:
+      is PITR enabled, at what retention window, and is it a paid add-on that still needs turning on?
+      Record the answer here. **If PITR is disabled, STOP** — that is a launch blocker, not a task.
+- [ ] **b. Write down the accepted RPO and RTO** (how much data may be lost; how fast we can be back).
+      A number the operator has agreed to, not an aspiration.
+- [ ] **c. Actually perform a restore** — ideally into a scratch/branch project — and verify the
+      restored data. **Record the elapsed time and compare it against the RTO agreed in step b.**
+      Elapsed time is the _observed_ recovery time, not the objective — if a restore takes eight hours
+      against a one-hour RTO, that is a **failed** durability gate, not a redefinition of the RTO.
+      Either bring the procedure inside the objective or renegotiate the objective explicitly; do not
+      let the measurement silently become the target. An untested backup is not a backup.
+- [ ] **d. Write the partial-recovery procedure** for the realistic incident: _one show's entries or
+      scores were destroyed mid-weekend; recover those rows without rolling back every other show._
+      Whole-project PITR is the wrong tool for the most likely failure.
+- [ ] **e. Replace the rollback appendix's "last resort" line** with the tested procedure.
+
+_Why this gates Phase 3:_ after the Stripe cutover the platform holds real money and irreplaceable
+show-day results — scores and placements that cannot be re-derived, because the dogs went home.
+
 ---
 
 ## Phase 3 — Stripe live-mode cutover (~30 min + Connect-review buffer of a few days)
 
-**Gate in: G3 — money-path Phase 3 (MP-04 mode-scoping) merged AND the Stripe functions
-redeployed** (`--workdir apps/myk9show`). Full detail:
-[`stripe-platform-setup.md`](stripe-platform-setup.md) Task 6.3. Owner: Operator except where
-noted. Do this only when ready to take real money — there is no half-live state.
+**Gate in: G3 + G8.**
+
+- **G3** — money-path Phase 3 (MP-04 mode-scoping) merged AND the Stripe functions redeployed
+  (`--workdir apps/myk9show`).
+- **G8** — data durability proven: step **2.4** complete, meaning PITR confirmed enabled, an actual
+  restore performed within the agreed RTO, and the partial-recovery procedure written. **Added
+  2026-07-26.** Not "PITR is probably on" — the scorecard **Data durability** row must be Green.
+
+Full detail: [`stripe-platform-setup.md`](stripe-platform-setup.md) Task 6.3. Owner: Operator except
+where noted. Do this only when ready to take real money — there is no half-live state.
+
+> **Why G8 gates this phase and not a later one.** After this phase the platform holds real charges,
+> payouts, and refunds, and show-day results become irreplaceable — the dogs ran and went home. Taking
+> money you cannot recover the records of is the one ordering mistake in this runbook that cannot be
+> undone by a rollback. If step 2.4 is unchecked, **stop here**, regardless of G3.
 
 _Agent-owned prerequisite complete 2026-07-13:_ `stripe-golive-enforcement` shipped shared
 capacity enforcement, durable waitlist notifications, owner-authorized offer payment/decline, and
@@ -326,25 +379,25 @@ recorded.
 
       Preferred: the admin UI — **/people/:id → Edit → Complimentary Premium**.
 
-          By SQL, the RPC is site-admin-only, and the dashboard's `postgres` role is
-          NOT a site admin, so impersonate one:
+                                          By SQL, the RPC is site-admin-only, and the dashboard's `postgres` role is
+                                          NOT a site admin, so impersonate one:
 
-          ```sql
-          BEGIN;
-          SET LOCAL ROLE authenticated;
-          SELECT set_config('request.jwt.claims',
-            json_build_object('sub','<site-admin auth_user_id>','role','authenticated')::text, true);
+                                          ```sql
+                                          BEGIN;
+                                          SET LOCAL ROLE authenticated;
+                                          SELECT set_config('request.jwt.claims',
+                                            json_build_object('sub','<site-admin auth_user_id>','role','authenticated')::text, true);
 
-          SELECT public.admin_grant_entitlement(
-            (SELECT id FROM public.people WHERE email = 'person@example.com'),
-            'founding', now(), now() + interval '12 months',
-            'Founding member — go-live batch', false);
-          COMMIT;
-          ```
+                                          SELECT public.admin_grant_entitlement(
+                                            (SELECT id FROM public.people WHERE email = 'person@example.com'),
+                                            'founding', now(), now() + interval '12 months',
+                                            'Founding member — go-live batch', false);
+                                          COMMIT;
+                                          ```
 
-          Verify with the queries in [`../entitlement-operations.md`](../entitlement-operations.md).
-          Note `has_effective_premium_access()` is caller-scoped: querying it as
-          `postgres` returns nothing, which is correct rather than a failure.
+                                          Verify with the queries in [`../entitlement-operations.md`](../entitlement-operations.md).
+                                          Note `has_effective_premium_access()` is caller-scoped: querying it as
+                                          `postgres` returns nothing, which is correct rather than a failure.
 
 - [ ] **3.11** Concierge-onboard the first 3–4 club treasurers by phone using
       [`stripe-treasurer-guide.md`](stripe-treasurer-guide.md); confirm Express accounts appear
@@ -388,6 +441,63 @@ close-out; keep those items unchecked until evidence is recorded.
       the secretary, exhibitor, ringside, and report surfaces. Record the query/output or
       screenshots and resolve every P0/P1 mismatch. Flips **Data correctness**. Owner: Agent +
       Operator (read-only verification).
+- [ ] **4.2c Capacity rehearsal (G9)** — **added 2026-07-26.** Owner: Operator (QA) + Agent.
+      Tracked: [MYK9-109](https://linear.app/myk9-platform/issue/MYK9-109/assess-refresh-and-run-the-existing-load-harness-no-rehearsal-result).
+      A load harness **already exists** — do not build a parallel one:
+      `apps/myk9show/src/test/load/` (k6, Artillery, Playwright, `DatabaseLoadTests`,
+      `LoadTestFramework`, `LoadTestRunner`) plus `test:load:*` scripts in
+      `apps/myk9show/package.json`. Its README already states the targets: **100+ concurrent users**,
+      p95 **<200 ms** API, **<3 s** page loads, **<5%** error rate, **>100 req/s**.
+      What is missing is that **no rehearsal result has ever been recorded** and the harness runs in
+      no workflow — it predates the ringside/`at-show` consolidation, so expect staleness.
+  - [ ] **a. Repair the harness' entry points first — the Playwright half does not currently run.**
+        `test:load:playwright` and `test:load:quick` both invoke
+        `playwright test src/test/load/playwright-load-tests.spec.ts`, but `playwright.config.ts:14`
+        sets `testDir: './src/test/e2e'`, so Playwright reports **"No tests found"** and exits **1** without
+        running a single load scenario. It fails loudly rather than faking a pass — verified by running
+        it on 2026-07-26 — but the effect is that this half of the harness has never been exercised at
+        all. Fix by adding a load-specific
+        Playwright config (e.g. `playwright.load.config.ts` with `testDir: './src/test/load'`) and
+        pointing the scripts at it — the same trap applies to `playwright.ci.config.ts:63`.
+        Then triage the non-Playwright halves (`test:load:database`, `test:load:framework`, the k6 and
+        Artillery configs), which do not depend on `testDir`.
+  - [ ] **b.** Refresh scenarios to the real show-day shape: concurrent ringside scoring, check-in,
+        exhibitor reads, run-order/dogs-ahead queries.
+  - [ ] **c.** Seed ~500 entries across multiple trials/classes (extend the canonical seed fixture
+        set — do not fork it). Target **staging or the isolated E2E project**, never the
+        production-candidate project.
+  - [ ] **d.** Record: peak CPU, peak `pg_stat_activity` count vs the **60**-connection cap, p95 on
+        the scoring write path, ringside `40001` serialization-failure rate, replication queue depth.
+  - [ ] **d1. The gate workload MUST include >=50 concurrent ringside scoring sessions.** The
+        harness' stock `normal_load` scenario does **not** exercise this: its 100 virtual users are
+        70 exhibitors / 15 secretaries / **10 judges** / 3 admins / 2 anonymous
+        (`LoadTestFramework.ts:477-482`), and its workflows are browse/search-heavy (`browse_shows`
+        at weight 40 against `/shows/browse`). Running it unchanged would close G9 while never
+        testing show-day concurrency — the exact risk this gate exists for. Either raise the ringside
+        share of the refreshed Normal scenario to >=50 concurrent scoring sessions, or add a
+        dedicated `show_day_load` scenario and make **that** the gate scenario. Record which was used.
+  - [ ] **d2. Grade against the right scenario.** The harness defines _per-scenario_ thresholds
+        (`LoadTestFramework.ts:32`): **Normal** 100 users / ≤5% errors, **Peak** 250 / ≤10%,
+        **Stress** 500 / ≤25%; p95 ≤200 ms API, ≤300 ms search, ≤500 ms realtime, ≤3 s page.
+        **G9 closes on the Normal scenario only** — 100 concurrent users already exceeds a realistic
+        show weekend of ~50 ringside devices. Peak and Stress are informational and judged against
+        their own looser numbers; they neither close nor block the gate. Beware:
+        `LoadTestFramework.ts:448` hardcodes `errorRate.normal` in its report generator, so the
+        harness stamps ✅/❌ against 5% for _every_ scenario — read Peak/Stress figures yourself.
+  - [ ] **d3. Include throughput and availability in the pass criteria**, not just latency and error
+        rate — a run can post a low p95 on completed requests while virtual users sit idle or blocked.
+        Use the scenario's **own** declared values (`LOAD_TEST_SCENARIOS`): Normal `throughputMin: 50`
+        req/s and `availability: 99.5`%; Peak `100` / `99.0`; Stress `25` / `95.0`. The README's
+        blanket ">100 requests/second" is the **Peak** figure, not Normal's — cite the scenario, not
+        the README summary. All four dimensions (concurrency, error rate, latency,
+        throughput + availability) must pass for G9 to close.
+  - [ ] **e.** State the ceiling — "N concurrent ringside sessions on a show of M entries" — and the
+        compute tier it assumes. Confirm that tier is adequate or schedule an upgrade.
+  - [ ] **f.** Decide whether the harness joins a workflow (even monthly). It rotted once precisely
+        because nothing ran it.
+        _Run this **after** the RLS `auth_rls_initplan` fix (MYK9-111) is pushed so the numbers
+        reflect the fixed policies. Note that the separately-tracked high-scan relations
+        (MYK9-114) are **not** addressed by that fix._
 - [ ] **4.3 Venue hardware print test** — CheckInSheet, ScoresheetReport, ResultLabels,
       ArmbandLabelsReport on a real label printer + standard laser; capture margin/scaling/duplex
       issues. Owner: Operator (at venue). Flips **Reports and official forms**.
@@ -407,8 +517,9 @@ close-out; keep those items unchecked until evidence is recorded.
 - [ ] **4.6 Scorecard close-out** — flip the verified rows in
       [`fall-2026-launch-readiness-scorecard.md`](../goals/fall-2026-launch-readiness-scorecard.md).
       Evidence must cover Show-day reliability, Offline-first behavior, Data correctness,
-      Reports and official forms, UX clarity, and Operational readiness; launch requires all
-      Primary dimensions Green, no Red, no open P0/P1.
+      Reports and official forms, UX clarity, Operational readiness, and the two dimensions added
+      2026-07-26 — **Performance & capacity** and **Data durability**; launch requires all Primary
+      dimensions Green, no Red, **no Unknown**, no open P0/P1.
 
 ---
 

@@ -9,11 +9,20 @@
 -- https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select
 --
 -- This is invisible on today's data (50 MB, 33 entries) and compounds with
--- rows x concurrent sessions — i.e. exactly a show weekend. It is the mechanism
--- behind the cumulative scan counters observed on 2026-07-26:
---   user_roles         407M seq scans
---   judge_assignments  360M seq scans vs 552K index scans (650:1)
---   show_passcodes     24.6M seq scans vs 799 index scans
+-- rows x concurrent sessions — i.e. exactly a show weekend.
+--
+-- SCOPE OF THE WIN — read this before attributing any metric to this migration.
+-- The high sequential-scan relations observed on 2026-07-26 (`user_roles` 407M,
+-- `judge_assignments` 360M vs 552K index, `show_passcodes` 24.6M vs 799) are NOT
+-- among the 29 tables rewritten here, so these counters will NOT move because of
+-- this migration. Those scans come from other paths — the SECURITY DEFINER RLS
+-- helpers (`has_role`, `is_site_admin`, `can_manage_show`, ...) reading
+-- `user_roles`, the passcode RPCs, and the results views. That is a separate
+-- investigation with a separate fix (helper-level caching and/or indexes).
+-- What THIS migration reduces is the number of `auth.uid()` / `auth.role()`
+-- evaluations per query on the 29 tables listed below. Measure it as advisor
+-- cleanup plus reduced function-call overhead, not as a change in relation-scan
+-- counts.
 --
 -- SAFETY: THIS MIGRATION CANNOT CHANGE WHO CAN SEE WHAT.
 --   1. Every expression below was emitted by Postgres itself via

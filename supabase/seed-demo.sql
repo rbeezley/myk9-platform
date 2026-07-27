@@ -783,13 +783,13 @@ JOIN public.people p ON lower(p.email) = v.email;
 --     seed KNOWN ringside passcodes for Heartland so the SmartSignInPage
 --     "Email or show passcode" -> validate -> grant -> /at-show flow is walkable.
 --
---     Passcodes are stored ONLY as peppered HMAC hashes (show_passcodes.passcode_hash,
---     UNIQUE), so a hand-written hash can't be reproduced. We instead compute the
---     hash with the database's own _hash_passcode() (which reads the `passcode_pepper`
---     Vault secret), so the seeded codes actually validate through validate_passcode().
+--     Passcodes are stored as peppered HMAC hashes plus encrypted ciphertext.
+--     We compute both with the database's locked helpers so the seeded codes
+--     validate and authorized show roles can revisit them in the access-code card.
 --
 --     DEMO CODES (hand these to testers — validator lowercases input):
---         judge   = 'jh3k9'      steward = 's7m2p'
+--         admin   = 'ah4r8'      judge   = 'jh3k9'
+--         steward = 's7m2p'      exhibitor = 'e5n8q'
 --     Format must satisfy the client classifier regex /^[ajse][a-z0-9]{4}$/
 --     (role letter a|j|s|e + 4 [a-z0-9]); the authoritative role is the DB row.
 --
@@ -807,11 +807,21 @@ JOIN public.people p ON lower(p.email) = v.email;
 DO $$
 BEGIN
   DELETE FROM public.show_passcodes WHERE show_id = 'dededede-0000-0000-0000-000000000010';
-  INSERT INTO public.show_passcodes (id, show_id, role, passcode_hash, created_at) VALUES
+  INSERT INTO public.show_passcodes (
+    id, show_id, role, passcode_hash, passcode_ciphertext, created_at
+  ) VALUES
+    ('dededede-0000-0000-0000-000000000080', 'dededede-0000-0000-0000-000000000010', 'admin',
+     public._hash_passcode('ah4r8'), public._encrypt_show_passcode('ah4r8'),
+     '2026-06-17 00:00:00+00'),
     ('dededede-0000-0000-0000-000000000081', 'dededede-0000-0000-0000-000000000010', 'judge',
-     public._hash_passcode('jh3k9'), '2026-06-17 00:00:00+00'),
+     public._hash_passcode('jh3k9'), public._encrypt_show_passcode('jh3k9'),
+     '2026-06-17 00:00:00+00'),
     ('dededede-0000-0000-0000-000000000082', 'dededede-0000-0000-0000-000000000010', 'steward',
-     public._hash_passcode('s7m2p'), '2026-06-17 00:00:00+00');
+     public._hash_passcode('s7m2p'), public._encrypt_show_passcode('s7m2p'),
+     '2026-06-17 00:00:00+00'),
+    ('dededede-0000-0000-0000-000000000083', 'dededede-0000-0000-0000-000000000010', 'exhibitor',
+     public._hash_passcode('e5n8q'), public._encrypt_show_passcode('e5n8q'),
+     '2026-06-17 00:00:00+00');
 EXCEPTION WHEN sqlstate '55000' THEN
   RAISE NOTICE 'Skipped Heartland ringside passcode seed (% - %). passcode_pepper Vault secret is unset; mint via regenerate_show_passcodes() instead.', SQLSTATE, SQLERRM;
 END $$;

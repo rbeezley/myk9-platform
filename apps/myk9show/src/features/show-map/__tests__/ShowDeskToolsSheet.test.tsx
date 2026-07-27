@@ -352,7 +352,7 @@ describe('ShowDeskToolsSheet', () => {
       });
     });
     expect(notifications.success).toHaveBeenCalledWith(
-      'New codes generated. Copy or print them now.'
+      'New codes generated and saved.'
     );
     expect(await screen.findByText('e4444')).toBeInTheDocument();
   });

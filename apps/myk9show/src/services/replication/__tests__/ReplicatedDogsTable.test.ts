@@ -537,6 +537,7 @@ describe('ReplicatedDogsTable', () => {
               registration_number: 'SW123456',
               breed: 'Border Collie',
               status: 'pending',
+              created_at: '2025-06-01T11:59:58.000Z',
             },
           ],
           { dependsOn: ['person-mutation-1'] }
@@ -573,6 +574,7 @@ describe('ReplicatedDogsTable', () => {
                   registration_number: 'SW123456',
                   breed: 'Border Collie',
                   status: 'pending',
+                  created_at: '2025-06-01T11:59:58.000Z',
                 },
               ],
             },

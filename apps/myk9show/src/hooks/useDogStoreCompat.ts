@@ -33,7 +33,10 @@ import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
 import { translateDogDbError } from '@/hooks/translateDogDbError';
 import { supabase } from '@/lib/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
-import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
+import {
+  createRegistrationTimestamps,
+  replicatedDogRegistrationsTable,
+} from '@/services/replication/ReplicatedDogRegistrationsTable';
 import {
   cachedRegistrationRowsForDog,
   mapReplicatedDogWithRegistrations,
@@ -112,15 +115,16 @@ export const useDogStoreCompat = () => {
 
     try {
       if (dogData.registrations && dogData.registrations.length > 0) {
-        const registrationsPayload = dogData.registrations
-          .filter(r => r.registeredName)
-          .map(r => ({
-            organization: r.organization || 'AKC',
-            registered_name: r.registeredName,
-            registration_number: r.number || '',
-            breed: r.type || null,
-            status: r.status || 'pending',
-          }));
+        const registrationsToCreate = dogData.registrations.filter(r => r.registeredName);
+        const createdAts = createRegistrationTimestamps(registrationsToCreate.length);
+        const registrationsPayload = registrationsToCreate.map((r, index) => ({
+          organization: r.organization || 'AKC',
+          registered_name: r.registeredName,
+          registration_number: r.number || '',
+          breed: r.type || null,
+          status: r.status || 'pending',
+          created_at: createdAts[index]!,
+        }));
 
         const { data: rpcDogId, error: rpcError } = await supabase.rpc(
           'create_dog_with_registrations',

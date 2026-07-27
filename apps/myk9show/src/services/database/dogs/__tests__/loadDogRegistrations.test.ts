@@ -32,18 +32,17 @@ import { resolveDogIdentity } from '@/features/dogs/identity';
 /**
  * MYK9-90 review round 4, finding 2.
  *
- * `create_dog_with_registrations` inserts every registration in one transaction
- * WITHOUT `created_at`, so PostgreSQL stamps them identically and the resolver's
- * comparator ties — falling through to a random server UUID. The local mirror
- * holds the true creation ORDER, so the merge overlays it onto the matching
- * server rows.
+ * `create_dog_with_registrations` now preserves each registration's client-side
+ * `created_at`, so a second device can resolve the same primary without the
+ * creating device's local mirror.
  */
 describe('loadDogRegistrations', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  // Both rows share a server timestamp (same transaction) and the UUIDs sort
-  // opposite to the order the exhibitor entered them.
-  const serverRows = [
+  // The UUIDs sort opposite to the order the exhibitor entered the rows. This
+  // fixture keeps equal server timestamps so the local mirror is the only
+  // source of creation order for this test.
+  const serverRowsWithTiedTimestamps = [
     {
       id: 'aaaaaaaa-0000-4000-8000-000000000000',
       dog_id: 'dog-1',
@@ -62,8 +61,19 @@ describe('loadDogRegistrations', () => {
     },
   ];
 
+  const serverRowsWithCreationOrder = [
+    {
+      ...serverRowsWithTiedTimestamps[0],
+      created_at: '2025-06-01T11:59:59.000Z',
+    },
+    {
+      ...serverRowsWithTiedTimestamps[1],
+      created_at: '2025-06-01T11:59:58.000Z',
+    },
+  ];
+
   it('overlays the local creation order onto identical server timestamps', async () => {
-    mockServerIn.mockResolvedValue({ data: serverRows, error: null });
+    mockServerIn.mockResolvedValue({ data: serverRowsWithTiedTimestamps, error: null });
     // Local mirror: AKC was entered FIRST, so it is the primary.
     mockLocalGet.mockResolvedValue([
       {
@@ -89,25 +99,24 @@ describe('loadDogRegistrations', () => {
     expect(registrationsReadComplete).toBe(true);
   });
 
-  it('without a local mirror the tie falls to server UUID order (known gap)', async () => {
-    // Documents the residual cross-device gap: another device has no local
-    // mirror, so ordering depends on the server UUID until
-    // `create_dog_with_registrations` inserts `created_at` (a migration, out of
-    // scope for task 2.3).
-    mockServerIn.mockResolvedValue({ data: serverRows, error: null });
+  it('without a local mirror preserves the server creation order', async () => {
+    mockServerIn.mockResolvedValue({ data: serverRowsWithCreationOrder, error: null });
     mockLocalGet.mockResolvedValue([]);
 
     const { byDog } = await loadDogRegistrations(['dog-1']);
-    expect(resolveDogIdentity(byDog.get('dog-1')!).breed).toBe('Belgian Shepherd Dog');
+    expect(resolveDogIdentity(byDog.get('dog-1')!).breed).toBe('Belgian Malinois');
   });
 
   it('marks partial rows as incomplete when the server also reports an error', async () => {
-    mockServerIn.mockResolvedValue({ data: [serverRows[0]], error: new Error('partial read') });
+    mockServerIn.mockResolvedValue({
+      data: [serverRowsWithCreationOrder[0]],
+      error: new Error('partial read'),
+    });
     mockLocalGet.mockResolvedValue([]);
 
     const { byDog, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
 
-    expect(byDog.get('dog-1')).toEqual([serverRows[0]]);
+    expect(byDog.get('dog-1')).toEqual([serverRowsWithCreationOrder[0]]);
     expect(registrationsReadComplete).toBe(false);
   });
 
@@ -141,12 +150,12 @@ describe('loadDogRegistrations', () => {
   });
 
   it('marks the merged read incomplete when the local replica read fails', async () => {
-    mockServerIn.mockResolvedValue({ data: [serverRows[0]], error: null });
+    mockServerIn.mockResolvedValue({ data: [serverRowsWithCreationOrder[0]], error: null });
     mockLocalGet.mockRejectedValue(new Error('local replica unavailable'));
 
     const { byDog, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
 
-    expect(byDog.get('dog-1')).toEqual([serverRows[0]]);
+    expect(byDog.get('dog-1')).toEqual([serverRowsWithCreationOrder[0]]);
     expect(registrationsReadComplete).toBe(false);
   });
 });

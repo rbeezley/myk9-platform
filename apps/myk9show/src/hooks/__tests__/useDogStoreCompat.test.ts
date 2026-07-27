@@ -64,6 +64,8 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 }));
 
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
+  createRegistrationTimestamps: (count: number) =>
+    Array.from({ length: count }, (_, index) => `2024-01-01T00:00:0${index}.000Z`),
   replicatedDogRegistrationsTable: {
     createRegistrationsForDog: mockCreateReplicatedDogRegistrationsForDog,
     createLocalRegistrationsForDog: mockCreateLocalReplicatedDogRegistrationsForDog,
@@ -167,6 +169,8 @@ describe('useDogStoreCompat.addDog — local-first', () => {
     mockSetReplicatedDog.mockResolvedValue(undefined);
     mockDeleteReplicatedDog.mockResolvedValue(undefined);
     mockGetAllReplicatedDogs.mockResolvedValue([]);
+    mockServerRegistrationsIn.mockResolvedValue({ data: [], error: null });
+    mockGetRegistrationsForDogs.mockResolvedValue([]);
   });
 
   it('writes to IndexedDB before PostgREST insert', async () => {

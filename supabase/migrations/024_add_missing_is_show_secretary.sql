@@ -1,10 +1,10 @@
 -- =============================================================================
 -- Migration 024: Add Missing is_show_secretary() Function
 -- =============================================================================
--- Migration 020 references is_show_secretary() in people INSERT/UPDATE policies
--- but the function was never defined. In the RBAC system, the role is called
--- "trial_secretary" (migration 009). This creates is_show_secretary() as a
--- thin wrapper around is_trial_secretary() to fix the broken policies.
+-- Migration 020 references is_show_secretary() in people INSERT/UPDATE policies.
+-- Migration 020 now defines the alias before those policies so fresh databases
+-- can migrate successfully. Keep this idempotent definition for databases that
+-- already recorded migration 020 before the historical ordering fix.
 --
 -- Affected policies (from migration 020):
 --   - people_insert: WITH CHECK (... OR is_show_secretary() ...)

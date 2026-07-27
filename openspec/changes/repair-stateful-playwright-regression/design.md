@@ -19,7 +19,8 @@ This is test/CI infrastructure only. It does not read or mutate core show-day da
 **Non-Goals:**
 
 - No application UI, user-facing copy, page, dialog, deep link, or duplicate workflow surface.
-- No production or shared-staging writes, Supabase project changes, migrations, or external payment/email side effects.
+- No production or shared-staging writes, Supabase project configuration changes, or external payment/email side effects.
+- No database behavior expansion beyond correcting a historical fresh-chain ordering defect that blocks the disposable target.
 - No retries or loosened assertions used to manufacture a green run.
 - No expansion of the two-spec PR smoke gate.
 - No speculative rewrite of the six July 18 failures when current isolated evidence does not reproduce them.
@@ -60,6 +61,12 @@ Start only the local services used by the browser suite: database, API gateway, 
 
 Alternative considered: use `--ignore-health-check`. Rejected because it could let browser tests start against an unhealthy required service. Keeping every optional service was also rejected after the first branch dispatch failed during opaque stack startup before any browser test.
 
+### 7. Define the historical RBAC alias before migration 020 uses it
+
+Migration 016 defines `is_platform_admin()` and the canonical `is_trial_secretary()` helper. Migration 020 creates `people` policies that call `is_show_secretary()`, but the alias was originally introduced only in migration 024. Define the same idempotent alias in migration 020 before its first policy reference, retain migration 024 for databases that already recorded migration 020, and guard the ordering with a source-contract test.
+
+Alternative considered: add a new migration. Rejected because a later migration cannot repair a fresh chain that stops at migration 020. Renumbering migration 024 was also rejected because it would change the identity of a migration already recorded by existing databases.
+
 ## Risks / Trade-offs
 
 - **The disposable local stack is slower or flaky on hosted runners** → keep the 90-minute job bound, zero retries, two reports, and fail-closed preparation so infrastructure failure remains visible.
@@ -68,6 +75,7 @@ Alternative considered: use `--ignore-health-check`. Rejected because it could l
 - **Historical failures no longer reproduce** → record them as superseded by the isolated target/current code rather than manufacturing code changes.
 - **A dependency upgrade changes workflow syntax** → behavior-focused source tests allow safe version upgrades while still failing when the lifecycle action disappears.
 - **An excluded service becomes necessary to a future curated spec** → that spec must add the service back with a focused lifecycle contract before promotion.
+- **Correcting an applied historical migration diverges from existing database history** → keep the correction additive and idempotent, retain migration 024 unchanged in behavior, and do not push migrations to a shared database as part of this change.
 - **A current browser failure needs a product decision** → stop that item, record the exact trace/evidence, and do not weaken the assertion.
 
 ## Migration Plan

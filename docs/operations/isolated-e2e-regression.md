@@ -50,12 +50,13 @@ The last pre-isolation failure was [run 29635653949](https://github.com/rbeezley
 | `show/showManagement.spec.ts` — canonical wizard navigation         | Obsolete all-in-one candidate excluded from the curated suite; current coverage is split across the show wizard, secretary UAT, and entry-management specs.                                     |
 | `uat/secretary/disposable-entry.spec.ts` — seeded entry management  | Still curated. Its historical missing `VITE_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` error is closed by the generated `GITHUB_ENV` contract and must pass in the MYK9-107 isolated dispatch. |
 
-Current pre-dispatch evidence:
+Current dispatch evidence:
 
-- `pnpm qa:isolated-e2e:test` → 15 passed.
+- `pnpm qa:isolated-e2e:test` → 18 passed.
 - Playwright regression discovery → 59 tests in 15 files compile/list successfully.
 - All eight E2E credential secret names exist in GitHub Actions.
 - `MYK9SHOW_REGRESSION_CI_ENABLED=true` was enabled with operator approval on 2026-07-27.
 - [Run 30296081479](https://github.com/rbeezley/myk9-platform/actions/runs/30296081479) reached the disposable-target preparation step but failed before Playwright with an opaque `Supabase start failed`. The lifecycle now excludes optional Studio/analytics/vector/image/mail/metadata/Functions services and emits bounded sanitized startup detail without ignoring required-service health checks.
+- [Run 30296477490](https://github.com/rbeezley/myk9-platform/actions/runs/30296477490) proved the minimal stack starts, then exposed a fresh-chain migration ordering defect: migration 020 referenced `is_show_secretary()` before migration 024 defined it. Migration 016 already defines the canonical `is_trial_secretary()` dependency. Migration 020 now creates the compatibility alias before its first policy reference, with a source-contract test guarding that ordering.
 
 Successful dispatch: pending.

@@ -12,8 +12,8 @@
 ## 3. Curated Playwright repair
 
 - [x] 3.1 [EXPANDED] Verify the regression enablement variable and required secret names exist without exposing values, then dispatch or run the current curated suite against the isolated target; treat a skipped/failed preparation job as a configuration failure and map every browser failure to configuration, fixture drift, stale test behavior, or product behavior.
-- [ ] 3.2 Repair each reproduced failure narrowly, or record an explicit rewrite/delete decision with replacement coverage; do not add retries or weaken the journey.
-- [ ] 3.3 Re-run the affected specs and then the full curated isolated suite until one complete dispatch succeeds.
+- [x] 3.2 Repair each reproduced failure narrowly, or record an explicit rewrite/delete decision with replacement coverage; do not add retries or weaken the journey.
+- [x] 3.3 Re-run the affected specs and then the full curated isolated suite until one complete dispatch succeeds.
 
 ## 4. Testing and verification
 
@@ -24,7 +24,7 @@
 
 ## 5. Evidence and delivery
 
-- [ ] 5.1 Record the historical-failure disposition, schedule decision, successful dispatch URL, and residual risks in the isolated-regression runbook/evidence.
+- [x] 5.1 Record the historical-failure disposition, schedule decision, successful dispatch URL, and residual risks in the isolated-regression runbook/evidence.
 - [ ] 5.2 Push the feature branch, open the MYK9-107 PR with the repository template and OpenSpec link, and complete CI/review/merge before archive.
 - [ ] 5.3 Post the implementation summary, verification results, PR/run links, risks, and acceptance-criteria result to MYK9-107; move it to Done only after the green dispatch evidence gate passes.
 

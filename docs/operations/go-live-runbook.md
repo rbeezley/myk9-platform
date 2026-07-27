@@ -20,20 +20,26 @@ this document is the sequence, the gates, and the verification commands.
 
 ## Gate summary (the launch decision at a glance)
 
-| #   | Gate                                                                                         | Blocks                   | Status check                                                                                                                                                                                              |
-| --- | -------------------------------------------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G1  | Security remediation deployed (including 2026-07-10 SA-018…023/026/027)                      | Phase 1                  | `security-audit-remediation` merged, migration/function deployment recorded, and `OPEN-TODOS.md` updated                                                                                                  |
-| G2  | Pending deploys/migrations reconciled (`ask-myk9show`, withdrawal migrations, edge-fn drift) | Phase 1                  | Phase 0 verification commands below                                                                                                                                                                       |
-| G3  | Money-path hardening Phases 1–3 merged + deployed (MP-01…MP-04)                              | Phase 3 (Stripe cutover) | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md) phase table; PRs merged + fns redeployed                                                                                           |
-| G4  | Tokenless staging promotion + explicit production release ready                              | Phase 4                  | `deploy-staging.yml` and protected `deploy-production.yml` source checks pass; external gates remain open                                                                                                 |
-| G5  | Passcode ringside walk passes cold (`jh3k9`/`s7m2p`)                                         | Phase 4                  | Phase 2 step 2.3                                                                                                                                                                                          |
-| G6  | Show-day re-walk + offline rehearsal + venue print test pass                                 | Phase 5                  | Phase 4 evidence links                                                                                                                                                                                    |
-| G7  | Real-user testing complete, no confusion-level findings                                      | Launch                   | Lane 1.7 session results filed; scorecard UX-clarity row Green                                                                                                                                            |
-| G8  | **Data durability proven** — backups verified enabled, one restore actually performed        | Phase 3 (Stripe cutover) | Phase 2 step 2.4; scorecard **Data durability** row not Red; [MYK9-110](https://linear.app/myk9-platform/issue/MYK9-110/establish-and-test-a-backup-disaster-recovery-posture-currently-one)              |
-| G9  | **Capacity rehearsal recorded** against the existing load harness' stated targets            | Phase 5 (launch day)     | Phase 4 step 4.2c; scorecard **Performance & capacity** row not Unknown; [MYK9-109](https://linear.app/myk9-platform/issue/MYK9-109/assess-refresh-and-run-the-existing-load-harness-no-rehearsal-result) |
+| #   | Gate                                                                                         | Blocks                   | Status check                                                                                                                                                                                                                                                  |
+| --- | -------------------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G1  | Security remediation deployed (including 2026-07-10 SA-018…023/026/027)                      | Phase 1                  | `security-audit-remediation` merged, migration/function deployment recorded, and `OPEN-TODOS.md` updated                                                                                                                                                      |
+| G2  | Pending deploys/migrations reconciled (`ask-myk9show`, withdrawal migrations, edge-fn drift) | Phase 1                  | Phase 0 verification commands below                                                                                                                                                                                                                           |
+| G3  | Money-path hardening Phases 1–3 merged + deployed (MP-01…MP-04)                              | Phase 3 (Stripe cutover) | [`docs/plan-money-path-hardening.md`](../plan-money-path-hardening.md) phase table; PRs merged + fns redeployed                                                                                                                                               |
+| G4  | Tokenless staging promotion + explicit production release ready                              | Phase 4                  | `deploy-staging.yml` and protected `deploy-production.yml` source checks pass; external gates remain open                                                                                                                                                     |
+| G5  | Passcode ringside walk passes cold (`jh3k9`/`s7m2p`)                                         | Phase 4                  | Phase 2 step 2.3                                                                                                                                                                                                                                              |
+| G6  | Show-day re-walk + offline rehearsal + venue print test pass                                 | Phase 5                  | Phase 4 evidence links                                                                                                                                                                                                                                        |
+| G7  | Real-user testing complete, no confusion-level findings                                      | Launch                   | Lane 1.7 session results filed; scorecard UX-clarity row Green                                                                                                                                                                                                |
+| G8  | **Data durability proven** — backups verified enabled, one restore actually performed        | Phase 3 (Stripe cutover) | Phase 2 step 2.4; scorecard **Data durability** row **Green** (a confirmed-but-untested backup is Yellow, not a passed gate); [MYK9-110](https://linear.app/myk9-platform/issue/MYK9-110/establish-and-test-a-backup-disaster-recovery-posture-currently-one) |
+| G9  | **Capacity rehearsal PASSES** the load harness' stated targets                               | Phase 5 (launch day)     | Phase 4 step 4.2c; scorecard **Performance & capacity** row **Green** — a recorded-but-failing rehearsal does NOT close G9; [MYK9-109](https://linear.app/myk9-platform/issue/MYK9-109/assess-refresh-and-run-the-existing-load-harness-no-rehearsal-result)  |
 
-Launch = all **nine** gates green + scorecard shows **no Red, no Unknown, no open P0/P1** in
+Launch = all **nine** gates green + scorecard shows **all Primary dimensions Green** (hence no Red and
+no Unknown) and **no open P0/P1** in
 [`docs/goals/fall-2026-launch-readiness-scorecard.md`](../goals/fall-2026-launch-readiness-scorecard.md).
+
+> **Do not read a gate's status check as "not Red" or "not Unknown."** Every gate closes on its
+> dimension being **Green**. A rehearsal that runs and _misses_ its latency, error-rate, or
+> connection targets moves Performance & capacity from Unknown to **Yellow**, which is progress but
+> is **not** a passed gate — same for a partially-evidenced restore. Recorded ≠ passed.
 
 > **G8/G9 added 2026-07-26** after the gate review ([`../launch/go-live-2026-07-26.md`](../launch/go-live-2026-07-26.md) § 8)
 > found that this runbook had **no data-durability and no capacity gate at all** — so "never verified
@@ -295,8 +301,11 @@ if PITR is not enabled on the project, it is not vague, it is **false**.
 - [ ] **b. Write down the accepted RPO and RTO** (how much data may be lost; how fast we can be back).
       A number the operator has agreed to, not an aspiration.
 - [ ] **c. Actually perform a restore** — ideally into a scratch/branch project — and verify the
-      restored data. Record how long it took; that number _is_ the RTO. An untested backup is not a
-      backup.
+      restored data. **Record the elapsed time and compare it against the RTO agreed in step b.**
+      Elapsed time is the _observed_ recovery time, not the objective — if a restore takes eight hours
+      against a one-hour RTO, that is a **failed** durability gate, not a redefinition of the RTO.
+      Either bring the procedure inside the objective or renegotiate the objective explicitly; do not
+      let the measurement silently become the target. An untested backup is not a backup.
 - [ ] **d. Write the partial-recovery procedure** for the realistic incident: _one show's entries or
       scores were destroyed mid-weekend; recover those rows without rolling back every other show._
       Whole-project PITR is the wrong tool for the most likely failure.
@@ -309,10 +318,21 @@ show-day results — scores and placements that cannot be re-derived, because th
 
 ## Phase 3 — Stripe live-mode cutover (~30 min + Connect-review buffer of a few days)
 
-**Gate in: G3 — money-path Phase 3 (MP-04 mode-scoping) merged AND the Stripe functions
-redeployed** (`--workdir apps/myk9show`). Full detail:
-[`stripe-platform-setup.md`](stripe-platform-setup.md) Task 6.3. Owner: Operator except where
-noted. Do this only when ready to take real money — there is no half-live state.
+**Gate in: G3 + G8.**
+
+- **G3** — money-path Phase 3 (MP-04 mode-scoping) merged AND the Stripe functions redeployed
+  (`--workdir apps/myk9show`).
+- **G8** — data durability proven: step **2.4** complete, meaning PITR confirmed enabled, an actual
+  restore performed within the agreed RTO, and the partial-recovery procedure written. **Added
+  2026-07-26.** Not "PITR is probably on" — the scorecard **Data durability** row must be Green.
+
+Full detail: [`stripe-platform-setup.md`](stripe-platform-setup.md) Task 6.3. Owner: Operator except
+where noted. Do this only when ready to take real money — there is no half-live state.
+
+> **Why G8 gates this phase and not a later one.** After this phase the platform holds real charges,
+> payouts, and refunds, and show-day results become irreplaceable — the dogs ran and went home. Taking
+> money you cannot recover the records of is the one ordering mistake in this runbook that cannot be
+> undone by a rollback. If step 2.4 is unchecked, **stop here**, regardless of G3.
 
 _Agent-owned prerequisite complete 2026-07-13:_ `stripe-golive-enforcement` shipped shared
 capacity enforcement, durable waitlist notifications, owner-authorized offer payment/decline, and
@@ -430,7 +450,17 @@ close-out; keep those items unchecked until evidence is recorded.
       p95 **<200 ms** API, **<3 s** page loads, **<5%** error rate, **>100 req/s**.
       What is missing is that **no rehearsal result has ever been recorded** and the harness runs in
       no workflow — it predates the ringside/`at-show` consolidation, so expect staleness.
-  - [ ] **a.** Run `pnpm --filter @myk9/show test:load:quick` and triage what still works.
+  - [ ] **a. Repair the harness' entry points first — the Playwright half does not currently run.**
+        `test:load:playwright` and `test:load:quick` both invoke
+        `playwright test src/test/load/playwright-load-tests.spec.ts`, but `playwright.config.ts:14`
+        sets `testDir: './src/test/e2e'`, so Playwright reports **"No tests found"** and exits **1** without
+        running a single load scenario. It fails loudly rather than faking a pass — verified by running
+        it on 2026-07-26 — but the effect is that this half of the harness has never been exercised at
+        all. Fix by adding a load-specific
+        Playwright config (e.g. `playwright.load.config.ts` with `testDir: './src/test/load'`) and
+        pointing the scripts at it — the same trap applies to `playwright.ci.config.ts:63`.
+        Then triage the non-Playwright halves (`test:load:database`, `test:load:framework`, the k6 and
+        Artillery configs), which do not depend on `testDir`.
   - [ ] **b.** Refresh scenarios to the real show-day shape: concurrent ringside scoring, check-in,
         exhibitor reads, run-order/dogs-ahead queries.
   - [ ] **c.** Seed ~500 entries across multiple trials/classes (extend the canonical seed fixture

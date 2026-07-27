@@ -330,6 +330,7 @@ export function ShowWorkbenchShowDeskPage() {
             showId={currentShow.id}
             showName={currentShow.name}
             showDate={currentShow.startDate}
+            canLoadCodes
             canRegenerate
           />
         ),

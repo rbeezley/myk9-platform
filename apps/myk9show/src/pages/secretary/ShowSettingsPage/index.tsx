@@ -119,6 +119,7 @@ export default function ShowSettingsPage() {
       {selectedShowId && (
         <ShowAccessCodesCard
           showId={selectedShowId}
+          canLoadCodes
           canRegenerate
           {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
         />

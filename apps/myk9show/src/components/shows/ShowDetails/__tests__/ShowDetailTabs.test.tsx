@@ -12,8 +12,18 @@ import { LayoutDashboard } from 'lucide-react';
 // Stub the tab content components — this suite verifies ShowDetailTabs' OWN
 // branching (which content each tab shows, gating), not the children themselves.
 vi.mock('@/components/shows/tabs/ShowOverviewTab', () => ({
-  ShowOverviewTab: ({ onViewClasses }: { onViewClasses: () => void }) => (
-    <button data-testid="overview-tab" onClick={onViewClasses}>
+  ShowOverviewTab: ({
+    onViewClasses,
+    isAuthenticated,
+  }: {
+    onViewClasses: () => void;
+    isAuthenticated: boolean;
+  }) => (
+    <button
+      data-testid="overview-tab"
+      data-authenticated={String(isAuthenticated)}
+      onClick={onViewClasses}
+    >
       overview
     </button>
   ),
@@ -121,5 +131,10 @@ describe('ShowDetailTabs', () => {
     renderTabs({ activeTab: 'overview', onTabChange });
     fireEvent.click(screen.getByTestId('overview-tab'));
     expect(onTabChange).toHaveBeenCalledWith('classes');
+  });
+
+  it('passes authenticated audience context to the Overview', () => {
+    renderTabs({ activeTab: 'overview', isAuthenticated: true });
+    expect(screen.getByTestId('overview-tab')).toHaveAttribute('data-authenticated', 'true');
   });
 });

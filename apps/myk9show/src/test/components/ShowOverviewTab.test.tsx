@@ -28,6 +28,21 @@ vi.mock('@/components/shows/overview/MoreFromClub', () => ({
   MoreFromClub: ({ clubId }: { clubId: string }) =>
     clubId ? <div data-testid="more-from-club" /> : null,
 }));
+vi.mock('@/components/secretary/ShowAccessCodesCard', () => ({
+  ShowAccessCodesCard: ({
+    canLoadCodes,
+    canRegenerate,
+  }: {
+    canLoadCodes?: boolean;
+    canRegenerate?: boolean;
+  }) => (
+    <div
+      data-testid="show-access-codes"
+      data-can-load={String(Boolean(canLoadCodes))}
+      data-can-regenerate={String(Boolean(canRegenerate))}
+    />
+  ),
+}));
 
 const fullShow: Show = {
   id: 'show-1',
@@ -89,6 +104,29 @@ describe('ShowOverviewTab', () => {
   it('renders ShareEvent', () => {
     render(<ShowOverviewTab show={fullShow} />);
     expect(screen.getByTestId('share-event')).toBeInTheDocument();
+  });
+
+  it('omits access codes for anonymous visitors', () => {
+    render(<ShowOverviewTab show={fullShow} isAuthenticated={false} />);
+    expect(screen.queryByTestId('show-access-codes')).not.toBeInTheDocument();
+  });
+
+  it('loads server-projected codes without regeneration for authenticated roles', () => {
+    render(<ShowOverviewTab show={fullShow} isAuthenticated />);
+    expect(screen.getByTestId('show-access-codes')).toHaveAttribute('data-can-load', 'true');
+    expect(screen.getByTestId('show-access-codes')).toHaveAttribute(
+      'data-can-regenerate',
+      'false'
+    );
+  });
+
+  it('loads all server-projected codes with regeneration for managers', () => {
+    render(<ShowOverviewTab show={fullShow} isAuthenticated canManageShow />);
+    expect(screen.getByTestId('show-access-codes')).toHaveAttribute('data-can-load', 'true');
+    expect(screen.getByTestId('show-access-codes')).toHaveAttribute(
+      'data-can-regenerate',
+      'true'
+    );
   });
 
   it('summarizes offered classes and links to the Classes tab', async () => {

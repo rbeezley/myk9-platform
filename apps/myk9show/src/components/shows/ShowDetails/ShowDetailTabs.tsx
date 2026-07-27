@@ -112,6 +112,7 @@ export function ShowDetailTabs({
       <TabsContent value="overview">
         <ShowOverviewTab
           show={show}
+          isAuthenticated={isAuthenticated}
           canManageShow={canManageShow}
           judges={judges}
           classes={classes}

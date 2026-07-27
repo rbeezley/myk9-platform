@@ -7,6 +7,7 @@ import { ShowAccessCodesCard } from './ShowAccessCodesCard';
 
 // Stable test UUID
 const TEST_SHOW_ID = '63165809-e025-25c6-6cf9-979f63165809';
+const SECOND_TEST_SHOW_ID = '2e745763-e360-4db0-b6d0-4eb89ee0b466';
 
 const renderWithProviders = render;
 
@@ -60,6 +61,26 @@ function mockRegenerateRpc(response: {
   });
 }
 
+type AccessCodeRpcRow = {
+  role: 'admin' | 'judge' | 'steward' | 'exhibitor';
+  passcode: string | null;
+  recoverable: boolean;
+};
+
+function mockAccessCodesRpc(response: {
+  data: AccessCodeRpcRow[] | null;
+  error: { message: string } | null;
+}) {
+  mockSupabase.rpc.mockImplementation((fn: string) => {
+    if (fn === 'get_show_access_codes') {
+      return Promise.resolve(response) as unknown as ReturnType<typeof mockSupabase.rpc>;
+    }
+    return Promise.resolve({ data: null, error: null }) as unknown as ReturnType<
+      typeof mockSupabase.rpc
+    >;
+  });
+}
+
 describe('ShowAccessCodesCard', () => {
   it('renders all four passcodes when provided', () => {
     renderWithProviders(
@@ -95,6 +116,8 @@ describe('ShowAccessCodesCard', () => {
     const copyButtons = screen.getAllByRole('button', { name: /copy/i });
     await user.click(copyButtons[0]);
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('aq8m2'));
+    expect(notifications.success).toHaveBeenCalledWith('Copied to clipboard.');
+    expect(notifications.success).not.toHaveBeenCalledWith(expect.stringContaining('aq8m2'));
   });
 
   it('copies exhibitor login link to clipboard', async () => {
@@ -114,6 +137,8 @@ describe('ShowAccessCodesCard', () => {
     await waitFor(() =>
       expect(writeText).toHaveBeenCalledWith('https://myk9show.com/at-show?code=eh2p9')
     );
+    expect(notifications.success).toHaveBeenCalledWith('Copied to clipboard.');
+    expect(notifications.success).not.toHaveBeenCalledWith(expect.stringContaining('eh2p9'));
   });
 
   it('opens a print window for the exhibitor slip', async () => {
@@ -316,24 +341,173 @@ describe('ShowAccessCodesCard', () => {
     expect(screen.getByRole('button', { name: /generate new codes/i })).toBeInTheDocument();
   });
 
-  it('keeps the management card available after a refresh without redisplaying plaintext codes', async () => {
-    const { user, unmount } = renderWithProviders(
-      <ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />
-    );
-    mockRegenerateRpc({
-      data: [{ admin: 'a1111', judge: 'j2222', steward: 's3333', exhibitor: 'e4444' }],
+  it('reloads all four manager codes after the card remounts', async () => {
+    mockAccessCodesRpc({
+      data: [
+        { role: 'admin', passcode: 'a1111', recoverable: true },
+        { role: 'judge', passcode: 'j2222', recoverable: true },
+        { role: 'steward', passcode: 's3333', recoverable: true },
+        { role: 'exhibitor', passcode: 'e4444', recoverable: true },
+      ],
       error: null,
     });
 
-    await user.click(screen.getByRole('button', { name: /generate new codes/i }));
+    const { unmount } = renderWithProviders(
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes canRegenerate />
+    );
+    expect(await screen.findByText('a1111')).toBeInTheDocument();
+    expect(screen.getByText('j2222')).toBeInTheDocument();
+    expect(screen.getByText('s3333')).toBeInTheDocument();
+    expect(screen.getByText('e4444')).toBeInTheDocument();
+
+    unmount();
+    renderWithProviders(
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes canRegenerate />
+    );
+    expect(await screen.findByText('a1111')).toBeInTheDocument();
+    expect(mockSupabase.rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears one show's codes before loading another show", async () => {
+    mockSupabase.rpc.mockImplementation((fn: string, args?: Record<string, unknown>) => {
+      if (fn !== 'get_show_access_codes') {
+        return Promise.resolve({ data: null, error: null }) as unknown as ReturnType<
+          typeof mockSupabase.rpc
+        >;
+      }
+
+      const passcode = args?.p_show_id === TEST_SHOW_ID ? 'a1111' : 'b2222';
+      return Promise.resolve({
+        data: [{ role: 'admin', passcode, recoverable: true }],
+        error: null,
+      }) as unknown as ReturnType<typeof mockSupabase.rpc>;
+    });
+
+    const { rerender } = renderWithProviders(
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes canRegenerate />
+    );
+    expect(await screen.findByText('a1111')).toBeInTheDocument();
+
+    rerender(
+      <ShowAccessCodesCard showId={SECOND_TEST_SHOW_ID} canLoadCodes canRegenerate />
+    );
+
+    expect(screen.queryByText('a1111')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading access codes');
+    expect(await screen.findByText('b2222')).toBeInTheDocument();
+    expect(mockSupabase.rpc).toHaveBeenLastCalledWith('get_show_access_codes', {
+      p_show_id: SECOND_TEST_SHOW_ID,
+    });
+  });
+
+  it("clears regenerated codes when the card changes to another show", async () => {
+    mockSupabase.rpc.mockImplementation((fn: string, args?: Record<string, unknown>) => {
+      if (fn === 'regenerate_show_passcodes') {
+        return Promise.resolve({
+          data: [{ admin: 'a1111', judge: 'j2222', steward: 's3333', exhibitor: 'e4444' }],
+          error: null,
+        }) as unknown as ReturnType<typeof mockSupabase.rpc>;
+      }
+      if (fn === 'get_show_access_codes') {
+        return Promise.resolve({
+          data:
+            args?.p_show_id === SECOND_TEST_SHOW_ID
+              ? [{ role: 'admin', passcode: 'b2222', recoverable: true }]
+              : [],
+          error: null,
+        }) as unknown as ReturnType<typeof mockSupabase.rpc>;
+      }
+      return Promise.resolve({ data: null, error: null }) as unknown as ReturnType<
+        typeof mockSupabase.rpc
+      >;
+    });
+
+    const { user, rerender } = renderWithProviders(
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes canRegenerate />
+    );
+    await user.click(await screen.findByRole('button', { name: /generate new codes/i }));
     await user.click(await screen.findByRole('button', { name: /^generate$/i }));
     expect(await screen.findByText('a1111')).toBeInTheDocument();
 
-    unmount();
-    renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />);
-    expect(screen.getByText('Show Access Codes')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /generate new codes/i })).toBeInTheDocument();
+    rerender(
+      <ShowAccessCodesCard showId={SECOND_TEST_SHOW_ID} canLoadCodes canRegenerate />
+    );
+
     expect(screen.queryByText('a1111')).not.toBeInTheDocument();
+    expect(screen.queryByText('e4444')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading access codes');
+    expect(await screen.findByText('b2222')).toBeInTheDocument();
+  });
+
+  it('renders exactly the judge and exhibitor rows returned by the server', async () => {
+    mockAccessCodesRpc({
+      data: [
+        { role: 'judge', passcode: 'j2222', recoverable: true },
+        { role: 'exhibitor', passcode: 'e4444', recoverable: true },
+      ],
+      error: null,
+    });
+
+    renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes />);
+
+    expect(await screen.findByText('j2222')).toBeInTheDocument();
+    expect(screen.getByText('e4444')).toBeInTheDocument();
+    expect(screen.queryByText('Admin')).not.toBeInTheDocument();
+    expect(screen.queryByText('Steward')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /regenerate/i })).not.toBeInTheDocument();
+  });
+
+  it('shows a one-time transition for manager-visible legacy rows', async () => {
+    mockAccessCodesRpc({
+      data: [
+        { role: 'admin', passcode: null, recoverable: false },
+        { role: 'judge', passcode: null, recoverable: false },
+        { role: 'steward', passcode: null, recoverable: false },
+        { role: 'exhibitor', passcode: null, recoverable: false },
+      ],
+      error: null,
+    });
+
+    renderWithProviders(
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes canRegenerate />
+    );
+
+    expect(
+      await screen.findByText(/created before saved display was available/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /generate replacement codes/i })
+    ).toBeInTheDocument();
+  });
+
+  it('does not offer regeneration to a non-manager with legacy rows', async () => {
+    mockAccessCodesRpc({
+      data: [
+        { role: 'judge', passcode: null, recoverable: false },
+        { role: 'exhibitor', passcode: null, recoverable: false },
+      ],
+      error: null,
+    });
+
+    renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes />);
+
+    expect(await screen.findByText(/ask the show secretary/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /generate|regenerate/i })).not.toBeInTheDocument();
+  });
+
+  it('reveals no code when authorized retrieval fails and allows retry', async () => {
+    mockAccessCodesRpc({
+      data: null,
+      error: { message: 'network unavailable' },
+    });
+
+    renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /couldn't load show access codes/i
+    );
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.queryByText(/^[ajse][a-z0-9]{4}$/)).not.toBeInTheDocument();
   });
 
   it('filters by visibleRoles when provided', () => {

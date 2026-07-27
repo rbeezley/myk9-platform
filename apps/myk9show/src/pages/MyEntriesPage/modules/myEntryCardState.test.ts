@@ -146,4 +146,19 @@ describe('deriveMyEntryCardState', () => {
     expect(state.canViewRunOrder).toBe(false);
     expect(state.canRequestPostDeadlineHelp).toBe(true);
   });
+
+  it('treats a completed kind as terminal when the legacy status is accepted', () => {
+    const state = deriveMyEntryCardState(
+      makeEntry({
+        entryStatus: EntryStatus.ACCEPTED,
+        entryStatusKind: 'completed',
+        entryCloseDate: new Date('2026-09-05'),
+      }),
+      NOW
+    );
+
+    expect(state.isTerminalStatus).toBe(true);
+    expect(state.canEdit).toBe(false);
+    expect(state.canRequestPostDeadlineHelp).toBe(false);
+  });
 });

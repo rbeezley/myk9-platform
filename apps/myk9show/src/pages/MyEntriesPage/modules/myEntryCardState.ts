@@ -66,19 +66,24 @@ export function deriveMyEntryCardState(
   const isPastEntryDeadline = entry.entryCloseDate
     ? entry.entryCloseDate.getTime() < currentTime.getTime()
     : false;
+  const isCompleted =
+    entry.entryStatus === EntryStatus.COMPLETED || entry.entryStatusKind === 'completed';
   const hasEditableStatus =
-    entry.entryStatus === EntryStatus.PENDING || entry.entryStatus === EntryStatus.ACCEPTED;
+    !isCompleted &&
+    (entry.entryStatus === EntryStatus.PENDING || entry.entryStatus === EntryStatus.ACCEPTED);
   const canEdit = hasEditableStatus && !isPastEntryDeadline;
   const canRequestPostDeadlineHelp = hasEditableStatus && isPastEntryDeadline;
-  const isTerminalStatus = [
-    EntryStatus.CANCELLED,
-    EntryStatus.SCRATCHED,
-    EntryStatus.REJECTED,
-    EntryStatus.MOVED,
-    EntryStatus.COMPLETED,
-  ].includes(entry.entryStatus);
+  const isTerminalStatus =
+    isCompleted ||
+    [
+      EntryStatus.CANCELLED,
+      EntryStatus.SCRATCHED,
+      EntryStatus.REJECTED,
+      EntryStatus.MOVED,
+    ].includes(entry.entryStatus);
   const hasRunOrder = entry.classes.some(cls => cls.runOrder != null);
   const canViewRunOrder =
+    !isCompleted &&
     !isPastShow &&
     hasRunOrder &&
     (entry.entryStatus === EntryStatus.ACCEPTED ||

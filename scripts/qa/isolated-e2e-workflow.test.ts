@@ -26,6 +26,11 @@ describe('isolated Playwright regression workflow', () => {
   });
 
   it('runs weekly and on demand with two regression passes and preserved reports', () => {
+    const resetStep = workflow.slice(
+      workflow.indexOf('- name: Reset isolated target'),
+      workflow.indexOf('- name: Run Playwright Regression Again')
+    );
+
     expect(workflow.match(/run: pnpm qa:playwright:regression/g)).toHaveLength(2);
     expect(workflow).toContain('playwright-report-ci-first');
     expect(workflow).toContain('apps/myk9show/playwright-report-ci/');
@@ -33,6 +38,8 @@ describe('isolated Playwright regression workflow', () => {
     expect(workflow).toContain("cron: '0 7 * * 1'");
     expect(workflow).toContain('workflow_dispatch: {}');
     expect(workflow).toContain("if: vars.MYK9SHOW_REGRESSION_CI_ENABLED == 'true'");
+    expect(resetStep).toContain("MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'");
+    expect(resetStep).toContain('MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated');
     expect(regressionScript).toContain('--fail-on-flaky-tests --workers=1 --retries=0');
     expect(regressionScript).toMatch(
       /pnpm --dir apps\/myk9show exec playwright test \\\s+--config=playwright\.ci\.config\.ts/

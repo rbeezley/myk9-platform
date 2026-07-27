@@ -102,6 +102,8 @@ jobs:
         if: success()
         run: pnpm qa:isolated-e2e:reset
         env:
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}

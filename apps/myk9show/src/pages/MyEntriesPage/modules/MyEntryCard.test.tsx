@@ -939,6 +939,30 @@ describe('MyEntryCard self-check-in gating', () => {
     expect(screen.getByLabelText('Self check-in not available')).toBeInTheDocument();
     expect(onCheckInClick).not.toHaveBeenCalled();
   });
+
+  it('does not render check-in for a completed-kind class with a legacy accepted status', () => {
+    const completedKindClass = makeClass({
+      id: 'entry-1',
+      classId: 'class-1',
+      entryStatus: EntryStatus.ACCEPTED,
+      entryStatusKind: 'completed',
+      isScored: false,
+    });
+    renderWithMap(
+      makeEntry({
+        entryStatus: EntryStatus.ACCEPTED,
+        entryStatusKind: 'completed',
+        classes: [completedKindClass],
+      }),
+      { 'class-1': true }
+    );
+    openDetails();
+
+    expect(
+      screen.queryByRole('button', { name: /update check-in for rex in container search/i })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Self check-in not available')).not.toBeInTheDocument();
+  });
 });
 
 describe('MyEntryCard progressive disclosure (exhibitor-my-shows-elderly-ux-remediation 3.1-3.5)', () => {

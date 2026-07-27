@@ -68,6 +68,22 @@ describe('getEntryStatusBadge — preserved status kind', () => {
     expect(screen.getByText('Review incomplete')).toBeInTheDocument();
     expect(screen.queryByText(/secretary approval/i)).not.toBeInTheDocument();
   });
+
+  it('renders a completed kind as scored even when the legacy status is accepted', () => {
+    const { container } = render(
+      React.createElement(
+        React.Fragment,
+        null,
+        getEntryStatusBadge(EntryStatus.ACCEPTED, { statusKind: 'completed' }),
+        getStatusIcon(EntryStatus.ACCEPTED, PaymentStatus.PAID_ONLINE, 'completed')
+      )
+    );
+
+    expect(screen.getByText('Scored')).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-family="entry"][data-status="completed"]')
+    ).toBeInTheDocument();
+  });
 });
 
 describe('formatTrialLabel', () => {
@@ -181,6 +197,24 @@ describe('My Entries terminal status display', () => {
     );
     expect(screen.getByText('Move-Up Requested')).toBeInTheDocument();
     expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
+  });
+
+  it('describes a completed kind as scored even when the legacy status is accepted', () => {
+    const message = getContextualStatusMessage(
+      {
+        ...baseEntry,
+        entryStatus: EntryStatus.ACCEPTED,
+        entryStatusKind: 'completed',
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+      },
+      dateHelpers.formatDistanceToNow,
+      dateHelpers.format,
+      dateHelpers.isToday,
+      dateHelpers.isTomorrow,
+      dateHelpers.differenceInDays
+    );
+
+    expect(message).toEqual({ message: 'Scored', className: 'text-success' });
   });
 });
 

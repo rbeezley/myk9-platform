@@ -113,6 +113,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await expect
       .poll(() => readSecretaryEntryState(seed.entryId), { timeout: 20_000 })
       .toMatchObject({ entry_status: 'confirmed' });
+    const beforeCheckIn = await readEntryReplicationDiagnostics(page, seed.entryId);
 
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('link', { name: 'Open Check-in desk' }).click();
@@ -134,7 +135,14 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await expect(classRow.getByText('Checked-in', { exact: true })).toBeVisible({
       timeout: 10_000,
     });
-    await expect.poll(() => ringsideResponses.length, { timeout: 20_000 }).toBeGreaterThan(0);
+    try {
+      await expect.poll(() => ringsideResponses.length, { timeout: 5_000 }).toBeGreaterThan(0);
+    } catch {
+      const afterCheckIn = await readEntryReplicationDiagnostics(page, seed.entryId);
+      throw new Error(
+        `Check-in RPC was not sent: ${JSON.stringify({ beforeCheckIn, afterCheckIn }, null, 2)}`
+      );
+    }
     await expect
       .poll(
         () => ringsideResponses.every(response => response.body !== '<pending>'),
@@ -152,6 +160,85 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       .toMatchObject({ entry_status: 'confirmed', check_in_status: 'checked-in' });
   });
 });
+
+async function readEntryReplicationDiagnostics(page: Page, entryId: string) {
+  return page.evaluate(
+    ({ dbName, entryId: targetEntryId }) =>
+      new Promise<unknown>(resolve => {
+        const openRequest = indexedDB.open(dbName);
+        openRequest.onerror = () => resolve({ database: 'unavailable' });
+        openRequest.onsuccess = () => {
+          const db = openRequest.result;
+          const requiredStores = ['replicated_tables', 'pending_mutations', 'failed_mutations'];
+          const availableStores = requiredStores.filter(store => db.objectStoreNames.contains(store));
+          const transaction = db.transaction(availableStores, 'readonly');
+          const readStore = (storeName: string) =>
+            new Promise<unknown[]>((storeResolve, storeReject) => {
+              if (!availableStores.includes(storeName)) {
+                storeResolve([]);
+                return;
+              }
+              const request = transaction.objectStore(storeName).getAll();
+              request.onsuccess = () => storeResolve(request.result as unknown[]);
+              request.onerror = () => storeReject(request.error);
+            });
+
+          void Promise.all([
+            readStore('replicated_tables'),
+            readStore('pending_mutations'),
+            readStore('failed_mutations'),
+          ])
+            .then(([replicatedRows, pendingRows, failedRows]) => {
+              const mutationSummary = (rows: unknown[]) =>
+                rows
+                  .filter(row => {
+                    const mutation = row as Record<string, unknown>;
+                    return (
+                      mutation.tableName === 'entries' &&
+                      String(mutation.rowId) === targetEntryId
+                    );
+                  })
+                  .map(row => {
+                    const mutation = row as Record<string, unknown>;
+                    return {
+                      id: mutation.id,
+                      status: mutation.status,
+                      serverVersion: mutation.serverVersion,
+                      retries: mutation.retries,
+                      occRetries: mutation.occRetries,
+                      nextRetryAt: mutation.nextRetryAt,
+                      dependsOn: mutation.dependsOn,
+                      rpc: mutation.rpc,
+                      error: mutation.error,
+                    };
+                  });
+              const replica = replicatedRows.find(row => {
+                const record = row as Record<string, unknown>;
+                return record.tableName === 'entries' && String(record.id) === targetEntryId;
+              }) as Record<string, unknown> | undefined;
+
+              db.close();
+              resolve({
+                replica: replica
+                  ? {
+                      serverVersion: replica.serverVersion,
+                      syncStatus: replica.syncStatus,
+                      isDirty: replica.isDirty,
+                    }
+                  : null,
+                pending: mutationSummary(pendingRows),
+                failed: mutationSummary(failedRows),
+              });
+            })
+            .catch(error => {
+              db.close();
+              resolve({ readError: error instanceof Error ? error.message : String(error) });
+            });
+        };
+      }),
+    { dbName: 'myK9_Replication', entryId }
+  );
+}
 
 async function openArmbandDialog(page: Page) {
   const directAssign = page.getByRole('button', { name: 'Assign', exact: true }).last();

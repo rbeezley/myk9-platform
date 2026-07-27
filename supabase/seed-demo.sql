@@ -193,14 +193,15 @@ VALUES (
 -- payouts_enabled=true gates the stripe-checkout edge function's online-entry
 -- check. The session itself doesn't use Connect (no transfer_data), so a
 -- sandbox placeholder account id is safe for testing.
-INSERT INTO public.club_stripe_accounts (club_id, stripe_account_id, onboarding_complete, payouts_enabled)
+INSERT INTO public.club_stripe_accounts (club_id, stripe_account_id, onboarding_complete, payouts_enabled, livemode)
 VALUES (
   'dededede-0000-0000-0000-000000000001',
   'acct_test_dededede_sandbox',
   true,
-  true
+  true,
+  false
 )
-ON CONFLICT (club_id) DO UPDATE
+ON CONFLICT (club_id, livemode) DO UPDATE
   SET stripe_account_id   = EXCLUDED.stripe_account_id,
       onboarding_complete = EXCLUDED.onboarding_complete,
       payouts_enabled     = EXCLUDED.payouts_enabled;

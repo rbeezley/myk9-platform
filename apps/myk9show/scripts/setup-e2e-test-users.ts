@@ -7,7 +7,7 @@
  * Usage: pnpm exec tsx scripts/setup-e2e-test-users.ts
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type User } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '.env' });
@@ -27,6 +27,7 @@ if (!supabaseUrl || !serviceRoleKey) {
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
+const authOnly = process.env.MYK9_E2E_AUTH_ONLY === 'true';
 
 interface TestUser {
   email: string;
@@ -155,7 +156,9 @@ async function createTestUser(user: TestUser): Promise<TestUserResult> {
 
   try {
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(candidate => candidate.email === email);
+    const existingUser = (existingUsers?.users as User[] | undefined)?.find(
+      candidate => candidate.email === email
+    );
     let userId: string;
 
     if (existingUser) {
@@ -186,6 +189,11 @@ async function createTestUser(user: TestUser): Promise<TestUserResult> {
 
       userId = authData.user.id;
       console.log(`  Auth user created: ${userId}`);
+    }
+
+    if (authOnly) {
+      console.log('  Auth-only mode: profile and role setup delegated to isolated SQL');
+      return { success: true, email, userId };
     }
 
     const { data: profile } = await supabase
@@ -288,18 +296,22 @@ async function main(): Promise<void> {
     "Passwords: loaded from each account's E2E_*_PASSWORD env var; values are not printed"
   );
 
-  console.log('\nFetching available roles...');
-  const { data: rolesData, error: rolesError } = await supabase
-    .from('roles')
-    .select('id, name, description');
-
-  if (rolesError) {
-    console.error('Could not fetch roles:', rolesError.message);
+  if (authOnly) {
+    console.log('\nAuth-only mode enabled; skipping PostgREST profile and role setup.');
   } else {
-    console.log('Available roles:');
-    for (const role of rolesData ?? []) {
-      roleIdCache[role.name] = role.id;
-      console.log(`  - ${role.name} (${role.id})`);
+    console.log('\nFetching available roles...');
+    const { data: rolesData, error: rolesError } = await supabase
+      .from('roles')
+      .select('id, name, description');
+
+    if (rolesError) {
+      console.error('Could not fetch roles:', rolesError.message);
+    } else {
+      console.log('Available roles:');
+      for (const role of rolesData ?? []) {
+        roleIdCache[role.name] = role.id;
+        console.log(`  - ${role.name} (${role.id})`);
+      }
     }
   }
 

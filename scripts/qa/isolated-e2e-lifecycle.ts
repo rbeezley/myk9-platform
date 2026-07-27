@@ -191,6 +191,15 @@ function runPostSeedAssertions(local: LocalSupabaseEnvironment, env: NodeJS.Proc
   }
 }
 
+function seedIsolatedAccounts(local: LocalSupabaseEnvironment, env: NodeJS.ProcessEnv) {
+  runCommand(
+    'Isolated E2E account database seed',
+    'psql',
+    [local.dbUrl, '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/seed-isolated-e2e-accounts.sql'],
+    env
+  );
+}
+
 function resetAndSeed(local: LocalSupabaseEnvironment, baseEnv: NodeJS.ProcessEnv) {
   const jobEnv = { ...baseEnv, ...buildJobEnvironment(local) };
   resolveIsolatedE2eTarget(jobEnv);
@@ -200,14 +209,16 @@ function resetAndSeed(local: LocalSupabaseEnvironment, baseEnv: NodeJS.ProcessEn
     'E2E account setup',
     'pnpm',
     ['--dir', 'apps/myk9show', 'exec', 'tsx', 'scripts/setup-e2e-test-users.ts'],
-    jobEnv
+    { ...jobEnv, MYK9_E2E_AUTH_ONLY: 'true' }
   );
+  seedIsolatedAccounts(local, jobEnv);
   runCommand(
     'Deterministic demo seed',
     'psql',
     [local.dbUrl, '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/seed-demo.sql'],
     jobEnv
   );
+  seedIsolatedAccounts(local, jobEnv);
   runPostSeedAssertions(local, jobEnv);
 }
 

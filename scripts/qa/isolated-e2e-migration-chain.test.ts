@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -18,6 +18,16 @@ const realtimeBroadcastMigration = readFileSync(
   ),
   'utf8'
 );
+const demoSeed = readFileSync(resolve(process.cwd(), 'supabase/seed-demo.sql'), 'utf8');
+const lifecycleSource = readFileSync(
+  resolve(process.cwd(), 'scripts/qa/isolated-e2e-lifecycle.ts'),
+  'utf8'
+);
+const accountSetupSource = readFileSync(
+  resolve(process.cwd(), 'apps/myk9show/scripts/setup-e2e-test-users.ts'),
+  'utf8'
+);
+const isolatedAccountSeedPath = resolve(process.cwd(), 'supabase/seed-isolated-e2e-accounts.sql');
 
 describe('isolated E2E migration chain', () => {
   it('defines is_show_secretary before the first policy that references it', () => {
@@ -45,5 +55,20 @@ describe('isolated E2E migration chain', () => {
     expect(realtimeBroadcastMigration).toContain(
       'CREATE POLICY "show-day change signals are readable"'
     );
+  });
+
+  it('targets the current Stripe account uniqueness contract', () => {
+    expect(demoSeed).toMatch(
+      /INSERT INTO public\.club_stripe_accounts \(club_id, stripe_account_id, onboarding_complete, payouts_enabled, livemode\)/
+    );
+    expect(demoSeed).toContain('ON CONFLICT (club_id, livemode) DO UPDATE');
+  });
+
+  it('uses direct local SQL for account profiles and roles around the demo seed', () => {
+    expect(existsSync(isolatedAccountSeedPath)).toBe(true);
+    expect(lifecycleSource).toContain("MYK9_E2E_AUTH_ONLY: 'true'");
+    expect(lifecycleSource).toContain('supabase/seed-isolated-e2e-accounts.sql');
+    expect(lifecycleSource.match(/seedIsolatedAccounts\(local, jobEnv\);/g)).toHaveLength(2);
+    expect(accountSetupSource).toContain("process.env.MYK9_E2E_AUTH_ONLY === 'true'");
   });
 });

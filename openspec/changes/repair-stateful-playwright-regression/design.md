@@ -61,11 +61,13 @@ Start only the local services used by the browser suite: database, API gateway, 
 
 Alternative considered: use `--ignore-health-check`. Rejected because it could let browser tests start against an unhealthy required service. Keeping every optional service was also rejected after the first branch dispatch failed during opaque stack startup before any browser test.
 
-### 7. Define the historical RBAC alias before migration 020 uses it
+### 7. Define both historical RBAC helper arities before their first use
 
 Migration 016 defines `is_platform_admin()` and the canonical `is_trial_secretary()` helper. Migration 020 creates `people` policies that call `is_show_secretary()`, but the alias was originally introduced only in migration 024. Define the same idempotent alias in migration 020 before its first policy reference, retain migration 024 for databases that already recorded migration 020, and guard the ordering with a source-contract test.
 
-Alternative considered: add a new migration. Rejected because a later migration cannot repair a fresh chain that stops at migration 020. Renumbering migration 024 was also rejected because it would change the identity of a migration already recorded by existing databases.
+Migration 061 also calls the scoped `is_show_secretary(show_id)` overload before migration 099 introduces it. Define the early overload in migration 061 by resolving the show's club and delegating to `is_trial_secretary(club_id)`; migration 099 still replaces it after show officials move to show-scoped roles. Guard that second ordering invariant in the same source-contract test.
+
+Alternative considered: add a new migration. Rejected because a later migration cannot repair a fresh chain that stops at migration 020 or 061. Renumbering migrations 024 or 099 was also rejected because it would change the identity of migrations already recorded by existing databases.
 
 ## Risks / Trade-offs
 

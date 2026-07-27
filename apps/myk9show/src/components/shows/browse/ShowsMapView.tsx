@@ -83,6 +83,10 @@ function FitToPins({ located }: { located: LocatedShow[] }) {
   useEffect(() => {
     const pins = locatedRef.current;
     if (pins.length === 0) return;
+    if (pins.length === 1) {
+      map.setView(US_CENTER, US_ZOOM);
+      return;
+    }
     const bounds = L.latLngBounds(pins.map(p => [p.lat, p.lng] as [number, number]));
     map.fitBounds(bounds.pad(0.2), { maxZoom: 10 });
   }, [map, pinsKey]);

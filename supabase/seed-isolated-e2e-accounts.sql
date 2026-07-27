@@ -65,6 +65,32 @@ BEGIN
 END
 $$;
 
+-- Fresh Auth users receive an exhibitor profile through the auth hook, but it
+-- starts with onboarding incomplete. Canonical E2E accounts represent returning
+-- users, so keep their profile link current and bypass the first-run wizard.
+INSERT INTO public.exhibitor_profiles (
+  person_id,
+  auth_user_id,
+  onboarding_completed_at
+)
+SELECT
+  person.id,
+  person.auth_user_id,
+  '2026-07-27 00:00:00+00'
+FROM public.people AS person
+WHERE lower(person.email) IN (
+  'e2e-exhibitor@test.myk9.com',
+  'e2e-secretary@test.myk9.com',
+  'e2e-judge@test.myk9.com',
+  'e2e-admin@test.myk9.com'
+)
+  AND person.auth_user_id IS NOT NULL
+ON CONFLICT (auth_user_id)
+DO UPDATE SET
+  person_id = EXCLUDED.person_id,
+  onboarding_completed_at = EXCLUDED.onboarding_completed_at,
+  updated_at = '2026-07-27 00:00:00+00';
+
 WITH desired(email, role_name) AS (
   VALUES
     ('e2e-exhibitor@test.myk9.com', 'exhibitor'),

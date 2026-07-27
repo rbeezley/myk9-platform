@@ -83,6 +83,8 @@ Also keep demo fixture writes aligned with the final schema: `club_stripe_accoun
 
 The refunded-entry fixture crosses a deliberate final-schema control: its insert trigger requires the `service_role` role GUC. Hosted Supabase also carries historical platform-default table grants for `authenticated` and `service_role`, while a fresh local CLI database does not reproduce those grants for the early migrations. The isolated lifecycle therefore applies a local-only, table-allowlisted mirror of the linked project's applied client-role ACLs before fixtures run. This preserves RLS and the authenticated `entries` column allowlist, avoids schema-wide grants, gives the guarded seed its normal service-role access, and keeps the shared schema unchanged.
 
+Fresh Auth users also receive incomplete exhibitor profiles through the normal hook. The canonical E2E identities represent returning users, so the local account seed links their generated profiles and stamps a deterministic onboarding completion time before browser sign-in.
+
 The regression wrapper invokes the Playwright binary directly with `--workers=1 --retries=0`. Passing those flags through the package script with an extra `--` caused Playwright to retain the CI config's two retries, obscuring the deterministic failure inventory and extending a failed pass from roughly seven minutes to twenty-one.
 
 Alternative considered: grant broad table access to `service_role`. Rejected because the requirement is local deterministic setup, and changing hosted data-access grants would unnecessarily expand scope.

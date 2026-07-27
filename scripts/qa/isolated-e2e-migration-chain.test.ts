@@ -28,6 +28,7 @@ const accountSetupSource = readFileSync(
   'utf8'
 );
 const isolatedAccountSeedPath = resolve(process.cwd(), 'supabase/seed-isolated-e2e-accounts.sql');
+const isolatedAccountSeed = readFileSync(isolatedAccountSeedPath, 'utf8');
 const isolatedGrantSeedPath = resolve(
   process.cwd(),
   'supabase/seed-isolated-e2e-platform-grants.sql'
@@ -86,6 +87,8 @@ describe('isolated E2E migration chain', () => {
     expect(lifecycleSource).toContain('supabase/seed-isolated-e2e-platform-grants.sql');
     expect(isolatedGrantSeed).toContain('TO authenticated, service_role');
     expect(isolatedGrantSeed).toContain('ON TABLE public.entries TO service_role');
+    expect(isolatedGrantSeed).toContain('public.entry_carts');
+    expect(isolatedGrantSeed).toContain('public.show_visibility_settings');
     expect(isolatedGrantSeed).not.toContain('ON ALL TABLES IN SCHEMA public');
     expect(demoSeed).not.toContain('GRANT SELECT ON TABLE public.people TO service_role;');
     expect(demoSeed).not.toContain('GRANT INSERT ON TABLE public.entries TO service_role;');
@@ -98,5 +101,6 @@ describe('isolated E2E migration chain', () => {
     expect(lifecycleSource).toContain('supabase/seed-isolated-e2e-accounts.sql');
     expect(lifecycleSource.match(/seedIsolatedAccounts\(local, jobEnv\);/g)).toHaveLength(2);
     expect(accountSetupSource).toContain("process.env.MYK9_E2E_AUTH_ONLY === 'true'");
+    expect(isolatedAccountSeed).toContain('onboarding_completed_at');
   });
 });

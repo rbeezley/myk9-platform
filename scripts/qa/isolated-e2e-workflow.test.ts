@@ -34,5 +34,9 @@ describe('isolated Playwright regression workflow', () => {
     expect(workflow).toContain('workflow_dispatch: {}');
     expect(workflow).toContain("if: vars.MYK9SHOW_REGRESSION_CI_ENABLED == 'true'");
     expect(regressionScript).toContain('--fail-on-flaky-tests --workers=1 --retries=0');
+    expect(regressionScript).toMatch(
+      /pnpm --dir apps\/myk9show exec playwright test \\\s+--config=playwright\.ci\.config\.ts/
+    );
+    expect(regressionScript).not.toContain('test:e2e:regression --');
   });
 });

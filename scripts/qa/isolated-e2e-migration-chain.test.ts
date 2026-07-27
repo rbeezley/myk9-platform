@@ -28,6 +28,10 @@ const accountSetupSource = readFileSync(
   'utf8'
 );
 const isolatedAccountSeedPath = resolve(process.cwd(), 'supabase/seed-isolated-e2e-accounts.sql');
+const isolatedGrantSeedPath = resolve(
+  process.cwd(),
+  'supabase/seed-isolated-e2e-platform-grants.sql'
+);
 
 describe('isolated E2E migration chain', () => {
   it('defines is_show_secretary before the first policy that references it', () => {
@@ -75,26 +79,17 @@ describe('isolated E2E migration chain', () => {
     expect(showInsertColumns).not.toMatch(/\bchief_steward\b/);
   });
 
-  it('temporarily grants only the guarded fixture privileges required by the demo seed', () => {
-    const selectGrantIndex = demoSeed.indexOf(
-      'GRANT SELECT ON TABLE public.people TO service_role;'
-    );
-    const grantIndex = demoSeed.indexOf('GRANT INSERT ON TABLE public.entries TO service_role;');
-    const roleIndex = demoSeed.indexOf('SET LOCAL ROLE service_role;');
-    const resetIndex = demoSeed.indexOf('RESET ROLE;');
-    const revokeIndex = demoSeed.indexOf(
-      'REVOKE INSERT ON TABLE public.entries FROM service_role;'
-    );
-    const selectRevokeIndex = demoSeed.indexOf(
-      'REVOKE SELECT ON TABLE public.people FROM service_role;'
-    );
+  it('mirrors hosted client grants locally before running guarded fixtures', () => {
+    expect(existsSync(isolatedGrantSeedPath)).toBe(true);
 
-    expect(selectGrantIndex).toBeGreaterThanOrEqual(0);
-    expect(grantIndex).toBeGreaterThanOrEqual(0);
-    expect(roleIndex).toBeGreaterThan(Math.max(selectGrantIndex, grantIndex));
-    expect(resetIndex).toBeGreaterThan(roleIndex);
-    expect(revokeIndex).toBeGreaterThan(resetIndex);
-    expect(selectRevokeIndex).toBeGreaterThan(resetIndex);
+    const isolatedGrantSeed = readFileSync(isolatedGrantSeedPath, 'utf8');
+    expect(lifecycleSource).toContain('supabase/seed-isolated-e2e-platform-grants.sql');
+    expect(isolatedGrantSeed).toContain('TO authenticated, service_role');
+    expect(isolatedGrantSeed).toContain('ON TABLE public.entries TO service_role');
+    expect(isolatedGrantSeed).not.toContain('ON ALL TABLES IN SCHEMA public');
+    expect(demoSeed).not.toContain('GRANT SELECT ON TABLE public.people TO service_role;');
+    expect(demoSeed).not.toContain('GRANT INSERT ON TABLE public.entries TO service_role;');
+    expect(demoSeed).toContain('SET LOCAL ROLE service_role;');
   });
 
   it('uses direct local SQL for account profiles and roles around the demo seed', () => {

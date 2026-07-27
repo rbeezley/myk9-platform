@@ -200,11 +200,21 @@ function seedIsolatedAccounts(local: LocalSupabaseEnvironment, env: NodeJS.Proce
   );
 }
 
+function seedIsolatedPlatformGrants(local: LocalSupabaseEnvironment, env: NodeJS.ProcessEnv) {
+  runCommand(
+    'Isolated E2E platform grant mirror',
+    'psql',
+    [local.dbUrl, '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/seed-isolated-e2e-platform-grants.sql'],
+    env
+  );
+}
+
 function resetAndSeed(local: LocalSupabaseEnvironment, baseEnv: NodeJS.ProcessEnv) {
   const jobEnv = { ...baseEnv, ...buildJobEnvironment(local) };
   resolveIsolatedE2eTarget(jobEnv);
 
   runCommand('Supabase database reset', resolveSupabaseCliCommand(jobEnv), ['db', 'reset'], jobEnv);
+  seedIsolatedPlatformGrants(local, jobEnv);
   runCommand(
     'E2E account setup',
     'pnpm',
